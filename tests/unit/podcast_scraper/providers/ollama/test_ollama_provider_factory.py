@@ -62,7 +62,11 @@ class TestOllamaSpeakerDetectorFactory(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.2:latest"}, {"name": "llama3.3:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -87,7 +91,11 @@ class TestOllamaSpeakerDetectorFactory(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.2:latest"}, {"name": "llama3.3:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
         }
         mock_httpx.get.side_effect = [mock_health_response, mock_models_response]
 
@@ -178,7 +186,11 @@ class TestOllamaSummarizationProviderFactory(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.2:latest"}, {"name": "llama3.3:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
         }
         # Two calls: one for speaker model, one for summary model
         mock_httpx.get.return_value = mock_models_response
@@ -203,7 +215,11 @@ class TestOllamaSummarizationProviderFactory(unittest.TestCase):
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.2:latest"}, {"name": "llama3.3:latest"}]
+            "models": [
+                {"name": "llama3.1:8b"},  # Default summary model
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.3:latest"},
+            ]
         }
         # Two calls: one for speaker model, one for summary model
         mock_httpx.get.return_value = mock_models_response

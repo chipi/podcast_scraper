@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -98,8 +99,15 @@ class TestCapabilitiesIntegration(unittest.TestCase):
         self.assertTrue(caps.supports_speaker_detection)
         self.assertTrue(caps.supports_summarization)
 
-    def test_capability_based_max_context_tokens(self):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_capability_based_max_context_tokens(self, mock_genai):
         """Test using capabilities to check context window size."""
+        # Mock genai.configure for API compatibility
+        mock_genai.configure = Mock()
+        # Mock GenerativeModel
+        mock_model = Mock()
+        mock_genai.GenerativeModel = Mock(return_value=mock_model)
+
         cfg_gemini = config.Config(
             rss_url="https://example.com",
             summary_provider="gemini",

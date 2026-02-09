@@ -297,7 +297,7 @@ def configure_gemini_mock_server(request, monkeypatch):
         E2E tests. No need to explicitly use it in test functions.
 
     Important:
-        The Gemini SDK (google-generativeai) may not support custom base URLs directly.
+        The Gemini SDK (google-genai) may not support custom base URLs directly.
         If the SDK doesn't support custom base URLs, tests will need to mock the SDK
         calls instead of using HTTP endpoints. This fixture sets GEMINI_API_BASE for
         documentation purposes, but actual mocking may need to be done at the SDK level.
@@ -331,12 +331,30 @@ def configure_gemini_mock_server(request, monkeypatch):
         from tests.fixtures.mock_server.gemini_mock_client import create_fake_gemini_client
 
         FakeGenerativeModel = create_fake_gemini_client(gemini_api_base)
-        # Monkeypatch the SDK's GenerativeModel class
-        monkeypatch.setattr("google.generativeai.GenerativeModel", FakeGenerativeModel)
+
+        # The new google-genai API doesn't have GenerativeModel as a module attribute.
+        # The provider code still uses genai.GenerativeModel(), so we need to add it.
+        import google.genai as genai
+
+        # Add GenerativeModel to the genai module so provider code can use it
+        # Directly set the attribute (doesn't require it to exist first)
+        setattr(genai, "GenerativeModel", FakeGenerativeModel)
         logger.debug(
-            "Replaced Gemini SDK GenerativeModel with fake client pointing to %s",
+            "Added/Replaced GenerativeModel in google.genai module with fake client pointing to %s",
             gemini_api_base,
         )
+
+        # Also patch genai.configure() if it doesn't exist (new API doesn't have it)
+        # The provider code calls genai.configure(api_key=...), so we need to provide it
+        if not hasattr(genai, "configure"):
+
+            def fake_configure(api_key: str, **kwargs):
+                """Fake configure function that does nothing (API key handled by fake client)."""
+                logger.debug("Fake genai.configure() called (no-op for E2E testing)")
+
+            setattr(genai, "configure", fake_configure)
+            logger.debug("Added fake genai.configure() function for E2E testing")
+
     except ImportError:
         # If fake client can't be imported, fall back to Python-level mocking
         # (This shouldn't happen in normal test runs)

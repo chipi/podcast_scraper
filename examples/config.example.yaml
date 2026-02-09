@@ -130,11 +130,9 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # grok_max_tokens: null  # Default: null (use model default)
 
 # Ollama model configuration (optional - defaults are used if not specified)
-# Environment-based defaults:
-#   Test/Dev: llama3.2:latest (smaller, faster)
-#   Production: llama3.3:latest (higher quality)
-# ollama_speaker_model: llama3.3:latest  # Default: environment-based (llama3.2:latest for test, llama3.3:latest for prod)
-# ollama_summary_model: llama3.3:latest  # Default: environment-based (llama3.2:latest for test, llama3.3:latest for prod)
+# Default: llama3.1:8b (specific tag, not :latest - avoids unexpected model size resolution)
+# ollama_speaker_model: llama3.1:8b  # Default: llama3.1:8b
+# ollama_summary_model: llama3.1:8b  # Default: llama3.1:8b
 # ollama_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
 # ollama_max_tokens: null  # Default: null (use model default)
 # ollama_timeout: 120  # Default: 120 seconds (local inference can be slow, increase for large models)
@@ -193,6 +191,48 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # preprocessing_silence_threshold: "-50dB"  # Silence detection threshold (default: -50dB)
 # preprocessing_silence_duration: 2.0  # Minimum silence duration to remove in seconds (default: 2.0)
 # preprocessing_target_loudness: -16  # Target loudness in LUFS for normalization (default: -16)
+
+# Transcript cleaning configuration (Issue #418: LLM-Based Semantic Transcript Cleaning)
+# Strategy for cleaning transcripts before summarization
+# Options: "pattern" (regex-based, default for ML providers), "llm" (LLM-based semantic), "hybrid" (pattern + conditional LLM, default for LLM providers)
+# transcript_cleaning_strategy: hybrid  # Default: hybrid for LLM providers, pattern for ML providers
+
+# Provider-specific cleaning model configuration (optional - defaults to summary model if not specified)
+# Use cheaper/faster models for cleaning to reduce costs
+# openai_cleaning_model: gpt-4o-mini  # Default: gpt-4o-mini (cheaper than summary model)
+# openai_cleaning_temperature: 0.2  # Default: 0.2 (lower = more deterministic)
+# openai_cleaning_max_tokens: null  # Default: null (80-90% of input length)
+# openai_cleaning_llm_threshold: 0.10  # Default: 0.10 (use LLM if pattern reduces < 10%)
+
+# gemini_cleaning_model: gemini-2.0-flash  # Default: gemini-2.0-flash (gemini-1.5-flash not available in new API)
+# gemini_cleaning_temperature: 0.2
+# gemini_cleaning_max_tokens: null
+# gemini_cleaning_llm_threshold: 0.10
+
+# anthropic_cleaning_model: claude-3-5-haiku-latest  # Default: claude-3-5-haiku-latest (cheaper)
+# anthropic_cleaning_temperature: 0.2
+# anthropic_cleaning_max_tokens: null
+# anthropic_cleaning_llm_threshold: 0.10
+
+# mistral_cleaning_model: mistral-small-latest  # Default: mistral-small-latest (cheaper)
+# mistral_cleaning_temperature: 0.2
+# mistral_cleaning_max_tokens: null
+# mistral_cleaning_llm_threshold: 0.10
+
+# deepseek_cleaning_model: deepseek-chat  # Default: deepseek-chat
+# deepseek_cleaning_temperature: 0.2
+# deepseek_cleaning_max_tokens: null
+# deepseek_cleaning_llm_threshold: 0.10
+
+# grok_cleaning_model: grok-3-mini  # Default: grok-3-mini (cheaper)
+# grok_cleaning_temperature: 0.2
+# grok_cleaning_max_tokens: null
+# grok_cleaning_llm_threshold: 0.10
+
+# ollama_cleaning_model: llama3.1:8b  # Default: llama3.1:8b (smaller/faster)
+# ollama_cleaning_temperature: 0.2
+# ollama_cleaning_max_tokens: null
+# ollama_cleaning_llm_threshold: 0.10
 
 # Advanced settings
 # save_cleaned_transcript: true  # Save cleaned transcript to separate file (e.g., episode.cleaned.txt) for testing

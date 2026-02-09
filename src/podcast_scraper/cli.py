@@ -426,6 +426,12 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         parser: Argument parser to add arguments to
     """
     parser.add_argument(
+        "--openai-api-key",
+        type=str,
+        default=None,
+        help="OpenAI API key (or set OPENAI_API_KEY env var)",
+    )
+    parser.add_argument(
         "--openai-api-base",
         default=None,
         help="OpenAI API base URL (for E2E testing or custom endpoints)",
@@ -450,6 +456,26 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         type=float,
         default=None,
         help="Temperature for OpenAI generation (0.0-2.0, default: 0.3)",
+    )
+    parser.add_argument(
+        "--openai-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for OpenAI responses (default: model-specific)",
+    )
+    parser.add_argument(
+        "--openai-cleaning-model",
+        default=None,
+        help=(
+            "OpenAI model for transcript cleaning "
+            "(default: gpt-4o-mini, cheaper than summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--openai-cleaning-temperature",
+        type=float,
+        default=None,
+        help="Temperature for OpenAI cleaning (0.0-2.0, default: 0.2, lower = more deterministic)",
     )
 
 
@@ -501,6 +527,21 @@ def _add_gemini_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Maximum tokens for Gemini responses (default: model-specific)",
     )
+    parser.add_argument(
+        "--gemini-cleaning-model",
+        type=str,
+        default=None,
+        help=(
+            "Gemini model for transcript cleaning "
+            "(default: gemini-1.5-flash, cheaper than summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--gemini-cleaning-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Gemini cleaning (0.0-2.0, default: 0.2, lower = more deterministic)",
+    )
 
 
 def _add_anthropic_arguments(parser: argparse.ArgumentParser) -> None:
@@ -545,6 +586,24 @@ def _add_anthropic_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help="Maximum tokens for Anthropic responses (default: model-specific)",
     )
+    parser.add_argument(
+        "--anthropic-cleaning-model",
+        type=str,
+        default=None,
+        help=(
+            "Anthropic model for transcript cleaning "
+            "(default: claude-3-5-haiku-latest, cheaper than summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--anthropic-cleaning-temperature",
+        type=float,
+        default=None,
+        help=(
+            "Temperature for Anthropic cleaning "
+            "(0.0-1.0, default: 0.2, lower = more deterministic)"
+        ),
+    )
 
 
 def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
@@ -567,9 +626,12 @@ def _add_transcription_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--transcription-provider",
-        choices=["whisper", "openai", "gemini"],
+        choices=["whisper", "openai", "gemini", "mistral"],
         default="whisper",
-        help="Transcription provider to use (default: whisper)",
+        help=(
+            "Transcription provider to use (default: whisper). "
+            "Note: deepseek, grok, and ollama do NOT support transcription."
+        ),
     )
     parser.add_argument("--whisper-model", default="base.en", help="Whisper model to use")
     parser.add_argument(
@@ -817,6 +879,265 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         dest="save_cleaned_transcript",
         action="store_false",
         help="Don't save cleaned transcript to separate file",
+    )
+    parser.add_argument(
+        "--transcript-cleaning-strategy",
+        choices=["pattern", "llm", "hybrid"],
+        default=None,
+        help="Strategy for cleaning transcripts before summarization. "
+        "'pattern': uses regex-based cleaning (default). "
+        "'llm': uses LLM-based semantic cleaning. "
+        "'hybrid': uses pattern-based, then conditionally LLM-based if needed (default: hybrid). "
+        "Only applies when using LLM providers for summarization.",
+    )
+
+
+def _add_mistral_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Mistral API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--mistral-api-key",
+        type=str,
+        default=None,
+        help="Mistral API key (or set MISTRAL_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--mistral-api-base",
+        type=str,
+        default=None,
+        help="Mistral API base URL (for E2E testing, or set MISTRAL_API_BASE env var)",
+    )
+    parser.add_argument(
+        "--mistral-transcription-model",
+        type=str,
+        default=None,
+        help="Mistral transcription model (default: voxtral-mini-latest)",
+    )
+    parser.add_argument(
+        "--mistral-speaker-model",
+        type=str,
+        default=None,
+        help="Mistral speaker detection model (default: mistral-small-latest)",
+    )
+    parser.add_argument(
+        "--mistral-summary-model",
+        type=str,
+        default=None,
+        help="Mistral summarization model (default: mistral-small-latest)",
+    )
+    parser.add_argument(
+        "--mistral-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Mistral models (0.0-1.0, default: 0.3)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--mistral-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for Mistral responses (default: model-specific)",
+    )
+    parser.add_argument(
+        "--mistral-cleaning-model",
+        type=str,
+        default=None,
+        help=(
+            "Mistral model for transcript cleaning "
+            "(default: mistral-small-latest, cheaper than summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--mistral-cleaning-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Mistral cleaning (0.0-1.0, default: 0.2, lower = more deterministic)",
+    )
+
+
+def _add_deepseek_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add DeepSeek API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--deepseek-api-key",
+        type=str,
+        default=None,
+        help="DeepSeek API key (or set DEEPSEEK_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--deepseek-api-base",
+        type=str,
+        default=None,
+        help="DeepSeek API base URL (for E2E testing, or set DEEPSEEK_API_BASE env var)",
+    )
+    parser.add_argument(
+        "--deepseek-speaker-model",
+        type=str,
+        default=None,
+        help="DeepSeek speaker detection model (default: deepseek-chat)",
+    )
+    parser.add_argument(
+        "--deepseek-summary-model",
+        type=str,
+        default=None,
+        help="DeepSeek summarization model (default: deepseek-chat)",
+    )
+    parser.add_argument(
+        "--deepseek-temperature",
+        type=float,
+        default=None,
+        help="Temperature for DeepSeek models (0.0-2.0, default: 0.3)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--deepseek-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for DeepSeek responses (default: model-specific)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--deepseek-cleaning-model",
+        type=str,
+        default=None,
+        help=(
+            "DeepSeek model for transcript cleaning "
+            "(default: deepseek-chat, cheaper than summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--deepseek-cleaning-temperature",
+        type=float,
+        default=None,
+        help=(
+            "Temperature for DeepSeek cleaning "
+            "(0.0-2.0, default: 0.2, lower = more deterministic)"
+        ),
+    )
+
+
+def _add_grok_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Grok API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--grok-api-key",
+        type=str,
+        default=None,
+        help="Grok API key (or set GROK_API_KEY env var)",
+    )
+    parser.add_argument(
+        "--grok-api-base",
+        type=str,
+        default=None,
+        help="Grok API base URL (for E2E testing, or set GROK_API_BASE env var)",
+    )
+    parser.add_argument(
+        "--grok-speaker-model",
+        type=str,
+        default=None,
+        help="Grok speaker detection model (default: grok-2)",
+    )
+    parser.add_argument(
+        "--grok-summary-model",
+        type=str,
+        default=None,
+        help="Grok summarization model (default: grok-2)",
+    )
+    parser.add_argument(
+        "--grok-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Grok models (0.0-2.0, default: 0.3)",  # noqa: E501
+    )
+    parser.add_argument(
+        "--grok-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for Grok responses (default: model-specific)",
+    )
+    parser.add_argument(
+        "--grok-cleaning-model",
+        type=str,
+        default=None,
+        help=(
+            "Grok model for transcript cleaning "
+            "(default: grok-3-mini, cheaper than summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--grok-cleaning-temperature",
+        type=float,
+        default=None,
+        help=(
+            "Temperature for Grok cleaning " "(0.0-2.0, default: 0.2, lower = more deterministic)"
+        ),
+    )
+
+
+def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add Ollama API-related arguments to parser.
+
+    Args:
+        parser: Argument parser to add arguments to
+    """
+    parser.add_argument(
+        "--ollama-api-base",
+        type=str,
+        default=None,
+        help=(
+            "Ollama API base URL (for E2E testing, or set OLLAMA_API_BASE env var, "
+            "default: http://localhost:11434/v1)"
+        ),
+    )
+    parser.add_argument(
+        "--ollama-speaker-model",
+        type=str,
+        default=None,
+        help=("Ollama speaker detection model " "(default: llama3.1:8b for both test and prod)"),
+    )
+    parser.add_argument(
+        "--ollama-summary-model",
+        type=str,
+        default=None,
+        help=("Ollama summarization model " "(default: llama3.1:8b for both test and prod)"),
+    )
+    parser.add_argument(
+        "--ollama-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Ollama models (0.0-2.0, default: 0.3)",
+    )
+    parser.add_argument(
+        "--ollama-max-tokens",
+        type=int,
+        default=None,
+        help="Maximum tokens for Ollama responses (default: model-specific)",
+    )
+    parser.add_argument(
+        "--ollama-timeout",
+        type=int,
+        default=None,
+        help="Timeout in seconds for Ollama API calls (default: 120, local inference can be slow)",
+    )
+    parser.add_argument(
+        "--ollama-cleaning-model",
+        type=str,
+        default=None,
+        help=(
+            "Ollama model for transcript cleaning " "(default: llama3.1:8b, same as summary model)"
+        ),
+    )
+    parser.add_argument(
+        "--ollama-cleaning-temperature",
+        type=float,
+        default=None,
+        help="Temperature for Ollama cleaning (0.0-2.0, default: 0.2, lower = more deterministic)",
     )
 
 
@@ -1137,6 +1458,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     _add_openai_arguments(parser)
     _add_gemini_arguments(parser)
     _add_anthropic_arguments(parser)
+    _add_mistral_arguments(parser)
+    _add_deepseek_arguments(parser)
+    _add_grok_arguments(parser)
+    _add_ollama_arguments(parser)
     _add_cache_arguments(parser)
 
     initial_args, _ = parser.parse_known_args(argv)
@@ -1223,9 +1548,19 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["openai_summary_model"] = args.openai_summary_model
     if args.openai_temperature is not None:
         payload["openai_temperature"] = args.openai_temperature
+    if hasattr(args, "openai_max_tokens") and args.openai_max_tokens is not None:
+        payload["openai_max_tokens"] = args.openai_max_tokens
+    if hasattr(args, "openai_cleaning_model") and args.openai_cleaning_model is not None:
+        payload["openai_cleaning_model"] = args.openai_cleaning_model
+    if (
+        hasattr(args, "openai_cleaning_temperature")
+        and args.openai_cleaning_temperature is not None
+    ):
+        payload["openai_cleaning_temperature"] = args.openai_cleaning_temperature
     # Explicitly include openai_api_key=None to trigger field validator
     # The field validator will load it from OPENAI_API_KEY env var if available
-    payload["openai_api_key"] = None
+    # But allow CLI override if provided
+    payload["openai_api_key"] = getattr(args, "openai_api_key", None)
     # Add Gemini API configuration
     payload["gemini_api_base"] = getattr(args, "gemini_api_base", None)
     gemini_transcription_model = getattr(args, "gemini_transcription_model", None)
@@ -1243,9 +1578,16 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     gemini_max_tokens = getattr(args, "gemini_max_tokens", None)
     if gemini_max_tokens is not None:
         payload["gemini_max_tokens"] = gemini_max_tokens
+    gemini_cleaning_model = getattr(args, "gemini_cleaning_model", None)
+    if gemini_cleaning_model is not None:
+        payload["gemini_cleaning_model"] = gemini_cleaning_model
+    gemini_cleaning_temperature = getattr(args, "gemini_cleaning_temperature", None)
+    if gemini_cleaning_temperature is not None:
+        payload["gemini_cleaning_temperature"] = gemini_cleaning_temperature
     # Explicitly include gemini_api_key=None to trigger field validator
     # The field validator will load it from GEMINI_API_KEY env var if available
-    payload["gemini_api_key"] = None
+    # But allow CLI override if provided
+    payload["gemini_api_key"] = getattr(args, "gemini_api_key", None)
     # Add Anthropic API configuration
     payload["anthropic_api_base"] = getattr(args, "anthropic_api_base", None)
     if hasattr(args, "anthropic_speaker_model") and args.anthropic_speaker_model is not None:
@@ -1256,9 +1598,17 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["anthropic_temperature"] = args.anthropic_temperature
     if hasattr(args, "anthropic_max_tokens") and args.anthropic_max_tokens is not None:
         payload["anthropic_max_tokens"] = args.anthropic_max_tokens
+    if hasattr(args, "anthropic_cleaning_model") and args.anthropic_cleaning_model is not None:
+        payload["anthropic_cleaning_model"] = args.anthropic_cleaning_model
+    if (
+        hasattr(args, "anthropic_cleaning_temperature")
+        and args.anthropic_cleaning_temperature is not None
+    ):
+        payload["anthropic_cleaning_temperature"] = args.anthropic_cleaning_temperature
     # Explicitly include anthropic_api_key=None to trigger field validator
     # The field validator will load it from ANTHROPIC_API_KEY env var if available
-    payload["anthropic_api_key"] = None
+    # But allow CLI override if provided
+    payload["anthropic_api_key"] = getattr(args, "anthropic_api_key", None)
     # Add Grok API configuration
     payload["grok_api_base"] = getattr(args, "grok_api_base", None)
     if hasattr(args, "grok_speaker_model") and args.grok_speaker_model is not None:
@@ -1269,9 +1619,14 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["grok_temperature"] = args.grok_temperature
     if hasattr(args, "grok_max_tokens") and args.grok_max_tokens is not None:
         payload["grok_max_tokens"] = args.grok_max_tokens
+    if hasattr(args, "grok_cleaning_model") and args.grok_cleaning_model is not None:
+        payload["grok_cleaning_model"] = args.grok_cleaning_model
+    if hasattr(args, "grok_cleaning_temperature") and args.grok_cleaning_temperature is not None:
+        payload["grok_cleaning_temperature"] = args.grok_cleaning_temperature
     # Explicitly include grok_api_key=None to trigger field validator
     # The field validator will load it from GROK_API_KEY env var if available
-    payload["grok_api_key"] = None
+    # But allow CLI override if provided
+    payload["grok_api_key"] = getattr(args, "grok_api_key", None)
     # Add Mistral API configuration
     payload["mistral_api_base"] = getattr(args, "mistral_api_base", None)
     if (
@@ -1287,9 +1642,17 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["mistral_temperature"] = args.mistral_temperature
     if hasattr(args, "mistral_max_tokens") and args.mistral_max_tokens is not None:
         payload["mistral_max_tokens"] = args.mistral_max_tokens
+    if hasattr(args, "mistral_cleaning_model") and args.mistral_cleaning_model is not None:
+        payload["mistral_cleaning_model"] = args.mistral_cleaning_model
+    if (
+        hasattr(args, "mistral_cleaning_temperature")
+        and args.mistral_cleaning_temperature is not None
+    ):
+        payload["mistral_cleaning_temperature"] = args.mistral_cleaning_temperature
     # Explicitly include mistral_api_key=None to trigger field validator
     # The field validator will load it from MISTRAL_API_KEY env var if available
-    payload["mistral_api_key"] = None
+    # But allow CLI override if provided
+    payload["mistral_api_key"] = getattr(args, "mistral_api_key", None)
     # Add DeepSeek API configuration
     payload["deepseek_api_base"] = getattr(args, "deepseek_api_base", None)
     if hasattr(args, "deepseek_speaker_model") and args.deepseek_speaker_model is not None:
@@ -1300,9 +1663,17 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["deepseek_temperature"] = args.deepseek_temperature
     if hasattr(args, "deepseek_max_tokens") and args.deepseek_max_tokens is not None:
         payload["deepseek_max_tokens"] = args.deepseek_max_tokens
+    if hasattr(args, "deepseek_cleaning_model") and args.deepseek_cleaning_model is not None:
+        payload["deepseek_cleaning_model"] = args.deepseek_cleaning_model
+    if (
+        hasattr(args, "deepseek_cleaning_temperature")
+        and args.deepseek_cleaning_temperature is not None
+    ):
+        payload["deepseek_cleaning_temperature"] = args.deepseek_cleaning_temperature
     # Explicitly include deepseek_api_key=None to trigger field validator
     # The field validator will load it from DEEPSEEK_API_KEY env var if available
-    payload["deepseek_api_key"] = None
+    # But allow CLI override if provided
+    payload["deepseek_api_key"] = getattr(args, "deepseek_api_key", None)
     # Add Ollama API configuration
     payload["ollama_api_base"] = getattr(args, "ollama_api_base", None)
     if hasattr(args, "ollama_speaker_model") and args.ollama_speaker_model is not None:
@@ -1315,6 +1686,19 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["ollama_max_tokens"] = args.ollama_max_tokens
     if hasattr(args, "ollama_timeout") and args.ollama_timeout is not None:
         payload["ollama_timeout"] = args.ollama_timeout
+    if hasattr(args, "ollama_cleaning_model") and args.ollama_cleaning_model is not None:
+        payload["ollama_cleaning_model"] = args.ollama_cleaning_model
+    if (
+        hasattr(args, "ollama_cleaning_temperature")
+        and args.ollama_cleaning_temperature is not None
+    ):
+        payload["ollama_cleaning_temperature"] = args.ollama_cleaning_temperature
+    # Add transcript_cleaning_strategy if provided
+    if (
+        hasattr(args, "transcript_cleaning_strategy")
+        and args.transcript_cleaning_strategy is not None
+    ):
+        payload["transcript_cleaning_strategy"] = args.transcript_cleaning_strategy
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
@@ -1681,6 +2065,8 @@ if __name__ == "__main__":  # pragma: no cover - script entry
     # Silence thinc/spaCy FutureWarning about torch.cuda.amp.autocast (version compatibility issue)
     # This warning is from thinc/shims/pytorch.py and is not actionable by users
     # It's a known compatibility issue between thinc and newer PyTorch versions
+    # Tracked in Issue #416 - see docs/guides/DEPENDENCIES_GUIDE.md for details
+    # TODO: Remove this suppression when thinc fixes the deprecation (monitor thinc releases)
     warnings.filterwarnings(
         "ignore",
         category=FutureWarning,

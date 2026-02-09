@@ -271,7 +271,7 @@ pip install -e ".[ml]"
 
 ### With API Provider Dependencies (Gemini)
 
-**Note**: The `google-generativeai` package is **not** included in core dependencies. You must install it separately using the `[gemini]` extra:
+**Note**: The `google-genai` package is **not** included in core dependencies. You must install it separately using the `[gemini]` extra:
 
 ````bash
 # For Gemini-only users (no ML dependencies needed)
@@ -329,6 +329,53 @@ pip install -e ".[ml,ollama]"
 ````bash
 pip install -e .[dev]
 ````
+
+## Known Dependency Issues & Tracking
+
+This section documents known issues, warnings, and compatibility problems with dependencies that require monitoring or upstream fixes.
+
+### thinc/spaCy FutureWarning: torch.cuda.amp.autocast Deprecation
+
+**Status**: Tracked (Issue #416)
+**Severity**: Low (cosmetic warning, no functional impact)
+**First Observed**: 2026-02-08
+**Last Updated**: 2026-02-08
+
+**Description**:
+A `FutureWarning` is emitted from the `thinc` library (used by spaCy) about deprecated PyTorch API usage:
+
+```text
+FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.cuda.amp.autocast(...)` instead.
+```
+
+**Root Cause**:
+
+- Warning originates from `thinc/shims/pytorch.py:114`
+- Known compatibility issue between `thinc` and newer PyTorch versions
+- Not actionable by users - fix must come from upstream `thinc` maintainers
+
+**Current Mitigation**:
+
+- Warning is suppressed in `src/podcast_scraper/cli.py` (lines 1681-1689) to prevent log noise
+- Suppression uses specific module filter (`module="thinc.*"`) to avoid hiding other warnings
+
+**Action Items**:
+
+- [ ] Monitor `thinc` releases for fix (check [thinc releases](https://github.com/explosion/thinc/releases))
+- [ ] Update `thinc` dependency when fix is available (via `spacy` dependency)
+- [ ] Remove warning suppression in `cli.py` once fixed upstream
+- [ ] Verify no functionality impact after update
+
+**Related Dependencies**:
+
+- `spacy>=3.7.0,<4.0.0` (transitive dependency: `thinc`)
+- `torch>=2.0.0,<3.0.0` (PyTorch)
+
+**References**:
+
+- Issue: [#416](https://github.com/chipi/podcast_scraper/issues/416)
+- Warning source: `thinc/shims/pytorch.py:114`
+- PyTorch deprecation: `torch.cuda.amp.autocast(args...)` → `torch.cuda.amp.autocast(...)`
 
 ## Related Documentation
 

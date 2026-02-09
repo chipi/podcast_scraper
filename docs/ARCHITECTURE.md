@@ -532,7 +532,7 @@ and summarization.
 **API Provider Dependencies** (optional):
 
 - `openai` — OpenAI, DeepSeek, Grok (OpenAI-compat)
-- `google-generativeai` — Google Gemini
+- `google-genai` — Google Gemini (migrated from google-generativeai in Issue #415)
 - `anthropic` — Anthropic Claude
 - `mistralai` — Mistral AI
 - `ollama` — Ollama (local LLMs)

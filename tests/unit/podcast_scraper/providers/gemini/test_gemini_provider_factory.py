@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-# Mock google.generativeai before importing modules that require it
-# Unit tests run without google-generativeai package installed
+# Mock google.genai before importing modules that require it
+# Unit tests run without google-genai package installed
 # Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
 mock_google = MagicMock()
 mock_genai_module = MagicMock()
@@ -27,7 +27,7 @@ _patch_google = patch.dict(
     "sys.modules",
     {
         "google": mock_google,
-        "google.generativeai": mock_genai_module,
+        "google.genai": mock_genai_module,
         "google.api_core": mock_api_core,
     },
 )
@@ -56,44 +56,40 @@ class TestGeminiTranscriptionProviderFactory(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_provider_initialization(self, mock_genai):
         """Test that Gemini transcription provider initializes correctly via factory."""
-        # Set up mock_genai.configure BEFORE provider instantiation
-        mock_genai.configure = Mock()
+        mock_client = Mock()
+        mock_genai.Client.return_value = mock_client
 
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # Verify genai.configure was called
-        mock_genai.configure.assert_called_once_with(api_key="test-api-key-123")
+        # Verify genai.Client was called
+        mock_genai.Client.assert_called_once_with(api_key="test-api-key-123")
         self.assertTrue(provider._transcription_initialized)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
-    def test_transcribe_success(self, mock_genai):
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_success(self, mock_exists, mock_open, mock_genai):
         """Test successful transcription via Gemini API via factory."""
-        # Mock Gemini client and response
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_file.read.return_value = b"fake audio data"
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+
+        # Mock Gemini Client API response
         mock_response = Mock()
         mock_response.text = "Transcribed text"
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
 
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # Create a temporary audio file for testing
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-            f.write(b"fake audio data")
-            audio_path = f.name
-
-        try:
-            result = provider.transcribe(audio_path, language="en")
-            self.assertEqual(result, "Transcribed text")
-            mock_model.generate_content.assert_called_once()
-        finally:
-            import os
-
-            os.unlink(audio_path)
+        result = provider.transcribe("/path/to/audio.mp3", language="en")
+        self.assertEqual(result, "Transcribed text")
+        mock_client.models.generate_content.assert_called_once()
 
     def test_transcribe_missing_api_key(self):
         """Test that missing API key raises ValidationError (caught by config validator)."""
@@ -151,15 +147,12 @@ class TestGeminiSpeakerDetectorFactory(unittest.TestCase):
             }
         )
 
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
 
         # Mock prompt rendering
-        mock_render_prompt.side_effect = [
-            "System prompt",  # system prompt
-            "User prompt",  # user prompt
-        ]
+        mock_render_prompt.side_effect = lambda name, **kwargs: "test prompt"
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -225,22 +218,16 @@ class TestGeminiSummarizationProviderFactory(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_summarize_success(self, mock_render_prompt, mock_genai):
         """Test successful summarization via Gemini API via factory."""
-        # Set up mock_genai.configure BEFORE provider instantiation
-        mock_genai.configure = Mock()
-
-        # Mock Gemini client and response
+        # Mock Gemini Client API response
         mock_response = Mock()
         mock_response.text = "This is a summary of the transcript."
 
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
 
         # Mock prompt rendering
-        mock_render_prompt.side_effect = [
-            "System prompt",  # system prompt
-            "User prompt",  # user prompt
-        ]
+        mock_render_prompt.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = create_summarization_provider(self.cfg)
         provider.initialize()

@@ -4,7 +4,7 @@ import json
 import os
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Literal, Optional, TYPE_CHECKING
 
 import yaml
 from dotenv import load_dotenv
@@ -329,6 +329,70 @@ def _get_default_mistral_summary_model() -> str:
     if _is_test_environment():
         return config_constants.TEST_DEFAULT_MISTRAL_SUMMARY_MODEL
     return config_constants.PROD_DEFAULT_MISTRAL_SUMMARY_MODEL
+
+
+# Default cleaning models (cheaper models for cost efficiency)
+def _get_default_openai_cleaning_model() -> str:
+    """Get default OpenAI cleaning model (cheaper than summary model).
+
+    Returns:
+        'gpt-3.5-turbo' (cheaper model for cleaning)
+    """
+    return "gpt-3.5-turbo"
+
+
+def _get_default_anthropic_cleaning_model() -> str:
+    """Get default Anthropic cleaning model (cheaper than summary model).
+
+    Returns:
+        'claude-3-haiku-20240307' (cheaper model for cleaning)
+    """
+    return "claude-3-haiku-20240307"
+
+
+def _get_default_gemini_cleaning_model() -> str:
+    """Get default Gemini cleaning model (cheaper than summary model).
+
+    Returns:
+        'gemini-1.5-flash' (cheaper model for cleaning)
+    """
+    return "gemini-1.5-flash"
+
+
+def _get_default_mistral_cleaning_model() -> str:
+    """Get default Mistral cleaning model (cheaper than summary model).
+
+    Returns:
+        'mistral-small' (cheaper model for cleaning)
+    """
+    return "mistral-small"
+
+
+def _get_default_deepseek_cleaning_model() -> str:
+    """Get default DeepSeek cleaning model (cheaper than summary model).
+
+    Returns:
+        'deepseek-chat' (same as summary, but can be overridden)
+    """
+    return "deepseek-chat"
+
+
+def _get_default_ollama_cleaning_model() -> str:
+    """Get default Ollama cleaning model (smaller than summary model).
+
+    Returns:
+        'llama3.1:8b' (smaller model for cleaning)
+    """
+    return "llama3.1:8b"
+
+
+def _get_default_grok_cleaning_model() -> str:
+    """Get default Grok cleaning model (cheaper than summary model).
+
+    Returns:
+        'grok-beta' (same as summary, but can be overridden)
+    """
+    return "grok-beta"
 
 
 def _get_default_ner_model() -> str:
@@ -676,6 +740,16 @@ class Config(BaseModel):
         alias="openai_temperature",
         description="Temperature for OpenAI generation (0.0-2.0, lower = more deterministic)",
     )
+    openai_cleaning_model: str = Field(
+        default_factory=_get_default_openai_cleaning_model,
+        alias="openai_cleaning_model",
+        description="OpenAI model for transcript cleaning (default: gpt-3.5-turbo, cheaper than summary model)",  # noqa: E501
+    )
+    openai_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="openai_cleaning_temperature",
+        description="Temperature for OpenAI cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
+    )
     openai_max_tokens: Optional[int] = Field(
         default=None,
         alias="openai_max_tokens",
@@ -748,6 +822,16 @@ class Config(BaseModel):
         alias="gemini_temperature",
         description="Temperature for Gemini generation (0.0-2.0, lower = more deterministic)",
     )
+    gemini_cleaning_model: str = Field(
+        default_factory=_get_default_gemini_cleaning_model,
+        alias="gemini_cleaning_model",
+        description="Gemini model for transcript cleaning (default: gemini-1.5-flash, cheaper than summary model)",  # noqa: E501
+    )
+    gemini_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="gemini_cleaning_temperature",
+        description="Temperature for Gemini cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
+    )
     gemini_max_tokens: Optional[int] = Field(
         default=None,
         alias="gemini_max_tokens",
@@ -815,6 +899,16 @@ class Config(BaseModel):
         alias="anthropic_temperature",
         description="Temperature for Anthropic generation (0.0-1.0, lower = more deterministic)",
     )
+    anthropic_cleaning_model: str = Field(
+        default_factory=_get_default_anthropic_cleaning_model,
+        alias="anthropic_cleaning_model",
+        description="Anthropic model for transcript cleaning (default: claude-3-haiku-20240307, cheaper than summary model)",  # noqa: E501
+    )
+    anthropic_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="anthropic_cleaning_temperature",
+        description="Temperature for Anthropic cleaning (0.0-1.0, default: 0.2, lower than summarization)",  # noqa: E501
+    )
     anthropic_max_tokens: Optional[int] = Field(
         default=None,
         alias="anthropic_max_tokens",
@@ -871,6 +965,16 @@ class Config(BaseModel):
         default=0.3,
         alias="ollama_temperature",
         description="Temperature for Ollama generation (0.0-2.0, lower = more deterministic)",
+    )
+    ollama_cleaning_model: str = Field(
+        default_factory=_get_default_ollama_cleaning_model,
+        alias="ollama_cleaning_model",
+        description="Ollama model for transcript cleaning (default: llama3.1:8b, smaller than summary model)",  # noqa: E501
+    )
+    ollama_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="ollama_cleaning_temperature",
+        description="Temperature for Ollama cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
     )
     ollama_max_tokens: Optional[int] = Field(
         default=None,
@@ -938,6 +1042,16 @@ class Config(BaseModel):
         alias="deepseek_temperature",
         description="Temperature for DeepSeek generation (0.0-2.0, lower = more deterministic)",
     )
+    deepseek_cleaning_model: str = Field(
+        default_factory=_get_default_deepseek_cleaning_model,
+        alias="deepseek_cleaning_model",
+        description="DeepSeek model for transcript cleaning (default: deepseek-chat)",
+    )
+    deepseek_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="deepseek_cleaning_temperature",
+        description="Temperature for DeepSeek cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
+    )
     deepseek_max_tokens: Optional[int] = Field(
         default=None,
         alias="deepseek_max_tokens",
@@ -1000,6 +1114,16 @@ class Config(BaseModel):
         default=0.3,
         alias="grok_temperature",
         description="Temperature for Grok generation (0.0-2.0, lower = more deterministic)",
+    )
+    grok_cleaning_model: str = Field(
+        default_factory=_get_default_grok_cleaning_model,
+        alias="grok_cleaning_model",
+        description="Grok model for transcript cleaning (default: grok-beta)",
+    )
+    grok_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="grok_cleaning_temperature",
+        description="Temperature for Grok cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
     )
     grok_max_tokens: Optional[int] = Field(
         default=None,
@@ -1065,6 +1189,16 @@ class Config(BaseModel):
         default=0.3,
         alias="mistral_temperature",
         description="Temperature for Mistral generation (0.0-1.0, lower = more deterministic)",
+    )
+    mistral_cleaning_model: str = Field(
+        default_factory=_get_default_mistral_cleaning_model,
+        alias="mistral_cleaning_model",
+        description="Mistral model for transcript cleaning (default: mistral-small, cheaper than summary model)",  # noqa: E501
+    )
+    mistral_cleaning_temperature: float = Field(
+        default=0.2,
+        alias="mistral_cleaning_temperature",
+        description="Temperature for Mistral cleaning (0.0-1.0, default: 0.2, lower than summarization)",  # noqa: E501
     )
     mistral_max_tokens: Optional[int] = Field(
         default=None,
@@ -1252,6 +1386,16 @@ class Config(BaseModel):
     save_cleaned_transcript: bool = Field(
         default=True, alias="save_cleaned_transcript"
     )  # Save cleaned transcript to separate file for testing (default: True)
+    # Transcript cleaning configuration (Issue #418)
+    transcript_cleaning_strategy: Literal["pattern", "llm", "hybrid"] = Field(
+        default="hybrid",
+        alias="transcript_cleaning_strategy",
+        description=(
+            "Transcript cleaning strategy (default: 'hybrid'). "
+            "Options: 'pattern' (pattern-based only), 'llm' (LLM-based only), "
+            "'hybrid' (pattern-based + conditional LLM when needed)."
+        ),
+    )
     # ML generation parameters (all defaults come from Config, no hardcoded values)
     # These provide fine-grained control over generation parameters
     summary_map_params: Dict[str, Any] = Field(
@@ -1460,6 +1604,149 @@ class Config(BaseModel):
             raise ValueError(f"whisper_model must be one of {VALID_WHISPER_MODELS}, got: {value}")
         return value
 
+    @staticmethod
+    def _load_string_env_var(
+        data: Dict[str, Any],
+        field_name: str,
+        env_var_name: str,
+        validator: Optional[Callable[[str], str]] = None,
+    ) -> None:
+        """Load a string environment variable into config data if field is missing.
+
+        Args:
+            data: Configuration data dictionary
+            field_name: Name of the field in config
+            env_var_name: Name of the environment variable
+            validator: Optional validator function (env_value) -> bool
+        """
+        if field_name not in data or data.get(field_name) is None:
+            env_value = os.getenv(env_var_name)
+            if env_value:
+                value = str(env_value).strip()
+                if value and (validator is None or validator(value)):
+                    data[field_name] = value
+
+    @staticmethod
+    def _load_int_env_var(
+        data: Dict[str, Any], field_name: str, env_var_name: str, min_value: int = 1
+    ) -> None:
+        """Load an integer environment variable into config data if field is missing.
+
+        Args:
+            data: Configuration data dictionary
+            field_name: Name of the field in config
+            env_var_name: Name of the environment variable
+            min_value: Minimum valid value (default: 1)
+        """
+        if field_name not in data or data.get(field_name) is None:
+            env_value = os.getenv(env_var_name)
+            if env_value:
+                try:
+                    int_value = int(env_value)
+                    if int_value >= min_value:
+                        data[field_name] = int_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+    @staticmethod
+    def _load_float_env_var(
+        data: Dict[str, Any],
+        field_name: str,
+        env_var_name: str,
+        min_value: float = 0.0,
+        max_value: Optional[float] = None,
+    ) -> None:
+        """Load a float environment variable into config data if field is missing.
+
+        Args:
+            data: Configuration data dictionary
+            field_name: Name of the field in config
+            env_var_name: Name of the environment variable
+            min_value: Minimum valid value (default: 0.0)
+            max_value: Optional maximum valid value
+        """
+        if field_name not in data or data.get(field_name) is None:
+            env_value = os.getenv(env_var_name)
+            if env_value:
+                try:
+                    float_value = float(env_value)
+                    if float_value >= min_value and (max_value is None or float_value <= max_value):
+                        data[field_name] = float_value
+                except (ValueError, TypeError):
+                    pass  # Invalid value, skip
+
+    @staticmethod
+    def _load_bool_env_var(data: Dict[str, Any], field_name: str, env_var_name: str) -> None:
+        """Load a boolean environment variable into config data if field is missing.
+
+        Args:
+            data: Configuration data dictionary
+            field_name: Name of the field in config
+            env_var_name: Name of the environment variable
+        """
+        if field_name not in data:
+            env_value = os.getenv(env_var_name)
+            if env_value:
+                value = str(env_value).strip().lower()
+                if value in ("1", "true", "yes", "on"):
+                    data[field_name] = True
+                elif value in ("0", "false", "no", "off"):
+                    data[field_name] = False
+
+    @staticmethod
+    def _load_device_env_var(data: Dict[str, Any], field_name: str, env_var_name: str) -> None:
+        """Load a device environment variable into config data if field is missing.
+
+        Args:
+            data: Configuration data dictionary
+            field_name: Name of the field in config
+            env_var_name: Name of the environment variable
+        """
+        if field_name not in data or data.get(field_name) is None:
+            env_value = os.getenv(env_var_name)
+            if env_value:
+                value = str(env_value).strip().lower()
+                if value in ("cpu", "cuda", "mps"):
+                    data[field_name] = value
+
+    @classmethod
+    def _load_summary_cache_dir_from_env(cls, data: Dict[str, Any]) -> None:
+        """Load summary cache directory from environment variables.
+
+        Checks SUMMARY_CACHE_DIR, CACHE_DIR, and local project cache.
+
+        Args:
+            data: Configuration data dictionary
+        """
+        if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
+            # Check SUMMARY_CACHE_DIR first (explicit override)
+            summary_cache = os.getenv("SUMMARY_CACHE_DIR")
+            if summary_cache:
+                value = str(summary_cache).strip()
+                if value:
+                    data["summary_cache_dir"] = value
+                    return
+
+            # If CACHE_DIR is set, derive summary cache from it
+            cache_dir = os.getenv("CACHE_DIR")
+            if cache_dir:
+                # Derive Transformers cache path from CACHE_DIR
+                derived_cache = str(Path(cache_dir) / "huggingface" / "hub")
+                data["summary_cache_dir"] = derived_cache
+                return
+
+            # Check for local cache in project root
+            try:
+                from .cache import get_project_root
+
+                project_root = get_project_root()
+                local_cache = project_root / ".cache" / "huggingface" / "hub"
+                if local_cache.exists():
+                    data["summary_cache_dir"] = str(local_cache)
+            except Exception:
+                # If cache_utils not available, continue without local cache
+                pass
+
     @model_validator(mode="before")
     @classmethod
     def _preprocess_config_data(cls, data: Any) -> Any:
@@ -1480,252 +1767,42 @@ class Config(BaseModel):
             if env_value and env_value in VALID_LOG_LEVELS:
                 data["log_level"] = env_value
 
-        # OUTPUT_DIR: Only set from env if not in config
-        if "output_dir" not in data or data.get("output_dir") is None:
-            env_output_dir = os.getenv("OUTPUT_DIR")
-            if env_output_dir:
-                env_value = str(env_output_dir).strip()
-                if env_value:
-                    data["output_dir"] = env_value
+        # Load string environment variables
+        cls._load_string_env_var(data, "output_dir", "OUTPUT_DIR")
+        cls._load_string_env_var(data, "log_file", "LOG_FILE")
+        cls._load_string_env_var(data, "openai_api_key", "OPENAI_API_KEY")
+        cls._load_string_env_var(data, "openai_api_base", "OPENAI_API_BASE")
+        cls._load_string_env_var(data, "gemini_api_key", "GEMINI_API_KEY")
+        cls._load_string_env_var(data, "gemini_api_base", "GEMINI_API_BASE")
+        cls._load_string_env_var(data, "anthropic_api_key", "ANTHROPIC_API_KEY")
+        cls._load_string_env_var(data, "anthropic_api_base", "ANTHROPIC_API_BASE")
+        cls._load_string_env_var(data, "mistral_api_key", "MISTRAL_API_KEY")
+        cls._load_string_env_var(data, "mistral_api_base", "MISTRAL_API_BASE")
+        cls._load_string_env_var(data, "deepseek_api_key", "DEEPSEEK_API_KEY")
+        cls._load_string_env_var(data, "deepseek_api_base", "DEEPSEEK_API_BASE")
+        cls._load_string_env_var(data, "grok_api_key", "GROK_API_KEY")
+        cls._load_string_env_var(data, "grok_api_base", "GROK_API_BASE")
 
-        # LOG_FILE: Only set from env if not in config
-        if "log_file" not in data or data.get("log_file") is None:
-            env_log_file = os.getenv("LOG_FILE")
-            if env_log_file:
-                env_value = str(env_log_file).strip()
-                if env_value:
-                    data["log_file"] = env_value
+        # Load integer environment variables
+        cls._load_int_env_var(data, "workers", "WORKERS")
+        cls._load_int_env_var(data, "transcription_parallelism", "TRANSCRIPTION_PARALLELISM")
+        cls._load_int_env_var(data, "processing_parallelism", "PROCESSING_PARALLELISM")
+        cls._load_int_env_var(data, "summary_batch_size", "SUMMARY_BATCH_SIZE")
+        cls._load_int_env_var(data, "summary_chunk_parallelism", "SUMMARY_CHUNK_PARALLELISM")
+        cls._load_int_env_var(data, "timeout", "TIMEOUT")
 
-        # SUMMARY_CACHE_DIR / CACHE_DIR: Only set from env if not in config
-        # Also check for local cache in project root
-        if "summary_cache_dir" not in data or data.get("summary_cache_dir") is None:
-            # Check SUMMARY_CACHE_DIR first (explicit override)
-            summary_cache = os.getenv("SUMMARY_CACHE_DIR")
-            if summary_cache:
-                env_value = str(summary_cache).strip()
-                if env_value:
-                    data["summary_cache_dir"] = env_value
-            else:
-                # If CACHE_DIR is set, derive summary cache from it
-                cache_dir = os.getenv("CACHE_DIR")
-                if cache_dir:
-                    # Derive Transformers cache path from CACHE_DIR
-                    from pathlib import Path
+        # Load float environment variables
+        cls._load_float_env_var(data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0)
 
-                    derived_cache = str(Path(cache_dir) / "huggingface" / "hub")
-                    data["summary_cache_dir"] = derived_cache
-                else:
-                    # Check for local cache in project root
-                    try:
-                        from .cache import get_project_root
+        # Load boolean environment variables
+        cls._load_bool_env_var(data, "mps_exclusive", "MPS_EXCLUSIVE")
 
-                        project_root = get_project_root()
-                        local_cache = project_root / ".cache" / "huggingface" / "hub"
-                        if local_cache.exists():
-                            data["summary_cache_dir"] = str(local_cache)
-                    except Exception:
-                        # If cache_utils not available, continue without local cache
-                        pass
+        # Load device environment variables
+        cls._load_device_env_var(data, "summary_device", "SUMMARY_DEVICE")
+        cls._load_device_env_var(data, "whisper_device", "WHISPER_DEVICE")
 
-        # WORKERS: Only set from env if not in config
-        if "workers" not in data or data.get("workers") is None:
-            env_workers = os.getenv("WORKERS")
-            if env_workers:
-                try:
-                    workers_value = int(env_workers)
-                    if workers_value > 0:
-                        data["workers"] = workers_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
-
-        # TRANSCRIPTION_PARALLELISM: Only set from env if not in config
-        if "transcription_parallelism" not in data or data.get("transcription_parallelism") is None:
-            env_parallelism = os.getenv("TRANSCRIPTION_PARALLELISM")
-            if env_parallelism:
-                try:
-                    parallelism_value = int(env_parallelism)
-                    if parallelism_value > 0:
-                        data["transcription_parallelism"] = parallelism_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
-
-        # PROCESSING_PARALLELISM: Only set from env if not in config
-        if "processing_parallelism" not in data or data.get("processing_parallelism") is None:
-            env_parallelism = os.getenv("PROCESSING_PARALLELISM")
-            if env_parallelism:
-                try:
-                    parallelism_value = int(env_parallelism)
-                    if parallelism_value > 0:
-                        data["processing_parallelism"] = parallelism_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
-
-        # SUMMARY_BATCH_SIZE: Only set from env if not in config
-        if "summary_batch_size" not in data or data.get("summary_batch_size") is None:
-            env_batch_size = os.getenv("SUMMARY_BATCH_SIZE")
-            if env_batch_size:
-                try:
-                    batch_size_value = int(env_batch_size)
-                    if batch_size_value > 0:
-                        data["summary_batch_size"] = batch_size_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
-
-        # SUMMARY_CHUNK_PARALLELISM: Only set from env if not in config
-        if "summary_chunk_parallelism" not in data or data.get("summary_chunk_parallelism") is None:
-            env_parallelism = os.getenv("SUMMARY_CHUNK_PARALLELISM")
-            if env_parallelism:
-                try:
-                    parallelism_value = int(env_parallelism)
-                    if parallelism_value > 0:
-                        data["summary_chunk_parallelism"] = parallelism_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
-
-        # TIMEOUT: Only set from env if not in config
-        if "timeout" not in data or data.get("timeout") is None:
-            env_timeout = os.getenv("TIMEOUT")
-            if env_timeout:
-                try:
-                    timeout_value = int(env_timeout)
-                    if timeout_value > 0:
-                        data["timeout"] = timeout_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
-
-        # SUMMARY_DEVICE: Only set from env if not in config
-        if "summary_device" not in data or data.get("summary_device") is None:
-            env_device = os.getenv("SUMMARY_DEVICE")
-            if env_device:
-                env_value = str(env_device).strip().lower()
-                if env_value in ("cpu", "cuda", "mps"):
-                    data["summary_device"] = env_value
-
-        # WHISPER_DEVICE: Only set from env if not in config
-        if "whisper_device" not in data or data.get("whisper_device") is None:
-            env_device = os.getenv("WHISPER_DEVICE")
-            if env_device:
-                env_value = str(env_device).strip().lower()
-                if env_value in ("cpu", "cuda", "mps"):
-                    data["whisper_device"] = env_value
-
-        # MPS_EXCLUSIVE: Only set from env if not in config
-        if "mps_exclusive" not in data:
-            env_mps_exclusive = os.getenv("MPS_EXCLUSIVE")
-            if env_mps_exclusive:
-                env_value = str(env_mps_exclusive).strip().lower()
-                # Support various boolean representations
-                if env_value in ("1", "true", "yes", "on"):
-                    data["mps_exclusive"] = True
-                elif env_value in ("0", "false", "no", "off"):
-                    data["mps_exclusive"] = False
-
-        # OPENAI_API_KEY: Only set from env if not in config
-        if "openai_api_key" not in data or data.get("openai_api_key") is None:
-            env_key = os.getenv("OPENAI_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["openai_api_key"] = env_value
-
-        # OPENAI_API_BASE: Only set from env if not in config
-        if "openai_api_base" not in data or data.get("openai_api_base") is None:
-            env_base = os.getenv("OPENAI_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["openai_api_base"] = env_value
-
-        # GEMINI_API_KEY: Only set from env if not in config
-        if "gemini_api_key" not in data or data.get("gemini_api_key") is None:
-            env_key = os.getenv("GEMINI_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["gemini_api_key"] = env_value
-
-        # GEMINI_API_BASE: Only set from env if not in config
-        if "gemini_api_base" not in data or data.get("gemini_api_base") is None:
-            env_base = os.getenv("GEMINI_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["gemini_api_base"] = env_value
-
-        # ANTHROPIC_API_KEY: Only set from env if not in config
-        if "anthropic_api_key" not in data or data.get("anthropic_api_key") is None:
-            env_key = os.getenv("ANTHROPIC_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["anthropic_api_key"] = env_value
-
-        # ANTHROPIC_API_BASE: Only set from env if not in config
-        if "anthropic_api_base" not in data or data.get("anthropic_api_base") is None:
-            env_base = os.getenv("ANTHROPIC_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["anthropic_api_base"] = env_value
-
-        # MISTRAL_API_KEY: Only set from env if not in config
-        if "mistral_api_key" not in data or data.get("mistral_api_key") is None:
-            env_key = os.getenv("MISTRAL_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["mistral_api_key"] = env_value
-
-        # MISTRAL_API_BASE: Only set from env if not in config
-        if "mistral_api_base" not in data or data.get("mistral_api_base") is None:
-            env_base = os.getenv("MISTRAL_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["mistral_api_base"] = env_value
-
-        # DEEPSEEK_API_KEY: Only set from env if not in config
-        if "deepseek_api_key" not in data or data.get("deepseek_api_key") is None:
-            env_key = os.getenv("DEEPSEEK_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["deepseek_api_key"] = env_value
-
-        # DEEPSEEK_API_BASE: Only set from env if not in config
-        if "deepseek_api_base" not in data or data.get("deepseek_api_base") is None:
-            env_base = os.getenv("DEEPSEEK_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["deepseek_api_base"] = env_value
-
-        # GROK_API_KEY: Only set from env if not in config
-        if "grok_api_key" not in data or data.get("grok_api_key") is None:
-            env_key = os.getenv("GROK_API_KEY")
-            if env_key:
-                env_value = str(env_key).strip()
-                if env_value:
-                    data["grok_api_key"] = env_value
-
-        # GROK_API_BASE: Only set from env if not in config
-        if "grok_api_base" not in data or data.get("grok_api_base") is None:
-            env_base = os.getenv("GROK_API_BASE")
-            if env_base:
-                env_value = str(env_base).strip()
-                if env_value:
-                    data["grok_api_base"] = env_value
-
-        # OPENAI_TEMPERATURE: Only set from env if not in config
-        if "openai_temperature" not in data or data.get("openai_temperature") is None:
-            env_temp = os.getenv("OPENAI_TEMPERATURE")
-            if env_temp:
-                try:
-                    temp_value = float(env_temp)
-                    if 0.0 <= temp_value <= 2.0:
-                        data["openai_temperature"] = temp_value
-                except (ValueError, TypeError):
-                    pass  # Invalid value, skip
+        # Load summary cache directory (special handling)
+        cls._load_summary_cache_dir_from_env(data)
 
         return data
 

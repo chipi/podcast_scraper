@@ -35,6 +35,9 @@ coverage.json
 # IDE
 .vscode/
 
+# AI rule adherence metrics (per-session tracking)
+.cursor/metrics/
+
 # Example/test files
 examples/config.my.*
 examples.txt

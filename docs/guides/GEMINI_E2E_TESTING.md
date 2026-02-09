@@ -51,7 +51,7 @@ The `configure_gemini_mock_server` fixture in `tests/e2e/conftest.py` automatica
 
 1. Gets E2E server base URL
 2. Creates fake client bound to that URL
-3. Replaces `google.generativeai.GenerativeModel` with fake client
+3. Replaces `google.genai.GenerativeModel` with fake client
 4. Sets `GEMINI_API_BASE` environment variable
 
 ### Manual Setup (if needed)
@@ -64,7 +64,7 @@ gemini_api_base = e2e_server.urls.gemini_api_base()
 FakeGenerativeModel = create_fake_gemini_client(gemini_api_base)
 
 # Replace SDK class
-monkeypatch.setattr("google.generativeai.GenerativeModel", FakeGenerativeModel)
+monkeypatch.setattr("google.genai.GenerativeModel", FakeGenerativeModel)
 ```
 
 ## Benefits Over Python-Level Mocking
@@ -147,4 +147,4 @@ This disables the fake client and uses the real Gemini SDK.
 
 ### Import Errors
 
-If `google.generativeai` is not installed, the fake client will still work (it doesn't import the real SDK).
+If `google.genai` is not installed, the fake client will still work (it doesn't import the real SDK).

@@ -691,6 +691,13 @@ class TestOpenAIProviderSummarization(unittest.TestCase):
 class TestOpenAIProviderPricing(unittest.TestCase):
     """Tests for OpenAIProvider.get_pricing() static method."""
 
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            openai_api_key="test-key",
+        )
+
     def test_get_pricing_whisper_transcription(self):
         """Test pricing lookup for Whisper transcription."""
         pricing = OpenAIProvider.get_pricing("whisper-1", "transcription")
@@ -730,3 +737,119 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         pricing2 = OpenAIProvider.get_pricing("gpt-4o-mini", "speaker_detection")
         self.assertEqual(pricing1, pricing2)
         self.assertEqual(pricing1["input_cost_per_1m_tokens"], 0.15)
+
+    def test_cleaning_processor_pattern_strategy(self):
+        """Test that provider uses PatternBasedCleaner when strategy is 'pattern'."""
+        from podcast_scraper.cleaning import PatternBasedCleaner
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            openai_api_key=self.cfg.openai_api_key,
+            transcript_cleaning_strategy="pattern",
+        )
+        provider = OpenAIProvider(cfg)
+        self.assertIsInstance(provider.cleaning_processor, PatternBasedCleaner)
+
+    def test_cleaning_processor_llm_strategy(self):
+        """Test that provider uses LLMBasedCleaner when strategy is 'llm'."""
+        from podcast_scraper.cleaning import LLMBasedCleaner
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            openai_api_key=self.cfg.openai_api_key,
+            transcript_cleaning_strategy="llm",
+        )
+        provider = OpenAIProvider(cfg)
+        self.assertIsInstance(provider.cleaning_processor, LLMBasedCleaner)
+
+    def test_cleaning_processor_hybrid_strategy(self):
+        """Test that provider uses HybridCleaner when strategy is 'hybrid' (default)."""
+        from podcast_scraper.cleaning import HybridCleaner
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            openai_api_key=self.cfg.openai_api_key,
+            transcript_cleaning_strategy="hybrid",
+        )
+        provider = OpenAIProvider(cfg)
+        self.assertIsInstance(provider.cleaning_processor, HybridCleaner)
+
+    def test_cleaning_processor_default_hybrid(self):
+        """Test that provider defaults to HybridCleaner when strategy not specified."""
+        from podcast_scraper.cleaning import HybridCleaner
+
+        provider = OpenAIProvider(self.cfg)
+        self.assertIsInstance(provider.cleaning_processor, HybridCleaner)
+
+    def test_cleaning_model_config(self):
+        """Test that cleaning model is configured from config."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            openai_api_key=self.cfg.openai_api_key,
+            openai_cleaning_model="gpt-4o-mini",
+        )
+        provider = OpenAIProvider(cfg)
+        self.assertEqual(provider.cleaning_model, "gpt-4o-mini")
+
+    def test_cleaning_temperature_config(self):
+        """Test that cleaning temperature is configured from config."""
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            openai_api_key=self.cfg.openai_api_key,
+            openai_cleaning_temperature=0.1,
+        )
+        provider = OpenAIProvider(cfg)
+        self.assertEqual(provider.cleaning_temperature, 0.1)
+
+    def test_clean_transcript_requires_initialization(self):
+        """Test that clean_transcript() requires provider initialization."""
+        provider = OpenAIProvider(self.cfg)
+        # Provider not initialized
+        with self.assertRaises(RuntimeError) as context:
+            provider.clean_transcript("test text")
+        self.assertIn("not initialized", str(context.exception).lower())
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_clean_transcript_success(self, mock_retry, mock_render):
+        """Test successful transcript cleaning."""
+        mock_render.return_value = "User prompt with transcript"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "cleaned transcript text"
+        mock_retry.return_value = mock_response
+
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = True  # Simulate initialization
+
+        result = provider.clean_transcript("raw transcript text")
+
+        self.assertEqual(result, "cleaned transcript text")
+        mock_render.assert_called_once()
+        mock_retry.assert_called_once()
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_clean_transcript_empty_result(self, mock_retry, mock_render):
+        """Test that clean_transcript() returns original text if LLM returns empty."""
+        mock_render.return_value = "User prompt"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = ""
+        mock_retry.return_value = mock_response
+
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = True
+
+        result = provider.clean_transcript("original text")
+        # Should return original text if LLM returns empty
+        self.assertEqual(result, "original text")
+
+    def test_get_capabilities_includes_semantic_cleaning(self):
+        """Test that get_capabilities() includes supports_semantic_cleaning=True."""
+        provider = OpenAIProvider(self.cfg)
+        capabilities = provider.get_capabilities()
+
+        self.assertTrue(capabilities.supports_semantic_cleaning)
+        self.assertTrue(capabilities.supports_summarization)
+        self.assertTrue(capabilities.supports_transcription)

@@ -11,6 +11,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
@@ -1328,117 +1330,6 @@ class TestDownloadMediaForTranscription(unittest.TestCase):
         self.assertIsNone(result)
 
 
-class TestFormatTranscriptIfNeeded(unittest.TestCase):
-    """Tests for _format_transcript_if_needed function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config()
-
-    @patch("podcast_scraper.workflow.episode_processor.logger")
-    def test_format_transcript_screenplay_enabled(self, mock_logger):
-        """Test formatting transcript when screenplay is enabled."""
-        self.cfg = create_test_config(
-            screenplay=True, screenplay_num_speakers=2, screenplay_speaker_names=["Host", "Guest"]
-        )
-
-        mock_provider = Mock()
-        mock_provider.format_screenplay_from_segments.return_value = "Host: Hello\nGuest: Hi"
-
-        result = episode_processor._format_transcript_if_needed(
-            result={"text": "Raw transcript", "segments": []},
-            cfg=self.cfg,
-            detected_speaker_names=["Host", "Guest"],
-            transcription_provider=mock_provider,
-        )
-
-        self.assertEqual(result, "Host: Hello\nGuest: Hi")
-        mock_provider.format_screenplay_from_segments.assert_called_once()
-
-    def test_format_transcript_screenplay_disabled(self):
-        """Test that transcript is returned unchanged when screenplay is disabled."""
-        self.cfg = create_test_config(screenplay=False)
-
-        result = episode_processor._format_transcript_if_needed(
-            result={"text": "Raw transcript"},
-            cfg=self.cfg,
-            detected_speaker_names=None,
-        )
-
-        self.assertEqual(result, "Raw transcript")
-
-
-class TestSaveTranscriptFile(unittest.TestCase):
-    """Tests for _save_transcript_file function."""
-
-    @patch("podcast_scraper.workflow.episode_processor.filesystem.write_file")
-    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
-    @patch("os.path.relpath")
-    def test_save_transcript_success(self, mock_relpath, mock_build_path, mock_write):
-        """Test successfully saving transcript file."""
-        mock_build_path.return_value = "/output/transcript.txt"
-        mock_relpath.return_value = "transcript.txt"
-        job = Mock()
-        job.idx = 1
-        job.ep_title_safe = "Episode_Title"
-
-        result = episode_processor._save_transcript_file(
-            text="Transcript content",
-            job=job,
-            run_suffix=None,
-            effective_output_dir="/output",
-        )
-
-        self.assertEqual(result, "transcript.txt")
-        mock_write.assert_called_once()
-
-    def test_save_transcript_empty_text(self):
-        """Test that saving empty text raises RuntimeError."""
-        job = Mock()
-        job.idx = 1
-        job.ep_title_safe = "Episode_Title"
-
-        with self.assertRaises(RuntimeError):
-            episode_processor._save_transcript_file(
-                text="",
-                job=job,
-                run_suffix=None,
-                effective_output_dir="/output",
-            )
-
-
-class TestCleanupTempMedia(unittest.TestCase):
-    """Tests for _cleanup_temp_media function."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        self.cfg = create_test_config()
-
-    @patch("os.remove")
-    def test_cleanup_temp_media_success(self, mock_remove):
-        """Test successfully cleaning up temp media file."""
-        episode_processor._cleanup_temp_media("/tmp/media.mp3", self.cfg)
-
-        mock_remove.assert_called_once_with("/tmp/media.mp3")
-
-    @patch("os.remove")
-    def test_cleanup_temp_media_reuse_enabled(self, mock_remove):
-        """Test cleanup is skipped when reuse_media is enabled."""
-        self.cfg = create_test_config(reuse_media=True)
-
-        episode_processor._cleanup_temp_media("/tmp/media.mp3", self.cfg)
-
-        mock_remove.assert_not_called()
-
-    @patch("os.remove")
-    def test_cleanup_temp_media_os_error(self, mock_remove):
-        """Test cleanup handles OSError gracefully."""
-        mock_remove.side_effect = OSError("Permission denied")
-
-        # Should not raise
-        episode_processor._cleanup_temp_media("/tmp/media.mp3", self.cfg)
-
-
 class TestFetchTranscriptContent(unittest.TestCase):
     """Tests for _fetch_transcript_content function."""
 
@@ -1654,6 +1545,463 @@ class TestProcessTranscriptDownload(unittest.TestCase):
         self.assertEqual(result[1], "/output/transcript.vtt")  # path
         self.assertEqual(result[2], "direct_download")  # source
         self.assertEqual(result[3], 0)  # no bytes in dry-run
+
+
+@pytest.mark.unit
+class TestFormatTranscriptIfNeeded(unittest.TestCase):
+    """Tests for _format_transcript_if_needed helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config(screenplay=False)
+
+    def test_format_transcript_if_needed_plain_text(self):
+        """Test formatting with plain text (no screenplay)."""
+        result = {"text": "Hello world", "segments": []}
+
+        text = episode_processor._format_transcript_if_needed(result, self.cfg, None, None)
+
+        self.assertEqual(text, "Hello world")
+
+    def test_format_transcript_if_needed_screenplay_enabled(self):
+        """Test formatting with screenplay enabled."""
+        cfg = create_test_config(screenplay=True, screenplay_num_speakers=2)
+        result = {"text": "Hello world", "segments": []}
+        mock_provider = Mock()
+        mock_provider.format_screenplay_from_segments = Mock(return_value="SCREENPLAY")
+
+        text = episode_processor._format_transcript_if_needed(
+            result, cfg, ["Speaker 1"], mock_provider
+        )
+
+        self.assertEqual(text, "SCREENPLAY")
+        mock_provider.format_screenplay_from_segments.assert_called_once()
+
+    def test_format_transcript_if_needed_screenplay_no_provider(self):
+        """Test formatting with screenplay but no provider support."""
+        cfg = create_test_config(screenplay=True)
+        result = {"text": "Hello world", "segments": []}
+
+        with patch("podcast_scraper.workflow.episode_processor.logger") as mock_logger:
+            text = episode_processor._format_transcript_if_needed(result, cfg, None, None)
+
+            self.assertEqual(text, "Hello world")
+            mock_logger.warning.assert_called()
+
+    def test_format_transcript_if_needed_empty_text(self):
+        """Test formatting with empty text."""
+        result = {"text": "", "segments": []}
+
+        text = episode_processor._format_transcript_if_needed(result, self.cfg, None, None)
+
+        self.assertEqual(text, "")
+
+
+@pytest.mark.unit
+class TestSaveTranscriptFile(unittest.TestCase):
+    """Tests for _save_transcript_file helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.job = Mock()
+        self.job.idx = 1
+        self.job.ep_title_safe = "test_episode"
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.write_file")
+    @patch("os.path.relpath")
+    def test_save_transcript_file_success(self, mock_relpath, mock_write_file, mock_build_path):
+        """Test successful transcript file save."""
+        mock_build_path.return_value = os.path.join(self.temp_dir, "transcript.txt")
+        mock_relpath.return_value = "transcript.txt"
+
+        result = episode_processor._save_transcript_file(
+            "Transcript text", self.job, None, self.temp_dir
+        )
+
+        self.assertEqual(result, "transcript.txt")
+        mock_write_file.assert_called_once()
+
+    def test_save_transcript_file_empty_text(self):
+        """Test that empty text raises RuntimeError."""
+        with self.assertRaises(RuntimeError) as context:
+            episode_processor._save_transcript_file("", self.job, None, self.temp_dir)
+
+        self.assertIn("empty transcription", str(context.exception))
+
+
+@pytest.mark.unit
+class TestCleanupTempMedia(unittest.TestCase):
+    """Tests for _cleanup_temp_media helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.temp_media = os.path.join(self.temp_dir, "temp.mp3")
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_cleanup_temp_media_success(self):
+        """Test successful cleanup of temp media file."""
+        with open(self.temp_media, "w") as f:
+            f.write("test")
+
+        cfg = create_test_config(reuse_media=False)
+        episode_processor._cleanup_temp_media(self.temp_media, cfg)
+
+        self.assertFalse(os.path.exists(self.temp_media))
+
+    def test_cleanup_temp_media_reuse_enabled(self):
+        """Test that cleanup is skipped when reuse_media is enabled."""
+        with open(self.temp_media, "w") as f:
+            f.write("test")
+
+        cfg = create_test_config(reuse_media=True)
+
+        with patch("podcast_scraper.workflow.episode_processor.logger") as mock_logger:
+            episode_processor._cleanup_temp_media(self.temp_media, cfg)
+
+            self.assertTrue(os.path.exists(self.temp_media))
+            mock_logger.debug.assert_called()
+
+    def test_cleanup_temp_media_file_not_exists(self):
+        """Test cleanup when file doesn't exist (no error)."""
+        cfg = create_test_config(reuse_media=False)
+
+        # Should not raise
+        episode_processor._cleanup_temp_media(self.temp_media, cfg)
+
+
+@pytest.mark.unit
+class TestCheckAndReuseExistingTranscript(unittest.TestCase):
+    """Tests for _check_and_reuse_existing_transcript helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.job = Mock()
+        self.job.idx = 1
+        self.job.ep_title_safe = "test_episode"
+        self.job.temp_media = ""
+        self.job.episode = create_test_episode(idx=1, title="Test Episode")
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.relpath")
+    def test_check_and_reuse_existing_transcript_found(
+        self, mock_relpath, mock_exists, mock_build_path
+    ):
+        """Test reusing existing transcript when found."""
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        mock_build_path.return_value = transcript_path
+        mock_exists.return_value = True
+        mock_relpath.return_value = "transcript.txt"
+
+        cfg = create_test_config(skip_existing=True)
+
+        result = episode_processor._check_and_reuse_existing_transcript(
+            self.job, cfg, None, self.temp_dir
+        )
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result[0])  # success
+        self.assertEqual(result[1], "transcript.txt")
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    def test_check_and_reuse_existing_transcript_not_found(self, mock_exists, mock_build_path):
+        """Test when existing transcript is not found."""
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        mock_build_path.return_value = transcript_path
+        mock_exists.return_value = False
+
+        cfg = create_test_config(skip_existing=True)
+
+        result = episode_processor._check_and_reuse_existing_transcript(
+            self.job, cfg, None, self.temp_dir
+        )
+
+        self.assertIsNone(result)
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    def test_check_and_reuse_existing_transcript_skip_disabled(self, mock_exists, mock_build_path):
+        """Test that reuse is skipped when skip_existing is disabled."""
+        transcript_path = os.path.join(self.temp_dir, "transcript.txt")
+        mock_build_path.return_value = transcript_path
+        mock_exists.return_value = True
+
+        cfg = create_test_config(skip_existing=False)
+
+        result = episode_processor._check_and_reuse_existing_transcript(
+            self.job, cfg, None, self.temp_dir
+        )
+
+        self.assertIsNone(result)
+
+
+@pytest.mark.unit
+class TestCheckTranscriptCache(unittest.TestCase):
+    """Tests for _check_transcript_cache helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.temp_media = os.path.join(self.temp_dir, "temp.mp3")
+        with open(self.temp_media, "w") as f:
+            f.write("test audio")
+
+        self.job = Mock()
+        self.job.idx = 1
+        self.job.ep_title_safe = "test_episode"
+        self.job.episode = create_test_episode(idx=1, title="Test Episode")
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.cache.transcript_cache.get_cached_transcript")
+    @patch("podcast_scraper.cache.transcript_cache.get_audio_hash")
+    @patch("podcast_scraper.workflow.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
+    def test_check_transcript_cache_hit(
+        self, mock_cleanup, mock_save, mock_get_hash, mock_get_cached
+    ):
+        """Test transcript cache hit."""
+        mock_get_hash.return_value = "test_hash"
+        mock_get_cached.return_value = "Cached transcript text"
+        mock_save.return_value = "transcript.txt"
+
+        cfg = create_test_config(transcript_cache_enabled=True)
+
+        result = episode_processor._check_transcript_cache(
+            self.job, cfg, self.temp_media, None, self.temp_dir
+        )
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result[0])  # success
+        self.assertEqual(result[1], "transcript.txt")
+        mock_cleanup.assert_called_once()
+
+    @patch("podcast_scraper.cache.transcript_cache.get_cached_transcript")
+    def test_check_transcript_cache_miss(self, mock_get_cached):
+        """Test transcript cache miss."""
+        mock_get_cached.return_value = None
+
+        cfg = create_test_config(transcript_cache_enabled=True)
+
+        result = episode_processor._check_transcript_cache(
+            self.job, cfg, self.temp_media, None, self.temp_dir
+        )
+
+        self.assertIsNone(result)
+
+    def test_check_transcript_cache_disabled(self):
+        """Test that cache check is skipped when disabled."""
+        cfg = create_test_config(transcript_cache_enabled=False)
+
+        result = episode_processor._check_transcript_cache(
+            self.job, cfg, self.temp_media, None, self.temp_dir
+        )
+
+        self.assertIsNone(result)
+
+
+@pytest.mark.unit
+class TestGetProviderModelName(unittest.TestCase):
+    """Tests for _get_provider_model_name helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config()
+
+    def test_get_provider_model_name_from_whisper_model(self):
+        """Test extracting model name from cfg.whisper_model."""
+        cfg = create_test_config(whisper_model="base")
+        mock_provider = Mock()
+
+        result = episode_processor._get_provider_model_name(mock_provider, cfg)
+
+        self.assertEqual(result, "base")
+
+    def test_get_provider_model_name_from_openai_model(self):
+        """Test extracting model name from cfg.openai_transcription_model."""
+        cfg = create_test_config(
+            transcription_provider="openai",
+            openai_transcription_model="whisper-1",
+            openai_api_key="test-key",  # Required for OpenAI provider
+        )
+        mock_provider = Mock()
+        # Mock provider has non-string model (like Whisper object)
+        mock_provider.model = Mock()  # Non-string object
+
+        result = episode_processor._get_provider_model_name(mock_provider, cfg)
+
+        self.assertEqual(result, "whisper-1")
+
+    def test_get_provider_model_name_from_provider_attribute(self):
+        """Test extracting model name from provider attribute."""
+        # Create a mock that doesn't have 'model' attribute
+        # Use spec to limit attributes, or explicitly delete model
+        mock_provider = Mock(spec=["transcription_model"])
+        mock_provider.transcription_model = "custom-model"
+
+        result = episode_processor._get_provider_model_name(mock_provider, self.cfg)
+
+        # Should return transcription_model since model attribute doesn't exist
+        self.assertEqual(result, "custom-model")
+
+    def test_get_provider_model_name_returns_none(self):
+        """Test that None is returned when model cannot be determined."""
+        mock_provider = Mock()
+        # Remove both model and transcription_model attributes
+        if hasattr(mock_provider, "model"):
+            delattr(mock_provider, "model")
+        if hasattr(mock_provider, "transcription_model"):
+            delattr(mock_provider, "transcription_model")
+
+        result = episode_processor._get_provider_model_name(mock_provider, self.cfg)
+
+        self.assertIsNone(result)
+
+
+@pytest.mark.unit
+class TestSaveTranscriptToCacheIfNeeded(unittest.TestCase):
+    """Tests for _save_transcript_to_cache_if_needed helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.temp_media = os.path.join(self.temp_dir, "temp.mp3")
+        with open(self.temp_media, "w") as f:
+            f.write("test audio")
+
+        self.job = Mock()
+        self.job.idx = 1
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache")
+    @patch("podcast_scraper.cache.transcript_cache.get_audio_hash")
+    @patch("podcast_scraper.workflow.episode_processor._get_provider_model_name")
+    @patch("podcast_scraper.workflow.episode_processor.logger")
+    def test_save_transcript_to_cache_if_needed_success(
+        self, mock_logger, mock_get_model, mock_get_hash, mock_save
+    ):
+        """Test successful transcript cache save."""
+        mock_get_hash.return_value = "test_hash"
+        mock_get_model.return_value = "base"
+
+        cfg = create_test_config(transcript_cache_enabled=True)
+
+        episode_processor._save_transcript_to_cache_if_needed(
+            self.job, cfg, self.temp_media, "Transcript text", Mock()
+        )
+
+        mock_save.assert_called_once()
+
+    def test_save_transcript_to_cache_if_needed_disabled(self):
+        """Test that cache save is skipped when disabled."""
+        cfg = create_test_config(transcript_cache_enabled=False)
+
+        with patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache") as mock_save:
+            episode_processor._save_transcript_to_cache_if_needed(
+                self.job, cfg, self.temp_media, "Transcript text", Mock()
+            )
+
+            mock_save.assert_not_called()
+
+    @patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache")
+    @patch("podcast_scraper.cache.transcript_cache.get_audio_hash")
+    @patch("podcast_scraper.workflow.episode_processor._get_provider_model_name")
+    @patch("podcast_scraper.workflow.episode_processor.logger")
+    def test_save_transcript_to_cache_if_needed_handles_exception(
+        self, mock_logger, mock_get_model, mock_get_hash, mock_save
+    ):
+        """Test that exceptions during cache save are handled."""
+        mock_get_hash.return_value = "test_hash"
+        mock_get_model.return_value = "base"
+        mock_save.side_effect = RuntimeError("Cache save failed")
+
+        cfg = create_test_config(transcript_cache_enabled=True)
+
+        # Should not raise
+        episode_processor._save_transcript_to_cache_if_needed(
+            self.job, cfg, self.temp_media, "Transcript text", Mock()
+        )
+
+        mock_logger.warning.assert_called()
+
+
+@pytest.mark.unit
+class TestRecordTranscriptionMetrics(unittest.TestCase):
+    """Tests for _record_transcription_metrics helper function."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        from podcast_scraper.workflow import metrics
+
+        self.cfg = create_test_config()
+        self.pipeline_metrics = metrics.Metrics()
+        self.job = Mock()
+        self.job.idx = 1
+        self.job.episode = create_test_episode(idx=1, title="Test Episode")
+        self.call_metrics = Mock()
+        self.call_metrics.retries = 0
+        self.call_metrics.rate_limit_sleep_sec = 0.0
+        self.call_metrics.prompt_tokens = None
+        self.call_metrics.completion_tokens = None
+        self.call_metrics.estimated_cost = None
+
+    @patch("podcast_scraper.workflow.orchestration._log_episode_metrics")
+    def test_record_transcription_metrics_success(self, mock_log_metrics):
+        """Test successful recording of transcription metrics."""
+        episode_processor._record_transcription_metrics(
+            self.job, self.cfg, 10.5, self.call_metrics, self.pipeline_metrics
+        )
+
+        self.assertEqual(self.pipeline_metrics.transcribe_times, [10.5])
+        mock_log_metrics.assert_called_once()
+
+    def test_record_transcription_metrics_no_pipeline_metrics(self):
+        """Test that function returns early when pipeline_metrics is None."""
+        # Should not raise
+        episode_processor._record_transcription_metrics(
+            self.job, self.cfg, 10.5, self.call_metrics, None
+        )
 
 
 if __name__ == "__main__":

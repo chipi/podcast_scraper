@@ -42,29 +42,12 @@ ml = [
   "protobuf>=3.20.0,!=6.33.4,<7.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
 # LLM API providers - grouped for CI/test convenience
-# Individual extras (gemini, anthropic, mistral, ollama) are kept for selective installation
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
-  "google-generativeai>=0.8.0,<1.0.0",  # Gemini API provider (Issue #194)
+  "google-genai>=0.1.0,<1.0.0",  # Gemini API provider (Issue #194, migrated from google-generativeai in Issue #415)
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
   "mistralai>=1.0.0,<2.0.0",  # Mistral API provider (Issue #106)
   "httpx>=0.24.0,<1.0.0",  # Ollama provider (Issue #196) - for health checks
-]
-# Gemini API provider (Issue #194)
-gemini = [
-  "google-generativeai>=0.8.0,<1.0.0",
-]
-# Anthropic API provider (Issue #106)
-anthropic = [
-  "anthropic>=0.34.0,<1.0.0",
-]
-# Ollama provider (Issue #196)
-ollama = [
-  "httpx>=0.24.0,<1.0.0",  # For Ollama health checks
-]
-# Mistral API provider (Issue #106)
-mistral = [
-  "mistralai>=1.0.0,<2.0.0",
 ]
 # Development tools
 dev = [
@@ -97,29 +80,9 @@ dev = [
 
 [tool.setuptools]
 # Package is now in src/ directory (src-layout)
-packages = [
-    "podcast_scraper",
-    "podcast_scraper.cache",
-    "podcast_scraper.evaluation",
-    "podcast_scraper.preprocessing",
-    "podcast_scraper.preprocessing.audio",
-    "podcast_scraper.providers",
-    "podcast_scraper.providers.deepseek",
-    "podcast_scraper.providers.gemini",
-    "podcast_scraper.providers.anthropic",
-    "podcast_scraper.providers.mistral",
-    "podcast_scraper.providers.ml",
-    "podcast_scraper.providers.ollama",
-    "podcast_scraper.providers.openai",
-    "podcast_scraper.rss",
-    "podcast_scraper.schemas",
-    "podcast_scraper.speaker_detectors",
-    "podcast_scraper.summarization",
-    "podcast_scraper.transcription",
-    "podcast_scraper.utils",
-    "podcast_scraper.workflow",
-    "podcast_scraper.workflow.stages",
-]
+# Use find: to automatically discover all packages (more reliable than explicit listing)
+# Exclude non-package directories that might be detected incorrectly
+packages = {find = {where = ["src"], exclude = ["*.egg-info", "examples", "docker"]}}
 package-dir = {"" = "src"}
 
 [tool.black]

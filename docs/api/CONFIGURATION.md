@@ -93,10 +93,12 @@ OpenAI providers support configurable model selection for dev/test vs production
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
+| `openai_api_key` | `--openai-api-key` | `None` (from env var) | OpenAI API key (or set `OPENAI_API_KEY` env var) |
 | `openai_transcription_model` | `--openai-transcription-model` | `whisper-1` | OpenAI model for transcription |
 | `openai_speaker_model` | `--openai-speaker-model` | `gpt-4o-mini` | OpenAI model for speaker detection |
 | `openai_summary_model` | `--openai-summary-model` | `gpt-4o-mini` | OpenAI model for summarization |
 | `openai_temperature` | `--openai-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
+| `openai_max_tokens` | `--openai-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
 **Note on Transcription Limits**: The OpenAI Whisper API has a **25 MB file size limit**. The system proactively checks file sizes via HTTP HEAD requests before downloading or attempting transcription with the OpenAI provider. Episodes exceeding this limit will be skipped to avoid API errors and unnecessary bandwidth usage.
 
@@ -275,6 +277,106 @@ Mistral providers support configurable model selection for dev/test vs productio
 | Speaker Detection | `mistral-small-latest` | `mistral-large-latest` | Small is fast/cheap; Large is more accurate |
 | Summarization | `mistral-small-latest` | `mistral-large-latest` | Small is fast/cheap; Large produces better summaries |
 
+#### DeepSeek API Configuration
+
+**`DEEPSEEK_API_KEY`**
+
+- **Description**: DeepSeek API key for DeepSeek-based providers (speaker detection, summarization)
+- **Required**: Yes, when using DeepSeek providers (`speaker_detector_provider=deepseek` or `summary_provider=deepseek`)
+- **Example**: `export DEEPSEEK_API_KEY=your-actual-api-key-here`
+- **Security**: Never commit `.env` files containing API keys. API keys are never logged or exposed in error messages.
+- **Getting an API Key**: Visit [DeepSeek Platform](https://platform.deepseek.com/) to generate a DeepSeek API key.
+- **Note**: DeepSeek does NOT support native audio transcription. Use `whisper` (local), `openai`, `gemini`, or `mistral` for transcription. DeepSeek is 95% cheaper than OpenAI for text processing.
+
+#### DeepSeek Model Configuration
+
+DeepSeek providers support configurable model selection.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `deepseek_speaker_model` | `--deepseek-speaker-model` | `deepseek-chat` | DeepSeek model for speaker detection |
+| `deepseek_summary_model` | `--deepseek-summary-model` | `deepseek-chat` | DeepSeek model for summarization |
+| `deepseek_temperature` | `--deepseek-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
+| `deepseek_max_tokens` | `--deepseek-max-tokens` | `None` | Max tokens for generation (None = model default) |
+
+**Recommended Models by Environment**:
+
+| Purpose | Test/Dev | Production | Notes |
+| --------- | ---------- | ------------ | ------- |
+| Speaker Detection | `deepseek-chat` | `deepseek-chat` | Same model for all environments (extremely cheap) |
+| Summarization | `deepseek-chat` | `deepseek-chat` | Same model for all environments (extremely cheap) |
+
+**Example** (DeepSeek config file):
+
+```yaml
+speaker_detector_provider: deepseek
+summary_provider: deepseek
+deepseek_speaker_model: deepseek-chat
+deepseek_summary_model: deepseek-chat
+deepseek_temperature: 0.3
+```
+
+**Example** (DeepSeek CLI):
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --speaker-detector-provider deepseek \
+  --summary-provider deepseek \
+  --deepseek-speaker-model deepseek-chat \
+  --deepseek-summary-model deepseek-chat \
+  --deepseek-temperature 0.3
+```
+
+#### Grok API Configuration
+
+**`GROK_API_KEY`**
+
+- **Description**: Grok API key for Grok-based providers (speaker detection, summarization)
+- **Required**: Yes, when using Grok providers (`speaker_detector_provider=grok` or `summary_provider=grok`)
+- **Example**: `export GROK_API_KEY=your-actual-api-key-here`
+- **Security**: Never commit `.env` files containing API keys. API keys are never logged or exposed in error messages.
+- **Getting an API Key**: Visit [xAI Platform](https://console.x.ai/) to generate a Grok API key.
+- **Note**: Grok does NOT support native audio transcription. Use `whisper` (local), `openai`, `gemini`, or `mistral` for transcription. Grok provides real-time information access.
+
+#### Grok Model Configuration
+
+Grok providers support configurable model selection.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `grok_speaker_model` | `--grok-speaker-model` | `grok-2` | Grok model for speaker detection |
+| `grok_summary_model` | `--grok-summary-model` | `grok-2` | Grok model for summarization |
+| `grok_temperature` | `--grok-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
+| `grok_max_tokens` | `--grok-max-tokens` | `None` | Max tokens for generation (None = model default) |
+
+**Recommended Models by Environment**:
+
+| Purpose | Test/Dev | Production | Notes |
+| --------- | ---------- | ------------ | ------- |
+| Speaker Detection | `grok-2` | `grok-2` | Same model for all environments |
+| Summarization | `grok-2` | `grok-2` | Same model for all environments |
+
+**Example** (Grok config file):
+
+```yaml
+speaker_detector_provider: grok
+summary_provider: grok
+grok_speaker_model: grok-2
+grok_summary_model: grok-2
+grok_temperature: 0.3
+```
+
+**Example** (Grok CLI):
+
+```bash
+podcast-scraper --rss https://example.com/feed.xml \
+  --speaker-detector-provider grok \
+  --summary-provider grok \
+  --grok-speaker-model grok-2 \
+  --grok-summary-model grok-2 \
+  --grok-temperature 0.3
+```
+
 #### Ollama API Configuration
 
 **`OLLAMA_API_BASE`**
@@ -291,7 +393,7 @@ Ollama providers support configurable model selection for dev/test vs production
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
 | `ollama_speaker_model` | `--ollama-speaker-model` | `llama3.2:latest` (test) / `llama3.3:latest` (prod) | Ollama model for speaker detection |
-| `ollama_summary_model` | `--ollama-summary-model` | `llama3.2:latest` (test) / `llama3.3:latest` (prod) | Ollama model for summarization |
+| `ollama_summary_model` | `--ollama-summary-model` | `llama3.1:8b` | Ollama model for summarization |
 | `ollama_temperature` | `--ollama-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `ollama_max_tokens` | `--ollama-max-tokens` | `None` | Max tokens for generation (None = model default) |
 | `ollama_timeout` | `--ollama-timeout` | `120` | Timeout in seconds for API calls (local inference can be slow) |
@@ -498,6 +600,115 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --preprocessing-sample-rate 16000
 ```
 
+#### Transcript Cleaning Configuration (Issue #418)
+
+Transcript cleaning removes unwanted content (sponsor blocks, ads, timestamps) from transcripts before summarization. This improves summary quality by ensuring models focus on the core content.
+
+**Cleaning Strategies**:
+
+| Strategy | Description | Use Case |
+| -------- | ----------- | -------- |
+| `pattern` | Pattern-based cleaning using regex rules (default for ML providers) | Fast, deterministic, no API costs |
+| `llm` | LLM-based semantic cleaning using language models | Highest quality, removes semantic noise |
+| `hybrid` | Pattern-based first, then conditional LLM cleaning (default for LLM providers) | Best balance of quality and cost |
+
+**Default Behavior**:
+
+- **LLM Providers** (OpenAI, Gemini, Anthropic, etc.): `hybrid` (pattern + conditional LLM)
+- **ML Providers** (transformers): `pattern` (pattern-based only)
+
+**Hybrid Strategy Details**:
+
+The hybrid strategy applies pattern-based cleaning first, then conditionally uses LLM cleaning when:
+
+- Pattern-based cleaning reduces text by less than the threshold (default: 10%)
+- Heuristics detect sponsor keywords or high promotional density
+
+This reduces LLM API calls by 70-90% while maintaining high quality.
+
+**Configuration Fields**:
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` (LLM) / `pattern` (ML) | Cleaning strategy: `pattern`, `llm`, or `hybrid` |
+| `openai_cleaning_model` | `--openai-cleaning-model` | `gpt-4o-mini` | OpenAI model for cleaning (cheaper than summary model) |
+| `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
+| `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |
+| `gemini_cleaning_temperature` | `--gemini-cleaning-temperature` | `0.2` | Temperature for Gemini cleaning (lower = more deterministic) |
+| `anthropic_cleaning_model` | `--anthropic-cleaning-model` | `claude-3-5-haiku-latest` | Anthropic model for cleaning (cheaper than summary model) |
+| `anthropic_cleaning_temperature` | `--anthropic-cleaning-temperature` | `0.2` | Temperature for Anthropic cleaning (lower = more deterministic) |
+| `mistral_cleaning_model` | `--mistral-cleaning-model` | `mistral-small-latest` | Mistral model for cleaning (cheaper than summary model) |
+| `mistral_cleaning_temperature` | `--mistral-cleaning-temperature` | `0.2` | Temperature for Mistral cleaning (lower = more deterministic) |
+| `deepseek_cleaning_model` | `--deepseek-cleaning-model` | `deepseek-chat` | DeepSeek model for cleaning (cheaper than summary model) |
+| `deepseek_cleaning_temperature` | `--deepseek-cleaning-temperature` | `0.2` | Temperature for DeepSeek cleaning (lower = more deterministic) |
+| `grok_cleaning_model` | `--grok-cleaning-model` | `grok-3-mini` | Grok model for cleaning (cheaper than summary model) |
+| `grok_cleaning_temperature` | `--grok-cleaning-temperature` | `0.2` | Temperature for Grok cleaning (lower = more deterministic) |
+| `ollama_cleaning_model` | `--ollama-cleaning-model` | `llama3.1:8b` | Ollama model for cleaning (smaller/faster than summary model) |
+| `ollama_cleaning_temperature` | `--ollama-cleaning-temperature` | `0.2` | Temperature for Ollama cleaning (lower = more deterministic) |
+| `{provider}_cleaning_max_tokens` | N/A | `None` (80-90% of input) | Max tokens for cleaning output (config file only) |
+| `{provider}_cleaning_llm_threshold` | N/A | `0.10` | Reduction ratio threshold for hybrid cleaning (0.0-1.0, config file only) |
+
+**Provider-Specific Cleaning Models**:
+
+Each LLM provider can use a different model for cleaning (typically cheaper/faster than summarization):
+
+- **OpenAI**: `openai_cleaning_model` (defaults to `gpt-4o-mini`)
+- **Gemini**: `gemini_cleaning_model` (defaults to `gemini-1.5-flash`)
+- **Anthropic**: `anthropic_cleaning_model` (defaults to `claude-3-5-haiku-latest`)
+- **Mistral**: `mistral_cleaning_model` (defaults to `mistral-small-latest`)
+- **DeepSeek**: `deepseek_cleaning_model` (defaults to `deepseek-chat`)
+- **Grok**: `grok_cleaning_model` (defaults to `grok-3-mini`)
+- **Ollama**: `ollama_cleaning_model` (defaults to `llama3.1:8b`)
+
+**Example** (config file with hybrid cleaning):
+
+```yaml
+summary_provider: openai
+transcript_cleaning_strategy: hybrid  # Pattern + conditional LLM
+openai_cleaning_model: gpt-4o-mini    # Cheaper model for cleaning
+openai_cleaning_temperature: 0.2      # Lower temp for deterministic cleaning
+openai_cleaning_llm_threshold: 0.10   # Use LLM if pattern reduces < 10%
+```
+
+**Example** (CLI with OpenAI):
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --summary-provider openai \
+  --transcript-cleaning-strategy hybrid \
+  --openai-cleaning-model gpt-4o-mini \
+  --openai-cleaning-temperature 0.2
+```
+
+**Example** (CLI with Gemini):
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --summary-provider gemini \
+  --transcript-cleaning-strategy hybrid \
+  --gemini-cleaning-model gemini-1.5-flash \
+  --gemini-cleaning-temperature 0.2
+```
+
+**Example** (CLI with Anthropic):
+
+```bash
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
+  --summary-provider anthropic \
+  --transcript-cleaning-strategy hybrid \
+  --anthropic-cleaning-model claude-3-5-haiku-latest \
+  --anthropic-cleaning-temperature 0.2
+```
+
+**Example** (pattern-only for ML provider):
+
+```yaml
+summary_provider: transformers
+transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support LLM cleaning)
+```
+
+**Note**: LLM-based cleaning is only available when using LLM providers for summarization. ML providers (transformers) always use pattern-based cleaning.
+
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
 
 #### Logging & Operational Configuration (Issue #379)
@@ -582,6 +793,36 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 
   ```yaml
   summarization_timeout: 1800  # 30 minutes
+  ```
+
+**`transcription_queue_size`**
+
+- **Description**: Maximum size of the transcription job queue (Issue #383). When the queue is full, downloads will block until space is available (backpressure). Prevents unbounded memory growth when downloads outpace transcription processing.
+- **CLI Flag**: Not available (config file only)
+- **Default**: `50`
+- **Type**: `int` (minimum: 1)
+- **Use Cases**:
+  - Preventing memory issues when downloads complete faster than transcription
+  - Controlling memory usage for large batch processing
+  - Providing backpressure to balance download and transcription stages
+- **Technical Details**:
+  - Uses Python's `queue.Queue` with `maxsize` parameter
+  - When queue is full, `transcription_jobs.put()` blocks until space is available
+  - Transcription stage uses `queue.get()` with timeout for efficient polling
+  - Queue is thread-safe and replaces the previous list-based approach
+
+- **Example**:
+
+  ```yaml
+  transcription_queue_size: 50  # Default: allow up to 50 jobs in queue
+  ```
+
+  ```yaml
+  transcription_queue_size: 10  # Smaller queue for memory-constrained environments
+  ```
+
+  ```yaml
+  transcription_queue_size: 100  # Larger queue for high-throughput scenarios
   ```
 
 **`summary_2nd_pass_distill`**

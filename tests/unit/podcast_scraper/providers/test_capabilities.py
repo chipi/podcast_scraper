@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
-# Mock openai, anthropic, and google.generativeai before importing modules that require them
+# Mock openai, anthropic, and google.genai before importing modules that require them
 # Unit tests run without these optional packages installed
 # Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
 mock_openai = MagicMock()
@@ -18,7 +18,7 @@ _patch_modules = patch.dict(
     {
         "openai": mock_openai,
         "anthropic": mock_anthropic,
-        "google.generativeai": mock_genai,
+        "google.genai": mock_genai,
         "google": MagicMock(generativeai=mock_genai),
     },
 )

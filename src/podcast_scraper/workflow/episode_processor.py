@@ -9,7 +9,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional, TYPE_CHECKING
+from typing import Any, List, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -417,6 +417,433 @@ def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) ->
         logger.debug(f"    failed to remove temp media file {temp_media}: {exc}")
 
 
+def _check_and_reuse_existing_transcript(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    pipeline_metrics=None,
+) -> Optional[tuple[bool, Optional[str], int]]:
+    """Check if existing transcript can be reused and return if found.
+
+    Args:
+        job: TranscriptionJob with episode info
+        cfg: Configuration object
+        run_suffix: Optional suffix for output filename
+        effective_output_dir: Output directory path
+        pipeline_metrics: Optional metrics object
+
+    Returns:
+        Tuple of (success, rel_path, bytes_downloaded) if transcript exists, None otherwise
+    """
+    final_out_path = filesystem.build_whisper_output_path(
+        job.idx, job.ep_title_safe, run_suffix, effective_output_dir
+    )
+
+    # If temp_media is empty and transcript exists, we're reusing existing transcript
+    # (happens when skip_existing=True and generate_summaries=True)
+    if not job.temp_media and cfg.skip_existing and os.path.exists(final_out_path):
+        rel_path = os.path.relpath(final_out_path, effective_output_dir)
+        logger.debug(
+            "[%s] Reusing existing Whisper transcript for summarization: %s",
+            job.idx,
+            rel_path,
+        )
+        # Update episode status: transcribed (reused existing) (Issue #391)
+        if pipeline_metrics is not None and hasattr(job, "episode"):
+            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+            episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
+        return True, rel_path, 0
+    return None
+
+
+def _check_transcript_cache(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    temp_media: str,
+    run_suffix: Optional[str],
+    effective_output_dir: str,
+    pipeline_metrics=None,
+) -> Optional[tuple[bool, Optional[str], int]]:
+    """Check transcript cache and return cached transcript if found.
+
+    Args:
+        job: TranscriptionJob with episode info
+        cfg: Configuration object
+        temp_media: Path to temporary media file
+        run_suffix: Optional suffix for output filename
+        effective_output_dir: Output directory path
+        pipeline_metrics: Optional metrics object
+
+    Returns:
+        Tuple of (success, rel_path, bytes_downloaded) if cache hit, None otherwise
+    """
+    if not (cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media)):
+        return None
+
+    from podcast_scraper.cache import transcript_cache
+
+    cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
+    audio_hash = transcript_cache.get_audio_hash(temp_media)
+    cached_transcript = transcript_cache.get_cached_transcript(audio_hash, cache_dir)
+    if cached_transcript:
+        logger.info(
+            "[%s] Transcript cache hit (hash=%s), skipping transcription",
+            job.idx,
+            audio_hash,
+        )
+        # Save cached transcript to output file
+        rel_path = _save_transcript_file(
+            cached_transcript,
+            job,
+            run_suffix,
+            effective_output_dir,
+            pipeline_metrics=pipeline_metrics,
+        )
+        logger.info(f"    saved transcript from cache: {rel_path}")
+        # Update episode status: transcribed (from cache)
+        if pipeline_metrics is not None:
+            if hasattr(job, "episode"):
+                from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
+        _cleanup_temp_media(temp_media, cfg)
+        bytes_downloaded = 0
+        if os.path.exists(temp_media):
+            try:
+                bytes_downloaded = os.path.getsize(temp_media)
+            except OSError:
+                pass
+        return True, rel_path, bytes_downloaded
+    return None
+
+
+def _preprocess_audio_if_needed(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    temp_media: str,
+    pipeline_metrics=None,
+) -> str:
+    """Preprocess audio if enabled and return path to audio file for transcription.
+
+    Args:
+        job: TranscriptionJob with episode info
+        cfg: Configuration object
+        temp_media: Path to temporary media file
+        pipeline_metrics: Optional metrics object
+
+    Returns:
+        Path to audio file to use for transcription (preprocessed or original)
+    """
+    media_for_transcription = temp_media
+    if not (cfg.preprocessing_enabled and temp_media and os.path.exists(temp_media)):
+        return media_for_transcription
+
+    from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
+    from podcast_scraper.preprocessing.audio.factory import create_audio_preprocessor
+
+    # Log before preprocessing
+    try:
+        original_size = os.path.getsize(temp_media)
+        original_size_mb = original_size / (1024 * 1024)
+        logger.debug(
+            "[%s] Audio preprocessing: starting with original file size: %.2f MB",
+            job.idx,
+            original_size_mb,
+        )
+    except OSError:
+        original_size = 0
+        logger.debug("[%s] Audio preprocessing: starting (size unknown)", job.idx)
+
+    audio_preprocessor = create_audio_preprocessor(cfg)
+    if not audio_preprocessor:
+        return media_for_transcription
+
+    # Record preprocessing attempt (regardless of cache hit/miss)
+    if pipeline_metrics is not None:
+        pipeline_metrics.record_preprocessing_attempt()
+
+    cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
+    cache_key = audio_preprocessor.get_cache_key(temp_media)
+
+    # Track wall time for preprocessing (Issue #387)
+    preprocessing_wall_start = time.time()
+
+    # Extract audio metadata from original file (Issue #387)
+    from podcast_scraper.preprocessing.audio.ffmpeg_processor import extract_audio_metadata
+
+    audio_metadata = extract_audio_metadata(temp_media)
+    if audio_metadata and pipeline_metrics is not None:
+        pipeline_metrics.record_preprocessing_audio_metadata(
+            bitrate=audio_metadata.get("bitrate"),
+            sample_rate=audio_metadata.get("sample_rate"),
+            codec=audio_metadata.get("codec"),
+            channels=audio_metadata.get("channels"),
+        )
+
+    # Check cache first
+    cache_check_start = time.time()
+    cached_path = preprocessing_cache.get_cached_audio_path(cache_key, cache_dir)
+    cache_check_elapsed = time.time() - cache_check_start
+
+    if cached_path:
+        logger.debug(
+            "[%s] Audio preprocessing: cache hit, using cached preprocessed audio: %s",
+            job.idx,
+            cache_key,
+        )
+        media_for_transcription = cached_path
+        preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
+
+        # Record cache hit metrics (Issue #387)
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_preprocessing_cache_hit()
+            pipeline_metrics.record_preprocessing_time(cache_check_elapsed)
+            pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
+            pipeline_metrics.record_preprocessing_cache_hit_time(preprocessing_wall_elapsed)
+            pipeline_metrics.record_preprocessing_cache_hit_flag(True)
+            try:
+                cached_size = os.path.getsize(cached_path)
+                cached_size_mb = cached_size / (1024 * 1024)
+                reduction = (1 - cached_size / original_size) * 100 if original_size > 0 else 0.0
+                logger.debug(
+                    "[%s] Audio preprocessing: cached file size: %.2f MB "
+                    "(%.1f%% reduction from original)",
+                    job.idx,
+                    cached_size_mb,
+                    reduction,
+                )
+                # Record metrics for cached file
+                pipeline_metrics.record_preprocessing_size_reduction(original_size, cached_size)
+            except OSError:
+                pass
+    else:
+        # Record cache miss
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_preprocessing_cache_miss()
+        logger.debug("[%s] Audio preprocessing: cache miss, preprocessing audio file", job.idx)
+
+        # Preprocess audio
+        preprocessed_path = f"{temp_media}.preprocessed.mp3"
+        success, preprocess_elapsed = audio_preprocessor.preprocess(temp_media, preprocessed_path)
+
+        preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
+
+        if success and os.path.exists(preprocessed_path):
+            # Save to cache
+            cached_path = preprocessing_cache.save_to_cache(preprocessed_path, cache_key, cache_dir)
+            media_for_transcription = cached_path
+
+            # Log after preprocessing with metrics
+            try:
+                preprocessed_size = os.path.getsize(cached_path)
+                preprocessed_size_mb = preprocessed_size / (1024 * 1024)
+                reduction = (
+                    (1 - preprocessed_size / original_size) * 100 if original_size > 0 else 0.0
+                )
+                logger.debug(
+                    "[%s] Audio preprocessing: completed in %.2fs, "
+                    "preprocessed file size: %.2f MB (%.1f%% reduction from %.2f MB)",
+                    job.idx,
+                    preprocess_elapsed,
+                    preprocessed_size_mb,
+                    reduction,
+                    original_size_mb,
+                )
+                logger.info(
+                    "[%s] Preprocessed audio: %.1f%% smaller " "(%.1fMB -> %.1fMB) in %.1fs",
+                    job.idx,
+                    reduction,
+                    original_size_mb,
+                    preprocessed_size_mb,
+                    preprocess_elapsed,
+                )
+
+                # Record metrics (Issue #387)
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                    pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
+                    pipeline_metrics.record_preprocessing_cache_miss_time(
+                        preprocessing_wall_elapsed
+                    )
+                    pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+                    pipeline_metrics.record_preprocessing_size_reduction(
+                        original_size, preprocessed_size
+                    )
+            except OSError:
+                logger.debug(
+                    "[%s] Audio preprocessing: completed in %.2fs (size unknown)",
+                    job.idx,
+                    preprocess_elapsed,
+                )
+                # Still record time even if size is unknown (Issue #387)
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                    pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
+                    pipeline_metrics.record_preprocessing_cache_miss_time(
+                        preprocessing_wall_elapsed
+                    )
+                    pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+        else:
+            # Preprocessing failed, use original audio
+            logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
+            media_for_transcription = temp_media
+            # Still record wall time even on failure (Issue #387)
+            if pipeline_metrics is not None:
+                pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
+                pipeline_metrics.record_preprocessing_cache_hit_flag(False)
+            # Clean up failed preprocessed file if it exists
+            if os.path.exists(preprocessed_path):
+                try:
+                    os.remove(preprocessed_path)
+                except OSError:
+                    pass
+
+    return media_for_transcription
+
+
+def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) -> Optional[str]:
+    """Extract model name from transcription provider for cache metadata.
+
+    Args:
+        transcription_provider: Transcription provider instance
+        cfg: Configuration object
+
+    Returns:
+        Model name string or None
+    """
+    if not transcription_provider:
+        return None
+
+    # Try to get model name from provider
+    # Note: MLProvider.model returns Whisper object (not JSON serializable),
+    # so we need to get model name from config or provider attributes
+    if hasattr(transcription_provider, "model"):
+        model = getattr(transcription_provider, "model", None)
+        # If model is not a string (e.g., Whisper model object), get name from config
+        if model is not None and not isinstance(model, str):
+            # Get model name from config based on provider type
+            if cfg.transcription_provider == "whisper":
+                return cfg.whisper_model
+            elif cfg.transcription_provider == "openai":
+                return getattr(cfg, "openai_transcription_model", "whisper-1")
+            elif cfg.transcription_provider == "gemini":
+                return getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+            elif cfg.transcription_provider == "mistral":
+                return getattr(cfg, "mistral_transcription_model", None)
+            elif cfg.transcription_provider == "anthropic":
+                return getattr(cfg, "anthropic_transcription_model", None)
+            elif cfg.transcription_provider == "deepseek":
+                return getattr(cfg, "deepseek_transcription_model", None)
+            elif cfg.transcription_provider == "grok":
+                return getattr(cfg, "grok_transcription_model", None)
+            elif cfg.transcription_provider == "ollama":
+                return getattr(cfg, "ollama_transcription_model", None)
+            else:
+                # Fallback: try to get transcription_model attribute from provider
+                return getattr(transcription_provider, "transcription_model", None)
+    # If provider has transcription_model attribute (like OpenAIProvider), prefer that
+    elif hasattr(transcription_provider, "transcription_model"):
+        return getattr(transcription_provider, "transcription_model", None)
+
+    return None
+
+
+def _save_transcript_to_cache_if_needed(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    temp_media: str,
+    text: str,
+    transcription_provider: Any,
+) -> None:
+    """Save transcript to cache if caching is enabled.
+
+    Args:
+        job: TranscriptionJob with episode info
+        cfg: Configuration object
+        temp_media: Path to temporary media file
+        text: Transcribed text
+        transcription_provider: Transcription provider instance
+    """
+    if not (cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media)):
+        return
+
+    from podcast_scraper.cache import transcript_cache
+
+    cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
+    audio_hash = transcript_cache.get_audio_hash(temp_media)
+    # Get provider name and model for metadata
+    provider_name = None
+    if transcription_provider:
+        provider_name = (
+            getattr(transcription_provider, "name", None)
+            or type(transcription_provider).__name__.replace("Provider", "").lower()
+        )
+    model = _get_provider_model_name(transcription_provider, cfg)
+    try:
+        transcript_cache.save_transcript_to_cache(
+            audio_hash, text, provider_name=provider_name, model=model, cache_dir=cache_dir
+        )
+        logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
+    except Exception as exc:
+        # Cache save failure is non-fatal - log and continue
+        logger.warning("[%s] Failed to save transcript to cache: %s", job.idx, exc)
+
+
+def _record_transcription_metrics(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    tc_elapsed: float,
+    call_metrics: Any,
+    pipeline_metrics=None,
+) -> None:
+    """Record transcription metrics after successful transcription.
+
+    Args:
+        job: TranscriptionJob with episode info
+        cfg: Configuration object
+        tc_elapsed: Transcription elapsed time in seconds
+        call_metrics: Provider call metrics
+        pipeline_metrics: Optional metrics object
+    """
+    if pipeline_metrics is None:
+        return
+
+    pipeline_metrics.record_transcribe_time(tc_elapsed)
+    # Update episode status: transcribed (Issue #391)
+    if hasattr(job, "episode"):
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+        from podcast_scraper.workflow.orchestration import _log_episode_metrics
+
+        episode_id, episode_number = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+        pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
+
+        # Log standardized per-episode metrics after transcription
+        episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
+        # Handle Mock objects from tests by checking type
+        audio_sec = (
+            float(episode_duration_seconds)
+            if episode_duration_seconds and isinstance(episode_duration_seconds, (int, float))
+            else None
+        )
+        _log_episode_metrics(
+            episode_id=episode_id,
+            episode_number=episode_number,
+            pipeline_metrics=pipeline_metrics,
+            cfg=cfg,
+            audio_sec=audio_sec,
+            transcribe_sec=tc_elapsed,
+            retries=call_metrics.retries,
+            rate_limit_sleep_sec=call_metrics.rate_limit_sleep_sec,
+            prompt_tokens=call_metrics.prompt_tokens,
+            completion_tokens=call_metrics.completion_tokens,
+            estimated_cost=call_metrics.estimated_cost,
+        )
+
+
 def transcribe_media_to_text(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -451,26 +878,13 @@ def transcribe_media_to_text(
         return True, rel_path, 0
 
     temp_media = job.temp_media
-    final_out_path = filesystem.build_whisper_output_path(
-        job.idx, job.ep_title_safe, run_suffix, effective_output_dir
+
+    # Check if existing transcript can be reused
+    reuse_result = _check_and_reuse_existing_transcript(
+        job, cfg, run_suffix, effective_output_dir, pipeline_metrics
     )
-
-    # If temp_media is empty and transcript exists, we're reusing existing transcript
-    # (happens when skip_existing=True and generate_summaries=True)
-    if not temp_media and cfg.skip_existing and os.path.exists(final_out_path):
-        rel_path = os.path.relpath(final_out_path, effective_output_dir)
-        logger.debug(
-            "[%s] Reusing existing Whisper transcript for summarization: %s",
-            job.idx,
-            rel_path,
-        )
-        # Update episode status: transcribed (reused existing) (Issue #391)
-        if pipeline_metrics is not None and hasattr(job, "episode"):
-            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
-
-            episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
-            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
-        return True, rel_path, 0
+    if reuse_result:
+        return reuse_result
 
     # Log detected speaker names (hosts + guests) before transcription
     # IMPORTANT: Log episode idx to catch speaker name leaks between episodes
@@ -502,225 +916,16 @@ def transcribe_media_to_text(
 
     # Transcript caching: Check cache before transcription
     # (enables fast multi-provider experimentation)
-    if cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media):
-        from podcast_scraper.cache import transcript_cache
-
-        cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
-        audio_hash = transcript_cache.get_audio_hash(temp_media)
-        cached_transcript = transcript_cache.get_cached_transcript(audio_hash, cache_dir)
-        if cached_transcript:
-            logger.info(
-                "[%s] Transcript cache hit (hash=%s), skipping transcription",
-                job.idx,
-                audio_hash,
-            )
-            # Save cached transcript to output file
-            rel_path = _save_transcript_file(
-                cached_transcript,
-                job,
-                run_suffix,
-                effective_output_dir,
-                pipeline_metrics=pipeline_metrics,
-            )
-            logger.info(f"    saved transcript from cache: {rel_path}")
-            # Update episode status: transcribed (from cache)
-            # Note: We do NOT call pipeline_metrics.record_transcribe_time() here because
-            # no actual transcription work was performed. This means:
-            # - transcribe_times list remains empty
-            # - transcribe_count = len(transcribe_times) = 0
-            # - avg_transcribe_seconds = 0.0
-            # However, transcripts_transcribed is still incremented in transcription.py
-            # because a transcript was successfully saved (from cache).
-            if pipeline_metrics is not None:
-                if hasattr(job, "episode"):
-                    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
-
-                    episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
-                    pipeline_metrics.update_episode_status(
-                        episode_id=episode_id, stage="transcribed"
-                    )
-            _cleanup_temp_media(temp_media, cfg)
-            return True, rel_path, bytes_downloaded
+    cache_result = _check_transcript_cache(
+        job, cfg, temp_media, run_suffix, effective_output_dir, pipeline_metrics
+    )
+    if cache_result:
+        return cache_result
 
     # Audio preprocessing (RFC-040): Preprocess audio BEFORE passing to any provider
     # This happens at the pipeline level, not within providers
     # All providers receive optimized audio (Whisper, OpenAI, future providers)
-    media_for_transcription = temp_media
-    if cfg.preprocessing_enabled and temp_media and os.path.exists(temp_media):
-        from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
-        from podcast_scraper.preprocessing.audio.factory import create_audio_preprocessor
-
-        # Log before preprocessing
-        try:
-            original_size = os.path.getsize(temp_media)
-            original_size_mb = original_size / (1024 * 1024)
-            logger.debug(
-                "[%s] Audio preprocessing: starting with original file size: %.2f MB",
-                job.idx,
-                original_size_mb,
-            )
-        except OSError:
-            original_size = 0
-            logger.debug("[%s] Audio preprocessing: starting (size unknown)", job.idx)
-
-        audio_preprocessor = create_audio_preprocessor(cfg)
-        if audio_preprocessor:
-            # Record preprocessing attempt (regardless of cache hit/miss)
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_preprocessing_attempt()
-
-            cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
-            cache_key = audio_preprocessor.get_cache_key(temp_media)
-
-            # Track wall time for preprocessing (Issue #387)
-            preprocessing_wall_start = time.time()
-
-            # Extract audio metadata from original file (Issue #387)
-            from podcast_scraper.preprocessing.audio.ffmpeg_processor import extract_audio_metadata
-
-            audio_metadata = extract_audio_metadata(temp_media)
-            if audio_metadata and pipeline_metrics is not None:
-                pipeline_metrics.record_preprocessing_audio_metadata(
-                    bitrate=audio_metadata.get("bitrate"),
-                    sample_rate=audio_metadata.get("sample_rate"),
-                    codec=audio_metadata.get("codec"),
-                    channels=audio_metadata.get("channels"),
-                )
-
-            # Check cache first
-            cache_check_start = time.time()
-            cached_path = preprocessing_cache.get_cached_audio_path(cache_key, cache_dir)
-            cache_check_elapsed = time.time() - cache_check_start
-
-            if cached_path:
-                logger.debug(
-                    "[%s] Audio preprocessing: cache hit, using cached preprocessed audio: %s",
-                    job.idx,
-                    cache_key,
-                )
-                media_for_transcription = cached_path
-                preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
-
-                # Record cache hit metrics (Issue #387)
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_preprocessing_cache_hit()
-                    pipeline_metrics.record_preprocessing_time(cache_check_elapsed)
-                    pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
-                    pipeline_metrics.record_preprocessing_cache_hit_time(preprocessing_wall_elapsed)
-                    pipeline_metrics.record_preprocessing_cache_hit_flag(True)
-                    try:
-                        cached_size = os.path.getsize(cached_path)
-                        cached_size_mb = cached_size / (1024 * 1024)
-                        reduction = (
-                            (1 - cached_size / original_size) * 100 if original_size > 0 else 0.0
-                        )
-                        logger.debug(
-                            "[%s] Audio preprocessing: cached file size: %.2f MB "
-                            "(%.1f%% reduction from original)",
-                            job.idx,
-                            cached_size_mb,
-                            reduction,
-                        )
-                        # Record metrics for cached file
-                        pipeline_metrics.record_preprocessing_size_reduction(
-                            original_size, cached_size
-                        )
-                    except OSError:
-                        pass
-            else:
-                # Record cache miss
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_preprocessing_cache_miss()
-                logger.debug(
-                    "[%s] Audio preprocessing: cache miss, preprocessing audio file", job.idx
-                )
-
-                # Preprocess audio
-                preprocessed_path = f"{temp_media}.preprocessed.mp3"
-                success, preprocess_elapsed = audio_preprocessor.preprocess(
-                    temp_media, preprocessed_path
-                )
-
-                preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
-
-                if success and os.path.exists(preprocessed_path):
-                    # Save to cache
-                    cached_path = preprocessing_cache.save_to_cache(
-                        preprocessed_path, cache_key, cache_dir
-                    )
-                    media_for_transcription = cached_path
-
-                    # Log after preprocessing with metrics
-                    try:
-                        preprocessed_size = os.path.getsize(cached_path)
-                        preprocessed_size_mb = preprocessed_size / (1024 * 1024)
-                        reduction = (
-                            (1 - preprocessed_size / original_size) * 100
-                            if original_size > 0
-                            else 0.0
-                        )
-                        logger.debug(
-                            "[%s] Audio preprocessing: completed in %.2fs, "
-                            "preprocessed file size: %.2f MB (%.1f%% reduction from %.2f MB)",
-                            job.idx,
-                            preprocess_elapsed,
-                            preprocessed_size_mb,
-                            reduction,
-                            original_size_mb,
-                        )
-                        logger.info(
-                            "[%s] Preprocessed audio: %.1f%% smaller "
-                            "(%.1fMB -> %.1fMB) in %.1fs",
-                            job.idx,
-                            reduction,
-                            original_size_mb,
-                            preprocessed_size_mb,
-                            preprocess_elapsed,
-                        )
-
-                        # Record metrics (Issue #387)
-                        if pipeline_metrics is not None:
-                            pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
-                            pipeline_metrics.record_preprocessing_wall_time(
-                                preprocessing_wall_elapsed
-                            )
-                            pipeline_metrics.record_preprocessing_cache_miss_time(
-                                preprocessing_wall_elapsed
-                            )
-                            pipeline_metrics.record_preprocessing_cache_hit_flag(False)
-                            pipeline_metrics.record_preprocessing_size_reduction(
-                                original_size, preprocessed_size
-                            )
-                    except OSError:
-                        logger.debug(
-                            "[%s] Audio preprocessing: completed in %.2fs (size unknown)",
-                            job.idx,
-                            preprocess_elapsed,
-                        )
-                        # Still record time even if size is unknown (Issue #387)
-                        if pipeline_metrics is not None:
-                            pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
-                            pipeline_metrics.record_preprocessing_wall_time(
-                                preprocessing_wall_elapsed
-                            )
-                            pipeline_metrics.record_preprocessing_cache_miss_time(
-                                preprocessing_wall_elapsed
-                            )
-                            pipeline_metrics.record_preprocessing_cache_hit_flag(False)
-                else:
-                    # Preprocessing failed, use original audio
-                    logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
-                    media_for_transcription = temp_media
-                    # Still record wall time even on failure (Issue #387)
-                    if pipeline_metrics is not None:
-                        pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
-                        pipeline_metrics.record_preprocessing_cache_hit_flag(False)
-                    # Clean up failed preprocessed file if it exists
-                    if os.path.exists(preprocessed_path):
-                        try:
-                            os.remove(preprocessed_path)
-                        except OSError:
-                            pass
+    media_for_transcription = _preprocess_audio_if_needed(job, cfg, temp_media, pipeline_metrics)
 
     try:
         # Stage 2: Use provider's transcribe_with_segments method for full result with segments
@@ -760,93 +965,10 @@ def transcribe_media_to_text(
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
 
         # Save transcript to cache for future use (enables fast multi-provider experimentation)
-        if cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media):
-            from podcast_scraper.cache import transcript_cache
-
-            cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
-            audio_hash = transcript_cache.get_audio_hash(temp_media)
-            # Get provider name and model for metadata
-            provider_name = None
-            model = None
-            if transcription_provider:
-                provider_name = (
-                    getattr(transcription_provider, "name", None)
-                    or type(transcription_provider).__name__.replace("Provider", "").lower()
-                )
-                # Try to get model name from provider
-                # Note: MLProvider.model returns Whisper object (not JSON serializable),
-                # so we need to get model name from config or provider attributes
-                if hasattr(transcription_provider, "model"):
-                    model = getattr(transcription_provider, "model", None)
-                    # If model is not a string (e.g., Whisper model object), get name from config
-                    if model is not None and not isinstance(model, str):
-                        # Get model name from config based on provider type
-                        if cfg.transcription_provider == "whisper":
-                            model = cfg.whisper_model
-                        elif cfg.transcription_provider == "openai":
-                            model = getattr(cfg, "openai_transcription_model", "whisper-1")
-                        elif cfg.transcription_provider == "gemini":
-                            model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
-                        elif cfg.transcription_provider == "mistral":
-                            model = getattr(cfg, "mistral_transcription_model", None)
-                        elif cfg.transcription_provider == "anthropic":
-                            model = getattr(cfg, "anthropic_transcription_model", None)
-                        elif cfg.transcription_provider == "deepseek":
-                            model = getattr(cfg, "deepseek_transcription_model", None)
-                        elif cfg.transcription_provider == "grok":
-                            model = getattr(cfg, "grok_transcription_model", None)
-                        elif cfg.transcription_provider == "ollama":
-                            model = getattr(cfg, "ollama_transcription_model", None)
-                        else:
-                            # Fallback: try to get transcription_model attribute from provider
-                            model = getattr(transcription_provider, "transcription_model", None)
-                # If provider has transcription_model attribute (like OpenAIProvider), prefer that
-                elif hasattr(transcription_provider, "transcription_model"):
-                    model = getattr(transcription_provider, "transcription_model", None)
-            try:
-                transcript_cache.save_transcript_to_cache(
-                    audio_hash, text, provider_name=provider_name, model=model, cache_dir=cache_dir
-                )
-                logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
-            except Exception as exc:
-                # Cache save failure is non-fatal - log and continue
-                logger.warning("[%s] Failed to save transcript to cache: %s", job.idx, exc)
+        _save_transcript_to_cache_if_needed(job, cfg, temp_media, text, transcription_provider)
 
         # Record transcription time if metrics available
-        if pipeline_metrics is not None:
-            pipeline_metrics.record_transcribe_time(tc_elapsed)
-            # Update episode status: transcribed (Issue #391)
-            if hasattr(job, "episode"):
-                from podcast_scraper.workflow.helpers import get_episode_id_from_episode
-                from podcast_scraper.workflow.orchestration import _log_episode_metrics
-
-                episode_id, episode_number = get_episode_id_from_episode(
-                    job.episode, cfg.rss_url or ""
-                )
-                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
-
-                # Log standardized per-episode metrics after transcription
-                episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
-                # Handle Mock objects from tests by checking type
-                audio_sec = (
-                    float(episode_duration_seconds)
-                    if episode_duration_seconds
-                    and isinstance(episode_duration_seconds, (int, float))
-                    else None
-                )
-                _log_episode_metrics(
-                    episode_id=episode_id,
-                    episode_number=episode_number,
-                    pipeline_metrics=pipeline_metrics,
-                    cfg=cfg,
-                    audio_sec=audio_sec,
-                    transcribe_sec=tc_elapsed,
-                    retries=call_metrics.retries,
-                    rate_limit_sleep_sec=call_metrics.rate_limit_sleep_sec,
-                    prompt_tokens=call_metrics.prompt_tokens,
-                    completion_tokens=call_metrics.completion_tokens,
-                    estimated_cost=call_metrics.estimated_cost,
-                )
+        _record_transcription_metrics(job, cfg, tc_elapsed, call_metrics, pipeline_metrics)
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:

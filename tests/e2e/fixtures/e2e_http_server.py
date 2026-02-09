@@ -669,6 +669,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "llama3.3:latest"},
                     {"name": "llama3.2:latest"},
                     {"name": "llama3.1:latest"},
+                    {"name": "llama3.1:8b"},
                     {"name": "llama3:latest"},
                 ]
             }

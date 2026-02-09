@@ -1,157 +1,86 @@
 # AI Coding Guidelines - Primary Reference
 
-## ⚠️ MANDATORY: Read .ai-coding-guidelines.md First
+## ⚠️ MANDATORY: Read `.ai-coding-guidelines.md` First
 
 ## 🚨 START-OF-SESSION CHECKLIST (MANDATORY - DO THIS FIRST)
 
 **Before taking ANY action in this project, you MUST:**
 
-1. ✅ **Read `.ai-coding-guidelines.md`** - This is the PRIMARY source of truth
-2. ✅ **Acknowledge you've read it** - Say "I've read the AI guidelines" or similar
-3. ✅ **Confirm when asked** - If user asks "Did you read the guidelines?", answer honestly
-4. ✅ **Reference it constantly** - For all decisions about code, workflow, and patterns
+1. ✅ **Read `.ai-coding-guidelines.md`** — this is the PRIMARY source of truth
+2. ✅ **Acknowledge you've read it** — say "I've read the AI guidelines" or similar
+3. ✅ **Confirm when asked** — if user asks "Did you read the guidelines?", answer honestly
+4. ✅ **Reference it constantly** — for all decisions about code, workflow, and patterns
 
 **If the user asks "Did you read the guidelines?" or "Check the guidelines first":**
-- ✅ **STOP what you're doing**
-- ✅ **Read `.ai-coding-guidelines.md` immediately**
-- ✅ **Acknowledge what you read**
-- ✅ **Then proceed with the task**
+
+- ✅ STOP what you're doing
+- ✅ Read `.ai-coding-guidelines.md` immediately
+- ✅ Acknowledge what you read
+- ✅ Then proceed with the task
 
 ## 🚨 CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
 
 **YOU MUST FOLLOW THIS EXACT SEQUENCE BEFORE EVERY COMMIT:**
 
-### Step-by-Step Commit Process (MANDATORY):
+### Step-by-Step Commit Process (MANDATORY)
 
 1. **Make code changes** ✅
-2. **MANDATORY: Run `make ci-fast`** - Fast validation before committing (~6-10 min)
-   - Runs: formatting, linting, fast tests (unit + fast integration + fast e2e)
-   - Pre-commit hook will also run this automatically
+2. **MANDATORY: Run `make ci-fast`** — fast validation (~6-10 min)
 3. **If editing markdown:** Run `make fix-md` to auto-fix common issues
 4. **Self-check markdown files** (if any were edited):
    - One H1 only, blank lines after headings, no trailing spaces
    - List indentation consistent, code fences have language tags
    - Run `make lint-markdown` to verify
-5. **MANDATORY: Run `git status`** - Show user what files changed
-6. **MANDATORY: Run `git diff`** - Show user the actual changes
-7. **MANDATORY: Wait for explicit approval** - User must say "commit", "yes", "go ahead", etc.
-8. **MANDATORY: Get commit message** - User provides message OR you ask for one
-9. **THEN commit** - Only after steps 2-8 are complete (pre-commit hook runs additional checks)
+5. **MANDATORY: Run `git status`** — show user what files changed
+6. **MANDATORY: Run `git diff`** — show user the actual changes
+7. **MANDATORY: Wait for explicit approval** — user must say "commit", "yes", etc.
+8. **MANDATORY: Get commit message** — user provides or you ask for one
+9. **THEN commit** — only after steps 2-8 are complete
 
-### ❌ NEVER commit when:
+### ❌ NEVER commit when
+
 - You haven't run `make ci-fast` first
 - You haven't shown `git status` first
 - You haven't shown `git diff` first
 - User hasn't explicitly approved
 - User said "don't commit" or "wait"
-- You're assuming approval from context
-
-### ✅ Example CORRECT workflow:
-```
-AI: I've fixed the issue. Let me run validation first:
-
-[Runs: make ci-fast]
-[Shows: All checks passed ✓]
-
-Now let me show you what changed:
-
-[Runs: git status]
-[Shows: Modified: config.py]
-
-[Runs: git diff config.py]
-[Shows: actual diff]
-
-Should I commit these changes?
-
-User: Yes, commit with message "fix: remove duplicate validator"
-
-AI: [Commits with user's message]
-```
-
-### ❌ Example INCORRECT workflow (DO NOT DO THIS):
-```
-AI: I've fixed the issue. [Commits immediately without validation or approval]
-```
 
 ## 🚨 CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
 
-**YOU MUST FOLLOW THIS EXACT SEQUENCE BEFORE EVERY PUSH TO PR:**
+### Step-by-Step Push Process (MANDATORY)
 
-### Step-by-Step Push Process (MANDATORY):
+1. **MANDATORY: Show `git status`** — show what will be pushed
+2. **MANDATORY: Show `git diff` or change summary**
+3. **Pre-commit hook has already run** — `make ci-fast` passed during commit
+4. **MANDATORY: Conditionally run `make docker-test`** — ONLY if Docker changes
+5. **MANDATORY: Ask user for explicit approval** — wait for "push"/"yes"/"go ahead"
+6. **THEN push** — only after user has approved
 
-1. **MANDATORY: Show `git status`** - Show user what will be pushed
-2. **MANDATORY: Show `git diff` or change summary** - Show user the actual changes
-3. **Pre-commit hook has already run** - `make ci-fast` checks passed during commit
-4. **MANDATORY: Conditionally run `make docker-test`** - ONLY if Docker-related changes exist (see below)
-5. **MANDATORY: Ask user for explicit approval** - User must say "push", "yes", "go ahead", etc.
-6. **MANDATORY: Wait for user approval** - DO NOT push until user explicitly approves
-7. **THEN push** - Only after steps 1-6 are complete AND user has approved
+### When to run `make docker-test` (CONDITIONAL)
 
-### When to run `make docker-test` (CONDITIONAL):
+**Run ONLY if you changed:**
 
-**Run `make docker-test` BEFORE pushing to PR ONLY if you made significant changes to:**
+- ✅ Dockerfile — any build process changes
+- ✅ Project structure — package layout changes
+- ✅ Dependencies — `pyproject.toml` core deps/metadata
+- ✅ Package configuration — `[tool.setuptools]` changes
 
-- ✅ **Dockerfile** - Any changes to build process, dependencies, or structure
-- ✅ **Project structure** - Changes to package layout, subpackages, or file organization
-- ✅ **Dependencies** - Changes to `pyproject.toml` that affect Docker installation (core deps, package metadata)
-- ✅ **Package configuration** - Changes to `[tool.setuptools]` in `pyproject.toml`
-
-**When NOT to run:**
-- ❌ Only Python code changes (no Dockerfile or structure changes)
-- ❌ Only documentation or test file changes
-- ❌ Only configuration file changes (that don't affect Docker)
-
-### ❌ NEVER push to PR when:
-- **User hasn't explicitly approved** (MOST IMPORTANT - CHECK THIS FIRST)
-- You haven't shown `git status` first
-- You haven't shown `git diff` or change summary first
-- User said "don't push" or "wait"
-- `make docker-test` hasn't been run (when Docker-related changes exist)
-- `make docker-test` has failures (when Docker-related changes exist)
-
-### ✅ Example CORRECT push workflow:
-```
-AI: I've resolved all conflicts and committed changes. Pre-commit hook passed.
-Let me show you what will be pushed:
-
-[Runs: git status]
-[Shows: Modified files, new files, etc.]
-
-[Runs: git diff --stat]
-[Shows: Summary of changes]
-
-Should I push these changes to the PR?
-
-User: Yes, go ahead
-
-AI: [Pushes to PR]
-```
-
-### ❌ Example INCORRECT push workflow (DO NOT DO THIS):
-```
-AI: I've resolved all conflicts. [Pushes immediately without showing changes or asking]
-```
+**Skip for:** Python-only code, docs, tests, non-Docker config.
 
 ## 🚨 CRITICAL: Git Branch Workflow
 
 ### NEVER Push Directly to Main
 
-1. ❌ **NEVER push directly to main branch** - Even if you have admin permissions
+1. ❌ **NEVER push directly to main** — even with admin permissions
 2. ✅ **ALWAYS create a feature branch**: `git checkout -b feat/name`
-3. ✅ **ALWAYS push to feature branch, NEVER to main**
-4. ✅ **ALWAYS create a PR** for review and merge
-5. ⚠️ **"Bypassed rule violations" warning = YOU MADE A MISTAKE**
+3. ✅ **ALWAYS create a PR** for review and merge
 
 ### Branch Creation Checklist
-
-**BEFORE creating a new branch, check for uncommitted changes:**
 
 ```bash
 # Step 1: Check current state
 git status --porcelain
-
 # If output exists → commit, stash, or discard FIRST
-# Then create branch from clean state
 
 # Step 2: Create branch from latest main
 git checkout main
@@ -159,87 +88,57 @@ git pull origin main
 git checkout -b feat/new-feature-name
 ```
 
-## 📋 Testing Strategy
+## 🎯 DECISION TREES
 
-### Default: Start with Fast Tests
+### When to Ask User
+
+- Ambiguous requirements
+- Multiple valid approaches
+- Breaking changes needed
+- New dependencies required
+- Security implications
+- Performance vs readability trade-offs
+
+### When NOT to Ask
+
+- Following established patterns
+- Standard bug fixes
+- Documentation updates
+- Adding type hints (always do)
+- Adding tests (always do)
+- Formatting with black (always do)
+- Adding docstrings (always do)
+
+## 🔍 CURSOR-SPECIFIC GUIDANCE
+
+### Model Selection
+
+- **Auto** → Fast iteration, small/local changes, mechanical work
+- **Manual** → Planning, debugging, architecture, complex reasoning
+- Control scope: small selection → fast model, multiple files → stronger model
+- Use reasoning language: "analyze", "root cause", "tradeoffs" → stronger model
+
+### Workflow Tips
+
+- Split planning (Chat) and execution (Inline Chat)
+- Use Composer for big tasks (multi-file changes)
+- Reference specific sections of `.ai-coding-guidelines.md` for deep dives
+- Auto-load detailed `.mdc` rules when needed (see `.cursorrules` Rule 16)
+
+## 📋 Testing Strategy Summary
 
 ```bash
-# Step 1: Run fast tests (unit + fast integration + fast e2e)
-make ci-fast  # ~6-10 min, no coverage overhead
+# Default: Start with fast tests
+make ci-fast          # Unit + fast integration + fast e2e (~6-10 min)
+
+# If changes touch ML code, run slow tests
+make test-integration-slow  # Slow integration (~5-10 min)
+make test-e2e-slow         # Slow E2E (~15-20 min)
+make test-all-slow         # All slow tests
+
+# Full CI validation before PR
+make ci              # Full suite (~10-15 min)
 ```
-
-### Step 2: Run Slow Tests If Needed
-
-**Run slow tests ONLY if changes touch ML code:**
-
-| Area Changed | Command |
-|--------------|---------|
-| Whisper integration | `make test-integration-slow` |
-| Summarization (ML models) | `make test-integration-slow` |
-| Speaker detection (spaCy) | `make test-integration-slow` |
-| E2E with ML | `make test-e2e-slow` |
-| Both integration + E2E | `make test-all-slow` |
-
-### Step 3: Full Validation (Before Final PR)
-
-```bash
-# Complete validation: formatting, linting, tests, docs, build
-make ci  # ~10-15 min, includes coverage
-```
-
-## 📚 Primary Reference
-
-**Quick Reference:** `.cursorrules` (~287 lines) - Always loaded automatically
-**Complete Reference:** `.ai-coding-guidelines.md` (~2,310 lines) - Full guidelines
-
-**When user says "load ai coding guidelines":**
-- Load `.ai-coding-guidelines.md` for complete reference
-- For specific topics:
-  - "load testing guide" → `docs/guides/TESTING_GUIDE.md`
-  - "load markdown guide" → `docs/guides/MARKDOWN_LINTING_GUIDE.md`
-  - "load cursor guide" → `docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`
-
-## 🔧 Key Documentation Files
-
-**Essential guides to reference:**
-
-- **`.cursorrules`** - Core project rules (always active)
-- **`.ai-coding-guidelines.md`** - Complete AI guidelines (2,310 lines)
-- **`docs/guides/DEVELOPMENT_GUIDE.md`** - Technical details (code style, testing, CI/CD)
-- **`docs/guides/TESTING_GUIDE.md`** - Test execution, fixtures, coverage
-- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Markdown style and linting
-- **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** - Model selection strategies
-- **`docs/guides/GIT_WORKTREE_GUIDE.md`** - Git worktree development workflow
-- **`docs/ci/index.md`** - CI/CD pipeline documentation
-- **`docs/ARCHITECTURE.md`** - System design and module responsibilities
-
-## 🎯 Document Location Rules
-
-### CRITICAL: Where to Create Analysis/Plan Documents
-
-**🚨 ABSOLUTE RULE:**
-
-- ✅ **ALL analysis/plans/reviews** → `docs/wip/` folder
-- ❌ **NEVER create `docs/analysis/`** - This folder MUST NOT EXIST
-- ❌ **NEVER create `docs/plan/`** - This folder MUST NOT EXIST
-
-**Examples:**
-- ✅ `docs/wip/implementation-plan.md`
-- ✅ `docs/wip/code-analysis.md`
-- ✅ `docs/wip/architecture-review.md`
-- ❌ `docs/analysis/anything.md` - FORBIDDEN
-- ❌ `docs/plan/anything.md` - FORBIDDEN
-
-## 📝 Markdown Files
-
-**🚨 CRITICAL: When writing or editing markdown files:**
-
-1. **Run `make fix-md`** to auto-fix common issues
-2. **Self-check:** One H1, blank lines after headings, no trailing spaces, code fences have languages
-3. **Run `make lint-markdown`** to verify
-4. **Run `make docs`** to validate build (catches broken links, missing nav)
-
-**See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for complete rules.**
 
 ## 🚀 Common Commands
 
@@ -266,23 +165,44 @@ make fix-md           # Auto-fix markdown issues
 make docker-test      # Only if changed Dockerfile/structure
 ```
 
+## 📖 RELATED DOCUMENTATION
+
+- **`.cursorrules`** — Core project rules (always active)
+- **`.ai-coding-guidelines.md`** (2,310 lines) → Complete AI guidelines
+- **`docs/guides/DEVELOPMENT_GUIDE.md`** → Technical details (code style, testing, CI/CD)
+- **`docs/guides/TESTING_GUIDE.md`** → Test execution, fixtures, coverage
+- **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** → Model selection strategies
+- **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** → Markdown style rules
+- **`docs/guides/GIT_WORKTREE_GUIDE.md`** → Git worktree workflow
+- **`docs/ci/index.md`** → CI/CD pipeline documentation
+- **`docs/ARCHITECTURE.md`** → System design, module responsibilities
+- **`CONTRIBUTING.md`** → Human contributor guide
+
+**When user says "load ai coding guidelines":**
+
+- Load `.ai-coding-guidelines.md` for complete reference
+- For specific topics:
+  - "load testing guide" → `docs/guides/TESTING_GUIDE.md`
+  - "load markdown guide" → `docs/guides/MARKDOWN_LINTING_GUIDE.md`
+  - "load cursor guide" → `docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`
+
 ## ⚠️ REMEMBER
 
 1. NEVER push to main (use feature branches + PRs)
 2. ALWAYS show changes and get approval before commit/push
 3. ALWAYS run `make ci-fast` before committing
 4. Write lint-valid code from the start
-5. Respect module boundaries (see `.cursorrules`)
+5. Respect module boundaries (see `module-boundaries.mdc`)
 6. Mock external deps in tests
 7. Use Config for all runtime options
 8. NEVER commit secrets
 9. ALL analysis/plans → `docs/wip/` (never `docs/analysis/`)
 10. Run `make docs` before committing doc changes
 
-**When in doubt, check `.ai-coding-guidelines.md` or `.cursorrules` for details.**
+**When in doubt, check `.ai-coding-guidelines.md` or `.cursorrules`.**
 
 ---
 
-**Version:** 2.0
-**Updated:** 2026-01-07
-**Source:** Aligned with `.cursorrules` and latest `.ai-coding-guidelines.md`
+**Version:** 3.0
+**Updated:** 2026-02-09
+**Source:** Expanded from v2.0 with decision trees, cursor guidance, and related docs

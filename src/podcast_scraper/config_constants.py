@@ -170,16 +170,18 @@ PROD_DEFAULT_DEEPSEEK_SPEAKER_MODEL = "deepseek-chat"  # Same model, still very 
 PROD_DEFAULT_DEEPSEEK_SUMMARY_MODEL = "deepseek-chat"  # Same model, still very cheap
 
 # Ollama model defaults (Issue #196)
-# Test defaults: smaller, faster models for dev/testing (llama3.2:latest)
-# Production defaults: best quality models (llama3.3:latest)
+# Test defaults: smaller, faster models for dev/testing (llama3.1:8b)
+# Production defaults: good quality models (llama3.1:8b)
 #
 # Key advantage: Fully offline, zero cost, complete privacy
 # Note: Ollama does NOT support transcription (no audio API)
-# Models must be pulled before use: ollama pull llama3.3
-TEST_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.2:latest"  # Smaller, faster for testing
-PROD_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.3:latest"  # Best quality
-TEST_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.2:latest"  # Smaller, faster for testing
-PROD_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.3:latest"  # Best quality, 128k context
+# Models must be pulled before use: ollama pull llama3.1:8b
+# Note: We use specific tags (e.g., :8b) instead of :latest to avoid
+#       unexpected model size resolution (e.g., :latest might point to 70B)
+TEST_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.1:8b"  # Smaller, faster for testing
+PROD_DEFAULT_OLLAMA_SPEAKER_MODEL = "llama3.1:8b"  # Good quality, specific tag (not :latest)
+TEST_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"  # Smaller, faster for testing
+PROD_DEFAULT_OLLAMA_SUMMARY_MODEL = "llama3.1:8b"  # Smaller model, good quality
 
 # Grok (xAI) model defaults (Issue #1095)
 # Test defaults: beta model for dev/testing (grok-beta)

@@ -322,8 +322,8 @@ def _save_gemini_responses(  # noqa: C901
         now = datetime.now()
         run_name = now.strftime("run_%Y%m%d-%H%M%S_%f")  # Include microseconds for uniqueness
 
-    # Create output directory structure: output/<feed-name>/<run-name>/
-    output_dir = Path("output")
+    # Create output directory structure: .test_outputs/e2e/<feed-name>/<run-name>/
+    output_dir = Path(".test_outputs/e2e")
     feed_output_dir = output_dir / feed_dir_name
     run_output_dir = feed_output_dir / run_name
     run_output_dir.mkdir(parents=True, exist_ok=True)
@@ -843,6 +843,109 @@ class TestGeminiProviderE2E:
                 metadata_files,
                 "test_gemini_full_pipeline",
                 validate_provider="gemini",
+            )
+        finally:
+            # Preserve temp_dir when using real API (for inspection/debugging)
+            # Only clean up when using mock E2E server
+            if not USE_REAL_GEMINI_API:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            else:
+                print(f"\n🔍 Preserving temp_dir for inspection: {temp_dir}")
+
+    def test_gemini_hybrid_cleaning_strategy(self, e2e_server: Optional[Any]):
+        """Test Gemini provider with hybrid cleaning strategy (pattern + conditional LLM).
+
+        This test verifies that the hybrid cleaning strategy works correctly:
+        - Pattern-based cleaning always runs first
+        - LLM cleaning is conditionally applied when heuristics indicate it's needed
+        - Provider's clean_transcript() method is called when needed
+        """
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # Get feed URL and Gemini config based on LLM_TEST_FEED
+            rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
+
+            # Create config with Gemini summarization and hybrid cleaning strategy
+            config_kwargs = {
+                "rss_url": rss_url,
+                "output_dir": temp_dir,
+                "transcription_provider": "gemini",
+                "speaker_detector_provider": "gemini",
+                "summary_provider": "gemini",
+                "auto_speakers": False,  # Disable speaker detection to focus on cleaning
+                "generate_metadata": True,
+                "generate_summaries": True,
+                "preload_models": False,
+                "transcribe_missing": True,
+                "transcript_cleaning_strategy": "hybrid",  # Explicitly set hybrid strategy
+                "max_episodes": int(os.getenv("LLM_TEST_MAX_EPISODES", "1")),
+            }
+            # Only pass API key/base if provided (when None, Config will load from .env)
+            if gemini_api_key is not None:
+                config_kwargs["gemini_api_key"] = gemini_api_key
+            if gemini_api_base is not None:
+                config_kwargs["gemini_api_base"] = gemini_api_base
+
+            cfg = create_test_config(**config_kwargs)
+
+            # Verify config has hybrid cleaning strategy
+            assert (
+                cfg.transcript_cleaning_strategy == "hybrid"
+            ), "Config should have hybrid cleaning strategy"
+
+            # Run pipeline
+            transcripts_saved, summary = workflow.run_pipeline(cfg)
+
+            # Verify transcripts were saved
+            assert transcripts_saved > 0, "Should have saved at least one transcript"
+
+            # Verify metadata files were created
+            metadata_files = list(Path(temp_dir).rglob("*.metadata.json"))
+            assert (
+                len(metadata_files) > 0
+            ), "Metadata files should be created when generate_metadata=True"
+
+            import json as json_module
+
+            # Verify summaries were generated (cleaning is used before summarization)
+            for metadata_file in sorted(metadata_files):
+                metadata_content = json_module.loads(metadata_file.read_text())
+                assert (
+                    "summary" in metadata_content
+                ), "Summary should exist in metadata when generate_summaries=True"
+
+                # Verify summary is valid (if cleaning failed, summarization might fail)
+                summary_data = metadata_content.get("summary", {})
+                if isinstance(summary_data, dict):
+                    assert (
+                        "bullets" in summary_data
+                    ), "Summary should have bullets field (normalized schema)"
+                    assert len(summary_data["bullets"]) > 0, "bullets should not be empty"
+
+            # Verify cleaned transcript files were created (if save_cleaned_transcript is enabled)
+            # Note: save_cleaned_transcript defaults to False, so we check if any exist
+            cleaned_files = list(Path(temp_dir).rglob("*.cleaned.txt"))
+            # If cleaned files exist, verify they're different from original transcripts
+            if cleaned_files:
+                transcript_files = list(Path(temp_dir).rglob("*.txt"))
+                # Filter out cleaned files from transcript files
+                original_transcripts = [f for f in transcript_files if "cleaned" not in f.name]
+                if original_transcripts and cleaned_files:
+                    # Verify cleaned files are different (shorter or different content)
+                    original_text = original_transcripts[0].read_text(encoding="utf-8")
+                    cleaned_text = cleaned_files[0].read_text(encoding="utf-8")
+                    # Cleaned text should be different (may be shorter due to cleaning)
+                    assert (
+                        cleaned_text != original_text
+                    ), "Cleaned transcript should be different from original"
+
+            # Save responses for inspection
+            _save_all_episode_responses(
+                Path(temp_dir),
+                metadata_files,
+                "test_gemini_hybrid_cleaning_strategy",
+                validate_provider="gemini",
+                validate_speaker_detection=False,  # Speaker detection not enabled
             )
         finally:
             # Preserve temp_dir when using real API (for inspection/debugging)

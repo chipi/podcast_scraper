@@ -61,6 +61,182 @@ create_transcription_provider = _create_transcription_provider_factory
 from . import helpers as wf_helpers, metrics, stages as wf_stages
 
 
+def _get_factory_function(factory_name: str, default_factory: Any) -> Any:
+    """Get factory function, checking for test mocks first.
+
+    This allows tests to inject mock factory functions by patching
+    the workflow module's factory function attributes.
+
+    Args:
+        factory_name: Name of the factory function (e.g., "create_transcription_provider")
+        default_factory: Default factory function to use if no mock is found
+
+    Returns:
+        Factory function to use (either mock or default)
+    """
+    import sys
+    from unittest.mock import Mock
+
+    _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+    if _workflow_pkg and hasattr(_workflow_pkg, factory_name):
+        func = getattr(_workflow_pkg, factory_name)
+        if isinstance(func, Mock) or func is not default_factory:
+            return func
+    return default_factory
+
+
+def _create_transcription_provider(
+    cfg: config.Config,
+) -> Optional[Any]:
+    """Create and initialize transcription provider if needed.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Transcription provider instance or None if not needed
+
+    Raises:
+        Exception: If provider initialization fails (fail-fast)
+    """
+    if not (cfg.transcribe_missing and not cfg.dry_run):
+        return None
+
+    try:
+        factory_func = _get_factory_function(
+            "create_transcription_provider", _create_transcription_provider_factory
+        )
+        provider = factory_func(cfg)
+        provider.initialize()
+        logger.debug(
+            "Transcription provider initialized: %s",
+            type(provider).__name__,
+        )
+        return provider
+    except Exception as exc:
+        logger.error("Failed to initialize transcription provider: %s", exc)
+        # Fail fast - provider initialization should succeed
+        raise
+
+
+def _create_speaker_detector(
+    cfg: config.Config,
+) -> Optional[Any]:
+    """Create and initialize speaker detector if needed.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Speaker detector instance or None if not needed
+
+    Raises:
+        Exception: If provider initialization fails (fail-fast)
+    """
+    if not (cfg.auto_speakers and not cfg.dry_run):
+        return None
+
+    try:
+        factory_func = _get_factory_function(
+            "create_speaker_detector", _create_speaker_detector_factory
+        )
+        detector = factory_func(cfg)
+        detector.initialize()
+        logger.debug(
+            "Speaker detector initialized: %s",
+            type(detector).__name__,
+        )
+        # Warm up Ollama models if using Ollama provider (loads models before real work)
+        if hasattr(detector, "warmup"):
+            try:
+                detector.warmup(timeout_s=600)  # 10 minute timeout for first load
+                logger.debug("Ollama speaker detection models warmed up")
+            except Exception as exc:
+                logger.warning(f"Failed to warm up Ollama speaker detection models: {exc}")
+                # Don't fail - models will load on first use, just slower
+        return detector
+    except Exception as exc:
+        logger.error("Failed to initialize speaker detector: %s", exc)
+        # Fail fast - provider initialization should succeed
+        raise
+
+
+def _create_summarization_provider(
+    cfg: config.Config,
+) -> Optional[Any]:
+    """Create and initialize summarization provider if needed.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Summarization provider instance or None if not needed
+
+    Raises:
+        ImportError: If dependencies are missing when generate_summaries=True
+        RuntimeError: If provider initialization fails when generate_summaries=True
+    """
+    if not (cfg.generate_summaries and not cfg.dry_run):
+        return None
+
+    try:
+        factory_func = _get_factory_function(
+            "create_summarization_provider", _create_summarization_provider_factory
+        )
+        provider = factory_func(cfg)
+        provider.initialize()
+        logger.debug(
+            "Summarization provider initialized: %s",
+            type(provider).__name__,
+        )
+        # Warm up Ollama models if using Ollama provider (loads models before real work)
+        if hasattr(provider, "warmup"):
+            try:
+                provider.warmup(timeout_s=600)  # 10 minute timeout for first load
+                logger.debug("Ollama summarization models warmed up")
+            except Exception as exc:
+                logger.warning(f"Failed to warm up Ollama summarization models: {exc}")
+                # Don't fail - models will load on first use, just slower
+        return provider
+    except ImportError as e:
+        # Fail fast when generate_summaries=True - dependencies must be available
+        error_msg = (
+            f"Summarization dependencies not available but generate_summaries=True: {e}. "
+            "Install ML dependencies or set generate_summaries=False."
+        )
+        logger.error(error_msg)
+        raise RuntimeError(error_msg) from e
+    except Exception as e:
+        # Fail fast - provider initialization must succeed when generate_summaries=True
+        error_msg = (
+            f"Failed to initialize summarization provider (generate_summaries=True): {e}. "
+            "Cannot proceed with summarization."
+        )
+        logger.error(error_msg)
+        raise RuntimeError(error_msg) from e
+
+
+def _create_all_providers(
+    cfg: config.Config,
+) -> Tuple[Optional[Any], Optional[Any], Optional[Any]]:
+    """Create all providers needed for the pipeline.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Tuple of (transcription_provider, speaker_detector, summary_provider)
+        Each may be None if not needed
+
+    Raises:
+        Exception: If any required provider initialization fails
+    """
+    transcription_provider = _create_transcription_provider(cfg)
+    speaker_detector = _create_speaker_detector(cfg)
+    summary_provider = _create_summarization_provider(cfg)
+    return transcription_provider, speaker_detector, summary_provider
+
+
 def _log_provider_ownership(
     cfg: config.Config,
     transcription_provider: Optional[Any],
@@ -543,6 +719,472 @@ class _ProcessingResources(NamedTuple):
     processing_complete_event: Optional[threading.Event]
 
 
+def _setup_pipeline_environment(
+    cfg: config.Config,
+) -> Tuple[str, Optional[str], Optional[str], Any]:
+    """Initialize pipeline environment and metrics.
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Tuple of (effective_output_dir, run_suffix, full_config_string, pipeline_metrics)
+    """
+    # Initialize ML environment variables (suppress progress bars, etc.)
+    wf_stages.setup.initialize_ml_environment()
+
+    # Initialize metrics collector
+    from . import metrics
+
+    pipeline_metrics = metrics.Metrics()
+
+    # Setup pipeline environment
+    effective_output_dir, run_suffix, full_config_string = (
+        wf_stages.setup.setup_pipeline_environment(cfg)
+    )
+
+    return effective_output_dir, run_suffix, full_config_string, pipeline_metrics
+
+
+def _setup_jsonl_emitter(
+    cfg: config.Config,
+    effective_output_dir: str,
+    pipeline_metrics: Any,
+) -> Optional[Any]:
+    """Initialize JSONL emitter if enabled.
+
+    Args:
+        cfg: Configuration object
+        effective_output_dir: Output directory path
+        pipeline_metrics: Metrics collector
+
+    Returns:
+        JSONL emitter instance or None if disabled
+    """
+    if not cfg.jsonl_metrics_enabled:
+        return None
+
+    from .jsonl_emitter import JSONLEmitter
+
+    jsonl_path = cfg.jsonl_metrics_path
+    if jsonl_path is None:
+        jsonl_path = os.path.join(effective_output_dir, "run.jsonl")
+    jsonl_emitter = JSONLEmitter(pipeline_metrics, jsonl_path)
+    jsonl_emitter.__enter__()
+    jsonl_emitter.emit_run_started(cfg, run_id=cfg.run_id)
+    return jsonl_emitter
+
+
+def _fetch_and_prepare_episodes(
+    cfg: config.Config,
+    pipeline_metrics: Any,
+) -> Tuple[Any, Any, Any, List[Episode]]:  # type: ignore[valid-type]
+    """Fetch RSS feed and prepare episodes with status initialization.
+
+    Args:
+        cfg: Configuration object
+        pipeline_metrics: Metrics collector
+
+    Returns:
+        Tuple of (feed, rss_bytes, feed_metadata, episodes)
+    """
+    # Step 2: Fetch and parse RSS feed (scraping stage)
+    scraping_start = time.time()
+    feed, rss_bytes = wf_stages.scraping.fetch_and_parse_feed(cfg)
+    pipeline_metrics.record_stage("scraping", time.time() - scraping_start)
+
+    # Step 3: Extract feed metadata (if metadata generation enabled)
+    # Reuse RSS bytes from initial fetch to avoid duplicate network request
+    feed_metadata = wf_stages.scraping.extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
+
+    # Step 4: Prepare episodes from RSS items (parsing stage)
+    parsing_start = time.time()
+    episodes = wf_stages.scraping.prepare_episodes_from_feed(feed, cfg)
+    pipeline_metrics.episodes_scraped_total = len(episodes)
+    pipeline_metrics.record_stage("parsing", time.time() - parsing_start)
+
+    # Initialize episode statuses (Issue #391)
+    if pipeline_metrics is not None:
+        from ..rss.parser import extract_episode_published_date
+        from .metadata_generation import generate_episode_id
+
+        for episode in episodes:
+            # Extract episode metadata for ID generation
+            episode_guid = None
+            episode_link = None
+            episode_published_date = None
+            episode_number = getattr(episode, "number", None)
+
+            if hasattr(episode, "item") and episode.item is not None:
+                # Extract GUID from RSS item
+                guid_elem = episode.item.find("guid")
+                if guid_elem is not None and guid_elem.text:
+                    episode_guid = guid_elem.text.strip()
+                # Extract link
+                link_elem = episode.item.find("link")
+                if link_elem is not None and link_elem.text:
+                    episode_link = link_elem.text.strip()
+                # Extract published date
+                episode_published_date = extract_episode_published_date(episode.item)
+
+            # Generate stable episode ID
+            episode_id = generate_episode_id(
+                feed_url=cfg.rss_url or "",
+                episode_title=episode.title,
+                episode_guid=episode_guid,
+                published_date=episode_published_date,
+                episode_link=episode_link,
+                episode_number=episode_number,
+            )
+
+            # Create initial status entry (queued)
+            pipeline_metrics.get_or_create_episode_status(
+                episode_id=episode_id, episode_number=episode.idx
+            )
+            # Create initial metrics entry (to avoid warnings when updating later)
+            pipeline_metrics.get_or_create_episode_metrics(
+                episode_id=episode_id, episode_number=episode.idx
+            )
+
+    return feed, rss_bytes, feed_metadata, episodes
+
+
+def _setup_logging_and_devices(
+    cfg: config.Config,
+    transcription_provider: Optional[Any],
+    speaker_detector: Optional[Any],
+    summary_provider: Optional[Any],
+    pipeline_metrics: Any,
+) -> None:
+    """Log provider configuration and record device usage.
+
+    Args:
+        cfg: Configuration object
+        transcription_provider: Optional transcription provider
+        speaker_detector: Optional speaker detector
+        summary_provider: Optional summarization provider
+        pipeline_metrics: Metrics collector
+    """
+    # Step 1.7: Log effective parallelism configuration (Issue #380)
+    _log_effective_parallelism(cfg, summary_provider)
+
+    # Step 1.7.5: Log provider ownership for each capability
+    _log_provider_ownership(cfg, transcription_provider, speaker_detector, summary_provider)
+
+    # Step 1.8: Record device usage per stage (Issue #387)
+    if transcription_provider is not None:
+        # Get transcription device (stage-level config takes precedence)
+        if cfg.transcription_device:
+            transcription_device = cfg.transcription_device.lower()
+        elif hasattr(transcription_provider, "_detect_whisper_device"):
+            try:
+                transcription_device = transcription_provider._detect_whisper_device()
+            except Exception:
+                transcription_device = "unknown"
+        else:
+            transcription_device = cfg.whisper_device or "auto"
+        pipeline_metrics.record_transcription_device(transcription_device)
+        logger.debug("Transcription device: %s", transcription_device)
+
+    if summary_provider is not None and cfg.generate_summaries:
+        # Get summarization device (stage-level config takes precedence)
+        if cfg.summarization_device:
+            summarization_device = cfg.summarization_device.lower()
+        elif hasattr(summary_provider, "_map_model") and summary_provider._map_model:
+            if hasattr(summary_provider._map_model, "device"):
+                summarization_device = summary_provider._map_model.device
+            else:
+                summarization_device = cfg.summary_device or "auto"
+        else:
+            summarization_device = cfg.summary_device or "auto"
+        pipeline_metrics.record_summarization_device(summarization_device)
+        logger.debug("Summarization device: %s", summarization_device)
+
+
+def _create_run_manifest(
+    cfg: config.Config,
+    effective_output_dir: str,
+) -> Optional[Any]:
+    """Create and save run manifest if not in dry-run mode.
+
+    Args:
+        cfg: Configuration object
+        effective_output_dir: Output directory path
+
+    Returns:
+        Run manifest object or None if dry-run or creation failed
+    """
+    if cfg.dry_run:
+        return None
+
+    try:
+        from .run_manifest import create_run_manifest
+
+        run_manifest = create_run_manifest(
+            cfg=cfg,
+            output_dir=effective_output_dir,
+            run_id=cfg.run_id,
+        )
+        manifest_path = os.path.join(effective_output_dir, "run_manifest.json")
+        run_manifest.save_to_file(manifest_path)
+        logger.info(f"Run manifest saved to: {manifest_path}")
+        return run_manifest
+    except Exception as e:
+        logger.warning(f"Failed to generate run manifest: {e}")
+        return None
+
+
+def _setup_pipeline_resources(
+    cfg: config.Config,
+    feed: Any,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    effective_output_dir: str,
+    transcription_provider: Optional[Any],
+    speaker_detector: Optional[Any],
+    pipeline_metrics: Any,
+) -> Tuple[float, Any, Any, Any]:
+    """Setup pipeline resources: host detection, transcription, and processing resources.
+
+    Args:
+        cfg: Configuration object
+        feed: Parsed RSS feed object
+        episodes: List of episodes
+        effective_output_dir: Output directory path
+        transcription_provider: Optional transcription provider
+        speaker_detector: Optional speaker detector
+        pipeline_metrics: Metrics collector
+
+    Returns:
+        Tuple of (normalizing_start, host_detection_result, transcription_resources, processing_resources)  # noqa: E501
+    """
+    # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
+    # This is part of normalizing stage
+    normalizing_start = time.time()
+    host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
+        cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
+    )
+
+    # Step 6: Setup transcription resources (Whisper model, temp dir)
+    transcription_resources = wf_stages.transcription.setup_transcription_resources(
+        cfg, effective_output_dir, transcription_provider=transcription_provider
+    )
+
+    # Step 6.5: Setup processing resources (metadata/summarization queue)
+    processing_resources = wf_stages.processing.setup_processing_resources(cfg)
+
+    return normalizing_start, host_detection_result, transcription_resources, processing_resources
+
+
+def _cleanup_providers(
+    transcription_resources: Optional[Any],
+    summary_provider: Optional[Any],
+) -> None:
+    """Cleanup all providers to free memory and prevent leaks.
+
+    This function is called in the finally block to ensure cleanup
+    happens even if exceptions occur during processing.
+
+    Args:
+        transcription_resources: Transcription resources (may contain provider)
+        summary_provider: Optional summarization provider
+    """
+    # Stage 2: Cleanup transcription provider (which handles model unloading)
+    if (
+        transcription_resources is not None
+        and transcription_resources.transcription_provider is not None
+    ):
+        try:
+            provider = transcription_resources.transcription_provider
+            provider.cleanup()
+            logger.debug("Cleaned up transcription provider")
+        except Exception as e:
+            logger.warning("Failed to cleanup transcription provider: %s", e)
+
+    # Stage 4: Cleanup provider (which handles model unloading)
+    # Cleanup preloaded MLProvider instance
+    global _preloaded_ml_provider
+    if _preloaded_ml_provider is not None:
+        try:
+            _preloaded_ml_provider.cleanup()
+        except Exception as e:
+            logger.warning("Error cleaning up preloaded MLProvider: %s", e)
+        finally:
+            _preloaded_ml_provider = None
+
+    if summary_provider is not None:
+        try:
+            summary_provider.cleanup()
+            logger.debug("Cleaned up summarization provider")
+        except Exception as e:
+            logger.warning("Failed to cleanup summarization provider: %s", e)
+
+    # Note: spaCy model cache was removed. Models are managed by providers
+    # and cleaned up via provider.cleanup() method above.
+
+
+def _finalize_pipeline(
+    cfg: config.Config,
+    saved: int,
+    transcription_resources: Any,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    pipeline_metrics: Any,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    jsonl_emitter: Optional[Any],
+    run_manifest: Optional[Any],
+    summary_provider: Optional[Any],
+    transcription_provider: Optional[Any],
+) -> Tuple[int, str]:
+    """Finalize pipeline: cleanup, save metrics, generate reports, and cleanup resources.
+
+    Args:
+        cfg: Configuration object
+        transcription_resources: Transcription resources (for temp dir cleanup)
+        effective_output_dir: Output directory path
+        run_suffix: Run ID suffix
+        pipeline_metrics: Metrics collector
+        episodes: List of processed episodes
+        jsonl_emitter: Optional JSONL emitter
+        run_manifest: Optional run manifest
+        summary_provider: Optional summarization provider
+        transcription_provider: Optional transcription provider
+
+    Returns:
+        Tuple of (count, summary) from generate_pipeline_summary
+    """
+    # Step 10: Cleanup temporary files
+    wf_helpers.cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
+
+    # Step 11: Generate summary and log metrics
+    pipeline_metrics.log_metrics()
+
+    # Step 11.5: Log episode processing results
+    _log_episode_results(pipeline_metrics, episodes)
+
+    # Step 12: Save metrics to file if configured
+    if cfg.metrics_output is not None:
+        # Explicit path provided
+        if cfg.metrics_output:
+            metrics_path = cfg.metrics_output
+        else:
+            # Empty string means disabled
+            metrics_path = None
+    else:
+        # Default: save to output directory
+        metrics_path = os.path.join(effective_output_dir, "metrics.json")
+
+    # Emit run_finished event for JSONL metrics (before save_to_file)
+    if jsonl_emitter:
+        try:
+            jsonl_emitter.emit_run_finished()
+        except Exception as e:
+            logger.warning(f"Failed to emit run_finished JSONL event: {e}")
+
+    if metrics_path:
+        try:
+            pipeline_metrics.save_to_file(metrics_path)
+        except Exception as e:
+            logger.warning(f"Failed to save metrics to {metrics_path}: {e}")
+
+    # Close JSONL emitter
+    if jsonl_emitter:
+        try:
+            jsonl_emitter.__exit__(None, None, None)
+        except Exception as e:
+            logger.warning(f"Failed to close JSONL emitter: {e}")
+
+    # Step 13: Generate run index (Issue #379)
+    if not cfg.dry_run:
+        try:
+            from .run_index import create_run_index
+
+            # Pass episode_statuses from metrics if available
+            episode_statuses = (
+                pipeline_metrics.episode_statuses
+                if hasattr(pipeline_metrics, "episode_statuses")
+                else None
+            )
+
+            run_index = create_run_index(
+                run_id=cfg.run_id or datetime.utcnow().isoformat() + "Z",
+                feed_url=cfg.rss_url,
+                episodes=episodes,
+                effective_output_dir=effective_output_dir,
+                episode_statuses=episode_statuses,
+                run_suffix=run_suffix,
+            )
+            index_path = os.path.join(effective_output_dir, "index.json")
+            run_index.save_to_file(index_path)
+            logger.info(f"Run index saved to: {index_path}")
+        except Exception as e:
+            logger.warning(f"Failed to generate run index: {e}")
+
+    # Step 14: Generate run summary (Issue #379)
+    if not cfg.dry_run:
+        try:
+            from .run_summary import create_run_summary, save_run_summary
+
+            run_summary = create_run_summary(
+                run_manifest=run_manifest,
+                pipeline_metrics=pipeline_metrics,
+                output_dir=effective_output_dir,
+                run_id=cfg.run_id,
+            )
+            save_run_summary(run_summary, effective_output_dir)
+        except Exception as e:
+            logger.warning(f"Failed to generate run summary: {e}")
+
+    # Step 15: Aggressive cleanup before exit (Issue #390 - prevent bus error on macOS)
+    # Clean up ML providers and PyTorch/MPS resources before interpreter shutdown
+    try:
+        # Cleanup summary provider if available
+        if summary_provider is not None:
+            logger.debug("Cleaning up summary provider before exit")
+            summary_provider.cleanup()
+
+        # Cleanup transcription provider if available
+        if transcription_provider is not None and transcription_provider != summary_provider:
+            logger.debug("Cleaning up transcription provider before exit")
+            transcription_provider.cleanup()
+
+        # Aggressive PyTorch/MPS cleanup to prevent bus errors during interpreter shutdown
+        try:
+            import gc
+
+            import torch
+
+            # Move any remaining models to CPU before deletion (avoid teardown hazards)
+            # This is a best-effort cleanup - models should already be cleaned up by providers
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                if hasattr(torch.mps, "empty_cache"):
+                    torch.mps.empty_cache()
+                    logger.debug("Cleared MPS cache before exit")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.debug("Cleared CUDA cache before exit")
+
+            # Force garbage collection to clean up any remaining references
+            # This helps release memory and clean up threads that might be holding references
+            # Note: Skip in test environments to avoid hangs
+            # os is already imported at module level, no need to import again
+            if os.environ.get("PYTEST_CURRENT_TEST") is None:
+                gc.collect()
+                logger.debug("Ran garbage collection before exit")
+        except ImportError:
+            # torch not available (e.g., in unit tests without ML dependencies)
+            pass
+        except Exception as exc:
+            # Ignore any errors during cleanup - we're about to exit anyway
+            logger.debug(f"Error during final cleanup (non-fatal): {exc}")
+    except Exception as exc:
+        # Ignore any errors during cleanup - we're about to exit anyway
+        logger.debug(f"Error during provider cleanup (non-fatal): {exc}")
+
+    return wf_helpers.generate_pipeline_summary(
+        cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
+    )
+
+
 def _preload_ml_models_if_needed(cfg: config.Config) -> None:  # noqa: F811
     """Preload ML models early in the pipeline if configured to use them.
 
@@ -571,6 +1213,264 @@ def _preload_ml_models_if_needed(cfg: config.Config) -> None:  # noqa: F811
             func(cfg)  # type: ignore[no-any-return]
             return
     wf_stages.setup.preload_ml_models_if_needed(cfg)
+
+
+def _process_episodes_with_threading(
+    cfg: config.Config,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    feed: Any,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+    feed_metadata: Any,
+    host_detection_result: Any,
+    transcription_resources: Any,
+    processing_resources: Any,
+    pipeline_metrics: Any,
+    summary_provider: Optional[Any],
+    transcription_provider: Optional[Any],
+    normalizing_start: float,
+) -> int:
+    """Process episodes with concurrent downloads, transcription, and metadata generation.
+
+    This function orchestrates the main processing stage:
+    - Prepares download arguments
+    - Starts concurrent threads for transcription and metadata processing
+    - Processes episode downloads
+    - Waits for transcription and processing threads to complete
+    - Runs parallel summarization if needed
+
+    Args:
+        cfg: Configuration object
+        episodes: List of episodes to process
+        feed: Parsed RSS feed object
+        effective_output_dir: Output directory path
+        run_suffix: Run ID suffix for file naming
+        feed_metadata: Feed metadata for generation
+        host_detection_result: Host detection results
+        transcription_resources: Transcription resources (provider, temp dir, queue)
+        processing_resources: Processing resources (metadata/summarization queue)
+        pipeline_metrics: Metrics collector
+        summary_provider: Optional summarization provider
+        transcription_provider: Optional transcription provider
+        normalizing_start: Start time for normalizing stage (for metrics)
+
+    Returns:
+        Number of episodes successfully processed (saved count)
+    """
+    # Step 7: Prepare episode processing arguments with speaker detection
+    download_args = wf_stages.processing.prepare_episode_download_args(
+        episodes,
+        cfg,
+        effective_output_dir,
+        run_suffix,
+        transcription_resources,
+        host_detection_result,
+        pipeline_metrics,
+    )
+    pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
+
+    # Step 8: Process episodes (download transcripts or queue transcription jobs)
+    # Start processing stage concurrently (metadata/summarization)
+    # NOTE: writing_start measures the entire "processing" stage, not just file I/O
+    # This includes: downloads, transcription waiting, thread synchronization, AND actual I/O
+    # For accurate I/O metrics, check [STORAGE I/O] debug logs
+    transcription_complete_event = threading.Event()
+    downloads_complete_event = threading.Event()  # Signal when all downloads are complete
+    transcription_saved = [0]  # Use list to allow modification from thread
+
+    # Determine if we should serialize MPS work to prevent memory contention
+    should_serialize_mps = False
+    if cfg.mps_exclusive:
+        should_serialize_mps = _both_providers_use_mps(
+            cfg, transcription_provider, summary_provider
+        )
+        if should_serialize_mps:
+            logger.info(
+                "MPS exclusive mode enabled: Serializing GPU work "
+                "(transcription completes before summarization starts)"
+            )
+
+    # Start processing thread if metadata generation is enabled
+    processing_thread = None
+    if cfg.generate_metadata:
+        processing_thread = threading.Thread(
+            target=wf_stages.processing.process_processing_jobs_concurrent,
+            args=(
+                processing_resources,
+                feed,
+                cfg,
+                effective_output_dir,
+                run_suffix,
+                feed_metadata,
+                host_detection_result,
+                pipeline_metrics,
+                summary_provider,
+                transcription_complete_event,
+                should_serialize_mps,
+            ),
+            daemon=False,
+            name="ProcessingProcessor",
+        )
+        processing_thread.start()
+        logger.debug(
+            "Started concurrent processing thread (parallelism=%d)", cfg.processing_parallelism
+        )
+
+    # Start transcription processing concurrently if transcription is enabled
+    if cfg.transcribe_missing and not cfg.dry_run:
+        # Start transcription processing in background thread
+        transcription_thread = threading.Thread(
+            target=wf_stages.transcription.process_transcription_jobs_concurrent,
+            args=(
+                transcription_resources,
+                download_args,
+                episodes,
+                feed,
+                cfg,
+                effective_output_dir,
+                run_suffix,
+                feed_metadata,
+                host_detection_result,
+                processing_resources,
+                pipeline_metrics,
+                summary_provider,
+                # Pass downloads_complete_event, not transcription_complete_event
+                downloads_complete_event,
+                transcription_saved,
+            ),
+            daemon=False,
+            name="TranscriptionProcessor",
+        )
+        transcription_thread.start()
+        logger.debug("Started concurrent transcription processing thread")
+
+    # Track download wait time (Issue #387, #391)
+    download_start = time.time()
+    saved = wf_stages.processing.process_episodes(
+        download_args,
+        episodes,
+        feed,
+        cfg,
+        effective_output_dir,
+        run_suffix,
+        feed_metadata,
+        host_detection_result,
+        transcription_resources,
+        processing_resources,
+        pipeline_metrics,
+        summary_provider,
+    )
+    download_wait_time = time.time() - download_start
+    if pipeline_metrics is not None:
+        pipeline_metrics.record_download_wait_time(download_wait_time)
+        # Track wall-clock time for downloads (Issue #391)
+        pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
+
+    # Signal that downloads are complete (so transcription thread can exit when queue is empty)
+    if cfg.transcribe_missing and not cfg.dry_run:
+        downloads_complete_event.set()
+
+    # Step 9: Wait for transcription to complete (if started)
+    if cfg.transcribe_missing and not cfg.dry_run:
+        # Track thread sync time for transcription (Issue #387)
+        transcription_sync_start = time.time()
+        # Wait for transcription thread to finish processing remaining jobs
+        transcription_thread.join()
+        transcription_sync_time = time.time() - transcription_sync_start
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_thread_sync_time(transcription_sync_time)
+            pipeline_metrics.record_transcription_wait_time(transcription_sync_time)
+        saved += transcription_saved[0]
+        logger.debug("Concurrent transcription processing completed")
+    elif cfg.transcribe_missing:
+        # Dry-run mode: process transcription jobs sequentially after downloads
+        transcription_start = time.time()
+        saved += wf_stages.transcription.process_transcription_jobs(
+            transcription_resources,
+            download_args,
+            episodes,
+            feed,
+            cfg,
+            effective_output_dir,
+            run_suffix,
+            feed_metadata,
+            host_detection_result,
+            pipeline_metrics,
+            summary_provider,
+        )
+        transcription_wait_time = time.time() - transcription_start
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_transcription_wait_time(transcription_wait_time)
+
+    # Step 9.5: Wait for processing to complete (if started)
+    if processing_thread is not None:
+        # Signal that transcription is complete (processing waits for this)
+        transcription_complete_event.set()
+        # Track thread sync time for processing (Issue #387, #391)
+        processing_sync_start = time.time()
+        # Wait for processing thread to finish
+        processing_thread.join()
+        processing_sync_time = time.time() - processing_sync_start
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_thread_sync_time(processing_sync_time)
+            # Track wall-clock time for processing thread sync (Issue #391)
+            pipeline_metrics.record_io_waiting_wall_time(processing_sync_time)
+        logger.debug("Concurrent processing completed")
+
+    # Log io_and_waiting breakdown (Issue #387, #391)
+    # Note: io_and_waiting_thread_sum_seconds is the sum of sub-buckets
+    # (aggregate across threads). Sub-buckets are recorded individually and
+    # automatically add to io_and_waiting_thread_sum_seconds
+    if pipeline_metrics is not None:
+        logger.debug(
+            "[IO METRIC] io_and_waiting thread_sum: %.2fs, wall_clock: %.2fs "
+            "(sum of sub-buckets: download_wait=%.2fs, transcription_wait=%.2fs, "
+            "thread_sync=%.2fs, queue_wait=%.2fs, summarization_wait=%.2fs)",
+            pipeline_metrics.io_and_waiting_thread_sum_seconds,
+            pipeline_metrics.io_and_waiting_wall_seconds,
+            pipeline_metrics.time_download_wait_seconds,
+            pipeline_metrics.time_transcription_wait_seconds,
+            pipeline_metrics.time_thread_sync_seconds,
+            pipeline_metrics.time_queue_wait_seconds,
+            pipeline_metrics.time_summarization_wait_seconds,
+        )
+
+    # Step 10: Parallel episode summarization (if enabled and multiple episodes)
+    # Process episodes that need summarization in parallel for better performance
+    # This runs after all episodes are processed and checks for episodes that might
+    # have been skipped during inline processing or need summary regeneration
+    # Note: Parallel summarization uses direct model loading for thread safety
+    # (each worker needs its own model instance). This is intentional and not a fallback.
+    if (
+        cfg.generate_summaries
+        and cfg.generate_metadata
+        and summary_provider is not None
+        and not cfg.dry_run
+        and len(episodes) > 1
+    ):
+        # Only run parallel summarization if we have multiple episodes to process
+        # It will skip episodes that already have summaries
+        # Track summarization wait time (Issue #387)
+        summarization_start = time.time()
+        wf_stages.summarization.parallel_episode_summarization(
+            episodes=episodes,
+            feed=feed,
+            cfg=cfg,
+            effective_output_dir=effective_output_dir,
+            run_suffix=run_suffix,
+            feed_metadata=feed_metadata,
+            host_detection_result=host_detection_result,
+            summary_provider=summary_provider,
+            download_args=download_args,
+            pipeline_metrics=pipeline_metrics,
+        )
+        summarization_wait_time = time.time() - summarization_start
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_summarization_wait_time(summarization_wait_time)
+            # Track wall-clock time for summarization wait (Issue #391)
+            pipeline_metrics.record_io_waiting_wall_time(summarization_wait_time)
+
+    return saved
 
 
 def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool = False) -> None:
@@ -713,650 +1613,80 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         - `service.run()`: Service API with structured error handling
         - `load_config_file()`: Load configuration from JSON/YAML file
     """
-    # Initialize ML environment variables (suppress progress bars, etc.)
-    wf_stages.setup.initialize_ml_environment()
-
-    # Initialize metrics collector
-    from . import metrics
-
-    pipeline_metrics = metrics.Metrics()
-
     # Step 1: Setup pipeline environment
-    effective_output_dir, run_suffix, full_config_string = (
-        wf_stages.setup.setup_pipeline_environment(cfg)
+    effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
+        _setup_pipeline_environment(cfg)
     )
 
     # Initialize JSONL emitter if enabled
-    jsonl_emitter = None
-    if cfg.jsonl_metrics_enabled:
-        from .jsonl_emitter import JSONLEmitter
-
-        jsonl_path = cfg.jsonl_metrics_path
-        if jsonl_path is None:
-            jsonl_path = os.path.join(effective_output_dir, "run.jsonl")
-        jsonl_emitter = JSONLEmitter(pipeline_metrics, jsonl_path)
-        jsonl_emitter.__enter__()
-        jsonl_emitter.emit_run_started(cfg, run_id=cfg.run_id)
+    jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
 
     # Step 1.5: Preload ML models if configured
     wf_stages.setup.preload_ml_models_if_needed(cfg)
 
     # Step 1.6: Create all providers once (singleton pattern per run)
     # Providers are created here and passed to stages to avoid redundant initialization
-    transcription_provider = None
-    speaker_detector = None
-    summary_provider = None
+    transcription_provider, speaker_detector, summary_provider = _create_all_providers(cfg)
 
-    # Create transcription provider if needed
-    if cfg.transcribe_missing and not cfg.dry_run:
-        try:
-            import sys
-            from unittest.mock import Mock
-
-            _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
-            if _workflow_pkg and hasattr(_workflow_pkg, "create_transcription_provider"):
-                func = getattr(_workflow_pkg, "create_transcription_provider")
-                if isinstance(func, Mock) or func is not _create_transcription_provider_factory:
-                    transcription_provider = func(cfg)
-                else:
-                    transcription_provider = _create_transcription_provider_factory(cfg)
-            else:
-                transcription_provider = _create_transcription_provider_factory(cfg)
-            transcription_provider.initialize()
-            logger.debug(
-                "Transcription provider initialized: %s",
-                type(transcription_provider).__name__,
-            )
-        except Exception as exc:
-            logger.error("Failed to initialize transcription provider: %s", exc)
-            # Fail fast - provider initialization should succeed
-            transcription_provider = None
-            raise
-
-    # Create speaker detector if needed
-    if cfg.auto_speakers and not cfg.dry_run:
-        try:
-            import sys
-            from unittest.mock import Mock
-
-            _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
-            if _workflow_pkg and hasattr(_workflow_pkg, "create_speaker_detector"):
-                func = getattr(_workflow_pkg, "create_speaker_detector")
-                if isinstance(func, Mock) or func is not _create_speaker_detector_factory:
-                    speaker_detector = func(cfg)
-                else:
-                    speaker_detector = _create_speaker_detector_factory(cfg)
-            else:
-                speaker_detector = _create_speaker_detector_factory(cfg)
-            speaker_detector.initialize()
-            logger.debug(
-                "Speaker detector initialized: %s",
-                type(speaker_detector).__name__,
-            )
-            # Warm up Ollama models if using Ollama provider (loads models before real work)
-            if hasattr(speaker_detector, "warmup"):
-                try:
-                    speaker_detector.warmup(timeout_s=600)  # 10 minute timeout for first load
-                    logger.debug("Ollama speaker detection models warmed up")
-                except Exception as exc:
-                    logger.warning(f"Failed to warm up Ollama speaker detection models: {exc}")
-                    # Don't fail - models will load on first use, just slower
-        except Exception as exc:
-            logger.error("Failed to initialize speaker detector: %s", exc)
-            # Fail fast - provider initialization should succeed
-            speaker_detector = None
-            raise
-
-    # Create summarization provider if needed
-    if cfg.generate_summaries and not cfg.dry_run:
-        try:
-            import sys
-            from unittest.mock import Mock
-
-            _workflow_pkg = sys.modules.get("podcast_scraper.workflow")
-            if _workflow_pkg and hasattr(_workflow_pkg, "create_summarization_provider"):
-                func = getattr(_workflow_pkg, "create_summarization_provider")
-                if isinstance(func, Mock) or func is not _create_summarization_provider_factory:
-                    summary_provider = func(cfg)
-                else:
-                    summary_provider = _create_summarization_provider_factory(cfg)
-            else:
-                summary_provider = _create_summarization_provider_factory(cfg)
-            summary_provider.initialize()
-            logger.debug(
-                "Summarization provider initialized: %s",
-                type(summary_provider).__name__,
-            )
-            # Warm up Ollama models if using Ollama provider (loads models before real work)
-            if hasattr(summary_provider, "warmup"):
-                try:
-                    summary_provider.warmup(timeout_s=600)  # 10 minute timeout for first load
-                    logger.debug("Ollama summarization models warmed up")
-                except Exception as exc:
-                    logger.warning(f"Failed to warm up Ollama summarization models: {exc}")
-                    # Don't fail - models will load on first use, just slower
-        except ImportError as e:
-            # Fail fast when generate_summaries=True - dependencies must be available
-            error_msg = (
-                f"Summarization dependencies not available but generate_summaries=True: {e}. "
-                "Install ML dependencies or set generate_summaries=False."
-            )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
-        except Exception as e:
-            # Fail fast - provider initialization must succeed when generate_summaries=True
-            error_msg = (
-                f"Failed to initialize summarization provider (generate_summaries=True): {e}. "
-                "Cannot proceed with summarization."
-            )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg) from e
-
-    # Step 1.7: Log effective parallelism configuration (Issue #380)
-    _log_effective_parallelism(cfg, summary_provider)
-
-    # Step 1.7.5: Log provider ownership for each capability
-    _log_provider_ownership(cfg, transcription_provider, speaker_detector, summary_provider)
-
-    # Step 1.8: Record device usage per stage (Issue #387)
-    if transcription_provider is not None:
-        # Get transcription device (stage-level config takes precedence)
-        if cfg.transcription_device:
-            transcription_device = cfg.transcription_device.lower()
-        elif hasattr(transcription_provider, "_detect_whisper_device"):
-            try:
-                transcription_device = transcription_provider._detect_whisper_device()
-            except Exception:
-                transcription_device = "unknown"
-        else:
-            transcription_device = cfg.whisper_device or "auto"
-        pipeline_metrics.record_transcription_device(transcription_device)
-        logger.debug("Transcription device: %s", transcription_device)
-
-    if summary_provider is not None and cfg.generate_summaries:
-        # Get summarization device (stage-level config takes precedence)
-        if cfg.summarization_device:
-            summarization_device = cfg.summarization_device.lower()
-        elif hasattr(summary_provider, "_map_model") and summary_provider._map_model:
-            if hasattr(summary_provider._map_model, "device"):
-                summarization_device = summary_provider._map_model.device
-            else:
-                summarization_device = cfg.summary_device or "auto"
-        else:
-            summarization_device = cfg.summary_device or "auto"
-        pipeline_metrics.record_summarization_device(summarization_device)
-        logger.debug("Summarization device: %s", summarization_device)
-
-    # Step 1.5: Create run manifest (Issue #379)
-    run_manifest = None
-    if not cfg.dry_run:
-        try:
-            from .run_manifest import create_run_manifest
-
-            run_manifest = create_run_manifest(
-                cfg=cfg,
-                output_dir=effective_output_dir,
-                run_id=cfg.run_id,
-            )
-            manifest_path = os.path.join(effective_output_dir, "run_manifest.json")
-            run_manifest.save_to_file(manifest_path)
-            logger.info(f"Run manifest saved to: {manifest_path}")
-        except Exception as e:
-            logger.warning(f"Failed to generate run manifest: {e}")
-
-    # Step 2: Fetch and parse RSS feed (scraping stage)
-    scraping_start = time.time()
-    feed, rss_bytes = wf_stages.scraping.fetch_and_parse_feed(cfg)
-    pipeline_metrics.record_stage("scraping", time.time() - scraping_start)
-
-    # Step 3: Extract feed metadata (if metadata generation enabled)
-    # Reuse RSS bytes from initial fetch to avoid duplicate network request
-    feed_metadata = wf_stages.scraping.extract_feed_metadata_for_generation(cfg, feed, rss_bytes)
-
-    # Step 4: Prepare episodes from RSS items (parsing stage)
-    parsing_start = time.time()
-    episodes = wf_stages.scraping.prepare_episodes_from_feed(feed, cfg)
-    pipeline_metrics.episodes_scraped_total = len(episodes)
-    pipeline_metrics.record_stage("parsing", time.time() - parsing_start)
-
-    # Initialize episode statuses (Issue #391)
-    if pipeline_metrics is not None:
-        from ..rss.parser import extract_episode_published_date
-        from .metadata_generation import generate_episode_id
-
-        for episode in episodes:
-            # Extract episode metadata for ID generation
-            episode_guid = None
-            episode_link = None
-            episode_published_date = None
-            episode_number = getattr(episode, "number", None)
-
-            if hasattr(episode, "item") and episode.item is not None:
-                # Extract GUID from RSS item
-                guid_elem = episode.item.find("guid")
-                if guid_elem is not None and guid_elem.text:
-                    episode_guid = guid_elem.text.strip()
-                # Extract link
-                link_elem = episode.item.find("link")
-                if link_elem is not None and link_elem.text:
-                    episode_link = link_elem.text.strip()
-                # Extract published date
-                episode_published_date = extract_episode_published_date(episode.item)
-
-            # Generate stable episode ID
-            episode_id = generate_episode_id(
-                feed_url=cfg.rss_url or "",
-                episode_title=episode.title,
-                episode_guid=episode_guid,
-                published_date=episode_published_date,
-                episode_link=episode_link,
-                episode_number=episode_number,
-            )
-
-            # Create initial status entry (queued)
-            pipeline_metrics.get_or_create_episode_status(
-                episode_id=episode_id, episode_number=episode.idx
-            )
-            # Create initial metrics entry (to avoid warnings when updating later)
-            pipeline_metrics.get_or_create_episode_metrics(
-                episode_id=episode_id, episode_number=episode.idx
-            )
-
-    # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
-    # This is part of normalizing stage
-    normalizing_start = time.time()
-    host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
-        cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
+    # Step 1.7-1.8: Setup logging and device tracking
+    _setup_logging_and_devices(
+        cfg, transcription_provider, speaker_detector, summary_provider, pipeline_metrics
     )
 
-    # Step 6: Setup transcription resources (Whisper model, temp dir)
-    transcription_resources = wf_stages.transcription.setup_transcription_resources(
-        cfg, effective_output_dir, transcription_provider=transcription_provider
-    )
+    # Step 1.5: Create run manifest
+    run_manifest = _create_run_manifest(cfg, effective_output_dir)
 
-    # Step 6.5: Setup processing resources (metadata/summarization queue)
-    processing_resources = wf_stages.processing.setup_processing_resources(cfg)
+    # Step 2-4: Fetch and prepare episodes
+    feed, rss_bytes, feed_metadata, episodes = _fetch_and_prepare_episodes(cfg, pipeline_metrics)
+
+    # Step 5-6.5: Setup pipeline resources
+    normalizing_start, host_detection_result, transcription_resources, processing_resources = (
+        _setup_pipeline_resources(
+            cfg,
+            feed,
+            episodes,
+            effective_output_dir,
+            transcription_provider,
+            speaker_detector,
+            pipeline_metrics,
+        )
+    )
 
     # Wrap all processing in try-finally to ensure cleanup always happens
     # This prevents memory leaks if exceptions occur during processing
     try:
-        # Step 7: Prepare episode processing arguments with speaker detection
-        download_args = wf_stages.processing.prepare_episode_download_args(
-            episodes,
-            cfg,
-            effective_output_dir,
-            run_suffix,
-            transcription_resources,
-            host_detection_result,
-            pipeline_metrics,
+        saved = _process_episodes_with_threading(
+            cfg=cfg,
+            episodes=episodes,
+            feed=feed,
+            effective_output_dir=effective_output_dir,
+            run_suffix=run_suffix,
+            feed_metadata=feed_metadata,
+            host_detection_result=host_detection_result,
+            transcription_resources=transcription_resources,
+            processing_resources=processing_resources,
+            pipeline_metrics=pipeline_metrics,
+            summary_provider=summary_provider,
+            transcription_provider=transcription_provider,
+            normalizing_start=normalizing_start,
         )
-        pipeline_metrics.record_stage("normalizing", time.time() - normalizing_start)
-
-        # Step 8: Process episodes (download transcripts or queue transcription jobs)
-        # Start processing stage concurrently (metadata/summarization)
-        # NOTE: writing_start measures the entire "processing" stage, not just file I/O
-        # This includes: downloads, transcription waiting, thread synchronization, AND actual I/O
-        # For accurate I/O metrics, check [STORAGE I/O] debug logs
-        transcription_complete_event = threading.Event()
-        downloads_complete_event = threading.Event()  # Signal when all downloads are complete
-        transcription_saved = [0]  # Use list to allow modification from thread
-
-        # Determine if we should serialize MPS work to prevent memory contention
-        should_serialize_mps = False
-        if cfg.mps_exclusive:
-            should_serialize_mps = _both_providers_use_mps(
-                cfg, transcription_provider, summary_provider
-            )
-            if should_serialize_mps:
-                logger.info(
-                    "MPS exclusive mode enabled: Serializing GPU work "
-                    "(transcription completes before summarization starts)"
-                )
-
-        # Start processing thread if metadata generation is enabled
-        processing_thread = None
-        if cfg.generate_metadata:
-            processing_thread = threading.Thread(
-                target=wf_stages.processing.process_processing_jobs_concurrent,
-                args=(
-                    processing_resources,
-                    feed,
-                    cfg,
-                    effective_output_dir,
-                    run_suffix,
-                    feed_metadata,
-                    host_detection_result,
-                    pipeline_metrics,
-                    summary_provider,
-                    transcription_complete_event,
-                    should_serialize_mps,
-                ),
-                daemon=False,
-                name="ProcessingProcessor",
-            )
-            processing_thread.start()
-            logger.debug(
-                "Started concurrent processing thread (parallelism=%d)", cfg.processing_parallelism
-            )
-
-        # Start transcription processing concurrently if transcription is enabled
-        if cfg.transcribe_missing and not cfg.dry_run:
-            # Start transcription processing in background thread
-            transcription_thread = threading.Thread(
-                target=wf_stages.transcription.process_transcription_jobs_concurrent,
-                args=(
-                    transcription_resources,
-                    download_args,
-                    episodes,
-                    feed,
-                    cfg,
-                    effective_output_dir,
-                    run_suffix,
-                    feed_metadata,
-                    host_detection_result,
-                    processing_resources,
-                    pipeline_metrics,
-                    summary_provider,
-                    # Pass downloads_complete_event, not transcription_complete_event
-                    downloads_complete_event,
-                    transcription_saved,
-                ),
-                daemon=False,
-                name="TranscriptionProcessor",
-            )
-            transcription_thread.start()
-            logger.debug("Started concurrent transcription processing thread")
-
-        # Track download wait time (Issue #387, #391)
-        download_start = time.time()
-        saved = wf_stages.processing.process_episodes(
-            download_args,
-            episodes,
-            feed,
-            cfg,
-            effective_output_dir,
-            run_suffix,
-            feed_metadata,
-            host_detection_result,
-            transcription_resources,
-            processing_resources,
-            pipeline_metrics,
-            summary_provider,
-        )
-        download_wait_time = time.time() - download_start
-        if pipeline_metrics is not None:
-            pipeline_metrics.record_download_wait_time(download_wait_time)
-            # Track wall-clock time for downloads (Issue #391)
-            pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
-
-        # Signal that downloads are complete (so transcription thread can exit when queue is empty)
-        if cfg.transcribe_missing and not cfg.dry_run:
-            downloads_complete_event.set()
-
-        # Step 9: Wait for transcription to complete (if started)
-        if cfg.transcribe_missing and not cfg.dry_run:
-            # Track thread sync time for transcription (Issue #387)
-            transcription_sync_start = time.time()
-            # Wait for transcription thread to finish processing remaining jobs
-            transcription_thread.join()
-            transcription_sync_time = time.time() - transcription_sync_start
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_thread_sync_time(transcription_sync_time)
-                pipeline_metrics.record_transcription_wait_time(transcription_sync_time)
-            saved += transcription_saved[0]
-            logger.debug("Concurrent transcription processing completed")
-        elif cfg.transcribe_missing:
-            # Dry-run mode: process transcription jobs sequentially after downloads
-            transcription_start = time.time()
-            saved += wf_stages.transcription.process_transcription_jobs(
-                transcription_resources,
-                download_args,
-                episodes,
-                feed,
-                cfg,
-                effective_output_dir,
-                run_suffix,
-                feed_metadata,
-                host_detection_result,
-                pipeline_metrics,
-                summary_provider,
-            )
-            transcription_wait_time = time.time() - transcription_start
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_transcription_wait_time(transcription_wait_time)
-
-        # Step 9.5: Wait for processing to complete (if started)
-        if processing_thread is not None:
-            # Signal that transcription is complete (processing waits for this)
-            transcription_complete_event.set()
-            # Track thread sync time for processing (Issue #387, #391)
-            processing_sync_start = time.time()
-            # Wait for processing thread to finish
-            processing_thread.join()
-            processing_sync_time = time.time() - processing_sync_start
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_thread_sync_time(processing_sync_time)
-                # Track wall-clock time for processing thread sync (Issue #391)
-                pipeline_metrics.record_io_waiting_wall_time(processing_sync_time)
-            logger.debug("Concurrent processing completed")
-
-        # Log io_and_waiting breakdown (Issue #387, #391)
-        # Note: io_and_waiting_thread_sum_seconds is the sum of sub-buckets
-        # (aggregate across threads). Sub-buckets are recorded individually and
-        # automatically add to io_and_waiting_thread_sum_seconds
-        if pipeline_metrics is not None:
-            logger.debug(
-                "[IO METRIC] io_and_waiting thread_sum: %.2fs, wall_clock: %.2fs "
-                "(sum of sub-buckets: download_wait=%.2fs, transcription_wait=%.2fs, "
-                "thread_sync=%.2fs, queue_wait=%.2fs, summarization_wait=%.2fs)",
-                pipeline_metrics.io_and_waiting_thread_sum_seconds,
-                pipeline_metrics.io_and_waiting_wall_seconds,
-                pipeline_metrics.time_download_wait_seconds,
-                pipeline_metrics.time_transcription_wait_seconds,
-                pipeline_metrics.time_thread_sync_seconds,
-                pipeline_metrics.time_queue_wait_seconds,
-                pipeline_metrics.time_summarization_wait_seconds,
-            )
-
-        # Step 10: Parallel episode summarization (if enabled and multiple episodes)
-        # Process episodes that need summarization in parallel for better performance
-        # This runs after all episodes are processed and checks for episodes that might
-        # have been skipped during inline processing or need summary regeneration
-        # Note: Parallel summarization uses direct model loading for thread safety
-        # (each worker needs its own model instance). This is intentional and not a fallback.
-        if (
-            cfg.generate_summaries
-            and cfg.generate_metadata
-            and summary_provider is not None
-            and not cfg.dry_run
-            and len(episodes) > 1
-        ):
-            # Only run parallel summarization if we have multiple episodes to process
-            # It will skip episodes that already have summaries
-            # Track summarization wait time (Issue #387)
-            summarization_start = time.time()
-            wf_stages.summarization.parallel_episode_summarization(
-                episodes=episodes,
-                feed=feed,
-                cfg=cfg,
-                effective_output_dir=effective_output_dir,
-                run_suffix=run_suffix,
-                feed_metadata=feed_metadata,
-                host_detection_result=host_detection_result,
-                summary_provider=summary_provider,
-                download_args=download_args,
-                pipeline_metrics=pipeline_metrics,
-            )
-            summarization_wait_time = time.time() - summarization_start
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_summarization_wait_time(summarization_wait_time)
-                # Track wall-clock time for summarization wait (Issue #391)
-                pipeline_metrics.record_io_waiting_wall_time(summarization_wait_time)
 
     finally:
         # Step 9.5: Unload models to free memory
         # This runs even if exceptions occur above, preventing memory leaks
-        # Stage 2: Cleanup transcription provider (which handles model unloading)
-        if (
-            transcription_resources is not None
-            and transcription_resources.transcription_provider is not None
-        ):
-            try:
-                provider = transcription_resources.transcription_provider
-                provider.cleanup()
-                logger.debug("Cleaned up transcription provider")
-            except Exception as e:
-                logger.warning("Failed to cleanup transcription provider: %s", e)
+        _cleanup_providers(transcription_resources, summary_provider)
 
-        # Stage 4: Cleanup provider (which handles model unloading)
-        # Cleanup preloaded MLProvider instance
-        global _preloaded_ml_provider
-        if _preloaded_ml_provider is not None:
-            try:
-                _preloaded_ml_provider.cleanup()
-            except Exception as e:
-                logger.warning("Error cleaning up preloaded MLProvider: %s", e)
-            finally:
-                _preloaded_ml_provider = None
-
-        if summary_provider is not None:
-            try:
-                summary_provider.cleanup()
-                logger.debug("Cleaned up summarization provider")
-            except Exception as e:
-                logger.warning("Failed to cleanup summarization provider: %s", e)
-
-        # Note: spaCy model cache was removed. Models are managed by providers
-        # and cleaned up via provider.cleanup() method above.
-
-    # Step 10: Cleanup temporary files
-    wf_helpers.cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
-
-    # Step 11: Generate summary and log metrics
-    pipeline_metrics.log_metrics()
-
-    # Step 11.5: Log episode processing results
-    _log_episode_results(pipeline_metrics, episodes)
-
-    # Step 12: Save metrics to file if configured
-    if cfg.metrics_output is not None:
-        # Explicit path provided
-        if cfg.metrics_output:
-            metrics_path = cfg.metrics_output
-        else:
-            # Empty string means disabled
-            metrics_path = None
-    else:
-        # Default: save to output directory
-        metrics_path = os.path.join(effective_output_dir, "metrics.json")
-
-    # Emit run_finished event for JSONL metrics (before save_to_file)
-    if jsonl_emitter:
-        try:
-            jsonl_emitter.emit_run_finished()
-        except Exception as e:
-            logger.warning(f"Failed to emit run_finished JSONL event: {e}")
-
-    if metrics_path:
-        try:
-            pipeline_metrics.save_to_file(metrics_path)
-        except Exception as e:
-            logger.warning(f"Failed to save metrics to {metrics_path}: {e}")
-
-    # Close JSONL emitter
-    if jsonl_emitter:
-        try:
-            jsonl_emitter.__exit__(None, None, None)
-        except Exception as e:
-            logger.warning(f"Failed to close JSONL emitter: {e}")
-
-    # Step 13: Generate run index (Issue #379)
-    if not cfg.dry_run:
-        try:
-            from .run_index import create_run_index
-
-            # Pass episode_statuses from metrics if available
-            episode_statuses = (
-                pipeline_metrics.episode_statuses
-                if hasattr(pipeline_metrics, "episode_statuses")
-                else None
-            )
-
-            run_index = create_run_index(
-                run_id=cfg.run_id or datetime.utcnow().isoformat() + "Z",
-                feed_url=cfg.rss_url,
-                episodes=episodes,
-                effective_output_dir=effective_output_dir,
-                episode_statuses=episode_statuses,
-                run_suffix=run_suffix,
-            )
-            index_path = os.path.join(effective_output_dir, "index.json")
-            run_index.save_to_file(index_path)
-            logger.info(f"Run index saved to: {index_path}")
-        except Exception as e:
-            logger.warning(f"Failed to generate run index: {e}")
-
-    # Step 14: Generate run summary (Issue #379)
-    if not cfg.dry_run:
-        try:
-            from .run_summary import create_run_summary, save_run_summary
-
-            run_summary = create_run_summary(
-                run_manifest=run_manifest,
-                pipeline_metrics=pipeline_metrics,
-                output_dir=effective_output_dir,
-                run_id=cfg.run_id,
-            )
-            save_run_summary(run_summary, effective_output_dir)
-        except Exception as e:
-            logger.warning(f"Failed to generate run summary: {e}")
-
-    # Step 15: Aggressive cleanup before exit (Issue #390 - prevent bus error on macOS)
-    # Clean up ML providers and PyTorch/MPS resources before interpreter shutdown
-    try:
-        # Cleanup summary provider if available
-        if summary_provider is not None:
-            logger.debug("Cleaning up summary provider before exit")
-            summary_provider.cleanup()
-
-        # Cleanup transcription provider if available
-        if transcription_provider is not None and transcription_provider != summary_provider:
-            logger.debug("Cleaning up transcription provider before exit")
-            transcription_provider.cleanup()
-
-        # Aggressive PyTorch/MPS cleanup to prevent bus errors during interpreter shutdown
-        try:
-            import gc
-
-            import torch
-
-            # Move any remaining models to CPU before deletion (avoid teardown hazards)
-            # This is a best-effort cleanup - models should already be cleaned up by providers
-            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                if hasattr(torch.mps, "empty_cache"):
-                    torch.mps.empty_cache()
-                    logger.debug("Cleared MPS cache before exit")
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                logger.debug("Cleared CUDA cache before exit")
-
-            # Force garbage collection to clean up any remaining references
-            # This helps release memory and clean up threads that might be holding references
-            # Note: Skip in test environments to avoid hangs
-            # os is already imported at module level, no need to import again
-            if os.environ.get("PYTEST_CURRENT_TEST") is None:
-                gc.collect()
-                logger.debug("Ran garbage collection before exit")
-        except ImportError:
-            # torch not available (e.g., in unit tests without ML dependencies)
-            pass
-        except Exception as exc:
-            # Ignore any errors during cleanup - we're about to exit anyway
-            logger.debug(f"Error during final cleanup (non-fatal): {exc}")
-    except Exception as exc:
-        # Ignore any errors during cleanup - we're about to exit anyway
-        logger.debug(f"Error during provider cleanup (non-fatal): {exc}")
-
-    return wf_helpers.generate_pipeline_summary(
-        cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
+    # Step 10-15: Finalize pipeline (cleanup, save metrics, generate reports)
+    return _finalize_pipeline(
+        cfg=cfg,
+        saved=saved,
+        transcription_resources=transcription_resources,
+        effective_output_dir=effective_output_dir,
+        run_suffix=run_suffix,
+        pipeline_metrics=pipeline_metrics,
+        episodes=episodes,
+        jsonl_emitter=jsonl_emitter,
+        run_manifest=run_manifest,
+        summary_provider=summary_provider,
+        transcription_provider=transcription_provider,
     )

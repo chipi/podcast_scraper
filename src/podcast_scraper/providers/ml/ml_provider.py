@@ -29,6 +29,7 @@ else:
 
     Episode = models.Episode  # type: ignore[assignment]
 from ...cache import get_whisper_cache_dir
+from ...cleaning import PatternBasedCleaner
 from ...exceptions import (
     ProviderConfigError,
     ProviderDependencyError,
@@ -177,6 +178,9 @@ class MLProvider:
             cfg: Configuration object with settings for all three capabilities
         """
         self.cfg = cfg
+
+        # Set up transcript cleaning processor (default pattern-based)
+        self.cleaning_processor = PatternBasedCleaner()
 
         # Whisper transcription state
         self._whisper_model: Optional[Any] = None

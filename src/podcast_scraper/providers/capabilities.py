@@ -29,6 +29,7 @@ class ProviderCapabilities:
         supports_transcription: Whether provider supports audio transcription
         supports_speaker_detection: Whether provider supports speaker detection
         supports_summarization: Whether provider supports text summarization
+        supports_semantic_cleaning: Whether provider supports LLM-based semantic cleaning
         supports_audio_input: Whether provider accepts audio files directly (vs text only)
         supports_json_mode: Whether provider supports structured JSON output mode
         max_context_tokens: Maximum context window size in tokens
@@ -44,6 +45,7 @@ class ProviderCapabilities:
     supports_audio_input: bool
     supports_json_mode: bool
     max_context_tokens: int
+    supports_semantic_cleaning: bool = False  # Only LLM providers support this
     supports_tool_calls: bool = True  # Most modern LLMs support this
     supports_system_prompt: bool = True  # Most modern LLMs support this
     supports_streaming: bool = False  # Not currently used, but available
@@ -133,6 +135,7 @@ def _infer_capabilities(provider: Any) -> ProviderCapabilities:
     )
     has_detect_speakers = hasattr(provider, "detect_speakers")
     has_summarize = hasattr(provider, "summarize")
+    has_clean_transcript = hasattr(provider, "clean_transcript")
 
     # Get max_context_tokens if available
     max_tokens = getattr(provider, "max_context_tokens", 0)
@@ -164,10 +167,14 @@ def _infer_capabilities(provider: Any) -> ProviderCapabilities:
     # Most modern LLM providers support system prompts
     supports_system = provider_type not in ("MLProvider",)
 
+    # Semantic cleaning is only supported by LLM providers (not MLProvider)
+    supports_semantic_cleaning = has_clean_transcript and provider_type != "MLProvider"
+
     return ProviderCapabilities(
         supports_transcription=has_transcribe,
         supports_speaker_detection=has_detect_speakers,
         supports_summarization=has_summarize,
+        supports_semantic_cleaning=supports_semantic_cleaning,
         supports_audio_input=supports_audio,
         supports_json_mode=supports_json,
         max_context_tokens=max_tokens,

@@ -15,11 +15,11 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
-# Import Gemini SDK (verify package name during implementation)
+# Import Gemini SDK (migrated from google.generativeai to google.genai in Issue #415)
 try:
-    import google.generativeai as genai
+    import google.genai as genai
 except ImportError:
     genai = None  # type: ignore
 
@@ -31,6 +31,8 @@ else:
     from ... import models
 
     Episode = models.Episode  # type: ignore[assignment]
+from ...cleaning import PatternBasedCleaner
+from ...cleaning.base import TranscriptCleaningProcessor
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
 
@@ -53,6 +55,8 @@ GEMINI_1_5_FLASH_OUTPUT_COST_PER_1M_TOKENS = 0.30
 
 
 class GeminiProvider:
+
+    cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
     """Unified Gemini provider implementing TranscriptionProvider, SpeakerDetector, and
     SummarizationProvider.
 
@@ -73,11 +77,11 @@ class GeminiProvider:
 
         Raises:
             ValueError: If Gemini API key is not provided
-            ImportError: If google-generativeai package is not installed
+            ImportError: If google-genai package is not installed
         """
         if genai is None:
             raise ImportError(
-                "google-generativeai package required for Gemini provider. "
+                "google-genai package required for Gemini provider. "
                 "Install with: pip install 'podcast-scraper[gemini]'"
             )
 
@@ -100,6 +104,23 @@ class GeminiProvider:
             logger.warning("Gemini API key validation failed: %s", error_msg)
 
         self.cfg = cfg
+        self.api_key = cfg.gemini_api_key
+
+        # Set up transcript cleaning processor based on strategy (Issue #418)
+        from ...cleaning import HybridCleaner, LLMBasedCleaner
+
+        cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+        if cleaning_strategy == "pattern":
+            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
+        elif cleaning_strategy == "llm":
+            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
+        else:  # hybrid (default)
+            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+
+        # Cleaning model settings (cheaper model for cost efficiency)
+        # Note: gemini-1.5-flash not available in new API, using gemini-2.0-flash
+        self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-2.0-flash")
+        self.cleaning_temperature = getattr(cfg, "gemini_cleaning_temperature", 0.2)
 
         # Suppress verbose Gemini SDK debug logs (if needed)
         # Similar to OpenAI provider pattern
@@ -107,15 +128,20 @@ class GeminiProvider:
         root_level = root_logger.level if root_logger.level else logging.INFO
         if root_level <= logging.DEBUG:
             gemini_loggers = [
-                "google.generativeai",
+                "google.genai",
                 "google.api_core",
             ]
             for logger_name in gemini_loggers:
                 gemini_logger = logging.getLogger(logger_name)
                 gemini_logger.setLevel(logging.WARNING)
 
-        # Configure Gemini client
-        genai.configure(api_key=cfg.gemini_api_key)
+        # Create Gemini client using new API (google-genai v0.1.0+)
+        # New API uses Client instead of configure() + GenerativeModel
+        client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
+        if cfg.gemini_api_base:
+            # Support custom base_url for E2E testing with mock servers
+            client_kwargs["base_url"] = cfg.gemini_api_base
+        self.client = genai.Client(**client_kwargs)
 
         # Log non-sensitive provider metadata (for debugging)
         from ...utils.provider_metadata import log_provider_metadata
@@ -301,25 +327,25 @@ class GeminiProvider:
             }
             mime_type = mime_types.get(suffix, "audio/mpeg")
 
-            # Use Gemini's native multimodal API
-            # Create model instance
-            model = genai.GenerativeModel(self.transcription_model)
-
+            # Use Gemini's native multimodal API with new Client API
             # Build prompt with language hint if provided
             prompt_text = "Transcribe this audio file to text."
             if effective_language:
                 prompt_text += f" The language is {effective_language}."
 
             # Create content with audio (multimodal input)
-            # Gemini SDK supports file upload and inline data
-            response = model.generate_content(
-                [
-                    {
-                        "mime_type": mime_type,
-                        "data": audio_data,
-                    },
-                    prompt_text,
-                ]
+            # New API: client.models.generate_content() instead of
+            # GenerativeModel().generate_content()
+            contents = [
+                {
+                    "mime_type": mime_type,
+                    "data": audio_data,
+                },
+                prompt_text,
+            ]
+            response = self.client.models.generate_content(
+                model=self.transcription_model,
+                contents=contents,
             )
 
             # Extract text from response
@@ -584,25 +610,23 @@ class GeminiProvider:
             system_prompt_name = self.cfg.gemini_speaker_system_prompt or "gemini/ner/system_ner_v1"
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Gemini API
-            # Gemini uses system_instruction parameter instead of system message
-            model = genai.GenerativeModel(
-                model_name=self.speaker_model,
-                system_instruction=system_prompt,
-            )
-
+            # Call Gemini API using new Client API
             # Request JSON response
             # Use dict format for generation config (more compatible with SDK versions)
+            # Note: system_instruction is part of config in new API
             generation_config = {
                 "temperature": self.speaker_temperature,
                 "max_output_tokens": 300,
                 "response_mime_type": "application/json",
+                "system_instruction": system_prompt,
             }
 
-            # Type ignore: Gemini SDK accepts dict for generation_config
-            response = model.generate_content(
-                user_prompt,
-                generation_config=generation_config,  # type: ignore[arg-type]
+            # New API: client.models.generate_content() instead of
+            # GenerativeModel().generate_content()
+            response = self.client.models.generate_content(
+                model=self.speaker_model,
+                contents=user_prompt,
+                config=generation_config,
             )
 
             response_text = response.text if hasattr(response, "text") else str(response)
@@ -818,23 +842,21 @@ class GeminiProvider:
             from ...utils.provider_metrics import retry_with_metrics
 
             def _make_api_call():
-                # Call Gemini API
-                # Gemini uses system_instruction parameter instead of system message
-                model = genai.GenerativeModel(
-                    model_name=self.summary_model,
-                    system_instruction=system_prompt,
-                )
-
+                # Call Gemini API using new Client API
                 # Use dict format for generation config (more compatible with SDK versions)
+                # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.summary_temperature,
                     "max_output_tokens": max_length,
+                    "system_instruction": system_prompt,
                 }
 
-                # Type ignore: Gemini SDK accepts dict for generation_config
-                return model.generate_content(
-                    user_prompt,
-                    generation_config=generation_config,  # type: ignore[arg-type]
+                # New API: client.models.generate_content() instead of
+                # GenerativeModel().generate_content()
+                return self.client.models.generate_content(
+                    model=self.summary_model,
+                    contents=user_prompt,
+                    config=generation_config,
                 )
 
             try:
@@ -1037,6 +1059,121 @@ class GeminiProvider:
             or self._summarization_initialized
         )
 
+    def clean_transcript(self, text: str) -> str:
+        """Clean transcript using LLM for semantic filtering.
+
+        Args:
+            text: Transcript text to clean (should already be pattern-cleaned)
+
+        Returns:
+            Cleaned transcript text
+
+        Raises:
+            RuntimeError: If provider is not initialized or cleaning fails
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("GeminiProvider not initialized. Call initialize() first.")
+
+        from ...prompts.store import render_prompt
+
+        # Build cleaning prompt using prompt_store (RFC-017)
+        prompt_name = "gemini/cleaning/v1"
+        user_prompt = render_prompt(prompt_name, transcript=text)
+
+        # Use system instruction (Gemini pattern)
+        system_prompt = (
+            "You are a transcript cleaning assistant. "
+            "Remove sponsors, ads, intros, outros, and meta-commentary. "
+            "Preserve all substantive content and speaker information. "
+            "Return only the cleaned text, no explanations."
+        )
+
+        logger.debug(
+            "Cleaning transcript via Gemini API (model: %s, text length: %d chars)",
+            self.cleaning_model,
+            len(text),
+        )
+
+        try:
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("gemini")
+
+            # Wrap API call with retry tracking
+            from google.api_core import exceptions as google_exceptions
+
+            def _make_api_call():
+                # Call Gemini API using new Client API
+                # Note: system_instruction is part of config in new API
+                generation_config = {
+                    "temperature": self.cleaning_temperature,
+                    "max_output_tokens": int(
+                        len(text.split()) * 0.85 * 1.3
+                    ),  # Rough token estimate
+                    "system_instruction": system_prompt,
+                }
+
+                # New API: client.models.generate_content() instead of
+                # GenerativeModel().generate_content()
+                return self.client.models.generate_content(
+                    model=self.cleaning_model,
+                    contents=user_prompt,
+                    config=generation_config,
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(
+                        google_exceptions.ResourceExhausted,
+                        google_exceptions.ServiceUnavailable,
+                        ConnectionError,
+                    ),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
+
+            cleaned = response.text if hasattr(response, "text") else str(response)
+            if not cleaned:
+                logger.warning("Gemini API returned empty cleaned text, using original")
+                return text
+
+            logger.debug("Gemini cleaning completed: %d -> %d chars", len(text), len(cleaned))
+            return cast(str, cleaned)
+
+        except Exception as exc:
+            logger.error("Gemini API error in cleaning: %s", exc)
+            from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
+
+            # Handle Gemini-specific error types
+            error_msg = str(exc).lower()
+            if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
+                raise ProviderAuthError(
+                    message=f"Gemini authentication failed: {exc}",
+                    provider="GeminiProvider/Cleaning",
+                    suggestion="Check your GEMINI_API_KEY environment variable or config setting",
+                ) from exc
+            elif "quota" in error_msg or "rate limit" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Gemini rate limit exceeded: {exc}",
+                    provider="GeminiProvider/Cleaning",
+                    suggestion="Wait before retrying or check your API quota",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"Gemini cleaning failed: {exc}",
+                    provider="GeminiProvider/Cleaning",
+                ) from exc
+
     def get_capabilities(self) -> ProviderCapabilities:
         """Get provider capabilities.
 
@@ -1047,6 +1184,7 @@ class GeminiProvider:
             supports_transcription=True,
             supports_speaker_detection=True,
             supports_summarization=True,
+            supports_semantic_cleaning=True,  # Gemini supports LLM-based cleaning
             supports_audio_input=True,  # Gemini supports multimodal audio
             supports_json_mode=True,  # Gemini supports JSON mode via response_schema
             max_context_tokens=self.max_context_tokens,

@@ -36,7 +36,7 @@ Key advantages of Gemini:
 
 **Constraints:**
 
-- Must use Google Generative AI Python SDK (`google-generativeai`)
+- Must use Google Generative AI Python SDK (`google-genai`, migrated from `google-generativeai` in Issue #415)
 - Audio files must be uploaded or passed as inline data (support both if available)
 - Rate limits apply (especially free tier)
 - Must follow unified provider pattern (like OpenAI)
@@ -46,7 +46,7 @@ Key advantages of Gemini:
 - Gemini API is stable
 - Audio transcription quality is comparable to Whisper
 - Prompts may need Gemini-specific optimization
-- Package name is `google-generativeai` (verify during implementation)
+- Package name is `google-genai` (migrated from `google-generativeai` in Issue #415)
 
 ## Design & Implementation
 
@@ -54,7 +54,7 @@ Key advantages of Gemini:
 
 | Feature | OpenAI | Gemini |
 | ------- | ------ | ------ |
-| **SDK** | `openai` | `google-generativeai` |
+| **SDK** | `openai` | `google-genai` (migrated from `google-generativeai` in Issue #415) |
 | **Audio** | Whisper (separate API) | Native multimodal |
 | **Context Window** | 128k tokens | 2M tokens |
 | **Audio Input** | File upload | File or inline data (both) |
@@ -293,9 +293,9 @@ import os
 import time
 from typing import Any, Dict, Optional, Set, Tuple
 
-# Import Gemini SDK (verify package name during implementation)
+# Import Gemini SDK (migrated from google.generativeai to google.genai in Issue #415)
 try:
-    import google.generativeai as genai
+    import google.genai as genai
 except ImportError:
     genai = None  # type: ignore
 
@@ -338,11 +338,11 @@ class GeminiProvider:
 
         Raises:
             ValueError: If Gemini API key is not provided
-            ImportError: If google-generativeai package is not installed
+            ImportError: If google-genai package is not installed
         """
         if genai is None:
             raise ImportError(
-                "google-generativeai package required for Gemini provider. "
+                "google-genai package required for Gemini provider. "
                 "Install with: pip install 'podcast-scraper[gemini]'"
             )
 
@@ -982,13 +982,11 @@ Add to `pyproject.toml`:
 ```toml
 [project.optional-dependencies]
 gemini = [
-    "google-generativeai>=0.8.0,<1.0.0",  # Verify version during implementation
+    "google-genai>=0.1.0,<1.0.0",  # Migrated from google-generativeai in Issue #415
 ]
 ```
 
-**Note:** Package name needs verification during implementation. Common names:
-- `google-generativeai` (most likely)
-- `google-genai` (alternative)
+**Note:** Package name is `google-genai` (migrated from `google-generativeai` in Issue #415).
 
 ### 7. Prompt Templates
 

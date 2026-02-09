@@ -12,7 +12,7 @@ Usage:
 
     # In conftest.py or test setup
     FakeGenerativeModel = create_fake_gemini_client(base_url)
-    monkeypatch.setattr("google.generativeai.GenerativeModel", FakeGenerativeModel)
+    monkeypatch.setattr("google.genai.GenerativeModel", FakeGenerativeModel)
     ```
 """
 
@@ -60,7 +60,7 @@ class FakeGeminiResponse:
 class FakeGenerativeModel:
     """Fake GenerativeModel that routes calls to E2E mock server.
 
-    This class mimics the interface of google.generativeai.GenerativeModel
+    This class mimics the interface of google.genai.GenerativeModel
     but makes HTTP requests to the E2E mock server instead of Google's API.
     """
 

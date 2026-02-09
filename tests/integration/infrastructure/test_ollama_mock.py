@@ -47,7 +47,11 @@ class TestOllamaE2EServerIntegration:
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.1:8b"},
+            ]
         }
         # Return same mock for all httpx.get calls
         mock_httpx.get.return_value = mock_models_response
@@ -95,7 +99,11 @@ class TestOllamaE2EServerIntegration:
         mock_models_response = Mock()
         mock_models_response.raise_for_status = Mock()
         mock_models_response.json.return_value = {
-            "models": [{"name": "llama3.3:latest"}, {"name": "llama3.2:latest"}]
+            "models": [
+                {"name": "llama3.3:latest"},
+                {"name": "llama3.2:latest"},
+                {"name": "llama3.1:8b"},
+            ]
         }
         # Return same mock for all httpx.get calls
         mock_httpx.get.return_value = mock_models_response

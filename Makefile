@@ -85,7 +85,7 @@ help:
 	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  make test-bulk-confidence  Run bulk E2E confidence tests (multiple configs sequentially)"
-	@echo "                            Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [BASELINE_ID=...] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
+	@echo "                            Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
@@ -419,9 +419,14 @@ test-nightly:
 	}
 	@echo "✅ Test collection successful, running tests..."
 	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || { \
-		EXIT_CODE=$$?; \
-		echo "⚠️  Parallel execution failed (exit code $$EXIT_CODE), trying sequential execution..."; \
-		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || exit $$EXIT_CODE; \
+		PARALLEL_EXIT_CODE=$$?; \
+		echo "⚠️  Parallel execution failed (exit code $$PARALLEL_EXIT_CODE), trying sequential execution..."; \
+		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json; \
+		SEQUENTIAL_EXIT_CODE=$$?; \
+		if [ $$SEQUENTIAL_EXIT_CODE -ne 0 ]; then \
+			echo "❌ Sequential execution also failed (exit code $$SEQUENTIAL_EXIT_CODE)"; \
+			exit $$SEQUENTIAL_EXIT_CODE; \
+		fi; \
 	}
 
 test:
@@ -468,7 +473,7 @@ test-reruns:
 
 test-bulk-confidence:
 	@# Run bulk E2E confidence tests (multiple configs sequentially)
-	@# Usage: make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" [BASELINE_ID=...] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
+	@# Usage: make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
 	@if [ -z "$(CONFIGS)" ]; then \
 		echo "❌ Error: CONFIGS is required"; \
 		echo "Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\""; \

@@ -51,9 +51,9 @@ python -m podcast_scraper.cli --config config.yaml
 
 ### Provider Selection (v2.4.0+)
 
-- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`)
-- `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`)
-- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `gemini`)
+- `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`)
+- `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
+- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
 
 ### Transcription Options
 
@@ -86,6 +86,9 @@ python -m podcast_scraper.cli --config config.yaml
 - `--openai-speaker-model MODEL` - OpenAI model for speaker detection (default: `gpt-4o-mini`)
 - `--openai-summary-model MODEL` - OpenAI model for summarization (default: `gpt-4o-mini`)
 - `--openai-temperature TEMP` - Temperature for OpenAI generation (0.0-2.0, default: 0.3)
+- `--openai-max-tokens N` - Maximum tokens for OpenAI responses (default: model-specific)
+- `--openai-cleaning-model MODEL` - OpenAI model for transcript cleaning (default: `gpt-4o-mini`, cheaper than summary model)
+- `--openai-cleaning-temperature TEMP` - Temperature for OpenAI cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
 
 ### Gemini Provider Options
 
@@ -96,6 +99,64 @@ python -m podcast_scraper.cli --config config.yaml
 - `--gemini-summary-model MODEL` - Gemini model for summarization (default: environment-based)
 - `--gemini-temperature TEMP` - Temperature for Gemini generation (0.0-2.0, default: 0.3)
 - `--gemini-max-tokens N` - Max tokens for Gemini generation (default: model default)
+- `--gemini-cleaning-model MODEL` - Gemini model for transcript cleaning (default: `gemini-1.5-flash`, cheaper than summary model)
+- `--gemini-cleaning-temperature TEMP` - Temperature for Gemini cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
+
+### Anthropic Provider Options
+
+- `--anthropic-api-key KEY` - Anthropic API key (can also use `ANTHROPIC_API_KEY` env var)
+- `--anthropic-api-base URL` - Custom Anthropic API base URL (for E2E testing or custom endpoints)
+- `--anthropic-speaker-model MODEL` - Anthropic model for speaker detection (default: environment-based)
+- `--anthropic-summary-model MODEL` - Anthropic model for summarization (default: environment-based)
+- `--anthropic-temperature TEMP` - Temperature for Anthropic generation (0.0-1.0, default: 0.3)
+- `--anthropic-max-tokens N` - Max tokens for Anthropic generation (default: model default)
+- `--anthropic-cleaning-model MODEL` - Anthropic model for transcript cleaning (default: `claude-3-5-haiku-latest`, cheaper than summary model)
+- `--anthropic-cleaning-temperature TEMP` - Temperature for Anthropic cleaning (0.0-1.0, default: 0.2, lower = more deterministic)
+
+### Mistral Provider Options
+
+- `--mistral-api-key KEY` - Mistral API key (can also use `MISTRAL_API_KEY` env var)
+- `--mistral-api-base URL` - Custom Mistral API base URL (for E2E testing or custom endpoints)
+- `--mistral-transcription-model MODEL` - Mistral model for transcription (default: `voxtral-mini-latest`)
+- `--mistral-speaker-model MODEL` - Mistral model for speaker detection (default: environment-based)
+- `--mistral-summary-model MODEL` - Mistral model for summarization (default: environment-based)
+- `--mistral-temperature TEMP` - Temperature for Mistral generation (0.0-1.0, default: 0.3)
+- `--mistral-max-tokens N` - Max tokens for Mistral generation (default: model default)
+- `--mistral-cleaning-model MODEL` - Mistral model for transcript cleaning (default: `mistral-small-latest`, cheaper than summary model)
+- `--mistral-cleaning-temperature TEMP` - Temperature for Mistral cleaning (0.0-1.0, default: 0.2, lower = more deterministic)
+
+### DeepSeek Provider Options
+
+- `--deepseek-api-key KEY` - DeepSeek API key (can also use `DEEPSEEK_API_KEY` env var)
+- `--deepseek-api-base URL` - Custom DeepSeek API base URL (for E2E testing or custom endpoints)
+- `--deepseek-speaker-model MODEL` - DeepSeek model for speaker detection (default: `deepseek-chat`)
+- `--deepseek-summary-model MODEL` - DeepSeek model for summarization (default: `deepseek-chat`)
+- `--deepseek-temperature TEMP` - Temperature for DeepSeek generation (0.0-2.0, default: 0.3)
+- `--deepseek-max-tokens N` - Max tokens for DeepSeek generation (default: model default)
+- `--deepseek-cleaning-model MODEL` - DeepSeek model for transcript cleaning (default: `deepseek-chat`, cheaper than summary model)
+- `--deepseek-cleaning-temperature TEMP` - Temperature for DeepSeek cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
+
+### Grok Provider Options
+
+- `--grok-api-key KEY` - Grok API key (can also use `GROK_API_KEY` env var)
+- `--grok-api-base URL` - Custom Grok API base URL (for E2E testing or custom endpoints)
+- `--grok-speaker-model MODEL` - Grok model for speaker detection (default: `grok-2`)
+- `--grok-summary-model MODEL` - Grok model for summarization (default: `grok-2`)
+- `--grok-temperature TEMP` - Temperature for Grok generation (0.0-2.0, default: 0.3)
+- `--grok-max-tokens N` - Max tokens for Grok generation (default: model default)
+- `--grok-cleaning-model MODEL` - Grok model for transcript cleaning (default: `grok-3-mini`, cheaper than summary model)
+- `--grok-cleaning-temperature TEMP` - Temperature for Grok cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
+
+### Ollama Provider Options
+
+- `--ollama-api-base URL` - Custom Ollama API base URL (for E2E testing or custom endpoints, default: `http://localhost:11434/v1`)
+- `--ollama-speaker-model MODEL` - Ollama model for speaker detection (default: environment-based)
+- `--ollama-summary-model MODEL` - Ollama model for summarization (default: environment-based)
+- `--ollama-temperature TEMP` - Temperature for Ollama generation (0.0-2.0, default: 0.3)
+- `--ollama-max-tokens N` - Max tokens for Ollama generation (default: model default)
+- `--ollama-timeout SECONDS` - Timeout in seconds for Ollama API calls (default: 120, local inference can be slow)
+- `--ollama-cleaning-model MODEL` - Ollama model for transcript cleaning (default: `llama3.2:latest`, smaller/faster than summary model)
+- `--ollama-cleaning-temperature TEMP` - Temperature for Ollama cleaning (0.0-2.0, default: 0.2, lower = more deterministic)
 
 ### Metadata & Summarization
 

@@ -2,7 +2,7 @@
 """Integration tests for Gemini E2E server mock endpoints.
 
 These tests verify that Gemini providers correctly use the E2E server's
-Gemini mock endpoints. Note: The Gemini SDK (google-generativeai) may not
+Gemini mock endpoints. Note: The Gemini SDK (google-genai) may not
 support custom base URLs directly, so these tests mock the SDK calls.
 
 These tests verify component interactions with infrastructure, not complete

@@ -16,16 +16,18 @@ Key advantages:
 - Complete privacy - data never leaves local machine
 
 Note: Ollama does NOT support transcription (no audio API).
+Note: Model names are normalized to ensure correct format (e.g., '3.1:7b' -> 'llama3.1:7b').
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...models import Episode
+    from ..capabilities import ProviderCapabilities
 else:
     from ... import models
 
@@ -42,6 +44,8 @@ except ImportError:
     OpenAI = None  # type: ignore
 
 from ... import config
+from ...cleaning import PatternBasedCleaner
+from ...cleaning.base import TranscriptCleaningProcessor
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -71,6 +75,8 @@ Available models can be listed with:
 
 
 class OllamaProvider:
+
+    cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
     """Unified Ollama provider implementing SpeakerDetector and SummarizationProvider.
 
     This provider initializes and manages:
@@ -113,6 +119,27 @@ class OllamaProvider:
 
         self.cfg = cfg
 
+        # Set up transcript cleaning processor based on strategy (Issue #418)
+        from ...cleaning import HybridCleaner, LLMBasedCleaner
+
+        cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+        if cleaning_strategy == "pattern":
+            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
+        elif cleaning_strategy == "llm":
+            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
+        else:  # hybrid (default)
+            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+
+        # Cleaning model settings (smaller model for cost efficiency)
+        cleaning_model_raw = getattr(cfg, "ollama_cleaning_model", "llama3.1:8b")
+        self.cleaning_model = self._normalize_model_name(cleaning_model_raw)
+        logger.info(
+            "Ollama cleaning model configured: '%s' -> '%s'",
+            cleaning_model_raw,
+            self.cleaning_model,
+        )
+        self.cleaning_temperature = getattr(cfg, "ollama_cleaning_temperature", 0.2)
+
         # Validate Ollama server is running
         base_url = cfg.ollama_api_base or "http://localhost:11434/v1"
         self._validate_ollama_running(base_url)
@@ -147,11 +174,23 @@ class OllamaProvider:
         self.client = OpenAI(**client_kwargs)
 
         # Speaker detection settings
-        self.speaker_model = getattr(cfg, "ollama_speaker_model", "llama3.3:latest")
+        speaker_model_raw = getattr(cfg, "ollama_speaker_model", "llama3.1:8b")
+        self.speaker_model = self._normalize_model_name(speaker_model_raw)
+        logger.info(
+            "Ollama speaker model configured: '%s' -> '%s'",
+            speaker_model_raw,
+            self.speaker_model,
+        )
         self.speaker_temperature = getattr(cfg, "ollama_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(cfg, "ollama_summary_model", "llama3.3:latest")
+        summary_model_raw = getattr(cfg, "ollama_summary_model", "llama3.1:8b")
+        self.summary_model = self._normalize_model_name(summary_model_raw)
+        logger.info(
+            "Ollama summary model configured: '%s' -> '%s'",
+            summary_model_raw,
+            self.summary_model,
+        )
         self.summary_temperature = getattr(cfg, "ollama_temperature", 0.3)
         # Modern Ollama models support 128k context window
         self.max_context_tokens = 128000  # Conservative estimate
@@ -171,7 +210,7 @@ class OllamaProvider:
         All operations run on your local hardware with no per-token pricing.
 
         Args:
-            model: Model name (e.g., "llama3.3:latest", "llama3.2:latest")
+            model: Model name (e.g., "llama3.1:8b", "llama3.1:7b")
             capability: Capability type ("speaker_detection", "summarization")
 
         Returns:
@@ -187,6 +226,61 @@ class OllamaProvider:
             "input_cost_per_1m_tokens": 0.0,
             "output_cost_per_1m_tokens": 0.0,
         }
+
+    def _normalize_model_name(self, model: str) -> str:
+        """Normalize Ollama model name to ensure correct format.
+
+        Handles cases where users specify shortened names like "3.1:7b"
+        instead of the full name "llama3.1:7b". Ollama requires exact model names.
+
+        Args:
+            model: Model name from config (may be shortened)
+
+        Returns:
+            Normalized model name (e.g., "3.1:7b" -> "llama3.1:7b")
+        """
+        if not model:
+            return model
+
+        # If model name starts with a digit, it's likely a shortened format
+        # Common patterns: "3.1:7b", "3.2:latest", "3.3:8b"
+        if model[0].isdigit():
+            normalized = f"llama{model}"
+            logger.warning(
+                "Normalizing Ollama model name: '%s' -> '%s'. "
+                "Ollama requires exact model names. If this is incorrect, "
+                "specify the full name in your config (e.g., 'llama3.1:7b').",
+                model,
+                normalized,
+            )
+            return normalized
+
+        # Warn about :latest tags - they can resolve to different model sizes
+        # and may load larger models than expected (e.g., 70B instead of 7B)
+        model_lower = model.lower()
+        if ":latest" in model_lower:
+            logger.warning(
+                "⚠️  WARNING: Model name uses ':latest' tag: '%s'. "
+                "The ':latest' tag can resolve to different model sizes "
+                "(e.g., 70B instead of 7B). "
+                "For predictable behavior, use a specific model tag like "
+                "'llama3.1:7b' or 'llama3.1:8b'. "
+                "Check 'ollama list' to see what size model ':latest' points to.",
+                model,
+            )
+
+        # Also handle cases like "llama3.1:70b" when user wants "llama3.1:7b"
+        # This is a common typo - check if it looks like a 70b when they might mean 7b
+        if ":70b" in model_lower and ":7b" not in model_lower:
+            logger.error(
+                "⚠️  WARNING: Model name contains ':70b' - did you mean ':7b'? "
+                "Ollama will load the 70B model which is much larger and slower. "
+                "Current model name: '%s'. If you want the 7B model, change it to '%s'",
+                model,
+                model.replace("70b", "7b").replace("70B", "7b"),
+            )
+
+        return model
 
     def _validate_ollama_running(self, base_url: str) -> None:
         """Validate that Ollama server is running and accessible.
@@ -263,6 +357,7 @@ class OllamaProvider:
         Raises:
             ValueError: If model is not available
         """
+        logger.debug("Validating Ollama model availability: %s", model)
         try:
             base_url = self.cfg.ollama_api_base or "http://localhost:11434/v1"
             health_url = base_url.rstrip("/v1") + "/api/tags"
@@ -272,8 +367,31 @@ class OllamaProvider:
             available_models = [m.get("name", "") for m in data.get("models", [])]
 
             if model not in available_models:
+                logger.error(
+                    "Model '%s' not found in Ollama. Available models: %s",
+                    model,
+                    ", ".join(sorted(available_models)) if available_models else "(none)",
+                )
+                # Check for similar model names (fuzzy matching suggestion)
+                model_lower = model.lower()
+                similar_models = [
+                    m
+                    for m in available_models
+                    if model_lower in m.lower() or m.lower() in model_lower
+                ]
+                if similar_models:
+                    logger.error(
+                        "Similar models found (did you mean one of these?): %s",
+                        ", ".join(similar_models),
+                    )
                 error_msg = MODEL_NOT_FOUND_ERROR_TEMPLATE.format(model=model)
                 raise ValueError(error_msg)
+            logger.info(
+                "Model '%s' validated successfully (available in Ollama). "
+                "Available models at validation time: %s",
+                model,
+                ", ".join(sorted(available_models)) if available_models else "(none)",
+            )
         except Exception as exc:
             # Catch all httpx exceptions (RequestError, ConnectError, etc.)
             # httpx exceptions inherit from httpx.HTTPError, but we catch Exception
@@ -553,6 +671,11 @@ class OllamaProvider:
             system_prompt = render_prompt(system_prompt_name)
 
             # Call Ollama API (OpenAI-compatible format)
+            logger.info(
+                "Calling Ollama API for speaker detection with model: '%s' "
+                "(exact name being sent to Ollama)",
+                self.speaker_model,
+            )
             response = self.client.chat.completions.create(
                 model=self.speaker_model,
                 messages=[
@@ -741,6 +864,11 @@ class OllamaProvider:
             from openai import APIError, RateLimitError
 
             def _make_api_call():
+                logger.info(
+                    "Calling Ollama API for summarization with model: '%s' "
+                    "(exact name being sent to Ollama)",
+                    self.summary_model,
+                )
                 return self.client.chat.completions.create(
                     model=self.summary_model,
                     messages=[
@@ -909,7 +1037,131 @@ class OllamaProvider:
         """Clear cache (no-op for API provider)."""
         pass
 
+    def clean_transcript(self, text: str) -> str:
+        """Clean transcript using LLM for semantic filtering.
+
+        Args:
+            text: Transcript text to clean (should already be pattern-cleaned)
+
+        Returns:
+            Cleaned transcript text
+
+        Raises:
+            RuntimeError: If provider is not initialized or cleaning fails
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError("OllamaProvider not initialized. Call initialize() first.")
+
+        from ...prompts.store import render_prompt
+
+        # Build cleaning prompt using prompt_store (RFC-017)
+        prompt_name = "ollama/cleaning/v1"
+        user_prompt = render_prompt(prompt_name, transcript=text)
+
+        # Use system prompt (OpenAI-compatible pattern)
+        system_prompt = (
+            "You are a transcript cleaning assistant. "
+            "Remove sponsors, ads, intros, outros, and meta-commentary. "
+            "Preserve all substantive content and speaker information. "
+            "Return only the cleaned text, no explanations."
+        )
+
+        logger.debug(
+            "Cleaning transcript via Ollama API (model: %s, text length: %d chars)",
+            self.cleaning_model,
+            len(text),
+        )
+
+        try:
+            # Track retries and rate limits
+            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("ollama")
+
+            # Wrap API call with retry tracking
+            from openai import APIError, RateLimitError
+
+            def _make_api_call():
+                logger.info(
+                    "Calling Ollama API for cleaning with model: '%s' "
+                    "(exact name being sent to Ollama)",
+                    self.cleaning_model,
+                )
+                return self.client.chat.completions.create(
+                    model=self.cleaning_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.cleaning_temperature,
+                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                )
+
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                call_metrics.finalize()
+                raise
+
+            call_metrics.finalize()
+
+            cleaned = response.choices[0].message.content
+            if not cleaned:
+                logger.warning("Ollama API returned empty cleaned text, using original")
+                return text
+
+            logger.debug("Ollama cleaning completed: %d -> %d chars", len(text), len(cleaned))
+            return cast(str, cleaned)
+
+        except Exception as exc:
+            logger.error("Ollama API error in cleaning: %s", exc)
+            from podcast_scraper.exceptions import ProviderRuntimeError
+
+            # Handle Ollama-specific error types
+            error_msg = str(exc).lower()
+            if "connection" in error_msg or "refused" in error_msg:
+                raise ProviderRuntimeError(
+                    message=f"Ollama server connection failed: {exc}",
+                    provider="OllamaProvider/Cleaning",
+                    suggestion="Ensure Ollama server is running at the configured base URL",
+                ) from exc
+            else:
+                raise ProviderRuntimeError(
+                    message=f"Ollama cleaning failed: {exc}",
+                    provider="OllamaProvider/Cleaning",
+                ) from exc
+
     @property
     def is_initialized(self) -> bool:
         """Check if provider is initialized (any component)."""
         return self._speaker_detection_initialized or self._summarization_initialized
+
+    def get_capabilities(self) -> ProviderCapabilities:
+        """Get provider capabilities.
+
+        Returns:
+            ProviderCapabilities object describing Ollama provider capabilities
+        """
+        from ..capabilities import ProviderCapabilities  # noqa: PLC0415
+
+        return ProviderCapabilities(
+            supports_transcription=False,  # Ollama doesn't support audio transcription
+            supports_speaker_detection=True,
+            supports_summarization=True,
+            supports_semantic_cleaning=True,  # Ollama supports LLM-based cleaning
+            supports_audio_input=False,  # Ollama doesn't accept audio files
+            supports_json_mode=True,  # Ollama supports JSON mode
+            max_context_tokens=self.max_context_tokens,
+            supports_tool_calls=True,  # Ollama supports function calling
+            supports_system_prompt=True,  # Ollama supports system prompts
+            supports_streaming=True,  # Ollama API supports streaming
+            provider_name="ollama",
+        )

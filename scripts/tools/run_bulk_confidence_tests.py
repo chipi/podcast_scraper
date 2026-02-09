@@ -8,7 +8,6 @@ Usage:
     python scripts/tools/run_bulk_confidence_tests.py \
         --configs "examples/config.my.planetmoney.*.yaml" \
         --output-dir .test_outputs/bulk_confidence \
-        [--baseline-id baseline_id] \
         [--compare-baseline baseline_id] \
         [--save-as-baseline baseline_id]
 
@@ -310,6 +309,158 @@ def monitor_process_resources(process: subprocess.Popen, interval: float = 0.5) 
         }
 
 
+def _detect_log_level(line_lower: str, line_stripped: str) -> tuple[bool | None, bool | None]:
+    """Detect if line contains error or warning log level indicators.
+
+    Args:
+        line_lower: Lowercase version of the line
+        line_stripped: Stripped version of the line
+
+    Returns:
+        Tuple of (is_error, is_warning) where None means no explicit log level found
+    """
+    # Check for structured log formats first (most explicit)
+    has_error_level = any(
+        level in line_lower
+        for level in [
+            "level=error",
+            "level=critical",
+            "levelname=error",
+            "levelname=critical",
+        ]
+    )
+    has_warning_level = any(
+        level in line_lower
+        for level in [
+            "level=warning",
+            "level=warn",
+            "levelname=warning",
+            "levelname=warn",
+        ]
+    )
+    has_info_level = any(level in line_lower for level in ["level=info", "levelname=info"])
+    has_debug_level = any(level in line_lower for level in ["level=debug", "levelname=debug"])
+
+    # Check for uppercase log level indicators (standard Python logging format)
+    has_error_uppercase = (
+        " ERROR " in line_stripped
+        or line_stripped.startswith("ERROR ")
+        or " CRITICAL " in line_stripped
+        or line_stripped.startswith("CRITICAL ")
+    )
+    has_warning_uppercase = (
+        " WARNING " in line_stripped
+        or line_stripped.startswith("WARNING ")
+        or "FutureWarning:" in line_stripped
+    )
+    has_info_uppercase = " INFO " in line_stripped or line_stripped.startswith("INFO ")
+    has_debug_uppercase = " DEBUG " in line_stripped or line_stripped.startswith("DEBUG ")
+
+    # Classify based on log level (priority order: ERROR > WARNING > INFO/DEBUG)
+    if has_error_level or has_error_uppercase:
+        return (True, False)
+    elif has_warning_level or has_warning_uppercase:
+        return (False, True)
+    elif has_info_level or has_info_uppercase or has_debug_level or has_debug_uppercase:
+        # INFO/DEBUG logs are never errors or warnings
+        return (False, False)
+    else:
+        # No explicit log level found
+        return (None, None)  # type: ignore[return-value]
+
+
+def _classify_line_by_patterns(
+    line_lower: str,
+    error_patterns: list[str],
+    error_exclusions: list[str],
+    warning_patterns: list[str],
+    warning_exclusions: list[str],
+) -> tuple[bool, bool]:
+    """Classify line as error or warning using pattern matching.
+
+    Args:
+        line_lower: Lowercase version of the line
+        error_patterns: Patterns that indicate errors
+        error_exclusions: Patterns that exclude false positives
+        warning_patterns: Patterns that indicate warnings
+        warning_exclusions: Patterns that exclude false positives
+
+    Returns:
+        Tuple of (is_error, is_warning)
+    """
+    is_error = False
+    is_warning = False
+
+    # Check for Python traceback patterns (always errors)
+    if "traceback (most recent call last)" in line_lower or "traceback:" in line_lower:
+        return (True, False)
+
+    # Check for error patterns (but exclude false positives)
+    if any(pattern in line_lower for pattern in error_patterns):
+        if not any(exclusion in line_lower for exclusion in error_exclusions):
+            # Also exclude success indicators
+            if not any(
+                success_indicator in line_lower
+                for success_indicator in [
+                    "failed=0",
+                    "failed: 0",
+                    "failed= 0",
+                    "ok=",
+                    "ok:",
+                    "result: episodes=",
+                ]
+            ):
+                # Exclude degradation policy warnings
+                if "degradation" in line_lower and "policy" in line_lower:
+                    is_warning = True  # Degradation messages are warnings
+                else:
+                    is_error = True
+
+    # Check for warning patterns (but exclude false positives)
+    elif any(pattern in line_lower for pattern in warning_patterns):
+        if not any(exclusion in line_lower for exclusion in warning_exclusions):
+            # Also exclude parameter names and other non-warning contexts
+            if not any(
+                non_warning in line_lower
+                for non_warning in [
+                    "suppress_fp16_warning",
+                    "warning=",
+                    "warning_count",
+                    "warnings total",
+                    "no warning",
+                    "disable_warning",
+                    "ignore_warning",
+                ]
+            ):
+                is_warning = True
+
+    return (is_error, is_warning)
+
+
+def _normalize_log_line(line_stripped: str) -> str:
+    """Normalize log line for deduplication.
+
+    Args:
+        line_stripped: Stripped log line
+
+    Returns:
+        Normalized line (timestamp, log level, and logger name removed)
+    """
+    normalized = line_stripped
+    # Try to remove timestamp prefix (format: "YYYY-MM-DD HH:MM:SS,mmm")
+    normalized = re.sub(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} ", "", normalized)
+    # Remove log level prefix if present
+    normalized = re.sub(
+        r"^(ERROR|CRITICAL|WARNING|INFO|DEBUG)\s+",
+        "",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    # Remove logger name prefix (format: "logger_name: ")
+    normalized = re.sub(r"^[a-zA-Z0-9_.]+\s*:\s*", "", normalized)
+    return normalized.strip()
+
+
 def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
     """Collect log information from output directory.
 
@@ -396,164 +547,34 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
 
                     # PRIORITY 1: Check log level first (most reliable indicator)
                     # This must be done before pattern matching to avoid misclassification
-                    is_error = False
-                    is_warning = False
+                    level_is_error, level_is_warning = _detect_log_level(line_lower, line_stripped)
 
-                    # Check for structured log formats first (most explicit)
-                    has_error_level = any(
-                        level in line_lower
-                        for level in [
-                            "level=error",
-                            "level=critical",
-                            "levelname=error",
-                            "levelname=critical",
-                        ]
-                    )
-                    has_warning_level = any(
-                        level in line_lower
-                        for level in [
-                            "level=warning",
-                            "level=warn",
-                            "levelname=warning",
-                            "levelname=warn",
-                        ]
-                    )
-                    has_info_level = any(
-                        level in line_lower for level in ["level=info", "levelname=info"]
-                    )
-                    has_debug_level = any(
-                        level in line_lower for level in ["level=debug", "levelname=debug"]
-                    )
-
-                    # Check for uppercase log level indicators (standard Python logging format)
-                    # Format: "2026-02-08 10:51:11,475 ERROR logger_name: message"
-                    has_error_uppercase = (
-                        " ERROR " in line_stripped
-                        or line_stripped.startswith("ERROR ")
-                        or " CRITICAL " in line_stripped
-                        or line_stripped.startswith("CRITICAL ")
-                    )
-                    has_warning_uppercase = (
-                        " WARNING " in line_stripped
-                        or line_stripped.startswith("WARNING ")
-                        or "FutureWarning:" in line_stripped
-                    )
-                    has_info_uppercase = " INFO " in line_stripped or line_stripped.startswith(
-                        "INFO "
-                    )
-                    has_debug_uppercase = " DEBUG " in line_stripped or line_stripped.startswith(
-                        "DEBUG "
-                    )
-
-                    # Classify based on log level (priority order: ERROR > WARNING > INFO/DEBUG)
-                    if has_error_level or has_error_uppercase:
-                        is_error = True
-                    elif has_warning_level or has_warning_uppercase:
-                        is_warning = True
-                    elif (
-                        has_info_level
-                        or has_info_uppercase
-                        or has_debug_level
-                        or has_debug_uppercase
-                    ):
-                        # INFO/DEBUG logs are never errors or warnings
-                        # (even if they mention "error" or "warning")
-                        is_error = False
-                        is_warning = False
+                    if level_is_error is not None:
+                        # Explicit log level found
+                        is_error = level_is_error
+                        is_warning = level_is_warning
                     else:
                         # No explicit log level found - use pattern matching as fallback
-                        # But be more conservative to avoid false positives
-
-                        # Check for Python traceback patterns
-                        # (always errors, regardless of log level)
-                        if (
-                            "traceback (most recent call last)" in line_lower
-                            or "traceback:" in line_lower
-                        ):
-                            is_error = True
-                        # Check for error patterns (but exclude false positives)
-                        elif any(pattern in line_lower for pattern in error_patterns):
-                            # Exclude false positives
-                            if not any(exclusion in line_lower for exclusion in error_exclusions):
-                                # Also exclude success indicators
-                                if not any(
-                                    success_indicator in line_lower
-                                    for success_indicator in [
-                                        "failed=0",
-                                        "failed: 0",
-                                        "failed= 0",
-                                        "ok=",  # Success indicators
-                                        "ok:",
-                                        "result: episodes=",  # Result summaries
-                                    ]
-                                ):
-                                    # Exclude degradation policy warnings
-                                    # (they contain "failed" but are warnings)
-                                    if "degradation" in line_lower and "policy" in line_lower:
-                                        is_warning = True  # Degradation messages are warnings
-                                    else:
-                                        is_error = True
-                        # Check for warning patterns (but exclude false positives)
-                        elif any(pattern in line_lower for pattern in warning_patterns):
-                            # Exclude false positives
-                            if not any(exclusion in line_lower for exclusion in warning_exclusions):
-                                # Also exclude parameter names and other non-warning contexts
-                                if not any(
-                                    non_warning in line_lower
-                                    for non_warning in [
-                                        "suppress_fp16_warning",
-                                        "warning=",  # Parameter assignment
-                                        "warning_count",
-                                        "warnings total",
-                                        "no warning",
-                                        "disable_warning",
-                                        "ignore_warning",
-                                    ]
-                                ):
-                                    is_warning = True
+                        is_error, is_warning = _classify_line_by_patterns(
+                            line_lower,
+                            error_patterns,
+                            error_exclusions,
+                            warning_patterns,
+                            warning_exclusions,
+                        )
 
                     # Add to appropriate list (errors take priority if somehow both are True)
                     # Deduplicate by normalizing the line (remove timestamps, etc.) to avoid
                     # counting the same error from both stdout.log and stderr.log
                     if is_error:
-                        # Normalize line for deduplication (remove timestamp prefix if present)
-                        # Format: "2026-02-08 11:50:41,478 ERROR logger: message"
-                        normalized = line_stripped
-                        # Try to remove timestamp prefix (format: "YYYY-MM-DD HH:MM:SS,mmm")
-                        normalized = re.sub(
-                            r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} ", "", normalized
-                        )
-                        # Remove log level prefix if present
-                        normalized = re.sub(
-                            r"^(ERROR|CRITICAL|WARNING|INFO|DEBUG)\s+",
-                            "",
-                            normalized,
-                            flags=re.IGNORECASE,
-                        )
-                        # Remove logger name prefix (format: "logger_name: ")
-                        normalized = re.sub(r"^[a-zA-Z0-9_.]+\s*:\s*", "", normalized)
-                        normalized = normalized.strip()
-
+                        normalized = _normalize_log_line(line_stripped)
                         # Only add if we haven't seen this exact error before
                         if normalized and normalized not in seen_errors:
                             seen_errors.add(normalized)
                             errors.append(line_stripped[:200])  # Limit length
                         continue
                     elif is_warning:
-                        # Normalize line for deduplication (same as errors)
-                        normalized = line_stripped
-                        normalized = re.sub(
-                            r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3} ", "", normalized
-                        )
-                        normalized = re.sub(
-                            r"^(ERROR|CRITICAL|WARNING|INFO|DEBUG)\s+",
-                            "",
-                            normalized,
-                            flags=re.IGNORECASE,
-                        )
-                        normalized = re.sub(r"^[a-zA-Z0-9_.]+\s*:\s*", "", normalized)
-                        normalized = normalized.strip()
-
+                        normalized = _normalize_log_line(line_stripped)
                         # Only add if we haven't seen this exact warning before
                         if normalized and normalized not in seen_warnings:
                             seen_warnings.add(normalized)
@@ -808,6 +829,281 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
     }
 
 
+def _detect_dry_run_from_config(config_files: list[Path]) -> bool:
+    """Detect if dry-run mode is enabled in any of the config files.
+
+    Args:
+        config_files: List of config file paths to check
+
+    Returns:
+        True if dry-run mode is detected, False otherwise
+    """
+    for config_file in config_files:
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                import yaml
+
+                config_content = yaml.safe_load(f)
+                # Check for dry_run flag (can be True, "true", 1, etc.)
+                dry_run_value = config_content.get("dry_run") if config_content else None
+                if dry_run_value is True or (
+                    isinstance(dry_run_value, str) and dry_run_value.lower() in ["true", "1", "yes"]
+                ):
+                    logger.debug(f"Detected dry-run mode from config: {config_file}")
+                    return True
+        except Exception as e:
+            logger.debug(f"Failed to read config for dry-run detection: {config_file}: {e}")
+    return False
+
+
+def _detect_dry_run_from_stdout(stdout_path: Path) -> bool:
+    """Detect if dry-run mode is indicated in stdout.log.
+
+    Args:
+        stdout_path: Path to stdout.log file
+
+    Returns:
+        True if dry-run mode is detected, False otherwise
+    """
+    if not stdout_path.exists():
+        return False
+
+    # Try reading multiple times with small delay to handle race conditions
+    for attempt in range(3):
+        try:
+            with open(stdout_path, "r", encoding="utf-8", errors="ignore") as f:
+                stdout_content = f.read()
+                # Check for various dry-run indicators
+                stdout_lower = stdout_content.lower()
+                if any(
+                    indicator in stdout_lower
+                    for indicator in [
+                        "dry run complete",
+                        "dry-run complete",
+                        "(dry-run)",
+                        "(dry run)",
+                        "dry run mode",
+                        "dry-run mode",
+                    ]
+                ):
+                    logger.debug(f"Detected dry-run mode from stdout.log (attempt {attempt + 1})")
+                    return True
+                # If we got here, file was readable but no dry-run indicator found
+                return False
+        except (IOError, OSError) as e:
+            # File might still be open/writing, wait a bit and retry
+            if attempt < 2:
+                time.sleep(0.1)  # 100ms delay
+                continue
+            logger.debug(f"Failed to read stdout.log after {attempt + 1} attempts: {e}")
+            return False
+        except Exception as e:
+            logger.debug(f"Unexpected error reading stdout.log: {e}")
+            return False
+    return False
+
+
+def _extract_episodes_from_dry_run(stdout_content: str) -> int:
+    """Extract planned episode count from dry-run output.
+
+    Args:
+        stdout_content: Content of stdout.log
+
+    Returns:
+        Number of planned episodes, or 0 if not found
+    """
+    # Try multiple patterns to be robust
+    patterns = [
+        r"transcripts_planned[=:]?\s*(\d+)",  # transcripts_planned=3 or transcripts_planned: 3
+        r"transcripts.*planned[=:]?\s*(\d+)",  # transcripts planned=3 (with space)
+        r"planned.*transcripts[=:]?\s*(\d+)",  # planned transcripts=3
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, stdout_content, re.IGNORECASE)
+        if match:
+            try:
+                count = int(match.group(1))
+                logger.debug(
+                    f"Extracted planned transcripts from dry-run output: "
+                    f"{count} (pattern: {pattern})"
+                )
+                return count
+            except (ValueError, IndexError):
+                continue
+    logger.debug("Could not extract transcripts_planned from dry-run output, defaulting to 0")
+    return 0
+
+
+def _extract_episodes_from_run_json(run_json_path: Path) -> int:
+    """Extract episode count from run.json.
+
+    Args:
+        run_json_path: Path to run.json file
+
+    Returns:
+        Number of episodes processed, or 0 if not found
+    """
+    if not run_json_path.exists():
+        return 0
+
+    try:
+        with open(run_json_path, "r") as f:
+            run_data = json.load(f)
+            # Try different possible field names
+            return (
+                run_data.get("episodes_scraped_total")
+                or run_data.get("episodes_processed")
+                or run_data.get("episodes")
+                or run_data.get("total_episodes")
+                or 0
+            )
+    except Exception as e:
+        logger.debug(f"Failed to read episode count from run.json: {e}")
+        return 0
+
+
+def _extract_episodes_from_index_json(index_json_path: Path) -> int:
+    """Extract episode count from index.json.
+
+    Args:
+        index_json_path: Path to index.json file
+
+    Returns:
+        Number of episodes processed, or 0 if not found
+    """
+    if not index_json_path.exists():
+        return 0
+
+    try:
+        with open(index_json_path, "r") as f:
+            index_data = json.load(f)
+            episodes = index_data.get("episodes", [])
+            if isinstance(episodes, list):
+                return len(episodes)
+            elif isinstance(episodes, dict):
+                return len(episodes.get("items", []))
+    except Exception as e:
+        logger.debug(f"Failed to read episode count from index.json: {e}")
+    return 0
+
+
+def _execute_process_with_streaming(
+    cmd: list[str], stdout_path: Path, stderr_path: Path, config_name: str
+) -> tuple[int, Dict[str, Any]]:
+    """Execute process with real-time log streaming.
+
+    Args:
+        cmd: Command to execute
+        stdout_path: Path to save stdout
+        stderr_path: Path to save stderr
+        config_name: Config name for log prefix
+
+    Returns:
+        Tuple of (exit_code, resource_usage_dict)
+    """
+    stdout_file = open(stdout_path, "w", buffering=1)  # Line buffered
+    stderr_file = open(stderr_path, "w", buffering=1)  # Line buffered
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=os.environ.copy(),
+        text=True,
+        bufsize=1,  # Line buffered
+    )
+
+    # Stream output in real-time
+    def stream_output(pipe, file, prefix=""):
+        """Stream output from pipe to both file and console."""
+        for line in iter(pipe.readline, ""):
+            if not line:
+                break
+            # Write to file
+            file.write(line)
+            file.flush()
+            # Also print to console with prefix
+            if prefix:
+                print(f"{prefix}{line.rstrip()}", flush=True)
+            else:
+                print(line.rstrip(), flush=True)
+
+    # Start threads to stream stdout and stderr
+    stdout_thread = threading.Thread(
+        target=stream_output,
+        args=(process.stdout, stdout_file, f"[{config_name}] "),
+        daemon=True,
+    )
+    stderr_thread = threading.Thread(
+        target=stream_output,
+        args=(process.stderr, stderr_file, f"[{config_name}] "),
+        daemon=True,
+    )
+
+    stdout_thread.start()
+    stderr_thread.start()
+
+    # Monitor resources continuously in background thread
+    resource_result = {"resource_usage": None}
+
+    def monitor_resources():
+        resource_result["resource_usage"] = monitor_process_resources(process)
+
+    monitor_thread = threading.Thread(target=monitor_resources, daemon=True)
+    monitor_thread.start()
+
+    # Wait for completion
+    exit_code = process.wait()
+
+    # Wait for monitoring to finish
+    monitor_thread.join(timeout=2.0)
+    resource_usage = resource_result["resource_usage"] or {
+        "peak_memory_mb": None,
+        "cpu_time_seconds": None,
+        "cpu_percent": None,
+    }
+
+    # Wait for output threads to finish
+    stdout_thread.join(timeout=1.0)
+    stderr_thread.join(timeout=1.0)
+
+    # Close files
+    stdout_file.close()
+    stderr_file.close()
+
+    return exit_code, resource_usage
+
+
+def _execute_process_without_streaming(
+    cmd: list[str], stdout_path: Path, stderr_path: Path
+) -> tuple[int, Dict[str, Any]]:
+    """Execute process without log streaming (only save to files).
+
+    Args:
+        cmd: Command to execute
+        stdout_path: Path to save stdout
+        stderr_path: Path to save stderr
+
+    Returns:
+        Tuple of (exit_code, resource_usage_dict)
+    """
+    with open(stdout_path, "w") as stdout_file, open(stderr_path, "w") as stderr_file:
+        process = subprocess.Popen(
+            cmd,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            env=os.environ.copy(),
+        )
+
+        # Monitor resources continuously
+        resource_usage = monitor_process_resources(process)
+
+        # Wait for completion
+        exit_code = process.wait()
+
+    return exit_code, resource_usage
+
+
 def run_config(
     config_path: Path,
     e2e_server: Optional[E2EHTTPServer],
@@ -876,92 +1172,13 @@ def run_config(
 
     try:
         if show_logs:
-            # Stream to both console and files
-            stdout_file = open(stdout_path, "w", buffering=1)  # Line buffered
-            stderr_file = open(stderr_path, "w", buffering=1)  # Line buffered
-
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(),
-                text=True,
-                bufsize=1,  # Line buffered
+            exit_code, resource_usage = _execute_process_with_streaming(
+                cmd, stdout_path, stderr_path, config_name
             )
-
-            # Stream output in real-time
-            def stream_output(pipe, file, prefix=""):
-                """Stream output from pipe to both file and console."""
-                for line in iter(pipe.readline, ""):
-                    if not line:
-                        break
-                    # Write to file
-                    file.write(line)
-                    file.flush()
-                    # Also print to console with prefix
-                    if prefix:
-                        print(f"{prefix}{line.rstrip()}", flush=True)
-                    else:
-                        print(line.rstrip(), flush=True)
-
-            # Start threads to stream stdout and stderr
-            stdout_thread = threading.Thread(
-                target=stream_output,
-                args=(process.stdout, stdout_file, f"[{config_name}] "),
-                daemon=True,
-            )
-            stderr_thread = threading.Thread(
-                target=stream_output,
-                args=(process.stderr, stderr_file, f"[{config_name}] "),
-                daemon=True,
-            )
-
-            stdout_thread.start()
-            stderr_thread.start()
-
-            # Monitor resources continuously in background thread
-            resource_result = {"resource_usage": None}
-
-            def monitor_resources():
-                resource_result["resource_usage"] = monitor_process_resources(process)
-
-            monitor_thread = threading.Thread(target=monitor_resources, daemon=True)
-            monitor_thread.start()
-
-            # Wait for completion
-            exit_code = process.wait()
-
-            # Wait for monitoring to finish
-            monitor_thread.join(timeout=2.0)
-            resource_usage = resource_result["resource_usage"] or {
-                "peak_memory_mb": None,
-                "cpu_time_seconds": None,
-                "cpu_percent": None,
-            }
-
-            # Wait for output threads to finish
-            stdout_thread.join(timeout=1.0)
-            stderr_thread.join(timeout=1.0)
-
-            # Close files
-            stdout_file.close()
-            stderr_file.close()
         else:
-            # Only save to files, don't stream to console
-            with open(stdout_path, "w") as stdout_file, open(stderr_path, "w") as stderr_file:
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=stdout_file,
-                    stderr=stderr_file,
-                    env=os.environ.copy(),
-                )
-
-                # Monitor resources continuously
-                resource_usage = monitor_process_resources(process)
-
-                # Wait for completion
-                exit_code = process.wait()
-
+            exit_code, resource_usage = _execute_process_without_streaming(
+                cmd, stdout_path, stderr_path
+            )
     except Exception as e:
         logger.error(f"Failed to run config {config_name}: {e}", exc_info=True)
         exit_code = 1
@@ -976,73 +1193,23 @@ def run_config(
     duration_seconds = end_time - start_time
 
     # Detect dry-run mode EARLY (before collecting outputs)
-    is_dry_run = False
-    stdout_content = ""
-
-    # Check config file for dry_run flag (check both original and modified configs)
+    stdout_path = run_output_dir / "stdout.log"
     configs_to_check = [original_config_copy]
     if modified_config.exists():
         configs_to_check.append(modified_config)
 
-    for config_file_to_check in configs_to_check:
-        try:
-            with open(config_file_to_check, "r", encoding="utf-8") as f:
-                import yaml
+    is_dry_run = _detect_dry_run_from_config(configs_to_check)
+    if not is_dry_run:
+        is_dry_run = _detect_dry_run_from_stdout(stdout_path)
 
-                config_content = yaml.safe_load(f)
-                # Check for dry_run flag (can be True, "true", 1, etc.)
-                dry_run_value = config_content.get("dry_run") if config_content else None
-                if dry_run_value is True or (
-                    isinstance(dry_run_value, str) and dry_run_value.lower() in ["true", "1", "yes"]
-                ):
-                    is_dry_run = True
-                    logger.debug(f"Detected dry-run mode from config: {config_file_to_check}")
-                    break  # Found it, no need to check other configs
-        except Exception as e:
-            logger.debug(
-                f"Failed to read config for dry-run detection: {config_file_to_check}: {e}"
-            )
-            pass  # Continue to next config or stdout check
-
-    # Also check stdout.log for "Dry run complete" message (more reliable)
-    # Wait a moment for file to be fully written if process just finished
-    stdout_path = run_output_dir / "stdout.log"
+    # Read stdout content for episode extraction (if needed)
+    stdout_content = ""
     if stdout_path.exists():
-        # Try reading multiple times with small delay to handle race conditions
-        for attempt in range(3):
-            try:
-                with open(stdout_path, "r", encoding="utf-8", errors="ignore") as f:
-                    stdout_content = f.read()
-                    # Check for various dry-run indicators
-                    stdout_lower = stdout_content.lower()
-                    if any(
-                        indicator in stdout_lower
-                        for indicator in [
-                            "dry run complete",
-                            "dry-run complete",
-                            "(dry-run)",
-                            "(dry run)",
-                            "dry run mode",
-                            "dry-run mode",
-                        ]
-                    ):
-                        is_dry_run = True
-                        logger.debug(
-                            f"Detected dry-run mode from stdout.log (attempt {attempt + 1})"
-                        )
-                        break
-                # If we got here, file was readable but no dry-run indicator found
-                break
-            except (IOError, OSError) as e:
-                # File might still be open/writing, wait a bit and retry
-                if attempt < 2:
-                    time.sleep(0.1)  # 100ms delay
-                    continue
-                logger.debug(f"Failed to read stdout.log after {attempt + 1} attempts: {e}")
-                break
-            except Exception as e:
-                logger.debug(f"Unexpected error reading stdout.log: {e}")
-                break
+        try:
+            with open(stdout_path, "r", encoding="utf-8", errors="ignore") as f:
+                stdout_content = f.read()
+        except Exception:
+            pass  # Ignore read errors
 
     # Copy service output files (metadata, transcripts, summaries) to run directory
     # The service writes to run_output_dir (or a subdirectory within it)
@@ -1066,68 +1233,16 @@ def run_config(
     episodes_processed = 0
 
     if is_dry_run:
-        # For dry-run mode, try to extract "transcripts_planned" from stdout
-        # Format: "Dry run complete. transcripts_planned=3"
-        # Also handles: "transcripts_planned: 3", "transcripts_planned = 3", etc.
-        import re
-
-        # Try multiple patterns to be robust
-        patterns = [
-            r"transcripts_planned[=:]?\s*(\d+)",  # transcripts_planned=3 or transcripts_planned: 3
-            r"transcripts.*planned[=:]?\s*(\d+)",  # transcripts planned=3 (with space)
-            r"planned.*transcripts[=:]?\s*(\d+)",  # planned transcripts=3
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, stdout_content, re.IGNORECASE)
-            if match:
-                try:
-                    episodes_processed = int(match.group(1))
-                    logger.debug(
-                        f"Extracted planned transcripts from dry-run output: "
-                        f"{episodes_processed} (pattern: {pattern})"
-                    )
-                    break
-                except (ValueError, IndexError):
-                    continue
-        if episodes_processed == 0:
-            logger.debug(
-                "Could not extract transcripts_planned from dry-run output, defaulting to 0"
-            )
+        episodes_processed = _extract_episodes_from_dry_run(stdout_content)
     else:
         # Try to read from run.json first (most reliable)
-        # Files are now in flattened structure (nested directory was removed after copying)
         run_json_path = run_output_dir / "run.json"
-
-        if run_json_path.exists():
-            try:
-                with open(run_json_path, "r") as f:
-                    run_data = json.load(f)
-                    # Try different possible field names
-                    episodes_processed = (
-                        run_data.get("episodes_scraped_total")
-                        or run_data.get("episodes_processed")
-                        or run_data.get("episodes")
-                        or run_data.get("total_episodes")
-                        or 0
-                    )
-            except Exception as e:
-                logger.debug(f"Failed to read episode count from run.json: {e}")
+        episodes_processed = _extract_episodes_from_run_json(run_json_path)
 
         # Fallback: try index.json
         if episodes_processed == 0:
             index_json_path = run_output_dir / "index.json"
-
-            if index_json_path.exists():
-                try:
-                    with open(index_json_path, "r") as f:
-                        index_data = json.load(f)
-                        episodes = index_data.get("episodes", [])
-                        if isinstance(episodes, list):
-                            episodes_processed = len(episodes)
-                        elif isinstance(episodes, dict):
-                            episodes_processed = len(episodes.get("items", []))
-                except Exception as e:
-                    logger.debug(f"Failed to read episode count from index.json: {e}")
+            episodes_processed = _extract_episodes_from_index_json(index_json_path)
 
         # Final fallback: count transcript files (less accurate, may include duplicates)
         # Note: This already excludes .cleaned.txt files in collect_outputs()
@@ -1233,12 +1348,6 @@ def main() -> None:
         type=str,
         default=".test_outputs/bulk_confidence",
         help="Output directory for results (default: .test_outputs/bulk_confidence)",
-    )
-    parser.add_argument(
-        "--baseline-id",
-        type=str,
-        default=None,
-        help="Baseline ID to compare against (optional)",
     )
     parser.add_argument(
         "--compare-baseline",
