@@ -1804,8 +1804,9 @@ class TestCLIErrorHandling(unittest.TestCase):
             cli.validate_args(args)
         self.assertIn("Invalid output directory", str(cm.exception))
 
+    @patch("podcast_scraper.cli._validate_ffmpeg")
     @patch("podcast_scraper.cli.parse_args")
-    def test_main_handles_value_error(self, mock_parse):
+    def test_main_handles_value_error(self, mock_parse, mock_validate_ffmpeg):
         """Test that main() handles ValueError from parse_args."""
         mock_parse.side_effect = ValueError("Invalid arguments")
 
@@ -1813,8 +1814,9 @@ class TestCLIErrorHandling(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
 
+    @patch("podcast_scraper.cli._validate_ffmpeg")
     @patch("podcast_scraper.cli.parse_args")
-    def test_main_handles_system_exit(self, mock_parse):
+    def test_main_handles_system_exit(self, mock_parse, mock_validate_ffmpeg):
         """Test that main() handles SystemExit from parse_args (e.g., --help)."""
         mock_parse.side_effect = SystemExit(0)
 
@@ -1822,8 +1824,9 @@ class TestCLIErrorHandling(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
 
+    @patch("podcast_scraper.cli._validate_ffmpeg")
     @patch("podcast_scraper.cli.parse_args")
-    def test_main_handles_system_exit_non_zero(self, mock_parse):
+    def test_main_handles_system_exit_non_zero(self, mock_parse, mock_validate_ffmpeg):
         """Test that main() handles SystemExit with non-zero code."""
         mock_parse.side_effect = SystemExit(2)
 
@@ -1831,8 +1834,9 @@ class TestCLIErrorHandling(unittest.TestCase):
 
         self.assertEqual(exit_code, 2)
 
+    @patch("podcast_scraper.cli._validate_ffmpeg")
     @patch("podcast_scraper.cli.parse_args")
-    def test_main_handles_system_exit_no_code(self, mock_parse):
+    def test_main_handles_system_exit_no_code(self, mock_parse, mock_validate_ffmpeg):
         """Test that main() handles SystemExit without code."""
         mock_parse.side_effect = SystemExit(None)
 
