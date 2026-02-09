@@ -49,8 +49,11 @@ class TestAnthropicProviderStandalone(unittest.TestCase):
         provider = AnthropicProvider(self.cfg)
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "AnthropicProvider")
-        # Verify Anthropic client was created
-        mock_anthropic.assert_called_once_with(api_key="test-api-key-123")
+        # Verify Anthropic client was created with API key and timeout
+        mock_anthropic.assert_called_once()
+        call_kwargs = mock_anthropic.call_args[1]
+        self.assertEqual(call_kwargs["api_key"], "test-api-key-123")
+        self.assertIn("timeout", call_kwargs)
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_provider_creation_requires_api_key(self, mock_anthropic):

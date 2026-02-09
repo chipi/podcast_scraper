@@ -15,14 +15,21 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import yaml
 from pydantic import BaseModel, computed_field, Field, field_serializer
 
 from .. import config, models
+
+if TYPE_CHECKING:
+    from ..models import Episode, RssFeed
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
 from ..exceptions import ProviderRuntimeError, RecoverableSummarizationError
+from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem
 
 logger = logging.getLogger(__name__)
@@ -327,20 +334,41 @@ class EpisodeStageTimings:
 
 
 class SummaryMetadata(BaseModel):
-    """Summary metadata.
+    """Summary metadata with normalized schema.
 
     Note: Provider/model information is available in processing.config_snapshot.ml_providers
     to avoid duplication and keep all ML configuration in one place.
+
+    All summaries use the normalized schema format with required bullets field.
     """
 
-    short_summary: str
     generated_at: datetime
     word_count: Optional[int] = None
+    # Normalized schema fields
+    title: Optional[str] = None
+    bullets: List[str] = Field(description="Key takeaways/bullet points (required)")
+    key_quotes: Optional[List[str]] = None
+    named_entities: Optional[List[str]] = None
+    timestamps: Optional[List[Dict[str, Any]]] = None
+    schema_status: Literal["valid", "degraded", "invalid"] = Field(
+        default="valid", description="Parsing status"
+    )
+    raw_text: Optional[str] = Field(default=None, description="Original raw text if parsing failed")
 
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
         """Serialize datetime as ISO 8601 string for database compatibility."""
         return value.isoformat()
+
+    @computed_field
+    def short_summary(self) -> str:
+        """Generate short summary from bullets for backward compatibility with existing code."""
+        if self.bullets:
+            # Use first bullet or combine first few bullets
+            if len(self.bullets) == 1:
+                return self.bullets[0]
+            return " ".join(self.bullets[:2])  # Combine first two bullets
+        return self.raw_text or ""  # Fallback to raw text if available
 
 
 class ProcessingMetadata(BaseModel):
@@ -384,7 +412,7 @@ class EpisodeMetadataDocument(BaseModel):
 
 
 def _build_feed_metadata(
-    feed: models.RssFeed,
+    feed: RssFeed,  # type: ignore[valid-type]
     feed_url: str,
     feed_id: str,
     cfg: config.Config,
@@ -419,7 +447,7 @@ def _build_feed_metadata(
 
 
 def _build_episode_metadata(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     episode_id: str,
     episode_description: Optional[str],
     episode_published_date: Optional[datetime],
@@ -1339,7 +1367,7 @@ def _build_qa_flags(
 
 
 def _build_content_metadata(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     transcript_infos: List[TranscriptInfo],
     media_id: Optional[str],
     transcript_file_path: Optional[str],
@@ -1735,23 +1763,30 @@ def _generate_episode_summary(  # noqa: C901
                 transcript_length,
             )
 
-            # Clean transcript before summarization
+            # Clean transcript before summarization using provider's cleaning processor
             logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
-            from .. import preprocessing
+            from ..cleaning import PatternBasedCleaner
 
-            cleaned_text = preprocessing.clean_transcript(  # type: ignore[attr-defined]
-                transcript_text,
-                remove_timestamps=True,
-                normalize_speakers=True,
-                collapse_blank_lines=True,
-                remove_fillers=False,
-            )
-            logger.debug(
-                "[%s] Transcript cleaned: %d -> %d chars",
-                episode_idx,
-                len(transcript_text),
-                len(cleaned_text),
-            )
+            # Get cleaning processor from provider if available, otherwise use default
+            cleaning_processor = getattr(summary_provider, "cleaning_processor", None)
+            if cleaning_processor is None:
+                # Default to pattern-based cleaner
+                cleaning_processor = PatternBasedCleaner()
+
+            cleaned_text = cleaning_processor.clean(transcript_text)
+            # Safely get lengths for logging (handle Mock objects in tests)
+            try:
+                original_len = len(transcript_text) if transcript_text else 0
+                cleaned_len = len(cleaned_text) if cleaned_text else 0
+                logger.debug(
+                    "[%s] Transcript cleaned: %d -> %d chars",
+                    episode_idx,
+                    original_len,
+                    cleaned_len,
+                )
+            except (TypeError, AttributeError):
+                # Skip length logging if objects don't support len() (e.g., Mock in tests)
+                logger.debug("[%s] Transcript cleaned (length unavailable)", episode_idx)
 
             # Save cleaned transcript to separate file if configured
             if cfg.save_cleaned_transcript:
@@ -1903,11 +1938,55 @@ def _generate_episode_summary(  # noqa: C901
 
             word_count = len(transcript_text.split())
 
+            # Parse summary using normalized schema (required, no legacy support)
+            # Try to get the full result text (may be JSON or plain text)
+            summary_text_for_parsing = short_summary
+            # Check if result has structured data we can parse
+            if isinstance(result, dict):
+                # Some providers may return JSON in a different field
+                if "summary_text" in result:
+                    summary_text_for_parsing = result["summary_text"]
+                elif "text" in result:
+                    summary_text_for_parsing = result["text"]
+
+            # Parse using normalized schema - REQUIRED
+            parse_result = parse_summary_output(
+                summary_text_for_parsing, summary_provider, episode_title=None
+            )
+
+            # Require successful parsing - fail if schema parsing fails
+            if not parse_result.success or not parse_result.schema:
+                error_msg = (
+                    f"[{episode_idx}] Summary schema parsing failed. "
+                    f"Error: {parse_result.error or 'Unknown error'}. "
+                    "All summaries must use normalized schema format."
+                )
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
+            schema = parse_result.schema
+
+            # Require at least one bullet point
+            if not schema.bullets:
+                error_msg = (
+                    f"[{episode_idx}] Summary schema validation failed: "
+                    "bullets list is empty. All summaries must have at least one bullet point."
+                )
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
+            # Build SummaryMetadata with required schema fields
             return (
                 SummaryMetadata(
-                    short_summary=short_summary,
                     generated_at=datetime.now(),
                     word_count=word_count,
+                    title=schema.title,
+                    bullets=schema.bullets,
+                    key_quotes=schema.key_quotes,
+                    named_entities=schema.named_entities,
+                    timestamps=schema.timestamps,
+                    schema_status=schema.status,
+                    raw_text=schema.raw_text if schema.status != "valid" else None,
                 ),
                 call_metrics,
             )
@@ -1957,7 +2036,7 @@ def _generate_episode_summary(  # noqa: C901
 
 
 def _determine_metadata_path(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     output_dir: str,
     run_suffix: Optional[str],
     cfg: config.Config,
@@ -2064,8 +2143,8 @@ def _serialize_metadata(
 
 
 def generate_episode_metadata(
-    feed: models.RssFeed,
-    episode: models.Episode,
+    feed: RssFeed,  # type: ignore[valid-type]
+    episode: Episode,  # type: ignore[valid-type]
     feed_url: str,
     cfg: config.Config,
     output_dir: str,
@@ -2283,17 +2362,34 @@ def generate_episode_metadata(
                     estimated_cost=estimated_cost,
                 )
         # Validate that summary was generated when required (unless it's a recoverable error)
+        # Apply degradation policy if summarization failed
         if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
-            error_msg = (
-                f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
-                "Summarization is required when generate_summaries is enabled."
+            from .degradation import DegradationPolicy, handle_stage_failure
+
+            # Get degradation policy (default if not configured)
+            policy_dict = cfg.degradation_policy or {}
+            policy = DegradationPolicy(**policy_dict)
+
+            # Handle summarization failure according to policy
+            should_continue = handle_stage_failure(
+                stage="summarization",
+                error=RuntimeError("Summary generation failed"),
+                policy=policy,
+                episode_idx=episode.idx,
             )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
+
+            if not should_continue:
+                error_msg = (
+                    f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
+                    "Summarization is required when generate_summaries is enabled."
+                )
+                logger.error(error_msg)
+                raise RuntimeError(error_msg)
 
         # Extract summary text for QA flags and entity reconciliation
         if summary_metadata:
-            summary_text = summary_metadata.short_summary
+            # short_summary is a @computed_field property, returns str
+            summary_text = str(summary_metadata.short_summary)  # type: ignore[assignment]
 
             # Entity reconciliation (faithfulness checking + name correction) is only needed for
             # ML providers (transformers). LLM providers (OpenAI, Gemini, Grok, etc.) are generally
@@ -2332,7 +2428,19 @@ def generate_episode_metadata(
                         summary_text, out_of_source_entities, nlp
                     )
                     if repaired_summary != summary_text:
-                        summary_metadata.short_summary = repaired_summary
+                        # Re-parse repaired text to update schema
+                        parse_result = parse_summary_output(
+                            repaired_summary, summary_provider, episode_title=None
+                        )
+                        if (
+                            parse_result.success
+                            and parse_result.schema
+                            and parse_result.schema.bullets
+                        ):
+                            # Update bullets with repaired content
+                            summary_metadata.bullets = parse_result.schema.bullets
+                            summary_metadata.raw_text = parse_result.schema.raw_text
+                            summary_metadata.schema_status = parse_result.schema.status
                         summary_text = repaired_summary
                         logger.info(
                             "[%s] Auto-repaired summary: removed sentences containing "
@@ -2360,8 +2468,19 @@ def generate_episode_metadata(
                         extracted_entities, summary_text, nlp
                     )
                     if corrections:
-                        # Update summary metadata with corrected text
-                        summary_metadata.short_summary = corrected_summary_text
+                        # Re-parse corrected text to update schema
+                        parse_result = parse_summary_output(
+                            corrected_summary_text, summary_provider, episode_title=None
+                        )
+                        if (
+                            parse_result.success
+                            and parse_result.schema
+                            and parse_result.schema.bullets
+                        ):
+                            # Update bullets with corrected content
+                            summary_metadata.bullets = parse_result.schema.bullets
+                            summary_metadata.raw_text = parse_result.schema.raw_text
+                            summary_metadata.schema_status = parse_result.schema.status
                         summary_text = corrected_summary_text
                         corrected_entities = corrections
                         logger.info(
@@ -2463,6 +2582,24 @@ def generate_episode_metadata(
             if summary_metadata is not None:
                 pipeline_metrics.update_episode_status(episode_id=episode_id, stage="summarized")
             pipeline_metrics.update_episode_status(episode_id=episode_id, stage="metadata_written")
+
+            # Emit episode_finished event for JSONL metrics (if enabled)
+            if cfg.jsonl_metrics_enabled and pipeline_metrics:
+                try:
+                    from .jsonl_emitter import JSONLEmitter
+
+                    # Create temporary emitter to append to JSONL file
+                    jsonl_path = cfg.jsonl_metrics_path
+                    if jsonl_path is None:
+                        jsonl_path = os.path.join(output_dir, "run.jsonl")
+                    # Open in append mode to add episode event
+                    emitter = JSONLEmitter(pipeline_metrics, jsonl_path)
+                    emitter.__enter__()
+                    emitter.emit_episode_finished(episode_id)
+                    emitter.__exit__(None, None, None)
+                except Exception as exc:
+                    # Non-fatal: log and continue
+                    logger.debug("Failed to emit episode_finished JSONL event: %s", exc)
 
         return metadata_path
 

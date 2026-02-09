@@ -11,12 +11,19 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set, Tuple
+from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
 
 from .. import (
     config,
     models,
 )
+
+if TYPE_CHECKING:
+    from ..models import Episode, TranscriptionJob
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
+from ..providers.capabilities import get_provider_capabilities, is_local_provider
 from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
 )
@@ -68,39 +75,27 @@ def _log_provider_ownership(
         speaker_detector: Optional speaker detector instance
         summary_provider: Optional summarization provider instance
     """
-    # Determine transcription provider and location
-    transcription_provider_name = cfg.transcription_provider
+    # Determine transcription provider and location using capabilities
     if cfg.transcribe_missing and transcription_provider is not None:
-        # Determine if local or API
-        if transcription_provider_name == "whisper":
-            transcription_location = "local"
-        else:
-            transcription_location = "api"
-        transcription_str = f"{transcription_provider_name}({transcription_location})"
+        transcription_caps = get_provider_capabilities(transcription_provider)
+        transcription_location = "local" if is_local_provider(transcription_provider) else "api"
+        transcription_str = f"{transcription_caps.provider_name}({transcription_location})"
     else:
         transcription_str = "disabled"
 
-    # Determine summarization provider and location
+    # Determine summarization provider and location using capabilities
     if cfg.generate_summaries and summary_provider is not None:
-        summarization_provider_name = cfg.summary_provider
-        # Determine if local or API
-        if summarization_provider_name == "transformers":
-            summarization_location = "local"
-        else:
-            summarization_location = "api"
-        summarization_str = f"{summarization_provider_name}({summarization_location})"
+        summary_caps = get_provider_capabilities(summary_provider)
+        summarization_location = "local" if is_local_provider(summary_provider) else "api"
+        summarization_str = f"{summary_caps.provider_name}({summarization_location})"
     else:
         summarization_str = "disabled"
 
-    # Determine entities (speaker detection) provider and location
+    # Determine entities (speaker detection) provider and location using capabilities
     if cfg.auto_speakers and speaker_detector is not None:
-        entities_provider_name = cfg.speaker_detector_provider
-        # Determine if local or API
-        if entities_provider_name == "spacy":
-            entities_location = "local"
-        else:
-            entities_location = "api"
-        entities_str = f"{entities_provider_name}({entities_location})"
+        speaker_caps = get_provider_capabilities(speaker_detector)
+        entities_location = "local" if is_local_provider(speaker_detector) else "api"
+        entities_str = f"{speaker_caps.provider_name}({entities_location})"
     else:
         entities_str = "disabled"
 
@@ -111,11 +106,13 @@ def _log_provider_ownership(
         and cfg.screenplay_num_speakers
         and cfg.screenplay_num_speakers > 0
     ):
-        # Diarization is handled by transcription provider (Whisper)
-        if transcription_provider_name == "whisper":
-            diarization_str = "whisper(local)"
+        # Diarization is handled by transcription provider
+        if transcription_provider is not None:
+            transcription_caps = get_provider_capabilities(transcription_provider)
+            diarization_location = "local" if is_local_provider(transcription_provider) else "api"
+            diarization_str = f"{transcription_caps.provider_name}({diarization_location})"
         else:
-            diarization_str = f"{transcription_provider_name}(api)"
+            diarization_str = "none"
     else:
         diarization_str = "none"
 
@@ -198,7 +195,9 @@ def _log_episode_metrics(
     )
 
 
-def _log_episode_results(pipeline_metrics: metrics.Metrics, episodes: List[models.Episode]) -> None:
+def _log_episode_results(
+    pipeline_metrics: metrics.Metrics, episodes: List[Episode]  # type: ignore[valid-type]
+) -> None:
     """Log episode processing results at run end.
 
     Args:
@@ -436,8 +435,8 @@ def _both_providers_use_mps(
         transcription_uses_mps = cfg.transcription_device.lower() == "mps"
     elif transcription_provider is not None:
         # Fallback to provider-specific device detection
-        provider_type = type(transcription_provider).__name__
-        if provider_type == "MLProvider":
+        # Only local (ML) providers use MPS; API providers don't
+        if is_local_provider(transcription_provider):
             # MLProvider uses _detect_whisper_device() method
             try:
                 whisper_device = transcription_provider._detect_whisper_device()
@@ -445,8 +444,8 @@ def _both_providers_use_mps(
             except (AttributeError, Exception):
                 # If method doesn't exist or fails, assume not MPS
                 transcription_uses_mps = False
-        # OpenAI provider doesn't use MPS (API-based)
-        elif provider_type == "OpenAIProvider":
+        else:
+            # API providers don't use MPS (API-based)
             transcription_uses_mps = False
 
     # Check summarization stage device (Issue #387)
@@ -457,8 +456,8 @@ def _both_providers_use_mps(
         summarization_uses_mps = cfg.summarization_device.lower() == "mps"
     elif summary_provider is not None and cfg.generate_summaries:
         # Fallback to provider-specific device detection
-        provider_type = type(summary_provider).__name__
-        if provider_type == "MLProvider":
+        # Only local (ML) providers use MPS; API providers don't
+        if is_local_provider(summary_provider):
             # MLProvider uses SummaryModel which has device attribute
             try:
                 # First check if models are initialized and have device attribute
@@ -521,7 +520,7 @@ class _TranscriptionResources(NamedTuple):
 
     transcription_provider: Any  # Stage 2: TranscriptionProvider instance
     temp_dir: Optional[str]
-    transcription_jobs: List[models.TranscriptionJob]
+    transcription_jobs: List[TranscriptionJob]  # type: ignore[valid-type]
     transcription_jobs_lock: Optional[threading.Lock]
     saved_counter_lock: Optional[threading.Lock]
 
@@ -529,7 +528,7 @@ class _TranscriptionResources(NamedTuple):
 class _ProcessingJob(NamedTuple):
     """Job for processing (metadata/summarization) stage."""
 
-    episode: models.Episode
+    episode: Episode  # type: ignore[valid-type]
     transcript_path: str
     transcript_source: Literal["direct_download", "whisper_transcription"]
     detected_names: Optional[List[str]]
@@ -727,6 +726,18 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         wf_stages.setup.setup_pipeline_environment(cfg)
     )
 
+    # Initialize JSONL emitter if enabled
+    jsonl_emitter = None
+    if cfg.jsonl_metrics_enabled:
+        from .jsonl_emitter import JSONLEmitter
+
+        jsonl_path = cfg.jsonl_metrics_path
+        if jsonl_path is None:
+            jsonl_path = os.path.join(effective_output_dir, "run.jsonl")
+        jsonl_emitter = JSONLEmitter(pipeline_metrics, jsonl_path)
+        jsonl_emitter.__enter__()
+        jsonl_emitter.emit_run_started(cfg, run_id=cfg.run_id)
+
     # Step 1.5: Preload ML models if configured
     wf_stages.setup.preload_ml_models_if_needed(cfg)
 
@@ -782,6 +793,14 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 "Speaker detector initialized: %s",
                 type(speaker_detector).__name__,
             )
+            # Warm up Ollama models if using Ollama provider (loads models before real work)
+            if hasattr(speaker_detector, "warmup"):
+                try:
+                    speaker_detector.warmup(timeout_s=600)  # 10 minute timeout for first load
+                    logger.debug("Ollama speaker detection models warmed up")
+                except Exception as exc:
+                    logger.warning(f"Failed to warm up Ollama speaker detection models: {exc}")
+                    # Don't fail - models will load on first use, just slower
         except Exception as exc:
             logger.error("Failed to initialize speaker detector: %s", exc)
             # Fail fast - provider initialization should succeed
@@ -808,6 +827,14 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
                 "Summarization provider initialized: %s",
                 type(summary_provider).__name__,
             )
+            # Warm up Ollama models if using Ollama provider (loads models before real work)
+            if hasattr(summary_provider, "warmup"):
+                try:
+                    summary_provider.warmup(timeout_s=600)  # 10 minute timeout for first load
+                    logger.debug("Ollama summarization models warmed up")
+                except Exception as exc:
+                    logger.warning(f"Failed to warm up Ollama summarization models: {exc}")
+                    # Don't fail - models will load on first use, just slower
         except ImportError as e:
             # Fail fast when generate_summaries=True - dependencies must be available
             error_msg = (
@@ -928,6 +955,10 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
             # Create initial status entry (queued)
             pipeline_metrics.get_or_create_episode_status(
+                episode_id=episode_id, episode_number=episode.idx
+            )
+            # Create initial metrics entry (to avoid warnings when updating later)
+            pipeline_metrics.get_or_create_episode_metrics(
                 episode_id=episode_id, episode_number=episode.idx
             )
 
@@ -1219,11 +1250,25 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # Default: save to output directory
         metrics_path = os.path.join(effective_output_dir, "metrics.json")
 
+    # Emit run_finished event for JSONL metrics (before save_to_file)
+    if jsonl_emitter:
+        try:
+            jsonl_emitter.emit_run_finished()
+        except Exception as e:
+            logger.warning(f"Failed to emit run_finished JSONL event: {e}")
+
     if metrics_path:
         try:
             pipeline_metrics.save_to_file(metrics_path)
         except Exception as e:
             logger.warning(f"Failed to save metrics to {metrics_path}: {e}")
+
+    # Close JSONL emitter
+    if jsonl_emitter:
+        try:
+            jsonl_emitter.__exit__(None, None, None)
+        except Exception as e:
+            logger.warning(f"Failed to close JSONL emitter: {e}")
 
     # Step 13: Generate run index (Issue #379)
     if not cfg.dry_run:

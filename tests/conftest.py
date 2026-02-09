@@ -611,43 +611,51 @@ def cleanup_ml_resources_after_test(request):
     # Enhanced cleanup: Find and clean up ALL model and provider instances created during test
     # This addresses issue #351: tests creating models directly (not via global provider)
     # may not be cleaned up, causing memory issues
+    # NOTE: Skip gc.get_objects() in parallel execution (pytest-xdist) as it can hang
+    # scanning thousands of objects across workers. Sequential runs can use it safely.
     if not is_unit_test:
         try:
-            # Find all SummaryModel instances created during test
-            # Use gc.get_objects() to find all instances, then filter by type
-            # This is more aggressive than just cleaning the global provider
-            from podcast_scraper.providers.ml import summarizer
-            from podcast_scraper.providers.ml.ml_provider import MLProvider
+            import os
 
-            # Get all objects and filter for SummaryModel and MLProvider instances
-            all_objects = gc.get_objects()
-            summary_models = [
-                obj
-                for obj in all_objects
-                if isinstance(obj, summarizer.SummaryModel)
-                and obj.model is not None  # Only clean up loaded models
-            ]
-            providers = [
-                obj for obj in all_objects if isinstance(obj, MLProvider) and obj.is_initialized
-            ]
+            # Check if running in parallel (pytest-xdist sets XDIST_WORKER env var)
+            is_parallel = os.environ.get("PYTEST_XDIST_WORKER") is not None
 
-            # Clean up all SummaryModel instances
-            for model in summary_models:
-                try:
-                    summarizer.unload_model(model)
-                except Exception:
-                    pass  # Ignore cleanup errors (model may already be cleaned up)
+            if not is_parallel:
+                # Find all SummaryModel instances created during test
+                # Use gc.get_objects() to find all instances, then filter by type
+                # This is more aggressive than just cleaning the global provider
+                from podcast_scraper.providers.ml import summarizer
+                from podcast_scraper.providers.ml.ml_provider import MLProvider
 
-            # Clean up all provider instances (except the global one, already handled)
-            for provider in providers:
-                try:
-                    # Skip the global provider (already cleaned up above)
-                    from podcast_scraper import workflow
+                # Get all objects and filter for SummaryModel and MLProvider instances
+                all_objects = gc.get_objects()
+                summary_models = [
+                    obj
+                    for obj in all_objects
+                    if isinstance(obj, summarizer.SummaryModel)
+                    and obj.model is not None  # Only clean up loaded models
+                ]
+                providers = [
+                    obj for obj in all_objects if isinstance(obj, MLProvider) and obj.is_initialized
+                ]
 
-                    if provider is not workflow._preloaded_ml_provider:
-                        provider.cleanup()
-                except Exception:
-                    pass  # Ignore cleanup errors
+                # Clean up all SummaryModel instances
+                for model in summary_models:
+                    try:
+                        summarizer.unload_model(model)
+                    except Exception:
+                        pass  # Ignore cleanup errors (model may already be cleaned up)
+
+                # Clean up all provider instances (except the global one, already handled)
+                for provider in providers:
+                    try:
+                        # Skip the global provider (already cleaned up above)
+                        from podcast_scraper import workflow
+
+                        if provider is not workflow._preloaded_ml_provider:
+                            provider.cleanup()
+                    except Exception:
+                        pass  # Ignore cleanup errors
 
         except (ImportError, AttributeError):
             # ML modules not available (e.g., in unit tests without ML dependencies)
@@ -656,8 +664,8 @@ def cleanup_ml_resources_after_test(request):
     # After test completes, force garbage collection
     # This helps clean up any ML models that weren't explicitly cleaned up
     # and releases threads that might be holding references
-    # Note: Single GC round is more efficient - multiple rounds can actually
-    # cause memory fragmentation and keep objects alive longer
+    # Note: In parallel mode, we can't use gc.get_objects() to find models,
+    # so we rely on more aggressive GC and cache clearing to free memory
     # Skip gc.collect() for unit tests to avoid hangs from mock finalizers
     # Unit tests should clean up explicitly, and integration/E2E tests will benefit from GC
     # Only run GC for integration/E2E tests, skip for unit tests
@@ -667,7 +675,32 @@ def cleanup_ml_resources_after_test(request):
         "test_integration" in test_name_after or "test_e2e" in test_name_after
     ):
         try:
-            gc.collect()
+            import os
+
+            is_parallel = os.environ.get("PYTEST_XDIST_WORKER") is not None
+
+            # In parallel mode, be more aggressive with cleanup since we can't use gc.get_objects()
+            # Multiple GC rounds help free memory from models that weren't explicitly cleaned up
+            if is_parallel:
+                # Multiple GC rounds for parallel mode (models accumulate without gc.get_objects())
+                for _ in range(3):
+                    gc.collect()
+
+                # Clear PyTorch caches more aggressively in parallel mode
+                try:
+                    import torch
+
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                        torch.cuda.synchronize()
+                    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                        if hasattr(torch.mps, "empty_cache"):
+                            torch.mps.empty_cache()
+                except (ImportError, AttributeError):
+                    pass  # PyTorch not available or no cache clearing method
+            else:
+                # Single GC round for sequential mode (more efficient)
+                gc.collect()
         except Exception:
             # Ignore any errors from GC (e.g., finalizer issues)
             pass

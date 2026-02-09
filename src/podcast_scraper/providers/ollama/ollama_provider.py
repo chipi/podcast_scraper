@@ -22,7 +22,14 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 
 try:
     import httpx
@@ -34,7 +41,8 @@ try:
 except ImportError:
     OpenAI = None  # type: ignore
 
-from ... import config, models
+from ... import config
+from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
@@ -129,8 +137,13 @@ class OllamaProvider:
         client_kwargs: dict[str, Any] = {
             "api_key": "ollama",  # Ollama ignores API key, but SDK requires one
             "base_url": base_url,
-            "timeout": getattr(cfg, "ollama_timeout", 120),
         }
+
+        # Configure HTTP timeouts with separate connect/read timeouts
+        # Use ollama_timeout for read timeout (local Ollama can be slower)
+        ollama_timeout = getattr(cfg, "ollama_timeout", 120)
+        client_kwargs["timeout"] = get_http_timeout(cfg, read_timeout=float(ollama_timeout))
+
         self.client = OpenAI(**client_kwargs)
 
         # Speaker detection settings
@@ -193,8 +206,52 @@ class OllamaProvider:
             # Catch all httpx exceptions (ConnectError, TimeoutException, RequestError, etc.)
             # httpx exceptions inherit from httpx.HTTPError, but we catch Exception
             # to be safe across different httpx versions
-            if "httpx" in type(exc).__module__:
+            # Check if it's an httpx error by checking the exception type name or module
+            exc_type_name = type(exc).__name__
+            exc_module = getattr(type(exc), "__module__", "")
+            # Check for httpx errors - either by module name or exception type name
+            is_httpx_error = False
+
+            # Try isinstance check first (works when httpx is not mocked)
+            # Get the real httpx module from sys.modules if available
+            # This works even when httpx is mocked in the provider module
+            import sys
+
+            real_httpx_module = sys.modules.get("httpx")
+            # Check if real_httpx_module is actually the real httpx module (not a mock)
+            # Real httpx module has __file__ attribute, mocks don't
+            if (
+                real_httpx_module is not None
+                and hasattr(real_httpx_module, "__file__")
+                and hasattr(real_httpx_module, "ConnectError")
+            ):
+                try:
+                    is_httpx_error = isinstance(
+                        exc,
+                        (
+                            real_httpx_module.ConnectError,
+                            real_httpx_module.TimeoutException,
+                            real_httpx_module.RequestError,
+                            real_httpx_module.HTTPError,
+                        ),
+                    )
+                except (TypeError, AttributeError):
+                    # isinstance() failed (likely because httpx is mocked)
+                    pass
+
+            # Fallback to string-based checks if isinstance didn't work
+            # This handles cases where httpx is mocked
+            # Real httpx exceptions have module "httpx", not "unittest.mock"
+            if not is_httpx_error:
+                is_httpx_error = exc_module == "httpx" or exc_type_name in (
+                    "ConnectError",
+                    "TimeoutException",
+                    "RequestError",
+                    "HTTPError",
+                )
+            if is_httpx_error:
                 raise ConnectionError(OLLAMA_NOT_RUNNING_ERROR) from exc
+            # If it's not an httpx error, re-raise the original exception
             raise
 
     def _validate_model_available(self, model: str) -> None:
@@ -240,6 +297,150 @@ class OllamaProvider:
         # Initialize summarization if enabled
         if self.cfg.generate_summaries and not self._summarization_initialized:
             self._initialize_summarization()
+
+    def warmup(self, timeout_s: int = 600) -> None:
+        """Warm up Ollama models by loading them into memory.
+
+        This method performs a small "ping" request to each model that will be used,
+        forcing Ollama to load the model weights into memory. This prevents the first
+        real request from waiting for model loading, which can take several minutes
+        for large models.
+
+        Note: To keep models loaded during your pipeline run, set the OLLAMA_KEEP_ALIVE
+        environment variable on the Ollama server side (e.g., `export OLLAMA_KEEP_ALIVE=30m`).
+        This prevents models from unloading between requests.
+
+        Args:
+            timeout_s: Timeout in seconds for warmup requests (default: 600s = 10 minutes).
+                       First model load can take a while, so use a long timeout.
+
+        Raises:
+            RuntimeError: If warmup fails for any model
+        """
+        base_url = self.cfg.ollama_api_base or "http://localhost:11434/v1"
+        # Remove /v1 suffix for generate endpoint
+        generate_url = base_url.rstrip("/v1") + "/api/generate"
+
+        models_to_warm = set()
+
+        # Collect models that need warming
+        if self.cfg.auto_speakers and self._speaker_detection_initialized:
+            models_to_warm.add(self.speaker_model)
+        if self.cfg.generate_summaries and self._summarization_initialized:
+            models_to_warm.add(self.summary_model)
+
+        if not models_to_warm:
+            logger.debug("No Ollama models to warm up")
+            return
+
+        logger.info(
+            f"Warming up Ollama models: {', '.join(sorted(models_to_warm))} "
+            f"(timeout: {timeout_s}s)"
+        )
+
+        for model in models_to_warm:
+            try:
+                logger.debug(f"Warming up model: {model}")
+                # Use httpx directly for warmup (simpler than OpenAI SDK)
+                response = httpx.post(
+                    generate_url,
+                    json={
+                        "model": model,
+                        "prompt": "ping",
+                        "stream": False,
+                        "options": {"num_predict": 1},  # Generate only 1 token
+                    },
+                    timeout=timeout_s,
+                )
+                response.raise_for_status()
+                logger.debug(f"Model {model} warmed up successfully")
+            except Exception as exc:
+                logger.warning(f"Failed to warm up model {model}: {exc}")
+                # Don't fail - model might still work, just warn
+                # The first real request will trigger loading anyway
+
+    def wait_until_ready(self, max_wait_s: int = 600, poll_interval_s: float = 2.0) -> bool:
+        """Wait until Ollama models are ready (loaded and responsive).
+
+        This method polls Ollama with small warmup requests until they succeed,
+        indicating that models are loaded and ready for use. This prevents the
+        pipeline from starting before models are ready.
+
+        Args:
+            max_wait_s: Maximum time to wait in seconds (default: 600s = 10 minutes)
+            poll_interval_s: Time between poll attempts in seconds (default: 2.0s)
+
+        Returns:
+            True if models are ready, False if timeout exceeded
+
+        Raises:
+            RuntimeError: If Ollama server becomes unavailable during wait
+        """
+        import time
+
+        base_url = self.cfg.ollama_api_base or "http://localhost:11434/v1"
+        generate_url = base_url.rstrip("/v1") + "/api/generate"
+
+        models_to_check = set()
+
+        # Collect models that need checking
+        if self.cfg.auto_speakers and self._speaker_detection_initialized:
+            models_to_check.add(self.speaker_model)
+        if self.cfg.generate_summaries and self._summarization_initialized:
+            models_to_check.add(self.summary_model)
+
+        if not models_to_check:
+            logger.debug("No Ollama models to check readiness for")
+            return True
+
+        logger.info(
+            f"Waiting for Ollama models to be ready: {', '.join(sorted(models_to_check))} "
+            f"(max wait: {max_wait_s}s, poll interval: {poll_interval_s}s)"
+        )
+
+        start_time = time.time()
+        ready_models: set[str] = set()
+
+        while len(ready_models) < len(models_to_check):
+            elapsed = time.time() - start_time
+            if elapsed > max_wait_s:
+                logger.error(
+                    f"Timeout waiting for Ollama models to be ready. "
+                    f"Ready: {len(ready_models)}/{len(models_to_check)} "
+                    f"after {elapsed:.1f}s"
+                )
+                return False
+
+            for model in models_to_check - ready_models:
+                try:
+                    # Try a small warmup request
+                    response = httpx.post(
+                        generate_url,
+                        json={
+                            "model": model,
+                            "prompt": "ping",
+                            "stream": False,
+                            "options": {"num_predict": 1},
+                        },
+                        timeout=30.0,  # Short timeout for polling
+                    )
+                    response.raise_for_status()
+                    ready_models.add(model)
+                    logger.debug(f"Model {model} is ready (elapsed: {elapsed:.1f}s)")
+                except Exception as exc:
+                    # Model not ready yet, continue polling
+                    logger.debug(f"Model {model} not ready yet: {exc}")
+
+            # If not all models are ready, wait before next poll
+            if len(ready_models) < len(models_to_check):
+                time.sleep(poll_interval_s)
+
+        elapsed = time.time() - start_time
+        logger.info(
+            f"All Ollama models ready: {', '.join(sorted(models_to_check))} "
+            f"(took {elapsed:.1f}s)"
+        )
+        return True
 
     def _initialize_speaker_detection(self) -> None:
         """Initialize speaker detection capability."""
@@ -402,7 +603,7 @@ class OllamaProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).

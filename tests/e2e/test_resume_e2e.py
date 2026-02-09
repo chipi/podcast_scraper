@@ -363,7 +363,14 @@ class TestResumeE2E:
                     metadata = json.load(f)
                 assert "summary" in metadata, "Summary should be in metadata"
                 assert metadata["summary"] is not None, "Summary should not be None"
+                # Check normalized schema fields (required)
+                assert (
+                    "bullets" in metadata["summary"]
+                ), "Summary should have bullets field (normalized schema)"
+                assert isinstance(metadata["summary"]["bullets"], list), "bullets should be a list"
+                assert len(metadata["summary"]["bullets"]) > 0, "bullets should not be empty"
+                # short_summary is computed from bullets, should still be available
                 assert (
                     "short_summary" in metadata["summary"]
-                ), "Summary should have short_summary field"
+                ), "Summary should have short_summary field (computed)"
                 assert len(metadata["summary"]["short_summary"]) > 0, "Summary should not be empty"

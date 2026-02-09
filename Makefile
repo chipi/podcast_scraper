@@ -84,6 +84,14 @@ help:
 	@echo "                            Usage: make test-openai-real-feed FEED_URL=\"https://...\" [MAX_EPISODES=5]"
 	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
+	@echo "  make test-bulk-confidence  Run bulk E2E confidence tests (multiple configs sequentially)"
+	@echo "                            Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [BASELINE_ID=...] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
+	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
+	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
+	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
+	@echo "                                     ANALYZE_MODE=comprehensive uses comprehensive analysis mode (default: basic)"
+	@echo "  make analyze-bulk-confidence  Analyze bulk confidence test results"
+	@echo "                                 Usage: make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
 	@echo "Coverage commands:"
@@ -278,10 +286,11 @@ cleanup-processes:
 
 test-unit: cleanup-processes
 	# Unit tests: parallel execution for faster feedback
-	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
+	# Parallelism: Uses unit-specific worker calculation (memory-aware, caps at 8)
+	# Unit tests are lightweight (~100 MB per worker), so can use more workers
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
-	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-no-ml: cleanup-processes
 	# Unit tests without ML dependencies (matches CI setup - Issue #403)
@@ -291,50 +300,66 @@ test-unit-no-ml: cleanup-processes
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
 	# Then run unit tests (same as test-unit but with explicit verification)
 	@echo "Running unit tests without ML dependencies..."
-	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost
+	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
-	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
+	# Parallelism: Uses integration-specific worker calculation (memory-aware, caps at 5 to prevent hangs)
 	# Integration tests load ML models which consume ~1-2 GB per worker
+	# Reduced worker count (max 5) prevents resource contention and hangs at high completion percentages
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	# Coverage: measured independently (not appended) to match CI per-job measurement
 	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
-	$(PYTHON) -m pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --disable-socket --allow-hosts=127.0.0.1,localhost
+	# Note: pytest-rerunfailures 14.0+ uses socket-based ServerStatusDB with pytest-xdist (-n)
+	# This requires localhost socket access. We disable socket blocking for integration tests
+	# when using reruns with parallel execution, but still restrict to localhost only
+	# Note: Force coverage collection completion by combining coverage files immediately after tests
+	# Capture pytest exit code to ensure test failures are not masked
+	@set -e; \
+	pytest_exit=0; \
+	$(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost || pytest_exit=$$?; \
+	$(PYTHON) -m coverage combine 2>/dev/null || true; \
+	exit $$pytest_exit
 
 test-integration-fast:
 	# Fast integration tests: critical path tests only (excludes ml_models for speed)
-	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
+	# Parallelism: Uses integration-specific worker calculation (memory-aware, caps at 5 to prevent hangs)
 	# Includes reruns for flaky tests (matches CI behavior)
 	# Excludes ml_models marker - use test-integration for ML workflow tests
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
-	$(PYTHON) -m pytest tests/integration/ -m "integration and critical_path and not ml_models" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	$(PYTHON) -m pytest tests/integration/ -m "integration and critical_path and not ml_models" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20
 
 test-ci:
 	# CI test suite: parallel execution for speed
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
+	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	# Note: Non-critical path tests run on main branch only
-	$(PYTHON) -m pytest -m '(not integration and not e2e) or (integration and critical_path) or (e2e and critical_path)' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing
+	$(PYTHON) -m pytest -m '(not integration and not e2e) or (integration and critical_path) or (e2e and critical_path)' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --disable-socket --allow-hosts=127.0.0.1,localhost --cov=$(PACKAGE) --cov-report=term-missing
 
 test-ci-fast:
 	# Fast CI test suite: parallel execution for speed
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
+	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Includes reruns for flaky tests (matches CI behavior) - increased to 3 retries for very flaky tests
-	$(PYTHON) -m pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	$(PYTHON) -m pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
 
 test-e2e: cleanup-processes
 	# E2E tests: parallel execution for speed
-	# Uses E2E-specific worker calculation (more conservative to prevent system freezes)
+	# Uses E2E-specific worker calculation (memory-aware, caps at 4 to prevent system freezes)
+	# E2E tests are memory-intensive (~2.5 GB per worker) and run full pipeline
 	# Excludes analysis/diagnostic tests - these are slow diagnostic tools, not regular tests
 	# Note: cleanup-processes runs automatically via pytest fixture, but also called here for safety
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
 	# Uses multi-episode feed (5 episodes) - set via E2E_TEST_MODE environment variable
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-e2e-sequential:
 	# E2E tests: sequential execution (slower but clearer output, useful for debugging)
@@ -344,6 +369,7 @@ test-e2e-sequential:
 
 test-e2e-fast:
 	# Fast E2E tests: parallel execution for speed
+	# Uses E2E-specific worker calculation (memory-aware, caps at 4 to prevent system freezes)
 	# Critical path tests only (includes ML tests if models are cached)
 	# Excludes analysis/diagnostic tests (p07/p08 threshold analysis) - these are slow and not critical path
 	# Includes reruns for flaky tests (matches CI behavior) - 3 retries for ML model variability
@@ -351,7 +377,8 @@ test-e2e-fast:
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
@@ -359,7 +386,8 @@ test-e2e-data-quality:
 	# Uses all original mock data (not fast fixtures)
 	# Runs with 3-5 episodes per test to validate data quality and consistency
 	# For nightly builds only - not part of regular CI/CD code quality checks
-	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	@E2E_TEST_MODE=data_quality pytest tests/e2e/ -m "e2e and data_quality and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 test-analytical:
 	# Analytical/diagnostic tests: tools for investigating specific behaviors and thresholds
@@ -383,24 +411,37 @@ test-nightly:
 	@echo "Podcasts: p01-p05 (15 episodes total)"
 	@echo "Models: Whisper base.en, BART-large-cnn, LED-large-16384"
 	@mkdir -p reports
-	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json
+	@echo "🔍 Verifying test collection..."
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" --collect-only -q || { \
+		echo "❌ Test collection failed, trying with verbose output..."; \
+		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" --collect-only -v; \
+		exit 1; \
+	}
+	@echo "✅ Test collection successful, running tests..."
+	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || { \
+		EXIT_CODE=$$?; \
+		echo "⚠️  Parallel execution failed (exit code $$EXIT_CODE), trying sequential execution..."; \
+		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || exit $$EXIT_CODE; \
+	}
 
 test:
 	# All tests: run separately with --cov-append to match CI behavior and get accurate coverage
 	# CI runs tests in separate jobs (unit, integration, e2e) and combines coverage
 	# This matches that approach for consistent coverage numbers
 	# Uses multi-episode feed for E2E tests (5 episodes) - set via E2E_TEST_MODE environment variable
-	# Parallelism: $(PYTEST_WORKERS) workers (memory-aware: adapts to RAM and CPU, reserves 2 cores, caps at 8)
+	# Each test type uses its own worker calculation with appropriate max workers
 	# Excludes nightly tests (run separately via make test-nightly)
 	# Excludes analytical tests (diagnostic tools, run separately via make test-analytical)
 	@echo "Running unit tests with coverage..."
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/unit/ -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/unit/ -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Running integration tests with coverage (appending)..."
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/integration/ -m integration -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 -q
+	# Note: --disable-socket is required to block real network calls (without it, tests hang)
+	# Note: --reruns removed because pytest-rerunfailures 14.0+ uses sockets with -n (parallel)
+	# which conflicts with --disable-socket. Reruns are available via make test-integration standalone.
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Running E2E tests with coverage (appending)..."
-	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 -q
-	@# Combine any remaining parallel coverage files
-	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	# Note: Same as integration - --disable-socket for network isolation, no --reruns with -n
+	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Final coverage:"
 	@$(PYTHON) -m coverage report 2>&1 | grep "^TOTAL"
 
@@ -414,15 +455,79 @@ test-sequential:
 test-fast:
 	# Fast tests: parallel execution for speed
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
+	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	# Uses fast feed for E2E tests (1 episode) - set via E2E_TEST_MODE environment variable
 	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
 	# Excludes nightly tests (comprehensive tests run only in nightly builds)
 	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(PYTEST_WORKERS) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-bulk-confidence:
+	@# Run bulk E2E confidence tests (multiple configs sequentially)
+	@# Usage: make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" [BASELINE_ID=...] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
+	@if [ -z "$(CONFIGS)" ]; then \
+		echo "❌ Error: CONFIGS is required"; \
+		echo "Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\""; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  CONFIGS=pattern          Config file pattern (required)"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/bulk_confidence)"; \
+		echo "  COMPARE_BASELINE=id      Baseline ID to compare against"; \
+		echo "  SAVE_AS_BASELINE=id      Save current runs as baseline with this ID"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/tools/run_bulk_confidence_tests.py \
+		--configs "$(CONFIGS)" \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)" \
+		$(if $(USE_FIXTURES),--use-fixtures) \
+		$(if $(NO_SHOW_LOGS),--no-show-logs) \
+		$(if $(NO_AUTO_ANALYZE),--no-auto-analyze) \
+		$(if $(ANALYZE_MODE),--analyze-mode $(ANALYZE_MODE)) \
+		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
+		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
+		--log-level INFO
+	@echo ""
+	@echo "✓ Bulk confidence tests completed"
+	@echo "  Results saved to: $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo ""
+	@echo "To analyze results, use:"
+	@echo "  make analyze-bulk-confidence SESSION_ID=<session_id>"
+	@echo "  Or: python scripts/tools/analyze_bulk_runs.py --session-id <session_id> --output-dir $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+
+analyze-bulk-confidence:
+	@# Analyze bulk E2E confidence test results
+	@# Usage: make analyze-bulk-confidence SESSION_ID="20260208_093757" [MODE=basic|comprehensive] [COMPARE_BASELINE=...] [OUTPUT_DIR=...] [OUTPUT_FORMAT=markdown|json|both]
+	@if [ -z "$(SESSION_ID)" ]; then \
+		echo "❌ Error: SESSION_ID is required"; \
+		echo "Usage: make analyze-bulk-confidence SESSION_ID=\"20260208_093757\""; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  SESSION_ID=id            Session ID (required, e.g., '20260208_093757')"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/bulk_confidence)"; \
+		echo "  MODE=mode                 Analysis mode: basic or comprehensive (default: basic)"; \
+		echo "  COMPARE_BASELINE=id      Baseline ID to compare against (optional)"; \
+		echo "  OUTPUT_FORMAT=format     Output format: markdown, json, or both (default: both)"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\""; \
+		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" MODE=comprehensive"; \
+		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" COMPARE_BASELINE=planet_money_v1"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/tools/analyze_bulk_runs.py \
+		--session-id "$(SESSION_ID)" \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)" \
+		--mode "$(or $(MODE),basic)" \
+		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
+		--output-format "$(or $(OUTPUT_FORMAT),both)" \
+		--log-level INFO
+	@echo ""
+	@echo "✓ Analysis complete"
+	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
 
 test-track:
 	# Run all test suites (unit + integration + e2e) and track execution times
@@ -669,23 +774,27 @@ coverage-check: coverage-check-unit coverage-check-integration coverage-check-e2
 coverage-check-unit:
 	# Check unit test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_UNIT)%)
 	@echo "Checking unit test coverage (minimum $(COVERAGE_THRESHOLD_UNIT)%)..."
-	@$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_UNIT) -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost -q
 
 coverage-check-integration:
 	# Check integration test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_INTEGRATION)%)
 	@echo "Checking integration test coverage (minimum $(COVERAGE_THRESHOLD_INTEGRATION)%)..."
-	@$(PYTHON) -m pytest tests/integration/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	@$(PYTHON) -m pytest tests/integration/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_INTEGRATION) -m 'integration' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-e2e:
 	# Check E2E test coverage meets minimum threshold ($(COVERAGE_THRESHOLD_E2E)%)
 	@echo "Checking E2E test coverage (minimum $(COVERAGE_THRESHOLD_E2E)%)..."
-	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e 2>/dev/null || echo 2) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	@E2E_TEST_MODE=multi_episode pytest tests/e2e/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_E2E) -m 'e2e and not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 -q
 
 coverage-check-combined:
 	# Check combined coverage meets threshold ($(COVERAGE_THRESHOLD_COMBINED)%)
 	# This runs all tests and enforces the combined threshold
+	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
 	@echo "Checking combined coverage (minimum $(COVERAGE_THRESHOLD_COMBINED)%)..."
-	@E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(PYTEST_WORKERS) --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
+	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
+	@E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
 coverage-report:
 	# Generate coverage report without running tests (uses existing .coverage file)
@@ -698,6 +807,8 @@ coverage-enforce:
 	# Use this after 'make test' to verify coverage meets threshold
 	# Combines parallel coverage files (.coverage.*) created by pytest-xdist when using -n flag
 	# Note: pytest-cov creates files like .coverage.Mac.pid* which need to be combined
+	# Note: When using --cov-append, pytest writes directly to .coverage (no separate files)
+	#       In this case, "No data to combine" is expected and normal - coverage is already combined
 	@echo "Checking combined coverage threshold ($(COVERAGE_THRESHOLD_COMBINED)%)..."
 	@if [ -f .coverage ] || find . -maxdepth 1 -name ".coverage*" -type f 2>/dev/null | grep -q .; then \
 		echo "Combining parallel coverage files (if any)..."; \

@@ -7,12 +7,21 @@ from __future__ import annotations
 
 import logging
 import os
+import queue
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from ... import config, models
+
+if TYPE_CHECKING:
+    from ...models import Episode, RssFeed, TranscriptionJob
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
+    TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
+from ...providers.capabilities import get_provider_capabilities, is_local_provider
 from ...utils import filesystem, progress
 from .. import metrics
 from ..episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
@@ -105,7 +114,12 @@ def setup_transcription_resources(
             os.makedirs(temp_dir, exist_ok=True)
         logger.debug("Temp directory for media downloads: %s", temp_dir)
 
-    transcription_jobs: List[models.TranscriptionJob] = []
+    # Create bounded queue for transcription jobs (prevents unbounded memory growth)
+    transcription_jobs: queue.Queue[TranscriptionJob] = queue.Queue(  # type: ignore[valid-type]
+        maxsize=cfg.transcription_queue_size
+    )
+    # Lock may become redundant with Queue (Queue is thread-safe), but keeping for now
+    # to maintain compatibility and allow gradual migration
     transcription_jobs_lock = threading.Lock() if cfg.workers > 1 else None
     saved_counter_lock = threading.Lock() if cfg.workers > 1 else None
 
@@ -121,8 +135,8 @@ def setup_transcription_resources(
 def process_transcription_jobs(
     transcription_resources: TranscriptionResources,
     download_args: List[Tuple],
-    episodes: List[models.Episode],
-    feed: models.RssFeed,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -149,11 +163,24 @@ def process_transcription_jobs(
     Returns:
         Number of transcripts saved from transcription
     """
-    if not transcription_resources.transcription_jobs or not cfg.transcribe_missing:
+    if not cfg.transcribe_missing:
+        return 0
+
+    # For sequential processing, we need to collect all jobs from the queue first
+    # (since queue.get() removes items, we need to track them)
+    jobs_list: List[TranscriptionJob] = []  # type: ignore[valid-type]
+    while True:
+        try:
+            job = transcription_resources.transcription_jobs.get_nowait()
+            jobs_list.append(job)
+        except queue.Empty:
+            break
+
+    if not jobs_list:
         return 0
 
     saved = 0
-    total_jobs = len(transcription_resources.transcription_jobs)
+    total_jobs = len(jobs_list)
     if cfg.dry_run:
         logger.info(f"Dry-run: would transcribe {total_jobs} episodes with Whisper")
     else:
@@ -161,7 +188,7 @@ def process_transcription_jobs(
 
     with progress.progress_context(total_jobs, "Whisper transcription") as reporter:
         jobs_processed = 0
-        for job in transcription_resources.transcription_jobs:
+        for job in jobs_list:
             try:
                 # Stage 2: Use provider if available, otherwise fall back to direct model
                 # For backward compatibility, we pass both provider and model
@@ -181,6 +208,10 @@ def process_transcription_jobs(
                     )
                 if success:
                     saved += 1
+                    # Increment transcripts_transcribed for both cache hits and actual
+                    # transcriptions. This metric counts transcripts saved, not transcription
+                    # work performed. When cache is used, transcripts_transcribed > 0 but
+                    # transcribe_count = 0.
                     update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
 
                     # Generate metadata if enabled
@@ -243,8 +274,8 @@ def process_transcription_jobs(
 def process_transcription_jobs_concurrent(  # noqa: C901
     transcription_resources: TranscriptionResources,
     download_args: List[Tuple],
-    episodes: List[models.Episode],
-    feed: models.RssFeed,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -287,65 +318,36 @@ def process_transcription_jobs_concurrent(  # noqa: C901
 
     # Get parallelism from config
     # All providers now respect transcription_parallelism for experimentation
-    # Note: Whisper parallelism > 1 is experimental and not production-ready
+    # Note: Local (ML) provider parallelism > 1 is experimental and not production-ready
     max_workers = cfg.transcription_parallelism
-    if cfg.transcription_provider == "whisper" and max_workers > 1:
+    transcription_provider = transcription_resources.transcription_provider
+    is_local = is_local_provider(transcription_provider) if transcription_provider else False
+    if is_local and max_workers > 1:
         logger.warning(
-            "Whisper provider: Using parallel processing (parallelism=%d) - "
+            "Local transcription provider: Using parallel processing (parallelism=%d) - "
             "EXPERIMENTAL: Not production-ready, may cause memory/GPU contention",
             max_workers,
         )
     else:
+        provider_caps = (
+            get_provider_capabilities(transcription_provider) if transcription_provider else None
+        )
+        provider_name = provider_caps.provider_name if provider_caps else "unknown"
         logger.info(
             "Transcription provider '%s': configured=%d, effective=%d",
-            cfg.transcription_provider,
+            provider_name,
             cfg.transcription_parallelism,
             max_workers,
         )
 
     saved = 0
     jobs_processed = 0
-    processed_job_indices = set()  # Track which jobs we've processed
-    processed_job_indices_lock = threading.Lock()  # Lock for thread-safe access
 
     logger.debug("Concurrent transcription processor started (max_workers=%d)", max_workers)
 
-    def _find_next_unprocessed_transcription_job() -> Optional[models.TranscriptionJob]:
-        """Find the next unprocessed transcription job from the queue.
-
-        Returns:
-            TranscriptionJob if found, None otherwise
-        """
-        if transcription_resources.transcription_jobs_lock:
-            with transcription_resources.transcription_jobs_lock:
-                with processed_job_indices_lock:
-                    for job in transcription_resources.transcription_jobs:
-                        if job.idx not in processed_job_indices:
-                            processed_job_indices.add(job.idx)
-                            return job
-        else:
-            with processed_job_indices_lock:
-                for job in transcription_resources.transcription_jobs:
-                    if job.idx not in processed_job_indices:
-                        processed_job_indices.add(job.idx)
-                        return job
-        return None
-
-    def _check_transcription_queue_empty() -> bool:
-        """Check if transcription queue is empty.
-
-        Returns:
-            True if queue is empty, False otherwise
-        """
-        with processed_job_indices_lock:
-            if transcription_resources.transcription_jobs_lock:
-                with transcription_resources.transcription_jobs_lock:
-                    total_jobs = len(transcription_resources.transcription_jobs)
-            else:
-                total_jobs = len(transcription_resources.transcription_jobs)
-            return total_jobs == len(processed_job_indices)
-
-    def _process_single_job(job: models.TranscriptionJob) -> tuple[bool, Optional[str], int]:
+    def _process_single_job(
+        job: TranscriptionJob,  # type: ignore[valid-type]
+    ) -> tuple[bool, Optional[str], int]:  # type: ignore[valid-type]
         """Process a single transcription job.
 
         Returns:
@@ -364,6 +366,9 @@ def process_transcription_jobs_concurrent(  # noqa: C901
             if bytes_downloaded:
                 update_metric_safely(pipeline_metrics, "bytes_downloaded_total", bytes_downloaded)
             if success:
+                # Increment transcripts_transcribed for both cache hits and actual transcriptions
+                # This metric counts transcripts saved, not transcription work performed.
+                # When cache is used, transcripts_transcribed > 0 but transcribe_count = 0.
                 update_metric_safely(pipeline_metrics, "transcripts_transcribed", 1)
 
                 # Queue processing job if metadata generation is enabled
@@ -399,14 +404,27 @@ def process_transcription_jobs_concurrent(  # noqa: C901
             logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
             return False, None, 0
 
-    # Process jobs as they become available
+    # Process jobs as they become available from the queue
     # Continue until downloads are complete AND queue is empty
     if max_workers <= 1:
         # Sequential processing (Whisper default)
         while True:
-            current_job = _find_next_unprocessed_transcription_job()
-            if current_job:
+            try:
+                # Block with timeout to allow checking if downloads are complete
+                timeout = (
+                    0.1
+                    if not (downloads_complete_event and downloads_complete_event.is_set())
+                    else 0.05
+                )
+                current_job = transcription_resources.transcription_jobs.get(
+                    block=True, timeout=timeout
+                )
+                # Track queue wait time (Issue #387)
+                queue_wait_start = time.time()
                 success, transcript_path, bytes_downloaded = _process_single_job(current_job)
+                queue_wait_duration = time.time() - queue_wait_start
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_queue_wait_time(queue_wait_duration)
                 if success:
                     saved += 1
                 jobs_processed += 1
@@ -416,48 +434,30 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                     saved,
                     jobs_processed,
                 )
-                continue
-
-            # No job found - check if we should continue waiting
-            if downloads_complete_event and downloads_complete_event.is_set():
-                if _check_transcription_queue_empty():
-                    # All jobs processed, exit
+            except queue.Empty:
+                # Queue is empty - check if we should continue waiting
+                if downloads_complete_event and downloads_complete_event.is_set():
+                    # Downloads complete and queue is empty, exit
                     break
-
-            # Wait a bit before checking again (avoid busy-waiting)
-            # Track queue wait time (Issue #387)
-            queue_wait_start = time.time()
-            if not (downloads_complete_event and downloads_complete_event.is_set()):
+                # Wait a bit before checking again (avoid busy-waiting)
                 time.sleep(0.1)
-                queue_wait_duration = time.time() - queue_wait_start
-            else:
-                # Downloads complete but might have more jobs - check more frequently
-                time.sleep(0.05)
-                queue_wait_duration = time.time() - queue_wait_start
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_queue_wait_time(queue_wait_duration)
     else:
         # Parallel processing (OpenAI provider, or Whisper with parallelism > 1)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {}
+            futures: Dict[Any, int] = {}
 
             def _submit_new_transcription_jobs() -> None:
-                """Submit new transcription jobs as they become available."""
-                if transcription_resources.transcription_jobs_lock:
-                    with transcription_resources.transcription_jobs_lock:
-                        with processed_job_indices_lock:
-                            for job in transcription_resources.transcription_jobs:
-                                if job.idx not in processed_job_indices and job.idx not in futures:
-                                    processed_job_indices.add(job.idx)
-                                    future = executor.submit(_process_single_job, job)
-                                    futures[future] = job.idx
-                else:
-                    with processed_job_indices_lock:
-                        for job in transcription_resources.transcription_jobs:
-                            if job.idx not in processed_job_indices and job.idx not in futures:
-                                processed_job_indices.add(job.idx)
-                                future = executor.submit(_process_single_job, job)
-                                futures[future] = job.idx
+                """Submit new transcription jobs as they become available from the queue."""
+                # Submit jobs up to max_workers limit
+                while len(futures) < max_workers:
+                    try:
+                        # Non-blocking get to avoid blocking when queue is empty
+                        job = transcription_resources.transcription_jobs.get_nowait()
+                        future = executor.submit(_process_single_job, job)
+                        futures[future] = job.idx
+                    except queue.Empty:
+                        # No more jobs available right now
+                        break
 
             def _process_completed_transcription_futures() -> None:
                 """Process completed transcription futures."""
@@ -488,9 +488,9 @@ def process_transcription_jobs_concurrent(  # noqa: C901
 
                 # Check if we should continue
                 if downloads_complete_event and downloads_complete_event.is_set():
-                    all_submitted = _check_transcription_queue_empty()
-                    if all_submitted and len(futures) == 0:
-                        # All jobs submitted and completed
+                    # Downloads complete - check if queue is empty and all futures are done
+                    if transcription_resources.transcription_jobs.empty() and len(futures) == 0:
+                        # All jobs processed, exit
                         break
 
                 # Wait a bit before checking again
@@ -501,12 +501,8 @@ def process_transcription_jobs_concurrent(  # noqa: C901
 
     # Update saved counter
     saved_counter[0] = saved
-    total_jobs = (
-        len(transcription_resources.transcription_jobs)
-        if transcription_resources.transcription_jobs
-        else 0
-    )
+    # Note: Queue size is not directly accessible, but we track jobs_processed
     logger.info(
-        f"Concurrent transcription processing completed: {saved}/{total_jobs} "
+        f"Concurrent transcription processing completed: {saved}/{jobs_processed} "
         f"transcripts saved (parallelism={max_workers})"
     )

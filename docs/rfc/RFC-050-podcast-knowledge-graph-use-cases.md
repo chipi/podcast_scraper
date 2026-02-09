@@ -4,10 +4,10 @@
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers, API users
 - **Related PRDs**:
-  - `docs/prd/PRD-017-podcast-knowledge-graph.md` (Grounded Insight Layer)
+  - `docs/prd/PRD-017-grounded-insight-layer.md` (Grounded Insight Layer)
 - **Related RFCs**:
-  - `docs/rfc/RFC-049-podcast-knowledge-graph-core.md` (Core Concepts & Data Model)
-  - `docs/rfc/RFC-051-database-export-knowledge-graph.md` (Database Projection)
+  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (Core Concepts & Data Model)
+  - `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md` (Database Projection)
 - **Related Documents**:
   - `docs/kg/ontology.md` - Human-readable ontology specification
   - `docs/kg/kg.schema.json` - Machine-readable schema
@@ -1096,9 +1096,9 @@ N/A - This is a new feature, not a migration from an existing system.
 
 ## References
 
-- **Related PRD**: `docs/prd/PRD-017-podcast-knowledge-graph.md`
-- **Related RFC**: `docs/rfc/RFC-049-podcast-knowledge-graph-core.md`
-- **Related RFC**: `docs/rfc/RFC-051-database-export-knowledge-graph.md`
+- **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
+- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
+- **Related RFC**: `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
 - **Ontology Specification**: `docs/kg/ontology.md`
 - **Schema Specification**: `docs/kg/kg.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`

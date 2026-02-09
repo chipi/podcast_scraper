@@ -615,6 +615,16 @@ class Config(BaseModel):
             "For API providers (OpenAI, etc.): Uses parallelism for parallel API calls."
         ),
     )
+    transcription_queue_size: int = Field(
+        default=50,
+        alias="transcription_queue_size",
+        description=(
+            "Maximum size of the transcription job queue. "
+            "When the queue is full, downloads will block until space is available (backpressure). "
+            "Prevents unbounded memory growth when downloads outpace transcription. "
+            "Default: 50 episodes."
+        ),
+    )
     transcription_device: Optional[str] = Field(
         default=None,
         alias="transcription_device",
@@ -1102,6 +1112,24 @@ class Config(BaseModel):
         "(same level as transcripts/ and metadata/ subdirectories). "
         "Set to empty string to disable metrics export.",
     )
+    jsonl_metrics_enabled: bool = Field(
+        default=False,
+        alias="jsonl_metrics_enabled",
+        description=(
+            "Enable JSONL streaming metrics output (default: False, opt-in). "
+            "JSONL metrics stream during pipeline execution, complementing "
+            "the single JSON file output at the end. Useful for real-time monitoring."
+        ),
+    )
+    jsonl_metrics_path: Optional[str] = Field(
+        default=None,
+        alias="jsonl_metrics_path",
+        description=(
+            "Path to JSONL metrics output file. "
+            "If not specified and jsonl_metrics_enabled=True, "
+            "defaults to {effective_output_dir}/run.jsonl."
+        ),
+    )
     summary_provider: Literal[
         "transformers",
         "openai",
@@ -1288,6 +1316,37 @@ class Config(BaseModel):
         alias="preprocessing_cache_dir",
         description=f"Custom cache directory for preprocessed audio "
         f"(default: {DEFAULT_PREPROCESSING_CACHE_DIR}).",
+    )
+    transcript_cache_enabled: bool = Field(
+        default=True,
+        alias="transcript_cache_enabled",
+        description=(
+            "Enable transcript caching by audio hash (default: True). "
+            "Cached transcripts skip transcription entirely, enabling fast "
+            "multi-provider experimentation without re-transcribing the same audio."
+        ),
+    )
+    transcript_cache_dir: Optional[str] = Field(
+        default=None,
+        alias="transcript_cache_dir",
+        description=(
+            "Custom cache directory for transcripts "
+            "(default: .cache/transcripts). "
+            "Transcripts are cached by audio hash to enable fast re-runs."
+        ),
+    )
+
+    # Graceful Degradation Policy
+    degradation_policy: Optional[Dict[str, Any]] = Field(
+        default=None,
+        alias="degradation_policy",
+        description=(
+            "Graceful degradation policy for handling component failures. "
+            "If None, uses default policy (save partial results, continue on failures). "
+            "Dict with keys: save_transcript_on_summarization_failure, "
+            "save_summary_on_entity_extraction_failure, fallback_provider_on_failure, "
+            "continue_on_stage_failure. See DegradationPolicy for details."
+        ),
     )
     preprocessing_sample_rate: int = Field(
         default=16000,
@@ -2390,6 +2449,20 @@ class Config(BaseModel):
         if parallelism < 1:
             raise ValueError("transcription_parallelism must be at least 1")
         return parallelism
+
+    @field_validator("transcription_queue_size", mode="before")
+    @classmethod
+    def _ensure_transcription_queue_size(cls, value: Any) -> int:
+        """Ensure transcription queue size is a positive integer."""
+        if value is None or value == "":
+            return 50
+        try:
+            queue_size = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("transcription_queue_size must be an integer") from exc
+        if queue_size < 1:
+            raise ValueError("transcription_queue_size must be at least 1")
+        return queue_size
 
     @field_validator("processing_parallelism", mode="before")
     @classmethod

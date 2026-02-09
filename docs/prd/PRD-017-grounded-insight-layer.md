@@ -2,9 +2,15 @@
 
 - **Status**: 📋 Draft
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: RFC-049 (Core Concepts), RFC-050 (Use Cases), RFC-051 (Database Projection)
+- **Related RFCs**:
+  - RFC-044 (Model Registry — prerequisite)
+  - RFC-042 (Hybrid ML Platform — prerequisite)
+  - RFC-052 (Local LLM Prompts — prerequisite)
+  - RFC-049 (Core Concepts & Data Model)
+  - RFC-050 (Use Cases & Insight Explorer)
+  - RFC-051 (Database Projection)
 - **Related Documents**:
-  - `docs/kg/ontology.md` - Human-readable ontology specification
+  - `docs/kg/ontology.md` - Human-readable ontology
   - `docs/kg/kg.schema.json` - Machine-readable schema
 
 ## Summary
@@ -127,13 +133,35 @@ The existing podcast scraper produces transcripts and summaries, but summaries l
 
 ## Dependencies
 
-- **PRD-001**: Transcript Acquisition Pipeline (GIL operates on transcripts)
-- **PRD-004**: Metadata Generation (GIL data co-located with metadata)
-- **PRD-005**: Episode Summarization (GIL complements summaries with grounded evidence)
-- **PRD-008**: Speaker Name Detection (GIL uses detected speakers for quote attribution)
-- **RFC-049**: Core GIL Concepts & Data Model (defines ontology and storage)
-- **RFC-050**: GIL Use Cases & Consumption (defines query patterns and integration)
-- **RFC-051**: Database Projection (defines Postgres export for fast queries)
+**Existing features (required inputs):**
+
+- **PRD-001**: Transcript Acquisition Pipeline
+  (GIL operates on transcripts)
+- **PRD-004**: Metadata Generation (GIL data
+  co-located with metadata)
+- **PRD-005**: Episode Summarization (GIL complements
+  summaries with grounded evidence)
+- **PRD-008**: Speaker Name Detection (GIL uses
+  detected speakers for quote attribution)
+
+**ML Platform (prerequisite infrastructure):**
+
+- **RFC-044**: Model Registry — model metadata,
+  capabilities, and limits for all extraction models
+- **RFC-042**: Hybrid ML Platform — provides
+  extraction models (FLAN-T5, extractive QA, NLI,
+  sentence-transformers) that power GIL extraction
+- **RFC-052**: Local LLM Prompts — optimized prompts
+  for Ollama-based GIL extraction (Tier 2)
+
+**GIL-specific design:**
+
+- **RFC-049**: Core GIL Concepts & Data Model
+  (defines ontology, grounding contract, storage)
+- **RFC-050**: GIL Use Cases & Insight Explorer
+  (defines query patterns and CLI tooling)
+- **RFC-051**: Database Projection (defines Postgres
+  export for fast queries)
 
 ## Constraints & Assumptions
 
@@ -148,11 +176,17 @@ The existing podcast scraper produces transcripts and summaries, but summaries l
 
 **Assumptions:**
 
-- ML models (LLMs) are available for insight/quote extraction
+- ML platform (RFC-042 + RFC-044) is implemented
+  before GIL extraction begins, providing extraction
+  models at three tiers: ML-only (FLAN-T5), Hybrid
+  (Ollama), and Cloud LLM
 - Transcripts are available before GIL extraction
-- Users have sufficient storage for per-episode `kg.json` files
-- Schema validation can be manual initially, automated later via CI
-- Speaker detection may not always be available (quotes can have nullable speaker_id)
+- Users have sufficient storage for per-episode
+  `kg.json` files (~5-20 KB each)
+- Schema validation can be manual initially, automated
+  later via CI
+- Speaker detection may not always be available
+  (quotes can have nullable speaker_id)
 
 ## Design Considerations
 
@@ -290,21 +324,76 @@ The Grounded Insight Layer enhances the pipeline by:
 }
 ```
 
-## Open Questions
+## Resolved Questions
 
-1. How to model disagreement between insights? (Deferred to post-v1)
-2. How to represent uncertainty vs opinion in insights? (Deferred to post-v1)
-3. When does entity extraction become valuable? (Planned for v1.1)
-4. When does global graph storage become necessary? (Post-v1 consideration)
-5. How to handle insights that cannot be grounded? (Decision: Mark `grounded=false` explicitly)
+All product questions have been resolved. Decisions
+are recorded here for traceability.
+
+1. **How to model disagreement between insights?**
+   Deferred to post-v1. v1 extracts independent
+   insights per episode. Contradiction detection
+   requires cross-episode comparison with NLI models
+   (RFC-042 §11.4.4), which is available infrastructure
+   but not a v1 use case. When added, disagreements
+   would be modeled as `CONTRADICTS` edges between
+   Insight nodes.
+
+2. **How to represent uncertainty vs opinion?**
+   Deferred to post-v1. v1 uses `confidence` scores
+   (extraction certainty) but does not distinguish
+   factual claims from opinions. A future
+   `insight_type` field (fact / opinion / prediction)
+   could enable this, using NLI or LLM classification.
+
+3. **When does entity extraction become valuable?**
+   Planned for v1.1. v1 prioritizes Topics + Insights
+   + Quotes. Entity extraction (people, organizations,
+   products mentioned in content) adds value when
+   users need cross-episode entity profiles. spaCy NER
+   (already in codebase) provides baseline extraction;
+   LLM-based extraction improves quality. Deferred to
+   keep v1 scope manageable.
+
+4. **When does global graph storage become necessary?**
+   Not for v1. Per-episode `kg.json` files with
+   Postgres projection (RFC-051) handle v1 scale.
+   A graph-native store (Neo4j, Apache AGE) becomes
+   valuable at ~1000+ episodes or when multi-hop
+   traversals become common queries.
+
+5. **How to handle ungroundable insights?**
+   Mark `grounded=false` explicitly. The grounding
+   contract (RFC-049 §5) requires every insight to
+   declare its grounding status. Ungrounded insights
+   are honest about extraction limits and can be
+   filtered in the UI. Target: ≥90% grounding rate.
 
 ## Related Work
 
-- **RFC-049**: Core GIL Concepts & Data Model - Defines ontology, storage, and schema
-- **RFC-050**: GIL Use Cases & Consumption - Defines query patterns and integration
-- **RFC-051**: Database Projection - Defines Postgres export for fast queries
-- **docs/kg/ontology.md**: Human-readable ontology specification
-- **docs/kg/kg.schema.json**: Machine-readable schema for validation
+**ML Platform (prerequisites):**
+
+- **RFC-044**: Model Registry — model metadata for
+  all extraction models
+- **RFC-042**: Hybrid ML Platform — extraction models
+  (FLAN-T5, QA, NLI, embeddings)
+- **RFC-052**: Local LLM Prompts — optimized prompts
+  for Ollama extraction
+
+**GIL Design:**
+
+- **RFC-049**: Core GIL Concepts & Data Model —
+  ontology, grounding contract, storage
+- **RFC-050**: GIL Use Cases & Insight Explorer —
+  query patterns, CLI, consumption
+- **RFC-051**: Database Projection — Postgres export
+  for fast queries
+- **PRD-018**: Database Projection PRD — product
+  requirements for DB export
+
+**Specifications:**
+
+- **docs/kg/ontology.md**: Human-readable ontology
+- **docs/kg/kg.schema.json**: Machine-readable schema
 
 ## Release Checklist
 

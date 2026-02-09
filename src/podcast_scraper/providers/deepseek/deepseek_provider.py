@@ -17,14 +17,22 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple, TYPE_CHECKING
 
 try:
     from openai import OpenAI
 except ImportError:
     OpenAI = None  # type: ignore
 
-from ... import config, models
+from ... import config
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
+from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
@@ -101,6 +109,10 @@ class DeepSeekProvider:
             "api_key": cfg.deepseek_api_key,
             "base_url": base_url,
         }
+
+        # Configure HTTP timeouts with separate connect/read timeouts
+        client_kwargs["timeout"] = get_http_timeout(cfg)
+
         self.client = OpenAI(**client_kwargs)
 
         # Speaker detection settings
@@ -340,7 +352,7 @@ class DeepSeekProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).

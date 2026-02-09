@@ -16,7 +16,11 @@ from . import metrics
 from .types import TranscriptionResources
 
 if TYPE_CHECKING:
+    from ..models import Episode
+else:
     from .. import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -45,8 +49,8 @@ def update_metric_safely(
 
 
 def get_episode_id_from_episode(
-    episode: "models.Episode", feed_url: str
-) -> Tuple[str, Optional[int]]:
+    episode: Episode, feed_url: str  # type: ignore[valid-type]
+) -> Tuple[str, Optional[int]]:  # type: ignore[valid-type]
     """Generate episode ID from episode object (helper for status tracking).
 
     Args:
@@ -110,7 +114,7 @@ def generate_pipeline_summary(
     transcription_resources: TranscriptionResources,
     effective_output_dir: str,
     pipeline_metrics: metrics.Metrics,
-    episodes: Optional[List["models.Episode"]] = None,
+    episodes: Optional[List[Episode]] = None,  # type: ignore[valid-type]
 ) -> Tuple[int, str]:
     """Generate pipeline summary message with detailed statistics.
 
@@ -134,9 +138,19 @@ def generate_pipeline_summary(
     """
     if cfg.dry_run:
         planned_downloads = saved
-        planned_transcriptions = (
-            len(transcription_resources.transcription_jobs) if cfg.transcribe_missing else 0
-        )
+        # Use qsize() for Queue (approximate size, but fine for dry-run reporting)
+        # Handle both Queue and list for backward compatibility
+        if hasattr(transcription_resources.transcription_jobs, "qsize"):
+            planned_transcriptions = (
+                transcription_resources.transcription_jobs.qsize() if cfg.transcribe_missing else 0
+            )
+        else:
+            # Fallback for list (should not happen in production, but handle for tests)
+            planned_transcriptions = (
+                len(transcription_resources.transcription_jobs)  # type: ignore[arg-type]
+                if cfg.transcribe_missing
+                else 0
+            )
         planned_total = planned_downloads + planned_transcriptions
         logger.debug(
             "Dry-run summary: planned_downloads=%s planned_transcriptions=%s",
@@ -490,7 +504,7 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
 
 def _generate_dry_run_cost_projection(
     cfg: config.Config,
-    episodes: Optional[List["models.Episode"]],
+    episodes: Optional[List[Episode]],  # type: ignore[valid-type]
     episode_count: int,
 ) -> List[str]:
     """Generate cost projection for dry-run mode based on configured LLM providers.

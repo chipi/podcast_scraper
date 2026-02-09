@@ -7,6 +7,7 @@ Whisper parallel processing functionality.
 
 from __future__ import annotations
 
+import queue
 import unittest
 from unittest.mock import Mock, patch
 
@@ -26,10 +27,18 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
             transcription_provider="whisper",
             transcribe_missing=True,
         )
+
+        # Create a mock provider that will be detected as local (MLProvider)
+        # We need to create a class with the right name for is_local_provider to work
+        class MockMLProvider:
+            pass
+
+        MockMLProvider.__name__ = "MLProvider"
+        mock_provider = MockMLProvider()
         self.transcription_resources = TranscriptionResources(
-            transcription_provider=Mock(),
+            transcription_provider=mock_provider,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )
@@ -128,7 +137,9 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
         warning_calls = [
             log_call
             for log_call in mock_logger.warning.call_args_list
-            if "EXPERIMENTAL" in str(log_call) or "parallel processing" in str(log_call).lower()
+            if "EXPERIMENTAL" in str(log_call)
+            or "parallel processing" in str(log_call).lower()
+            or "Local transcription provider" in str(log_call)
         ]
         self.assertGreater(
             len(warning_calls), 0, "Should log warning for experimental parallel processing"
@@ -144,11 +155,25 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
             openai_api_key="sk-test123",
         )
 
+        # Create a mock OpenAI provider (non-local) for this test
+        class MockOpenAIProvider:
+            pass
+
+        MockOpenAIProvider.__name__ = "OpenAIProvider"
+        mock_openai_provider = MockOpenAIProvider()
+        transcription_resources = TranscriptionResources(
+            transcription_provider=mock_openai_provider,
+            temp_dir=self.transcription_resources.temp_dir,
+            transcription_jobs=queue.Queue(),
+            transcription_jobs_lock=self.transcription_resources.transcription_jobs_lock,
+            saved_counter_lock=self.transcription_resources.saved_counter_lock,
+        )
+
         with patch("podcast_scraper.workflow.stages.transcription.logger") as mock_logger:
             # Mock the transcription function to avoid actual processing
             with patch("podcast_scraper.workflow.stages.transcription.transcribe_media_to_text"):
                 transcription.process_transcription_jobs_concurrent(
-                    transcription_resources=self.transcription_resources,
+                    transcription_resources=transcription_resources,
                     download_args=self.download_args,
                     episodes=self.episodes,
                     feed=self.feed,
@@ -168,7 +193,9 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
         info_calls = [
             log_call
             for log_call in mock_logger.info.call_args_list
-            if "configured" in str(log_call) or "effective" in str(log_call)
+            if "configured" in str(log_call)
+            or "effective" in str(log_call)
+            or "openai" in str(log_call).lower()
         ]
         self.assertGreater(len(info_calls), 0, "Should log info for OpenAI parallel processing")
 
@@ -188,10 +215,12 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
             ep_title_safe="test_episode",
             temp_media="/tmp/test.mp3",
         )
+        job_queue = queue.Queue()
+        job_queue.put(job)
         transcription_resources = TranscriptionResources(
             transcription_provider=self.transcription_resources.transcription_provider,
             temp_dir=self.transcription_resources.temp_dir,
-            transcription_jobs=[job],
+            transcription_jobs=job_queue,
             transcription_jobs_lock=self.transcription_resources.transcription_jobs_lock,
             saved_counter_lock=self.transcription_resources.saved_counter_lock,
         )
@@ -262,10 +291,12 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
             ep_title_safe="test_episode",
             temp_media="/tmp/test.mp3",
         )
+        job_queue = queue.Queue()
+        job_queue.put(job)
         transcription_resources = TranscriptionResources(
             transcription_provider=self.transcription_resources.transcription_provider,
             temp_dir=self.transcription_resources.temp_dir,
-            transcription_jobs=[job],
+            transcription_jobs=job_queue,
             transcription_jobs_lock=self.transcription_resources.transcription_jobs_lock,
             saved_counter_lock=self.transcription_resources.saved_counter_lock,
         )

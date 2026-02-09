@@ -6,6 +6,7 @@ and mocked external dependencies (HTTP, ML models).
 """
 
 import os
+import queue
 import sys
 import tempfile
 import unittest
@@ -710,7 +711,7 @@ class TestWorkflowHelpers(unittest.TestCase):
         resources = TranscriptionResources(
             transcription_provider=None,
             temp_dir=None,
-            transcription_jobs=[],
+            transcription_jobs=queue.Queue(),
             transcription_jobs_lock=None,
             saved_counter_lock=None,
         )

@@ -6,9 +6,22 @@ and edge cases that strengthen the refactor.
 """
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.grok.grok_provider import GrokProvider

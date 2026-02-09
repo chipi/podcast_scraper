@@ -282,6 +282,116 @@ make preload-ml-models
 
 See [E2E Testing Guide](E2E_TESTING_GUIDE.md) for model defaults.
 
+## Bulk E2E Confidence Tests
+
+Bulk confidence tests allow you to run multiple configuration files sequentially, collect structured data (logs, outputs, timing, resource usage), and compare results against baselines. This is useful for:
+
+- Running the same configs across different code versions to detect regressions
+- Testing multiple configs with different RSS feeds or settings
+- Building confidence in system stability through repeated executions
+- Comparing performance metrics across runs
+
+### Running Bulk Confidence Tests
+
+```bash
+# Run multiple configs (using glob patterns)
+make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml"
+
+# Save current runs as a baseline for future comparison
+make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" SAVE_AS_BASELINE=planet_money_v1
+
+# Compare against an existing baseline
+make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" COMPARE_BASELINE=planet_money_v1
+
+# Use fixture feeds (mock data) instead of real RSS feeds
+make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" USE_FIXTURES=1
+
+# Disable real-time log streaming (only save to files)
+make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" NO_SHOW_LOGS=1
+```
+
+### Understanding Sessions vs Runs
+
+**Session** = One execution of the bulk confidence test tool
+
+- Triggered by a single command invocation
+- Can process multiple config files sequentially
+- Has a unique `session_id` (timestamp-based)
+- Contains a summary of all runs in that session
+
+**Run** = One execution of a single config file within a session
+
+- Each config file you pass creates one run
+- Has its own `run_id`, timing, exit code, logs, and outputs
+- Runs execute sequentially within the session
+
+**Example:**
+
+If you run:
+
+```bash
+make test-bulk-confidence CONFIGS="config1.yaml config2.yaml config3.yaml"
+```
+
+You get:
+
+- **1 Session** (with `session_id = 20260208_101601`)
+  - **3 Runs** (one for each config file)
+    - `run_20260208_101601_123` (config1.yaml)
+    - `run_20260208_101601_456` (config2.yaml)
+    - `run_20260208_101601_789` (config3.yaml)
+
+### Output Structure
+
+Results are saved to `.test_outputs/bulk_confidence/` by default:
+
+```text
+.test_outputs/bulk_confidence/
+├── sessions/
+│   └── session_20260208_101601/          ← ONE SESSION
+│       ├── session.json                   ← Summary of all runs
+│       └── runs/
+│           ├── run_20260208_101601_123/  ← RUN #1 (config1)
+│           │   ├── config.original.yaml  ← Original config for this run
+│           │   ├── config.yaml           ← Modified config used for execution
+│           │   ├── run_data.json
+│           │   ├── stdout.log
+│           │   ├── stderr.log
+│           │   └── ... (service outputs)
+│           ├── run_20260208_101601_456/  ← RUN #2 (config2)
+│           │   ├── config.original.yaml  ← Original config for this run
+│           │   ├── config.yaml
+│           │   └── ...
+│           └── run_20260208_101601_789/  ← RUN #3 (config3)
+│               ├── config.original.yaml  ← Original config for this run
+│               ├── config.yaml
+│               └── ...
+└── baselines/
+    └── planet_money_v1/                   ← Saved baselines
+        ├── baseline.json
+        └── run_20260208_101601_123/      ← Copied run data
+```
+
+### Analyzing Results
+
+Use the analysis script to generate reports:
+
+```bash
+# Basic analysis
+python scripts/tools/analyze_bulk_runs.py \
+    --session-id 20260208_101601 \
+    --output-dir .test_outputs/bulk_confidence
+
+# Comprehensive analysis with baseline comparison
+python scripts/tools/analyze_bulk_runs.py \
+    --session-id 20260208_101601 \
+    --output-dir .test_outputs/bulk_confidence \
+    --mode comprehensive \
+    --compare-baseline planet_money_v1
+```
+
+Reports are generated in both Markdown and JSON formats for easy review and programmatic analysis.
+
 ## Test Organization
 
 ```text

@@ -959,7 +959,18 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
             # Summary is stored in a separate "summary" field, not in "content"
             self.assertIn("summary", data)
             self.assertIsNotNone(data["summary"], "Summary should be generated")
-            self.assertIn("short_summary", data["summary"])
+            # Check normalized schema fields (required)
+            self.assertIn(
+                "bullets", data["summary"], "Summary should have bullets field (normalized schema)"
+            )
+            self.assertIsInstance(data["summary"]["bullets"], list, "bullets should be a list")
+            self.assertGreater(len(data["summary"]["bullets"]), 0, "bullets should not be empty")
+            # short_summary is computed from bullets
+            self.assertIn(
+                "short_summary",
+                data["summary"],
+                "Summary should have short_summary field (computed)",
+            )
             self.assertIsNotNone(
                 data["summary"]["short_summary"], "Summary text should be generated"
             )

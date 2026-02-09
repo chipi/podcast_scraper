@@ -312,6 +312,7 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
             preprocessing_cache_dir=self.cache_dir,
             transcribe_missing=True,
             transcription_provider="whisper",
+            transcript_cache_enabled=False,  # Disable to avoid early return
         )
 
         # Create a mock transcription provider
@@ -338,10 +339,17 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
         self.assertIsNotNone(preprocessor)
 
         # Mock the factory import to track calls
+        # Patch the function in its original module - this works even when imported inside functions
         with patch(
             "podcast_scraper.preprocessing.audio.factory.create_audio_preprocessor"
         ) as mock_factory:
             mock_factory.return_value = preprocessor
+
+            # Ensure temp_media file exists before calling transcribe_media_to_text
+            self.assertTrue(
+                os.path.exists(temp_media),
+                f"temp_media file should exist: {temp_media}",
+            )
 
             # Call transcribe_media_to_text
             success, transcript_path, bytes_downloaded = transcribe_media_to_text(
@@ -380,6 +388,7 @@ class TestAudioPreprocessingWorkflowIntegration(unittest.TestCase):
             preprocessing_enabled=False,  # Disabled
             transcribe_missing=True,
             transcription_provider="whisper",
+            transcript_cache_enabled=False,  # Disable to avoid early return
         )
 
         # Create a mock transcription provider

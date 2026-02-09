@@ -55,7 +55,12 @@ class TestMistralProviderStandalone(unittest.TestCase):
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "MistralProvider")
         # Verify Mistral client was created with API key
-        mock_mistral_class.assert_called_once_with(api_key="test-api-key-123")
+        # Note: timeout is not passed to Mistral SDK (not supported)
+        mock_mistral_class.assert_called_once()
+        call_kwargs = mock_mistral_class.call_args[1]
+        self.assertEqual(call_kwargs["api_key"], "test-api-key-123")
+        # Timeout is not included (Mistral SDK doesn't support it)
+        self.assertNotIn("timeout", call_kwargs)
 
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     def test_provider_creation_requires_api_key(self, mock_mistral_class):

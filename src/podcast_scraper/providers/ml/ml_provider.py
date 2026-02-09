@@ -18,9 +18,16 @@ import sys
 import time
 from contextlib import contextmanager
 from types import ModuleType
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING, Union
 
-from ... import config, models
+from ... import config
+
+if TYPE_CHECKING:
+    from ...models import Episode
+else:
+    from ... import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 from ...cache import get_whisper_cache_dir
 from ...exceptions import (
     ProviderConfigError,
@@ -29,6 +36,7 @@ from ...exceptions import (
     ProviderRuntimeError,
 )
 from ...utils import progress
+from ..capabilities import ProviderCapabilities
 from . import speaker_detection, summarizer
 from .whisper_utils import normalize_whisper_model_name
 
@@ -1097,7 +1105,7 @@ class MLProvider:
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes using spaCy NER.
@@ -1531,3 +1539,38 @@ class MLProvider:
             Heuristics dictionary if available, None otherwise
         """
         return self._spacy_heuristics
+
+    def get_capabilities(self) -> ProviderCapabilities:
+        """Get provider capabilities.
+
+        Returns:
+            ProviderCapabilities object describing ML provider capabilities
+        """
+        # MLProvider supports all three capabilities
+        # Get max_context_tokens from summarizer if available
+        max_tokens = 0
+        if self._reduce_model and hasattr(self._reduce_model, "model"):
+            try:
+                # Try to get max_position_embeddings from model config
+                config = getattr(self._reduce_model.model, "config", None)
+                if config:
+                    max_tokens = getattr(config, "max_position_embeddings", 0)
+            except Exception:
+                pass
+
+        # Default to LED model limit if not available
+        if max_tokens == 0:
+            max_tokens = 16384  # LED model default
+
+        return ProviderCapabilities(
+            supports_transcription=True,
+            supports_speaker_detection=True,
+            supports_summarization=True,
+            supports_audio_input=True,  # Whisper accepts audio files
+            supports_json_mode=False,  # ML providers output text only
+            max_context_tokens=max_tokens,
+            supports_tool_calls=False,  # ML models don't support tool calls
+            supports_system_prompt=False,  # ML models don't use system prompts
+            supports_streaming=False,
+            provider_name="ml",
+        )

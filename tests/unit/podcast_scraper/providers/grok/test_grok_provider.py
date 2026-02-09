@@ -13,9 +13,22 @@ Note: Grok does NOT support transcription (no audio API).
 import json
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.grok.grok_provider import GrokProvider
@@ -419,19 +432,16 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_rate_limit_error(self, mock_render, mock_openai):
         """Test handling of rate limit errors."""
-        try:
-            from openai import RateLimitError
-        except ImportError:
-            # Fallback if RateLimitError doesn't exist in this OpenAI SDK version
-            RateLimitError = Exception
+
+        # Since openai is mocked globally, we need to create a real exception class
+        class MockRateLimitError(Exception):
+            """Mock RateLimitError for testing."""
+
+            pass
 
         mock_client = Mock()
-        # RateLimitError requires a proper response object with request attribute
-        mock_response = Mock()
-        mock_response.request = Mock()
-        mock_client.chat.completions.create.side_effect = RateLimitError(
-            "Rate limit exceeded", response=mock_response, body=None
-        )
+        # Use a real exception class so it actually raises
+        mock_client.chat.completions.create.side_effect = MockRateLimitError("Rate limit exceeded")
         mock_openai.return_value = mock_client
 
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
@@ -450,19 +460,17 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_authentication_error(self, mock_render, mock_openai):
         """Test handling of authentication errors."""
-        try:
-            from openai import AuthenticationError
-        except ImportError:
-            # Fallback if AuthenticationError doesn't exist in this OpenAI SDK version
-            AuthenticationError = Exception
+
+        # Since openai is mocked globally, we need to create a real exception class
+        # that will be detected by the string-based error detection
+        class MockAuthenticationError(Exception):
+            """Mock AuthenticationError for testing."""
+
+            pass
 
         mock_client = Mock()
-        # AuthenticationError requires a proper response object with request attribute
-        mock_response = Mock()
-        mock_response.request = Mock()
-        mock_client.chat.completions.create.side_effect = AuthenticationError(
-            "Invalid API key", response=mock_response, body=None
-        )
+        # Use a real exception class so it actually raises
+        mock_client.chat.completions.create.side_effect = MockAuthenticationError("Invalid API key")
         mock_openai.return_value = mock_client
 
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
@@ -481,18 +489,17 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_invalid_model_error(self, mock_render, mock_openai):
         """Test handling of invalid model errors."""
-        try:
-            from openai import BadRequestError
-        except ImportError:
-            # Fallback if BadRequestError doesn't exist in this OpenAI SDK version
-            BadRequestError = Exception
+
+        # Since openai is mocked globally, we need to create a real exception class
+        class MockBadRequestError(Exception):
+            """Mock BadRequestError for testing."""
+
+            pass
 
         mock_client = Mock()
-        # BadRequestError requires a proper response object with request attribute
-        mock_response = Mock()
-        mock_response.request = Mock()
-        mock_client.chat.completions.create.side_effect = BadRequestError(
-            "Invalid model: unknown-model", response=mock_response, body=None
+        # Use a real exception class so it actually raises
+        mock_client.chat.completions.create.side_effect = MockBadRequestError(
+            "Invalid model: unknown-model"
         )
         mock_openai.return_value = mock_client
 

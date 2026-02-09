@@ -61,7 +61,10 @@ class Metrics:
 
     # Processing statistics
     transcripts_downloaded: int = 0  # Direct transcript downloads
-    transcripts_transcribed: int = 0  # Whisper transcriptions
+    transcripts_transcribed: int = 0  # Transcripts saved (from cache OR actual transcription)
+    # Note: This counts transcripts saved regardless of source (cache hit or actual transcription).
+    # When transcript cache is used, transcripts_transcribed will be > 0 but transcribe_count
+    # and avg_transcribe_seconds will be 0 (no actual transcription work performed).
     episodes_summarized: int = 0  # Episodes with summaries generated
     metadata_files_generated: int = 0  # Metadata files created
 
@@ -94,7 +97,11 @@ class Metrics:
         default_factory=list
     )  # Media download times per episode
     download_media_attempts: int = 0  # Total media download attempts (including reused/cached)
-    transcribe_times: List[float] = field(default_factory=list)  # Transcription times per episode
+    transcribe_times: List[float] = field(
+        default_factory=list
+    )  # Transcription times per episode (only for actual transcription, NOT cache hits)
+    # Note: When transcript cache is used, this list remains empty because record_transcribe_time()
+    # is never called (cache hit returns early). transcribe_count = len(transcribe_times) will be 0.
     extract_names_times: List[float] = field(
         default_factory=list
     )  # Speaker detection times per episode
@@ -513,8 +520,9 @@ class Metrics:
                     if error_message is not None:
                         episode_status.error_message = error_message
                     return
-            # If not found, create new status (shouldn't happen, but be safe)
-            logger.warning(f"Episode status not found for {episode_id}, creating new entry")
+            # If not found, create new status (defensive fallback - should be rare
+            # after initialization)
+            logger.debug(f"Episode status not found for {episode_id}, creating new entry")
             episode_status = EpisodeStatus(
                 episode_id=episode_id,
                 episode_number=0,  # Unknown number
@@ -599,8 +607,9 @@ class Metrics:
                             metrics.estimated_cost = 0.0
                         metrics.estimated_cost += estimated_cost
                     return
-            # If not found, create new metrics (shouldn't happen, but be safe)
-            logger.warning(f"Episode metrics not found for {episode_id}, creating new entry")
+            # If not found, create new metrics (defensive fallback - should be rare
+            # after initialization)
+            logger.debug(f"Episode metrics not found for {episode_id}, creating new entry")
             episode_metrics = EpisodeMetrics(
                 episode_id=episode_id,
                 episode_number=0,  # Unknown number
@@ -701,7 +710,9 @@ class Metrics:
             ),  # Episodes with actual download time recorded
             # Total download attempts (including reused/cached)
             "download_media_attempts": self.download_media_attempts,
-            "transcribe_count": len(self.transcribe_times),
+            "transcribe_count": len(
+                self.transcribe_times
+            ),  # Number of actual transcriptions (0 when cache is used)
             "extract_names_count": len(self.extract_names_times),
             "summarize_count": len(self.summarize_times),
             # LLM API call tracking

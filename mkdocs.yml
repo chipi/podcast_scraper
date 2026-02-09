@@ -68,8 +68,8 @@ nav:
       - PRD-014 Ollama Provider Integration: prd/PRD-014-ollama-provider-integration.md
       - PRD-015 Engineering Governance & Productivity Platform: prd/PRD-015-engineering-governance-productivity.md
       - PRD-016 Operational Observability & Pipeline Intelligence: prd/PRD-016-operational-observability-pipeline-intelligence.md
-      - PRD-017 Podcast Knowledge Graph: prd/PRD-017-podcast-knowledge-graph.md
-      - PRD-018 Database Export Knowledge Graph: prd/PRD-018-database-export-knowledge-graph.md
+      - PRD-017 Grounded Insight Layer: prd/PRD-017-grounded-insight-layer.md
+      - PRD-018 Database Projection for GIL: prd/PRD-018-database-projection-grounded-insight-layer.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -170,9 +170,9 @@ nav:
       - RFC-046 Materialization Architecture: rfc/RFC-046-materialization-architecture.md
       - RFC-047 Run Comparison Visual Tool: rfc/RFC-047-run-comparison-visual-tool.md
       - RFC-048 Evaluation Application Alignment: rfc/RFC-048-evaluation-application-alignment.md
-      - RFC-049 Podcast Knowledge Graph – Core Concepts: rfc/RFC-049-podcast-knowledge-graph-core.md
-      - RFC-050 Podcast Knowledge Graph – Use Cases: rfc/RFC-050-podcast-knowledge-graph-use-cases.md
-      - RFC-051 Database Export Knowledge Graph: rfc/RFC-051-database-export-knowledge-graph.md
+      - RFC-049 Grounded Insight Layer – Core Concepts: rfc/RFC-049-grounded-insight-layer-core.md
+      - RFC-050 Grounded Insight Layer – Use Cases: rfc/RFC-050-grounded-insight-layer-use-cases.md
+      - RFC-051 Grounded Insight Layer – Database Projection: rfc/RFC-051-grounded-insight-layer-database-projection.md
       - RFC-052 Locally Hosted LLM Models with Prompts: rfc/RFC-052-locally-hosted-llm-models-with-prompts.md
       - RFC-053 Adaptive Summarization Routing: rfc/RFC-053-adaptive-summarization-routing.md
       - RFC-054 Flexible E2E Mock Response Strategy: rfc/RFC-054-e2e-mock-response-strategy.md

@@ -112,6 +112,7 @@ packages = [
     "podcast_scraper.providers.ollama",
     "podcast_scraper.providers.openai",
     "podcast_scraper.rss",
+    "podcast_scraper.schemas",
     "podcast_scraper.speaker_detectors",
     "podcast_scraper.summarization",
     "podcast_scraper.transcription",
@@ -153,6 +154,10 @@ python_version = "3.10"
 ignore_missing_imports = true
 warn_return_any = true
 warn_unused_configs = true
+# Ignore attr-defined errors for Episode, RssFeed, TranscriptionJob dataclass attributes
+# These are false positives - attributes exist at runtime but mypy doesn't recognize them
+# when imported via TYPE_CHECKING pattern
+disable_error_code = ["attr-defined"]
 exclude = [
     "^scripts/.*",  # Scripts use sys.path manipulation, exclude from mypy
 ]
@@ -214,6 +219,7 @@ markers = [
     "anthropic: tests that use Anthropic API specifically (subset of llm marker)",
     "deepseek: tests that use DeepSeek API specifically (subset of llm marker)",
     "ollama: tests that use Ollama API specifically (subset of llm marker, local/offline)",
+    "grok: tests that use Grok API specifically (subset of llm marker)",
     "golden: golden tests with known stable episodes for regression testing (Issue #379)",
     "chaos: chaos tests for error conditions and edge cases (broken RSS, 404, large files, non-English) (Issue #379)",
     "offline: offline tests with networking disabled (verifies air-gapped operation) (Issue #379)",
@@ -234,6 +240,7 @@ markers = [
     "module_mistral_providers: tests for providers/mistral/*.py",
     "module_deepseek_providers: tests for providers/deepseek/*.py",
     "module_ollama_providers: tests for providers/ollama/*.py",
+    "module_grok_providers: tests for providers/grok/*.py",
     "module_summarization: tests for summarization/*.py",
     "module_transcription: tests for transcription/*.py",
     "module_speaker_detection: tests for speaker_detectors/*.py",

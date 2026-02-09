@@ -10,9 +10,22 @@ For standalone provider tests, see test_openai_provider.py.
 import json
 import os
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
@@ -41,11 +54,13 @@ class TestOpenAITranscriptionProviderFactory(unittest.TestCase):
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # base_url is only included if openai_api_base is set
-        expected_kwargs = {"api_key": "sk-test123"}
+        # Verify OpenAI client was created with API key, timeout, and optionally base_url
+        mock_openai_class.assert_called_once()
+        call_kwargs = mock_openai_class.call_args[1]
+        self.assertEqual(call_kwargs["api_key"], "sk-test123")
+        self.assertIn("timeout", call_kwargs)
         if self.cfg.openai_api_base:
-            expected_kwargs["base_url"] = self.cfg.openai_api_base
-        mock_openai_class.assert_called_once_with(**expected_kwargs)
+            self.assertEqual(call_kwargs.get("base_url"), self.cfg.openai_api_base)
         self.assertTrue(provider._transcription_initialized)
 
     @patch("openai.OpenAI")

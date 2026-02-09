@@ -9,7 +9,7 @@ import os
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +22,20 @@ if PROJECT_ROOT not in sys.path:
 parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
+
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+# (patch already imported above)
+
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
 
 from podcast_scraper.workflow import episode_processor
 
@@ -469,8 +483,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[("https://example.com/transcript.vtt", "vtt")]
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=False)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = ("https://example.com/transcript.vtt", "vtt")
         mock_process_transcript.return_value = (True, "transcript.vtt", "direct_download", 1000)
 
@@ -500,8 +516,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[("https://example.com/transcript.vtt", "vtt")]
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=False, delay_ms=100)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = ("https://example.com/transcript.vtt", "vtt")
         mock_process_transcript.return_value = (True, "transcript.vtt", "direct_download", 1000)
 
@@ -525,11 +543,13 @@ class TestProcessEpisodeDownload(unittest.TestCase):
     @patch("podcast_scraper.workflow.episode_processor.download_media_for_transcription")
     def test_process_episode_download_with_transcription(self, mock_download_media, mock_choose):
         """Test process_episode_download when transcription is needed."""
+        import queue
+
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
         cfg = create_test_config(transcribe_missing=True)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = None  # No transcript URL
         mock_job = Mock()
         mock_job.idx = 1
@@ -551,8 +571,8 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         self.assertIsNone(transcript_path)
         self.assertIsNone(transcript_source)
         self.assertEqual(bytes_downloaded, 0)
-        self.assertEqual(len(transcription_jobs), 1)
-        self.assertEqual(transcription_jobs[0], mock_job)
+        self.assertEqual(transcription_jobs.qsize(), 1)
+        self.assertEqual(transcription_jobs.get(), mock_job)
         mock_download_media.assert_called_once()
 
     @patch("podcast_scraper.workflow.episode_processor.choose_transcript_url")
@@ -561,11 +581,13 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         self, mock_download_media, mock_choose
     ):
         """Test process_episode_download uses lock when provided."""
+        import queue
+
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
         cfg = create_test_config(transcribe_missing=True)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_lock = Mock()
         mock_lock.__enter__ = Mock(return_value=None)
         mock_lock.__exit__ = Mock(return_value=None)
@@ -587,7 +609,7 @@ class TestProcessEpisodeDownload(unittest.TestCase):
 
         mock_lock.__enter__.assert_called_once()
         mock_lock.__exit__.assert_called_once()
-        self.assertEqual(len(transcription_jobs), 1)
+        self.assertEqual(transcription_jobs.qsize(), 1)
 
     @patch("podcast_scraper.workflow.episode_processor.choose_transcript_url")
     @patch("podcast_scraper.workflow.episode_processor.download_media_for_transcription")
@@ -598,8 +620,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=False)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = None
 
         success, transcript_path, transcript_source, bytes_downloaded = (
@@ -618,7 +642,7 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         self.assertIsNone(transcript_path)
         self.assertIsNone(transcript_source)
         self.assertEqual(bytes_downloaded, 0)
-        self.assertEqual(len(transcription_jobs), 0)
+        self.assertEqual(transcription_jobs.qsize(), 0)
         mock_download_media.assert_not_called()
 
     @patch("podcast_scraper.workflow.episode_processor.choose_transcript_url")
@@ -628,8 +652,10 @@ class TestProcessEpisodeDownload(unittest.TestCase):
         episode = create_test_episode(
             idx=1, transcript_urls=[], media_url="https://example.com/ep1.mp3"
         )
+        import queue
+
         cfg = create_test_config(transcribe_missing=True)
-        transcription_jobs = []
+        transcription_jobs = queue.Queue()
         mock_choose.return_value = None
 
         success, transcript_path, transcript_source, bytes_downloaded = (
@@ -1046,6 +1072,165 @@ class TestTranscribeMediaToText(unittest.TestCase):
             # Should still report bytes downloaded (file was downloaded before validation)
             self.assertGreater(bytes_downloaded, 0)
             mock_cleanup.assert_called_once()
+        finally:
+            if os.path.exists(temp_media):
+                os.unlink(temp_media)
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.workflow.episode_processor._format_transcript_if_needed")
+    @patch("podcast_scraper.workflow.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
+    @patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache")
+    @patch("podcast_scraper.cache.transcript_cache.get_audio_hash")
+    def test_transcribe_media_to_text_cache_with_whisper_model_object(
+        self,
+        mock_get_hash,
+        mock_save_cache,
+        mock_cleanup,
+        mock_save,
+        mock_format,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+    ):
+        """Test that non-string model objects are converted to config model names for cache."""
+        import tempfile
+
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+
+        # Create temp media file
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            f.write(b"fake audio" * 1000)
+            temp_media = f.name
+            job.temp_media = temp_media
+
+        try:
+            cfg = create_test_config(
+                transcribe_missing=True,
+                transcription_provider="whisper",
+                whisper_model="base.en",
+                transcript_cache_enabled=True,
+            )
+            mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+            mock_exists.return_value = True
+            mock_getsize.return_value = 10000
+            mock_get_hash.return_value = "test_hash_12345"
+
+            # Create mock provider with non-string model (simulating MLProvider.model)
+            mock_provider = Mock()
+            mock_provider.transcribe_with_segments.return_value = (
+                {"text": "Hello world", "segments": []},
+                10.5,
+            )
+            # Simulate MLProvider.model returning a Whisper object (not a string)
+            mock_model_object = Mock()
+            mock_model_object.__class__.__name__ = "Whisper"
+            mock_provider.model = mock_model_object  # Non-string model
+            mock_provider.name = "ml"  # Set name attribute directly
+            mock_format.return_value = "Hello world"
+            mock_save.return_value = "0001 - Episode_1.txt"
+
+            success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+                job=job,
+                cfg=cfg,
+                whisper_model=None,
+                run_suffix=None,
+                effective_output_dir="/output",
+                transcription_provider=mock_provider,
+                pipeline_metrics=None,
+            )
+
+            self.assertTrue(success)
+            # Verify cache was called with string model name from config, not the object
+            mock_save_cache.assert_called_once()
+            call_args = mock_save_cache.call_args
+            # Check that model is the string from config, not the object
+            self.assertEqual(call_args[1]["model"], "base.en")
+            self.assertEqual(call_args[1]["provider_name"], "ml")
+        finally:
+            if os.path.exists(temp_media):
+                os.unlink(temp_media)
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.workflow.episode_processor._format_transcript_if_needed")
+    @patch("podcast_scraper.workflow.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
+    @patch("podcast_scraper.cache.transcript_cache.save_transcript_to_cache")
+    @patch("podcast_scraper.cache.transcript_cache.get_audio_hash")
+    def test_transcribe_media_to_text_cache_with_openai_provider(
+        self,
+        mock_get_hash,
+        mock_save_cache,
+        mock_cleanup,
+        mock_save,
+        mock_format,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+    ):
+        """Test that OpenAI provider uses transcription_model attribute for cache."""
+        import tempfile
+
+        job = Mock()
+        job.idx = 1
+        job.ep_title_safe = "Episode_1"
+        job.temp_media = "/tmp/ep1.mp3"
+        job.detected_speaker_names = None
+
+        # Create temp media file
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            f.write(b"fake audio" * 1000)
+            temp_media = f.name
+            job.temp_media = temp_media
+
+        try:
+            cfg = create_test_config(
+                transcribe_missing=True,
+                transcription_provider="openai",
+                openai_api_key="sk-test",
+                openai_transcription_model="whisper-1",
+                transcript_cache_enabled=True,
+            )
+            mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+            mock_exists.return_value = True
+            mock_getsize.return_value = 10000
+            mock_get_hash.return_value = "test_hash_12345"
+
+            # Create mock OpenAI provider with transcription_model attribute
+            mock_provider = Mock()
+            mock_provider.transcribe_with_segments.return_value = (
+                {"text": "Hello world", "segments": []},
+                10.5,
+            )
+            mock_provider.transcription_model = "whisper-1"  # String attribute
+            mock_provider.name = "openai"  # Set name attribute directly
+            mock_format.return_value = "Hello world"
+            mock_save.return_value = "0001 - Episode_1.txt"
+
+            success, transcript_path, bytes_downloaded = episode_processor.transcribe_media_to_text(
+                job=job,
+                cfg=cfg,
+                whisper_model=None,
+                run_suffix=None,
+                effective_output_dir="/output",
+                transcription_provider=mock_provider,
+                pipeline_metrics=None,
+            )
+
+            self.assertTrue(success)
+            # Verify cache was called with transcription_model from provider
+            mock_save_cache.assert_called_once()
+            call_args = mock_save_cache.call_args
+            self.assertEqual(call_args[1]["model"], "whisper-1")
+            self.assertEqual(call_args[1]["provider_name"], "openai")
         finally:
             if os.path.exists(temp_media):
                 os.unlink(temp_media)

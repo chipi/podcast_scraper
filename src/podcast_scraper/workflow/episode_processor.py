@@ -5,13 +5,20 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import queue
 import threading
 import time
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
+
+if TYPE_CHECKING:
+    from ..models import Episode, TranscriptionJob
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..rss import choose_transcript_url, downloader
 from ..utils import filesystem
@@ -124,14 +131,14 @@ def derive_transcript_extension(
 
 
 def download_media_for_transcription(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
     temp_dir: str,
     effective_output_dir: str,
     run_suffix: Optional[str],
     detected_speaker_names: Optional[List[str]] = None,
     pipeline_metrics=None,
-) -> Optional[models.TranscriptionJob]:
+) -> Optional[TranscriptionJob]:  # type: ignore[valid-type]
     """Download media file for Whisper transcription.
 
     Args:
@@ -160,7 +167,7 @@ def download_media_for_transcription(
             # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
             # This prevents speaker names from one episode leaking to another
             speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
-            return models.TranscriptionJob(
+            return TranscriptionJob(  # type: ignore[no-any-return]
                 idx=episode.idx,
                 ep_title=episode.title,
                 ep_title_safe=episode.title_safe,
@@ -190,7 +197,7 @@ def download_media_for_transcription(
             episode.media_url,
         )
         logger.info(f"    [dry-run] Whisper output would be: {final_out_path}")
-        return models.TranscriptionJob(
+        return TranscriptionJob(  # type: ignore[no-any-return,valid-type]
             idx=episode.idx, ep_title=episode.title, ep_title_safe=episode.title_safe, temp_media=""
         )
     else:
@@ -304,7 +311,7 @@ def download_media_for_transcription(
     # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
     # This prevents speaker names from one episode leaking to another
     speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
-    return models.TranscriptionJob(
+    return TranscriptionJob(  # type: ignore[no-any-return,valid-type]
         idx=episode.idx,
         ep_title=episode.title,
         ep_title_safe=episode.title_safe,
@@ -361,7 +368,7 @@ def _format_transcript_if_needed(
 
 def _save_transcript_file(
     text: str,
-    job: models.TranscriptionJob,
+    job: TranscriptionJob,  # type: ignore[valid-type]
     run_suffix: Optional[str],
     effective_output_dir: str,
     pipeline_metrics=None,
@@ -411,7 +418,7 @@ def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) ->
 
 
 def transcribe_media_to_text(
-    job: models.TranscriptionJob,
+    job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
     whisper_model,
     run_suffix: Optional[str],
@@ -492,6 +499,48 @@ def transcribe_media_to_text(
             # File size check is optional (for metrics only)
             # Use default value of 0 if stat fails
             pass
+
+    # Transcript caching: Check cache before transcription
+    # (enables fast multi-provider experimentation)
+    if cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media):
+        from podcast_scraper.cache import transcript_cache
+
+        cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
+        audio_hash = transcript_cache.get_audio_hash(temp_media)
+        cached_transcript = transcript_cache.get_cached_transcript(audio_hash, cache_dir)
+        if cached_transcript:
+            logger.info(
+                "[%s] Transcript cache hit (hash=%s), skipping transcription",
+                job.idx,
+                audio_hash,
+            )
+            # Save cached transcript to output file
+            rel_path = _save_transcript_file(
+                cached_transcript,
+                job,
+                run_suffix,
+                effective_output_dir,
+                pipeline_metrics=pipeline_metrics,
+            )
+            logger.info(f"    saved transcript from cache: {rel_path}")
+            # Update episode status: transcribed (from cache)
+            # Note: We do NOT call pipeline_metrics.record_transcribe_time() here because
+            # no actual transcription work was performed. This means:
+            # - transcribe_times list remains empty
+            # - transcribe_count = len(transcribe_times) = 0
+            # - avg_transcribe_seconds = 0.0
+            # However, transcripts_transcribed is still incremented in transcription.py
+            # because a transcript was successfully saved (from cache).
+            if pipeline_metrics is not None:
+                if hasattr(job, "episode"):
+                    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+                    episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                    pipeline_metrics.update_episode_status(
+                        episode_id=episode_id, stage="transcribed"
+                    )
+            _cleanup_temp_media(temp_media, cfg)
+            return True, rel_path, bytes_downloaded
 
     # Audio preprocessing (RFC-040): Preprocess audio BEFORE passing to any provider
     # This happens at the pipeline level, not within providers
@@ -710,6 +759,59 @@ def transcribe_media_to_text(
         )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
 
+        # Save transcript to cache for future use (enables fast multi-provider experimentation)
+        if cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media):
+            from podcast_scraper.cache import transcript_cache
+
+            cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
+            audio_hash = transcript_cache.get_audio_hash(temp_media)
+            # Get provider name and model for metadata
+            provider_name = None
+            model = None
+            if transcription_provider:
+                provider_name = (
+                    getattr(transcription_provider, "name", None)
+                    or type(transcription_provider).__name__.replace("Provider", "").lower()
+                )
+                # Try to get model name from provider
+                # Note: MLProvider.model returns Whisper object (not JSON serializable),
+                # so we need to get model name from config or provider attributes
+                if hasattr(transcription_provider, "model"):
+                    model = getattr(transcription_provider, "model", None)
+                    # If model is not a string (e.g., Whisper model object), get name from config
+                    if model is not None and not isinstance(model, str):
+                        # Get model name from config based on provider type
+                        if cfg.transcription_provider == "whisper":
+                            model = cfg.whisper_model
+                        elif cfg.transcription_provider == "openai":
+                            model = getattr(cfg, "openai_transcription_model", "whisper-1")
+                        elif cfg.transcription_provider == "gemini":
+                            model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+                        elif cfg.transcription_provider == "mistral":
+                            model = getattr(cfg, "mistral_transcription_model", None)
+                        elif cfg.transcription_provider == "anthropic":
+                            model = getattr(cfg, "anthropic_transcription_model", None)
+                        elif cfg.transcription_provider == "deepseek":
+                            model = getattr(cfg, "deepseek_transcription_model", None)
+                        elif cfg.transcription_provider == "grok":
+                            model = getattr(cfg, "grok_transcription_model", None)
+                        elif cfg.transcription_provider == "ollama":
+                            model = getattr(cfg, "ollama_transcription_model", None)
+                        else:
+                            # Fallback: try to get transcription_model attribute from provider
+                            model = getattr(transcription_provider, "transcription_model", None)
+                # If provider has transcription_model attribute (like OpenAIProvider), prefer that
+                elif hasattr(transcription_provider, "transcription_model"):
+                    model = getattr(transcription_provider, "transcription_model", None)
+            try:
+                transcript_cache.save_transcript_to_cache(
+                    audio_hash, text, provider_name=provider_name, model=model, cache_dir=cache_dir
+                )
+                logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
+            except Exception as exc:
+                # Cache save failure is non-fatal - log and continue
+                logger.warning("[%s] Failed to save transcript to cache: %s", job.idx, exc)
+
         # Record transcription time if metrics available
         if pipeline_metrics is not None:
             pipeline_metrics.record_transcribe_time(tc_elapsed)
@@ -766,7 +868,7 @@ def transcribe_media_to_text(
 
 
 def _determine_output_path(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     transcript_url: str,
     transcript_type: Optional[str],
     effective_output_dir: str,
@@ -798,7 +900,7 @@ def _determine_output_path(
 
 
 def _check_existing_transcript(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
     run_suffix: Optional[str],
     cfg: config.Config,
@@ -865,7 +967,7 @@ def _write_transcript_file(
     data: bytes,
     out_path: str,
     cfg: config.Config,
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     effective_output_dir: str,
 ) -> Optional[str]:
     """Write transcript data to file.
@@ -898,7 +1000,7 @@ def _write_transcript_file(
 
 
 def process_transcript_download(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     transcript_url: str,
     transcript_type: Optional[str],
     cfg: config.Config,
@@ -985,12 +1087,12 @@ def process_transcript_download(
 
 
 def process_episode_download(
-    episode: models.Episode,
+    episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
     temp_dir: Optional[str],
     effective_output_dir: str,
     run_suffix: Optional[str],
-    transcription_jobs: List[models.TranscriptionJob],
+    transcription_jobs: queue.Queue[TranscriptionJob],  # type: ignore[valid-type]
     transcription_jobs_lock: Optional[threading.Lock],
     detected_speaker_names: Optional[List[str]] = None,
     pipeline_metrics=None,
@@ -1003,8 +1105,8 @@ def process_episode_download(
         temp_dir: Temporary directory for downloads
         effective_output_dir: Output directory path
         run_suffix: Optional suffix for output filename
-        transcription_jobs: List to append TranscriptionJob objects to
-        transcription_jobs_lock: Lock for thread-safe access to transcription_jobs
+        transcription_jobs: Queue to put TranscriptionJob objects into (bounded queue)
+        transcription_jobs_lock: Lock for thread-safe access (may be redundant with Queue)
 
     Returns:
         Tuple of (success: bool, transcript_file_path: Optional[str],
@@ -1041,13 +1143,19 @@ def process_episode_download(
             pipeline_metrics=pipeline_metrics,
         )
         if job:
+            # Use queue.put() with blocking=True to provide backpressure when queue is full
+            # This prevents unbounded memory growth when downloads outpace transcription
+            # The lock is kept for compatibility but Queue is already thread-safe
             if transcription_jobs_lock:
                 with transcription_jobs_lock:
-                    transcription_jobs.append(job)
+                    transcription_jobs.put(job, block=True, timeout=None)
             else:
-                transcription_jobs.append(job)
+                transcription_jobs.put(job, block=True, timeout=None)
             logger.debug(
-                "[%s] Added transcription job (queue size=%s)", episode.idx, len(transcription_jobs)
+                "[%s] Added transcription job (queue size=%s/%s)",
+                episode.idx,
+                transcription_jobs.qsize(),
+                transcription_jobs.maxsize,
             )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)

@@ -272,7 +272,16 @@ class TestMultiEpisodeE2E:
                     assert (
                         metadata["summary"] is not None
                     ), f"Summary should not be None (file: {metadata_file.name})"
-                    # Verify summary has content
-                    assert metadata["summary"].get(
-                        "short_summary"
-                    ), f"Summary should have short_summary field (file: {metadata_file.name})"
+                    # Verify summary has normalized schema fields
+                    assert "bullets" in metadata["summary"], (
+                        f"Summary should have bullets field (normalized schema) "
+                        f"(file: {metadata_file.name})"
+                    )
+                    assert (
+                        len(metadata["summary"]["bullets"]) > 0
+                    ), f"bullets should not be empty (file: {metadata_file.name})"
+                    # short_summary is computed from bullets
+                    assert metadata["summary"].get("short_summary"), (
+                        f"Summary should have short_summary field (computed) "
+                        f"(file: {metadata_file.name})"
+                    )

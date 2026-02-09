@@ -37,6 +37,37 @@ spec.loader.exec_module(parent_conftest)
 create_test_config = parent_conftest.create_test_config
 create_test_episode = parent_conftest.create_test_episode
 
+# Mock openai before importing modules that require it
+# Unit tests run without openai package installed
+from unittest.mock import MagicMock
+
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+
+
+# Add real exception classes so they can be used in retry_with_metrics
+class MockAPIError(Exception):
+    """Mock APIError for testing."""
+
+    pass
+
+
+class MockRateLimitError(Exception):
+    """Mock RateLimitError for testing."""
+
+    pass
+
+
+mock_openai.APIError = MockAPIError
+mock_openai.RateLimitError = MockRateLimitError
+_patch_openai = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+    },
+)
+_patch_openai.start()
+
 from podcast_scraper import config  # noqa: E402
 
 # OpenAI provider still uses ValueError/RuntimeError (not yet migrated to structured exceptions)
@@ -255,7 +286,9 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        with self.assertRaises(ValueError) as context:
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with self.assertRaises(ProviderRuntimeError) as context:
             detector.detect_speakers("Title", "Description", set())
 
         self.assertIn("speaker detection failed", str(context.exception))

@@ -5,10 +5,18 @@ This module contains NamedTuple types used throughout the workflow pipeline.
 
 from __future__ import annotations
 
+import queue
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set
+from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set, TYPE_CHECKING, TypeAlias
 
-from .. import models
+if TYPE_CHECKING:
+    from ..models import Episode, TranscriptionJob
+else:
+    from .. import models
+
+    Episode: TypeAlias = models.Episode  # type: ignore[assignment, misc]
+    TranscriptionJob: TypeAlias = models.TranscriptionJob  # type: ignore[assignment, misc]
 
 
 class FeedMetadata(NamedTuple):
@@ -27,20 +35,21 @@ class HostDetectionResult(NamedTuple):
     speaker_detector: Any = None  # Stage 3: Optional SpeakerDetector instance
 
 
-class TranscriptionResources(NamedTuple):
+@dataclass
+class TranscriptionResources:
     """Resources needed for transcription."""
 
     transcription_provider: Any  # Stage 2: TranscriptionProvider instance
     temp_dir: Optional[str]
-    transcription_jobs: List[models.TranscriptionJob]
-    transcription_jobs_lock: Optional[Any]  # threading.Lock
+    transcription_jobs: queue.Queue[TranscriptionJob]  # type: ignore[valid-type]
+    transcription_jobs_lock: Optional[Any]  # threading.Lock (may become redundant with Queue)
     saved_counter_lock: Optional[Any]  # threading.Lock
 
 
 class ProcessingJob(NamedTuple):
     """Job for processing (metadata/summarization) stage."""
 
-    episode: models.Episode
+    episode: Episode  # type: ignore[valid-type]
     transcript_path: str
     transcript_source: Literal["direct_download", "whisper_transcription"]
     detected_names: Optional[List[str]]

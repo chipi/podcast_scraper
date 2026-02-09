@@ -4,11 +4,11 @@
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, ML engineers, downstream consumers, power users
 - **Related PRDs**:
-  - `docs/prd/PRD-017-podcast-knowledge-graph.md` (Grounded Insight Layer)
+  - `docs/prd/PRD-017-grounded-insight-layer.md` (Grounded Insight Layer)
   - `docs/prd/PRD-018-database-export-knowledge-graph.md` (Database Export)
 - **Related RFCs**:
-  - `docs/rfc/RFC-049-podcast-knowledge-graph-core.md` (Core Concepts & Data Model)
-  - `docs/rfc/RFC-050-podcast-knowledge-graph-use-cases.md` (Use Cases & Consumption)
+  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (Core Concepts & Data Model)
+  - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md` (Use Cases & Consumption)
 - **Related Issues**:
   - Issue #31: Metadata persistence & structure
   - Issue #40: Data storage / DB integration
@@ -708,10 +708,10 @@ N/A - This is a new feature, not a migration from an existing system.
 
 ## References
 
-- **Related PRD**: `docs/prd/PRD-017-podcast-knowledge-graph.md`
+- **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
 - **Related PRD**: `docs/prd/PRD-018-database-export-knowledge-graph.md`
-- **Related RFC**: `docs/rfc/RFC-049-podcast-knowledge-graph-core.md`
-- **Related RFC**: `docs/rfc/RFC-050-podcast-knowledge-graph-use-cases.md`
+- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
+- **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
 - **Ontology Specification**: `docs/kg/ontology.md`
 - **Schema Specification**: `docs/kg/kg.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`

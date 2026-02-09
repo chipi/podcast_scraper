@@ -620,13 +620,20 @@ def _save_openai_responses(  # noqa: C901
         response_lines.append("\n📄 SUMMARIZATION RESULT:")
         response_lines.append("-" * 80)
         if isinstance(summary_data, dict):
+            # Check normalized schema fields
+            bullets = summary_data.get("bullets", [])
+            if bullets:
+                response_lines.append("Bullets:")
+                for bullet in bullets:
+                    response_lines.append(f"  • {bullet}")
+            # short_summary is computed from bullets
             short_summary = summary_data.get("short_summary", "")
             if short_summary:
-                response_lines.append(short_summary)
-            else:
-                response_lines.append("  (Summary exists but short_summary field is empty)")
+                response_lines.append(f"\nShort Summary: {short_summary}")
+            elif not bullets:
+                response_lines.append("  (Summary exists but bullets field is empty)")
         else:
-            # Summary might be a string directly
+            # Summary might be a string directly (should not happen with normalized schema)
             response_lines.append(str(summary_data))
         response_lines.append("")
 
@@ -847,10 +854,17 @@ class TestOpenAIProviderE2E:
                 ), "Summary should exist in metadata when generate_summaries=True"
                 summary_data = metadata_content.get("summary", {})
                 if isinstance(summary_data, dict):
+                    # Check normalized schema fields (required)
+                    assert (
+                        "bullets" in summary_data
+                    ), "Summary should have bullets field (normalized schema)"
+                    assert isinstance(summary_data["bullets"], list), "bullets should be a list"
+                    assert len(summary_data["bullets"]) > 0, "bullets should not be empty"
+                    # short_summary is computed from bullets
                     short_summary = summary_data.get("short_summary", "")
                     assert len(short_summary) > 0, "Summary should not be empty"
                 else:
-                    assert len(str(summary_data)) > 0, "Summary should not be empty"
+                    assert False, "Summary should be a dict with normalized schema format"
 
             # Save responses for all episodes
             _save_all_episode_responses(

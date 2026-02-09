@@ -201,3 +201,34 @@ class TestLogParallelismConfiguration(unittest.TestCase):
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
         serialized_log = next((str(call) for call in log_calls if "serialized" in str(call)), None)
         self.assertIsNone(serialized_log, "Should not have serialization log for CPU")
+
+
+@pytest.mark.unit
+class TestEpisodeMetricsInitialization(unittest.TestCase):
+    """Tests for episode metrics initialization in run_pipeline."""
+
+    def test_episode_metrics_initialized_before_update(self):
+        """Test that episode metrics can be initialized before update to prevent warnings."""
+        from podcast_scraper.workflow import metrics
+
+        pipeline_metrics = metrics.Metrics()
+        episode_id = "test_episode_123"
+        episode_number = 1
+
+        # Initialize metrics upfront (like run_pipeline does)
+        pipeline_metrics.get_or_create_episode_metrics(
+            episode_id=episode_id, episode_number=episode_number
+        )
+
+        # Now update metrics - should not trigger warning
+        with patch("podcast_scraper.workflow.metrics.logger") as mock_logger:
+            pipeline_metrics.update_episode_metrics(
+                episode_id=episode_id, audio_sec=100.0, transcribe_sec=5.0
+            )
+            # Verify no debug log about creating new entry (metrics should exist)
+            debug_calls = [
+                str(call)
+                for call in mock_logger.debug.call_args_list
+                if "creating new entry" in str(call)
+            ]
+            self.assertEqual(len(debug_calls), 0, "Should not log debug message when metrics exist")

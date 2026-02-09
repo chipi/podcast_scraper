@@ -1355,11 +1355,10 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         from datetime import datetime
 
         mock_summary = metadata.SummaryMetadata(
-            short_summary="Test summary",
+            bullets=["Test bullet 1", "Test bullet 2"],  # Required field
             generated_at=datetime.now(),
-            model_used="test-model",
-            provider="local",
             word_count=100,
+            schema_status="valid",
         )
         mock_generate_summary.return_value = (mock_summary, None)
 

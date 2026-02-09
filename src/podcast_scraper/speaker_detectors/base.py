@@ -5,11 +5,17 @@ This module defines the protocol that all speaker detection providers must imple
 
 from __future__ import annotations
 
-from typing import Protocol, Set, Tuple
+from typing import Protocol, runtime_checkable, Set, Tuple, TYPE_CHECKING
 
-from podcast_scraper import models
+if TYPE_CHECKING:
+    from podcast_scraper.models import Episode
+else:
+    from podcast_scraper import models
+
+    Episode = models.Episode  # type: ignore[assignment]
 
 
+@runtime_checkable
 class SpeakerDetector(Protocol):
     """Protocol for speaker detection providers.
 
@@ -66,7 +72,7 @@ class SpeakerDetector(Protocol):
 
     def analyze_patterns(
         self,
-        episodes: list[models.Episode],
+        episodes: list[Episode],  # type: ignore[valid-type]
         known_hosts: Set[str],
     ) -> dict[str, object] | None:
         """Analyze patterns across multiple episodes (optional).

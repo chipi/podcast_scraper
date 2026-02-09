@@ -22,6 +22,8 @@ else:
     from podcast_scraper.providers.params import SpeakerDetectionParams
     from podcast_scraper.speaker_detectors.base import SpeakerDetector
 
+from podcast_scraper.utils.protocol_verification import verify_protocol_compliance
+
 
 def create_speaker_detector(  # noqa: C901
     cfg_or_provider_type: Union[config.Config, str],
@@ -115,7 +117,10 @@ def create_speaker_detector(  # noqa: C901
                 from ..workflow import _preloaded_ml_provider
 
                 if _preloaded_ml_provider is not None:
-                    return cast(SpeakerDetector, _preloaded_ml_provider)
+                    provider = cast(SpeakerDetector, _preloaded_ml_provider)
+                    # Runtime protocol verification (dev-mode only)
+                    verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+                    return provider
             except (ImportError, AttributeError):
                 # workflow module not available (e.g., in tests), create new instance
                 pass
@@ -134,9 +139,13 @@ def create_speaker_detector(  # noqa: C901
                 speaker_detector_provider="spacy",
                 ner_model=params.model_name,
             )
-            return MLProvider(cfg)
+            provider = MLProvider(cfg)
         else:
-            return MLProvider(cfg)
+            provider = MLProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "openai":
         from ..providers.openai.openai_provider import OpenAIProvider
 
@@ -153,9 +162,13 @@ def create_speaker_detector(  # noqa: C901
                 openai_temperature=params.temperature if params.temperature is not None else 0.3,
                 openai_api_key=os.getenv("OPENAI_API_KEY"),  # Load from env
             )
-            return OpenAIProvider(cfg)
+            provider = OpenAIProvider(cfg)
         else:
-            return OpenAIProvider(cfg)
+            provider = OpenAIProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "gemini":
         from ..providers.gemini.gemini_provider import GeminiProvider
 
@@ -172,9 +185,13 @@ def create_speaker_detector(  # noqa: C901
                 gemini_temperature=params.temperature if params.temperature is not None else 0.3,
                 gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
             )
-            return GeminiProvider(cfg)
+            provider = GeminiProvider(cfg)
         else:
-            return GeminiProvider(cfg)
+            provider = GeminiProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "mistral":
         from ..providers.mistral.mistral_provider import MistralProvider
 
@@ -193,9 +210,13 @@ def create_speaker_detector(  # noqa: C901
                 mistral_temperature=params.temperature if params.temperature is not None else 0.3,
                 mistral_api_key=os.getenv("MISTRAL_API_KEY"),  # Load from env
             )
-            return MistralProvider(cfg)
+            provider = MistralProvider(cfg)
         else:
-            return MistralProvider(cfg)
+            provider = MistralProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "grok":
         from ..providers.grok.grok_provider import GrokProvider
 
@@ -212,9 +233,13 @@ def create_speaker_detector(  # noqa: C901
                 grok_temperature=params.temperature if params.temperature is not None else 0.3,
                 grok_api_key=os.getenv("GROK_API_KEY"),  # Load from env
             )
-            return GrokProvider(cfg)
+            provider = GrokProvider(cfg)
         else:
-            return GrokProvider(cfg)
+            provider = GrokProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "deepseek":
         from ..providers.deepseek.deepseek_provider import DeepSeekProvider
 
@@ -231,9 +256,13 @@ def create_speaker_detector(  # noqa: C901
                 deepseek_temperature=params.temperature if params.temperature is not None else 0.3,
                 deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),  # Load from env
             )
-            return DeepSeekProvider(cfg)
+            provider = DeepSeekProvider(cfg)
         else:
-            return DeepSeekProvider(cfg)
+            provider = DeepSeekProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "ollama":
         from ..providers.ollama.ollama_provider import OllamaProvider
 
@@ -250,9 +279,13 @@ def create_speaker_detector(  # noqa: C901
                 ollama_temperature=params.temperature if params.temperature is not None else 0.3,
                 ollama_api_base=os.getenv("OLLAMA_API_BASE", "http://localhost:11434/v1"),
             )
-            return OllamaProvider(cfg)
+            provider = OllamaProvider(cfg)
         else:
-            return OllamaProvider(cfg)
+            provider = OllamaProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     elif provider_type == "anthropic":
         from ..providers.anthropic.anthropic_provider import AnthropicProvider
 
@@ -273,9 +306,13 @@ def create_speaker_detector(  # noqa: C901
                 ),
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),  # Load from env
             )
-            return AnthropicProvider(cfg)
+            provider = AnthropicProvider(cfg)
         else:
-            return AnthropicProvider(cfg)
+            provider = AnthropicProvider(cfg)
+
+        # Runtime protocol verification (dev-mode only)
+        verify_protocol_compliance(provider, SpeakerDetector, "SpeakerDetector")
+        return provider
     else:
         raise ValueError(
             f"Unsupported speaker detector type: {provider_type}. "

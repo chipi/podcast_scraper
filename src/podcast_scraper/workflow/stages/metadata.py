@@ -7,9 +7,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, List, Literal, Optional
+from typing import Any, List, Literal, Optional, TYPE_CHECKING
 
 from ... import config, models
+
+if TYPE_CHECKING:
+    from ...models import Episode, RssFeed
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import extract_episode_metadata, extract_episode_published_date
 from .. import metrics
 from ..metadata_generation import (
@@ -21,8 +27,8 @@ logger = logging.getLogger(__name__)
 
 
 def call_generate_metadata(
-    episode: models.Episode,
-    feed: models.RssFeed,
+    episode: Episode,  # type: ignore[valid-type]
+    feed: RssFeed,  # type: ignore[valid-type]
     cfg: config.Config,
     effective_output_dir: str,
     run_suffix: Optional[str],
@@ -121,8 +127,8 @@ def call_generate_metadata(
 
 
 def generate_episode_metadata(
-    feed: models.RssFeed,
-    episode: models.Episode,
+    feed: RssFeed,  # type: ignore[valid-type]
+    episode: Episode,  # type: ignore[valid-type]
     feed_url: str,
     cfg: config.Config,
     output_dir: str,

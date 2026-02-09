@@ -6,9 +6,15 @@ This module handles RSS feed fetching, parsing, and episode preparation.
 from __future__ import annotations
 
 import logging
-from typing import List
+from typing import List, TYPE_CHECKING
 
 from ... import config, models
+
+if TYPE_CHECKING:
+    from ...models import Episode, RssFeed
+else:
+    Episode = models.Episode  # type: ignore[assignment]
+    RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import (
     create_episode_from_item,
     extract_feed_metadata,
@@ -18,7 +24,7 @@ from ..types import FeedMetadata
 logger = logging.getLogger(__name__)
 
 
-def fetch_and_parse_feed(cfg: config.Config) -> tuple[models.RssFeed, bytes]:
+def fetch_and_parse_feed(cfg: config.Config) -> tuple[RssFeed, bytes]:  # type: ignore[valid-type]
     """Fetch and parse RSS feed.
 
     Fetches RSS feed once and returns both the parsed feed and raw XML bytes
@@ -52,16 +58,14 @@ def fetch_and_parse_feed(cfg: config.Config) -> tuple[models.RssFeed, bytes]:
     except Exception as exc:
         raise ValueError(f"Failed to parse RSS XML: {exc}") from exc
 
-    feed = models.RssFeed(
-        title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url
-    )
+    feed = RssFeed(title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url)
     logger.debug("Fetched RSS feed title=%s (%s items)", feed.title, len(feed.items))
 
     return feed, rss_bytes
 
 
 def extract_feed_metadata_for_generation(
-    cfg: config.Config, feed: models.RssFeed, rss_bytes: bytes
+    cfg: config.Config, feed: RssFeed, rss_bytes: bytes  # type: ignore[valid-type]
 ) -> FeedMetadata:
     """Extract feed metadata for metadata generation.
 
@@ -86,7 +90,9 @@ def extract_feed_metadata_for_generation(
         return FeedMetadata(None, None, None)
 
 
-def prepare_episodes_from_feed(feed: models.RssFeed, cfg: config.Config) -> List[models.Episode]:
+def prepare_episodes_from_feed(
+    feed: RssFeed, cfg: config.Config  # type: ignore[valid-type]
+) -> List[Episode]:  # type: ignore[valid-type]
     """Create Episode objects from RSS items.
 
     Args:

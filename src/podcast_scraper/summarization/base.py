@@ -5,9 +5,10 @@ This module defines the protocol that all summarization providers must implement
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 
+@runtime_checkable
 class SummarizationProvider(Protocol):
     """Protocol for summarization providers.
 

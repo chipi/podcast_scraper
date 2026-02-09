@@ -6,9 +6,24 @@ and edge cases that strengthen the refactor.
 """
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+
+# Mock openai and httpx before importing modules that require them
+# Unit tests run without openai/httpx packages installed
+# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+mock_openai = MagicMock()
+mock_openai.OpenAI = Mock()
+mock_httpx = MagicMock()
+_patch_ollama = patch.dict(
+    "sys.modules",
+    {
+        "openai": mock_openai,
+        "httpx": mock_httpx,
+    },
+)
+_patch_ollama.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.ollama.ollama_provider import OllamaProvider

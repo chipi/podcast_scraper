@@ -601,7 +601,49 @@ curl -I "https://example.com/feed.xml"
 # Validate RSS format
 
 python -c "import feedparser; print(feedparser.parse('https://example.com/feed.xml'))"
-```yaml
+```
+
+---
+
+## Speaker Detection Issues
+
+### Organization Names in RSS Feeds (Issue #393)
+
+**Symptom:** Speaker detection returns organization names (e.g., "NPR", "BBC") instead of actual host names, or no hosts are detected.
+
+**Cause:** RSS feed author tags may contain organization/publisher names rather than actual host names. The system automatically filters out organization names that match common patterns (all caps, short, no spaces).
+
+**How it works:**
+
+- The system checks RSS author tags for organization patterns:
+  - All uppercase (e.g., "NPR", "BBC", "CNN")
+  - Short length (≤10 characters)
+  - No spaces
+- Organization names are logged as "publisher metadata" and excluded from host detection
+- The system falls back to NER extraction from feed title/description if author tags only contain organizations
+
+**Solutions:**
+
+1. **Use manual speaker names** (if automatic detection fails):
+
+   ```bash
+   python3 -m podcast_scraper.cli feed.xml --speaker-names "Host Name" "Guest"
+   ```
+
+2. **Check debug logs** to see what was detected:
+
+   ```bash
+   export LOG_LEVEL=DEBUG
+   python3 -m podcast_scraper.cli feed.xml
+   ```
+
+   Look for messages like: `"RSS author 'NPR' appears to be an organization name"`
+
+3. **Verify RSS feed metadata** - Some feeds have proper author tags with actual host names, while others only have publisher information.
+
+**Note:** This is expected behavior - organization names are intentionally filtered out because they represent publishers, not actual speakers. The system prioritizes person names over organization names for speaker detection.
+
+---
 
 ---
 
@@ -620,7 +662,7 @@ If your issue isn't covered here:
    python3 -m podcast_scraper.cli ...
    ```
 
-1. **Open a new issue** with:
+3. **Open a new issue** with:
    - Python version (`python --version`)
    - OS and version
    - Full error message/traceback
