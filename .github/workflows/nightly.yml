@@ -183,7 +183,7 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
         retention-days: 1
 
   # ===========================================================================
@@ -432,7 +432,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -515,7 +515,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -603,7 +603,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |

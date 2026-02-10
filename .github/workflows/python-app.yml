@@ -394,7 +394,7 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
         retention-days: 1
 
   # Full integration tests - all integration tests, runs on main branch only
@@ -429,7 +429,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -576,7 +576,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -750,7 +750,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -895,7 +895,7 @@ jobs:
       uses: actions/download-artifact@v7
       with:
         name: ml-models
-        path: $HOME/.cache
+        path: /home/runner/.cache
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
