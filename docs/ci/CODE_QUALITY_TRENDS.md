@@ -87,7 +87,7 @@ Trend: **↓** (decreasing) may indicate maintainability degradation; **↑** (i
 
 ### When wily runs
 
-- **Branch:** Only on `main` and `release/2.4` (not on pull requests).
+- **Branch:** Only on `main`, `release/2.4`, and `release/2.5` (not on pull requests).
 - **Job:** In the `coverage-unified` job, after code quality metrics (radon) are generated.
 - **Full history:** The job checks out with `fetch-depth: 0` so wily can build the baseline.
 
