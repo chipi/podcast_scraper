@@ -45,6 +45,7 @@ ml = [
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
   "google-genai>=0.1.0,<1.0.0",  # Gemini API provider (Issue #194, migrated from google-generativeai in Issue #415)
+  "google-api-core>=2.0.0,<3.0.0",  # Required by google-genai for some operations
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
   "mistralai>=1.0.0,<2.0.0",  # Mistral API provider (Issue #106)
   "httpx>=0.24.0,<1.0.0",  # Ollama provider (Issue #196) - for health checks

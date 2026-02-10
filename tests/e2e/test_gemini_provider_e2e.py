@@ -562,9 +562,12 @@ class TestGeminiProviderE2E:
             mock_usage.prompt_token_count = 100
             mock_usage.candidates_token_count = 50
             mock_response.usage_metadata = mock_usage
-            mock_model = Mock()
-            mock_model.generate_content.return_value = mock_response
-            mock_genai.GenerativeModel.return_value = mock_model
+            # Mock Client and models
+            mock_client = Mock()
+            mock_models = Mock()
+            mock_models.generate_content.return_value = mock_response
+            mock_client.models = mock_models
+            mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini transcription
             cfg = create_test_config(
@@ -632,7 +635,7 @@ class TestGeminiProviderE2E:
             # Get feed URL and Gemini config
             rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
 
-            # Mock Gemini SDK responses
+            # Mock Gemini SDK responses - return actual JSON string
             mock_response = Mock()
             mock_response.text = json.dumps(
                 {
@@ -646,9 +649,12 @@ class TestGeminiProviderE2E:
             mock_usage.prompt_token_count = 100
             mock_usage.candidates_token_count = 50
             mock_response.usage_metadata = mock_usage
-            mock_model = Mock()
-            mock_model.generate_content.return_value = mock_response
-            mock_genai.GenerativeModel.return_value = mock_model
+            # Mock Client and models
+            mock_client = Mock()
+            mock_models = Mock()
+            mock_models.generate_content.return_value = mock_response
+            mock_client.models = mock_models
+            mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini speaker detection
             cfg = create_test_config(
@@ -725,9 +731,12 @@ class TestGeminiProviderE2E:
             mock_usage.prompt_token_count = 100
             mock_usage.candidates_token_count = 50
             mock_response.usage_metadata = mock_usage
-            mock_model = Mock()
-            mock_model.generate_content.return_value = mock_response
-            mock_genai.GenerativeModel.return_value = mock_model
+            # Mock Client and models
+            mock_client = Mock()
+            mock_models = Mock()
+            mock_models.generate_content.return_value = mock_response
+            mock_client.models = mock_models
+            mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini summarization
             cfg = create_test_config(
@@ -785,12 +794,56 @@ class TestGeminiProviderE2E:
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
-    def test_gemini_full_pipeline(self, e2e_server: Optional[Any]):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_gemini_full_pipeline(self, mock_genai, e2e_server: Optional[Any]):
         """Test all Gemini providers together in full pipeline."""
         temp_dir = tempfile.mkdtemp()
         try:
             # Get feed URL and Gemini config based on LLM_TEST_FEED
             rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
+
+            # Mock Gemini SDK responses for all operations
+            import json as json_module
+
+            # Transcription response
+            mock_transcription_response = Mock()
+            mock_transcription_response.text = "This is a test transcription from Gemini."
+            mock_transcription_usage = Mock()
+            mock_transcription_usage.prompt_token_count = 100
+            mock_transcription_usage.candidates_token_count = 50
+            mock_transcription_response.usage_metadata = mock_transcription_usage
+            # Speaker detection response
+            mock_speaker_response = Mock()
+            mock_speaker_response.text = json_module.dumps(
+                {
+                    "speakers": ["Host", "Guest"],
+                    "hosts": ["Host"],
+                    "guests": ["Guest"],
+                }
+            )
+            mock_speaker_usage = Mock()
+            mock_speaker_usage.prompt_token_count = 100
+            mock_speaker_usage.candidates_token_count = 50
+            mock_speaker_response.usage_metadata = mock_speaker_usage
+            # Summarization response
+            mock_summary_response = Mock()
+            mock_summary_response.text = "This is a test summary from Gemini."
+            mock_summary_usage = Mock()
+            mock_summary_usage.prompt_token_count = 100
+            mock_summary_usage.candidates_token_count = 50
+            mock_summary_response.usage_metadata = mock_summary_usage
+
+            # Mock Client and models - return different responses based on call
+            mock_client = Mock()
+            mock_models = Mock()
+            # Return different responses for different calls (transcription, speaker, summary)
+            mock_models.generate_content.side_effect = [
+                mock_transcription_response,
+                mock_speaker_response,
+                mock_summary_response,
+            ]
+            mock_client.models = mock_models
+            mock_genai.Client.return_value = mock_client
 
             # Create config with ALL Gemini providers ONLY (no local ML providers)
             # Only pass gemini_api_key if it's not None (when None, Config will load from .env)
@@ -852,7 +905,8 @@ class TestGeminiProviderE2E:
             else:
                 print(f"\n🔍 Preserving temp_dir for inspection: {temp_dir}")
 
-    def test_gemini_hybrid_cleaning_strategy(self, e2e_server: Optional[Any]):
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_gemini_hybrid_cleaning_strategy(self, mock_genai, e2e_server: Optional[Any]):
         """Test Gemini provider with hybrid cleaning strategy (pattern + conditional LLM).
 
         This test verifies that the hybrid cleaning strategy works correctly:
@@ -864,6 +918,50 @@ class TestGeminiProviderE2E:
         try:
             # Get feed URL and Gemini config based on LLM_TEST_FEED
             rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
+
+            # Mock Gemini SDK responses for all operations
+            import json as json_module
+
+            # Transcription response
+            mock_transcription_response = Mock()
+            mock_transcription_response.text = "This is a test transcription from Gemini."
+            mock_transcription_usage = Mock()
+            mock_transcription_usage.prompt_token_count = 100
+            mock_transcription_usage.candidates_token_count = 50
+            mock_transcription_response.usage_metadata = mock_transcription_usage
+            # Speaker detection response
+            mock_speaker_response = Mock()
+            mock_speaker_response.text = json_module.dumps(
+                {
+                    "speakers": ["Host", "Guest"],
+                    "hosts": ["Host"],
+                    "guests": ["Guest"],
+                }
+            )
+            mock_speaker_usage = Mock()
+            mock_speaker_usage.prompt_token_count = 100
+            mock_speaker_usage.candidates_token_count = 50
+            mock_speaker_response.usage_metadata = mock_speaker_usage
+            # Summarization response
+            mock_summary_response = Mock()
+            mock_summary_response.text = "This is a test summary from Gemini."
+            mock_summary_usage = Mock()
+            mock_summary_usage.prompt_token_count = 100
+            mock_summary_usage.candidates_token_count = 50
+            mock_summary_response.usage_metadata = mock_summary_usage
+
+            # Mock Client and models - return different responses based on call
+            mock_client = Mock()
+            mock_models = Mock()
+            # Return different responses for different calls
+            # (transcription, speaker, summary, cleaning)
+            mock_models.generate_content.side_effect = [
+                mock_transcription_response,
+                mock_speaker_response,
+                mock_summary_response,
+            ]
+            mock_client.models = mock_models
+            mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini summarization and hybrid cleaning strategy
             config_kwargs = {

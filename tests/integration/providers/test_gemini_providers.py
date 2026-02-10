@@ -38,11 +38,17 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_provider_initialization(self, mock_genai):
         """Test that Gemini transcription provider initializes correctly via factory."""
+        # Mock Client and its methods
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
+
         provider = create_transcription_provider(self.cfg)
         provider.initialize()
 
-        # Verify genai was configured with API key
-        mock_genai.configure.assert_called_once_with(api_key="test-api-key-123")
+        # Verify Client was created with API key
+        mock_genai.Client.assert_called_once_with(api_key="test-api-key-123")
         self.assertTrue(provider._transcription_initialized)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
@@ -53,9 +59,12 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
         # Mock Gemini SDK response
         mock_response = Mock()
         mock_response.text = "Transcribed text from Gemini"
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        # Mock Client and models
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.return_value = mock_response
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         mock_exists.return_value = True
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file
@@ -72,7 +81,7 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
         try:
             result = provider.transcribe(audio_path, language="en")
             self.assertEqual(result, "Transcribed text from Gemini")
-            mock_model.generate_content.assert_called_once()
+            mock_models.generate_content.assert_called_once()
         finally:
             os.unlink(audio_path)
 
@@ -96,11 +105,11 @@ class TestGeminiTranscriptionProvider(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates unified Gemini provider."""
-        # Mock genai.configure for API compatibility
-        mock_genai.configure = Mock()
-        # Mock GenerativeModel
-        mock_model = Mock()
-        mock_genai.GenerativeModel = Mock(return_value=mock_model)
+        # Mock Client and its methods
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         provider = create_transcription_provider(self.cfg)
         # Verify it's the unified Gemini provider
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
@@ -148,9 +157,12 @@ class TestGeminiSpeakerDetector(unittest.TestCase):
                 "guests": ["Jane Smith"],
             }
         )
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        # Mock Client and models
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.return_value = mock_response
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         mock_build_prompt.return_value = "User Prompt"
         mock_render_prompt.return_value = "System Prompt"
         # _parse_speakers_from_response returns (speaker_names_list, detected_hosts_set, detection_succeeded)
@@ -193,11 +205,11 @@ class TestGeminiSpeakerDetector(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_factory_creates_gemini_detector(self, mock_genai):
         """Test that factory creates unified Gemini provider."""
-        # Mock genai.configure for API compatibility
-        mock_genai.configure = Mock()
-        # Mock GenerativeModel
-        mock_model = Mock()
-        mock_genai.GenerativeModel = Mock(return_value=mock_model)
+        # Mock Client and its methods
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         detector = create_speaker_detector(self.cfg)
         # Verify it's the unified Gemini provider
         self.assertEqual(detector.__class__.__name__, "GeminiProvider")
@@ -238,9 +250,12 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
         # Mock Gemini SDK response
         mock_response = Mock()
         mock_response.text = "This is a test summary of the transcript."
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        # Mock Client and models
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.return_value = mock_response
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         # _build_summarization_prompts returns (system_prompt, user_prompt, system_prompt_name, user_prompt_name, paragraphs_min, paragraphs_max)
         mock_build_prompts.return_value = (
             "System Prompt",
@@ -289,11 +304,11 @@ class TestGeminiSummarizationProvider(unittest.TestCase):
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_factory_creates_gemini_provider(self, mock_genai):
         """Test that factory creates unified Gemini provider."""
-        # Mock genai.configure for API compatibility
-        mock_genai.configure = Mock()
-        # Mock GenerativeModel
-        mock_model = Mock()
-        mock_genai.GenerativeModel = Mock(return_value=mock_model)
+        # Mock Client and its methods
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         provider = create_summarization_provider(self.cfg)
         # Verify it's the unified Gemini provider
         self.assertEqual(provider.__class__.__name__, "GeminiProvider")
@@ -325,9 +340,11 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
     def test_transcribe_api_error(self, mock_exists, mock_open, mock_genai):
         """Test that API errors are handled gracefully via factory."""
         # Mock Gemini SDK to raise exception
-        mock_model = Mock()
-        mock_model.generate_content.side_effect = Exception("API Error")
-        mock_genai.GenerativeModel.return_value = mock_model
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.side_effect = Exception("API Error")
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
         mock_exists.return_value = True
         mock_file = Mock()
         mock_open.return_value.__enter__.return_value = mock_file

@@ -215,28 +215,29 @@ security-audit:
 	# Install ML dependencies to ensure they are audited
 
 # Code quality analysis (RFC-031)
+# Note: Use $(PYTHON) -m to ensure tools run from venv, not system PATH
 complexity:
 	@echo "=== Cyclomatic Complexity Analysis ==="
-	@radon cc src/podcast_scraper/ -a -s --total-average || true
+	@$(PYTHON) -m radon cc src/podcast_scraper/ -a -s --total-average || true
 	@echo ""
 	@echo "=== Maintainability Index ==="
-	@radon mi src/podcast_scraper/ -s || true
+	@$(PYTHON) -m radon mi src/podcast_scraper/ -s || true
 
 deadcode:
 	@echo "=== Dead Code Detection ==="
-	@vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 || true
+	@$(PYTHON) -m vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 || true
 
 docstrings:
 	@echo "=== Docstring Coverage ==="
-	@interrogate src/podcast_scraper/ -v || true
+	@$(PYTHON) -m interrogate src/podcast_scraper/ -v || true
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+	@$(PYTHON) -m codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" 2>/dev/null || $(shell dirname $(PYTHON))/codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
-	@codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+	@$(PYTHON) -m codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" 2>/dev/null || $(shell dirname $(PYTHON))/codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
 
 quality: complexity deadcode docstrings spelling
 	@echo ""
@@ -316,10 +317,14 @@ test-integration: cleanup-processes
 	# when using reruns with parallel execution, but still restrict to localhost only
 	# Note: Force coverage collection completion by combining coverage files immediately after tests
 	# Capture pytest exit code to ensure test failures are not masked
+	# Added --durations=20 and --tb=short for better progress visibility and debugging hangs
+	@echo "🔄 Starting integration tests at $$(date '+%Y-%m-%d %H:%M:%S')"
 	@set -e; \
 	pytest_exit=0; \
-	$(PYTHON) -m pytest tests/integration/ -m integration -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost || pytest_exit=$$?; \
-	$(PYTHON) -m coverage combine 2>/dev/null || true; \
+	$(PYTHON) -m pytest tests/integration/ -m integration -v --tb=short -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost --durations=20 || pytest_exit=$$?; \
+	echo "📊 Tests completed, combining coverage files..."; \
+	$(PYTHON) -m coverage combine 2>/dev/null || { echo "⚠️  Coverage combine failed (non-fatal)"; true; }; \
+	echo "✅ Integration tests finished at $$(date '+%Y-%m-%d %H:%M:%S')"; \
 	exit $$pytest_exit
 
 test-integration-fast:
@@ -404,7 +409,7 @@ test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
 	# Uses production models: Whisper base.en, BART-large-cnn, LED-large-16384
 	# Runs all 15 episodes across 5 podcasts (p01-p05)
-	# Sequential execution per podcast, parallel episodes within podcast (2 workers)
+	# Try parallel execution first (socket issue fixed), fallback to sequential if needed
 	# NOT marked with @pytest.mark.e2e - separate category from regular E2E tests
 	# Excludes LLM/OpenAI tests to avoid API costs (see issue #183)
 	# Note: Removed --disable-socket for pytest-xdist compatibility with -n (parallel)
@@ -421,16 +426,62 @@ test-nightly:
 		exit 1; \
 	}
 	@echo "✅ Test collection successful, running tests..."
-	@E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json || { \
-		PARALLEL_EXIT_CODE=$$?; \
-		echo "⚠️  Parallel execution failed (exit code $$PARALLEL_EXIT_CODE), trying sequential execution..."; \
-		E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --tb=short -ra --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json; \
-		SEQUENTIAL_EXIT_CODE=$$?; \
-		if [ $$SEQUENTIAL_EXIT_CODE -ne 0 ]; then \
-			echo "❌ Sequential execution also failed (exit code $$SEQUENTIAL_EXIT_CODE)"; \
+	@START_TIME=$$(date +%s); \
+	echo ""; \
+	echo "📊 Test execution details:"; \
+	echo "   - Mode: Nightly (production models)"; \
+	echo "   - Episodes: 15 total (5 podcasts × 3 episodes)"; \
+	echo "   - Models: Whisper base.en, BART-large-cnn, LED-large-16384"; \
+	echo "   - Start time: $$(date '+%Y-%m-%d %H:%M:%S')"; \
+	echo ""; \
+	echo "🔍 System information:"; \
+	echo "   - CPU cores: $$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 'unknown')"; \
+	echo "   - Available memory: $$(free -h 2>/dev/null | grep Mem | awk '{print $$7}' || vm_stat 2>/dev/null | head -1 || echo 'unknown')"; \
+	echo "   - Disk space: $$(df -h . | tail -1 | awk '{print $$4 " available"}')"; \
+	echo ""; \
+	echo "🔄 Attempting parallel execution (2 workers)..."; \
+	echo "   This may take 30-60 minutes depending on model loading and processing time"; \
+	echo "   Progress will be shown below (each test name as it runs)"; \
+	echo "   ============================================================"; \
+	(E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json 2>&1 | tee /tmp/nightly-test-output.log; echo "$${PIPESTATUS[0]}" > /tmp/nightly-exit-code.txt) || true; \
+	PARALLEL_EXIT_CODE=$$(cat /tmp/nightly-exit-code.txt 2>/dev/null || echo "1"); \
+	if [ "$$PARALLEL_EXIT_CODE" != "0" ]; then \
+		ELAPSED=$$(($$(date +%s) - START_TIME)); \
+		echo ""; \
+		echo "============================================================"; \
+		echo "⚠️  Parallel execution failed (exit code $$PARALLEL_EXIT_CODE) at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+		echo "   Elapsed time: $$ELAPSED seconds ($$(($$ELAPSED / 60)) minutes)"; \
+		echo ""; \
+		echo "📋 Last 100 lines of output:"; \
+		tail -100 /tmp/nightly-test-output.log 2>/dev/null || echo "   (No output captured)"; \
+		echo ""; \
+		echo "🔄 Falling back to sequential execution (no parallelism)..."; \
+		echo "   Start time: $$(date '+%Y-%m-%d %H:%M:%S')"; \
+		START_TIME_SEQ=$$(date +%s); \
+		(E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --tb=short -ra --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json 2>&1 | tee /tmp/nightly-test-sequential.log; echo "$${PIPESTATUS[0]}" > /tmp/nightly-sequential-exit-code.txt) || true; \
+		SEQUENTIAL_EXIT_CODE=$$(cat /tmp/nightly-sequential-exit-code.txt 2>/dev/null || echo "1"); \
+		if [ "$$SEQUENTIAL_EXIT_CODE" != "0" ]; then \
+			ELAPSED_SEQ=$$(($$(date +%s) - START_TIME_SEQ)); \
+			echo ""; \
+			echo "============================================================"; \
+			echo "❌ Sequential execution also failed (exit code $$SEQUENTIAL_EXIT_CODE) at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+			echo "   Elapsed time: $$ELAPSED_SEQ seconds ($$(($$ELAPSED_SEQ / 60)) minutes)"; \
+			echo ""; \
+			echo "📋 Last 100 lines of sequential output:"; \
+			tail -100 /tmp/nightly-test-sequential.log 2>/dev/null || echo "   (No output captured)"; \
 			exit $$SEQUENTIAL_EXIT_CODE; \
 		fi; \
-	}
+		ELAPSED_SEQ=$$(($$(date +%s) - START_TIME_SEQ)); \
+		echo ""; \
+		echo "✅ Sequential execution completed at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+		echo "   Total elapsed time: $$ELAPSED_SEQ seconds ($$(($$ELAPSED_SEQ / 60)) minutes)"; \
+	else \
+		ELAPSED=$$(($$(date +%s) - START_TIME)); \
+		echo ""; \
+		echo "============================================================"; \
+		echo "✅ Parallel execution completed successfully at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+		echo "   Total elapsed time: $$ELAPSED seconds ($$(($$ELAPSED / 60)) minutes)"; \
+	fi
 
 test-nightly-subset:
 	# Run a subset of nightly tests for local verification

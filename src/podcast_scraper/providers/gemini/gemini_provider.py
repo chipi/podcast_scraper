@@ -137,10 +137,9 @@ class GeminiProvider:
 
         # Create Gemini client using new API (google-genai v0.1.0+)
         # New API uses Client instead of configure() + GenerativeModel
+        # Note: Client() doesn't support base_url parameter - E2E testing must use mocks
         client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
-        if cfg.gemini_api_base:
-            # Support custom base_url for E2E testing with mock servers
-            client_kwargs["base_url"] = cfg.gemini_api_base
+        # base_url is not supported by genai.Client() - E2E tests must mock the SDK
         self.client = genai.Client(**client_kwargs)
 
         # Log non-sensitive provider metadata (for debugging)

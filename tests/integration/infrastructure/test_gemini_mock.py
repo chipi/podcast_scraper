@@ -51,9 +51,12 @@ class TestGeminiE2EServerIntegration:
         # Mock Gemini SDK response
         mock_response = Mock()
         mock_response.text = "This is a test transcription from Gemini E2E server."
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        # Mock Client and models
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.return_value = mock_response
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
 
         provider = create_transcription_provider(cfg)
         provider.initialize()
@@ -93,10 +96,12 @@ class TestGeminiE2EServerIntegration:
         # Mock Gemini SDK response
         mock_response = Mock()
         mock_response.text = "This is a test summary from Gemini E2E server."
-
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        # Mock Client and models
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.return_value = mock_response
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
 
         provider = create_summarization_provider(cfg)
         provider.initialize()
@@ -129,7 +134,7 @@ class TestGeminiE2EServerIntegration:
             auto_speakers=True,
         )
 
-        # Mock Gemini SDK response
+        # Mock Gemini SDK response - return actual JSON string, not MagicMock
         mock_response = Mock()
         mock_response.text = json.dumps(
             {
@@ -138,10 +143,12 @@ class TestGeminiE2EServerIntegration:
                 "guests": ["Bob"],
             }
         )
-
-        mock_model = Mock()
-        mock_model.generate_content.return_value = mock_response
-        mock_genai.GenerativeModel.return_value = mock_model
+        # Mock Client and models
+        mock_client = Mock()
+        mock_models = Mock()
+        mock_models.generate_content.return_value = mock_response
+        mock_client.models = mock_models
+        mock_genai.Client.return_value = mock_client
 
         detector = create_speaker_detector(cfg)
         detector.initialize()
