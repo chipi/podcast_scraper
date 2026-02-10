@@ -26,6 +26,10 @@
   - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
   - Give the user a chance to revert specific files or keep all before moving on
 
+2b. **After making file edits: offer keep or undo**
+   - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
+   - Give the user a chance to revert specific files or keep all before moving on
+
 2a. **ALWAYS stage only files changed for current task (never `git add -A`)**
 
   - Use `git add <specific-file>` for each file you changed
