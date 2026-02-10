@@ -733,6 +733,9 @@ def _setup_pipeline_environment(
     # Initialize ML environment variables (suppress progress bars, etc.)
     wf_stages.setup.initialize_ml_environment()
 
+    # Set reproducibility seeds if configured (Issue #429)
+    wf_stages.setup.set_reproducibility_seeds(cfg)
+
     # Initialize metrics collector
     from . import metrics
 

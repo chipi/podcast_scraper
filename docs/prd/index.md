@@ -23,12 +23,6 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | PRD | Title | Related RFCs | Description |
 | --- | ----- | ------------ | ----------- |
 | [PRD-007](PRD-007-ai-quality-experiment-platform.md) | AI Quality & Experimentation Platform | RFC-015, 016, 041 | Integrated platform for experimentation and benchmarking |
-| [PRD-009](PRD-009-anthropic-provider-integration.md) | Anthropic Provider Integration | RFC-032 | Anthropic Claude API as optional provider |
-| [PRD-010](PRD-010-mistral-provider-integration.md) | Mistral Provider Integration | RFC-033 | Mistral AI as complete OpenAI alternative |
-| [PRD-011](PRD-011-deepseek-provider-integration.md) | DeepSeek Provider Integration | RFC-034 | DeepSeek AI - ultra low-cost provider |
-| [PRD-012](PRD-012-gemini-provider-integration.md) | Google Gemini Provider Integration | RFC-035 | Google Gemini - 2M context, native audio |
-| [PRD-013](PRD-013-grok-provider-integration.md) | Grok Provider Integration (xAI) | RFC-036 | Grok - xAI's AI model with real-time information access |
-| [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | RFC-037 | Ollama - fully local/offline, zero cost |
 | [PRD-015](PRD-015-engineering-governance-productivity.md) | Engineering Governance & Productivity Platform | RFC-018-024, 030, 031, 038, 039 | Integrated system for developer velocity and quality |
 | [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027 | System for managing operational health and visibility |
 | [PRD-017](PRD-017-grounded-insight-layer.md) | Grounded Insight Layer (GIL) | RFC-049, 050, 051 | Evidence-backed insights and quotes with grounding relationships |
@@ -45,6 +39,12 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-005](PRD-005-episode-summarization.md) | Episode Summarization | v2.3.0 | RFC-012 | Automatic summary generation |
 | [PRD-006](PRD-006-openai-provider-integration.md) | OpenAI Provider Integration | v2.4.0 | RFC-013, 017, 021, 022, 029 | OpenAI API as optional provider |
 | [PRD-008](PRD-008-speaker-name-detection.md) | Automatic Speaker Name Detection | v2.1.0 | RFC-010 | Auto-detect host/guest names via NER |
+| [PRD-009](PRD-009-anthropic-provider-integration.md) | Anthropic Provider Integration | v2.4.0 | RFC-032 | Anthropic Claude API as optional provider |
+| [PRD-010](PRD-010-mistral-provider-integration.md) | Mistral Provider Integration | v2.5.0 | RFC-033 | Mistral AI as complete OpenAI alternative |
+| [PRD-011](PRD-011-deepseek-provider-integration.md) | DeepSeek Provider Integration | v2.5.0 | RFC-034 | DeepSeek AI - ultra low-cost provider |
+| [PRD-012](PRD-012-gemini-provider-integration.md) | Google Gemini Provider Integration | v2.5.0 | RFC-035 | Google Gemini - 2M context, native audio |
+| [PRD-013](PRD-013-grok-provider-integration.md) | Grok Provider Integration (xAI) | v2.5.0 | RFC-036 | Grok - xAI's AI model with real-time information access |
+| [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | v2.5.0 | RFC-037 | Ollama - fully local/offline, zero cost |
 
 ## Quick Links
 

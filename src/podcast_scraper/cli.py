@@ -366,6 +366,13 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp"
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Random seed for reproducibility (Issue #429); sets torch/numpy/transformers seeds",
+    )
+    parser.add_argument(
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
     )
     parser.add_argument(
@@ -1499,6 +1506,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "screenplay_num_speakers": args.num_speakers,
         "screenplay_speaker_names": speaker_names_list,
         "run_id": args.run_id,
+        "seed": getattr(args, "seed", None),
         "log_level": args.log_level,
         "log_file": args.log_file,
         "json_logs": getattr(args, "json_logs", False),

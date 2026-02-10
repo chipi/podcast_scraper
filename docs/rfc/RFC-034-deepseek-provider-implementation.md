@@ -1,6 +1,6 @@
 # RFC-034: DeepSeek Provider Implementation (Revised)
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -915,5 +915,5 @@ Same pattern as OpenAI provider:
 
 - **Related PRD**: `docs/prd/PRD-011-deepseek-provider-integration.md`
 - **Reference Implementation**: `src/podcast_scraper/providers/openai/openai_provider.py`
-- **DeepSeek API Documentation**: https://platform.deepseek.com/docs
-- **DeepSeek Pricing**: https://platform.deepseek.com/pricing
+- **DeepSeek API Documentation**: <https://platform.deepseek.com/docs>
+- **DeepSeek Pricing**: <https://platform.deepseek.com/pricing>

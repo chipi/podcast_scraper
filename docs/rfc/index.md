@@ -23,15 +23,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | RFC | Title | Related PRD | Description |
 | --- | ----- | ----------- | ----------- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline |
-| [RFC-016](RFC-016-modularization-for-ai-experiments.md) | Modularization for AI Experiments | PRD-007 | Provider system architecture to support AI experiment pipeline |
 | [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | Acceptance tests validating README documentation accuracy |
 | [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Pipeline Metrics Improvements | - | Improvements to pipeline metrics collection and reporting |
-| [RFC-032](RFC-032-anthropic-provider-implementation.md) | Anthropic Provider Implementation | PRD-009 | Technical design for Anthropic Claude API providers |
-| [RFC-033](RFC-033-mistral-provider-implementation.md) | Mistral Provider Implementation | PRD-010 | Technical design for Mistral AI providers (all 3 capabilities) |
-| [RFC-034](RFC-034-deepseek-provider-implementation.md) | DeepSeek Provider Implementation | PRD-011 | Technical design for DeepSeek AI (ultra low-cost) |
-| [RFC-035](RFC-035-gemini-provider-implementation.md) | Gemini Provider Implementation | PRD-012 | Technical design for Google Gemini (2M context) |
-| [RFC-036](RFC-036-grok-provider-implementation.md) | Grok Provider Implementation (xAI) | PRD-013 | Technical design for Grok (xAI's AI model) |
-| [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | Technical design for Ollama (local/offline) |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | Optional audio preprocessing (VAD, normalization) before transcription |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system |
@@ -45,8 +38,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | Core ontology, grounding contract, storage format for GIL |
 | [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Grounded Insight Layer – Use Cases & End-to-End Consumption | PRD-017 | Use cases, Insight Explorer, query patterns with insights + quotes |
 | [RFC-051](RFC-051-grounded-insight-layer-database-projection.md) | Grounded Insight Layer – Database Projection | PRD-018 | Database export design for fast Insight Explorer queries |
-|| [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | Architecture for locally hosted LLM models with optimized prompts to solve cost and latency |
-|| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling and routing system for optimal summarization strategies per episode type |
+| [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | Architecture for locally hosted LLM models with optimized prompts to solve cost and latency |
+| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling and routing system for optimal summarization strategies per episode type |
 | [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
 
 ## Completed RFCs
@@ -66,6 +59,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-011](RFC-011-metadata-generation.md) | Per-Episode Metadata Generation | PRD-004 | v2.2.0 | Structured metadata document generation |
 | [RFC-012](RFC-012-episode-summarization.md) | Episode Summarization Using Local Transformers | PRD-005 | v2.3.0 | Local transformer-based summarization |
 | [RFC-013](RFC-013-openai-provider-implementation.md) | OpenAI Provider Implementation | PRD-006 | v2.4.0 | OpenAI API providers for transcription, NER, and summarization |
+| [RFC-016](RFC-016-modularization-for-ai-experiments.md) | Modularization for AI Experiments | PRD-007 | v2.4.0 | Provider system architecture to support AI experiment pipeline |
 | [RFC-017](RFC-017-prompt-management.md) | Prompt Management | PRD-006 | v2.4.0 | Versioned, parameterized prompt management system (Jinja2) |
 | [RFC-018](RFC-018-test-structure-reorganization.md) | Test Structure Reorganization | - | v2.4.0 | Reorganized test suite into unit/integration/e2e directories |
 | [RFC-019](RFC-019-e2e-test-improvements.md) | E2E Test Infrastructure and Coverage Improvements | PRD-001+ | v2.4.0 | Comprehensive E2E test infrastructure and coverage |
@@ -79,6 +73,12 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-029](RFC-029-provider-refactoring-consolidation.md) | Provider Refactoring Consolidation | PRD-006 | v2.4.0 | Unified provider architecture documentation |
 | [RFC-030](RFC-030-python-test-coverage-improvements.md) | Python Test Coverage Improvements | - | v2.4.0 | Coverage collection in CI, threshold enforcement |
 | [RFC-031](RFC-031-code-complexity-analysis-tooling.md) | Code Complexity Analysis Tooling | - | v2.4.0 | Radon, Vulture, Interrogate, and codespell integration |
+| [RFC-032](RFC-032-anthropic-provider-implementation.md) | Anthropic Provider Implementation | PRD-009 | v2.4.0 | Technical design for Anthropic Claude API providers |
+| [RFC-033](RFC-033-mistral-provider-implementation.md) | Mistral Provider Implementation | PRD-010 | v2.5.0 | Technical design for Mistral AI providers (all 3 capabilities) |
+| [RFC-034](RFC-034-deepseek-provider-implementation.md) | DeepSeek Provider Implementation | PRD-011 | v2.5.0 | Technical design for DeepSeek AI (ultra low-cost) |
+| [RFC-035](RFC-035-gemini-provider-implementation.md) | Gemini Provider Implementation | PRD-012 | v2.5.0 | Technical design for Google Gemini (2M context) |
+| [RFC-036](RFC-036-grok-provider-implementation.md) | Grok Provider Implementation (xAI) | PRD-013 | v2.5.0 | Technical design for Grok (xAI's AI model) |
+| [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | v2.5.0 | Technical design for Ollama (local/offline) |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | v2.4.0 | Git worktrees, Cursor integration, CI evolution |
 
 ## Quick Links

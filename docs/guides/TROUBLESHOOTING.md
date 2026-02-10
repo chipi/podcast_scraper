@@ -22,6 +22,45 @@ Common issues and solutions for podcast_scraper development and usage.
 | Need structured logs | Default logging format | Use `--json-logs` flag |
 | Want to stop on first failure | Default continues on errors | Use `--fail-fast` flag |
 | Want to limit failures | Default has no limit | Use `--max-failures N` flag |
+| `make test-fast` or `make ci-fast` hangs at ~87% | pytest-xdist stall near end of run | `TEST_FAST_WORKERS=2 make test-fast` (or `make ci-fast`) |
+
+---
+
+## test-fast / ci-fast hangs at ~87%
+
+**Symptom:** `make test-fast` or `make ci-fast` sometimes hangs around 80–90% and never finishes (or takes a very long time). Other times the same run completes.
+
+**Cause:** Known pytest-xdist behavior: with parallel workers, the run can stall near completion (worker coordination at end of suite). More likely with higher worker counts.
+
+**Workaround:** Run with fewer workers so the stall is less likely:
+
+```bash
+# Use 2 workers for the fast test suite (slower but avoids hang)
+TEST_FAST_WORKERS=2 make test-fast
+
+# Same for full fast CI
+TEST_FAST_WORKERS=2 make ci-fast
+```
+
+**Alternative:** Run the test phase without parallelism (slow but reliable):
+
+```bash
+make format-check lint type security
+E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n 0 --cov=podcast_scraper --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+```
+
+**Can we delay shutdown so workers have time to finish?**  
+pytest-xdist does not expose a “grace period” or “wait N seconds before teardown”. The stall is inside xdist’s master–worker coordination; we can’t inject a delay from outside. So we cannot “delay by a few seconds” in xdist itself.
+
+**Does changing the scheduler (e.g. `--dist loadfile`) fix it?**  
+No. Using a different distribution (e.g. by file instead of by test) is not a fundamental solution. The run can still get stuck, often at a different point (e.g. later in the run). The only reliable workarounds are fewer workers (e.g. 2), no parallelism (`-n 0`), or a timeout cap.
+
+**Bounded run** – If you need parallelism and it still hangs, cap the run so it exits instead of hanging forever (Linux/macOS with `timeout` or `gtimeout`):
+
+```bash
+timeout 900 make test-fast   # Linux: exit after 15 min
+gtimeout 900 make test-fast # macOS (brew install coreutils)
+```
 
 ---
 

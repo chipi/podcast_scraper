@@ -1,6 +1,6 @@
 # RFC-035: Google Gemini Provider Implementation (Revised)
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:

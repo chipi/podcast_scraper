@@ -1,6 +1,6 @@
 # PRD-014: Ollama Provider Integration
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Related RFCs**: RFC-037 (Revised)
@@ -109,6 +109,7 @@ ollama_summary_user_prompt: str = Field(
 ```
 
 **Environment-based defaults:**
+
 - **Test environment**: `llama3.2:latest` (smaller, faster for testing)
 - **Production environment**: `llama3.3:latest` (best quality, 128k context)
 
@@ -269,7 +270,7 @@ For optimal Ollama performance:
 
 Before using Ollama provider:
 
-1. Install Ollama: `brew install ollama` (macOS) or see https://ollama.ai
+1. Install Ollama: `brew install ollama` (macOS) or see <https://ollama.ai>
 2. Start Ollama: `ollama serve`
 3. Pull model: `ollama pull llama3.3`
 

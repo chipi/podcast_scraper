@@ -352,6 +352,7 @@ use OpenAI providers or want to customize logging, paths, or performance setting
 - ✅ `config/examples/.env.example` is safe to commit (template only)
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
+- ✅ HuggingFace model loading uses `trust_remote_code=False`; only enable `trust_remote_code=True` if a model's documentation explicitly requires it and the source is trusted (Issue #429).
 
 **Priority order** (for each configuration field):
 

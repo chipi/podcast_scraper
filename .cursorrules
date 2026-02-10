@@ -16,6 +16,10 @@
    - MUST: `git status` → `git diff` → show user → wait for approval → THEN commit
    - NEVER skip showing changes; NEVER assume approval
 
+2b. **After making file edits: offer keep or undo**
+   - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
+   - Give the user a chance to revert specific files or keep all before moving on
+
 2a. **ALWAYS stage only files changed for current task (never `git add -A`)**
    - Use `git add <specific-file>` for each file you changed
    - Verify with `git status` after staging; ask user if unsure which files
@@ -63,6 +67,17 @@
    - Action 2: If tests fail, fix them BEFORE continuing with other work
    - Action 3: Load `testing-strategy.mdc` when writing new tests
    - Exception: If test failure is complex, document it and ask user before proceeding
+   - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
+
+5a. **When any make target fails (test, ci, lint, format, docs, etc.): root cause first, then fix**
+   - Establish a clear understanding of *why* it is failing before changing code
+   - Work from root cause (stack trace, failing assertion, env mismatch, lint error, etc.); avoid random changes or trial-and-error
+   - If unclear, reproduce locally, read the failure message, and trace to the source before proposing a fix
+
+5b. **Before adding workarounds or changing how something works: look for similar examples in the repo first**
+   - Do NOT only try to "fix the broken path" with ad-hoc changes (flags, timeouts, special cases).
+   - DO ask: "Where do we already do something similar without this problem?" Search the codebase (Makefile, scripts, same area) for comparable flows, then compare and reuse that pattern.
+   - Align the broken path to an existing working pattern before inventing new workarounds.
 
 12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
     - Applies to: Design docs, RFCs, investigation notes, planning documents, analysis outputs
@@ -134,11 +149,12 @@ make fix-md        # Auto-fix markdown
 3. ALWAYS use Makefile commands, never direct tools
 4. Write lint-valid code from the start
 5. Respect module boundaries
-6. ALWAYS `make ci-fast` before committing
+6. ALWAYS `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
 7. ALL analysis/plans → `docs/wip/`
 8. Auto-load `.mdc` files for detailed guidance (Rule 16)
 9. NEVER commit secrets
-10. **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
+10. Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
+11. **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
     - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
     - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
     - **MUST announce**: "Updated metrics file" (so user can verify)

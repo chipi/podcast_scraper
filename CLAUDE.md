@@ -17,7 +17,9 @@
 - ❌ NEVER push to main branch (always use feature branches)
 - ✅ Always show `git status` and `git diff` before committing
 - ✅ Always wait for explicit user approval before committing
-- ✅ Always run `make ci-fast` before committing
+- ✅ After making file edits: summarize changes and ask "Keep these changes or undo any of them?"
+- ✅ When any make target fails (test, ci, lint, format, docs, etc.): establish root cause first, then fix from there (no random experimenting)
+- ✅ Always run `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified; nothing to validate locally)
 - ✅ ALWAYS use Makefile commands (never direct pytest/python/black commands)
 - ✅ NEVER use `cd` to project root (already in workspace directory)
 - ✅ ALWAYS use correct GitHub username (check with `mcp_github_get_me`, not Mac username)

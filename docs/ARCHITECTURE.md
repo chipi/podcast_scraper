@@ -9,6 +9,7 @@ This architecture document is the central hub for understanding the system. For 
 ### Core Documentation
 
 - **[ADR Index](adr/index.md)** — **The immutable record of architectural laws and decisions**
+- **[Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md)** — Performance, security, reliability, observability, maintainability, scalability
 - **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
 - **[Testing Guide](guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
@@ -71,8 +72,8 @@ The following architectural principles govern this system. For the full history 
 
 ### Core Patterns
 
-- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode (enabled by default) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS.
-- **Providers**: Protocol-based discovery ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-011](adr/ADR-011-unified-provider-pattern.md)) and library-based naming ([ADR-013](adr/ADR-013-technology-based-provider-naming.md)).
+- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode ([ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md)) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS (enabled by default).
+- **Providers**: Protocol-based discovery ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-011](adr/ADR-011-unified-provider-pattern.md)), library-based naming ([ADR-013](adr/ADR-013-technology-based-provider-naming.md)), and per-capability provider selection ([ADR-049](adr/ADR-049-per-capability-provider-selection.md)).
 - **Lazy Loading**: Heavy ML dependencies are loaded only when needed ([ADR-005](adr/ADR-005-lazy-ml-dependency-loading.md)).
 
 ### Data & Filesystem

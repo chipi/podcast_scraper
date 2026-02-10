@@ -1076,6 +1076,7 @@ pyramid:
   E2E tests), #94 (src/ layout), #98 (Test structure
   reorganization)
 - Architecture: `docs/ARCHITECTURE.md`
+- Non-Functional Requirements: `docs/NON_FUNCTIONAL_REQUIREMENTS.md` (quality attributes validated by tests)
 - Contributing guide: `CONTRIBUTING.md`
 
 ````

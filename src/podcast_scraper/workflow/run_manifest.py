@@ -160,6 +160,31 @@ def _get_config_hash(cfg: Any) -> tuple[Optional[str], Optional[str], Optional[s
         return None, None, None
 
 
+def _revision_for_summary_model(model_name: Optional[str]) -> Optional[str]:
+    """Resolve pinned revision for a summary/reduce model (same logic as summarizer).
+
+    Args:
+        model_name: Hugging Face model identifier or None
+
+    Returns:
+        Pinned revision string from config_constants, or None
+    """
+    if not model_name:
+        return None
+    model_lower = model_name.lower()
+    try:
+        from podcast_scraper import config_constants
+    except ImportError:
+        return None
+    if "pegasus" in model_lower:
+        return getattr(config_constants, "PEGASUS_CNN_DAILYMAIL_REVISION", None)
+    if "led-base-16384" in model_lower or model_name == "allenai/led-base-16384":
+        return getattr(config_constants, "LED_BASE_16384_REVISION", None)
+    if "led-large-16384" in model_lower or model_name == "allenai/led-large-16384":
+        return getattr(config_constants, "LED_LARGE_16384_REVISION", None)
+    return None
+
+
 def _get_gpu_info() -> Optional[str]:
     """Get GPU information if available.
 
@@ -237,6 +262,11 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     summary_model = getattr(cfg, "summary_model", None)
     reduce_model = getattr(cfg, "summary_reduce_model", None)
 
+    # Resolve model revisions (same pinning as summarizer; Issue #429)
+    whisper_model_revision = None  # Whisper revisions not pinned in config_constants
+    summary_model_revision = _revision_for_summary_model(summary_model)
+    reduce_model_revision = _revision_for_summary_model(reduce_model)
+
     # Get device configuration
     whisper_device = getattr(cfg, "whisper_device", None)
     summary_device = getattr(cfg, "summary_device", None)
@@ -268,8 +298,11 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
         transformers_version=transformers_version,
         whisper_version=whisper_version,
         whisper_model=whisper_model,
+        whisper_model_revision=whisper_model_revision,
         summary_model=summary_model,
+        summary_model_revision=summary_model_revision,
         reduce_model=reduce_model,
+        reduce_model_revision=reduce_model_revision,
         whisper_device=whisper_device,
         summary_device=summary_device,
         temperature=temperature,

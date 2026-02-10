@@ -1,6 +1,6 @@
 # PRD-012: Google Gemini Provider Integration
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Related RFCs**: RFC-035 (Revised)
@@ -113,6 +113,7 @@ gemini_speaker_user_prompt: str = Field(
 ```
 
 **Environment-based defaults:**
+
 - **Test environment**: `gemini-2.0-flash` (free tier, fast)
 - **Production environment**: `gemini-1.5-pro` (best quality, 2M context)
 

@@ -256,6 +256,20 @@ def process_transcription_jobs(
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
                 logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+                # Record per-episode failure for run index (Issue #429)
+                if pipeline_metrics is not None:
+                    episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
+                    if episode_obj is not None:
+                        from ..helpers import get_episode_id_from_episode
+
+                        episode_id, _ = get_episode_id_from_episode(episode_obj, cfg.rss_url or "")
+                        pipeline_metrics.update_episode_status(
+                            episode_id=episode_id,
+                            status="failed",
+                            stage="transcription",
+                            error_type=type(exc).__name__,
+                            error_message=str(exc)[:500],
+                        )
 
             reporter.update(1)
             jobs_processed += 1
@@ -402,6 +416,20 @@ def process_transcription_jobs_concurrent(  # noqa: C901
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+            # Record per-episode failure for run index (Issue #429)
+            if pipeline_metrics is not None:
+                episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
+                if episode_obj is not None:
+                    from ..helpers import get_episode_id_from_episode
+
+                    episode_id, _ = get_episode_id_from_episode(episode_obj, cfg.rss_url or "")
+                    pipeline_metrics.update_episode_status(
+                        episode_id=episode_id,
+                        status="failed",
+                        stage="transcription",
+                        error_type=type(exc).__name__,
+                        error_message=str(exc)[:500],
+                    )
             return False, None, 0
 
     # Process jobs as they become available from the queue

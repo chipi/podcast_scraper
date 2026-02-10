@@ -599,6 +599,15 @@ class Config(BaseModel):
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
     screenplay_speaker_names: List[str] = Field(default_factory=list, alias="speaker_names")
     run_id: Optional[str] = Field(default=None, alias="run_id")
+    seed: Optional[int] = Field(
+        default=None,
+        alias="seed",
+        description=(
+            "Random seed for reproducibility (Issue #429). If set, torch, numpy, and "
+            "transformers seeds are set at pipeline start. MPS (Apple Silicon) may still "
+            "be non-deterministic; see docs for details."
+        ),
+    )
     log_level: str = Field(default=DEFAULT_LOG_LEVEL, alias="log_level")
     log_file: Optional[str] = Field(
         default=None,
@@ -1790,6 +1799,7 @@ class Config(BaseModel):
         cls._load_int_env_var(data, "summary_batch_size", "SUMMARY_BATCH_SIZE")
         cls._load_int_env_var(data, "summary_chunk_parallelism", "SUMMARY_CHUNK_PARALLELISM")
         cls._load_int_env_var(data, "timeout", "TIMEOUT")
+        cls._load_int_env_var(data, "seed", "SEED")
 
         # Load float environment variables
         cls._load_float_env_var(data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0)

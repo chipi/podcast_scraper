@@ -548,15 +548,26 @@ test-sequential:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not analytical" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
+# Fast tests: same coverage approach as 'test' — separate pytest runs per layer, then combine.
+# Avoids one large xdist session (which can hang at shutdown). Each layer uses its own worker count.
 test-fast:
-	# Fast tests: parallel execution for speed
-	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
-	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
-	# Uses fast feed for E2E tests (1 episode) - set via E2E_TEST_MODE environment variable
-	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
-	# Excludes nightly tests (comprehensive tests run only in nightly builds)
-	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	# Fast tests: unit + critical path integration + critical path e2e (separate runs, then combine coverage)
+	# Uses fast feed for E2E (1 episode) via E2E_TEST_MODE=fast. Excludes nightly.
+	@echo "Running unit tests (fast) with coverage..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
+		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Running critical path integration tests with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Running critical path E2E tests with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@echo "Combining coverage..."
+	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early

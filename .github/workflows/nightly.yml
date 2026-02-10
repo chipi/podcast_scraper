@@ -83,7 +83,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -192,7 +192,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -228,7 +228,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -270,7 +270,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: |
           docs/requirements.txt
@@ -300,7 +300,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -333,7 +333,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -417,7 +417,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -504,7 +504,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -596,7 +596,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -679,7 +679,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 

@@ -1351,26 +1351,66 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 except Exception:
                     pass  # Ignore errors when accessing provider attributes
 
-            metadata_stage.call_generate_metadata(
-                episode=job.episode,
-                feed=feed,
-                cfg=cfg,
-                effective_output_dir=effective_output_dir,
-                run_suffix=run_suffix,
-                transcript_path=job.transcript_path,
-                transcript_source=job.transcript_source,
-                whisper_model=None,  # No longer needed (use provider instead)
-                feed_metadata=feed_metadata,
-                host_detection_result=host_detection_result,
-                detected_names=job.detected_names,
-                summary_provider=summary_provider,
-                pipeline_metrics=pipeline_metrics,
-                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
-            )
+            # Enforce summarization timeout per episode (Issue #429)
+            from ...utils.timeout import timeout_context, TimeoutError as SummarizationTimeoutError
+
+            summarization_timeout = getattr(cfg, "summarization_timeout", 600)
+            with timeout_context(
+                summarization_timeout,
+                f"summarization for episode {job.episode.idx}",
+            ):
+                metadata_stage.call_generate_metadata(
+                    episode=job.episode,
+                    feed=feed,
+                    cfg=cfg,
+                    effective_output_dir=effective_output_dir,
+                    run_suffix=run_suffix,
+                    transcript_path=job.transcript_path,
+                    transcript_source=job.transcript_source,
+                    whisper_model=None,  # No longer needed (use provider instead)
+                    feed_metadata=feed_metadata,
+                    host_detection_result=host_detection_result,
+                    detected_names=job.detected_names,
+                    summary_provider=summary_provider,
+                    pipeline_metrics=pipeline_metrics,
+                    nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
+                )
             return True
+        except SummarizationTimeoutError as exc:
+            update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(
+                "[%s] Summarization timeout after %ss: %s",
+                job.episode.idx,
+                getattr(cfg, "summarization_timeout", 600),
+                exc,
+            )
+            if pipeline_metrics is not None:
+                from ..helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id,
+                    status="failed",
+                    stage="summarization",
+                    error_type="TimeoutError",
+                    error_message=str(exc)[:500],
+                )
+            return False
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+            # Record per-episode failure for run index (Issue #429)
+            if pipeline_metrics is not None:
+                from ..helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id,
+                    status="failed",
+                    stage="metadata",
+                    error_type=type(exc).__name__,
+                    error_message=str(exc)[:500],
+                )
             return False
 
     # Process jobs as they become available
