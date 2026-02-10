@@ -6,7 +6,7 @@ This script runs multiple config files sequentially, collects structured data
 
 Usage:
     python scripts/acceptance/run_acceptance_tests.py \
-        --configs "examples/config.example.yaml" \
+        --configs "config/examples/config.example.yaml" \
         --output-dir .test_outputs/acceptance \
         [--compare-baseline baseline_id] \
         [--save-as-baseline baseline_id]
@@ -18,12 +18,12 @@ Examples:
 
     # Run with baseline comparison
     python scripts/acceptance/run_acceptance_tests.py \
-        --configs "examples/config.example.yaml" \
+        --configs "config/examples/config.example.yaml" \
         --compare-baseline baseline_v1
 
     # Save current run as baseline
     python scripts/acceptance/run_acceptance_tests.py \
-        --configs "examples/config.example.yaml" \
+        --configs "config/examples/config.example.yaml" \
         --save-as-baseline baseline_v1
 """
 
@@ -69,7 +69,8 @@ def find_config_files(pattern: str) -> List[Path]:
     """Find config files matching the pattern.
 
     Args:
-        pattern: Glob pattern (e.g., "examples/config.example.yaml" or "examples/config.my.*.yaml")
+        pattern: Glob pattern (e.g. "config/examples/config.example.yaml" or
+            "config/acceptance/*.yaml")
 
     Returns:
         List of matching config file paths
@@ -1435,8 +1436,8 @@ def main() -> None:
         type=str,
         required=True,
         help=(
-            "Config file pattern (e.g., 'examples/config.example.yaml' "
-            "or 'examples/config.my.*.yaml')"
+            "Config file pattern (e.g., 'config/examples/config.example.yaml' "
+            "or 'config/acceptance/*.yaml')"
         ),
     )
     parser.add_argument(

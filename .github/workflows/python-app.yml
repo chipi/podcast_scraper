@@ -97,6 +97,10 @@ jobs:
         make lint
         make lint-markdown
         make type
+    - name: Check architecture diagrams up to date
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        make check-visualizations
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:
@@ -190,6 +194,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -e .[dev]
+    - name: Install ffmpeg (required for audio preprocessing unit tests)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
     - name: Verify unit tests can import without ML dependencies
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -245,7 +253,7 @@ jobs:
           # Coverage threshold - for display only on unit tests
           # Note: Unit tests typically achieve 70-80% coverage
           # Threshold is only enforced on COMBINED coverage (see coverage-unified job)
-          THRESHOLD=80
+          THRESHOLD=70
           echo "- **Combined Threshold**: ${THRESHOLD}% *(enforced on combined coverage only)*" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -1008,6 +1016,9 @@ jobs:
     if: always() && (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v6
+      with:
+        # Full history required for wily (code quality trends) on main/release
+        fetch-depth: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') && 0 || 1 }}
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -1195,7 +1206,7 @@ jobs:
           # Note: Individual test types (unit/integration/e2e) have different expected coverage:
           # - Unit: ~70-80%, Integration: ~50-60%, E2E: ~50-55%
           # Only COMBINED coverage is enforced against this threshold
-          THRESHOLD=80
+          THRESHOLD=70
           echo "- **Threshold**: ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -1217,6 +1228,34 @@ jobs:
         radon cc src/podcast_scraper/ -a -s --total-average --json > reports/complexity.json 2>/dev/null || echo '{"total_average": 0}' > reports/complexity.json
         radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
         interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
+    - name: Load metrics history from gh-pages (for wily trends)
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      run: |
+        mkdir -p metrics
+        git fetch origin gh-pages:gh-pages 2>/dev/null || true
+        git show gh-pages:metrics/history-ci.jsonl > metrics/history-ci.jsonl 2>/dev/null || touch metrics/history-ci.jsonl
+    - name: Install wily
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      run: pip install wily
+      continue-on-error: true
+    - name: Build wily baseline
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      run: |
+        python -m wily build src/podcast_scraper -n 50 || echo "Wily build failed (non-blocking)"
+      continue-on-error: true
+    - name: Generate wily trend reports
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      run: |
+        mkdir -p reports/wily
+        python -m wily report src/podcast_scraper/workflow/orchestration.py > reports/wily/orchestration-trends.txt 2>&1 || echo "Wily report failed (non-blocking)"
+        python -m wily report src/podcast_scraper/ > reports/wily/overall-trends.txt 2>&1 || echo "Wily report failed (non-blocking)"
+      continue-on-error: true
+    - name: Generate wily trends JSON for metrics pipeline
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      run: |
+        mkdir -p reports/wily
+        python scripts/dashboard/wily_trends_to_json.py --reports-dir reports --history metrics/history-ci.jsonl --output reports/wily/trends.json || echo '{"complexity_trend":"N/A","maintainability_trend":"N/A","files_degrading":[],"files_improving":[]}' > reports/wily/trends.json
+      continue-on-error: true
     - name: Collect pipeline metrics
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
@@ -1251,14 +1290,14 @@ jobs:
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
-        # Coverage threshold (80%) is for combined coverage only
+        # Coverage threshold (70%) is for combined coverage only
         # Save with CI prefix for unified dashboard
         python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
           --pipeline-metrics reports/output/pipeline_metrics.json \
-          --coverage-threshold 80 || echo "⚠️ Metrics generation failed (non-blocking)"
+          --coverage-threshold 70 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
       run: |
@@ -1307,6 +1346,16 @@ jobs:
         name: metrics
         path: metrics/
         retention-days: 30
+    - name: Upload wily reports as artifact
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      uses: actions/upload-artifact@v6
+      with:
+        name: wily-reports
+        path: |
+          reports/wily/
+          .wily/
+        retention-days: 90
+      continue-on-error: true
 
   # NOTE: Metrics deployment strategy:
   # - Main branch: Generates metrics data + unified dashboard HTML

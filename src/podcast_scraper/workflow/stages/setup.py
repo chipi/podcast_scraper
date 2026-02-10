@@ -44,10 +44,10 @@ def initialize_ml_environment() -> None:
           threads to reduce resource usage. In production, we want full performance.
         - User-set values (from `.env` or system environment) take precedence over
           these defaults (respects `override=False` in dotenv loading).
-        - See `examples/.env.example` for documentation of all environment variables.
+        - See `config/examples/.env.example` for documentation of all environment variables.
 
     See Also:
-        - `examples/.env.example`: Template with all environment variables
+        - `config/examples/.env.example`: Template with all environment variables
         - `docs/api/CONFIGURATION.md`: Complete environment variable documentation
     """
     # Disable Hugging Face Hub progress bars to avoid misleading "Downloading" messages
@@ -72,7 +72,7 @@ def initialize_ml_environment() -> None:
     # Users can set these environment variables in `.env` file or system environment
     # if they want to limit threads (e.g., in Docker containers with limited resources).
     # In tests, these are set to "1" to reduce resource usage (see tests/conftest.py).
-    # See `examples/.env.example` for documentation.
+    # See `config/examples/.env.example` for documentation.
 
 
 def should_preload_ml_models(cfg: config.Config) -> bool:

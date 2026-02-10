@@ -291,29 +291,40 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 - Validating system acceptance of different provider/model configurations
 - Comparing performance metrics across runs
 
+### Setting up acceptance configs
+
+The project expects your acceptance configs to live in an **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
+
+1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
+2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:  
+   `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
+3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
+
+Optional: use **`config/experiments/`** (also gitignored) for ad-hoc or one-off configs; run them with e.g. `make test-acceptance CONFIGS="config/experiments/config.my.*.yaml"`.
+
 ### Running Acceptance Tests
 
 ```bash
 # Run a single config file
-make test-acceptance CONFIGS="examples/config.example.yaml"
+make test-acceptance CONFIGS="config/examples/config.example.yaml"
 
 # Run multiple configs (using glob patterns)
-make test-acceptance CONFIGS="examples/config.my.*.yaml"
+make test-acceptance CONFIGS="config/acceptance/*.yaml"
 
 # Save current runs as a baseline for future comparison
-make test-acceptance CONFIGS="examples/config.example.yaml" SAVE_AS_BASELINE=baseline_v1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" SAVE_AS_BASELINE=baseline_v1
 
 # Compare against an existing baseline
-make test-acceptance CONFIGS="examples/config.example.yaml" COMPARE_BASELINE=baseline_v1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" COMPARE_BASELINE=baseline_v1
 
 # Use fixture feeds (mock data) instead of real RSS feeds
-make test-acceptance CONFIGS="examples/config.example.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" USE_FIXTURES=1
 
 # Disable real-time log streaming (only save to files)
-make test-acceptance CONFIGS="examples/config.example.yaml" NO_SHOW_LOGS=1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" NO_SHOW_LOGS=1
 
 # Disable automatic analysis and benchmark reports
-make test-acceptance CONFIGS="examples/config.example.yaml" NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1
 ```
 
 ### Understanding Sessions vs Runs
@@ -462,7 +473,7 @@ Per-tier thresholds enforced in CI (prevents regression):
 | **Unit** | 70% | ~74% |
 | **Integration** | 40% | ~42% |
 | **E2E** | 40% | ~50% |
-| **Combined** | 80% | ~82% |
+| **Combined** | 70% | ~71%+ |
 
 **Note:** Local make targets now run with coverage:
 

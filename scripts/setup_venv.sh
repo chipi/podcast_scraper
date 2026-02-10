@@ -38,6 +38,12 @@ Next steps:
    # Ubuntu/Debian: sudo apt-get install ffmpeg
    # Windows: Download from https://ffmpeg.org/download.html
 
+6. (Optional) To regenerate architecture diagrams locally: install Graphviz
+   # macOS: brew install graphviz
+   # Ubuntu/Debian: sudo apt-get install graphviz
+   # Then: make visualize
+   # CI does this automatically; only needed if you want to update docs/architecture/*.svg yourself.
+
 For more information, see:
 - README.md - Usage and installation
 - CONTRIBUTING.md - Development setup

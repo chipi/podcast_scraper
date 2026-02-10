@@ -34,7 +34,7 @@ See the **[Testing Guide](../docs/guides/TESTING_GUIDE.md)** for complete usage 
 
 ```bash
 # Run acceptance tests
-make test-acceptance CONFIGS="examples/config.example.yaml"
+make test-acceptance CONFIGS="config/examples/config.example.yaml"
 
 # Analyze results
 make analyze-acceptance SESSION_ID=20260208_101601
@@ -229,7 +229,7 @@ After running `setup_venv.sh`:
 3. **Set up environment variables (optional, for OpenAI providers):**
 
    ```bash
-   cp examples/.env.example .env
+   cp config/examples/.env.example .env
    # Edit .env and add your OPENAI_API_KEY
    ```
 

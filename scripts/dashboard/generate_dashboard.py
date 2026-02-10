@@ -201,6 +201,49 @@ def generate_static_dashboard(
             f'<div class="metric-trend trend-{trend_class}">{episodes_change}</div>'
         )
 
+    # Code quality trends (from wily / metrics history)
+    complexity_trend_val = complexity.get("complexity_trend", "N/A")
+    complexity_trend_html = ""
+    if complexity_trend_val and complexity_trend_val != "N/A":
+        trend_class = (
+            "up"
+            if complexity_trend_val.startswith("+")
+            else "down" if complexity_trend_val.startswith("-") else "neutral"
+        )
+        complexity_trend_html = (
+            f'<div class="metric-trend trend-{trend_class}">{complexity_trend_val}</div>'
+        )
+    maintainability_trend_val = complexity.get("maintainability_trend", "N/A")
+    maintainability_trend_html = ""
+    if maintainability_trend_val and maintainability_trend_val != "N/A":
+        trend_class = (
+            "up"
+            if maintainability_trend_val.startswith("+")
+            else "down" if maintainability_trend_val.startswith("-") else "neutral"
+        )
+        maintainability_trend_html = (
+            f'<div class="metric-trend trend-{trend_class}">{maintainability_trend_val}</div>'
+        )
+
+    files_degrading = complexity.get("files_degrading", []) or []
+    files_improving = complexity.get("files_improving", []) or []
+    files_degrading_html = ""
+    if files_degrading:
+        lst = ", ".join(files_degrading[:8]) + ("..." if len(files_degrading) > 8 else "")
+        files_degrading_html = (
+            f'<div class="metric-card" style="grid-column: 1 / -1;">'
+            f'<div class="metric-label">Files with increasing complexity</div>'
+            f'<div class="metric-value" style="font-size: 0.9em;">{lst}</div></div>'
+        )
+    files_improving_html = ""
+    if files_improving:
+        lst = ", ".join(files_improving[:8]) + ("..." if len(files_improving) > 8 else "")
+        files_improving_html = (
+            f'<div class="metric-card" style="grid-column: 1 / -1;">'
+            f'<div class="metric-label">Files with improving complexity</div>'
+            f'<div class="metric-value" style="font-size: 0.9em;">{lst}</div></div>'
+        )
+
     flaky_color = "#e74c3c" if test_health.get("flaky", 0) > 0 else "#27ae60"
 
     # Build pipeline metrics HTML
@@ -666,11 +709,13 @@ def generate_static_dashboard(
             <div class="metric-card">
                 <div class="metric-label">Cyclomatic Complexity</div>
                 <div class="metric-value">{complexity.get("cyclomatic_complexity", 0):.1f}</div>
+                {complexity_trend_html}
             </div>
 
             <div class="metric-card">
                 <div class="metric-label">Maintainability Index</div>
                 <div class="metric-value">{complexity.get("maintainability_index", 0):.1f}</div>
+                {maintainability_trend_html}
             </div>
 
             <div class="metric-card">
@@ -693,6 +738,8 @@ def generate_static_dashboard(
                     {complexity.get("spelling_errors_count", 0)}
                 </div>
             </div>
+            {files_degrading_html}
+            {files_improving_html}
 
             <div class="metric-card">
                 <div class="metric-label">Flaky Tests</div>
@@ -1171,10 +1218,12 @@ def generate_unified_dashboard(output_path: Path) -> None:
                 <div class="metric-card">
                     <div class="metric-label">Complexity</div>
                     <div class="metric-value">${(complexity.cyclomatic_complexity || 0).toFixed(1)}</div>
+                    ${getTrendHtml(complexity.complexity_trend)}
                 </div>
                 <div class="metric-card">
                     <div class="metric-label">Maintainability</div>
                     <div class="metric-value">${(complexity.maintainability_index || 0).toFixed(1)}</div>
+                    ${getTrendHtml(complexity.maintainability_trend)}
                 </div>
                 <div class="metric-card">
                     <div class="metric-label">Docstrings</div>

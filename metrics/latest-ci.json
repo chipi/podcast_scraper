@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-02-10T13:09:03.854505Z",
+  "commit": "unknown",
+  "branch": "unknown",
+  "workflow_run": "",
+  "metrics": {
+    "runtime": {
+      "total": 0,
+      "tests_per_second": 0.0
+    },
+    "test_health": {
+      "total": 0,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "flaky_tests": [],
+      "pass_rate": 0.0
+    },
+    "coverage": {
+      "threshold": 80.0
+    },
+    "slowest_tests": [],
+    "complexity": {
+      "cyclomatic_complexity": 6.553513513513513,
+      "maintainability_index": 68.07224417388684,
+      "dead_code_count": 0,
+      "spelling_errors_count": 0,
+      "complexity_trend": "N/A",
+      "maintainability_trend": "N/A",
+      "files_degrading": [],
+      "files_improving": []
+    }
+  },
+  "trends": {},
+  "alerts": []
+}

@@ -24,14 +24,9 @@ If you're unsure which tests are affected, run the full test suite and fix failu
 
 ## 🚨 MANDATORY: Testing Before Commit
 
-### Default Strategy: Start with Fast Tests
+**For which tests to run:** Use the **test-scope-decision-tree** skill.
 
-```bash
-# Step 1: ALWAYS run fast tests first
-make ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
-```
-
-### Step 2: Run Slow Tests If Needed
+**This project:** See table below for area → command. Run `make docker-test` only when Dockerfile/structure/deps changed.
 
 **Run slow tests ONLY if you changed:**
 
@@ -50,7 +45,7 @@ make ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
 - ❌ Only configuration changes (that don't affect ML)
 - ❌ Code changes that don't touch ML model paths
 
-### Step 3: Docker Testing (CONDITIONAL)
+### Docker testing (CONDITIONAL)
 
 **Run `make docker-test` ONLY if you changed:**
 
@@ -63,30 +58,9 @@ make ci-fast  # ~6-10 min (unit + fast integration + fast e2e)
 
 ## ⚡ Test Efficiency Rules
 
-**CRITICAL: Tests are slow. NEVER run the same suite multiple times.**
+**For the procedure:** Use the **efficient-pytest-runs** skill.
 
-- **Collect ALL needed info in a SINGLE run** — never run tests 2-3 times
-- E2E tests take 6-10+ minutes; multiple runs waste significant time
-
-**Before running tests, decide what you need:**
-
-- Test results? → Use `-v` (verbose) and `-ra` (show all outcomes)
-- Failure details? → Use `--tb=short` or `--tb=long` in the SAME run
-- Skipped tests? → Use `-rs` (show skip reasons) in the SAME run
-
-**Single efficient run example:**
-
-```bash
-# ✅ GOOD: One run with all flags
-pytest tests/e2e -v --tb=short -ra -rs
-
-# ❌ BAD: Multiple runs
-pytest tests/e2e        # Run 1
-pytest tests/e2e -v     # Run 2 (wasteful!)
-pytest tests/e2e -rs    # Run 3 (wasteful!)
-```
-
-**Re-run only if you've FIXED something** and need to verify the fix.
+**This project:** Use make targets for suites; for single-test debug use pytest with `-v --tb=short -ra -rs`. Never run the same suite twice.
 
 ## Pytest Markers
 

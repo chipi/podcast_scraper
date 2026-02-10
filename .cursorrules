@@ -139,8 +139,8 @@ make fix-md        # Auto-fix markdown
 8. Auto-load `.mdc` files for detailed guidance (Rule 16)
 9. NEVER commit secrets
 10. **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
-    - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded
-    - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl`
+    - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
+    - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
     - **MUST announce**: "Updated metrics file" (so user can verify)
 
 ---

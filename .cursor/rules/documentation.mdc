@@ -4,17 +4,9 @@
 
 ## 🚨 MANDATORY Workflow Before Committing Markdown
 
-1. **Run `make fix-md`** — auto-fixes common issues (tables, trailing spaces, blank lines)
-2. **Self-check** — scan for these issues:
-   - [ ] Only one H1 (`#`) in the document
-   - [ ] Blank line after all headings
-   - [ ] No trailing spaces
-   - [ ] Lists have blank lines before and after
-   - [ ] Code fences have language specifiers (` ```python `, ` ```bash `, etc.)
-   - [ ] Tables use consistent spacing around pipes
-   - [ ] No multiple consecutive blank lines
-3. **Run `make lint-markdown`** — verify no linting errors
-4. **Run `make docs`** — validate docs build (catches broken links, missing nav)
+**For the procedure:** Use the **markdown-pre-commit** skill.
+
+**This project:** `make fix-md`, then `make lint-markdown`, then `make docs`. Never use `npx markdownlint-cli2` directly; use Makefile targets. Self-check: one H1, blank after headings, no trailing spaces, code fences with language, tables with spacing (see skill).
 
 **CRITICAL:**
 
@@ -46,10 +38,9 @@
 
 ### PRD/RFC Templates
 
-1. Copy template: `docs/prd/PRD_TEMPLATE.md` or `docs/rfc/RFC_TEMPLATE.md`
-2. Rename: `PRD-NNN-feature.md` or `RFC-NNN-feature.md` (check indexes for next number)
-3. Fill placeholders
-4. Update index files: `docs/prd/index.md`, `docs/rfc/index.md`
+**For the procedure:** Use the **create-prd-rfc** skill.
+
+**This project:** Templates `docs/prd/PRD_TEMPLATE.md`, `docs/rfc/RFC_TEMPLATE.md`; indexes `docs/prd/index.md`, `docs/rfc/index.md`; naming `PRD-NNN-name.md`, `RFC-NNN-name.md`.
 
 ## 📝 Always Update When
 

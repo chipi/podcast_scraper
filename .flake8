@@ -16,7 +16,7 @@ per-file-ignores =
     speaker_detection.py:C901
     whisper_integration.py:C901
     tests/integration/*:E501
-    scripts/dashboard/*:E501
+    scripts/dashboard/*:E501,C901
     *summarizer.py:C901
     *metadata_generation.py:C901
     *orchestration.py:C901

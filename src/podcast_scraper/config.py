@@ -2834,7 +2834,8 @@ def load_config_file(
     See Also:
         - `Config`: Configuration model and field documentation
         - `service.run_from_config_file()`: Direct service API from config file
-        - Configuration examples: `examples/config.example.json`, `examples/config.example.yaml`
+        - Configuration examples: `config/examples/config.example.json`,
+          `config/examples/config.example.yaml`
     """
     if not path:
         raise ValueError("Config path cannot be empty")

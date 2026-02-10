@@ -20,41 +20,15 @@
 
 ## 🚨 CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
 
-**YOU MUST FOLLOW THIS EXACT SEQUENCE BEFORE EVERY COMMIT:**
+**For the procedure:** Use the **commit-with-approval** skill.
 
-### Step-by-Step Commit Process (MANDATORY)
-
-1. **Make code changes** ✅
-2. **MANDATORY: Run `make ci-fast`** — fast validation (~6-10 min)
-3. **If editing markdown:** Run `make fix-md` to auto-fix common issues
-4. **Self-check markdown files** (if any were edited):
-   - One H1 only, blank lines after headings, no trailing spaces
-   - List indentation consistent, code fences have language tags
-   - Run `make lint-markdown` to verify
-5. **MANDATORY: Run `git status`** — show user what files changed
-6. **MANDATORY: Run `git diff`** — show user the actual changes
-7. **MANDATORY: Wait for explicit approval** — user must say "commit", "yes", etc.
-8. **MANDATORY: Get commit message** — user provides or you ask for one
-9. **THEN commit** — only after steps 2-8 are complete
-
-### ❌ NEVER commit when
-
-- You haven't run `make ci-fast` first
-- You haven't shown `git status` first
-- You haven't shown `git diff` first
-- User hasn't explicitly approved
-- User said "don't commit" or "wait"
+**This project:** Validation = `make ci-fast` (~6–10 min). If markdown edited: `make fix-md`, self-check (one H1, blanks after headings, code fences with language, tables), then `make lint-markdown`. Never commit without showing `git status` and `git diff` and getting explicit approval.
 
 ## 🚨 CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
 
-### Step-by-Step Push Process (MANDATORY)
+**For the procedure:** Use the **push-to-pr** skill.
 
-1. **MANDATORY: Show `git status`** — show what will be pushed
-2. **MANDATORY: Show `git diff` or change summary**
-3. **Pre-commit hook has already run** — `make ci-fast` passed during commit
-4. **MANDATORY: Conditionally run `make docker-test`** — ONLY if Docker changes
-5. **MANDATORY: Ask user for explicit approval** — wait for "push"/"yes"/"go ahead"
-6. **THEN push** — only after user has approved
+**This project:** Show status and diff/summary; run `make docker-test` only when Docker/structure/deps changed (see list below); get explicit approval then push.
 
 ### When to run `make docker-test` (CONDITIONAL)
 
@@ -75,18 +49,9 @@
 2. ✅ **ALWAYS create a feature branch**: `git checkout -b feat/name`
 3. ✅ **ALWAYS create a PR** for review and merge
 
-### Branch Creation Checklist
+### Branch creation (this project)
 
-```bash
-# Step 1: Check current state
-git status --porcelain
-# If output exists → commit, stash, or discard FIRST
-
-# Step 2: Create branch from latest main
-git checkout main
-git pull origin main
-git checkout -b feat/new-feature-name
-```
+Run `git status --porcelain` first; if there is output, commit, stash, or discard. Then from latest main: `git checkout main`, `git pull origin main`, `git checkout -b feat/name`.
 
 ## 🎯 DECISION TREES
 

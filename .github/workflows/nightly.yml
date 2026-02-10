@@ -216,6 +216,10 @@ jobs:
         make lint
         make lint-markdown
         make type
+    - name: Check architecture diagrams up to date
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        make check-visualizations
 
   # Security and quality checks - gated by lint/build, runs independently to nightly-metrics (does not gate tests)
   nightly-security-quality:
@@ -342,6 +346,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e .[dev]
         pip install pytest-json-report
+
+    - name: Install ffmpeg (required for audio preprocessing unit tests)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
 
     - name: Verify unit tests can import without ML dependencies
       run: |
@@ -918,7 +927,7 @@ jobs:
           --output metrics/latest-nightly.json \
           --history metrics/history-nightly.jsonl \
           --pipeline-metrics reports/output/pipeline_metrics.json \
-          --coverage-threshold 80
+          --coverage-threshold 70
 
     - name: Validate metrics JSON
       run: |

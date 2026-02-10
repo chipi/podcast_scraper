@@ -4,6 +4,8 @@
 
 ## 🚀 Quick Start
 
+**For manual worktree setup (no make wt-setup):** Use the **git-worktree-setup** skill. This project prefers `make wt-setup` when available.
+
 ### Create New Worktree (Full Setup)
 
 ```bash
@@ -73,27 +75,9 @@ make wt-prune     # Prune stale worktree references
 
 ## ⚙️ Manual Setup (If Needed)
 
-```bash
-# 1. Fetch latest
-git fetch origin
+**For the procedure:** Use the **git-worktree-setup** skill.
 
-# 2. Create worktree with issue-linked branch
-git worktree add ../podcast_scraper-169-dependabot \
-  -b feat/169-dependabot origin/main
-
-# 3. Navigate to worktree
-cd ../podcast_scraper-169-dependabot
-
-# 4. Create isolated virtual environment
-python3 -m venv .venv
-source .venv/bin/activate  # macOS/Linux
-
-# 5. Install project
-pip install -e ".[dev]"
-
-# 6. Open in Cursor
-cursor .
-```
+**This project:** Worktree path pattern `../podcast_scraper-<issue>-<name>`; venv `.venv`; install `pip install -e ".[dev]"`.
 
 ## 🎯 Key Benefits
 
@@ -165,51 +149,9 @@ git push --force-with-lease  # NEVER use --force
 
 ## 🆘 Emergency Recovery
 
-### Corrupted Worktree
+**For the procedure:** Use the **git-worktree-recovery** skill.
 
-```bash
-# Force remove (when normal remove fails)
-git worktree remove --force ../podcast_scraper-broken
-
-# If that fails, manually clean up
-rm -rf ../podcast_scraper-broken
-git worktree prune
-```
-
-### Broken Venv
-
-```bash
-# Remove and recreate
-rm -rf .venv
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
-
-### Bad Rebase
-
-```bash
-# Abort rebase
-git rebase --abort
-
-# Or reset to remote
-git fetch origin
-git reset --hard origin/feat/169-dependabot
-```
-
-### Accidentally Committed to Main
-
-```bash
-# From main worktree
-git log --oneline -5        # Find the bad commits
-git reset --soft HEAD~N     # Uncommit N commits (keeps changes)
-git stash                   # Stash the changes
-
-# Go to correct worktree
-cd ../podcast_scraper-169-dependabot
-git stash pop               # Apply changes here
-git commit -m "feat: correct commit"
-```
+**This project:** Worktree paths `../podcast_scraper-*`; venv reinstall `pip install -e ".[dev]"`.
 
 ## 📊 Disk Space
 

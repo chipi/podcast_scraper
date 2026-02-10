@@ -111,8 +111,40 @@ def extract_coverage_metrics(coverage_xml_path: Path, threshold: float = 80.0) -
     }
 
 
+def extract_wily_trends(reports_dir: Path) -> dict:
+    """Extract trend metrics from wily trends.json (from CI or wily_trends_to_json.py).
+
+    Returns dict with complexity_trend, maintainability_trend, files_degrading,
+    files_improving. Missing or invalid file yields N/A and empty lists.
+    """
+    trends_path = reports_dir / "wily" / "trends.json"
+    if not trends_path.exists():
+        return {
+            "complexity_trend": "N/A",
+            "maintainability_trend": "N/A",
+            "files_degrading": [],
+            "files_improving": [],
+        }
+    try:
+        with open(trends_path) as f:
+            data = json.load(f)
+        return {
+            "complexity_trend": data.get("complexity_trend", "N/A"),
+            "maintainability_trend": data.get("maintainability_trend", "N/A"),
+            "files_degrading": data.get("files_degrading", []) or [],
+            "files_improving": data.get("files_improving", []) or [],
+        }
+    except (json.JSONDecodeError, IOError):
+        return {
+            "complexity_trend": "N/A",
+            "maintainability_trend": "N/A",
+            "files_degrading": [],
+            "files_improving": [],
+        }
+
+
 def extract_complexity_metrics(reports_dir: Path) -> dict:
-    """Extract complexity metrics from radon reports."""
+    """Extract complexity metrics from radon reports and wily trends."""
     complexity_json_path = reports_dir / "complexity.json"
     maintainability_json_path = reports_dir / "maintainability.json"
     docstrings_json_path = reports_dir / "docstrings.json"
@@ -121,15 +153,26 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
 
     metrics = {}
 
-    # Cyclomatic complexity
+    # Cyclomatic complexity (radon 6: total_average or list; radon 5.1: dict path -> list of {complexity})
     if complexity_json_path.exists():
         try:
             with open(complexity_json_path) as f:
                 complexity_data = json.load(f)
                 if isinstance(complexity_data, dict):
-                    metrics["cyclomatic_complexity"] = complexity_data.get("total_average", 0)
+                    if "total_average" in complexity_data:
+                        metrics["cyclomatic_complexity"] = complexity_data.get("total_average", 0)
+                    else:
+                        # Radon 5.1: dict of path -> list of {complexity, ...}
+                        total_cc = 0
+                        count = 0
+                        for items in complexity_data.values():
+                            if isinstance(items, list):
+                                for item in items:
+                                    if isinstance(item, dict) and "complexity" in item:
+                                        total_cc += item.get("complexity", 0)
+                                        count += 1
+                        metrics["cyclomatic_complexity"] = total_cc / count if count > 0 else 0
                 elif isinstance(complexity_data, list) and complexity_data:
-                    # Handle list format
                     total_cc = sum(
                         item.get("complexity", 0)
                         for item in complexity_data
@@ -140,17 +183,25 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
         except (json.JSONDecodeError, IOError):
             pass
 
-    # Maintainability index
+    # Maintainability index (radon 6: list of {mi}; radon 5.1: dict path -> {mi, rank})
     if maintainability_json_path.exists():
         try:
             with open(maintainability_json_path) as f:
                 mi_data = json.load(f)
                 if isinstance(mi_data, list) and mi_data:
-                    # Calculate average MI
                     mi_values = [
                         item.get("mi", 0)
                         for item in mi_data
                         if isinstance(item, dict) and "mi" in item
+                    ]
+                    metrics["maintainability_index"] = (
+                        sum(mi_values) / len(mi_values) if mi_values else 0
+                    )
+                elif isinstance(mi_data, dict) and mi_data:
+                    mi_values = [
+                        v.get("mi", 0)
+                        for v in mi_data.values()
+                        if isinstance(v, dict) and "mi" in v
                     ]
                     metrics["maintainability_index"] = (
                         sum(mi_values) / len(mi_values) if mi_values else 0
@@ -199,6 +250,13 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
             metrics["spelling_errors_count"] = 0
     else:
         metrics["spelling_errors_count"] = 0
+
+    # Wily trends (from reports/wily/trends.json, generated in CI or by wily_trends_to_json.py)
+    wily_trends = extract_wily_trends(reports_dir)
+    metrics["complexity_trend"] = wily_trends.get("complexity_trend", "N/A")
+    metrics["maintainability_trend"] = wily_trends.get("maintainability_trend", "N/A")
+    metrics["files_degrading"] = wily_trends.get("files_degrading", [])
+    metrics["files_improving"] = wily_trends.get("files_improving", [])
 
     return metrics
 
@@ -389,6 +447,10 @@ def detect_deviations(
     current_coverage = current.get("metrics", {}).get("coverage", {}).get("overall", 0)
     current_total = current.get("metrics", {}).get("test_health", {}).get("total", 0)
     current_flaky = current.get("metrics", {}).get("test_health", {}).get("flaky", 0)
+    current_complexity = (
+        current.get("metrics", {}).get("complexity", {}).get("cyclomatic_complexity", 0)
+    )
+    current_mi = current.get("metrics", {}).get("complexity", {}).get("maintainability_index", 0)
 
     # Runtime deviation (compare with last 5 runs)
     recent_runtimes = [
@@ -479,6 +541,66 @@ def detect_deviations(
                     "message": f"Flaky tests detected: {current_flaky} (previously 0)",
                 }
             )
+
+    # Complexity increase (compare with last 10 runs)
+    recent_complexities = [
+        h.get("metrics", {}).get("complexity", {}).get("cyclomatic_complexity", 0)
+        for h in history[-10:]
+        if h.get("metrics", {}).get("complexity", {}).get("cyclomatic_complexity", 0) > 0
+    ]
+    if recent_complexities and current_complexity > 0:
+        avg_complexity = sum(recent_complexities) / len(recent_complexities)
+        if current_complexity > avg_complexity * 1.1:  # >10% increase
+            pct_change = ((current_complexity / avg_complexity) - 1) * 100
+            severity = "warning" if pct_change < 20 else "error"
+            alerts.append(
+                {
+                    "type": "regression",
+                    "metric": "complexity",
+                    "severity": severity,
+                    "message": (
+                        f"Complexity increased by {pct_change:.1f}% compared to "
+                        f"last {len(recent_complexities)} runs (avg: {avg_complexity:.1f})"
+                    ),
+                }
+            )
+
+    # Maintainability drop (compare with last 10 runs)
+    recent_mi = [
+        h.get("metrics", {}).get("complexity", {}).get("maintainability_index", 0)
+        for h in history[-10:]
+        if h.get("metrics", {}).get("complexity", {}).get("maintainability_index", 0) > 0
+    ]
+    if recent_mi and current_mi > 0:
+        avg_mi = sum(recent_mi) / len(recent_mi)
+        if current_mi < avg_mi - 2.0:  # Drop of 2+ points
+            alerts.append(
+                {
+                    "type": "regression",
+                    "metric": "maintainability",
+                    "severity": "warning",
+                    "message": (
+                        f"Maintainability dropped by {avg_mi - current_mi:.1f} points "
+                        f"(avg: {avg_mi:.1f}, current: {current_mi:.1f})"
+                    ),
+                }
+            )
+
+    # File-level complexity (from wily trends)
+    files_degrading = current.get("metrics", {}).get("complexity", {}).get("files_degrading", [])
+    if files_degrading:
+        alerts.append(
+            {
+                "type": "regression",
+                "metric": "file_complexity",
+                "severity": "info",
+                "message": (
+                    f"Files with increasing complexity: "
+                    f"{', '.join(files_degrading[:5])}"
+                    + ("..." if len(files_degrading) > 5 else "")
+                ),
+            }
+        )
 
     return alerts
 

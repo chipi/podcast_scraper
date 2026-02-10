@@ -3,7 +3,7 @@
 # Values specified here are used as defaults unless overridden on the CLI
 #
 # Note: Some settings (like OPENAI_API_KEY, WORKERS, TIMEOUT) are better set via .env file
-# See examples/.env.example for environment variable options
+# See config/examples/.env.example for environment variable options
 
 rss: https://example.com/feed.xml
 output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
@@ -45,12 +45,12 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
 
 # OpenAI configuration (required if using any OpenAI providers)
-# Note: OPENAI_API_KEY should be set in .env file (see examples/.env.example)
+# Note: OPENAI_API_KEY should be set in .env file (see config/examples/.env.example)
 # openai_api_key: your-key-here  # Not recommended - use .env file instead
 # openai_api_base: http://localhost:8000/v1  # Optional: Custom OpenAI API base URL (e.g., for E2E testing)
 
 # Gemini configuration (required if using any Gemini providers)
-# Note: GEMINI_API_KEY should be set in .env file (see examples/.env.example)
+# Note: GEMINI_API_KEY should be set in .env file (see config/examples/.env.example)
 # gemini_api_key: your-key-here  # Not recommended - use .env file instead
 # gemini_api_base: http://localhost:8000/v1beta  # Optional: Custom Gemini API base URL (e.g., for E2E testing)
 
@@ -59,26 +59,26 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # Or in .env file: ANTHROPIC_API_KEY=your-api-key-here
 
 # DeepSeek configuration (required if using any DeepSeek providers)
-# Note: DEEPSEEK_API_KEY should be set in .env file (see examples/.env.example)
+# Note: DEEPSEEK_API_KEY should be set in .env file (see config/examples/.env.example)
 # Note: DeepSeek does NOT support transcription (no audio API)
 # deepseek_api_key: your-key-here  # Not recommended - use .env file instead
 # deepseek_api_base: http://localhost:8000/v1  # Optional: Custom DeepSeek API base URL (e.g., for E2E testing)
 
 # Mistral configuration (required if using any Mistral providers)
-# Note: MISTRAL_API_KEY should be set in .env file (see examples/.env.example)
+# Note: MISTRAL_API_KEY should be set in .env file (see config/examples/.env.example)
 # Mistral is a full-stack provider (transcription + speaker detection + summarization) with EU data residency
 # mistral_api_key: your-key-here  # Not recommended - use .env file instead
 # mistral_api_base: http://localhost:8000/v1  # Optional: Custom Mistral API base URL (e.g., for E2E testing)
 
 # Grok configuration (required if using any Grok providers)
-# Note: GROK_API_KEY should be set in .env file (see examples/.env.example)
+# Note: GROK_API_KEY should be set in .env file (see config/examples/.env.example)
 # Note: Grok does NOT support transcription (no audio API)
 # Grok offers real-time information access via X/Twitter integration
 # grok_api_key: your-key-here  # Not recommended - use .env file instead
 # grok_api_base: http://localhost:8000/v1  # Optional: Custom Grok API base URL (e.g., for E2E testing)
 
 # Ollama configuration (required if using any Ollama providers)
-# Note: OLLAMA_API_BASE can be set in .env file (see examples/.env.example) or defaults to http://localhost:11434/v1
+# Note: OLLAMA_API_BASE can be set in .env file (see config/examples/.env.example) or defaults to http://localhost:11434/v1
 # Note: Ollama does NOT support transcription (no audio API)
 # Ollama is a local, self-hosted solution with ZERO API costs - all processing happens on your local hardware
 # Perfect for privacy, offline operation, or air-gapped environments

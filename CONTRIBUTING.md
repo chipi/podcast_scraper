@@ -34,6 +34,9 @@ Before you begin, ensure you have these installed:
 - **ffmpeg** — Required for Whisper transcription
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
+- **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). CI installs it for docs builds.
+  - macOS: `brew install graphviz`
+  - Linux: `apt install graphviz` or `yum install graphviz`
 - **Node.js and npm** — Required for markdown linting
   - Check with `node --version` and `npm --version`
   - Install from [nodejs.org](https://nodejs.org/) if missing
@@ -83,7 +86,7 @@ npm install -g markdownlint-cli
 
 # Configure environment (optional but recommended)
 
-cp examples/.env.example .env
+cp config/examples/.env.example .env
 
 # Edit .env if you need OpenAI API keys or custom settings
 
@@ -129,7 +132,7 @@ make ci
 - Performance tuning for your hardware
 - Debug logging (`LOG_LEVEL=DEBUG`)
 
-See [`examples/.env.example`](examples/.env.example) for all options.
+See [`config/examples/.env.example`](config/examples/.env.example) for all options.
 
 ---
 

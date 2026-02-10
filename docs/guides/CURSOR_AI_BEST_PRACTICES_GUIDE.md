@@ -875,6 +875,47 @@ The following prompt templates are available in `.cursor/prompts/`:
 5. **Composer**
    - "Generate PR description with checklist based on RFC-025 Phase 1"
 
+## Subagents and Commands
+
+### What Are Subagents?
+
+**Subagents** are separate AI agents the main Cursor agent can **delegate** to. Each has its own context; long or noisy work (e.g. full CI, acceptance tests) runs there and the main chat gets a **summary**. Rule 9 (no background make in main chat) applies to the **main** agent; a subagent running `make ci` in its own context returns a short result and does not violate that. All subagents use the **project venv only**: run from project root and use Makefile (which uses `.venv/bin/python`); never use global `python`/`pip`/`pytest`/`npx`.
+
+| Aspect | Meaning |
+|--------|--------|
+| **Own context** | Subagent's logs and output stay in its context; main chat stays clean. |
+| **Foreground / background** | Foreground = main agent waits for result. Background = you can keep working while subagent runs. |
+| **Built-in** | Explore (codebase search), Bash (shell commands), Browser (MCP). Cursor uses these when appropriate. |
+| **Custom** | `.cursor/agents/*.md` (project) or `~/.cursor/agents/` (user) with YAML frontmatter and prompt. |
+
+### Commands vs Subagents
+
+| | **Commands** (`/name`) | **Subagents** |
+|---|-------------------------|----------------|
+| **What** | You type `/verify` etc.; Cursor injects the command's Markdown as the prompt. **Main** agent does the work in the **same** chat. | Main agent **delegates** to another agent; that agent has its **own** context and returns a summary. |
+| **Where** | `.cursor/commands/*.md` or `~/.cursor/commands/` | Built-in (Explore, Bash, Browser) or custom `.cursor/agents/*.md` |
+| **Best for** | Repeatable start of a workflow (verify, review, pr, debug-ci, rfc) in one conversation. | Long/noisy runs (full CI, acceptance tests), deep search, parallel work, dedicated verifier. |
+
+- **Use a command** when you want the main agent to do the work in this chat (e.g. `/review`, `/pr`).
+- **Use a subagent** when you want context isolation or a short summary (e.g. "run ci and tell me the result," "run acceptance tests for planet money").
+
+### Project Custom Subagents (`.cursor/agents/`)
+
+This project defines three custom subagents. All run from **project root** and use the **project venv only** (Makefile uses `.venv` when present).
+
+| Subagent | File | When to use |
+|----------|------|--------------|
+| **Verifier** | `verifier.md` | "Verify before commit," "run ci and report," "is the tree green?" Runs format-check, lint, lint-markdown, full **make ci**; optionally docker-test. Returns PASSED/FAILED + short summary. |
+| **CI Fix Loop** | `ci-fix-loop.md` | "Run ci and fix until it passes," "make ci green." Runs full **make ci**; on failure fixes and re-runs up to 3 times. Returns final status + what was fixed. |
+| **Acceptance** | `acceptance.md` | "Run acceptance tests," "run all acceptance configs." Runs `make test-acceptance CONFIGS="config/acceptance/*.yaml"` (or user pattern). Returns Status, Session ID, Summary; suggests `make analyze-acceptance SESSION_ID=…`. |
+
+Optional later: **Docs check** (lint-markdown + docs), **PR prep** (status/diff + docker-test). Use Cursor's **built-in Explore** for "find all X in codebase."
+
+### Subagents vs Skills
+
+- **Subagents** = separate context and/or parallel work (verify, run CI and fix, run acceptance).
+- **Skills** = procedures the main agent follows in the same context (commit-with-approval, push-to-pr, efficient pytest). Use skills for single-shot, repeatable procedures; use subagents when you want isolation or summarization.
+
 ## Project-Specific Recommendations
 
 ### 1. Always Use @Rules for Specialized Tasks

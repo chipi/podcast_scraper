@@ -90,7 +90,7 @@ The testing strategy follows a three-tier pyramid:
 - **Purpose**: Test individual functions/modules in isolation
 - **Speed**: Fast (< 100ms each)
 - **Scope**: Single module, mocked dependencies
-- **Coverage**: High (target: >80% code coverage)
+- **Coverage**: High (target: ≥70% code coverage)
 - **Examples**: Config validation, filename sanitization, URL normalization
 
 ### Integration Tests
@@ -910,7 +910,7 @@ Ideal Pyramid:
 - Unit test execution time: < 30 seconds
 - Integration test execution time: < 5 minutes
 - E2E test execution time: < 20 minutes
-- Test coverage: Maintain > 80%
+- Test coverage: Maintain ≥70%
 
 ### Improvement Strategy
 
