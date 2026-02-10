@@ -389,6 +389,13 @@ jobs:
         echo "🔍 Debug: Cache sizes before save:"
         du -sh "$HOME/.cache/whisper" 2>/dev/null || echo "  Whisper cache not found"
         du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"
+    - name: Upload ML models artifact (for dependent test jobs in same run)
+      if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
+      uses: actions/upload-artifact@v6
+      with:
+        name: ml-models
+        path: $HOME/.cache
+        retention-days: 1
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
@@ -418,18 +425,11 @@ jobs:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Cache ML models
-      uses: actions/cache@v5
-      id: cache-models
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+        name: ml-models
+        path: $HOME/.cache
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -572,18 +572,11 @@ jobs:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Cache ML models
-      uses: actions/cache@v5
-      id: cache-models
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+        name: ml-models
+        path: $HOME/.cache
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -753,18 +746,11 @@ jobs:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Cache ML models
-      uses: actions/cache@v5
-      id: cache-models
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+        name: ml-models
+        path: $HOME/.cache
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -905,18 +891,11 @@ jobs:
         python-version: "3.11"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Cache ML models
-      uses: actions/cache@v5
-      id: cache-models
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
-        key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-${{ runner.os }}-
+        name: ml-models
+        path: $HOME/.cache
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
