@@ -1,9 +1,9 @@
-"""Nightly comprehensive E2E test suite with production ML models.
+"""Nightly comprehensive E2E test suite.
 
 This test suite runs comprehensive tests with:
 - All 5 podcasts (p01-p05) with all 3 episodes each (15 total episodes)
-- Production ML models: PROD_DEFAULT_WHISPER_MODEL, PROD_DEFAULT_SUMMARY_MODEL,
-  PROD_DEFAULT_SUMMARY_REDUCE_MODEL
+- TEMPORARY: Same ML models as integration/e2e (TEST_DEFAULT_*) to confirm OOM
+  hypothesis. Normally uses production models (PROD_DEFAULT_*).
 - Full pipeline validation (transcription → NER → summarization → metadata)
 
 These tests are marked with @pytest.mark.nightly (NOT @pytest.mark.e2e) to
@@ -23,30 +23,30 @@ from tests.conftest import create_test_config
 
 
 def create_nightly_config(output_dir: str, rss_url: str):
-    """Create config for nightly tests with production models.
+    """Create config for nightly tests.
 
-    Uses production ML models:
-    - Whisper: PROD_DEFAULT_WHISPER_MODEL (production quality)
-    - Summary MAP: PROD_DEFAULT_SUMMARY_MODEL (production quality)
-    - Summary REDUCE: PROD_DEFAULT_SUMMARY_REDUCE_MODEL (production quality)
-    - NER: DEFAULT_NER_MODEL (same for tests and production)
+    TEMPORARY: Uses same small models as integration/e2e (TEST_DEFAULT_*) to confirm
+    OOM hypothesis. If nightly passes with these models, the "Terminated" failures
+    were likely due to production model memory (base.en + prod summary models).
+    Revert to PROD_DEFAULT_WHISPER_MODEL, PROD_DEFAULT_SUMMARY_MODEL,
+    PROD_DEFAULT_SUMMARY_REDUCE_MODEL once confirmed.
 
     Args:
         output_dir: Output directory for test results
         rss_url: RSS feed URL for the podcast
 
     Returns:
-        Config object with production model settings
+        Config object with model settings (currently test defaults)
     """
     return create_test_config(
         rss_url=rss_url,
         output_dir=output_dir,
         transcribe_missing=True,
-        whisper_model=config.PROD_DEFAULT_WHISPER_MODEL,  # Production Whisper model
+        whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Same as integration/e2e (tiny.en)
         generate_metadata=True,
         generate_summaries=True,
-        summary_model=config.PROD_DEFAULT_SUMMARY_MODEL,  # Production MAP model
-        summary_reduce_model=config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,  # Production REDUCE model
+        summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Same as integration/e2e (bart-small)
+        summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Same (long-fast)
         auto_speakers=True,
         speaker_detector_provider="spacy",
         summary_provider="transformers",
