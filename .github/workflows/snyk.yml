@@ -2,14 +2,14 @@ name: Snyk Security Scan
 
 on:
   push:
-    branches: [ "main", "release/2.4" ]
+    branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
       - '**.py'
       - 'pyproject.toml'
       - 'Dockerfile'
       - '.dockerignore'
   pull_request:
-    branches: [ "main", "release/2.4" ]
+    branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
       - '**.py'
       - 'pyproject.toml'

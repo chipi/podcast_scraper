@@ -113,24 +113,62 @@
                     fetch(`history-${source}.jsonl`)
                 ]);
 
-                if (!latestResp.ok) throw new Error(`Could not load latest-${source}.json`);
-                const latest = await latestResp.json();
+                if (!latestResp.ok) {
+                    const msg = `Metrics file not found (${latestResp.status}). Data is generated after CI runs on main or scheduled nightly runs.`;
+                    showNoDataState(source, msg);
+                    return;
+                }
+
+                const rawLatest = await latestResp.text();
+                let latest;
+                try {
+                    latest = rawLatest.trim() ? JSON.parse(rawLatest) : null;
+                } catch (parseErr) {
+                    console.error('Invalid JSON in latest-' + source + '.json:', parseErr);
+                    showNoDataState(source, 'Metrics file is empty or invalid. Data may not have been generated yet.');
+                    return;
+                }
+
+                if (!latest || typeof latest !== 'object') {
+                    showNoDataState(source, 'No metrics data available yet.');
+                    return;
+                }
 
                 let history = [];
                 if (historyResp.ok) {
                     const text = await historyResp.text();
-                    history = text.split('\n')
-                        .filter(line => line.trim())
-                        .map(line => JSON.parse(line));
+                    const trimmed = text.trim();
+                    if (trimmed.length > 0 && trimmed[0] === '{') {
+                        history = text.split('\n')
+                            .filter(line => line.trim())
+                            .map(line => {
+                                try { return JSON.parse(line); } catch (e) { return null; }
+                            })
+                            .filter(Boolean);
+                    }
                 }
 
                 updateDashboard(latest, history);
             } catch (error) {
                 console.error('Error loading data:', error);
-                alert(`Error loading data for ${source}: ${error.message}`);
+                showNoDataState(source, error.message || 'Failed to load metrics.');
             } finally {
                 loader.style.display = 'none';
             }
+        }
+
+        function showNoDataState(source, message) {
+            document.getElementById('last-updated').textContent = 'No data';
+            document.getElementById('commit-info').textContent = '';
+            document.getElementById('alerts-container').innerHTML =
+                '<div class="alert alert-info"><strong>INFO</strong>: ' + message + '</div>';
+            document.getElementById('metrics-grid').innerHTML =
+                '<div class="no-data" style="grid-column: 1 / -1;">' + message + '</div>';
+            document.getElementById('slowest-tests-container').innerHTML = '<div class="no-data">No data</div>';
+            document.getElementById('flaky-tests-container').innerHTML = '<div class="no-data">No data</div>';
+            if (trendsChart) { trendsChart.destroy(); trendsChart = null; }
+            if (qualityChart) { qualityChart.destroy(); qualityChart = null; }
+            if (pipelineChart) { pipelineChart.destroy(); pipelineChart = null; }
         }
 
         function formatTimestamp(ts) {

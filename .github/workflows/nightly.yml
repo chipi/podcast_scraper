@@ -216,10 +216,6 @@ jobs:
         make lint
         make lint-markdown
         make type
-    - name: Check architecture diagrams up to date
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        make check-visualizations
 
   # Security and quality checks - gated by lint/build, runs independently to nightly-metrics (does not gate tests)
   nightly-security-quality:

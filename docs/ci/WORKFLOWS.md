@@ -1598,14 +1598,14 @@ The system now passes the "minimal docs CI/CD" requirement:
 **Triggers:**
 
 - **Scheduled:** Daily at 2 AM UTC (cron: `0 2 * * *`)
-- **Push to release branches:** `release/**` (e.g., `release/2.4`)
+- **Push to release branches:** `release/**` (e.g., `release/2.4`, `release/2.5`)
 - **Manual dispatch:** `workflow_dispatch`
 
 **Purpose:** Run comprehensive test suite with full metrics collection, trend tracking, and reporting.
 
 ### Release Branch Testing
 
-As of issue #248, the nightly workflow also runs on **push to release branches** (e.g., `release/2.4`).
+As of issue #248, the nightly workflow also runs on **push to release branches** (e.g., `release/2.4`, `release/2.5`).
 
 **Why Release Branch Testing?**
 

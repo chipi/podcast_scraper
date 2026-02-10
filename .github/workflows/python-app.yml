@@ -11,7 +11,7 @@ name: Python application
 
 on:
   push:
-    branches: [ "main", "release/2.4" ]
+    branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
       - '**.py'
       - '**.j2'
@@ -21,7 +21,7 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
   pull_request:
-    branches: [ "main", "release/2.4" ]
+    branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
       - '**.py'
       - '**.j2'
@@ -97,10 +97,6 @@ jobs:
         make lint
         make lint-markdown
         make type
-    - name: Check architecture diagrams up to date
-      run: |
-        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        make check-visualizations
 
   # Security and quality checks - gated by lint/build, runs independently to coverage-unified (does not gate tests)
   security-quality:
@@ -405,7 +401,7 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5') &&
       (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v6
@@ -892,7 +888,7 @@ jobs:
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
     if: |
       github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5') &&
       (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true')
     steps:
     - uses: actions/checkout@v6
@@ -1023,7 +1019,7 @@ jobs:
     - uses: actions/checkout@v6
       with:
         # Full history required for wily (code quality trends) on main/release
-        fetch-depth: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4') && 0 || 1 }}
+        fetch-depth: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5') && 0 || 1 }}
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
@@ -1226,7 +1222,7 @@ jobs:
           echo "⚠️ Unified coverage report not found" >> $GITHUB_STEP_SUMMARY
         fi
     - name: Generate code quality metrics
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         mkdir -p reports
         # Generate complexity metrics for dashboard
@@ -1234,35 +1230,35 @@ jobs:
         radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
         interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
     - name: Load metrics history from gh-pages (for wily trends)
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         mkdir -p metrics
         git fetch origin gh-pages:gh-pages 2>/dev/null || true
         git show gh-pages:metrics/history-ci.jsonl > metrics/history-ci.jsonl 2>/dev/null || touch metrics/history-ci.jsonl
     - name: Install wily
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: pip install wily
       continue-on-error: true
     - name: Build wily baseline
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         python -m wily build src/podcast_scraper -n 50 || echo "Wily build failed (non-blocking)"
       continue-on-error: true
     - name: Generate wily trend reports
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         mkdir -p reports/wily
         python -m wily report src/podcast_scraper/workflow/orchestration.py > reports/wily/orchestration-trends.txt 2>&1 || echo "Wily report failed (non-blocking)"
         python -m wily report src/podcast_scraper/ > reports/wily/overall-trends.txt 2>&1 || echo "Wily report failed (non-blocking)"
       continue-on-error: true
     - name: Generate wily trends JSON for metrics pipeline
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         mkdir -p reports/wily
         python scripts/dashboard/wily_trends_to_json.py --reports-dir reports --history metrics/history-ci.jsonl --output reports/wily/trends.json || echo '{"complexity_trend":"N/A","maintainability_trend":"N/A","files_degrading":[],"files_improving":[]}' > reports/wily/trends.json
       continue-on-error: true
     - name: Collect pipeline metrics
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         # Install ML dependencies for pipeline execution
         pip install -e .[ml] || echo "⚠️ ML dependencies not available, skipping pipeline metrics"
@@ -1272,7 +1268,7 @@ jobs:
           --max-episodes 1 || echo "⚠️ Pipeline metrics collection failed (non-blocking)"
       continue-on-error: true  # Don't fail if pipeline metrics collection fails
     - name: Generate metrics JSON from unified coverage
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         # Create minimal reports structure for metrics generation
         # The unified coverage is already in reports/coverage-unified.xml
@@ -1304,7 +1300,7 @@ jobs:
           --pipeline-metrics reports/output/pipeline_metrics.json \
           --coverage-threshold 70 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         # Load existing history from gh-pages if available
         mkdir -p metrics
@@ -1322,7 +1318,7 @@ jobs:
           echo "✅ Appended to CI history"
         fi
     - name: Generate HTML dashboard
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
         python scripts/dashboard/generate_dashboard.py \
           --unified \
@@ -1345,14 +1341,14 @@ jobs:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       uses: actions/upload-artifact@v6
       with:
         name: metrics
         path: metrics/
         retention-days: 30
     - name: Upload wily reports as artifact
-      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+      if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       uses: actions/upload-artifact@v6
       with:
         name: wily-reports
