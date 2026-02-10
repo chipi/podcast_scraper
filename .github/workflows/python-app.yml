@@ -311,9 +311,10 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key automatically invalidates when model definitions change
-        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-${{ runner.os }}-
     - name: Set up Python 3.11 (only if cache miss - needed for model download)
       if: (needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true') && steps.cache-models.outputs.cache-hit != 'true'
       uses: actions/setup-python@v6
@@ -429,9 +430,10 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key automatically invalidates when model definitions change
-        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-${{ runner.os }}-
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -582,9 +584,10 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key automatically invalidates when model definitions change
-        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-${{ runner.os }}-
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -762,9 +765,10 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key automatically invalidates when model definitions change
-        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-${{ runner.os }}-
     - name: Validate ML model cache
       id: validate-cache
       run: |
@@ -913,9 +917,10 @@ jobs:
           ~/.cache/whisper
           ~/.cache/huggingface
         # NOTE: spaCy removed - installed as pip package via .[ml]
-        # Cache key automatically invalidates when model definitions change
-        # No restore-keys: When cache key changes, we download fresh models to ensure completeness
+        # Cache key invalidates when model definitions change; restore-keys let PRs/branches reuse latest cache
         key: ml-models-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
+        restore-keys: |
+          ml-models-${{ runner.os }}-
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip
