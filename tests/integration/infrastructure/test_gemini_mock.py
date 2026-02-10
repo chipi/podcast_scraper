@@ -48,14 +48,11 @@ class TestGeminiE2EServerIntegration:
             transcribe_missing=True,
         )
 
-        # Mock Gemini SDK response
+        # Mock Client API
+        mock_client = Mock()
         mock_response = Mock()
         mock_response.text = "This is a test transcription from Gemini E2E server."
-        # Mock Client and models
-        mock_client = Mock()
-        mock_models = Mock()
-        mock_models.generate_content.return_value = mock_response
-        mock_client.models = mock_models
+        mock_client.models.generate_content.return_value = mock_response
         mock_genai.Client.return_value = mock_client
 
         provider = create_transcription_provider(cfg)
@@ -93,14 +90,11 @@ class TestGeminiE2EServerIntegration:
             generate_metadata=True,
         )
 
-        # Mock Gemini SDK response
+        # Mock Client API
+        mock_client = Mock()
         mock_response = Mock()
         mock_response.text = "This is a test summary from Gemini E2E server."
-        # Mock Client and models
-        mock_client = Mock()
-        mock_models = Mock()
-        mock_models.generate_content.return_value = mock_response
-        mock_client.models = mock_models
+        mock_client.models.generate_content.return_value = mock_response
         mock_genai.Client.return_value = mock_client
 
         provider = create_summarization_provider(cfg)
@@ -134,7 +128,8 @@ class TestGeminiE2EServerIntegration:
             auto_speakers=True,
         )
 
-        # Mock Gemini SDK response - return actual JSON string, not MagicMock
+        # Mock Client API
+        mock_client = Mock()
         mock_response = Mock()
         mock_response.text = json.dumps(
             {
@@ -143,11 +138,7 @@ class TestGeminiE2EServerIntegration:
                 "guests": ["Bob"],
             }
         )
-        # Mock Client and models
-        mock_client = Mock()
-        mock_models = Mock()
-        mock_models.generate_content.return_value = mock_response
-        mock_client.models = mock_models
+        mock_client.models.generate_content.return_value = mock_response
         mock_genai.Client.return_value = mock_client
 
         detector = create_speaker_detector(cfg)

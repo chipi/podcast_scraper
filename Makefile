@@ -84,14 +84,14 @@ help:
 	@echo "                            Usage: make test-openai-real-feed FEED_URL=\"https://...\" [MAX_EPISODES=5]"
 	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
-	@echo "  make test-bulk-confidence  Run bulk E2E confidence tests (multiple configs sequentially)"
-	@echo "                            Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
+	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
+	@echo "                            Usage: make test-acceptance CONFIGS=\"examples/config.example.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
 	@echo "                                     ANALYZE_MODE=comprehensive uses comprehensive analysis mode (default: basic)"
-	@echo "  make analyze-bulk-confidence  Analyze bulk confidence test results"
-	@echo "                                 Usage: make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
+	@echo "  make analyze-acceptance  Analyze acceptance test results"
+	@echo "                                 Usage: make analyze-acceptance SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
 	@echo "Coverage commands:"
@@ -545,68 +545,103 @@ test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
-test-bulk-confidence:
-	@# Run bulk E2E confidence tests (multiple configs sequentially)
-	@# Usage: make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
+test-acceptance:
+	@# Run E2E acceptance tests (multiple configs sequentially)
+	@# Usage: make test-acceptance CONFIGS="examples/config.example.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
 	@if [ -z "$(CONFIGS)" ]; then \
 		echo "❌ Error: CONFIGS is required"; \
-		echo "Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\""; \
+		echo "Usage: make test-acceptance CONFIGS=\"examples/config.example.yaml\""; \
 		echo ""; \
 		echo "Options:"; \
-		echo "  CONFIGS=pattern          Config file pattern (required)"; \
-		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/bulk_confidence)"; \
-		echo "  COMPARE_BASELINE=id      Baseline ID to compare against"; \
-		echo "  SAVE_AS_BASELINE=id      Save current runs as baseline with this ID"; \
+		echo "  CONFIGS=pattern         Config file pattern (required, e.g., 'examples/config.example.yaml' or 'examples/config.my.*.yaml')"; \
+		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
+		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
+		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
+		echo "  NO_AUTO_BENCHMARK=1     Disable automatic benchmark report generation"; \
+		echo "  ANALYZE_MODE=mode       Analysis mode: basic or comprehensive (default: basic)"; \
+		echo "  COMPARE_BASELINE=id     Baseline ID to compare against"; \
+		echo "  SAVE_AS_BASELINE=id     Save current runs as baseline"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make test-acceptance CONFIGS=\"examples/config.example.yaml\""; \
+		echo "  make test-acceptance CONFIGS=\"examples/config.my.*.yaml\" USE_FIXTURES=1"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/tools/run_bulk_confidence_tests.py \
+	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
 		--configs "$(CONFIGS)" \
-		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)" \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
 		$(if $(USE_FIXTURES),--use-fixtures) \
 		$(if $(NO_SHOW_LOGS),--no-show-logs) \
 		$(if $(NO_AUTO_ANALYZE),--no-auto-analyze) \
+		$(if $(NO_AUTO_BENCHMARK),--no-auto-benchmark) \
 		$(if $(ANALYZE_MODE),--analyze-mode $(ANALYZE_MODE)) \
 		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
 		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
 		--log-level INFO
 	@echo ""
-	@echo "✓ Bulk confidence tests completed"
-	@echo "  Results saved to: $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo "✓ Acceptance tests completed"
+	@echo "  Results saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)"
 	@echo ""
-	@echo "To analyze results, use:"
-	@echo "  make analyze-bulk-confidence SESSION_ID=<session_id>"
-	@echo "  Or: python scripts/tools/analyze_bulk_runs.py --session-id <session_id> --output-dir $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo "To analyze results:"
+	@echo "  make analyze-acceptance SESSION_ID=<session_id>"
+	@echo "  Or: python scripts/acceptance/analyze_bulk_runs.py --session-id <session_id> --output-dir $(or $(OUTPUT_DIR),.test_outputs/acceptance)"
 
-analyze-bulk-confidence:
-	@# Analyze bulk E2E confidence test results
-	@# Usage: make analyze-bulk-confidence SESSION_ID="20260208_093757" [MODE=basic|comprehensive] [COMPARE_BASELINE=...] [OUTPUT_DIR=...] [OUTPUT_FORMAT=markdown|json|both]
+analyze-acceptance:
+	@# Analyze E2E acceptance test results
+	@# Usage: make analyze-acceptance SESSION_ID="20260208_093757" [MODE=basic|comprehensive] [COMPARE_BASELINE=...] [OUTPUT_DIR=...] [OUTPUT_FORMAT=markdown|json|both]
 	@if [ -z "$(SESSION_ID)" ]; then \
 		echo "❌ Error: SESSION_ID is required"; \
-		echo "Usage: make analyze-bulk-confidence SESSION_ID=\"20260208_093757\""; \
+		echo "Usage: make analyze-acceptance SESSION_ID=<session_id>"; \
 		echo ""; \
 		echo "Options:"; \
 		echo "  SESSION_ID=id            Session ID (required, e.g., '20260208_093757')"; \
-		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/bulk_confidence)"; \
-		echo "  MODE=mode                 Analysis mode: basic or comprehensive (default: basic)"; \
-		echo "  COMPARE_BASELINE=id      Baseline ID to compare against (optional)"; \
+		echo "  MODE=mode                Analysis mode: basic or comprehensive (default: basic)"; \
+		echo "  COMPARE_BASELINE=id      Baseline ID to compare against"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
 		echo "  OUTPUT_FORMAT=format     Output format: markdown, json, or both (default: both)"; \
 		echo ""; \
 		echo "Examples:"; \
-		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\""; \
-		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" MODE=comprehensive"; \
-		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" COMPARE_BASELINE=planet_money_v1"; \
+		echo "  make analyze-acceptance SESSION_ID=20260208_101601"; \
+		echo "  make analyze-acceptance SESSION_ID=20260208_101601 MODE=comprehensive"; \
+		echo "  make analyze-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/tools/analyze_bulk_runs.py \
+	@$(PYTHON) scripts/acceptance/analyze_bulk_runs.py \
 		--session-id "$(SESSION_ID)" \
-		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)" \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
 		--mode "$(or $(MODE),basic)" \
 		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
 		--output-format "$(or $(OUTPUT_FORMAT),both)" \
 		--log-level INFO
 	@echo ""
-	@echo "✓ Analysis complete"
-	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions/session_$(SESSION_ID)/"
+
+benchmark-acceptance:
+	@# Generate performance benchmarking report from acceptance test results
+	@if [ -z "$(SESSION_ID)" ]; then \
+		echo "❌ Error: SESSION_ID is required"; \
+		echo "Usage: make benchmark-acceptance SESSION_ID=<session_id> [COMPARE_BASELINE=...]"; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  SESSION_ID=id            Session ID (required, e.g., '20260208_101601')"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
+		echo "  COMPARE_BASELINE=id      Baseline ID to compare against (optional)"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make benchmark-acceptance SESSION_ID=20260208_101601"; \
+		echo "  make benchmark-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/acceptance/generate_performance_benchmark.py \
+		--session-id $(SESSION_ID) \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
+		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
+		--output-format both \
+		--log-level INFO
+	@echo ""
+	@echo "✓ Performance benchmark report generated"
+	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions/session_$(SESSION_ID)/"
 
 test-track:
 	# Run all test suites (unit + integration + e2e) and track execution times

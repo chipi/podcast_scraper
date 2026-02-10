@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
-"""Bulk E2E confidence test runner.
+"""E2E acceptance test runner.
 
 This script runs multiple config files sequentially, collects structured data
 (logs, outputs, timing, exit codes, resource usage), and saves results for analysis.
 
 Usage:
-    python scripts/tools/run_bulk_confidence_tests.py \
-        --configs "examples/config.my.planetmoney.*.yaml" \
-        --output-dir .test_outputs/bulk_confidence \
+    python scripts/acceptance/run_acceptance_tests.py \
+        --configs "examples/config.example.yaml" \
+        --output-dir .test_outputs/acceptance \
         [--compare-baseline baseline_id] \
         [--save-as-baseline baseline_id]
 
 Examples:
-    # Run Planet Money configs
-    python scripts/tools/run_bulk_confidence_tests.py \
-        --configs "examples/config.my.planetmoney.*.yaml"
+    # Run example configs
+    python scripts/acceptance/run_acceptance_tests.py \
+        --configs "examples/config.example.yaml"
 
     # Run with baseline comparison
-    python scripts/tools/run_bulk_confidence_tests.py \
-        --configs "examples/config.my.planetmoney.*.yaml" \
-        --compare-baseline planet_money_baseline_v1
+    python scripts/acceptance/run_acceptance_tests.py \
+        --configs "examples/config.example.yaml" \
+        --compare-baseline baseline_v1
 
     # Save current run as baseline
-    python scripts/tools/run_bulk_confidence_tests.py \
-        --configs "examples/config.my.planetmoney.*.yaml" \
-        --save-as-baseline planet_money_baseline_v1
+    python scripts/acceptance/run_acceptance_tests.py \
+        --configs "examples/config.example.yaml" \
+        --save-as-baseline baseline_v1
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def find_config_files(pattern: str) -> List[Path]:
     """Find config files matching the pattern.
 
     Args:
-        pattern: Glob pattern (e.g., "examples/config.my.planetmoney.*.yaml")
+        pattern: Glob pattern (e.g., "examples/config.example.yaml" or "examples/config.my.*.yaml")
 
     Returns:
         List of matching config file paths
@@ -962,6 +962,95 @@ def _extract_episodes_from_run_json(run_json_path: Path) -> int:
         return 0
 
 
+def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
+    """Extract provider and model information from config file.
+
+    Args:
+        config_path: Path to config file
+
+    Returns:
+        Dict with provider/model information
+    """
+    try:
+        config_dict = config.load_config_file(str(config_path))
+    except Exception as e:
+        logger.debug(f"Failed to load config for provider extraction: {e}")
+        return {}
+
+    provider_info: Dict[str, Any] = {}
+
+    # Transcription provider
+    transcription_provider = config_dict.get("transcription_provider", "whisper")
+    provider_info["transcription_provider"] = transcription_provider
+    if transcription_provider == "whisper":
+        provider_info["transcription_model"] = config_dict.get("whisper_model", "base")
+    elif transcription_provider == "openai":
+        provider_info["transcription_model"] = config_dict.get(
+            "openai_transcription_model", "whisper-1"
+        )
+    elif transcription_provider == "gemini":
+        provider_info["transcription_model"] = config_dict.get(
+            "gemini_transcription_model", "gemini-1.5-pro"
+        )
+    elif transcription_provider == "mistral":
+        provider_info["transcription_model"] = config_dict.get(
+            "mistral_transcription_model", "mistral-large-latest"
+        )
+
+    # Speaker detection provider
+    speaker_provider = config_dict.get("speaker_detector_provider", "spacy")
+    provider_info["speaker_provider"] = speaker_provider
+    if speaker_provider == "spacy":
+        provider_info["speaker_model"] = config_dict.get("ner_model", "en_core_web_sm")
+    elif speaker_provider == "openai":
+        provider_info["speaker_model"] = config_dict.get("openai_speaker_model", "gpt-4o-mini")
+    elif speaker_provider == "gemini":
+        provider_info["speaker_model"] = config_dict.get("gemini_speaker_model", "gemini-1.5-pro")
+    elif speaker_provider == "anthropic":
+        provider_info["speaker_model"] = config_dict.get(
+            "anthropic_speaker_model", "claude-3-5-haiku-latest"
+        )
+    elif speaker_provider == "mistral":
+        provider_info["speaker_model"] = config_dict.get(
+            "mistral_speaker_model", "mistral-large-latest"
+        )
+    elif speaker_provider == "grok":
+        provider_info["speaker_model"] = config_dict.get("grok_speaker_model", "grok-beta")
+    elif speaker_provider == "deepseek":
+        provider_info["speaker_model"] = config_dict.get("deepseek_speaker_model", "deepseek-chat")
+    elif speaker_provider == "ollama":
+        provider_info["speaker_model"] = config_dict.get("ollama_speaker_model", "llama3.1:8b")
+
+    # Summarization provider
+    summary_provider = config_dict.get("summary_provider", "transformers")
+    provider_info["summary_provider"] = summary_provider
+    if summary_provider in ("transformers", "local"):
+        provider_info["summary_map_model"] = config_dict.get(
+            "summary_model", "facebook/bart-large-cnn"
+        )
+        provider_info["summary_reduce_model"] = config_dict.get("summary_reduce_model")
+    elif summary_provider == "openai":
+        provider_info["summary_model"] = config_dict.get("openai_summary_model", "gpt-4o-mini")
+    elif summary_provider == "gemini":
+        provider_info["summary_model"] = config_dict.get("gemini_summary_model", "gemini-1.5-pro")
+    elif summary_provider == "anthropic":
+        provider_info["summary_model"] = config_dict.get(
+            "anthropic_summary_model", "claude-3-5-haiku-latest"
+        )
+    elif summary_provider == "mistral":
+        provider_info["summary_model"] = config_dict.get(
+            "mistral_summary_model", "mistral-large-latest"
+        )
+    elif summary_provider == "grok":
+        provider_info["summary_model"] = config_dict.get("grok_summary_model", "grok-beta")
+    elif summary_provider == "deepseek":
+        provider_info["summary_model"] = config_dict.get("deepseek_summary_model", "deepseek-chat")
+    elif summary_provider == "ollama":
+        provider_info["summary_model"] = config_dict.get("ollama_summary_model", "llama3.1:8b")
+
+    return provider_info
+
+
 def _extract_episodes_from_index_json(index_json_path: Path) -> int:
     """Extract episode count from index.json.
 
@@ -1256,6 +1345,9 @@ def run_config(
             f"✓ Dry-run mode detected for {config_name} (episodes_planned={episodes_processed})"
         )
 
+    # Extract provider/model information from config
+    provider_info = _extract_provider_info(original_config_copy)
+
     # Build run data
     run_data = {
         "run_id": run_id,
@@ -1272,6 +1364,7 @@ def run_config(
         "logs": logs,
         "outputs": outputs,
         "resource_usage": resource_usage,
+        "provider_info": provider_info,  # Provider/model information for benchmarking
     }
 
     # Save run data
@@ -1334,20 +1427,23 @@ def save_baseline(baseline_id: str, runs_data: List[Dict[str, Any]], output_dir:
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Run bulk E2E confidence tests",
+        description="Run E2E acceptance tests",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--configs",
         type=str,
         required=True,
-        help="Config file pattern (e.g., 'examples/config.my.planetmoney.*.yaml')",
+        help=(
+            "Config file pattern (e.g., 'examples/config.example.yaml' "
+            "or 'examples/config.my.*.yaml')"
+        ),
     )
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=".test_outputs/bulk_confidence",
-        help="Output directory for results (default: .test_outputs/bulk_confidence)",
+        default=".test_outputs/acceptance",
+        help="Output directory for results (default: .test_outputs/acceptance)",
     )
     parser.add_argument(
         "--compare-baseline",
@@ -1387,6 +1483,16 @@ def main() -> None:
         help="Disable automatic analysis after session completes (default: enabled)",
     )
     parser.set_defaults(auto_analyze=True)
+    parser.add_argument(
+        "--no-auto-benchmark",
+        dest="auto_benchmark",
+        action="store_false",
+        help=(
+            "Disable automatic performance benchmark report generation "
+            "after session completes (default: enabled)"
+        ),
+    )
+    parser.set_defaults(auto_benchmark=True)
     parser.add_argument(
         "--analyze-mode",
         type=str,
@@ -1530,11 +1636,54 @@ def main() -> None:
                     logger.info("✓ Automatic analysis completed")
                 else:
                     logger.warning(f"Analysis completed with exit code {result.returncode}")
+
+                # Also generate performance benchmark report (if enabled)
+                if args.auto_benchmark:
+                    benchmark_script = Path(__file__).parent / "generate_performance_benchmark.py"
+                    if benchmark_script.exists():
+                        logger.info("")
+                        logger.info("Generating performance benchmark report...")
+                        benchmark_cmd = [
+                            sys.executable,
+                            str(benchmark_script.absolute()),
+                            "--session-id",
+                            session_id,
+                            "--output-dir",
+                            str(output_dir),
+                            "--output-format",
+                            "both",
+                            "--log-level",
+                            "INFO",
+                        ]
+                        if args.compare_baseline:
+                            benchmark_cmd.extend(["--compare-baseline", args.compare_baseline])
+                        logger.debug(f"Running benchmark command: {' '.join(benchmark_cmd)}")
+                        benchmark_result = subprocess.run(
+                            benchmark_cmd,
+                            capture_output=False,
+                        )
+                        if benchmark_result.returncode == 0:
+                            logger.info("✓ Performance benchmark report generated")
+                        else:
+                            logger.warning(
+                                f"Benchmark generation completed with exit code "
+                                f"{benchmark_result.returncode}"
+                            )
+                    else:
+                        logger.warning(
+                            "Benchmark script not found, skipping performance "
+                            "benchmark report generation"
+                        )
+                else:
+                    logger.debug(
+                        "Auto-benchmark disabled, skipping performance "
+                        "benchmark report generation"
+                    )
             except Exception as e:
                 logger.error(f"Failed to run automatic analysis: {e}", exc_info=True)
                 logger.info(
                     "You can run analysis manually with: "
-                    f"make analyze-bulk-confidence SESSION_ID={session_id}"
+                    f"make analyze-acceptance SESSION_ID={session_id}"
                 )
 
         # Save as baseline if requested
@@ -1547,11 +1696,13 @@ def main() -> None:
             if baseline_path.exists():
                 logger.info(f"Baseline comparison requested: {args.compare_baseline}")
                 # Comparison will be done by analysis script
-                logger.info("Use analyze_bulk_runs.py to generate comparison report")
+                logger.info(
+                    "Use scripts/acceptance/analyze_bulk_runs.py to generate comparison report"
+                )
             else:
                 logger.warning(f"Baseline not found: {baseline_path}. " "Skipping comparison.")
 
-        logger.info("Bulk confidence tests completed")
+        logger.info("Acceptance tests completed")
         logger.info("=" * 70)
         logger.info(f"Results saved to: {output_dir.absolute()}")
         logger.info(f"  - Session folder: {session_dir.absolute()}")

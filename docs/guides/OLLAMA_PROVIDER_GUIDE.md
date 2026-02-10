@@ -77,14 +77,20 @@ curl http://localhost:11434/api/tags
 ### Step 3: Pull Required Models
 
 ```bash
-# For production/quality (larger, slower)
-ollama pull llama3.3:latest
+# Best for structured JSON output and GIL extraction (recommended default)
+ollama pull qwen2.5:7b
 
-# For testing/speed (medium size)
-ollama pull llama3.2:latest
-
-# For limited RAM (smallest, fastest)
+# General purpose, good all-rounder (recommended default for speaker detection)
 ollama pull llama3.1:8b
+
+# Fast inference, good for speaker detection
+ollama pull mistral:7b
+
+# Balanced quality/speed for summarization
+ollama pull gemma2:9b
+
+# Lightweight for development/testing (lowest RAM requirement)
+ollama pull phi3:mini
 
 # Verify models are available
 ollama list
@@ -92,12 +98,17 @@ ollama list
 
 **Recommended Models:**
 
-| Model | Size | RAM Required | Speed | Quality | Use Case |
-| ----- | ---- | ------------- | ----- | ------- | -------- |
-| `llama3.1:8b` | ~4.7GB | 6-8GB | Fastest | Good | Limited RAM (6-8GB), testing, development |
-| `llama3.2:latest` | ~4GB | 8-12GB | Fast | Good | Standard systems (8-12GB), testing, development |
-| `llama3.3:latest` | ~4GB | 12-16GB | Medium | Better | Production (12-16GB recommended) |
-| `llama3.3:70b` | ~40GB | 48GB+ | Slow | Best | High-quality production (48GB+ RAM) |
+| Model | Size | RAM Required | Speed | Quality | Best For | Use Case |
+| ----- | ---- | ------------- | ----- | ------- | -------- | -------- |
+| **Qwen 2.5 7B** | 4.4GB | 8GB+ | Medium | High | Structured JSON, GIL extraction | Summarization, GIL extraction (best JSON output) |
+| **Llama 3.1 8B** | 4.7GB | 8GB+ | Medium | High | General purpose | Speaker detection (default), summarization |
+| **Mistral 7B** | 4.1GB | 8GB+ | Fast | Good | Fast inference | Speaker detection (fastest), summarization |
+| **Gemma 2 9B** | 5.5GB | 12GB+ | Medium | High | Balanced quality/speed | Summarization (balanced) |
+| **Phi-3 Mini** | 2.3GB | 4GB+ | Fast | Acceptable | Lightweight | Development, testing, low-resource |
+| `llama3.1:8b` | ~4.7GB | 6-8GB | Fastest | Good | Limited RAM (6-8GB), testing, development | N/A |
+| `llama3.2:latest` | ~4GB | 8-12GB | Fast | Good | Standard systems (8-12GB), testing, development | N/A |
+| `llama3.3:latest` | ~4GB | 12-16GB | Medium | Better | Production (12-16GB recommended) | N/A |
+| `llama3.3:70b` | ~40GB | 48GB+ | Slow | Best | High-quality production (48GB+ RAM) | N/A |
 
 ### Step 4: Install Podcast Scraper Dependencies
 
@@ -369,10 +380,25 @@ pytest tests/e2e/test_ollama_provider_integration_e2e.py::TestOllamaProviderE2E:
 
 ### Model Selection
 
-- **For Limited RAM (6-8GB):** Use `llama3.1:8b` (smallest, fastest)
-- **For Standard Systems (8-12GB):** Use `llama3.2:latest` (good balance)
-- **For Production (12-16GB):** Use `llama3.3:latest` (better quality, fits under 16GB)
-- **For High Quality (48GB+):** Use `llama3.3:70b` (best quality, requires significant RAM)
+**By Use Case:**
+
+- **Structured JSON / GIL Extraction:** Use `qwen2.5:7b` (best-in-class JSON output)
+- **Speaker Detection (Default):** Use `llama3.1:8b` (strong all-rounder)
+- **Fast Speaker Detection:** Use `mistral:7b` (fastest inference)
+- **Summarization (Balanced):** Use `gemma2:9b` (balanced quality/speed)
+- **Development/Testing:** Use `phi3:mini` (lightweight, lowest RAM)
+
+**By RAM Available:**
+
+- **4GB+ RAM:** Use `phi3:mini` (lightweight, dev/test only)
+- **8GB+ RAM:** Use `qwen2.5:7b`, `llama3.1:8b`, or `mistral:7b` (recommended)
+- **12GB+ RAM:** Use `gemma2:9b` (balanced quality/speed)
+
+**Default Recommendations:**
+
+- **Speaker Detection:** `llama3.1:8b` (general purpose, good quality)
+- **Summarization:** `qwen2.5:7b` (best structured JSON, ideal for GIL extraction)
+- **Development:** `phi3:mini` (lightweight, fast iteration)
 
 ### Timeout Configuration
 
@@ -389,13 +415,13 @@ ollama_timeout: 600  # 10 minutes
 
 ### Hardware Recommendations
 
-| Model Size | Minimum RAM | Recommended RAM | Speed | Example Models |
-| ---------- | ----------- | ---------------- | ----- | -------------- |
-| 8B | 6GB | 8GB | Fastest | `llama3.1:8b` |
-| 8B (latest) | 8GB | 12GB | Fast | `llama3.2:latest` |
-| 8B (latest) | 12GB | 16GB | Medium | `llama3.3:latest` (fits under 16GB) |
-| 13B | 16GB | 32GB | Medium | `llama3.1:13b` |
-| 70B | 48GB | 64GB+ | Slow | `llama3.3:70b` |
+| Model | Size | Minimum RAM | Recommended RAM | Speed | Best For |
+| ----- | ---- | ----------- | ---------------- | ----- | -------- |
+| **Phi-3 Mini** | 2.3GB | 4GB | 4GB+ | Fast | Dev/test, low-resource |
+| **Mistral 7B** | 4.1GB | 8GB | 8GB+ | Fastest | Fast speaker detection |
+| **Qwen 2.5 7B** | 4.4GB | 8GB | 8GB+ | Medium | Structured JSON, GIL extraction |
+| **Llama 3.1 8B** | 4.7GB | 8GB | 8GB+ | Medium | General purpose (default) |
+| **Gemma 2 9B** | 5.5GB | 12GB | 12GB+ | Medium | Balanced quality/speed |
 
 ## Common Workflows
 
@@ -405,15 +431,17 @@ ollama_timeout: 600  # 10 minutes
 # 1. Start Ollama
 ollama serve
 
-# 2. Pull fast model (choose based on your RAM)
-ollama pull llama3.1:8b      # Smallest (6GB+ RAM)
-# OR
-ollama pull llama3.2:latest  # Medium (8GB+ RAM)
+# 2. Pull model (choose based on your RAM and use case)
+ollama pull phi3:mini        # Lightweight (4GB+ RAM, dev/test)
+ollama pull mistral:7b       # Fast (8GB+ RAM, fast speaker detection)
+ollama pull llama3.1:8b      # General purpose (8GB+ RAM, default)
+ollama pull qwen2.5:7b       # Best JSON (8GB+ RAM, GIL extraction)
+ollama pull gemma2:9b        # Balanced (12GB+ RAM, summarization)
 
-# 3. Configure for speed
+# 3. Configure (model-specific prompts are automatically selected)
 # config.yaml:
-#   ollama_speaker_model: llama3.1:8b  # or llama3.2:latest
-#   ollama_summary_model: llama3.1:8b   # or llama3.2:latest
+#   ollama_speaker_model: llama3.1:8b  # or mistral:7b for speed
+#   ollama_summary_model: qwen2.5:7b    # or gemma2:9b for quality
 #   ollama_timeout: 120
 ```
 
