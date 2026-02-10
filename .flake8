@@ -11,7 +11,7 @@ exclude =
 per-file-ignores =
     __init__.py:F401
     tests/integration/*:E501
-    scripts/dashboard/*:E501
+    scripts/dashboard/*:E501,C901
     *summarizer.py:C901
     *metadata_generation.py:C901
     *orchestration.py:C901
