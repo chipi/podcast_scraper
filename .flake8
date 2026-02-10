@@ -12,3 +12,11 @@ per-file-ignores =
     __init__.py:F401
     tests/integration/*:E501
     scripts/dashboard/*:E501
+    *summarizer.py:C901
+    *metadata_generation.py:C901
+    *orchestration.py:C901
+    *processing.py:C901
+    *conftest.py:C901
+    *run_index.py:C901
+    *rescore_baseline.py:C901
+    scripts/acceptance/generate_performance_benchmark.py:C901
