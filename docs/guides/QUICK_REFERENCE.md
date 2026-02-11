@@ -202,7 +202,7 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 | `tests/integration/` | Integration tests |
 | `tests/e2e/` | End-to-end tests |
 | `docs/` | Documentation |
-| `examples/` | Config examples |
+| `config/examples/` | Config examples |
 
 ---
 
@@ -213,6 +213,7 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 | Tests skip "model not cached" | `make preload-ml-models` |
 | Import errors | `pip install -e ".[dev,ml]"` |
 | Whisper fails | `brew install ffmpeg` |
+| `make visualize` / dependency graphs fail | `brew install graphviz` (macOS) or `apt install graphviz` (Linux) |
 | CI fails locally | `make ci` |
 
 **See:** [Troubleshooting Guide](TROUBLESHOOTING.md)

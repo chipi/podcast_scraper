@@ -937,7 +937,7 @@ echo "OPENAI_API_KEY=sk-your-key-here" > .env
 1. **Copy example template** (if available):
 
    ```bash
-   cp examples/.env.example .env
+   cp config/examples/.env.example .env
    ```
 
 2. **Create `.env` file** in project root:
@@ -1002,7 +1002,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 ## Best Practices
 
 - **Add `.env` to `.gitignore`** (never commit secrets)
-- **Use `examples/.env.example` as template** (without real values)
+- **Use `config/examples/.env.example` as template** (without real values)
 - **Use environment variables in production** (more secure than files)
 - **Rotate API keys regularly**
 - **Use separate keys for development/production**

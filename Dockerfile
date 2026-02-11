@@ -223,7 +223,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application files and set permissions
-COPY --chown=podcast:podcast examples/config.example.* /opt/podcast_scraper/examples/
+COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scraper/examples/
 COPY --chown=podcast:podcast docker/supervisord.conf /etc/supervisor/supervisord.conf
 COPY --chown=podcast:podcast docker/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh

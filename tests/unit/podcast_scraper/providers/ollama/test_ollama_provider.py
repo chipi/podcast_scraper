@@ -1234,3 +1234,245 @@ class TestOllamaProviderErrorHandling(unittest.TestCase):
         from podcast_scraper.cleaning import HybridCleaner
 
         self.assertIsInstance(provider.cleaning_processor, HybridCleaner)
+
+
+@pytest.mark.unit
+class TestOllamaProviderPatchCoverage(unittest.TestCase):
+    """Tests to improve patch coverage (Codecov) for ollama_provider.py."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="ollama",
+            summary_provider="ollama",
+            ollama_api_base="http://localhost:11434/v1",
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_get_capabilities(self, mock_openai_class, mock_httpx):
+        """Test get_capabilities returns correct capabilities."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        caps = provider.get_capabilities()
+
+        self.assertFalse(caps.supports_transcription)
+        self.assertTrue(caps.supports_speaker_detection)
+        self.assertTrue(caps.supports_summarization)
+        self.assertTrue(caps.supports_semantic_cleaning)
+        self.assertEqual(caps.provider_name, "ollama")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_normalize_model_name_empty(self, mock_openai_class, mock_httpx):
+        """Test _normalize_model_name returns empty string unchanged."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        self.assertEqual(provider._normalize_model_name(""), "")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_normalize_model_name_digit_prefix(self, mock_openai_class, mock_httpx):
+        """Test _normalize_model_name adds 'llama' prefix for digit-starting names."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        self.assertEqual(provider._normalize_model_name("3.1:7b"), "llama3.1:7b")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_normalize_model_name_latest_warning(self, mock_openai_class, mock_httpx):
+        """Test _normalize_model_name with :latest returns name (logs warning)."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        self.assertEqual(provider._normalize_model_name("llama3.1:latest"), "llama3.1:latest")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_normalize_model_name_70b_warning(self, mock_openai_class, mock_httpx):
+        """Test _normalize_model_name with :70b returns name (logs error)."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        self.assertEqual(provider._normalize_model_name("llama3.1:70b"), "llama3.1:70b")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_model_name_to_prompt_dir_empty(self, mock_openai_class, mock_httpx):
+        """Test _model_name_to_prompt_dir with empty string returns empty."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        self.assertEqual(provider._model_name_to_prompt_dir(""), "")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_model_name_to_prompt_dir_normal(self, mock_openai_class, mock_httpx):
+        """Test _model_name_to_prompt_dir converts colon to underscore."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        self.assertEqual(provider._model_name_to_prompt_dir("llama3.1:8b"), "llama3.1_8b")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_get_model_specific_prompt_path_empty_model(self, mock_openai_class, mock_httpx):
+        """Test _get_model_specific_prompt_path with empty model returns fallback."""
+        mock_response = Mock()
+        mock_response.raise_for_status = Mock()
+        mock_httpx.get.return_value = mock_response
+
+        provider = OllamaProvider(self.cfg)
+        result = provider._get_model_specific_prompt_path(
+            "", "ner", "system_ner_v1", "ollama/ner/system_ner_v1"
+        )
+        self.assertEqual(result, "ollama/ner/system_ner_v1")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_detect_hosts_no_feed_title_returns_empty(self, mock_openai_class, mock_httpx):
+        """Test detect_hosts with feed_title=None and no feed_authors returns empty set."""
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            ollama_api_base=self.cfg.ollama_api_base,
+            speaker_detector_provider="ollama",
+            auto_speakers=True,
+            generate_summaries=False,
+        )
+        provider = OllamaProvider(cfg)
+        provider.initialize()
+
+        hosts = provider.detect_hosts(feed_title=None, feed_description=None)
+        self.assertEqual(hosts, set())
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_summarize_empty_content_uses_empty_string(self, mock_openai_class, mock_httpx):
+        """Test summarize when API returns empty content uses empty string."""
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock()]
+        mock_resp.choices[0].message.content = ""
+        mock_resp.usage = None
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai_class.return_value = mock_client
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            ollama_api_base=self.cfg.ollama_api_base,
+            summary_provider="ollama",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+        )
+        provider = OllamaProvider(cfg)
+        provider.initialize()
+
+        result = provider.summarize("Some text.")
+        self.assertEqual(result["summary"], "")
+        self.assertIn("metadata", result)
+
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="Cleaning prompt")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_clean_transcript_connection_error_raises_with_suggestion(
+        self, mock_retry, mock_openai_class, mock_httpx, mock_render_prompt
+    ):
+        """Test clean_transcript connection error raises ProviderRuntimeError with suggestion."""
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+
+        mock_retry.side_effect = Exception("Connection refused")
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            ollama_api_base=self.cfg.ollama_api_base,
+            summary_provider="ollama",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+        )
+        provider = OllamaProvider(cfg)
+        provider.initialize()
+
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with self.assertRaises(ProviderRuntimeError) as ctx:
+            provider.clean_transcript("Some transcript text.")
+
+        self.assertIn("connection", str(ctx.exception).lower())
+        self.assertIsNotNone(ctx.exception.suggestion)
+
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="Cleaning prompt")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_clean_transcript_generic_error_raises_without_suggestion(
+        self, mock_retry, mock_openai_class, mock_httpx, mock_render_prompt
+    ):
+        """Test clean_transcript generic error raises ProviderRuntimeError without suggestion."""
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+
+        mock_retry.side_effect = Exception("Invalid response format")
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            ollama_api_base=self.cfg.ollama_api_base,
+            summary_provider="ollama",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+        )
+        provider = OllamaProvider(cfg)
+        provider.initialize()
+
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with self.assertRaises(ProviderRuntimeError) as ctx:
+            provider.clean_transcript("Some transcript text.")
+
+        self.assertIn("cleaning failed", str(ctx.exception).lower())
+        self.assertIsNone(ctx.exception.suggestion)

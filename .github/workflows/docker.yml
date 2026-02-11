@@ -2,7 +2,7 @@ name: Docker Build & Test
 
 on:
   push:
-    branches: [ "main", "release/2.4" ]
+    branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
@@ -11,7 +11,7 @@ on:
   # Fast Docker build runs on PRs when Docker-related files change
   # Full Docker validation still runs on merge to main
   pull_request:
-    branches: [ "main", "release/2.4" ]
+    branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
       - 'Dockerfile'
       - '.dockerignore'
@@ -78,7 +78,7 @@ jobs:
   # Full Docker build for main branch (both variants in parallel)
   # Builds both LLM-only and ML-enabled variants to ensure full validation
   docker-build-full:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
     runs-on: ubuntu-latest
     strategy:
       matrix:

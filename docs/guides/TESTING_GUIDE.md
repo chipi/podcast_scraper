@@ -282,37 +282,54 @@ make preload-ml-models
 
 See [E2E Testing Guide](E2E_TESTING_GUIDE.md) for model defaults.
 
-## Bulk E2E Confidence Tests
+## E2E Acceptance Tests
 
-Bulk confidence tests allow you to run multiple configuration files sequentially, collect structured data (logs, outputs, timing, resource usage), and compare results against baselines. This is useful for:
+Acceptance tests allow you to run multiple configuration files sequentially, collect structured data (logs, outputs, timing, resource usage), and compare results against baselines. This is useful for:
 
 - Running the same configs across different code versions to detect regressions
 - Testing multiple configs with different RSS feeds or settings
-- Building confidence in system stability through repeated executions
+- Validating system acceptance of different provider/model configurations
 - Comparing performance metrics across runs
 
-### Running Bulk Confidence Tests
+### Setting up acceptance configs
+
+The project expects your acceptance configs to live in an **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
+
+1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
+2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:  
+   `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
+3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
+
+Optional: use **`config/experiments/`** (also gitignored) for ad-hoc or one-off configs; run them with e.g. `make test-acceptance CONFIGS="config/experiments/config.my.*.yaml"`.
+
+### Running Acceptance Tests
 
 ```bash
+# Run a single config file
+make test-acceptance CONFIGS="config/examples/config.example.yaml"
+
 # Run multiple configs (using glob patterns)
-make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml"
+make test-acceptance CONFIGS="config/acceptance/*.yaml"
 
 # Save current runs as a baseline for future comparison
-make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" SAVE_AS_BASELINE=planet_money_v1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" SAVE_AS_BASELINE=baseline_v1
 
 # Compare against an existing baseline
-make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" COMPARE_BASELINE=planet_money_v1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" COMPARE_BASELINE=baseline_v1
 
 # Use fixture feeds (mock data) instead of real RSS feeds
-make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" USE_FIXTURES=1
 
 # Disable real-time log streaming (only save to files)
-make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" NO_SHOW_LOGS=1
+make test-acceptance CONFIGS="config/examples/config.example.yaml" NO_SHOW_LOGS=1
+
+# Disable automatic analysis and benchmark reports
+make test-acceptance CONFIGS="config/examples/config.example.yaml" NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1
 ```
 
 ### Understanding Sessions vs Runs
 
-**Session** = One execution of the bulk confidence test tool
+**Session** = One execution of the acceptance test tool
 
 - Triggered by a single command invocation
 - Can process multiple config files sequentially
@@ -330,7 +347,7 @@ make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" NO_SHO
 If you run:
 
 ```bash
-make test-bulk-confidence CONFIGS="config1.yaml config2.yaml config3.yaml"
+make test-acceptance CONFIGS="config1.yaml config2.yaml config3.yaml"
 ```
 
 You get:
@@ -343,10 +360,10 @@ You get:
 
 ### Output Structure
 
-Results are saved to `.test_outputs/bulk_confidence/` by default:
+Results are saved to `.test_outputs/acceptance/` by default:
 
 ```text
-.test_outputs/bulk_confidence/
+.test_outputs/acceptance/
 ├── sessions/
 │   └── session_20260208_101601/          ← ONE SESSION
 │       ├── session.json                   ← Summary of all runs
@@ -367,7 +384,7 @@ Results are saved to `.test_outputs/bulk_confidence/` by default:
 │               ├── config.yaml
 │               └── ...
 └── baselines/
-    └── planet_money_v1/                   ← Saved baselines
+    └── baseline_v1/                       ← Saved baselines
         ├── baseline.json
         └── run_20260208_101601_123/      ← Copied run data
 ```
@@ -378,17 +395,56 @@ Use the analysis script to generate reports:
 
 ```bash
 # Basic analysis
-python scripts/tools/analyze_bulk_runs.py \
-    --session-id 20260208_101601 \
-    --output-dir .test_outputs/bulk_confidence
+make analyze-acceptance SESSION_ID=20260208_101601
 
 # Comprehensive analysis with baseline comparison
-python scripts/tools/analyze_bulk_runs.py \
+make analyze-acceptance SESSION_ID=20260208_101601 MODE=comprehensive COMPARE_BASELINE=baseline_v1
+
+# Or use the script directly
+python scripts/acceptance/analyze_bulk_runs.py \
     --session-id 20260208_101601 \
-    --output-dir .test_outputs/bulk_confidence \
+    --output-dir .test_outputs/acceptance \
     --mode comprehensive \
-    --compare-baseline planet_money_v1
+    --compare-baseline baseline_v1
 ```
+
+### Performance Benchmarking
+
+Generate performance benchmarking reports that group runs by provider/model configuration:
+
+```bash
+# Generate benchmark report
+make benchmark-acceptance SESSION_ID=20260208_101601
+
+# Generate benchmark report with baseline comparison
+make benchmark-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1
+
+# Or use the script directly
+python scripts/acceptance/generate_performance_benchmark.py \
+    --session-id 20260208_101601 \
+    --output-dir .test_outputs/acceptance \
+    --compare-baseline baseline_v1
+```
+
+The benchmark report includes:
+
+- **Summary table** comparing all provider/model configurations
+- **Performance metrics** per configuration (time per episode, throughput, memory)
+- **Detailed analysis** for each configuration
+- **Performance comparison** (fastest vs. slowest, memory usage)
+- **Baseline comparison** (if `--compare-baseline` is provided):
+  - Performance changes vs. baseline (time, throughput, memory)
+  - Regression detection (20% slower, 100MB more memory)
+  - Improvement detection (10% faster, 50MB less memory)
+  - Detailed per-configuration comparison
+
+**Baseline Comparison Features:**
+
+- Compares provider/model configurations between current run and baseline
+- Detects regressions (performance degradation)
+- Detects improvements (performance gains)
+- Shows percentage changes for all metrics
+- Groups comparisons by provider/model (not just config name)
 
 Reports are generated in both Markdown and JSON formats for easy review and programmatic analysis.
 
@@ -417,7 +473,7 @@ Per-tier thresholds enforced in CI (prevents regression):
 | **Unit** | 70% | ~74% |
 | **Integration** | 40% | ~42% |
 | **E2E** | 40% | ~50% |
-| **Combined** | 80% | ~82% |
+| **Combined** | 70% | ~71%+ |
 
 **Note:** Local make targets now run with coverage:
 

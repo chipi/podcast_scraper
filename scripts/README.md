@@ -6,11 +6,41 @@ Utility scripts for the podcast scraper project, organized by purpose.
 
 ```text
 scripts/
+├── acceptance/     # E2E acceptance test scripts
 ├── cache/          # Cache management scripts
 ├── dashboard/      # Metrics and dashboard generation scripts
 ├── eval/           # Evaluation and experiment scripts
 ├── tools/          # Development tooling scripts
 └── setup_venv.sh   # Virtual environment setup
+```
+
+---
+
+## Acceptance Test Scripts (`acceptance/`)
+
+Scripts for running E2E acceptance tests, analyzing results, and generating performance benchmarks.
+
+### Acceptance Test Scripts
+
+- **`run_acceptance_tests.py`** - Run multiple config files sequentially and collect structured data
+- **`analyze_bulk_runs.py`** - Analyze acceptance test results and generate reports
+- **`generate_performance_benchmark.py`** - Generate performance benchmarking reports grouped by provider/model
+
+### Acceptance Test Usage
+
+See the **[Testing Guide](../docs/guides/TESTING_GUIDE.md)** for complete usage instructions.
+
+**Quick examples:**
+
+```bash
+# Run acceptance tests
+make test-acceptance CONFIGS="config/examples/config.example.yaml"
+
+# Analyze results
+make analyze-acceptance SESSION_ID=20260208_101601
+
+# Generate performance benchmark
+make benchmark-acceptance SESSION_ID=20260208_101601
 ```
 
 ---
@@ -199,7 +229,7 @@ After running `setup_venv.sh`:
 3. **Set up environment variables (optional, for OpenAI providers):**
 
    ```bash
-   cp examples/.env.example .env
+   cp config/examples/.env.example .env
    # Edit .env and add your OPENAI_API_KEY
    ```
 

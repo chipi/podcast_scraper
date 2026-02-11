@@ -73,7 +73,7 @@ metrics/
 ├── history-ci.jsonl        # CI history (one JSON object per line)
 ├── latest-nightly.json     # Nightly metrics data
 └── history-nightly.jsonl   # Nightly history (one JSON object per line)
-```python
+```
 
 ## Alert Thresholds
 

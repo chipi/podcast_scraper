@@ -9,6 +9,7 @@
 - **Related Documents**:
   - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow
   - `docs/ci/index.md` - CI/CD pipeline documentation
+  - `docs/ci/CODE_QUALITY_TRENDS.md` - Wily-based trends (Issue #424)
   - `.github/workflows/python-app.yml` - Main CI workflow
 
 ## Abstract
@@ -369,7 +370,8 @@ Add to `pyproject.toml`:
 ```toml
 dev = [
   # ... existing tools ...
-  "radon>=6.0.0,<7.0.0",
+  "radon>=5.1.0,<5.2",  # 5.1.x for wily compatibility (Issue #424)
+  "wily>=1.25.0,<3.0.0",  # Code quality trends over git history (Issue #424)
   "vulture>=2.10,<3.0.0",
   "interrogate>=1.5.0,<2.0.0",
   "codespell>=2.2.0,<3.0.0",

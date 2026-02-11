@@ -41,6 +41,7 @@ nav:
       - Performance: guides/PERFORMANCE.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
+  - Architecture visualizations: architecture/README.md
   - Engineering Process: guides/ENGINEERING_PROCESS.md
   - Testing Strategy: TESTING_STRATEGY.md
   - CI/CD:
@@ -51,6 +52,7 @@ nav:
       - Snyk Setup: ci/SNYK_SETUP.md
       - Local Development: ci/LOCAL_DEVELOPMENT.md
       - Metrics Dashboard: ci/METRICS.md
+      - Code Quality Trends: ci/CODE_QUALITY_TRENDS.md
   - Product Requirements:
       - prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md

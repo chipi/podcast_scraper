@@ -1,5 +1,5 @@
 {
-  "_comment": "Example podcast scraper configuration. Note: Some settings (like OPENAI_API_KEY, WORKERS, TIMEOUT) are better set via .env file. See examples/.env.example for environment variable options. Priority: CLI args > Config file > Environment variables > Defaults",
+  "_comment": "Example podcast scraper configuration. Note: Some settings (like OPENAI_API_KEY, WORKERS, TIMEOUT) are better set via .env file. See config/examples/.env.example for environment variable options. Priority: CLI args > Config file > Environment variables > Defaults",
 
   "rss": "https://example.com/feed.xml",
   "output_dir": "output_podcast_example",

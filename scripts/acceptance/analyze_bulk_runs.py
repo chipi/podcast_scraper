@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
-"""Analyze bulk confidence test runs.
+"""Analyze acceptance test runs.
 
 This script analyzes collected bulk test run data and generates reports
 comparing runs, detecting regressions, and providing actionable insights.
 
 Usage:
-    python scripts/tools/analyze_bulk_runs.py \
+    python scripts/acceptance/analyze_bulk_runs.py \
         --session-id session_20260206_103000 \
-        --output-dir .test_outputs/bulk_confidence \
+        --output-dir .test_outputs/acceptance \
         [--mode basic|comprehensive] \
         [--compare-baseline baseline_id] \
         [--output-format markdown|json|both]
 
 Examples:
     # Basic analysis
-    python scripts/tools/analyze_bulk_runs.py \
+    python scripts/acceptance/analyze_bulk_runs.py \
         --session-id session_20260206_103000 \
         --mode basic
 
     # Comprehensive analysis with baseline comparison
-    python scripts/tools/analyze_bulk_runs.py \
+    python scripts/acceptance/analyze_bulk_runs.py \
         --session-id session_20260206_103000 \
         --mode comprehensive \
-        --compare-baseline planet_money_baseline_v1 \
+        --compare-baseline baseline_v1 \
         --output-format both
 """
 
@@ -451,7 +451,7 @@ def generate_basic_report(
     failed_runs = total_runs - successful_runs
 
     report = []
-    report.append("# Bulk E2E Confidence Test Report")
+    report.append("# E2E Acceptance Test Report")
     report.append("")
     report.append(f"**Session ID:** {session_data.get('session_id')}")
     report.append(f"**Start Time:** {session_data.get('start_time', 'N/A')}")
@@ -941,7 +941,7 @@ def generate_comprehensive_report(
     failed_runs = total_runs - successful_runs
 
     report = []
-    report.append("# Bulk E2E Confidence Test Report (Comprehensive Analysis)")
+    report.append("# E2E Acceptance Test Report (Comprehensive Analysis)")
     report.append("")
     report.append(f"**Session ID:** {session_data.get('session_id')}")
     report.append(f"**Start Time:** {session_data.get('start_time', 'N/A')}")
@@ -1392,7 +1392,7 @@ def generate_comprehensive_report(
 def main() -> None:
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description="Analyze bulk confidence test runs",
+        description="Analyze acceptance test runs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -1404,8 +1404,8 @@ def main() -> None:
     parser.add_argument(
         "--output-dir",
         type=str,
-        default=".test_outputs/bulk_confidence",
-        help="Output directory (default: .test_outputs/bulk_confidence)",
+        default=".test_outputs/acceptance",
+        help="Output directory (default: .test_outputs/acceptance)",
     )
     parser.add_argument(
         "--mode",

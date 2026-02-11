@@ -282,6 +282,80 @@ class OllamaProvider:
 
         return model
 
+    def _model_name_to_prompt_dir(self, model: str) -> str:
+        """Convert Ollama model name to prompt directory name.
+
+        Converts model names like "llama3.1:8b" to directory names like "llama3.1_8b"
+        for use in prompt paths (e.g., "ollama/llama3.1_8b/ner/system_ner_v1").
+
+        Args:
+            model: Normalized model name (e.g., "llama3.1:8b", "mistral:7b", "qwen2.5:7b")
+
+        Returns:
+            Directory name for prompts (e.g., "llama3.1_8b", "mistral_7b", "qwen2.5_7b")
+        """
+        if not model:
+            return ""
+        # Replace colons with underscores for directory names (keep dots)
+        # "llama3.1:8b" -> "llama3.1_8b"
+        # "qwen2.5:7b" -> "qwen2.5_7b"
+        # "mistral:7b" -> "mistral_7b"
+        # "phi3:mini" -> "phi3_mini"
+        # "gemma2:9b" -> "gemma2_9b"
+        return model.replace(":", "_")
+
+    def _get_model_specific_prompt_path(
+        self, model: str, task: str, prompt_file: str, fallback: str
+    ) -> str:
+        """Get model-specific prompt path with fallback to generic prompt.
+
+        Tries to load model-specific prompt first (e.g., "ollama/llama3.1_8b/ner/system_ner_v1"),
+        falls back to generic prompt (e.g., "ollama/ner/system_ner_v1") if model-specific
+        prompt doesn't exist.
+
+        Args:
+            model: Normalized model name (e.g., "llama3.1:8b")
+            task: Task type (e.g., "ner", "summarization")
+            prompt_file: Prompt filename without extension (e.g., "system_ner_v1")
+            fallback: Fallback prompt path (e.g., "ollama/ner/system_ner_v1")
+
+        Returns:
+            Prompt path to use (model-specific if available, otherwise fallback)
+        """
+        if not model:
+            return fallback
+
+        # Convert model name to directory name
+        model_dir = self._model_name_to_prompt_dir(model)
+        if not model_dir:
+            return fallback
+
+        # Try model-specific prompt path
+        model_specific_path = f"ollama/{model_dir}/{task}/{prompt_file}"
+
+        try:
+            from ...prompts.store import get_prompt_dir, PromptNotFoundError
+
+            prompt_dir = get_prompt_dir()
+            prompt_file_path = prompt_dir / f"{model_specific_path}.j2"
+            if prompt_file_path.exists():
+                logger.debug(
+                    "Using model-specific prompt: %s (model: %s)", model_specific_path, model
+                )
+                return model_specific_path
+        except (PromptNotFoundError, Exception):
+            # If check fails or file doesn't exist, fall back to generic prompt
+            pass
+
+        # Fallback to generic prompt
+        logger.debug(
+            "Model-specific prompt not found: %s, using fallback: %s (model: %s)",
+            model_specific_path,
+            fallback,
+            model,
+        )
+        return fallback
+
     def _validate_ollama_running(self, base_url: str) -> None:
         """Validate that Ollama server is running and accessible.
 
@@ -667,7 +741,16 @@ class OllamaProvider:
             # Get system prompt from prompt_store
             from ...prompts.store import render_prompt
 
-            system_prompt_name = self.cfg.ollama_speaker_system_prompt or "ollama/ner/system_ner_v1"
+            # Try model-specific prompt first, fallback to generic
+            if self.cfg.ollama_speaker_system_prompt:
+                system_prompt_name = self.cfg.ollama_speaker_system_prompt
+            else:
+                system_prompt_name = self._get_model_specific_prompt_path(
+                    self.speaker_model,
+                    "ner",
+                    "system_ner_v1",
+                    "ollama/ner/system_ner_v1",
+                )
             system_prompt = render_prompt(system_prompt_name)
 
             # Call Ollama API (OpenAI-compatible format)
@@ -742,7 +825,16 @@ class OllamaProvider:
         """Build user prompt for speaker detection using prompt_store."""
         from ...prompts.store import render_prompt
 
-        user_prompt_name = self.cfg.ollama_speaker_user_prompt
+        # Try model-specific prompt first, fallback to generic
+        if self.cfg.ollama_speaker_user_prompt:
+            user_prompt_name = self.cfg.ollama_speaker_user_prompt
+        else:
+            user_prompt_name = self._get_model_specific_prompt_path(
+                self.speaker_model,
+                "ner",
+                "guest_host_v1",
+                "ollama/ner/guest_host_v1",
+            )
         template_params = {
             "episode_title": episode_title,
             "episode_description": episode_description or "",
@@ -990,10 +1082,26 @@ class OllamaProvider:
         """Build system and user prompts for summarization using prompt_store (RFC-017)."""
         from ...prompts.store import render_prompt
 
-        system_prompt_name = (
-            self.cfg.ollama_summary_system_prompt or "ollama/summarization/system_v1"
-        )
-        user_prompt_name = self.cfg.ollama_summary_user_prompt
+        # Try model-specific prompts first, fallback to generic
+        if self.cfg.ollama_summary_system_prompt:
+            system_prompt_name = self.cfg.ollama_summary_system_prompt
+        else:
+            system_prompt_name = self._get_model_specific_prompt_path(
+                self.summary_model,
+                "summarization",
+                "system_v1",
+                "ollama/summarization/system_v1",
+            )
+
+        if self.cfg.ollama_summary_user_prompt:
+            user_prompt_name = self.cfg.ollama_summary_user_prompt
+        else:
+            user_prompt_name = self._get_model_specific_prompt_path(
+                self.summary_model,
+                "summarization",
+                "long_v1",
+                "ollama/summarization/long_v1",
+            )
 
         system_prompt = render_prompt(system_prompt_name)
 

@@ -552,8 +552,9 @@ openai_api_key: sk-your-key-here
 speaker_detector_provider: ollama
 summary_provider: ollama
 ollama_api_base: http://localhost:11434/v1  # Default, can be omitted
-ollama_speaker_model: llama3.3:latest
-ollama_summary_model: llama3.3:latest
+ollama_speaker_model: llama3.1:8b  # or mistral:7b for speed
+ollama_summary_model: qwen2.5:7b   # or gemma2:9b for quality
+# Note: Model-specific prompts are automatically selected based on model name
 ```
 
 - Zero API costs (all processing on local hardware)
@@ -567,9 +568,11 @@ ollama_summary_model: llama3.3:latest
 1. Install Ollama: `brew install ollama` (macOS) or [download](https://ollama.ai)
 2. Start server: `ollama serve` (keep running)
 3. Pull models:
-   - Limited RAM (6-8GB): `ollama pull llama3.1:8b`
-   - Standard (8-12GB): `ollama pull llama3.2:latest`
-   - Production (12-16GB): `ollama pull llama3.3:latest` (fits under 16GB)
+   - Dev/test (4GB+): `ollama pull phi3:mini`
+   - Fast speaker detection (8GB+): `ollama pull mistral:7b`
+   - General purpose (8GB+): `ollama pull llama3.1:8b` (default)
+   - Best JSON/GIL (8GB+): `ollama pull qwen2.5:7b` (recommended)
+   - Balanced quality (12GB+): `ollama pull gemma2:9b`
 4. Verify: `ollama list` should show your models
 
 See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for detailed installation and troubleshooting.

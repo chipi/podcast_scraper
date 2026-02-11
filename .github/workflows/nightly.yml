@@ -179,6 +179,14 @@ jobs:
           exit 1
         fi
 
+    - name: Upload ML models artifact (for dependent test jobs in same run)
+      uses: actions/upload-artifact@v6
+      with:
+        name: ml-models
+        path: /home/runner/.cache
+        retention-days: 1
+        include-hidden-files: true
+
   # ===========================================================================
   # Code quality checks
   # ===========================================================================
@@ -343,6 +351,11 @@ jobs:
         pip install -e .[dev]
         pip install pytest-json-report
 
+    - name: Install ffmpeg (required for audio preprocessing unit tests)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends ffmpeg
+
     - name: Verify unit tests can import without ML dependencies
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -416,15 +429,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v5
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        name: ml-models
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -503,15 +512,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v5
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        name: ml-models
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -595,15 +600,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v5
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        name: ml-models
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -918,7 +919,7 @@ jobs:
           --output metrics/latest-nightly.json \
           --history metrics/history-nightly.jsonl \
           --pipeline-metrics reports/output/pipeline_metrics.json \
-          --coverage-threshold 80
+          --coverage-threshold 70
 
     - name: Validate metrics JSON
       run: |

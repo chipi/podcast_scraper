@@ -46,6 +46,11 @@ and hands-on work with edge and cloud AI/ML technologies.
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
   - **Note:** Not required if using OpenAI providers only
+- **Graphviz** (only needed to regenerate architecture diagrams locally; CI does this automatically):
+  - macOS: `brew install graphviz`
+  - Linux: `apt install graphviz` or `yum install graphviz`
+  - Windows: Download from [graphviz.org](https://graphviz.org/download/)
+  - **Note:** Only required for `make visualize` / `make deps-graph`; docs build in CI installs it automatically
 
 ### Installation Options
 
@@ -245,7 +250,7 @@ If you plan to use LLM-based providers (OpenAI, etc.) for transcription, speaker
 
 ```bash
 # Copy the template
-cp examples/.env.example .env
+cp config/examples/.env.example .env
 
 # Edit .env and add your LLM API key (REQUIRED for LLM providers)
 # For OpenAI: OPENAI_API_KEY=sk-your-actual-api-key-here
@@ -261,7 +266,7 @@ cp examples/.env.example .env
 - `CACHE_DIR` - ML model cache location (only needed for local ML providers)
 - Performance tuning variables (WORKERS, TIMEOUT, etc.)
 
-See `examples/.env.example` for all available options and detailed documentation.
+See `config/examples/.env.example` for all available options and detailed documentation.
 
 ### Verify Installation
 
@@ -294,18 +299,18 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 export OPENAI_API_KEY=sk-your-actual-api-key-here
 
 # Run with an example config file
-python -m podcast_scraper.cli --config examples/config.example.yaml
+python -m podcast_scraper.cli --config config/examples/config.example.yaml
 ```
 
 **Available example config:**
 
-- `examples/config.example.yaml` — Example configuration with local ML providers (Whisper, spaCy, Transformers)
+- `config/examples/config.example.yaml` — Example configuration with local ML providers (Whisper, spaCy, Transformers)
 
 **To customize:** Copy the example config and edit the `rss` field with your podcast feed URL:
 
 ```bash
 # Copy the example config
-cp examples/config.example.yaml my-config.yaml
+cp config/examples/config.example.yaml my-config.yaml
 
 # Edit my-config.yaml and change the RSS feed URL
 # Then run:
@@ -376,7 +381,7 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
 
 **Using a config file:**
 
-See the [Basic Usage with Example Config](#basic-usage-with-example-config-recommended-for-first-time-users) section above for the recommended approach. You can also use any config file from the `examples/` directory or create your own.
+See the [Basic Usage with Example Config](#basic-usage-with-example-config-recommended-for-first-time-users) section above for the recommended approach. You can also use any config file from the `config/examples/` directory or create your own.
 
 **Output:** Files are organized in `output/` with subdirectories:
 

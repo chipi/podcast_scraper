@@ -1,6 +1,7 @@
 # Build artifacts
 .build/
 podcast_scraper.egg-info/
+.wily/
 
 # Virtual environment
 .venv/
@@ -13,6 +14,10 @@ reports/
 # Exclude dependency graphs (generated files)
 reports/deps*.svg
 reports/deps*.json
+
+# Architecture diagram intermediates (only .svg outputs are committed)
+docs/architecture/*.dot
+docs/architecture/*.gv
 
 # Benchmarks
 benchmarks/
@@ -37,10 +42,20 @@ coverage.json
 
 # AI rule adherence metrics (per-session tracking)
 .cursor/metrics/
+.cursor/metrics/rule-adherence.jsonl
 
-# Example/test files
-examples/config.my.*
+# Cursor prompts (user-level templates live in ~/.cursor/prompts/)
+.cursor/prompts/
+
+# Example/test files (under config/)
+config/examples/config.my.*
 examples.txt
+
+# Acceptance configs (local / personal)
+config/acceptance/
+
+# Experiments (local / ad-hoc configs)
+config/experiments/
 
 # Evaluation dataset (contains personal transcripts and reference summaries)
 data/eval-old/

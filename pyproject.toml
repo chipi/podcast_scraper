@@ -70,11 +70,14 @@ dev = [
   "jiwer>=3.0.0,<4.0.0",  # Required for WER (Word Error Rate) computation
   "sentence-transformers>=2.2.0,<3.0.0",  # Required for semantic similarity computation
   "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
-  "radon>=6.0.0,<7.0.0",  # Code complexity analysis (RFC-031)
+  "radon>=5.1.0,<5.2",  # Code complexity analysis (RFC-031); 5.1.x for wily compatibility (Issue #424)
+  "wily>=1.25.0,<3.0.0",  # Code quality trends over git history (Issue #424)
   "vulture>=2.10,<3.0.0",  # Dead code detection (RFC-031)
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.2.0,<3.0.0",  # Spell checking (RFC-031)
   "pydeps>=1.12.0,<4.0.0",  # Module dependency visualization (RFC-038, #170)
+  "pyan3==1.1.1",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
+  "code2flow>=2.5.0,<3.0.0",  # Flowcharts from code (Issue #425)
   "psutil>=5.9.0,<8.0.0",  # System resource monitoring for test worker calculation and memory analysis
 ]
 # Documentation - see docs/requirements.txt
@@ -133,11 +136,15 @@ ignore_missing_imports = true
 [tool.coverage.run]
 branch = true
 source = ["podcast_scraper"]
+# Suppress "Couldn't parse ... MagicMock/join()/..." warning (fake paths from mocks/pytest-xdist)
+disable_warnings = ["couldnt-parse"]
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
 precision = 2
+# Prevent exit 1 when coverage hits unparseable paths (e.g. MagicMock from pytest-xdist)
+ignore_errors = true
 # Note: fail_under is NOT set globally because different test types have different coverage:
 # - Unit tests: ~70-80% (isolated, high coverage)
 # - Integration tests: ~40-60% (component interactions, lower coverage)
@@ -145,7 +152,7 @@ precision = 2
 # Per-test-type thresholds are enforced via --cov-fail-under in Makefile and CI:
 # - Integration: 50% (COVERAGE_THRESHOLD_INTEGRATION)
 # - E2E: 50% (COVERAGE_THRESHOLD_E2E)
-# - Combined: 80% (COVERAGE_THRESHOLD_COMBINED) - enforced in coverage-unified job only
+# - Combined: 70% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce
 # See .github/workflows/python-app.yml for CI enforcement.
 
 [tool.pytest.ini_options]

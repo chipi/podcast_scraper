@@ -562,11 +562,9 @@ class TestGeminiProviderE2E:
             mock_usage.prompt_token_count = 100
             mock_usage.candidates_token_count = 50
             mock_response.usage_metadata = mock_usage
-            # Mock Client and models
+            # Mock Client API
             mock_client = Mock()
-            mock_models = Mock()
-            mock_models.generate_content.return_value = mock_response
-            mock_client.models = mock_models
+            mock_client.models.generate_content.return_value = mock_response
             mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini transcription
@@ -635,7 +633,7 @@ class TestGeminiProviderE2E:
             # Get feed URL and Gemini config
             rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
 
-            # Mock Gemini SDK responses - return actual JSON string
+            # Mock Gemini SDK responses
             mock_response = Mock()
             mock_response.text = json.dumps(
                 {
@@ -649,11 +647,9 @@ class TestGeminiProviderE2E:
             mock_usage.prompt_token_count = 100
             mock_usage.candidates_token_count = 50
             mock_response.usage_metadata = mock_usage
-            # Mock Client and models
+            # Mock Client API
             mock_client = Mock()
-            mock_models = Mock()
-            mock_models.generate_content.return_value = mock_response
-            mock_client.models = mock_models
+            mock_client.models.generate_content.return_value = mock_response
             mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini speaker detection
@@ -731,11 +727,9 @@ class TestGeminiProviderE2E:
             mock_usage.prompt_token_count = 100
             mock_usage.candidates_token_count = 50
             mock_response.usage_metadata = mock_usage
-            # Mock Client and models
+            # Mock Client API
             mock_client = Mock()
-            mock_models = Mock()
-            mock_models.generate_content.return_value = mock_response
-            mock_client.models = mock_models
+            mock_client.models.generate_content.return_value = mock_response
             mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini summarization
@@ -802,47 +796,59 @@ class TestGeminiProviderE2E:
             # Get feed URL and Gemini config based on LLM_TEST_FEED
             rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
 
-            # Mock Gemini SDK responses for all operations
-            import json as json_module
-
-            # Transcription response
+            # Mock Client API for all Gemini operations
+            mock_client = Mock()
+            # Mock transcription response
             mock_transcription_response = Mock()
             mock_transcription_response.text = "This is a test transcription from Gemini."
-            mock_transcription_usage = Mock()
-            mock_transcription_usage.prompt_token_count = 100
-            mock_transcription_usage.candidates_token_count = 50
-            mock_transcription_response.usage_metadata = mock_transcription_usage
-            # Speaker detection response
+            mock_transcription_response.usage_metadata = Mock()
+            mock_transcription_response.usage_metadata.prompt_token_count = 100
+            mock_transcription_response.usage_metadata.candidates_token_count = 50
+            # Mock speaker detection response
+            import json
+
             mock_speaker_response = Mock()
-            mock_speaker_response.text = json_module.dumps(
+            mock_speaker_response.text = json.dumps(
                 {
                     "speakers": ["Host", "Guest"],
                     "hosts": ["Host"],
                     "guests": ["Guest"],
                 }
             )
-            mock_speaker_usage = Mock()
-            mock_speaker_usage.prompt_token_count = 100
-            mock_speaker_usage.candidates_token_count = 50
-            mock_speaker_response.usage_metadata = mock_speaker_usage
-            # Summarization response
+            mock_speaker_response.usage_metadata = Mock()
+            mock_speaker_response.usage_metadata.prompt_token_count = 100
+            mock_speaker_response.usage_metadata.candidates_token_count = 50
+            # Mock summarization response
             mock_summary_response = Mock()
             mock_summary_response.text = "This is a test summary from Gemini."
-            mock_summary_usage = Mock()
-            mock_summary_usage.prompt_token_count = 100
-            mock_summary_usage.candidates_token_count = 50
-            mock_summary_response.usage_metadata = mock_summary_usage
+            mock_summary_response.usage_metadata = Mock()
+            mock_summary_response.usage_metadata.prompt_token_count = 100
+            mock_summary_response.usage_metadata.candidates_token_count = 50
+            # Mock cleaning response
+            mock_cleaning_response = Mock()
+            mock_cleaning_response.text = "Cleaned transcript text."
+            mock_cleaning_response.usage_metadata = Mock()
+            mock_cleaning_response.usage_metadata.prompt_token_count = 50
+            mock_cleaning_response.usage_metadata.candidates_token_count = 25
 
-            # Mock Client and models - return different responses based on call
-            mock_client = Mock()
-            mock_models = Mock()
-            # Return different responses for different calls (transcription, speaker, summary)
-            mock_models.generate_content.side_effect = [
-                mock_transcription_response,
-                mock_speaker_response,
-                mock_summary_response,
-            ]
-            mock_client.models = mock_models
+            # Set up side_effect to return different responses based on model or content
+            def generate_content_side_effect(*args, **kwargs):
+                model = kwargs.get("model", "")
+                contents = kwargs.get("contents", [])
+                # Check if it's a transcription call (has audio data)
+                if contents and isinstance(contents, list) and len(contents) > 0:
+                    if isinstance(contents[0], dict) and "data" in contents[0]:
+                        return mock_transcription_response
+                # Check if it's speaker detection (model contains "speaker" or "ner")
+                if "speaker" in str(model).lower() or "ner" in str(model).lower():
+                    return mock_speaker_response
+                # Check if it's cleaning (model contains "cleaning" or "flash")
+                if "cleaning" in str(model).lower() or "flash" in str(model).lower():
+                    return mock_cleaning_response
+                # Default to summarization
+                return mock_summary_response
+
+            mock_client.models.generate_content.side_effect = generate_content_side_effect
             mock_genai.Client.return_value = mock_client
 
             # Create config with ALL Gemini providers ONLY (no local ML providers)
@@ -919,48 +925,42 @@ class TestGeminiProviderE2E:
             # Get feed URL and Gemini config based on LLM_TEST_FEED
             rss_url, gemini_api_base, gemini_api_key = _get_test_feed_url(e2e_server)
 
-            # Mock Gemini SDK responses for all operations
-            import json as json_module
-
-            # Transcription response
+            # Mock Client API for all Gemini operations
+            mock_client = Mock()
+            # Mock transcription response
             mock_transcription_response = Mock()
             mock_transcription_response.text = "This is a test transcription from Gemini."
-            mock_transcription_usage = Mock()
-            mock_transcription_usage.prompt_token_count = 100
-            mock_transcription_usage.candidates_token_count = 50
-            mock_transcription_response.usage_metadata = mock_transcription_usage
-            # Speaker detection response
-            mock_speaker_response = Mock()
-            mock_speaker_response.text = json_module.dumps(
-                {
-                    "speakers": ["Host", "Guest"],
-                    "hosts": ["Host"],
-                    "guests": ["Guest"],
-                }
-            )
-            mock_speaker_usage = Mock()
-            mock_speaker_usage.prompt_token_count = 100
-            mock_speaker_usage.candidates_token_count = 50
-            mock_speaker_response.usage_metadata = mock_speaker_usage
-            # Summarization response
+            mock_transcription_response.usage_metadata = Mock()
+            mock_transcription_response.usage_metadata.prompt_token_count = 100
+            mock_transcription_response.usage_metadata.candidates_token_count = 50
+            # Mock summarization response
             mock_summary_response = Mock()
             mock_summary_response.text = "This is a test summary from Gemini."
-            mock_summary_usage = Mock()
-            mock_summary_usage.prompt_token_count = 100
-            mock_summary_usage.candidates_token_count = 50
-            mock_summary_response.usage_metadata = mock_summary_usage
+            mock_summary_response.usage_metadata = Mock()
+            mock_summary_response.usage_metadata.prompt_token_count = 100
+            mock_summary_response.usage_metadata.candidates_token_count = 50
+            # Mock cleaning response
+            mock_cleaning_response = Mock()
+            mock_cleaning_response.text = "Cleaned transcript text."
+            mock_cleaning_response.usage_metadata = Mock()
+            mock_cleaning_response.usage_metadata.prompt_token_count = 50
+            mock_cleaning_response.usage_metadata.candidates_token_count = 25
 
-            # Mock Client and models - return different responses based on call
-            mock_client = Mock()
-            mock_models = Mock()
-            # Return different responses for different calls
-            # (transcription, speaker, summary, cleaning)
-            mock_models.generate_content.side_effect = [
-                mock_transcription_response,
-                mock_speaker_response,
-                mock_summary_response,
-            ]
-            mock_client.models = mock_models
+            # Set up side_effect to return different responses based on model or content
+            def generate_content_side_effect(*args, **kwargs):
+                model = kwargs.get("model", "")
+                contents = kwargs.get("contents", [])
+                # Check if it's a transcription call (has audio data)
+                if contents and isinstance(contents, list) and len(contents) > 0:
+                    if isinstance(contents[0], dict) and "data" in contents[0]:
+                        return mock_transcription_response
+                # Check if it's cleaning (model contains "cleaning" or "flash")
+                if "cleaning" in str(model).lower() or "flash" in str(model).lower():
+                    return mock_cleaning_response
+                # Default to summarization
+                return mock_summary_response
+
+            mock_client.models.generate_content.side_effect = generate_content_side_effect
             mock_genai.Client.return_value = mock_client
 
             # Create config with Gemini summarization and hybrid cleaning strategy

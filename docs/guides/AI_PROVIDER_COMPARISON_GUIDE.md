@@ -609,22 +609,22 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │  🔒 Privacy:  ████████████████████ 100% Complete                │
 │  ⚠️  No transcription support                                   │
 │                                                                 │
-│  Recommended Models (by RAM):                                   │
-│  ├── llama3.1:8b       6-8GB RAM  │ ⭐ Limited RAM, fastest    │
-│  ├── llama3.2:latest   8-12GB RAM │ ⭐ Standard systems        │
-│  ├── llama3.3:latest   12-16GB RAM │ ⭐ Production (fits <16GB) │
-│  └── llama3.3:70b      48GB+ RAM   │ Best quality               │
+│  Recommended Models (by Use Case):                             │
+│  ├── qwen2.5:7b        8GB+ RAM  │ ⭐ Best JSON, GIL extraction │
+│  ├── llama3.1:8b       8GB+ RAM  │ ⭐ General purpose (default)│
+│  ├── mistral:7b        8GB+ RAM  │ ⭐ Fastest inference        │
+│  ├── gemma2:9b         12GB+ RAM │ ⭐ Balanced quality/speed   │
+│  └── phi3:mini         4GB+ RAM  │ ⭐ Dev/test, lightweight   │
 │                                                                 │
 │  Setup Requirements:                                           │
 │  ├── Install Ollama:   brew install ollama (macOS)            │
 │  ├── Start server:     ollama serve (keep running)            │
-│  └── Pull models:      ollama pull llama3.1:8b                 │
+│  └── Pull models:      ollama pull qwen2.5:7b (recommended)    │
 │                                                                 │
 │  Hardware Recommendations:                                      │
-│  ├── 6-8GB RAM:        llama3.1:8b (smallest, fastest)        │
-│  ├── 8-12GB RAM:       llama3.2:latest (good balance)         │
-│  ├── 12-16GB RAM:      llama3.3:latest (production quality)   │
-│  └── 48GB+ RAM:        llama3.3:70b (best quality)            │
+│  ├── 4GB+ RAM:         phi3:mini (dev/test only)             │
+│  ├── 8GB+ RAM:         qwen2.5:7b, llama3.1:8b, mistral:7b    │
+│  └── 12GB+ RAM:        gemma2:9b (balanced quality/speed)     │
 │                                                                 │
 │  💡 Zero API costs, unlimited usage, complete data privacy      │
 │                                                                 │

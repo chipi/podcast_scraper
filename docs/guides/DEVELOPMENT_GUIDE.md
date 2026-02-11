@@ -212,7 +212,7 @@ Evaluation is handled automatically by the experiment runner. When you run an ex
 ```bash
 # Run experiment with automatic evaluation
 make experiment-run \
-  CONFIG=experiments/my_experiment.yaml \
+  CONFIG=config/experiments/my_experiment.yaml \
   BASELINE=baseline_prod_authority_v1 \
   REFERENCE=silver_gpt52_v1
 ```
@@ -312,7 +312,7 @@ use OpenAI providers or want to customize logging, paths, or performance setting
 1. **Copy example `.env` file:**
 
    ```bash
-   cp examples/.env.example .env
+   cp config/examples/.env.example .env
    ```
 
 2. **Edit `.env` and add your settings:**
@@ -349,7 +349,7 @@ use OpenAI providers or want to customize logging, paths, or performance setting
 **Security notes:**
 
 - ✅ `.env` is in `.gitignore` (never committed)
-- ✅ `examples/.env.example` is safe to commit (template only)
+- ✅ `config/examples/.env.example` is safe to commit (template only)
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
 
@@ -1113,7 +1113,59 @@ make install-hooks
 
 # Now linting failures are caught before commit!
 
-```
+### Release checklist
+
+Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-release` exists (see [ADR-041](../adr/ADR-041-mandatory-pre-release-validation.md)), follow these steps manually.
+
+#### 1. Pre-flight
+
+- **Branch & tree**: Work from `main` (or your release branch). Ensure a clean working tree: `git status --porcelain` should be empty, or only include files you intend to commit for the release.
+- **Version**: Decide the release version using [Semantic Versioning](https://semver.org/) (see [Releases index](../releases/index.md)): major (breaking), minor (new features), patch (fixes).
+
+#### 2. Version bump
+
+- **`pyproject.toml`**: Set `version = "X.Y.Z"` in the `[project]` section.
+- **`src/podcast_scraper/__init__.py`**: Set `__version__ = "X.Y.Z"` so the package and CLI report the same version. Keep both in sync.
+
+#### 3. Release docs prep
+
+- Run **`make release-docs-prep`**. This:
+  - Regenerates architecture diagrams (`docs/architecture/*.svg`).
+  - Creates a draft `docs/releases/RELEASE_vX.Y.Z.md` for the current version (from `pyproject.toml`) if it does not exist.
+- Review and commit:
+  - `git add docs/architecture/*.svg docs/releases/RELEASE_*.md`
+  - `git commit -m "docs: release docs prep (visualizations and release notes)"`
+
+#### 4. Release notes
+
+- Edit **`docs/releases/RELEASE_vX.Y.Z.md`**: fill in Summary, Key Features, Upgrade Notes (if any), and Full Changelog link (e.g. `https://github.com/chipi/podcast_scraper/compare/vPREVIOUS...vX.Y.Z`).
+- Update **`docs/releases/index.md`**: add the new version to the table and, if appropriate, update the "Latest Release" / "Upcoming" section.
+
+#### 5. Quality and validation
+
+- **Format & lint**: `make format` then `make lint` and `make type`. Fix any issues.
+- **Markdown**: `make fix-md` (or `make lint-markdown`) so docs and markdown pass.
+- **Docs build**: `make docs` (MkDocs build must succeed).
+- **Tests**: Run the full CI gate: **`make ci`** (format-check, lint, type, security, complexity, docstrings, spelling, tests, coverage-enforce, docs, build). For maximum confidence (e.g. major release), run **`make ci-clean`** or run **`make test`** then **`make coverage-enforce`**, **`make docs`**, **`make build`**.
+- **Diagrams**: `make check-visualizations` (optional; already covered by `release-docs-prep`).
+- **Build**: Ensure **`make build`** succeeds (sdist/wheel in `.build/dist/` or `dist/`).
+
+#### 6. Commit and push
+
+- Commit all release changes (version bumps, release notes, index, diagram updates) with a clear message, e.g. `chore: release vX.Y.Z`.
+- Push the branch: `git push origin <branch>` (never push to `main` without a reviewed PR unless your workflow allows it).
+
+#### 7. Tag and GitHub release
+
+- Create an annotated tag: **`git tag -a vX.Y.Z -m "Release vX.Y.Z"`** (use the same version as in `pyproject.toml` and `__init__.py`).
+- Push the tag: **`git push origin vX.Y.Z`**.
+- On GitHub: open **Releases** → **Draft a new release**, choose tag `vX.Y.Z`, paste the contents of `docs/releases/RELEASE_vX.Y.Z.md` as the release description, and publish.
+
+#### 8. Post-release (optional)
+
+- If you use a "next dev" version, bump to it (e.g. `X.Y.(Z+1)` or `X.Y.Z-dev`) in `pyproject.toml` and `__init__.py` and commit so the next build is not stuck on the release version.
+
+**See also:** [ADR-041: Mandatory Pre-Release Validation](../adr/ADR-041-mandatory-pre-release-validation.md), [Architecture visualizations](../architecture/README.md), [Releases index](../releases/index.md).
 
 ## Modularity
 
@@ -1149,7 +1201,7 @@ transcribe_missing(jobs, model="base")
 1. Add to `Config` model in `config.py`
 2. Add CLI argument in `cli.py`
 3. Document in README options section
-4. Update config examples in `examples/`
+4. Update config examples in `config/examples/`
 
 ## Error Handling
 

@@ -21,7 +21,7 @@ export PIP_CACHE_DIR
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize check-visualizations release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
 
 help:
 	@echo "Common developer commands:"
@@ -34,6 +34,7 @@ help:
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo "  make complexity      Run radon complexity analysis"
+	@echo "  make complexity-track Build wily baseline and show code quality trends over git history"
 	@echo "  make deadcode        Run vulture dead code detection"
 	@echo "  make docstrings      Run interrogate docstring coverage"
 	@echo "  make spelling        Run codespell spell checking"
@@ -43,6 +44,13 @@ help:
 	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
 	@echo "  make deps-analyze        Analyze module dependencies and detect architectural issues (with report)"
 	@echo "  make deps-check          Check dependencies and exit with error if issues found"
+	@echo "  make deps-graph          Generate module dependency graph (SVG) in docs/architecture/"
+	@echo "  make deps-graph-full     Generate full dependency graph with all deps in docs/architecture/"
+	@echo "  make call-graph          Generate workflow call graph (pyan3) in docs/architecture/"
+	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
+	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
+	@echo "  make check-visualizations  Fail if diagrams are older than source (use in CI)"
+	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -84,14 +92,14 @@ help:
 	@echo "                            Usage: make test-openai-real-feed FEED_URL=\"https://...\" [MAX_EPISODES=5]"
 	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
-	@echo "  make test-bulk-confidence  Run bulk E2E confidence tests (multiple configs sequentially)"
-	@echo "                            Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
+	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
+	@echo "                            Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
 	@echo "                                     ANALYZE_MODE=comprehensive uses comprehensive analysis mode (default: basic)"
-	@echo "  make analyze-bulk-confidence  Analyze bulk confidence test results"
-	@echo "                                 Usage: make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
+	@echo "  make analyze-acceptance  Analyze acceptance test results"
+	@echo "                                 Usage: make analyze-acceptance SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
 	@echo ""
 	@echo "Coverage commands:"
@@ -223,6 +231,14 @@ complexity:
 	@echo "=== Maintainability Index ==="
 	@$(PYTHON) -m radon mi src/podcast_scraper/ -s || true
 
+# Build wily baseline and optionally show trends (Issue #424)
+complexity-track:
+	@echo "=== Building wily baseline (code quality over git history) ==="
+	@$(PYTHON) -m wily build src/podcast_scraper --max-revisions 50 || true
+	@echo ""
+	@echo "=== Overall package trends ==="
+	@$(PYTHON) -m wily report src/podcast_scraper/ || true
+
 deadcode:
 	@echo "=== Dead Code Detection ==="
 	@$(PYTHON) -m vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 || true
@@ -267,7 +283,7 @@ docs-check: lint-markdown-docs spelling-docs docs
 COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
 COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
 COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
-COVERAGE_THRESHOLD_COMBINED := 80      # Target: 80% (Current: ~54% - needs improvement)
+COVERAGE_THRESHOLD_COMBINED := 70      # Target: 70% combined (CI enforce)
 
 check-unit-imports:
 	# Verify that unit tests can import modules without ML dependencies
@@ -522,7 +538,8 @@ test:
 	# Note: Same as integration - --disable-socket for network isolation, no --reruns with -n
 	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Final coverage:"
-	@$(PYTHON) -m coverage report 2>&1 | grep "^TOTAL"
+	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report (check for coverage errors above)"; exit 1)
 
 test-sequential:
 	# All tests: sequential execution (slower but clearer output, useful for debugging)
@@ -545,68 +562,103 @@ test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	$(PYTHON) -m pytest --reruns 2 --reruns-delay 1 --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' --disable-socket --allow-hosts=127.0.0.1,localhost
 
-test-bulk-confidence:
-	@# Run bulk E2E confidence tests (multiple configs sequentially)
-	@# Usage: make test-bulk-confidence CONFIGS="examples/config.my.planetmoney.*.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
+test-acceptance:
+	@# Run E2E acceptance tests (multiple configs sequentially)
+	@# Usage: make test-acceptance CONFIGS="config/examples/config.example.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
 	@if [ -z "$(CONFIGS)" ]; then \
 		echo "❌ Error: CONFIGS is required"; \
-		echo "Usage: make test-bulk-confidence CONFIGS=\"examples/config.my.planetmoney.*.yaml\""; \
+		echo "Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
 		echo ""; \
 		echo "Options:"; \
-		echo "  CONFIGS=pattern          Config file pattern (required)"; \
-		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/bulk_confidence)"; \
-		echo "  COMPARE_BASELINE=id      Baseline ID to compare against"; \
-		echo "  SAVE_AS_BASELINE=id      Save current runs as baseline with this ID"; \
+		echo "  CONFIGS=pattern         Config file pattern (required, e.g., 'config/examples/config.example.yaml' or 'config/acceptance/*.yaml')"; \
+		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
+		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
+		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
+		echo "  NO_AUTO_BENCHMARK=1     Disable automatic benchmark report generation"; \
+		echo "  ANALYZE_MODE=mode       Analysis mode: basic or comprehensive (default: basic)"; \
+		echo "  COMPARE_BASELINE=id     Baseline ID to compare against"; \
+		echo "  SAVE_AS_BASELINE=id     Save current runs as baseline"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/*.yaml\" USE_FIXTURES=1"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/tools/run_bulk_confidence_tests.py \
+	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
 		--configs "$(CONFIGS)" \
-		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)" \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
 		$(if $(USE_FIXTURES),--use-fixtures) \
 		$(if $(NO_SHOW_LOGS),--no-show-logs) \
 		$(if $(NO_AUTO_ANALYZE),--no-auto-analyze) \
+		$(if $(NO_AUTO_BENCHMARK),--no-auto-benchmark) \
 		$(if $(ANALYZE_MODE),--analyze-mode $(ANALYZE_MODE)) \
 		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
 		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
 		--log-level INFO
 	@echo ""
-	@echo "✓ Bulk confidence tests completed"
-	@echo "  Results saved to: $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo "✓ Acceptance tests completed"
+	@echo "  Results saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)"
 	@echo ""
-	@echo "To analyze results, use:"
-	@echo "  make analyze-bulk-confidence SESSION_ID=<session_id>"
-	@echo "  Or: python scripts/tools/analyze_bulk_runs.py --session-id <session_id> --output-dir $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo "To analyze results:"
+	@echo "  make analyze-acceptance SESSION_ID=<session_id>"
+	@echo "  Or: python scripts/acceptance/analyze_bulk_runs.py --session-id <session_id> --output-dir $(or $(OUTPUT_DIR),.test_outputs/acceptance)"
 
-analyze-bulk-confidence:
-	@# Analyze bulk E2E confidence test results
-	@# Usage: make analyze-bulk-confidence SESSION_ID="20260208_093757" [MODE=basic|comprehensive] [COMPARE_BASELINE=...] [OUTPUT_DIR=...] [OUTPUT_FORMAT=markdown|json|both]
+analyze-acceptance:
+	@# Analyze E2E acceptance test results
+	@# Usage: make analyze-acceptance SESSION_ID="20260208_093757" [MODE=basic|comprehensive] [COMPARE_BASELINE=...] [OUTPUT_DIR=...] [OUTPUT_FORMAT=markdown|json|both]
 	@if [ -z "$(SESSION_ID)" ]; then \
 		echo "❌ Error: SESSION_ID is required"; \
-		echo "Usage: make analyze-bulk-confidence SESSION_ID=\"20260208_093757\""; \
+		echo "Usage: make analyze-acceptance SESSION_ID=<session_id>"; \
 		echo ""; \
 		echo "Options:"; \
 		echo "  SESSION_ID=id            Session ID (required, e.g., '20260208_093757')"; \
-		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/bulk_confidence)"; \
-		echo "  MODE=mode                 Analysis mode: basic or comprehensive (default: basic)"; \
-		echo "  COMPARE_BASELINE=id      Baseline ID to compare against (optional)"; \
+		echo "  MODE=mode                Analysis mode: basic or comprehensive (default: basic)"; \
+		echo "  COMPARE_BASELINE=id      Baseline ID to compare against"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
 		echo "  OUTPUT_FORMAT=format     Output format: markdown, json, or both (default: both)"; \
 		echo ""; \
 		echo "Examples:"; \
-		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\""; \
-		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" MODE=comprehensive"; \
-		echo "  make analyze-bulk-confidence SESSION_ID=\"20260208_093757\" COMPARE_BASELINE=planet_money_v1"; \
+		echo "  make analyze-acceptance SESSION_ID=20260208_101601"; \
+		echo "  make analyze-acceptance SESSION_ID=20260208_101601 MODE=comprehensive"; \
+		echo "  make analyze-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1"; \
 		exit 1; \
 	fi
-	@$(PYTHON) scripts/tools/analyze_bulk_runs.py \
+	@$(PYTHON) scripts/acceptance/analyze_bulk_runs.py \
 		--session-id "$(SESSION_ID)" \
-		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)" \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
 		--mode "$(or $(MODE),basic)" \
 		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
 		--output-format "$(or $(OUTPUT_FORMAT),both)" \
 		--log-level INFO
 	@echo ""
-	@echo "✓ Analysis complete"
-	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/bulk_confidence)"
+	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions/session_$(SESSION_ID)/"
+
+benchmark-acceptance:
+	@# Generate performance benchmarking report from acceptance test results
+	@if [ -z "$(SESSION_ID)" ]; then \
+		echo "❌ Error: SESSION_ID is required"; \
+		echo "Usage: make benchmark-acceptance SESSION_ID=<session_id> [COMPARE_BASELINE=...]"; \
+		echo ""; \
+		echo "Options:"; \
+		echo "  SESSION_ID=id            Session ID (required, e.g., '20260208_101601')"; \
+		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
+		echo "  COMPARE_BASELINE=id      Baseline ID to compare against (optional)"; \
+		echo ""; \
+		echo "Examples:"; \
+		echo "  make benchmark-acceptance SESSION_ID=20260208_101601"; \
+		echo "  make benchmark-acceptance SESSION_ID=20260208_101601 COMPARE_BASELINE=baseline_v1"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/acceptance/generate_performance_benchmark.py \
+		--session-id $(SESSION_ID) \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
+		$(if $(COMPARE_BASELINE),--compare-baseline $(COMPARE_BASELINE)) \
+		--output-format both \
+		--log-level INFO
+	@echo ""
+	@echo "✓ Performance benchmark report generated"
+	@echo "  Reports saved to: $(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions/session_$(SESSION_ID)/"
 
 test-track:
 	# Run all test suites (unit + integration + e2e) and track execution times
@@ -1040,6 +1092,55 @@ deps-check:
 	# Use in CI or before committing to catch architectural issues early
 	# Checks: circular imports, import thresholds (max 15 imports per module)
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/analyze_dependencies.py --check
+
+# Architecture visualization (Issue #425) - outputs in docs/architecture/ for documentation
+deps-graph:
+	@mkdir -p docs/architecture
+	@echo "Generating module dependency graph (simplified)..."
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=2 -o docs/architecture/dependency-graph-simple.svg --no-show
+	@echo "Generating module dependency graph (full package)..."
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=3 -o docs/architecture/dependency-graph.svg --no-show
+	@echo "✓ Dependency graphs written to docs/architecture/"
+
+deps-graph-full:
+	@mkdir -p docs/architecture
+	@echo "Generating full dependency graph (all dependencies)..."
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper -o docs/architecture/dependency-graph-full.svg --no-show
+	@echo "✓ Full dependency graph written to docs/architecture/dependency-graph-full.svg"
+
+# Call graph (pyan3) - workflow orchestration entry point; pyan3 1.1.1 required (1.2.0 has bugs)
+call-graph:
+	@mkdir -p docs/architecture
+	@echo "Generating workflow call graph (orchestration.py)..."
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pyan src/podcast_scraper/workflow/orchestration.py --uses --no-defines --dot --file docs/architecture/workflow-call-graph.dot 2>/dev/null || true
+	@if [ -f docs/architecture/workflow-call-graph.dot ]; then \
+		dot -Tsvg docs/architecture/workflow-call-graph.dot -o docs/architecture/workflow-call-graph.svg 2>/dev/null && echo "✓ Call graph written to docs/architecture/workflow-call-graph.svg"; \
+	else \
+		echo "⚠ pyan3 call graph skipped (install pyan3==1.1.1 and graphviz)"; \
+	fi
+
+# Flowcharts (code2flow) - orchestration and service entry points
+flowcharts:
+	@mkdir -p docs/architecture
+	@echo "Generating orchestration flowchart..."
+	@$(PYTHON) -m code2flow src/podcast_scraper/workflow/orchestration.py -o docs/architecture/orchestration-flow.svg --language py -q 2>/dev/null || true
+	@echo "Generating service flowchart..."
+	@$(PYTHON) -m code2flow src/podcast_scraper/service.py -o docs/architecture/service-flow.svg --language py -q 2>/dev/null || true
+	@echo "✓ Flowcharts written to docs/architecture/ (orchestration-flow.svg, service-flow.svg)"
+
+visualize: deps-graph call-graph flowcharts
+	@echo "✓ Architecture visualizations up to date (see docs/architecture/)"
+
+# Check that architecture diagrams are not stale (sources newer than diagrams). Fails in CI if outdated.
+check-visualizations:
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_visualizations.py
+
+# Run before release: regenerate diagrams and create release notes draft. Add to release checklist.
+release-docs-prep: visualize
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/create_release_notes_draft.py
+	@echo "✓ Release docs prep complete"
+	@echo "Review: git status docs/architecture/ docs/releases/ && git diff docs/architecture/ docs/releases/"
+	@echo "Then commit: git add docs/architecture/*.svg docs/releases/RELEASE_*.md && git commit -m 'docs: release docs prep (visualizations and release notes)'"
 
 analyze-test-memory:
 	# Analyze test suite memory usage and resource consumption

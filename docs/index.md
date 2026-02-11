@@ -38,6 +38,10 @@ pip install -e .
 # For Whisper transcription, ensure ffmpeg is installed
 # macOS: brew install ffmpeg
 # Ubuntu: sudo apt install ffmpeg
+
+# (Optional) To regenerate architecture diagrams: install Graphviz then run make visualize
+# macOS: brew install graphviz
+# Ubuntu: sudo apt install graphviz
 ```
 
 ### Basic Usage
@@ -78,8 +82,8 @@ skip_existing: true
 
 **Example configs:**
 
-- [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.json) — JSON format
-- [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/examples/config.example.yaml) — YAML format
+- [config.example.json](https://github.com/chipi/podcast_scraper/blob/main/config/examples/config.example.json) — JSON format
+- [config.example.yaml](https://github.com/chipi/podcast_scraper/blob/main/config/examples/config.example.yaml) — YAML format
 
 ---
 

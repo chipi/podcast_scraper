@@ -566,5 +566,5 @@ snyk test --docker podcast-scraper:latest
 - [Service API](../api/SERVICE.md) - Service mode API reference
 - [Configuration API](../api/CONFIGURATION.md) - Config file format and options
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled variants
-- Supervisor Example: `examples/supervisor.conf.example` (in repository root)
+- Supervisor Example: `config/examples/supervisor.conf.example` (in repository root)
 - Docker Supervisor Config: `docker/supervisor.conf.example` (in repository root)
