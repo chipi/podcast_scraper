@@ -67,7 +67,7 @@ dev = [
   "pip-audit>=2.6.0,<3.0.0",
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
-  "jiwer>=3.0.0,<4.0.0",  # Required for WER (Word Error Rate) computation
+  "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
   "sentence-transformers>=2.2.0,<3.0.0",  # Required for semantic similarity computation
   "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
   "radon>=5.1.0,<5.2",  # Code complexity analysis (RFC-031); 5.1.x for wily compatibility (Issue #424)
