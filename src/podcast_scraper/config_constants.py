@@ -102,6 +102,24 @@ LED_BASE_16384_REVISION = (
 )
 LED_LARGE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA when needed
 
+
+def is_sha_revision(revision: str) -> bool:
+    """Return True if revision looks like a Git commit SHA (40 hex chars).
+
+    Used to detect unpinned revisions (e.g. 'main') for logging and optional
+    fail-fast (Issue #428).
+
+    Args:
+        revision: Revision string from config or HuggingFace.
+
+    Returns:
+        True if revision is 40 lowercase hex characters, False otherwise.
+    """
+    if not revision or len(revision) != 40:
+        return False
+    return all(c in "0123456789abcdef" for c in revision.lower())
+
+
 # OpenAI model defaults (Issue #191)
 # Test defaults: cheapest models for dev/testing (minimize API costs)
 # Production defaults: best quality/cost balance

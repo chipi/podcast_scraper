@@ -1130,6 +1130,8 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 
 #### 3. Release docs prep
 
+**Why this matters:** Architecture diagrams are not generated in CI. The docs site and all CI jobs use the committed `docs/architecture/*.svg` files. If you release without updating them, the published docs will show outdated architecture, and any subsequent PR or push will fail `check-visualizations`. Running release-docs-prep before every release keeps diagrams in sync with the code you are releasing.
+
 - Run **`make release-docs-prep`**. This:
   - Regenerates architecture diagrams (`docs/architecture/*.svg`).
   - Creates a draft `docs/releases/RELEASE_vX.Y.Z.md` for the current version (from `pyproject.toml`) if it does not exist.
@@ -1144,11 +1146,18 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 
 #### 5. Quality and validation
 
+Run all of the following in each release cycle before releasing so the codebase meets project standards.
+
 - **Format & lint**: `make format` then `make lint` and `make type`. Fix any issues.
 - **Markdown**: `make fix-md` (or `make lint-markdown`) so docs and markdown pass.
 - **Docs build**: `make docs` (MkDocs build must succeed).
+- **Code hygiene**: Run **`make quality`** (complexity, dead code, docstrings, spelling). Resolve or document any findings so that:
+  - Complexity (radon) and maintainability index are acceptable or exceptions documented.
+  - Docstring coverage meets the configured `fail-under` (see `[tool.interrogate]` in `pyproject.toml`).
+  - Dead code (vulture) and spelling (codespell) findings are triaged (fixed or whitelisted/ignored).
+  - Test coverage meets the combined threshold (see [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) and [Implementation plan](wip/ISSUE-432-IMPLEMENTATION-PLAN.md) for targets).
 - **Tests**: Run the full CI gate: **`make ci`** (format-check, lint, type, security, complexity, docstrings, spelling, tests, coverage-enforce, docs, build). For maximum confidence (e.g. major release), run **`make ci-clean`** or run **`make test`** then **`make coverage-enforce`**, **`make docs`**, **`make build`**.
-- **Diagrams**: `make check-visualizations` (optional; already covered by `release-docs-prep`).
+- **Diagrams (required for release):** `make ci` and `make ci-fast` run `make check-visualizations`; if diagrams are stale, the run fails. Run `make visualize` and commit `docs/architecture/*.svg`. Before release, **`make release-docs-prep`** does this and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
 - **Build**: Ensure **`make build`** succeeds (sdist/wheel in `.build/dist/` or `dist/`).
 
 #### 6. Commit and push
@@ -1237,6 +1246,22 @@ except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
 ```
+
+## CLI exit codes (Issue #429)
+
+The main pipeline command uses the following exit code policy:
+
+- **0** – Run completed. The pipeline ran to the end (config valid, no run-level exception). Some episodes may have failed; partial results and run index still reflect failures.
+- **1** – Run-level failure. Configuration error, dependency missing (e.g. ffmpeg), or an unhandled exception during the run.
+
+So exit code 0 means "the run finished", not "every episode succeeded". Use the run index (`index.json`) or `run.json` to see per-episode status. Flags `--fail-fast` and `--max-failures` stop processing after the first or after N episode failures but **still exit 0** if the run completed without a run-level error.
+
+## CLI subcommands and startup (Issue #429)
+
+- **Subcommands:** The first argument can be `doctor` or `cache`. When you run `python -m podcast_scraper.cli doctor` (or `podcast-scraper doctor`), the rest of the arguments are passed to that subcommand. If you omit arguments, the CLI uses `sys.argv[1:]` so subcommands work when invoked from the shell.
+- **Startup validation:** Before the main pipeline runs, the CLI checks Python version (3.10+) and that `ffmpeg` is on PATH. These checks are **skipped** for `doctor` and `cache` so you can run doctor even if ffmpeg is missing.
+- **Doctor** (`podcast-scraper doctor`): Runs environment checks (Python, ffmpeg, write permissions, model cache, ML imports). Use `--check-network` to test connectivity and `--check-models` to load default Whisper and summarizer once (slow). See [Troubleshooting - Doctor command](TROUBLESHOOTING.md#doctor-command-issue-379-429).
+- **Cache** (`podcast-scraper cache --status` / `--clean`): Manages ML model caches. No Python/ffmpeg validation.
 
 ## Log Level Guidelines
 

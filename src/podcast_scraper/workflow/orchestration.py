@@ -1,6 +1,7 @@
 """Core workflow orchestration: main pipeline execution.
 
 This module handles the main podcast scraping pipeline workflow.
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 """
 
 from __future__ import annotations

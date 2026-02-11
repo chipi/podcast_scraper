@@ -39,7 +39,7 @@ from ..capabilities import ProviderCapabilities
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Gemini API pricing constants (for cost estimation)
 # Source: https://ai.google.dev/pricing
@@ -55,19 +55,13 @@ GEMINI_1_5_FLASH_OUTPUT_COST_PER_1M_TOKENS = 0.30
 
 
 class GeminiProvider:
+    """Unified Gemini provider: TranscriptionProvider, SpeakerDetector, SummarizationProvider.
+
+    Uses Gemini native audio for transcription and chat models for speaker detection
+    and summarization. All capabilities share the same Gemini client.
+    """
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
-    """Unified Gemini provider implementing TranscriptionProvider, SpeakerDetector, and
-    SummarizationProvider.
-
-    This provider initializes and manages:
-    - Gemini native multimodal audio understanding for transcription
-    - Gemini chat models for speaker detection
-    - Gemini chat models for summarization
-
-    All three capabilities share the same Gemini client, similar to how OpenAI providers
-    share the same OpenAI client. The client is initialized once and reused.
-    """
 
     def __init__(self, cfg: config.Config):
         """Initialize unified Gemini provider.
@@ -742,6 +736,8 @@ class GeminiProvider:
                 all_speakers = list(hosts) + guests if not speakers else speakers
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
+            if response_text.strip().startswith("{"):
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
             pass
 
         # Fallback: parse from plain text

@@ -227,6 +227,28 @@ class TestSummaryModel(unittest.TestCase):
         # When self._load_model() is called, the mock receives 'self' as first arg
         mock_load_model.side_effect = setup_attrs
 
+    @patch("podcast_scraper.providers.ml.summarizer.logger")
+    @patch("podcast_scraper.summarizer.SummaryModel._load_model")
+    @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
+    def test_led_large_unpinned_revision_logs_error(
+        self, mock_detect_device, mock_load_model, mock_logger
+    ):
+        """LED-LARGE with unpinned revision (e.g. 'main') logs ERROR (Issue #428)."""
+        mock_detect_device.return_value = "cpu"
+        mock_load_model.return_value = None
+
+        summarizer.SummaryModel(
+            model_name="allenai/led-large-16384",
+            device=None,
+            cache_dir=self.temp_dir,
+        )
+
+        mock_logger.error.assert_called_once()
+        call_args = mock_logger.error.call_args[0]
+        # Format string is first arg; model_type and pinned_revision are next
+        self.assertEqual(call_args[1], "LED-LARGE")
+        self.assertEqual(call_args[2], "main")
+
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
     def test_model_initialization_cpu(self, mock_detect_device, mock_load_model):

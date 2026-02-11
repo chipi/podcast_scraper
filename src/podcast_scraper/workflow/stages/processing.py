@@ -27,6 +27,7 @@ from ..episode_processor import process_episode_download as factory_process_epis
 
 # Use wrapper function if available (for testability)
 def process_episode_download(*args, **kwargs):
+    """Delegate to workflow.process_episode_download or factory; allows tests to inject a mock."""
     import sys
 
     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -44,6 +45,7 @@ from ...rss import extract_episode_description as rss_extract_episode_descriptio
 
 # Use wrapper function if available (for testability)
 def extract_episode_description(item):
+    """Delegate to workflow.extract_episode_description or RSS; allows tests to inject a mock."""
     import sys
 
     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -1181,12 +1183,15 @@ def process_processing_jobs_concurrent(  # noqa: C901
         """
         jobs_processed_ok = [0]  # Use list for nonlocal access
         jobs_processed_failed = [0]  # Use list for nonlocal access
+        stop_requested = [False]  # Issue #429: set when fail_fast or max_failures reached
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
 
             def _submit_new_jobs() -> None:
                 """Submit new jobs as they become available."""
+                if stop_requested[0]:
+                    return
                 if processing_resources.processing_jobs_lock:
                     with processing_resources.processing_jobs_lock:
                         with processed_job_indices_lock:
@@ -1220,6 +1225,22 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 jobs_processed_ok[0] += 1
                             else:
                                 jobs_processed_failed[0] += 1
+                                # Issue #429: stop on first failure or after N failures (Phase 2)
+                                fail_fast = getattr(cfg, "fail_fast", False)
+                                max_failures = getattr(cfg, "max_failures", None)
+                                if fail_fast or (
+                                    max_failures is not None
+                                    and pipeline_metrics is not None
+                                    and pipeline_metrics.errors_total >= max_failures
+                                ):
+                                    stop_requested[0] = True
+                                    logger.info(
+                                        "Stopping processing: fail_fast=%s, max_failures=%s, "
+                                        "errors_total=%s",
+                                        fail_fast,
+                                        max_failures,
+                                        pipeline_metrics.errors_total,
+                                    )
                             logger.debug(
                                 "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",
                                 episode_idx,
@@ -1230,12 +1251,22 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         except Exception as exc:  # pragma: no cover
                             jobs_processed_failed[0] += 1
                             logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+                            fail_fast = getattr(cfg, "fail_fast", False)
+                            max_failures = getattr(cfg, "max_failures", None)
+                            if fail_fast or (
+                                max_failures is not None
+                                and pipeline_metrics is not None
+                                and pipeline_metrics.errors_total >= max_failures
+                            ):
+                                stop_requested[0] = True
                 except TimeoutError:
                     # Some futures are still pending - continue loop to check again
                     pass
 
             def _should_continue_processing() -> bool:
                 """Check if processing should continue."""
+                if stop_requested[0] and len(futures) == 0:
+                    return False
                 if transcription_complete_event and transcription_complete_event.is_set():
                     all_submitted = _check_queue_empty()
                     return not (all_submitted and len(futures) == 0)
@@ -1424,6 +1455,21 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     jobs_processed_ok += 1
                 else:
                     jobs_processed_failed += 1
+                    # Issue #429: stop on first failure or after N failures (Phase 2)
+                    fail_fast = getattr(cfg, "fail_fast", False)
+                    max_failures = getattr(cfg, "max_failures", None)
+                    if fail_fast or (
+                        max_failures is not None
+                        and pipeline_metrics is not None
+                        and pipeline_metrics.errors_total >= max_failures
+                    ):
+                        logger.info(
+                            "Stopping processing: fail_fast=%s, max_failures=%s, errors_total=%s",
+                            fail_fast,
+                            max_failures,
+                            pipeline_metrics.errors_total if pipeline_metrics else 0,
+                        )
+                        break
                 jobs_processed = jobs_processed_ok + jobs_processed_failed
                 logger.debug(
                     "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",

@@ -42,8 +42,8 @@ logger = logging.getLogger(__name__)
 # from ..summarization.base import SummarizationProvider  # noqa: F401
 # from ..transcription.base import TranscriptionProvider  # noqa: F401
 
-# Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+# Use canonical default from speaker_detection (Issue #428: typed placeholder, not "Guest")
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # OpenAI API pricing constants (for cost estimation)
 # Source: https://openai.com/pricing

@@ -32,6 +32,7 @@ _patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.grok.grok_provider import GrokProvider
+from podcast_scraper.providers.ml import speaker_detection
 
 
 @pytest.mark.unit
@@ -264,7 +265,7 @@ class TestGrokProviderSpeakerDetection(unittest.TestCase):
 
         speakers, hosts, success = provider.detect_speakers("Test", None, set())
 
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertEqual(hosts, set())
         self.assertFalse(success)
 
@@ -570,7 +571,7 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
 
         speakers, hosts, success = provider.detect_speakers("Test", None, set())
 
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertEqual(hosts, set())
         self.assertFalse(success)
         # Verify no API call was made
@@ -593,27 +594,19 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
             generate_metadata=True,
         )
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_auth_error(self, mock_render, mock_openai):
         """Test that authentication errors are properly handled in speaker detection."""
-        from openai import AuthenticationError
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class AuthError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai.return_value = mock_client
-        # Set up the mock structure so create() raises the exception
-        mock_client.chat.completions.create.side_effect = AuthenticationError(
-            "Invalid API key: authentication failed", response=None, body=None
-        )
+        create_mock = Mock(side_effect=AuthError("Invalid API key: authentication failed"))
+        mock_client.chat.completions.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = GrokProvider(self.cfg)
@@ -627,27 +620,19 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
         self.assertIn("authentication failed", str(context.exception).lower())
         self.assertIn("GROK_API_KEY", str(context.exception))
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_rate_limit_error(self, mock_render, mock_openai):
         """Test that rate limit errors are properly handled in speaker detection."""
-        from openai import RateLimitError
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class RateLimitError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai.return_value = mock_client
-        # Set up the mock structure so create() raises the exception
-        mock_client.chat.completions.create.side_effect = RateLimitError(
-            "Rate limit exceeded: quota exceeded", response=None, body=None
-        )
+        create_mock = Mock(side_effect=RateLimitError("Rate limit exceeded: quota exceeded"))
+        mock_client.chat.completions.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = GrokProvider(self.cfg)
@@ -683,29 +668,23 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_summarization_auth_error(self, mock_render, mock_openai):
+    def test_summarization_auth_error(self, mock_render, mock_openai, mock_retry):
         """Test that authentication errors are properly handled in summarization."""
-        from openai import AuthenticationError
+        mock_retry.side_effect = lambda func, **kwargs: func()
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class AuthError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai.return_value = mock_client
-        # Set up the mock structure so create() raises the exception
-        mock_client.chat.completions.create.side_effect = AuthenticationError(
-            "Invalid API key: authentication failed", response=None, body=None
-        )
+        create_mock = Mock(side_effect=AuthError("Invalid API key: authentication failed"))
+        mock_client.chat.completions.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = GrokProvider(self.cfg)
@@ -718,27 +697,21 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
 
         self.assertIn("authentication failed", str(context.exception).lower())
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
-    def test_summarization_rate_limit_error(self, mock_render, mock_openai):
+    def test_summarization_rate_limit_error(self, mock_render, mock_openai, mock_retry):
         """Test that rate limit errors are properly handled in summarization."""
-        from openai import RateLimitError
+        mock_retry.side_effect = lambda func, **kwargs: func()
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class RateLimitError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai.return_value = mock_client
-        # Set up the mock structure so create() raises the exception
-        mock_client.chat.completions.create.side_effect = RateLimitError(
-            "Rate limit exceeded: quota exceeded", response=None, body=None
-        )
+        create_mock = Mock(side_effect=RateLimitError("Rate limit exceeded: quota exceeded"))
+        mock_client.chat.completions.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = GrokProvider(self.cfg)

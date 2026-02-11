@@ -11,9 +11,11 @@ These tests verify error handling works correctly in E2E scenarios:
 All tests use real HTTP client and E2E server with error scenarios.
 """
 
+import json
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -141,6 +143,52 @@ class TestHTTPErrorHandling:
 
         # Clear error behavior
         e2e_server.clear_error_behavior("/audio/p01_multi_e01.mp3")
+
+    def test_chaos_run_index_records_failed_episode(self, e2e_server):
+        """Issue #429 Phase 2: Chaos test – run index records failed episode.
+
+        Feed has 3 episodes; episode 3 (no transcript URL) gets 404 on audio.
+        Assert run completes and index.json has one failed episode with
+        status, error_type, error_message, error_stage set.
+        """
+        # p01_multi: e01/e02 have transcript URL, e03 has only enclosure
+        e2e_server.set_error_behavior("/audio/p01_multi_e03.mp3", 404)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfg = Config(
+                rss_url=e2e_server.urls.feed("podcast1_multi_episode"),
+                output_dir=tmpdir,
+                max_episodes=3,
+                transcribe_missing=True,
+                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            )
+
+            count, summary = run_pipeline(cfg)
+
+            # Run should complete (exit 0 semantics: run completed)
+            assert isinstance(summary, str), "Summary should be a string"
+
+            # Find index.json (output is under tmpdir/run_<suffix>/)
+            run_json_candidates = list(Path(tmpdir).rglob("run.json"))
+            assert run_json_candidates, "run.json should be produced"
+            output_root = run_json_candidates[0].parent
+            index_path = output_root / "index.json"
+            assert index_path.exists(), "index.json should exist"
+
+            with open(index_path, "r", encoding="utf-8") as f:
+                index_data = json.load(f)
+
+            assert (
+                index_data.get("episodes_failed", 0) >= 1
+            ), "At least one episode should be recorded as failed"
+            failed = [ep for ep in index_data.get("episodes", []) if ep.get("status") == "failed"]
+            assert failed, "At least one episode entry should have status 'failed'"
+            for ep in failed:
+                assert ep.get("error_type"), "Failed entry should have error_type"
+                assert ep.get("error_message"), "Failed entry should have error_message"
+                assert ep.get("error_stage"), "Failed entry should have error_stage"
+
+        e2e_server.clear_error_behavior("/audio/p01_multi_e03.mp3")
 
     def test_service_api_error_handling(self, e2e_server):
         """Test service API error handling with HTTP errors."""

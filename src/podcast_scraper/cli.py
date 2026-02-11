@@ -1,4 +1,7 @@
-"""Command-line interface helpers for podcast_scraper."""
+"""Command-line interface helpers for podcast_scraper.
+
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
+"""
 
 from __future__ import annotations
 
@@ -1236,15 +1239,21 @@ def _parse_doctor_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespa
         action="store_true",
         help="Also check network connectivity (optional)",
     )
+    parser.add_argument(
+        "--check-models",
+        action="store_true",
+        help="Try loading default Whisper and summarizer models once (slow, optional)",
+    )
     args = parser.parse_args(argv)
     return args
 
 
-def _run_doctor_checks(check_network: bool = False) -> int:
-    """Run diagnostic checks (Issue #379).
+def _run_doctor_checks(check_network: bool = False, check_models: bool = False) -> int:
+    """Run diagnostic checks (Issue #379, #429).
 
     Args:
         check_network: Whether to check network connectivity
+        check_models: Whether to try loading default ML models once
 
     Returns:
         Exit code (0 = all checks passed, 1 = some checks failed)
@@ -1359,6 +1368,28 @@ def _run_doctor_checks(check_network: bool = False) -> int:
         print(f"  ✓ spaCy: {spacy.__version__}")
     except ImportError:
         print("  ⚠ spaCy not installed (required for speaker detection)")
+
+    # Check 5b: Load default models once (optional, slow - Issue #429)
+    if check_models:
+        print("\n✓ Checking model load (default Whisper and summarizer)...")
+        try:
+            import whisper
+
+            _whisper_model = getattr(config, "TEST_DEFAULT_WHISPER_MODEL", "base.en")
+            whisper.load_model(_whisper_model, device="cpu", download_root=None)
+            print(f"  ✓ Whisper model loaded: {_whisper_model}")
+        except Exception as e:
+            print(f"  ✗ Whisper model load failed: {e}")
+            all_passed = False
+        try:
+            from podcast_scraper.providers.ml.summarizer import SummaryModel
+
+            _summary_model = getattr(config, "TEST_DEFAULT_SUMMARY_MODEL", "facebook/bart-base")
+            SummaryModel(_summary_model, device="cpu")
+            print(f"  ✓ Summarizer model loaded: {_summary_model}")
+        except Exception as e:
+            print(f"  ✗ Summarizer model load failed: {e}")
+            all_passed = False
 
     # Check 6: Network connectivity (optional)
     if check_network:
@@ -1861,6 +1892,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
     logger: Optional[logging.Logger] = None,
 ) -> int:
     """Entry point for the CLI; returns an exit status code."""
+    if argv is None:
+        argv = sys.argv[1:]
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor subcommands
@@ -1888,9 +1921,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
         # argparse may call sys.exit() for --help, etc.
         return exc.code if isinstance(exc.code, int) else 0
 
-    # Handle doctor subcommand (Issue #379)
+    # Handle doctor subcommand (Issue #379, #429)
     if hasattr(args, "command") and args.command == "doctor":
-        return _run_doctor_checks(check_network=args.check_network)
+        return _run_doctor_checks(
+            check_network=getattr(args, "check_network", False),
+            check_models=getattr(args, "check_models", False),
+        )
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":

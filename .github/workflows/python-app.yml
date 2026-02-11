@@ -150,7 +150,7 @@ jobs:
         # Dead code detection
         echo "### Dead Code Detection" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        vulture src/podcast_scraper/ --min-confidence 80 >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No dead code detected"
+        vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No dead code detected"
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -168,7 +168,7 @@ jobs:
         interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
 
         # Save dead code detection results (vulture supports --json)
-        vulture src/podcast_scraper/ --min-confidence 80 --json > reports/vulture.json 2>/dev/null || echo '[]' > reports/vulture.json
+        vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 --json > reports/vulture.json 2>/dev/null || echo '[]' > reports/vulture.json
 
         # Save spell checking results (codespell doesn't have JSON, parse text output)
         codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" > reports/codespell.txt 2>&1 || echo "" > reports/codespell.txt
@@ -249,7 +249,7 @@ jobs:
           # Coverage threshold - for display only on unit tests
           # Note: Unit tests typically achieve 70-80% coverage
           # Threshold is only enforced on COMBINED coverage (see coverage-unified job)
-          THRESHOLD=70
+          THRESHOLD=80
           echo "- **Combined Threshold**: ${THRESHOLD}% *(enforced on combined coverage only)*" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -1005,6 +1005,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r docs/requirements.txt
         pip install -e .[ml]
+    - name: Check architecture diagrams are up to date
+      run: make check-visualizations
     - name: Build docs
       run: make docs
 
@@ -1203,11 +1205,11 @@ jobs:
           echo "- **Branch Coverage**: $BRANCH_COVERAGE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Coverage threshold for combined coverage (not per-test-type)
+          # Coverage threshold for combined coverage (not per-test-type) - Issue #432 Phase 6
           # Note: Individual test types (unit/integration/e2e) have different expected coverage:
           # - Unit: ~70-80%, Integration: ~50-60%, E2E: ~50-55%
           # Only COMBINED coverage is enforced against this threshold
-          THRESHOLD=70
+          THRESHOLD=75
           echo "- **Threshold**: ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -1221,6 +1223,20 @@ jobs:
         else
           echo "⚠️ Unified coverage report not found" >> $GITHUB_STEP_SUMMARY
         fi
+    - name: Enforce combined coverage threshold
+      run: |
+        THRESHOLD=75
+        if [ ! -f reports/coverage-unified.xml ]; then
+          echo "⚠️ No unified coverage file; skipping threshold check (e.g. docs-only change)"
+          exit 0
+        fi
+        COVERAGE_PCT=$(python3 -c "import xml.etree.ElementTree as ET; t=ET.parse('reports/coverage-unified.xml'); r=t.getroot(); print(float(r.get('line-rate',0))*100)" 2>/dev/null || echo "0")
+        COVERAGE_INT=$(printf "%.0f" "$COVERAGE_PCT")
+        if [ "$COVERAGE_INT" -lt "$THRESHOLD" ]; then
+          echo "❌ Combined coverage ${COVERAGE_PCT}% is below threshold ${THRESHOLD}%"
+          exit 1
+        fi
+        echo "✅ Combined coverage ${COVERAGE_PCT}% meets threshold ${THRESHOLD}%"
     - name: Generate code quality metrics
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |
@@ -1291,14 +1307,14 @@ jobs:
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
-        # Coverage threshold (70%) is for combined coverage only
+        # Coverage threshold (75%; target 80%) is for combined coverage only - Issue #432 Phase 6
         # Save with CI prefix for unified dashboard
         python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
           --pipeline-metrics reports/output/pipeline_metrics.json \
-          --coverage-threshold 70 || echo "⚠️ Metrics generation failed (non-blocking)"
+          --coverage-threshold 75 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |

@@ -283,7 +283,7 @@ docs-check: lint-markdown-docs spelling-docs docs
 COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
 COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
 COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
-COVERAGE_THRESHOLD_COMBINED := 70      # Target: 70% combined (CI enforce)
+COVERAGE_THRESHOLD_COMBINED := 75      # Current: ~75%; target 80% (Issue #432 Phase 6; CI enforce)
 
 check-unit-imports:
 	# Verify that unit tests can import modules without ML dependencies
@@ -987,7 +987,7 @@ ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src');
 	all_cached = whisper_ok and transformers_ok and spacy_ok; \
 	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-visualizations $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
 	# Conditional preload: Only runs preload-ml-models if models are not cached
 	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
 	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
@@ -995,7 +995,7 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling test-fast docs build
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-visualizations test-fast docs build
 	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
@@ -1111,6 +1111,7 @@ deps-graph:
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=2 -o docs/architecture/dependency-graph-simple.svg --no-show
 	@echo "Generating module dependency graph (full package)..."
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=3 -o docs/architecture/dependency-graph.svg --no-show
+	@touch docs/architecture/dependency-graph.svg docs/architecture/dependency-graph-simple.svg 2>/dev/null || true
 	@echo "✓ Dependency graphs written to docs/architecture/"
 
 deps-graph-full:
@@ -1135,8 +1136,10 @@ flowcharts:
 	@mkdir -p docs/architecture
 	@echo "Generating orchestration flowchart..."
 	@$(PYTHON) -m code2flow src/podcast_scraper/workflow/orchestration.py -o docs/architecture/orchestration-flow.svg --language py -q 2>/dev/null || true
+	@touch -r src/podcast_scraper/workflow/orchestration.py docs/architecture/orchestration-flow.svg 2>/dev/null || true
 	@echo "Generating service flowchart..."
 	@$(PYTHON) -m code2flow src/podcast_scraper/service.py -o docs/architecture/service-flow.svg --language py -q 2>/dev/null || true
+	@touch -r src/podcast_scraper/service.py docs/architecture/service-flow.svg 2>/dev/null || true
 	@echo "✓ Flowcharts written to docs/architecture/ (orchestration-flow.svg, service-flow.svg)"
 
 visualize: deps-graph call-graph flowcharts

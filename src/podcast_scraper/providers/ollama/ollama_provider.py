@@ -52,7 +52,7 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Error messages
 OLLAMA_NOT_RUNNING_ERROR = """
@@ -75,24 +75,12 @@ Available models can be listed with:
 
 
 class OllamaProvider:
+    """Unified Ollama provider: SpeakerDetector and SummarizationProvider (no transcription).
+
+    Uses Ollama chat API via OpenAI SDK. All capabilities share the same client.
+    """
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
-    """Unified Ollama provider implementing SpeakerDetector and SummarizationProvider.
-
-    This provider initializes and manages:
-    - Ollama chat API for speaker detection (via OpenAI SDK)
-    - Ollama chat API for summarization (via OpenAI SDK)
-
-    All capabilities share the same OpenAI client (configured with Ollama base_url),
-    similar to how OpenAI providers share the same OpenAI client.
-
-    Key advantages:
-    - Fully offline - no internet required
-    - Zero cost - no per-token pricing
-    - Complete privacy - data never leaves local machine
-
-    Note: Transcription is NOT supported (Ollama has no audio API).
-    """
 
     def __init__(self, cfg: config.Config):
         """Initialize unified Ollama provider.
@@ -311,7 +299,7 @@ class OllamaProvider:
 
         Tries to load model-specific prompt first (e.g., "ollama/llama3.1_8b/ner/system_ner_v1"),
         falls back to generic prompt (e.g., "ollama/ner/system_ner_v1") if model-specific
-        prompt doesn't exist.
+        prompt does not exist.
 
         Args:
             model: Normalized model name (e.g., "llama3.1:8b")
@@ -857,6 +845,8 @@ class OllamaProvider:
                 all_speakers = list(hosts) + guests if not speakers else speakers
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
+            if response_text.strip().startswith("{"):
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
             pass
 
         # Fallback: parse from plain text

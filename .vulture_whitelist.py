@@ -13,3 +13,8 @@ _.callback  # unused method  # noqa: B018
 
 # Test fixtures
 _.fixture  # unused function  # noqa: B018
+
+# TYPE_CHECKING-only imports (used in string annotations in main code)
+rich = None  # cli.py
+Pipeline = None  # summarizer.py
+assert rich is None and Pipeline is None  # use so vulture does not report in this file

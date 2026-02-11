@@ -41,7 +41,7 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # DeepSeek API pricing constants (for cost estimation)
 # Source: https://platform.deepseek.com/pricing
@@ -53,19 +53,13 @@ DEEPSEEK_CHAT_CACHE_HIT_INPUT_COST_PER_1M_TOKENS = 0.028  # 90% discount on cach
 
 
 class DeepSeekProvider:
+    """Unified DeepSeek provider: SpeakerDetector and SummarizationProvider (no transcription).
+
+    Uses DeepSeek chat API via OpenAI SDK for speaker detection and summarization.
+    Transcription is not supported.
+    """
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
-    """Unified DeepSeek provider implementing SpeakerDetector and SummarizationProvider.
-
-    This provider initializes and manages:
-    - DeepSeek chat API for speaker detection (via OpenAI SDK)
-    - DeepSeek chat API for summarization (via OpenAI SDK)
-
-    All capabilities share the same OpenAI client (configured with DeepSeek base_url),
-    similar to how OpenAI providers share the same OpenAI client.
-
-    Note: Transcription is NOT supported (DeepSeek has no audio API).
-    """
 
     def __init__(self, cfg: config.Config):
         """Initialize unified DeepSeek provider.
@@ -411,6 +405,8 @@ class DeepSeekProvider:
                 all_speakers = list(hosts) + guests if not speakers else speakers
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
+            if response_text.strip().startswith("{"):
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
             pass
 
         # Fallback: parse from plain text

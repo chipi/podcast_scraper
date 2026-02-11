@@ -233,7 +233,9 @@ The CLI supports JSON and YAML configuration files:
 python -m podcast_scraper.cli --config config.json
 ```
 
-## Diagnostic Commands (Issue #379)
+## Diagnostic Commands (Issue #379, #429)
+
+**Subcommands:** The first argument can be `doctor` or `cache` (e.g. `podcast-scraper doctor`). Startup checks (Python 3.10+, ffmpeg) run only for the main pipeline; they are skipped for `doctor` and `cache` so you can run doctor even when ffmpeg is missing.
 
 ### `doctor` Command
 
@@ -285,9 +287,9 @@ The CLI uses standard exit codes for automation and scripting:
 
 **Exit Code Policy:**
 
-- Exit code 0 is returned when the pipeline completes, even if individual episodes fail
-- Exit code 1 is only returned for run-level failures (invalid configuration, missing dependencies, fatal errors)
-- Episode-level failures are tracked in metrics and do not affect exit code unless `--fail-fast` or `--max-failures` is used
+- Exit code 0 is returned when the pipeline completes, even if individual episodes fail.
+- Exit code 1 is only returned for run-level failures (invalid configuration, missing dependencies, fatal errors).
+- Episode-level failures are tracked in metrics and in `index.json` (per-episode `status`, `error_type`, `error_message`, `error_stage`). They do **not** change the exit code: the run still exits 0 when it finishes. Use `--fail-fast` or `--max-failures` to stop processing earlier; those flags do not make the exit code 1.
 
 **Examples:**
 

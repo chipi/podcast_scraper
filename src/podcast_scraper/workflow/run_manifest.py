@@ -239,21 +239,21 @@ def create_run_manifest(cfg: Any, output_dir: str, run_id: Optional[str] = None)
     try:
         import torch
 
-        torch_version = torch.__version__
+        torch_version = getattr(torch, "__version__", None)
     except ImportError:
         pass
 
     try:
         import transformers
 
-        transformers_version = transformers.__version__
+        transformers_version = getattr(transformers, "__version__", None)
     except ImportError:
         pass
 
     try:
         import whisper
 
-        whisper_version = whisper.__version__
+        whisper_version = getattr(whisper, "__version__", None)
     except ImportError:
         pass
 

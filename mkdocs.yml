@@ -12,6 +12,7 @@ nav:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md

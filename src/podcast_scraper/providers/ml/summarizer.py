@@ -19,6 +19,8 @@ Security Considerations:
 
 Note: Preprocessing functions (clean_transcript, remove_sponsor_blocks, etc.)
 have been moved to preprocessing.py. Use those functions directly.
+
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 """
 
 import contextlib
@@ -201,6 +203,9 @@ MAX_WORD_OVERLAP = 200  # Maximum recommended word overlap
 ENCODER_DECODER_TOKEN_CHUNK_SIZE = (
     600  # Forced token chunk size for encoder-decoder models (BART/PEGASUS)
 )
+# Minimum chunk size for MAP stage; smaller chunks are merged into previous (Issue #428)
+MAP_CHUNK_MIN_TOKENS = 80
+
 # Token limits for MAP phase chunk summaries (Issue #283)
 # Increased from 80-160 to 150-300 to allow more detail preservation
 # and reduce extractive behavior in BART/LED models
@@ -527,6 +532,17 @@ def _validate_model_source_legacy(model_name: str) -> None:
 
 
 def remove_sponsor_blocks(text: str) -> str:
+    """Remove common sponsor block phrases from text (e.g. 'brought to you by', 'sponsored by').
+
+    Strips up to the next blank line or 2000 chars after each matched phrase.
+    Used to reduce noise in transcripts before summarization.
+
+    Args:
+        text: Raw transcript or summary text.
+
+    Returns:
+        Text with sponsor blocks removed.
+    """
     lower = text.lower()
     cleaned = text
     for phrase in [
@@ -574,7 +590,7 @@ def select_summary_model(cfg) -> str:
     return default_model
 
 
-def select_reduce_model(cfg, default_model_name: str) -> str:
+def select_reduce_model(cfg, _default_model_name: str) -> str:
     """Select reduce-phase model based on configuration.
 
     Defaults to LED-base for accurate, long-context final summarization
@@ -587,7 +603,7 @@ def select_reduce_model(cfg, default_model_name: str) -> str:
 
     Args:
         cfg: Configuration object with summary_reduce_model field
-        default_model_name: Map model name (used only if reduce model explicitly set to same)
+        _default_model_name: Map model name (used only if reduce model explicitly set to same)
 
     Returns:
         Model identifier string (resolved from DEFAULT_SUMMARY_MODELS if key provided)
@@ -659,12 +675,16 @@ class SummaryModel:
                     f"stable weights (avoiding PR refs)"
                 )
             self.revision = pinned_revision
-            if pinned_revision == "main":
-                logger.warning(
-                    f"[{model_type}] Using 'main' branch - this is not a pinned commit SHA. "
-                    f"For production use, update {model_type}_REVISION in "
-                    "config_constants.py with a specific commit hash to ensure "
-                    "reproducibility (Issue #379)."
+            # Log at ERROR when revision is not a SHA so unpinned use is visible (Issue #428)
+            from ...config_constants import is_sha_revision
+
+            if not is_sha_revision(pinned_revision):
+                logger.error(
+                    "[%s] Revision is not a pinned commit SHA: %r. Update %s_REVISION in "
+                    "config_constants.py with a 40-char commit hash for reproducibility.",
+                    model_type,
+                    pinned_revision,
+                    model_type,
                 )
         else:
             self.revision = revision  # type: ignore[assignment]
@@ -1952,6 +1972,62 @@ def _prepare_chunks(
     return chunks, chunk_size
 
 
+def _merge_tiny_chunks(
+    model: SummaryModel,
+    chunks: List[str],
+    min_tokens: int = MAP_CHUNK_MIN_TOKENS,
+) -> List[str]:
+    """Merge chunks smaller than min_tokens into the previous chunk (Issue #428).
+
+    Avoids HF warnings and wasted work for tiny tail chunks. Logs each merge.
+
+    Args:
+        model: Summary model (for tokenizer and lock).
+        chunks: List of text chunks from _prepare_chunks.
+        min_tokens: Minimum token count; chunks below this are merged.
+
+    Returns:
+        List of chunks with tiny chunks merged into the previous (or next if first).
+    """
+    if not chunks or not model.tokenizer:
+        return chunks
+
+    with model._summarize_lock:
+        token_counts = [
+            len(
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    c, add_special_tokens=False, truncation=True, max_length=100000
+                )
+            )
+            for c in chunks
+        ]
+
+    merged: List[str] = []
+    i = 0
+    while i < len(chunks):
+        chunk = chunks[i]
+        n = token_counts[i]
+        if n >= min_tokens:
+            merged.append(chunk)
+            i += 1
+            continue
+        # Tiny chunk: merge into previous or next
+        if merged:
+            merged[-1] = merged[-1] + "\n\n" + chunk
+            logger.debug("Merged tiny chunk (%d tokens) into previous (Issue #428).", n)
+        else:
+            # First chunk is tiny; merge into next if any
+            if i + 1 < len(chunks):
+                merged.append(chunk + "\n\n" + chunks[i + 1])
+                logger.debug("Merged tiny first chunk (%d tokens) into next (Issue #428).", n)
+                i += 2
+                continue
+            else:
+                merged.append(chunk)
+        i += 1
+    return merged
+
+
 def summarize_long_text(
     model: SummaryModel,
     text: str,
@@ -2134,6 +2210,9 @@ def summarize_long_text(
     chunks, chunk_size = _prepare_chunks(
         model, text, chunk_size, use_word_chunking, word_chunk_size, word_overlap
     )
+
+    # Step 2b: Merge tiny chunks into previous to avoid HF warnings (Issue #428)
+    chunks = _merge_tiny_chunks(model, chunks)
 
     # === VALIDATION: Chunking metrics ===
     chunk_sizes_chars = [len(chunk) for chunk in chunks]

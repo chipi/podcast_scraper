@@ -12,8 +12,32 @@ import pytest
 
 from podcast_scraper.workflow.stages.setup import (
     ensure_ml_models_cached,
+    set_reproducibility_seeds,
     should_preload_ml_models,
 )
+
+
+@pytest.mark.unit
+class TestSetReproducibilitySeeds(unittest.TestCase):
+    """Tests for set_reproducibility_seeds function."""
+
+    def test_no_seed_returns_early(self):
+        """When cfg has no seed, function returns without setting seeds."""
+        cfg = Mock(seed=None)
+        set_reproducibility_seeds(cfg)
+
+    def test_with_seed_completes_without_error(self):
+        """When cfg has seed, function completes (may set torch/numpy/transformers seeds)."""
+        cfg = Mock(seed=42)
+        set_reproducibility_seeds(cfg)
+
+    def test_with_seed_sets_torch_seed_when_available(self):
+        """When cfg has seed and torch is available, manual_seed is called with seed."""
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+        with patch.dict("sys.modules", {"torch": mock_torch}):
+            set_reproducibility_seeds(Mock(seed=42))
+            mock_torch.manual_seed.assert_any_call(42)
 
 
 @pytest.mark.unit

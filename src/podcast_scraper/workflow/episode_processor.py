@@ -1281,6 +1281,19 @@ def process_episode_download(
             )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+        else:
+            # Issue #429: record failed episode so run index has status/error_type/stage
+            if pipeline_metrics is not None:
+                from .helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id,
+                    status="failed",
+                    stage="transcription",
+                    error_type="DownloadError",
+                    error_message="failed to download media",
+                )
         return False, None, None, 0
 
     logger.info(f"[{episode.idx}] no transcript for: {episode.title}")

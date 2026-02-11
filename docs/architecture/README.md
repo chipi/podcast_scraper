@@ -13,6 +13,6 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) for where each diagram is referenced.
 - `workflow-deps.svg` — Workflow subpackage dependencies (optional)
 - `providers-deps.svg` — Providers subpackage dependencies (optional)
 
-**Automated:** The [docs workflow](https://github.com/chipi/podcast_scraper/blob/main/.github/workflows/docs.yml) installs [Graphviz](https://graphviz.org/) and runs `make visualize` on every docs build. Updated diagrams are committed back to the repo on push to `main`, so no manual steps are required.
+**Regenerate locally:** Diagrams are not generated in CI. Run `make visualize` from the project root when you change code that affects architecture (e.g. new modules, workflow changes), then commit the updated `docs/architecture/*.svg` files. Requires [Graphviz](https://graphviz.org/) (`dot` on PATH) and dev dependencies: `pip install -e .[dev]` (pydeps, pyan3, code2flow). Graphviz: `brew install graphviz` (macOS), `apt install graphviz` (Debian/Ubuntu).
 
-**Local regenerate (optional):** Run `make visualize` (or `make deps-graph`, `make call-graph`, `make flowcharts`) from the project root. Requires Graphviz (`dot` on PATH) and dev dependencies: `pip install -e .[dev]` (includes pydeps, pyan3, code2flow). Graphviz: `brew install graphviz` (macOS), `apt install graphviz` (Debian/Ubuntu).
+**Enforcement:** `make ci` and `make ci-fast` run `make check-visualizations`; CI (python-app and docs workflows) also runs it. If diagrams are older than the source files they depend on, the check fails. Run `make visualize` and commit the updated SVGs to fix it.

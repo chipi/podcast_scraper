@@ -2010,6 +2010,58 @@ class TestBuildSpeakersFromDetectedNames(unittest.TestCase):
 
 
 @pytest.mark.unit
+class TestFilterGuestPlaceholder(unittest.TestCase):
+    """Tests for _filter_guest_placeholder_from_entity_lists (Issue #428)."""
+
+    def test_filter_removes_guest_from_guests(self):
+        """Legacy 'Guest' placeholder is removed from detected_guests."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(
+            ["Real Host"], ["Guest", "Real Guest"]
+        )
+        self.assertEqual(hosts, ["Real Host"])
+        self.assertEqual(guests, ["Real Guest"])
+
+    def test_filter_removes_guest_from_hosts(self):
+        """Legacy 'Guest' placeholder is removed from detected_hosts."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(
+            ["Host", "Guest", "Real Host"], None
+        )
+        self.assertEqual(hosts, ["Host", "Real Host"])
+        self.assertIsNone(guests)
+
+    def test_filter_none_unchanged(self):
+        """None inputs remain None."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(None, None)
+        self.assertIsNone(hosts)
+        self.assertIsNone(guests)
+
+    def test_filter_all_guest_returns_none(self):
+        """List with only 'Guest' becomes None (empty)."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(None, ["Guest"])
+        self.assertIsNone(hosts)
+        self.assertIsNone(guests)
+
+
+@pytest.mark.unit
+class TestBuildSummarizationProviderInfo(unittest.TestCase):
+    """Tests for _build_summarization_provider_info (Issue #428 model_revision)."""
+
+    @patch("podcast_scraper.workflow.run_manifest._revision_for_summary_model")
+    def test_transformers_provider_includes_model_revision_when_available(self, mock_revision):
+        """Episode metadata includes model_revision for transformers (same as run_manifest)."""
+        mock_revision.return_value = "a" * 40
+        cfg = create_test_config(
+            summary_provider="transformers",
+            summary_model="allenai/led-base-16384",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["provider"], "transformers")
+        self.assertIn("model_revision", result)
+        self.assertEqual(result["model_revision"], "a" * 40)
+
+
+@pytest.mark.unit
 class TestNormalizeEntity(unittest.TestCase):
     """Tests for _normalize_entity helper function."""
 

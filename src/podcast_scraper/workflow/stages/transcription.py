@@ -30,6 +30,7 @@ from ..helpers import update_metric_safely
 
 # Use wrapper function if available (for testability)
 def transcribe_media_to_text(*args, **kwargs):
+    """Delegate to workflow.transcribe_media_to_text or factory; allows tests to inject a mock."""
     import sys
 
     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -270,6 +271,21 @@ def process_transcription_jobs(
                             error_type=type(exc).__name__,
                             error_message=str(exc)[:500],
                         )
+                # Issue #429 Phase 2: stop on first failure or after N failures
+                fail_fast = getattr(cfg, "fail_fast", False)
+                max_failures = getattr(cfg, "max_failures", None)
+                if fail_fast or (
+                    max_failures is not None
+                    and pipeline_metrics is not None
+                    and pipeline_metrics.errors_total >= max_failures
+                ):
+                    logger.info(
+                        "Stopping transcription: fail_fast=%s, max_failures=%s, errors_total=%s",
+                        fail_fast,
+                        max_failures,
+                        pipeline_metrics.errors_total,
+                    )
+                    break
 
             reporter.update(1)
             jobs_processed += 1

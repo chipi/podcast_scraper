@@ -10,6 +10,7 @@ exclude =
     .venv,
 per-file-ignores =
     __init__.py:F401
+    cli.py:C901
     config.py:C901
     episode_processor.py:C901
     workflow.py:C901

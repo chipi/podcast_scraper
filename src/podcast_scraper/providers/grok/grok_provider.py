@@ -43,7 +43,7 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Grok API pricing constants (for cost estimation)
 # Source: Verify at https://console.x.ai or https://docs.x.ai
@@ -56,21 +56,12 @@ GROK_2_OUTPUT_COST_PER_1M_TOKENS = 0.0  # Verify with xAI pricing
 
 
 class GrokProvider:
+    """Unified Grok provider: SpeakerDetector and SummarizationProvider (no transcription).
+
+    Uses Grok chat API via OpenAI SDK. Real-time info via X/Twitter. No audio API.
+    """
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
-    """Unified Grok provider implementing SpeakerDetector and SummarizationProvider.
-
-    This provider initializes and manages:
-    - Grok chat API for speaker detection (via OpenAI SDK)
-    - Grok chat API for summarization (via OpenAI SDK)
-
-    All capabilities share the same OpenAI client (configured with Grok base_url),
-    similar to how OpenAI providers share the same OpenAI client.
-
-    Key advantage: Real-time information access via X/Twitter integration.
-
-    Note: Transcription is NOT supported (Grok has no audio API).
-    """
 
     def __init__(self, cfg: config.Config):
         """Initialize unified Grok provider.

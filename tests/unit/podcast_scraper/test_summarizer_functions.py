@@ -554,6 +554,54 @@ class TestPrepareChunks(unittest.TestCase):
 
 
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class TestMergeTinyChunks(unittest.TestCase):
+    """Tests for _merge_tiny_chunks (Issue #428)."""
+
+    def test_merge_tiny_chunks_merges_small_into_previous(self):
+        """Tiny chunk is merged into previous chunk."""
+        mock_tokenizer = Mock()
+        # First chunk 100 tokens, second 30 (below MAP_CHUNK_MIN_TOKENS=80)
+        mock_tokenizer.encode.side_effect = [
+            list(range(100)),
+            list(range(30)),
+        ]
+        mock_model = Mock()
+        mock_model.tokenizer = mock_tokenizer
+        _add_summarize_lock_to_mock(mock_model)
+
+        chunks = ["First chunk text.", "Tiny."]
+        result = summarizer._merge_tiny_chunks(mock_model, chunks, min_tokens=80)
+
+        self.assertEqual(len(result), 1)
+        self.assertIn("First chunk text.", result[0])
+        self.assertIn("Tiny.", result[0])
+
+    def test_merge_tiny_chunks_leaves_large_chunks_unchanged(self):
+        """Chunks at or above threshold are unchanged."""
+        mock_tokenizer = Mock()
+        mock_tokenizer.encode.side_effect = [
+            list(range(100)),
+            list(range(90)),
+        ]
+        mock_model = Mock()
+        mock_model.tokenizer = mock_tokenizer
+        _add_summarize_lock_to_mock(mock_model)
+
+        chunks = ["Chunk one.", "Chunk two."]
+        result = summarizer._merge_tiny_chunks(mock_model, chunks, min_tokens=80)
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0], "Chunk one.")
+        self.assertEqual(result[1], "Chunk two.")
+
+    def test_merge_tiny_chunks_empty_returns_empty(self):
+        """Empty chunk list returns empty."""
+        mock_model = Mock()
+        mock_model.tokenizer = Mock()
+        self.assertEqual(summarizer._merge_tiny_chunks(mock_model, []), [])
+
+
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummarizeChunksMap(unittest.TestCase):
     """Tests for _summarize_chunks_map function."""
 

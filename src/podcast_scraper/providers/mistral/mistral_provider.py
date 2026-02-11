@@ -43,7 +43,7 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Mistral API pricing constants (for cost estimation)
 # Source: https://docs.mistral.ai/pricing/
@@ -57,21 +57,13 @@ MISTRAL_LARGE_OUTPUT_COST_PER_1M_TOKENS = 6.00  # mistral-large: $6.00 per 1M ou
 
 
 class MistralProvider:
+    """Unified Mistral provider: TranscriptionProvider, SpeakerDetector, SummarizationProvider.
+
+    Uses Voxtral for transcription and chat API for speaker detection and summarization.
+    Full OpenAI alternative; all capabilities share the same Mistral client.
+    """
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
-    """Unified Mistral provider implementing TranscriptionProvider, SpeakerDetector, and
-    SummarizationProvider.
-
-    This provider initializes and manages:
-    - Mistral Voxtral API for transcription
-    - Mistral chat API for speaker detection
-    - Mistral chat API for summarization
-
-    All three capabilities share the same Mistral client, similar to how OpenAI providers
-    share the same OpenAI client. The client is initialized once and reused.
-
-    Key advantage: Mistral is a complete OpenAI alternative (all three capabilities).
-    """
 
     def __init__(self, cfg: config.Config):
         """Initialize unified Mistral provider.

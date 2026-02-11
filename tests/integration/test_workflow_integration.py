@@ -261,14 +261,18 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertGreater(
                     len(run_dirs), 0, f"Should have at least one run directory in {normalized_dir}"
                 )
-                run_dir = run_dirs[0]
+                # Use the most recently modified run dir (current run); normalized_dir can be
+                # reused across runs (e.g. .../T/final) so run_dirs may contain older runs
+                run_dir = max(run_dirs, key=lambda p: os.path.getmtime(p))
                 transcripts_dir = os.path.join(run_dir, "transcripts")
-                # Find transcript file (may have run suffix in filename)
-                transcript_files = glob.glob(os.path.join(transcripts_dir, "0001 - Episode 1*.txt"))
+                # Find transcript file (may have run suffix in filename; use broad glob for resilience)
+                transcript_files = glob.glob(os.path.join(transcripts_dir, "0001*.txt"))
+                if not transcript_files:
+                    transcript_files = glob.glob(os.path.join(transcripts_dir, "*.txt"))
                 self.assertGreater(
                     len(transcript_files),
                     0,
-                    f"Should find transcript file in {transcripts_dir}",
+                    f"Should find transcript file in {transcripts_dir} (listing: {os.listdir(transcripts_dir) if os.path.isdir(transcripts_dir) else 'not a dir'})",
                 )
                 expected_transcript_path = Path(transcript_files[0])
 

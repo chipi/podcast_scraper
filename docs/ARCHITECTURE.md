@@ -9,8 +9,10 @@ This architecture document is the central hub for understanding the system. For 
 ### Core Documentation
 
 - **[ADR Index](adr/index.md)** — **The immutable record of architectural laws and decisions**
+- **Architecture — [Ways to run and deploy](#ways-to-run-and-deploy)** — CLI vs service vs Docker; one pipeline, one Config
 - **[Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md)** — Performance, security, reliability, observability, maintainability, scalability
 - **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
+- **[Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md)** — Pipeline flow, module roles, behavioral quirks, run tracking
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
 - **[Testing Guide](guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
   - [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md) — Unit test mocking patterns
@@ -66,6 +68,20 @@ This architecture document is the central hub for understanding the system. For 
   and verbatim quotes with evidence grounding from
   podcast transcripts (PRD-017, planned).
 
+## Ways to run and deploy
+
+The system has **one pipeline** (`workflow.run_pipeline`) and **one configuration model** (`Config`). Both entry points produce a `Config` and call the same pipeline; only how config is supplied and how results are surfaced differs.
+
+| Mode | Use case | Config source | Entry / deployment |
+| ---- | --------- | ------------- | ------------------- |
+| **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, `python -m podcast_scraper.cli`. Subcommands: `doctor`, `cache`. |
+| **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
+| **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](guides/DOCKER_SERVICE_GUIDE.md). |
+
+**Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](api/REFERENCE.md) and [Service API](api/SERVICE.md).
+
+**Providers:** Eight providers (1 local ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
+
 ## Architectural Decisions (ADRs)
 
 The following architectural principles govern this system. For the full history and rationale, see the **[ADR Index](adr/index.md)**.
@@ -104,290 +120,9 @@ The following architectural principles govern this system. For the full history 
 - **Structured Logging**: `--json-logs` flag enables structured JSON logging for log aggregation systems (ELK, Splunk, CloudWatch).
 - **Diagnostics**: `podcast_scraper doctor` command validates environment (Python version, ffmpeg, write permissions, model cache, network connectivity).
 
-## High-Level Flow
+## Pipeline and Workflow
 
-1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
-2. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup.
-3. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
-4. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
-5. **Audio Preprocessing** (RFC-040): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to 16 kHz, silence removed via VAD, loudness normalized, and compressed with Opus codec. This reduces file size (typically 10-25× smaller) and ensures API compatibility (e.g., OpenAI 25 MB limit). Preprocessing happens at the pipeline level in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio. All providers benefit from optimized audio.
-6. **Transcription**: When Whisper fallback is enabled, `workflow.episode_processor.download_media_for_transcription` downloads media to a temp area and `workflow.episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
-7. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-8. **Summarization** (PRD-005/RFC-012): When enabled,
-   episode transcripts are summarized using the
-   configured provider — local transformer models
-   (BART, PEGASUS, LED) via `MLProvider`, or any of
-   7 LLM providers (OpenAI, Gemini, Anthropic,
-   Mistral, DeepSeek, Grok, Ollama) via prompt
-   templates. See
-   [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md)
-   for ML architecture details.
-9. **Run Tracking** (Issue #379): Run manifests
-   capture system state at pipeline start. Per-episode
-   stage timings track processing duration. Run
-   summaries combine manifest and metrics. Episode
-   index files list all processed episodes with
-   status.
-10. **Progress/UI**: All long-running operations
-    report progress through the pluggable factory in
-    `utils.progress`, defaulting to `rich` in the CLI.
-11. **GIL Extraction** (PRD-017, planned): When
-    enabled, the Grounded Insight Layer extracts
-    structured insights and verbatim quotes from
-    transcripts, links them via grounding
-    relationships, and writes a `kg.json` file per
-    episode. This step runs after summarization and
-    uses the same multi-provider architecture.
-    See [Planned Architecture Evolution](#planned-architecture-evolution)
-    for details.
-
-### Pipeline Flow Diagram
-
-```mermaid
-flowchart TD
-    Start([CLI Entry]) --> Parse[Parse CLI Args & Config Files]
-    Parse --> Validate[Validate & Normalize Config]
-    Validate --> Setup[Setup Output Directory]
-    Setup --> FetchRSS[Fetch & Parse RSS Feed]
-    FetchRSS --> ExtractEpisodes[Extract Episode Metadata]
-    ExtractEpisodes --> DetectSpeakers{Speaker Detection Enabled?}
-    DetectSpeakers -->|Yes| ExtractHosts[Extract Host Names from RSS]
-    ExtractHosts --> ExtractGuests[Extract Guest Names via NER]
-    DetectSpeakers -->|No| ProcessEpisodes[Process Episodes]
-    ExtractGuests --> ProcessEpisodes
-    ProcessEpisodes --> CheckTranscript{Transcript Available?}
-    CheckTranscript -->|Yes| DownloadTranscript[Download Transcript]
-    CheckTranscript -->|No| QueueWhisper[Queue for Whisper]
-    DownloadTranscript --> SaveTranscript[Save Transcript File]
-    QueueWhisper --> DownloadMedia[Download Media File]
-    DownloadMedia --> Preprocess{Preprocessing Enabled?}
-    Preprocess -->|Yes| PreprocessAudio[Preprocess Audio: Mono, 16kHz, VAD, Normalize, Opus]
-    Preprocess -->|No| Transcribe
-    PreprocessAudio --> Transcribe[Whisper Transcription]
-    Transcribe --> FormatScreenplay[Format with Speaker Names]
-    FormatScreenplay --> SaveTranscript
-    SaveTranscript --> GenerateMetadata{Metadata Generation?}
-    GenerateMetadata -->|Yes| CreateMetadata[Generate Metadata JSON/YAML]
-    GenerateMetadata -->|No| Cleanup
-    CreateMetadata --> GenerateSummary{Summarization Enabled?}
-    GenerateSummary -->|Yes| Summarize[Generate Summary]
-    GenerateSummary -->|No| GILCheck
-    Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
-    AddSummaryToMetadata --> GILCheck{GIL Extraction?}
-    GILCheck -->|Yes| ExtractGIL[Extract Insights + Quotes]
-    GILCheck -->|No| Cleanup
-    ExtractGIL --> GroundInsights[Ground Insights with Quotes]
-    GroundInsights --> WriteKG[Write kg.json]
-    WriteKG --> Cleanup[Cleanup Temp Files]
-    Cleanup --> End([Complete])
-
-    style Start fill:#e1f5ff
-    style End fill:#d4edda
-    style ProcessEpisodes fill:#fff3cd
-    style Transcribe fill:#f8d7da
-    style GenerateMetadata fill:#d1ecf1
-    style ExtractGIL fill:#e8daef
-```
-
-- `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`. Optimized for interactive command-line use.
-- `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
-- `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
-- `workflow.orchestration`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
-- `rss.parser`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
-- `rss.downloader`: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
-- `workflow.episode_processor`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
-- `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Eight unified
-  provider classes implement protocol combinations
-  ([ADR-011](adr/ADR-011-unified-provider-pattern.md)):
-
-  | Provider | Transcription | Speaker Detection | Summarization | Notes |
-  | --- | --- | --- | --- | --- |
-  | `MLProvider` | ✅ Whisper | ✅ spaCy NER | ✅ Transformers | Local, no API cost |
-  | `OpenAIProvider` | ✅ Whisper API | ✅ GPT API | ✅ GPT API | Cloud, prompt-managed |
-  | `GeminiProvider` | ✅ Gemini API | ✅ Gemini API | ✅ Gemini API | 2M context, native audio |
-  | `AnthropicProvider` | ❌ | ✅ Claude API | ✅ Claude API | High quality reasoning |
-  | `MistralProvider` | ❌ | ✅ Mistral API | ✅ Mistral API | OpenAI alternative |
-  | `DeepSeekProvider` | ❌ | ✅ DeepSeek API | ✅ DeepSeek API | Ultra low-cost |
-  | `GrokProvider` | ❌ | ✅ Grok API | ✅ Grok API | Real-time info (xAI) |
-  | `OllamaProvider` | ❌ | ✅ Ollama API | ✅ Ollama API | Local LLM, zero cost |
-
-  - **Factories**: Factory functions in
-    `transcription/factory.py`,
-    `speaker_detectors/factory.py`, and
-    `summarization/factory.py` create the appropriate
-    unified provider based on configuration.
-  - **Capabilities**: `providers/capabilities.py`
-    defines `ProviderCapabilities` — a dataclass
-    describing what each provider supports (JSON mode,
-    tool calls, streaming, etc.). Used by factories
-    and orchestration to select appropriate providers.
-  - **Prompt Management** (RFC-017):
-    `prompts/store.py` implements versioned Jinja2
-    prompt templates organized by
-    `<provider>/<task>/<version>.j2` (e.g.,
-    `openai/summarization/long_v1.j2`). Each of the
-    8 providers has tuned templates for summarization
-    and NER. LLM providers load prompts via
-    `PromptStore.render()` ensuring consistent,
-    version-tracked prompt engineering.
-- `whisper_integration.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `MLProvider` (unified provider pattern).
-- `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
-- `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
-- `utils.progress`: Minimal global progress publishing API so callers can swap in alternative UIs.
-- `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
-- `workflow.metadata_generation` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
-
-### Module Dependencies Diagram
-
-```mermaid
-graph TB
-    subgraph "Public API"
-        CLI[cli.py]
-        Config[config.py]
-        Service[service.py]
-        Workflow[workflow/orchestration.py]
-    end
-
-    subgraph "Core Processing"
-        RSSParser[rss/parser.py]
-        EpisodeProc[workflow/episode_processor.py]
-        Downloader[rss/downloader.py]
-        AudioPreproc[preprocessing/]
-    end
-
-    subgraph "Support Modules"
-        Filesystem[utils/filesystem.py]
-        Models[models.py]
-        Progress[utils/progress.py]
-        Schemas[schemas/summary_schema.py]
-    end
-
-    subgraph "Prompt Management"
-        PromptStore[prompts/store.py]
-        PromptTemplates[prompts/provider/task/v1.j2]
-    end
-
-    subgraph "Provider System"
-        TranscriptionFactory[transcription/factory.py]
-        SpeakerFactory[speaker_detectors/factory.py]
-        SummaryFactory[summarization/factory.py]
-        Capabilities[providers/capabilities.py]
-    end
-
-    subgraph "Local ML Provider"
-        MLProvider[providers/ml/ml_provider.py]
-        Whisper[providers/ml/whisper_utils.py]
-        SpeakerDetect[providers/ml/speaker_detection.py]
-        Summarizer[providers/ml/summarizer.py]
-        NER[providers/ml/ner_extraction.py]
-    end
-
-    subgraph "LLM Providers"
-        OpenAIProvider[providers/openai/]
-        GeminiProvider[providers/gemini/]
-        AnthropicProvider[providers/anthropic/]
-        MistralProvider[providers/mistral/]
-        DeepSeekProvider[providers/deepseek/]
-        GrokProvider[providers/grok/]
-        OllamaProvider[providers/ollama/]
-    end
-
-    subgraph "Optional Features"
-        Metadata[workflow/metadata_generation.py]
-        Evaluation[evaluation/]
-        Cleaning[cleaning/]
-    end
-
-    CLI --> Config
-    CLI --> Workflow
-    Service --> Config
-    Service --> Workflow
-    Workflow --> RSSParser
-    Workflow --> EpisodeProc
-    Workflow --> Downloader
-    Workflow --> TranscriptionFactory
-    Workflow --> SpeakerFactory
-    Workflow --> SummaryFactory
-    Workflow --> AudioPreproc
-    TranscriptionFactory --> MLProvider
-    TranscriptionFactory --> OpenAIProvider
-    TranscriptionFactory --> GeminiProvider
-    SpeakerFactory --> MLProvider
-    SpeakerFactory --> OpenAIProvider
-    SpeakerFactory --> GeminiProvider
-    SpeakerFactory --> AnthropicProvider
-    SpeakerFactory --> MistralProvider
-    SpeakerFactory --> DeepSeekProvider
-    SpeakerFactory --> GrokProvider
-    SpeakerFactory --> OllamaProvider
-    SummaryFactory --> MLProvider
-    SummaryFactory --> OpenAIProvider
-    SummaryFactory --> GeminiProvider
-    SummaryFactory --> AnthropicProvider
-    SummaryFactory --> MistralProvider
-    SummaryFactory --> DeepSeekProvider
-    SummaryFactory --> GrokProvider
-    SummaryFactory --> OllamaProvider
-    MLProvider --> Whisper
-    MLProvider --> SpeakerDetect
-    MLProvider --> Summarizer
-    MLProvider --> NER
-    OpenAIProvider --> PromptStore
-    GeminiProvider --> PromptStore
-    AnthropicProvider --> PromptStore
-    MistralProvider --> PromptStore
-    DeepSeekProvider --> PromptStore
-    GrokProvider --> PromptStore
-    OllamaProvider --> PromptStore
-    PromptStore --> PromptTemplates
-    Workflow --> Metadata
-    Workflow --> Filesystem
-    EpisodeProc --> Downloader
-    EpisodeProc --> Filesystem
-    RSSParser --> Models
-    Summarizer --> Models
-    SpeakerDetect --> Models
-    TranscriptionFactory --> Capabilities
-    SpeakerFactory --> Capabilities
-    SummaryFactory --> Capabilities
-```
-
-**Actual import relationships (pydeps):**
-
-The diagram below shows the actual import relationships between modules, generated from code analysis. Compare with the Mermaid diagram above to validate that implementation matches design.
-
-![Module dependency graph](architecture/dependency-graph.svg)
-
-*Generated by [pydeps](https://github.com/thebjorn/pydeps). Regenerate with `make visualize` (requires Graphviz).*
-
-**Workflow call graph (function-level):**
-
-The following diagram shows which functions call which in the pipeline entry point (`workflow/orchestration.py`). Useful for understanding orchestration flow and hot paths.
-
-![Workflow call graph](architecture/workflow-call-graph.svg)
-
-*Generated by [pyan3](https://github.com/Technologicat/pyan).*
-
-**Flowcharts:** For control flow within key modules, see [orchestration flowchart](architecture/orchestration-flow.svg) and [service API flowchart](architecture/service-flow.svg) (generated by [code2flow](https://github.com/scottrogowski/code2flow)).
-
-<!-- markdownlint-disable MD037 -->
-- **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
-- **Resilient HTTP interactions**: A per-thread `requests.Session` with exponential backoff retry (`LoggingRetry`) handles transient network issues while logging retries for observability. Model loading operations use `retry_with_exponential_backoff` for transient errors (network failures, timeouts).
-- **Concurrent transcript pulls**: Transcript downloads are parallelized via `ThreadPoolExecutor`, guarded with locks when mutating shared counters/job queues. Whisper remains sequential to avoid GPU/CPU thrashing and to keep the UX predictable.
-- **Deterministic filesystem layout**: Output folders follow `output/rss_<host>_<hash>` conventions. Optional `run_id` and Whisper suffixes create run-scoped subdirectories while `sanitize_filename` protects against filesystem hazards.
-- **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
-- **Pluggable progress/UI**: A narrow `ProgressFactory` abstraction lets embedding applications replace the default `tqdm` progress without touching business logic.
-- **Optional Whisper dependency**: Whisper is imported lazily and guarded so environments without GPU support or `openai-whisper` can still run transcript-only workloads.
-- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
-- **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
-- **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
-- **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
-- **Provider-based architecture** (RFC-013): All capabilities (transcription, speaker detection, summarization) use a protocol-based provider system. Providers are created via factory functions based on configuration, allowing pluggable implementations (e.g., Whisper vs OpenAI for transcription, NER vs OpenAI for speaker detection, local transformers vs OpenAI for summarization). Providers implement consistent interfaces (`initialize()`, protocol methods, `cleanup()`) ensuring type safety and easy testing. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation details.
-- **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI) are supported via the provider system. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs. Model loading prefers safetensors format for security and performance (Issue #379). Pinned model revisions ensure reproducibility (Issue #379).
-- **Reproducibility** (Issue #379): Deterministic runs via seed control (`torch`, `numpy`, `transformers`). Run manifests capture complete system state. Per-episode stage timings enable performance analysis. Run summaries combine manifest and metrics for complete run records.
-- **Operational Hardening** (Issue #379): Retry policies with exponential backoff for transient errors. Timeout enforcement for transcription and summarization. Failure handling flags (`--fail-fast`, `--max-failures`) for pipeline control. Structured JSON logging for log aggregation. Path validation and model allowlist validation for security.
+For pipeline flow (entry → orchestration → episodes → speaker detection → preprocessing → transcription → metadata → summarization → run tracking → GIL), **module roles** (cli, service, workflow, providers, etc.), **behavioral quirks** (concurrent downloads vs sequential Whisper, dry-run, optional deps, reproducibility), **run tracking files**, and diagrams (flow, module dependencies, call graph), see the **[Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md)**.
 
 ## Planned Architecture Evolution
 
@@ -682,8 +417,7 @@ flowchart TD
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
     style Validate fill:#f8d7da
-
-```python
+```
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
 - Transcript filenames follow `<####> - <episode_title>[ _<run_suffix>].<ext>` with extensions inferred from declared types, HTTP headers, or URL heuristics.
@@ -704,12 +438,7 @@ flowchart TD
   quotes, topics, and their grounding relationships.
   The file conforms to `docs/kg/kg.schema.json` and
   is co-located with other episode artifacts.
-- **Run tracking files** (Issue #379): The pipeline generates several tracking files in the output directory:
-  - `run.json` - Top-level run summary combining run manifest and pipeline metrics
-  - `index.json` - Episode index listing all processed episodes with status and paths
-  - `run_manifest.json` - Comprehensive run manifest capturing system state (git SHA, config hash, Python version, OS, GPU info, model versions, seed) for reproducibility
-  - `metrics.json` - Pipeline metrics including episode statuses, stage timings, and performance data
-  - All files include schema versioning (`schema_version: "1.0.0"`) for forward compatibility.
+- **Run tracking files** (Issue #379, #429): The pipeline writes `run.json`, `index.json`, `run_manifest.json`, and `metrics.json` in each run directory. See [Pipeline and Workflow Guide - Run tracking files](guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429) for details.
 
 ### Filesystem Layout
 

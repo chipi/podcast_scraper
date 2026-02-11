@@ -27,6 +27,8 @@ Podcast Scraper is a Python tool that downloads transcripts for every episode in
 
 ### Installation
 
+**Option 1: pip (from source)**
+
 ```bash
 # Clone the repository
 git clone https://github.com/chipi/podcast_scraper.git
@@ -39,10 +41,30 @@ pip install -e .
 # macOS: brew install ffmpeg
 # Ubuntu: sudo apt install ffmpeg
 
-# (Optional) To regenerate architecture diagrams: install Graphviz then run make visualize
+# (Optional) To regenerate architecture diagrams: install Graphviz, run make visualize, then commit docs/architecture/*.svg
+# make ci / make ci-fast fail if diagrams are stale (check-visualizations)
 # macOS: brew install graphviz
 # Ubuntu: sudo apt install graphviz
 ```
+
+**Option 2: pipx (isolated environment)**
+
+```bash
+# Install from PyPI (when published) or from a local path
+pipx install podcast_scraper
+# Or from local clone:
+pipx install /path/to/podcast_scraper
+```
+
+**Option 3: uv**
+
+```bash
+# With uv, install from source or PyPI
+uv pip install -e .
+# Or: uv tool install podcast_scraper  (when published as a tool)
+```
+
+**Requirements:** Python 3.10+, ffmpeg for audio processing. Run `podcast-scraper doctor` to verify your environment.
 
 ### Basic Usage
 

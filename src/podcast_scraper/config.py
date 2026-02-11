@@ -1,3 +1,5 @@
+"""Application configuration. Low MI: see docs/ci/CODE_QUALITY_TRENDS.md."""
+
 from __future__ import annotations
 
 import json
@@ -661,6 +663,8 @@ class Config(BaseModel):
         description=(
             "Known host names for the podcast (show-level override). "
             "Useful when RSS metadata doesn't provide clean host names. "
+            "When the RSS author is an organization (e.g. NPR, BBC), set this to "
+            "the actual host names if auto-detection finds none. "
             "These will be used as hosts if auto-detection fails or finds no hosts."
         ),
     )
