@@ -185,6 +185,7 @@ jobs:
         name: ml-models
         path: /home/runner/.cache
         retention-days: 1
+        include-hidden-files: true
 
   # ===========================================================================
   # Code quality checks

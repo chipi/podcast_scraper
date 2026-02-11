@@ -396,6 +396,7 @@ jobs:
         name: ml-models
         path: /home/runner/.cache
         retention-days: 1
+        include-hidden-files: true
 
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
