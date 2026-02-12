@@ -102,6 +102,46 @@ class TestCreateRunManifest:
         mock_git.assert_called_once()
         mock_config_hash.assert_called_once_with(cfg)
 
+    @patch("podcast_scraper.workflow.run_manifest._get_gpu_info", return_value=None)
+    @patch("podcast_scraper.workflow.run_manifest._get_config_hash")
+    @patch("podcast_scraper.workflow.run_manifest._get_git_info")
+    def test_create_run_manifest_tolerates_mocked_modules_without_version(
+        self, mock_git: MagicMock, mock_config_hash: MagicMock, mock_gpu: MagicMock
+    ):
+        """create_run_manifest does not raise when torch/transformers/whisper lack __version__.
+
+        Other tests may mock sys.modules; those mocks often have no __version__.
+        The manifest uses getattr(..., '__version__', None) so creation still succeeds.
+        """
+        import sys
+
+        mock_git.return_value = ("abc123", "main", False)
+        mock_config_hash.return_value = ("sha256hex", "/config.yaml", "{}")
+        cfg = MagicMock()
+        cfg.whisper_model = None
+        cfg.summary_model = None
+        cfg.summary_reduce_model = None
+        cfg.whisper_device = None
+        cfg.summary_device = None
+        cfg.temperature = None
+        cfg.seed = None
+
+        # Mocks with spec=[] have no __version__; getattr(..., "__version__", None) returns None
+        mock_torch = MagicMock(spec=[])
+        mock_transformers = MagicMock(spec=[])
+        mock_whisper = MagicMock(spec=[])
+
+        with patch.dict(
+            sys.modules,
+            {"torch": mock_torch, "transformers": mock_transformers, "whisper": mock_whisper},
+        ):
+            manifest = create_run_manifest(cfg, "/out", run_id="test-run")
+
+        assert isinstance(manifest, RunManifest)
+        assert manifest.torch_version is None
+        assert manifest.transformers_version is None
+        assert manifest.whisper_version is None
+
 
 @pytest.mark.unit
 class TestRunManifestDataclass:

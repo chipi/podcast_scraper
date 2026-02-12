@@ -74,7 +74,7 @@
 <text xml:space="preserve" text-anchor="middle" x="1908" y="-100.95" font-family="Times,serif" font-size="14.00" fill="#000000">_create_speaker_detector</text>
 </g>
 <!-- podcast_scraper__workflow__orchestration___create_all_providers&#45;&gt;podcast_scraper__workflow__orchestration___create_speaker_detector -->
-<g id="edge5" class="edge">
+<g id="edge6" class="edge">
 <title>podcast_scraper__workflow__orchestration___create_all_providers&#45;&gt;podcast_scraper__workflow__orchestration___create_speaker_detector</title>
 <path fill="none" stroke="#000000" d="M2112.19,-162.83C2072.01,-151.85 2016.07,-136.55 1972.9,-124.75"/>
 <polygon fill="#000000" stroke="#000000" points="1973.96,-121.41 1963.39,-122.15 1972.12,-128.16 1973.96,-121.41"/>
@@ -86,7 +86,7 @@
 <text xml:space="preserve" text-anchor="middle" x="2164" y="-100.95" font-family="Times,serif" font-size="14.00" fill="#000000">_create_summarization_provider</text>
 </g>
 <!-- podcast_scraper__workflow__orchestration___create_all_providers&#45;&gt;podcast_scraper__workflow__orchestration___create_summarization_provider -->
-<g id="edge6" class="edge">
+<g id="edge5" class="edge">
 <title>podcast_scraper__workflow__orchestration___create_all_providers&#45;&gt;podcast_scraper__workflow__orchestration___create_summarization_provider</title>
 <path fill="none" stroke="#000000" d="M2164,-159.7C2164,-152.41 2164,-143.73 2164,-135.54"/>
 <polygon fill="#000000" stroke="#000000" points="2167.5,-135.62 2164,-125.62 2160.5,-135.62 2167.5,-135.62"/>
@@ -296,61 +296,61 @@
 <text xml:space="preserve" text-anchor="middle" x="3045" y="-244.95" font-family="Times,serif" font-size="14.00" fill="#000000">run_pipeline</text>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___cleanup_providers -->
-<g id="edge21" class="edge">
+<g id="edge23" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___cleanup_providers</title>
 <path fill="none" stroke="#000000" d="M3003.81,-237.11C2995.34,-235.07 2986.43,-233.22 2978,-232 2575.67,-173.69 2468.03,-241.05 2064,-196 2056.82,-195.2 2049.35,-194.16 2041.92,-193"/>
 <polygon fill="#000000" stroke="#000000" points="2042.64,-189.57 2032.2,-191.39 2041.5,-196.48 2042.64,-189.57"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___create_all_providers -->
-<g id="edge20" class="edge">
+<g id="edge24" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___create_all_providers</title>
 <path fill="none" stroke="#000000" d="M3003.44,-237.1C2995.08,-235.09 2986.31,-233.25 2978,-232 2663.8,-184.7 2579.84,-230.69 2264,-196 2256.06,-195.13 2247.79,-194.03 2239.56,-192.82"/>
 <polygon fill="#000000" stroke="#000000" points="2240.31,-189.39 2229.89,-191.33 2239.24,-196.31 2240.31,-189.39"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___create_run_manifest -->
-<g id="edge24" class="edge">
+<g id="edge25" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___create_run_manifest</title>
 <path fill="none" stroke="#000000" d="M3003.42,-237.23C2995.06,-235.21 2986.29,-233.33 2978,-232 2752.33,-195.75 2691.96,-223 2465,-196 2457.05,-195.05 2448.77,-193.91 2440.52,-192.68"/>
 <polygon fill="#000000" stroke="#000000" points="2441.25,-189.25 2430.83,-191.18 2440.18,-196.17 2441.25,-189.25"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___fetch_and_prepare_episodes -->
-<g id="edge26" class="edge">
+<g id="edge17" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___fetch_and_prepare_episodes</title>
 <path fill="none" stroke="#000000" d="M3002.63,-237.49C2994.49,-235.5 2986.01,-233.56 2978,-232 2950.64,-226.66 2797.8,-206.02 2693.39,-192.13"/>
 <polygon fill="#000000" stroke="#000000" points="2694.06,-188.69 2683.68,-190.84 2693.13,-195.63 2694.06,-188.69"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___finalize_pipeline -->
-<g id="edge22" class="edge">
+<g id="edge26" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___finalize_pipeline</title>
 <path fill="none" stroke="#000000" d="M3004.33,-236.89C2966.47,-225.61 2909.65,-208.68 2867.21,-196.04"/>
 <polygon fill="#000000" stroke="#000000" points="2868.24,-192.7 2857.65,-193.19 2866.24,-199.4 2868.24,-192.7"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___process_episodes_with_threading -->
-<g id="edge25" class="edge">
+<g id="edge18" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___process_episodes_with_threading</title>
 <path fill="none" stroke="#000000" d="M3045,-231.7C3045,-224.41 3045,-215.73 3045,-207.54"/>
 <polygon fill="#000000" stroke="#000000" points="3048.5,-207.62 3045,-197.62 3041.5,-207.62 3048.5,-207.62"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_jsonl_emitter -->
-<g id="edge17" class="edge">
+<g id="edge20" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_jsonl_emitter</title>
 <path fill="none" stroke="#000000" d="M3086.62,-237.2C3126.04,-226.03 3185.71,-209.12 3230.59,-196.4"/>
 <polygon fill="#000000" stroke="#000000" points="3231.54,-199.77 3240.21,-193.68 3229.63,-193.04 3231.54,-199.77"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_logging_and_devices -->
-<g id="edge18" class="edge">
+<g id="edge19" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_logging_and_devices</title>
 <path fill="none" stroke="#000000" d="M3095.96,-241.44C3174.23,-229.83 3325.27,-207.43 3423.56,-192.86"/>
 <polygon fill="#000000" stroke="#000000" points="3423.8,-196.36 3433.18,-191.43 3422.77,-189.44 3423.8,-196.36"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_pipeline_environment -->
-<g id="edge23" class="edge">
+<g id="edge22" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_pipeline_environment</title>
 <path fill="none" stroke="#000000" d="M3100.41,-244.88C3206.2,-236.83 3444.23,-217.89 3644,-196 3654.33,-194.87 3665.11,-193.6 3675.84,-192.28"/>
 <polygon fill="#000000" stroke="#000000" points="3676.01,-195.79 3685.5,-191.07 3675.14,-188.84 3676.01,-195.79"/>
 </g>
 <!-- podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_pipeline_resources -->
-<g id="edge19" class="edge">
+<g id="edge21" class="edge">
 <title>podcast_scraper__workflow__orchestration__run_pipeline&#45;&gt;podcast_scraper__workflow__orchestration___setup_pipeline_resources</title>
 <path fill="none" stroke="#000000" d="M3102.18,-247.08C3240.27,-242.1 3602.83,-226.93 3904,-196 3913.65,-195.01 3923.72,-193.81 3933.73,-192.52"/>
 <polygon fill="#000000" stroke="#000000" points="3934.04,-196.01 3943.49,-191.22 3933.12,-189.07 3934.04,-196.01"/>

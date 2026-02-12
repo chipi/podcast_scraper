@@ -24,7 +24,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import psutil
@@ -33,7 +33,7 @@ except ImportError:
     sys.exit(1)
 
 
-def get_system_info() -> Dict[str, any]:
+def get_system_info() -> Dict[str, Any]:
     """Get system resource information."""
     return {
         "cpu_count": os.cpu_count(),
@@ -91,7 +91,7 @@ def monitor_process_memory(pid: int, interval: float = 1.0) -> List[Dict[str, fl
     return samples
 
 
-def run_test_with_monitoring(test_target: str, max_workers: Optional[int] = None) -> Dict[str, any]:
+def run_test_with_monitoring(test_target: str, max_workers: Optional[int] = None) -> Dict[str, Any]:
     """Run tests and monitor memory usage."""
     print(f"🔍 Analyzing memory usage for: {test_target}")
     print(f"   Max workers: {max_workers or 'auto'}")
@@ -173,7 +173,7 @@ def run_test_with_monitoring(test_target: str, max_workers: Optional[int] = None
     }
 
 
-def print_analysis(results: Dict[str, any]) -> None:
+def print_analysis(results: Dict[str, Any]) -> None:
     """Print memory analysis results."""
     print()
     print("=" * 80)

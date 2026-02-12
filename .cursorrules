@@ -1,118 +1,144 @@
 # Cursor Rules for podcast_scraper
 
+<!-- markdownlint-disable MD029 MD007 -->
+
 ## 🚨 CRITICAL RULES (ALWAYS ENFORCE - NO EXCEPTIONS)
 
 ### Git & Branch Workflow
 
 0. **NEVER push any branch unless the user explicitly asks**
-   - Commits are allowed after user approves the diff; pushes are never allowed by default
-   - Always pause and ask before any push action
+
+  - Commits are allowed after user approves the diff; pushes are never allowed by default
+  - Always pause and ask before any push action
 
 1. **NEVER push directly to main branch**
-   - ALWAYS create feature branch: `git checkout -b feat/name`
-   - ALWAYS push to feature branch, NEVER to main
+
+  - ALWAYS create feature branch: `git checkout -b feat/name`
+  - ALWAYS push to feature branch, NEVER to main
 
 2. **NEVER commit without explicit user approval**
-   - MUST: `git status` → `git diff` → show user → wait for approval → THEN commit
-   - NEVER skip showing changes; NEVER assume approval
+
+  - MUST: `git status` → `git diff` → show user → wait for approval → THEN commit
+  - NEVER skip showing changes; NEVER assume approval
 
 2b. **After making file edits: offer keep or undo**
-   - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
-   - Give the user a chance to revert specific files or keep all before moving on
+
+  - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
+  - Give the user a chance to revert specific files or keep all before moving on
 
 2a. **ALWAYS stage only files changed for current task (never `git add -A`)**
-   - Use `git add <specific-file>` for each file you changed
-   - Verify with `git status` after staging; ask user if unsure which files
+
+  - Use `git add <specific-file>` for each file you changed
+  - Verify with `git status` after staging; ask user if unsure which files
 
 3. **NEVER push to PR without explicit user approval**
-   - Show `git status` + `git diff` → wait for explicit approval
-   - Pre-commit hook runs `make ci-fast` automatically
+
+  - Show `git status` + `git diff` → wait for explicit approval
+  - Pre-commit hook runs `make ci-fast` automatically
 
 4. **ALWAYS check for uncommitted changes before creating branch**
-   - Run `git status --porcelain`; if output → commit/stash/discard first
+
+  - Run `git status --porcelain`; if output → commit/stash/discard first
 
 ### Terminal Command Execution
 
 9. **🚨 NEVER run commands in background — ALWAYS `is_background: false` 🚨**
-   - **#1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
-   - `is_background: true` ONLY for long-running servers (e.g., `mkdocs serve`)
-   - ALL `make`, `pytest`, `git`, `pip` commands MUST be foreground
+
+  - **#1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
+  - `is_background: true` ONLY for long-running servers (e.g., `mkdocs serve`)
+  - ALL `make`, `pytest`, `git`, `pip` commands MUST be foreground
 
 9a. **NEVER use `cd` to project root before commands**
-   - Terminal is ALREADY in project root; run commands directly
+
+  - Terminal is ALREADY in project root; run commands directly
+
+9b. **Use 10 min timeout for make ci-fast and make test-fast**
+
+  - `make ci-fast` and `make test-fast` run unit + integration + E2E and need time to finish
+  - When invoking them via automation (e.g. run_terminal_cmd), MUST use timeout at least 600000 ms (10 min) so the run is not killed before completion
 
 ### Tool Usage
 
 8a. **ALWAYS use Makefile commands, NEVER direct tool invocations**
-   - ✅ `make test`, `make format`, `make lint`, `make fix-md`
-   - ❌ `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
-   - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
+
+  - ✅ `make test`, `make format`, `make lint`, `make fix-md`
+  - ❌ `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
+  - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
 
 8b. **ALWAYS update venv when dependency ranges change**
-   - Trigger: After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]` in `pyproject.toml`
-   - Action: Run `pip install --upgrade -e .[dev]` BEFORE running tests or committing
-   - Verify: Check that new packages are installed (or ask user to verify)
+
+  - Trigger: After ANY edit to `[project.dependencies]` or `[project.optional-dependencies]` in `pyproject.toml`
+  - Action: Run `pip install --upgrade -e .[dev]` BEFORE running tests or committing
+  - Verify: Check that new packages are installed (or ask user to verify)
 
 ### Code Quality & Testing
 
 13. **Write lint-valid code from the start**
-    - BEFORE saving any Python file: Run `make format` on that file
-    - AFTER writing a complete function/class: Check line length (< 100 chars)
-    - BEFORE committing: Run `make lint` and fix all errors
-    - Code must pass `make lint` before session ends
+
+  - BEFORE saving any Python file: Run `make format` on that file
+  - AFTER writing a complete function/class: Check line length (< 100 chars)
+  - BEFORE committing: Run `make lint` and fix all errors
+  - Code must pass `make lint` before session ends
 
 5. **ALWAYS review/update tests after code changes — never leave failing tests**
-   - Trigger: After modifying ANY code in `src/` (not just tests)
-   - Action 1: Run `make ci-fast` BEFORE committing
-   - Action 2: If tests fail, fix them BEFORE continuing with other work
-   - Action 3: Load `testing-strategy.mdc` when writing new tests
-   - Exception: If test failure is complex, document it and ask user before proceeding
-   - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
+
+  - Trigger: After modifying ANY code in `src/` (not just tests)
+  - Action 1: Run `make ci-fast` BEFORE committing
+  - Action 2: If tests fail, fix them BEFORE continuing with other work
+  - Action 3: Load `testing-strategy.mdc` when writing new tests
+  - Exception: If test failure is complex, document it and ask user before proceeding
+  - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
 
 5a. **When any make target fails (test, ci, lint, format, docs, etc.): root cause first, then fix**
-   - Establish a clear understanding of *why* it is failing before changing code
-   - Work from root cause (stack trace, failing assertion, env mismatch, lint error, etc.); avoid random changes or trial-and-error
-   - If unclear, reproduce locally, read the failure message, and trace to the source before proposing a fix
+
+  - Establish a clear understanding of *why* it is failing before changing code
+  - Work from root cause (stack trace, failing assertion, env mismatch, lint error, etc.); avoid random changes or trial-and-error
+  - If unclear, reproduce locally, read the failure message, and trace to the source before proposing a fix
 
 5b. **Before adding workarounds or changing how something works: look for similar examples in the repo first**
-   - Do NOT only try to "fix the broken path" with ad-hoc changes (flags, timeouts, special cases).
-   - DO ask: "Where do we already do something similar without this problem?" Search the codebase (Makefile, scripts, same area) for comparable flows, then compare and reuse that pattern.
-   - Align the broken path to an existing working pattern before inventing new workarounds.
+
+  - Do NOT only try to "fix the broken path" with ad-hoc changes (flags, timeouts, special cases).
+  - DO ask: "Where do we already do something similar without this problem?" Search the codebase (Makefile, scripts, same area) for comparable flows, then compare and reuse that pattern.
+  - Align the broken path to an existing working pattern before inventing new workarounds.
 
 12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
-    - Applies to: Design docs, RFCs, investigation notes, planning documents, analysis outputs
-    - Trigger: BEFORE creating any new doc file in `docs/`
-    - Action: Save to `docs/wip/` (never `docs/analysis/` or `docs/plan/`)
-    - Exception: Finalized docs can be moved out of `wip/` after review
+
+  - Applies to: Design docs, RFCs, investigation notes, planning documents, analysis outputs
+  - Trigger: BEFORE creating any new doc file in `docs/`
+  - Action: Save to `docs/wip/` (never `docs/analysis/` or `docs/plan/`)
+  - Exception: Finalized docs can be moved out of `wip/` after review
 
 ### GitHub
 
 14. **Use MCP GitHub server for GitHub operations**
-    - Preferred: `mcp_github_*` tools; fallback: GitHub API only if MCP fails
+
+  - Preferred: `mcp_github_*` tools; fallback: GitHub API only if MCP fails
 
 15. **ALWAYS use correct GitHub username, NOT Mac username**
-    - Use `mcp_github_get_me` to get current user's GitHub login
+
+  - Use `mcp_github_get_me` to get current user's GitHub login
 
 ### Auto-Loading Detailed Rules (.mdc Files)
 
 16. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
-    - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
-    - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
-    - Load timing: BEFORE writing code/tests/docs, not after errors occur
 
-    | Situation | Load This File | When to Load |
-    |-----------|---------------|--------------|
-    | Writing/modifying Python code | `coding-standards.mdc` | BEFORE writing first line |
-    | Writing or modifying tests | `testing-strategy.mdc` | BEFORE writing test |
-    | Running tests or validating | `testing-strategy.mdc` | BEFORE running `make test` |
-    | Editing markdown or docs | `documentation.mdc` | BEFORE editing markdown |
-    | Markdown linting errors | `documentation.mdc` | IMMEDIATELY when error appears |
-    | Git worktree operations | `git-worktree.mdc` | BEFORE creating worktree |
-    | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
-    | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
-    | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
+  - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
+  - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
+  - Load timing: BEFORE writing code/tests/docs, not after errors occur
 
-    All files in `.cursor/rules/`.
+  | Situation | Load This File | When to Load |
+  | --------- | -------------- | ------------ |
+  | Writing/modifying Python code | `coding-standards.mdc` | BEFORE writing first line |
+  | Writing or modifying tests | `testing-strategy.mdc` | BEFORE writing test |
+  | Running tests or validating | `testing-strategy.mdc` | BEFORE running `make test` |
+  | Editing markdown or docs | `documentation.mdc` | BEFORE editing markdown |
+  | Markdown linting errors | `documentation.mdc` | IMMEDIATELY when error appears |
+  | Git worktree operations | `git-worktree.mdc` | BEFORE creating worktree |
+  | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
+  | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
+  | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
+
+  All files in `.cursor/rules/`.
 
 ## 📋 PROJECT CONTEXT
 
@@ -143,21 +169,22 @@ make fix-md        # Auto-fix markdown
 
 ## ⚠️ REMEMBER
 
-0. 🚨 NEVER `is_background: true` for make/test/git/pip
-1. NEVER push to main (feature branches + PRs only)
-2. ALWAYS show changes + get approval before commit/push
-3. ALWAYS use Makefile commands, never direct tools
-4. Write lint-valid code from the start
-5. Respect module boundaries
-6. ALWAYS `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
-7. ALL analysis/plans → `docs/wip/`
-8. Auto-load `.mdc` files for detailed guidance (Rule 16)
-9. NEVER commit secrets
-10. Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
-11. **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
-    - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
-    - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
-    - **MUST announce**: "Updated metrics file" (so user can verify)
+- 🚨 NEVER `is_background: true` for make/test/git/pip
+- NEVER push to main (feature branches + PRs only)
+- ALWAYS show changes + get approval before commit/push
+- ALWAYS use Makefile commands, never direct tools
+- Write lint-valid code from the start
+- Respect module boundaries
+- ALWAYS `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
+- ALL analysis/plans → `docs/wip/`
+- Auto-load `.mdc` files for detailed guidance (Rule 16)
+- NEVER commit secrets
+- Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
+- **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
+
+  - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
+  - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
+  - **MUST announce**: "Updated metrics file" (so user can verify)
 
 ---
 

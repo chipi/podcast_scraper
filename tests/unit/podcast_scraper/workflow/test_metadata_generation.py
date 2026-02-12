@@ -1324,6 +1324,34 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         mock_generate_summary.assert_called_once()
         mock_serialize.assert_called_once()
 
+    @patch("podcast_scraper.workflow.degradation.handle_stage_failure")
+    @patch("podcast_scraper.workflow.metadata_generation._generate_episode_summary")
+    def test_generate_and_validate_summary_dry_run_does_not_call_handle_stage_failure(
+        self, mock_generate_summary, mock_handle_stage_failure
+    ):
+        """When dry_run is True and summary is None, handle_stage_failure must not be called.
+
+        In dry-run we intentionally skip summarization; the pipeline must not treat that as a
+        failure or apply degradation policy.
+        """
+        mock_handle_stage_failure.return_value = True
+        mock_generate_summary.return_value = (None, None)  # summary_metadata=None
+        self.cfg = create_test_config(generate_summaries=True, dry_run=True)
+
+        result_metadata, result_elapsed, result_metrics = metadata._generate_and_validate_summary(
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            summary_provider=Mock(),
+            whisper_model=None,
+            pipeline_metrics=None,
+        )
+
+        self.assertIsNone(result_metadata)
+        mock_handle_stage_failure.assert_not_called()
+
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
     def test_generate_episode_metadata_serialization_error(self, mock_determine, mock_serialize):

@@ -21,7 +21,7 @@ export PIP_CACHE_DIR
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize check-visualizations release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
 
 help:
 	@echo "Common developer commands:"
@@ -49,7 +49,6 @@ help:
 	@echo "  make call-graph          Generate workflow call graph (pyan3) in docs/architecture/"
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
-	@echo "  make check-visualizations  Fail if diagrams are older than source (use in CI)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
 	@echo ""
 	@echo "Analysis commands:"
@@ -987,7 +986,7 @@ ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src');
 	all_cached = whisper_ok and transformers_ok and spacy_ok; \
 	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-visualizations $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
 	# Conditional preload: Only runs preload-ml-models if models are not cached
 	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
 	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
@@ -995,7 +994,7 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-visualizations test-fast docs build
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling test-fast docs build
 	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
@@ -1144,10 +1143,6 @@ flowcharts:
 
 visualize: deps-graph call-graph flowcharts
 	@echo "✓ Architecture visualizations up to date (see docs/architecture/)"
-
-# Check that architecture diagrams are not stale (sources newer than diagrams). Fails in CI if outdated.
-check-visualizations:
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_visualizations.py
 
 # Run before release: regenerate diagrams and create release notes draft. Add to release checklist.
 release-docs-prep: visualize

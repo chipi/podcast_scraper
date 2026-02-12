@@ -15,7 +15,20 @@ import json
 import logging
 import os
 import time
+import warnings
 from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
+
+# Suppress Pydantic ArbitraryTypeWarning from google.genai (uses built-in "any" not typing.Any)
+try:
+    from pydantic.warnings import ArbitraryTypeWarning
+
+    warnings.filterwarnings(
+        "ignore",
+        message=r".*built-in function any.*is not a Python type",
+        category=ArbitraryTypeWarning,
+    )
+except ImportError:
+    pass
 
 # Import Gemini SDK (migrated from google.generativeai to google.genai in Issue #415)
 try:

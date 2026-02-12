@@ -2617,8 +2617,13 @@ def _generate_and_validate_summary(
             )
 
     # Validate that summary was generated when required (unless it's a recoverable error)
-    # Apply degradation policy if summarization failed
-    if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
+    # Apply degradation if summarization failed (skip in dry-run: we intentionally skip summary)
+    if (
+        cfg.generate_summaries
+        and not cfg.dry_run
+        and summary_metadata is None
+        and not recoverable_error_occurred
+    ):
         from .degradation import DegradationPolicy, handle_stage_failure
 
         # Get degradation policy (default if not configured)
