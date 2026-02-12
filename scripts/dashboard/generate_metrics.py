@@ -249,6 +249,7 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
     metrics["maintainability_trend"] = wily_trends.get("maintainability_trend", "N/A")
     metrics["files_degrading"] = wily_trends.get("files_degrading", [])
     metrics["files_improving"] = wily_trends.get("files_improving", [])
+
     return metrics
 
 

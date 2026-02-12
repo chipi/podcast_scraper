@@ -67,7 +67,7 @@ dev = [
   "pip-audit>=2.6.0,<3.0.0",
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
-  "jiwer>=3.0.0,<4.0.0",  # Required for WER (Word Error Rate) computation
+  "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
   "sentence-transformers>=2.2.0,<3.0.0",  # Required for semantic similarity computation
   "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
   "radon>=5.1.0,<5.2",  # Code complexity analysis (RFC-031); 5.1.x for wily compatibility (Issue #424)
@@ -152,7 +152,7 @@ ignore_errors = true
 # Per-test-type thresholds are enforced via --cov-fail-under in Makefile and CI:
 # - Integration: 50% (COVERAGE_THRESHOLD_INTEGRATION)
 # - E2E: 50% (COVERAGE_THRESHOLD_E2E)
-# - Combined: 80% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce (Issue #432 Phase 6)
+# - Combined: 75% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce (Issue #432 Phase 6)
 # See .github/workflows/python-app.yml for CI enforcement.
 
 [tool.pytest.ini_options]

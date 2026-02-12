@@ -179,6 +179,14 @@ jobs:
           exit 1
         fi
 
+    - name: Upload ML models artifact (for dependent test jobs in same run)
+      uses: actions/upload-artifact@v6
+      with:
+        name: ml-models
+        path: /home/runner/.cache
+        retention-days: 1
+        include-hidden-files: true
+
   # ===========================================================================
   # Code quality checks
   # ===========================================================================
@@ -421,15 +429,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v5
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        name: ml-models
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -508,15 +512,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v5
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        name: ml-models
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |
@@ -600,15 +600,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Cache ML models
-      uses: actions/cache@v5
+    - name: Download ML models from preload job
+      uses: actions/download-artifact@v7
       with:
-        path: |
-          ~/.cache/whisper
-          ~/.cache/huggingface
-        key: ml-models-nightly-${{ runner.os }}-${{ hashFiles('scripts/cache/preload_ml_models.py', 'src/podcast_scraper/config.py') }}
-        restore-keys: |
-          ml-models-nightly-${{ runner.os }}-
+        name: ml-models
+        path: /home/runner/.cache
 
     - name: Install dependencies
       run: |

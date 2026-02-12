@@ -169,22 +169,21 @@ make fix-md        # Auto-fix markdown
 
 ## ⚠️ REMEMBER
 
-- 🚨 NEVER `is_background: true` for make/test/git/pip
-- NEVER push to main (feature branches + PRs only)
-- ALWAYS show changes + get approval before commit/push
-- ALWAYS use Makefile commands, never direct tools
-- Write lint-valid code from the start
-- Respect module boundaries
-- ALWAYS `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
-- ALL analysis/plans → `docs/wip/`
-- Auto-load `.mdc` files for detailed guidance (Rule 16)
-- NEVER commit secrets
-- Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
-- **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
-
-  - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
-  - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
-  - **MUST announce**: "Updated metrics file" (so user can verify)
+0. 🚨 NEVER `is_background: true` for make/test/git/pip
+1. NEVER push to main (feature branches + PRs only)
+2. ALWAYS show changes + get approval before commit/push
+3. ALWAYS use Makefile commands, never direct tools
+4. Write lint-valid code from the start
+5. Respect module boundaries
+6. ALWAYS `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
+7. ALL analysis/plans → `docs/wip/`
+8. Auto-load `.mdc` files for detailed guidance (Rule 16)
+9. NEVER commit secrets
+10. Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
+11. **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
+    - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
+    - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
+    - **MUST announce**: "Updated metrics file" (so user can verify)
 
 ---
 

@@ -83,41 +83,6 @@ Trend: **↓** (decreasing) may indicate maintainability degradation; **↑** (i
 - Maintainability **dropping by 2+ points** over recent commits.
 - Files repeatedly appearing in **files_degrading** in the metrics dashboard.
 
-### Low-MI modules (accepted)
-
-The following modules have **maintainability index (MI) in the C (0–9) or B (10–19) range** and are
-documented here rather than refactored, per [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) Phase 4. New low-MI code should be avoided where practical; existing exceptions are reviewed periodically.
-
-| Module | MI (rank) | Reason accepted |
-| ------ | -------- | ---------------- |
-| `config.py` | 0 (C) | Large Pydantic config with many fields and validators; structure is intentional. |
-| `cli.py` | 0 (C) | CLI entrypoint with many subcommands and options; split would fragment UX. |
-| `providers/ml/summarizer.py` | 0 (C) | ML summarization pipeline (model load, map/reduce); complexity is domain-inherent. |
-| `workflow/metadata_generation.py` | 0 (C) | Metadata rules and branching; candidate for future extraction of smaller helpers. |
-| `providers/ml/ml_provider.py` | 8.3 (C) | ML provider orchestration; bridges workflow and summarizer/speaker detection. |
-| `workflow/orchestration.py` | 12.5 (B) | Orchestration dispatcher; many branches by design (stage routing, error handling). |
-
-### C901 complexity exceptions (per-file-ignores)
-
-The following modules are listed in `.flake8` under `per-file-ignores` with **C901** (McCabe complexity)
-so that flake8 does not fail on high-complexity functions. Per [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) Phase 5, each exception is documented here. Radon grades: F = highest complexity, D/C/B/A = decreasing.
-
-| File / pattern | Worst radon (example) | Reason accepted |
-| -------------- | -------------------- | ---------------- |
-| `config.py` | Config._validate_cross_field_settings D (24) | Large Pydantic config; cross-field and env validators by design. |
-| `episode_processor.py` | download_media_for_transcription E (31) | Episode pipeline: download, transcribe, cache; many branches by design. |
-| `workflow.py` | (legacy; see orchestration) | Superseded by `workflow/orchestration.py`; keep ignore for any remaining ref. |
-| `speaker_detection.py` | detect_speaker_names D (24) | NER + heuristics; host/guest detection with many rules. |
-| `whisper_integration.py` | (see whisper_utils / ml_provider) | Whisper wiring; complexity in providers/ml. |
-| `*summarizer.py` | summarize_long_text F (44), create_summarization_provider F (62) | ML pipeline (map/reduce, chunking); factory branches over providers. |
-| `*metadata_generation.py` | (many C/D) | Metadata rules and branching; see Low-MI table. |
-| `*orchestration.py` | _both_providers_use_mps D (29), run_pipeline entry | Stage routing, device/logging setup; see Low-MI table. |
-| `*processing.py` | prepare_episode_download_args E (39) | Episode processing concurrency and host detection. |
-| `*run_index.py` | _find_metadata_file C (14) | Run index and status mapping. |
-| `cli.py` | _build_config F (87), main F (49) | CLI entrypoint and config building; see Low-MI table. |
-
-New C901 ignores should be avoided; add a row here and a short in-file comment when necessary.
-
 ## CI integration
 
 ### When wily runs

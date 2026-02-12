@@ -46,11 +46,11 @@ and hands-on work with edge and cloud AI/ML technologies.
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
   - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
   - **Note:** Not required if using OpenAI providers only
-- **Graphviz** (only needed to regenerate architecture diagrams locally):
+- **Graphviz** (only needed to regenerate architecture diagrams locally; CI does this automatically):
   - macOS: `brew install graphviz`
   - Linux: `apt install graphviz` or `yum install graphviz`
   - Windows: Download from [graphviz.org](https://graphviz.org/download/)
-  - **Note:** Required for `make visualize`. Diagrams must be committed; `make ci` / `make ci-fast` and CI run `check-visualizations` and fail if they are stale.
+  - **Note:** Only required for `make visualize` / `make deps-graph`; docs build in CI installs it automatically
 
 ### Installation Options
 

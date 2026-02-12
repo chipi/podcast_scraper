@@ -1130,8 +1130,6 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 
 #### 3. Release docs prep
 
-**Why this matters:** Architecture diagrams are not generated in CI. The docs site and all CI jobs use the committed `docs/architecture/*.svg` files. If you release without updating them, the published docs will show outdated architecture, and any subsequent PR or push will fail `check-visualizations`. Running release-docs-prep before every release keeps diagrams in sync with the code you are releasing.
-
 - Run **`make release-docs-prep`**. This:
   - Regenerates architecture diagrams (`docs/architecture/*.svg`).
   - Creates a draft `docs/releases/RELEASE_vX.Y.Z.md` for the current version (from `pyproject.toml`) if it does not exist.
@@ -1146,18 +1144,11 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 
 #### 5. Quality and validation
 
-Run all of the following in each release cycle before releasing so the codebase meets project standards.
-
 - **Format & lint**: `make format` then `make lint` and `make type`. Fix any issues.
 - **Markdown**: `make fix-md` (or `make lint-markdown`) so docs and markdown pass.
 - **Docs build**: `make docs` (MkDocs build must succeed).
-- **Code hygiene**: Run **`make quality`** (complexity, dead code, docstrings, spelling). Resolve or document any findings so that:
-  - Complexity (radon) and maintainability index are acceptable or exceptions documented.
-  - Docstring coverage meets the configured `fail-under` (see `[tool.interrogate]` in `pyproject.toml`).
-  - Dead code (vulture) and spelling (codespell) findings are triaged (fixed or whitelisted/ignored).
-  - Test coverage meets the combined threshold (see [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) and [Implementation plan](wip/ISSUE-432-IMPLEMENTATION-PLAN.md) for targets).
 - **Tests**: Run the full CI gate: **`make ci`** (format-check, lint, type, security, complexity, docstrings, spelling, tests, coverage-enforce, docs, build). For maximum confidence (e.g. major release), run **`make ci-clean`** or run **`make test`** then **`make coverage-enforce`**, **`make docs`**, **`make build`**.
-- **Diagrams (required for release):** `make ci` and `make ci-fast` run `make check-visualizations`; if diagrams are stale, the run fails. Run `make visualize` and commit `docs/architecture/*.svg`. Before release, **`make release-docs-prep`** does this and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
+- **Diagrams**: `make check-visualizations` (optional; already covered by `release-docs-prep`).
 - **Build**: Ensure **`make build`** succeeds (sdist/wheel in `.build/dist/` or `dist/`).
 
 #### 6. Commit and push

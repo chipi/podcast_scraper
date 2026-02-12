@@ -299,7 +299,7 @@ class OllamaProvider:
 
         Tries to load model-specific prompt first (e.g., "ollama/llama3.1_8b/ner/system_ner_v1"),
         falls back to generic prompt (e.g., "ollama/ner/system_ner_v1") if model-specific
-        prompt does not exist.
+        prompt doesn't exist.
 
         Args:
             model: Normalized model name (e.g., "llama3.1:8b")

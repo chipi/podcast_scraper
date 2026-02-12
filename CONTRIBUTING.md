@@ -34,7 +34,7 @@ Before you begin, ensure you have these installed:
 - **ffmpeg** — Required for Whisper transcription
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
-- **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). Diagrams are committed; `make ci` / `make ci-fast` and CI run `check-visualizations` and fail if diagrams are stale.
+- **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). CI installs it for docs builds.
   - macOS: `brew install graphviz`
   - Linux: `apt install graphviz` or `yum install graphviz`
 - **Node.js and npm** — Required for markdown linting

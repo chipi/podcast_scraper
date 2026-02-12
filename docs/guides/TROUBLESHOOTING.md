@@ -308,7 +308,7 @@ sudo apt install graphviz
 dot -V
 ```
 
-**Note:** Diagrams are not generated in CI; you must run `make visualize` locally and commit `docs/architecture/*.svg`. CI runs `check-visualizations` and fails if diagrams are stale. See [Architecture visualizations](../architecture/README.md) and the [Release checklist](DEVELOPMENT_GUIDE.md#release-checklist).
+**Note:** CI installs Graphviz and regenerates diagrams automatically on docs build; you only need this for local regeneration of `docs/architecture/*.svg`.
 
 ### Episodes Skipped with OpenAI Provider
 
