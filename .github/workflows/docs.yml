@@ -62,7 +62,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Allow commit+push of regenerated diagrams (push to main only)
+      contents: read
       pages: write
       id-token: write
       actions: read
@@ -82,33 +82,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r docs/requirements.txt
           pip install -e .
-          pip install pydeps pyan3==1.1.1 code2flow
-
-      - name: Install Graphviz
-        run: sudo apt-get update && sudo apt-get install -y graphviz
-
-      - name: Generate architecture visualizations
-        run: |
-          export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-          make visualize
-
-      - name: Commit and push updated diagrams
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "github-actions[bot]"
-          git add docs/architecture/dependency-graph.svg docs/architecture/dependency-graph-simple.svg \
-            docs/architecture/workflow-call-graph.svg docs/architecture/orchestration-flow.svg docs/architecture/service-flow.svg
-          if ! git diff --cached --quiet; then
-            git commit -m "docs: regenerate architecture visualizations [skip ci]"
-            git push
-          else
-            echo "No diagram changes to commit"
-          fi
-
-      # Diagrams are not generated here; they must be committed. Run make visualize
-      # locally and include docs/architecture/*.svg in your commit. make ci / make ci-fast
-      # run check-visualizations and fail if diagrams are stale.
 
       - name: Build MkDocs site
         run: |

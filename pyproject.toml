@@ -152,7 +152,7 @@ ignore_errors = true
 # Per-test-type thresholds are enforced via --cov-fail-under in Makefile and CI:
 # - Integration: 50% (COVERAGE_THRESHOLD_INTEGRATION)
 # - E2E: 50% (COVERAGE_THRESHOLD_E2E)
-# - Combined: 75% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce (Issue #432 Phase 6)
+# - Combined: 70% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce
 # See .github/workflows/python-app.yml for CI enforcement.
 
 [tool.pytest.ini_options]

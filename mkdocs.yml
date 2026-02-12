@@ -42,6 +42,7 @@ nav:
       - Performance: guides/PERFORMANCE.md
       - Glossary: guides/GLOSSARY.md
   - Architecture: ARCHITECTURE.md
+  - Non-Functional Requirements: NON_FUNCTIONAL_REQUIREMENTS.md
   - Architecture visualizations: architecture/README.md
   - Engineering Process: guides/ENGINEERING_PROCESS.md
   - Testing Strategy: TESTING_STRATEGY.md
@@ -124,6 +125,8 @@ nav:
       - ADR-045 Composable E2E Mock Response Strategy: adr/ADR-045-composable-e2e-mock-response-strategy.md
       - ADR-046 Adaptive Summarization Routing: adr/ADR-046-adaptive-summarization-routing.md
       - ADR-047 Centralized Model Registry: adr/ADR-047-centralized-model-registry.md
+      - ADR-048 MPS Exclusive Mode (Apple Silicon): adr/ADR-048-mps-exclusive-mode-apple-silicon.md
+      - ADR-049 Per-Capability Provider Selection: adr/ADR-049-per-capability-provider-selection.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -216,6 +219,8 @@ nav:
       - Remaining Work: wip/REMAINING_WORK.md
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - AI Quality Implementation Plan: wip/ai-quality-implementation-plan.md
+      - Prefect Fit Analysis: wip/PREFECT-FIT-ANALYSIS.md
+      - Coverage threshold single source: wip/COVERAGE-THRESHOLD-SINGLE-SOURCE.md
 theme:
   name: material
   features:

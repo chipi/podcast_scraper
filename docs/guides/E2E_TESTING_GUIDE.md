@@ -94,7 +94,9 @@ Feed names and RSS file mapping. Which feed name you can use depends on **test m
 | `podcast7_sustainability` | `p07_sustainability.xml` | Long-form |
 | `podcast8_solar` | `p08_solar.xml` | Long-form |
 
-**Allowed feeds per test mode** (set automatically by `conftest` from `E2E_TEST_MODE`):
+#### Allowed feeds per test mode
+
+Set automatically by `conftest` from `E2E_TEST_MODE`.
 
 | Mode | Allowed feed names |
 | ---- | ------------------ |

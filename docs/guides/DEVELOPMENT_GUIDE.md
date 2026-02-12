@@ -1113,6 +1113,7 @@ If CI fails on your PR:
 make install-hooks
 
 # Now linting failures are caught before commit!
+```
 
 ### Release checklist
 

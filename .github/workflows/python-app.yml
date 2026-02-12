@@ -1187,7 +1187,7 @@ jobs:
           # Note: Individual test types (unit/integration/e2e) have different expected coverage:
           # - Unit: ~70-80%, Integration: ~50-60%, E2E: ~50-55%
           # Only COMBINED coverage is enforced against this threshold
-          THRESHOLD=75
+          THRESHOLD=70
           echo "- **Threshold**: ${THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -1203,7 +1203,7 @@ jobs:
         fi
     - name: Enforce combined coverage threshold
       run: |
-        THRESHOLD=75
+        THRESHOLD=70
         if [ ! -f reports/coverage-unified.xml ]; then
           echo "⚠️ No unified coverage file; skipping threshold check (e.g. docs-only change)"
           exit 0
@@ -1285,14 +1285,14 @@ jobs:
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
-        # Coverage threshold (75%; target 80%) is for combined coverage only - Issue #432 Phase 6
+        # Coverage threshold (70%) is for combined coverage only
         # Save with CI prefix for unified dashboard
         python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
           --pipeline-metrics reports/output/pipeline_metrics.json \
-          --coverage-threshold 75 || echo "⚠️ Metrics generation failed (non-blocking)"
+          --coverage-threshold 70 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |

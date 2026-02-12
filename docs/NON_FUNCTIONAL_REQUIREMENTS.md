@@ -151,7 +151,7 @@ Code and documentation must stay understandable, consistent, and measurable so t
 | **Complexity and maintainability** | Complexity and maintainability (e.g. radon, wily) are tracked; significant degradation is reviewed. | Met | [RFC-031](rfc/RFC-031-code-complexity-analysis-tooling.md), [CI CODE_QUALITY_TRENDS](ci/CODE_QUALITY_TRENDS.md) |
 | **Test pyramid and coverage** | Unit, integration, and E2E layers are used consistently; coverage targets (e.g. ≥70%) are enforced in CI. | Met | [ADR-021](adr/ADR-021-standardized-test-pyramid.md), [TESTING_STRATEGY](TESTING_STRATEGY.md) |
 | **Documentation** | Architecture, ADRs, PRDs, RFCs, and guides are kept in sync with implementation; markdown and docs build pass in CI. | Met | [ARCHITECTURE](ARCHITECTURE.md), `make docs`, `make fix-md` |
-| **Module boundaries** | Public surface and module boundaries are respected (e.g. CLI vs service vs workflow vs config). | Met | [.cursorrules](.cursorrules), [ARCHITECTURE](ARCHITECTURE.md) |
+| **Module boundaries** | Public surface and module boundaries are respected (e.g. CLI vs service vs workflow vs config). | Met | `.cursorrules`, [ARCHITECTURE](ARCHITECTURE.md) |
 | **Compatibility** | Python 3.10+; public API follows [semantic versioning](api/VERSIONING.md); breaking changes only in MAJOR; deprecations communicated. | Met | [api/VERSIONING](api/VERSIONING.md), [TROUBLESHOOTING](guides/TROUBLESHOOTING.md) |
 
 ---
