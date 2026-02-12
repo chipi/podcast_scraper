@@ -35,6 +35,7 @@ class TestModelSpecificThresholds(unittest.TestCase):
 
         mock_tokenizer = Mock()
         mock_model = Mock(spec=SummaryModel)
+        mock_model.model_name = "allenai/led-base-16384"  # For ModelRegistry
         mock_model.tokenizer = mock_tokenizer
         mock_model.model = Mock()
         # LED models have max_encoder_position_embeddings
@@ -53,6 +54,7 @@ class TestModelSpecificThresholds(unittest.TestCase):
 
         mock_tokenizer = Mock()
         mock_model = Mock(spec=SummaryModel)
+        mock_model.model_name = "facebook/bart-base"  # For ModelRegistry
         mock_model.tokenizer = mock_tokenizer
         mock_model.model = Mock()
         # BART models have max_position_embeddings (not max_encoder_position_embeddings)

@@ -830,6 +830,19 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         help="Summary provider to use (default: transformers)",
     )
     parser.add_argument(
+        "--summary-mode-id",
+        default=None,
+        help="RFC-044 summarization mode ID (e.g., ml_prod_authority_v1). "
+        "When set, providers can use promoted baseline defaults from the Model Registry.",
+    )
+    parser.add_argument(
+        "--summary-mode-precedence",
+        choices=["mode", "config"],
+        default=None,
+        help="When --summary-mode-id is set, controls precedence: "
+        "'mode' = mode overrides config; 'config' = config overrides mode.",
+    )
+    parser.add_argument(
         "--summary-model",
         default=None,
         help="Model identifier for local summarization (e.g., facebook/bart-large-cnn)",
@@ -1563,6 +1576,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "generate_summaries": args.generate_summaries,
         "metrics_output": args.metrics_output,
         "summary_provider": args.summary_provider,
+        "summary_mode_id": getattr(args, "summary_mode_id", None),
+        "summary_mode_precedence": getattr(args, "summary_mode_precedence", None),
         "summary_model": args.summary_model,
         "summary_reduce_model": args.summary_reduce_model,
         "summary_device": args.summary_device,

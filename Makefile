@@ -1510,6 +1510,24 @@ run-promote:
 		echo "✓ Run promoted to $(AS): $(PROMOTED_ID)"; \
 	fi
 
+registry-promote:
+	@# Promote a baseline config.yaml into the code registry (RFC-044).
+	@# Usage: make registry-promote BASELINE_ID=baseline_ml_dev_authority_smoke_v1 MODE_ID=ml_small_authority
+	@if [ -z "$(BASELINE_ID)" ] || [ -z "$(MODE_ID)" ]; then \
+		echo "❌ Error: BASELINE_ID and MODE_ID are required"; \
+		echo ""; \
+		echo "Usage: make registry-promote BASELINE_ID=baseline_ml_dev_authority_smoke_v1 MODE_ID=ml_small_authority"; \
+		exit 1; \
+	fi
+	@echo "Promoting baseline $(BASELINE_ID) → mode $(MODE_ID)..."
+	@$(PYTHON) scripts/registry/promote_baseline.py \
+		--baseline-id $(BASELINE_ID) \
+		--mode-id $(MODE_ID) \
+		--baseline-dir data/eval/baselines/$(BASELINE_ID) \
+		--registry-path src/podcast_scraper/providers/ml/model_registry.py
+	@$(MAKE) format
+	@echo "✓ Promotion complete. Review changes to src/podcast_scraper/providers/ml/model_registry.py"
+
 baseline-create:
 	@# Materialize a baseline from current system state (creates run then auto-promotes)
 	@# Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1 [EXPERIMENT_CONFIG=...] [PREPROCESSING_PROFILE=...] [REFERENCE=ref1,ref2]

@@ -5,6 +5,8 @@ import os
 import sys
 import unittest
 import warnings
+from types import SimpleNamespace
+from unittest.mock import patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -211,6 +213,47 @@ class TestLoadEnvVariableHelpers(unittest.TestCase):
         config.Config._load_device_env_var(self.data, "summary_device", "SUMMARY_DEVICE")
 
         self.assertEqual(self.data["summary_device"], "cpu")
+
+
+class TestSummaryModeProfileDefaults(unittest.TestCase):
+    """Tests for dev/prod profile selection of summary mode defaults."""
+
+    def tearDown(self):
+        """Clean up environment variables set by tests."""
+        os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
+
+    def test_default_summary_mode_id_is_prod_when_profile_unset(self):
+        """When profile is unset (and not testing), default mode should be production."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
+            mode_id = config._get_default_summary_mode_id()
+            self.assertEqual(mode_id, config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID)
+
+    def test_default_summary_mode_id_is_dev_when_profile_dev(self):
+        """When profile is dev (and not testing), default mode should be dev baseline."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
+            mode_id = config._get_default_summary_mode_id()
+            self.assertEqual(mode_id, config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID)
+
+    def test_default_summary_tokenize_uses_selected_mode_id(self):
+        """Tokenize defaults should be sourced from the selected promoted mode."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
+            expected = {
+                "map_max_input_tokens": 111,
+                "reduce_max_input_tokens": 222,
+                "truncation": True,
+            }
+            with patch(
+                "podcast_scraper.providers.ml.model_registry.ModelRegistry.get_mode_configuration",
+                return_value=SimpleNamespace(tokenize=expected),
+            ) as mock_get_mode:
+                got = config._get_default_summary_tokenize()
+                self.assertEqual(got, expected)
+                mock_get_mode.assert_called_once_with(
+                    config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID
+                )
 
 
 class TestSummaryValidation(unittest.TestCase):

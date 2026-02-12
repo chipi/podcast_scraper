@@ -132,6 +132,28 @@ DEFAULT_SUMMARY_WORD_CHUNK_SIZE = config_constants.DEFAULT_SUMMARY_WORD_CHUNK_SI
 DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
+def _get_default_summary_mode_id() -> Optional[str]:
+    """Get default summarization mode ID (RFC-044) based on environment.
+
+    Returns:
+        None in test environments (to avoid altering unit test defaults),
+        dev or production mode ID otherwise.
+    """
+    if _is_test_environment():
+        return None
+    profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
+    if profile in ("dev", "development", "local"):
+        return getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None) or getattr(
+            config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None
+        )
+    if profile and profile not in ("prod", "production"):
+        warnings.warn(
+            f"Unknown PODCAST_SCRAPER_PROFILE={profile!r}; defaulting to production defaults",
+            RuntimeWarning,
+        )
+    return getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
+
+
 def _get_default_openai_transcription_model() -> str:
     """Get default OpenAI transcription model based on environment.
 
@@ -438,10 +460,38 @@ DEFAULT_REDUCE_LENGTH_PENALTY = 1.0  # Production baseline: 1.0
 DEFAULT_REDUCE_EARLY_STOPPING = False  # Production baseline: false (ensures min_new_tokens)
 DEFAULT_REDUCE_REPETITION_PENALTY = 1.12  # Production baseline: 1.12 (LED-base optimized)
 
+
 # Default tokenization limits (moved from model defaults)
-DEFAULT_MAP_MAX_INPUT_TOKENS = 1024  # BART model limit
-DEFAULT_REDUCE_MAX_INPUT_TOKENS = 4096  # LED model limit
-DEFAULT_TRUNCATION = True
+def _get_default_summary_tokenize() -> Dict[str, Any]:
+    """Get default tokenization settings for local transformers summarization.
+
+    In production, defaults are sourced from the promoted production mode
+    (RFC-044) to ensure baseline == app behavior.
+
+    In tests, use safe defaults to keep unit tests stable and independent of
+    production mode registry contents.
+    """
+    if not _is_test_environment():
+        profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
+        mode_id = (
+            getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None)
+            if profile in ("dev", "development", "local")
+            else getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
+        )
+        if mode_id:
+            try:
+                from podcast_scraper.providers.ml.model_registry import ModelRegistry
+
+                return dict(ModelRegistry.get_mode_configuration(mode_id).tokenize)
+            except Exception:
+                # Fall back to safe defaults if registry is unavailable or missing mode.
+                pass
+    return {
+        "map_max_input_tokens": 1024,
+        "reduce_max_input_tokens": 4096,
+        "truncation": True,
+    }
+
 
 # Default distill parameters (for final compression pass)
 DEFAULT_DISTILL_MAX_TOKENS = 200
@@ -1304,6 +1354,25 @@ class Config(BaseModel):
             "(BART/LED models don't use prompts effectively)."
         ),
     )
+    summary_mode_id: Optional[str] = Field(
+        default_factory=_get_default_summary_mode_id,
+        alias="summary_mode_id",
+        description=(
+            "Summarization mode ID (RFC-044). When set, providers may use a promoted "
+            "ModeConfiguration from the Model Registry as the source of defaults "
+            "(models, preprocessing_profile, and runtime params)."
+        ),
+    )
+    summary_mode_precedence: Literal["mode", "config"] = Field(
+        default="mode",
+        alias="summary_mode_precedence",
+        description=(
+            "When summary_mode_id is set, controls precedence between the promoted "
+            "ModeConfiguration and explicit config fields. "
+            "'mode' = mode overrides config; 'config' = config overrides mode. "
+            "Params dict passed at runtime always overrides both."
+        ),
+    )
     summary_model: Optional[str] = Field(default=None, alias="summary_model")
     # Optional separate model for reduce phase (e.g., BART for map, LED for reduce).
     # If not set, the same model is used for both map and reduce.
@@ -1448,11 +1517,7 @@ class Config(BaseModel):
         ),
     )
     summary_tokenize: Dict[str, Any] = Field(
-        default_factory=lambda: {
-            "map_max_input_tokens": DEFAULT_MAP_MAX_INPUT_TOKENS,
-            "reduce_max_input_tokens": DEFAULT_REDUCE_MAX_INPUT_TOKENS,
-            "truncation": DEFAULT_TRUNCATION,
-        },
+        default_factory=_get_default_summary_tokenize,
         alias="summary_tokenize",
         description=(
             "Tokenization configuration for input text (hf_local backend only). "
@@ -2500,6 +2565,25 @@ class Config(BaseModel):
         if value is None or value == "":
             return None
         return str(value).strip() or None
+
+    @field_validator("summary_mode_id", mode="before")
+    @classmethod
+    def _coerce_summary_mode_id(cls, value: Any) -> Optional[str]:
+        """Coerce summary_mode_id to string or None."""
+        if value is None or value == "":
+            return None
+        return str(value).strip() or None
+
+    @field_validator("summary_mode_precedence", mode="before")
+    @classmethod
+    def _coerce_summary_mode_precedence(cls, value: Any) -> str:
+        """Coerce summary_mode_precedence to 'mode' or 'config'."""
+        if value is None or value == "":
+            return "mode"
+        lowered = str(value).strip().lower()
+        if lowered in ("mode", "config"):
+            return lowered
+        raise ValueError("summary_mode_precedence must be 'mode' or 'config'")
 
     @field_validator("summary_device", mode="before")
     @classmethod

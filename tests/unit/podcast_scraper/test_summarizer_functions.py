@@ -740,6 +740,7 @@ class TestCombineSummariesReduce(unittest.TestCase):
         mock_tokenizer.encode.return_value = list(range(10000))
 
         mock_model = Mock()
+        mock_model.model_name = "facebook/bart-base"  # For ModelRegistry.get_capabilities
         mock_model.tokenizer = mock_tokenizer
         mock_model.model = Mock()
         # Use spec to properly simulate BART model config (no max_encoder_position_embeddings)

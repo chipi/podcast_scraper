@@ -71,13 +71,31 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 # Production defaults (quality models for production use)
 # These are used in production deployments and nightly-only tests
 # Aligned with baseline_ml_prod_authority_v1 (Pegasus-CNN → LED-base)
+#
+# RFC-044: These identifiers are also promoted into the code Model Registry as a
+# `ModeConfiguration` (e.g. "ml_prod_authority_v1") so app defaults can be tied
+# to proven baselines without runtime imports from `data/eval/`.
+#
+# Dev defaults are represented by a separate promoted mode ID (smaller models),
+# aligned with baseline_ml_dev_authority_smoke_v1 (BART-base → LED-base).
+DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
+PROD_DEFAULT_SUMMARY_MODE_ID = "ml_prod_authority_v1"
+
 PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
-PROD_DEFAULT_SUMMARY_MODEL = (
-    "google/pegasus-cnn_dailymail"  # Production baseline: Pegasus-CNN for map phase
-)
-PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
-)
+try:
+    from podcast_scraper.providers.ml.model_registry import ModelRegistry
+
+    _prod_mode = ModelRegistry.get_mode_configuration(PROD_DEFAULT_SUMMARY_MODE_ID)
+    PROD_DEFAULT_SUMMARY_MODEL = _prod_mode.map_model
+    PROD_DEFAULT_SUMMARY_REDUCE_MODEL = _prod_mode.reduce_model
+except Exception:
+    # Fallback for minimal environments where registry mode may not be available.
+    PROD_DEFAULT_SUMMARY_MODEL = (
+        "google/pegasus-cnn_dailymail"  # Production baseline: Pegasus-CNN for map phase
+    )
+    PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
+        SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
+    )
 
 # Model revision pinning (for reproducibility and security)
 # Pin to specific commit SHAs instead of "main" to avoid PR refs and ensure stable weights

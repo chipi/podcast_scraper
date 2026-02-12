@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
 from ... import preprocessing
 from ...preprocessing.profiles import apply_profile_with_stats
+from .model_registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -184,10 +185,6 @@ def _load_pegasus_without_fake_warning(
 # Newer transformers versions use "hub"
 HF_CACHE_BASE = Path.home() / ".cache" / "huggingface"
 HF_CACHE_DIR = HF_CACHE_BASE / "hub"  # Default for newer transformers
-
-# Model context window limits
-BART_MAX_POSITION_EMBEDDINGS = 1024  # Standard BART/PEGASUS model limit
-LED_MAX_CONTEXT_WINDOW = 16384  # LED (Longformer) model context window
 
 # Chunking configuration
 CHUNK_OVERLAP_RATIO = 0.1  # 10% overlap between chunks for context continuity
@@ -579,6 +576,23 @@ def select_summary_model(cfg) -> str:
     Returns:
         Model identifier string (resolved from DEFAULT_SUMMARY_MODELS if key provided)
     """
+    mode_precedence = getattr(cfg, "summary_mode_precedence", "mode")
+    if mode_precedence == "config" and cfg.summary_model:
+        model_key = cast(str, cfg.summary_model)
+        return resolve_model_name(model_key)
+
+    mode_id = getattr(cfg, "summary_mode_id", None)
+    if mode_id:
+        try:
+            mode = ModelRegistry.get_mode_configuration(str(mode_id))
+            return resolve_model_name(mode.map_model)
+        except ValueError as exc:
+            logger.warning(
+                "summary_mode_id '%s' not found in registry, falling back to default models (%s)",
+                mode_id,
+                exc,
+            )
+
     if cfg.summary_model:
         model_key = cast(str, cfg.summary_model)
         return resolve_model_name(model_key)
@@ -609,16 +623,34 @@ def select_reduce_model(cfg, _default_model_name: str) -> str:
         Model identifier string (resolved from DEFAULT_SUMMARY_MODELS if key provided)
     """
     reduce_key = getattr(cfg, "summary_reduce_model", None)
-    if not reduce_key:
-        # Default to LED-base for reduce phase (production baseline: baseline_ml_prod_authority_v1)
-        default_model = DEFAULT_SUMMARY_MODELS.get("long-fast")
-        if not default_model:
-            raise ValueError("DEFAULT_SUMMARY_MODELS['long-fast'] is not defined")
-        return default_model
+    mode_precedence = getattr(cfg, "summary_mode_precedence", "mode")
+    if mode_precedence == "config" and reduce_key:
+        reduce_key = cast(str, reduce_key)
+        return resolve_model_name(reduce_key)
 
-    reduce_key = cast(str, reduce_key)
-    # Use resolve_model_name for consistent alias resolution and raw HF ID passthrough
-    return resolve_model_name(reduce_key)
+    mode_id = getattr(cfg, "summary_mode_id", None)
+    if mode_id:
+        try:
+            mode = ModelRegistry.get_mode_configuration(str(mode_id))
+            return resolve_model_name(mode.reduce_model)
+        except ValueError as exc:
+            logger.warning(
+                "summary_mode_id '%s' not found in registry, falling back to default reduce "
+                "model (%s)",
+                mode_id,
+                exc,
+            )
+
+    if reduce_key:
+        reduce_key = cast(str, reduce_key)
+        # Use resolve_model_name for consistent alias resolution and raw HF ID passthrough
+        return resolve_model_name(reduce_key)
+
+    # Default to LED-base for reduce phase (production baseline: baseline_ml_prod_authority_v1)
+    default_model = DEFAULT_SUMMARY_MODELS.get("long-fast")
+    if not default_model:
+        raise ValueError("DEFAULT_SUMMARY_MODELS['long-fast'] is not defined")
+    return default_model
 
 
 def _resolve_summarize_generation_params(
@@ -2055,7 +2087,7 @@ def _merge_tiny_chunks(
 def summarize_long_text(
     model: SummaryModel,
     text: str,
-    chunk_size: int = BART_MAX_POSITION_EMBEDDINGS,
+    chunk_size: int = 1024,  # Safe default; registry used when model is known
     max_length: int = 150,
     min_length: int = 30,
     batch_size: Optional[int] = None,
@@ -2186,11 +2218,9 @@ def summarize_long_text(
         f"batch_size={batch_size if batch_size else 'N/A'}"
     )
 
-    model_max_tokens = (
-        getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
-        if model.model and hasattr(model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    model_max_tokens = ModelRegistry.get_capabilities(
+        model.model_name, model.model
+    ).max_input_tokens
     requested_chunk_size = chunk_size
     chunk_size = max(1, min(chunk_size, model_max_tokens - MODEL_MAX_BUFFER))
 
@@ -2884,11 +2914,9 @@ def _combine_summaries_reduce(
     SHORT_INPUT_THRESHOLD = LED_ATTENTION_WINDOW  # Route inputs < 1024 tokens to MAP model
 
     # Check if reduce model is LED (long-context model) and input is short
-    reduce_model_max = (
-        getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
-        if model.model and hasattr(model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    reduce_model_max = ModelRegistry.get_capabilities(
+        model.model_name, model.model
+    ).max_input_tokens
     is_led_model = reduce_model_max >= LONG_CONTEXT_THRESHOLD
     is_short_input = combined_tokens < SHORT_INPUT_THRESHOLD
 
@@ -2909,13 +2937,9 @@ def _combine_summaries_reduce(
         )
 
     # Get model max length for decision making (use effective model)
-    model_max = (
-        getattr(
-            effective_model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS
-        )
-        if effective_model.model and hasattr(effective_model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    model_max = ModelRegistry.get_capabilities(
+        effective_model.model_name, effective_model.model
+    ).max_input_tokens
 
     usable_context = max(model_max - MODEL_MAX_BUFFER, MINI_MAP_REDUCE_THRESHOLD)
 
@@ -3707,11 +3731,7 @@ def _combine_summaries_mini_map_reduce(
     mini_map_start = time.time()
 
     # Get model's max position embeddings to calculate safe chunk size
-    model_max = (
-        getattr(model.model.config, "max_position_embeddings", BART_MAX_POSITION_EMBEDDINGS)
-        if model.model and hasattr(model.model, "config")
-        else BART_MAX_POSITION_EMBEDDINGS
-    )
+    model_max = ModelRegistry.get_capabilities(model.model_name, model.model).max_input_tokens
 
     # Calculate safe chunk size: use 80% of model max to leave room for special tokens
     mini_chunk_size_tokens = max(
@@ -3850,7 +3870,7 @@ def _combine_summaries_mini_map_reduce(
                 max_length,
                 min_length,
                 prompt,
-                BART_MAX_POSITION_EMBEDDINGS,
+                ModelRegistry.get_capabilities(model.model_name, model.model).max_input_tokens,
             )
 
         # Step 3: Join summaries with newlines (preserves structure)

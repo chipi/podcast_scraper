@@ -232,6 +232,7 @@ ner_model: en_core_web_trf  # spaCy model name. Options: "en_core_web_trf" (defa
 # Summarization settings (for local provider)
 
 generate_summaries: true
+summary_mode_id: ml_prod_authority_v1  # Optional (RFC-044). Uses promoted baseline defaults from registry.
 summary_model: pegasus-cnn  # Transformers model alias. Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast"
 summary_device: cpu  # or "cuda", "mps"
 mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (default: true)
@@ -246,6 +247,7 @@ mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (d
   "transcription_provider": "whisper",
   "speaker_detector_provider": "spacy",
   "summary_provider": "transformers",
+  "summary_mode_id": "ml_prod_authority_v1",
   "openai_api_key": "sk-your-key-here",
   "gemini_api_key": "your-key-here",
   "transcribe_missing": true,

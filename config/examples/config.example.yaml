@@ -140,6 +140,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # ML-specific settings (used with local transformers/whisper/spaCy providers)
 # Defaults: Pegasus-CNN (map) + LED-base (reduce) - production baseline (baseline_ml_prod_authority_v1)
 # whisper_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via WHISPER_DEVICE env var
+# summary_mode_id: ml_prod_authority_v1  # Optional (RFC-044). Uses promoted baseline defaults from registry.
 # summary_model: pegasus-cnn  # Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast", or direct model ID like "google/pegasus-cnn_dailymail"
 # summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast" (default), "long", or direct model ID like "allenai/led-base-16384"
 # ner_model: en_core_web_trf  # spaCy NER model for speaker detection. Options: "en_core_web_trf" (default/prod, higher quality), "en_core_web_sm" (dev, fast). Defaults based on environment

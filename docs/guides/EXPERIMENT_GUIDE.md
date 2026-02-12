@@ -176,8 +176,9 @@ The workflow for promoting a baseline to app default:
 1. **Create baseline** - Run evaluation with your intended default config
 2. **Validate baseline** - Ensure metrics meet acceptance criteria
 3. **Promote baseline** - Mark it as the authoritative default
-4. **Update app config** - Load baseline config as app defaults
-5. **Verify alignment** - Confirm app behavior matches baseline
+4. **Promote baseline into the Model Registry (RFC-044)** - Create a named mode in code
+5. **Update app defaults** - Use the promoted `summary_mode_id` (mode) as the default
+6. **Verify alignment** - Confirm app behavior matches baseline
 
 **Future changes:**
 
@@ -187,6 +188,17 @@ The workflow for promoting a baseline to app default:
 - If worse, reject the change
 
 This ensures all app behavior is intentional and traceable.
+
+#### Registry Promotion (RFC-044)
+
+The app runtime never imports `data/eval/`. Instead, proven baseline configs are
+promoted into the code registry as **modes**:
+
+```bash
+make registry-promote BASELINE_ID=baseline_ml_prod_authority_v1 MODE_ID=ml_prod_authority_v1
+```
+
+Then, set `summary_mode_id: ml_prod_authority_v1` in config (or rely on the production default).
 
 ---
 
