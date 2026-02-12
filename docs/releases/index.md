@@ -2,6 +2,8 @@
 
 All releases of the Podcast Scraper project.
 
+Before tagging a release, follow the [Release checklist](../guides/DEVELOPMENT_GUIDE.md#release-checklist) in the Development Guide. In particular, run **`make release-docs-prep`** so architecture diagrams and release notes are up to date; the docs site uses committed diagrams only, and CI fails if they are stale.
+
 ## Latest Release
 
 - **[v2.5.0](RELEASE_v2.5.0.md)** — [Upcoming Release]

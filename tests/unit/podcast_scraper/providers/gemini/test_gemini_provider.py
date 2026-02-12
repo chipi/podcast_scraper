@@ -36,6 +36,7 @@ _patch_google = patch.dict(
 _patch_google.start()
 from podcast_scraper import config
 from podcast_scraper.providers.gemini.gemini_provider import GeminiProvider
+from podcast_scraper.providers.ml import speaker_detection
 
 
 @pytest.mark.unit
@@ -786,24 +787,16 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         error_msg = str(context.exception).lower()
         self.assertTrue("invalid model" in error_msg or "speaker detection failed" in error_msg)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.models.generate_content doesn't affect the Mock "
-            "created when code accesses self.client.models.generate_content. "
-            "Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_json_decode_error(self, mock_render, mock_genai):
         """Test that JSON decode errors return default speakers."""
-        # Mock response with invalid JSON
+        # Mock response with invalid JSON (must start with "{" to return default speakers)
         mock_response = Mock()
-        mock_response.text = "invalid json {"
+        mock_response.text = "{ invalid"
         mock_client = Mock()
-        mock_client.models.generate_content.return_value = mock_response
+        gen_mock = Mock(return_value=mock_response)
+        mock_client.models.generate_content = gen_mock
         mock_genai.Client.return_value = mock_client
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
@@ -816,7 +809,7 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     @patch("podcast_scraper.prompts.store.render_prompt")
@@ -838,33 +831,30 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.models.generate_content doesn't affect the Mock "
-            "created when code accesses self.client.models.generate_content. "
-            "Need different mocking approach."
-        )
-    )
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     @patch(
         "podcast_scraper.providers.gemini.gemini_provider."
         "GeminiProvider._build_summarization_prompts"
     )
-    def test_summarization_auth_error(self, mock_build_prompts, mock_genai):
+    def test_summarization_auth_error(self, mock_build_prompts, mock_genai, mock_retry):
         """Test that authentication errors are properly handled in summarization."""
+
+        # Bypass retry so exception propagates (avoids google.api_core in retryable_exceptions)
+        def _call_once(func, **kwargs):
+            return func()
+
+        mock_retry.side_effect = _call_once
 
         # Create mock exception with authentication error message
         class MockPermissionDenied(Exception):
             pass
 
         mock_client = Mock()
-        mock_client.models.generate_content.side_effect = MockPermissionDenied(
-            "Invalid API key: authentication failed"
-        )
+        gen_mock = Mock(side_effect=MockPermissionDenied("Invalid API key: authentication failed"))
+        mock_client.models.generate_content = gen_mock
         mock_genai.Client.return_value = mock_client
         mock_build_prompts.return_value = (
             "System Prompt",
@@ -885,31 +875,30 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
 
         self.assertIn("authentication failed", str(context.exception).lower())
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.models.generate_content doesn't affect the Mock "
-            "created when code accesses self.client.models.generate_content. "
-            "Need different mocking approach."
-        )
-    )
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     @patch(
         "podcast_scraper.providers.gemini.gemini_provider."
         "GeminiProvider._build_summarization_prompts"
     )
-    def test_summarization_rate_limit_error(self, mock_build_prompts, mock_genai):
+    def test_summarization_rate_limit_error(self, mock_build_prompts, mock_genai, mock_retry):
         """Test that rate limit errors are properly handled in summarization."""
+
+        # Bypass retry so exception propagates (avoids google.api_core in retryable_exceptions)
+        def _call_once(func, **kwargs):
+            return func()
+
+        mock_retry.side_effect = _call_once
 
         # Create mock exception with rate limit error message
         class MockResourceExhausted(Exception):
             pass
 
         mock_client = Mock()
-        mock_client.models.generate_content.side_effect = MockResourceExhausted(
-            "Rate limit exceeded: resource exhausted"
+        gen_mock = Mock(
+            side_effect=MockResourceExhausted("Rate limit exceeded: resource exhausted")
         )
+        mock_client.models.generate_content = gen_mock
         mock_genai.Client.return_value = mock_client
         mock_build_prompts.return_value = (
             "System Prompt",

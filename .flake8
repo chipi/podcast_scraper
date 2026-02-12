@@ -10,18 +10,5 @@ exclude =
     .venv,
 per-file-ignores =
     __init__.py:F401
-    config.py:C901
-    episode_processor.py:C901
-    workflow.py:C901
-    speaker_detection.py:C901
-    whisper_integration.py:C901
     tests/integration/*:E501
-    scripts/dashboard/*:E501,C901
-    *summarizer.py:C901
-    *metadata_generation.py:C901
-    *orchestration.py:C901
-    *processing.py:C901
-    *conftest.py:C901
-    *run_index.py:C901
-    *rescore_baseline.py:C901
-    scripts/acceptance/generate_performance_benchmark.py:C901
+    scripts/dashboard/*:E501

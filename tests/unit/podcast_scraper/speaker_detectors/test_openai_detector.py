@@ -69,6 +69,7 @@ _patch_openai = patch.dict(
 _patch_openai.start()
 
 from podcast_scraper import config  # noqa: E402
+from podcast_scraper.providers.ml import speaker_detection  # noqa: E402
 
 # OpenAI provider still uses ValueError/RuntimeError (not yet migrated to structured exceptions)
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector  # noqa: E402
@@ -212,7 +213,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             known_hosts=set(),
         )
 
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertEqual(detected_hosts, set())
         self.assertFalse(success)
         mock_render_prompt.assert_not_called()
@@ -247,7 +248,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
             known_hosts=set(),
         )
 
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertFalse(success)
 
     @patch("podcast_scraper.prompts.store.render_prompt")

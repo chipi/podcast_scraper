@@ -202,6 +202,21 @@ class TestSpeakerDetection(unittest.TestCase):
         self.assertEqual(len(hosts), 1)
         self.assertIn("John Doe", hosts)
 
+    @patch.object(speaker_detection, "logger")
+    def test_detect_hosts_from_feed_org_author_logs_info(self, mock_logger):
+        """RSS authors all organisations (e.g. NPR): hosts empty, INFO logged (Issue #393)."""
+        hosts = speaker_detection.detect_hosts_from_feed(
+            feed_title="NPR News",
+            feed_description="NPR podcast",
+            feed_authors=["NPR"],
+            nlp=None,
+        )
+        self.assertEqual(hosts, set(), "Organisation name should not be added as host")
+        mock_logger.info.assert_called_once()
+        call_msg = mock_logger.info.call_args[0][0]
+        self.assertIn("organisation", call_msg)
+        self.assertIn("known_hosts", call_msg)
+
     @patch.object(speaker_detection, "extract_person_entities")
     def test_detect_hosts_from_feed_ner(self, mock_extract):
         """Test detecting hosts from feed title using NER."""
@@ -266,7 +281,7 @@ class TestSpeakerDetection(unittest.TestCase):
         )
 
         self.assertFalse(succeeded)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertEqual(len(hosts), 0)
 
     def test_sanitize_person_name(self):
@@ -499,7 +514,7 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         # No hosts or guests
         names, succeeded, used_defaults = speaker_detection._build_speaker_names_list(set(), [], 5)
         self.assertFalse(succeeded)
-        self.assertEqual(names, ["Host", "Guest"])
+        self.assertEqual(names, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
         # Test: Hosts only, no guests - should NOT add defaults
         # This is the new behavior: if we have hosts but no guests, use actual host names
@@ -770,7 +785,12 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
         self.assertEqual(speaker_detection.filter_default_speaker_names([]), [])
 
         # Test with only defaults
-        self.assertEqual(speaker_detection.filter_default_speaker_names(["Host", "Guest"]), [])
+        self.assertEqual(
+            speaker_detection.filter_default_speaker_names(
+                list(speaker_detection.DEFAULT_SPEAKER_NAMES)
+            ),
+            [],
+        )
 
         # Test with no defaults
         names_no_defaults = ["John", "Jane", "Bob"]

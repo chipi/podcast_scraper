@@ -7,7 +7,9 @@ from typing import Callable, cast, ContextManager, Iterator, Optional, Protocol
 class ProgressReporter(Protocol):
     """Minimal interface for progress callbacks."""
 
-    def update(self, advance: int) -> None: ...
+    def update(self, advance: int) -> None:
+        """Advance the progress bar by the given number of steps."""
+        ...
 
 
 ProgressFactory = Callable[[Optional[int], str], ContextManager[ProgressReporter]]

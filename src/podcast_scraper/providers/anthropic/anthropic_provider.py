@@ -40,7 +40,7 @@ from ..capabilities import ProviderCapabilities
 logger = logging.getLogger(__name__)
 
 # Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 
 # Anthropic API pricing constants (for cost estimation)
 # Source: https://www.anthropic.com/pricing
@@ -57,20 +57,13 @@ ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 4.00
 
 
 class AnthropicProvider:
+    """Unified Anthropic provider: SpeakerDetector and SummarizationProvider (no transcription).
+
+    Manages Claude chat models for speaker detection and summarization. All capabilities
+    share the same Anthropic client. Transcription raises NotImplementedError.
+    """
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
-    """Unified Anthropic provider implementing TranscriptionProvider, SpeakerDetector, and
-    SummarizationProvider.
-
-    This provider initializes and manages:
-    - Note: Anthropic doesn't support native audio transcription, so transcription raises
-      NotImplementedError
-    - Claude chat models for speaker detection
-    - Claude chat models for summarization
-
-    All capabilities share the same Anthropic client, similar to how OpenAI and Gemini
-    providers share the same API client. The client is initialized once and reused.
-    """
 
     def __init__(self, cfg: config.Config):
         """Initialize unified Anthropic provider.
@@ -594,6 +587,9 @@ class AnthropicProvider:
                 all_speakers = list(hosts) + guests if not speakers else speakers
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
+            # Only return defaults for JSON-like content that failed to parse
+            if response_text.strip().startswith("{"):
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
             pass
 
         # Fallback: parse from plain text

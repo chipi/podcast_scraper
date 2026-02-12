@@ -23,7 +23,7 @@ import argparse
 import subprocess
 import sys
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 try:
     import psutil
@@ -77,7 +77,7 @@ def get_test_list(test_file: Optional[str] = None) -> List[str]:
     return sorted(set(tests))  # Remove duplicates and sort
 
 
-def profile_test(test_path: str) -> Dict[str, any]:
+def profile_test(test_path: str) -> Dict[str, Any]:
     """Profile a single test's memory usage."""
     print(f"  Profiling: {test_path}...", end=" ", flush=True)
 

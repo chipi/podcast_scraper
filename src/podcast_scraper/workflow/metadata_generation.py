@@ -3,6 +3,8 @@
 This module implements per-episode metadata document generation as per PRD-004 and RFC-011.
 Metadata documents are structured JSON/YAML files that capture comprehensive feed and
 episode information for search, analytics, integration, and archival use cases.
+
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 """
 
 from __future__ import annotations
@@ -484,6 +486,23 @@ def _build_episode_metadata(
         image_url=episode_image_url,
         episode_id=episode_id,
     )
+
+
+# Placeholder to filter from entity arrays so analytics are not contaminated (Issue #428)
+_PLACEHOLDER_GUEST_LEGACY = "Guest"
+
+
+def _filter_guest_placeholder_from_entity_lists(
+    detected_hosts: Optional[List[str]], detected_guests: Optional[List[str]]
+) -> tuple[Optional[List[str]], Optional[List[str]]]:
+    """Remove legacy 'Guest' placeholder from host/guest lists (Issue #428).
+
+    Returns:
+        (filtered_hosts, filtered_guests); None remains None, lists may become empty.
+    """
+    hosts = [h for h in (detected_hosts or []) if h != _PLACEHOLDER_GUEST_LEGACY]
+    guests = [g for g in (detected_guests or []) if g != _PLACEHOLDER_GUEST_LEGACY]
+    return (hosts if hosts else None, guests if guests else None)
 
 
 def _build_speakers_from_detected_names(
@@ -1702,9 +1721,15 @@ def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str,
             # Record device (mps/cpu/cuda) for reproducibility
             if cfg.summary_device:
                 provider_info["device"] = cfg.summary_device
-            # Record model revision if available (from config or model)
-            if hasattr(cfg, "summary_model_revision") and cfg.summary_model_revision:
-                provider_info["model_revision"] = cfg.summary_model_revision
+            # Record model revision in episode metadata (Issue #428; same logic as run_manifest)
+            try:
+                from .run_manifest import _revision_for_summary_model
+
+                summary_rev = _revision_for_summary_model(cfg.summary_model)
+                if summary_rev:
+                    provider_info["model_revision"] = summary_rev
+            except (ImportError, AttributeError):
+                pass
         except (ImportError, AttributeError, ValueError):
             pass  # Versions not available if libraries not installed or mocked
     elif cfg.summary_provider == "openai":
@@ -2592,8 +2617,13 @@ def _generate_and_validate_summary(
             )
 
     # Validate that summary was generated when required (unless it's a recoverable error)
-    # Apply degradation policy if summarization failed
-    if cfg.generate_summaries and summary_metadata is None and not recoverable_error_occurred:
+    # Apply degradation if summarization failed (skip in dry-run: we intentionally skip summary)
+    if (
+        cfg.generate_summaries
+        and not cfg.dry_run
+        and summary_metadata is None
+        and not recoverable_error_occurred
+    ):
         from .degradation import DegradationPolicy, handle_stage_failure
 
         # Get degradation policy (default if not configured)
@@ -2811,6 +2841,11 @@ def generate_episode_metadata(
     """
     if not cfg.generate_metadata:
         return None
+
+    # Issue #428: do not allow placeholder "Guest" in entity arrays (contaminates analytics)
+    detected_hosts, detected_guests = _filter_guest_placeholder_from_entity_lists(
+        detected_hosts, detected_guests
+    )
 
     # Prepare IDs and base metadata objects
     feed_id, episode_id, transcript_infos, media_id = _prepare_metadata_ids(

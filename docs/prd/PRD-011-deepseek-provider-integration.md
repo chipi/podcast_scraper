@@ -1,6 +1,6 @@
 # PRD-011: DeepSeek Provider Integration
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Related RFCs**: RFC-034 (Revised)
@@ -115,6 +115,7 @@ deepseek_summary_user_prompt: str = Field(
 ```
 
 **Environment-based defaults:**
+
 - **Test environment**: `deepseek-chat` (fast, extremely cheap)
 - **Production environment**: `deepseek-chat` (same model, still very cheap)
 

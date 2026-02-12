@@ -1,6 +1,6 @@
 # PRD-010: Mistral Provider Integration
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Related RFCs**: RFC-033 (Revised)
@@ -119,6 +119,7 @@ mistral_summary_user_prompt: str = Field(
 ```
 
 **Environment-based defaults:**
+
 - **Test environment**:
   - Transcription: `voxtral-mini-latest` (only option)
   - Speaker/Summary: `mistral-small-latest` (cheapest text)

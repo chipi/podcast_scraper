@@ -27,6 +27,7 @@ from ..episode_processor import process_episode_download as factory_process_epis
 
 # Use wrapper function if available (for testability)
 def process_episode_download(*args, **kwargs):
+    """Delegate to workflow.process_episode_download or factory; allows tests to inject a mock."""
     import sys
 
     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -44,6 +45,7 @@ from ...rss import extract_episode_description as rss_extract_episode_descriptio
 
 # Use wrapper function if available (for testability)
 def extract_episode_description(item):
+    """Delegate to workflow.extract_episode_description or RSS; allows tests to inject a mock."""
     import sys
 
     workflow_pkg = sys.modules.get("podcast_scraper.workflow")
@@ -434,6 +436,148 @@ def setup_processing_resources(cfg: config.Config) -> ProcessingResources:
     )
 
 
+def _check_episode_size_skip(
+    cfg: config.Config,
+    episode: Episode,  # type: ignore[valid-type]
+) -> tuple[bool, bool]:
+    """Check file size for API limits. Returns (skip_speaker_detection, skip_episode)."""
+    if (
+        cfg.dry_run
+        or not cfg.transcribe_missing
+        or cfg.transcription_provider not in ("openai", "gemini")
+        or not episode.media_url
+    ):
+        return False, False
+    resp = http_head(episode.media_url, cfg.user_agent, cfg.timeout)
+    if not resp:
+        return False, False
+    content_length = resp.headers.get("Content-Length")
+    if not content_length:
+        return False, False
+    try:
+        file_size_bytes = int(content_length)
+    except (ValueError, TypeError):
+        return False, False
+    if file_size_bytes <= OPENAI_MAX_FILE_SIZE_BYTES:
+        return False, False
+    file_size_mb = file_size_bytes / BYTES_PER_MB
+    provider_name = "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
+    if not episode.transcript_urls:
+        logger.info(
+            "[%d] Skipping episode: Audio file size (%.1f MB) exceeds %s API limit (25 MB) "
+            "and no transcript URLs available.",
+            episode.idx,
+            file_size_mb,
+            provider_name,
+        )
+        return True, True
+    logger.info(
+        "[%d] Skipping speaker detection: Audio file size (%.1f MB) exceeds %s API limit "
+        "(25 MB), but transcript URLs available.",
+        episode.idx,
+        file_size_mb,
+        provider_name,
+    )
+    return True, False
+
+
+def _get_speaker_detector(
+    host_detection_result: HostDetectionResult, cfg: config.Config
+) -> Optional[Any]:
+    """Get speaker detector from result or create fallback."""
+    detector = host_detection_result.speaker_detector
+    if detector:
+        return detector
+    logger.warning("speaker_detector not found in host_detection_result, creating new instance")
+    import sys
+
+    workflow_pkg = sys.modules.get("podcast_scraper.workflow")
+    if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
+        func = getattr(workflow_pkg, "create_speaker_detector")
+        from unittest.mock import Mock
+
+        detector = func(cfg) if isinstance(func, Mock) else create_speaker_detector(cfg)
+    else:
+        from ...speaker_detectors.factory import (
+            create_speaker_detector as factory_create_speaker_detector,
+        )
+
+        detector = factory_create_speaker_detector(cfg)
+    if detector:
+        detector.initialize()
+    return detector
+
+
+def _detect_speakers_for_episode(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    host_detection_result: HostDetectionResult,
+    pipeline_metrics: metrics.Metrics,
+    skip_speaker_detection: bool = False,
+) -> Optional[List[str]]:
+    """Run speaker detection for one episode; return list of guest names or None."""
+    if not cfg.auto_speakers:
+        if cfg.screenplay_speaker_names and len(cfg.screenplay_speaker_names) > 1:
+            return cfg.screenplay_speaker_names[1:]
+        return None
+    logger.info("Episode %d: %s", episode.idx, episode.title)
+    if skip_speaker_detection:
+        return None
+    if cfg.dry_run:
+        episode_description = extract_episode_description(episode.item) or ""
+        desc_preview = (
+            episode_description[:50] + "..."
+            if len(episode_description) > 50
+            else episode_description
+        )
+        logger.info(
+            "(dry-run) would detect speakers from: %s | %s",
+            episode.title,
+            desc_preview,
+        )
+        return None
+    if skip_speaker_detection:
+        return None
+    episode_description = extract_episode_description(episode.item)
+    extract_names_start = time.time()
+    speaker_detector = _get_speaker_detector(host_detection_result, cfg)
+    if not speaker_detector:
+        return None
+    cached_hosts = host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
+    combined_hosts = set(cfg.known_hosts) | cached_hosts if cfg.known_hosts else cached_hosts
+    import inspect
+
+    sig = inspect.signature(speaker_detector.detect_speakers)
+    if "pipeline_metrics" in sig.parameters:
+        detected_speakers, detected_hosts_set, detection_succeeded = (
+            speaker_detector.detect_speakers(
+                episode_title=episode.title,
+                episode_description=episode_description,
+                known_hosts=combined_hosts,
+                pipeline_metrics=pipeline_metrics,
+            )
+        )
+    else:
+        detected_speakers, detected_hosts_set, detection_succeeded = (
+            speaker_detector.detect_speakers(
+                episode_title=episode.title,
+                episode_description=episode_description,
+                known_hosts=combined_hosts,
+            )
+        )
+    if pipeline_metrics is not None:
+        pipeline_metrics.record_extract_names_time(time.time() - extract_names_start)
+    if (
+        not detection_succeeded
+        and cfg.screenplay_speaker_names
+        and len(cfg.screenplay_speaker_names) >= 2
+    ):
+        return cfg.screenplay_speaker_names[1:]
+    if detection_succeeded:
+        return [s for s in detected_speakers if s not in detected_hosts_set]
+    return None
+
+
 def prepare_episode_download_args(
     episodes: List[Episode],  # type: ignore[valid-type]
     cfg: config.Config,
@@ -466,243 +610,20 @@ def prepare_episode_download_args(
     """
     download_args = []
     for episode in episodes:
-        detected_speaker_names = None
-        # Initialize skip flags at the start of each episode to avoid UnboundLocalError
-        skip_speaker_detection_due_to_size = False
-        skip_episode_due_to_size = False
-
-        # Detect guests for all episodes when auto_speakers is enabled
-        # (not just when transcribing, so we can log guests even for transcript downloads)
-        # Note: Guest detection works in dry-run mode (no media download/transcription needed)
-        if cfg.auto_speakers:
-            # Always log episode info
-            logger.info("Episode %d: %s", episode.idx, episode.title)
-
-            # Check file size before speaker detection if using API transcription providers
-            # (OpenAI, Gemini) to avoid wasting API calls on episodes that will be skipped
-            if (
-                not cfg.dry_run
-                and cfg.transcribe_missing
-                and cfg.transcription_provider in ("openai", "gemini")
-                and episode.media_url
-            ):
-                # Check file size using HTTP HEAD request
-                resp = http_head(episode.media_url, cfg.user_agent, cfg.timeout)
-                if resp:
-                    content_length = resp.headers.get("Content-Length")
-                    if content_length:
-                        try:
-                            file_size_bytes = int(content_length)
-                            file_size_mb = file_size_bytes / BYTES_PER_MB
-                            if file_size_bytes > OPENAI_MAX_FILE_SIZE_BYTES:
-                                provider_name = (
-                                    "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
-                                )
-                                # Only skip episode entirely if it has no transcript URLs
-                                # (if it has transcript URLs, we can still download the transcript)
-                                if not episode.transcript_urls:
-                                    logger.info(
-                                        "[%d] Skipping episode: Audio file size (%.1f MB) "
-                                        "exceeds %s API limit (25 MB) and no transcript URLs "
-                                        "available.",
-                                        episode.idx,
-                                        file_size_mb,
-                                        provider_name,
-                                    )
-                                    skip_episode_due_to_size = True
-                                else:
-                                    logger.info(
-                                        "[%d] Skipping speaker detection: Audio file size "
-                                        "(%.1f MB) exceeds %s API limit (25 MB), but transcript "
-                                        "URLs available.",
-                                        episode.idx,
-                                        file_size_mb,
-                                        provider_name,
-                                    )
-                                    skip_speaker_detection_due_to_size = True
-                            else:
-                                provider_name = (
-                                    "OpenAI" if cfg.transcription_provider == "openai" else "Gemini"
-                                )
-                                logger.debug(
-                                    "[%d] File size check: %.1f MB (within %s limit)",
-                                    episode.idx,
-                                    file_size_mb,
-                                    provider_name,
-                                )
-                        except (ValueError, TypeError):
-                            # Content-Length header is invalid, proceed with speaker detection
-                            logger.debug(
-                                "[%d] Could not parse Content-Length header, "
-                                "proceeding with speaker detection",
-                                episode.idx,
-                            )
-                    else:
-                        # No Content-Length header, proceed with speaker detection
-                        logger.debug(
-                            "[%d] No Content-Length header available, "
-                            "proceeding with speaker detection",
-                            episode.idx,
-                        )
-                else:
-                    # HEAD request failed, proceed with speaker detection
-                    logger.debug(
-                        "[%d] HEAD request failed, proceeding with speaker detection",
-                        episode.idx,
-                    )
-
-            # In dry-run mode, log what would be detected but skip actual detection
-            if cfg.dry_run:
-                episode_description = extract_episode_description(episode.item) or ""
-                if len(episode_description) > 50:
-                    desc_preview = episode_description[:50] + "..."
-                else:
-                    desc_preview = episode_description
-                logger.info(
-                    "(dry-run) would detect speakers from: %s | %s",
-                    episode.title,
-                    desc_preview,
-                )
-                detected_speakers: List[str] = []
-                detected_hosts_set: set[str] = set()
-                detection_succeeded = False
-            elif skip_speaker_detection_due_to_size:
-                # Skip speaker detection because file will be too large for OpenAI
-                detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
-            else:
-                # Extract episode description for NER (limited to first 20 chars)
-                episode_description = extract_episode_description(episode.item)
-                # Detect speaker names from episode title and first 20 chars of description
-                # Guests are detected from episode title and description snippet
-                extract_names_start = time.time()
-
-                # Stage 3: Use provider for speaker detection
-                # Get speaker detector from host_detection_result (should be set in orchestration)
-                speaker_detector = host_detection_result.speaker_detector
-                if not speaker_detector:
-                    # Fallback: create speaker detector if not in result
-                    # (for backward compatibility)
-                    # This should not happen in normal flow - providers should be
-                    # created in orchestration
-                    logger.warning(
-                        "speaker_detector not found in host_detection_result, "
-                        "creating new instance "
-                        "(this should be created in orchestration)"
-                    )
-                    import sys
-
-                    workflow_pkg = sys.modules.get("podcast_scraper.workflow")
-                    if workflow_pkg and hasattr(workflow_pkg, "create_speaker_detector"):
-                        func = getattr(workflow_pkg, "create_speaker_detector")
-                        from unittest.mock import Mock
-
-                        if isinstance(func, Mock):
-                            speaker_detector = func(cfg)
-                        else:
-                            speaker_detector = create_speaker_detector(cfg)
-                    else:
-                        from ...speaker_detectors.factory import (
-                            create_speaker_detector as factory_create_speaker_detector,
-                        )
-
-                        speaker_detector = factory_create_speaker_detector(cfg)
-                    # Initialize the detector if it was just created
-                    if speaker_detector:
-                        speaker_detector.initialize()
-                if speaker_detector:
-                    # Combine cached_hosts with known_hosts from config
-                    # (known_hosts takes precedence)
-                    cached_hosts_for_detection = (
-                        host_detection_result.cached_hosts if cfg.cache_detected_hosts else set()
-                    )
-                    # known_hosts from config takes precedence over cached_hosts
-                    if cfg.known_hosts:
-                        known_hosts_set = set(cfg.known_hosts)
-                        # Merge: known_hosts + cached_hosts (known_hosts are trusted)
-                        combined_hosts = known_hosts_set | cached_hosts_for_detection
-                    else:
-                        combined_hosts = cached_hosts_for_detection
-
-                    # Pass pipeline_metrics for LLM call tracking
-                    # (if OpenAI provider)
-                    import inspect
-
-                    sig = inspect.signature(speaker_detector.detect_speakers)
-                    if "pipeline_metrics" in sig.parameters:
-                        detected_speakers, detected_hosts_set, detection_succeeded = (
-                            speaker_detector.detect_speakers(
-                                episode_title=episode.title,
-                                episode_description=episode_description,
-                                known_hosts=combined_hosts,
-                                pipeline_metrics=pipeline_metrics,
-                            )
-                        )
-                    else:
-                        detected_speakers, detected_hosts_set, detection_succeeded = (
-                            speaker_detector.detect_speakers(
-                                episode_title=episode.title,
-                                episode_description=episode_description,
-                                known_hosts=combined_hosts,
-                            )
-                        )
-                else:
-                    # Fallback: No provider available (should not happen in normal flow)
-                    logger.warning("Speaker detector not available, skipping speaker detection")
-                    detected_speakers, detected_hosts_set, detection_succeeded = [], set(), False
-                extract_names_elapsed = time.time() - extract_names_start
-                # Record speaker detection time if metrics available
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_extract_names_time(extract_names_elapsed)
-
-            # Use manual guest name as fallback ONLY if detection failed
-            # Manual names: first item = host, rest = guests
-            if (
-                not detection_succeeded
-                and cfg.screenplay_speaker_names
-                and len(cfg.screenplay_speaker_names) >= 2
-            ):
-                # Extract manual guests (all names except first, which is the host)
-                manual_guests = cfg.screenplay_speaker_names[1:]
-
-                # Log fallback info
-                if detected_hosts_set:
-                    logger.debug(
-                        "  → Guest detection failed, using manual guest fallback: %s (hosts: %s)",
-                        ", ".join(manual_guests),
-                        ", ".join(detected_hosts_set),
-                    )
-                else:
-                    logger.debug(
-                        "  → Detection failed, using manual fallback guests: %s",
-                        ", ".join(manual_guests),
-                    )
-                # Return only guests (hosts are already filtered out by taking [1:])
-                detected_speaker_names = manual_guests
-            elif detection_succeeded:
-                # Filter out hosts from detected speakers (keep only guests)
-                # CRITICAL: List comprehension already creates a new list, but be explicit
-                # to prevent any shared mutable state issues
-                detected_speaker_names = [
-                    s for s in detected_speakers if s not in detected_hosts_set
-                ]
-            # Note: Guest logging happens inside detect_speaker_names()
-            # Note: We don't update cached_hosts here because hosts are only
-            # detected from feed metadata, not from episodes
-        elif cfg.screenplay_speaker_names:
-            # If auto_speakers is disabled, first name is host, rest are guests
-            # Only pass guest names to the episode processing
-            detected_speaker_names = (
-                cfg.screenplay_speaker_names[1:] if len(cfg.screenplay_speaker_names) > 1 else []
-            )
-
-        # Skip episode entirely if file size exceeds limit and no transcript URLs available
-        if skip_episode_due_to_size:
+        skip_speaker_detection, skip_episode = _check_episode_size_skip(cfg, episode)
+        if skip_episode:
             if pipeline_metrics is not None:
                 from ..helpers import update_metric_safely
 
                 update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
             continue
-
+        detected_speaker_names = _detect_speakers_for_episode(
+            episode,
+            cfg,
+            host_detection_result,
+            pipeline_metrics,
+            skip_speaker_detection=skip_speaker_detection,
+        )
         download_args.append(
             (
                 episode,
@@ -1181,12 +1102,15 @@ def process_processing_jobs_concurrent(  # noqa: C901
         """
         jobs_processed_ok = [0]  # Use list for nonlocal access
         jobs_processed_failed = [0]  # Use list for nonlocal access
+        stop_requested = [False]  # Issue #429: set when fail_fast or max_failures reached
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
 
             def _submit_new_jobs() -> None:
                 """Submit new jobs as they become available."""
+                if stop_requested[0]:
+                    return
                 if processing_resources.processing_jobs_lock:
                     with processing_resources.processing_jobs_lock:
                         with processed_job_indices_lock:
@@ -1220,6 +1144,22 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 jobs_processed_ok[0] += 1
                             else:
                                 jobs_processed_failed[0] += 1
+                                # Issue #429: stop on first failure or after N failures (Phase 2)
+                                fail_fast = getattr(cfg, "fail_fast", False)
+                                max_failures = getattr(cfg, "max_failures", None)
+                                if fail_fast or (
+                                    max_failures is not None
+                                    and pipeline_metrics is not None
+                                    and pipeline_metrics.errors_total >= max_failures
+                                ):
+                                    stop_requested[0] = True
+                                    logger.info(
+                                        "Stopping processing: fail_fast=%s, max_failures=%s, "
+                                        "errors_total=%s",
+                                        fail_fast,
+                                        max_failures,
+                                        pipeline_metrics.errors_total,
+                                    )
                             logger.debug(
                                 "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",
                                 episode_idx,
@@ -1230,12 +1170,22 @@ def process_processing_jobs_concurrent(  # noqa: C901
                         except Exception as exc:  # pragma: no cover
                             jobs_processed_failed[0] += 1
                             logger.error(f"[{episode_idx}] processing future raised error: {exc}")
+                            fail_fast = getattr(cfg, "fail_fast", False)
+                            max_failures = getattr(cfg, "max_failures", None)
+                            if fail_fast or (
+                                max_failures is not None
+                                and pipeline_metrics is not None
+                                and pipeline_metrics.errors_total >= max_failures
+                            ):
+                                stop_requested[0] = True
                 except TimeoutError:
                     # Some futures are still pending - continue loop to check again
                     pass
 
             def _should_continue_processing() -> bool:
                 """Check if processing should continue."""
+                if stop_requested[0] and len(futures) == 0:
+                    return False
                 if transcription_complete_event and transcription_complete_event.is_set():
                     all_submitted = _check_queue_empty()
                     return not (all_submitted and len(futures) == 0)
@@ -1351,26 +1301,66 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 except Exception:
                     pass  # Ignore errors when accessing provider attributes
 
-            metadata_stage.call_generate_metadata(
-                episode=job.episode,
-                feed=feed,
-                cfg=cfg,
-                effective_output_dir=effective_output_dir,
-                run_suffix=run_suffix,
-                transcript_path=job.transcript_path,
-                transcript_source=job.transcript_source,
-                whisper_model=None,  # No longer needed (use provider instead)
-                feed_metadata=feed_metadata,
-                host_detection_result=host_detection_result,
-                detected_names=job.detected_names,
-                summary_provider=summary_provider,
-                pipeline_metrics=pipeline_metrics,
-                nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
-            )
+            # Enforce summarization timeout per episode (Issue #429)
+            from ...utils.timeout import timeout_context, TimeoutError as SummarizationTimeoutError
+
+            summarization_timeout = getattr(cfg, "summarization_timeout", 600)
+            with timeout_context(
+                summarization_timeout,
+                f"summarization for episode {job.episode.idx}",
+            ):
+                metadata_stage.call_generate_metadata(
+                    episode=job.episode,
+                    feed=feed,
+                    cfg=cfg,
+                    effective_output_dir=effective_output_dir,
+                    run_suffix=run_suffix,
+                    transcript_path=job.transcript_path,
+                    transcript_source=job.transcript_source,
+                    whisper_model=None,  # No longer needed (use provider instead)
+                    feed_metadata=feed_metadata,
+                    host_detection_result=host_detection_result,
+                    detected_names=job.detected_names,
+                    summary_provider=summary_provider,
+                    pipeline_metrics=pipeline_metrics,
+                    nlp=nlp,  # Pass spaCy model for reuse (Issue #387)
+                )
             return True
+        except SummarizationTimeoutError as exc:
+            update_metric_safely(pipeline_metrics, "errors_total", 1)
+            logger.error(
+                "[%s] Summarization timeout after %ss: %s",
+                job.episode.idx,
+                getattr(cfg, "summarization_timeout", 600),
+                exc,
+            )
+            if pipeline_metrics is not None:
+                from ..helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id,
+                    status="failed",
+                    stage="summarization",
+                    error_type="TimeoutError",
+                    error_message=str(exc)[:500],
+                )
+            return False
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+            # Record per-episode failure for run index (Issue #429)
+            if pipeline_metrics is not None:
+                from ..helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id,
+                    status="failed",
+                    stage="metadata",
+                    error_type=type(exc).__name__,
+                    error_message=str(exc)[:500],
+                )
             return False
 
     # Process jobs as they become available
@@ -1384,6 +1374,21 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     jobs_processed_ok += 1
                 else:
                     jobs_processed_failed += 1
+                    # Issue #429: stop on first failure or after N failures (Phase 2)
+                    fail_fast = getattr(cfg, "fail_fast", False)
+                    max_failures = getattr(cfg, "max_failures", None)
+                    if fail_fast or (
+                        max_failures is not None
+                        and pipeline_metrics is not None
+                        and pipeline_metrics.errors_total >= max_failures
+                    ):
+                        logger.info(
+                            "Stopping processing: fail_fast=%s, max_failures=%s, errors_total=%s",
+                            fail_fast,
+                            max_failures,
+                            pipeline_metrics.errors_total if pipeline_metrics else 0,
+                        )
+                        break
                 jobs_processed = jobs_processed_ok + jobs_processed_failed
                 logger.debug(
                     "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",

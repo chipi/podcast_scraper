@@ -15,6 +15,7 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup and workflow |
+| [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
 | [Markdown Linting](MARKDOWN_LINTING_GUIDE.md) | Markdown style and linting practices |

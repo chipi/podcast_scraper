@@ -58,7 +58,7 @@ def handle_stage_failure(
     error: Exception,
     policy: DegradationPolicy,
     episode_idx: Optional[int] = None,
-    context: Optional[dict[str, Any]] = None,
+    _context: Optional[dict[str, Any]] = None,
 ) -> bool:
     """Handle a stage failure according to degradation policy.
 
@@ -67,7 +67,7 @@ def handle_stage_failure(
         error: Exception that caused the failure
         policy: Degradation policy configuration
         episode_idx: Optional episode index for logging
-        context: Optional context dictionary with additional info
+        _context: Optional context dictionary (reserved for future use)
 
     Returns:
         True if processing should continue, False if should fail fast

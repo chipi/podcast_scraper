@@ -1324,6 +1324,34 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         mock_generate_summary.assert_called_once()
         mock_serialize.assert_called_once()
 
+    @patch("podcast_scraper.workflow.degradation.handle_stage_failure")
+    @patch("podcast_scraper.workflow.metadata_generation._generate_episode_summary")
+    def test_generate_and_validate_summary_dry_run_does_not_call_handle_stage_failure(
+        self, mock_generate_summary, mock_handle_stage_failure
+    ):
+        """When dry_run is True and summary is None, handle_stage_failure must not be called.
+
+        In dry-run we intentionally skip summarization; the pipeline must not treat that as a
+        failure or apply degradation policy.
+        """
+        mock_handle_stage_failure.return_value = True
+        mock_generate_summary.return_value = (None, None)  # summary_metadata=None
+        self.cfg = create_test_config(generate_summaries=True, dry_run=True)
+
+        result_metadata, result_elapsed, result_metrics = metadata._generate_and_validate_summary(
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            transcript_file_path="transcript.txt",
+            output_dir=self.temp_dir,
+            cfg=self.cfg,
+            summary_provider=Mock(),
+            whisper_model=None,
+            pipeline_metrics=None,
+        )
+
+        self.assertIsNone(result_metadata)
+        mock_handle_stage_failure.assert_not_called()
+
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
     def test_generate_episode_metadata_serialization_error(self, mock_determine, mock_serialize):
@@ -2007,6 +2035,58 @@ class TestBuildSpeakersFromDetectedNames(unittest.TestCase):
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0].id, "guest_1")
         self.assertEqual(result[1].id, "guest_2")
+
+
+@pytest.mark.unit
+class TestFilterGuestPlaceholder(unittest.TestCase):
+    """Tests for _filter_guest_placeholder_from_entity_lists (Issue #428)."""
+
+    def test_filter_removes_guest_from_guests(self):
+        """Legacy 'Guest' placeholder is removed from detected_guests."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(
+            ["Real Host"], ["Guest", "Real Guest"]
+        )
+        self.assertEqual(hosts, ["Real Host"])
+        self.assertEqual(guests, ["Real Guest"])
+
+    def test_filter_removes_guest_from_hosts(self):
+        """Legacy 'Guest' placeholder is removed from detected_hosts."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(
+            ["Host", "Guest", "Real Host"], None
+        )
+        self.assertEqual(hosts, ["Host", "Real Host"])
+        self.assertIsNone(guests)
+
+    def test_filter_none_unchanged(self):
+        """None inputs remain None."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(None, None)
+        self.assertIsNone(hosts)
+        self.assertIsNone(guests)
+
+    def test_filter_all_guest_returns_none(self):
+        """List with only 'Guest' becomes None (empty)."""
+        hosts, guests = metadata._filter_guest_placeholder_from_entity_lists(None, ["Guest"])
+        self.assertIsNone(hosts)
+        self.assertIsNone(guests)
+
+
+@pytest.mark.unit
+class TestBuildSummarizationProviderInfo(unittest.TestCase):
+    """Tests for _build_summarization_provider_info (Issue #428 model_revision)."""
+
+    @patch("podcast_scraper.workflow.run_manifest._revision_for_summary_model")
+    def test_transformers_provider_includes_model_revision_when_available(self, mock_revision):
+        """Episode metadata includes model_revision for transformers (same as run_manifest)."""
+        mock_revision.return_value = "a" * 40
+        cfg = create_test_config(
+            summary_provider="transformers",
+            summary_model="allenai/led-base-16384",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["provider"], "transformers")
+        self.assertIn("model_revision", result)
+        self.assertEqual(result["model_revision"], "a" * 40)
 
 
 @pytest.mark.unit

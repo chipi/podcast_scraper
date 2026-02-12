@@ -19,6 +19,8 @@ Security Considerations:
 
 Note: Preprocessing functions (clean_transcript, remove_sponsor_blocks, etc.)
 have been moved to preprocessing.py. Use those functions directly.
+
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 """
 
 import contextlib
@@ -201,6 +203,9 @@ MAX_WORD_OVERLAP = 200  # Maximum recommended word overlap
 ENCODER_DECODER_TOKEN_CHUNK_SIZE = (
     600  # Forced token chunk size for encoder-decoder models (BART/PEGASUS)
 )
+# Minimum chunk size for MAP stage; smaller chunks are merged into previous (Issue #428)
+MAP_CHUNK_MIN_TOKENS = 80
+
 # Token limits for MAP phase chunk summaries (Issue #283)
 # Increased from 80-160 to 150-300 to allow more detail preservation
 # and reduce extractive behavior in BART/LED models
@@ -527,6 +532,17 @@ def _validate_model_source_legacy(model_name: str) -> None:
 
 
 def remove_sponsor_blocks(text: str) -> str:
+    """Remove common sponsor block phrases from text (e.g. 'brought to you by', 'sponsored by').
+
+    Strips up to the next blank line or 2000 chars after each matched phrase.
+    Used to reduce noise in transcripts before summarization.
+
+    Args:
+        text: Raw transcript or summary text.
+
+    Returns:
+        Text with sponsor blocks removed.
+    """
     lower = text.lower()
     cleaned = text
     for phrase in [
@@ -574,7 +590,7 @@ def select_summary_model(cfg) -> str:
     return default_model
 
 
-def select_reduce_model(cfg, default_model_name: str) -> str:
+def select_reduce_model(cfg, _default_model_name: str) -> str:
     """Select reduce-phase model based on configuration.
 
     Defaults to LED-base for accurate, long-context final summarization
@@ -587,7 +603,7 @@ def select_reduce_model(cfg, default_model_name: str) -> str:
 
     Args:
         cfg: Configuration object with summary_reduce_model field
-        default_model_name: Map model name (used only if reduce model explicitly set to same)
+        _default_model_name: Map model name (used only if reduce model explicitly set to same)
 
     Returns:
         Model identifier string (resolved from DEFAULT_SUMMARY_MODELS if key provided)
@@ -603,6 +619,201 @@ def select_reduce_model(cfg, default_model_name: str) -> str:
     reduce_key = cast(str, reduce_key)
     # Use resolve_model_name for consistent alias resolution and raw HF ID passthrough
     return resolve_model_name(reduce_key)
+
+
+def _resolve_summarize_generation_params(
+    is_reduce_phase: bool,
+    is_distill_phase: bool,
+    num_beams: Optional[int],
+    no_repeat_ngram_size: Optional[int],
+    length_penalty: Optional[float],
+    early_stopping: Optional[bool],
+    repetition_penalty: Optional[float],
+) -> Dict[str, Any]:
+    """Resolve generation params from config when not explicitly provided."""
+    from podcast_scraper import config as config_module
+
+    if num_beams is None:
+        num_beams = (
+            config_module.DEFAULT_DISTILL_NUM_BEAMS
+            if is_distill_phase
+            else (
+                config_module.DEFAULT_REDUCE_NUM_BEAMS
+                if is_reduce_phase
+                else config_module.DEFAULT_MAP_NUM_BEAMS
+            )
+        )
+    if no_repeat_ngram_size is None:
+        no_repeat_ngram_size = (
+            config_module.DEFAULT_DISTILL_NO_REPEAT_NGRAM_SIZE
+            if is_distill_phase
+            else (
+                config_module.DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE
+                if is_reduce_phase
+                else config_module.DEFAULT_MAP_NO_REPEAT_NGRAM_SIZE
+            )
+        )
+    if length_penalty is None:
+        length_penalty = (
+            config_module.DEFAULT_DISTILL_LENGTH_PENALTY
+            if is_distill_phase
+            else (
+                config_module.DEFAULT_REDUCE_LENGTH_PENALTY
+                if is_reduce_phase
+                else config_module.DEFAULT_MAP_LENGTH_PENALTY
+            )
+        )
+        if is_reduce_phase:
+            early_stopping = False
+    elif early_stopping is None:
+        early_stopping = config_module.DEFAULT_MAP_EARLY_STOPPING
+    if repetition_penalty is None:
+        repetition_penalty = (
+            config_module.DEFAULT_DISTILL_REPETITION_PENALTY
+            if is_distill_phase
+            else (
+                config_module.DEFAULT_REDUCE_REPETITION_PENALTY
+                if is_reduce_phase
+                else config_module.DEFAULT_MAP_REPETITION_PENALTY
+            )
+        )
+    return {
+        "num_beams": num_beams,
+        "no_repeat_ngram_size": no_repeat_ngram_size,
+        "length_penalty": length_penalty,
+        "early_stopping": early_stopping,
+        "repetition_penalty": repetition_penalty,
+    }
+
+
+def _warn_if_input_very_long(input_text: str) -> None:
+    """Log a warning if input text is very long (risk of buffer errors on MPS)."""
+    if len(input_text) > 100000:  # ~25k tokens, well above safe chunk size
+        logger.warning(
+            f"Text is very long ({len(input_text)} chars), consider using chunking. "
+            "This may cause buffer size errors on MPS."
+        )
+
+
+def _resolve_effective_length_limits(
+    max_new_tokens: Optional[int],
+    min_new_tokens: Optional[int],
+    max_length: int,
+    min_length: int,
+) -> Tuple[int, int]:
+    """Return (effective_max_new_tokens, effective_min_new_tokens)."""
+    effective_max = max_new_tokens if max_new_tokens is not None else max_length
+    effective_min = min_new_tokens if min_new_tokens is not None else min_length
+    return effective_max, effective_min
+
+
+def _extract_summary_text_from_pipeline_result(result: Any) -> str:
+    """Extract summary_text from pipeline result (list or dict)."""
+    if isinstance(result, list) and len(result) > 0:
+        return cast(str, result[0].get("summary_text", "")).strip()
+    if isinstance(result, dict):
+        return cast(str, result.get("summary_text", "")).strip()
+    return ""
+
+
+def _build_summarize_pipeline_kwargs(
+    effective_truncation: bool,
+    repetition_penalty: float,
+    no_repeat_ngram_size: int,
+    max_new_tokens: Optional[int],
+    effective_max_new_tokens: int,
+    min_new_tokens: Optional[int],
+    effective_min_new_tokens: int,
+    max_length: int,
+    min_length: int,
+    encoder_no_repeat_ngram_size: Optional[int],
+    do_sample: bool,
+    num_beams: int,
+    length_penalty: float,
+) -> Dict[str, Any]:
+    """Build pipeline kwargs for summarization."""
+    kwargs = {
+        "truncation": effective_truncation,
+        "repetition_penalty": repetition_penalty,
+        "no_repeat_ngram_size": no_repeat_ngram_size,
+    }
+    if max_new_tokens is not None:
+        kwargs["max_new_tokens"] = effective_max_new_tokens
+    else:
+        kwargs["max_length"] = max_length
+    if min_new_tokens is not None:
+        kwargs["min_new_tokens"] = effective_min_new_tokens
+    else:
+        kwargs["min_length"] = min_length
+    if encoder_no_repeat_ngram_size is not None:
+        kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
+    if do_sample:
+        kwargs["do_sample"] = True
+    else:
+        kwargs["num_beams"] = num_beams
+        kwargs["length_penalty"] = length_penalty
+        kwargs["early_stopping"] = True
+    return kwargs
+
+
+def _load_with_retry_summarizer(load_func, model_name: str, model_type: str = "model"):
+    """Load model/tokenizer with retry and fallback to cache clearing on failure."""
+    from requests.exceptions import (
+        ConnectionError,
+        HTTPError,
+        RequestException,
+        Timeout,
+    )
+
+    from ...utils.retry import retry_with_exponential_backoff
+
+    retryable = (
+        ConnectionError,
+        HTTPError,
+        Timeout,
+        RequestException,
+        OSError,
+    )
+    try:
+        return retry_with_exponential_backoff(
+            load_func,
+            max_retries=3,
+            initial_delay=1.0,
+            max_delay=30.0,
+            retryable_exceptions=retryable,
+        )
+    except Exception as e:
+        logger.warning(
+            "%s loading failed for %s: %s. Clearing cache and retrying once...",
+            model_type.capitalize(),
+            model_name,
+            e,
+        )
+        try:
+            from ...cache.manager import delete_transformers_model_cache
+
+            deleted, freed_bytes = delete_transformers_model_cache(
+                model_name, confirm=False, force=True
+            )
+            if deleted:
+                logger.info(
+                    "Cleared cache for %s (%.1f MB freed)",
+                    model_name,
+                    freed_bytes / (1024 * 1024),
+                )
+        except Exception as cache_error:
+            logger.warning("Failed to clear cache for %s: %s", model_name, cache_error)
+        logger.info("Retrying %s load for %s after cache clear...", model_type, model_name)
+        try:
+            return load_func()
+        except Exception as retry_error:
+            logger.error(
+                "%s load failed again after cache clear: %s. "
+                "Please run 'make preload-ml-models' to re-download the model.",
+                model_type.capitalize(),
+                retry_error,
+            )
+            raise
 
 
 class SummaryModel:
@@ -659,12 +870,16 @@ class SummaryModel:
                     f"stable weights (avoiding PR refs)"
                 )
             self.revision = pinned_revision
-            if pinned_revision == "main":
-                logger.warning(
-                    f"[{model_type}] Using 'main' branch - this is not a pinned commit SHA. "
-                    f"For production use, update {model_type}_REVISION in "
-                    "config_constants.py with a specific commit hash to ensure "
-                    "reproducibility (Issue #379)."
+            # Log at ERROR when revision is not a SHA so unpinned use is visible (Issue #428)
+            from ...config_constants import is_sha_revision
+
+            if not is_sha_revision(pinned_revision):
+                logger.error(
+                    "[%s] Revision is not a pinned commit SHA: %r. Update %s_REVISION in "
+                    "config_constants.py with a 40-char commit hash for reproducibility.",
+                    model_type,
+                    pinned_revision,
+                    model_type,
                 )
         else:
             self.revision = revision  # type: ignore[assignment]
@@ -743,140 +958,139 @@ class SummaryModel:
 
         return "cpu"
 
-    def _load_model(self) -> None:
-        """Load model and tokenizer from cache or download."""
-        # Lazy import: Only import transformers when this method is called
-        # This allows the module to be imported without ML dependencies installed
-        import os
+    def _load_tokenizer_step(self) -> None:
+        """Load tokenizer (skip for Pegasus; loaded with model)."""
+        from transformers import AutoTokenizer  # noqa: F401
 
-        import torch  # noqa: F401
-        from transformers import (  # noqa: F401
-            AutoModelForSeq2SeqLM,
-            AutoTokenizer,
-            pipeline,
+        model_lower = self.model_name.lower()
+        if "pegasus" in model_lower:
+            return
+        tokenizer_kwargs = {
+            "cache_dir": self.cache_dir,
+            "local_files_only": True,
+            "trust_remote_code": False,
+            "use_safetensors": True,
+        }
+        if self.revision:
+            tokenizer_kwargs["revision"] = self.revision
+            logger.debug("Using pinned revision: %s", self.revision)
+        self.tokenizer = _load_with_retry_summarizer(
+            lambda: AutoTokenizer.from_pretrained(  # nosec B615
+                self.model_name,
+                **tokenizer_kwargs,
+            ),
+            self.model_name,
+            "tokenizer",
         )
 
+    def _load_model_move_to_device_and_pipeline(self) -> None:
+        """Move model to device (with fallback) and create pipeline."""
+        import contextlib
+        import io
+
+        from transformers import pipeline
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            try:
+                self.model = self.model.to(self.device)  # type: ignore[union-attr]
+            except (RuntimeError, Exception) as e:
+                error_msg = str(e).lower()
+                if self.device in ("mps", "cuda") and (
+                    "out of memory" in error_msg
+                    or "invalid buffer size" in error_msg
+                    or "not implemented" in error_msg
+                    or "unsupported" in error_msg
+                ):
+                    logger.warning(
+                        "Device fallback: %s failed (%s). Falling back to CPU.",
+                        self.device,
+                        e,
+                    )
+                    self.device = "cpu"
+                    self.model = self.model.to("cpu")  # type: ignore[union-attr]
+                else:
+                    raise
+        pipeline_device = 0 if self.device == "cuda" else "mps" if self.device == "mps" else -1
+        self.pipeline = pipeline(  # type: ignore[call-overload]
+            "summarization",
+            model=self.model,
+            tokenizer=self.tokenizer,
+            device=pipeline_device,
+        )
+
+    def _load_model_pegasus_sanity_and_clear_config(self) -> None:
+        """Run Pegasus sanity check and clear max_new_tokens from generation config."""
+        import torch
+
+        if "pegasus" in self.model_name.lower() and hasattr(self, "_pegasus_health_checks"):
+            try:
+                test_summary = self.summarize(
+                    "This is a test sentence for model verification.",
+                    max_length=20,
+                    min_length=5,
+                )
+                generate_ok = bool(test_summary and test_summary.strip())
+                self._pegasus_health_checks["generate_ok"] = generate_ok  # type: ignore
+                if generate_ok:
+                    parts = [
+                        f"{k}={v}" for k, v in self._pegasus_health_checks.items() if v is not None
+                    ]
+                    try:
+                        import transformers
+
+                        parts.extend(
+                            [
+                                f"transformers={transformers.__version__}",
+                                f"torch={torch.__version__}",
+                                f"device={self.device}",
+                            ]
+                        )
+                        if self.revision:
+                            parts.append(f"revision={self.revision}")
+                        logger.info("PEGASUS_OK %s", " ".join(parts))
+                    except Exception:
+                        pass
+                else:
+                    logger.warning(
+                        "[PEGASUS MODEL VERIFICATION] Sanity check failed: "
+                        "model returned empty summary"
+                    )
+            except Exception as e:
+                self._pegasus_health_checks["generate_ok"] = False  # type: ignore
+                logger.warning("[PEGASUS MODEL VERIFICATION] Sanity check error: %s", e)
+        if self.pipeline is not None and getattr(self.pipeline, "model", None) is not None:
+            model = self.pipeline.model
+            if getattr(model, "generation_config", None) is not None:
+                setattr(model.generation_config, "max_new_tokens", None)
+            if getattr(model, "config", None) is not None and hasattr(
+                model.config, "max_new_tokens"
+            ):
+                setattr(model.config, "max_new_tokens", None)
+
+    def _load_model(self) -> None:
+        """Load model and tokenizer from cache or download."""
+        import os
+
         try:
-            # Disable progress bars to avoid misleading "Downloading" messages
-            # when loading from cache. This is especially important in test environments
-            # where network is blocked and progress bars can be confusing.
-            # Set environment variable to suppress Hugging Face Hub progress bars
             original_hf_disable = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
             os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-
             try:
-                # Log device detection details for debugging
-                device_info = f"{self.device}"
-                if self.device == "mps":
-                    device_info += " (Apple Silicon GPU)"
-                elif self.device == "cuda":
-                    device_info += " (NVIDIA GPU)"
-                else:
-                    device_info += " (CPU)"
-                logger.info(f"Loading summarization model: {self.model_name} on {device_info}")
-                logger.debug(f"Cache directory: {self.cache_dir}")
-
-                # Load tokenizer
-                # Security: Revision pinning provides reproducibility and prevents
-                # supply chain attacks. If revision is None, latest version is used
-                # (less secure but more convenient).
-                # ALWAYS use local_files_only=True - we never allow libraries to download.
-                # All downloads must go through our centralized preload script logic.
-                # Helper function for model-load retry with fallback (Issue #379)
-                def _load_with_retry(load_func, model_type: str = "model"):
-                    """Load model/tokenizer with retry and fallback to cache clearing on failure."""
-                    from requests.exceptions import (
-                        ConnectionError,
-                        HTTPError,
-                        RequestException,
-                        Timeout,
+                device_info = (
+                    f"{self.device} (Apple Silicon GPU)"
+                    if self.device == "mps"
+                    else (
+                        f"{self.device} (NVIDIA GPU)"
+                        if self.device == "cuda"
+                        else f"{self.device} (CPU)"
                     )
-
-                    from ...utils.retry import retry_with_exponential_backoff
-
-                    # Define retryable exceptions for model loading
-                    retryable_exceptions = (
-                        ConnectionError,
-                        HTTPError,
-                        Timeout,
-                        RequestException,
-                        OSError,  # Network/IO errors
-                    )
-
-                    # First, try with retry for transient errors
-                    try:
-                        return retry_with_exponential_backoff(
-                            load_func,
-                            max_retries=3,
-                            initial_delay=1.0,
-                            max_delay=30.0,
-                            retryable_exceptions=retryable_exceptions,
-                        )
-                    except Exception as e:
-                        # Retry failed - try clearing cache and retrying once
-                        logger.warning(
-                            f"{model_type.capitalize()} loading failed for "
-                            f"{self.model_name}: {e}. Clearing cache and retrying once..."
-                        )
-                        try:
-                            from ...cache.manager import delete_transformers_model_cache
-
-                            deleted, freed_bytes = delete_transformers_model_cache(
-                                self.model_name, confirm=False, force=True
-                            )
-                            if deleted:
-                                logger.info(
-                                    f"Cleared cache for {self.model_name} "
-                                    f"({freed_bytes / (1024 * 1024):.1f} MB freed)"
-                                )
-                            else:
-                                logger.debug(
-                                    f"Cache for {self.model_name} was already empty or not found"
-                                )
-                        except Exception as cache_error:
-                            logger.warning(
-                                f"Failed to clear cache for {self.model_name}: {cache_error}"
-                            )
-
-                        # Retry once after cache clear
-                        # (will still fail if cache was cleared, but we tried)
-                        logger.info(
-                            f"Retrying {model_type} load for {self.model_name} after cache clear..."
-                        )
-                        try:
-                            return load_func()
-                        except Exception as retry_error:
-                            logger.error(
-                                f"{model_type.capitalize()} load failed again after cache clear: "
-                                f"{retry_error}. Please run 'make preload-ml-models' to "
-                                f"re-download the model."
-                            )
-                            raise
-
-                logger.debug("Loading tokenizer from cache...")
-                tokenizer_kwargs = {
-                    "cache_dir": self.cache_dir,
-                    # Always use cache only - downloads via preload script
-                    "local_files_only": True,
-                    "trust_remote_code": False,  # Security: don't execute remote code (Issue #379)
-                    "use_safetensors": True,  # Prefer safetensors format (Issue #379)
-                }
-                # For Pegasus, tokenizer is loaded by _load_pegasus_without_fake_warning
-                # Skip tokenizer loading here if it's Pegasus (will be loaded below)
-                model_lower = self.model_name.lower()
-                if "pegasus" not in model_lower:
-                    # Non-Pegasus models: load tokenizer normally
-                    if self.revision:
-                        tokenizer_kwargs["revision"] = self.revision
-                        logger.debug(f"Using pinned revision: {self.revision}")
-                    self.tokenizer = _load_with_retry(
-                        lambda: AutoTokenizer.from_pretrained(  # nosec B615
-                            self.model_name,
-                            **tokenizer_kwargs,
-                        ),
-                        "tokenizer",
-                    )
-
+                )
+                logger.info(
+                    "Loading summarization model: %s on %s",
+                    self.model_name,
+                    device_info,
+                )
+                logger.debug("Cache directory: %s", self.cache_dir)
+                self._load_tokenizer_step()
                 # Load model
                 # Security: Revision pinning provides reproducibility and prevents
                 # supply chain attacks. If revision is None, latest version is used
@@ -937,7 +1151,7 @@ class SummaryModel:
                     # Note: Tokenizer is already loaded above, but we'll reload it in the function
                     # to ensure consistency. The function returns both tokenizer and model.
                     # Wrap with retry for transient errors (Issue #379)
-                    self.tokenizer, self.model = _load_with_retry(
+                    self.tokenizer, self.model = _load_with_retry_summarizer(
                         lambda: _load_pegasus_without_fake_warning(
                             model_id=self.model_name,
                             device=self.device,
@@ -945,6 +1159,7 @@ class SummaryModel:
                             revision=self.revision,
                             local_files_only=True,
                         ),
+                        self.model_name,
                         "Pegasus model",
                     )
 
@@ -1008,11 +1223,12 @@ class SummaryModel:
                         "Disabling safetensors for LED model to avoid API calls "
                         "during model loading"
                     )
-                    self.model = _load_with_retry(
+                    self.model = _load_with_retry_summarizer(
                         lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
                             **led_model_kwargs,
                         ),
+                        self.model_name,
                         "LED model",
                     )
                 elif "bart" in model_lower:
@@ -1020,140 +1236,85 @@ class SummaryModel:
                     from transformers import BartForConditionalGeneration
 
                     logger.debug("Using BartForConditionalGeneration for BART model")
-                    self.model = _load_with_retry(
+                    self.model = _load_with_retry_summarizer(
                         lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
                             **model_kwargs,
                         ),
+                        self.model_name,
                         "BART model",
                     )
                 else:
                     # Fallback to AutoModelForSeq2SeqLM for other models
                     logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
-                    self.model = _load_with_retry(
+                    self.model = _load_with_retry_summarizer(
                         lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
                             self.model_name,
                             **model_kwargs,
                         ),
+                        self.model_name,
                         "AutoModel",
                     )
                 logger.debug("Model loaded successfully (cached for future runs)")
             finally:
-                # Restore original environment variable
                 if original_hf_disable is None:
                     os.environ.pop("HF_HUB_DISABLE_PROGRESS_BARS", None)
                 else:
                     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = original_hf_disable
-
-            # Move model to device with fallback to CPU on MPS OOM/unsupported op (Issue #379)
-            # Suppress PyTorch's "Device set to use mps" stdout message
-            import contextlib
-            import io
-
-            original_device = self.device
-            with contextlib.redirect_stdout(io.StringIO()):
-                try:
-                    self.model = self.model.to(self.device)  # type: ignore[union-attr]
-                except (RuntimeError, Exception) as e:
-                    error_msg = str(e).lower()
-                    # Check for MPS OOM or unsupported operation errors
-                    if self.device in ("mps", "cuda") and (
-                        "out of memory" in error_msg
-                        or "invalid buffer size" in error_msg
-                        or "not implemented" in error_msg
-                        or "unsupported" in error_msg
-                    ):
-                        logger.warning(
-                            f"Device fallback: {self.device} failed ({e}). "
-                            "Falling back to CPU and continuing..."
-                        )
-                        self.device = "cpu"
-                        # Move model to CPU
-                        self.model = self.model.to("cpu")  # type: ignore[union-attr]
-                        logger.info(
-                            f"Device fallback successful: model moved from {original_device} to CPU"
-                        )
-                    else:
-                        # Re-raise if not a device-related error
-                        raise
-
-            # Create pipeline for easy inference
-            # Map device to pipeline device parameter:
-            # - "cuda" -> 0 (first CUDA device)
-            # - "mps" -> "mps" (Apple Silicon)
-            # - "cpu" -> -1 (CPU)
-            pipeline_device = 0 if self.device == "cuda" else "mps" if self.device == "mps" else -1
-            self.pipeline = pipeline(  # type: ignore[call-overload]
-                "summarization",
-                model=self.model,
-                tokenizer=self.tokenizer,
-                device=pipeline_device,
-            )
-
-            # Sanity check for Pegasus: run a tiny summarization to verify model works correctly
-            # This completes the health check started during model load
-            if "pegasus" in self.model_name.lower() and hasattr(self, "_pegasus_health_checks"):
-                try:
-                    test_input = "This is a test sentence for model verification."
-                    test_summary = self.summarize(test_input, max_length=20, min_length=5)
-                    generate_ok = test_summary and len(test_summary.strip()) > 0
-                    self._pegasus_health_checks["generate_ok"] = (  # type: ignore[assignment]
-                        bool(generate_ok)
-                    )
-
-                    if generate_ok:
-                        # Update the health check log with generate_ok status
-                        # Include transformers version, torch version, device, and
-                        # revision in health check
-                        health_status_parts = [
-                            f"{k}={v}"
-                            for k, v in self._pegasus_health_checks.items()
-                            if v is not None
-                        ]
-                        try:
-                            import transformers
-
-                            health_status_parts.append(f"transformers={transformers.__version__}")
-                            health_status_parts.append(f"torch={torch.__version__}")
-                            health_status_parts.append(f"device={self.device}")
-                            if self.revision:
-                                health_status_parts.append(f"revision={self.revision}")
-                        except Exception:
-                            pass
-                        health_status = " ".join(health_status_parts)
-                        logger.info(f"PEGASUS_OK {health_status}")
-                    else:
-                        logger.warning(
-                            "[PEGASUS MODEL VERIFICATION] Sanity check failed: "
-                            "model returned empty summary"
-                        )
-                except Exception as e:
-                    self._pegasus_health_checks["generate_ok"] = False
-                    logger.warning(f"[PEGASUS MODEL VERIFICATION] Sanity check error: {e}")
-
-            # Remove default max_new_tokens from pipeline/model generation config
-            # to prevent warnings
-            # The pipeline/model may default to max_new_tokens=256, but we use max_length instead
-            if hasattr(self.pipeline, "model") and self.pipeline.model is not None:
-                if (
-                    hasattr(self.pipeline.model, "generation_config")
-                    and self.pipeline.model.generation_config is not None
-                ):
-                    # Set to None to disable (we'll use max_length instead)
-                    setattr(self.pipeline.model.generation_config, "max_new_tokens", None)
-                # Also check model.config directly
-                if (
-                    hasattr(self.pipeline.model, "config")
-                    and self.pipeline.model.config is not None
-                ):
-                    if hasattr(self.pipeline.model.config, "max_new_tokens"):
-                        setattr(self.pipeline.model.config, "max_new_tokens", None)
-
-            logger.debug(f"Successfully loaded model: {self.model_name}")
+            self._load_model_move_to_device_and_pipeline()
+            self._load_model_pegasus_sanity_and_clear_config()
+            logger.debug("Successfully loaded model: %s", self.model_name)
 
         except Exception as e:
             logger.error(f"Failed to load summarization model: {e}")
             raise
+
+    def _summarize_truncate_input(
+        self,
+        text: str,
+        max_input_tokens: Optional[int],
+        truncation: Optional[bool],
+    ) -> str:
+        """Truncate input to max_input_tokens if needed. Returns updated text."""
+        if max_input_tokens is None or not self.tokenizer:
+            return text
+        effective_truncation = truncation if truncation is not None else True
+        with self._summarize_lock:
+            input_tokens = self.tokenizer.encode(  # type: ignore[attr-defined]
+                text, add_special_tokens=False
+            )
+            if len(input_tokens) <= max_input_tokens:
+                return text
+            if effective_truncation:
+                truncated = input_tokens[:max_input_tokens]
+                out = self.tokenizer.decode(  # type: ignore[attr-defined]
+                    truncated, skip_special_tokens=True
+                )
+                logger.debug(
+                    "Truncated input from %d to %d tokens",
+                    len(input_tokens),
+                    max_input_tokens,
+                )
+                return cast(str, out)
+            logger.warning(
+                "Input exceeds max_input_tokens (%d > %d) but truncation=False.",
+                len(input_tokens),
+                max_input_tokens,
+            )
+        return text
+
+    def _summarize_apply_t5_prefix(self, text: str) -> str:
+        """Add T5 'summarize: ' prefix if model is T5 and text does not have it."""
+        if not self.model or not hasattr(self.model, "config"):
+            return text
+        if not hasattr(self.model.config, "model_type"):
+            return text
+        if getattr(self.model.config, "model_type", None) != "t5":
+            return text
+        if text.startswith("summarize: "):
+            return text
+        logger.debug("Added T5 prefix 'summarize: ' to input text")
+        return "summarize: " + text
 
     def summarize(
         self,
@@ -1222,15 +1383,7 @@ class SummaryModel:
         # For BART/LED, the model learns to summarize from training, not from prompts.
         input_text = text
 
-        # Check input length to prevent buffer size errors
-        # MPS has buffer size limits, so we need to ensure text isn't too long
-        # Rough estimate: 1 token ≈ 4 characters, so 1024 tokens ≈ 4096 chars
-        # Add safety margin: warn if text is very long
-        if len(input_text) > 100000:  # ~25k tokens, well above safe chunk size
-            logger.warning(
-                f"Text is very long ({len(input_text)} chars), consider using chunking. "
-                "This may cause buffer size errors on MPS."
-            )
+        _warn_if_input_very_long(input_text)
 
         try:
             # Use max_length for summarization (correct parameter for this task)
@@ -1240,147 +1393,44 @@ class SummaryModel:
             # Use beam search (num_beams) for better quality summaries instead of greedy decoding
             # LED models benefit from beam search for more coherent summaries
 
-            # All defaults come from Config (imported constants, not hardcoded)
-            # Fallback to Config defaults if not provided
-            from podcast_scraper import config as config_module
+            gen = _resolve_summarize_generation_params(
+                is_reduce_phase,
+                is_distill_phase,
+                num_beams,
+                no_repeat_ngram_size,
+                length_penalty,
+                early_stopping,
+                repetition_penalty,
+            )
+            num_beams = gen["num_beams"]
+            no_repeat_ngram_size = gen["no_repeat_ngram_size"]
+            length_penalty = gen["length_penalty"]
+            early_stopping = gen["early_stopping"]
+            repetition_penalty = gen["repetition_penalty"]
 
-            if num_beams is None:
-                if is_distill_phase:
-                    num_beams = config_module.DEFAULT_DISTILL_NUM_BEAMS
-                elif is_reduce_phase:
-                    num_beams = config_module.DEFAULT_REDUCE_NUM_BEAMS
-                else:
-                    num_beams = config_module.DEFAULT_MAP_NUM_BEAMS
+            effective_max_new_tokens, effective_min_new_tokens = _resolve_effective_length_limits(
+                max_new_tokens, min_new_tokens, max_length, min_length
+            )
 
-            if no_repeat_ngram_size is None:
-                if is_distill_phase:
-                    no_repeat_ngram_size = config_module.DEFAULT_DISTILL_NO_REPEAT_NGRAM_SIZE
-                elif is_reduce_phase:
-                    no_repeat_ngram_size = config_module.DEFAULT_REDUCE_NO_REPEAT_NGRAM_SIZE
-                else:
-                    no_repeat_ngram_size = config_module.DEFAULT_MAP_NO_REPEAT_NGRAM_SIZE
-
-            if length_penalty is None:
-                if is_distill_phase:
-                    length_penalty = config_module.DEFAULT_DISTILL_LENGTH_PENALTY
-                elif is_reduce_phase:
-                    length_penalty = config_module.DEFAULT_REDUCE_LENGTH_PENALTY
-                else:
-                    length_penalty = config_module.DEFAULT_MAP_LENGTH_PENALTY
-
-                # For reduce phase, ALWAYS disable early_stopping to ensure
-                # min_new_tokens is enforced. early_stopping=True can cause premature
-                # termination before reaching min_new_tokens. This override is critical
-                # even if config explicitly sets early_stopping=True
-                if is_reduce_phase:
-                    early_stopping = False
-            elif early_stopping is None:
-                early_stopping = config_module.DEFAULT_MAP_EARLY_STOPPING
-
-            if repetition_penalty is None:
-                if is_distill_phase:
-                    repetition_penalty = config_module.DEFAULT_DISTILL_REPETITION_PENALTY
-                elif is_reduce_phase:
-                    repetition_penalty = config_module.DEFAULT_REDUCE_REPETITION_PENALTY
-                else:
-                    repetition_penalty = config_module.DEFAULT_MAP_REPETITION_PENALTY
-
-            # Use max_new_tokens if provided, otherwise fall back to max_length
-            # Convert max_length to max_new_tokens for clarity
-            # (max_length includes input+output)
-            # For MAP stage (when max_new_tokens/min_new_tokens are None),
-            # use max_length/min_length directly
-            # This is more reliable for encoder-decoder models like Pegasus
-            if max_new_tokens is not None:
-                effective_max_new_tokens = max_new_tokens
-            else:
-                # For MAP stage, max_length is the target output length (not input+output)
-                # So we can use it directly
-                effective_max_new_tokens = max_length
-
-            if min_new_tokens is not None:
-                effective_min_new_tokens = min_new_tokens
-            else:
-                # For MAP stage, min_length is the target output length
-                effective_min_new_tokens = min_length
-
-            # Handle input truncation if max_input_tokens is specified
+            text = self._summarize_truncate_input(text, max_input_tokens, truncation)
             effective_truncation = truncation if truncation is not None else True
-            if max_input_tokens is not None and self.tokenizer:
-                # Tokenize and truncate input if needed (with lock for thread safety)
-                with self._summarize_lock:
-                    input_tokens = self.tokenizer.encode(  # type: ignore[attr-defined]
-                        text, add_special_tokens=False
-                    )
-                    if len(input_tokens) > max_input_tokens:
-                        if effective_truncation:
-                            # Truncate to max_input_tokens
-                            truncated_tokens = input_tokens[:max_input_tokens]
-                            text = self.tokenizer.decode(  # type: ignore[attr-defined]
-                                truncated_tokens, skip_special_tokens=True
-                            )
-                            logger.debug(
-                                f"Truncated input from {len(input_tokens)} to "
-                                f"{max_input_tokens} tokens"
-                            )
-                        else:
-                            logger.warning(
-                                f"Input exceeds max_input_tokens "
-                                f"({len(input_tokens)} > {max_input_tokens}) "
-                                f"but truncation=False. This may cause errors."
-                            )
+            input_text = self._summarize_apply_t5_prefix(text)
 
-            # T5/FLAN-T5 models require "summarize: " prefix for optimal performance
-            # Without this prefix, T5 models will underperform significantly
-            # Add prefix after truncation so truncation accounts for original text length
-            if (
-                self.model
-                and hasattr(self.model, "config")
-                and hasattr(self.model.config, "model_type")
-            ):
-                if self.model.config.model_type == "t5":
-                    # Update input_text to use truncated text (if truncation occurred)
-                    input_text = text
-                    if not input_text.startswith("summarize: "):
-                        input_text = "summarize: " + input_text
-                        logger.debug("Added T5 prefix 'summarize: ' to input text")
-
-            # For MAP stage (when max_new_tokens/min_new_tokens are None), use max_length/min_length
-            # This is more reliable for encoder-decoder models like Pegasus
-            # The pipeline accepts both max_new_tokens/min_new_tokens and max_length/min_length
-            # Prefer max_new_tokens/min_new_tokens if provided, otherwise use max_length/min_length
-            pipeline_kwargs = {
-                "truncation": effective_truncation,
-                # Penalize repetition to prevent hallucinations
-                "repetition_penalty": repetition_penalty,
-                "no_repeat_ngram_size": no_repeat_ngram_size,
-            }
-
-            # Use max_new_tokens/min_new_tokens if provided, otherwise use max_length/min_length
-            if max_new_tokens is not None:
-                pipeline_kwargs["max_new_tokens"] = effective_max_new_tokens
-            else:
-                # For MAP stage, use max_length directly (more reliable for Pegasus)
-                pipeline_kwargs["max_length"] = max_length
-
-            if min_new_tokens is not None:
-                pipeline_kwargs["min_new_tokens"] = effective_min_new_tokens
-            else:
-                # For MAP stage, use min_length directly (more reliable for Pegasus)
-                pipeline_kwargs["min_length"] = min_length
-            # Add encoder_no_repeat_ngram_size if provided (prevents copying from input)
-            if encoder_no_repeat_ngram_size is not None:
-                pipeline_kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
-
-            # Use beam search for better quality (LED models work better with beam search)
-            # Only use do_sample if explicitly requested, otherwise use beam search
-            if do_sample:
-                pipeline_kwargs["do_sample"] = True
-            else:
-                # Beam search produces better summaries than greedy decoding
-                pipeline_kwargs["num_beams"] = num_beams
-                pipeline_kwargs["length_penalty"] = length_penalty
-                pipeline_kwargs["early_stopping"] = True  # Stop when all beams agree
+            pipeline_kwargs = _build_summarize_pipeline_kwargs(
+                effective_truncation,
+                repetition_penalty,
+                no_repeat_ngram_size,
+                max_new_tokens,
+                effective_max_new_tokens,
+                min_new_tokens,
+                effective_min_new_tokens,
+                max_length,
+                min_length,
+                encoder_no_repeat_ngram_size,
+                do_sample,
+                num_beams,
+                length_penalty,
+            )
 
             # Suppress transformers warnings about max_length configuration
             # These are expected for summarization tasks where we want shorter outputs
@@ -1422,14 +1472,8 @@ class SummaryModel:
                 with self._summarize_lock:
                     result = self.pipeline(input_text, **pipeline_kwargs)
 
-            # Pipeline returns list of dicts with 'summary_text' key
-            if isinstance(result, list) and len(result) > 0:
-                summary_text = result[0].get("summary_text", "")
-                summary_text = cast(str, summary_text).strip()
-            elif isinstance(result, dict):
-                summary_text = result.get("summary_text", "")
-                summary_text = cast(str, summary_text).strip()
-            else:
+            summary_text = _extract_summary_text_from_pipeline_result(result)
+            if not summary_text:
                 return ""
 
             # Log raw generated length before post-processing (with lock for thread safety)
@@ -1952,6 +1996,62 @@ def _prepare_chunks(
     return chunks, chunk_size
 
 
+def _merge_tiny_chunks(
+    model: SummaryModel,
+    chunks: List[str],
+    min_tokens: int = MAP_CHUNK_MIN_TOKENS,
+) -> List[str]:
+    """Merge chunks smaller than min_tokens into the previous chunk (Issue #428).
+
+    Avoids HF warnings and wasted work for tiny tail chunks. Logs each merge.
+
+    Args:
+        model: Summary model (for tokenizer and lock).
+        chunks: List of text chunks from _prepare_chunks.
+        min_tokens: Minimum token count; chunks below this are merged.
+
+    Returns:
+        List of chunks with tiny chunks merged into the previous (or next if first).
+    """
+    if not chunks or not model.tokenizer:
+        return chunks
+
+    with model._summarize_lock:
+        token_counts = [
+            len(
+                model.tokenizer.encode(  # type: ignore[attr-defined]
+                    c, add_special_tokens=False, truncation=True, max_length=100000
+                )
+            )
+            for c in chunks
+        ]
+
+    merged: List[str] = []
+    i = 0
+    while i < len(chunks):
+        chunk = chunks[i]
+        n = token_counts[i]
+        if n >= min_tokens:
+            merged.append(chunk)
+            i += 1
+            continue
+        # Tiny chunk: merge into previous or next
+        if merged:
+            merged[-1] = merged[-1] + "\n\n" + chunk
+            logger.debug("Merged tiny chunk (%d tokens) into previous (Issue #428).", n)
+        else:
+            # First chunk is tiny; merge into next if any
+            if i + 1 < len(chunks):
+                merged.append(chunk + "\n\n" + chunks[i + 1])
+                logger.debug("Merged tiny first chunk (%d tokens) into next (Issue #428).", n)
+                i += 2
+                continue
+            else:
+                merged.append(chunk)
+        i += 1
+    return merged
+
+
 def summarize_long_text(
     model: SummaryModel,
     text: str,
@@ -2134,6 +2234,9 @@ def summarize_long_text(
     chunks, chunk_size = _prepare_chunks(
         model, text, chunk_size, use_word_chunking, word_chunk_size, word_overlap
     )
+
+    # Step 2b: Merge tiny chunks into previous to avoid HF warnings (Issue #428)
+    chunks = _merge_tiny_chunks(model, chunks)
 
     # === VALIDATION: Chunking metrics ===
     chunk_sizes_chars = [len(chunk) for chunk in chunks]

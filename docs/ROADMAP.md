@@ -8,9 +8,9 @@ The roadmap is organized around **end-user value** as the central principle. Fea
 
 ### Current Status
 
-- **Open PRDs**: 9 (provider integrations, knowledge graph, experimentation platform)
-- **Open RFCs**: 26 (provider implementations, quality improvements, infrastructure)
-- **Completed**: 7 PRDs, 22 RFCs (core pipeline, basic features, OpenAI integration)
+- **Open PRDs**: 5 (knowledge graph, experimentation platform, observability, engineering governance)
+- **Open RFCs**: 19 (quality improvements, GIL, model registry, observability, infrastructure)
+- **Completed**: 13 PRDs, 28 RFCs (core pipeline, 8-provider ecosystem v2.5, OpenAI + Anthropic + Mistral + DeepSeek + Gemini + Grok + Ollama, modularization, metrics)
 
 ## Categories
 
@@ -18,10 +18,10 @@ The roadmap is organized around **end-user value** as the central principle. Fea
 
 These features directly improve what users can do with the tool:
 
-- **Provider Integrations**: More provider options (Anthropic, Mistral, Gemini, Grok, DeepSeek, Ollama) give users choice, cost optimization, and quality options
-- **Summarization Improvements**: Better summaries through adaptive routing, hybrid pipelines, and optimization guides
-- **Audio Preprocessing**: Cost savings and quality improvements through VAD, normalization, and format optimization
-- **Knowledge Graph**: Structured knowledge extraction enables advanced querying and analysis
+- **Provider Ecosystem**: Complete (v2.5) — 8 providers (local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama) for choice, cost, and quality
+- **Summarization Improvements**: Better summaries through adaptive routing (RFC-053), hybrid pipeline (RFC-042), and optimization guides (RFC-045)
+- **Audio Preprocessing**: Cost savings and quality improvements through VAD, normalization, and format optimization (RFC-040)
+- **Knowledge Graph (GIL)**: Structured knowledge extraction (PRD-017, RFC-049, 050, 051) enables advanced querying and analysis
 
 ### 2. Quality & Reliability (Medium-High Impact)
 
@@ -66,26 +66,20 @@ The following table lists all open PRDs and RFCs, ordered by priority with most 
 | **3** | [RFC-044](rfc/RFC-044-model-registry.md) | RFC | Infrastructure | Medium-High | Low | Enables provider additions | **Low effort, high value**: Eliminates technical debt, enables easier model updates and provider additions. Centralized change, prevents bugs. |
 | **4** | [RFC-053](rfc/RFC-053-adaptive-summarization-routing.md) | RFC | Quality Improvement | High | Medium | None | **Quality improvement**: Episode-specific routing improves summary quality across diverse podcast types. Medium effort, high impact on user experience. |
 | **5** | [RFC-042](rfc/RFC-042-hybrid-summarization-pipeline.md) | RFC | Quality Improvement | High | High | None | **Quality improvement**: Instruction-tuned LLMs in REDUCE phase produce better structured summaries. Addresses persistent quality issues. Higher effort but high impact. |
-| **6** | [PRD-012](prd/PRD-012-gemini-provider-integration.md) / [RFC-035](rfc/RFC-035-gemini-provider-implementation.md) | PRD/RFC | Provider Integration | High | Medium | Benefits from RFC-044 | **Unique capabilities**: 2M context window, native audio transcription. Enables processing very long episodes. Medium effort, high value. |
-| **7** | [PRD-014](prd/PRD-014-ollama-provider-integration.md) / [RFC-037](rfc/RFC-037-ollama-provider-implementation.md) | PRD/RFC | Provider Integration | High | Medium | Benefits from RFC-044 | **Zero cost option**: Fully local/offline provider. Appeals to privacy-conscious users. Medium effort, high value for cost-sensitive users. |
-| **8** | [PRD-011](prd/PRD-011-deepseek-provider-integration.md) / [RFC-034](rfc/RFC-034-deepseek-provider-implementation.md) | PRD/RFC | Provider Integration | Medium-High | Medium | Benefits from RFC-044 | **Ultra low-cost**: DeepSeek offers very low pricing. Cost optimization for users processing many episodes. Medium effort, medium-high value. |
-| **9** | [PRD-010](prd/PRD-010-mistral-provider-integration.md) / [RFC-033](rfc/RFC-033-mistral-provider-implementation.md) | PRD/RFC | Provider Integration | Medium | Medium | Benefits from RFC-044 | **OpenAI alternative**: Complete provider with all capabilities. Vendor diversity. Medium effort, medium value. |
-| **10** | [PRD-009](prd/PRD-009-anthropic-provider-integration.md) / [RFC-032](rfc/RFC-032-anthropic-provider-implementation.md) | PRD/RFC | Provider Integration | Medium | Medium | Benefits from RFC-044 | **High-quality option**: Anthropic Claude offers strong quality. Vendor diversity. Medium effort, medium value. |
-| **11** | [PRD-013](prd/PRD-013-grok-provider-integration.md) / [RFC-036](rfc/RFC-036-grok-provider-implementation.md) | PRD/RFC | Provider Integration | Medium | Medium | Benefits from RFC-044 | **Real-time info**: Grok has X/Twitter integration. Niche but valuable for current events. Medium effort, medium value. |
-| **12** | [RFC-045](rfc/RFC-045-ml-model-optimization-guide.md) | RFC | Quality Guide | Medium | Low | None | **User education**: Comprehensive guide helps users maximize ML quality. Low effort (documentation), medium value. |
-| **13** | [RFC-052](rfc/RFC-052-locally-hosted-llm-models-with-prompts.md) | RFC | Provider Integration | Medium | Medium | Complements PRD-014 | **Cost & latency**: Locally hosted LLMs solve cost and latency issues. Complements Ollama. Medium effort, medium value. |
-| **14** | [RFC-027](rfc/RFC-027-pipeline-metrics-improvements.md) | RFC | Observability | Medium | Medium | None | **Operational visibility**: Better metrics collection and reporting. Helps users understand costs, performance, quality. Medium effort, medium value. |
-| **15** | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) | PRD | Observability | Medium | High | None | **System health**: Operational observability and pipeline intelligence. High effort, medium value. |
-| **16** | [RFC-043](rfc/RFC-043-automated-metrics-alerts.md) | RFC | Observability | Medium | Medium | Depends on RFC-027 | **Regression detection**: Automated alerts for quality regressions. Depends on metrics improvements. Medium effort, medium value. |
-| **17** | [RFC-047](rfc/RFC-047-run-comparison-visual-tool.md) | RFC | Developer Tool | Medium | Medium | None | **Quality analysis**: Visual tool for comparing runs and diagnosing regressions. Medium effort, medium value. |
-| **18** | [PRD-017](prd/PRD-017-grounded-insight-layer.md) / [RFC-049](rfc/RFC-049-grounded-insight-layer-core.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) | PRD/RFC | Advanced Feature | Medium | High | None | **Grounded Insight Layer**: Evidence-backed insights and quotes with grounding relationships. High effort, high value (trust + navigation). |
-| **19** | [PRD-018](prd/PRD-018-database-projection-grounded-insight-layer.md) / [RFC-051](rfc/RFC-051-grounded-insight-layer-database-projection.md) | PRD/RFC | Advanced Feature | Medium | Medium | Depends on PRD-017 | **Fast queries**: Database projection for Grounded Insight Layer. Depends on PRD-017. Medium effort, medium value. |
-| **20** | [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) / [RFC-015](rfc/RFC-015-ai-experiment-pipeline.md), [RFC-016](rfc/RFC-016-modularization-for-ai-experiments.md), [RFC-041](rfc/RFC-041-podcast-ml-benchmarking-framework.md) | PRD/RFC | Advanced Platform | Low-Medium | High | None | **Experimentation**: Platform for AI quality experimentation. High effort, low-medium value (advanced use case). |
-| **21** | [RFC-046](rfc/RFC-046-materialization-architecture.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Honest comparisons**: Materialization architecture. Depends on experimentation platform. Medium effort, low-medium value. |
-| **22** | [RFC-048](rfc/RFC-048-evaluation-application-alignment.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Alignment**: Ensures evaluation results represent application behavior. Depends on experimentation platform. Medium effort, low-medium value. |
-| **23** | [RFC-023](rfc/RFC-023-readme-acceptance-tests.md) | RFC | Documentation | Low | Low | None | **Documentation quality**: Acceptance tests for README accuracy. Low effort, low value. |
-| **24** | [PRD-015](prd/PRD-015-engineering-governance-productivity.md) | PRD | Developer Experience | Low | High | None | **Developer velocity**: Engineering governance and productivity platform. High effort, low value (indirect user impact). |
-| **25** | [RFC-038](rfc/RFC-038-continuous-review-tooling.md) | RFC | Developer Tool | Low | Low | None | **Code quality**: Continuous review tooling (Dependabot, pydeps). Low effort, low value (indirect user impact). |
+| **6** | [RFC-045](rfc/RFC-045-ml-model-optimization-guide.md) | RFC | Quality Guide | Medium | Low | None | **User education**: Comprehensive guide helps users maximize ML quality. Low effort (documentation), medium value. |
+| **7** | [RFC-052](rfc/RFC-052-locally-hosted-llm-models-with-prompts.md) | RFC | Provider Enhancement | Medium | Medium | Complements Ollama | **Cost & latency**: Locally hosted LLMs with optimized prompts. Complements existing Ollama provider. Medium effort, medium value. |
+| **8** | [RFC-027](rfc/RFC-027-pipeline-metrics-improvements.md) | RFC | Observability | Medium | Medium | None | **Operational visibility**: Better metrics collection and reporting. Helps users understand costs, performance, quality. Medium effort, medium value. |
+| **9** | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) | PRD | Observability | Medium | High | None | **System health**: Operational observability and pipeline intelligence. High effort, medium value. |
+| **10** | [RFC-043](rfc/RFC-043-automated-metrics-alerts.md) | RFC | Observability | Medium | Medium | Depends on RFC-027 | **Regression detection**: Automated alerts for quality regressions. Depends on metrics improvements. Medium effort, medium value. |
+| **11** | [RFC-047](rfc/RFC-047-run-comparison-visual-tool.md) | RFC | Developer Tool | Medium | Medium | None | **Quality analysis**: Visual tool for comparing runs and diagnosing regressions. Medium effort, medium value. |
+| **12** | [PRD-017](prd/PRD-017-grounded-insight-layer.md) / [RFC-049](rfc/RFC-049-grounded-insight-layer-core.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) | PRD/RFC | Advanced Feature | Medium | High | None | **Grounded Insight Layer**: Evidence-backed insights and quotes with grounding relationships. High effort, high value (trust + navigation). |
+| **13** | [PRD-018](prd/PRD-018-database-projection-grounded-insight-layer.md) / [RFC-051](rfc/RFC-051-grounded-insight-layer-database-projection.md) | PRD/RFC | Advanced Feature | Medium | Medium | Depends on PRD-017 | **Fast queries**: Database projection for Grounded Insight Layer. Depends on PRD-017. Medium effort, medium value. |
+| **14** | [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) / [RFC-015](rfc/RFC-015-ai-experiment-pipeline.md), [RFC-041](rfc/RFC-041-podcast-ml-benchmarking-framework.md) | PRD/RFC | Advanced Platform | Low-Medium | High | None | **Experimentation**: Platform for AI quality experimentation (RFC-016 modularization complete). High effort, low-medium value (advanced use case). |
+| **15** | [RFC-046](rfc/RFC-046-materialization-architecture.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Honest comparisons**: Materialization architecture. Depends on experimentation platform. Medium effort, low-medium value. |
+| **16** | [RFC-048](rfc/RFC-048-evaluation-application-alignment.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Alignment**: Ensures evaluation results represent application behavior. Depends on experimentation platform. Medium effort, low-medium value. |
+| **17** | [RFC-023](rfc/RFC-023-readme-acceptance-tests.md) | RFC | Documentation | Low | Low | None | **Documentation quality**: Acceptance tests for README accuracy. Low effort, low value. |
+| **18** | [PRD-015](prd/PRD-015-engineering-governance-productivity.md) | PRD | Developer Experience | Low | High | None | **Developer velocity**: Engineering governance and productivity platform. High effort, low value (indirect user impact). |
+| **19** | [RFC-038](rfc/RFC-038-continuous-review-tooling.md) | RFC | Developer Tool | Low | Low | None | **Code quality**: Continuous review tooling (Dependabot, pydeps). Low effort, low value (indirect user impact). |
 
 ## Priority Rationale
 
@@ -101,41 +95,40 @@ The following table lists all open PRDs and RFCs, ordered by priority with most 
 
 5. **RFC-042 (Hybrid Summarization Pipeline)**: **Quality improvement** - Addresses persistent summary quality issues. Higher effort but high impact. No dependencies.
 
-### Provider Integration Priority
+### Provider Ecosystem (Complete)
 
-Provider integrations are prioritized by:
-
-- **Unique capabilities** (Gemini: 2M context, native audio)
-- **Cost optimization** (Ollama: zero cost, DeepSeek: ultra low-cost)
-- **Quality options** (Anthropic: high quality, Mistral: complete alternative)
-- **Niche value** (Grok: real-time info)
-
-All provider integrations benefit from RFC-044 (Model Registry) but are not blocked by it.
+The 8-provider ecosystem is complete as of v2.5.0: local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, and Ollama. Remaining provider-related work is enhancement (RFC-052: locally hosted LLMs with prompts) and infrastructure (RFC-044: model registry). New provider additions benefit from RFC-044 but are not on the near-term roadmap.
 
 ## Implementation Status
 
+### Recently Completed (v2.4–v2.5)
+
+- **Provider ecosystem**: Anthropic (PRD-009, RFC-032), Mistral (PRD-010, RFC-033), DeepSeek (PRD-011, RFC-034), Gemini (PRD-012, RFC-035), Grok (PRD-013, RFC-036), Ollama (PRD-014, RFC-037)
+- **Modularization**: RFC-016 (modularization for AI experiments) — protocol-based providers, typed params, preprocessing profiles
+- **Production hardening**: MPS exclusive mode (Apple Silicon), run manifests, entity reconciliation, unified provider metrics (ADR-043, ADR-044, ADR-048, ADR-049)
+
 ### In Progress
 
-- Provider metrics tracking (recently completed)
-- Provider hardening (retry policies, timeouts - in progress via #399)
+- Provider hardening (retry policies, timeouts — #399); blocked by RFC-054 for full E2E error testing
 
-### Planned
+### Planned (Ahead)
 
-- Audio preprocessing (RFC-040)
-- Adaptive summarization routing (RFC-053)
-- Provider integrations (various PRDs/RFCs)
+- **High priority**: RFC-054 (E2E mocks), RFC-040 (audio preprocessing), RFC-044 (model registry), RFC-053 (adaptive routing), RFC-042 (hybrid pipeline)
+- **Medium**: RFC-045 (ML optimization guide), RFC-052 (locally hosted LLMs), observability (RFC-027, 043, PRD-016), run comparison (RFC-047)
+- **Advanced**: Grounded Insight Layer (PRD-017, RFC-049/050/051), database projection (PRD-018), experimentation platform (PRD-007, RFC-015/041)
 
 ### Future
 
-- Knowledge graph (PRD-017)
-- Experimentation platform (PRD-007)
-- Advanced observability (PRD-016)
+- Full experimentation platform (RFC-046, RFC-048)
+- Engineering governance (PRD-015)
+- Documentation and tooling (RFC-023, RFC-038)
 
 ## Related Documents
 
 - **[PRDs](prd/index.md)** - Product requirements documents
 - **[RFCs](rfc/index.md)** - Technical design documents
 - **[Architecture](ARCHITECTURE.md)** - System design and module responsibilities
+- **[Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md)** - Performance, security, reliability, observability
 - **[Releases](releases/index.md)** - Release notes and version history
 
 ---
@@ -192,7 +185,7 @@ Items are categorized by effort (Low/Medium/High) and impact (Low/Medium/High):
 
 - RFC-053 (Adaptive Summarization Routing) - Medium complexity, high value
 - RFC-042 (Hybrid Summarization Pipeline) - Higher complexity but addresses quality issues
-- Provider integrations (Gemini, Ollama, DeepSeek) - Similar patterns, medium effort each
+- Provider integrations (Gemini, Ollama, DeepSeek, Mistral, Anthropic, Grok) - **Completed** in v2.5
 
 **High Impact, High Effort** (Prioritize Third):
 
@@ -261,5 +254,5 @@ Priorities are reviewed quarterly or when:
 
 ---
 
-**Last Updated**: 2026-02-05
+**Last Updated**: 2026-02-10
 **Next Review**: Quarterly (or as priorities shift)

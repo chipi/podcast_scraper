@@ -61,6 +61,8 @@ Architecture Decision Records (ADRs) capture the **what** and **why** of signifi
 | [ADR-045](ADR-045-composable-e2e-mock-response-strategy.md) | Composable E2E Mock Response Strategy | Proposed | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Separation of functional responses from non-functional behavior in tests |
 | [ADR-046](ADR-046-adaptive-summarization-routing.md) | Adaptive Summarization Routing | Proposed | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | Rule-based routing with episode profiling for summarization strategies |
 | [ADR-047](ADR-047-centralized-model-registry.md) | Centralized Model Registry | Proposed | [RFC-044](../rfc/RFC-044-model-registry.md) | Single source of truth for model architecture limits |
+| [ADR-048](ADR-048-mps-exclusive-mode-apple-silicon.md) | MPS Exclusive Mode for Apple Silicon | Accepted | [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md), Release v2.5.0 | Serialize GPU work on MPS to prevent memory contention; default on |
+| [ADR-049](ADR-049-per-capability-provider-selection.md) | Per-Capability Provider Selection | Accepted | [RFC-032](../rfc/RFC-032-anthropic-provider-implementation.md)–[RFC-037](../rfc/RFC-037-ollama-provider-implementation.md) | Independent provider choice per capability; partial-protocol providers allowed |
 
 ---
 

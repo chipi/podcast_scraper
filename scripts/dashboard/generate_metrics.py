@@ -143,115 +143,107 @@ def extract_wily_trends(reports_dir: Path) -> dict:
         }
 
 
+def _parse_complexity_json(path: Path) -> Optional[float]:
+    """Parse radon complexity.json; return average complexity or None."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+    if isinstance(data, dict) and "total_average" in data:
+        return data.get("total_average", 0)
+    if isinstance(data, dict):
+        total_cc, count = 0, 0
+        for items in data.values():
+            if isinstance(items, list):
+                for item in items:
+                    if isinstance(item, dict) and "complexity" in item:
+                        total_cc += item.get("complexity", 0)
+                        count += 1
+        return total_cc / count if count > 0 else None
+    if isinstance(data, list) and data:
+        total_cc = sum(item.get("complexity", 0) for item in data if isinstance(item, dict))
+        count = len([x for x in data if isinstance(x, dict)])
+        return total_cc / count if count > 0 else None
+    return None
+
+
+def _parse_maintainability_json(path: Path) -> Optional[float]:
+    """Parse radon maintainability.json; return average MI or None."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+    if isinstance(data, list) and data:
+        mi_values = [item.get("mi", 0) for item in data if isinstance(item, dict) and "mi" in item]
+        return sum(mi_values) / len(mi_values) if mi_values else None
+    if isinstance(data, dict) and data:
+        mi_values = [v.get("mi", 0) for v in data.values() if isinstance(v, dict) and "mi" in v]
+        return sum(mi_values) / len(mi_values) if mi_values else None
+    return None
+
+
+def _parse_docstrings_json(path: Path) -> Optional[float]:
+    """Parse docstrings coverage JSON; return coverage_percent or None."""
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return None
+    if isinstance(data, dict):
+        return data.get("coverage_percent", 0)
+    return None
+
+
+def _parse_vulture_json(path: Path) -> int:
+    """Parse vulture dead-code JSON; return count."""
+    if not path.exists():
+        return 0
+    try:
+        with open(path) as f:
+            data = json.load(f)
+        return len(data) if isinstance(data, list) else 0
+    except (json.JSONDecodeError, IOError):
+        return 0
+
+
+def _parse_codespell_errors(path: Path) -> int:
+    """Parse codespell output; return error line count."""
+    if not path.exists():
+        return 0
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace").strip()
+        lines = [
+            line
+            for line in text.split("\n")
+            if line.strip() and ":" in line and not line.startswith("#")
+        ]
+        return len(lines)
+    except (IOError, UnicodeDecodeError):
+        return 0
+
+
 def extract_complexity_metrics(reports_dir: Path) -> dict:
     """Extract complexity metrics from radon reports and wily trends."""
-    complexity_json_path = reports_dir / "complexity.json"
-    maintainability_json_path = reports_dir / "maintainability.json"
-    docstrings_json_path = reports_dir / "docstrings.json"
-    vulture_json_path = reports_dir / "vulture.json"
-    codespell_txt_path = reports_dir / "codespell.txt"
-
     metrics = {}
-
-    # Cyclomatic complexity (radon 6: total_average or list; radon 5.1: dict path -> list of {complexity})
-    if complexity_json_path.exists():
-        try:
-            with open(complexity_json_path) as f:
-                complexity_data = json.load(f)
-                if isinstance(complexity_data, dict):
-                    if "total_average" in complexity_data:
-                        metrics["cyclomatic_complexity"] = complexity_data.get("total_average", 0)
-                    else:
-                        # Radon 5.1: dict of path -> list of {complexity, ...}
-                        total_cc = 0
-                        count = 0
-                        for items in complexity_data.values():
-                            if isinstance(items, list):
-                                for item in items:
-                                    if isinstance(item, dict) and "complexity" in item:
-                                        total_cc += item.get("complexity", 0)
-                                        count += 1
-                        metrics["cyclomatic_complexity"] = total_cc / count if count > 0 else 0
-                elif isinstance(complexity_data, list) and complexity_data:
-                    total_cc = sum(
-                        item.get("complexity", 0)
-                        for item in complexity_data
-                        if isinstance(item, dict)
-                    )
-                    count = len([item for item in complexity_data if isinstance(item, dict)])
-                    metrics["cyclomatic_complexity"] = total_cc / count if count > 0 else 0
-        except (json.JSONDecodeError, IOError):
-            pass
-
-    # Maintainability index (radon 6: list of {mi}; radon 5.1: dict path -> {mi, rank})
-    if maintainability_json_path.exists():
-        try:
-            with open(maintainability_json_path) as f:
-                mi_data = json.load(f)
-                if isinstance(mi_data, list) and mi_data:
-                    mi_values = [
-                        item.get("mi", 0)
-                        for item in mi_data
-                        if isinstance(item, dict) and "mi" in item
-                    ]
-                    metrics["maintainability_index"] = (
-                        sum(mi_values) / len(mi_values) if mi_values else 0
-                    )
-                elif isinstance(mi_data, dict) and mi_data:
-                    mi_values = [
-                        v.get("mi", 0)
-                        for v in mi_data.values()
-                        if isinstance(v, dict) and "mi" in v
-                    ]
-                    metrics["maintainability_index"] = (
-                        sum(mi_values) / len(mi_values) if mi_values else 0
-                    )
-        except (json.JSONDecodeError, IOError):
-            pass
-
-    # Docstring coverage
-    if docstrings_json_path.exists():
-        try:
-            with open(docstrings_json_path) as f:
-                docstrings_data = json.load(f)
-                if isinstance(docstrings_data, dict):
-                    metrics["docstring_coverage"] = docstrings_data.get("coverage_percent", 0)
-        except (json.JSONDecodeError, IOError):
-            pass
-
-    # Dead code detection (vulture)
-    if vulture_json_path.exists():
-        try:
-            with open(vulture_json_path) as f:
-                vulture_data = json.load(f)
-                if isinstance(vulture_data, list):
-                    metrics["dead_code_count"] = len(vulture_data)
-                else:
-                    metrics["dead_code_count"] = 0
-        except (json.JSONDecodeError, IOError):
-            metrics["dead_code_count"] = 0
-    else:
-        metrics["dead_code_count"] = 0
-
-    # Spell checking (codespell)
-    if codespell_txt_path.exists():
-        try:
-            with open(codespell_txt_path) as f:
-                codespell_output = f.read().strip()
-                # Count lines that contain file paths (actual errors)
-                # Codespell outputs errors as: path/to/file:line:word
-                error_lines = [
-                    line
-                    for line in codespell_output.split("\n")
-                    if line.strip() and ":" in line and not line.startswith("#")
-                ]
-                metrics["spelling_errors_count"] = len(error_lines)
-        except (IOError, UnicodeDecodeError):
-            metrics["spelling_errors_count"] = 0
-    else:
-        metrics["spelling_errors_count"] = 0
-
-    # Wily trends (from reports/wily/trends.json, generated in CI or by wily_trends_to_json.py)
+    complexity_path = reports_dir / "complexity.json"
+    if complexity_path.exists():
+        val = _parse_complexity_json(complexity_path)
+        if val is not None:
+            metrics["cyclomatic_complexity"] = val
+    mi_path = reports_dir / "maintainability.json"
+    if mi_path.exists():
+        val = _parse_maintainability_json(mi_path)
+        if val is not None:
+            metrics["maintainability_index"] = val
+    doc_path = reports_dir / "docstrings.json"
+    if doc_path.exists():
+        val = _parse_docstrings_json(doc_path)
+        if val is not None:
+            metrics["docstring_coverage"] = val
+    metrics["dead_code_count"] = _parse_vulture_json(reports_dir / "vulture.json")
+    metrics["spelling_errors_count"] = _parse_codespell_errors(reports_dir / "codespell.txt")
     wily_trends = extract_wily_trends(reports_dir)
     metrics["complexity_trend"] = wily_trends.get("complexity_trend", "N/A")
     metrics["maintainability_trend"] = wily_trends.get("maintainability_trend", "N/A")

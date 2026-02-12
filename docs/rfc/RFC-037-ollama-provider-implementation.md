@@ -1,6 +1,6 @@
 # RFC-037: Ollama Provider Implementation (Revised)
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -969,6 +969,6 @@ Same pattern as OpenAI provider:
 
 - **Related PRD**: `docs/prd/PRD-014-ollama-provider-integration.md`
 - **Reference Implementation**: `src/podcast_scraper/providers/openai/openai_provider.py`
-- **Ollama Documentation**: https://ollama.ai
-- **Ollama API Reference**: https://github.com/ollama/ollama/blob/main/docs/api.md
-- **OpenAI Compatibility**: https://ollama.ai/blog/openai-compatibility
+- **Ollama Documentation**: <https://ollama.ai>
+- **Ollama API Reference**: <https://github.com/ollama/ollama/blob/main/docs/api.md>
+- **OpenAI Compatibility**: <https://ollama.ai/blog/openai-compatibility>

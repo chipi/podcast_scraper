@@ -984,7 +984,8 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
     transcription_provider = config_dict.get("transcription_provider", "whisper")
     provider_info["transcription_provider"] = transcription_provider
     if transcription_provider == "whisper":
-        provider_info["transcription_model"] = config_dict.get("whisper_model", "base")
+        # Match Config default (config.py) so report reflects what the service used
+        provider_info["transcription_model"] = config_dict.get("whisper_model", "base.en")
     elif transcription_provider == "openai":
         provider_info["transcription_model"] = config_dict.get(
             "openai_transcription_model", "whisper-1"
@@ -1219,12 +1220,12 @@ def run_config(
     logger.info(f"Running config: {config_name}")
 
     # Create timestamped run directory (not based on config name since feeds may differ)
-    # output_dir is now runs_dir (session_dir / "runs"), so create run folder directly
+    # output_dir is runs_dir (session_dir / "runs"); use resolved path so run dir is absolute
     run_timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S_%f")[
         :-3
     ]  # Include milliseconds for uniqueness
     run_dir_name = f"run_{run_timestamp}"
-    run_output_dir = output_dir / run_dir_name
+    run_output_dir = (output_dir / run_dir_name).resolve()
     run_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy original config to run folder for reference
@@ -1349,7 +1350,7 @@ def run_config(
     # Extract provider/model information from config
     provider_info = _extract_provider_info(original_config_copy)
 
-    # Build run data
+    # Build run data (store absolute output_dir so run artifacts are findable regardless of cwd)
     run_data = {
         "run_id": run_id,
         "config_file": str(config_path),
@@ -1361,7 +1362,7 @@ def run_config(
         "exit_code": exit_code,
         "episodes_processed": episodes_processed,
         "is_dry_run": is_dry_run,  # Flag indicating dry-run mode
-        "output_dir": str(run_output_dir),
+        "output_dir": str(run_output_dir.resolve()),
         "logs": logs,
         "outputs": outputs,
         "resource_usage": resource_usage,
@@ -1545,11 +1546,11 @@ def main() -> None:
         logger.error("No config files found")
         sys.exit(1)
 
-    # Setup output directory
-    output_dir = Path(args.output_dir)
+    # Setup output directory (resolve to absolute so run dirs are deterministic)
+    output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create session folder
+    # Create session folder; run artifacts are kept under session_dir/runs/run_* for inspection
     session_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     session_dir = output_dir / "sessions" / f"session_{session_id}"
     session_dir.mkdir(parents=True, exist_ok=True)

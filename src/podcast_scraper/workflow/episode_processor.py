@@ -130,6 +130,43 @@ def derive_transcript_extension(
     return config_constants.DEFAULT_TRANSCRIPT_EXTENSION
 
 
+def _download_or_reuse_media(
+    episode: Episode,  # type: ignore[valid-type]
+    cfg: config.Config,
+    temp_media: str,
+    pipeline_metrics: Any,
+) -> tuple[bool, int, float]:
+    """Download media or reuse existing file. Returns (success, total_bytes, dl_elapsed)."""
+    if pipeline_metrics is not None:
+        pipeline_metrics.record_download_media_attempt()
+    if cfg.reuse_media and os.path.exists(temp_media):
+        try:
+            file_size = os.path.getsize(temp_media)
+            if file_size > 0:
+                logger.debug("    reusing existing media file: %s", temp_media)
+                return True, file_size, 0.0
+            logger.warning("    media file is empty, re-downloading: %s", temp_media)
+        except OSError as exc:
+            logger.warning("    error checking media file, re-downloading: %s", exc)
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_download_media_attempt()
+    dl_start = time.time()
+    ok, total_bytes = downloader.http_download_to_file(
+        episode.media_url, cfg.user_agent, cfg.timeout, temp_media
+    )
+    dl_elapsed = time.time() - dl_start
+    if not ok:
+        logger.warning("    failed to download media")
+        return False, 0, 0.0
+    if downloader.should_log_download_summary():
+        try:
+            mb = total_bytes / downloader.BYTES_PER_MB
+            logger.info("    downloaded %.2f MB in %.1fs", mb, dl_elapsed)
+        except (ValueError, ZeroDivisionError, TypeError):
+            pass
+    return True, total_bytes, dl_elapsed
+
+
 def download_media_for_transcription(
     episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -213,84 +250,11 @@ def download_media_for_transcription(
     ]
     temp_media = os.path.join(temp_dir, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
 
-    # Check if media file already exists and reuse it if configured
-    total_bytes = 0
-    dl_elapsed = 0.0
-
-    # Record download attempt (regardless of reuse/cache)
-    # CRITICAL: Always record attempts - this ensures metrics reflect reality
-    # Note: pipeline_metrics should always be passed, but we check for None defensively
-    if pipeline_metrics is not None:
-        pipeline_metrics.record_download_media_attempt()
-    # If metrics is None, we can't record but we don't log a warning here
-    # (the warning would be too noisy if metrics aren't available in some code paths)
-
-    if cfg.reuse_media and os.path.exists(temp_media):
-        logger.debug(f"    reusing existing media file: {temp_media}")
-        # Verify file size is reasonable (not empty or corrupted)
-        try:
-            file_size = os.path.getsize(temp_media)
-            if file_size > 0:
-                total_bytes = file_size
-                logger.debug(f"    media file size: {file_size} bytes")
-            else:
-                logger.warning(f"    media file is empty, re-downloading: {temp_media}")
-                # File exists but is empty, re-download
-                dl_start = time.time()
-                ok, total_bytes = downloader.http_download_to_file(
-                    episode.media_url, cfg.user_agent, cfg.timeout, temp_media
-                )
-                dl_elapsed = time.time() - dl_start
-                if not ok:
-                    logger.warning("    failed to download media")
-                    return None
-                if downloader.should_log_download_summary():
-                    try:
-                        mb = total_bytes / downloader.BYTES_PER_MB
-                        logger.debug(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
-                    except (ValueError, ZeroDivisionError, TypeError) as exc:
-                        logger.debug(f"    failed to format download size: {exc}")
-        except OSError as exc:
-            logger.warning(f"    error checking media file, re-downloading: {exc}")
-            # Record download attempt (re-download case)
-            if pipeline_metrics is not None:
-                pipeline_metrics.record_download_media_attempt()
-
-            dl_start = time.time()
-            ok, total_bytes = downloader.http_download_to_file(
-                episode.media_url, cfg.user_agent, cfg.timeout, temp_media
-            )
-            dl_elapsed = time.time() - dl_start
-            if not ok:
-                logger.warning("    failed to download media")
-                return None
-            if downloader.should_log_download_summary():
-                try:
-                    mb = total_bytes / downloader.BYTES_PER_MB
-                    logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
-                except (ValueError, ZeroDivisionError, TypeError) as exc:
-                    logger.warning(f"    failed to format download size: {exc}")
-    else:
-        # Download media file
-        # Record download attempt (regardless of success/reuse)
-        if pipeline_metrics is not None:
-            pipeline_metrics.record_download_media_attempt()
-
-        dl_start = time.time()
-        ok, total_bytes = downloader.http_download_to_file(
-            episode.media_url, cfg.user_agent, cfg.timeout, temp_media
-        )
-        dl_elapsed = time.time() - dl_start
-        if not ok:
-            logger.warning("    failed to download media")
-            return None
-
-        if downloader.should_log_download_summary():
-            try:
-                mb = total_bytes / downloader.BYTES_PER_MB
-                logger.info(f"    downloaded {mb:.2f} MB in {dl_elapsed:.1f}s")
-            except (ValueError, ZeroDivisionError, TypeError) as exc:
-                logger.warning(f"    failed to format download size: {exc}")
+    ok, _total_bytes, dl_elapsed = _download_or_reuse_media(
+        episode, cfg, temp_media, pipeline_metrics
+    )
+    if not ok:
+        return None
 
     # Record download time if metrics available and download actually happened
     # Note: dl_elapsed will be > 0 if download occurred, 0 if media was reused
@@ -1281,6 +1245,19 @@ def process_episode_download(
             )
             if cfg.delay_ms:
                 time.sleep(cfg.delay_ms / MS_TO_SECONDS)
+        else:
+            # Issue #429: record failed episode so run index has status/error_type/stage
+            if pipeline_metrics is not None:
+                from .helpers import get_episode_id_from_episode
+
+                episode_id, _ = get_episode_id_from_episode(episode, cfg.rss_url or "")
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id,
+                    status="failed",
+                    stage="transcription",
+                    error_type="DownloadError",
+                    error_message="failed to download media",
+                )
         return False, None, None, 0
 
     logger.info(f"[{episode.idx}] no transcript for: {episode.title}")

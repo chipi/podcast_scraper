@@ -352,6 +352,7 @@ use OpenAI providers or want to customize logging, paths, or performance setting
 - ✅ `config/examples/.env.example` is safe to commit (template only)
 - ✅ API keys are never logged or exposed
 - ✅ Environment variables take precedence over `.env` file
+- ✅ HuggingFace model loading uses `trust_remote_code=False`; only enable `trust_remote_code=True` if a model's documentation explicitly requires it and the source is trusted (Issue #429).
 
 **Priority order** (for each configuration field):
 
@@ -1236,6 +1237,22 @@ except ImportError:
     WHISPER_AVAILABLE = False
     logger.warning("Whisper not available, transcription disabled")
 ```
+
+## CLI exit codes (Issue #429)
+
+The main pipeline command uses the following exit code policy:
+
+- **0** – Run completed. The pipeline ran to the end (config valid, no run-level exception). Some episodes may have failed; partial results and run index still reflect failures.
+- **1** – Run-level failure. Configuration error, dependency missing (e.g. ffmpeg), or an unhandled exception during the run.
+
+So exit code 0 means "the run finished", not "every episode succeeded". Use the run index (`index.json`) or `run.json` to see per-episode status. Flags `--fail-fast` and `--max-failures` stop processing after the first or after N episode failures but **still exit 0** if the run completed without a run-level error.
+
+## CLI subcommands and startup (Issue #429)
+
+- **Subcommands:** The first argument can be `doctor` or `cache`. When you run `python -m podcast_scraper.cli doctor` (or `podcast-scraper doctor`), the rest of the arguments are passed to that subcommand. If you omit arguments, the CLI uses `sys.argv[1:]` so subcommands work when invoked from the shell.
+- **Startup validation:** Before the main pipeline runs, the CLI checks Python version (3.10+) and that `ffmpeg` is on PATH. These checks are **skipped** for `doctor` and `cache` so you can run doctor even if ffmpeg is missing.
+- **Doctor** (`podcast-scraper doctor`): Runs environment checks (Python, ffmpeg, write permissions, model cache, ML imports). Use `--check-network` to test connectivity and `--check-models` to load default Whisper and summarizer once (slow). See [Troubleshooting - Doctor command](TROUBLESHOOTING.md#doctor-command-issue-379-429).
+- **Cache** (`podcast-scraper cache --status` / `--clean`): Manages ML model caches. No Python/ffmpeg validation.
 
 ## Log Level Guidelines
 

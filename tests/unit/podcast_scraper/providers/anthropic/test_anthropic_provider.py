@@ -21,6 +21,7 @@ import pytest
 
 from podcast_scraper import config
 from podcast_scraper.providers.anthropic.anthropic_provider import AnthropicProvider
+from podcast_scraper.providers.ml import speaker_detection
 
 
 @pytest.mark.unit
@@ -688,25 +689,14 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
             generate_metadata=True,
         )
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on mock_client.messages.create "
-            "doesn't affect the Mock created when code accesses "
-            "self.client.messages.create. Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_auth_error(self, mock_render, mock_anthropic):
         """Test that authentication errors are properly handled in speaker detection."""
-        from anthropic import AuthenticationError
-
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
-        mock_client.messages.create.side_effect = AuthenticationError(
-            "Invalid API key: authentication failed", response=None, body=None
-        )
+        create_mock = Mock(side_effect=Exception("Invalid API key: authentication failed"))
+        mock_client.messages.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = AnthropicProvider(self.cfg)
@@ -720,25 +710,14 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         self.assertIn("authentication failed", str(context.exception).lower())
         self.assertIn("ANTHROPIC_API_KEY", str(context.exception))
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on mock_client.messages.create "
-            "doesn't affect the Mock created when code accesses "
-            "self.client.messages.create. Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_rate_limit_error(self, mock_render, mock_anthropic):
         """Test that rate limit errors are properly handled in speaker detection."""
-        from anthropic import RateLimitError
-
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
-        mock_client.messages.create.side_effect = RateLimitError(
-            "Rate limit exceeded: quota exceeded", response=None, body=None
-        )
+        create_mock = Mock(side_effect=Exception("Rate limit exceeded: quota exceeded"))
+        mock_client.messages.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = AnthropicProvider(self.cfg)
@@ -770,14 +749,6 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         error_msg = str(context.exception).lower()
         self.assertTrue("invalid model" in error_msg or "speaker detection failed" in error_msg)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on mock_client.messages.create "
-            "doesn't affect the Mock created when code accesses "
-            "self.client.messages.create. Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_json_decode_error(self, mock_render, mock_anthropic):
@@ -785,10 +756,11 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
 
-        # Mock response with invalid JSON
+        # Mock response with invalid JSON (must start with "{" to return default speakers)
         mock_response = Mock()
-        mock_response.content = [Mock(text="invalid json {")]
-        mock_client.messages.create.return_value = mock_response
+        mock_response.content = [Mock(text="{ invalid")]
+        create_mock = Mock(return_value=mock_response)
+        mock_client.messages.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = AnthropicProvider(self.cfg)
@@ -800,7 +772,7 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_speaker_detection_empty_response(self, mock_anthropic):
@@ -821,30 +793,21 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on mock_client.messages.create "
-            "doesn't affect the Mock created when code accesses "
-            "self.client.messages.create. Need different mocking approach."
-        )
-    )
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     @patch(
         "podcast_scraper.providers.anthropic.anthropic_provider."
         "AnthropicProvider._build_summarization_prompts"
     )
-    def test_summarization_auth_error(self, mock_build_prompts, mock_anthropic):
+    def test_summarization_auth_error(self, mock_build_prompts, mock_anthropic, mock_get_metadata):
         """Test that authentication errors are properly handled in summarization."""
-        from anthropic import AuthenticationError
-
+        mock_get_metadata.return_value = {}
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
-        mock_client.messages.create.side_effect = AuthenticationError(
-            "Invalid API key: authentication failed", response=None, body=None
-        )
+        create_mock = Mock(side_effect=Exception("Invalid API key: authentication failed"))
+        mock_client.messages.create = create_mock
         mock_build_prompts.return_value = (
             "System Prompt",
             "User Prompt",
@@ -864,28 +827,21 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
 
         self.assertIn("authentication failed", str(context.exception).lower())
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on mock_client.messages.create "
-            "doesn't affect the Mock created when code accesses "
-            "self.client.messages.create. Need different mocking approach."
-        )
-    )
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     @patch(
         "podcast_scraper.providers.anthropic.anthropic_provider."
         "AnthropicProvider._build_summarization_prompts"
     )
-    def test_summarization_rate_limit_error(self, mock_build_prompts, mock_anthropic):
+    def test_summarization_rate_limit_error(
+        self, mock_build_prompts, mock_anthropic, mock_get_metadata
+    ):
         """Test that rate limit errors are properly handled in summarization."""
-        from anthropic import RateLimitError
-
+        mock_get_metadata.return_value = {}
         mock_client = Mock()
         mock_anthropic.return_value = mock_client
-        mock_client.messages.create.side_effect = RateLimitError(
-            "Rate limit exceeded: quota exceeded", response=None, body=None
-        )
+        create_mock = Mock(side_effect=Exception("Rate limit exceeded: quota exceeded"))
+        mock_client.messages.create = create_mock
         mock_build_prompts.return_value = (
             "System Prompt",
             "User Prompt",
@@ -1078,6 +1034,6 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         # Should not call API when auto_speakers is disabled
         mock_client.messages.create.assert_not_called()

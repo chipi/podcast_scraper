@@ -1,6 +1,6 @@
 # PRD-013: Grok Provider Integration (xAI)
 
-- **Status**: Planned
+- **Status**: ✅ Implemented (v2.5.0)
 - **Revision**: 3
 - **Date**: 2026-02-05
 - **Implementation**: Issue #1095
@@ -24,6 +24,7 @@ Grok (xAI) offers several advantages:
 - **Public API**: Public API available at `https://api.x.ai/v1` (verify with your API key)
 
 **API Details (Verified/Assumed):**
+
 - Base URL: `https://api.x.ai/v1` (OpenAI-compatible endpoint)
 - SDK: Uses OpenAI SDK with custom `base_url` (no new dependency)
 - Authentication: API key via `GROK_API_KEY` environment variable
@@ -118,6 +119,7 @@ grok_summary_user_prompt: str = Field(
 ```
 
 **Environment-based defaults:**
+
 - **Test environment**: `grok-beta` (beta model, typically available for development)
 - **Production environment**: `grok-2` (production model, best quality)
 
@@ -125,18 +127,18 @@ grok_summary_user_prompt: str = Field(
 
 ## Model Options and Pricing
 
-**⚠️ Note:** Pricing information should be verified from xAI's official documentation at https://console.x.ai or https://docs.x.ai. The following are estimates based on common pricing patterns.
+**⚠️ Note:** Pricing information should be verified from xAI's official documentation at <https://console.x.ai> or <https://docs.x.ai>. The following are estimates based on common pricing patterns.
 
 | Model | Input Cost | Output Cost | Context Window | Speed | Best For |
 | ----- | ---------- | ----------- | -------------- | ----- | -------- |
 | **grok-2** | Verify pricing | Verify pricing | 128k (verify) | Medium | **Production** |
 | **grok-beta** | Verify pricing | Verify pricing | 128k (verify) | Medium | **Dev/Test** |
 
-**Source:** Verify current pricing at https://console.x.ai or https://docs.x.ai. Pricing may vary based on your account tier.
+**Source:** Verify current pricing at <https://console.x.ai> or <https://docs.x.ai>. Pricing may vary based on your account tier.
 
 ### Free Tier Limits
 
-**⚠️ Needs Verification:** Free tier availability and limits should be verified from xAI documentation at https://console.x.ai.
+**⚠️ Needs Verification:** Free tier availability and limits should be verified from xAI documentation at <https://console.x.ai>.
 
 | Model | Requests/Min | Tokens/Min | Requests/Day |
 | ----- | ------------ | ---------- | ------------ |
@@ -250,7 +252,7 @@ grok_summary_user_prompt: str = Field(
 
 - ✅ Users can select Grok provider for speaker detection and summarization via unified provider
 - ✅ Clear error when attempting transcription with Grok
-- ✅ API integration works (OpenAI-compatible API at https://api.x.ai/v1)
+- ✅ API integration works (OpenAI-compatible API at <https://api.x.ai/v1>)
 - ✅ Real-time information access via X/Twitter integration
 - ✅ Environment-based model defaults (test vs production)
 - ✅ Both Config-based and experiment-based factory modes supported

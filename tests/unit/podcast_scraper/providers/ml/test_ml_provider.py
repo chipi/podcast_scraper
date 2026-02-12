@@ -130,6 +130,48 @@ class TestMLProviderStandalone(unittest.TestCase):
         self.assertFalse(provider._whisper_initialized)
         self.assertFalse(provider._transformers_initialized)
 
+    @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.get_ner_model")
+    def test_spacy_reuse_from_preloaded_does_not_call_get_ner_model(self, mock_get_ner):
+        """When preloaded MLProvider has spaCy, second provider reuses it (Issue #428)."""
+        mock_nlp = Mock()
+        preloaded = Mock(spec=MLProvider)
+        preloaded.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
+            whisper_model="base",
+            whisper_device="cpu",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+            summary_device="cpu",
+        )
+        preloaded._spacy_initialized = True
+        preloaded._spacy_nlp = mock_nlp
+        preloaded._spacy_heuristics = None
+        preloaded._whisper_initialized = False
+        preloaded._transformers_initialized = False
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
+            auto_speakers=True,
+            transcribe_missing=False,
+            generate_summaries=False,
+            whisper_model="base",
+            whisper_device="cpu",
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+            summary_device="cpu",
+        )
+        with patch("podcast_scraper.workflow.orchestration._preloaded_ml_provider", preloaded):
+            provider = MLProvider(cfg)
+            provider.initialize()
+
+        mock_get_ner.assert_not_called()
+        self.assertTrue(provider._spacy_initialized)
+        self.assertIs(provider._spacy_nlp, mock_nlp)
+
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_reduce_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.select_summary_model")
     @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")

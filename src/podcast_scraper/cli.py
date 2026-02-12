@@ -1,4 +1,7 @@
-"""Command-line interface helpers for podcast_scraper."""
+"""Command-line interface helpers for podcast_scraper.
+
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
+"""
 
 from __future__ import annotations
 
@@ -364,6 +367,13 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--delay-ms", type=int, default=0, help="Delay between requests (ms)")
     parser.add_argument(
         "--run-id", default=None, help="Optional run identifier; use 'auto' for timestamp"
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Random seed for reproducibility (Issue #429); sets torch/numpy/transformers seeds",
     )
     parser.add_argument(
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
@@ -1229,150 +1239,182 @@ def _parse_doctor_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespa
         action="store_true",
         help="Also check network connectivity (optional)",
     )
+    parser.add_argument(
+        "--check-models",
+        action="store_true",
+        help="Try loading default Whisper and summarizer models once (slow, optional)",
+    )
     args = parser.parse_args(argv)
     return args
 
 
-def _run_doctor_checks(check_network: bool = False) -> int:
-    """Run diagnostic checks (Issue #379).
-
-    Args:
-        check_network: Whether to check network connectivity
-
-    Returns:
-        Exit code (0 = all checks passed, 1 = some checks failed)
-    """
-    import shutil
-    import subprocess
+def _doctor_check_python() -> bool:
+    """Check Python version; print result. Return True if OK."""
     import sys
 
-    print("\n" + "=" * 60)
-    print("podcast_scraper Doctor - Diagnostic Checks")
-    print("=" * 60 + "\n")
-
-    all_passed = True
-
-    # Check 1: Python version
     print("✓ Checking Python version...")
-    python_version = sys.version_info
-    if python_version.major < 3 or (python_version.major == 3 and python_version.minor < 10):
-        print(f"  ✗ Python {python_version.major}.{python_version.minor} is too old")
+    v = sys.version_info
+    if v.major < 3 or (v.major == 3 and v.minor < 10):
+        print(f"  ✗ Python {v.major}.{v.minor} is too old")
         print("    Required: Python 3.10 or higher")
-        all_passed = False
-    else:
-        print(f"  ✓ Python {python_version.major}.{python_version.minor}.{python_version.micro}")
+        return False
+    print(f"  ✓ Python {v.major}.{v.minor}.{v.micro}")
+    return True
 
-    # Check 2: ffmpeg
+
+def _doctor_check_ffmpeg() -> bool:
+    """Check ffmpeg; print result. Return True if OK."""
+    import shutil
+    import subprocess
+
     print("\n✓ Checking ffmpeg...")
-    ffmpeg_path = shutil.which("ffmpeg")
-    if not ffmpeg_path:
+    path = shutil.which("ffmpeg")
+    if not path:
         print("  ✗ ffmpeg not found in PATH")
         print("    Install: https://ffmpeg.org/download.html")
-        all_passed = False
-    else:
-        try:
-            result = subprocess.run(
-                ["ffmpeg", "-version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                version_line = result.stdout.split("\n")[0]
-                print(f"  ✓ ffmpeg found: {ffmpeg_path}")
-                print(f"    {version_line}")
-            else:
-                print(f"  ✗ ffmpeg found but failed to run: {ffmpeg_path}")
-                all_passed = False
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
-            print(f"  ✗ ffmpeg check failed: {e}")
-            all_passed = False
+        return False
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            print(f"  ✓ ffmpeg found: {path}")
+            print(f"    {result.stdout.split(chr(10))[0]}")
+            return True
+        print(f"  ✗ ffmpeg found but failed to run: {path}")
+        return False
+    except (subprocess.TimeoutExpired, FileNotFoundError, Exception) as e:
+        print(f"  ✗ ffmpeg check failed: {e}")
+        return False
 
-    # Check 3: Write permissions
+
+def _doctor_check_write_permissions() -> bool:
+    """Check write permissions; print result. Return True if OK."""
     print("\n✓ Checking write permissions...")
     try:
         test_dir = Path.home() / ".podcast_scraper_test"
         test_dir.mkdir(exist_ok=True)
-        test_file = test_dir / "test_write.txt"
-        test_file.write_text("test")
-        test_file.unlink()
+        (test_dir / "test_write.txt").write_text("test")
+        (test_dir / "test_write.txt").unlink()
         test_dir.rmdir()
         print("  ✓ Write permissions OK")
+        return True
     except Exception as e:
         print(f"  ✗ Write permission check failed: {e}")
-        all_passed = False
+        return False
 
-    # Check 4: Model cache directory
+
+def _doctor_check_cache_dir() -> bool:
+    """Check model cache dir; print result. Return True if OK (or optional)."""
     print("\n✓ Checking model cache directory...")
     try:
         from .cache import manager as cache_manager
 
-        cache_info = cache_manager.get_all_cache_info()
-        cache_dir = cache_info.get("whisper", {}).get("dir")
+        cache_dir = cache_manager.get_all_cache_info().get("whisper", {}).get("dir")
         if cache_dir and cache_dir.exists():
             test_file = cache_dir / ".podcast_scraper_test_write"
             try:
                 test_file.write_text("test")
                 test_file.unlink()
                 print(f"  ✓ Model cache directory writable: {cache_dir}")
+                return True
             except Exception as e:
                 print(f"  ✗ Model cache directory not writable: {e}")
-                all_passed = False
-        else:
-            print("  ⚠ Model cache directory not found (will be created on first use)")
+                return False
+        print("  ⚠ Model cache directory not found (will be created on first use)")
+        return True
     except ImportError:
         print("  ⚠ Cache manager not available (optional)")
+        return True
 
-    # Check 5: ML dependencies (optional)
+
+def _doctor_check_ml_deps() -> bool:
+    """Check ML deps (optional); print result. Always returns True."""
     print("\n✓ Checking ML dependencies...")
-    try:
-        import torch
+    for label, mod in [
+        ("PyTorch", "torch"),
+        ("Transformers", "transformers"),
+        ("Whisper", "whisper"),
+        ("spaCy", "spacy"),
+    ]:
+        try:
+            m = __import__(mod)
+            print(f"  ✓ {label}: {getattr(m, '__version__', '?')}")
+        except ImportError:
+            print(f"  ⚠ {label} not installed (required for some features)")
+    return True
 
-        print(f"  ✓ PyTorch: {torch.__version__}")
-    except ImportError:
-        print("  ⚠ PyTorch not installed (required for transcription/summarization)")
 
-    try:
-        import transformers
-
-        print(f"  ✓ Transformers: {transformers.__version__}")
-    except ImportError:
-        print("  ⚠ Transformers not installed (required for summarization)")
-
+def _doctor_check_models_load() -> bool:
+    """Check loading default Whisper and summarizer; print result."""
+    print("\n✓ Checking model load (default Whisper and summarizer)...")
+    ok = True
     try:
         import whisper
 
-        print(f"  ✓ Whisper: {whisper.__version__}")
-    except ImportError:
-        print("  ⚠ Whisper not installed (required for transcription)")
-
+        model = getattr(config, "TEST_DEFAULT_WHISPER_MODEL", "base.en")
+        whisper.load_model(model, device="cpu", download_root=None)
+        print(f"  ✓ Whisper model loaded: {model}")
+    except Exception as e:
+        print(f"  ✗ Whisper model load failed: {e}")
+        ok = False
     try:
-        import spacy
+        from podcast_scraper.providers.ml.summarizer import SummaryModel
 
-        print(f"  ✓ spaCy: {spacy.__version__}")
-    except ImportError:
-        print("  ⚠ spaCy not installed (required for speaker detection)")
+        model = getattr(config, "TEST_DEFAULT_SUMMARY_MODEL", "facebook/bart-base")
+        SummaryModel(model, device="cpu")
+        print(f"  ✓ Summarizer model loaded: {model}")
+    except Exception as e:
+        print(f"  ✗ Summarizer model load failed: {e}")
+        ok = False
+    return ok
 
-    # Check 6: Network connectivity (optional)
+
+def _doctor_check_network() -> bool:
+    """Check network connectivity; print result. Return True if OK."""
+    print("\n✓ Checking network connectivity...")
+    try:
+        import urllib.request
+
+        urllib.request.urlopen("https://www.google.com", timeout=5)
+        print("  ✓ Network connectivity OK")
+        return True
+    except Exception as e:
+        print(f"  ✗ Network connectivity check failed: {e}")
+        return False
+
+
+def _run_doctor_checks(check_network: bool = False, check_models: bool = False) -> int:
+    """Run diagnostic checks (Issue #379, #429).
+
+    Args:
+        check_network: Whether to check network connectivity
+        check_models: Whether to try loading default ML models once
+
+    Returns:
+        Exit code (0 = all checks passed, 1 = some checks failed)
+    """
+    print("\n" + "=" * 60)
+    print("podcast_scraper Doctor - Diagnostic Checks")
+    print("=" * 60 + "\n")
+    all_passed = _doctor_check_python()
+    all_passed = _doctor_check_ffmpeg() and all_passed
+    all_passed = _doctor_check_write_permissions() and all_passed
+    all_passed = _doctor_check_cache_dir() and all_passed
+    _doctor_check_ml_deps()
+    if check_models:
+        all_passed = _doctor_check_models_load() and all_passed
     if check_network:
-        print("\n✓ Checking network connectivity...")
-        try:
-            import urllib.request
-
-            urllib.request.urlopen("https://www.google.com", timeout=5)
-            print("  ✓ Network connectivity OK")
-        except Exception as e:
-            print(f"  ✗ Network connectivity check failed: {e}")
-            all_passed = False
-
-    # Summary
+        all_passed = _doctor_check_network() and all_passed
     print("\n" + "=" * 60)
     if all_passed:
         print("✓ All checks passed!")
         return 0
-    else:
-        print("✗ Some checks failed. Please fix the issues above.")
-        return 1
+    print("✗ Some checks failed. Please fix the issues above.")
+    return 1
 
 
 def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -1499,6 +1541,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "screenplay_num_speakers": args.num_speakers,
         "screenplay_speaker_names": speaker_names_list,
         "run_id": args.run_id,
+        "seed": getattr(args, "seed", None),
         "log_level": args.log_level,
         "log_file": args.log_file,
         "json_logs": getattr(args, "json_logs", False),
@@ -1853,6 +1896,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
     logger: Optional[logging.Logger] = None,
 ) -> int:
     """Entry point for the CLI; returns an exit status code."""
+    if argv is None:
+        argv = sys.argv[1:]
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor subcommands
@@ -1880,9 +1925,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
         # argparse may call sys.exit() for --help, etc.
         return exc.code if isinstance(exc.code, int) else 0
 
-    # Handle doctor subcommand (Issue #379)
+    # Handle doctor subcommand (Issue #379, #429)
     if hasattr(args, "command") and args.command == "doctor":
-        return _run_doctor_checks(check_network=args.check_network)
+        return _run_doctor_checks(
+            check_network=getattr(args, "check_network", False),
+            check_models=getattr(args, "check_models", False),
+        )
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":

@@ -22,30 +22,107 @@ Common issues and solutions for podcast_scraper development and usage.
 | Need structured logs | Default logging format | Use `--json-logs` flag |
 | Want to stop on first failure | Default continues on errors | Use `--fail-fast` flag |
 | Want to limit failures | Default has no limit | Use `--max-failures N` flag |
+| `make test-fast` or `make ci-fast` hangs at ~87% | pytest-xdist stall near end of run | `TEST_FAST_WORKERS=2 make test-fast` (or `make ci-fast`) |
+| Unsure if environment is ready | Python, ffmpeg, cache, or models missing | Run `podcast-scraper doctor` (see below) |
 
 ---
 
-## Diagnostic Commands (Issue #379)
+## test-fast / ci-fast hangs at ~87%
 
-The `doctor` command helps diagnose common issues:
+**Symptom:** `make test-fast` or `make ci-fast` sometimes hangs around 80–90% and never finishes (or takes a very long time). Other times the same run completes.
+
+**Cause:** Known pytest-xdist behavior: with parallel workers, the run can stall near completion (worker coordination at end of suite). More likely with higher worker counts.
+
+**Workaround:** Run with fewer workers so the stall is less likely:
 
 ```bash
-# Run all diagnostic checks
-python -m podcast_scraper.cli doctor
+# Use 2 workers for the fast test suite (slower but avoids hang)
+TEST_FAST_WORKERS=2 make test-fast
 
-# Include network connectivity check
-python -m podcast_scraper.cli doctor --verbose
+# Same for full fast CI
+TEST_FAST_WORKERS=2 make ci-fast
 ```
 
-**Checks performed:**
+**Alternative:** Run the test phase without parallelism (slow but reliable):
 
-- Python version (must be 3.10+)
-- `ffmpeg` availability (required for Whisper transcription)
-- Write permissions (output directory)
-- ML model cache status (Whisper, Transformers, spaCy)
-- Network connectivity (optional, with `--verbose`)
+```bash
+make format-check lint type security
+E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n 0 --cov=podcast_scraper --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+```
 
-If any check fails, the command exits with code 1 and provides guidance on how to fix the issue.
+**Can we delay shutdown so workers have time to finish?**  
+pytest-xdist does not expose a “grace period” or “wait N seconds before teardown”. The stall is inside xdist’s master–worker coordination; we can’t inject a delay from outside. So we cannot “delay by a few seconds” in xdist itself.
+
+**Does changing the scheduler (e.g. `--dist loadfile`) fix it?**  
+No. Using a different distribution (e.g. by file instead of by test) is not a fundamental solution. The run can still get stuck, often at a different point (e.g. later in the run). The only reliable workarounds are fewer workers (e.g. 2), no parallelism (`-n 0`), or a timeout cap.
+
+**Bounded run** – If you need parallelism and it still hangs, cap the run so it exits instead of hanging forever (Linux/macOS with `timeout` or `gtimeout`):
+
+```bash
+timeout 900 make test-fast   # Linux: exit after 15 min
+gtimeout 900 make test-fast # macOS (brew install coreutils)
+```
+
+---
+
+## Doctor command (Issue #379, #429)
+
+The **`doctor`** subcommand runs environment and dependency checks so you can fix issues before running the pipeline. Use it after a fresh install, when switching machines, or when you see errors about ffmpeg, Python, or ML models.
+
+### How to run
+
+```bash
+# Standard checks (Python, ffmpeg, permissions, cache, ML imports)
+python -m podcast_scraper.cli doctor
+# or, if installed as a script:
+podcast-scraper doctor
+
+# Also check network connectivity
+podcast-scraper doctor --check-network
+
+# Also try loading default Whisper and summarizer models once (slow; validates "can load each model")
+podcast-scraper doctor --check-models
+```
+
+### What it checks
+
+| Check | Purpose |
+| ----- | ------- |
+| **Python version** | Must be 3.10 or higher (same as `requires-python` in pyproject.toml). |
+| **ffmpeg** | Required for audio processing and Whisper. Must be on PATH and runnable. |
+| **Write permissions** | Creates a test file under `~/.podcast_scraper_test` to ensure the process can write. |
+| **Model cache directory** | Verifies the Whisper/Transformers cache dir exists and is writable (e.g. `.cache/whisper` or `~/.cache/huggingface/hub`). |
+| **ML dependencies** | Imports PyTorch, Transformers, Whisper, spaCy and prints versions (does not load models by default). |
+| **Network** (optional, `--check-network`) | Opens a connection to confirm outbound connectivity. |
+| **Model load** (optional, `--check-models`) | Loads the default Whisper model and default summarizer model once. Slow; use to confirm models download and load correctly. |
+
+### Exit codes
+
+- **0** – All checks passed.
+- **1** – One or more checks failed. Fix the reported issues and run doctor again.
+
+### When to use
+
+- **After install** – Confirm Python 3.10+, ffmpeg, and (if using ML) cache and dependencies.
+- **Before a long run** – Catch missing ffmpeg or a read-only cache early.
+- **After "model not cached" or import errors** – Run `doctor` then `doctor --check-models` to verify models load.
+- **When debugging CI or another machine** – Run doctor in that environment and share the output.
+
+## Exit codes and partial failures (Issue #429)
+
+The pipeline exits **0** when the run completes, even if some episodes failed (e.g. 404 audio, timeout). Exit **1** only for run-level failure (bad config, missing ffmpeg, unhandled exception). So `echo $?` after a run does not tell you whether every episode succeeded—only that the run finished.
+
+**To see per-episode results:**
+
+- Open `output_dir/run_<suffix>/index.json`: each episode has `status` (`ok` / `failed` / `skipped`) and on failure `error_type`, `error_message`, `error_stage`.
+- Or use `run.json` in the same directory; it links to `index.json` via `index_file`.
+
+**Flags:**
+
+- `--fail-fast`: Stop after the first episode failure (run still exits 0 when it finishes).
+- `--max-failures N`: Stop after N episode failures (run still exits 0 when it finishes).
+
+See [Development Guide - CLI exit codes](DEVELOPMENT_GUIDE.md#cli-exit-codes-issue-429) for the full policy.
 
 ## ML Dependencies
 
@@ -446,7 +523,7 @@ pytest tests/unit/ --tb=short
 
 # For debugging, use --pdb instead
 pytest tests/unit/ --pdb
-```yaml
+```
 
 ---
 
@@ -471,7 +548,7 @@ make fix-md
 # Run all checks
 
 make lint
-```python
+```
 
 ## Documentation Build Fails
 
@@ -506,7 +583,7 @@ open htmlcov/index.html
 # Identify uncovered code
 
 coverage report --show-missing
-```yaml
+```
 
 ---
 
@@ -563,7 +640,7 @@ pip install --upgrade types-requests types-PyYAML
 # Check specific file
 
 mypy src/podcast_scraper/your_file.py --show-error-codes
-```yaml
+```
 
 ---
 
@@ -673,10 +750,20 @@ python -c "import feedparser; print(feedparser.parse('https://example.com/feed.x
 
 If your issue isn't covered here:
 
-1. **Search existing issues:**
+1. **Run doctor** to capture environment state:
+
+   ```bash
+   podcast-scraper doctor --check-network > doctor_output.txt 2>&1
+   # Optionally include model load check (slow):
+   podcast-scraper doctor --check-models >> doctor_output.txt 2>&1
+   ```
+
+   Attach `doctor_output.txt` when opening an issue.
+
+2. **Search existing issues:**
    [GitHub Issues](https://github.com/chipi/podcast_scraper/issues)
 
-2. **Check logs:**
+3. **Check logs:**
 
    ```bash
    # Enable debug logging
@@ -684,11 +771,12 @@ If your issue isn't covered here:
    python3 -m podcast_scraper.cli ...
    ```
 
-3. **Open a new issue** with:
+4. **Open a new issue** with:
    - Python version (`python --version`)
    - OS and version
    - Full error message/traceback
    - Steps to reproduce
+   - Doctor output if relevant (see step 1)
 
 ---
 

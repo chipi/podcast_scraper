@@ -9,7 +9,10 @@ This architecture document is the central hub for understanding the system. For 
 ### Core Documentation
 
 - **[ADR Index](adr/index.md)** — **The immutable record of architectural laws and decisions**
+- **Architecture — [Ways to run and deploy](#ways-to-run-and-deploy)** — CLI vs service vs Docker; one pipeline, one Config
+- **[Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md)** — Performance, security, reliability, observability, maintainability, scalability
 - **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
+- **[Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md)** — Pipeline flow, module roles, behavioral quirks, run tracking
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
 - **[Testing Guide](guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
   - [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md) — Unit test mocking patterns
@@ -65,14 +68,28 @@ This architecture document is the central hub for understanding the system. For 
   and verbatim quotes with evidence grounding from
   podcast transcripts (PRD-017, planned).
 
+## Ways to run and deploy
+
+The system has **one pipeline** (`workflow.run_pipeline`) and **one configuration model** (`Config`). Both entry points produce a `Config` and call the same pipeline; only how config is supplied and how results are surfaced differs.
+
+| Mode | Use case | Config source | Entry / deployment |
+| ---- | --------- | ------------- | ------------------- |
+| **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, `python -m podcast_scraper.cli`. Subcommands: `doctor`, `cache`. |
+| **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
+| **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](guides/DOCKER_SERVICE_GUIDE.md). |
+
+**Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](api/REFERENCE.md) and [Service API](api/SERVICE.md).
+
+**Providers:** Eight providers (1 local ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
+
 ## Architectural Decisions (ADRs)
 
 The following architectural principles govern this system. For the full history and rationale, see the **[ADR Index](adr/index.md)**.
 
 ### Core Patterns
 
-- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode (enabled by default) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS.
-- **Providers**: Protocol-based discovery ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-011](adr/ADR-011-unified-provider-pattern.md)) and library-based naming ([ADR-013](adr/ADR-013-technology-based-provider-naming.md)).
+- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode ([ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md)) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS (enabled by default).
+- **Providers**: Protocol-based discovery ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-011](adr/ADR-011-unified-provider-pattern.md)), library-based naming ([ADR-013](adr/ADR-013-technology-based-provider-naming.md)), and per-capability provider selection ([ADR-049](adr/ADR-049-per-capability-provider-selection.md)).
 - **Lazy Loading**: Heavy ML dependencies are loaded only when needed ([ADR-005](adr/ADR-005-lazy-ml-dependency-loading.md)).
 
 ### Data & Filesystem
@@ -103,7 +120,7 @@ The following architectural principles govern this system. For the full history 
 - **Structured Logging**: `--json-logs` flag enables structured JSON logging for log aggregation systems (ELK, Splunk, CloudWatch).
 - **Diagnostics**: `podcast_scraper doctor` command validates environment (Python version, ffmpeg, write permissions, model cache, network connectivity).
 
-## High-Level Flow
+## Pipeline and Workflow
 
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
 2. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup.
@@ -681,8 +698,7 @@ flowchart TD
     style Input fill:#e1f5ff
     style Config fill:#fff3cd
     style Validate fill:#f8d7da
-
-```python
+```
 
 - `models.Episode` encapsulates the RSS item, chosen transcript URLs, and media enclosure metadata, keeping parsing concerns separate from processing. May be extended to include detected speaker names (RFC-010).
 - Transcript filenames follow `<####> - <episode_title>[ _<run_suffix>].<ext>` with extensions inferred from declared types, HTTP headers, or URL heuristics.
@@ -703,12 +719,7 @@ flowchart TD
   quotes, topics, and their grounding relationships.
   The file conforms to `docs/kg/kg.schema.json` and
   is co-located with other episode artifacts.
-- **Run tracking files** (Issue #379): The pipeline generates several tracking files in the output directory:
-  - `run.json` - Top-level run summary combining run manifest and pipeline metrics
-  - `index.json` - Episode index listing all processed episodes with status and paths
-  - `run_manifest.json` - Comprehensive run manifest capturing system state (git SHA, config hash, Python version, OS, GPU info, model versions, seed) for reproducibility
-  - `metrics.json` - Pipeline metrics including episode statuses, stage timings, and performance data
-  - All files include schema versioning (`schema_version: "1.0.0"`) for forward compatibility.
+- **Run tracking files** (Issue #379, #429): The pipeline writes `run.json`, `index.json`, `run_manifest.json`, and `metrics.json` in each run directory. See [Pipeline and Workflow Guide - Run tracking files](guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429) for details.
 
 ### Filesystem Layout
 

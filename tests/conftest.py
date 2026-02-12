@@ -489,6 +489,124 @@ def _is_unit_test_safe() -> bool:
     return "/unit/" in test_name
 
 
+def _cleanup_ml_set_env_and_torch(monkeypatch) -> None:
+    """Set HF hub and thread env vars; limit torch threads if already imported."""
+    import os
+    import sys
+
+    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    monkeypatch.setenv("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    for key in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "TORCH_NUM_THREADS"):
+        os.environ.setdefault(key, "1")
+        monkeypatch.setenv(key, "1")
+    if "torch" in sys.modules:
+        try:
+            import torch
+
+            if hasattr(torch, "set_num_threads"):
+                try:
+                    torch.set_num_threads(1)
+                except RuntimeError:
+                    pass
+            if hasattr(torch, "set_num_interop_threads"):
+                try:
+                    torch.set_num_interop_threads(1)
+                except RuntimeError:
+                    pass
+        except ImportError:
+            pass
+
+
+def _cleanup_ml_reset_preloaded_before() -> None:
+    """Reset workflow._preloaded_ml_provider to None before test."""
+    try:
+        from podcast_scraper import workflow
+
+        workflow._preloaded_ml_provider = None
+    except ImportError:
+        pass
+
+
+def _cleanup_ml_reset_preloaded_after() -> None:
+    """Cleanup and reset workflow._preloaded_ml_provider after test."""
+    try:
+        from podcast_scraper import workflow
+
+        if workflow._preloaded_ml_provider is not None:
+            try:
+                workflow._preloaded_ml_provider.cleanup()
+            except Exception:
+                pass
+            workflow._preloaded_ml_provider = None
+    except ImportError:
+        pass
+
+
+def _cleanup_ml_find_and_clean_models() -> None:
+    """Find SummaryModel/MLProvider instances via gc and clean them (non-parallel only)."""
+    import os
+
+    if os.environ.get("PYTEST_XDIST_WORKER") is not None:
+        return
+    try:
+        from podcast_scraper.providers.ml import summarizer
+        from podcast_scraper.providers.ml.ml_provider import MLProvider
+
+        all_objects = gc.get_objects()
+        summary_models = [
+            obj
+            for obj in all_objects
+            if isinstance(obj, summarizer.SummaryModel) and obj.model is not None
+        ]
+        providers = [
+            obj for obj in all_objects if isinstance(obj, MLProvider) and obj.is_initialized
+        ]
+        for model in summary_models:
+            try:
+                summarizer.unload_model(model)
+            except Exception:
+                pass
+        for provider in providers:
+            try:
+                from podcast_scraper import workflow
+
+                if provider is not workflow._preloaded_ml_provider:
+                    provider.cleanup()
+            except Exception:
+                pass
+    except (ImportError, AttributeError):
+        pass
+
+
+def _cleanup_ml_gc_after_test() -> None:
+    """Run GC (and optionally torch cache clear) after test for integration/e2e."""
+    import os
+
+    test_name = os.environ.get("PYTEST_CURRENT_TEST", "")
+    if "test_integration" not in test_name and "test_e2e" not in test_name:
+        return
+    try:
+        is_parallel = os.environ.get("PYTEST_XDIST_WORKER") is not None
+        if is_parallel:
+            for _ in range(3):
+                gc.collect()
+            try:
+                import torch
+
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                    torch.cuda.synchronize()
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    if hasattr(torch.mps, "empty_cache"):
+                        torch.mps.empty_cache()
+            except (ImportError, AttributeError):
+                pass
+        else:
+            gc.collect()
+    except Exception:
+        pass
+
+
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_ml_resources_after_test(request):
     """Ensure ML resources are cleaned up after each test.
@@ -521,186 +639,13 @@ def cleanup_ml_resources_after_test(request):
     request.node attributes can hang. This fixture checks PYTEST_CURRENT_TEST
     environment variable FIRST (before accessing request) to avoid hangs.
     """
-    import os
-    import sys
-
-    # CRITICAL: Check if unit test FIRST using safe method (env var only)
-    # This MUST be done before accessing request or monkeypatch to avoid hangs with -s flag
-    is_unit_test = _is_unit_test_safe()
-
-    # For unit tests, exit immediately - don't even request monkeypatch fixture
-    # This prevents pytest from trying to resolve fixture parameters which can hang
-    if is_unit_test:
+    if _is_unit_test_safe():
         yield
         return
-
-    # For non-unit tests, we need monkeypatch, so request it now
-    # This is safe because we've already determined it's not a unit test
     monkeypatch = request.getfixturevalue("monkeypatch")
-
-    # Disable Hugging Face Hub progress bars to avoid misleading "Downloading" messages
-    # when loading models from cache. This is especially important in test environments
-    # where network is blocked and progress bars can be confusing.
-    # Set this early before any transformers imports
-    os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-    monkeypatch.setenv("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-
-    # Limit PyTorch thread pools to prevent excessive thread spawning
-    # Set to 1 thread per worker to minimize resource usage in parallel tests
-    # This prevents PyTorch from spawning many threads per model
-    os.environ.setdefault("OMP_NUM_THREADS", "1")
-    os.environ.setdefault("MKL_NUM_THREADS", "1")
-    os.environ.setdefault("TORCH_NUM_THREADS", "1")
-
-    # Also set via monkeypatch to ensure it applies even if already imported
-    monkeypatch.setenv("OMP_NUM_THREADS", "1")
-    monkeypatch.setenv("MKL_NUM_THREADS", "1")
-    monkeypatch.setenv("TORCH_NUM_THREADS", "1")
-
-    # Try to set PyTorch thread count directly if already imported
-    # Note: set_num_interop_threads can only be called once per process,
-    # so we catch RuntimeError if it's already been set
-    # Only check if torch is already imported (don't import it ourselves to save memory)
-    # Skip this for unit tests to avoid any potential hangs
-    # Reuse is_unit_test from earlier check
-    if "torch" in sys.modules and not is_unit_test:
-        try:
-            import torch
-
-            if hasattr(torch, "set_num_threads"):
-                try:
-                    torch.set_num_threads(1)
-                except RuntimeError:
-                    pass  # Already set, ignore
-            if hasattr(torch, "set_num_interop_threads"):
-                try:
-                    torch.set_num_interop_threads(1)
-                except RuntimeError:
-                    pass  # Already set or parallel work started, ignore
-        except ImportError:
-            pass  # PyTorch not available, skip
-
-    # Reset preloaded ML provider global BEFORE test runs
-    # This ensures each test starts with clean state and prevents cross-test interference
-    # in parallel execution (pytest-xdist) where the global could be shared
-    # See: https://github.com/chipi/podcast_scraper/issues/177 (flaky tests)
-    try:
-        from podcast_scraper import workflow
-
-        workflow._preloaded_ml_provider = None
-    except ImportError:
-        pass  # workflow module not available
-
-    # Run the test
+    _cleanup_ml_set_env_and_torch(monkeypatch)
+    _cleanup_ml_reset_preloaded_before()
     yield
-
-    # Reset preloaded ML provider global AFTER test completes
-    # This prevents one test's cleanup from affecting another test that's still running
-    try:
-        from podcast_scraper import workflow
-
-        if workflow._preloaded_ml_provider is not None:
-            try:
-                workflow._preloaded_ml_provider.cleanup()
-            except Exception:
-                pass  # Ignore cleanup errors
-            workflow._preloaded_ml_provider = None
-    except ImportError:
-        pass  # workflow module not available
-
-    # Enhanced cleanup: Find and clean up ALL model and provider instances created during test
-    # This addresses issue #351: tests creating models directly (not via global provider)
-    # may not be cleaned up, causing memory issues
-    # NOTE: Skip gc.get_objects() in parallel execution (pytest-xdist) as it can hang
-    # scanning thousands of objects across workers. Sequential runs can use it safely.
-    if not is_unit_test:
-        try:
-            import os
-
-            # Check if running in parallel (pytest-xdist sets XDIST_WORKER env var)
-            is_parallel = os.environ.get("PYTEST_XDIST_WORKER") is not None
-
-            if not is_parallel:
-                # Find all SummaryModel instances created during test
-                # Use gc.get_objects() to find all instances, then filter by type
-                # This is more aggressive than just cleaning the global provider
-                from podcast_scraper.providers.ml import summarizer
-                from podcast_scraper.providers.ml.ml_provider import MLProvider
-
-                # Get all objects and filter for SummaryModel and MLProvider instances
-                all_objects = gc.get_objects()
-                summary_models = [
-                    obj
-                    for obj in all_objects
-                    if isinstance(obj, summarizer.SummaryModel)
-                    and obj.model is not None  # Only clean up loaded models
-                ]
-                providers = [
-                    obj for obj in all_objects if isinstance(obj, MLProvider) and obj.is_initialized
-                ]
-
-                # Clean up all SummaryModel instances
-                for model in summary_models:
-                    try:
-                        summarizer.unload_model(model)
-                    except Exception:
-                        pass  # Ignore cleanup errors (model may already be cleaned up)
-
-                # Clean up all provider instances (except the global one, already handled)
-                for provider in providers:
-                    try:
-                        # Skip the global provider (already cleaned up above)
-                        from podcast_scraper import workflow
-
-                        if provider is not workflow._preloaded_ml_provider:
-                            provider.cleanup()
-                    except Exception:
-                        pass  # Ignore cleanup errors
-
-        except (ImportError, AttributeError):
-            # ML modules not available (e.g., in unit tests without ML dependencies)
-            pass
-
-    # After test completes, force garbage collection
-    # This helps clean up any ML models that weren't explicitly cleaned up
-    # and releases threads that might be holding references
-    # Note: In parallel mode, we can't use gc.get_objects() to find models,
-    # so we rely on more aggressive GC and cache clearing to free memory
-    # Skip gc.collect() for unit tests to avoid hangs from mock finalizers
-    # Unit tests should clean up explicitly, and integration/E2E tests will benefit from GC
-    # Only run GC for integration/E2E tests, skip for unit tests
-    # Check test name from env var (safer than request.node)
-    test_name_after = os.environ.get("PYTEST_CURRENT_TEST", "")
-    if not is_unit_test and (
-        "test_integration" in test_name_after or "test_e2e" in test_name_after
-    ):
-        try:
-            import os
-
-            is_parallel = os.environ.get("PYTEST_XDIST_WORKER") is not None
-
-            # In parallel mode, be more aggressive with cleanup since we can't use gc.get_objects()
-            # Multiple GC rounds help free memory from models that weren't explicitly cleaned up
-            if is_parallel:
-                # Multiple GC rounds for parallel mode (models accumulate without gc.get_objects())
-                for _ in range(3):
-                    gc.collect()
-
-                # Clear PyTorch caches more aggressively in parallel mode
-                try:
-                    import torch
-
-                    if torch.cuda.is_available():
-                        torch.cuda.empty_cache()
-                        torch.cuda.synchronize()
-                    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                        if hasattr(torch.mps, "empty_cache"):
-                            torch.mps.empty_cache()
-                except (ImportError, AttributeError):
-                    pass  # PyTorch not available or no cache clearing method
-            else:
-                # Single GC round for sequential mode (more efficient)
-                gc.collect()
-        except Exception:
-            # Ignore any errors from GC (e.g., finalizer issues)
-            pass
+    _cleanup_ml_reset_preloaded_after()
+    _cleanup_ml_find_and_clean_models()
+    _cleanup_ml_gc_after_test()

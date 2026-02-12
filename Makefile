@@ -192,7 +192,8 @@ format-check:
 
 lint:
 	$(PYTHON) -m flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-	$(PYTHON) -m flake8 --config .flake8 . --count --exit-zero --statistics
+	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
+	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
 
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
@@ -283,7 +284,7 @@ docs-check: lint-markdown-docs spelling-docs docs
 COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
 COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
 COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
-COVERAGE_THRESHOLD_COMBINED := 70      # Target: 70% combined (CI enforce)
+COVERAGE_THRESHOLD_COMBINED := 75      # Current: ~75%; target 80% (Issue #432 Phase 6; CI enforce)
 
 check-unit-imports:
 	# Verify that unit tests can import modules without ML dependencies
@@ -548,15 +549,26 @@ test-sequential:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early
 	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/ -m "not analytical" --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost
 
+# Fast tests: same coverage approach as 'test' — separate pytest runs per layer, then combine.
+# Avoids one large xdist session (which can hang at shutdown). Each layer uses its own worker count.
 test-fast:
-	# Fast tests: parallel execution for speed
-	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
-	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
-	# Uses fast feed for E2E tests (1 episode) - set via E2E_TEST_MODE environment variable
-	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
-	# Excludes nightly tests (comprehensive tests run only in nightly builds)
-	# Use --durations=20 to monitor slow tests and optimize them separately
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	# Fast tests: unit + critical path integration + critical path e2e (separate runs, then combine coverage)
+	# Uses fast feed for E2E (1 episode) via E2E_TEST_MODE=fast. Excludes nightly.
+	@echo "Running unit tests (fast) with coverage..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) \
+		--cov=$(PACKAGE) --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Running critical path integration tests with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
+	@echo "Running critical path E2E tests with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly' \
+		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@echo "Combining coverage..."
+	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
 
 test-reruns:
 	# Network isolation enabled to match CI behavior and catch network dependency issues early

@@ -1,6 +1,6 @@
 # RFC-033: Mistral Provider Implementation (Revised)
 
-- **Status**: Draft (Revised)
+- **Status**: ✅ Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -1006,6 +1006,6 @@ Same pattern as OpenAI provider:
 
 - **Related PRD**: `docs/prd/PRD-010-mistral-provider-integration.md`
 - **Reference Implementation**: `src/podcast_scraper/providers/openai/openai_provider.py`
-- **Mistral API Documentation**: https://docs.mistral.ai/
-- **Mistral Python SDK**: https://github.com/mistralai/mistral-python
-- **Voxtral Documentation**: https://docs.mistral.ai/capabilities/audio_transcription
+- **Mistral API Documentation**: <https://docs.mistral.ai/>
+- **Mistral Python SDK**: <https://github.com/mistralai/mistral-python>
+- **Voxtral Documentation**: <https://docs.mistral.ai/capabilities/audio_transcription>

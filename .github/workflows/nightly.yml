@@ -83,7 +83,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -200,7 +200,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -236,7 +236,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -278,7 +278,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: |
           docs/requirements.txt
@@ -308,7 +308,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -341,7 +341,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -425,7 +425,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -508,7 +508,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -596,7 +596,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -675,7 +675,7 @@ jobs:
     - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.11"
+        python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
@@ -887,7 +887,7 @@ jobs:
         radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
         interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
         # Vulture dead code detection
-        vulture src/podcast_scraper/ --min-confidence 60 --sort-by-size --json > reports/vulture.json 2>/dev/null || echo '[]' > reports/vulture.json
+        vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 60 --sort-by-size --json > reports/vulture.json 2>/dev/null || echo '[]' > reports/vulture.json
         # Codespell spelling check
         codespell --quiet --skip="*.pyc,*.pyo,*.pyd,*.so,*.egg,*.whl,.git,.venv,__pycache__,.pytest_cache" --write-changes=reports/codespell.txt 2>/dev/null || touch reports/codespell.txt
 

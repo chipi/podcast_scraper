@@ -6,7 +6,7 @@
 > - **This document** - Quick reference, test execution commands
 > - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
-> - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking
+> - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes
 > - **[Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Quick Reference

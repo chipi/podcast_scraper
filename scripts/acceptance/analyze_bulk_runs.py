@@ -432,6 +432,375 @@ def calculate_statistics(values: List[float]) -> Dict[str, float]:
     }
 
 
+def _is_real_error(error_text: str) -> bool:
+    """Check if this is a real error or a false positive."""
+    error_lower = error_text.lower()
+    has_error_level = any(
+        level in error_lower
+        for level in ["level=error", "level=critical", "levelname=error", "levelname=critical"]
+    )
+    has_warning_level = any(
+        level in error_lower
+        for level in ["level=warning", "level=warn", "levelname=warning", "levelname=warn"]
+    )
+    has_info_level = any(level in error_lower for level in ["level=info", "levelname=info"])
+    has_debug_level = any(level in error_lower for level in ["level=debug", "levelname=debug"])
+    has_error_uppercase = (
+        " ERROR " in error_text
+        or error_text.startswith("ERROR ")
+        or " CRITICAL " in error_text
+        or error_text.startswith("CRITICAL ")
+    )
+    has_warning_uppercase = " WARNING " in error_text or error_text.startswith("WARNING ")
+    has_info_uppercase = " INFO " in error_text or error_text.startswith("INFO ")
+    has_debug_uppercase = " DEBUG " in error_text or error_text.startswith("DEBUG ")
+    if has_warning_level or has_warning_uppercase:
+        return False
+    if has_error_level or has_error_uppercase:
+        return True
+    if has_info_level or has_info_uppercase or has_debug_level or has_debug_uppercase:
+        return False
+    if "traceback (most recent call last)" in error_lower or "traceback:" in error_lower:
+        return True
+    exclusions = [
+        "error_type: none",
+        "error_message: none",
+        "errors total: 0",
+        "no error",
+        "error_count: 0",
+        "error: none",
+        "error: null",
+        "'error_type': none",
+        "'error_message': none",
+        '"error_type": null',
+        '"error_message": null',
+        "episode statuses:",
+        "failed=0",
+        "failed: 0",
+        "failed= 0",
+        "ok=",
+        "ok:",
+        "result: episodes=",
+        "degradation policy",
+        "degradation:",
+    ]
+    if any(exclusion in error_lower for exclusion in exclusions):
+        return False
+    error_patterns = [
+        "traceback",
+        "exception:",
+        "error:",
+        "failed",
+        "failure",
+        "critical",
+        "fatal",
+    ]
+    if not any(pattern in error_lower for pattern in error_patterns):
+        return False
+    success_indicators = ["failed=0", "failed: 0", "failed= 0", "ok=", "ok:", "result: episodes="]
+    if any(ind in error_lower for ind in success_indicators):
+        return False
+    if "degradation" in error_lower and "policy" in error_lower:
+        return False
+    return True
+
+
+def _is_real_warning(warning_text: str) -> bool:
+    """Check if this is a real warning or a false positive."""
+    warning_lower = warning_text.lower()
+    has_warning_level = any(
+        level in warning_lower
+        for level in ["level=warning", "level=warn", "levelname=warning", "levelname=warn"]
+    )
+    has_error_level = any(
+        level in warning_lower
+        for level in ["level=error", "level=critical", "levelname=error", "levelname=critical"]
+    )
+    has_info_level = any(level in warning_lower for level in ["level=info", "levelname=info"])
+    has_debug_level = any(level in warning_lower for level in ["level=debug", "levelname=debug"])
+    has_warning_uppercase = (
+        " WARNING " in warning_text
+        or warning_text.startswith("WARNING ")
+        or "FutureWarning:" in warning_text
+    )
+    has_error_uppercase = (
+        " ERROR " in warning_text
+        or warning_text.startswith("ERROR ")
+        or " CRITICAL " in warning_text
+        or warning_text.startswith("CRITICAL ")
+    )
+    has_info_uppercase = " INFO " in warning_text or warning_text.startswith("INFO ")
+    has_debug_uppercase = " DEBUG " in warning_text or warning_text.startswith("DEBUG ")
+    if has_warning_level or has_warning_uppercase:
+        return True
+    if has_error_level or has_error_uppercase:
+        return False
+    if has_info_level or has_info_uppercase or has_debug_level or has_debug_uppercase:
+        return False
+    exclusions = [
+        "warning_count: 0",
+        "warnings total: 0",
+        "no warning",
+        "suppress_fp16_warning",
+        "warning=",
+        "warning_count",
+        "warnings total",
+        "disable_warning",
+        "ignore_warning",
+    ]
+    if any(exclusion in warning_lower for exclusion in exclusions):
+        return False
+    if not any(p in warning_lower for p in ["warning:", "warn:", "deprecated", "deprecation"]):
+        return False
+    if "suppress" in warning_lower or "disable" in warning_lower or "ignore" in warning_lower:
+        return False
+    return True
+
+
+def _basic_report_header(
+    session_data: Dict[str, Any],
+    total_runs: int,
+    successful_runs: int,
+    failed_runs: int,
+) -> List[str]:
+    """Build header lines for basic report."""
+    lines = [
+        "# E2E Acceptance Test Report",
+        "",
+        f"**Session ID:** {session_data.get('session_id')}",
+        f"**Start Time:** {session_data.get('start_time', 'N/A')}",
+        f"**End Time:** {session_data.get('end_time', 'N/A')}",
+        f"**Total Configs:** {total_runs}",
+        f"**Successful:** {successful_runs} ({successful_runs/max(1,total_runs)*100:.1f}%)",
+        f"**Failed:** {failed_runs} ({failed_runs/max(1,total_runs)*100:.1f}%)",
+        f"**Total Duration:** {session_data.get('total_duration_seconds', 0):.1f}s",
+        "",
+    ]
+    return lines
+
+
+def _basic_report_performance_variance(
+    report: List[str], runs: List[Dict], durations: List[float]
+) -> None:
+    """Append performance variance analysis to report."""
+    if not durations or len(durations) <= 1:
+        return
+    duration_stats = calculate_statistics(durations)
+    fastest = min(durations)
+    slowest = max(durations)
+    if fastest <= 0:
+        return
+    speed_ratio = slowest / fastest
+    cv = (
+        (duration_stats["std_dev"] / max(0.1, duration_stats["mean"]) * 100)
+        if duration_stats["std_dev"] > 0
+        else 0
+    )
+    report.append("### Performance Variance Analysis")
+    report.append("")
+    if speed_ratio > 2:
+        report.append(
+            f"⚠️ **High performance variance detected:** "
+            f"Slowest run is {speed_ratio:.1f}x slower than fastest"
+        )
+        if cv > 30:
+            report.append(
+                f"  - Coefficient of Variation: {cv:.1f}% "
+                f"(high variance indicates inconsistent performance)"
+            )
+    else:
+        report.append(f"✅ **Performance is consistent:** Speed variance is {speed_ratio:.1f}x")
+        if cv < 10:
+            report.append(
+                f"  - Coefficient of Variation: {cv:.1f}% "
+                f"(low variance indicates stable performance)"
+            )
+    report.append("")
+
+
+def _basic_report_errors_section(
+    report: List[str],
+    runs: List[Dict],
+) -> None:
+    """Append error and warning details to report."""
+    all_errors = []
+    all_warnings = []
+    for run in runs:
+        logs = run.get("logs", {})
+        config_name = run.get("config_name", "unknown")
+        for error in logs.get("errors", []):
+            if _is_real_error(error):
+                all_errors.append((config_name, error))
+        for warning in logs.get("warnings", []):
+            if _is_real_warning(warning):
+                all_warnings.append((config_name, warning))
+    if not all_errors and not all_warnings:
+        return
+    report.append("### Error and Warning Details")
+    report.append("")
+    if all_errors:
+        report.append(f"#### Errors ({len(all_errors)})")
+        report.append("")
+        for i, (config_name, error) in enumerate(all_errors, 1):
+            error_display = error[:200] + "..." if len(error) > 200 else error
+            report.append(f"{i}. **[{config_name}]** {error_display}")
+        report.append("")
+    if all_warnings:
+        report.append(f"#### Warnings ({len(all_warnings)})")
+        report.append("")
+        for i, (config_name, warning) in enumerate(all_warnings, 1):
+            warning_display = warning[:200] + "..." if len(warning) > 200 else warning
+            report.append(f"{i}. **[{config_name}]** {warning_display}")
+        report.append("")
+
+
+def _basic_report_output_quality(
+    report: List[str],
+    non_dry_run_runs: List[Dict],
+    non_dry_run_episodes: int,
+    total_transcripts: int,
+    total_metadata: int,
+    total_summaries: int,
+) -> None:
+    """Append output quality section to report."""
+    if non_dry_run_episodes <= 0:
+        return
+    transcript_coverage = total_transcripts / non_dry_run_episodes * 100
+    metadata_coverage = total_metadata / non_dry_run_episodes * 100
+    summary_coverage = total_summaries / non_dry_run_episodes * 100
+    if transcript_coverage < 100 or metadata_coverage < 100 or summary_coverage < 100:
+        report.append("### Output Quality Issues")
+        report.append("")
+        if transcript_coverage < 100:
+            report.append(
+                f"⚠️ **Missing transcripts:** "
+                f"{non_dry_run_episodes - total_transcripts} episodes "
+                f"({100 - transcript_coverage:.1f}% missing)"
+            )
+        if metadata_coverage < 100:
+            report.append(
+                f"⚠️ **Missing metadata:** "
+                f"{non_dry_run_episodes - total_metadata} episodes "
+                f"({100 - metadata_coverage:.1f}% missing)"
+            )
+        if summary_coverage < 100:
+            report.append(
+                f"⚠️ **Missing summaries:** "
+                f"{non_dry_run_episodes - total_summaries} episodes "
+                f"({100 - summary_coverage:.1f}% missing)"
+            )
+        report.append("")
+    else:
+        report.append("### Output Quality")
+        report.append("")
+        report.append(
+            "✅ **All outputs complete:** 100% coverage for transcripts, metadata, and summaries"
+        )
+        report.append("")
+
+
+def _basic_report_dry_run_section(report: List[str], runs: List[Dict]) -> None:
+    """Append dry-run detection section to report."""
+    dry_run_runs = [r for r in runs if r.get("is_dry_run", False)]
+    if not dry_run_runs:
+        return
+    report.append("## Dry-Run Mode Detection")
+    report.append("")
+    report.append(f"ℹ️ **{len(dry_run_runs)} run(s) detected in dry-run mode.**")
+    report.append("")
+    report.append("Dry-run mode is a preview mode that plans operations without executing them.")
+    report.append("Expected behavior for dry-run runs:")
+    report.append("- ✅ Exit code: 0 (success)")
+    report.append("- 📋 Episodes: 0 (no actual processing)")
+    report.append("- 📋 Transcripts: 0 (no files created)")
+    report.append("- 📋 Metadata/Summaries: 0 (no files created)")
+    report.append("")
+    report.append("**Dry-run configs:**")
+    for run in dry_run_runs:
+        report.append(f"- `{run.get('config_name', 'unknown')}`")
+    report.append("")
+
+
+def _basic_report_table(
+    report: List[str],
+    runs: List[Dict],
+) -> None:
+    """Build and append per-run summary table to report."""
+    headers = [
+        "Config",
+        "Status",
+        "Duration",
+        "Episodes",
+        "Errors",
+        "Warnings",
+        "Memory (MB)",
+        "Throughput",
+    ]
+    table_rows = []
+    for run in runs:
+        config_name = run.get("config_name", "unknown")
+        if len(config_name) > 30:
+            config_name = config_name[:27] + "..."
+        exit_code = run.get("exit_code", 1)
+        is_dry_run = run.get("is_dry_run", False)
+        if is_dry_run:
+            status = "✅ (DRY-RUN)" if exit_code == 0 else "❌ (DRY-RUN)"
+        else:
+            status = "✅" if exit_code == 0 else "❌"
+        duration = run.get("duration_seconds", 0)
+        episodes = run.get("episodes_processed", 0)
+        logs = run.get("logs", {})
+        real_errors = [e for e in logs.get("errors", []) if _is_real_error(e)]
+        real_warnings = [w for w in logs.get("warnings", []) if _is_real_warning(w)]
+        memory = run.get("resource_usage", {}).get("peak_memory_mb")
+        memory_str = f"{memory:.0f}" if memory is not None and memory > 0 else "N/A"
+        throughput = episodes / max(0.1, duration) if duration > 0 else 0
+        throughput_str = (
+            "N/A (dry-run)" if is_dry_run else (f"{throughput:.3f}/s" if throughput > 0 else "N/A")
+        )
+        table_rows.append(
+            [
+                config_name,
+                status,
+                f"{duration:.1f}s",
+                str(episodes),
+                str(len(real_errors)),
+                str(len(real_warnings)),
+                memory_str,
+                throughput_str,
+            ]
+        )
+    col_widths = [
+        max(len(h), max((len(row[i]) for row in table_rows), default=0), 3)
+        for i, h in enumerate(headers)
+    ]
+    report.append("| " + " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers)) + " |")
+    report.append("| " + " | ".join("-" * col_widths[i] for i in range(len(headers))) + " |")
+    for row in table_rows:
+        report.append(
+            "| " + " | ".join(row[i].ljust(col_widths[i]) for i in range(len(headers))) + " |"
+        )
+    report.append("")
+
+
+def _basic_report_baseline(
+    report: List[str],
+    baseline_comparison: Optional[Dict[str, Any]],
+) -> None:
+    """Append baseline comparison to report."""
+    if not baseline_comparison:
+        return
+    report.append("## Baseline Comparison")
+    report.append("")
+    report.append(f"**Baseline:** {baseline_comparison.get('baseline_id')}")
+    regressions = baseline_comparison.get("regressions", 0)
+    if regressions > 0:
+        report.append(f"⚠️ **{regressions} regression(s) detected**")
+    else:
+        report.append("✅ **No regressions detected**")
+    report.append("")
+
+
 def generate_basic_report(
     session_data: Dict[str, Any],
     baseline_comparison: Optional[Dict[str, Any]] = None,
@@ -450,200 +819,7 @@ def generate_basic_report(
     successful_runs = sum(1 for r in runs if r.get("exit_code", 1) == 0)
     failed_runs = total_runs - successful_runs
 
-    report = []
-    report.append("# E2E Acceptance Test Report")
-    report.append("")
-    report.append(f"**Session ID:** {session_data.get('session_id')}")
-    report.append(f"**Start Time:** {session_data.get('start_time', 'N/A')}")
-    report.append(f"**End Time:** {session_data.get('end_time', 'N/A')}")
-    report.append(f"**Total Configs:** {total_runs}")
-    report.append(
-        f"**Successful:** {successful_runs} ({successful_runs/max(1,total_runs)*100:.1f}%)"
-    )
-    report.append(f"**Failed:** {failed_runs} ({failed_runs/max(1,total_runs)*100:.1f}%)")
-    report.append(f"**Total Duration:** {session_data.get('total_duration_seconds', 0):.1f}s")
-    report.append("")
-
-    # Define filtering functions for errors and warnings (used throughout the report)
-    def is_real_error(error_text: str) -> bool:
-        """Check if this is a real error or a false positive."""
-        error_lower = error_text.lower()
-
-        # PRIORITY 1: Check log level first (most reliable indicator)
-        # Check for structured log formats first (most explicit)
-        has_error_level = any(
-            level in error_lower
-            for level in ["level=error", "level=critical", "levelname=error", "levelname=critical"]
-        )
-        has_warning_level = any(
-            level in error_lower
-            for level in ["level=warning", "level=warn", "levelname=warning", "levelname=warn"]
-        )
-        has_info_level = any(level in error_lower for level in ["level=info", "levelname=info"])
-        has_debug_level = any(level in error_lower for level in ["level=debug", "levelname=debug"])
-
-        # Check for uppercase log level indicators (standard Python logging format)
-        has_error_uppercase = (
-            " ERROR " in error_text
-            or error_text.startswith("ERROR ")
-            or " CRITICAL " in error_text
-            or error_text.startswith("CRITICAL ")
-        )
-        has_warning_uppercase = " WARNING " in error_text or error_text.startswith("WARNING ")
-        has_info_uppercase = " INFO " in error_text or error_text.startswith("INFO ")
-        has_debug_uppercase = " DEBUG " in error_text or error_text.startswith("DEBUG ")
-
-        # If it's explicitly a WARNING level, it's NOT an error
-        if has_warning_level or has_warning_uppercase:
-            return False
-
-        # If it's explicitly an ERROR/CRITICAL level, it IS an error
-        if has_error_level or has_error_uppercase:
-            return True
-
-        # If it's INFO or DEBUG level, it's NOT an error (even if it mentions "error" or "failed")
-        if has_info_level or has_info_uppercase or has_debug_level or has_debug_uppercase:
-            return False
-
-        # PRIORITY 2: Pattern matching (only if no explicit log level found)
-        # Check for Python traceback patterns (always errors)
-        if "traceback (most recent call last)" in error_lower or "traceback:" in error_lower:
-            return True
-
-        # Exclude false positives
-        exclusions = [
-            "error_type: none",
-            "error_message: none",
-            "errors total: 0",
-            "no error",
-            "error_count: 0",
-            "error: none",
-            "error: null",
-            "'error_type': none",
-            "'error_message': none",
-            '"error_type": null',
-            '"error_message": null',
-            "episode statuses:",
-            "failed=0",  # Processing job with no failures
-            "failed: 0",  # Processing job with no failures
-            "failed= 0",  # Processing job with no failures
-            "ok=",  # Success indicators (e.g., "ok=3, failed=0")
-            "ok:",
-            "result: episodes=",  # Result summary lines
-            "degradation policy",  # Degradation warnings
-            # (e.g., "Saving transcript without summary (degradation policy: ...)")
-            "degradation:",  # Degradation logger messages
-        ]
-        if any(exclusion in error_lower for exclusion in exclusions):
-            return False
-
-        # Check for error patterns in other contexts
-        error_patterns = [
-            "traceback",
-            "exception:",
-            "error:",
-            "failed",
-            "failure",
-            "critical",
-            "fatal",
-        ]
-        if any(pattern in error_lower for pattern in error_patterns):
-            # Exclude success indicators
-            if any(
-                success_indicator in error_lower
-                for success_indicator in [
-                    "failed=0",
-                    "failed: 0",
-                    "failed= 0",
-                    "ok=",
-                    "ok:",
-                    "result: episodes=",
-                ]
-            ):
-                return False
-            # Exclude degradation policy warnings (they contain "failed" but are warnings)
-            if "degradation" in error_lower and "policy" in error_lower:
-                return False  # Degradation warnings are not errors
-            return True
-
-        return False
-
-    def is_real_warning(warning_text: str) -> bool:
-        """Check if this is a real warning or a false positive."""
-        warning_lower = warning_text.lower()
-
-        # PRIORITY 1: Check log level first (most reliable indicator)
-        # Check for structured log formats first (most explicit)
-        has_warning_level = any(
-            level in warning_lower
-            for level in ["level=warning", "level=warn", "levelname=warning", "levelname=warn"]
-        )
-        has_error_level = any(
-            level in warning_lower
-            for level in ["level=error", "level=critical", "levelname=error", "levelname=critical"]
-        )
-        has_info_level = any(level in warning_lower for level in ["level=info", "levelname=info"])
-        has_debug_level = any(
-            level in warning_lower for level in ["level=debug", "levelname=debug"]
-        )
-
-        # Check for uppercase log level indicators (standard Python logging format)
-        has_warning_uppercase = (
-            " WARNING " in warning_text
-            or warning_text.startswith("WARNING ")
-            or "FutureWarning:" in warning_text
-        )
-        has_error_uppercase = (
-            " ERROR " in warning_text
-            or warning_text.startswith("ERROR ")
-            or " CRITICAL " in warning_text
-            or warning_text.startswith("CRITICAL ")
-        )
-        has_info_uppercase = " INFO " in warning_text or warning_text.startswith("INFO ")
-        has_debug_uppercase = " DEBUG " in warning_text or warning_text.startswith("DEBUG ")
-
-        # If it's explicitly a WARNING level, it IS a warning
-        if has_warning_level or has_warning_uppercase:
-            return True
-
-        # If it's explicitly an ERROR/CRITICAL level, it's NOT a warning
-        if has_error_level or has_error_uppercase:
-            return False
-
-        # If it's INFO or DEBUG level, it's NOT a warning
-        # (even if it mentions "warning" in parameters)
-        if has_info_level or has_info_uppercase or has_debug_level or has_debug_uppercase:
-            return False
-
-        # PRIORITY 2: Pattern matching (only if no explicit log level found)
-        # Exclude false positives (parameter names, counts, etc.)
-        exclusions = [
-            "warning_count: 0",
-            "warnings total: 0",
-            "no warning",
-            "suppress_fp16_warning",  # Parameter name, not a warning
-            "warning=",  # Parameter assignment
-            "warning_count",
-            "warnings total",
-            "disable_warning",
-            "ignore_warning",  # Parameter names
-        ]
-        if any(exclusion in warning_lower for exclusion in exclusions):
-            return False
-
-        # Check for warning patterns in other contexts
-        warning_patterns = ["warning:", "warn:", "deprecated", "deprecation"]
-        if any(pattern in warning_lower for pattern in warning_patterns):
-            # Make sure it's not in a parameter context
-            if (
-                "suppress" in warning_lower
-                or "disable" in warning_lower
-                or "ignore" in warning_lower
-            ):
-                return False
-            return True
-
-        return False
+    report = _basic_report_header(session_data, total_runs, successful_runs, failed_runs)
 
     # Analysis and Insights (not duplicating basic stats from per-run table)
     report.append("## Analysis and Insights")
@@ -655,167 +831,25 @@ def generate_basic_report(
     )
     report.append("")
 
-    # Calculate values for analysis (but don't duplicate them in output)
     durations = [r.get("duration_seconds", 0) for r in runs]
-    episodes = [r.get("episodes_processed", 0) for r in runs]
-    # total_episodes = sum(episodes)  # Unused variable
-    # memory_values = [  # Unused variable
-    #     r.get("resource_usage", {}).get("peak_memory_mb", 0)
-    #     for r in runs
-    #     if r.get("resource_usage", {}).get("peak_memory_mb") is not None
-    # ]
+    _basic_report_performance_variance(report, runs, durations)
+    _basic_report_errors_section(report, runs)
 
-    # Count real errors and warnings (filtering false positives) for analysis
-    error_counts = []
-    warning_counts = []
-    for r in runs:
-        logs = r.get("logs", {})
-        real_errors = [e for e in logs.get("errors", []) if is_real_error(e)]
-        real_warnings = [w for w in logs.get("warnings", []) if is_real_warning(w)]
-        error_counts.append(len(real_errors))
-        warning_counts.append(len(real_warnings))
-
-    total_errors = sum(error_counts)
-    total_warnings = sum(warning_counts)
-
-    # Performance variance analysis (insight, not duplication)
-    if durations and len(durations) > 1:
-        duration_stats = calculate_statistics(durations)
-        fastest = min(durations)
-        slowest = max(durations)
-        if fastest > 0:
-            speed_ratio = slowest / fastest
-            cv = (
-                (duration_stats["std_dev"] / max(0.1, duration_stats["mean"]) * 100)
-                if duration_stats["std_dev"] > 0
-                else 0
-            )
-            report.append("### Performance Variance Analysis")
-            report.append("")
-            if speed_ratio > 2:
-                report.append(
-                    f"⚠️ **High performance variance detected:** "
-                    f"Slowest run is {speed_ratio:.1f}x slower than fastest"
-                )
-                if cv > 30:
-                    report.append(
-                        f"  - Coefficient of Variation: {cv:.1f}% "
-                        f"(high variance indicates inconsistent performance)"
-                    )
-            else:
-                report.append(
-                    f"✅ **Performance is consistent:** Speed variance is {speed_ratio:.1f}x"
-                )
-                if cv < 10:
-                    report.append(
-                        f"  - Coefficient of Variation: {cv:.1f}% "
-                        f"(low variance indicates stable performance)"
-                    )
-            report.append("")
-
-    # List all errors and warnings
-    if total_errors > 0 or total_warnings > 0:
-        report.append("### Error and Warning Details")
-        report.append("")
-
-        # Collect all errors and warnings from all runs, filtering false positives
-        all_errors = []
-        all_warnings = []
-        for run in runs:
-            logs = run.get("logs", {})
-            config_name = run.get("config_name", "unknown")
-            for error in logs.get("errors", []):
-                if is_real_error(error):
-                    all_errors.append((config_name, error))
-            for warning in logs.get("warnings", []):
-                if is_real_warning(warning):
-                    all_warnings.append((config_name, warning))
-
-        if all_errors:
-            report.append(f"#### Errors ({len(all_errors)})")
-            report.append("")
-            for i, (config_name, error) in enumerate(all_errors, 1):
-                # Truncate very long errors
-                error_display = error[:200] + "..." if len(error) > 200 else error
-                report.append(f"{i}. **[{config_name}]** {error_display}")
-            report.append("")
-
-        if all_warnings:
-            report.append(f"#### Warnings ({len(all_warnings)})")
-            report.append("")
-            for i, (config_name, warning) in enumerate(all_warnings, 1):
-                # Truncate very long warnings
-                warning_display = warning[:200] + "..." if len(warning) > 200 else warning
-                report.append(f"{i}. **[{config_name}]** {warning_display}")
-            report.append("")
-
-    # Output quality analysis (insight, not duplication)
-    # Exclude dry-run runs from output quality analysis (they don't produce outputs)
     non_dry_run_runs = [r for r in runs if not r.get("is_dry_run", False)]
+    non_dry_run_episodes = sum(r.get("episodes_processed", 0) for r in non_dry_run_runs)
     total_transcripts = sum(r.get("outputs", {}).get("transcripts", 0) for r in non_dry_run_runs)
     total_metadata = sum(r.get("outputs", {}).get("metadata", 0) for r in non_dry_run_runs)
     total_summaries = sum(r.get("outputs", {}).get("summaries", 0) for r in non_dry_run_runs)
-    # Use non-dry-run episodes for coverage calculation
-    non_dry_run_episodes = sum(r.get("episodes_processed", 0) for r in non_dry_run_runs)
+    _basic_report_output_quality(
+        report,
+        non_dry_run_runs,
+        non_dry_run_episodes,
+        total_transcripts,
+        total_metadata,
+        total_summaries,
+    )
+    _basic_report_dry_run_section(report, runs)
 
-    if non_dry_run_episodes > 0:
-        transcript_coverage = total_transcripts / non_dry_run_episodes * 100
-        metadata_coverage = total_metadata / non_dry_run_episodes * 100
-        summary_coverage = total_summaries / non_dry_run_episodes * 100
-
-        # Only report if there are issues
-        if transcript_coverage < 100 or metadata_coverage < 100 or summary_coverage < 100:
-            report.append("### Output Quality Issues")
-            report.append("")
-            if transcript_coverage < 100:
-                report.append(
-                    f"⚠️ **Missing transcripts:** "
-                    f"{non_dry_run_episodes - total_transcripts} episodes "
-                    f"({100 - transcript_coverage:.1f}% missing)"
-                )
-            if metadata_coverage < 100:
-                report.append(
-                    f"⚠️ **Missing metadata:** "
-                    f"{non_dry_run_episodes - total_metadata} episodes "
-                    f"({100 - metadata_coverage:.1f}% missing)"
-                )
-            if summary_coverage < 100:
-                report.append(
-                    f"⚠️ **Missing summaries:** "
-                    f"{non_dry_run_episodes - total_summaries} episodes "
-                    f"({100 - summary_coverage:.1f}% missing)"
-                )
-            report.append("")
-        else:
-            report.append("### Output Quality")
-            report.append("")
-            report.append(
-                "✅ **All outputs complete:** 100% coverage for transcripts, metadata, and summaries"
-            )
-            report.append("")
-
-    # Check for dry-run mode runs
-    dry_run_runs = [r for r in runs if r.get("is_dry_run", False)]
-    if dry_run_runs:
-        report.append("## Dry-Run Mode Detection")
-        report.append("")
-        report.append(f"ℹ️ **{len(dry_run_runs)} run(s) detected in dry-run mode.**")
-        report.append("")
-        report.append(
-            "Dry-run mode is a preview mode that plans operations without executing them."
-        )
-        report.append("Expected behavior for dry-run runs:")
-        report.append("- ✅ Exit code: 0 (success)")
-        report.append("- 📋 Episodes: 0 (no actual processing)")
-        report.append("- 📋 Transcripts: 0 (no files created)")
-        report.append("- 📋 Metadata/Summaries: 0 (no files created)")
-        report.append("")
-        report.append("**Dry-run configs:**")
-        for run in dry_run_runs:
-            report.append(f"- `{run.get('config_name', 'unknown')}`")
-        report.append("")
-
-    # Per-run summary table (primary reference for all basic statistics)
     report.append("## Per-Run Summary")
     report.append("")
     report.append(
@@ -824,144 +858,36 @@ def generate_basic_report(
         "for per-run metrics."
     )
     report.append("")
-
-    # Build table data first to calculate column widths
-    table_rows = []
-    headers = [
-        "Config",
-        "Status",
-        "Duration",
-        "Episodes",
-        "Errors",
-        "Warnings",
-        "Memory (MB)",
-        "Throughput",
-    ]
-
-    for run in runs:
-        config_name = run.get("config_name", "unknown")
-        # Truncate long config names for better table display
-        if len(config_name) > 30:
-            config_name = config_name[:27] + "..."
-        exit_code = run.get("exit_code", 1)
-        is_dry_run = run.get("is_dry_run", False)
-        # Add dry-run indicator to status
-        if is_dry_run:
-            status = "✅ (DRY-RUN)" if exit_code == 0 else "❌ (DRY-RUN)"
-        else:
-            status = "✅" if exit_code == 0 else "❌"
-        duration = run.get("duration_seconds", 0)
-        episodes = run.get("episodes_processed", 0)
-        logs = run.get("logs", {})
-        # Filter false positives from error/warning counts in table
-        real_errors = [e for e in logs.get("errors", []) if is_real_error(e)]
-        real_warnings = [w for w in logs.get("warnings", []) if is_real_warning(w)]
-        error_count = len(real_errors)
-        warning_count = len(real_warnings)
-        memory = run.get("resource_usage", {}).get("peak_memory_mb")
-        if memory is not None and memory > 0:
-            memory_str = f"{memory:.0f}"
-        else:
-            memory_str = "N/A"
-        throughput = episodes / max(0.1, duration) if duration > 0 else 0
-        throughput_str = f"{throughput:.3f}/s" if throughput > 0 else "N/A"
-        # For dry-run, show "N/A" for throughput since no actual processing happened
-        if is_dry_run:
-            throughput_str = "N/A (dry-run)"
-
-        table_rows.append(
-            [
-                config_name,
-                status,
-                f"{duration:.1f}s",
-                str(episodes),
-                str(error_count),
-                str(warning_count),
-                memory_str,
-                throughput_str,
-            ]
-        )
-
-    # Calculate column widths (ensure minimum width of 3 for separator)
-    col_widths = [
-        max(len(h), max((len(row[i]) for row in table_rows), default=0), 3)
-        for i, h in enumerate(headers)
-    ]
-
-    # Build header row with proper spacing
-    header_cells = [h.ljust(col_widths[i]) for i, h in enumerate(headers)]
-    header_row = "| " + " | ".join(header_cells) + " |"
-    report.append(header_row)
-
-    # Build separator row (must match header row pipe positions exactly)
-    # Each separator cell is dashes matching the column width, with spaces around pipes
-    separator_cells = ["-" * col_widths[i] for i in range(len(headers))]
-    separator_row = "| " + " | ".join(separator_cells) + " |"
-    report.append(separator_row)
-
-    # Build data rows with proper spacing (must match header/separator alignment)
-    for row in table_rows:
-        data_cells = [row[i].ljust(col_widths[i]) for i in range(len(headers))]
-        data_row = "| " + " | ".join(data_cells) + " |"
-        report.append(data_row)
-
-    report.append("")
-
-    # Baseline comparison
-    if baseline_comparison:
-        report.append("## Baseline Comparison")
-        report.append("")
-        report.append(f"**Baseline:** {baseline_comparison.get('baseline_id')}")
-        regressions = baseline_comparison.get("regressions", 0)
-        if regressions > 0:
-            report.append(f"⚠️ **{regressions} regression(s) detected**")
-        else:
-            report.append("✅ **No regressions detected**")
-        report.append("")
-
+    _basic_report_table(report, runs)
+    _basic_report_baseline(report, baseline_comparison)
     return "\n".join(report)
 
 
-def generate_comprehensive_report(
+def _comprehensive_header(
     session_data: Dict[str, Any],
-    baseline_comparison: Optional[Dict[str, Any]] = None,
-) -> str:
-    """Generate comprehensive Markdown report with deep analysis.
-
-    Args:
-        session_data: Session data
-        baseline_comparison: Optional baseline comparison
-
-    Returns:
-        Markdown report string
-    """
-    runs = session_data.get("runs", [])
-    total_runs = len(runs)
-    successful_runs = sum(1 for r in runs if r.get("exit_code", 1) == 0)
-    failed_runs = total_runs - successful_runs
-
-    report = []
-    report.append("# E2E Acceptance Test Report (Comprehensive Analysis)")
-    report.append("")
-    report.append(f"**Session ID:** {session_data.get('session_id')}")
-    report.append(f"**Start Time:** {session_data.get('start_time', 'N/A')}")
-    report.append(f"**End Time:** {session_data.get('end_time', 'N/A')}")
-    report.append(f"**Total Configs:** {total_runs}")
-    report.append(
-        f"**Successful:** {successful_runs} ({successful_runs/max(1,total_runs)*100:.1f}%)"
-    )
-    report.append(f"**Failed:** {failed_runs} ({failed_runs/max(1,total_runs)*100:.1f}%)")
-    report.append(f"**Total Duration:** {session_data.get('total_duration_seconds', 0):.1f}s")
+    total_runs: int,
+    successful_runs: int,
+    failed_runs: int,
+) -> List[str]:
+    """Build header lines for comprehensive report."""
     avg_duration = session_data.get("total_duration_seconds", 0) / max(1, total_runs)
-    report.append(f"**Average per Config:** {avg_duration:.1f}s")
-    report.append("")
+    return [
+        "# E2E Acceptance Test Report (Comprehensive Analysis)",
+        "",
+        f"**Session ID:** {session_data.get('session_id')}",
+        f"**Start Time:** {session_data.get('start_time', 'N/A')}",
+        f"**End Time:** {session_data.get('end_time', 'N/A')}",
+        f"**Total Configs:** {total_runs}",
+        f"**Successful:** {successful_runs} ({successful_runs/max(1,total_runs)*100:.1f}%)",
+        f"**Failed:** {failed_runs} ({failed_runs/max(1,total_runs)*100:.1f}%)",
+        f"**Total Duration:** {session_data.get('total_duration_seconds', 0):.1f}s",
+        f"**Average per Config:** {avg_duration:.1f}s",
+        "",
+    ]
 
-    # Comprehensive Statistical Analysis
-    report.append("## Comprehensive Statistical Analysis")
-    report.append("")
 
-    # Duration statistics
-    durations = [r.get("duration_seconds", 0) for r in runs]
+def _comprehensive_duration_section(report: List[str], durations: List[float]) -> None:
+    """Append duration analysis section."""
     duration_stats = calculate_statistics(durations)
     report.append("### Duration Analysis")
     report.append("")
@@ -980,8 +906,14 @@ def generate_comprehensive_report(
             report.append("  ✅ **Low variance** - performance is consistent")
     report.append("")
 
-    # Episodes statistics
-    episodes = [r.get("episodes_processed", 0) for r in runs]
+
+def _comprehensive_episodes_section(
+    report: List[str],
+    runs: List[Dict],
+    episodes: List[float],
+    session_data: Dict[str, Any],
+) -> None:
+    """Append episodes and throughput section."""
     episodes_stats = calculate_statistics(episodes)
     total_episodes = sum(episodes)
     report.append("### Episodes Processed Analysis")
@@ -996,11 +928,16 @@ def generate_comprehensive_report(
     if total_episodes > 0 and session_data.get("total_duration_seconds", 0) > 0:
         throughput = total_episodes / session_data.get("total_duration_seconds", 1)
         report.append(f"- **Overall Throughput:** {throughput:.3f} episodes/second")
-        avg_time_per_episode = session_data.get("total_duration_seconds", 0) / total_episodes
-        report.append(f"- **Average Time per Episode:** {avg_time_per_episode:.1f}s")
+        avg_time = session_data.get("total_duration_seconds", 0) / total_episodes
+        report.append(f"- **Average Time per Episode:** {avg_time:.1f}s")
     report.append("")
 
-    # Resource usage statistics
+
+def _comprehensive_memory_cpu_sections(
+    report: List[str],
+    runs: List[Dict],
+) -> None:
+    """Append memory and CPU usage sections."""
     memory_values = [
         r.get("resource_usage", {}).get("peak_memory_mb", 0)
         for r in runs
@@ -1016,7 +953,6 @@ def generate_comprehensive_report(
         for r in runs
         if r.get("resource_usage", {}).get("cpu_percent") is not None
     ]
-
     if memory_values:
         memory_stats = calculate_statistics(memory_values)
         report.append("### Memory Usage Analysis")
@@ -1030,7 +966,6 @@ def generate_comprehensive_report(
         if memory_stats["max"] > 4000:
             report.append("  ⚠️ **High memory usage detected** - may indicate memory leaks")
         report.append("")
-
     if cpu_time_values:
         cpu_stats = calculate_statistics(cpu_time_values)
         report.append("### CPU Usage Analysis")
@@ -1039,16 +974,20 @@ def generate_comprehensive_report(
         report.append(f"- **Median:** {cpu_stats['median']:.1f}s")
         report.append(f"- **Range:** {cpu_stats['min']:.1f}s - {cpu_stats['max']:.1f}s")
         if cpu_percent_values:
-            avg_cpu_percent = statistics.mean(cpu_percent_values)
-            report.append(f"- **Average CPU Percent:** {avg_cpu_percent:.1f}%")
+            report.append(f"- **Average CPU Percent:** {statistics.mean(cpu_percent_values):.1f}%")
         report.append("")
 
-    # Error and warning analysis
-    error_counts = [len(r.get("logs", {}).get("errors", [])) for r in runs]
-    warning_counts = [len(r.get("logs", {}).get("warnings", [])) for r in runs]
+
+def _comprehensive_error_warning_section(
+    report: List[str],
+    runs: List[Dict],
+    error_counts: List[int],
+    warning_counts: List[int],
+    total_runs: int,
+) -> None:
+    """Append error and warning analysis section."""
     total_errors = sum(error_counts)
     total_warnings = sum(warning_counts)
-
     report.append("### Error & Warning Analysis")
     report.append("")
     report.append(f"- **Total Errors:** {total_errors}")
@@ -1061,54 +1000,56 @@ def generate_comprehensive_report(
         warning_stats = calculate_statistics(warning_counts)
         report.append(f"- **Mean Warnings per Run:** {warning_stats['mean']:.1f}")
         report.append(f"- **Max Warnings in Single Run:** {warning_stats['max']:.0f}")
-
-    runs_with_errors = sum(1 for c in error_counts if c > 0)
-    runs_with_warnings = sum(1 for c in warning_counts if c > 0)
     if total_runs > 0:
+        runs_with_errors = sum(1 for c in error_counts if c > 0)
+        runs_with_warnings = sum(1 for c in warning_counts if c > 0)
         report.append(
             f"- **Runs with Errors:** {runs_with_errors} ({runs_with_errors/total_runs*100:.1f}%)"
         )
-        warnings_pct = runs_with_warnings / total_runs * 100
-        report.append(f"- **Runs with Warnings:** {runs_with_warnings} ({warnings_pct:.1f}%)")
+        report.append(
+            f"- **Runs with Warnings:** {runs_with_warnings} "
+            f"({runs_with_warnings/total_runs*100:.1f}%)"
+        )
 
-    # Error categorization
+
+def _comprehensive_error_categories(report: List[str], runs: List[Dict]) -> None:
+    """Append error categorization to report."""
     all_errors = []
     for r in runs:
         all_errors.extend(r.get("logs", {}).get("errors", []))
-
-    if all_errors:
-        error_categories = defaultdict(int)
-        for error in all_errors:
-            error_lower = error.lower()
-            if "import" in error_lower or "module" in error_lower:
-                error_categories["Import/Module Errors"] += 1
-            elif "api" in error_lower or "http" in error_lower or "request" in error_lower:
-                error_categories["API/HTTP Errors"] += 1
-            elif "file" in error_lower or "path" in error_lower or "permission" in error_lower:
-                error_categories["File/Path Errors"] += 1
-            elif "timeout" in error_lower:
-                error_categories["Timeout Errors"] += 1
-            elif "memory" in error_lower or "out of memory" in error_lower:
-                error_categories["Memory Errors"] += 1
-            elif "key" in error_lower or "credential" in error_lower:
-                error_categories["Authentication Errors"] += 1
-            else:
-                error_categories["Other Errors"] += 1
-
-        if error_categories:
-            report.append("")
-            report.append("**Error Categories:**")
-            for category, count in sorted(
-                error_categories.items(), key=lambda x: x[1], reverse=True
-            ):
-                report.append(f"  - {category}: {count} ({count/len(all_errors)*100:.1f}%)")
+    if not all_errors:
+        return
+    error_categories = defaultdict(int)
+    for error in all_errors:
+        error_lower = error.lower()
+        if "import" in error_lower or "module" in error_lower:
+            error_categories["Import/Module Errors"] += 1
+        elif "api" in error_lower or "http" in error_lower or "request" in error_lower:
+            error_categories["API/HTTP Errors"] += 1
+        elif "file" in error_lower or "path" in error_lower or "permission" in error_lower:
+            error_categories["File/Path Errors"] += 1
+        elif "timeout" in error_lower:
+            error_categories["Timeout Errors"] += 1
+        elif "memory" in error_lower or "out of memory" in error_lower:
+            error_categories["Memory Errors"] += 1
+        elif "key" in error_lower or "credential" in error_lower:
+            error_categories["Authentication Errors"] += 1
+        else:
+            error_categories["Other Errors"] += 1
+    if error_categories:
+        report.append("")
+        report.append("**Error Categories:**")
+        for category, count in sorted(error_categories.items(), key=lambda x: x[1], reverse=True):
+            report.append(f"  - {category}: {count} ({count/len(all_errors)*100:.1f}%)")
     report.append("")
 
-    # Output quality analysis
+
+def _comprehensive_output_quality_section(report: List[str], runs: List[Dict]) -> None:
+    """Append output quality analysis section."""
+    total_episodes = sum(r.get("episodes_processed", 0) for r in runs)
     total_transcripts = sum(r.get("outputs", {}).get("transcripts", 0) for r in runs)
     total_metadata = sum(r.get("outputs", {}).get("metadata", 0) for r in runs)
     total_summaries = sum(r.get("outputs", {}).get("summaries", 0) for r in runs)
-
     report.append("### Output Quality Analysis")
     report.append("")
     report.append(f"- **Total Transcripts Generated:** {total_transcripts}")
@@ -1121,7 +1062,6 @@ def generate_comprehensive_report(
         report.append(f"- **Transcript Coverage:** {transcript_coverage:.1f}%")
         report.append(f"- **Metadata Coverage:** {metadata_coverage:.1f}%")
         report.append(f"- **Summary Coverage:** {summary_coverage:.1f}%")
-
         if transcript_coverage < 100:
             report.append(
                 f"  ⚠️ **Missing transcripts:** {total_episodes - total_transcripts} episodes"
@@ -1134,10 +1074,22 @@ def generate_comprehensive_report(
             )
     report.append("")
 
-    # Performance insights and recommendations
+
+def _comprehensive_performance_insights_section(
+    report: List[str],
+    runs: List[Dict],
+    session_data: Dict[str, Any],
+    durations: List[float],
+) -> None:
+    """Append performance insights and recommendations."""
+    total_episodes = sum(r.get("episodes_processed", 0) for r in runs)
+    memory_values = [
+        r.get("resource_usage", {}).get("peak_memory_mb", 0)
+        for r in runs
+        if r.get("resource_usage", {}).get("peak_memory_mb") is not None
+    ]
     report.append("## Performance Insights & Recommendations")
     report.append("")
-
     if durations:
         fastest = min(durations)
         slowest = max(durations)
@@ -1160,57 +1112,54 @@ def generate_comprehensive_report(
                 report.append(
                     f"✅ **Performance is consistent:** Speed variance is {speed_ratio:.1f}x"
                 )
-        report.append("")
-
-    # Efficiency metrics
+            report.append("")
     if total_episodes > 0 and session_data.get("total_duration_seconds", 0) > 0:
-        avg_time_per_episode = session_data.get("total_duration_seconds", 0) / total_episodes
-        report.append(f"- **Average Processing Time per Episode:** {avg_time_per_episode:.1f}s")
-
-        # Calculate efficiency per run
+        avg_time = session_data.get("total_duration_seconds", 0) / total_episodes
+        report.append(f"- **Average Processing Time per Episode:** {avg_time:.1f}s")
         efficiency_scores = []
         for r in runs:
             ep_count = r.get("episodes_processed", 0)
             duration = r.get("duration_seconds", 0)
             if ep_count > 0 and duration > 0:
-                efficiency = ep_count / duration  # episodes per second
-                efficiency_scores.append(efficiency)
-
+                efficiency_scores.append(ep_count / duration)
         if efficiency_scores:
             eff_stats = calculate_statistics(efficiency_scores)
             report.append(f"- **Mean Throughput:** {eff_stats['mean']:.3f} episodes/second")
             report.append(
-                f"- **Throughput Range:** {eff_stats['min']:.3f} - "
-                f"{eff_stats['max']:.3f} episodes/second"
+                f"- **Throughput Range:** {eff_stats['min']:.3f} - {eff_stats['max']:.3f} "
+                "episodes/second"
             )
         report.append("")
-
-    # Resource efficiency
     if memory_values and total_episodes > 0:
-        avg_memory_per_episode = statistics.mean(memory_values) / max(1, total_episodes / len(runs))
-        report.append(f"- **Average Memory per Episode:** {avg_memory_per_episode:.0f}MB")
-        if avg_memory_per_episode > 500:
+        avg_memory = statistics.mean(memory_values) / max(1, total_episodes / len(runs))
+        report.append(f"- **Average Memory per Episode:** {avg_memory:.0f}MB")
+        if avg_memory > 500:
             report.append("  ⚠️ **High memory usage per episode** - consider optimization")
     report.append("")
 
-    # Key findings summary
+
+def _comprehensive_key_findings_section(report: List[str], runs: List[Dict]) -> None:
+    """Append key findings summary section."""
+    memory_values = [
+        r.get("resource_usage", {}).get("peak_memory_mb", 0)
+        for r in runs
+        if r.get("resource_usage", {}).get("peak_memory_mb") is not None
+    ]
     report.append("## Key Findings Summary")
     report.append("")
-
-    # Find slowest/fastest runs
     sorted_runs = sorted(runs, key=lambda r: r.get("duration_seconds", 0), reverse=True)
     if sorted_runs:
         slowest = sorted_runs[0]
         fastest = sorted_runs[-1]
-        slowest_duration = slowest.get("duration_seconds", 0)
-        report.append(f"**Slowest Run:** {slowest.get('config_name')} ({slowest_duration:.1f}s)")
+        report.append(
+            f"**Slowest Run:** {slowest.get('config_name')} "
+            f"({slowest.get('duration_seconds', 0):.1f}s)"
+        )
         if len(sorted_runs) > 1:
-            fastest_duration = fastest.get("duration_seconds", 0)
             report.append(
-                f"**Fastest Run:** {fastest.get('config_name')} ({fastest_duration:.1f}s)"
+                f"**Fastest Run:** {fastest.get('config_name')} "
+                f"({fastest.get('duration_seconds', 0):.1f}s)"
             )
-
-    # Find runs with most errors
     error_runs = sorted(runs, key=lambda r: len(r.get("logs", {}).get("errors", [])), reverse=True)
     if error_runs and len(error_runs[0].get("logs", {}).get("errors", [])) > 0:
         most_errors = error_runs[0]
@@ -1218,8 +1167,6 @@ def generate_comprehensive_report(
             f"**Most Errors:** {most_errors.get('config_name')} "
             f"({len(most_errors.get('logs', {}).get('errors', []))} errors)"
         )
-
-    # Find runs with resource issues
     if memory_values:
         highest_memory_run = max(
             runs,
@@ -1231,24 +1178,26 @@ def generate_comprehensive_report(
                 f"**Highest Memory:** {highest_memory_run.get('config_name')} "
                 f"({highest_memory:.0f}MB)"
             )
-
     report.append("")
 
-    # Detailed per-run analysis
+
+def _comprehensive_detailed_per_run_section(
+    report: List[str],
+    runs: List[Dict],
+    durations: List[float],
+) -> None:
+    """Append detailed per-run analysis section."""
+    duration_stats = calculate_statistics(durations) if durations else {}
     report.append("## Detailed Per-Run Analysis")
     report.append("")
-
     for i, run in enumerate(runs, 1):
         config_name = run.get("config_name", "unknown")
         exit_code = run.get("exit_code", 1)
         status = "✅ PASS" if exit_code == 0 else "❌ FAIL"
-
         is_dry_run = run.get("is_dry_run", False)
         status_suffix = " (DRY-RUN)" if is_dry_run else ""
         report.append(f"### Run {i}: {config_name} - {status}{status_suffix}")
         report.append("")
-
-        # Basic metrics
         duration = run.get("duration_seconds", 0)
         episodes = run.get("episodes_processed", 0)
         report.append("#### Execution Metrics")
@@ -1269,8 +1218,6 @@ def generate_comprehensive_report(
             report.append(f"- **Throughput:** {throughput:.3f} episodes/second")
             report.append(f"- **Time per Episode:** {time_per_episode:.1f}s")
         report.append("")
-
-        # Resource usage
         resource_usage = run.get("resource_usage", {})
         if resource_usage.get("peak_memory_mb") or resource_usage.get("cpu_time_seconds"):
             report.append("#### Resource Usage")
@@ -1279,30 +1226,24 @@ def generate_comprehensive_report(
                 memory = resource_usage["peak_memory_mb"]
                 report.append(f"- **Peak Memory:** {memory:.0f}MB")
                 if episodes > 0:
-                    memory_per_episode = memory / episodes
-                    report.append(f"- **Memory per Episode:** {memory_per_episode:.0f}MB")
+                    report.append(f"- **Memory per Episode:** {memory / episodes:.0f}MB")
             if resource_usage.get("cpu_time_seconds"):
                 cpu_time = resource_usage["cpu_time_seconds"]
                 report.append(f"- **CPU Time:** {cpu_time:.1f}s")
                 if duration > 0:
-                    cpu_efficiency = cpu_time / duration * 100
-                    report.append(f"- **CPU Efficiency:** {cpu_efficiency:.1f}%")
+                    report.append(f"- **CPU Efficiency:** {cpu_time / duration * 100:.1f}%")
             if resource_usage.get("cpu_percent"):
                 report.append(f"- **Average CPU Percent:** {resource_usage['cpu_percent']:.1f}%")
             report.append("")
-
-        # Logs analysis
         logs = run.get("logs", {})
         error_count = len(logs.get("errors", []))
         warning_count = len(logs.get("warnings", []))
         info_count = logs.get("info_count", 0)
-
         report.append("#### Log Analysis")
         report.append("")
         report.append(f"- **Errors:** {error_count}")
         report.append(f"- **Warnings:** {warning_count}")
         report.append(f"- **Info Messages:** {info_count}")
-
         if error_count > 0:
             errors = logs.get("errors", [])
             report.append("")
@@ -1311,7 +1252,6 @@ def generate_comprehensive_report(
                 report.append(f"  {j}. {error[:150]}")
             if len(errors) > 5:
                 report.append(f"  ... and {len(errors) - 5} more errors")
-
         if warning_count > 0:
             warnings = logs.get("warnings", [])
             report.append("")
@@ -1321,71 +1261,104 @@ def generate_comprehensive_report(
             if len(warnings) > 5:
                 report.append(f"  ... and {len(warnings) - 5} more warnings")
         report.append("")
-
-        # Outputs analysis
         outputs = run.get("outputs", {})
         transcripts = outputs.get("transcripts", 0)
         metadata = outputs.get("metadata", 0)
         summaries = outputs.get("summaries", 0)
-
         report.append("#### Output Analysis")
         report.append("")
         report.append(f"- **Transcripts Generated:** {transcripts}")
         report.append(f"- **Metadata Files:** {metadata}")
         report.append(f"- **Summaries Generated:** {summaries}")
-
         if episodes > 0:
-            transcript_coverage = transcripts / episodes * 100
-            metadata_coverage = metadata / episodes * 100
-            summary_coverage = summaries / episodes * 100
             report.append("")
             report.append("**Coverage:**")
-            report.append(f"- Transcripts: {transcript_coverage:.1f}%")
-            report.append(f"- Metadata: {metadata_coverage:.1f}%")
-            report.append(f"- Summaries: {summary_coverage:.1f}%")
-
-            if transcript_coverage < 100 or metadata_coverage < 100 or summary_coverage < 100:
+            report.append(f"- Transcripts: {transcripts / episodes * 100:.1f}%")
+            report.append(f"- Metadata: {metadata / episodes * 100:.1f}%")
+            report.append(f"- Summaries: {summaries / episodes * 100:.1f}%")
+            if transcripts < episodes or metadata < episodes or summaries < episodes:
                 report.append("")
                 report.append("⚠️ **Incomplete outputs detected**")
         report.append("")
-
-        # Performance comparison (if multiple runs)
-        if len(runs) > 1:
-            avg_duration = duration_stats["mean"]
-            if duration > avg_duration * 1.2:
+        if len(runs) > 1 and duration_stats:
+            avg_duration = duration_stats.get("mean", 0)
+            if avg_duration and duration > avg_duration * 1.2:
                 pct_above = (duration / avg_duration - 1) * 100
                 report.append(f"⚠️ **Slower than average:** {pct_above:.1f}% above mean")
-            elif duration < avg_duration * 0.8:
+            elif avg_duration and duration < avg_duration * 0.8:
                 pct_below = (1 - duration / avg_duration) * 100
                 report.append(f"✅ **Faster than average:** {pct_below:.1f}% below mean")
             report.append("")
 
-    # Baseline comparison
-    if baseline_comparison:
-        report.append("## Baseline Comparison")
-        report.append("")
-        report.append(f"**Baseline:** {baseline_comparison.get('baseline_id')}")
-        regressions = baseline_comparison.get("regressions", 0)
-        report.append(f"**Regressions Detected:** {regressions}")
-        report.append("")
 
-        for comparison in baseline_comparison.get("comparisons", []):
-            config_name = comparison.get("config_name", "unknown")
-            status = comparison.get("status", "unknown")
+def _comprehensive_baseline_section(
+    report: List[str],
+    baseline_comparison: Optional[Dict[str, Any]],
+) -> None:
+    """Append baseline comparison section (with per-config comparisons)."""
+    if not baseline_comparison:
+        return
+    report.append("## Baseline Comparison")
+    report.append("")
+    report.append(f"**Baseline:** {baseline_comparison.get('baseline_id')}")
+    report.append(f"**Regressions Detected:** {baseline_comparison.get('regressions', 0)}")
+    report.append("")
+    for comparison in baseline_comparison.get("comparisons", []):
+        config_name = comparison.get("config_name", "unknown")
+        status = comparison.get("status", "unknown")
+        if status == "regression":
+            report.append(f"### ❌ {config_name} - REGRESSION")
+            report.append("")
+            for reason in comparison.get("regression_reasons", []):
+                report.append(f"- {reason}")
+            report.append("")
+        elif status == "ok":
+            report.append(f"### ✅ {config_name} - OK")
+            duration_change = comparison.get("duration_percent_change", 0)
+            if abs(duration_change) > 5:
+                report.append(f"- Duration changed by {duration_change:+.1f}%")
+            report.append("")
 
-            if status == "regression":
-                report.append(f"### ❌ {config_name} - REGRESSION")
-                report.append("")
-                for reason in comparison.get("regression_reasons", []):
-                    report.append(f"- {reason}")
-                report.append("")
-            elif status == "ok":
-                report.append(f"### ✅ {config_name} - OK")
-                duration_change = comparison.get("duration_percent_change", 0)
-                if abs(duration_change) > 5:
-                    report.append(f"- Duration changed by {duration_change:+.1f}%")
-                report.append("")
 
+def generate_comprehensive_report(
+    session_data: Dict[str, Any],
+    baseline_comparison: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Generate comprehensive Markdown report with deep analysis.
+
+    Args:
+        session_data: Session data
+        baseline_comparison: Optional baseline comparison
+
+    Returns:
+        Markdown report string
+    """
+    runs = session_data.get("runs", [])
+    total_runs = len(runs)
+    successful_runs = sum(1 for r in runs if r.get("exit_code", 1) == 0)
+    failed_runs = total_runs - successful_runs
+
+    report = _comprehensive_header(session_data, total_runs, successful_runs, failed_runs)
+    report.append("## Comprehensive Statistical Analysis")
+    report.append("")
+
+    durations = [r.get("duration_seconds", 0) for r in runs]
+    _comprehensive_duration_section(report, durations)
+
+    episodes = [r.get("episodes_processed", 0) for r in runs]
+    _comprehensive_episodes_section(report, runs, episodes, session_data)
+    _comprehensive_memory_cpu_sections(report, runs)
+
+    error_counts = [len(r.get("logs", {}).get("errors", [])) for r in runs]
+    warning_counts = [len(r.get("logs", {}).get("warnings", [])) for r in runs]
+    _comprehensive_error_warning_section(report, runs, error_counts, warning_counts, total_runs)
+    _comprehensive_error_categories(report, runs)
+
+    _comprehensive_output_quality_section(report, runs)
+    _comprehensive_performance_insights_section(report, runs, session_data, durations)
+    _comprehensive_key_findings_section(report, runs)
+    _comprehensive_detailed_per_run_section(report, runs, durations)
+    _comprehensive_baseline_section(report, baseline_comparison)
     return "\n".join(report)
 
 

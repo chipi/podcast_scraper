@@ -75,6 +75,42 @@ def initialize_ml_environment() -> None:
     # See `config/examples/.env.example` for documentation.
 
 
+def set_reproducibility_seeds(cfg: config.Config) -> None:
+    """Set random seeds for reproducibility when cfg.seed is set (Issue #429).
+
+    Sets torch, numpy, and transformers seeds so that pipeline runs are
+    reproducible. MPS (Apple Silicon) may still be non-deterministic;
+    see docs for details.
+
+    Args:
+        cfg: Configuration object (uses cfg.seed if present)
+    """
+    seed = getattr(cfg, "seed", None)
+    if seed is None:
+        return
+    try:
+        import torch
+
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+    except ImportError:
+        pass
+    try:
+        import numpy as np
+
+        np.random.seed(seed)
+    except ImportError:
+        pass
+    try:
+        from transformers import set_seed
+
+        set_seed(seed)
+    except ImportError:
+        pass
+    logger.info("Reproducibility seeds set: seed=%s", seed)
+
+
 def should_preload_ml_models(cfg: config.Config) -> bool:
     """Check if ML models should be preloaded based on configuration.
 

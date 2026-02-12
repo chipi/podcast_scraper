@@ -31,6 +31,7 @@ _patch_openai.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.deepseek.deepseek_provider import DeepSeekProvider
+from podcast_scraper.providers.ml import speaker_detection
 
 
 @pytest.mark.unit
@@ -563,30 +564,18 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
             generate_metadata=True,
         )
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_auth_error(self, mock_render, mock_openai_class):
         """Test that authentication errors are properly handled in speaker detection."""
-        from openai import AuthenticationError
 
-        # Create a mock response object for AuthenticationError
-        mock_response = Mock()
-        mock_response.request = Mock()
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class AuthError(Exception):
+            pass
 
         mock_client = Mock()
-        # Set side_effect BEFORE creating provider (like working test_summarize_api_error)
-        mock_client.chat.completions.create.side_effect = AuthenticationError(
-            "Invalid API key: authentication failed", response=mock_response, body=None
-        )
+        create_mock = Mock(side_effect=AuthError("Invalid API key: authentication failed"))
+        mock_client.chat.completions.create = create_mock
         mock_openai_class.return_value = mock_client
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
@@ -599,32 +588,22 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         with self.assertRaises(ProviderAuthError):
             provider.detect_speakers("Episode Title", "Description", set(["Host"]))
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_rate_limit_error(self, mock_render, mock_openai_class):
         """Test that rate limit errors are properly handled in speaker detection."""
-        from openai import RateLimitError
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class RateLimitError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
+        create_mock = Mock(side_effect=RateLimitError("Rate limit exceeded: quota exceeded"))
+        mock_client.chat.completions.create = create_mock
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
         provider = DeepSeekProvider(self.cfg)
-        # Assign mock client directly to ensure mock structure is preserved
-        provider.client = mock_client
-        # Set up the exception after client is assigned
-        mock_client.chat.completions.create.side_effect = RateLimitError(
-            "Rate limit exceeded: quota exceeded", response=None, body=None
-        )
         provider.initialize()
 
         from podcast_scraper.exceptions import ProviderRuntimeError
@@ -654,15 +633,6 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         error_msg = str(context.exception).lower()
         self.assertTrue("invalid model" in error_msg or "speaker detection failed" in error_msg)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_speaker_detection_json_decode_error(self, mock_render, mock_openai_class):
@@ -671,13 +641,13 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         mock_openai_class.return_value = mock_client
         mock_render.side_effect = lambda name, **kwargs: "test prompt"
 
-        provider = DeepSeekProvider(self.cfg)
-        # Assign mock client directly to ensure mock structure is preserved
-        provider.client = mock_client
-        # Mock response with invalid JSON
+        # Mock response with invalid JSON (must start with "{" to return default speakers)
         mock_response = Mock()
-        mock_response.choices = [Mock(message=Mock(content="invalid json {"))]
-        mock_client.chat.completions.create.return_value = mock_response
+        mock_response.choices = [Mock(message=Mock(content="{ invalid"))]
+        create_mock = Mock(return_value=mock_response)
+        mock_client.chat.completions.create = create_mock
+
+        provider = DeepSeekProvider(self.cfg)
         provider.initialize()
 
         # Should return default speakers on JSON decode error
@@ -686,7 +656,7 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
     def test_speaker_detection_empty_response(self, mock_openai_class):
@@ -709,31 +679,29 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.get_prompt_metadata")
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
     @patch(
         "podcast_scraper.providers.deepseek.deepseek_provider."
         "DeepSeekProvider._build_summarization_prompts"
     )
     def test_summarization_auth_error(
-        self, mock_build_prompts, mock_openai_class, mock_get_metadata
+        self, mock_build_prompts, mock_openai_class, mock_get_metadata, mock_retry
     ):
         """Test that authentication errors are properly handled in summarization."""
-        from openai import AuthenticationError
+        mock_retry.side_effect = lambda func, **kwargs: func()
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class AuthError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
+        create_mock = Mock(side_effect=AuthError("Invalid API key: authentication failed"))
+        mock_client.chat.completions.create = create_mock
         mock_build_prompts.return_value = (
             "System Prompt",
             "User Prompt",
@@ -745,12 +713,6 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         mock_get_metadata.return_value = {}
 
         provider = DeepSeekProvider(self.cfg)
-        # Assign mock client directly to ensure mock structure is preserved
-        provider.client = mock_client
-        # Set up the exception after client is assigned
-        mock_client.chat.completions.create.side_effect = AuthenticationError(
-            "Invalid API key: authentication failed", response=None, body=None
-        )
         provider.initialize()
 
         from podcast_scraper.exceptions import ProviderAuthError
@@ -760,29 +722,27 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
 
         self.assertIn("authentication failed", str(context.exception).lower())
 
-    @pytest.mark.skip(
-        reason=(
-            "TODO: Mock side_effect issue - Mock creates new objects on "
-            "attribute access, so side_effect set on "
-            "mock_client.chat.completions.create doesn't affect the Mock "
-            "created when code accesses self.client.chat.completions.create. "
-            "Need different mocking approach."
-        )
-    )
-    @patch("podcast_scraper.providers.deepseek.deepseek_provider.get_prompt_metadata")
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
     @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
     @patch(
         "podcast_scraper.providers.deepseek.deepseek_provider."
         "DeepSeekProvider._build_summarization_prompts"
     )
     def test_summarization_rate_limit_error(
-        self, mock_build_prompts, mock_openai_class, mock_get_metadata
+        self, mock_build_prompts, mock_openai_class, mock_get_metadata, mock_retry
     ):
         """Test that rate limit errors are properly handled in summarization."""
-        from openai import RateLimitError
+        mock_retry.side_effect = lambda func, **kwargs: func()
+
+        # Use a real Exception subclass so side_effect actually raises (openai is mocked)
+        class RateLimitError(Exception):
+            pass
 
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
+        create_mock = Mock(side_effect=RateLimitError("Rate limit exceeded: quota exceeded"))
+        mock_client.chat.completions.create = create_mock
         mock_build_prompts.return_value = (
             "System Prompt",
             "User Prompt",
@@ -794,12 +754,6 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         mock_get_metadata.return_value = {}
 
         provider = DeepSeekProvider(self.cfg)
-        # Assign mock client directly to ensure mock structure is preserved
-        provider.client = mock_client
-        # Set up the exception after client is assigned
-        mock_client.chat.completions.create.side_effect = RateLimitError(
-            "Rate limit exceeded: quota exceeded", response=None, body=None
-        )
         provider.initialize()
 
         from podcast_scraper.exceptions import ProviderRuntimeError
@@ -922,6 +876,6 @@ class TestDeepSeekProviderErrorHandling(unittest.TestCase):
         )
 
         self.assertFalse(success)
-        self.assertEqual(speakers, ["Host", "Guest"])
+        self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         # Should not call API when auto_speakers is disabled
         mock_client.chat.completions.create.assert_not_called()

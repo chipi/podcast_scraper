@@ -36,6 +36,9 @@ def create_run_summary(
         "schema_version": "1.0.0",
         "run_id": run_id or datetime.utcnow().isoformat() + "Z",
         "created_at": datetime.utcnow().isoformat() + "Z",
+        # Issue #429 Phase 2: top-level run.json links to other outputs
+        "index_file": "index.json",
+        "run_manifest_file": "run_manifest.json",
     }
 
     # Add manifest if available

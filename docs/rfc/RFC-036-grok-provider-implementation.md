@@ -1,6 +1,6 @@
 # RFC-036: Grok Provider Implementation (xAI)
 
-- **Status**: Planned
+- **Status**: ✅ Completed (v2.5.0)
 - **Revision**: 3
 - **Date**: 2026-02-05
 - **Implementation**: Issue #1095
@@ -17,10 +17,11 @@
 Design and implement Grok (by xAI) as a unified provider for speaker detection and summarization capabilities. Grok is xAI's AI model with access to real-time information via X/Twitter integration. This RFC follows the **unified provider pattern** established by OpenAI (RFC-013), where a single provider class implements multiple protocols. The key implementation detail depends on whether Grok's API is OpenAI-compatible (use OpenAI SDK with custom `base_url`) or requires xAI's SDK.
 
 **API Details (Researched):** Based on xAI's public API and OpenAI-compatible patterns:
+
 - Base URL: `https://api.x.ai/v1` (OpenAI-compatible endpoint)
 - SDK: Uses OpenAI SDK with custom `base_url` (no new dependency)
 - Model names: `grok-beta` (beta), `grok-2` (production) - verify with your API access
-- Pricing: Verify at https://console.x.ai or https://docs.x.ai
+- Pricing: Verify at <https://console.x.ai> or <https://docs.x.ai>
 
 **Architecture Alignment:** Grok provider follows the exact same unified provider pattern as `OpenAIProvider`, implementing two protocols (`SpeakerDetector`, `SummarizationProvider`) in a single class and integrating via the existing factory pattern with support for both Config-based and experiment-based modes.
 
@@ -891,6 +892,7 @@ Similar update for `summarization/factory.py`.
 **Dependencies (OpenAI-compatible API confirmed):**
 
 **Grok uses OpenAI-compatible API:**
+
 ```toml
 # pyproject.toml - No changes needed
 # Grok uses existing openai package with custom base_url (same as DeepSeek)
@@ -943,7 +945,7 @@ Before implementation, verify the following with your xAI API access:
 2. ✅ **Base URL**: `https://api.x.ai/v1` (OpenAI-compatible endpoint)
 3. ✅ **API Compatibility**: OpenAI-compatible (uses OpenAI SDK with custom base_url)
 4. ⚠️ **Model Names**: Verify actual model names with your API (likely `grok-beta`, `grok-2`)
-5. ⚠️ **Pricing**: Verify pricing at https://console.x.ai or https://docs.x.ai
+5. ⚠️ **Pricing**: Verify pricing at <https://console.x.ai> or <https://docs.x.ai>
 6. ⚠️ **Free Tier**: Check your xAI account dashboard for free tier availability and limits
 7. ⚠️ **Rate Limits**: Check your xAI account dashboard for rate limits
 8. ⚠️ **Context Window**: Verify context window size (likely 128k, but confirm)
@@ -954,5 +956,5 @@ Before implementation, verify the following with your xAI API access:
 - **Related PRD**: `docs/prd/PRD-013-grok-provider-integration.md` (Updated)
 - **Reference Implementation**: `src/podcast_scraper/providers/openai/openai_provider.py`
 - **DeepSeek RFC**: `docs/rfc/RFC-034-deepseek-provider-implementation.md` (similar pattern if OpenAI-compatible)
-- **xAI Documentation**: https://docs.x.ai or https://console.x.ai
+- **xAI Documentation**: <https://docs.x.ai> or <https://console.x.ai>
 - **Grok Models**: Verify with your xAI API access (likely `grok-beta`, `grok-2`)

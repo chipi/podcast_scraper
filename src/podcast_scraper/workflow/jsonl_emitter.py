@@ -43,8 +43,8 @@ class JSONLEmitter:
         self._file_handle = open(self.jsonl_path, mode, encoding="utf-8")
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit - close file."""
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        """Context manager exit - close file (signature required by context manager protocol)."""
         if self._file_handle:
             self._file_handle.close()
             self._file_handle = None

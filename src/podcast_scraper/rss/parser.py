@@ -231,8 +231,11 @@ class _HTMLStripper(HTMLParser):
             self.text_parts.append(data.strip())
             self.last_was_tag = False
 
-    def handle_starttag(self, tag, attrs):
-        """Handle opening tags - add space if previous was tag."""
+    def handle_starttag(self, tag, _attrs):
+        """Handle opening tags - add space if previous was tag.
+
+        _attrs is required by html.parser.HTMLParser interface but unused here.
+        """
         if self.last_was_tag and self.text_parts:
             # Ensure space between tags that might have had text between them
             pass

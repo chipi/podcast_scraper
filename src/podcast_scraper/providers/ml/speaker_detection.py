@@ -18,8 +18,9 @@ from ... import config
 
 logger = logging.getLogger(__name__)
 
-# Default speaker names when detection fails
-DEFAULT_SPEAKER_NAMES = ["Host", "Guest"]
+# Default speaker names when detection fails (Issue #428: use typed placeholder, not "Guest")
+# "Guest" must not appear in detected_guests/detected_hosts to avoid contaminating analytics.
+DEFAULT_SPEAKER_NAMES = ["Host", "unknown_guest_1"]
 
 # Valid spaCy model names contain only alphanumeric, underscore, hyphen, and dot
 _VALID_MODEL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_.-]+$")
@@ -151,6 +152,10 @@ def _has_mentioned_only_indicator(name: str, text: str) -> bool:
     return False
 
 
+# Legacy placeholder; treat as default so it is filtered from entity lists (Issue #428)
+_LEGACY_PLACEHOLDER_GUEST = "Guest"
+
+
 def is_default_speaker_name(name: str) -> bool:
     """Check if a speaker name is a default placeholder.
 
@@ -158,9 +163,9 @@ def is_default_speaker_name(name: str) -> bool:
         name: Speaker name to check
 
     Returns:
-        True if name is in DEFAULT_SPEAKER_NAMES, False otherwise
+        True if name is in DEFAULT_SPEAKER_NAMES or legacy 'Guest', False otherwise.
     """
-    return name in DEFAULT_SPEAKER_NAMES
+    return name in DEFAULT_SPEAKER_NAMES or name == _LEGACY_PLACEHOLDER_GUEST
 
 
 def filter_default_speaker_names(names: List[str]) -> List[str]:
@@ -254,14 +259,14 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
         # This can reduce memory usage by 30-50% for most models
         try:
             nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
-            logger.debug("Loaded spaCy model (NER only): %s", model_name)
+            logger.info("Loaded spaCy model (NER only): %s", model_name)
         except (ValueError, KeyError):
             # Some models may not support disabling components, fall back to full load
             logger.debug(
                 "Model %s doesn't support component disabling, loading full pipeline", model_name
             )
             nlp = spacy.load(model_name)
-            logger.debug("Loaded spaCy model (full pipeline): %s", model_name)
+            logger.info("Loaded spaCy model (full pipeline): %s", model_name)
         return nlp
     except OSError:
         logger.debug("spaCy model '%s' not found locally, attempting to download...", model_name)
@@ -279,11 +284,11 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
             # Now try loading again with disabled components for memory efficiency
             try:
                 nlp = spacy.load(model_name, disable=["parser", "tagger", "lemmatizer"])
-                logger.debug("Loaded spaCy model (NER only) after download: %s", model_name)
+                logger.info("Loaded spaCy model (NER only) after download: %s", model_name)
             except (ValueError, KeyError):
                 # Fall back to full pipeline if component disabling not supported
                 nlp = spacy.load(model_name)
-                logger.debug("Loaded spaCy model (full pipeline) after download: %s", model_name)
+                logger.info("Loaded spaCy model (full pipeline) after download: %s", model_name)
             return nlp
         except subprocess.CalledProcessError as exc:
             logger.error(
@@ -754,6 +759,12 @@ def detect_hosts_from_feed(
                 list(hosts),
             )
             return hosts
+        # All feed authors were organisations (e.g. NPR, BBC) - log at INFO (Issue #393)
+        if feed_authors:
+            logger.info(
+                "All RSS author(s) treated as organisation(s); host detection will use "
+                "NER from feed title/description, episode-level authors, or config known_hosts"
+            )
 
     # Priority 2: Fall back to NER extraction from feed title/description
     if nlp:

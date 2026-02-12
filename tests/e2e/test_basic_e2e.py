@@ -106,6 +106,25 @@ class TestBasicCLIE2E:
                     assert "summary" in metadata, "Metadata should contain summary"
                     assert metadata["summary"] is not None, "Summary should not be None"
 
+            # Issue #429 Phase 2: output contract - run.json links to index and manifest
+            import json as json_module
+
+            run_json_candidates = list(Path(tmpdir).rglob("run.json"))
+            assert run_json_candidates, "run.json should be produced under output dir"
+            run_json_path = run_json_candidates[0]
+            output_root = run_json_path.parent
+            with open(run_json_path, "r", encoding="utf-8") as f:
+                run_data = json_module.load(f)
+            assert run_data.get("schema_version"), "run.json should have schema_version"
+            assert run_data.get("index_file") == "index.json", "run.json should link index_file"
+            assert (
+                run_data.get("run_manifest_file") == "run_manifest.json"
+            ), "run.json should link run_manifest_file"
+            assert (output_root / run_data["index_file"]).exists(), "index.json should exist"
+            assert (
+                output_root / run_data["run_manifest_file"]
+            ).exists(), "run_manifest.json should exist"
+
     @pytest.mark.critical_path
     def test_cli_basic_transcript_download_path2(self, e2e_server):
         """Test complete CLI critical path (Path 2: when transcript URL missing).

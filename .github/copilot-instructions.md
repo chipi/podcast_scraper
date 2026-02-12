@@ -33,7 +33,7 @@
 - ❌ NEVER push to main branch (always use feature branches)
 - ✅ Always show `git status` and `git diff` before committing
 - ✅ Always wait for explicit user approval before committing
-- ✅ Always run `make ci-fast` before committing
+- ✅ Always run `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
 - ✅ ALWAYS use Makefile commands (never direct pytest/python/black commands)
 - ✅ NEVER use `cd` to project root (already in workspace directory)
 - ✅ ALWAYS use correct GitHub username (check dynamically, not Mac username)

@@ -7,6 +7,8 @@ This module provides a single MLProvider class that implements all three protoco
 
 This unified approach matches the pattern of OpenAI providers, where a single
 provider type handles multiple capabilities using shared ML libraries.
+
+Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 """
 
 from __future__ import annotations
@@ -402,7 +404,7 @@ class MLProvider:
                 and _preloaded_ml_provider._spacy_initialized
                 and _preloaded_ml_provider._spacy_nlp is not None
             ):
-                logger.debug("Reusing preloaded spaCy model instance (thread-safe for read)")
+                logger.info("Using preloaded spaCy model (single load for run, Issue #428)")
                 self._spacy_nlp = _preloaded_ml_provider._spacy_nlp
                 self._spacy_heuristics = _preloaded_ml_provider._spacy_heuristics
                 self._spacy_initialized = True
