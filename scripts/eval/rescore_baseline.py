@@ -58,6 +58,98 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
     )
 
 
+def _resolve_baseline_dir_and_dataset_id(
+    baseline_id: str, baseline_dir: Path | None
+) -> tuple[Path, str, dict | None]:
+    """Resolve baseline dir and dataset_id from metrics.json or baseline.json."""
+    if baseline_dir is None:
+        baseline_dir = Path("data/eval/baselines") / baseline_id
+    if not baseline_dir.exists():
+        raise FileNotFoundError(f"Baseline not found: {baseline_dir}")
+    predictions_path = baseline_dir / "predictions.jsonl"
+    if not predictions_path.exists():
+        raise FileNotFoundError(f"Predictions not found: {predictions_path}")
+    metrics_path = baseline_dir / "metrics.json"
+    if metrics_path.exists():
+        existing = json.loads(metrics_path.read_text(encoding="utf-8"))
+        dataset_id = existing.get("dataset_id")
+    else:
+        existing = None
+        baseline_json_path = baseline_dir / "baseline.json"
+        if baseline_json_path.exists():
+            baseline_data = json.loads(baseline_json_path.read_text(encoding="utf-8"))
+            dataset_id = baseline_data.get("dataset_id")
+        else:
+            raise ValueError(
+                f"Cannot determine dataset_id. Neither metrics.json nor "
+                f"baseline.json found in {baseline_dir}"
+            )
+    if not dataset_id:
+        raise ValueError("dataset_id not found in baseline metadata")
+    return baseline_dir, dataset_id, existing
+
+
+def _collect_reference_paths(reference_ids: list[str], dataset_id: str) -> dict[str, Path]:
+    """Resolve and validate reference paths; return ref_id -> Path."""
+    reference_paths = {}
+    for ref_id in reference_ids:
+        try:
+            ref_path = find_reference_path(ref_id, dataset_id)
+            if not (ref_path / "predictions.jsonl").exists():
+                logger.warning("Reference '%s' missing predictions.jsonl, skipping", ref_id)
+                continue
+            reference_paths[ref_id] = ref_path
+            logger.info("Found reference '%s' at %s", ref_id, ref_path)
+        except FileNotFoundError as e:
+            logger.warning("Reference '%s' not found, skipping: %s", ref_id, e)
+    return reference_paths
+
+
+def _print_vs_ref_summary(metrics: dict, baseline_id: str) -> None:
+    """Print vs_reference metrics summary to stdout."""
+    vs_ref = metrics.get("vs_reference", {})
+    if not vs_ref:
+        return
+    print("\n" + "=" * 80)
+    print("VS REFERENCE METRICS SUMMARY")
+    print("=" * 80)
+    for ref_id, ref_metrics in vs_ref.items():
+        if "error" in ref_metrics:
+            print(f"\n{ref_id}: ERROR - {ref_metrics['error']}")
+            continue
+        print(f"\n{ref_id}:")
+        for key, label in [
+            ("rougeL_f1", "ROUGE-L F1"),
+            ("rouge1_f1", "ROUGE-1 F1"),
+            ("rouge2_f1", "ROUGE-2 F1"),
+            ("embedding_cosine", "Embedding Similarity"),
+            ("coverage_ratio", "Coverage Ratio (ML/Silver)"),
+            ("bleu", "BLEU"),
+            ("wer", "WER"),
+        ]:
+            val = ref_metrics.get(key)
+            if val is not None:
+                fmt = ".3f" if isinstance(val, float) else "s"
+                print(f"  {label}: {val:{fmt}}")
+    intrinsic = metrics.get("intrinsic", {})
+    avg_latency_ms = intrinsic.get("performance", {}).get("avg_latency_ms", 0)
+    for ref_id, ref_metrics in vs_ref.items():
+        if "error" in ref_metrics:
+            continue
+        rouge_l = ref_metrics.get("rougeL_f1")
+        if rouge_l is not None:
+            print(f"\n{'=' * 80}")
+            print(f"SUMMARY: {baseline_id} vs {ref_id}")
+            print(f"{'=' * 80}")
+            print(f"Quality: ~{rouge_l*100:.1f}% of silver (ROUGE-L: {rouge_l:.3f})")
+            print(f"Latency: {avg_latency_ms/1000:.1f}s per episode")
+            if ref_metrics.get("coverage_ratio") is not None:
+                print(
+                    f"Coverage: {ref_metrics['coverage_ratio']*100:.1f}% " "token ratio (ML/Silver)"
+                )
+            print("=" * 80)
+
+
 def rescore_baseline(
     baseline_id: str,
     reference_ids: list[str],
@@ -70,124 +162,29 @@ def rescore_baseline(
         reference_ids: List of reference IDs for vs_reference metrics
         baseline_dir: Optional baseline directory (default: data/eval/baselines)
     """
-    # Find baseline directory
-    if baseline_dir is None:
-        baseline_dir = Path("data/eval/baselines") / baseline_id
-
-    if not baseline_dir.exists():
-        raise FileNotFoundError(f"Baseline not found: {baseline_dir}")
-
-    predictions_path = baseline_dir / "predictions.jsonl"
-    if not predictions_path.exists():
-        raise FileNotFoundError(f"Predictions not found: {predictions_path}")
-
-    # Load existing metrics to get dataset_id
-    metrics_path = baseline_dir / "metrics.json"
-    if metrics_path.exists():
-        existing_metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
-        dataset_id = existing_metrics.get("dataset_id")
-    else:
-        # Try to load from baseline.json
-        baseline_json_path = baseline_dir / "baseline.json"
-        if baseline_json_path.exists():
-            baseline_data = json.loads(baseline_json_path.read_text(encoding="utf-8"))
-            dataset_id = baseline_data.get("dataset_id")
-        else:
-            raise ValueError(
-                f"Cannot determine dataset_id. Neither metrics.json nor "
-                f"baseline.json found in {baseline_dir}"
-            )
-
-    if not dataset_id:
-        raise ValueError("dataset_id not found in baseline metadata")
-
-    logger.info(f"Re-scoring baseline: {baseline_id}")
-    logger.info(f"Dataset: {dataset_id}")
-    logger.info(f"References: {', '.join(reference_ids)}")
-
-    # Find reference paths
-    reference_paths = {}
-    for ref_id in reference_ids:
-        try:
-            ref_path = find_reference_path(ref_id, dataset_id)
-            # Validate reference has predictions.jsonl
-            ref_predictions_path = ref_path / "predictions.jsonl"
-            if not ref_predictions_path.exists():
-                logger.warning(f"Reference '{ref_id}' missing predictions.jsonl, skipping")
-                continue
-            reference_paths[ref_id] = ref_path
-            logger.info(f"Found reference '{ref_id}' at {ref_path}")
-        except FileNotFoundError as e:
-            logger.warning(f"Reference '{ref_id}' not found, skipping: {e}")
-            continue
-
+    baseline_dir, dataset_id, existing_metrics = _resolve_baseline_dir_and_dataset_id(
+        baseline_id, baseline_dir
+    )
+    logger.info("Re-scoring baseline: %s", baseline_id)
+    logger.info("Dataset: %s", dataset_id)
+    logger.info("References: %s", ", ".join(reference_ids))
+    reference_paths = _collect_reference_paths(reference_ids, dataset_id)
     if not reference_paths:
         raise ValueError("No valid references found")
-
-    # Re-score with references
-    run_id = existing_metrics.get("run_id", baseline_id) if metrics_path.exists() else baseline_id
+    metrics_path = baseline_dir / "metrics.json"
+    run_id = existing_metrics.get("run_id", baseline_id) if existing_metrics else baseline_id
     metrics = score_run(
-        predictions_path=predictions_path,
+        predictions_path=baseline_dir / "predictions.jsonl",
         dataset_id=dataset_id,
         run_id=run_id,
         reference_paths=reference_paths,
     )
-
-    # Save updated metrics
     metrics_path.write_text(
         json.dumps(metrics, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-
-    logger.info(f"✓ Metrics updated: {metrics_path}")
-
-    # Print summary
-    vs_ref = metrics.get("vs_reference", {})
-    if vs_ref:
-        print("\n" + "=" * 80)
-        print("VS REFERENCE METRICS SUMMARY")
-        print("=" * 80)
-        for ref_id, ref_metrics in vs_ref.items():
-            if "error" in ref_metrics:
-                print(f"\n{ref_id}: ERROR - {ref_metrics['error']}")
-                continue
-
-            print(f"\n{ref_id}:")
-            if ref_metrics.get("rougeL_f1") is not None:
-                print(f"  ROUGE-L F1: {ref_metrics['rougeL_f1']:.3f}")
-            if ref_metrics.get("rouge1_f1") is not None:
-                print(f"  ROUGE-1 F1: {ref_metrics['rouge1_f1']:.3f}")
-            if ref_metrics.get("rouge2_f1") is not None:
-                print(f"  ROUGE-2 F1: {ref_metrics['rouge2_f1']:.3f}")
-            if ref_metrics.get("embedding_cosine") is not None:
-                print(f"  Embedding Similarity: {ref_metrics['embedding_cosine']:.3f}")
-            if ref_metrics.get("coverage_ratio") is not None:
-                print(f"  Coverage Ratio (ML/Silver): {ref_metrics['coverage_ratio']:.3f}")
-            if ref_metrics.get("bleu") is not None:
-                print(f"  BLEU: {ref_metrics['bleu']:.3f}")
-            if ref_metrics.get("wer") is not None:
-                print(f"  WER: {ref_metrics['wer']:.3f}")
-
-        # Compute quality percentage (using ROUGE-L as primary metric)
-        intrinsic = metrics.get("intrinsic", {})
-        performance = intrinsic.get("performance", {})
-        avg_latency_ms = performance.get("avg_latency_ms", 0)
-
-        for ref_id, ref_metrics in vs_ref.items():
-            if "error" in ref_metrics:
-                continue
-            rouge_l = ref_metrics.get("rougeL_f1")
-            if rouge_l is not None:
-                quality_pct = rouge_l * 100
-                print(f"\n{'=' * 80}")
-                print(f"SUMMARY: {baseline_id} vs {ref_id}")
-                print(f"{'=' * 80}")
-                print(f"Quality: ~{quality_pct:.1f}% of silver (ROUGE-L: {rouge_l:.3f})")
-                print(f"Latency: {avg_latency_ms/1000:.1f}s per episode")
-                if ref_metrics.get("coverage_ratio") is not None:
-                    coverage = ref_metrics["coverage_ratio"]
-                    print(f"Coverage: {coverage*100:.1f}% token ratio (ML/Silver)")
-                print("=" * 80)
+    logger.info("✓ Metrics updated: %s", metrics_path)
+    _print_vs_ref_summary(metrics, baseline_id)
 
 
 def main() -> None:

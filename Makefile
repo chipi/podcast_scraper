@@ -191,7 +191,8 @@ format-check:
 
 lint:
 	$(PYTHON) -m flake8 --config .flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-	$(PYTHON) -m flake8 --config .flake8 . --count --exit-zero --statistics
+	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
+	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
 
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }

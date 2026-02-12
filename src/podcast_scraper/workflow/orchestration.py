@@ -1026,6 +1026,127 @@ def _cleanup_providers(
     # and cleaned up via provider.cleanup() method above.
 
 
+def _finalize_metrics_path(cfg: config.Config, effective_output_dir: str) -> Optional[str]:
+    """Resolve metrics output path from config. Returns None if disabled."""
+    if cfg.metrics_output is not None:
+        return cfg.metrics_output if cfg.metrics_output else None
+    return os.path.join(effective_output_dir, "metrics.json")
+
+
+def _finalize_emit_and_save(
+    jsonl_emitter: Optional[Any],
+    pipeline_metrics: Any,
+    metrics_path: Optional[str],
+) -> None:
+    """Emit run_finished, save metrics, close JSONL emitter."""
+    if jsonl_emitter:
+        try:
+            jsonl_emitter.emit_run_finished()
+        except Exception as e:
+            logger.warning("Failed to emit run_finished JSONL event: %s", e)
+    if metrics_path:
+        try:
+            pipeline_metrics.save_to_file(metrics_path)
+        except Exception as e:
+            logger.warning("Failed to save metrics to %s: %s", metrics_path, e)
+    if jsonl_emitter:
+        try:
+            jsonl_emitter.__exit__(None, None, None)
+        except Exception as e:
+            logger.warning("Failed to close JSONL emitter: %s", e)
+
+
+def _finalize_run_index(
+    cfg: config.Config,
+    pipeline_metrics: Any,
+    episodes: List[Episode],  # type: ignore[valid-type]
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> None:
+    """Generate and save run index if not dry_run."""
+    if cfg.dry_run:
+        return
+    try:
+        from .run_index import create_run_index
+
+        episode_statuses = (
+            getattr(pipeline_metrics, "episode_statuses", None)
+            if hasattr(pipeline_metrics, "episode_statuses")
+            else None
+        )
+        run_index = create_run_index(
+            run_id=cfg.run_id or datetime.utcnow().isoformat() + "Z",
+            feed_url=cfg.rss_url,
+            episodes=episodes,
+            effective_output_dir=effective_output_dir,
+            episode_statuses=episode_statuses,
+            run_suffix=run_suffix,
+        )
+        index_path = os.path.join(effective_output_dir, "index.json")
+        run_index.save_to_file(index_path)
+        logger.info("Run index saved to: %s", index_path)
+    except Exception as e:
+        logger.warning("Failed to generate run index: %s", e)
+
+
+def _finalize_run_summary(
+    cfg: config.Config,
+    run_manifest: Optional[Any],
+    pipeline_metrics: Any,
+    effective_output_dir: str,
+) -> None:
+    """Generate and save run summary if not dry_run."""
+    if cfg.dry_run:
+        return
+    try:
+        from .run_summary import create_run_summary, save_run_summary
+
+        run_summary = create_run_summary(
+            run_manifest=run_manifest,
+            pipeline_metrics=pipeline_metrics,
+            output_dir=effective_output_dir,
+            run_id=cfg.run_id,
+        )
+        save_run_summary(run_summary, effective_output_dir)
+    except Exception as e:
+        logger.warning("Failed to generate run summary: %s", e)
+
+
+def _finalize_ml_cleanup(
+    summary_provider: Optional[Any],
+    transcription_provider: Optional[Any],
+) -> None:
+    """Clean up ML providers and PyTorch/MPS before exit."""
+    try:
+        if summary_provider is not None:
+            logger.debug("Cleaning up summary provider before exit")
+            summary_provider.cleanup()
+        if transcription_provider is not None and transcription_provider != summary_provider:
+            logger.debug("Cleaning up transcription provider before exit")
+            transcription_provider.cleanup()
+        try:
+            import gc
+
+            import torch
+
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                if hasattr(torch.mps, "empty_cache"):
+                    torch.mps.empty_cache()
+                    logger.debug("Cleared MPS cache before exit")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logger.debug("Cleared CUDA cache before exit")
+            if os.environ.get("PYTEST_CURRENT_TEST") is None:
+                gc.collect()
+                logger.debug("Ran garbage collection before exit")
+        except ImportError:
+            pass
+        except Exception as exc:
+            logger.debug("Error during final cleanup (non-fatal): %s", exc)
+    except Exception as exc:
+        logger.debug("Error during provider cleanup (non-fatal): %s", exc)
+
+
 def _finalize_pipeline(
     cfg: config.Config,
     saved: int,
@@ -1056,134 +1177,14 @@ def _finalize_pipeline(
     Returns:
         Tuple of (count, summary) from generate_pipeline_summary
     """
-    # Step 10: Cleanup temporary files
     wf_helpers.cleanup_pipeline(temp_dir=transcription_resources.temp_dir)
-
-    # Step 11: Generate summary and log metrics
     pipeline_metrics.log_metrics()
-
-    # Step 11.5: Log episode processing results
     _log_episode_results(pipeline_metrics, episodes)
-
-    # Step 12: Save metrics to file if configured
-    if cfg.metrics_output is not None:
-        # Explicit path provided
-        if cfg.metrics_output:
-            metrics_path = cfg.metrics_output
-        else:
-            # Empty string means disabled
-            metrics_path = None
-    else:
-        # Default: save to output directory
-        metrics_path = os.path.join(effective_output_dir, "metrics.json")
-
-    # Emit run_finished event for JSONL metrics (before save_to_file)
-    if jsonl_emitter:
-        try:
-            jsonl_emitter.emit_run_finished()
-        except Exception as e:
-            logger.warning(f"Failed to emit run_finished JSONL event: {e}")
-
-    if metrics_path:
-        try:
-            pipeline_metrics.save_to_file(metrics_path)
-        except Exception as e:
-            logger.warning(f"Failed to save metrics to {metrics_path}: {e}")
-
-    # Close JSONL emitter
-    if jsonl_emitter:
-        try:
-            jsonl_emitter.__exit__(None, None, None)
-        except Exception as e:
-            logger.warning(f"Failed to close JSONL emitter: {e}")
-
-    # Step 13: Generate run index (Issue #379)
-    if not cfg.dry_run:
-        try:
-            from .run_index import create_run_index
-
-            # Pass episode_statuses from metrics if available
-            episode_statuses = (
-                pipeline_metrics.episode_statuses
-                if hasattr(pipeline_metrics, "episode_statuses")
-                else None
-            )
-
-            run_index = create_run_index(
-                run_id=cfg.run_id or datetime.utcnow().isoformat() + "Z",
-                feed_url=cfg.rss_url,
-                episodes=episodes,
-                effective_output_dir=effective_output_dir,
-                episode_statuses=episode_statuses,
-                run_suffix=run_suffix,
-            )
-            index_path = os.path.join(effective_output_dir, "index.json")
-            run_index.save_to_file(index_path)
-            logger.info(f"Run index saved to: {index_path}")
-        except Exception as e:
-            logger.warning(f"Failed to generate run index: {e}")
-
-    # Step 14: Generate run summary (Issue #379)
-    if not cfg.dry_run:
-        try:
-            from .run_summary import create_run_summary, save_run_summary
-
-            run_summary = create_run_summary(
-                run_manifest=run_manifest,
-                pipeline_metrics=pipeline_metrics,
-                output_dir=effective_output_dir,
-                run_id=cfg.run_id,
-            )
-            save_run_summary(run_summary, effective_output_dir)
-        except Exception as e:
-            logger.warning(f"Failed to generate run summary: {e}")
-
-    # Step 15: Aggressive cleanup before exit (Issue #390 - prevent bus error on macOS)
-    # Clean up ML providers and PyTorch/MPS resources before interpreter shutdown
-    try:
-        # Cleanup summary provider if available
-        if summary_provider is not None:
-            logger.debug("Cleaning up summary provider before exit")
-            summary_provider.cleanup()
-
-        # Cleanup transcription provider if available
-        if transcription_provider is not None and transcription_provider != summary_provider:
-            logger.debug("Cleaning up transcription provider before exit")
-            transcription_provider.cleanup()
-
-        # Aggressive PyTorch/MPS cleanup to prevent bus errors during interpreter shutdown
-        try:
-            import gc
-
-            import torch
-
-            # Move any remaining models to CPU before deletion (avoid teardown hazards)
-            # This is a best-effort cleanup - models should already be cleaned up by providers
-            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                if hasattr(torch.mps, "empty_cache"):
-                    torch.mps.empty_cache()
-                    logger.debug("Cleared MPS cache before exit")
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                logger.debug("Cleared CUDA cache before exit")
-
-            # Force garbage collection to clean up any remaining references
-            # This helps release memory and clean up threads that might be holding references
-            # Note: Skip in test environments to avoid hangs
-            # os is already imported at module level, no need to import again
-            if os.environ.get("PYTEST_CURRENT_TEST") is None:
-                gc.collect()
-                logger.debug("Ran garbage collection before exit")
-        except ImportError:
-            # torch not available (e.g., in unit tests without ML dependencies)
-            pass
-        except Exception as exc:
-            # Ignore any errors during cleanup - we're about to exit anyway
-            logger.debug(f"Error during final cleanup (non-fatal): {exc}")
-    except Exception as exc:
-        # Ignore any errors during cleanup - we're about to exit anyway
-        logger.debug(f"Error during provider cleanup (non-fatal): {exc}")
-
+    metrics_path = _finalize_metrics_path(cfg, effective_output_dir)
+    _finalize_emit_and_save(jsonl_emitter, pipeline_metrics, metrics_path)
+    _finalize_run_index(cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix)
+    _finalize_run_summary(cfg, run_manifest, pipeline_metrics, effective_output_dir)
+    _finalize_ml_cleanup(summary_provider, transcription_provider)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
     )
