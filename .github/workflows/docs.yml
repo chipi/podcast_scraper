@@ -108,7 +108,7 @@ jobs:
 
       - name: Download CI metrics artifact
         if: github.event_name == 'push'
-        uses: dawidd6/action-download-artifact@v14
+        uses: dawidd6/action-download-artifact@v15
         with:
           workflow: python-app.yml
           name: metrics
@@ -119,7 +119,7 @@ jobs:
 
       - name: Download nightly metrics artifact
         if: github.event_name == 'push'
-        uses: dawidd6/action-download-artifact@v14
+        uses: dawidd6/action-download-artifact@v15
         with:
           workflow: nightly.yml
           name: nightly-metrics
