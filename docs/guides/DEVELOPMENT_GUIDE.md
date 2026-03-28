@@ -1156,7 +1156,7 @@ Run all of the following in each release cycle before releasing so the codebase 
   - Complexity (radon) and maintainability index are acceptable or exceptions documented.
   - Docstring coverage meets the configured `fail-under` (see `[tool.interrogate]` in `pyproject.toml`).
   - Dead code (vulture) and spelling (codespell) findings are triaged (fixed or whitelisted/ignored).
-  - Test coverage meets the combined threshold (see [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) and [Implementation plan](wip/ISSUE-432-IMPLEMENTATION-PLAN.md) for targets).
+  - Test coverage meets the combined threshold (see [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) for background and targets).
 - **Tests**: Run the full CI gate: **`make ci`** (format-check, lint, type, security, complexity, docstrings, spelling, tests, coverage-enforce, docs, build). For maximum confidence (e.g. major release), run **`make ci-clean`** or run **`make test`** then **`make coverage-enforce`**, **`make docs`**, **`make build`**.
 - **Diagrams (required for release):** `make ci` and `make ci-fast` run `make check-visualizations`; if diagrams are stale, the run fails. Run `make visualize` and commit `docs/architecture/*.svg`. Before release, **`make release-docs-prep`** does this and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
 - **Build**: Ensure **`make build`** succeeds (sdist/wheel in `.build/dist/` or `dist/`).
