@@ -367,8 +367,8 @@ class TestConcurrentEpisodeProcessingE2E:
             ) as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for concurrent testing."
-                # Mock detect_speakers to return expected 3-tuple (speakers, hosts, success)
-                mock_provider.detect_speakers.return_value = ([], set(), True)
+                # detect_speakers: 4-tuple (speakers, hosts, success, used_defaults)
+                mock_provider.detect_speakers.return_value = ([], set(), True, False)
                 mock_provider_class.return_value = mock_provider
 
                 # Run pipeline
@@ -404,8 +404,8 @@ class TestConcurrentEpisodeProcessingE2E:
             ) as mock_provider_class:
                 mock_provider = unittest.mock.MagicMock()
                 mock_provider.summarize.return_value = "Mocked summary for cleanup testing."
-                # Mock detect_speakers to return expected 3-tuple (speakers, hosts, success)
-                mock_provider.detect_speakers.return_value = ([], set(), True)
+                # detect_speakers: 4-tuple (speakers, hosts, success, used_defaults)
+                mock_provider.detect_speakers.return_value = ([], set(), True, False)
                 mock_provider_class.return_value = mock_provider
 
                 # Run pipeline

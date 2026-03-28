@@ -1061,7 +1061,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = mock_response
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True)
+        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(
@@ -1125,7 +1125,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = None
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True)
+        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(
@@ -1191,7 +1191,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = mock_response
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True)
+        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(
@@ -1424,6 +1424,23 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
         self.assertIn("gpt-4o-mini", summary[0])
         # Cost: (100000/1M * 0.15) + (20000/1M * 0.60) = 0.015 + 0.012 = 0.027
         self.assertIn("$0.0270", summary[0])
+
+    def test_estimated_llm_cost_usd_from_metrics_dict_matches_pipeline_summary(self):
+        """estimated_llm_cost_usd_from_metrics_dict matches the total in the text summary."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_summarization_call(input_tokens=100000, output_tokens=20000)
+        metrics_dict = pipeline_metrics.finish()
+
+        total = helpers.estimated_llm_cost_usd_from_metrics_dict(cfg, metrics_dict)
+        self.assertIsNotNone(total)
+        self.assertAlmostEqual(total, 0.027, places=6)
 
     def test_generate_llm_call_summary_no_pricing_info(self):
         """Test LLM call summary when pricing info is not available (partial coverage)."""

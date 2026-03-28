@@ -1,0 +1,23 @@
+# OpenAI (GPT-4o) on smoke — for multi-run LLM comparison vs silver reference.
+# Same model/prompts/params as silver_openai_gpt4o_smoke_v1; use this run_id in LLM comparison table.
+# Requires: OPENAI_API_KEY
+
+id: "llm_openai_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

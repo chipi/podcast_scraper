@@ -232,14 +232,15 @@ class TestSpacyProviderRealModel(unittest.TestCase):
         )
 
         # Verify result is valid
-        # detect_speakers returns Tuple[list[str], Set[str], bool]
+        # detect_speakers returns Tuple[list[str], Set[str], bool, bool]
         self.assertIsNotNone(result)
         self.assertIsInstance(result, tuple)
-        self.assertEqual(len(result), 3)
-        speakers, hosts, success = result
+        self.assertEqual(len(result), 4)
+        speakers, hosts, success, used_defaults = result
         self.assertIsInstance(speakers, list)
         self.assertIsInstance(hosts, set)
         self.assertIsInstance(success, bool)
+        self.assertIsInstance(used_defaults, bool)
 
 
 @pytest.mark.integration
@@ -614,7 +615,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
         # Step 2: Detect guests from episode metadata (REAL NER model)
         episode_description = rss_parser.extract_episode_description(episode.item)
-        detected_speakers, detected_hosts_set, detection_succeeded = (
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
             speaker_detector.detect_speakers(
                 episode_title=episode.title,
                 episode_description=episode_description,
@@ -886,7 +887,7 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
 
         # Step 2: Detect guests from episode metadata (OpenAI)
         episode_description = rss_parser.extract_episode_description(episode.item)
-        detected_speakers, detected_hosts_set, detection_succeeded = (
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
             speaker_detector.detect_speakers(
                 episode_title=episode.title,
                 episode_description=episode_description,

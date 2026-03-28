@@ -695,8 +695,17 @@ def generate_enhanced_fingerprint(
             }
             map_generation_params = {}
             reduce_generation_params = {}
+        elif experiment_config.backend.type in ("anthropic", "mistral", "grok", "deepseek"):
+            # API LLM parameters from config.params
+            params_dict = experiment_config.params or {}
+            generation_params = {
+                "temperature": params_dict.get("temperature", 0.0),
+                "max_tokens": params_dict.get("max_length", 800),
+            }
+            map_generation_params = {}
+            reduce_generation_params = {}
         else:
-            # HuggingFace/Transformers models - use explicit map_params/reduce_params
+            # HuggingFace/Transformers (hf_local or hybrid_ml) - use map_params/reduce_params
             if not experiment_config.map_params:
                 raise ValueError("map_params required for hf_local backend with summarization task")
             map_generation_params = {
@@ -904,7 +913,14 @@ def generate_enhanced_fingerprint(
             },
         }
     else:
-        # Single-stage pipeline (OpenAI or single HF model)
+        # Single-stage pipeline (OpenAI, Anthropic, Mistral, Grok, DeepSeek, or single HF)
+        is_api_llm = experiment_config and experiment_config.backend.type in (
+            "openai",
+            "anthropic",
+            "mistral",
+            "grok",
+            "deepseek",
+        )
         pipeline = {
             "type": "single_stage",
             "stages": {
@@ -912,15 +928,9 @@ def generate_enhanced_fingerprint(
                     "stage_id": "main",
                     "model": {
                         "provider_type": (
-                            "openai"
-                            if experiment_config and experiment_config.backend.type == "openai"
-                            else "local_ml"
+                            experiment_config.backend.type if is_api_llm else "local_ml"
                         ),
-                        "framework": (
-                            None
-                            if experiment_config and experiment_config.backend.type == "openai"
-                            else "transformers"
-                        ),
+                        "framework": (None if is_api_llm else "transformers"),
                         "model_name": model_details["model_name"],
                         "model_revision": model_details.get("model_revision"),
                         "tokenizer_name": model_details.get("tokenizer_name"),
@@ -970,10 +980,20 @@ def generate_enhanced_fingerprint(
         "runtime": get_runtime_info(provider),
     }
 
-    # Conditionally add prompts section (only for OpenAI backends that use prompts)
+    # Conditionally add prompts section (for any backend with experiment_config.prompts)
     prompt_info = get_prompt_info(experiment_config)
     if prompt_info is not None:
         fingerprint["prompts"] = prompt_info
+
+    # For hybrid_ml, include REDUCE instruction style so prompt/instruction tuning
+    # yields a different fingerprint
+    if experiment_config and getattr(experiment_config.backend, "type", None) == "hybrid_ml":
+        fingerprint["instruction"] = {
+            "reduce_instruction_style": getattr(
+                experiment_config.backend, "reduce_instruction_style", None
+            ),
+            "instruction_builder": "hybrid_ml_provider._build_reduce_instruction",
+        }
 
     return fingerprint
 
@@ -982,10 +1002,12 @@ def get_prompt_info(experiment_config: Optional[ExperimentConfig]) -> Optional[D
     """Extract prompt information from experiment config.
 
     Prompts are critical for reproducibility - different prompts produce different outputs.
-    This section captures prompt names, hashes, and parameters.
+    This section captures prompt names, file paths, content hashes, and parameters so that
+    prompt tuning in the future yields a different fingerprint.
 
-    Note: Prompts are only used for OpenAI backends. For ML models (hf_local),
-    this returns None to omit the prompts section entirely.
+    Include prompts for any backend that has a prompts section (openai, anthropic, mistral,
+    grok, deepseek, etc.). For hybrid_ml, instruction style is added separately in the
+    fingerprint.
 
     Args:
         experiment_config: Optional experiment configuration
@@ -993,8 +1015,13 @@ def get_prompt_info(experiment_config: Optional[ExperimentConfig]) -> Optional[D
     Returns:
         Dictionary with prompt information, or None if prompts are not used
     """
-    # Only include prompts for OpenAI backends (ML models don't use prompts)
-    if not experiment_config or experiment_config.backend.type != "openai":
+    # Include prompts for any backend that has a prompts section (LLM providers with
+    # externalized prompts)
+    if (
+        not experiment_config
+        or not hasattr(experiment_config, "prompts")
+        or not experiment_config.prompts
+    ):
         return None
 
     prompts: Dict[str, Any] = {}
@@ -1336,8 +1363,60 @@ def materialize_baseline(
             summary_reduce_model=reduce_model,
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
+            generate_gi=False,  # Experiments are summary-specific; keep GIL off
             summary_map_params=summary_map_params,
             summary_reduce_params=summary_reduce_params,
+        )
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+    elif experiment_config and experiment_config.backend.type == "hybrid_ml":
+        from podcast_scraper import config
+
+        map_model = experiment_config.backend.map_model
+        reduce_model = experiment_config.backend.reduce_model
+        reduce_backend = experiment_config.backend.reduce_backend
+        model_name = f"{map_model}+{reduce_model}({reduce_backend})"
+
+        summary_map_params = {
+            "max_new_tokens": experiment_config.map_params.max_new_tokens,
+            "min_new_tokens": experiment_config.map_params.min_new_tokens,
+            "num_beams": experiment_config.map_params.num_beams,
+            "no_repeat_ngram_size": experiment_config.map_params.no_repeat_ngram_size,
+            "length_penalty": experiment_config.map_params.length_penalty,
+            "early_stopping": experiment_config.map_params.early_stopping,
+            "repetition_penalty": experiment_config.map_params.repetition_penalty,
+        }
+        summary_reduce_params = {
+            "max_new_tokens": experiment_config.reduce_params.max_new_tokens,
+            "min_new_tokens": experiment_config.reduce_params.min_new_tokens,
+            "num_beams": experiment_config.reduce_params.num_beams,
+            "no_repeat_ngram_size": experiment_config.reduce_params.no_repeat_ngram_size,
+            "length_penalty": experiment_config.reduce_params.length_penalty,
+            "early_stopping": experiment_config.reduce_params.early_stopping,
+            "repetition_penalty": experiment_config.reduce_params.repetition_penalty,
+        }
+        cfg = config.Config(
+            rss_url="",
+            summary_provider="hybrid_ml",
+            hybrid_map_model=map_model,
+            hybrid_reduce_model=reduce_model,
+            hybrid_reduce_backend=reduce_backend,
+            generate_summaries=True,
+            generate_metadata=True,
+            generate_gi=False,  # Experiments are summary-specific; keep GIL off
+            summary_map_params=summary_map_params,
+            summary_reduce_params=summary_reduce_params,
+            summary_tokenize={
+                "map_max_input_tokens": experiment_config.tokenize.map_max_input_tokens,
+                "reduce_max_input_tokens": experiment_config.tokenize.reduce_max_input_tokens,
+                "truncation": experiment_config.tokenize.truncation,
+            },
+            summary_word_chunk_size=(
+                experiment_config.chunking.word_chunk_size if experiment_config.chunking else None
+            ),
+            summary_word_overlap=(
+                experiment_config.chunking.word_overlap if experiment_config.chunking else None
+            ),
         )
         provider = create_summarization_provider(cfg)
         provider.initialize()
@@ -1350,6 +1429,7 @@ def materialize_baseline(
             summary_provider="transformers",
             generate_summaries=True,
             generate_metadata=True,  # Required when generate_summaries=True
+            generate_gi=False,  # Experiments are summary-specific; keep GIL off
         )
         provider = create_summarization_provider(cfg)
         provider.initialize()
@@ -1391,7 +1471,7 @@ def materialize_baseline(
             # Request intermediates only if explicitly enabled (baselines should be lean)
             summary_params = (
                 {"return_intermediates": include_intermediates}
-                if experiment_config and experiment_config.backend.type == "hf_local"
+                if experiment_config and experiment_config.backend.type in ("hf_local", "hybrid_ml")
                 else {}
             )
             summary_result = provider.summarize(transcript_text, params=summary_params)

@@ -176,8 +176,9 @@ The workflow for promoting a baseline to app default:
 1. **Create baseline** - Run evaluation with your intended default config
 2. **Validate baseline** - Ensure metrics meet acceptance criteria
 3. **Promote baseline** - Mark it as the authoritative default
-4. **Update app config** - Load baseline config as app defaults
-5. **Verify alignment** - Confirm app behavior matches baseline
+4. **Promote baseline into the Model Registry (RFC-044)** - Create a named mode in code
+5. **Update app defaults** - Use the promoted `summary_mode_id` (mode) as the default
+6. **Verify alignment** - Confirm app behavior matches baseline
 
 **Future changes:**
 
@@ -187,6 +188,17 @@ The workflow for promoting a baseline to app default:
 - If worse, reject the change
 
 This ensures all app behavior is intentional and traceable.
+
+#### Registry Promotion (RFC-044)
+
+The app runtime never imports `data/eval/`. Instead, proven baseline configs are
+promoted into the code registry as **modes**:
+
+```bash
+make registry-promote BASELINE_ID=baseline_ml_prod_authority_v1 MODE_ID=ml_prod_authority_v1
+```
+
+Then, set `summary_mode_id: ml_prod_authority_v1` in config (or rely on the production default).
 
 ---
 
@@ -941,7 +953,7 @@ When references are provided, the following metrics are computed:
 5. **Embedding Similarity** (requires `sentence-transformers` package):
    - `embedding_similarity`: Cosine similarity between embeddings of predictions and references
 
-6. **`numbers_retained`**: TODO - Not yet implemented
+6. **`numbers_retained`**: Fraction of reference numbers retained in predictions (average over episodes); implemented in `evaluation/scorer.py` (`_extract_numbers`, `_compute_numbers_retained`). Omitted when the reference has no numbers.
 
 #### Example vs_reference Structure
 
@@ -1327,6 +1339,64 @@ make configs-clean KEEP=baseline_bart_best.yaml
 | `make run-freeze` | Freeze a run for baseline comparison | `make run-freeze RUN_ID=my_run REASON="Pre-X baseline"` |
 | `make runs-delete` | Delete multiple runs | `make runs-delete RUN_IDS="run1 run2 run3"` |
 | `make experiment-run FORCE=1` | Re-run experiment, deleting existing results | `make experiment-run CONFIG=... FORCE=1` |
+| `make report-multi-run` | Generate multi-run comparison report (baseline + N runs) | See [Multi-run comparison report](#multi-run-comparison-report) below |
+
+### Multi-run comparison report
+
+The **multi-run comparison report** builds a single markdown table from one optional baseline and any number of experiment runs, using their `metrics.json` and the same vs-reference metrics (ROUGE, BLEU, embedding, coverage, WER) and latency. Use it to compare baseline vs tier1 vs tier2, or any set of runs, in one view.
+
+**Make target: `report-multi-run`**
+
+- **Default:** With no arguments, uses baseline `baseline_ml_prod_authority_smoke_v1`, runs `hybrid_ml_tier1_smoke_v1` and `hybrid_ml_tier2_qwen25_7b_smoke_v1`, reference `silver_gpt4o_smoke_v1`, and writes `docs/wip/multi_run_comparison.md`.
+
+```bash
+make report-multi-run
+```
+
+- **Custom baseline + runs:** Specify baseline, comma-separated run IDs, and reference. Output path is optional.
+
+```bash
+make report-multi-run \
+  BASELINE_ID=baseline_ml_prod_authority_smoke_v1 \
+  RUN_IDS=hybrid_ml_tier1_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_v1 \
+  REFERENCE_ID=silver_gpt4o_smoke_v1 \
+  OUTPUT=docs/wip/my_comparison.md
+```
+
+- **Runs only (no baseline):** Omit `BASELINE_ID` and pass only `RUN_IDS` and `REFERENCE_ID`.
+
+```bash
+make report-multi-run \
+  RUN_IDS=run_a,run_b,run_c \
+  REFERENCE_ID=silver_gpt4o_smoke_v1
+```
+
+**Options (make variables):**
+
+| Option | Required | Description |
+| --- | --- | --- |
+| `REFERENCE_ID` | Yes (or default) | Reference ID for vs_reference metrics (e.g. `silver_gpt4o_smoke_v1`). Default: `silver_gpt4o_smoke_v1` when using default baseline/runs. |
+| `BASELINE_ID` | No | Baseline ID; included as first row. Looked up in `data/eval/baselines/`. |
+| `RUN_IDS` | No* | Comma-separated run IDs. Looked up in `data/eval/runs/`. *At least one of `BASELINE_ID` or `RUN_IDS` required. |
+| `OUTPUT` | No | Output markdown path. Default: `docs/wip/multi_run_comparison.md`. |
+| `TITLE` | No | Report title (default: "Multi-Run Comparison"). |
+| `LABELS` | No | Comma-separated labels for each row (same order: baseline first, then runs). Default: use ID. |
+| `DATASET_ID` | No | Dataset ID for report subtitle (default: from first metrics). |
+| `BASELINES_DIR` | No | Baselines directory (default: `data/eval/baselines`). |
+| `RUNS_DIR` | No | Runs directory (default: `data/eval/runs`). |
+
+**Direct script usage:**
+
+```bash
+python scripts/eval/smoke_three_way_report.py \
+  --reference-id silver_gpt4o_smoke_v1 \
+  --baseline-id baseline_ml_prod_authority_smoke_v1 \
+  --run-ids hybrid_ml_tier1_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_v1 \
+  --output docs/wip/smoke_three_way_comparison.md \
+  [--title "Smoke comparison"] [--labels "Prod,Tier1,Tier2"]
+```
+
+All script options are documented in the script's help: `python scripts/eval/smoke_three_way_report.py --help`.
 
 ### Typical Workflow: Parameter Sweep
 

@@ -526,6 +526,10 @@ def configure_ollama_mock_server(request, monkeypatch):
     Additionally, the E2E server provides Ollama-specific endpoints:
     - /api/version: For health checks (validates server is running)
     - /api/tags: For model validation (lists available models)
+    - /api/generate: For native warm-up POST (OllamaProvider.warmup / wait_until_ready)
+
+    Static RSS/audio/transcript URLs on the E2E server support GET and HEAD (HEAD is
+    used for media size checks and must not 404).
 
     This allows E2E tests to use real HTTP requests to mock endpoints, testing the full
     HTTP client → Network → Mock Server → Response chain.

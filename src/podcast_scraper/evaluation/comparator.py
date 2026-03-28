@@ -120,20 +120,43 @@ def compare_vs_baseline(
             gate_regressions.append(gate_name)
     deltas["gate_regressions"] = gate_regressions
 
-    # vs_reference deltas (if both have same references)
-    exp_vs_ref = exp_metrics.get("vs_reference", {})
-    baseline_vs_ref = baseline_metrics.get("vs_reference", {})
+    # vs_reference deltas (ROUGE, BLEU, embedding - value/quality metrics)
+    exp_vs_ref = exp_metrics.get("vs_reference") or {}
+    baseline_vs_ref = baseline_metrics.get("vs_reference") or {}
     if exp_vs_ref and baseline_vs_ref:
+        # Metric keys to compare per reference (same keys as scorer outputs)
+        vs_ref_metric_keys = [
+            "rouge1_f1",
+            "rouge2_f1",
+            "rougeL_f1",
+            "bleu",
+            "wer",
+            "embedding_cosine",
+            "coverage_ratio",
+            "numbers_retained",
+        ]
         for ref_id in exp_vs_ref.keys():
-            if ref_id in baseline_vs_ref:
-                exp_rougeL = exp_vs_ref[ref_id].get("rougeL_f1")
-                baseline_rougeL = baseline_vs_ref[ref_id].get("rougeL_f1")
-                if exp_rougeL is not None and baseline_rougeL is not None:
-                    deltas[f"rougeL_f1_vs_{ref_id}"] = compute_delta(exp_rougeL, baseline_rougeL)
+            if ref_id not in baseline_vs_ref:
+                continue
+            exp_ref = exp_vs_ref[ref_id]
+            baseline_ref = baseline_vs_ref[ref_id]
+            if not isinstance(exp_ref, dict) or not isinstance(baseline_ref, dict):
+                continue
+            if "error" in exp_ref or "error" in baseline_ref:
+                continue
+            for key in vs_ref_metric_keys:
+                exp_val = exp_ref.get(key)
+                baseline_val = baseline_ref.get(key)
+                if exp_val is not None and baseline_val is not None:
+                    delta = compute_delta(exp_val, baseline_val)
+                    if delta is not None:
+                        deltas[f"{key}_vs_{ref_id}"] = delta
 
     return {
         "baseline_id": baseline_id,
         "dataset_id": dataset_id,
         "experiment_run_id": exp_metrics.get("run_id"),
         "deltas": deltas,
+        "experiment_metrics": exp_metrics,
+        "baseline_metrics": baseline_metrics,
     }

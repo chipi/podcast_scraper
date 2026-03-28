@@ -132,6 +132,8 @@ Operators and developers must be able to understand pipeline health, stage timin
 | **Stage instrumentation** | Major stages (RSS, download, transcription, summarization, etc.) are instrumented; per-episode and aggregate timing available. | Met | [ARCHITECTURE](ARCHITECTURE.md), [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) |
 | **Provider metrics** | Provider calls (e.g. LLM) emit a unified metrics contract (latency, token usage where applicable) for cost and performance analysis. | Met | [ADR-043](adr/ADR-043-unified-provider-metrics-contract.md), [ADR-044](adr/ADR-044-unified-retry-policy-with-metrics.md) |
 | **Run manifests and metrics** | Run manifests and pipeline metrics (e.g. `metrics.json`) capture system state and stage outcomes for reproducibility and analysis. | Met | [ARCHITECTURE](ARCHITECTURE.md), [RFC-026](rfc/RFC-026-metrics-consumption-and-dashboards.md) |
+| **GIL instrumentation** | When GIL (Grounded Insight Layer) is enabled, the GIL stage is instrumented with success/failure counts and per-episode timing; run manifests and pipeline metrics include GIL outcomes. | Met | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) |
+| **GIL evidence stack** | GIL can use configurable evidence providers (`quote_extraction_provider`, `entailment_provider`) for quote extraction and entailment; defaults to local (transformers). Pipeline metrics record evidence path (provider vs legacy) and evidence call counts (extract_quotes, score_entailment). Per-call tokens/cost remain optional future work. | Met | [RFC-049](rfc/RFC-049-grounded-insight-layer-core.md), [GROUNDED_INSIGHTS_GUIDE](guides/GROUNDED_INSIGHTS_GUIDE.md) |
 | **Structured logging** | Optional structured (JSON) logging for log aggregation systems. | Met | [ARCHITECTURE](ARCHITECTURE.md) (`--json-logs`) |
 | **Operational dashboards** | PRD-016 goals: 100% of pipeline stages instrumented and visible; root-cause analysis of CI slowdown in &lt; 5 minutes. | Plan | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) |
 
@@ -151,7 +153,7 @@ Code and documentation must stay understandable, consistent, and measurable so t
 | **Complexity and maintainability** | Complexity and maintainability (e.g. radon, wily) are tracked; significant degradation is reviewed. | Met | [RFC-031](rfc/RFC-031-code-complexity-analysis-tooling.md), [CI CODE_QUALITY_TRENDS](ci/CODE_QUALITY_TRENDS.md) |
 | **Test pyramid and coverage** | Unit, integration, and E2E layers are used consistently; coverage targets (e.g. ≥70%) are enforced in CI. | Met | [ADR-021](adr/ADR-021-standardized-test-pyramid.md), [TESTING_STRATEGY](TESTING_STRATEGY.md) |
 | **Documentation** | Architecture, ADRs, PRDs, RFCs, and guides are kept in sync with implementation; markdown and docs build pass in CI. | Met | [ARCHITECTURE](ARCHITECTURE.md), `make docs`, `make fix-md` |
-| **Module boundaries** | Public surface and module boundaries are respected (e.g. CLI vs service vs workflow vs config). | Met | `.cursorrules`, [ARCHITECTURE](ARCHITECTURE.md) |
+| **Module boundaries** | Public surface and module boundaries are respected (e.g. CLI vs service vs workflow vs config). | Met | Project root `.cursorrules`, [ARCHITECTURE](ARCHITECTURE.md) |
 | **Compatibility** | Python 3.10+; public API follows [semantic versioning](api/VERSIONING.md); breaking changes only in MAJOR; deprecations communicated. | Met | [api/VERSIONING](api/VERSIONING.md), [TROUBLESHOOTING](guides/TROUBLESHOOTING.md) |
 
 ---
@@ -168,7 +170,7 @@ The system must scale to typical single-feed and multi-episode use cases without
 | ----------- | ----------- | ------ | ---------- |
 | **Single-feed, many episodes** | Pipeline handles many episodes per feed within resource limits (timeouts, memory); sequential ML per ADR-001. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ARCHITECTURE](ARCHITECTURE.md) |
 | **Concurrency** | IO-bound work (downloads) uses threading; ML work is sequential to avoid GPU OOM and contention. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md) |
-| **GIL / query scale** | File-based GIL scales to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](rfc/RFC-051-grounded-insight-layer-database-projection.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) |
+| **GIL / KG query scale** | File-based GIL and KG artifacts scale to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](rfc/RFC-051-database-projection-gil-kg.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) |
 
 ### 6.3 Out of Scope (Scalability)
 

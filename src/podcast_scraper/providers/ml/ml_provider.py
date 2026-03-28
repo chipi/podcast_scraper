@@ -41,6 +41,7 @@ from ...exceptions import (
 from ...utils import progress
 from ..capabilities import ProviderCapabilities
 from . import speaker_detection, summarizer
+from .model_registry import ModelRegistry
 from .whisper_utils import normalize_whisper_model_name
 
 logger = logging.getLogger(__name__)
@@ -1034,7 +1035,7 @@ class MLProvider:
         episode_title: str,
         episode_description: str | None,
         known_hosts: Set[str],
-    ) -> Tuple[list[str], Set[str], bool]:
+    ) -> Tuple[list[str], Set[str], bool, bool]:
         """Detect speaker names from episode metadata using spaCy NER.
 
         Args:
@@ -1047,6 +1048,7 @@ class MLProvider:
             - List of detected speaker names
             - Set of detected host names (subset of known_hosts)
             - Success flag (True if detection succeeded)
+            - used_defaults: True if defaults were added to reach min speakers
         """
         # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
@@ -1060,20 +1062,19 @@ class MLProvider:
             self._initialize_spacy()
 
         # Use detect_speaker_names with adapted parameters
-        # Pass self._spacy_nlp directly (required parameter)
-        speaker_names, detected_hosts_set, detection_succeeded = (
+        speaker_names, detected_hosts_set, detection_succeeded, used_defaults = (
             speaker_detection.detect_speaker_names(  # type: ignore[misc]
                 episode_title=episode_title,
                 episode_description=episode_description,
-                nlp=self._spacy_nlp,  # Required: pass pre-loaded model
+                nlp=self._spacy_nlp,
                 cfg=self.cfg,
-                known_hosts=None,  # Use cached_hosts instead
-                cached_hosts=known_hosts,  # Map known_hosts to cached_hosts
+                known_hosts=None,
+                cached_hosts=known_hosts,
                 heuristics=self._spacy_heuristics,
             )
         )
 
-        return speaker_names, detected_hosts_set, detection_succeeded
+        return speaker_names, detected_hosts_set, detection_succeeded, used_defaults
 
     def detect_hosts(
         self,
@@ -1159,7 +1160,7 @@ class MLProvider:
     # SummarizationProvider Protocol Implementation
     # ============================================================================
 
-    def summarize(
+    def summarize(  # noqa: C901
         self,
         text: str,
         episode_title: Optional[str] = None,
@@ -1207,6 +1208,54 @@ class MLProvider:
                 capability="summarization",
             )
 
+        mode_id = getattr(self.cfg, "summary_mode_id", None)
+        mode_cfg = None
+        if mode_id:
+            try:
+                mode_cfg = ModelRegistry.get_mode_configuration(str(mode_id))
+            except ValueError as exc:
+                logger.warning("summary_mode_id '%s' not found in registry (%s)", mode_id, exc)
+                mode_cfg = None
+
+        # Resolve effective defaults:
+        # - params dict overrides everything (experiments)
+        # - otherwise, summary_mode_precedence controls mode vs config
+        effective_map_params = self.cfg.summary_map_params
+        effective_reduce_params = self.cfg.summary_reduce_params
+        effective_tokenize = self.cfg.summary_tokenize
+        mode_precedence = getattr(self.cfg, "summary_mode_precedence", "mode")
+
+        default_word_chunk_size = self.cfg.summary_word_chunk_size
+        default_word_overlap = self.cfg.summary_word_overlap
+
+        if mode_cfg and mode_precedence == "mode":
+            effective_map_params = mode_cfg.map_params
+            effective_reduce_params = mode_cfg.reduce_params
+            effective_tokenize = mode_cfg.tokenize
+            if isinstance(mode_cfg.chunking, dict):
+                if "word_chunk_size" in mode_cfg.chunking:
+                    default_word_chunk_size = int(mode_cfg.chunking["word_chunk_size"])
+                if "word_overlap" in mode_cfg.chunking:
+                    default_word_overlap = int(mode_cfg.chunking["word_overlap"])
+        elif mode_cfg and mode_precedence == "config":
+            if "summary_map_params" not in self.cfg.model_fields_set:
+                effective_map_params = mode_cfg.map_params
+            if "summary_reduce_params" not in self.cfg.model_fields_set:
+                effective_reduce_params = mode_cfg.reduce_params
+            if "summary_tokenize" not in self.cfg.model_fields_set:
+                effective_tokenize = mode_cfg.tokenize
+            if isinstance(mode_cfg.chunking, dict):
+                if (
+                    "summary_word_chunk_size" not in self.cfg.model_fields_set
+                    and "word_chunk_size" in mode_cfg.chunking
+                ):
+                    default_word_chunk_size = int(mode_cfg.chunking["word_chunk_size"])
+                if (
+                    "summary_word_overlap" not in self.cfg.model_fields_set
+                    and "word_overlap" in mode_cfg.chunking
+                ):
+                    default_word_overlap = int(mode_cfg.chunking["word_overlap"])
+
         # Extract parameters with defaults from config
         chunk_size = (params.get("chunk_size") if params else None) or self.cfg.summary_chunk_size
         # Chunk-level parallelism: Use chunk_parallelism from params, fallback to config
@@ -1218,10 +1267,8 @@ class MLProvider:
         use_word_chunking = params.get("use_word_chunking") if params else None
         word_chunk_size = (
             params.get("word_chunk_size") if params else None
-        ) or self.cfg.summary_word_chunk_size
-        word_overlap = (
-            params.get("word_overlap") if params else None
-        ) or self.cfg.summary_word_overlap
+        ) or default_word_chunk_size
+        word_overlap = (params.get("word_overlap") if params else None) or default_word_overlap
         prompt = params.get("prompt") if params else None
         # Extract max_length and min_length from params (for backward compatibility)
         # These are legacy params that map to map_max_new_tokens/min_new_tokens
@@ -1229,6 +1276,15 @@ class MLProvider:
         min_length = params.get("min_length") if params else None
 
         # Auto-detect word chunking if not specified
+        if use_word_chunking is None:
+            # Mode can pin the chunking strategy to match the promoted baseline.
+            if mode_cfg and isinstance(mode_cfg.chunking, dict):
+                strategy = mode_cfg.chunking.get("strategy")
+                if strategy == "word_chunking":
+                    use_word_chunking = True
+                elif strategy == "token_chunking":
+                    use_word_chunking = False
+
         if use_word_chunking is None:
             model_name = (
                 self._map_model.model_name if hasattr(self._map_model, "model_name") else ""
@@ -1244,39 +1300,50 @@ class MLProvider:
 
         # All defaults come from Config (no hardcoded values)
         # Params dict can override Config defaults (for experiments)
-        logger.info("=== Using ML Parameters from Config ===")
+        if mode_cfg and mode_precedence == "mode":
+            logger.info("=== Using ML Parameters from ModeConfiguration (precedence=mode) ===")
+            logger.info("Mode fingerprint:")
+            logger.info(f"  mode_id: {mode_cfg.mode_id}")
+            logger.info(f"  promoted_from: {mode_cfg.promoted_from}")
+            logger.info(f"  promoted_at: {mode_cfg.promoted_at}")
+            logger.info(f"  map_model: {mode_cfg.map_model}")
+            logger.info(f"  reduce_model: {mode_cfg.reduce_model}")
+            logger.info(f"  preprocessing_profile: {mode_cfg.preprocessing_profile}")
+        elif mode_cfg and mode_precedence == "config":
+            logger.info("=== ModeConfiguration Available (precedence=config) ===")
+            logger.info("Mode fingerprint:")
+            logger.info(f"  mode_id: {mode_cfg.mode_id}")
+            logger.info(f"  promoted_from: {mode_cfg.promoted_from}")
+            logger.info(f"  promoted_at: {mode_cfg.promoted_at}")
+            logger.info(f"  map_model: {mode_cfg.map_model}")
+            logger.info(f"  reduce_model: {mode_cfg.reduce_model}")
+            logger.info(f"  preprocessing_profile: {mode_cfg.preprocessing_profile}")
+        else:
+            logger.info("=== Using ML Parameters from Config ===")
         logger.info("Map stage:")
-        logger.info(f"  max_new_tokens: {self.cfg.summary_map_params.get('max_new_tokens')}")
-        logger.info(f"  min_new_tokens: {self.cfg.summary_map_params.get('min_new_tokens')}")
-        logger.info(f"  num_beams: {self.cfg.summary_map_params.get('num_beams')}")
-        logger.info(
-            f"  no_repeat_ngram_size: {self.cfg.summary_map_params.get('no_repeat_ngram_size')}"
-        )
-        logger.info(f"  length_penalty: {self.cfg.summary_map_params.get('length_penalty')}")
-        logger.info(f"  early_stopping: {self.cfg.summary_map_params.get('early_stopping')}")
-        logger.info(
-            f"  repetition_penalty: {self.cfg.summary_map_params.get('repetition_penalty')}"
-        )
+        logger.info(f"  max_new_tokens: {effective_map_params.get('max_new_tokens')}")
+        logger.info(f"  min_new_tokens: {effective_map_params.get('min_new_tokens')}")
+        logger.info(f"  num_beams: {effective_map_params.get('num_beams')}")
+        logger.info(f"  no_repeat_ngram_size: {effective_map_params.get('no_repeat_ngram_size')}")
+        logger.info(f"  length_penalty: {effective_map_params.get('length_penalty')}")
+        logger.info(f"  early_stopping: {effective_map_params.get('early_stopping')}")
+        logger.info(f"  repetition_penalty: {effective_map_params.get('repetition_penalty')}")
         logger.info("Reduce stage:")
-        logger.info(f"  max_new_tokens: {self.cfg.summary_reduce_params.get('max_new_tokens')}")
-        logger.info(f"  min_new_tokens: {self.cfg.summary_reduce_params.get('min_new_tokens')}")
-        logger.info(f"  num_beams: {self.cfg.summary_reduce_params.get('num_beams')}")
+        logger.info(f"  max_new_tokens: {effective_reduce_params.get('max_new_tokens')}")
+        logger.info(f"  min_new_tokens: {effective_reduce_params.get('min_new_tokens')}")
+        logger.info(f"  num_beams: {effective_reduce_params.get('num_beams')}")
         logger.info(
-            f"  no_repeat_ngram_size: {self.cfg.summary_reduce_params.get('no_repeat_ngram_size')}"
+            f"  no_repeat_ngram_size: {effective_reduce_params.get('no_repeat_ngram_size')}"
         )
-        logger.info(f"  length_penalty: {self.cfg.summary_reduce_params.get('length_penalty')}")
-        logger.info(f"  early_stopping: {self.cfg.summary_reduce_params.get('early_stopping')}")
-        logger.info(
-            f"  repetition_penalty: {self.cfg.summary_reduce_params.get('repetition_penalty')}"
-        )
+        logger.info(f"  length_penalty: {effective_reduce_params.get('length_penalty')}")
+        logger.info(f"  early_stopping: {effective_reduce_params.get('early_stopping')}")
+        logger.info(f"  repetition_penalty: {effective_reduce_params.get('repetition_penalty')}")
         logger.info("Tokenization:")
+        logger.info(f"  map_max_input_tokens: {effective_tokenize.get('map_max_input_tokens')}")
         logger.info(
-            f"  map_max_input_tokens: {self.cfg.summary_tokenize.get('map_max_input_tokens')}"
+            f"  reduce_max_input_tokens: {effective_tokenize.get('reduce_max_input_tokens')}"
         )
-        logger.info(
-            f"  reduce_max_input_tokens: {self.cfg.summary_tokenize.get('reduce_max_input_tokens')}"
-        )
-        logger.info(f"  truncation: {self.cfg.summary_tokenize.get('truncation')}")
+        logger.info(f"  truncation: {effective_tokenize.get('truncation')}")
         # Log chunking params if available
         if self.cfg.summary_word_chunk_size or word_chunk_size:
             logger.info("Chunking:")
@@ -1303,70 +1370,73 @@ class MLProvider:
             # Start with Config defaults, then override with params dict if provided
             map_max_new_tokens = (
                 params.get("map_max_new_tokens") if params else None
-            ) or self.cfg.summary_map_params.get("max_new_tokens")
+            ) or effective_map_params.get("max_new_tokens")
             map_min_new_tokens = (
                 params.get("map_min_new_tokens") if params else None
-            ) or self.cfg.summary_map_params.get("min_new_tokens")
+            ) or effective_map_params.get("min_new_tokens")
             map_num_beams = (
                 params.get("map_num_beams") if params else None
-            ) or self.cfg.summary_map_params.get("num_beams")
+            ) or effective_map_params.get("num_beams")
             map_no_repeat_ngram_size = (
                 params.get("map_no_repeat_ngram_size") if params else None
-            ) or self.cfg.summary_map_params.get("no_repeat_ngram_size")
+            ) or effective_map_params.get("no_repeat_ngram_size")
             map_length_penalty = (
                 params.get("map_length_penalty") if params else None
-            ) or self.cfg.summary_map_params.get("length_penalty")
+            ) or effective_map_params.get("length_penalty")
             map_early_stopping = params.get("map_early_stopping") if params else None
             if map_early_stopping is None:
-                map_early_stopping = self.cfg.summary_map_params.get("early_stopping")
+                map_early_stopping = effective_map_params.get("early_stopping")
             map_repetition_penalty = (
                 params.get("map_repetition_penalty") if params else None
-            ) or self.cfg.summary_map_params.get("repetition_penalty")
+            ) or effective_map_params.get("repetition_penalty")
             map_encoder_no_repeat_ngram_size = (
                 params.get("map_encoder_no_repeat_ngram_size") if params else None
-            ) or self.cfg.summary_map_params.get("encoder_no_repeat_ngram_size")
+            ) or effective_map_params.get("encoder_no_repeat_ngram_size")
             map_max_input_tokens = (
                 params.get("map_max_input_tokens") if params else None
-            ) or self.cfg.summary_tokenize.get("map_max_input_tokens")
+            ) or effective_tokenize.get("map_max_input_tokens")
 
             reduce_max_new_tokens = (
                 params.get("reduce_max_new_tokens") if params else None
-            ) or self.cfg.summary_reduce_params.get("max_new_tokens")
+            ) or effective_reduce_params.get("max_new_tokens")
             reduce_min_new_tokens = (
                 params.get("reduce_min_new_tokens") if params else None
-            ) or self.cfg.summary_reduce_params.get("min_new_tokens")
+            ) or effective_reduce_params.get("min_new_tokens")
             reduce_num_beams = (
                 params.get("reduce_num_beams") if params else None
-            ) or self.cfg.summary_reduce_params.get("num_beams")
+            ) or effective_reduce_params.get("num_beams")
             reduce_no_repeat_ngram_size = (
                 params.get("reduce_no_repeat_ngram_size") if params else None
-            ) or self.cfg.summary_reduce_params.get("no_repeat_ngram_size")
+            ) or effective_reduce_params.get("no_repeat_ngram_size")
             reduce_length_penalty = (
                 params.get("reduce_length_penalty") if params else None
-            ) or self.cfg.summary_reduce_params.get("length_penalty")
+            ) or effective_reduce_params.get("length_penalty")
             reduce_early_stopping = params.get("reduce_early_stopping") if params else None
             if reduce_early_stopping is None:
-                reduce_early_stopping = self.cfg.summary_reduce_params.get("early_stopping")
+                reduce_early_stopping = effective_reduce_params.get("early_stopping")
             reduce_repetition_penalty = (
                 params.get("reduce_repetition_penalty") if params else None
-            ) or self.cfg.summary_reduce_params.get("repetition_penalty")
+            ) or effective_reduce_params.get("repetition_penalty")
             reduce_encoder_no_repeat_ngram_size = (
                 params.get("reduce_encoder_no_repeat_ngram_size") if params else None
-            ) or self.cfg.summary_reduce_params.get("encoder_no_repeat_ngram_size")
+            ) or effective_reduce_params.get("encoder_no_repeat_ngram_size")
             reduce_max_input_tokens = (
                 params.get("reduce_max_input_tokens") if params else None
-            ) or self.cfg.summary_tokenize.get("reduce_max_input_tokens")
+            ) or effective_tokenize.get("reduce_max_input_tokens")
             truncation = params.get("truncation") if params else None
             if truncation is None:
-                truncation = self.cfg.summary_tokenize.get("truncation")
-            preprocessing_profile = (
-                params.get("preprocessing_profile") if params else None
-            ) or "cleaning_v4"  # Default to cleaning_v4 (matches production baseline)
+                truncation = effective_tokenize.get("truncation")
+            preprocessing_profile = (params.get("preprocessing_profile") if params else None) or (
+                mode_cfg.preprocessing_profile if mode_cfg else "cleaning_v4"
+            )
 
             result = summarizer.summarize_long_text(
                 model=self._map_model,
                 text=text,
-                chunk_size=chunk_size or summarizer.BART_MAX_POSITION_EMBEDDINGS,
+                chunk_size=chunk_size
+                or ModelRegistry.get_capabilities(
+                    self._map_model.model_name, self._map_model.model
+                ).max_input_tokens,
                 max_length=max_length if max_length is not None else 150,
                 min_length=min_length if min_length is not None else 30,
                 batch_size=batch_size if self._map_model.device == "cpu" else None,
@@ -1420,6 +1490,15 @@ class MLProvider:
                 ),
                 "device": self._map_model.device,
             }
+            if mode_cfg:
+                metadata.update(
+                    {
+                        "mode_id": mode_cfg.mode_id,
+                        "mode_promoted_from": mode_cfg.promoted_from,
+                        "mode_promoted_at": mode_cfg.promoted_at,
+                        "preprocessing_profile": preprocessing_profile,
+                    }
+                )
 
             result_dict: Dict[str, Any] = {
                 "summary": summary_text,
@@ -1461,6 +1540,79 @@ class MLProvider:
                 provider="MLProvider/Transformers",
                 suggestion="Check model cache and input text format",
             ) from e
+
+    def generate_insights(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_insights: int = 5,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Generate insight statements (GIL). ML provider does not implement this.
+
+        Returns empty list so GIL falls back to stub or summary_bullets when
+        gi_insight_source=provider.
+        """
+        return []
+
+    def extract_quotes(
+        self,
+        transcript: str,
+        insight_text: str,
+        **kwargs: Any,
+    ) -> List[Any]:
+        """Extract candidate quote spans that support the insight (GIL QA).
+
+        Uses local extractive QA model (gi_qa_model). Returns list of QuoteCandidate
+        (char_start, char_end, text, qa_score).
+        """
+        from ...gi.grounding import QuoteCandidate
+        from . import extractive_qa
+
+        if not (transcript and insight_text):
+            return []
+        question = f"What evidence supports: {insight_text.strip()}"
+        try:
+            span = extractive_qa.answer(
+                context=transcript,
+                question=question,
+                model_id=getattr(self.cfg, "gi_qa_model", "roberta-squad2"),
+                device=getattr(self.cfg, "extractive_qa_device", None),
+            )
+        except Exception as e:
+            logger.warning("Extractive QA failed for extract_quotes: %s", e)
+            return []
+        verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
+        return [
+            QuoteCandidate(
+                char_start=span.start,
+                char_end=span.end,
+                text=verbatim,
+                qa_score=span.score,
+            )
+        ]
+
+    def score_entailment(
+        self,
+        premise: str,
+        hypothesis: str,
+        **kwargs: Any,
+    ) -> float:
+        """Score entailment of hypothesis given premise (GIL NLI). 0–1, higher = more entailment."""
+        from . import nli_loader
+
+        if not (premise and hypothesis):
+            return 0.0
+        try:
+            return nli_loader.entailment_score(
+                premise=premise.strip(),
+                hypothesis=hypothesis.strip(),
+                model_id=getattr(self.cfg, "gi_nli_model", "nli-deberta-base"),
+                device=getattr(self.cfg, "nli_device", None),
+            )
+        except Exception as e:
+            logger.warning("NLI failed for score_entailment: %s", e)
+            return 0.0
 
     # ============================================================================
     # Cleanup Methods

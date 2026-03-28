@@ -79,7 +79,7 @@ class TestDeepSeekSpeakerDetectionProviderFactory(unittest.TestCase):
         provider = create_speaker_detector(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},

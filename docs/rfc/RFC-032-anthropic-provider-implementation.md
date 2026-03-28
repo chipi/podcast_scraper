@@ -185,10 +185,10 @@ anthropic_summary_user_prompt: str = Field(
 
 ```python
 # In config_constants.py
-TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-haiku-latest"
+TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-haiku-4-5"
 PROD_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-sonnet-latest"
 
-TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-haiku-latest"
+TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-haiku-4-5"
 PROD_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-sonnet-latest"
 
 # In config.py
@@ -367,11 +367,11 @@ class AnthropicProvider:
         self.client = Anthropic(**client_kwargs)
 
         # Speaker detection settings
-        self.speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-3-5-haiku-latest")
+        self.speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-haiku-4-5")
         self.speaker_temperature = getattr(cfg, "anthropic_temperature", 0.3)
 
         # Summarization settings
-        self.summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-haiku-latest")
+        self.summary_model = getattr(cfg, "anthropic_summary_model", "claude-haiku-4-5")
         self.summary_temperature = getattr(cfg, "anthropic_temperature", 0.3)
         # Claude 3.5 Sonnet supports 200k context window
         self.max_context_tokens = 200000  # Conservative estimate
@@ -823,7 +823,7 @@ def create_speaker_detector(
             cfg = Config(
                 rss="",
                 speaker_detector_provider="anthropic",
-                anthropic_speaker_model=params.model_name if params.model_name else "claude-3-5-haiku-latest",
+                anthropic_speaker_model=params.model_name if params.model_name else "claude-haiku-4-5",
                 anthropic_temperature=params.temperature if params.temperature is not None else 0.3,
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
             )

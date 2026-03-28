@@ -1,0 +1,522 @@
+"""GIL extraction pipeline: transcript + metadata -> nodes/edges -> artifact dict.
+
+Builds a valid gi.json with Episode, Insight(s), Quote(s), and SUPPORTED_BY edges.
+When cfg is provided and gi_require_grounding is True, uses the evidence stack
+(QA + NLI) to find grounded quotes per insight. Insight texts come from
+insight_texts, insight_provider.generate_insights(), or stub.
+
+When transcript_segments are provided (from transcription with word/segment
+timestamps), Quote nodes get precise timestamp_start_ms and timestamp_end_ms
+(FR2.2).
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+
+from .grounding import GroundedQuote
+
+if TYPE_CHECKING:
+    from podcast_scraper import config
+
+logger = logging.getLogger(__name__)
+
+# Stub insight text used when no real insights (single stub)
+_STUB_INSIGHT_TEXT = "Summary insight (stub)."
+
+
+def _safe_iso_date(s: Optional[str]) -> str:
+    """Return ISO date-time string; use placeholder if missing."""
+    if s and s.strip():
+        return s.strip()
+    return "2020-01-01T00:00:00Z"
+
+
+def _char_range_to_ms(
+    transcript: str,
+    char_start: int,
+    char_end: int,
+    segments: List[Dict[str, Any]],
+) -> Tuple[int, int]:
+    """Map character span to (start_ms, end_ms) using transcription segments.
+
+    Segments are expected to have "start" (seconds), "end" (seconds), "text" (str).
+    Builds cumulative character offsets per segment and finds overlapping segment(s)
+    for [char_start, char_end]; returns the time range of those segments in ms.
+
+    Args:
+        transcript: Full transcript text (used to validate segment text alignment).
+        char_start: Quote start character offset (0-based).
+        char_end: Quote end character offset (exclusive).
+        segments: List of {"start": float, "end": float, "text": str}.
+
+    Returns:
+        (timestamp_start_ms, timestamp_end_ms). (0, 0) if no segments or no overlap.
+    """
+    if not segments or char_start >= char_end:
+        return 0, 0
+    seg_list = []
+    pos = 0
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        start_s = float(seg.get("start", 0.0))
+        end_s = float(seg.get("end", 0.0))
+        text = seg.get("text") or ""
+        seg_start = pos
+        seg_end = pos + len(text)
+        seg_list.append((seg_start, seg_end, start_s, end_s))
+        pos = seg_end
+    if not seg_list:
+        return 0, 0
+    # Only map when segment text length matches transcript (no heavy reformatting)
+    if abs(len(transcript) - pos) > 50:
+        return 0, 0
+    # Find segments overlapping [char_start, char_end]; use first overlap for start, last for end
+    start_ms = 0
+    end_ms = 0
+    first_set = False
+    for seg_start, seg_end, start_s, end_s in seg_list:
+        if seg_end <= char_start or seg_start >= char_end:
+            continue
+        if not first_set:
+            start_ms = int(start_s * 1000)
+            first_set = True
+        end_ms = int(end_s * 1000)
+    return start_ms, end_ms
+
+
+def _build_stub_artifact(
+    episode_id: str,
+    transcript_text: str,
+    *,
+    model_version: str,
+    prompt_version: str,
+    podcast_id: str,
+    episode_title: str,
+    date_str: str,
+    transcript_ref: str,
+) -> Dict[str, Any]:
+    """Build minimal stub artifact (one Episode, one Insight, one Quote, one SUPPORTED_BY)."""
+    ep_node_id = f"ep:{episode_id}"
+    insight_id = f"insight:{episode_id}:0"
+    quote_id = f"quote:{episode_id}:0"
+    text_slice = (transcript_text or "No transcript.").strip()[:100]
+    char_start = 0
+    char_end = max(0, len(text_slice) - 1)
+
+    nodes: list = [
+        {
+            "id": ep_node_id,
+            "type": "Episode",
+            "properties": {
+                "podcast_id": podcast_id,
+                "title": episode_title,
+                "publish_date": date_str,
+            },
+        },
+        {
+            "id": insight_id,
+            "type": "Insight",
+            "properties": {
+                "text": _STUB_INSIGHT_TEXT,
+                "episode_id": episode_id,
+                "grounded": True,
+            },
+        },
+        {
+            "id": quote_id,
+            "type": "Quote",
+            "properties": {
+                "text": text_slice,
+                "episode_id": episode_id,
+                "speaker_id": None,
+                "char_start": char_start,
+                "char_end": char_end,
+                "timestamp_start_ms": 0,
+                "timestamp_end_ms": 0,
+                "transcript_ref": transcript_ref,
+            },
+        },
+    ]
+    edges: list = [{"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id}]
+    return {
+        "schema_version": "1.0",
+        "model_version": model_version,
+        "prompt_version": prompt_version,
+        "episode_id": episode_id,
+        "nodes": nodes,
+        "edges": edges,
+    }
+
+
+def _resolve_insight_texts(
+    transcript_text: str,
+    cfg: Optional["config.Config"],
+    insight_texts: Optional[List[str]] = None,
+    insight_provider: Optional[Any] = None,
+    episode_title: Optional[str] = None,
+) -> List[str]:
+    """Resolve list of insight strings for GIL from config, provider, or stub.
+
+    Order: use insight_texts if non-empty; else if gi_insight_source=provider
+    and provider has generate_insights, call it; else if single stub desired,
+    return [_STUB_INSIGHT_TEXT]. Normalizes and caps length per gi_max_insights.
+    """
+    max_insights = 5
+    if cfg is not None:
+        max_insights = getattr(cfg, "gi_max_insights", 5)
+
+    if insight_texts:
+        # Normalize: strip, drop empty, cap
+        resolved = [s.strip() for s in insight_texts if (s and s.strip())][:max_insights]
+        if resolved:
+            return resolved
+
+    source = "stub"
+    if cfg is not None:
+        source = getattr(cfg, "gi_insight_source", "stub")
+
+    if source == "provider" and insight_provider is not None:
+        gen = getattr(insight_provider, "generate_insights", None)
+        if callable(gen):
+            try:
+                out = gen(
+                    text=transcript_text or "",
+                    episode_title=episode_title,
+                    max_insights=max_insights,
+                    params=None,
+                )
+                if isinstance(out, list):
+                    resolved = [s.strip() for s in out if (s and s.strip())][:max_insights]
+                    if resolved:
+                        return resolved
+            except Exception as e:
+                logger.debug(
+                    "generate_insights failed, falling back to stub: %s",
+                    e,
+                    exc_info=True,
+                )
+
+    return [_STUB_INSIGHT_TEXT]
+
+
+def build_artifact(
+    episode_id: str,
+    transcript_text: str,
+    *,
+    model_version: str = "stub",
+    prompt_version: str = "v1",
+    podcast_id: Optional[str] = None,
+    episode_title: Optional[str] = None,
+    publish_date: Optional[str] = None,
+    transcript_ref: str = "transcript.txt",
+    transcript_segments: Optional[List[Dict[str, Any]]] = None,
+    cfg: Optional["config.Config"] = None,
+    insight_texts: Optional[List[str]] = None,
+    insight_provider: Optional[Any] = None,
+    quote_extraction_provider: Optional[Any] = None,
+    entailment_provider: Optional[Any] = None,
+    pipeline_metrics: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Build a GIL artifact for one episode.
+
+    Insight texts come from insight_texts (e.g. summary bullets), from
+    insight_provider.generate_insights() when gi_insight_source=provider, or
+    a single stub. For each insight, the evidence stack (QA + NLI) finds
+    grounded quotes; artifact has one Insight node per insight and their
+    Quote nodes + SUPPORTED_BY edges.
+
+    When transcript_segments is provided (from transcription with segments),
+    Quote nodes get precise timestamp_start_ms and timestamp_end_ms (FR2.2).
+
+    Args:
+        episode_id: Episode identifier (e.g. episode:1 or episode:abc123).
+        transcript_text: Full transcript text (used for QA context and quote spans).
+        model_version: Model identifier used for extraction.
+        prompt_version: Prompt version tag.
+        podcast_id: Optional podcast node ID for Episode.podcast_id.
+        episode_title: Optional title for Episode node.
+        publish_date: Optional ISO date-time for Episode node.
+        transcript_ref: Reference string for Quote.transcript_ref.
+        transcript_segments: Optional list of {"start", "end", "text"} from transcription.
+        cfg: Optional config; when set and gi_require_grounding, use evidence stack.
+        insight_texts: Optional precomputed list of insight strings (e.g. summary bullets).
+        insight_provider: Optional provider with generate_insights() when source=provider.
+        quote_extraction_provider: Optional provider with extract_quotes() for GIL QA.
+        entailment_provider: Optional provider with score_entailment() for GIL NLI.
+        pipeline_metrics: Optional metrics; when set, evidence path counters are updated.
+
+    Returns:
+        Dict with schema_version, model_version, prompt_version, episode_id, nodes, edges.
+    """
+    pid = podcast_id or "podcast:unknown"
+    title = (episode_title or "Episode").strip() or "Episode"
+    date_str = _safe_iso_date(publish_date)
+
+    insights = _resolve_insight_texts(
+        transcript_text=transcript_text or "",
+        cfg=cfg,
+        insight_texts=insight_texts,
+        insight_provider=insight_provider,
+        episode_title=episode_title or title,
+    )
+
+    use_evidence_stack = (
+        cfg is not None
+        and getattr(cfg, "generate_gi", False)
+        and getattr(cfg, "gi_require_grounding", True)
+        and (transcript_text or "").strip()
+    )
+
+    if use_evidence_stack and insights:
+        insight_quotes: List[List[GroundedQuote]] = []
+        use_provider_path = (
+            quote_extraction_provider is not None and entailment_provider is not None
+        )
+        if use_provider_path:
+            try:
+                from .grounding import find_grounded_quotes_via_providers
+
+                for it in insights:
+                    grounded = find_grounded_quotes_via_providers(
+                        transcript=transcript_text.strip(),
+                        insight_text=it,
+                        quote_extraction_provider=quote_extraction_provider,
+                        entailment_provider=entailment_provider,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                    insight_quotes.append(grounded if isinstance(grounded, list) else [])
+                total_grounded = sum(len(q) for q in insight_quotes)
+                if total_grounded == 0 and insights:
+                    logger.info(
+                        "GIL: provider evidence path produced 0 grounded quotes for %d insight(s)",
+                        len(insights),
+                    )
+                if pipeline_metrics is not None and hasattr(
+                    pipeline_metrics, "gi_evidence_path_provider"
+                ):
+                    pipeline_metrics.gi_evidence_path_provider += 1
+                return _artifact_from_multi_insight(
+                    episode_id=episode_id,
+                    insight_texts=insights,
+                    insight_quotes_list=insight_quotes,
+                    model_version=getattr(cfg, "gi_insight_model", model_version),
+                    prompt_version=prompt_version,
+                    podcast_id=pid,
+                    episode_title=title,
+                    date_str=date_str,
+                    transcript_ref=transcript_ref,
+                    transcript_text=transcript_text or "",
+                    transcript_segments=transcript_segments,
+                )
+            except Exception as e:
+                logger.debug(
+                    "Provider evidence stack failed, using legacy: %s",
+                    e,
+                    exc_info=True,
+                )
+                use_provider_path = False
+        if not use_provider_path:
+            try:
+                from .grounding import find_grounded_quotes
+
+                qa_model = getattr(cfg, "gi_qa_model", "roberta-squad2")
+                nli_model = getattr(cfg, "gi_nli_model", "nli-deberta-base")
+                qa_device = getattr(cfg, "extractive_qa_device", None)
+                nli_device = getattr(cfg, "nli_device", None)
+
+                for it in insights:
+                    grounded = find_grounded_quotes(
+                        transcript=transcript_text.strip(),
+                        insight_text=it,
+                        qa_model_id=qa_model,
+                        nli_model_id=nli_model,
+                        qa_device=qa_device,
+                        nli_device=nli_device,
+                    )
+                    insight_quotes.append(grounded if isinstance(grounded, list) else [])
+
+                if pipeline_metrics is not None and hasattr(
+                    pipeline_metrics, "gi_evidence_path_legacy"
+                ):
+                    pipeline_metrics.gi_evidence_path_legacy += 1
+                return _artifact_from_multi_insight(
+                    episode_id=episode_id,
+                    insight_texts=insights,
+                    insight_quotes_list=insight_quotes,
+                    model_version=getattr(cfg, "gi_insight_model", model_version),
+                    prompt_version=prompt_version,
+                    podcast_id=pid,
+                    episode_title=title,
+                    date_str=date_str,
+                    transcript_ref=transcript_ref,
+                    transcript_text=transcript_text or "",
+                    transcript_segments=transcript_segments,
+                )
+            except Exception as e:
+                logger.debug(
+                    "Evidence stack failed, using stub artifact: %s",
+                    e,
+                    exc_info=True,
+                )
+
+    # Single stub path (no evidence stack or fallback)
+    if len(insights) == 1 and insights[0] == _STUB_INSIGHT_TEXT:
+        return _build_stub_artifact(
+            episode_id=episode_id,
+            transcript_text=transcript_text,
+            model_version=model_version,
+            prompt_version=prompt_version,
+            podcast_id=pid,
+            episode_title=title,
+            date_str=date_str,
+            transcript_ref=transcript_ref,
+        )
+
+    # Multiple insights but evidence stack failed: still emit multi-insight artifact
+    # with no quotes (grounded=False per insight)
+    try:
+        return _artifact_from_multi_insight(
+            episode_id=episode_id,
+            insight_texts=insights,
+            insight_quotes_list=[[]] * len(insights),
+            model_version=model_version,
+            prompt_version=prompt_version,
+            podcast_id=pid,
+            episode_title=title,
+            date_str=date_str,
+            transcript_ref=transcript_ref,
+            transcript_text=transcript_text or "",
+            transcript_segments=transcript_segments,
+        )
+    except Exception:
+        return _build_stub_artifact(
+            episode_id=episode_id,
+            transcript_text=transcript_text,
+            model_version=model_version,
+            prompt_version=prompt_version,
+            podcast_id=pid,
+            episode_title=title,
+            date_str=date_str,
+            transcript_ref=transcript_ref,
+        )
+
+
+def _artifact_from_grounded(
+    episode_id: str,
+    grounded_quotes: List[GroundedQuote],
+    *,
+    model_version: str,
+    prompt_version: str,
+    podcast_id: str,
+    episode_title: str,
+    date_str: str,
+    transcript_ref: str,
+) -> Dict[str, Any]:
+    """Build artifact from Episode + one Insight + grounded quote list (legacy single-insight)."""
+    return _artifact_from_multi_insight(
+        episode_id=episode_id,
+        insight_texts=[_STUB_INSIGHT_TEXT],
+        insight_quotes_list=[grounded_quotes],
+        model_version=model_version,
+        prompt_version=prompt_version,
+        podcast_id=podcast_id,
+        episode_title=episode_title,
+        date_str=date_str,
+        transcript_ref=transcript_ref,
+    )
+
+
+def _artifact_from_multi_insight(
+    episode_id: str,
+    insight_texts: List[str],
+    insight_quotes_list: List[List[GroundedQuote]],
+    *,
+    model_version: str,
+    prompt_version: str,
+    podcast_id: str,
+    episode_title: str,
+    date_str: str,
+    transcript_ref: str,
+    transcript_text: Optional[str] = None,
+    transcript_segments: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Build artifact from Episode + N Insights + their grounded quote lists.
+
+    When transcript_text and transcript_segments are provided, Quote nodes get
+    precise timestamp_start_ms and timestamp_end_ms (FR2.2).
+    """
+    ep_node_id = f"ep:{episode_id}"
+    nodes: list = [
+        {
+            "id": ep_node_id,
+            "type": "Episode",
+            "properties": {
+                "podcast_id": podcast_id,
+                "title": episode_title,
+                "publish_date": date_str,
+            },
+        },
+    ]
+    edges: list = []
+    quote_global_idx = 0
+    use_segments = bool(transcript_text and transcript_segments and len(transcript_segments) > 0)
+
+    # Pad so we have one quote list per insight
+    while len(insight_quotes_list) < len(insight_texts):
+        insight_quotes_list.append([])
+
+    for idx, (it_text, quotes) in enumerate(zip(insight_texts, insight_quotes_list)):
+        insight_id = f"insight:{episode_id}:{idx}"
+        nodes.append(
+            {
+                "id": insight_id,
+                "type": "Insight",
+                "properties": {
+                    "text": it_text,
+                    "episode_id": episode_id,
+                    "grounded": len(quotes) > 0,
+                },
+            }
+        )
+        for gq in quotes:
+            if not isinstance(gq, GroundedQuote):
+                continue
+            quote_id = f"quote:{episode_id}:{quote_global_idx}"
+            quote_global_idx += 1
+            ts_start, ts_end = 0, 0
+            if use_segments and transcript_segments:
+                ts_start, ts_end = _char_range_to_ms(
+                    transcript_text or "",
+                    gq.char_start,
+                    gq.char_end,
+                    transcript_segments,
+                )
+            nodes.append(
+                {
+                    "id": quote_id,
+                    "type": "Quote",
+                    "properties": {
+                        "text": gq.text,
+                        "episode_id": episode_id,
+                        "speaker_id": None,
+                        "char_start": gq.char_start,
+                        "char_end": gq.char_end,
+                        "timestamp_start_ms": ts_start,
+                        "timestamp_end_ms": ts_end,
+                        "transcript_ref": transcript_ref,
+                    },
+                }
+            )
+            edges.append({"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id})
+
+    return {
+        "schema_version": "1.0",
+        "model_version": model_version,
+        "prompt_version": prompt_version,
+        "episode_id": episode_id,
+        "nodes": nodes,
+        "edges": edges,
+    }

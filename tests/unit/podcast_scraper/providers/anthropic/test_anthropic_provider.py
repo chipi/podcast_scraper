@@ -196,6 +196,36 @@ class TestAnthropicProviderStandalone(unittest.TestCase):
         self.assertFalse(provider._transcription_initialized)
         self.assertFalse(provider._speaker_detection_initialized)
 
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_clean_transcript_calls_messages_create(self, mock_anthropic, _mock_render, mock_retry):
+        """clean_transcript uses messages.create with max_tokens (cleaning path)."""
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_msg = Mock()
+        mock_msg.content = [Mock(text="cleaned body")]
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client.messages.create.return_value = mock_msg
+
+        cfg = config.Config(
+            rss_url=self.cfg.rss_url,
+            anthropic_api_key=self.cfg.anthropic_api_key,
+            summary_provider="anthropic",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+            transcribe_missing=False,
+        )
+        provider = AnthropicProvider(cfg)
+        provider.initialize()
+        out = provider.clean_transcript("word " * 40)
+        self.assertEqual(out, "cleaned body")
+        mock_client.messages.create.assert_called_once()
+        kwargs = mock_client.messages.create.call_args[1]
+        self.assertIn("max_tokens", kwargs)
+        self.assertGreater(kwargs["max_tokens"], 0)
+
     @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
     def test_unified_initialization(self, mock_anthropic):
         """Test that all capabilities can be initialized together."""
@@ -416,7 +446,7 @@ class TestAnthropicProviderSpeakerDetection(unittest.TestCase):
         provider = AnthropicProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},
@@ -625,6 +655,118 @@ class TestAnthropicProviderSummarization(unittest.TestCase):
 
 
 @pytest.mark.unit
+class TestAnthropicProviderGIL(unittest.TestCase):
+    """GIL: generate_insights, extract_quotes, score_entailment (OpenAI parity)."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="anthropic",
+            anthropic_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="insight prompt")
+    def test_generate_insights_success(self, mock_render, mock_anthropic):
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text="Alpha takeaway\nBeta takeaway")]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        out = provider.generate_insights("transcript text", max_insights=5)
+        self.assertGreaterEqual(len(out), 1)
+        self.assertIn("Alpha", out[0])
+        mock_client.messages.create.assert_called_once()
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    def test_generate_insights_error_returns_empty(self, mock_render, mock_anthropic):
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.side_effect = Exception("API failure")
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.generate_insights("t"), [])
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_generate_insights_not_initialized_returns_empty(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        self.assertEqual(provider.generate_insights("t"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_quotes_success(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text='{"quote_text": "evidence here"}')]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        from podcast_scraper.gi.grounding import QuoteCandidate
+
+        r = provider.extract_quotes("We have evidence here in the text.", "insight")
+        self.assertEqual(len(r), 1)
+        self.assertIsInstance(r[0], QuoteCandidate)
+        self.assertEqual(r[0].text, "evidence here")
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_quotes_not_initialized_returns_empty(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        self.assertEqual(provider.extract_quotes("a", "b"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_quotes_bad_json_returns_empty(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text="not json")]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.extract_quotes("transcript", "insight"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_score_entailment_success(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text="0.71")]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("premise text", "hypothesis text"), 0.71)
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_score_entailment_not_initialized_returns_zero(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_score_entailment_exception_returns_zero(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.side_effect = Exception("fail")
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
+
+@pytest.mark.unit
 class TestAnthropicProviderPricing(unittest.TestCase):
     """Tests for AnthropicProvider.get_pricing() static method."""
 
@@ -648,10 +790,16 @@ class TestAnthropicProviderPricing(unittest.TestCase):
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 15.00)
 
     def test_get_pricing_3_5_haiku_summarization(self):
-        """Test pricing lookup for Claude 3.5 Haiku summarization."""
+        """Test pricing lookup for Claude 3.5 Haiku summarization (legacy snapshot id)."""
         pricing = AnthropicProvider.get_pricing("claude-3-5-haiku-20241022", "summarization")
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.80)
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 4.00)
+
+    def test_get_pricing_haiku_4_5_summarization(self):
+        """Test pricing lookup for Claude Haiku 4.5 (alias e.g. claude-haiku-4-5)."""
+        pricing = AnthropicProvider.get_pricing("claude-haiku-4-5", "summarization")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 1.00)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 5.00)
 
     def test_get_pricing_3_opus_summarization(self):
         """Test pricing lookup for Claude 3 Opus summarization."""
@@ -767,7 +915,7 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         provider.initialize()
 
         # Should return default speakers on JSON decode error
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 
@@ -788,7 +936,7 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         provider = AnthropicProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 
@@ -907,7 +1055,7 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         provider = AnthropicProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host 1"])
         )
 
@@ -1029,7 +1177,7 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         provider = AnthropicProvider(cfg)
         # Don't initialize - should work without initialization when auto_speakers is disabled
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 

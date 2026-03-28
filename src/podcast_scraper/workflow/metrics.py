@@ -37,6 +37,7 @@ class EpisodeMetrics:
     audio_sec: Optional[float] = None  # Audio duration in seconds
     transcribe_sec: Optional[float] = None  # Transcription time in seconds
     summary_sec: Optional[float] = None  # Summarization time in seconds
+    gi_sec: Optional[float] = None  # GIL artifact generation time in seconds
     retries: int = 0  # Number of retries (transcription + summarization)
     rate_limit_sleep_sec: float = 0.0  # Time spent sleeping due to rate limits
     prompt_tokens: Optional[int] = None  # Input tokens (transcription + summarization)
@@ -67,6 +68,19 @@ class Metrics:
     # and avg_transcribe_seconds will be 0 (no actual transcription work performed).
     episodes_summarized: int = 0  # Episodes with summaries generated
     metadata_files_generated: int = 0  # Metadata files created
+    gi_artifacts_generated: int = 0  # GIL artifacts (gi.json) written
+    gi_failures: int = 0  # GIL artifact generation failures (non-fatal)
+    gi_evidence_path_provider: int = 0  # GIL artifacts built via provider path (QA+NLI)
+    gi_evidence_path_legacy: int = 0  # GIL artifacts built via legacy path (direct ML)
+    gi_evidence_extract_quotes_calls: int = 0  # extract_quotes calls on provider path
+    gi_evidence_score_entailment_calls: int = 0  # score_entailment calls on provider path
+    # GIL success metrics (PRD-017): accumulated across artifacts this run
+    gi_insights_total: int = 0  # Total Insight nodes across all artifacts
+    gi_quotes_total: int = 0  # Total Quote nodes across all artifacts
+    gi_insights_grounded: int = 0  # Insights with ≥1 SUPPORTED_BY edge
+    gi_artifacts_with_insights_and_quotes: int = 0  # Artifacts with ≥1 insight and ≥1 quote
+    gi_quotes_verbatim: int = 0  # Quotes whose text matches transcript[char_start:char_end]
+    gi_quotes_checked: int = 0  # Quotes checked for verbatim (had transcript)
 
     # Per-stage metrics
     time_scraping: float = 0.0
@@ -108,6 +122,7 @@ class Metrics:
     summarize_times: List[float] = field(
         default_factory=list
     )  # Summary generation times per episode
+    gi_times: List[float] = field(default_factory=list)  # GIL artifact generation times per episode
 
     # LLM API call tracking (for cost estimation)
     llm_transcription_calls: int = 0  # Number of transcription API calls
@@ -168,15 +183,6 @@ class Metrics:
     summarization_device: Optional[str] = None  # Device used for summarization stage
 
     _start_time: float = field(default_factory=time.time, init=False)
-
-    @property
-    def time_io_and_waiting(self) -> float:
-        """Backward compatibility property (deprecated, use io_and_waiting_thread_sum_seconds).
-
-        Returns:
-            Sum of IO/waiting time across all threads (same as io_and_waiting_thread_sum_seconds)
-        """
-        return self.io_and_waiting_thread_sum_seconds
 
     def record_stage(self, stage: str, duration: float) -> None:
         """Record time spent in a stage.
@@ -309,6 +315,44 @@ class Metrics:
             duration: Duration in seconds
         """
         self.summarize_times.append(duration)
+
+    def record_gi_time(self, duration: float) -> None:
+        """Record time spent generating GIL artifact for an episode.
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.gi_times.append(duration)
+
+    def record_gi_success_counts(
+        self,
+        insights: int,
+        quotes: int,
+        grounded_insights: int,
+        has_insights_and_quotes: bool,
+        quotes_verbatim: int = 0,
+        quotes_checked: int = 0,
+    ) -> None:
+        """Record GIL success metrics from one artifact (PRD-017).
+
+        Call once per generated gi.json. Accumulates totals for grounding rate,
+        quote validity rate, and extraction coverage.
+
+        Args:
+            insights: Number of Insight nodes in this artifact.
+            quotes: Number of Quote nodes in this artifact.
+            grounded_insights: Number of insights with ≥1 SUPPORTED_BY edge.
+            has_insights_and_quotes: True if this artifact has ≥1 insight and ≥1 quote.
+            quotes_verbatim: Number of quotes that matched transcript verbatim.
+            quotes_checked: Number of quotes checked for verbatim (had transcript).
+        """
+        self.gi_insights_total += insights
+        self.gi_quotes_total += quotes
+        self.gi_insights_grounded += grounded_insights
+        if has_insights_and_quotes:
+            self.gi_artifacts_with_insights_and_quotes += 1
+        self.gi_quotes_verbatim += quotes_verbatim
+        self.gi_quotes_checked += quotes_checked
 
     def record_llm_transcription_call(self, audio_minutes: float) -> None:
         """Record an LLM transcription API call.
@@ -562,6 +606,7 @@ class Metrics:
         audio_sec: Optional[float] = None,
         transcribe_sec: Optional[float] = None,
         summary_sec: Optional[float] = None,
+        gi_sec: Optional[float] = None,
         retries: Optional[int] = None,
         rate_limit_sleep_sec: Optional[float] = None,
         prompt_tokens: Optional[int] = None,
@@ -575,6 +620,7 @@ class Metrics:
             audio_sec: Audio duration in seconds
             transcribe_sec: Transcription time in seconds
             summary_sec: Summarization time in seconds
+            gi_sec: GIL artifact generation time in seconds
             retries: Number of retries (will be added to existing count)
             rate_limit_sleep_sec: Time spent sleeping due to rate limits (will be added)
             prompt_tokens: Input tokens (will be added to existing count)
@@ -590,6 +636,8 @@ class Metrics:
                         metrics.transcribe_sec = transcribe_sec
                     if summary_sec is not None:
                         metrics.summary_sec = summary_sec
+                    if gi_sec is not None:
+                        metrics.gi_sec = gi_sec
                     if retries is not None:
                         metrics.retries += retries
                     if rate_limit_sleep_sec is not None:
@@ -616,6 +664,7 @@ class Metrics:
                 audio_sec=audio_sec,
                 transcribe_sec=transcribe_sec,
                 summary_sec=summary_sec,
+                gi_sec=gi_sec,
                 retries=retries or 0,
                 rate_limit_sleep_sec=rate_limit_sleep_sec or 0.0,
                 prompt_tokens=prompt_tokens,
@@ -653,6 +702,7 @@ class Metrics:
             if self.summarize_times
             else 0.0
         )
+        avg_gi = round(sum(self.gi_times) / len(self.gi_times), 2) if self.gi_times else 0.0
         avg_preprocessing = (
             round(sum(self.preprocessing_times) / len(self.preprocessing_times), 2)
             if self.preprocessing_times
@@ -683,12 +733,68 @@ class Metrics:
             "transcripts_transcribed": self.transcripts_transcribed,
             "episodes_summarized": self.episodes_summarized,
             "metadata_files_generated": self.metadata_files_generated,
+            "gi_artifacts_generated": self.gi_artifacts_generated,
+            "gi_failures": self.gi_failures,
+            "gi_evidence_path_provider": self.gi_evidence_path_provider,
+            "gi_evidence_path_legacy": self.gi_evidence_path_legacy,
+            "gi_evidence_extract_quotes_calls": self.gi_evidence_extract_quotes_calls,
+            "gi_evidence_score_entailment_calls": self.gi_evidence_score_entailment_calls,
+            "gi_insights_total": self.gi_insights_total,
+            "gi_quotes_total": self.gi_quotes_total,
+            "gi_insights_grounded": self.gi_insights_grounded,
+            "gi_artifacts_with_insights_and_quotes": self.gi_artifacts_with_insights_and_quotes,
+            "gi_quotes_verbatim": self.gi_quotes_verbatim,
+            "gi_quotes_checked": self.gi_quotes_checked,
+            "gi_grounding_rate_pct": round(
+                (
+                    (self.gi_insights_grounded / self.gi_insights_total * 100.0)
+                    if self.gi_insights_total
+                    else 0.0
+                ),
+                1,
+            ),
+            "gi_quote_validity_rate_pct": round(
+                (
+                    (self.gi_quotes_verbatim / self.gi_quotes_checked * 100.0)
+                    if self.gi_quotes_checked
+                    else 0.0
+                ),
+                1,
+            ),
+            "gi_extraction_coverage_pct": round(
+                (
+                    (
+                        self.gi_artifacts_with_insights_and_quotes
+                        / self.gi_artifacts_generated
+                        * 100.0
+                    )
+                    if self.gi_artifacts_generated
+                    else 0.0
+                ),
+                1,
+            ),
+            "gi_avg_insights_per_episode": round(
+                (
+                    self.gi_insights_total / self.gi_artifacts_generated
+                    if self.gi_artifacts_generated
+                    else 0.0
+                ),
+                2,
+            ),
+            "gi_avg_quotes_per_episode": round(
+                (
+                    self.gi_quotes_total / self.gi_artifacts_generated
+                    if self.gi_artifacts_generated
+                    else 0.0
+                ),
+                2,
+            ),
             "time_scraping": round(self.time_scraping, 2),
             "time_parsing": round(self.time_parsing, 2),
             "time_normalizing": round(self.time_normalizing, 2),
             "io_and_waiting_thread_sum_seconds": round(self.io_and_waiting_thread_sum_seconds, 2),
             "io_and_waiting_wall_seconds": round(self.io_and_waiting_wall_seconds, 2),
-            # Backward compatibility (deprecated)
+            # Deprecated alias for io_and_waiting_thread_sum_seconds (kept for export compat)
             "time_io_and_waiting": round(self.io_and_waiting_thread_sum_seconds, 2),
             # Sub-buckets for io_and_waiting (Issue #387)
             "time_download_wait_seconds": round(self.time_download_wait_seconds, 2),
@@ -704,6 +810,7 @@ class Metrics:
             "avg_transcribe_seconds": avg_transcribe,
             "avg_extract_names_seconds": avg_extract_names,
             "avg_summarize_seconds": avg_summarize,
+            "avg_gi_seconds": avg_gi,
             # Operation counts for context
             "download_media_count": len(
                 self.download_media_times
@@ -715,6 +822,7 @@ class Metrics:
             ),  # Number of actual transcriptions (0 when cache is used)
             "extract_names_count": len(self.extract_names_times),
             "summarize_count": len(self.summarize_times),
+            "gi_count": len(self.gi_times),
             # LLM API call tracking
             "llm_transcription_calls": self.llm_transcription_calls,
             "llm_transcription_audio_minutes": round(self.llm_transcription_audio_minutes, 2),
@@ -849,7 +957,7 @@ class Metrics:
             "time_normalizing",
             "io_and_waiting_thread_sum_seconds",
             "io_and_waiting_wall_seconds",
-            "time_io_and_waiting",  # Backward compatibility (deprecated)
+            "time_io_and_waiting",  # Deprecated alias (export compat)
             "time_writing_storage",
             # Sub-buckets for io_and_waiting (Issue #387)
             "time_download_wait_seconds",
@@ -887,7 +995,7 @@ class Metrics:
             "time_normalizing",
             "io_and_waiting_thread_sum_seconds",
             "io_and_waiting_wall_seconds",
-            "time_io_and_waiting",  # Backward compatibility (deprecated)
+            "time_io_and_waiting",  # Deprecated alias (export compat)
             "time_writing_storage",
             "time_download_wait_seconds",
             "time_transcription_wait_seconds",

@@ -14,6 +14,10 @@ class SummarizationProvider(Protocol):
 
     All summarization providers must implement this protocol to ensure
     consistent interface across different implementations (transformers, OpenAI, etc.).
+
+    Optional extension: generate_insights(text, ...) -> List[str]. Not part of the
+    protocol (so providers may omit it); GIL uses getattr/callable and falls back
+    to stub or summary_bullets when absent or failing.
     """
 
     def initialize(self) -> None:

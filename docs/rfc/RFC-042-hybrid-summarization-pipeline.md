@@ -36,7 +36,7 @@ Podcast Scraper Team
 - [RFC-049: Grounded Insight Layer – Core](RFC-049-grounded-insight-layer-core.md)
   (downstream consumer of structured extraction)
 - [RFC-050: GIL Use Cases](RFC-050-grounded-insight-layer-use-cases.md)
-- [RFC-051: GIL Database Projection](RFC-051-grounded-insight-layer-database-projection.md)
+- [RFC-051: Database Projection (GIL & KG)](RFC-051-database-projection-gil-kg.md)
 - [RFC-052: Locally Hosted LLM Models](RFC-052-locally-hosted-llm-models-with-prompts.md)
   (model-specific prompt engineering for Ollama LLMs)
 - [RFC-053: Adaptive Summarization Routing](RFC-053-adaptive-summarization-routing.md)
@@ -920,7 +920,7 @@ Transcript
   ├─► Topic Extraction:
   │     └─► spaCy NER + FLAN-T5 labeling → topics[]
   │
-  └─► Assembly → kg.json (RFC-049 schema)
+  └─► Assembly → gi.json (RFC-049 schema)
 ```
 
 ### 11.5.4 Prompt Templates for Extraction
@@ -1145,12 +1145,12 @@ in RFC-042:
 
 - **GIL extraction orchestration** — coordinating insight,
   quote, and topic extraction into a single pipeline
-- **`kg.json` assembly** — combining extracted data into
+- **`gi.json` assembly** — combining extracted data into
   the GIL schema
 - **Grounding contract enforcement** — ensuring every
   insight has explicit grounding status
 - **Schema validation** — validating outputs against
-  `kg.schema.json`
+  `gi.schema.json`
 - **Workflow integration** — adding GIL as a pipeline
   stage in `orchestration.py`
 
@@ -1450,7 +1450,7 @@ recorded here for traceability.
 8. **Lazy loading vs eager loading for extended
    models?**
    **Lazy loading.** Load embedding/QA/NLI models only
-   when a feature requests them (e.g., `generate_kg:
+   when a feature requests them (e.g., `generate_gi:
    true` triggers QA + NLI loading). Keep memory low
    for summarization-only runs. Implementation: use
    `@cached_property` or explicit `_load_if_needed()`

@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 # Import Anthropic SDK
 try:
@@ -33,6 +33,11 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    ANTHROPIC_CLEANING_MAX_TOKENS,
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+)
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
@@ -54,6 +59,9 @@ ANTHROPIC_CLAUDE_3_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.25
 ANTHROPIC_CLAUDE_3_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 1.25
 ANTHROPIC_CLAUDE_3_5_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.80
 ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 4.00
+# Claude Haiku 4.5 (alias e.g. claude-haiku-4-5) — see Anthropic pricing page
+ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS = 1.00
+ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS = 5.00
 
 
 class AnthropicProvider:
@@ -113,7 +121,7 @@ class AnthropicProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (cheaper model for cost efficiency)
-        self.cleaning_model = getattr(cfg, "anthropic_cleaning_model", "claude-3-haiku-20240307")
+        self.cleaning_model = getattr(cfg, "anthropic_cleaning_model", "claude-haiku-4-5")
         self.cleaning_temperature = getattr(cfg, "anthropic_cleaning_temperature", 0.2)
 
         # Suppress verbose Anthropic SDK debug logs (if needed)
@@ -213,6 +221,13 @@ class AnthropicProvider:
                 )
                 pricing["output_cost_per_1m_tokens"] = (
                     ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS
+                )
+            elif "haiku-4-5" in model_lower:
+                pricing["input_cost_per_1m_tokens"] = (
+                    ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS
+                )
+                pricing["output_cost_per_1m_tokens"] = (
+                    ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS
                 )
             elif "3.5-haiku" in model_lower or "3-5-haiku" in model_lower:
                 pricing["input_cost_per_1m_tokens"] = (
@@ -394,7 +409,7 @@ class AnthropicProvider:
 
         try:
             # Use detect_speakers with empty known_hosts to detect hosts
-            speakers, detected_hosts, _ = self.detect_speakers(
+            speakers, detected_hosts, _, _ = self.detect_speakers(
                 episode_title=feed_title,
                 episode_description=feed_description,
                 known_hosts=set(),
@@ -410,7 +425,7 @@ class AnthropicProvider:
         episode_description: str | None,
         known_hosts: Set[str],
         pipeline_metrics: metrics.Metrics | None = None,
-    ) -> Tuple[list[str], Set[str], bool]:
+    ) -> Tuple[list[str], Set[str], bool, bool]:
         """Detect speaker names from episode metadata using Anthropic API.
 
         Args:
@@ -424,6 +439,7 @@ class AnthropicProvider:
             - List of detected speaker names (hosts + guests)
             - Set of detected host names (subset of known_hosts)
             - Success flag (True if detection succeeded)
+            - used_defaults: True if default names were returned (e.g. on failure)
 
         Raises:
             ValueError: If detection fails or API key is invalid
@@ -432,7 +448,7 @@ class AnthropicProvider:
         # If auto_speakers is disabled, return defaults without requiring initialization
         if not self.cfg.auto_speakers:
             logger.debug("Auto-speakers disabled, detection failed")
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
         if not self._speaker_detection_initialized:
             raise RuntimeError(
@@ -480,7 +496,7 @@ class AnthropicProvider:
                     response_text = first_block
             if not response_text:
                 logger.warning("Anthropic API returned empty response")
-                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
             # Parse JSON response
             speakers, detected_hosts, success = self._parse_speakers_from_response(
@@ -501,11 +517,11 @@ class AnthropicProvider:
                 output_tokens = getattr(usage, "output_tokens", 0)
                 pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
 
-            return speakers, detected_hosts, success
+            return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
             logger.error("Failed to parse Anthropic API JSON response: %s", exc)
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
             logger.error("Anthropic API error in speaker detection: %s", exc)
             from podcast_scraper.exceptions import (
@@ -948,7 +964,10 @@ class AnthropicProvider:
             def _make_api_call():
                 return self.client.messages.create(
                     model=self.cleaning_model,
-                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                    max_tokens=clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        ANTHROPIC_CLEANING_MAX_TOKENS,
+                    ),
                     temperature=self.cleaning_temperature,
                     system=system_prompt,
                     messages=[
@@ -1018,6 +1037,195 @@ class AnthropicProvider:
                     message=f"Anthropic cleaning failed: {exc}",
                     provider="AnthropicProvider/Cleaning",
                 ) from exc
+
+    def generate_insights(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_insights: int = 5,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Generate a list of short insight statements from transcript (GIL).
+
+        Uses anthropic/insight_extraction/v1 prompt; parses response as one insight per line.
+        Returns empty list on failure so GIL can fall back to stub.
+        """
+        if not self._summarization_initialized:
+            logger.warning("Anthropic summarization not initialized for generate_insights")
+            return []
+
+        from ...prompts.store import render_prompt
+
+        max_insights = min(max(1, max_insights), 10)
+        text_slice = (text or "").strip()
+        if len(text_slice) > 120000:
+            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+
+        try:
+            user_prompt = render_prompt(
+                "anthropic/insight_extraction/v1",
+                transcript=text_slice,
+                title=episode_title or "",
+                max_insights=max_insights,
+            )
+            system_prompt = (
+                "Output only the list of key takeaways, one per line. "
+                "No numbering, bullets, or extra text."
+            )
+            response = self.client.messages.create(
+                model=self.summary_model,
+                max_tokens=min(1024, max_insights * 150),
+                temperature=0.3,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+            content = ""
+            if response.content and len(response.content) > 0:
+                first = response.content[0]
+                raw = getattr(first, "text", None)
+                content = raw if isinstance(raw, str) else ""
+            content = (content or "").strip()
+            lines = [
+                line.strip()
+                for line in content.splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            cleaned = []
+            for line in lines:
+                s = line.strip()
+                if not s:
+                    continue
+                if len(s) >= 2 and s[0].isdigit() and s[1] in ".)":
+                    s = s[2:].strip()
+                if s.startswith("- ") or s.startswith("* "):
+                    s = s[2:].strip()
+                if s:
+                    cleaned.append(s)
+            return cleaned[:max_insights]
+        except Exception as e:
+            logger.debug("Anthropic generate_insights failed: %s", e, exc_info=True)
+            return []
+
+    def extract_quotes(
+        self,
+        transcript: str,
+        insight_text: str,
+        **kwargs: Any,
+    ) -> List[Any]:
+        """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
+        if not self._summarization_initialized or not (transcript and insight_text):
+            return []
+        import json
+
+        from ...gi.grounding import QuoteCandidate
+
+        system = (
+            "You extract a single short quote from the transcript that best supports "
+            "the given insight. Reply with ONLY a JSON object: "
+            '{"quote_text": "exact quote from transcript"}'
+        )
+        user = (
+            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
+            f"Insight: {insight_text.strip()}\n\n"
+            "Return JSON with quote_text only."
+        )
+        try:
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.messages.create(
+                    model=self.summary_model,
+                    max_tokens=512,
+                    temperature=0.0,
+                    system=system,
+                    messages=[{"role": "user", "content": user}],
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(Exception,),
+            )
+            content = ""
+            if response.content and len(response.content) > 0:
+                first = response.content[0]
+                raw = getattr(first, "text", None)
+                content = raw if isinstance(raw, str) else ""
+            content = (content or "").strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            obj = json.loads(content)
+            quote_text = (obj.get("quote_text") or "").strip()
+            if not quote_text:
+                return []
+            start = transcript.find(quote_text)
+            if start == -1:
+                start, end = 0, len(quote_text)
+            else:
+                end = start + len(quote_text)
+            return [
+                QuoteCandidate(
+                    char_start=start,
+                    char_end=end,
+                    text=quote_text,
+                    qa_score=1.0,
+                )
+            ]
+        except Exception as e:
+            logger.debug("Anthropic extract_quotes failed: %s", e, exc_info=True)
+            return []
+
+    def score_entailment(
+        self,
+        premise: str,
+        hypothesis: str,
+        **kwargs: Any,
+    ) -> float:
+        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
+        if not self._summarization_initialized or not (premise and hypothesis):
+            return 0.0
+        system = (
+            "You rate how much the premise supports the hypothesis. "
+            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
+        )
+        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+        try:
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.messages.create(
+                    model=self.summary_model,
+                    max_tokens=10,
+                    temperature=0.0,
+                    system=system,
+                    messages=[{"role": "user", "content": user}],
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(Exception,),
+            )
+            content = ""
+            if response.content and len(response.content) > 0:
+                first = response.content[0]
+                raw = getattr(first, "text", None)
+                content = raw if isinstance(raw, str) else "0"
+            content = (content or "0").strip()
+            for part in content.replace(",", " ").split():
+                try:
+                    v = float(part)
+                    return max(0.0, min(1.0, v))
+                except ValueError:
+                    continue
+            return 0.0
+        except Exception as e:
+            logger.debug("Anthropic score_entailment failed: %s", e, exc_info=True)
+            return 0.0
 
     def get_capabilities(self) -> ProviderCapabilities:
         """Get provider capabilities.

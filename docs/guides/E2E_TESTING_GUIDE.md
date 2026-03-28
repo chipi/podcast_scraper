@@ -168,8 +168,10 @@ def test_openai_provider(e2e_server):
 
 | Endpoint | Purpose |
 | ---------- | --------- |
-| `/v1/chat/completions` | Summarization and speaker detection |
+| `/v1/chat/completions` | Summarization, speaker detection, GIL evidence (extract_quotes, score_entailment) |
 | `/v1/audio/transcriptions` | Transcription |
+| `/v1/messages` (Anthropic) | Summarization, speaker detection, GIL evidence (extract_quotes, score_entailment) |
+| `/v1beta/models/{model}:generateContent` (Gemini) | Summarization, speaker detection, GIL evidence (extract_quotes, score_entailment) |
 
 See `tests/e2e/fixtures/e2e_http_server.py` for implementation.
 

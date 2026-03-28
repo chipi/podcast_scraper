@@ -137,13 +137,13 @@ def _summarize_anthropic_usage(metadata_content: dict) -> str:
     # Speaker detection
     speaker_info = ml_providers.get("speaker_detection", {})
     if speaker_info.get("provider") == "anthropic":
-        model = speaker_info.get("anthropic_model", "claude-3-5-haiku-latest")
+        model = speaker_info.get("anthropic_model", "claude-haiku-4-5")
         summary_parts.append(f"  • Speaker Detection: Anthropic API (model: {model})")
 
     # Summarization
     summarization_info = ml_providers.get("summarization", {})
     if summarization_info.get("provider") == "anthropic":
-        model = summarization_info.get("anthropic_model", "claude-3-5-haiku-latest")
+        model = summarization_info.get("anthropic_model", "claude-haiku-4-5")
         summary_parts.append(f"  • Summarization: Anthropic API (model: {model})")
 
     if summary_parts:

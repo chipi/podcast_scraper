@@ -494,7 +494,7 @@ class TestOpenAIProviderSpeakerDetection(unittest.TestCase):
         provider.client = mock_client
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},
@@ -853,3 +853,111 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertTrue(capabilities.supports_semantic_cleaning)
         self.assertTrue(capabilities.supports_summarization)
         self.assertTrue(capabilities.supports_transcription)
+
+    def test_generate_insights_returns_empty_when_not_initialized(self):
+        """generate_insights returns [] when summarization not initialized."""
+        provider = OpenAIProvider(self.cfg)
+        result = provider.generate_insights("transcript", max_insights=5)
+        self.assertEqual(result, [])
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_generate_insights_success_returns_list(self, mock_render_prompt):
+        """generate_insights returns list of insights from API response."""
+        mock_render_prompt.return_value = "User prompt"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = (
+            "1. First key takeaway.\n2. Second takeaway.\n- Third bullet."
+        )
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+
+        result = provider.generate_insights("Transcript here.", max_insights=5)
+
+        self.assertIsInstance(result, list)
+        self.assertGreaterEqual(len(result), 2)
+        self.assertLessEqual(len(result), 5)
+        self.assertIn("First key takeaway", result[0])
+        mock_client.chat.completions.create.assert_called_once()
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_generate_insights_api_error_returns_empty(self, mock_render_prompt):
+        """generate_insights returns [] on API or any exception."""
+        mock_render_prompt.return_value = "User prompt"
+        mock_client = Mock()
+        mock_client.chat.completions.create.side_effect = Exception("API error")
+
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+
+        result = provider.generate_insights("Transcript.", max_insights=5)
+
+        self.assertEqual(result, [])
+
+    def test_extract_quotes_returns_quote_candidate(self):
+        """extract_quotes returns list of QuoteCandidate from API JSON."""
+        from podcast_scraper.gi.grounding import QuoteCandidate
+
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = '{"quote_text": "evidence here"}'
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        provider.summary_model = "gpt-4o-mini"
+
+        result = provider.extract_quotes(
+            transcript="We have evidence here in the text.",
+            insight_text="An insight.",
+        )
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], QuoteCandidate)
+        self.assertEqual(result[0].text, "evidence here")
+        self.assertEqual(result[0].qa_score, 1.0)
+        mock_client.chat.completions.create.assert_called_once()
+
+    def test_extract_quotes_not_initialized_returns_empty(self):
+        """extract_quotes when not initialized returns empty."""
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = False
+        result = provider.extract_quotes(
+            transcript="Text.",
+            insight_text="Insight.",
+        )
+        self.assertEqual(result, [])
+
+    def test_score_entailment_returns_float(self):
+        """score_entailment returns float from API response."""
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "0.82"
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        provider.summary_model = "gpt-4o-mini"
+
+        result = provider.score_entailment(
+            premise="Quote text.",
+            hypothesis="Insight claim.",
+        )
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, 0.82)
+        mock_client.chat.completions.create.assert_called_once()
+
+    def test_score_entailment_not_initialized_returns_zero(self):
+        """score_entailment when not initialized returns 0.0."""
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = False
+        result = provider.score_entailment(premise="P.", hypothesis="H.")
+        self.assertEqual(result, 0.0)

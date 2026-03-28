@@ -143,6 +143,47 @@ class TestModelSelection(unittest.TestCase):
         # select_reduce_model resolves it to "allenai/led-base-16384"
         self.assertEqual(reduce_model_name, "allenai/led-base-16384")
 
+    def test_select_model_uses_mode_configuration_when_set(self):
+        """summary_mode_id selects models from the registry when explicit models are not set."""
+        cfg = create_test_config(summary_model=None, summary_reduce_model=None)
+        cfg = cfg.model_copy(update={"summary_mode_id": "ml_small_authority"})
+
+        map_model_name = summarizer.select_summary_model(cfg)
+        reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+
+        # ml_small_authority: bart-small (alias) → facebook/bart-base
+        self.assertEqual(map_model_name, "facebook/bart-base")
+        # ml_small_authority: long-fast (alias) → allenai/led-base-16384
+        self.assertEqual(reduce_model_name, "allenai/led-base-16384")
+
+    def test_select_model_mode_id_does_not_override_explicit_models(self):
+        """By default, summary_mode_id overrides explicit models (precedence='mode')."""
+        cfg = create_test_config(
+            summary_mode_id="ml_small_authority",
+            summary_model="pegasus-cnn",
+            summary_reduce_model="long",
+        )
+        map_model_name = summarizer.select_summary_model(cfg)
+        reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+
+        # Mode should win over explicit config when precedence is 'mode' (default).
+        self.assertEqual(map_model_name, "facebook/bart-base")
+        self.assertEqual(reduce_model_name, "allenai/led-base-16384")
+
+    def test_select_model_mode_precedence_config_allows_manual_override(self):
+        """When precedence='config', explicit summary_model/summary_reduce_model override mode."""
+        cfg = create_test_config(
+            summary_mode_id="ml_small_authority",
+            summary_mode_precedence="config",
+            summary_model="pegasus-cnn",
+            summary_reduce_model="long",
+        )
+        map_model_name = summarizer.select_summary_model(cfg)
+        reduce_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+
+        self.assertEqual(map_model_name, summarizer.DEFAULT_SUMMARY_MODELS["pegasus-cnn"])
+        self.assertEqual(reduce_model_name, summarizer.DEFAULT_SUMMARY_MODELS["long"])
+
     def test_select_summary_model_raises_when_default_missing(self):
         """Test that select_summary_model raises ValueError when default model missing."""
         cfg = create_test_config(summary_model=None)
@@ -227,6 +268,7 @@ class TestSummaryModel(unittest.TestCase):
         # When self._load_model() is called, the mock receives 'self' as first arg
         mock_load_model.side_effect = setup_attrs
 
+    @patch("podcast_scraper.config_constants.LED_LARGE_16384_REVISION", "main")
     @patch("podcast_scraper.providers.ml.summarizer.logger")
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
@@ -248,6 +290,24 @@ class TestSummaryModel(unittest.TestCase):
         # Format string is first arg; model_type and pinned_revision are next
         self.assertEqual(call_args[1], "LED-LARGE")
         self.assertEqual(call_args[2], "main")
+
+    @patch("podcast_scraper.providers.ml.summarizer.logger")
+    @patch("podcast_scraper.summarizer.SummaryModel._load_model")
+    @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
+    def test_led_large_pinned_revision_no_error(
+        self, mock_detect_device, mock_load_model, mock_logger
+    ):
+        """LED-LARGE with pinned SHA revision does not log ERROR (Issue #428)."""
+        mock_detect_device.return_value = "cpu"
+        mock_load_model.return_value = None
+
+        summarizer.SummaryModel(
+            model_name="allenai/led-large-16384",
+            device=None,
+            cache_dir=self.temp_dir,
+        )
+
+        mock_logger.error.assert_not_called()
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")

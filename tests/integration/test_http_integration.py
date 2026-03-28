@@ -253,8 +253,10 @@ class TestHTTPClientIntegration:
         """Test RSS feed download."""
         url = test_http_server.url("/rss")
 
-        # Make real HTTP request
-        resp = downloader.fetch_url(url, self.cfg.user_agent, self.cfg.timeout, stream=False)
+        # Make real HTTP request (RSS-tuned retry session)
+        resp = downloader.fetch_rss_feed_url(
+            url, self.cfg.user_agent, self.cfg.timeout, stream=False
+        )
 
         # Verify response
         assert resp is not None

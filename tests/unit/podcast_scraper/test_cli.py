@@ -1600,6 +1600,206 @@ class TestCacheSubcommand(unittest.TestCase):
         self.assertEqual(exit_code, 1)
 
 
+class TestGiSubcommand(unittest.TestCase):
+    """Test gi subcommand parsing and execution (inspect, show-insight)."""
+
+    def test_parse_args_detects_gi_subcommand(self):
+        """Test that parse_args detects gi subcommand."""
+        args = cli.parse_args(["gi", "inspect", "--episode-path", "/path/to/ep.gi.json"])
+        self.assertTrue(hasattr(args, "command"))
+        self.assertEqual(args.command, "gi")
+        self.assertEqual(args.gi_subcommand, "inspect")
+        self.assertEqual(args.episode_path, "/path/to/ep.gi.json")
+
+    def test_parse_args_gi_show_insight(self):
+        """Test that parse_args parses gi show-insight."""
+        args = cli.parse_args(
+            ["gi", "show-insight", "--id", "insight:ep:0", "--output-dir", "/out"]
+        )
+        self.assertEqual(args.command, "gi")
+        self.assertEqual(args.gi_subcommand, "show-insight")
+        self.assertEqual(getattr(args, "id"), "insight:ep:0")
+        self.assertEqual(args.output_dir, "/out")
+
+    def test_parse_gi_args_inspect(self):
+        """Test _parse_gi_args for inspect subcommand."""
+        args = cli._parse_gi_args(["inspect", "--episode-path", "x.gi.json"])
+        self.assertEqual(args.gi_subcommand, "inspect")
+        self.assertEqual(args.episode_path, "x.gi.json")
+        self.assertTrue(args.stats)
+
+    def test_parse_gi_inspect_strict_and_no_stats(self):
+        """inspect accepts --strict and --no-stats."""
+        args = cli.parse_args(
+            ["gi", "inspect", "--episode-path", "/x.gi.json", "--strict", "--no-stats"]
+        )
+        self.assertTrue(args.strict)
+        self.assertFalse(args.stats)
+
+    def test_parse_gi_show_insight_missing_id_exits(self):
+        """show-insight requires --id (argparse exit 2)."""
+        with self.assertRaises(SystemExit) as cm:
+            cli.parse_args(["gi", "show-insight", "--output-dir", "/tmp"])
+        self.assertEqual(cm.exception.code, 2)
+
+    def test_parse_gi_args_show_insight(self):
+        """Test _parse_gi_args for show-insight subcommand."""
+        args = cli._parse_gi_args(["show-insight", "--id", "insight:1:0"])
+        self.assertEqual(args.gi_subcommand, "show-insight")
+        self.assertEqual(getattr(args, "id"), "insight:1:0")
+
+    def test_main_gi_inspect_with_fixture_artifact(self):
+        """Test main() with gi inspect on a real artifact file returns 0."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        metadata_dir = tmp / "metadata"
+        metadata_dir.mkdir(parents=True)
+        artifact = build_artifact("ep:1", "Transcript here.", prompt_version="v1")
+        gi_path = metadata_dir / "ep1.gi.json"
+        write_artifact(gi_path, artifact, validate=True)
+        exit_code = cli.main(["gi", "inspect", "--episode-path", str(gi_path), "--format", "json"])
+        self.assertEqual(exit_code, 0)
+
+    def get_tmp_dir(self):
+        """Return a temporary directory path (created via tempfile)."""
+        import tempfile
+
+        return tempfile.mkdtemp()
+
+    def test_main_gi_show_insight_no_artifact_exits_nonzero(self):
+        """Test main() with gi show-insight when artifact not found exits with 1."""
+        import tempfile
+
+        # --id required; --output-dir with no matching artifact -> error message, exit 1
+        tmp = tempfile.mkdtemp()
+        exit_code = cli.main(
+            ["gi", "show-insight", "--id", "insight:nonexistent:0", "--output-dir", tmp]
+        )
+        self.assertEqual(exit_code, 1)
+
+    def test_parse_args_gi_explore(self):
+        """Test that parse_args parses gi explore."""
+        args = cli.parse_args(["gi", "explore", "--topic", "AI", "--output-dir", "/out"])
+        self.assertEqual(args.command, "gi")
+        self.assertEqual(args.gi_subcommand, "explore")
+        self.assertEqual(args.topic, "AI")
+        self.assertEqual(args.output_dir, "/out")
+
+    def test_main_gi_explore_no_artifacts_exits_3(self):
+        """Test main() with gi explore when no .gi.json found exits 3."""
+        import tempfile
+
+        tmp = tempfile.mkdtemp()
+        exit_code = cli.main(["gi", "explore", "--output-dir", tmp])
+        self.assertEqual(exit_code, 3)
+
+    def test_main_gi_explore_with_artifact_returns_0(self):
+        """Test main() with gi explore on dir with one artifact returns 0."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        exit_code = cli.main(["gi", "explore", "--output-dir", str(tmp), "--format", "json"])
+        self.assertEqual(exit_code, 0)
+
+    def test_main_gi_explore_topic_no_match_returns_4(self):
+        """Test main() with gi explore when --topic matches no insights returns 4."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        exit_code = cli.main(
+            [
+                "gi",
+                "explore",
+                "--topic",
+                "xyznonexistent_topic_123",
+                "--output-dir",
+                str(tmp),
+                "--format",
+                "json",
+            ]
+        )
+        self.assertEqual(exit_code, 4)
+
+    def test_main_gi_show_insight_wrong_id_returns_1(self):
+        """Test main() with gi show-insight when --id not in artifact returns 1."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        (tmp / "transcripts").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        (tmp / "transcripts" / "ep1.txt").write_text("Transcript.", encoding="utf-8")
+        exit_code = cli.main(
+            [
+                "gi",
+                "show-insight",
+                "--id",
+                "insight:nonexistent:0",
+                "--output-dir",
+                str(tmp),
+            ]
+        )
+        self.assertEqual(exit_code, 1)
+
+    def test_main_gi_inspect_output_dir_without_episode_id_returns_1(self):
+        """Test main() with gi inspect --output-dir but no --episode-id returns 1."""
+        import tempfile
+
+        tmp = tempfile.mkdtemp()
+        exit_code = cli.main(["gi", "inspect", "--output-dir", tmp])
+        self.assertEqual(exit_code, 1)
+
+    def test_main_gi_inspect_artifact_not_found_for_episode_returns_1(self):
+        """Test main() with gi inspect --output-dir + --episode-id when no artifact matches."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        exit_code = cli.main(
+            ["gi", "inspect", "--output-dir", str(tmp), "--episode-id", "ep:nonexistent"]
+        )
+        self.assertEqual(exit_code, 1)
+
+    def test_main_gi_explore_output_dir_is_file_returns_3(self):
+        """Test main() with gi explore when --output-dir is a file (not dir) returns 3."""
+        import tempfile
+
+        fd, path = tempfile.mkstemp()
+        try:
+            exit_code = cli.main(["gi", "explore", "--output-dir", path])
+            self.assertEqual(exit_code, 3)
+        finally:
+            import os
+
+            os.close(fd)
+            os.unlink(path)
+
+    def test_main_gi_no_subcommand_exits_2(self):
+        """Test main() with 'gi' and no subcommand exits with 2 (argparse)."""
+        exit_code = cli.main(["gi"])
+        self.assertEqual(exit_code, 2)
+
+
 class TestLoadAndMergeConfig(unittest.TestCase):
     """Test _load_and_merge_config function."""
 

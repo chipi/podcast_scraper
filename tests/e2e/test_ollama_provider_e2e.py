@@ -33,6 +33,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import workflow
+from podcast_scraper.providers.ollama.ollama_provider import _ollama_native_api_root
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
@@ -71,7 +72,7 @@ def _check_ollama_available(ollama_api_base: Optional[str]) -> bool:
         # Determine health check URL
         if ollama_api_base:
             # Mock server mode - use provided base URL
-            health_url = ollama_api_base.rstrip("/v1") + "/api/version"
+            health_url = _ollama_native_api_root(ollama_api_base) + "/api/version"
         else:
             # Real API mode - use default localhost
             health_url = "http://localhost:11434/api/version"

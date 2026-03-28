@@ -180,7 +180,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},
@@ -207,7 +207,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         # Manually mark as initialized since initialize() skips when auto_speakers=False
         detector._speaker_detection_initialized = True
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test",
             episode_description="Test",
             known_hosts=set(),
@@ -242,7 +242,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test",
             episode_description="Test",
             known_hosts=set(),
@@ -266,7 +266,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test",
             episode_description="Test",
             known_hosts=set(),
@@ -315,7 +315,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test",
             episode_description="Test",
             known_hosts={"Alice"},
@@ -341,7 +341,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
     @patch("podcast_scraper.providers.openai.openai_provider.OpenAIProvider.detect_speakers")
     def test_detect_hosts_without_authors(self, mock_detect_speakers):
         """Test detect_hosts uses API when no feed_authors."""
-        mock_detect_speakers.return_value = (["Alice", "Bob"], {"Alice"}, True)
+        mock_detect_speakers.return_value = (["Alice", "Bob"], {"Alice"}, True, False)
 
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
@@ -445,7 +445,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test",
             episode_description="Test",
             known_hosts={"Alice"},
@@ -474,7 +474,7 @@ class TestOpenAISpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test",
             episode_description="Test",
             known_hosts={"Alice"},

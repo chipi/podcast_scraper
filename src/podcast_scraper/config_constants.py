@@ -3,7 +3,7 @@
 This module contains all configuration constants that were previously defined
 in config.py. Extracted to reduce config.py size and improve maintainability.
 
-All constants are re-exported from config.py for convenience.
+Constants are defined here; config.py re-exports them for backward compatibility.
 """
 
 import os
@@ -45,6 +45,9 @@ DEFAULT_MAX_DETECTED_NAMES = 4
 MIN_NUM_SPEAKERS = 1
 MIN_TIMEOUT_SECONDS = 1
 
+# Legacy placeholder filtered from host/guest lists (Issue #428); single source of truth
+LEGACY_PLACEHOLDER_GUEST = "Guest"
+
 # Summary model identifiers (full Hugging Face model IDs)
 # These are used in alias dictionary and throughout the codebase
 SUMMARY_MODEL_BART_LARGE_CNN = "facebook/bart-large-cnn"
@@ -71,36 +74,81 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 # Production defaults (quality models for production use)
 # These are used in production deployments and nightly-only tests
 # Aligned with baseline_ml_prod_authority_v1 (Pegasus-CNN → LED-base)
+#
+# RFC-044: These identifiers are also promoted into the code Model Registry as a
+# `ModeConfiguration` (e.g. "ml_prod_authority_v1") so app defaults can be tied
+# to proven baselines without runtime imports from `data/eval/`.
+#
+# Dev defaults are represented by a separate promoted mode ID (smaller models),
+# aligned with baseline_ml_dev_authority_smoke_v1 (BART-base → LED-base).
+DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
+PROD_DEFAULT_SUMMARY_MODE_ID = "ml_prod_authority_v1"
+
 PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
-PROD_DEFAULT_SUMMARY_MODEL = (
-    "google/pegasus-cnn_dailymail"  # Production baseline: Pegasus-CNN for map phase
-)
-PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
-    SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
-)
+try:
+    from podcast_scraper.providers.ml.model_registry import ModelRegistry
+
+    _prod_mode = ModelRegistry.get_mode_configuration(PROD_DEFAULT_SUMMARY_MODE_ID)
+    PROD_DEFAULT_SUMMARY_MODEL = _prod_mode.map_model
+    PROD_DEFAULT_SUMMARY_REDUCE_MODEL = _prod_mode.reduce_model
+except Exception:
+    # Fallback for minimal environments where registry mode may not be available.
+    PROD_DEFAULT_SUMMARY_MODEL = (
+        "google/pegasus-cnn_dailymail"  # Production baseline: Pegasus-CNN for map phase
+    )
+    PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
+        SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
+    )
+
+# GIL evidence stack defaults (RFC-042 §12.1, Issue #435)
+# Used when generate_gi is enabled; loaders resolve aliases via model_registry.
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # minilm-l6
+DEFAULT_EXTRACTIVE_QA_MODEL = "deepset/roberta-base-squad2"  # roberta-squad2
+DEFAULT_NLI_MODEL = "cross-encoder/nli-deberta-v3-base"  # nli-deberta-base
 
 # Model revision pinning (for reproducibility and security)
-# Pin to specific commit SHAs instead of "main" to avoid PR refs and ensure stable weights
-# To find the latest commit SHA for a model, check the model's HuggingFace page or use:
-#   from huggingface_hub import HfApi
-#   api = HfApi()
-#   model_info = api.model_info("google/pegasus-cnn_dailymail", revision="main")
-#   commit_hash = model_info.sha
-# Last updated: 2025-01-XX (commit SHA from main branch)
+# All ML model revisions use 40-character commit SHAs (no "main" refs).
+# To get the latest SHA for a model: HfApi().model_info("org/model-id", revision="main").sha
 PEGASUS_CNN_DAILYMAIL_REVISION = (
     "40d588fdab0cc077b80d950b300bf66ad3c75b92"  # Pinned commit SHA for reproducibility
 )
 # LED model revisions (Issue #379)
-# Pinned commit SHAs for reproducibility (updated 2026-01-XX)
-# To find latest commit SHA:
-#   from huggingface_hub import HfApi
-#   api = HfApi()
-#   model_info = api.model_info("allenai/led-base-16384", revision="main")
-#   commit_hash = model_info.sha
+# Pinned commit SHAs for reproducibility. To get latest SHA:
+#   api = HfApi(); api.model_info("repo/id", revision="main").sha
 LED_BASE_16384_REVISION = (
     "38335783885b338d93791936c54bb4be46bebed9"  # Pinned commit SHA for reproducibility
 )
-LED_LARGE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA when needed
+LED_LARGE_16384_REVISION = (
+    "cd59d11c3528415b7dda4dfc95cc8f138aceda2e"  # allenai/led-large-16384 @ main
+)
+
+# FLAN-T5 revisions (hybrid REDUCE; Issue #352)
+FLAN_T5_BASE_REVISION = "c5050bcda0fe2097b76f41c6908474097b859666"
+FLAN_T5_LARGE_REVISION = "c5050bcda0fe2097b76f41c6908474097b859666"  # Update when needed
+# LongT5 revisions (MAP and REDUCE; Issue #353). Same as other ML models: pinned SHA.
+LONG_T5_TGLOBAL_BASE_REVISION = (
+    "aecb1376e5bd78db32ebc5c9deb257449b9e2b21"  # google/long-t5-tglobal-base @ main
+)
+LONG_T5_TGLOBAL_LARGE_REVISION = (
+    "fb4ba84440d10e9b93fd626fb460683372329d4a"  # google/long-t5-tglobal-large @ main
+)
+
+
+def get_pinned_revision_for_model(model_id: str) -> str | None:
+    """Return pinned revision for a known model ID, or None if not pinned.
+
+    Used by SummaryModel and TransformersReduceBackend for FLAN-T5 and LongT5.
+    """
+    model_lower = model_id.lower()
+    if "flan-t5-base" in model_lower or model_id == "google/flan-t5-base":
+        return FLAN_T5_BASE_REVISION
+    if "flan-t5-large" in model_lower or model_id == "google/flan-t5-large":
+        return FLAN_T5_LARGE_REVISION
+    if "long-t5-tglobal-base" in model_lower or "longt5-base" in model_lower:
+        return LONG_T5_TGLOBAL_BASE_REVISION
+    if "long-t5-tglobal-large" in model_lower or "longt5-large" in model_lower:
+        return LONG_T5_TGLOBAL_LARGE_REVISION
+    return None
 
 
 def is_sha_revision(revision: str) -> bool:
@@ -150,12 +198,12 @@ PROD_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-1.5-pro"  # Best quality, 2M context
 #
 # For current pricing, see: https://www.anthropic.com/pricing
 # Note: Anthropic does NOT support native audio transcription (no audio API)
-# Note: claude-3-5-haiku-20241022 is deprecated (EOL: 2026-02-19), using latest versions
+# Haiku: use Anthropic alias claude-haiku-4-5 (tracks Claude Haiku 4.5)
 TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
     "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
 )
-TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-haiku-latest"  # Latest version, cheaper, fast
-TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-haiku-latest"  # Latest version, cheaper, fast
+TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-haiku-4-5"  # Fast/cheap for dev/test
+TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-haiku-4-5"  # Fast/cheap for dev/test
 PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
     "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
 )
@@ -276,6 +324,10 @@ ALLOWED_HUGGINGFACE_MODELS = frozenset(
         "google/pegasus-large",
         "google/pegasus-cnn_dailymail",
         "google/pegasus-xsum",
+        "google/long-t5-tglobal-base",
+        "google/long-t5-tglobal-large",
+        "google/flan-t5-base",
+        "google/flan-t5-large",
         # AllenAI models
         "allenai/led-large-16384",
         "allenai/led-base-16384",

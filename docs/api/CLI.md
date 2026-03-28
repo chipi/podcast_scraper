@@ -110,7 +110,7 @@ python -m podcast_scraper.cli --config config.yaml
 - `--anthropic-summary-model MODEL` - Anthropic model for summarization (default: environment-based)
 - `--anthropic-temperature TEMP` - Temperature for Anthropic generation (0.0-1.0, default: 0.3)
 - `--anthropic-max-tokens N` - Max tokens for Anthropic generation (default: model default)
-- `--anthropic-cleaning-model MODEL` - Anthropic model for transcript cleaning (default: `claude-3-5-haiku-latest`, cheaper than summary model)
+- `--anthropic-cleaning-model MODEL` - Anthropic model for transcript cleaning (default: `claude-haiku-4-5`, cheaper than summary model)
 - `--anthropic-cleaning-temperature TEMP` - Temperature for Anthropic cleaning (0.0-1.0, default: 0.2, lower = more deterministic)
 
 ### Mistral Provider Options

@@ -54,7 +54,7 @@ class SpeakerDetector(Protocol):
         episode_title: str,
         episode_description: str | None,
         known_hosts: Set[str],
-    ) -> Tuple[list[str], Set[str], bool]:
+    ) -> Tuple[list[str], Set[str], bool, bool]:
         """Detect speaker names from episode metadata.
 
         Args:
@@ -67,6 +67,7 @@ class SpeakerDetector(Protocol):
             - List of detected speaker names
             - Set of detected host names
             - Success flag (True if detection succeeded)
+            - used_defaults: True if defaults were added to reach min speakers (quality flag)
         """
         ...
 

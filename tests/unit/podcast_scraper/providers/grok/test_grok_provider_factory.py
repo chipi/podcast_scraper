@@ -84,7 +84,7 @@ class TestGrokSpeakerDetectorFactory(unittest.TestCase):
         provider = create_speaker_detector(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Test Episode",
             episode_description="Test description",
             known_hosts={"John Doe"},

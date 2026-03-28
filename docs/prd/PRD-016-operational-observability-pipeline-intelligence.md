@@ -23,7 +23,7 @@ As the project scales toward a production-grade service, we face three primary "
 ## Goals
 
 1. **Unified Health Score**: Establish a single, objective "Health Score" for the project based on test pass rates, flakiness, and runtime stability.
-2. **Bottleneck Identification**: Provide 100% visibility into the timing of every pipeline stage (e.g., "Downloader is taking 40% of total runtime").
+2. **Bottleneck Identification**: Provide 100% visibility into the timing of every pipeline stage (e.g., "Downloader is taking 40% of total runtime"). When GIL (Grounded Insight Layer) is enabled, the GIL stage is included as an instrumented stage.
 3. **Data-Driven Infrastructure**: Use resource usage metrics to drive decisions on CI hardware allocation or API rate limit tiers.
 4. **Historical Accountability**: Maintain a year-long record of system performance to ensure progress isn't just a "point in time" event.
 
@@ -83,7 +83,7 @@ As the project scales toward a production-grade service, we face three primary "
 
 ## Success Criteria
 
-- ✅ **Operational Awareness**: 100% of pipeline stages are instrumented and visible on the dashboard.
+- ✅ **Operational Awareness**: 100% of pipeline stages are instrumented and visible on the dashboard (including the GIL stage when GIL is enabled).
 - ✅ **Flakiness Reduction**: 0 "Unknown" flaky tests; all flakiness is identified and tracked by the system.
 - ✅ **Stability Gating**: Ability to drive a release based on "Historical Stability" rather than just a single passing run.
 - ✅ **Management Efficiency**: Identifying the root cause of a CI slowdown takes < 5 minutes of analysis.

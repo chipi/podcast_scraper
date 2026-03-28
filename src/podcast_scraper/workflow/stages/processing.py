@@ -11,7 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, cast, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
 
@@ -72,6 +72,38 @@ from ..types import (
 from . import metadata as metadata_stage
 
 logger = logging.getLogger(__name__)
+
+
+def _flatten_speaker_name_entries(value: Any) -> List[str]:
+    """Normalize speaker-detector output to flat, non-empty strings.
+
+    LLM JSON occasionally nests names (e.g. ``[\"A\", \"B\"]`` or mixed lists);
+    those values are not hashable and must not be used in ``set`` membership
+    checks without flattening.
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        t = value.strip()
+        return [t] if t else []
+    if isinstance(value, (list, tuple)):
+        out: List[str] = []
+        for v in value:
+            out.extend(_flatten_speaker_name_entries(v))
+        return out
+    t = str(value).strip()
+    return [t] if t else []
+
+
+def _speaker_names_to_str_set(members: Any) -> Set[str]:
+    """Build a string set from iterable of possibly nested speaker/host labels."""
+    out: Set[str] = set()
+    if members is None:
+        return out
+    for item in members:
+        for s in _flatten_speaker_name_entries(item):
+            out.add(s)
+    return out
 
 
 def _handle_dry_run_host_detection(
@@ -201,14 +233,16 @@ def _validate_hosts_with_first_episode(
 
     sig = inspect.signature(speaker_detector.detect_speakers)
     if "pipeline_metrics" in sig.parameters:
-        first_episode_speakers, _, _ = speaker_detector.detect_speakers(  # type: ignore[call-arg]
-            episode_title=first_episode.title,
-            episode_description=first_episode_description,
-            known_hosts=set(),
-            pipeline_metrics=pipeline_metrics,
+        first_episode_speakers, _, _, _ = (
+            speaker_detector.detect_speakers(  # type: ignore[call-arg]
+                episode_title=first_episode.title,
+                episode_description=first_episode_description,
+                known_hosts=set(),
+                pipeline_metrics=pipeline_metrics,
+            )
         )
     else:
-        first_episode_speakers, _, _ = speaker_detector.detect_speakers(
+        first_episode_speakers, _, _, _ = speaker_detector.detect_speakers(
             episode_title=first_episode.title,
             episode_description=first_episode_description,
             known_hosts=set(),
@@ -549,7 +583,7 @@ def _detect_speakers_for_episode(
 
     sig = inspect.signature(speaker_detector.detect_speakers)
     if "pipeline_metrics" in sig.parameters:
-        detected_speakers, detected_hosts_set, detection_succeeded = (
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
             speaker_detector.detect_speakers(
                 episode_title=episode.title,
                 episode_description=episode_description,
@@ -558,7 +592,7 @@ def _detect_speakers_for_episode(
             )
         )
     else:
-        detected_speakers, detected_hosts_set, detection_succeeded = (
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
             speaker_detector.detect_speakers(
                 episode_title=episode.title,
                 episode_description=episode_description,
@@ -574,7 +608,11 @@ def _detect_speakers_for_episode(
     ):
         return cfg.screenplay_speaker_names[1:]
     if detection_succeeded:
-        return [s for s in detected_speakers if s not in detected_hosts_set]
+        flat_speakers: List[str] = []
+        for entry in detected_speakers or []:
+            flat_speakers.extend(_flatten_speaker_name_entries(entry))
+        host_strings = _speaker_names_to_str_set(detected_hosts_set)
+        return [name for name in flat_speakers if name not in host_strings]
     return None
 
 
@@ -995,7 +1033,68 @@ def process_episodes(  # noqa: C901
     return saved
 
 
-# TODO: Reduce complexity - extract more helper functions for parallel processing logic
+def _drain_completed_processing_futures(
+    futures: Dict[Any, int],
+    cfg: config.Config,
+    pipeline_metrics: Optional[metrics.Metrics],
+) -> Tuple[int, int, bool]:
+    """Drain completed futures from the executor, update counts, and detect stop request.
+
+    Returns:
+        Tuple of (ok_delta, failed_delta, stop_requested).
+    """
+    ok_delta, failed_delta = 0, 0
+    stop_requested = False
+    try:
+        for future in as_completed(list(futures.keys()), timeout=1.0):
+            episode_idx = futures.pop(future)
+            try:
+                success = future.result()
+                if success:
+                    ok_delta += 1
+                else:
+                    failed_delta += 1
+                    fail_fast = getattr(cfg, "fail_fast", False)
+                    max_failures = getattr(cfg, "max_failures", None)
+                    if fail_fast or (
+                        max_failures is not None
+                        and pipeline_metrics is not None
+                        and pipeline_metrics.errors_total >= max_failures
+                    ):
+                        stop_requested = True
+                        logger.info(
+                            "Stopping processing: fail_fast=%s, max_failures=%s, "
+                            "errors_total=%s",
+                            fail_fast,
+                            max_failures,
+                            pipeline_metrics.errors_total if pipeline_metrics else None,
+                        )
+                logger.debug(
+                    "Processed processing job idx=%s (ok_delta=%s, failed_delta=%s)",
+                    episode_idx,
+                    ok_delta,
+                    failed_delta,
+                )
+            except Exception as exc:  # pragma: no cover
+                failed_delta += 1
+                logger.error(
+                    "[%s] processing future raised error: %s",
+                    episode_idx,
+                    exc,
+                )
+                fail_fast = getattr(cfg, "fail_fast", False)
+                max_failures = getattr(cfg, "max_failures", None)
+                if fail_fast or (
+                    max_failures is not None
+                    and pipeline_metrics is not None
+                    and pipeline_metrics.errors_total >= max_failures
+                ):
+                    stop_requested = True
+    except TimeoutError:
+        pass
+    return (ok_delta, failed_delta, stop_requested)
+
+
 def process_processing_jobs_concurrent(  # noqa: C901
     processing_resources: ProcessingResources,
     feed: RssFeed,  # type: ignore[valid-type]
@@ -1134,53 +1233,14 @@ def process_processing_jobs_concurrent(  # noqa: C901
                                 futures[future] = job.episode.idx
 
             def _process_completed_futures() -> None:
-                """Process completed futures."""
-                try:
-                    for future in as_completed(list(futures.keys()), timeout=1.0):
-                        episode_idx = futures.pop(future)
-                        try:
-                            success = future.result()
-                            if success:
-                                jobs_processed_ok[0] += 1
-                            else:
-                                jobs_processed_failed[0] += 1
-                                # Issue #429: stop on first failure or after N failures (Phase 2)
-                                fail_fast = getattr(cfg, "fail_fast", False)
-                                max_failures = getattr(cfg, "max_failures", None)
-                                if fail_fast or (
-                                    max_failures is not None
-                                    and pipeline_metrics is not None
-                                    and pipeline_metrics.errors_total >= max_failures
-                                ):
-                                    stop_requested[0] = True
-                                    logger.info(
-                                        "Stopping processing: fail_fast=%s, max_failures=%s, "
-                                        "errors_total=%s",
-                                        fail_fast,
-                                        max_failures,
-                                        pipeline_metrics.errors_total,
-                                    )
-                            logger.debug(
-                                "Processed processing job idx=%s (ok=%s, failed=%s, total=%s)",
-                                episode_idx,
-                                jobs_processed_ok[0],
-                                jobs_processed_failed[0],
-                                jobs_processed_ok[0] + jobs_processed_failed[0],
-                            )
-                        except Exception as exc:  # pragma: no cover
-                            jobs_processed_failed[0] += 1
-                            logger.error(f"[{episode_idx}] processing future raised error: {exc}")
-                            fail_fast = getattr(cfg, "fail_fast", False)
-                            max_failures = getattr(cfg, "max_failures", None)
-                            if fail_fast or (
-                                max_failures is not None
-                                and pipeline_metrics is not None
-                                and pipeline_metrics.errors_total >= max_failures
-                            ):
-                                stop_requested[0] = True
-                except TimeoutError:
-                    # Some futures are still pending - continue loop to check again
-                    pass
+                """Process completed futures (delegate to module-level helper)."""
+                ok_d, failed_d, stop = _drain_completed_processing_futures(
+                    futures, cfg, pipeline_metrics
+                )
+                jobs_processed_ok[0] += ok_d
+                jobs_processed_failed[0] += failed_d
+                if stop:
+                    stop_requested[0] = True
 
             def _should_continue_processing() -> bool:
                 """Check if processing should continue."""

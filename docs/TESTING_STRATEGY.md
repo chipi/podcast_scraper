@@ -22,11 +22,8 @@ with per-provider unit, integration, and E2E tests.
 All LLM providers use versioned Jinja2 prompt
 templates managed by `PromptStore` (RFC-017).
 
-**Planned**: The Grounded Insight Layer (GIL,
-PRD-017) will add testing for insight/quote extraction,
-grounding contract validation, and `kg.json` schema
-compliance. See
-[GIL Testing (Planned)](#gil-testing-planned).
+**GIL**: The Grounded Insight Layer (GIL, PRD-017) has testing for insight/quote extraction,
+grounding contract validation, and `gi.json` schema compliance. See **GIL Testing (Implemented)** below.
 
 For detailed implementation guides per test layer,
 see the layer-specific guides linked above.
@@ -55,13 +52,25 @@ The testing strategy follows a three-tier pyramid:
     /------------\
    /    Unit      \   ← Many, fast unit tests
   /----------------\
-```yaml
+```
 
 | Layer | Scope | Entry Point | HTTP | Fixtures | ML Models |
 | ----- | ----- | ----------- | ---- | -------- | --------- |
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
+
+### Volume and default bias
+
+**Goal:** Most tests are **unit** tests; **integration** and **E2E** are smaller layers on top—not copies of the same scenarios.
+
+| Layer | Expectation |
+| ----- | ----------- |
+| **Unit** | **Default for new work.** Cover branches, errors, config, parsing, and provider behavior with mocks. This layer should have the **highest test count** and run on every PR (fast). |
+| **Integration** | **Selective.** Use when real wiring between modules matters (factories, stages, HTTP client against a local server). Avoid re-testing every unit case again here. |
+| **E2E** | **Sparse.** A **small** set of full workflows (CLI / `run_pipeline` / critical paths) that prove the stack end-to-end. Do **not** add E2E for every new flag or branch—use unit tests for those. |
+
+**Anti-pattern:** Asserting the same behavior three times (unit + integration + E2E) without a distinct guarantee at each layer. Prefer **one strong unit test** plus integration or E2E only where the layer adds real value (real I/O, multi-component flow, or user entry point).
 
 ### Decision Questions
 
@@ -836,15 +845,19 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] Summary schema validation
   (`test_summary_schema.py`)
 
-### GIL Modules (Planned — RFC-049)
+### GIL Modules (RFC-049 — Implemented)
 
-- [ ] `workflow/gil_extraction.py` — GIL orchestration
-- [ ] `kg/schema.py` — `kg.json` validation
-- [ ] `kg/writer.py` — kg.json serialization
-- [ ] Grounding contract enforcement
-- [ ] Three-tier extraction (ML-only, Hybrid, Cloud)
-- [ ] Quote verbatim validation
-- [ ] Insight grounding status tracking
+- [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
+- [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
+- [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
+- [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
+- [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
+- [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)
+- [x] `gi/grounding.py` — find_grounded_quotes (unit: `test_grounding.py`; optional integration with real models)
+- [x] GIL in workflow: metadata_generation writes gi.json when generate_gi true (unit: test_metadata_generation; E2E: test_gi_cli_e2e)
+- [x] CLI `gi inspect`, `gi show-insight`, `gi explore` (unit: test_cli TestGiSubcommand; E2E: test_gi_cli_e2e)
+- [ ] Three-tier extraction (ML-only, Hybrid, Cloud) — future
+- [ ] GIL extraction latency per tier — planned
 
 ## Test Pyramid Status
 
@@ -975,50 +988,39 @@ Ideal Pyramid:
 - [x] Error handling tests
 - [x] Return value validation
 
-### GIL Testing (Planned)
+### GIL Testing (Implemented — PRD-017, RFC-049/050)
 
-Testing for the Grounded Insight Layer (PRD-017,
-RFC-049/050/051) will follow the established test
-pyramid:
+Testing for the Grounded Insight Layer follows the established test pyramid. Current coverage:
+
+**Provider-based evidence:** The pipeline uses `find_grounded_quotes_via_providers` (in `gi/grounding.py`), which calls provider methods `extract_quotes` and `score_entailment`. These are unit-tested with mocked dependencies in `test_grounding.py` and `test_pipeline.py`; provider implementations (ML and LLM) are covered in `test_ml_provider.py`, `test_openai_provider.py`, and other provider test modules. Evidence stack integration (embedding, QA, NLI) is covered in `test_evidence_stack_integration.py`.
 
 **Unit Tests:**
 
-- `kg/schema.py` — JSON schema validation against
-  `docs/kg/kg.schema.json`
-- `kg/writer.py` — Serialization of insights, quotes,
-  edges to `kg.json` format
-- `workflow/gil_extraction.py` — Extraction
-  orchestration with mocked providers
-- Grounding contract validation (every quote verbatim,
-  every insight declares grounding status)
-- Three extraction tiers (ML-only, Hybrid, Cloud LLM)
-  with mocked models
+- [x] `gi/schema.py` — JSON schema validation (`test_schema.py`)
+- [x] `gi/io.py` — read/write gi.json (`test_io.py`)
+- [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (`test_load.py`)
+- [x] `gi/explore.py` — scan, collect, topic filter (`test_explore.py`)
+- [x] `gi/pipeline.py` — build_artifact stub, grounded (legacy), and provider path (quote_extraction_provider + entailment_provider) (`test_pipeline.py`)
+- [x] `gi/grounding.py` — find_grounded_quotes with mocked QA/NLI; find_grounded_quotes_via_providers with mock extract_quotes/score_entailment; pipeline_metrics evidence call counters (`test_grounding.py`)
+- [x] Providers: extract_quotes and score_entailment (ML and LLM) unit-tested with mocked dependencies (`test_ml_provider.py`, `test_openai_provider.py`, etc.). Provider path and evidence method behaviour are covered in `test_grounding.py` and `test_pipeline.py`.
+- [x] Workflow: generate_episode_metadata passes quote_extraction_provider and entailment_provider into build_artifact when generate_gi and gi_require_grounding true (`test_metadata_generation.py`)
+- [x] CLI gi subcommand: parse, inspect, show-insight, explore, exit codes (`test_cli.py`)
 
 **Integration Tests:**
 
-- GIL extraction → provider interaction (real
-  providers, mocked external services)
-- `kg.json` → Postgres export pipeline (RFC-051)
-- GIL extraction within workflow pipeline stages
-- Cross-tier consistency (same transcript, different
-  tiers should produce compatible outputs)
+- [x] Evidence stack: load embedding, QA, NLI; encode, answer, entailment_score (`test_evidence_stack_integration.py`)
+- [x] Optional: find_grounded_quotes with real models (skip when offline)
+- [ ] `gi.json` → Postgres export (RFC-051) — planned
 
 **E2E Tests:**
 
-- Full pipeline with GIL extraction enabled
-  (`--enable-gil`)
-- CLI commands: `kg inspect`, `kg show-insight`,
-  `kg explore` (RFC-050)
-- `kg.json` output validation against schema
-- Per-provider GIL extraction (ML, OpenAI, Ollama)
+- [x] Full pipeline with generate_gi true → gi inspect, show-insight, explore (`test_gi_cli_e2e.py`)
+- [x] Pre-built artifact dir → gi inspect, show-insight, explore (exit 0)
+- [x] Invalid args: gi explore without --output-dir (exit 2); gi show-insight without --id (exit 2)
 
-**Quality Evaluation:**
+**Quality Evaluation (Planned):**
 
-- Quote verbatim accuracy (% exact match with
-  transcript spans)
-- Grounding rate (% of insights with ≥1 supporting
-  quote)
-- Insight coverage (% of key topics covered)
+- Quote verbatim accuracy, grounding rate, insight coverage
 - Cross-provider comparison using golden dataset
 
 ### Model Registry Testing (RFC-044, Planned)
@@ -1051,7 +1053,7 @@ pyramid:
 - [ ] Generate random RSS feeds
 - [ ] Test filename sanitization with fuzzing
 - [ ] Test URL normalization with edge cases
-- [ ] `kg.json` schema fuzzing (planned)
+- [ ] `gi.json` schema fuzzing (planned)
 
 ## References
 

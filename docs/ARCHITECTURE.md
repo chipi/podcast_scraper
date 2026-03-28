@@ -39,10 +39,10 @@ This architecture document is the central hub for understanding the system. For 
   Documents
 - **[RFCs](rfc/index.md)** — Request for Comments
   (design decisions)
-- **[GIL Ontology](kg/ontology.md)** — Grounded
+- **[GIL Ontology](gi/ontology.md)** — Grounded
   Insight Layer node/edge types and grounding contract
-- **[GIL Schema](kg/kg.schema.json)** — Machine-
-  readable JSON schema for `kg.json` validation
+- **[GIL Schema](gi/gi.schema.json)** — Machine-
+  readable JSON schema for `gi.json` validation
 
 ## Goals and Scope
 
@@ -59,8 +59,9 @@ This architecture document is the central hub for understanding the system. For 
 - Provide a service API (`service.py`) optimized for
   non-interactive use (daemons, process managers) with
   structured error handling and exit codes.
-- Support a **multi-provider architecture** with 8
-  providers (ML, OpenAI, Gemini, Anthropic, Mistral,
+- Support a **multi-provider architecture** with
+  local ML, hybrid MAP-REDUCE (hybrid_ml), and 7
+  LLM providers (OpenAI, Gemini, Anthropic, Mistral,
   DeepSeek, Grok, Ollama) enabling choice across
   cost, quality, privacy, and latency dimensions.
 - Enable **structured knowledge extraction** via the
@@ -132,8 +133,10 @@ The following architectural principles govern this system. For the full history 
 8. **Summarization** (PRD-005/RFC-012): When enabled,
    episode transcripts are summarized using the
    configured provider — local transformer models
-   (BART, PEGASUS, LED) via `MLProvider`, or any of
-   7 LLM providers (OpenAI, Gemini, Anthropic,
+   (BART, PEGASUS, LED) via `MLProvider`; the
+   **hybrid_ml** provider (MAP with LongT5 + REDUCE
+   via Ollama, llama.cpp, or transformers); or any
+   of 7 LLM providers (OpenAI, Gemini, Anthropic,
    Mistral, DeepSeek, Grok, Ollama) via prompt
    templates. See
    [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md)
@@ -151,7 +154,7 @@ The following architectural principles govern this system. For the full history 
     enabled, the Grounded Insight Layer extracts
     structured insights and verbatim quotes from
     transcripts, links them via grounding
-    relationships, and writes a `kg.json` file per
+    relationships, and writes a `gi.json` file per
     episode. This step runs after summarization and
     uses the same multi-provider architecture.
     See [Planned Architecture Evolution](#planned-architecture-evolution)
@@ -193,8 +196,8 @@ flowchart TD
     GILCheck -->|Yes| ExtractGIL[Extract Insights + Quotes]
     GILCheck -->|No| Cleanup
     ExtractGIL --> GroundInsights[Ground Insights with Quotes]
-    GroundInsights --> WriteKG[Write kg.json]
-    WriteKG --> Cleanup[Cleanup Temp Files]
+    GroundInsights --> WriteGI[Write gi.json]
+    WriteGI --> Cleanup[Cleanup Temp Files]
     Cleanup --> End([Complete])
 
     style Start fill:#e1f5ff
@@ -214,13 +217,15 @@ flowchart TD
 - `workflow.episode_processor`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
 - **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Eight unified
-  provider classes implement protocol combinations
+- **Unified Providers** (RFC-029): Nine provider
+  options for summarization; eight unified provider
+  classes implement protocol combinations
   ([ADR-011](adr/ADR-011-unified-provider-pattern.md)):
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
   | `MLProvider` | ✅ Whisper | ✅ spaCy NER | ✅ Transformers | Local, no API cost |
+  | `HybridMLProvider` | ❌ | ❌ | ✅ MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
   | `OpenAIProvider` | ✅ Whisper API | ✅ GPT API | ✅ GPT API | Cloud, prompt-managed |
   | `GeminiProvider` | ✅ Gemini API | ✅ Gemini API | ✅ Gemini API | 2M context, native audio |
   | `AnthropicProvider` | ❌ | ✅ Claude API | ✅ Claude API | High quality reasoning |
@@ -252,7 +257,7 @@ flowchart TD
 - `speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
 - `summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
 - `utils.progress`: Minimal global progress publishing API so callers can swap in alternative UIs.
-- `models.py`: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
+- `models/` (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules. May be extended to include detected speaker metadata.
 - `workflow.metadata_generation` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
 
 ### Module Dependencies Diagram
@@ -275,7 +280,7 @@ graph TB
 
     subgraph "Support Modules"
         Filesystem[utils/filesystem.py]
-        Models[models.py]
+        Models[models/]
         Progress[utils/progress.py]
         Schemas[schemas/summary_schema.py]
     end
@@ -294,6 +299,7 @@ graph TB
 
     subgraph "Local ML Provider"
         MLProvider[providers/ml/ml_provider.py]
+        HybridMLProvider[providers/ml/hybrid_ml_provider.py]
         Whisper[providers/ml/whisper_utils.py]
         SpeakerDetect[providers/ml/speaker_detection.py]
         Summarizer[providers/ml/summarizer.py]
@@ -339,6 +345,7 @@ graph TB
     SpeakerFactory --> GrokProvider
     SpeakerFactory --> OllamaProvider
     SummaryFactory --> MLProvider
+    SummaryFactory --> HybridMLProvider
     SummaryFactory --> OpenAIProvider
     SummaryFactory --> GeminiProvider
     SummaryFactory --> AnthropicProvider
@@ -350,6 +357,7 @@ graph TB
     MLProvider --> SpeakerDetect
     MLProvider --> Summarizer
     MLProvider --> NER
+    HybridMLProvider --> Summarizer
     OpenAIProvider --> PromptStore
     GeminiProvider --> PromptStore
     AnthropicProvider --> PromptStore
@@ -433,37 +441,32 @@ a `ModelCapabilities` dataclass.
 
 ### Phase 2: Hybrid ML Platform (RFC-042)
 
-**Status**: Planned (~10 weeks, depends on Phase 1)
+**Status**: **Implemented** (Hybrid MAP-REDUCE summarization). Further extensions planned.
 
-Expands the ML provider with:
+**Implemented:**
 
-- **Hybrid MAP-REDUCE summarization**: Classic ML
-  models (LED, LongT5) for MAP (compression) +
-  instruction-tuned models (FLAN-T5, Qwen) for
-  REDUCE (abstraction)
-- **Sentence-transformers**: Semantic similarity
-  for topic deduplication
-- **Extractive QA**: RoBERTa-based verbatim quote
-  extraction with character offsets
-- **NLI cross-encoders**: Entailment scoring for
-  grounding validation
+- **Hybrid MAP-REDUCE summarization**: Use
+  `summary_provider: hybrid_ml` with MAP phase
+  (LongT5-base or other transformers) and REDUCE
+  phase via **transformers** (FLAN-T5), **ollama**
+  (local LLMs, e.g. llama3.1:8b, mistral:7b), or
+  **llama_cpp** (GGUF). See
+  [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml)
+  and [Ollama Provider Guide](guides/OLLAMA_PROVIDER_GUIDE.md) (Ollama as REDUCE backend).
 
-**New modules (planned):**
+**New modules (present):**
 
 - `providers/ml/hybrid_ml_provider.py` — Hybrid
-  MAP-REDUCE provider
-- `providers/ml/inference_backends.py` — Abstraction
-  for PyTorch, llama.cpp, Ollama backends
-- `providers/ml/extraction.py` — `StructuredExtractor`
-  protocol for JSON extraction from text
+  MAP-REDUCE provider; REDUCE backends: transformers,
+  Ollama, llama.cpp
 
-**Impact on existing architecture:**
+**Planned (Phase 2 extensions):**
 
-- New `summarization_provider: "hybrid_ml"` option
-  in `Config`
-- Factory functions updated to create hybrid provider
-- `MLProvider` extended with embedding, QA, NLI models
-  (lazy-loaded)
+- Sentence-transformers for topic deduplication
+- Extractive QA and NLI cross-encoders for
+  grounding validation
+- `MLProvider` extensions with embedding, QA, NLI
+  models (lazy-loaded)
 
 ### Phase 2b: Local LLM Prompt Optimization (RFC-052)
 
@@ -490,17 +493,17 @@ Adds structured knowledge extraction to the pipeline:
 ```text
 Transcript → Insight Extraction → Quote Extraction
     → Grounding (Insight↔Quote linking)
-    → Topic Assignment → kg.json
+    → Topic Assignment → gi.json
 ```
 
 **New modules (planned):**
 
 - `workflow/gil_extraction.py` — GIL orchestration
   (called after summarization in pipeline)
-- `kg/schema.py` — `kg.json` validation against
-  `docs/kg/kg.schema.json`
-- `kg/writer.py` — Serializes GIL output to
-  `kg.json` per episode
+- `gi/schema.py` — `gi.json` validation against
+  `docs/gi/gi.schema.json`
+- `gi/writer.py` — Serializes GIL output to
+  `gi.json` per episode
 
 **Three extraction tiers:**
 
@@ -516,14 +519,15 @@ compliance (every quote must be verbatim).
 ### Phase 3 (parallel): Use Cases & DB Projection
 
 **RFC-050** (Use Cases): Defines CLI commands
-(`kg inspect`, `kg show-insight`, `kg explore`) for
+(`gi inspect`, `gi show-insight`, `gi explore`) for
 consuming GIL data. Implemented alongside Phase 3.
 
-**RFC-051** (Database Projection): Projects `kg.json`
-files into Postgres tables (`insights`, `quotes`,
-`insight_support`, `insight_topics`) for fast SQL
-queries. Enables the Insight Explorer and notebook
-research workflows.
+**RFC-051** (Database Projection): Projects **`gi.json`**
+(GIL) and **KG artifacts** (RFC-055) into **separate**
+Postgres tables for fast SQL queries (e.g. GIL:
+`insights`, `quotes`, `insight_support`; KG: `kg_nodes`,
+`kg_edges` per RFC-051). Enables Insight Explorer,
+notebook workflows, and KG discovery queries.
 
 ### Phase 4: Adaptive Routing (RFC-053)
 
@@ -671,7 +675,7 @@ Dependency analysis runs automatically in the **nightly workflow**:
 - Output directories must live in safe roots (cwd,
   user home, or platform data/cache dirs); other
   locations trigger warnings for operator review.
-- GIL extraction (planned) will produce `kg.json`
+- GIL extraction (planned) will produce `gi.json`
   per episode conforming to a versioned schema. The
   grounding contract requires every quote to be
   verbatim and every insight to declare grounding
@@ -714,10 +718,10 @@ flowchart TD
   fields with model information and generation
   timestamps.
 - **GIL artifacts** (PRD-017, planned): When GIL
-  extraction is enabled, a `kg.json` file is generated
+  extraction is enabled, a `gi.json` file is generated
   per episode containing structured insights, verbatim
   quotes, topics, and their grounding relationships.
-  The file conforms to `docs/kg/kg.schema.json` and
+  The file conforms to `docs/gi/gi.schema.json` and
   is co-located with other episode artifacts.
 - **Run tracking files** (Issue #379, #429): The pipeline writes `run.json`, `index.json`, `run_manifest.json`, and `metrics.json` in each run directory. See [Pipeline and Workflow Guide - Run tracking files](guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429) for details.
 
@@ -739,7 +743,7 @@ graph TD
     Episodes --> Metadata{Metadata<br/>Enabled?}
     Metadata -->|Yes| MetaFiles["0001 - Episode Title.json<br/>0001 - Episode Title.yaml"]
     Episodes --> GIL{GIL<br/>Enabled?}
-    GIL -->|Yes| KGFile["kg.json<br/>Insights + Quotes + Edges"]
+    GIL -->|Yes| GIFile["gi.json<br/>Insights + Quotes + Edges"]
     Root --> TempDir[.tmp_media/]
     TempDir --> TempFiles[Temporary Media Files<br/>Cleaned Up After Use]
 
@@ -794,14 +798,14 @@ For detailed error handling patterns and implementation guidelines, see [Develop
   chunking strategies ensures scalability.
 - **GIL Extraction** (PRD-017, planned): The Grounded
   Insight Layer is designed as an opt-in pipeline
-  stage that produces `kg.json` files per episode.
+  stage that produces `gi.json` files per episode.
   The three-tier extraction model (ML-only, Hybrid,
   Cloud LLM) reuses the existing provider
   architecture. New extraction capabilities can be
   added by implementing the `StructuredExtractor`
-  protocol (RFC-042). The `kg.json` schema is
+  protocol (RFC-042). The `gi.json` schema is
   versioned and validated against
-  `docs/kg/kg.schema.json`.
+  `docs/gi/gi.schema.json`.
 
 ## Testing
 

@@ -88,7 +88,7 @@ class TestDeepSeekE2EServerIntegration:
         ), "Detector should use E2E server base URL"
 
         # Detect speakers should use E2E server endpoints (real HTTP request)
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test Episode with Alice and Bob",
             episode_description="Alice interviews Bob about their work",
             known_hosts={"Alice"},

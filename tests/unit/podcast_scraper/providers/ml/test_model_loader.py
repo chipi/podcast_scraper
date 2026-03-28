@@ -5,6 +5,7 @@ place where ML models can be downloaded. All other code must use local_files_onl
 """
 
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -15,9 +16,16 @@ import pytest
 
 from podcast_scraper import config
 from podcast_scraper.providers.ml.model_loader import (
+    is_evidence_model_cached,
+    preload_evidence_models,
     preload_transformers_models,
     preload_whisper_models,
 )
+from podcast_scraper.providers.ml.model_registry import ModelRegistry
+
+_ML_LOADER = "podcast_scraper.providers.ml.model_loader"
+_PATCH_QA_EVIDENCE = f"{_ML_LOADER}._download_qa_pipeline_for_cache"
+_PATCH_NLI_EVIDENCE = f"{_ML_LOADER}._download_nli_cross_encoder_for_cache"
 
 
 @pytest.mark.unit
@@ -433,3 +441,108 @@ class TestModelLoaderTransformers(unittest.TestCase):
         # Should still download (to verify cache is complete)
         mock_tokenizer_class.from_pretrained.assert_called_once()
         mock_model_class.from_pretrained.assert_called_once()
+
+
+@pytest.mark.unit
+class TestPreloadEvidenceModels(unittest.TestCase):
+    """GIL evidence-stack preload (QA + NLI) for Docker and scripts."""
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.mkdtemp()
+        self.cache_root = Path(self.temp_dir) / "hf"
+        self.cache_root.mkdir(parents=True, exist_ok=True)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        os.environ.pop("HF_HUB_CACHE", None)
+
+    @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
+    def test_preload_evidence_models_calls_pipeline_and_cross_encoder(
+        self, mock_get_cache: MagicMock
+    ) -> None:
+        mock_get_cache.return_value = self.cache_root
+        qa_id = "deepset/roberta-base-squad2"
+        nli_id = "cross-encoder/nli-deberta-v3-base"
+        with patch.object(
+            ModelRegistry,
+            "resolve_evidence_model_id",
+            side_effect=[qa_id, nli_id],
+        ):
+            with patch(_PATCH_QA_EVIDENCE) as mock_qa:
+                with patch(_PATCH_NLI_EVIDENCE) as mock_nli:
+                    preload_evidence_models(
+                        qa_models=["roberta-squad2"],
+                        nli_models=["nli-deberta-base"],
+                    )
+        mock_qa.assert_called_once_with(qa_id)
+        mock_nli.assert_called_once_with(nli_id)
+
+    @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
+    def test_preload_evidence_models_skips_when_cache_dirs_exist(
+        self, mock_get_cache: MagicMock
+    ) -> None:
+        mock_get_cache.return_value = self.cache_root
+        qa_id = "org/qa-model"
+        nli_id = "org/nli-model"
+        (self.cache_root / "models--org--qa-model").mkdir(parents=True)
+        (self.cache_root / "models--org--nli-model").mkdir(parents=True)
+        with patch.object(
+            ModelRegistry,
+            "resolve_evidence_model_id",
+            side_effect=[qa_id, nli_id],
+        ):
+            with patch(_PATCH_QA_EVIDENCE) as mock_qa:
+                with patch(_PATCH_NLI_EVIDENCE) as mock_nli:
+                    preload_evidence_models(
+                        qa_models=["qa-model"],
+                        nli_models=["nli-model"],
+                    )
+        mock_qa.assert_not_called()
+        mock_nli.assert_not_called()
+
+    @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
+    def test_preload_evidence_models_sets_hf_hub_cache_when_different(
+        self, mock_get_cache: MagicMock
+    ) -> None:
+        mock_get_cache.return_value = self.cache_root
+        os.environ["HF_HUB_CACHE"] = "/tmp/other-hf"
+        qa_id = "a/qa"
+        nli_id = "b/nli"
+        (self.cache_root / "models--a--qa").mkdir(parents=True)
+        (self.cache_root / "models--b--nli").mkdir(parents=True)
+        with patch.object(
+            ModelRegistry,
+            "resolve_evidence_model_id",
+            side_effect=[qa_id, nli_id],
+        ):
+            with patch(_PATCH_QA_EVIDENCE):
+                with patch(_PATCH_NLI_EVIDENCE):
+                    preload_evidence_models(qa_models=["x"], nli_models=["y"])
+        self.assertEqual(os.environ["HF_HUB_CACHE"], str(self.cache_root.resolve()))
+
+
+@pytest.mark.unit
+class TestIsEvidenceModelCached(unittest.TestCase):
+    """Unit tests for is_evidence_model_cached helper."""
+
+    @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
+    def test_false_when_resolve_raises(self, mock_get_cache: MagicMock) -> None:
+        mock_get_cache.return_value = Path(tempfile.mkdtemp())
+        try:
+            with patch.object(ModelRegistry, "resolve_evidence_model_id", side_effect=ValueError):
+                self.assertFalse(is_evidence_model_cached("bad-alias"))
+        finally:
+            shutil.rmtree(mock_get_cache.return_value, ignore_errors=True)
+
+    @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
+    def test_true_when_models_directory_exists(self, mock_get_cache: MagicMock) -> None:
+        root = Path(tempfile.mkdtemp())
+        try:
+            mock_get_cache.return_value = root
+            resolved = "hf/mymodel"
+            with patch.object(ModelRegistry, "resolve_evidence_model_id", return_value=resolved):
+                cache_path = root / "models--hf--mymodel"
+                cache_path.mkdir(parents=True)
+                self.assertTrue(is_evidence_model_cached("anything"))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)

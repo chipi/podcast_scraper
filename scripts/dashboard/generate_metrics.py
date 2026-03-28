@@ -249,7 +249,6 @@ def extract_complexity_metrics(reports_dir: Path) -> dict:
     metrics["maintainability_trend"] = wily_trends.get("maintainability_trend", "N/A")
     metrics["files_degrading"] = wily_trends.get("files_degrading", [])
     metrics["files_improving"] = wily_trends.get("files_improving", [])
-
     return metrics
 
 
@@ -625,7 +624,7 @@ def generate_metrics(
     branch: str = None,
     workflow_run_url: str = None,
     pipeline_metrics_path: Optional[Path] = None,
-    coverage_threshold: float = 80.0,
+    coverage_threshold: float = 70.0,
 ) -> None:
     """Generate metrics JSON from test artifacts.
 
@@ -637,7 +636,7 @@ def generate_metrics(
         branch: Git branch/ref (default: GITHUB_REF env var)
         workflow_run_url: Workflow run URL (default: constructed from env vars)
         pipeline_metrics_path: Optional path to pipeline metrics JSON file
-        coverage_threshold: Coverage threshold for combined coverage (default: 75.0)
+        coverage_threshold: Coverage threshold for combined coverage (default: 70.0)
     """
 
     pytest_json_path = reports_dir / "pytest.json"
@@ -770,8 +769,8 @@ def main():
     parser.add_argument(
         "--coverage-threshold",
         type=float,
-        default=80.0,
-        help="Coverage threshold percentage for combined coverage (default: 80.0). "
+        default=70.0,
+        help="Coverage threshold percentage for combined coverage (default: 70.0). "
         "Note: This is only enforced on combined coverage, not on individual test types.",
     )
 

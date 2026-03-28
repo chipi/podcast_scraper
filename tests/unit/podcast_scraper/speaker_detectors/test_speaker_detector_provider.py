@@ -126,7 +126,7 @@ class TestMLProviderSpeakerDetectionViaFactory(unittest.TestCase):
 
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
-        mock_detect.return_value = (["John Doe", "Jane Smith"], {"John Doe"}, True)
+        mock_detect.return_value = (["John Doe", "Jane Smith"], {"John Doe"}, True, False)
 
         detector = create_speaker_detector(cfg)
         detector.initialize()

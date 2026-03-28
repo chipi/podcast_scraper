@@ -144,7 +144,7 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 - RFC-004: Filesystem Layout & Run Management (output directory structure)
 - PRD-001: Transcript Acquisition Pipeline (transcript URLs)
 - PRD-002: Whisper Fallback Transcription (Whisper model info)
-- Current models: `podcast_scraper/models.py` (Episode, RssFeed)
+- Current models: `podcast_scraper.models` package (Episode, RssFeed)
 
 ## Design Considerations
 

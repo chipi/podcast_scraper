@@ -10,6 +10,7 @@ Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 import re
@@ -23,7 +24,7 @@ from urllib.parse import urlparse
 import yaml
 from pydantic import BaseModel, computed_field, Field, field_serializer
 
-from .. import config, models
+from .. import config, config_constants, models
 
 if TYPE_CHECKING:
     from ..models import Episode, RssFeed
@@ -389,6 +390,24 @@ class ProcessingMetadata(BaseModel):
         return value.isoformat()
 
 
+class GroundedInsightsMetadata(BaseModel):
+    """Provenance and index for the GIL artifact (gi.json).
+
+    Keeps the metadata model consistent: one document describes all episode
+    artifacts (summary + grounded insights). Full GI graph stays in gi.json.
+    """
+
+    artifact_path: str = Field(description="Path to gi.json relative to output directory")
+    insight_count: int = Field(description="Number of Insight nodes in the artifact")
+    generated_at: datetime = Field(description="When the GIL artifact was generated")
+    schema_version: str = Field(default="1.0", description="GIL artifact schema version")
+
+    @field_serializer("generated_at")
+    def serialize_generated_at(self, value: datetime) -> str:
+        """Serialize datetime as ISO 8601 string for database compatibility."""
+        return value.isoformat()
+
+
 class EpisodeMetadataDocument(BaseModel):
     """Complete episode metadata document.
 
@@ -411,6 +430,7 @@ class EpisodeMetadataDocument(BaseModel):
     content: ContentMetadata
     processing: ProcessingMetadata
     summary: Optional[SummaryMetadata] = None
+    grounded_insights: Optional[GroundedInsightsMetadata] = None
 
 
 def _build_feed_metadata(
@@ -489,7 +509,6 @@ def _build_episode_metadata(
 
 
 # Placeholder to filter from entity arrays so analytics are not contaminated (Issue #428)
-_PLACEHOLDER_GUEST_LEGACY = "Guest"
 
 
 def _filter_guest_placeholder_from_entity_lists(
@@ -500,8 +519,8 @@ def _filter_guest_placeholder_from_entity_lists(
     Returns:
         (filtered_hosts, filtered_guests); None remains None, lists may become empty.
     """
-    hosts = [h for h in (detected_hosts or []) if h != _PLACEHOLDER_GUEST_LEGACY]
-    guests = [g for g in (detected_guests or []) if g != _PLACEHOLDER_GUEST_LEGACY]
+    hosts = [h for h in (detected_hosts or []) if h != config_constants.LEGACY_PLACEHOLDER_GUEST]
+    guests = [g for g in (detected_guests or []) if g != config_constants.LEGACY_PLACEHOLDER_GUEST]
     return (hosts if hosts else None, guests if guests else None)
 
 
@@ -532,6 +551,13 @@ def _build_speakers_from_detected_names(
             speakers.append(SpeakerInfo(id=speaker_id, name=guest_name, role="guest"))
 
     return speakers
+
+
+def _normalize_whitespace(s: str) -> str:
+    """Collapse runs of whitespace to a single space and strip. Used for quote verbatim check."""
+    if not s:
+        return ""
+    return " ".join(s.split())
 
 
 def _normalize_entity(name: str) -> EntityAlias:
@@ -1677,7 +1703,7 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
         speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
         provider_info["gemini_model"] = speaker_model
     elif cfg.speaker_detector_provider == "anthropic":
-        speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-3-5-haiku-latest")
+        speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-haiku-4-5")
         provider_info["anthropic_model"] = speaker_model
 
     return provider_info
@@ -1732,6 +1758,27 @@ def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str,
                 pass
         except (ImportError, AttributeError, ValueError):
             pass  # Versions not available if libraries not installed or mocked
+    elif cfg.summary_provider == "hybrid_ml":
+        # Include model information for hybrid_ml provider (MAP + REDUCE, optional backend)
+        map_model = getattr(cfg, "hybrid_map_model", None)
+        if map_model:
+            provider_info["map_model"] = str(map_model)
+        reduce_model = getattr(cfg, "hybrid_reduce_model", None)
+        if reduce_model:
+            provider_info["reduce_model"] = str(reduce_model)
+        reduce_backend = getattr(cfg, "hybrid_reduce_backend", "transformers")
+        provider_info["reduce_backend"] = str(reduce_backend)
+        device = getattr(cfg, "hybrid_map_device", None) or getattr(cfg, "summary_device", None)
+        if device:
+            provider_info["device"] = device
+        try:
+            from .run_manifest import _revision_for_summary_model
+
+            summary_rev = _revision_for_summary_model(map_model)
+            if summary_rev:
+                provider_info["model_revision"] = summary_rev
+        except (ImportError, AttributeError, TypeError):
+            pass
     elif cfg.summary_provider == "openai":
         summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
         provider_info["openai_model"] = summary_model
@@ -1739,7 +1786,7 @@ def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str,
         summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
         provider_info["gemini_model"] = summary_model
     elif cfg.summary_provider == "anthropic":
-        summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-haiku-latest")
+        summary_model = getattr(cfg, "anthropic_summary_model", "claude-haiku-4-5")
         provider_info["anthropic_model"] = summary_model
 
     return provider_info
@@ -2270,6 +2317,16 @@ def _determine_metadata_path(
     return os.path.join(metadata_dir, f"{base_name}.metadata{extension}")
 
 
+def _determine_gi_path(metadata_path: str) -> str:
+    """Return path for GIL artifact from metadata path (same dir, base name .gi.json)."""
+    if metadata_path.endswith(".metadata.json"):
+        return metadata_path.replace(".metadata.json", ".gi.json")
+    if metadata_path.endswith(".metadata.yaml"):
+        return metadata_path.replace(".metadata.yaml", ".gi.json")
+    # Fallback: replace extension
+    return os.path.splitext(metadata_path)[0] + ".gi.json"
+
+
 def _serialize_metadata(
     metadata_doc: EpisodeMetadataDocument,
     metadata_path: str,
@@ -2485,8 +2542,8 @@ def _get_nlp_model_for_reconciliation(
     Returns:
         NLP model or None if not needed
     """
-    # Only needed for ML providers (transformers) - LLM providers don't need spaCy
-    is_ml_provider = cfg.summary_provider == "transformers"
+    # Only needed for ML providers (transformers, hybrid_ml) - LLM providers don't need spaCy
+    is_ml_provider = cfg.summary_provider in ("transformers", "hybrid_ml")
     if not (
         is_ml_provider
         and nlp is None
@@ -2685,10 +2742,9 @@ def _reconcile_entities_in_summary(
         return summary_text, corrected_entities
 
     # Entity reconciliation (faithfulness checking + name correction) is only needed for
-    # ML providers (transformers). LLM providers (OpenAI, Gemini, Grok, etc.) are generally
-    # better at names and faithfulness, so we skip spaCy-based checks for them to avoid
-    # requiring users to download spaCy just for this feature.
-    is_ml_provider = cfg.summary_provider == "transformers"
+    # ML providers (transformers, hybrid_ml). LLM providers (OpenAI, Gemini, Grok, etc.) are
+    # generally better at names and faithfulness, so we skip spaCy-based checks for them.
+    is_ml_provider = cfg.summary_provider in ("transformers", "hybrid_ml")
     if not (is_ml_provider and nlp and summary_text):
         if not is_ml_provider:
             logger.debug(
@@ -2784,7 +2840,7 @@ def _reconcile_entities_in_summary(
     return summary_text, corrected_entities
 
 
-def generate_episode_metadata(
+def generate_episode_metadata(  # noqa: C901
     feed: RssFeed,  # type: ignore[valid-type]
     episode: Episode,  # type: ignore[valid-type]
     feed_url: str,
@@ -2938,16 +2994,7 @@ def generate_episode_metadata(
         output_dir=output_dir,
     )
 
-    # Build complete metadata document
-    metadata_doc = EpisodeMetadataDocument(
-        feed=feed_metadata,
-        episode=episode_metadata,
-        content=content_metadata,
-        processing=processing_metadata,
-        summary=summary_metadata,
-    )
-
-    # Determine output path
+    # Determine output path (needed for skip_existing check and for GIL path)
     metadata_path = _determine_metadata_path(episode, output_dir, run_suffix, cfg)
 
     # Check skip_existing
@@ -2986,6 +3033,198 @@ def generate_episode_metadata(
             metadata_path,
         )
         return metadata_path
+
+    # Run GIL when enabled; produce grounded_insights for metadata model (consistent meta model)
+    gi_meta: Optional[GroundedInsightsMetadata] = None
+    if getattr(cfg, "generate_gi", False):
+        from .helpers import get_episode_id_from_episode
+
+        episode_id_for_status, _ = get_episode_id_from_episode(episode, feed_url)
+        gi_path = _determine_gi_path(metadata_path)
+        transcript_text = ""
+        transcript_segments_arg: Optional[List[Dict[str, Any]]] = None
+        if transcript_file_path and output_dir:
+            full_transcript_path = os.path.join(output_dir, transcript_file_path)
+            if os.path.isfile(full_transcript_path):
+                with open(full_transcript_path, encoding="utf-8") as f:
+                    transcript_text = f.read()
+            segments_path = os.path.splitext(full_transcript_path)[0] + ".segments.json"
+            if os.path.isfile(segments_path):
+                try:
+                    with open(segments_path, encoding="utf-8") as f:
+                        transcript_segments_arg = json.load(f)
+                    if not isinstance(transcript_segments_arg, list):
+                        transcript_segments_arg = None
+                except (json.JSONDecodeError, OSError):
+                    transcript_segments_arg = None
+        publish_date_str = episode_published_date.isoformat() if episode_published_date else None
+        max_attempts = 2
+        for attempt in range(max_attempts):
+            try:
+                gi_start = time.time()
+                from ..gi import build_artifact, write_artifact
+
+                gi_source = getattr(cfg, "gi_insight_source", "stub")
+                insight_texts_arg: Optional[List[str]] = None
+                insight_provider_arg = None
+                if (
+                    gi_source == "summary_bullets"
+                    and summary_metadata
+                    and getattr(summary_metadata, "bullets", None)
+                ):
+                    max_gi = getattr(cfg, "gi_max_insights", 5)
+                    insight_texts_arg = summary_metadata.bullets[:max_gi]
+                elif gi_source == "provider" and summary_provider is not None:
+                    insight_provider_arg = summary_provider
+
+                quote_extraction_provider_arg: Optional[Any] = None
+                entailment_provider_arg: Optional[Any] = None
+                if getattr(cfg, "generate_gi", False) and getattr(
+                    cfg, "gi_require_grounding", True
+                ):
+                    from ..summarization.factory import create_summarization_provider
+
+                    if getattr(cfg, "quote_extraction_provider", None) == cfg.summary_provider:
+                        quote_extraction_provider_arg = summary_provider
+                    else:
+                        quote_extraction_provider_arg = create_summarization_provider(
+                            cfg, provider_type_override=cfg.quote_extraction_provider
+                        )
+                        if hasattr(quote_extraction_provider_arg, "initialize"):
+                            quote_extraction_provider_arg.initialize()
+                    if getattr(cfg, "entailment_provider", None) == cfg.summary_provider:
+                        entailment_provider_arg = summary_provider
+                    elif getattr(cfg, "entailment_provider", None) == getattr(
+                        cfg, "quote_extraction_provider", None
+                    ):
+                        entailment_provider_arg = quote_extraction_provider_arg
+                    else:
+                        entailment_provider_arg = create_summarization_provider(
+                            cfg, provider_type_override=cfg.entailment_provider
+                        )
+                        if hasattr(entailment_provider_arg, "initialize"):
+                            entailment_provider_arg.initialize()
+
+                payload = build_artifact(
+                    episode_id,
+                    transcript_text,
+                    model_version=getattr(cfg, "gi_insight_model", "stub"),
+                    prompt_version="v1",
+                    podcast_id=feed_id,
+                    episode_title=episode.title,
+                    publish_date=publish_date_str,
+                    transcript_ref=transcript_file_path or "transcript.txt",
+                    transcript_segments=transcript_segments_arg,
+                    cfg=cfg,
+                    insight_texts=insight_texts_arg,
+                    insight_provider=insight_provider_arg,
+                    quote_extraction_provider=quote_extraction_provider_arg,
+                    entailment_provider=entailment_provider_arg,
+                    pipeline_metrics=pipeline_metrics,
+                )
+                write_artifact(Path(gi_path), payload, validate=True)
+                gi_elapsed = time.time() - gi_start
+                logger.debug("[%s] Generated GIL artifact: %s", episode.idx, gi_path)
+                # Index for metadata model: provenance only (full graph stays in gi.json)
+                nodes = payload.get("nodes", [])
+                edges = payload.get("edges", [])
+                insight_count = sum(1 for n in nodes if n.get("type") == "Insight")
+                quote_count = sum(1 for n in nodes if n.get("type") == "Quote")
+                grounded_insight_ids = {
+                    e["from"] for e in edges if e.get("type") == "SUPPORTED_BY" and e.get("from")
+                }
+                grounded_count = len(grounded_insight_ids)
+                has_insights_and_quotes = insight_count >= 1 and quote_count >= 1
+                quotes_verbatim = 0
+                quotes_checked = 0
+                if transcript_text and quote_count > 0:
+                    for n in nodes:
+                        if n.get("type") != "Quote":
+                            continue
+                        props = n.get("properties") or {}
+                        try:
+                            start = int(props.get("char_start", 0))
+                            end = int(props.get("char_end", 0))
+                            text = (props.get("text") or "").strip()
+                        except (TypeError, ValueError):
+                            continue
+                        if end <= start or start < 0 or end > len(transcript_text):
+                            continue
+                        quotes_checked += 1
+                        try:
+                            slice_text = transcript_text[start:end].strip()
+                            if _normalize_whitespace(text) == _normalize_whitespace(slice_text):
+                                quotes_verbatim += 1
+                        except Exception:
+                            pass
+                gi_meta = GroundedInsightsMetadata(
+                    artifact_path=os.path.relpath(gi_path, output_dir),
+                    insight_count=insight_count,
+                    generated_at=datetime.now(),
+                    schema_version=payload.get("schema_version", "1.0"),
+                )
+                if pipeline_metrics is not None:
+                    pipeline_metrics.gi_artifacts_generated += 1
+                    pipeline_metrics.record_gi_time(gi_elapsed)
+                    pipeline_metrics.record_gi_success_counts(
+                        insights=insight_count,
+                        quotes=quote_count,
+                        grounded_insights=grounded_count,
+                        has_insights_and_quotes=has_insights_and_quotes,
+                        quotes_verbatim=quotes_verbatim,
+                        quotes_checked=quotes_checked,
+                    )
+                    pipeline_metrics.update_episode_status(
+                        episode_id=episode_id_for_status, stage="gi_written"
+                    )
+                    pipeline_metrics.update_episode_metrics(
+                        episode_id=episode_id_for_status, gi_sec=gi_elapsed
+                    )
+                # Clean up GIL-only provider instances (avoid double-cleanup of summary_provider)
+                for prov, name in [
+                    (quote_extraction_provider_arg, "quote_extraction"),
+                    (entailment_provider_arg, "entailment"),
+                ]:
+                    if (
+                        prov is not None
+                        and prov is not summary_provider
+                        and hasattr(prov, "cleanup")
+                    ):
+                        try:
+                            prov.cleanup()
+                        except Exception as cleanup_exc:
+                            logger.debug(
+                                "[%s] GIL %s provider cleanup failed: %s",
+                                episode.idx,
+                                name,
+                                cleanup_exc,
+                            )
+                break
+            except Exception as gi_exc:
+                if attempt < max_attempts - 1:
+                    time.sleep(1.0)
+                    continue
+                if pipeline_metrics is not None:
+                    pipeline_metrics.gi_failures += 1
+                    pipeline_metrics.update_episode_status(
+                        episode_id=episode_id_for_status, stage="gi_failed"
+                    )
+                logger.warning(
+                    "[%s] GIL artifact generation failed (non-fatal): %s",
+                    episode.idx,
+                    gi_exc,
+                    exc_info=True,
+                )
+
+    # Build complete metadata document (includes grounded_insights when GIL ran)
+    metadata_doc = EpisodeMetadataDocument(
+        feed=feed_metadata,
+        episode=episode_metadata,
+        content=content_metadata,
+        processing=processing_metadata,
+        summary=summary_metadata,
+        grounded_insights=gi_meta,
+    )
 
     # Serialize and write metadata
     try:

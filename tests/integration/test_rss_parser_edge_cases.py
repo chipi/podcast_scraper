@@ -10,6 +10,7 @@ These tests verify RSS parser handles edge cases correctly:
 """
 
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -25,7 +26,7 @@ if PACKAGE_ROOT not in sys.path:
 # Add tests directory to path for conftest import
 from pathlib import Path
 
-from podcast_scraper.rss import downloader, parser as rss_parser
+from podcast_scraper.rss import downloader, feed_cache, parser as rss_parser
 
 pytestmark = [pytest.mark.integration, pytest.mark.module_rss_parser]
 
@@ -67,6 +68,28 @@ class TestRSSParserEdgeCases(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    def test_fetch_and_parse_rss_skips_http_when_disk_cache_hits(self):
+        """Pre-seeded RSS XML under PODCAST_SCRAPER_RSS_CACHE_DIR avoids fetch_rss_feed_url."""
+        tmp = tempfile.mkdtemp()
+        try:
+            rss_url = "https://example.com/feed.xml"
+            rss_bytes = b"<rss><channel><title>Cached Parser</title></channel></rss>"
+            base = Path(tmp).resolve()
+            os.environ[feed_cache.ENV_RSS_CACHE_DIR] = str(base)
+            cache_path = feed_cache.cache_path_for_url(base, rss_url)
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_bytes(rss_bytes)
+
+            cfg = create_test_config(rss_url=rss_url, output_dir=self.temp_dir)
+            with patch("podcast_scraper.rss.downloader.fetch_rss_feed_url") as mock_fetch:
+                feed = rss_parser.fetch_and_parse_rss(cfg)
+                mock_fetch.assert_not_called()
+
+            self.assertEqual(feed.title, "Cached Parser")
+        finally:
+            os.environ.pop(feed_cache.ENV_RSS_CACHE_DIR, None)
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def _mock_http_map(self, responses):
         """Create HTTP mock side effect function."""
 
@@ -99,7 +122,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
             # Verify feed was parsed despite missing optional fields
@@ -138,7 +161,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             feed = rss_parser.fetch_and_parse_rss(cfg)
 
             # Verify feed was parsed
@@ -174,7 +197,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
             # Verify feed was parsed
@@ -213,7 +236,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
             # Verify feed was parsed
@@ -239,7 +262,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
             # Verify feed was parsed
@@ -266,7 +289,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
             # Verify feed was parsed
@@ -299,7 +322,7 @@ class TestRSSParserEdgeCases(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock):
             # Parser should handle malformed XML (may raise exception or parse partially)
             # This depends on XML parser behavior
             try:

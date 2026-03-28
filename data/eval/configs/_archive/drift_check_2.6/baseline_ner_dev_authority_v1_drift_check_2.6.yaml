@@ -1,0 +1,19 @@
+# Drift check 2.6: same config as baseline_ner_dev_authority_v1.
+# Run to verify current code reproduces NER dev baseline (no drift). Version 2.6.
+# Compare: make experiment-run CONFIG=... BASELINE=baseline_ner_dev_authority_v1
+id: "baseline_ner_dev_authority_v1_drift_check_2.6"
+task: "ner_entities"
+
+backend:
+  type: "spacy_local"
+  model: "en_core_web_sm"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT"]
+  scoring:
+    mode: ["entity_set", "mention_exact", "mention_overlap"]

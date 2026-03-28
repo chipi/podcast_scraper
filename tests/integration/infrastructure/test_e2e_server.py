@@ -322,7 +322,7 @@ class TestE2EServerOpenAIEndpoints:
 
         # Mock render_prompt to avoid loading actual prompt files
         with patch("podcast_scraper.prompts.store.render_prompt", return_value="System prompt"):
-            speakers, detected_hosts, success = detector.detect_speakers(
+            speakers, detected_hosts, success, _ = detector.detect_speakers(
                 episode_title="Test Episode",
                 episode_description="Test description",
                 known_hosts=set(),
@@ -376,18 +376,18 @@ class TestE2EServerGeminiEndpoints:
     """Test that E2E server Gemini mock endpoints work correctly."""
 
     def test_gemini_api_base_url_helper(self, e2e_server):
-        """Test that Gemini API base URL helper works."""
+        """Test that Gemini API base URL helper matches google-genai HttpOptions (root only)."""
         gemini_api_base = e2e_server.urls.gemini_api_base()
         assert gemini_api_base.startswith("http://127.0.0.1:")
-        assert gemini_api_base.endswith("/v1beta")
-        assert "/v1beta" in gemini_api_base
+        # SDK joins api_version (v1beta) onto base_url; base must not include /v1beta.
+        assert not gemini_api_base.rstrip("/").endswith("/v1beta")
 
     def test_gemini_generate_content_endpoint_transcription(self, e2e_server):
         """Test that Gemini generateContent endpoint works for audio transcription."""
         import requests
 
         gemini_api_base = e2e_server.urls.gemini_api_base()
-        url = f"{gemini_api_base}/models/gemini-2.0-flash:generateContent"
+        url = f"{gemini_api_base}/v1beta/models/gemini-2.0-flash:generateContent"
 
         # Create an audio transcription request (multimodal with audio)
         request_data = {
@@ -425,7 +425,7 @@ class TestE2EServerGeminiEndpoints:
         import requests
 
         gemini_api_base = e2e_server.urls.gemini_api_base()
-        url = f"{gemini_api_base}/models/gemini-2.0-flash:generateContent"
+        url = f"{gemini_api_base}/v1beta/models/gemini-2.0-flash:generateContent"
 
         # Create a speaker detection request (with response_mime_type="application/json")
         request_data = {
@@ -468,7 +468,7 @@ class TestE2EServerGeminiEndpoints:
         import requests
 
         gemini_api_base = e2e_server.urls.gemini_api_base()
-        url = f"{gemini_api_base}/models/gemini-1.5-pro:generateContent"
+        url = f"{gemini_api_base}/v1beta/models/gemini-1.5-pro:generateContent"
 
         # Create a summarization request (text only, no JSON response)
         request_data = {

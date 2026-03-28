@@ -2,8 +2,10 @@
 
 > **Your complete decision-making resource for choosing the right AI provider**
 
-A comprehensive analysis of all 8 AI/ML providers supported by podcast_scraper to help you
-choose the right provider based on capabilities, cost, quality, speed, and privacy.
+A comprehensive analysis of summarization and capability providers supported by podcast_scraper:
+local ML, **hybrid MAP-REDUCE** (hybrid_ml), and 7 LLM providers. This guide is the **single place**
+for differences between providers: capabilities, cost, quality, speed, privacy, and
+**empirical smoke evaluation** (metrics vs silver reference, latency, model IDs).
 
 ---
 
@@ -17,24 +19,20 @@ Check the status below before making decisions.
 | Provider | Status | RFC | Notes |
 | ---------- | :------: | :---: | ------- |
 | **Local ML** | ✅ **Implemented** | - | Default provider (Whisper + spaCy + Transformers) |
+| **Hybrid ML** | ✅ **Implemented** | RFC-042 | Summarization only: MAP (LongT5) + REDUCE (transformers / Ollama / llama_cpp) |
 | **OpenAI** | ✅ **Implemented** | RFC-013 | Full-stack: Whisper API + GPT API |
 | **Gemini** | ✅ **Implemented** | RFC-035 | Full-stack: Gemini API for all capabilities |
-| **Anthropic** | ✅ **Implemented** | RFC-032 | Issue #106 - Speaker detection + summarization (transcription not supported) |
-| **Grok** | ✅ **Implemented** | RFC-036 | Issue #1095 - Real-time information access, speaker detection + summarization |
-| **Ollama** | ✅ **Implemented** | RFC-037 | Issue #196 - Local self-hosted LLMs, zero cost, complete privacy |
+| **Mistral** | ✅ **Implemented** | RFC-033 | Full-stack: Mistral API (EU data residency) |
+| **Anthropic** | ✅ **Implemented** | RFC-032 | Speaker detection + summarization (transcription not supported) |
+| **DeepSeek** | ✅ **Implemented** | RFC-034 | Speaker detection + summarization; ultra low-cost |
+| **Grok** | ✅ **Implemented** | RFC-036 | Real-time information access, speaker detection + summarization |
+| **Ollama** | ✅ **Implemented** | RFC-037 | Local self-hosted LLMs, zero cost, complete privacy |
 
 ### 📋 Planned Providers (RFCs in Draft Status)
 
-The following providers are **designed but not yet implemented**.
-They are documented here for planning purposes and future reference.
+None currently; all listed providers above are implemented.
 
-| Provider | Status | RFC | Implementation Status |
-| ---------- | :------: | :---: | :---------------------: |
-| **DeepSeek** | 📋 **Planned** | RFC-034 | Design complete, implementation pending |
-
-**Note:** Planned providers have RFCs documenting their design,
-but implementation work has not yet begun.
-The comparison data below is based on design specifications and may change during implementation.
+**Note:** For hybrid_ml (MAP-REDUCE) configuration and REDUCE backends (Ollama, llama_cpp, transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and [Configuration API](../api/CONFIGURATION.md).
 
 ---
 
@@ -44,15 +42,15 @@ The comparison data below is based on design specifications and may change durin
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        PROVIDER LANDSCAPE OVERVIEW                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  7 Providers Implemented │  1 Provider Planned      │  5 Full-Stack Ready  │
+│  9 Summarization Options  │  (Hybrid = MAP+REDUCE)  │  5 Full-Stack Ready  │
 │  ════════════════════     │  ═══════════════════════ │  ═══════════════     │
-│  ✅ Local ML              │  📋 DeepSeek             │  ✅ Local ML          │
-│  ✅ OpenAI                 │                         │  ✅ OpenAI            │
-│  ✅ Gemini                 │                         │  ✅ Gemini            │
-│  ✅ Mistral                │                         │  ✅ Mistral           │
-│  ✅ Anthropic              │                         │                      │
-│  ✅ Grok                   │                         │                      │
-│  ✅ Ollama                 │                         │  ✅ Ollama            │
+│  ✅ Local ML              │  ✅ Hybrid ML (RFC-042)  │  ✅ Local ML          │
+│  ✅ Hybrid ML             │  MAP + Ollama/llama_cpp │  ✅ OpenAI            │
+│  ✅ OpenAI                │  or transformers REDUCE  │  ✅ Gemini            │
+│  ✅ Gemini                │                         │  ✅ Mistral           │
+│  ✅ Mistral               │                         │  ✅ Ollama            │
+│  ✅ Anthropic / DeepSeek  │                         │                      │
+│  ✅ Grok / Ollama         │                         │                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                           COST SPECTRUM (per 100 episodes)                  │
 │                                                                             │
@@ -65,7 +63,7 @@ The comparison data below is based on design specifications and may change durin
 │  DeepSeek ─── Grok ─── Anthropic ─── Gemini ─── OpenAI (text) ─── OpenAI (full) │
 │   ($0.02)    ($0.03)    ($0.40)      ($0.95)    ($0.55)           ($37)         │
 └─────────────────────────────────────────────────────────────────────────────┘
-```yaml
+```
 
 ---
 
@@ -73,16 +71,81 @@ The comparison data below is based on design specifications and may change durin
 
 | If you need... | Choose | Status | Why |
 | :------------- | :----: | :----: | :-- |
-| 🔒 **Complete Privacy** | Local ML | ✅ Implemented | Data never leaves your device |
-| 💰 **Lowest Cost** | Local ML | ✅ Implemented | $0 (just electricity) |
+| 🔒 **Complete Privacy** | Local ML / Hybrid ML / Ollama | ✅ Implemented | Data never leaves your device |
+| 💰 **Lowest Cost** | Local ML / Hybrid ML / Ollama | ✅ Implemented | $0 (just electricity) |
 | 🏆 **Highest Quality** | OpenAI | ✅ Implemented | Industry leader |
 | 🌐 **Full Capabilities** | OpenAI / Local ML | ✅ Implemented | All 3 capabilities |
+| 📝 **Local MAP + LLM REDUCE** | Hybrid ML (Ollama/llama_cpp) | ✅ Implemented | LongT5 MAP + local LLM synthesis (RFC-042) |
 | 🌐 **Real-Time Info** | Grok | ✅ Implemented | Real-time information access (RFC-036) |
-| 💰 **Lowest Cloud Cost** | DeepSeek | 📋 Planned | 95% cheaper than OpenAI (RFC-034) |
-| 🇪🇺 **EU Data Residency** | Mistral | 📋 Planned | European servers (RFC-033) |
-| 📚 **Huge Context** | Gemini | 📋 Planned | 2 million token window (RFC-035) |
+| 💰 **Lowest Cloud Cost** | DeepSeek | ✅ Implemented | 95% cheaper than OpenAI (RFC-034) |
+| 🇪🇺 **EU Data Residency** | Mistral | ✅ Implemented | European servers (RFC-033) |
+| 📚 **Huge Context** | Gemini | ✅ Implemented | 2 million token window (RFC-035) |
 | 🆓 **Free Development** | Gemini / Grok | ✅ Implemented | Generous free tiers (RFC-035, RFC-036) |
 | 🏠 **Self-Hosted** | Ollama | ✅ Implemented | Offline/air-gapped (RFC-037, Issue #196) |
+
+---
+
+## 📊 Empirical summarization comparison (smoke evaluation)
+
+This section is the **single place** for measured differences between summarization providers. All metrics are vs a **silver reference** (GPT-4o on the same episodes). Dataset: `curated_5feeds_smoke_v1` (5 episodes). Reference: `silver_gpt4o_smoke_v1`.
+
+**Interpretation:** Higher ROUGE / BLEU / Embed / Coverage = closer to reference; lower WER = better. Latency = seconds per episode (inference only).
+
+### Full metrics table (vs silver reference)
+
+| Run | Latency/ep | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU | Embed | Coverage | WER |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| llm_openai_smoke_v1 | 15.4s | 77.2% | 54.0% | 58.8% | 50.0% | 92.7% | 100.1% | 61.5% |
+| llm_mistral_smoke_v1 | 5.4s | 70.6% | 35.5% | 42.0% | 29.6% | 90.6% | 103.8% | 88.8% |
+| llm_deepseek_smoke_v1 | 13.9s | 59.4% | 19.1% | 26.3% | 14.5% | 84.0% | 98.2% | 93.2% |
+| llm_anthropic_smoke_v1 | 7.9s | 57.4% | 19.5% | 27.3% | 12.8% | 84.3% | 84.9% | 88.4% |
+| llm_grok_smoke_v1 | 8.7s | 59.5% | 21.4% | 30.4% | 15.5% | 87.2% | 94.5% | 92.0% |
+| llm_ollama_qwen25_7b_smoke_v1 | 17.7s | 18.6% | 2.7% | 10.6% | 0.4% | 26.2% | 34.2% | 94.4% |
+| llm_ollama_phi3_mini_smoke_v1 | 19.8s | 28.1% | 4.4% | 12.8% | 1.7% | 25.1% | 97.6% | 103.5% |
+| llm_ollama_mistral_7b_smoke_v1 | 81.6s | 28.3% | 3.9% | 15.1% | 1.1% | 24.9% | 70.0% | 92.9% |
+| llm_ollama_llama31_8b_smoke_v1 | 77.7s | 23.7% | 3.0% | 12.4% | 0.6% | 17.1% | 47.0% | 93.6% |
+| llm_ollama_gemma2_9b_smoke_v1 | 48.2s | 3.5% | 0.1% | 2.8% | 0.0% | 15.8% | 3.5% | 98.6% |
+
+### Cloud LLMs (ranked by ROUGE-L vs silver)
+
+| Rank | Provider | Model (eval config) | ROUGE-L | Embed | Latency | Note |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **OpenAI** | GPT-4o | **58.8%** | **92.7%** | 15.4s | Same as silver reference. |
+| 2 | Mistral | (API default) | 42.0% | 90.6% | **5.4s** | Fastest; strong quality. |
+| 3 | Grok | grok-3-mini | 30.4% | 87.2% | 8.7s | Best ROUGE-L among non-OpenAI cloud. |
+| 4 | Anthropic | Claude 3.5 Haiku | 27.3% | 84.3% | 7.9s | Solid embed; lower ROUGE. |
+| 5 | DeepSeek | (API default) | 26.3% | 84.0% | 13.9s | Good embed; lowest ROUGE of cloud. |
+
+### Local Ollama (vs silver)
+
+| Run | ROUGE-L | Embed | Latency | Note |
+| --- | --- | --- | --- | --- |
+| llm_ollama_mistral_7b_smoke_v1 | **15.1%** | 24.9% | 81.6s | Best ROUGE among Ollama. |
+| llm_ollama_phi3_mini_smoke_v1 | 12.8% | 25.1% | 19.8s | Fastest Ollama. |
+| llm_ollama_llama31_8b_smoke_v1 | 12.4% | 17.1% | 77.7s | Slower; lower embed. |
+| llm_ollama_qwen25_7b_smoke_v1 | 10.6% | **26.2%** | 17.7s | Best embed among Ollama. |
+| llm_ollama_gemma2_9b_smoke_v1 | 2.8% | 15.8% | 48.2s | Very short outputs (truncation); outlier. |
+
+### Model IDs (acceptance-tested)
+
+Use these model IDs in eval/acceptance configs to avoid API errors:
+
+| Provider | Recommended model ID | Deprecated / not found |
+| --- | --- | --- |
+| Anthropic | `claude-haiku-4-5` | `claude-3-5-haiku-20241022` (404 deprecated) |
+| Grok | `grok-3-mini` | `grok-2` (400 model not found) |
+
+Eval configs: `data/eval/configs/llm_anthropic_smoke_v1.yaml`, `llm_grok_smoke_v1.yaml`. Acceptance configs: `config/acceptance/summarization/acceptance_planet_money_anthropic.yaml`, `acceptance_planet_money_grok.yaml`.
+
+### How to re-run or add runs
+
+From repo root, with the required API key set:
+
+```bash
+make experiment-run CONFIG=data/eval/configs/llm_<provider>_smoke_v1.yaml REFERENCE=silver_gpt4o_smoke_v1
+```
+
+To regenerate a multi-run report, use the eval multi-run report script (see [Experiment Guide](EXPERIMENT_GUIDE.md)).
 
 ---
 
@@ -330,11 +393,10 @@ DeepSeek    🔒🔒       │████████████████�
                     │  Anthropic     │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
                     │  Grok          │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
                     │  Ollama        │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
-                    │  DeepSeek      │ 📋 Plan  │    ❌    │     ✅     │     ✅     │
+                    │  DeepSeek      │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
                     └─────────────────────────────────────────────────────────────────┘
 
-    ✅ Implemented (7): Local ML, OpenAI, Gemini, Mistral, Anthropic, Grok, Ollama
-    📋 Planned (1): DeepSeek
+    ✅ Implemented (8): Local ML, OpenAI, Gemini, Mistral, Anthropic, Grok, Ollama, DeepSeek
 ```yaml
 
 ---
@@ -481,9 +543,9 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │  ⚠️  No transcription support                                   │
 │                                                                 │
 │  Models:                                                        │
-│  ├── Claude 3.5 Sonnet  $3/$15   │ ⭐ Production               │
-│  ├── Claude 3.5 Haiku   $0.80/$4 │ ⭐ Dev/test                 │
-│  └── Claude 3 Opus      $15/$75  │ Maximum quality             │
+│  ├── Claude Haiku 4.5   $1/$5   │ ⭐ Eval/acceptance alias `claude-haiku-4-5` │
+│  ├── claude-haiku-4-5            │ Anthropic alias (current Haiku) │
+│  └── claude-3-5-sonnet-20241022 │ Deprecated (404); use newer Sonnet IDs │
 │                                                                 │
 │  Best For: Quality text, nuanced content, safety alignment      │
 └─────────────────────────────────────────────────────────────────┘
@@ -583,8 +645,8 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │  ⚠️  No transcription support                                   │
 │                                                                 │
 │  Models (xAI's Grok):                                           │
-│  ├── grok-2                     │ ⭐ Production              │
-│  └── grok-beta                  │ ⭐ Free tier                │
+│  ├── grok-3-mini                │ ⭐ Eval/acceptance (use this ID) │
+│  └── grok-2                     │ API returns 400 model not found │
 │                                                                 │
 │  🌐 Access real-time information via X/Twitter integration!   │
 │                                                                 │

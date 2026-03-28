@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -284,18 +284,84 @@ def generate_comparison_report(
         lines.append("✅ No gate regressions detected")
         lines.append("")
 
-    # vs_reference deltas
-    vs_ref_deltas = {k: v for k, v in deltas.items() if k.startswith("rougeL_f1_vs_")}
+    # vs_reference deltas (ROUGE, BLEU, embedding, coverage - value metrics)
+    vs_ref_deltas = {k: v for k, v in deltas.items() if "_vs_" in k and k != "gate_regressions"}
+    percentage_metrics = ("rouge1_f1", "rouge2_f1", "rougeL_f1", "bleu", "wer", "embedding_cosine")
     if vs_ref_deltas:
-        lines.append("### vs Reference Deltas")
+        lines.append("### vs Reference (Value) Deltas")
         lines.append("")
+        # Group by ref_id for readability
+        by_ref: Dict[str, List[tuple]] = {}
         for metric_key, delta in vs_ref_deltas.items():
-            ref_id = metric_key.replace("rougeL_f1_vs_", "")
-            lines.append(f"- **ROUGE-L F1 vs {ref_id}:** {format_delta(delta, 'percentage')}")
-            if delta > 0:
-                lines.append("  ✅ Quality improved")
-            elif delta < 0:
-                lines.append("  ⚠️  Quality regressed")
+            if delta is None:
+                continue
+            # key is like "rouge1_f1_vs_silver_gpt4o_benchmark_v1"
+            parts = metric_key.rsplit("_vs_", 1)
+            if len(parts) != 2:
+                continue
+            metric_name, ref_id = parts[0], parts[1]
+            by_ref.setdefault(ref_id, []).append((metric_name, delta))
+        for ref_id in sorted(by_ref.keys()):
+            lines.append(f"**Reference: {ref_id}**")
+            for metric_name, delta in sorted(by_ref[ref_id]):
+                fmt = "percentage" if metric_name in percentage_metrics else "float"
+                direction = (
+                    "✅ improved" if delta > 0 else "⚠️ regressed" if delta < 0 else "unchanged"
+                )
+                lines.append(f"- {metric_name}: {format_delta(delta, fmt)} ({direction})")
+            lines.append("")
+        lines.append("")
+
+    # Quality uplift interpretation: hybrid pipeline vs ML prod baseline
+    baseline_id = comparison.get("baseline_id", "")
+    experiment_id = comparison.get("experiment_run_id", "")
+    if baseline_id == "baseline_ml_prod_authority_v1" and "hybrid" in experiment_id.lower():
+        lines.append("## Quality Uplift: Hybrid vs Prod")
+        lines.append("")
+        lines.append(
+            "This experiment compares the **hybrid MAP-REDUCE pipeline** (LongT5 MAP + "
+            "FLAN-T5 or other REDUCE via transformers) to **production ML** "
+            "(Pegasus-CNN MAP + LED-base REDUCE)."
+        )
+        lines.append("")
+        rouge_deltas = [
+            v
+            for k, v in vs_ref_deltas.items()
+            if v is not None
+            and any(k.startswith(r) for r in ("rouge1_f1_", "rouge2_f1_", "rougeL_f1_"))
+        ]
+        if rouge_deltas:
+            avg_rouge_delta = sum(rouge_deltas) / len(rouge_deltas)
+            if avg_rouge_delta > 0:
+                lines.append(
+                    f"- **Summary quality (ROUGE):** Improved on average "
+                    f"(delta +{avg_rouge_delta:.2%}). The new hybrid stack and transformers "
+                    "models are delivering better overlap with reference summaries."
+                )
+            elif avg_rouge_delta < 0:
+                lines.append(
+                    f"- **Summary quality (ROUGE):** Decreased on average "
+                    f"(delta {avg_rouge_delta:.2%}). Check latency/cost trade-offs and "
+                    "per-episode metrics before concluding."
+                )
+            else:
+                lines.append("- **Summary quality (ROUGE):** No material change vs reference(s).")
+        lat_delta = deltas.get("avg_latency_ms")
+        if lat_delta is not None:
+            if lat_delta > 0:
+                lines.append(
+                    f"- **Latency:** Hybrid run is slower by ~{lat_delta / 1000:.1f}s per episode "
+                    "on average; acceptable if quality uplift justifies it."
+                )
+            else:
+                lines.append(
+                    f"- **Latency:** Hybrid run is faster by ~{-lat_delta / 1000:.1f}s per episode."
+                )
+        lines.append("")
+        lines.append(
+            "Use this comparison to decide whether to promote the hybrid config to prod "
+            "or to iterate on model/params (e.g. REDUCE model, beam size, length penalty)."
+        )
         lines.append("")
 
     return "\n".join(lines)

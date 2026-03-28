@@ -62,7 +62,7 @@ The following modules are **internal implementation details** and should not be 
 - `summarizer.py` - Summarization internals.
 - `whisper_integration.py` - Whisper integration internals.
 - `progress.py` - Progress reporting internals.
-- `models.py` - Internal data models.
+- `models/` - Internal data models (RssFeed, Episode, TranscriptionJob).
 - `providers/` - Multi-provider implementations (accessed via factories).
 
 ## API Creeps Assessment

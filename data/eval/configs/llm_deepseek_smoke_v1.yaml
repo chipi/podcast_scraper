@@ -1,0 +1,22 @@
+# DeepSeek on smoke — for multi-run LLM comparison vs silver reference.
+# Requires: DEEPSEEK_API_KEY
+
+id: "llm_deepseek_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "deepseek"
+  model: "deepseek-chat"
+
+prompts:
+  user: "deepseek/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

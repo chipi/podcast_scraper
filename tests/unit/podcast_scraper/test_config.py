@@ -5,6 +5,8 @@ import os
 import sys
 import unittest
 import warnings
+from types import SimpleNamespace
+from unittest.mock import patch
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -213,6 +215,47 @@ class TestLoadEnvVariableHelpers(unittest.TestCase):
         self.assertEqual(self.data["summary_device"], "cpu")
 
 
+class TestSummaryModeProfileDefaults(unittest.TestCase):
+    """Tests for dev/prod profile selection of summary mode defaults."""
+
+    def tearDown(self):
+        """Clean up environment variables set by tests."""
+        os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
+
+    def test_default_summary_mode_id_is_prod_when_profile_unset(self):
+        """When profile is unset (and not testing), default mode should be production."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            os.environ.pop("PODCAST_SCRAPER_PROFILE", None)
+            mode_id = config._get_default_summary_mode_id()
+            self.assertEqual(mode_id, config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID)
+
+    def test_default_summary_mode_id_is_dev_when_profile_dev(self):
+        """When profile is dev (and not testing), default mode should be dev baseline."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
+            mode_id = config._get_default_summary_mode_id()
+            self.assertEqual(mode_id, config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID)
+
+    def test_default_summary_tokenize_uses_selected_mode_id(self):
+        """Tokenize defaults should be sourced from the selected promoted mode."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            os.environ["PODCAST_SCRAPER_PROFILE"] = "dev"
+            expected = {
+                "map_max_input_tokens": 111,
+                "reduce_max_input_tokens": 222,
+                "truncation": True,
+            }
+            with patch(
+                "podcast_scraper.providers.ml.model_registry.ModelRegistry.get_mode_configuration",
+                return_value=SimpleNamespace(tokenize=expected),
+            ) as mock_get_mode:
+                got = config._get_default_summary_tokenize()
+                self.assertEqual(got, expected)
+                mock_get_mode.assert_called_once_with(
+                    config.config_constants.DEV_DEFAULT_SUMMARY_MODE_ID
+                )
+
+
 class TestSummaryValidation(unittest.TestCase):
     """Test summary-related cross-field validation."""
 
@@ -271,6 +314,56 @@ class TestSummaryValidation(unittest.TestCase):
         )
         self.assertTrue(cfg.generate_summaries)
         self.assertTrue(cfg.generate_metadata)
+
+    def test_generate_gi_requires_metadata(self):
+        """Test that generate_gi=True requires generate_metadata=True."""
+        with self.assertRaises(ValidationError) as context:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                generate_gi=True,
+                generate_metadata=False,
+            )
+        self.assertIn("requires generate_metadata", str(context.exception))
+
+    def test_generate_gi_with_metadata_succeeds(self):
+        """Test that generate_gi works when metadata is enabled."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+        )
+        self.assertTrue(cfg.generate_gi)
+        self.assertTrue(cfg.generate_metadata)
+
+    def test_summary_provider_hybrid_ml_succeeds(self):
+        """hybrid_ml summary provider keeps default hybrid model fields."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="hybrid_ml",
+        )
+        self.assertEqual(cfg.summary_provider, "hybrid_ml")
+        self.assertIsNotNone(cfg.hybrid_map_model)
+        self.assertIsNotNone(cfg.hybrid_reduce_model)
+
+    def test_hybrid_reduce_instruction_style_paragraph(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            hybrid_reduce_instruction_style="paragraph",
+        )
+        self.assertEqual(cfg.hybrid_reduce_instruction_style, "paragraph")
+
+    def test_gi_models_override_when_generate_gi(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+            gi_embedding_model="org/custom-embed",
+            extractive_qa_model="org/custom-qa",
+            nli_model="org/custom-nli",
+        )
+        self.assertEqual(cfg.gi_embedding_model, "org/custom-embed")
+        self.assertEqual(cfg.extractive_qa_model, "org/custom-qa")
+        self.assertEqual(cfg.nli_model, "org/custom-nli")
 
     def test_word_chunk_size_outside_range_warns(self):
         """Test that word_chunk_size outside recommended range warns."""
@@ -441,6 +534,19 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertTrue(cfg.preload_models)
 
+    def test_evidence_stack_fields_defaults(self):
+        """Test that GIL evidence stack config fields exist with defaults (Issue #435)."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertIsNotNone(cfg.embedding_model)
+        self.assertIn("/", cfg.embedding_model)
+        self.assertIsNone(cfg.embedding_device)
+        self.assertIsNotNone(cfg.extractive_qa_model)
+        self.assertIn("/", cfg.extractive_qa_model)
+        self.assertIsNone(cfg.extractive_qa_device)
+        self.assertIsNotNone(cfg.nli_model)
+        self.assertIn("/", cfg.nli_model)
+        self.assertIsNone(cfg.nli_device)
+
     def test_mps_exclusive_default(self):
         """Test that mps_exclusive defaults to True."""
         cfg = Config(rss_url="https://example.com/feed.xml")
@@ -516,6 +622,15 @@ class TestConfigFieldValidators(unittest.TestCase):
         cfg = Config(rss_url="https://example.com/feed.xml", user_agent=None)
         # Should use default
         self.assertIsNotNone(cfg.user_agent)
+
+    def test_hybrid_map_device_invalid_raises(self):
+        """hybrid_*_device must be cuda, mps, cpu, auto, or empty."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                hybrid_map_device="invalid-device",
+            )
+        self.assertIn("hybrid_*_device", str(ctx.exception))
 
     def test_log_level_validator_invalid(self):
         """Test that log_level validator rejects invalid values."""

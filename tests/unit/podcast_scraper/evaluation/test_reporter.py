@@ -89,6 +89,56 @@ class TestGenerateMetricsReport:
         assert "vs Reference" in report
         assert "missing baseline" in report
 
+    def test_intrinsic_cost_and_performance_sections(self):
+        metrics = {
+            "run_id": "r1",
+            "intrinsic": {
+                "performance": {"avg_latency_ms": 42.0},
+                "cost": {"avg_cost_usd": 0.01, "total_cost_usd": 1.23},
+            },
+        }
+        report = generate_metrics_report(metrics)
+        assert "Performance Metrics" in report
+        assert "Cost Metrics" in report
+        assert "42ms" in report
+        assert "$1.2300" in report
+
+    def test_speaker_name_leak_warning_in_gates(self):
+        metrics = {
+            "run_id": "r1",
+            "intrinsic": {
+                "gates": {
+                    "boilerplate_leak_rate": 0.0,
+                    "speaker_label_leak_rate": 0.0,
+                    "truncation_rate": 0.0,
+                },
+                "warnings": {"speaker_name_leak_rate": 0.05},
+            },
+        }
+        report = generate_metrics_report(metrics)
+        assert "Speaker Name Leak Rate (WARN)" in report
+
+    def test_failed_episodes_and_per_episode_failures(self):
+        metrics = {
+            "run_id": "r1",
+            "intrinsic": {
+                "gates": {
+                    "boilerplate_leak_rate": 0.0,
+                    "speaker_label_leak_rate": 0.0,
+                    "truncation_rate": 0.0,
+                    "failed_episodes": ["ep1", "ep2"],
+                    "episode_gate_failures": {
+                        "ep1": ["boilerplate_leak_rate"],
+                        "ep2": ["truncation_rate"],
+                    },
+                },
+            },
+        }
+        report = generate_metrics_report(metrics)
+        assert "Failed Episodes" in report
+        assert "ep1" in report
+        assert "Per-Episode Gate Failures" in report
+
 
 @pytest.mark.unit
 class TestGenerateComparisonReport:
@@ -115,6 +165,48 @@ class TestGenerateComparisonReport:
         )
         assert "Quality Gate Regressions" in report
         assert "boilerplate_leak" in report
+
+    def test_latency_delta_increase_warns(self):
+        report = generate_comparison_report(
+            {"baseline_id": "b1", "deltas": {"avg_latency_ms": 500.0}}
+        )
+        assert "Latency increased" in report
+
+    def test_no_gate_regression_shows_ok_branch(self):
+        report = generate_comparison_report(
+            {"baseline_id": "b1", "deltas": {"cost_total_usd": 0.0, "gate_regressions": []}}
+        )
+        assert "No gate regressions" in report
+
+    def test_vs_reference_delta_grouping(self):
+        report = generate_comparison_report(
+            {
+                "baseline_id": "b1",
+                "deltas": {
+                    "rougeL_f1_vs_ref_a": 0.02,
+                    "rouge1_f1_vs_ref_a": -0.01,
+                    "gate_regressions": [],
+                },
+            }
+        )
+        assert "vs Reference (Value) Deltas" in report
+        assert "ref_a" in report
+        assert "rougeL_f1" in report
+
+    def test_hybrid_uplift_section_when_baseline_and_experiment_match(self):
+        report = generate_comparison_report(
+            {
+                "baseline_id": "baseline_ml_prod_authority_v1",
+                "experiment_run_id": "exp_hybrid_v2_smoke",
+                "deltas": {
+                    "rougeL_f1_vs_silver": 0.05,
+                    "avg_latency_ms": 2000.0,
+                    "gate_regressions": [],
+                },
+            }
+        )
+        assert "Quality Uplift: Hybrid vs Prod" in report
+        assert "hybrid MAP-REDUCE" in report
 
 
 @pytest.mark.unit

@@ -206,7 +206,9 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
         )
 
         self.speaker_detector = Mock()
-        self.speaker_detector.detect_speakers = Mock(return_value=(["Host 1", "Host 2"], [], []))
+        self.speaker_detector.detect_speakers = Mock(
+            return_value=(["Host 1", "Host 2"], set(), True, False)
+        )
 
     def test_validate_hosts_with_first_episode_skips_when_authors_exist(self):
         """Test that validation is skipped when feed has authors."""
@@ -260,7 +262,9 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
         """Test that hosts not in first episode are filtered out."""
         feed_hosts = {"Host 1", "Host 2", "Host 3"}
         # Only Host 1 and Host 2 appear in first episode
-        self.speaker_detector.detect_speakers = Mock(return_value=(["Host 1", "Host 2"], [], []))
+        self.speaker_detector.detect_speakers = Mock(
+            return_value=(["Host 1", "Host 2"], set(), True, False)
+        )
 
         result = processing._validate_hosts_with_first_episode(
             feed_hosts, self.feed, [self.episode], self.speaker_detector, None
@@ -282,7 +286,7 @@ class TestValidateHostsWithFirstEpisode(unittest.TestCase):
         def mock_detect_speakers(
             episode_title, episode_description, known_hosts, pipeline_metrics=None
         ):
-            return (["Host 1", "Host 2"], [], [])
+            return (["Host 1", "Host 2"], set(), True, False)
 
         self.speaker_detector.detect_speakers = Mock(side_effect=mock_detect_speakers)
         self.speaker_detector.detect_speakers.__signature__ = inspect.Signature(
@@ -521,3 +525,22 @@ class TestSetupProcessingResources(unittest.TestCase):
 
         # Should have lock even with workers=1 if parallelism > 1
         self.assertIsNotNone(result.processing_jobs_lock)
+
+
+@pytest.mark.unit
+class TestFlattenSpeakerNameEntries(unittest.TestCase):
+    """Tests for speaker name normalization used in host filtering."""
+
+    def test_flatten_nested_strings(self) -> None:
+        """Nested lists are flattened to strings."""
+        out = processing._flatten_speaker_name_entries(["a", ["b", "c"]])
+        self.assertEqual(out, ["a", "b", "c"])
+
+    def test_empty_and_whitespace(self) -> None:
+        """Empty strings skipped."""
+        self.assertEqual(processing._flatten_speaker_name_entries(["  ", "x"]), ["x"])
+
+    def test_speaker_names_to_str_set(self) -> None:
+        """Set membership works with mixed nesting."""
+        s = processing._speaker_names_to_str_set([["Host"], "Guest"])
+        self.assertEqual(s, {"Host", "Guest"})

@@ -126,7 +126,10 @@ class TestResumeBehaviorIntegration(unittest.TestCase):
 
         http_mock = self._mock_http_map(responses)
 
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 # First run: Process first 2 episodes
                 cfg1 = create_test_config(

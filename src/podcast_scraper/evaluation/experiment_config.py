@@ -86,7 +86,80 @@ class OpenAIBackendConfig(BaseModel):
     )
 
 
-BackendConfig = HFBackendConfig | OpenAIBackendConfig | SpacyBackendConfig
+class HybridMLBackendConfig(BaseModel):
+    """Config for hybrid MAP-REDUCE (RFC-042): classic MAP + instruction-tuned REDUCE."""
+
+    type: Literal["hybrid_ml"] = "hybrid_ml"
+    map_model: str = Field(
+        default="longt5-base",
+        description="MAP model alias or ID (e.g. longt5-base, google/long-t5-tglobal-base).",
+    )
+    reduce_model: str = Field(
+        default="google/flan-t5-base",
+        description=(
+            "REDUCE model: HuggingFace ID for transformers, "
+            "Ollama tag for ollama, or path to GGUF for llama_cpp."
+        ),
+    )
+    reduce_backend: Literal["transformers", "ollama", "llama_cpp"] = Field(
+        default="transformers",
+        description="REDUCE backend: transformers (FLAN-T5), ollama, or llama_cpp.",
+    )
+    reduce_instruction_style: Optional[Literal["structured", "paragraph"]] = Field(
+        default=None,
+        description=(
+            "REDUCE instruction: 'structured' = Takeaways/Outline/Actions; "
+            "'paragraph' = silver-style paragraphs. Default: structured."
+        ),
+    )
+
+
+class AnthropicBackendConfig(BaseModel):
+    """Config for Anthropic models (summarization)."""
+
+    type: Literal["anthropic"] = "anthropic"
+    model: str = Field(
+        description="Anthropic model name, e.g. 'claude-3-5-sonnet-20241022'.",
+    )
+
+
+class MistralBackendConfig(BaseModel):
+    """Config for Mistral models (summarization)."""
+
+    type: Literal["mistral"] = "mistral"
+    model: str = Field(
+        description="Mistral model name, e.g. 'mistral-small-latest'.",
+    )
+
+
+class GrokBackendConfig(BaseModel):
+    """Config for Grok models (summarization)."""
+
+    type: Literal["grok"] = "grok"
+    model: str = Field(
+        description="Grok model name, e.g. 'grok-2'.",
+    )
+
+
+class DeepSeekBackendConfig(BaseModel):
+    """Config for DeepSeek models (summarization)."""
+
+    type: Literal["deepseek"] = "deepseek"
+    model: str = Field(
+        description="DeepSeek model name, e.g. 'deepseek-chat'.",
+    )
+
+
+BackendConfig = (
+    HFBackendConfig
+    | OpenAIBackendConfig
+    | SpacyBackendConfig
+    | HybridMLBackendConfig
+    | AnthropicBackendConfig
+    | MistralBackendConfig
+    | GrokBackendConfig
+    | DeepSeekBackendConfig
+)
 
 
 # ----- Data configuration -----
@@ -94,6 +167,10 @@ BackendConfig = HFBackendConfig | OpenAIBackendConfig | SpacyBackendConfig
 
 class DataConfig(BaseModel):
     """Where to find input data for this experiment.
+
+    Preferred: dataset-based mode with dataset_id and files under data/eval/datasets/.
+    Glob-based mode (episodes_glob) and benchmarks/datasets/ are supported for
+    backward compatibility; prefer data/eval/datasets/ for new experiments.
 
     Supports two modes:
     1. Dataset-based (recommended): Use dataset_id to load from data/eval/datasets/*.json
@@ -377,21 +454,21 @@ class ExperimentConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_ml_params_for_hf_local(self) -> "ExperimentConfig":
-        """Validate that ML params are required for hf_local backend."""
-        if self.backend.type == "hf_local":
+        """Validate that ML params are required for hf_local and hybrid_ml backends."""
+        if self.backend.type in ("hf_local", "hybrid_ml"):
             if not self.map_params:
                 raise ValueError(
-                    "map_params is required for hf_local backend. "
+                    f"map_params is required for {self.backend.type} backend. "
                     "Provide map_params with generation parameters for map stage."
                 )
             if not self.reduce_params:
                 raise ValueError(
-                    "reduce_params is required for hf_local backend. "
+                    f"reduce_params is required for {self.backend.type} backend. "
                     "Provide reduce_params with generation parameters for reduce stage."
                 )
             if not self.tokenize:
                 raise ValueError(
-                    "tokenize is required for hf_local backend. "
+                    f"tokenize is required for {self.backend.type} backend. "
                     "Provide tokenize with tokenization limits."
                 )
         return self
@@ -403,9 +480,10 @@ class ExperimentConfig(BaseModel):
 def load_dataset_json(dataset_id: str) -> Dict[str, Any]:
     """Load dataset JSON definition.
 
+    Preferred location: data/eval/datasets/{dataset_id}.json.
     Checks multiple locations in order:
-    1. data/eval/datasets/ (current location)
-    2. benchmarks/datasets/ (legacy location for backward compatibility)
+    1. data/eval/datasets/ (preferred)
+    2. benchmarks/datasets/ (legacy, for backward compatibility)
 
     Args:
         dataset_id: Dataset identifier (e.g., "indicator_v1")

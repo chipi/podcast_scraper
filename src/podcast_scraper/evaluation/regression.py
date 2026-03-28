@@ -190,20 +190,24 @@ class RegressionChecker:
         """
         regressions = []
         deltas = comparison.get("deltas", {})
+        exp_metrics = comparison.get("experiment_metrics")
+        baseline_metrics = comparison.get("baseline_metrics")
 
         for rule in self.rules:
-            # Check if this rule's metric is in the deltas
-            if rule.metric_name in deltas:
+            if exp_metrics is not None and baseline_metrics is not None:
+                exp_value = self._extract_metric_value(exp_metrics, rule.metric_name)
+                base_value = self._extract_metric_value(baseline_metrics, rule.metric_name)
+                violation = rule.check(exp_value, base_value)
+            elif rule.metric_name in deltas:
                 delta = deltas[rule.metric_name]
-                # We need baseline and experiment values to check the rule
-                # For now, we'll use a simplified check based on delta
-                # TODO: Load full metrics to get actual values
                 violation = rule.check(
-                    experiment_value=delta,  # This is a simplification
-                    baseline_value=0.0,  # Baseline is 0 (delta = exp - baseline)
+                    experiment_value=delta,
+                    baseline_value=0.0,
                 )
-                if violation:
-                    regressions.append(violation)
+            else:
+                violation = None
+            if violation:
+                regressions.append(violation)
 
         return regressions
 

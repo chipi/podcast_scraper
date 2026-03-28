@@ -251,7 +251,7 @@ class TestSpeakerDetection(unittest.TestCase):
             auto_speakers=True,
         )
 
-        speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+        speakers, hosts, succeeded, _ = speaker_detection.detect_speaker_names(
             episode_title="Interview with Guest Name",
             episode_description=None,
             nlp=mock_nlp,  # Required parameter
@@ -273,7 +273,7 @@ class TestSpeakerDetection(unittest.TestCase):
             auto_speakers=False,
         )
 
-        speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+        speakers, hosts, succeeded, _ = speaker_detection.detect_speaker_names(
             episode_title="Test Episode",
             episode_description=None,
             nlp=mock_nlp,  # Required parameter
@@ -730,7 +730,7 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
             )
 
             mock_nlp = unittest.mock.MagicMock()
-            speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+            speakers, hosts, succeeded, _ = speaker_detection.detect_speaker_names(
                 episode_title="Interview with Detected Guest",
                 episode_description=None,
                 nlp=mock_nlp,  # Required parameter
@@ -885,3 +885,31 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
             result,
             "Jane Smith SHOULD be detected as guest (has 'Interview with' cue)",
         )
+
+
+class TestSpacySentenceBoundaries(unittest.TestCase):
+    """_ensure_spacy_sentence_boundaries: doc.sents for NER-only loads (Issue #387)."""
+
+    def test_adds_sentencizer_when_no_parser_or_senter(self):
+        nlp = MagicMock()
+        nlp.pipe_names = ["tok2vec", "ner"]
+        speaker_detection._ensure_spacy_sentence_boundaries(nlp)
+        nlp.add_pipe.assert_called_once_with("sentencizer")
+
+    def test_skips_when_parser_present(self):
+        nlp = MagicMock()
+        nlp.pipe_names = ["tok2vec", "parser", "ner"]
+        speaker_detection._ensure_spacy_sentence_boundaries(nlp)
+        nlp.add_pipe.assert_not_called()
+
+    def test_skips_when_senter_present(self):
+        nlp = MagicMock()
+        nlp.pipe_names = ["transformer", "senter", "ner"]
+        speaker_detection._ensure_spacy_sentence_boundaries(nlp)
+        nlp.add_pipe.assert_not_called()
+
+    def test_skips_when_sentencizer_present(self):
+        nlp = MagicMock()
+        nlp.pipe_names = ["tok2vec", "sentencizer", "ner"]
+        speaker_detection._ensure_spacy_sentence_boundaries(nlp)
+        nlp.add_pipe.assert_not_called()

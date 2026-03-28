@@ -64,6 +64,7 @@ _import_cache: dict[str, object] = {}
 
 
 def __getattr__(name: str):
+    """Lazy-load submodules to avoid circular imports and heavy imports at package load."""
     if name in _import_cache:
         return _import_cache[name]
 

@@ -16,7 +16,7 @@ import logging
 import os
 import time
 import warnings
-from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 # Suppress Pydantic ArbitraryTypeWarning from google.genai (uses built-in "any" not typing.Any)
 try:
@@ -33,8 +33,10 @@ except ImportError:
 # Import Gemini SDK (migrated from google.generativeai to google.genai in Issue #415)
 try:
     import google.genai as genai
+    from google.genai import types as genai_types
 except ImportError:
     genai = None  # type: ignore
+    genai_types = None  # type: ignore
 
 from ... import config
 
@@ -46,6 +48,11 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+    GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
+)
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
 
@@ -144,9 +151,19 @@ class GeminiProvider:
 
         # Create Gemini client using new API (google-genai v0.1.0+)
         # New API uses Client instead of configure() + GenerativeModel
-        # Note: Client() doesn't support base_url parameter - E2E testing must use mocks
         client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
-        # base_url is not supported by genai.Client() - E2E tests must mock the SDK
+        gemini_api_base = getattr(cfg, "gemini_api_base", None)
+        if gemini_api_base:
+            # E2E testing: route requests to mock server via http_options.base_url
+            if genai_types is not None:
+                client_kwargs["http_options"] = genai_types.HttpOptions(
+                    base_url=gemini_api_base.rstrip("/")
+                )
+            else:
+                logger.warning(
+                    "gemini_api_base is set but google.genai.types not available; "
+                    "requests will use default API."
+                )
         self.client = genai.Client(**client_kwargs)
 
         # Log non-sensitive provider metadata (for debugging)
@@ -160,16 +177,6 @@ class GeminiProvider:
             project=project,
             region=region,
         )
-
-        # Support custom base_url for E2E testing with mock servers
-        # Note: Gemini SDK may not support custom base_url directly
-        # This would need to be handled via environment variable or SDK configuration
-        # For now, we'll document this limitation
-        if cfg.gemini_api_base:
-            logger.warning(
-                "gemini_api_base is set but Gemini SDK may not support custom base URLs. "
-                "This is primarily for E2E testing - verify SDK support."
-            )
 
         # Note: HTTP timeout configuration
         # Gemini SDK uses global configure() and may not support per-client timeout configuration.
@@ -557,7 +564,7 @@ class GeminiProvider:
 
         try:
             # Use detect_speakers with empty known_hosts to detect hosts
-            speakers, detected_hosts, _ = self.detect_speakers(
+            speakers, detected_hosts, _, _ = self.detect_speakers(
                 episode_title=feed_title,
                 episode_description=feed_description,
                 known_hosts=set(),
@@ -573,7 +580,7 @@ class GeminiProvider:
         episode_description: str | None,
         known_hosts: Set[str],
         pipeline_metrics: metrics.Metrics | None = None,
-    ) -> Tuple[list[str], Set[str], bool]:
+    ) -> Tuple[list[str], Set[str], bool, bool]:
         """Detect speaker names from episode metadata using Gemini API.
 
         Args:
@@ -587,6 +594,7 @@ class GeminiProvider:
             - List of detected speaker names (hosts + guests)
             - Set of detected host names (subset of known_hosts)
             - Success flag (True if detection succeeded)
+            - used_defaults: True if default names were returned (e.g. on failure)
 
         Raises:
             ValueError: If detection fails or API key is invalid
@@ -595,7 +603,7 @@ class GeminiProvider:
         # If auto_speakers is disabled, return defaults without requiring initialization
         if not self.cfg.auto_speakers:
             logger.debug("Auto-speakers disabled, detection failed")
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
         if not self._speaker_detection_initialized:
             raise RuntimeError(
@@ -638,7 +646,7 @@ class GeminiProvider:
             response_text = response.text if hasattr(response, "text") else str(response)
             if not response_text:
                 logger.warning("Gemini API returned empty response")
-                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
             # Parse JSON response
             speakers, detected_hosts, success = self._parse_speakers_from_response(
@@ -670,11 +678,11 @@ class GeminiProvider:
                     output_tokens = 0
                 pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
 
-            return speakers, detected_hosts, success
+            return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
             logger.error("Failed to parse Gemini API JSON response: %s", exc)
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
             logger.error("Gemini API error in speaker detection: %s", exc)
             from podcast_scraper.exceptions import (
@@ -1067,6 +1075,206 @@ class GeminiProvider:
             or self._summarization_initialized
         )
 
+    def generate_insights(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_insights: int = 5,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Generate a list of short insight statements from transcript (GIL).
+
+        Uses gemini/insight_extraction/v1 prompt; parses response as one insight per line.
+        Returns empty list on failure so GIL can fall back to stub.
+        """
+        if not self._summarization_initialized:
+            logger.warning("Gemini summarization not initialized for generate_insights")
+            return []
+
+        from ...prompts.store import render_prompt
+
+        max_insights = min(max(1, max_insights), 10)
+        text_slice = (text or "").strip()
+        if len(text_slice) > 120000:
+            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+
+        try:
+            user_prompt = render_prompt(
+                "gemini/insight_extraction/v1",
+                transcript=text_slice,
+                title=episode_title or "",
+                max_insights=max_insights,
+            )
+            system_prompt = (
+                "Output only the list of key takeaways, one per line. "
+                "No numbering, bullets, or extra text."
+            )
+            generation_config = {
+                "temperature": 0.3,
+                "max_output_tokens": min(1024, max_insights * 150),
+                "system_instruction": system_prompt,
+            }
+            response = self.client.models.generate_content(
+                model=self.summary_model,
+                contents=user_prompt,
+                config=generation_config,
+            )
+            content = response.text if hasattr(response, "text") else str(response)
+            content = (content or "").strip()
+            lines = [
+                line.strip()
+                for line in content.splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            cleaned = []
+            for line in lines:
+                s = line.strip()
+                if not s:
+                    continue
+                if len(s) >= 2 and s[0].isdigit() and s[1] in ".)":
+                    s = s[2:].strip()
+                if s.startswith("- ") or s.startswith("* "):
+                    s = s[2:].strip()
+                if s:
+                    cleaned.append(s)
+            return cleaned[:max_insights]
+        except Exception as e:
+            logger.debug("Gemini generate_insights failed: %s", e, exc_info=True)
+            return []
+
+    def extract_quotes(
+        self,
+        transcript: str,
+        insight_text: str,
+        **kwargs: Any,
+    ) -> List[Any]:
+        """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
+        if not self._summarization_initialized or not (transcript and insight_text):
+            return []
+        import json
+
+        from ...gi.grounding import QuoteCandidate
+
+        system = (
+            "You extract a single short quote from the transcript that best supports "
+            "the given insight. Reply with ONLY a JSON object: "
+            '{"quote_text": "exact quote from transcript"}'
+        )
+        user = (
+            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
+            f"Insight: {insight_text.strip()}\n\n"
+            "Return JSON with quote_text only."
+        )
+        try:
+            from google.api_core import exceptions as google_exceptions
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            generation_config = {
+                "temperature": 0.0,
+                "max_output_tokens": 512,
+                "system_instruction": system,
+            }
+
+            def _make_api_call():
+                return self.client.models.generate_content(
+                    model=self.summary_model,
+                    contents=user,
+                    config=generation_config,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(
+                    google_exceptions.ResourceExhausted,
+                    google_exceptions.ServiceUnavailable,
+                    ConnectionError,
+                ),
+            )
+            content = response.text if hasattr(response, "text") else str(response)
+            content = (content or "").strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            obj = json.loads(content)
+            quote_text = (obj.get("quote_text") or "").strip()
+            if not quote_text:
+                return []
+            start = transcript.find(quote_text)
+            if start == -1:
+                start, end = 0, len(quote_text)
+            else:
+                end = start + len(quote_text)
+            return [
+                QuoteCandidate(
+                    char_start=start,
+                    char_end=end,
+                    text=quote_text,
+                    qa_score=1.0,
+                )
+            ]
+        except Exception as e:
+            logger.debug("Gemini extract_quotes failed: %s", e, exc_info=True)
+            return []
+
+    def score_entailment(
+        self,
+        premise: str,
+        hypothesis: str,
+        **kwargs: Any,
+    ) -> float:
+        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
+        if not self._summarization_initialized or not (premise and hypothesis):
+            return 0.0
+        system = (
+            "You rate how much the premise supports the hypothesis. "
+            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
+        )
+        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+        try:
+            from google.api_core import exceptions as google_exceptions
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            generation_config = {
+                "temperature": 0.0,
+                "max_output_tokens": 10,
+                "system_instruction": system,
+            }
+
+            def _make_api_call():
+                return self.client.models.generate_content(
+                    model=self.summary_model,
+                    contents=user,
+                    config=generation_config,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(
+                    google_exceptions.ResourceExhausted,
+                    google_exceptions.ServiceUnavailable,
+                    ConnectionError,
+                ),
+            )
+            content = response.text if hasattr(response, "text") else str(response)
+            content = (content or "0").strip()
+            for part in content.replace(",", " ").split():
+                try:
+                    v = float(part)
+                    return max(0.0, min(1.0, v))
+                except ValueError:
+                    continue
+            return 0.0
+        except Exception as e:
+            logger.debug("Gemini score_entailment failed: %s", e, exc_info=True)
+            return 0.0
+
     def clean_transcript(self, text: str) -> str:
         """Clean transcript using LLM for semantic filtering.
 
@@ -1117,9 +1325,10 @@ class GeminiProvider:
                 # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.cleaning_temperature,
-                    "max_output_tokens": int(
-                        len(text.split()) * 0.85 * 1.3
-                    ),  # Rough token estimate
+                    "max_output_tokens": clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
+                    ),
                     "system_instruction": system_prompt,
                 }
 

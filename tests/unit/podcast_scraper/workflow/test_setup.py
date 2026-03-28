@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from podcast_scraper.workflow.stages.setup import (
+    _collect_hybrid_ml_models_to_download,
     ensure_ml_models_cached,
     set_reproducibility_seeds,
     should_preload_ml_models,
@@ -51,6 +52,7 @@ class TestShouldPreloadMLModels(unittest.TestCase):
         cfg.transcription_provider = "whisper"
         cfg.generate_summaries = False
         cfg.summary_provider = "openai"
+        cfg.generate_gi = False
 
         result = should_preload_ml_models(cfg)
         self.assertTrue(result)
@@ -62,6 +64,19 @@ class TestShouldPreloadMLModels(unittest.TestCase):
         cfg.transcription_provider = "openai"
         cfg.generate_summaries = True
         cfg.summary_provider = "transformers"
+        cfg.generate_gi = False
+
+        result = should_preload_ml_models(cfg)
+        self.assertTrue(result)
+
+    def test_returns_true_when_generate_summaries_with_hybrid_ml(self):
+        """Test returns True when generate_summaries is True and provider is hybrid_ml."""
+        cfg = Mock()
+        cfg.transcribe_missing = False
+        cfg.transcription_provider = "openai"
+        cfg.generate_summaries = True
+        cfg.summary_provider = "hybrid_ml"
+        cfg.generate_gi = False
 
         result = should_preload_ml_models(cfg)
         self.assertTrue(result)
@@ -73,6 +88,7 @@ class TestShouldPreloadMLModels(unittest.TestCase):
         cfg.transcription_provider = "openai"
         cfg.generate_summaries = True
         cfg.summary_provider = "openai"
+        cfg.generate_gi = False
 
         result = should_preload_ml_models(cfg)
         self.assertFalse(result)
@@ -84,9 +100,89 @@ class TestShouldPreloadMLModels(unittest.TestCase):
         cfg.transcription_provider = "whisper"
         cfg.generate_summaries = False
         cfg.summary_provider = "transformers"
+        cfg.generate_gi = False
 
         result = should_preload_ml_models(cfg)
         self.assertFalse(result)
+
+    def test_returns_true_when_generate_gi_with_transformers_evidence(self):
+        """Test returns True when generate_gi is True and evidence provider is transformers."""
+        cfg = Mock()
+        cfg.transcribe_missing = False
+        cfg.transcription_provider = "openai"
+        cfg.generate_summaries = False
+        cfg.summary_provider = "openai"
+        cfg.generate_gi = True
+        cfg.quote_extraction_provider = "transformers"
+        cfg.entailment_provider = "transformers"
+
+        result = should_preload_ml_models(cfg)
+        self.assertTrue(result)
+
+
+@pytest.mark.unit
+class TestCollectHybridMlModelsToDownload(unittest.TestCase):
+    """Tests for _collect_hybrid_ml_models_to_download (hybrid_ml preload)."""
+
+    @patch("podcast_scraper.providers.ml.summarizer.resolve_model_name")
+    def test_returns_map_model_when_not_cached(self, mock_resolve):
+        """When MAP model not cached, it is added to the list."""
+        mock_resolve.side_effect = lambda x: (
+            "google/long-t5-tglobal-base" if x == "longt5-base" else x
+        )
+        cfg = Mock(hybrid_map_model="longt5-base", hybrid_reduce_backend="ollama")
+        cache_dir = MagicMock(spec=Path)
+        cache_dir.__truediv__ = Mock(return_value=MagicMock(exists=Mock(return_value=False)))
+        result = _collect_hybrid_ml_models_to_download(cfg, cache_dir)
+        self.assertEqual(result, [("transformers", "google/long-t5-tglobal-base")])
+
+    @patch("podcast_scraper.providers.ml.summarizer.resolve_model_name")
+    def test_skips_reduce_when_backend_not_transformers(self, mock_resolve):
+        """When reduce_backend is ollama, REDUCE model is not added."""
+        mock_resolve.return_value = "google/long-t5-tglobal-base"
+        cfg = Mock(hybrid_map_model="longt5-base", hybrid_reduce_backend="ollama")
+        cache_dir = MagicMock(spec=Path)
+        cache_dir.__truediv__ = Mock(return_value=MagicMock(exists=Mock(return_value=True)))
+        result = _collect_hybrid_ml_models_to_download(cfg, cache_dir)
+        self.assertEqual(result, [])
+
+    @patch("podcast_scraper.providers.ml.summarizer.resolve_model_name")
+    def test_adds_reduce_model_when_different_and_not_cached(self, mock_resolve):
+        """When REDUCE backend is transformers and reduce model not cached, add it."""
+
+        def resolve(name):
+            if "longt5" in str(name) or "long-t5" in str(name):
+                return "google/long-t5-tglobal-base"
+            return "google/flan-t5-base"
+
+        mock_resolve.side_effect = resolve
+        cfg = Mock(
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+        )
+        map_path = MagicMock(exists=Mock(return_value=True))
+        reduce_path = MagicMock(exists=Mock(return_value=False))
+        cache_dir = MagicMock(spec=Path)
+        cache_dir.__truediv__.side_effect = [map_path, reduce_path]
+        result = _collect_hybrid_ml_models_to_download(cfg, cache_dir)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][0], "transformers")
+        self.assertEqual(result[0][1], "google/flan-t5-base")  # resolved_reduce
+
+    @patch("podcast_scraper.providers.ml.summarizer.resolve_model_name")
+    def test_handles_value_error_uses_passthrough_for_raw_id(self, mock_resolve):
+        """When resolve_model_name raises ValueError, raw HF ID (with /) is used."""
+        mock_resolve.side_effect = ValueError("unknown alias")
+        cfg = Mock(
+            hybrid_map_model="google/custom-model",
+            hybrid_reduce_backend="ollama",
+        )
+        cache_dir = MagicMock(spec=Path)
+        cache_dir.__truediv__ = Mock(return_value=MagicMock(exists=Mock(return_value=False)))
+        result = _collect_hybrid_ml_models_to_download(cfg, cache_dir)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0][1], "google/custom-model")
 
 
 @pytest.mark.unit

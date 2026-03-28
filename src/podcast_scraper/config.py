@@ -132,6 +132,28 @@ DEFAULT_SUMMARY_WORD_CHUNK_SIZE = config_constants.DEFAULT_SUMMARY_WORD_CHUNK_SI
 DEFAULT_SUMMARY_WORD_OVERLAP = config_constants.DEFAULT_SUMMARY_WORD_OVERLAP
 
 
+def _get_default_summary_mode_id() -> Optional[str]:
+    """Get default summarization mode ID (RFC-044) based on environment.
+
+    Returns:
+        None in test environments (to avoid altering unit test defaults),
+        dev or production mode ID otherwise.
+    """
+    if _is_test_environment():
+        return None
+    profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
+    if profile in ("dev", "development", "local"):
+        return getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None) or getattr(
+            config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None
+        )
+    if profile and profile not in ("prod", "production"):
+        warnings.warn(
+            f"Unknown PODCAST_SCRAPER_PROFILE={profile!r}; defaulting to production defaults",
+            RuntimeWarning,
+        )
+    return getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
+
+
 def _get_default_openai_transcription_model() -> str:
     """Get default OpenAI transcription model based on environment.
 
@@ -347,18 +369,18 @@ def _get_default_anthropic_cleaning_model() -> str:
     """Get default Anthropic cleaning model (cheaper than summary model).
 
     Returns:
-        'claude-3-haiku-20240307' (cheaper model for cleaning)
+        ``claude-haiku-4-5`` (Anthropic alias for Claude Haiku 4.5)
     """
-    return "claude-3-haiku-20240307"
+    return "claude-haiku-4-5"
 
 
 def _get_default_gemini_cleaning_model() -> str:
     """Get default Gemini cleaning model (cheaper than summary model).
 
     Returns:
-        'gemini-1.5-flash' (cheaper model for cleaning)
+        ``gemini-2.0-flash`` (``gemini-1.5-flash`` is not available on current Generative API)
     """
-    return "gemini-1.5-flash"
+    return "gemini-2.0-flash"
 
 
 def _get_default_mistral_cleaning_model() -> str:
@@ -438,10 +460,38 @@ DEFAULT_REDUCE_LENGTH_PENALTY = 1.0  # Production baseline: 1.0
 DEFAULT_REDUCE_EARLY_STOPPING = False  # Production baseline: false (ensures min_new_tokens)
 DEFAULT_REDUCE_REPETITION_PENALTY = 1.12  # Production baseline: 1.12 (LED-base optimized)
 
+
 # Default tokenization limits (moved from model defaults)
-DEFAULT_MAP_MAX_INPUT_TOKENS = 1024  # BART model limit
-DEFAULT_REDUCE_MAX_INPUT_TOKENS = 4096  # LED model limit
-DEFAULT_TRUNCATION = True
+def _get_default_summary_tokenize() -> Dict[str, Any]:
+    """Get default tokenization settings for local transformers summarization.
+
+    In production, defaults are sourced from the promoted production mode
+    (RFC-044) to ensure baseline == app behavior.
+
+    In tests, use safe defaults to keep unit tests stable and independent of
+    production mode registry contents.
+    """
+    if not _is_test_environment():
+        profile = (os.environ.get("PODCAST_SCRAPER_PROFILE") or "").strip().lower()
+        mode_id = (
+            getattr(config_constants, "DEV_DEFAULT_SUMMARY_MODE_ID", None)
+            if profile in ("dev", "development", "local")
+            else getattr(config_constants, "PROD_DEFAULT_SUMMARY_MODE_ID", None)
+        )
+        if mode_id:
+            try:
+                from podcast_scraper.providers.ml.model_registry import ModelRegistry
+
+                return dict(ModelRegistry.get_mode_configuration(mode_id).tokenize)
+            except Exception:
+                # Fall back to safe defaults if registry is unavailable or missing mode.
+                pass
+    return {
+        "map_max_input_tokens": 1024,
+        "reduce_max_input_tokens": 4096,
+        "truncation": True,
+    }
+
 
 # Default distill parameters (for final compression pass)
 DEFAULT_DISTILL_MAX_TOKENS = 200
@@ -838,7 +888,10 @@ class Config(BaseModel):
     gemini_cleaning_model: str = Field(
         default_factory=_get_default_gemini_cleaning_model,
         alias="gemini_cleaning_model",
-        description="Gemini model for transcript cleaning (default: gemini-1.5-flash, cheaper than summary model)",  # noqa: E501
+        description=(
+            "Gemini model for transcript cleaning "
+            "(default: gemini-2.0-flash, cheaper than summary model)"
+        ),
     )
     gemini_cleaning_temperature: float = Field(
         default=0.2,
@@ -915,7 +968,7 @@ class Config(BaseModel):
     anthropic_cleaning_model: str = Field(
         default_factory=_get_default_anthropic_cleaning_model,
         alias="anthropic_cleaning_model",
-        description="Anthropic model for transcript cleaning (default: claude-3-haiku-20240307, cheaper than summary model)",  # noqa: E501
+        description="Anthropic model for transcript cleaning (default: claude-haiku-4-5, cheaper than summary model)",  # noqa: E501
     )
     anthropic_cleaning_temperature: float = Field(
         default=0.2,
@@ -1251,6 +1304,117 @@ class Config(BaseModel):
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
+    # GIL evidence stack (Issue #435): loaded lazily when GIL or dependent feature enabled
+    embedding_model: str = Field(
+        default=config_constants.DEFAULT_EMBEDDING_MODEL,
+        alias="embedding_model",
+        description="Model for sentence embeddings (GIL grounding). Alias or full HF ID.",
+    )
+    embedding_device: Optional[str] = Field(
+        default=None,
+        alias="embedding_device",
+        description="Device for embedding model (cpu, cuda, mps, or None for auto).",
+    )
+    extractive_qa_model: str = Field(
+        default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
+        alias="extractive_qa_model",
+        description="Model for extractive QA (GIL quote extraction). Alias or full HF ID.",
+    )
+    extractive_qa_device: Optional[str] = Field(
+        default=None,
+        alias="extractive_qa_device",
+        description="Device for extractive QA model (cpu, cuda, mps, or None for auto).",
+    )
+    nli_model: str = Field(
+        default=config_constants.DEFAULT_NLI_MODEL,
+        alias="nli_model",
+        description="Model for NLI entailment (GIL grounding). Alias or full HF ID.",
+    )
+    nli_device: Optional[str] = Field(
+        default=None,
+        alias="nli_device",
+        description="Device for NLI model (cpu, cuda, mps, or None for auto).",
+    )
+    # GIL extraction (Issue #356): per-episode gi.json when enabled
+    generate_gi: bool = Field(
+        default=False,
+        alias="generate_gi",
+        description="Enable Grounded Insight Layer extraction; writes gi.json per episode.",
+    )
+    gi_insight_model: str = Field(
+        default="google/flan-t5-base",
+        alias="gi_insight_model",
+        description="Model for insight extraction (alias or full HF ID); resolved via registry.",
+    )
+    gi_qa_model: str = Field(
+        default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
+        alias="gi_qa_model",
+        description="Model for quote extraction (reuses evidence stack QA).",
+    )
+    gi_embedding_model: str = Field(
+        default=config_constants.DEFAULT_EMBEDDING_MODEL,
+        alias="gi_embedding_model",
+        description="Model for embeddings when GIL uses similarity (reuses evidence stack).",
+    )
+    gi_nli_model: str = Field(
+        default=config_constants.DEFAULT_NLI_MODEL,
+        alias="gi_nli_model",
+        description="Model for entailment when grounding (reuses evidence stack).",
+    )
+    gi_require_grounding: bool = Field(
+        default=True,
+        alias="gi_require_grounding",
+        description="If True, only emit SUPPORTED_BY edges when QA+NLI pass thresholds.",
+    )
+    quote_extraction_provider: Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "mistral",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ] = Field(
+        default="transformers",
+        alias="quote_extraction_provider",
+        description=(
+            "Provider for GIL quote extraction (QA). Same backends as summary_provider; "
+            "default 'transformers' uses local extractive QA."
+        ),
+    )
+    entailment_provider: Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "mistral",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ] = Field(
+        default="transformers",
+        alias="entailment_provider",
+        description=(
+            "Provider for GIL entailment (NLI). Same backends as summary_provider; "
+            "default 'transformers' uses local NLI model."
+        ),
+    )
+    gi_insight_source: Literal["provider", "summary_bullets", "stub"] = Field(
+        default="stub",
+        alias="gi_insight_source",
+        description=(
+            "Source of insight texts for GIL: 'provider' = call generate_insights() on "
+            "provider (LLM), 'summary_bullets', or 'stub' (default)."
+        ),
+    )
+    gi_max_insights: int = Field(
+        default=5,
+        alias="gi_max_insights",
+        description="Max insights when gi_insight_source is provider or summary_bullets.",
+    )
     metrics_output: Optional[str] = Field(
         default=None,
         alias="metrics_output",
@@ -1279,6 +1443,7 @@ class Config(BaseModel):
     )
     summary_provider: Literal[
         "transformers",
+        "hybrid_ml",
         "openai",
         "gemini",
         "grok",
@@ -1293,6 +1458,69 @@ class Config(BaseModel):
             "Summary generation provider " "(default: 'transformers' for HuggingFace Transformers)."
         ),
     )
+    hybrid_map_model: str = Field(
+        default="longt5-base",
+        alias="hybrid_map_model",
+        description=(
+            "Hybrid MAP model (classic summarizer). "
+            "Recommended: longt5-base (8k context) for medium-long transcripts."
+        ),
+    )
+    hybrid_reduce_model: str = Field(
+        default="google/flan-t5-base",
+        alias="hybrid_reduce_model",
+        description=(
+            "Hybrid REDUCE model (instruction-tuned). "
+            "Tier 1 default: google/flan-t5-base via transformers backend."
+        ),
+    )
+    hybrid_reduce_backend: Literal["transformers", "ollama", "llama_cpp"] = Field(
+        default="transformers",
+        alias="hybrid_reduce_backend",
+        description=(
+            "Hybrid REDUCE backend. "
+            "transformers = FLAN-T5 via local transformers; "
+            "ollama = send reduce step to local Ollama server; "
+            "llama_cpp = GGUF via llama.cpp (optional)."
+        ),
+    )
+    hybrid_map_device: Optional[str] = Field(
+        default=None,
+        alias="hybrid_map_device",
+        description="Device for hybrid MAP model (cpu/cuda/mps/auto). Defaults to summary_device.",
+    )
+    hybrid_reduce_device: Optional[str] = Field(
+        default=None,
+        alias="hybrid_reduce_device",
+        description=(
+            "Device for hybrid REDUCE model (cpu/cuda/mps/auto). "
+            "Defaults to summarization_device/summary_device."
+        ),
+    )
+    hybrid_quantization: Optional[str] = Field(
+        default=None,
+        alias="hybrid_quantization",
+        description=(
+            "Optional quantization hint for hybrid REDUCE backend "
+            "(e.g., '4bit', '8bit', 'q4'). Backend-specific; ignored if unsupported."
+        ),
+    )
+    hybrid_llama_n_ctx: Optional[int] = Field(
+        default=None,
+        alias="hybrid_llama_n_ctx",
+        description=(
+            "Context length for llama_cpp REDUCE backend (e.g., 4096). "
+            "When unset, provider uses 4096. Only used when hybrid_reduce_backend is llama_cpp."
+        ),
+    )
+    hybrid_reduce_instruction_style: Optional[Literal["structured", "paragraph"]] = Field(
+        default=None,
+        alias="hybrid_reduce_instruction_style",
+        description=(
+            "REDUCE instruction style: 'structured' = Takeaways/Outline/Actions (default); "
+            "'paragraph' = silver-style 4-6 paragraphs, no headings. Used for tuning toward silver."
+        ),
+    )
     summary_2nd_pass_distill: bool = Field(
         default=False,
         alias="summary_2nd_pass_distill",
@@ -1302,6 +1530,25 @@ class Config(BaseModel):
             "the model to be faithful to the source and reduce hallucinations. "
             "Useful for hallucination-prone summaries. Only effective with OpenAI provider "
             "(BART/LED models don't use prompts effectively)."
+        ),
+    )
+    summary_mode_id: Optional[str] = Field(
+        default_factory=_get_default_summary_mode_id,
+        alias="summary_mode_id",
+        description=(
+            "Summarization mode ID (RFC-044). When set, providers may use a promoted "
+            "ModeConfiguration from the Model Registry as the source of defaults "
+            "(models, preprocessing_profile, and runtime params)."
+        ),
+    )
+    summary_mode_precedence: Literal["mode", "config"] = Field(
+        default="mode",
+        alias="summary_mode_precedence",
+        description=(
+            "When summary_mode_id is set, controls precedence between the promoted "
+            "ModeConfiguration and explicit config fields. "
+            "'mode' = mode overrides config; 'config' = config overrides mode. "
+            "Params dict passed at runtime always overrides both."
         ),
     )
     summary_model: Optional[str] = Field(default=None, alias="summary_model")
@@ -1448,11 +1695,7 @@ class Config(BaseModel):
         ),
     )
     summary_tokenize: Dict[str, Any] = Field(
-        default_factory=lambda: {
-            "map_max_input_tokens": DEFAULT_MAP_MAX_INPUT_TOKENS,
-            "reduce_max_input_tokens": DEFAULT_REDUCE_MAX_INPUT_TOKENS,
-            "truncation": DEFAULT_TRUNCATION,
-        },
+        default_factory=_get_default_summary_tokenize,
         alias="summary_tokenize",
         description=(
             "Tokenization configuration for input text (hf_local backend only). "
@@ -1795,6 +2038,7 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "deepseek_api_base", "DEEPSEEK_API_BASE")
         cls._load_string_env_var(data, "grok_api_key", "GROK_API_KEY")
         cls._load_string_env_var(data, "grok_api_base", "GROK_API_BASE")
+        cls._load_string_env_var(data, "ollama_api_base", "OLLAMA_API_BASE")
 
         # Load integer environment variables
         cls._load_int_env_var(data, "workers", "WORKERS")
@@ -2044,6 +2288,14 @@ class Config(BaseModel):
             raise ValueError("metadata_subdirectory cannot contain control characters")
         return value
 
+    @field_validator("gemini_cleaning_model", mode="after")
+    @classmethod
+    def _migrate_legacy_gemini_cleaning_model(cls, v: str) -> str:
+        """Remap deprecated model IDs that 404 on current Generative API."""
+        if v == "gemini-1.5-flash":
+            return "gemini-2.0-flash"
+        return v
+
     @field_validator("openai_api_key", mode="before")
     @classmethod
     def _load_openai_api_key_from_env(cls, value: Any) -> Optional[str]:
@@ -2139,9 +2391,16 @@ class Config(BaseModel):
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(
-        cls, value: Any
-    ) -> Literal["transformers", "openai", "gemini", "grok", "deepseek", "anthropic", "ollama"]:
+    def _validate_summary_provider(cls, value: Any) -> Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ]:
         """Validate summary provider."""
         if value is None or value == "":
             return "transformers"
@@ -2149,6 +2408,7 @@ class Config(BaseModel):
 
         if value_str not in (
             "transformers",
+            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -2158,10 +2418,57 @@ class Config(BaseModel):
             "ollama",
         ):
             raise ValueError(
-                "summary_provider must be 'transformers', 'openai', 'gemini', "
+                "summary_provider must be 'transformers', 'hybrid_ml', 'openai', 'gemini', "
                 "'grok', 'mistral', 'deepseek', 'anthropic', or 'ollama'"
             )
         return value_str  # type: ignore[return-value]
+
+    @field_validator("quote_extraction_provider", "entailment_provider", mode="before")
+    @classmethod
+    def _validate_evidence_providers(cls, value: Any) -> Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ]:
+        """Validate quote_extraction_provider and entailment_provider (same as summary)."""
+        if value is None or value == "":
+            return "transformers"
+        value_str = str(value).strip().lower()
+        if value_str not in (
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ):
+            raise ValueError(
+                "quote_extraction_provider/entailment_provider must be one of: "
+                "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
+                "'mistral', 'deepseek', 'anthropic', 'ollama'"
+            )
+        return value_str  # type: ignore[return-value]
+
+    @field_validator("hybrid_map_device", "hybrid_reduce_device", mode="before")
+    @classmethod
+    def _coerce_hybrid_devices(cls, value: Any) -> Optional[str]:
+        """Coerce hybrid device fields to string or None (supports 'auto')."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip().lower()
+        if value_str == "auto":
+            return None
+        if value_str not in ("cuda", "mps", "cpu"):
+            raise ValueError("hybrid_*_device must be 'cuda', 'mps', 'cpu', or 'auto'")
+        return value_str
 
     @field_validator("openai_temperature", mode="before")
     @classmethod
@@ -2354,6 +2661,10 @@ class Config(BaseModel):
             openai_providers_used.append("speaker_detection")
         if self.summary_provider == "openai":
             openai_providers_used.append("summarization")
+        if self.quote_extraction_provider == "openai":
+            openai_providers_used.append("quote_extraction")
+        if self.entailment_provider == "openai":
+            openai_providers_used.append("entailment")
 
         if openai_providers_used and not self.openai_api_key:
             providers_str = ", ".join(openai_providers_used)
@@ -2374,6 +2685,10 @@ class Config(BaseModel):
             gemini_providers_used.append("speaker_detection")
         if self.summary_provider == "gemini":
             gemini_providers_used.append("summarization")
+        if self.quote_extraction_provider == "gemini":
+            gemini_providers_used.append("quote_extraction")
+        if self.entailment_provider == "gemini":
+            gemini_providers_used.append("entailment")
 
         if gemini_providers_used and not self.gemini_api_key:
             providers_str = ", ".join(gemini_providers_used)
@@ -2394,6 +2709,10 @@ class Config(BaseModel):
             anthropic_providers_used.append("speaker_detection")
         if self.summary_provider == "anthropic":
             anthropic_providers_used.append("summarization")
+        if self.quote_extraction_provider == "anthropic":
+            anthropic_providers_used.append("quote_extraction")
+        if self.entailment_provider == "anthropic":
+            anthropic_providers_used.append("entailment")
 
         if anthropic_providers_used and not self.anthropic_api_key:
             providers_str = ", ".join(anthropic_providers_used)
@@ -2412,6 +2731,10 @@ class Config(BaseModel):
             deepseek_providers_used.append("speaker_detection")
         if self.summary_provider == "deepseek":
             deepseek_providers_used.append("summarization")
+        if self.quote_extraction_provider == "deepseek":
+            deepseek_providers_used.append("quote_extraction")
+        if self.entailment_provider == "deepseek":
+            deepseek_providers_used.append("entailment")
 
         if deepseek_providers_used and not self.deepseek_api_key:
             providers_str = ", ".join(deepseek_providers_used)
@@ -2463,6 +2786,10 @@ class Config(BaseModel):
             grok_providers_used.append("speaker_detection")
         if self.summary_provider == "grok":
             grok_providers_used.append("summarization")
+        if self.quote_extraction_provider == "grok":
+            grok_providers_used.append("quote_extraction")
+        if self.entailment_provider == "grok":
+            grok_providers_used.append("entailment")
 
         if grok_providers_used and not self.grok_api_key:
             providers_str = ", ".join(grok_providers_used)
@@ -2483,6 +2810,10 @@ class Config(BaseModel):
             mistral_providers_used.append("speaker_detection")
         if self.summary_provider == "mistral":
             mistral_providers_used.append("summarization")
+        if self.quote_extraction_provider == "mistral":
+            mistral_providers_used.append("quote_extraction")
+        if self.entailment_provider == "mistral":
+            mistral_providers_used.append("entailment")
 
         if mistral_providers_used and not self.mistral_api_key:
             providers_str = ", ".join(mistral_providers_used)
@@ -2500,6 +2831,25 @@ class Config(BaseModel):
         if value is None or value == "":
             return None
         return str(value).strip() or None
+
+    @field_validator("summary_mode_id", mode="before")
+    @classmethod
+    def _coerce_summary_mode_id(cls, value: Any) -> Optional[str]:
+        """Coerce summary_mode_id to string or None."""
+        if value is None or value == "":
+            return None
+        return str(value).strip() or None
+
+    @field_validator("summary_mode_precedence", mode="before")
+    @classmethod
+    def _coerce_summary_mode_precedence(cls, value: Any) -> str:
+        """Coerce summary_mode_precedence to 'mode' or 'config'."""
+        if value is None or value == "":
+            return "mode"
+        lowered = str(value).strip().lower()
+        if lowered in ("mode", "config"):
+            return lowered
+        raise ValueError("summary_mode_precedence must be 'mode' or 'config'")
 
     @field_validator("summary_device", mode="before")
     @classmethod
@@ -2744,6 +3094,14 @@ class Config(BaseModel):
             raise ValueError(
                 "generate_summaries=True requires generate_metadata=True "
                 "(summaries are stored in metadata files)"
+            )
+
+        # 6b. generate_gi requires generate_metadata
+        #     GIL artifact is per-episode alongside metadata
+        if self.generate_gi and not self.generate_metadata:
+            raise ValueError(
+                "generate_gi=True requires generate_metadata=True "
+                "(GIL artifact is written alongside episode metadata)"
             )
 
         # === Output Control Validation ===

@@ -7,6 +7,7 @@ from .directories import (
     get_project_root,
     get_spacy_cache_dir,
     get_transformers_cache_dir,
+    get_transformers_snapshot_path,
     get_whisper_cache_dir,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "get_project_root",
     "get_whisper_cache_dir",
     "get_transformers_cache_dir",
+    "get_transformers_snapshot_path",
     "get_spacy_cache_dir",
 ]

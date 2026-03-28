@@ -1,0 +1,23 @@
+# Anthropic (Claude) on smoke — for multi-run LLM comparison vs silver reference.
+# Requires: ANTHROPIC_API_KEY
+# Model: aligned with acceptance (acceptance_planet_money_anthropic). Sonnet 20241022 is deprecated (404).
+
+id: "llm_anthropic_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5"
+
+prompts:
+  user: "anthropic/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

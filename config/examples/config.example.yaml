@@ -44,6 +44,16 @@ generate_summaries: true  # Generate summaries for episodes
 metadata_format: json  # json or yaml (json recommended for database ingestion)
 # metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
 
+# Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode (see docs/guides/GROUNDED_INSIGHTS_GUIDE.md)
+# generate_gi: false  # Set true to run GIL extraction after transcript/speaker detection
+# Evidence stack (used when GIL is enabled); models load lazily on first use
+# embedding_model: sentence-transformers/all-MiniLM-L6-v2  # Or alias: minilm-l6
+# embedding_device: null  # cpu, cuda, mps, or null for auto
+# extractive_qa_model: deepset/roberta-base-squad2  # Or alias: roberta-squad2
+# extractive_qa_device: null
+# nli_model: cross-encoder/nli-deberta-v3-base  # Or alias: nli-deberta-base
+# nli_device: null
+
 # OpenAI configuration (required if using any OpenAI providers)
 # Note: OPENAI_API_KEY should be set in .env file (see config/examples/.env.example)
 # openai_api_key: your-key-here  # Not recommended - use .env file instead
@@ -140,7 +150,8 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # ML-specific settings (used with local transformers/whisper/spaCy providers)
 # Defaults: Pegasus-CNN (map) + LED-base (reduce) - production baseline (baseline_ml_prod_authority_v1)
 # whisper_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via WHISPER_DEVICE env var
-# summary_model: pegasus-cnn  # Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast", or direct model ID like "google/pegasus-cnn_dailymail"
+# summary_mode_id: ml_prod_authority_v1  # Optional (RFC-044). Uses promoted baseline defaults from registry.
+# summary_model: pegasus-cnn  # Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast", "longt5-base", "longt5-large", or direct model ID like "google/pegasus-cnn_dailymail"
 # summary_reduce_model: long-fast  # REDUCE model for map-reduce summarization. Options: "long-fast" (default), "long", or direct model ID like "allenai/led-base-16384"
 # ner_model: en_core_web_trf  # spaCy NER model for speaker detection. Options: "en_core_web_trf" (default/prod, higher quality), "en_core_web_sm" (dev, fast). Defaults based on environment
 # summary_device: auto  # Options: cpu, cuda, mps, auto. Can also be set via SUMMARY_DEVICE env var
@@ -150,6 +161,15 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # summary_chunk_size: 2048  # Chunk size for long transcripts in tokens (null = model max length)
 # summary_cache_dir: ~/.cache/huggingface/hub  # Custom cache directory for transformer models. Can also be set via SUMMARY_CACHE_DIR or CACHE_DIR env var
 # summary_prompt: null  # Optional: custom prompt/instruction to guide summarization
+
+# Hybrid MAP-REDUCE summarization (RFC-042)
+# summary_provider: hybrid_ml
+# hybrid_map_model: longt5-base  # MAP model alias/ID (recommended default)
+# hybrid_reduce_model: google/flan-t5-base  # REDUCE model (Tier 1 default)
+# hybrid_reduce_backend: transformers  # Options: transformers | ollama | llama_cpp
+# hybrid_map_device: auto  # Options: cpu | cuda | mps | auto
+# hybrid_reduce_device: auto  # Options: cpu | cuda | mps | auto
+# hybrid_quantization: null  # Optional backend-specific hint (e.g. '4bit')
 
 # Advanced ML generation parameters (aligned with baseline_ml_prod_authority_v1)
 # These fields are always present with defaults, but you can override them for fine-grained control
@@ -209,7 +229,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # gemini_cleaning_max_tokens: null
 # gemini_cleaning_llm_threshold: 0.10
 
-# anthropic_cleaning_model: claude-3-5-haiku-latest  # Default: claude-3-5-haiku-latest (cheaper)
+# anthropic_cleaning_model: claude-haiku-4-5  # Default: claude-haiku-4-5 (cheaper)
 # anthropic_cleaning_temperature: 0.2
 # anthropic_cleaning_max_tokens: null
 # anthropic_cleaning_llm_threshold: 0.10

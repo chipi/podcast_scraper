@@ -656,21 +656,31 @@ def fetch_and_parse_rss(cfg: config.Config) -> RssFeed:  # type: ignore[valid-ty
     if cfg.rss_url is None:
         raise ValueError("RSS URL is required")
 
-    from . import downloader as rss_downloader
+    from . import downloader as rss_downloader, feed_cache
 
-    resp = rss_downloader.fetch_url(cfg.rss_url, cfg.user_agent, cfg.timeout, stream=False)
-    if resp is None:
-        raise ValueError("Failed to fetch RSS feed.")
-    try:
-        rss_bytes = resp.content
-        feed_base_url = resp.url or cfg.rss_url
-    finally:
-        resp.close()
+    cached_rss = feed_cache.read_cached_rss(cfg.rss_url)
+    if cached_rss is not None:
+        rss_bytes = cached_rss
+        feed_base_url = cfg.rss_url
+    else:
+        resp = rss_downloader.fetch_rss_feed_url(
+            cfg.rss_url, cfg.user_agent, cfg.timeout, stream=False
+        )
+        if resp is None:
+            raise ValueError("Failed to fetch RSS feed.")
+        try:
+            rss_bytes = resp.content
+            feed_base_url = resp.url or cfg.rss_url
+        finally:
+            resp.close()
 
     try:
         feed_title, feed_authors, items = parse_rss_items(rss_bytes)
     except (DefusedXMLParseError, ValueError) as exc:
         raise ValueError(f"Failed to parse RSS XML: {exc}") from exc
+
+    if cached_rss is None:
+        feed_cache.write_cached_rss(cfg.rss_url, rss_bytes)
 
     return RssFeed(  # type: ignore[no-any-return]
         title=feed_title, authors=feed_authors, items=items, base_url=feed_base_url

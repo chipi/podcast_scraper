@@ -123,9 +123,61 @@ def should_preload_ml_models(cfg: config.Config) -> bool:
     # Check if any ML models are needed
     needs_whisper = cfg.transcribe_missing and cfg.transcription_provider == "whisper"
     needs_transformers = cfg.generate_summaries and cfg.summary_provider == "transformers"
+    needs_hybrid_ml = cfg.generate_summaries and cfg.summary_provider == "hybrid_ml"
     needs_spacy = cfg.auto_speakers and cfg.speaker_detector_provider == "spacy"
+    needs_gil_ml = cfg.generate_gi and (
+        getattr(cfg, "quote_extraction_provider", "transformers") == "transformers"
+        or getattr(cfg, "entailment_provider", "transformers") == "transformers"
+    )
 
-    return needs_whisper or needs_transformers or needs_spacy
+    return needs_whisper or needs_transformers or needs_hybrid_ml or needs_spacy or needs_gil_ml
+
+
+def _collect_hybrid_ml_models_to_download(
+    cfg: config.Config,
+    transformers_cache: Any,
+) -> list[Tuple[str, str]]:
+    """Collect hybrid_ml MAP (and optionally REDUCE) models that need downloading."""
+    from ...config_constants import get_pinned_revision_for_model
+    from ...providers.ml import summarizer
+
+    out: list[Tuple[str, str]] = []
+
+    def _needs_download(cache_path: Any, model_id: str) -> bool:
+        if not cache_path.exists():
+            return True
+        revision = get_pinned_revision_for_model(model_id)
+        if revision:
+            snapshot_dir = cache_path / "snapshots" / revision
+            if not snapshot_dir.exists():
+                return True
+        return False
+
+    map_model = getattr(cfg, "hybrid_map_model", "longt5-base")
+    try:
+        resolved_map = summarizer.resolve_model_name(str(map_model))
+    except ValueError:
+        resolved_map = map_model if "/" in str(map_model) else map_model
+    model_cache_name = resolved_map.replace("/", "--")
+    model_cache_path = transformers_cache / f"models--{model_cache_name}"
+    if _needs_download(model_cache_path, resolved_map):
+        out.append(("transformers", resolved_map))
+        logger.info(f"Hybrid MAP model {map_model} not cached, will download")
+
+    reduce_backend = getattr(cfg, "hybrid_reduce_backend", "transformers")
+    if reduce_backend == "transformers":
+        reduce_model = getattr(cfg, "hybrid_reduce_model", "google/flan-t5-base")
+        try:
+            resolved_reduce = summarizer.resolve_model_name(str(reduce_model))
+        except ValueError:
+            resolved_reduce = reduce_model if "/" in str(reduce_model) else reduce_model
+        if resolved_reduce != resolved_map:
+            reduce_cache_name = resolved_reduce.replace("/", "--")
+            reduce_cache_path = transformers_cache / f"models--{reduce_cache_name}"
+            if _needs_download(reduce_cache_path, resolved_reduce):
+                out.append(("transformers", resolved_reduce))
+                logger.info(f"Hybrid REDUCE model {reduce_model} not cached, will download")
+    return out
 
 
 def ensure_ml_models_cached(cfg: config.Config) -> None:
@@ -197,6 +249,31 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
                     models_to_download.append(("transformers", reduce_model))
                     logger.info(f"Transformers model {reduce_model} not cached, will download")
 
+        # Check Hybrid ML models (MAP always HF; REDUCE only when backend is transformers)
+        if cfg.generate_summaries and cfg.summary_provider == "hybrid_ml":
+            transformers_cache = get_transformers_cache_dir()
+            models_to_download.extend(
+                _collect_hybrid_ml_models_to_download(cfg, transformers_cache)
+            )
+
+        # Check GIL evidence models (QA + NLI) when generate_gi and evidence provider
+        # is transformers
+        needs_gil_ml = cfg.generate_gi and (
+            getattr(cfg, "quote_extraction_provider", "transformers") == "transformers"
+            or getattr(cfg, "entailment_provider", "transformers") == "transformers"
+        )
+        if needs_gil_ml:
+            from ...providers.ml.model_loader import is_evidence_model_cached
+
+            qa_model = getattr(cfg, "gi_qa_model", None) or "roberta-squad2"
+            nli_model = getattr(cfg, "gi_nli_model", None) or "nli-deberta-base"
+            if not is_evidence_model_cached(qa_model):
+                models_to_download.append(("evidence_qa", qa_model))
+                logger.info("GIL QA model %s not cached, will download", qa_model)
+            if not is_evidence_model_cached(nli_model):
+                models_to_download.append(("evidence_nli", nli_model))
+                logger.info("GIL NLI model %s not cached, will download", nli_model)
+
         # Download missing models using centralized preload functions
         if models_to_download:
             logger.info("Downloading missing ML models (this may take a few minutes)...")
@@ -204,6 +281,7 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
                 # Import preload functions from internal package module
                 # This is the ONLY place where models can be downloaded
                 from ...providers.ml.model_loader import (
+                    preload_evidence_models,
                     preload_transformers_models,
                     preload_whisper_models,
                 )
@@ -211,11 +289,18 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
                 # Group models by type
                 whisper_models = [m[1] for m in models_to_download if m[0] == "whisper"]
                 transformers_models = [m[1] for m in models_to_download if m[0] == "transformers"]
+                evidence_qa = [m[1] for m in models_to_download if m[0] == "evidence_qa"]
+                evidence_nli = [m[1] for m in models_to_download if m[0] == "evidence_nli"]
 
                 if whisper_models:
                     preload_whisper_models(whisper_models)
                 if transformers_models:
                     preload_transformers_models(transformers_models)
+                if evidence_qa or evidence_nli:
+                    preload_evidence_models(
+                        qa_models=evidence_qa or None,
+                        nli_models=evidence_nli or None,
+                    )
 
                 logger.info("Missing models downloaded and cached successfully")
             except ImportError:

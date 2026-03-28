@@ -82,6 +82,30 @@ class TestHFBackendConfig(unittest.TestCase):
         self.assertEqual(cfg.model, "facebook/bart-base")
 
 
+class TestHybridMLBackendConfig(unittest.TestCase):
+    """Test HybridMLBackendConfig Pydantic model."""
+
+    def test_hybrid_ml_backend_config_defaults(self):
+        """Test HybridMLBackendConfig with defaults."""
+        cfg = experiment_config.HybridMLBackendConfig()
+        self.assertEqual(cfg.type, "hybrid_ml")
+        self.assertEqual(cfg.map_model, "longt5-base")
+        self.assertEqual(cfg.reduce_model, "google/flan-t5-base")
+        self.assertEqual(cfg.reduce_backend, "transformers")
+
+    def test_hybrid_ml_backend_config_explicit(self):
+        """Test HybridMLBackendConfig with explicit map/reduce/backend."""
+        cfg = experiment_config.HybridMLBackendConfig(
+            map_model="longt5-base",
+            reduce_model="qwen2.5:7b",
+            reduce_backend="ollama",
+        )
+        self.assertEqual(cfg.type, "hybrid_ml")
+        self.assertEqual(cfg.map_model, "longt5-base")
+        self.assertEqual(cfg.reduce_model, "qwen2.5:7b")
+        self.assertEqual(cfg.reduce_backend, "ollama")
+
+
 class TestOpenAIBackendConfig(unittest.TestCase):
     """Test OpenAIBackendConfig Pydantic model."""
 
@@ -195,6 +219,30 @@ class TestExperimentConfig(unittest.TestCase):
         )
         self.assertEqual(cfg.task, "ner_guest_host")
 
+    def test_experiment_config_with_hybrid_ml_backend(self):
+        """Test ExperimentConfig with hybrid_ml backend."""
+        cfg = experiment_config.ExperimentConfig(
+            id="test_hybrid",
+            backend=experiment_config.HybridMLBackendConfig(
+                map_model="longt5-base",
+                reduce_model="google/flan-t5-base",
+                reduce_backend="transformers",
+            ),
+            data=experiment_config.DataConfig(dataset_id="curated_5feeds_smoke_v1"),
+            map_params=experiment_config.GenerationParams(max_new_tokens=200, min_new_tokens=80),
+            reduce_params=experiment_config.GenerationParams(
+                max_new_tokens=650, min_new_tokens=220
+            ),
+            tokenize=experiment_config.TokenizeConfig(
+                map_max_input_tokens=1024, reduce_max_input_tokens=4096
+            ),
+        )
+        self.assertEqual(cfg.id, "test_hybrid")
+        self.assertEqual(cfg.backend.type, "hybrid_ml")
+        self.assertEqual(cfg.backend.map_model, "longt5-base")
+        self.assertEqual(cfg.backend.reduce_model, "google/flan-t5-base")
+        self.assertEqual(cfg.backend.reduce_backend, "transformers")
+
 
 class TestLoadExperimentConfig(unittest.TestCase):
     """Test load_experiment_config function."""
@@ -241,6 +289,45 @@ tokenize:
             self.assertEqual(cfg.map_params.max_new_tokens, 200)
             self.assertEqual(cfg.reduce_params.max_new_tokens, 650)
             self.assertEqual(cfg.tokenize.map_max_input_tokens, 1024)
+        finally:
+            config_path.unlink(missing_ok=True)
+
+    def test_load_experiment_config_hybrid_ml_backend(self):
+        """Test loading experiment config with hybrid_ml backend from YAML."""
+        import tempfile
+
+        config_yaml = """
+id: test_hybrid_ml
+task: summarization
+backend:
+  type: hybrid_ml
+  map_model: longt5-base
+  reduce_model: google/flan-t5-base
+  reduce_backend: transformers
+data:
+  dataset_id: curated_5feeds_smoke_v1
+map_params:
+  max_new_tokens: 200
+  min_new_tokens: 80
+reduce_params:
+  max_new_tokens: 650
+  min_new_tokens: 220
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+"""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+            f.write(config_yaml)
+            config_path = Path(f.name)
+
+        try:
+            cfg = experiment_config.load_experiment_config(config_path)
+            self.assertEqual(cfg.id, "test_hybrid_ml")
+            self.assertEqual(cfg.backend.type, "hybrid_ml")
+            self.assertEqual(cfg.backend.map_model, "longt5-base")
+            self.assertEqual(cfg.backend.reduce_model, "google/flan-t5-base")
+            self.assertEqual(cfg.backend.reduce_backend, "transformers")
         finally:
             config_path.unlink(missing_ok=True)
 
