@@ -22,7 +22,8 @@ dependencies = [
   "zipp>=3.19.1,<4.0.0",  # Security fix: CVE-2024-50208 (infinite loop vulnerability)
   "jinja2>=3.1.0,<4.0.0",  # For prompt templating (RFC-017)
   "filelock>=3.20.1,<4.0.0",  # Security fix: CVE-2025-68146 (TOCTOU race condition)
-  # CVE-2026-4539 (ReDoS in AdlLexer): affects pygments 2.19.0–2.19.2; cap below 2.19 until a patched release
+  # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2): stay on 2.18.x until 2.19.3+; pip-audit still needs --ignore-vuln until OSV range matches
+  # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
   "pygments>=2.14.0,<2.19.0",
 ]
 

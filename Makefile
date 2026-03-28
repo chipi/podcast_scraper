@@ -268,10 +268,13 @@ quality: complexity deadcode docstrings spelling
 	# Audit all installed packages (including ML dependencies from pyproject.toml)
 	# Ignore PYSEC-2022-42969: py package vulnerability (transitive dep of interrogate, deprecated, not exploitable here)
 	# Ignore CVE-2026-0994: protobuf vulnerability (affects 6.33.4, fixed in later versions; transitive dep of ML packages)
+	# Ignore CVE-2026-4539: pip-audit/OSV currently flags all pygments versions until a fixed release is published; we pin
+	#   pygments<2.19.0 in pyproject.toml (NVD/GHSA: vulnerable code in 2.19.0–2.19.2). Revisit when 2.19.3+ exists or OSV range fixes.
+	# TODO(CVE-2026-4539): Remove --ignore-vuln when upstream fix + pip-audit range allow; sync pyproject pygments cap.
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
