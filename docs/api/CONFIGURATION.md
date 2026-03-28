@@ -78,6 +78,16 @@ WORKERS=4
 
 ### Supported Environment Variables
 
+#### RSS feed cache (optional)
+
+**`PODCAST_SCRAPER_RSS_CACHE_DIR`**
+
+- **Description**: If set to a writable directory, the app reads cached RSS XML from disk when present and writes the feed body after a successful HTTP fetch and parse. Reduces repeated downloads for the same feed URL (for example, many acceptance configs in one session).
+- **Default**: Unset (no caching; each pipeline run fetches the feed over HTTP).
+- **Example**: `export PODCAST_SCRAPER_RSS_CACHE_DIR=/tmp/podcast_rss_cache`
+- **Note**: Does not cache episode media; use `reuse_media` in config for that. The acceptance test runner sets this variable per session (`sessions/session_*/rss_cache`).
+- **HTTP retries**: Feed downloads use `fetch_rss_feed_url` in code, which applies urllib3 retries with exponential backoff (stronger defaults than transcript/media `fetch_url`). Not separately configurable via environment variables.
+
 #### OpenAI API Configuration
 
 **`OPENAI_API_KEY`**
@@ -148,8 +158,8 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `anthropic_speaker_model` | `--anthropic-speaker-model` | `claude-3-5-haiku-20241022` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for speaker detection |
-| `anthropic_summary_model` | `--anthropic-summary-model` | `claude-3-5-haiku-20241022` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for summarization |
+| `anthropic_speaker_model` | `--anthropic-speaker-model` | `claude-haiku-4-5` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for speaker detection |
+| `anthropic_summary_model` | `--anthropic-summary-model` | `claude-haiku-4-5` (test) / `claude-3-5-sonnet-20241022` (prod) | Anthropic model for summarization |
 | `anthropic_temperature` | `--anthropic-temperature` | `0.3` | Temperature for generation (0.0-1.0) |
 | `anthropic_max_tokens` | `--anthropic-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -157,8 +167,8 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 | Purpose | Test/Dev | Production | Notes |
 | --------- | ---------- | ------------ | ------- |
-| Speaker Detection | `claude-3-5-haiku-20241022` | `claude-3-5-sonnet-20241022` | Haiku is fast/cheap; Sonnet is more accurate |
-| Summarization | `claude-3-5-haiku-20241022` | `claude-3-5-sonnet-20241022` | Haiku is fast/cheap; Sonnet produces better summaries |
+| Speaker Detection | `claude-haiku-4-5` | `claude-3-5-sonnet-20241022` | Haiku is fast/cheap; Sonnet is more accurate |
+| Summarization | `claude-haiku-4-5` | `claude-3-5-sonnet-20241022` | Haiku is fast/cheap; Sonnet produces better summaries |
 
 **Note on Transcription**: Anthropic does NOT support native audio transcription. If you set `transcription_provider=anthropic`, you will get a clear error message suggesting alternatives (`whisper` or `openai`).
 
@@ -668,7 +678,7 @@ This reduces LLM API calls by 70-90% while maintaining high quality.
 | `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
 | `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |
 | `gemini_cleaning_temperature` | `--gemini-cleaning-temperature` | `0.2` | Temperature for Gemini cleaning (lower = more deterministic) |
-| `anthropic_cleaning_model` | `--anthropic-cleaning-model` | `claude-3-5-haiku-latest` | Anthropic model for cleaning (cheaper than summary model) |
+| `anthropic_cleaning_model` | `--anthropic-cleaning-model` | `claude-haiku-4-5` | Anthropic model for cleaning (cheaper than summary model) |
 | `anthropic_cleaning_temperature` | `--anthropic-cleaning-temperature` | `0.2` | Temperature for Anthropic cleaning (lower = more deterministic) |
 | `mistral_cleaning_model` | `--mistral-cleaning-model` | `mistral-small-latest` | Mistral model for cleaning (cheaper than summary model) |
 | `mistral_cleaning_temperature` | `--mistral-cleaning-temperature` | `0.2` | Temperature for Mistral cleaning (lower = more deterministic) |
@@ -687,7 +697,7 @@ Each LLM provider can use a different model for cleaning (typically cheaper/fast
 
 - **OpenAI**: `openai_cleaning_model` (defaults to `gpt-4o-mini`)
 - **Gemini**: `gemini_cleaning_model` (defaults to `gemini-1.5-flash`)
-- **Anthropic**: `anthropic_cleaning_model` (defaults to `claude-3-5-haiku-latest`)
+- **Anthropic**: `anthropic_cleaning_model` (defaults to `claude-haiku-4-5`)
 - **Mistral**: `mistral_cleaning_model` (defaults to `mistral-small-latest`)
 - **DeepSeek**: `deepseek_cleaning_model` (defaults to `deepseek-chat`)
 - **Grok**: `grok_cleaning_model` (defaults to `grok-3-mini`)
@@ -729,7 +739,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --summary-provider anthropic \
   --transcript-cleaning-strategy hybrid \
-  --anthropic-cleaning-model claude-3-5-haiku-latest \
+  --anthropic-cleaning-model claude-haiku-4-5 \
   --anthropic-cleaning-temperature 0.2
 ```
 

@@ -33,6 +33,11 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    ANTHROPIC_CLEANING_MAX_TOKENS,
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+)
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
@@ -54,6 +59,9 @@ ANTHROPIC_CLAUDE_3_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.25
 ANTHROPIC_CLAUDE_3_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 1.25
 ANTHROPIC_CLAUDE_3_5_HAIKU_INPUT_COST_PER_1M_TOKENS = 0.80
 ANTHROPIC_CLAUDE_3_5_HAIKU_OUTPUT_COST_PER_1M_TOKENS = 4.00
+# Claude Haiku 4.5 (alias e.g. claude-haiku-4-5) — see Anthropic pricing page
+ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS = 1.00
+ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS = 5.00
 
 
 class AnthropicProvider:
@@ -113,7 +121,7 @@ class AnthropicProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (cheaper model for cost efficiency)
-        self.cleaning_model = getattr(cfg, "anthropic_cleaning_model", "claude-3-haiku-20240307")
+        self.cleaning_model = getattr(cfg, "anthropic_cleaning_model", "claude-haiku-4-5")
         self.cleaning_temperature = getattr(cfg, "anthropic_cleaning_temperature", 0.2)
 
         # Suppress verbose Anthropic SDK debug logs (if needed)
@@ -213,6 +221,13 @@ class AnthropicProvider:
                 )
                 pricing["output_cost_per_1m_tokens"] = (
                     ANTHROPIC_CLAUDE_3_5_SONNET_OUTPUT_COST_PER_1M_TOKENS
+                )
+            elif "haiku-4-5" in model_lower:
+                pricing["input_cost_per_1m_tokens"] = (
+                    ANTHROPIC_CLAUDE_HAIKU_4_5_INPUT_COST_PER_1M_TOKENS
+                )
+                pricing["output_cost_per_1m_tokens"] = (
+                    ANTHROPIC_CLAUDE_HAIKU_4_5_OUTPUT_COST_PER_1M_TOKENS
                 )
             elif "3.5-haiku" in model_lower or "3-5-haiku" in model_lower:
                 pricing["input_cost_per_1m_tokens"] = (
@@ -949,7 +964,10 @@ class AnthropicProvider:
             def _make_api_call():
                 return self.client.messages.create(
                     model=self.cleaning_model,
-                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                    max_tokens=clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        ANTHROPIC_CLEANING_MAX_TOKENS,
+                    ),
                     temperature=self.cleaning_temperature,
                     system=system_prompt,
                     messages=[

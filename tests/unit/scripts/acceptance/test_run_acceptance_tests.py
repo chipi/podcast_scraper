@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 from pathlib import Path
 
 import pytest
+
+from podcast_scraper.rss.feed_cache import ENV_RSS_CACHE_DIR
 
 # Add scripts/acceptance to path so we can import run_acceptance_tests
 _PROJECT_ROOT = Path(__file__).resolve().parents[4]
@@ -14,7 +17,12 @@ _SCRIPTS_ACCEPTANCE = _PROJECT_ROOT / "scripts" / "acceptance"
 if str(_SCRIPTS_ACCEPTANCE) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_ACCEPTANCE))
 
-from run_acceptance_tests import _extract_provider_info, filter_fast_configs  # noqa: E402
+from run_acceptance_tests import (  # noqa: E402
+    _extract_provider_info,
+    _line_is_debug_for_console_filter,
+    apply_session_rss_cache_env,
+    filter_fast_configs,
+)
 
 
 @pytest.mark.unit
@@ -72,6 +80,30 @@ class TestExtractProviderInfo:
 
 
 @pytest.mark.unit
+class TestLineIsDebugForConsoleFilter:
+    """Tests for DEBUG line filtering when streaming to console."""
+
+    def test_detects_levelname_debug(self):
+        assert _line_is_debug_for_console_filter(
+            "2026-01-01 12:00:00,000 - podcast_scraper - DEBUG - msg"
+        )
+
+    def test_detects_debug_prefix(self):
+        assert _line_is_debug_for_console_filter("DEBUG root: something")
+
+    def test_not_debug_for_info(self):
+        assert not _line_is_debug_for_console_filter(
+            "2026-01-01 12:00:00,000 INFO podcast_scraper.workflow: ok"
+        )
+
+    def test_not_debug_for_warning(self):
+        assert not _line_is_debug_for_console_filter("WARNING: disk almost full")
+
+    def test_empty_line_not_debug(self):
+        assert not _line_is_debug_for_console_filter("")
+
+
+@pytest.mark.unit
 class TestFilterFastConfigs:
     """Tests for filter_fast_configs (--fast-only)."""
 
@@ -92,3 +124,21 @@ class TestFilterFastConfigs:
         """When fast_stems is empty, all configs are returned."""
         configs = [Path("a/acceptance_planet_money_ml.yaml")]
         assert filter_fast_configs(configs, set()) == configs
+
+
+@pytest.mark.unit
+class TestApplySessionRssCacheEnv:
+    """Tests for apply_session_rss_cache_env (acceptance session RSS feed cache)."""
+
+    def test_creates_rss_cache_dir_and_sets_env(self, tmp_path, monkeypatch):
+        """Session rss_cache exists and PODCAST_SCRAPER_RSS_CACHE_DIR points to it."""
+        monkeypatch.delenv(ENV_RSS_CACHE_DIR, raising=False)
+        session_dir = tmp_path / "sessions" / "session_abc"
+        session_dir.mkdir(parents=True)
+
+        rss_cache = apply_session_rss_cache_env(session_dir)
+
+        expected = (session_dir / "rss_cache").resolve()
+        assert rss_cache == expected
+        assert rss_cache.is_dir()
+        assert os.environ[ENV_RSS_CACHE_DIR] == str(rss_cache)

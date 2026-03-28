@@ -648,10 +648,16 @@ class TestAnthropicProviderPricing(unittest.TestCase):
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 15.00)
 
     def test_get_pricing_3_5_haiku_summarization(self):
-        """Test pricing lookup for Claude 3.5 Haiku summarization."""
+        """Test pricing lookup for Claude 3.5 Haiku summarization (legacy snapshot id)."""
         pricing = AnthropicProvider.get_pricing("claude-3-5-haiku-20241022", "summarization")
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.80)
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 4.00)
+
+    def test_get_pricing_haiku_4_5_summarization(self):
+        """Test pricing lookup for Claude Haiku 4.5 (alias e.g. claude-haiku-4-5)."""
+        pricing = AnthropicProvider.get_pricing("claude-haiku-4-5", "summarization")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 1.00)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 5.00)
 
     def test_get_pricing_3_opus_summarization(self):
         """Test pricing lookup for Claude 3 Opus summarization."""

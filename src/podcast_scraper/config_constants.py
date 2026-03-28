@@ -198,12 +198,12 @@ PROD_DEFAULT_GEMINI_SUMMARY_MODEL = "gemini-1.5-pro"  # Best quality, 2M context
 #
 # For current pricing, see: https://www.anthropic.com/pricing
 # Note: Anthropic does NOT support native audio transcription (no audio API)
-# Note: claude-3-5-haiku-20241022 is deprecated (EOL: 2026-02-19), using latest versions
+# Haiku: use Anthropic alias claude-haiku-4-5 (tracks Claude Haiku 4.5)
 TEST_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
     "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
 )
-TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-3-5-haiku-latest"  # Latest version, cheaper, fast
-TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-3-5-haiku-latest"  # Latest version, cheaper, fast
+TEST_DEFAULT_ANTHROPIC_SPEAKER_MODEL = "claude-haiku-4-5"  # Fast/cheap for dev/test
+TEST_DEFAULT_ANTHROPIC_SUMMARY_MODEL = "claude-haiku-4-5"  # Fast/cheap for dev/test
 PROD_DEFAULT_ANTHROPIC_TRANSCRIPTION_MODEL = (
     "claude-3-5-sonnet-20241022"  # Placeholder (not used - no audio support)
 )

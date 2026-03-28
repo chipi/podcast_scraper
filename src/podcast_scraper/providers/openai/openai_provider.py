@@ -26,6 +26,11 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+    OPENAI_CLEANING_MAX_TOKENS,
+)
 from ...utils.provider_metadata import (
     extract_region_from_endpoint,
     log_provider_metadata,
@@ -1486,8 +1491,10 @@ class OpenAIProvider:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.cleaning_temperature,
-                    # Max tokens: ~80-90% of input (cleaned text should be shorter)
-                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                    max_tokens=clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        OPENAI_CLEANING_MAX_TOKENS,
+                    ),
                 )
 
             try:

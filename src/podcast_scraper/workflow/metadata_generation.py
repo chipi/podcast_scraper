@@ -404,6 +404,7 @@ class GroundedInsightsMetadata(BaseModel):
 
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
+        """Serialize datetime as ISO 8601 string for database compatibility."""
         return value.isoformat()
 
 
@@ -1702,7 +1703,7 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
         speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
         provider_info["gemini_model"] = speaker_model
     elif cfg.speaker_detector_provider == "anthropic":
-        speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-3-5-haiku-latest")
+        speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-haiku-4-5")
         provider_info["anthropic_model"] = speaker_model
 
     return provider_info
@@ -1785,7 +1786,7 @@ def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str,
         summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
         provider_info["gemini_model"] = summary_model
     elif cfg.summary_provider == "anthropic":
-        summary_model = getattr(cfg, "anthropic_summary_model", "claude-3-5-haiku-latest")
+        summary_model = getattr(cfg, "anthropic_summary_model", "claude-haiku-4-5")
         provider_info["anthropic_model"] = summary_model
 
     return provider_info

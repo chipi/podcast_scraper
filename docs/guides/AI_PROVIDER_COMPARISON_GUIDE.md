@@ -132,7 +132,7 @@ Use these model IDs in eval/acceptance configs to avoid API errors:
 
 | Provider | Recommended model ID | Deprecated / not found |
 | --- | --- | --- |
-| Anthropic | `claude-3-5-haiku-20241022` | `claude-3-5-sonnet-20241022` (404 deprecated) |
+| Anthropic | `claude-haiku-4-5` | `claude-3-5-haiku-20241022` (404 deprecated) |
 | Grok | `grok-3-mini` | `grok-2` (400 model not found) |
 
 Eval configs: `data/eval/configs/llm_anthropic_smoke_v1.yaml`, `llm_grok_smoke_v1.yaml`. Acceptance configs: `config/acceptance/summarization/acceptance_planet_money_anthropic.yaml`, `acceptance_planet_money_grok.yaml`.
@@ -543,9 +543,9 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 │  ⚠️  No transcription support                                   │
 │                                                                 │
 │  Models:                                                        │
-│  ├── Claude 3.5 Haiku   $0.80/$4 │ ⭐ Eval/acceptance (use this ID) │
-│  ├── claude-3-5-haiku-20241022   │ Dated ID that works with API │
-│  └── claude-3-5-sonnet-20241022  │ Deprecated (404); use newer Sonnet IDs │
+│  ├── Claude Haiku 4.5   $1/$5   │ ⭐ Eval/acceptance alias `claude-haiku-4-5` │
+│  ├── claude-haiku-4-5            │ Anthropic alias (current Haiku) │
+│  └── claude-3-5-sonnet-20241022 │ Deprecated (404); use newer Sonnet IDs │
 │                                                                 │
 │  Best For: Quality text, nuanced content, safety alignment      │
 └─────────────────────────────────────────────────────────────────┘

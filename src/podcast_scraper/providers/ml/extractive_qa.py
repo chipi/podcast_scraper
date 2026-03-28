@@ -43,15 +43,21 @@ class QASpan:
 
 
 def _get_device(device: Optional[str]) -> str:
+    """Resolve device for the HF QA pipeline.
+
+    MPS is avoided: auto device selection used to pick ``mps``, but the QA stack
+    can end up on ``meta`` or hit unsupported ops; CUDA when available, else CPU.
+    """
     if device is not None and device.strip():
-        return device.strip().lower()
+        dev = device.strip().lower()
+        if dev == "mps":
+            return "cpu"
+        return dev
     try:
         import torch
 
         if torch.cuda.is_available():
             return "cuda"
-        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-            return "mps"
     except ImportError:
         pass
     return "cpu"

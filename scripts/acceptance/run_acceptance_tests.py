@@ -54,6 +54,8 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from podcast_scraper import config
+from podcast_scraper.rss.feed_cache import ENV_RSS_CACHE_DIR
+from podcast_scraper.workflow.helpers import estimated_llm_cost_usd_from_metrics_dict
 
 # Import E2E server
 try:
@@ -66,6 +68,55 @@ logger = logging.getLogger(__name__)
 
 # Exit code used when a run is killed due to --timeout (per-run timeout)
 EXIT_TIMEOUT = 124
+
+
+def _log_session_estimated_llm_cost(runs_data: List[Dict[str, Any]]) -> None:
+    """Log session-level estimated LLM API cost after all runs complete."""
+    session_costs = [
+        r.get("estimated_cost_usd")
+        for r in runs_data
+        if isinstance(r.get("estimated_cost_usd"), (int, float))
+    ]
+    if session_costs:
+        session_total = sum(session_costs)
+        logger.info("")
+        logger.info(
+            "Session estimated LLM API cost (USD): $%.4f  "
+            "(sum of per-run estimates; see session.json / run_data.json)",
+            session_total,
+        )
+    else:
+        logger.info("")
+        logger.info(
+            "Session estimated LLM API cost: n/a  "
+            "(no billable LLM usage in this session, or cost could not be computed)"
+        )
+
+
+def _estimate_llm_cost_usd_for_run_dir(run_output_dir: Path) -> Optional[float]:
+    """Estimate billable LLM cost for one run (same formula as pipeline summary).
+
+    Reads ``metrics.json`` and ``config.original.yaml`` under the run directory.
+
+    Args:
+        run_output_dir: Directory containing run artifacts.
+
+    Returns:
+        Estimated USD total, or ``None`` if missing files or no billable LLM usage.
+    """
+    metrics_path = run_output_dir / "metrics.json"
+    cfg_path = run_output_dir / "config.original.yaml"
+    if not metrics_path.is_file() or not cfg_path.is_file():
+        return None
+    try:
+        with open(metrics_path, encoding="utf-8") as f:
+            metrics_dict = json.load(f)
+        cfg_dict = config.load_config_file(str(cfg_path))
+        cfg_model = config.Config.model_validate(cfg_dict)
+        return estimated_llm_cost_usd_from_metrics_dict(cfg_model, metrics_dict)
+    except Exception as exc:
+        logger.debug("Could not estimate LLM cost for %s: %s", run_output_dir, exc)
+        return None
 
 
 def _find_config_files_one(pattern: str) -> List[Path]:
@@ -153,6 +204,53 @@ def filter_fast_configs(config_files: List[Path], fast_stems: set[str]) -> List[
     return filtered
 
 
+def apply_session_rss_cache_env(session_dir: Path) -> Path:
+    """Create ``session_dir/rss_cache`` and set ``PODCAST_SCRAPER_RSS_CACHE_DIR``.
+
+    Child CLI processes inherit this so sequential acceptance configs reuse feed XML
+    for the same ``rss_url`` (see ``podcast_scraper.rss.feed_cache``).
+
+    Args:
+        session_dir: Timestamped session folder under the acceptance output directory.
+
+    Returns:
+        Absolute path to the ``rss_cache`` directory.
+    """
+    rss_cache_dir = (session_dir / "rss_cache").resolve()
+    rss_cache_dir.mkdir(parents=True, exist_ok=True)
+    os.environ[ENV_RSS_CACHE_DIR] = str(rss_cache_dir)
+    return rss_cache_dir
+
+
+def _log_acceptance_session_header(
+    *,
+    num_configs: int,
+    use_fixtures: bool,
+    e2e_server: Optional[E2EHTTPServer],
+    output_dir: Path,
+    session_dir: Path,
+    rss_cache_dir: Path,
+    runs_dir: Path,
+    baselines_dir: Path,
+) -> None:
+    """Log one batch-wide header (paths, count, mode)—not repeated per config."""
+    logger.info("=" * 70)
+    logger.info("Acceptance session (batch)")
+    logger.info("  Configs: %d", num_configs)
+    if use_fixtures and e2e_server is not None:
+        logger.info("  Mode: fixtures — E2E server at %s", e2e_server.base_url)
+    else:
+        logger.info("  Mode: real RSS feeds and API providers")
+        logger.info("  Note: set API keys and valid RSS URLs in the environment for this batch.")
+    logger.info("  Output directory: %s", output_dir.absolute())
+    logger.info("  Session folder: %s", session_dir)
+    logger.info("  RSS feed cache (session): %s", rss_cache_dir)
+    logger.info("  Run data: %s", runs_dir)
+    logger.info("  Baselines: %s", baselines_dir)
+    logger.info("=" * 70)
+    logger.info("")
+
+
 def modify_config_for_fixtures(
     config_path: Path,
     e2e_server: Optional[E2EHTTPServer],
@@ -212,13 +310,8 @@ def modify_config_for_fixtures(
         if "ANTHROPIC_API_KEY" not in os.environ:
             os.environ["ANTHROPIC_API_KEY"] = "test-dummy-key-for-bulk-tests"
 
-    else:
-        # Using real RSS feeds and real APIs
-        # Keep original RSS URL from config
-        # Don't set API base URLs (use real APIs from environment)
-        # Don't set dummy API keys (use real keys from environment)
-        logger.info("Using real RSS feeds and real API providers")
-        logger.info(f"RSS URL: {config_dict.get('rss', 'not set')}")
+    # Effective RSS for this run (fixture replacement or YAML); session-wide mode is in main().
+    logger.info("  rss (this config): %s", config_dict.get("rss", "not set"))
 
     # Save modified config in the run directory
     # This is needed for the service to run and also serves as a record of what was used
@@ -360,6 +453,23 @@ def monitor_process_resources(process: subprocess.Popen, interval: float = 0.5) 
             "cpu_time_seconds": None,
             "cpu_percent": None,
         }
+
+
+def _line_is_debug_for_console_filter(line_stripped: str) -> bool:
+    """Return True if this line is clearly a DEBUG-level log line.
+
+    Used to hide DEBUG from the console while still writing full output to stdout.log/stderr.log.
+    INFO, WARNING, ERROR, CRITICAL, and lines without a recognized level are not treated as DEBUG.
+    """
+    if not line_stripped:
+        return False
+    line_lower = line_stripped.lower()
+    if any(x in line_lower for x in ("levelname=debug", "level=debug")):
+        return True
+    # Standard library text format: "DEBUG module.name: message"
+    if line_stripped.startswith("DEBUG ") or " DEBUG " in line_stripped:
+        return True
+    return False
 
 
 def _detect_log_level(line_lower: str, line_stripped: str) -> tuple[bool | None, bool | None]:
@@ -564,6 +674,9 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
         "degradation policy",  # Degradation warnings
         # (e.g., "Saving transcript without summary (degradation policy: ...)")
         "degradation:",  # Degradation logger messages
+        "failures: 0",  # Metrics lines (e.g. "- Gi Failures: 0")
+        "failure: 0",
+        "gi failures: 0",
     ]
 
     # Patterns that indicate actual warnings
@@ -1062,7 +1175,7 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
         provider_info["speaker_model"] = config_dict.get("gemini_speaker_model", "gemini-1.5-pro")
     elif speaker_provider == "anthropic":
         provider_info["speaker_model"] = config_dict.get(
-            "anthropic_speaker_model", "claude-3-5-haiku-latest"
+            "anthropic_speaker_model", "claude-haiku-4-5"
         )
     elif speaker_provider == "mistral":
         provider_info["speaker_model"] = config_dict.get(
@@ -1089,7 +1202,7 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
         provider_info["summary_model"] = config_dict.get("gemini_summary_model", "gemini-1.5-pro")
     elif summary_provider == "anthropic":
         provider_info["summary_model"] = config_dict.get(
-            "anthropic_summary_model", "claude-3-5-haiku-latest"
+            "anthropic_summary_model", "claude-haiku-4-5"
         )
     elif summary_provider == "mistral":
         provider_info["summary_model"] = config_dict.get(
@@ -1144,6 +1257,7 @@ def _execute_process_with_streaming(
     stderr_path: Path,
     config_name: str,
     timeout_seconds: Optional[int] = None,
+    hide_debug_console: bool = True,
 ) -> tuple[int, Dict[str, Any]]:
     """Execute process with real-time log streaming.
 
@@ -1153,6 +1267,7 @@ def _execute_process_with_streaming(
         stderr_path: Path to save stderr
         config_name: Config name for log prefix
         timeout_seconds: If set, kill process after this many seconds (per-run timeout).
+        hide_debug_console: If True, omit DEBUG lines on the console (files unchanged).
 
     Returns:
         Tuple of (exit_code, resource_usage_dict). exit_code is EXIT_TIMEOUT if timed out.
@@ -1170,29 +1285,34 @@ def _execute_process_with_streaming(
     )
 
     # Stream output in real-time
-    def stream_output(pipe, file, prefix=""):
+    def stream_output(pipe, file, prefix="", hide_debug: bool = False):
         """Stream output from pipe to both file and console."""
         for line in iter(pipe.readline, ""):
             if not line:
                 break
-            # Write to file
+            # Write to file (always full fidelity)
             file.write(line)
             file.flush()
-            # Also print to console with prefix
+            stripped = line.rstrip()
+            if hide_debug and _line_is_debug_for_console_filter(stripped):
+                continue
+            # Print to console with prefix
             if prefix:
-                print(f"{prefix}{line.rstrip()}", flush=True)
+                print(f"{prefix}{stripped}", flush=True)
             else:
-                print(line.rstrip(), flush=True)
+                print(stripped, flush=True)
 
     # Start threads to stream stdout and stderr
     stdout_thread = threading.Thread(
         target=stream_output,
         args=(process.stdout, stdout_file, f"[{config_name}] "),
+        kwargs={"hide_debug": hide_debug_console},
         daemon=True,
     )
     stderr_thread = threading.Thread(
         target=stream_output,
         args=(process.stderr, stderr_file, f"[{config_name}] "),
+        kwargs={"hide_debug": hide_debug_console},
         daemon=True,
     )
 
@@ -1289,6 +1409,9 @@ def run_config(
     use_fixtures: bool = True,
     show_logs: bool = True,
     timeout_seconds: Optional[int] = None,
+    hide_debug_console: bool = True,
+    run_index: Optional[int] = None,
+    run_total: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Run a single config and collect data.
 
@@ -1300,12 +1423,20 @@ def run_config(
         use_fixtures: If True, use E2E server fixtures; if False, use real RSS/APIs
         show_logs: If True, stream logs to console in real-time; if False, only save to files
         timeout_seconds: If set, kill the run after this many seconds (per-run timeout).
+        hide_debug_console: When streaming, omit DEBUG lines from the console (files unchanged).
+        run_index: 1-based index when running multiple configs (optional).
+        run_total: Total configs in session when running multiple (optional).
 
     Returns:
         Dict with run data
     """
     config_name = config_path.stem
-    logger.info(f"Running config: {config_name}")
+    # When main runs multiple configs, it prints one run banner per iteration; avoid duplicate.
+    if run_index is None or run_total is None or run_total <= 1:
+        if run_index is not None and run_total is not None:
+            logger.info("Running config %d/%d: %s", run_index, run_total, config_name)
+        else:
+            logger.info("Running config: %s", config_name)
 
     # Create timestamped run directory (not based on config name since feeds may differ)
     # output_dir is runs_dir (session_dir / "runs"); use resolved path so run dir is absolute
@@ -1352,7 +1483,12 @@ def run_config(
     try:
         if show_logs:
             exit_code, resource_usage = _execute_process_with_streaming(
-                cmd, stdout_path, stderr_path, config_name, timeout_seconds=timeout_seconds
+                cmd,
+                stdout_path,
+                stderr_path,
+                config_name,
+                timeout_seconds=timeout_seconds,
+                hide_debug_console=hide_debug_console,
             )
         else:
             exit_code, resource_usage = _execute_process_without_streaming(
@@ -1458,6 +1594,7 @@ def run_config(
         "outputs": outputs,
         "resource_usage": resource_usage,
         "provider_info": provider_info,  # Provider/model information for benchmarking
+        "estimated_cost_usd": _estimate_llm_cost_usd_for_run_dir(run_output_dir),
     }
 
     # Save run data
@@ -1518,7 +1655,7 @@ def save_baseline(baseline_id: str, runs_data: List[Dict[str, Any]], output_dir:
     logger.info(f"  Baseline directory: {baseline_dir.absolute()}")
 
 
-def main() -> None:
+def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, baselines
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Run E2E acceptance tests",
@@ -1569,6 +1706,16 @@ def main() -> None:
         dest="show_logs",
         action="store_false",
         help="Disable streaming service logs to console (only save to files)",
+    )
+    parser.add_argument(
+        "--stream-debug",
+        action="store_true",
+        default=False,
+        help=(
+            "When streaming logs to the console, include DEBUG lines. "
+            "Default: hide DEBUG on the console (INFO and above still shown); "
+            "full output is always written to stdout.log/stderr.log."
+        ),
     )
     parser.add_argument(
         "--no-auto-analyze",
@@ -1639,12 +1786,6 @@ def main() -> None:
         logger.info("Starting E2E server for fixture feeds and mock APIs...")
         e2e_server = E2EHTTPServer()
         e2e_server.start()
-        logger.info(f"E2E server started at {e2e_server.base_url}")
-    else:
-        logger.info("Using real RSS feeds and real API providers")
-        logger.info(
-            "Make sure your config files have valid RSS URLs and API keys are set in environment"
-        )
 
     # Find config files
     config_files = find_config_files(args.configs)
@@ -1683,14 +1824,20 @@ def main() -> None:
     runs_dir = session_dir / "runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
 
-    # Confirm output directory at start
-    logger.info("=" * 70)
-    logger.info(f"Output directory: {output_dir.absolute()}")
-    logger.info(f"  - Session folder: {session_dir}")
-    logger.info(f"  - Run data: {runs_dir}")
-    logger.info(f"  - Baselines: {output_dir / 'baselines'}")
-    logger.info("=" * 70)
-    logger.info("")
+    # Reuse RSS feed XML across sequential configs (same URL hits cache after first fetch).
+    # See podcast_scraper.rss.feed_cache (PODCAST_SCRAPER_RSS_CACHE_DIR); off by default for CLI.
+    rss_cache_dir = apply_session_rss_cache_env(session_dir)
+
+    _log_acceptance_session_header(
+        num_configs=len(config_files),
+        use_fixtures=use_fixtures,
+        e2e_server=e2e_server,
+        output_dir=output_dir,
+        session_dir=session_dir,
+        rss_cache_dir=rss_cache_dir,
+        runs_dir=runs_dir,
+        baselines_dir=output_dir / "baselines",
+    )
 
     try:
         # Run all configs sequentially
@@ -1700,6 +1847,15 @@ def main() -> None:
 
         def _write_session_summary(runs: List[Dict[str, Any]]) -> None:
             """Persist current session summary so analysis works after partial/interrupted runs."""
+            per_run_costs = [
+                r.get("estimated_cost_usd")
+                for r in runs
+                if isinstance(r.get("estimated_cost_usd"), (int, float))
+            ]
+            session_cost: Optional[float] = None
+            if per_run_costs:
+                session_cost = round(sum(per_run_costs), 6)
+
             summary = {
                 "session_id": session_id,
                 "start_time": runs[0]["start_time"] if runs else None,
@@ -1708,13 +1864,19 @@ def main() -> None:
                 "successful_runs": sum(1 for r in runs if r["exit_code"] == 0),
                 "failed_runs": sum(1 for r in runs if r["exit_code"] != 0),
                 "total_duration_seconds": sum(r["duration_seconds"] for r in runs),
+                "estimated_session_cost_usd": session_cost,
                 "config_files": [str(cf) for cf in config_files],
                 "runs": runs,
             }
             with open(session_summary_path, "w") as f:
                 json.dump(summary, f, indent=2)
 
+        total_cfgs = len(config_files)
+        hide_debug = not args.stream_debug
         for i, config_file in enumerate(config_files, 1):
+            if total_cfgs > 1:
+                logger.info("")
+                logger.info("── Run %d/%d: %s ──", i, total_cfgs, config_file.name)
             run_id = f"{config_file.stem}_{session_id}"
             run_data = run_config(
                 config_file,
@@ -1724,6 +1886,9 @@ def main() -> None:
                 use_fixtures=use_fixtures,
                 show_logs=args.show_logs,
                 timeout_seconds=args.timeout,
+                hide_debug_console=hide_debug,
+                run_index=i if total_cfgs > 1 else None,
+                run_total=total_cfgs if total_cfgs > 1 else None,
             )
             runs_data.append(run_data)
             # Persist after each config so analysis works if run is interrupted
@@ -1835,6 +2000,8 @@ def main() -> None:
                 logger.warning(f"Baseline not found: {baseline_path}. " "Skipping comparison.")
 
         logger.info("Acceptance tests completed")
+        _log_session_estimated_llm_cost(runs_data)
+
         logger.info("=" * 70)
         logger.info(f"Results saved to: {output_dir.absolute()}")
         logger.info(f"  - Session folder: {session_dir.absolute()}")

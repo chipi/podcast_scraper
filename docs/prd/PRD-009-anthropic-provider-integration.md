@@ -115,15 +115,16 @@ anthropic_summary_user_prompt: str = Field(
 ```
 
 **Environment-based defaults:**
-- **Test environment**: `claude-3-5-haiku-latest` (fast, cheap)
-- **Production environment**: `claude-3-5-sonnet-latest` (best quality)
+- **Test environment**: `claude-haiku-4-5` (Haiku 4.5 alias; fast, cheap)
+- **Production environment**: `claude-3-5-sonnet-20241022` (best quality; verify current Sonnet ids in Anthropic docs)
 
 ## Model Options and Pricing
 
 | Model | Input Cost | Output Cost | Context Window | Best For |
 | ----- | ---------- | ----------- | -------------- | -------- |
 | **claude-3-5-sonnet-20241022** | $3.00 / 1M tokens | $15.00 / 1M tokens | 200k tokens | **Production** (best quality) |
-| **claude-3-5-haiku-20241022** | $0.80 / 1M tokens | $4.00 / 1M tokens | 200k tokens | **Dev/Test** (fast, cheap) |
+| **claude-haiku-4-5** (alias) | $1.00 / 1M tokens | $5.00 / 1M tokens | 200k tokens | **Dev/Test** (current Haiku) |
+| **claude-3-5-haiku-20241022** | $0.80 / 1M tokens | $4.00 / 1M tokens | 200k tokens | Legacy 3.5 Haiku (deprecated) |
 | **claude-3-opus-20240229** | $15.00 / 1M tokens | $75.00 / 1M tokens | 200k tokens | Maximum quality (expensive) |
 | **claude-3-haiku-20240307** | $0.25 / 1M tokens | $1.25 / 1M tokens | 200k tokens | Legacy Haiku (cheapest) |
 
@@ -133,12 +134,12 @@ anthropic_summary_user_prompt: str = Field(
 
 | Environment | Speaker Model | Summary Model | Rationale |
 | ----------- | ------------- | ------------- | --------- |
-| **Dev/Test** | `claude-3-5-haiku-20241022` | `claude-3-5-haiku-20241022` | Fast iteration, low cost |
+| **Dev/Test** | `claude-haiku-4-5` | `claude-haiku-4-5` | Fast iteration, low cost |
 | **Production** | `claude-3-5-sonnet-20241022` | `claude-3-5-sonnet-20241022` | Best quality/cost balance |
 
 ### Cost Comparison: Anthropic vs OpenAI (Per 100 Episodes)
 
-| Component | OpenAI (gpt-4o-mini) | Anthropic (claude-3-5-haiku) | Anthropic (claude-3-5-sonnet) |
+| Component | OpenAI (gpt-4o-mini) | Anthropic (claude-haiku-4-5) | Anthropic (claude-3-5-sonnet) |
 | --------- | -------------------- | ---------------------------- | ----------------------------- |
 | **Speaker Detection** | $0.14 | $0.10 | $0.40 |
 | **Summarization** | $0.41 | $0.30 | $1.20 |

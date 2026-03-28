@@ -369,18 +369,18 @@ def _get_default_anthropic_cleaning_model() -> str:
     """Get default Anthropic cleaning model (cheaper than summary model).
 
     Returns:
-        'claude-3-haiku-20240307' (cheaper model for cleaning)
+        ``claude-haiku-4-5`` (Anthropic alias for Claude Haiku 4.5)
     """
-    return "claude-3-haiku-20240307"
+    return "claude-haiku-4-5"
 
 
 def _get_default_gemini_cleaning_model() -> str:
     """Get default Gemini cleaning model (cheaper than summary model).
 
     Returns:
-        'gemini-1.5-flash' (cheaper model for cleaning)
+        ``gemini-2.0-flash`` (``gemini-1.5-flash`` is not available on current Generative API)
     """
-    return "gemini-1.5-flash"
+    return "gemini-2.0-flash"
 
 
 def _get_default_mistral_cleaning_model() -> str:
@@ -888,7 +888,10 @@ class Config(BaseModel):
     gemini_cleaning_model: str = Field(
         default_factory=_get_default_gemini_cleaning_model,
         alias="gemini_cleaning_model",
-        description="Gemini model for transcript cleaning (default: gemini-1.5-flash, cheaper than summary model)",  # noqa: E501
+        description=(
+            "Gemini model for transcript cleaning "
+            "(default: gemini-2.0-flash, cheaper than summary model)"
+        ),
     )
     gemini_cleaning_temperature: float = Field(
         default=0.2,
@@ -965,7 +968,7 @@ class Config(BaseModel):
     anthropic_cleaning_model: str = Field(
         default_factory=_get_default_anthropic_cleaning_model,
         alias="anthropic_cleaning_model",
-        description="Anthropic model for transcript cleaning (default: claude-3-haiku-20240307, cheaper than summary model)",  # noqa: E501
+        description="Anthropic model for transcript cleaning (default: claude-haiku-4-5, cheaper than summary model)",  # noqa: E501
     )
     anthropic_cleaning_temperature: float = Field(
         default=0.2,
@@ -2284,6 +2287,14 @@ class Config(BaseModel):
         if invalid_chars:
             raise ValueError("metadata_subdirectory cannot contain control characters")
         return value
+
+    @field_validator("gemini_cleaning_model", mode="after")
+    @classmethod
+    def _migrate_legacy_gemini_cleaning_model(cls, v: str) -> str:
+        """Remap deprecated model IDs that 404 on current Generative API."""
+        if v == "gemini-1.5-flash":
+            return "gemini-2.0-flash"
+        return v
 
     @field_validator("openai_api_key", mode="before")
     @classmethod

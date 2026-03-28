@@ -48,6 +48,11 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+    GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
+)
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
 
@@ -1320,9 +1325,10 @@ class GeminiProvider:
                 # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.cleaning_temperature,
-                    "max_output_tokens": int(
-                        len(text.split()) * 0.85 * 1.3
-                    ),  # Rough token estimate
+                    "max_output_tokens": clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
+                    ),
                     "system_instruction": system_prompt,
                 }
 

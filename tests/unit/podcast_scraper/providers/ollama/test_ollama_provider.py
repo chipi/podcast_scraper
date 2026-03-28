@@ -33,6 +33,7 @@ _patch_ollama.start()
 from podcast_scraper import config
 from podcast_scraper.providers.ml import speaker_detection
 from podcast_scraper.providers.ollama.ollama_provider import (
+    _flatten_json_speaker_names,
     _ollama_native_api_root,
     OllamaProvider,
 )
@@ -65,6 +66,21 @@ class TestOllamaNativeApiRoot(unittest.TestCase):
             _ollama_native_api_root("http://127.0.0.1:51201/v1/"),
             "http://127.0.0.1:51201",
         )
+
+
+@pytest.mark.unit
+class TestFlattenJsonSpeakerNames(unittest.TestCase):
+    """Ollama JSON may nest speaker labels; flatten for set() and filtering."""
+
+    def test_nested_hosts(self) -> None:
+        self.assertEqual(
+            _flatten_json_speaker_names([["NPR"], "Jane"]),
+            ["NPR", "Jane"],
+        )
+
+    def test_empty(self) -> None:
+        self.assertEqual(_flatten_json_speaker_names([]), [])
+        self.assertEqual(_flatten_json_speaker_names(None), [])
 
 
 @pytest.mark.unit

@@ -32,16 +32,22 @@ logger = logging.getLogger(__name__)
 class InferenceBackend(Protocol):
     """Backend interface for REDUCE inference (instruction-tuned)."""
 
-    def initialize(self) -> None: ...
+    def initialize(self) -> None:
+        """Load models and prepare the backend for REDUCE inference."""
+        ...
 
     def reduce(
         self,
         notes: str,
         instruction: str,
         params: Optional[Dict[str, Any]] = None,
-    ) -> HybridReduceResult: ...
+    ) -> HybridReduceResult:
+        """Run instruction-tuned reduction on MAP-phase notes."""
+        ...
 
-    def cleanup(self) -> None: ...
+    def cleanup(self) -> None:
+        """Release resources held by the backend."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -68,6 +74,7 @@ class TransformersReduceBackend:
         self._pipeline: Any = None
 
     def initialize(self) -> None:
+        """Load tokenizer and seq2seq model; build the text2text-generation pipeline."""
         if self._pipeline is not None:
             return
 
@@ -181,6 +188,7 @@ class TransformersReduceBackend:
         instruction: str,
         params: Optional[Dict[str, Any]] = None,
     ) -> HybridReduceResult:
+        """Run seq2seq generation on instruction plus NOTES (MAP output)."""
         if self._pipeline is None:
             raise RuntimeError(
                 "TransformersReduceBackend not initialized. Call initialize() first."
@@ -208,6 +216,7 @@ class TransformersReduceBackend:
         )
 
     def cleanup(self) -> None:
+        """Drop the pipeline reference for garbage collection."""
         # Best-effort cleanup (avoid heavy torch imports if not needed)
         self._pipeline = None
 
@@ -221,6 +230,7 @@ class OllamaReduceBackend:
         self._provider: Optional[OllamaProvider] = None
 
     def initialize(self) -> None:
+        """Construct and initialize ``OllamaProvider`` for the configured reduce model."""
         if self._provider is not None:
             return
 
@@ -240,6 +250,7 @@ class OllamaReduceBackend:
         instruction: str,
         params: Optional[Dict[str, Any]] = None,
     ) -> HybridReduceResult:
+        """Call Ollama summarization with instruction as prompt and notes as text."""
         if self._provider is None:
             raise RuntimeError("OllamaReduceBackend not initialized. Call initialize() first.")
         user_params = dict(params or {})
@@ -261,6 +272,7 @@ class OllamaReduceBackend:
         )
 
     def cleanup(self) -> None:
+        """Release the Ollama provider instance."""
         if self._provider is not None:
             self._provider.cleanup()
         self._provider = None
@@ -279,6 +291,7 @@ class LlamaCppReduceBackend:
         self._llm: Any = None
 
     def initialize(self) -> None:
+        """Load the GGUF model via llama-cpp-python."""
         if self._llm is not None:
             return
         try:
@@ -301,6 +314,7 @@ class LlamaCppReduceBackend:
         instruction: str,
         params: Optional[Dict[str, Any]] = None,
     ) -> HybridReduceResult:
+        """Generate text from instruction and notes using the loaded Llama model."""
         if self._llm is None:
             raise RuntimeError("LlamaCppReduceBackend not initialized. Call initialize() first.")
         params = params or {}
@@ -322,6 +336,7 @@ class LlamaCppReduceBackend:
         )
 
     def cleanup(self) -> None:
+        """Drop the llama.cpp handle."""
         self._llm = None
 
 
@@ -333,9 +348,12 @@ class HybridMLProvider:
         self._initialized = False
         self._map_model: Optional[SummaryModel] = None
         self._reduce_backend: Optional[InferenceBackend] = None
+        # Issue #387: same attribute as MLProvider so metadata reconciliation reuses NER
+        self._spacy_nlp: Optional[Any] = None
         verify_protocol_compliance(self, SummarizationProvider, "SummarizationProvider")
 
     def initialize(self) -> None:
+        """Load the MAP model and construct and initialize the REDUCE backend."""
         if self._initialized:
             return
 
@@ -379,6 +397,14 @@ class HybridMLProvider:
             )
 
         self._reduce_backend.initialize()
+
+        self._spacy_nlp = None
+        if getattr(self.cfg, "auto_speakers", False):
+            from . import speaker_detection
+
+            logger.debug("Initializing spaCy NER for hybrid ML (reconciliation reuse)")
+            self._spacy_nlp = speaker_detection.get_ner_model(self.cfg)
+
         self._initialized = True
 
     def summarize(
@@ -390,6 +416,7 @@ class HybridMLProvider:
         pipeline_metrics: Any = None,
         call_metrics: Any = None,
     ) -> Dict[str, Any]:
+        """Chunk and summarize transcript (MAP), then instruction-tuned REDUCE to final summary."""
         if not self._initialized or self._map_model is None or self._reduce_backend is None:
             raise RuntimeError("HybridMLProvider not initialized. Call initialize() first.")
 
@@ -567,6 +594,8 @@ class HybridMLProvider:
             return 0.0
 
     def cleanup(self) -> None:
+        """Unload MAP weights and release the REDUCE backend."""
+        self._spacy_nlp = None
         if self._reduce_backend is not None:
             self._reduce_backend.cleanup()
         self._reduce_backend = None

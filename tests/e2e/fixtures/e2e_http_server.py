@@ -6,6 +6,7 @@ E2E tests to use real HTTP clients with local fixture data.
 
 Key Features:
 - Serves RSS feeds, audio files, and transcripts
+- GET and HEAD for static routes (HEAD avoids 404 when checking media size)
 - Supports HTTP range requests (206 Partial Content) for streaming
 - Path traversal protection
 - URL mapping for flat fixture structure
@@ -309,7 +310,18 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests with URL mapping."""
         path = self.path.split("?")[0]  # Remove query string
+        self._dispatch_http_get(path, head_only=False)
 
+    def do_HEAD(self):
+        """Handle HEAD requests (same routes as GET; no response body).
+
+        Downloader checks media size with HEAD; without this, fixture URLs 404.
+        """
+        path = self.path.split("?")[0]  # Remove query string
+        self._dispatch_http_get(path, head_only=True)
+
+    def _dispatch_http_get(self, path: str, head_only: bool) -> None:
+        """Handle GET or HEAD for RSS, static fixtures, and Ollama discovery routes."""
         # Check for error behavior first
         with self._error_behaviors_lock:
             error_behavior = self._error_behaviors.get(path)
@@ -373,7 +385,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 if file_path is None:
                     self.send_error(403, "Invalid RSS file path")
                     return
-                self._serve_file(file_path, content_type="application/xml")
+                self._serve_file(file_path, content_type="application/xml", head_only=head_only)
                 return
             self.send_error(404, "RSS feed not found")
             return
@@ -398,7 +410,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 # File doesn't exist (validation passed but file not found)
                 self.send_error(404, "File not found")
                 return
-            self._serve_file(file_path, content_type="audio/mpeg", support_range=True)
+            self._serve_file(
+                file_path,
+                content_type="audio/mpeg",
+                support_range=True,
+                head_only=head_only,
+            )
             return
 
         # Route 3: Direct flat URLs for transcripts
@@ -421,18 +438,18 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 # File doesn't exist (validation passed but file not found)
                 self.send_error(404, "File not found")
                 return
-            self._serve_file(file_path, content_type="text/plain")
+            self._serve_file(file_path, content_type="text/plain", head_only=head_only)
             return
 
         # Route 4: Ollama API endpoints (for health checks and model validation)
         # /api/version -> Ollama health check
         if path == "/api/version":
-            self._handle_ollama_version()
+            self._handle_ollama_version(head_only=head_only)
             return
 
         # /api/tags -> Ollama model list (for model validation)
         if path == "/api/tags":
-            self._handle_ollama_tags()
+            self._handle_ollama_tags(head_only=head_only)
             return
 
         # 404 for all other paths
@@ -479,6 +496,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # /v1beta/models/{model}:generateContent -> Mock Gemini generateContent
         if path.startswith("/v1beta/models/") and path.endswith(":generateContent"):
             self._handle_gemini_generate_content()
+            return
+
+        # Ollama native: POST /api/generate (warmup / wait_until_ready in OllamaProvider)
+        if path == "/api/generate":
+            self._handle_ollama_generate()
             return
 
         # 404 for all other paths
@@ -691,7 +713,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except Exception as e:
             self.send_error(500, f"Error handling audio transcriptions: {e}")
 
-    def _handle_ollama_version(self):
+    def _handle_ollama_version(self, head_only: bool = False):
         """Handle Ollama version API requests (health check).
 
         Ollama uses GET /api/version to check if the server is running.
@@ -706,12 +728,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(response_json)))
             self.end_headers()
-            self.wfile.write(response_json.encode("utf-8"))
+            if not head_only:
+                self.wfile.write(response_json.encode("utf-8"))
 
         except Exception as e:
             self.send_error(500, f"Error handling Ollama version: {e}")
 
-    def _handle_ollama_tags(self):
+    def _handle_ollama_tags(self, head_only: bool = False):
         """Handle Ollama tags API requests (model list).
 
         Ollama uses GET /api/tags to list available models.
@@ -741,10 +764,50 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(response_json)))
             self.end_headers()
-            self.wfile.write(response_json.encode("utf-8"))
+            if not head_only:
+                self.wfile.write(response_json.encode("utf-8"))
 
         except Exception as e:
             self.send_error(500, f"Error handling Ollama tags: {e}")
+
+    def _handle_ollama_generate(self) -> None:
+        """Handle Ollama native POST /api/generate (model warm-up ping).
+
+        OllamaProvider.warmup posts JSON: model, prompt, stream, options.
+        The E2E mock must return 200 so warm-up does not log 404 warnings.
+        """
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length == 0:
+                self.send_error(400, "Request body required")
+                return
+
+            body = self.rfile.read(content_length)
+            request_data = json.loads(body.decode("utf-8"))
+            model_name = request_data.get("model", "unknown")
+
+            # Minimal Ollama-style response (client only checks HTTP 200)
+            payload = {
+                "model": model_name,
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "response": "ok",
+                "done": True,
+                "context": [],
+                "total_duration": 1,
+                "load_duration": 1,
+                "prompt_eval_count": 1,
+                "eval_count": 1,
+            }
+            response_json = json.dumps(payload)
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(response_json)))
+            self.end_headers()
+            self.wfile.write(response_json.encode("utf-8"))
+
+        except Exception as e:
+            self.send_error(500, f"Error handling Ollama generate: {e}")
 
     def _handle_anthropic_messages(self):
         """Handle Anthropic messages API requests.
@@ -799,7 +862,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "type": "message",
                     "role": "assistant",
                     "content": [{"type": "text", "text": json.dumps({"quote_text": mock_quote})}],
-                    "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                    "model": request_data.get("model", "claude-haiku-4-5"),
                     "stop_reason": "end_turn",
                     "stop_sequence": None,
                     "usage": {"input_tokens": 80, "output_tokens": 20},
@@ -811,7 +874,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "type": "message",
                     "role": "assistant",
                     "content": [{"type": "text", "text": "0.85"}],
-                    "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                    "model": request_data.get("model", "claude-haiku-4-5"),
                     "stop_reason": "end_turn",
                     "stop_sequence": None,
                     "usage": {"input_tokens": 60, "output_tokens": 2},
@@ -843,7 +906,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                                 ),
                             }
                         ],
-                        "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                        "model": request_data.get("model", "claude-haiku-4-5"),
                         "stop_reason": "end_turn",
                         "stop_sequence": None,
                         "usage": {
@@ -863,7 +926,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         "type": "message",
                         "role": "assistant",
                         "content": [{"type": "text", "text": summary}],
-                        "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                        "model": request_data.get("model", "claude-haiku-4-5"),
                         "stop_reason": "end_turn",
                         "stop_sequence": None,
                         "usage": {
@@ -1440,13 +1503,20 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         except (OSError, RuntimeError, ValueError, AttributeError):
             return None
 
-    def _serve_file(self, file_path: Path, content_type: str, support_range: bool = False):
+    def _serve_file(
+        self,
+        file_path: Path,
+        content_type: str,
+        support_range: bool = False,
+        head_only: bool = False,
+    ):
         """Serve a file with proper headers and range request support.
 
         Args:
             file_path: Path to file to serve (must be validated and within fixture root)
             content_type: Content-Type header value
             support_range: Whether to support HTTP range requests (206 Partial Content)
+            head_only: If True, send headers only (HTTP HEAD)
         """
         # Validate file_path is within fixture root (defense in depth)
         # Even though file_path comes from validated helper methods, we verify here
@@ -1527,6 +1597,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_header("Accept-Ranges", "bytes")
                     self.end_headers()
 
+                    if head_only:
+                        return
+
                     # Send partial content
                     # validated_path is safe: normalized and verified using string comparison
                     # All validation checks passed above, safe to open
@@ -1551,6 +1624,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             if support_range:
                 self.send_header("Accept-Ranges", "bytes")
             self.end_headers()
+
+            if head_only:
+                return
 
             # validated_path is safe: normalized and verified using string comparison
             # All validation checks passed above, safe to open

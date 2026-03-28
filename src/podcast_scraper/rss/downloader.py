@@ -1,4 +1,10 @@
-"""HTTP session management and download helpers for podcast_scraper."""
+"""HTTP session management and download helpers for podcast_scraper.
+
+RSS feed fetches use :func:`fetch_rss_feed_url`, which applies a dedicated urllib3
+``Retry`` policy (more attempts and gentler exponential backoff than generic
+:func:`fetch_url`) for flaky feed hosts. Transcripts and episode media still use
+:func:`fetch_url` / :func:`http_download_to_file`.
+"""
 
 from __future__ import annotations
 
@@ -58,9 +64,13 @@ BYTES_PER_MB = 1024 * 1024
 OPENAI_MAX_FILE_SIZE_BYTES = 25 * BYTES_PER_MB
 DEFAULT_HTTP_BACKOFF_FACTOR = 0.5
 DEFAULT_HTTP_RETRY_TOTAL = 5
+# RSS feed XML: more attempts + slower backoff to reduce load on rate-limited hosts
+RSS_FEED_HTTP_RETRY_TOTAL = 7
+RSS_FEED_HTTP_BACKOFF_FACTOR = 1.0
 DOWNLOAD_CHUNK_SIZE = 1024 * 256
 HTTP_RETRY_ALLOWED_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
-HTTP_RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
+# 408: some CDNs return this under load; 429/5xx: retry with backoff
+HTTP_RETRY_STATUS_CODES = (408, 429, 500, 502, 503, 504)
 
 _THREAD_LOCAL = threading.local()
 _SESSION_REGISTRY: List[requests.Session] = []
@@ -85,8 +95,12 @@ def normalize_url(url: str) -> str:
     return cast(str, normalized)
 
 
-def _configure_http_session(session: requests.Session) -> None:
-    """Attach retry-enabled HTTP adapters to a session."""
+def _create_logging_retry(
+    total: int,
+    backoff_factor: float,
+    status_forcelist: Tuple[int, ...],
+) -> Retry:
+    """Build urllib3 Retry with WARNING logs on each urllib3 retry attempt."""
 
     class LoggingRetry(Retry):
         def increment(self, method=None, url=None, *args, **kwargs):  # type: ignore[override]
@@ -99,20 +113,44 @@ def _configure_http_session(session: requests.Session) -> None:
             )
             return new_retry
 
-    retry = LoggingRetry(
-        total=DEFAULT_HTTP_RETRY_TOTAL,
-        read=DEFAULT_HTTP_RETRY_TOTAL,
-        connect=DEFAULT_HTTP_RETRY_TOTAL,
-        status=DEFAULT_HTTP_RETRY_TOTAL,
-        backoff_factor=DEFAULT_HTTP_BACKOFF_FACTOR,
-        status_forcelist=HTTP_RETRY_STATUS_CODES,
+    return LoggingRetry(
+        total=total,
+        read=total,
+        connect=total,
+        status=total,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
         allowed_methods=HTTP_RETRY_ALLOWED_METHODS,
         raise_on_status=False,
+    )
+
+
+def _configure_http_session(session: requests.Session) -> None:
+    """Attach retry-enabled HTTP adapters (default policy for media/transcripts)."""
+    retry = _create_logging_retry(
+        DEFAULT_HTTP_RETRY_TOTAL,
+        DEFAULT_HTTP_BACKOFF_FACTOR,
+        HTTP_RETRY_STATUS_CODES,
     )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     logger.debug("Configured HTTP session %s with retry-enabled adapters", hex(id(session)))
+
+
+def _configure_rss_feed_http_session(session: requests.Session) -> None:
+    """Attach retry/backoff policy tuned for RSS feed XML fetches."""
+    retry = _create_logging_retry(
+        RSS_FEED_HTTP_RETRY_TOTAL,
+        RSS_FEED_HTTP_BACKOFF_FACTOR,
+        HTTP_RETRY_STATUS_CODES,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    logger.debug(
+        "Configured RSS feed HTTP session %s with retry-enabled adapters", hex(id(session))
+    )
 
 
 def _get_thread_request_session() -> requests.Session:
@@ -132,6 +170,23 @@ def _get_thread_request_session() -> requests.Session:
     return session
 
 
+def _get_thread_feed_request_session() -> requests.Session:
+    """Thread-local session for RSS feed XML (stronger retries/backoff than generic fetch)."""
+    _suppress_urllib3_debug_logs()
+
+    session = getattr(_THREAD_LOCAL, "feed_session", None)
+    if session is None:
+        session = requests.Session()
+        _configure_rss_feed_http_session(session)
+        setattr(_THREAD_LOCAL, "feed_session", session)
+        with _SESSION_REGISTRY_LOCK:
+            _SESSION_REGISTRY.append(session)
+        logger.debug("Created new thread-local RSS feed HTTP session %s", hex(id(session)))
+    else:
+        logger.debug("Reusing thread-local RSS feed HTTP session %s", hex(id(session)))
+    return session
+
+
 def _close_all_sessions() -> None:
     with _SESSION_REGISTRY_LOCK:
         for session in _SESSION_REGISTRY:
@@ -141,27 +196,37 @@ def _close_all_sessions() -> None:
             except Exception:  # pragma: no cover  # nosec B110
                 pass
         _SESSION_REGISTRY.clear()
+    for attr in ("session", "feed_session"):
+        try:
+            delattr(_THREAD_LOCAL, attr)
+        except AttributeError:
+            pass
 
 
 atexit.register(_close_all_sessions)
 
 
 def _open_http_request(
-    url: str, user_agent: str, timeout: int, *, stream: bool = False
+    url: str,
+    user_agent: str,
+    timeout: int,
+    *,
+    stream: bool = False,
+    session: Optional[requests.Session] = None,
 ) -> Optional[requests.Response]:
     """Execute an HTTP GET request and return the response if successful."""
     normalized_url = normalize_url(url)
     headers = {"User-Agent": user_agent}
     try:
-        session = _get_thread_request_session()
+        sess = session if session is not None else _get_thread_request_session()
         logger.debug(
             "Opening HTTP connection to %s (timeout=%s, stream=%s) via session %s",
             normalized_url,
             timeout,
             stream,
-            hex(id(session)),
+            hex(id(sess)),
         )
-        resp = session.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
+        resp = sess.get(normalized_url, headers=headers, timeout=timeout, stream=stream)
         resp.raise_for_status()
         logger.debug(
             "HTTP request to %s succeeded with status %s and Content-Length=%s",
@@ -216,9 +281,23 @@ def http_head(url: str, user_agent: str, timeout: int) -> Optional[requests.Resp
 def fetch_url(
     url: str, user_agent: str, timeout: int, *, stream: bool = False
 ) -> Optional[requests.Response]:
-    """Public wrapper around the retry-enabled HTTP GET logic."""
+    """HTTP GET with default retry/backoff (transcripts, episode media, generic fetches)."""
 
     return _open_http_request(url, user_agent, timeout, stream=stream)
+
+
+def fetch_rss_feed_url(
+    url: str, user_agent: str, timeout: int, *, stream: bool = False
+) -> Optional[requests.Response]:
+    """HTTP GET for RSS feed XML with RSS-tuned urllib3 retries and exponential backoff."""
+
+    return _open_http_request(
+        url,
+        user_agent,
+        timeout,
+        stream=stream,
+        session=_get_thread_feed_request_session(),
+    )
 
 
 def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], Optional[str]]:

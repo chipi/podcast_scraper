@@ -525,3 +525,22 @@ class TestSetupProcessingResources(unittest.TestCase):
 
         # Should have lock even with workers=1 if parallelism > 1
         self.assertIsNotNone(result.processing_jobs_lock)
+
+
+@pytest.mark.unit
+class TestFlattenSpeakerNameEntries(unittest.TestCase):
+    """Tests for speaker name normalization used in host filtering."""
+
+    def test_flatten_nested_strings(self) -> None:
+        """Nested lists are flattened to strings."""
+        out = processing._flatten_speaker_name_entries(["a", ["b", "c"]])
+        self.assertEqual(out, ["a", "b", "c"])
+
+    def test_empty_and_whitespace(self) -> None:
+        """Empty strings skipped."""
+        self.assertEqual(processing._flatten_speaker_name_entries(["  ", "x"]), ["x"])
+
+    def test_speaker_names_to_str_set(self) -> None:
+        """Set membership works with mixed nesting."""
+        s = processing._speaker_names_to_str_set([["Host"], "Guest"])
+        self.assertEqual(s, {"Host", "Guest"})

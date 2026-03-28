@@ -18,6 +18,23 @@ from ... import config, config_constants
 
 logger = logging.getLogger(__name__)
 
+
+def _ensure_spacy_sentence_boundaries(nlp: Any) -> None:
+    """Ensure ``doc.sents`` works for downstream code (metadata auto-repair, reconciliation).
+
+    NER-only loads disable the dependency parser; without parser or ``sentencizer``,
+    iterating ``doc.sents`` raises spaCy E030 (sentence boundaries unset).
+    """
+    if "parser" in nlp.pipe_names or "senter" in nlp.pipe_names:
+        return
+    if "sentencizer" in nlp.pipe_names:
+        return
+    try:
+        nlp.add_pipe("sentencizer")
+    except (ValueError, TypeError) as exc:
+        logger.debug("Could not add sentencizer to spaCy pipeline: %s", exc)
+
+
 # Default speaker names when detection fails (Issue #428: use typed placeholder, not "Guest")
 # "Guest" must not appear in detected_guests/detected_hosts to avoid contaminating analytics.
 DEFAULT_SPEAKER_NAMES = ["Host", "unknown_guest_1"]
@@ -263,6 +280,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
             )
             nlp = spacy.load(model_name)
             logger.info("Loaded spaCy model (full pipeline): %s", model_name)
+        _ensure_spacy_sentence_boundaries(nlp)
         return nlp
     except OSError:
         logger.debug("spaCy model '%s' not found locally, attempting to download...", model_name)
@@ -285,6 +303,7 @@ def _load_spacy_model(model_name: str) -> Optional[Any]:
                 # Fall back to full pipeline if component disabling not supported
                 nlp = spacy.load(model_name)
                 logger.info("Loaded spaCy model (full pipeline) after download: %s", model_name)
+            _ensure_spacy_sentence_boundaries(nlp)
             return nlp
         except subprocess.CalledProcessError as exc:
             logger.error(

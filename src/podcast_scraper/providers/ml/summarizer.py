@@ -1526,6 +1526,13 @@ class SummaryModel:
                     message=r".*no maximum length.*Default to no truncation.*",
                     category=UserWarning,
                 )
+                # transformers: "Both max_new_tokens and max_length are set" when generation
+                # config still carries defaults alongside explicit kwargs
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r".*Both.*max_new_tokens.*max_length.*",
+                    category=UserWarning,
+                )
                 # Serialize pipeline calls to prevent tokenizer "Already borrowed" errors
                 # when multiple episodes process concurrently
                 with self._summarize_lock:

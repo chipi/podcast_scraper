@@ -252,11 +252,11 @@ docstrings:
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@$(PYTHON) -m codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" 2>/dev/null || $(shell dirname $(PYTHON))/codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+	@$(PYTHON) -m codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
-	@$(PYTHON) -m codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" 2>/dev/null || $(shell dirname $(PYTHON))/codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+	@$(PYTHON) -m codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
 
 quality: complexity deadcode docstrings spelling
 	@echo ""
@@ -271,7 +271,7 @@ quality: complexity deadcode docstrings spelling
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	pip-audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994
 
 docs:
 	$(PYTHON) -m mkdocs build --strict

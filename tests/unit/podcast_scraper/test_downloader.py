@@ -105,6 +105,21 @@ class TestHTTPSessionConfiguration(unittest.TestCase):
         finally:
             session.close()
 
+    def test_configure_rss_feed_http_session_mounts_retry_adapters(self):
+        """RSS feed session uses stronger retry total/backoff than default."""
+        session = requests.Session()
+        try:
+            downloader._configure_rss_feed_http_session(session)
+            https_adapter = session.get_adapter("https://")
+            https_retry = https_adapter.max_retries
+            self.assertEqual(https_retry.total, downloader.RSS_FEED_HTTP_RETRY_TOTAL)
+            self.assertEqual(https_retry.backoff_factor, downloader.RSS_FEED_HTTP_BACKOFF_FACTOR)
+            self.assertEqual(
+                set(https_retry.status_forcelist), set(downloader.HTTP_RETRY_STATUS_CODES)
+            )
+        finally:
+            session.close()
+
 
 class TestNormalizeURL(unittest.TestCase):
     """Tests for normalize_url function."""
@@ -334,6 +349,24 @@ class TestOpenHTTPRequest(unittest.TestCase):
 
         self.assertEqual(result, mock_response)
         mock_open.assert_called_once_with("https://example.com", "test-agent", 10, stream=True)
+
+    @patch("podcast_scraper.rss.downloader._open_http_request")
+    @patch("podcast_scraper.rss.downloader._get_thread_feed_request_session")
+    def test_fetch_rss_feed_url_uses_feed_session(self, mock_feed_session, mock_open):
+        """fetch_rss_feed_url passes the RSS feed thread-local session to _open_http_request."""
+        mock_sess = Mock(spec=requests.Session)
+        mock_feed_session.return_value = mock_sess
+        mock_open.return_value = Mock()
+
+        downloader.fetch_rss_feed_url("https://example.com/feed.xml", "ua", 15, stream=False)
+
+        mock_open.assert_called_once_with(
+            "https://example.com/feed.xml",
+            "ua",
+            15,
+            stream=False,
+            session=mock_sess,
+        )
 
 
 class TestHTTPGet(unittest.TestCase):

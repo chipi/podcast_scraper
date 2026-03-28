@@ -46,10 +46,32 @@ except ImportError:
 from ... import config
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+    OLLAMA_CLEANING_MAX_TOKENS,
+)
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
+
+
+def _flatten_json_speaker_names(value: Any) -> List[str]:
+    """Flatten nested JSON name lists from Ollama JSON speaker responses."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        t = value.strip()
+        return [t] if t else []
+    if isinstance(value, (list, tuple)):
+        out: List[str] = []
+        for v in value:
+            out.extend(_flatten_json_speaker_names(v))
+        return out
+    t = str(value).strip()
+    return [t] if t else []
+
 
 # Default speaker names when detection fails
 from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
@@ -851,10 +873,14 @@ class OllamaProvider:
         try:
             data = json.loads(response_text)
             if isinstance(data, dict):
-                speakers = data.get("speakers", [])
-                hosts = set(data.get("hosts", []))
-                guests = data.get("guests", [])
-                all_speakers = list(hosts) + guests if not speakers else speakers
+                speakers_raw = data.get("speakers", [])
+                hosts_flat = _flatten_json_speaker_names(data.get("hosts", []))
+                hosts = set(hosts_flat)
+                guests_flat = _flatten_json_speaker_names(data.get("guests", []))
+                if speakers_raw:
+                    all_speakers = _flatten_json_speaker_names(speakers_raw)
+                else:
+                    all_speakers = list(hosts) + guests_flat
                 return all_speakers, hosts, True
         except json.JSONDecodeError:
             if response_text.strip().startswith("{"):
@@ -1213,7 +1239,10 @@ class OllamaProvider:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.cleaning_temperature,
-                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                    max_tokens=clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        OLLAMA_CLEANING_MAX_TOKENS,
+                    ),
                 )
 
             try:

@@ -112,7 +112,10 @@ class TestRSSParsingToEpisodeWorkflow(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Step 1: Fetch and parse RSS (real RSS parser)
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
@@ -162,7 +165,10 @@ class TestRSSParsingToEpisodeWorkflow(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Parse RSS
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
@@ -305,7 +311,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Step 1: Fetch and parse RSS (real RSS parser)
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
@@ -415,7 +424,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
 
         # Mock only HTTP (external dependency), use real Whisper
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Step 1: Fetch and parse RSS (real RSS parser)
             feed = rss_parser.fetch_and_parse_rss(self.cfg)
 
@@ -591,7 +603,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         transcription_jobs = queue.Queue()
 
         # Mock only HTTP (external dependency), use real Whisper
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Step 1: Process episode download - should download audio and create transcription job
             success, transcript_path, transcript_source, bytes_downloaded = (
                 episode_processor.process_episode_download(
@@ -735,7 +750,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         )
 
         # Mock only HTTP (external dependency), use real Whisper and spaCy
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Step 1: Fetch and parse RSS
             feed = rss_parser.fetch_and_parse_rss(cfg)
             episodes = [
@@ -967,7 +985,10 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
                 )
 
         # Mock only HTTP (external dependency), use real ML models
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Step 1: Fetch and parse RSS
             feed = rss_parser.fetch_and_parse_rss(cfg)
             episodes = [
@@ -1145,12 +1166,14 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
     @pytest.mark.critical_path
     @pytest.mark.openai
     @patch("podcast_scraper.downloader.fetch_url")
+    @patch("podcast_scraper.downloader.fetch_rss_feed_url")
     @patch("openai.OpenAI")
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_full_workflow_with_openai_providers(
         self,
         mock_render_prompt,
         mock_openai_class,
+        mock_fetch_rss_feed_url,
         mock_fetch_url,
     ):
         """Test critical path (Full Workflow) with OpenAI providers: RSS → Parse → Download/Transcribe → OpenAI Speaker Detection → OpenAI Summarization → Metadata → Files.
@@ -1197,6 +1220,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         http_mock = self._mock_http_map(responses)
         mock_fetch_url.side_effect = http_mock
+        mock_fetch_rss_feed_url.side_effect = http_mock
 
         cfg = create_test_config(
             output_dir=self.temp_dir,
@@ -1633,6 +1657,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Mock Whisper
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
             patch(
                 "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper,
@@ -1809,6 +1834,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
         # Mock Whisper transcription failure
         with (
             patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
             patch(
                 "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper,
@@ -1993,7 +2019,10 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
         http_mock = self._mock_http_map(responses)
 
         # Mock only HTTP (external dependency), use real ML models
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
 
             # Step 1: Fetch and parse RSS (real RSS parser)
             feed = rss_parser.fetch_and_parse_rss(self.cfg)

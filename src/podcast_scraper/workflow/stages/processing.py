@@ -11,7 +11,7 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from typing import Any, cast, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from ... import config, models
 
@@ -72,6 +72,38 @@ from ..types import (
 from . import metadata as metadata_stage
 
 logger = logging.getLogger(__name__)
+
+
+def _flatten_speaker_name_entries(value: Any) -> List[str]:
+    """Normalize speaker-detector output to flat, non-empty strings.
+
+    LLM JSON occasionally nests names (e.g. ``[\"A\", \"B\"]`` or mixed lists);
+    those values are not hashable and must not be used in ``set`` membership
+    checks without flattening.
+    """
+    if value is None:
+        return []
+    if isinstance(value, str):
+        t = value.strip()
+        return [t] if t else []
+    if isinstance(value, (list, tuple)):
+        out: List[str] = []
+        for v in value:
+            out.extend(_flatten_speaker_name_entries(v))
+        return out
+    t = str(value).strip()
+    return [t] if t else []
+
+
+def _speaker_names_to_str_set(members: Any) -> Set[str]:
+    """Build a string set from iterable of possibly nested speaker/host labels."""
+    out: Set[str] = set()
+    if members is None:
+        return out
+    for item in members:
+        for s in _flatten_speaker_name_entries(item):
+            out.add(s)
+    return out
 
 
 def _handle_dry_run_host_detection(
@@ -576,7 +608,11 @@ def _detect_speakers_for_episode(
     ):
         return cfg.screenplay_speaker_names[1:]
     if detection_succeeded:
-        return [s for s in detected_speakers if s not in detected_hosts_set]
+        flat_speakers: List[str] = []
+        for entry in detected_speakers or []:
+            flat_speakers.extend(_flatten_speaker_name_entries(entry))
+        host_strings = _speaker_names_to_str_set(detected_hosts_set)
+        return [name for name in flat_speakers if name not in host_strings]
     return None
 
 

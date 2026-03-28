@@ -9,6 +9,7 @@ This module provides:
 from .downloader import (
     BYTES_PER_MB,
     DOWNLOAD_CHUNK_SIZE,
+    fetch_rss_feed_url,
     fetch_url,
     http_download_to_file,
     http_get,
@@ -35,6 +36,7 @@ __all__ = [
     "BYTES_PER_MB",
     "DOWNLOAD_CHUNK_SIZE",
     "OPENAI_MAX_FILE_SIZE_BYTES",
+    "fetch_rss_feed_url",
     "fetch_url",
     "http_download_to_file",
     "http_get",

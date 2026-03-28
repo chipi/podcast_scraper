@@ -229,7 +229,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # gemini_cleaning_max_tokens: null
 # gemini_cleaning_llm_threshold: 0.10
 
-# anthropic_cleaning_model: claude-3-5-haiku-latest  # Default: claude-3-5-haiku-latest (cheaper)
+# anthropic_cleaning_model: claude-haiku-4-5  # Default: claude-haiku-4-5 (cheaper)
 # anthropic_cleaning_temperature: 0.2
 # anthropic_cleaning_max_tokens: null
 # anthropic_cleaning_llm_threshold: 0.10

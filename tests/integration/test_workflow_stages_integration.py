@@ -7,6 +7,7 @@ and mocked external dependencies (HTTP, ML models).
 
 import os
 import queue
+import shutil
 import sys
 import tempfile
 import unittest
@@ -20,6 +21,7 @@ PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
+from podcast_scraper.rss import feed_cache
 from podcast_scraper.workflow.helpers import (
     cleanup_pipeline,
     generate_pipeline_summary,
@@ -279,7 +281,7 @@ class TestScrapingStage(unittest.TestCase):
         """Set up test fixtures."""
         self.cfg = create_test_config()
 
-    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.fetch_rss_feed_url")
     @patch("podcast_scraper.rss.parser.parse_rss_items")
     def test_fetch_and_parse_feed_success(self, mock_parse, mock_fetch):
         """Test fetch_and_parse_feed successfully fetches and parses feed."""
@@ -303,7 +305,30 @@ class TestScrapingStage(unittest.TestCase):
         # The function will fail if parse_rss_items isn't called, so we just check the result
         self.assertEqual(feed.title, "Test Feed")
 
-    @patch("podcast_scraper.downloader.fetch_url")
+    def test_fetch_and_parse_feed_skips_http_when_disk_cache_hits(self):
+        """Pre-seeded RSS XML under PODCAST_SCRAPER_RSS_CACHE_DIR avoids fetch_rss_feed_url."""
+        tmp = tempfile.mkdtemp()
+        try:
+            rss_url = "https://example.com/feed.xml"
+            rss_bytes = b"<rss><channel><title>Cached Only</title></channel></rss>"
+            base = Path(tmp).resolve()
+            os.environ[feed_cache.ENV_RSS_CACHE_DIR] = str(base)
+            cache_path = feed_cache.cache_path_for_url(base, rss_url)
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_bytes(rss_bytes)
+
+            cfg = create_test_config(rss_url=rss_url)
+            with patch("podcast_scraper.rss.downloader.fetch_rss_feed_url") as mock_fetch:
+                feed, out_bytes = scraping.fetch_and_parse_feed(cfg)
+                mock_fetch.assert_not_called()
+
+            self.assertEqual(feed.title, "Cached Only")
+            self.assertEqual(out_bytes, rss_bytes)
+        finally:
+            os.environ.pop(feed_cache.ENV_RSS_CACHE_DIR, None)
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    @patch("podcast_scraper.downloader.fetch_rss_feed_url")
     def test_fetch_and_parse_feed_failure(self, mock_fetch):
         """Test fetch_and_parse_feed raises ValueError on fetch failure."""
         mock_fetch.return_value = None

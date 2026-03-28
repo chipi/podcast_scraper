@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 import threading
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from .. import config
 from . import metrics
@@ -366,47 +366,40 @@ def _get_provider_pricing(
     return {}
 
 
-def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Metrics) -> List[str]:
-    """Generate summary of LLM API calls and estimated costs.
-
-    This is a shared utility function that handles cost summaries for ALL LLM providers
-    (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama). It checks which provider
-    was configured and generates the appropriate cost summary for that provider.
+def _llm_cost_summary_lines_and_total(
+    cfg: config.Config,
+    metrics_dict: Dict[str, Any],
+) -> Tuple[List[str], float]:
+    """Build LLM cost summary lines and total USD (same rules as pipeline end summary).
 
     Args:
-        cfg: Configuration object to check which providers were used
-        pipeline_metrics: Metrics object with LLM call tracking data
+        cfg: Active configuration (determines which providers are billable LLMs).
+        metrics_dict: Output of ``Metrics.finish()`` for the run.
 
     Returns:
-        List of summary lines, or empty list if no LLM calls were made
+        (summary_lines, total_estimated_cost_usd). Total excludes non-billable stages.
     """
     summary_lines: List[str] = []
-    metrics_dict = pipeline_metrics.finish()
 
-    # Determine which LLM providers are configured (generic approach)
     llm_transcription_provider = cfg.transcription_provider
     llm_speaker_provider = cfg.speaker_detector_provider
     llm_summarization_provider = cfg.summary_provider
 
-    # Supported LLM providers for each capability
     llm_providers = {"openai", "gemini", "mistral", "anthropic", "deepseek", "grok", "ollama"}
 
-    # Check if any LLM provider was used
     uses_llm_transcription = llm_transcription_provider in llm_providers
     uses_llm_speaker = llm_speaker_provider in llm_providers
     uses_llm_summarization = llm_summarization_provider in llm_providers
 
     if not (uses_llm_transcription or uses_llm_speaker or uses_llm_summarization):
-        return summary_lines
+        return summary_lines, 0.0
 
     total_cost = 0.0
 
-    # Transcription calls
     if uses_llm_transcription:
         transcription_calls = metrics_dict.get("llm_transcription_calls", 0)
         audio_minutes = metrics_dict.get("llm_transcription_audio_minutes", 0.0)
         if transcription_calls > 0:
-            # Get model and default based on provider
             model_attr = f"{llm_transcription_provider}_transcription_model"
             default_models = {
                 "openai": "whisper-1",
@@ -424,7 +417,6 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"(model: {model})"
                 )
     else:
-        # Show that transcription was done with ML (free) to make cost savings clear
         transcripts_transcribed = metrics_dict.get("transcripts_transcribed", 0)
         if transcripts_transcribed > 0:
             transcription_provider = getattr(cfg, "transcription_provider", "whisper")
@@ -433,13 +425,11 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                 f"(provider: {transcription_provider}, local processing)"
             )
 
-    # Speaker detection calls
     if uses_llm_speaker:
         speaker_calls = metrics_dict.get("llm_speaker_detection_calls", 0)
         speaker_input_tokens = metrics_dict.get("llm_speaker_detection_input_tokens", 0)
         speaker_output_tokens = metrics_dict.get("llm_speaker_detection_output_tokens", 0)
         if speaker_calls > 0:
-            # Get model and default based on provider
             model_attr = f"{llm_speaker_provider}_speaker_model"
             default_models = {
                 "openai": "gpt-4o-mini",
@@ -467,7 +457,6 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"${speaker_cost:.4f} (model: {model})"
                 )
     else:
-        # Show that speaker detection was done with ML (free) to make cost savings clear
         extract_names_count = metrics_dict.get("extract_names_count", 0)
         if extract_names_count > 0:
             speaker_provider = getattr(cfg, "speaker_detector_provider", "spacy")
@@ -476,13 +465,11 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                 f"(provider: {speaker_provider}, local processing)"
             )
 
-    # Summarization calls
     if uses_llm_summarization:
         summary_calls = metrics_dict.get("llm_summarization_calls", 0)
         summary_input_tokens = metrics_dict.get("llm_summarization_input_tokens", 0)
         summary_output_tokens = metrics_dict.get("llm_summarization_output_tokens", 0)
         if summary_calls > 0:
-            # Get model and default based on provider
             model_attr = f"{llm_summarization_provider}_summary_model"
             default_models = {
                 "openai": "gpt-4o-mini",
@@ -510,7 +497,6 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                     f"${summary_cost:.4f} (model: {model})"
                 )
     else:
-        # Show that summarization was done with ML (free) to make cost savings clear
         episodes_summarized = metrics_dict.get("episodes_summarized", 0)
         if episodes_summarized > 0:
             summary_provider = getattr(cfg, "summary_provider", "transformers")
@@ -519,11 +505,48 @@ def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Met
                 f"(provider: {summary_provider}, local processing)"
             )
 
-    # Add total cost if any calls were made
     if total_cost > 0:
         summary_lines.append(f"  - Total estimated cost: ${total_cost:.4f}")
 
-    return summary_lines
+    return summary_lines, total_cost
+
+
+def estimated_llm_cost_usd_from_metrics_dict(
+    cfg: config.Config,
+    metrics_dict: Dict[str, Any],
+) -> Optional[float]:
+    """Total estimated LLM API spend in USD from a ``metrics.finish()`` dict.
+
+    Uses the same pricing rules as the pipeline's LLM cost summary. Returns ``None``
+    when there is no billable LLM usage (all local/ML or zero tokens/audio).
+
+    Args:
+        cfg: Configuration for the run.
+        metrics_dict: Serialized metrics (e.g. from ``metrics.json``).
+
+    Returns:
+        Estimated total in USD, or ``None`` if not applicable.
+    """
+    _, total = _llm_cost_summary_lines_and_total(cfg, metrics_dict)
+    return total if total > 0 else None
+
+
+def _generate_llm_call_summary(cfg: config.Config, pipeline_metrics: metrics.Metrics) -> List[str]:
+    """Generate summary of LLM API calls and estimated costs.
+
+    This is a shared utility function that handles cost summaries for ALL LLM providers
+    (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama). It checks which provider
+    was configured and generates the appropriate cost summary for that provider.
+
+    Args:
+        cfg: Configuration object to check which providers were used
+        pipeline_metrics: Metrics object with LLM call tracking data
+
+    Returns:
+        List of summary lines, or empty list if no LLM calls were made
+    """
+    lines, _ = _llm_cost_summary_lines_and_total(cfg, pipeline_metrics.finish())
+    return lines
 
 
 def _generate_dry_run_cost_projection(

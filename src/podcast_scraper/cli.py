@@ -543,7 +543,7 @@ def _add_gemini_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Gemini model for transcript cleaning "
-            "(default: gemini-1.5-flash, cheaper than summary model)"
+            "(default: gemini-2.0-flash; legacy gemini-1.5-flash is remapped)"
         ),
     )
     parser.add_argument(
@@ -576,13 +576,13 @@ def _add_anthropic_arguments(parser: argparse.ArgumentParser) -> None:
         "--anthropic-speaker-model",
         type=str,
         default=None,
-        help="Anthropic model for speaker detection (default: claude-3-5-haiku-latest)",
+        help="Anthropic model for speaker detection (default: claude-haiku-4-5)",
     )
     parser.add_argument(
         "--anthropic-summary-model",
         type=str,
         default=None,
-        help="Anthropic model for summarization (default: claude-3-5-haiku-latest)",
+        help="Anthropic model for summarization (default: claude-haiku-4-5)",
     )
     parser.add_argument(
         "--anthropic-temperature",
@@ -602,7 +602,7 @@ def _add_anthropic_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Anthropic model for transcript cleaning "
-            "(default: claude-3-5-haiku-latest, cheaper than summary model)"
+            "(default: claude-haiku-4-5, cheaper than summary model)"
         ),
     )
     parser.add_argument(

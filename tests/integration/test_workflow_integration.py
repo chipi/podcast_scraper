@@ -118,7 +118,10 @@ class TestIntegrationMain(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 exit_code = cli.main([rss_url, "--output-dir", tmpdir, "--no-auto-speakers"])
                 self.assertEqual(exit_code, 0)
@@ -156,7 +159,10 @@ class TestIntegrationMain(unittest.TestCase):
         transcribed_text = "Hello from Whisper"
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with patch(
                 "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper:
@@ -240,7 +246,10 @@ class TestIntegrationMain(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 # Create a path with traversal attempts
                 malicious = os.path.join(tmpdir, "..", "danger", "..", "final")
@@ -327,7 +336,10 @@ class TestIntegrationMain(unittest.TestCase):
                 observed_timeouts.append(timeout)
                 return self._mock_http_map(responses)(url, user_agent, timeout, stream)
 
-            with patch("podcast_scraper.downloader.fetch_url", side_effect=tracking_open):
+            with (
+                patch("podcast_scraper.downloader.fetch_url", side_effect=tracking_open),
+                patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=tracking_open),
+            ):
                 with patch("podcast_scraper.workflow.orchestration.apply_log_level") as mock_apply:
                     exit_code = cli.main(
                         [
@@ -364,7 +376,10 @@ class TestIntegrationMain(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 expected_path = os.path.join(tmpdir, "transcripts", "0001 - Episode 1.txt")
                 import logging
@@ -417,7 +432,10 @@ class TestIntegrationMain(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with tempfile.TemporaryDirectory() as tmpdir:
                 import logging
 
@@ -498,7 +516,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             cfg = podcast_scraper.Config(
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
@@ -563,7 +584,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             json.dump(config_data, fh)
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Load config from file
             config_dict = podcast_scraper.load_config_file(cfg_path)
             cfg = podcast_scraper.Config(**config_dict)
@@ -608,7 +632,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         mock_model._is_cpu_device = False
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             with patch(
                 "podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"
             ) as mock_import_whisper:
@@ -656,7 +683,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         def _side_effect(url, user_agent=None, timeout=None, stream=False):
             raise requests.RequestException("Connection failed")
 
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=_side_effect):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=_side_effect),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=_side_effect),
+        ):
             cfg = podcast_scraper.Config(
                 rss_url=invalid_url,
                 output_dir=self.temp_dir,
@@ -682,7 +712,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             cfg = podcast_scraper.Config(
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
@@ -711,7 +744,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
         }
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             cfg = podcast_scraper.Config(
                 rss_url=rss_url,
                 output_dir=self.temp_dir,
@@ -763,7 +799,10 @@ class TestLibraryAPIIntegration(unittest.TestCase):
             yaml.dump(config_data, fh)
 
         http_mock = self._mock_http_map(responses)
-        with patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock):
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
             # Load config from YAML file
             config_dict = podcast_scraper.load_config_file(cfg_path)
             cfg = podcast_scraper.Config(**config_dict)

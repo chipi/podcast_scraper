@@ -92,6 +92,17 @@ class TestAnswerMocked:
         assert span.score == 0.0
 
 
+class TestGetDevice:
+    """Tests for QA device selection (avoid MPS/meta for HF QA)."""
+
+    def test_explicit_mps_maps_to_cpu(self):
+        """MPS is coerced to CPU; QA pipelines can hit meta/unsupported paths on Apple GPU."""
+        from podcast_scraper.providers.ml.extractive_qa import _get_device
+
+        assert _get_device("mps") == "cpu"
+        assert _get_device(" MPS ") == "cpu"
+
+
 try:
     from transformers import pipeline  # noqa: F401
 

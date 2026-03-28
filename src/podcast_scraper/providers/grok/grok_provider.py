@@ -37,6 +37,11 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
 from ...cleaning import PatternBasedCleaner
 from ...cleaning.base import TranscriptCleaningProcessor
+from ...utils.cleaning_max_tokens import (
+    clamp_cleaning_max_tokens,
+    estimate_cleaning_output_tokens,
+    GROK_CLEANING_MAX_TOKENS,
+)
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -1042,7 +1047,10 @@ class GrokProvider:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.cleaning_temperature,
-                    max_tokens=int(len(text.split()) * 0.85 * 1.3),  # Rough token estimate
+                    max_tokens=clamp_cleaning_max_tokens(
+                        estimate_cleaning_output_tokens(len(text.split())),
+                        GROK_CLEANING_MAX_TOKENS,
+                    ),
                 )
 
             try:
