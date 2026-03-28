@@ -1236,5 +1236,34 @@ class Test2ndPassDistill(unittest.TestCase):
             self.assertEqual(result, "Postprocessed original")
 
 
+@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
+class TestResolveModelNameAndSponsorBlocks(unittest.TestCase):
+    """Tests for resolve_model_name and remove_sponsor_blocks helpers."""
+
+    def test_resolve_model_name_alias(self):
+        self.assertEqual(summarizer.resolve_model_name("bart-small"), "facebook/bart-base")
+
+    def test_resolve_model_name_hf_id_passthrough(self):
+        self.assertEqual(
+            summarizer.resolve_model_name("microsoft/DialoGPT-medium"),
+            "microsoft/DialoGPT-medium",
+        )
+
+    def test_resolve_model_name_unknown_raises(self):
+        with self.assertRaises(ValueError) as ctx:
+            summarizer.resolve_model_name("not-a-known-alias-xyz-123")
+        self.assertIn("Unknown model id", str(ctx.exception))
+
+    def test_remove_sponsor_blocks_removes_phrase_block(self):
+        text = (
+            "Intro line.\n\n"
+            "This episode is brought to you by ACME Corp.\n\n"
+            "Main discussion continues here."
+        )
+        out = summarizer.remove_sponsor_blocks(text)
+        self.assertNotIn("brought to you by", out.lower())
+        self.assertIn("Main discussion continues", out)
+
+
 if __name__ == "__main__":
     unittest.main()

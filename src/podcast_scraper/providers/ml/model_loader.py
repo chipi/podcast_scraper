@@ -225,6 +225,28 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             raise
 
 
+def _download_qa_pipeline_for_cache(model_id: str) -> None:
+    """Run transformers QA pipeline once to populate the HF cache.
+
+    Extracted as a module-level hook so unit tests can patch it without
+    fighting ``from transformers import pipeline`` name binding.
+    """
+    from transformers import pipeline
+
+    pipeline(
+        "question-answering",
+        model=model_id,
+        device=-1,
+    )
+
+
+def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
+    """Instantiate CrossEncoder once to populate the HF cache (test seam)."""
+    from sentence_transformers import CrossEncoder
+
+    CrossEncoder(model_id)
+
+
 def is_evidence_model_cached(model_id: str) -> bool:
     """Return True if the given evidence-stack model (QA or NLI) is already cached.
 
@@ -284,13 +306,7 @@ def preload_evidence_models(
             continue
         logger.info("  Preloading QA model %s...", resolved)
         try:
-            from transformers import pipeline
-
-            pipeline(
-                "question-answering",
-                model=resolved,
-                device=-1,
-            )
+            _download_qa_pipeline_for_cache(resolved)
             logger.info("  ✓ QA model %s cached", resolved)
         except Exception as e:
             logger.error("  ✗ Failed to preload QA model %s: %s", resolved, e)
@@ -304,9 +320,7 @@ def preload_evidence_models(
             continue
         logger.info("  Preloading NLI model %s...", resolved)
         try:
-            from sentence_transformers import CrossEncoder
-
-            CrossEncoder(resolved)
+            _download_nli_cross_encoder_for_cache(resolved)
             logger.info("  ✓ NLI model %s cached", resolved)
         except Exception as e:
             logger.error("  ✗ Failed to preload NLI model %s: %s", resolved, e)

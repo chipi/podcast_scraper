@@ -1628,6 +1628,20 @@ class TestGiSubcommand(unittest.TestCase):
         self.assertEqual(args.episode_path, "x.gi.json")
         self.assertTrue(args.stats)
 
+    def test_parse_gi_inspect_strict_and_no_stats(self):
+        """inspect accepts --strict and --no-stats."""
+        args = cli.parse_args(
+            ["gi", "inspect", "--episode-path", "/x.gi.json", "--strict", "--no-stats"]
+        )
+        self.assertTrue(args.strict)
+        self.assertFalse(args.stats)
+
+    def test_parse_gi_show_insight_missing_id_exits(self):
+        """show-insight requires --id (argparse exit 2)."""
+        with self.assertRaises(SystemExit) as cm:
+            cli.parse_args(["gi", "show-insight", "--output-dir", "/tmp"])
+        self.assertEqual(cm.exception.code, 2)
+
     def test_parse_gi_args_show_insight(self):
         """Test _parse_gi_args for show-insight subcommand."""
         args = cli._parse_gi_args(["show-insight", "--id", "insight:1:0"])

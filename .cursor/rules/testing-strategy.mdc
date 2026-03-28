@@ -8,6 +8,8 @@
 
 After any code session with new/modified code, MUST review related tests:
 
+**Pyramid bias:** Prefer **many unit tests** and **fewer** integration/E2E tests; do not duplicate the same assertion at every layer without a clear reason.
+
 1. **Review hierarchy** (bottom to top): unit → integration → e2e
 2. **Adjust tests** to match new code behavior (update assertions, mocks, fixtures)
 3. **Run tests** at each level and ensure ALL pass before considering work complete

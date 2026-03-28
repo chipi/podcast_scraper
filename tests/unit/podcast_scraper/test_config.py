@@ -335,6 +335,36 @@ class TestSummaryValidation(unittest.TestCase):
         self.assertTrue(cfg.generate_gi)
         self.assertTrue(cfg.generate_metadata)
 
+    def test_summary_provider_hybrid_ml_succeeds(self):
+        """hybrid_ml summary provider keeps default hybrid model fields."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="hybrid_ml",
+        )
+        self.assertEqual(cfg.summary_provider, "hybrid_ml")
+        self.assertIsNotNone(cfg.hybrid_map_model)
+        self.assertIsNotNone(cfg.hybrid_reduce_model)
+
+    def test_hybrid_reduce_instruction_style_paragraph(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            hybrid_reduce_instruction_style="paragraph",
+        )
+        self.assertEqual(cfg.hybrid_reduce_instruction_style, "paragraph")
+
+    def test_gi_models_override_when_generate_gi(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+            gi_embedding_model="org/custom-embed",
+            extractive_qa_model="org/custom-qa",
+            nli_model="org/custom-nli",
+        )
+        self.assertEqual(cfg.gi_embedding_model, "org/custom-embed")
+        self.assertEqual(cfg.extractive_qa_model, "org/custom-qa")
+        self.assertEqual(cfg.nli_model, "org/custom-nli")
+
     def test_word_chunk_size_outside_range_warns(self):
         """Test that word_chunk_size outside recommended range warns."""
         with warnings.catch_warnings(record=True) as w:
@@ -592,6 +622,15 @@ class TestConfigFieldValidators(unittest.TestCase):
         cfg = Config(rss_url="https://example.com/feed.xml", user_agent=None)
         # Should use default
         self.assertIsNotNone(cfg.user_agent)
+
+    def test_hybrid_map_device_invalid_raises(self):
+        """hybrid_*_device must be cuda, mps, cpu, auto, or empty."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                hybrid_map_device="invalid-device",
+            )
+        self.assertIn("hybrid_*_device", str(ctx.exception))
 
     def test_log_level_validator_invalid(self):
         """Test that log_level validator rejects invalid values."""

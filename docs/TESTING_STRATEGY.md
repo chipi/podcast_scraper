@@ -52,13 +52,25 @@ The testing strategy follows a three-tier pyramid:
     /------------\
    /    Unit      \   ← Many, fast unit tests
   /----------------\
-```yaml
+```
 
 | Layer | Scope | Entry Point | HTTP | Fixtures | ML Models |
 | ----- | ----- | ----------- | ---- | -------- | --------- |
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
+
+### Volume and default bias
+
+**Goal:** Most tests are **unit** tests; **integration** and **E2E** are smaller layers on top—not copies of the same scenarios.
+
+| Layer | Expectation |
+| ----- | ----------- |
+| **Unit** | **Default for new work.** Cover branches, errors, config, parsing, and provider behavior with mocks. This layer should have the **highest test count** and run on every PR (fast). |
+| **Integration** | **Selective.** Use when real wiring between modules matters (factories, stages, HTTP client against a local server). Avoid re-testing every unit case again here. |
+| **E2E** | **Sparse.** A **small** set of full workflows (CLI / `run_pipeline` / critical paths) that prove the stack end-to-end. Do **not** add E2E for every new flag or branch—use unit tests for those. |
+
+**Anti-pattern:** Asserting the same behavior three times (unit + integration + E2E) without a distinct guarantee at each layer. Prefer **one strong unit test** plus integration or E2E only where the layer adds real value (real I/O, multi-component flow, or user entry point).
 
 ### Decision Questions
 

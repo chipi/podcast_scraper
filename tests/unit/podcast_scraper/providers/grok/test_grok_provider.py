@@ -380,6 +380,154 @@ class TestGrokProviderSummarization(unittest.TestCase):
 
         self.assertIn("summarization failed", str(context.exception).lower())
 
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_clean_transcript_success(self, mock_openai, mock_render, mock_retry):
+        """clean_transcript uses chat.completions.create with max_tokens."""
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="cleaned"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        out = provider.clean_transcript("word " * 22)
+        self.assertEqual(out, "cleaned")
+        mock_client.chat.completions.create.assert_called_once()
+        self.assertIn("max_tokens", mock_client.chat.completions.create.call_args[1])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_clean_transcript_auth_error(self, mock_openai, mock_render, mock_retry):
+        """clean_transcript maps authentication errors to ProviderAuthError."""
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = Exception(
+            "permission denied: bad api key"
+        )
+
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+
+        from podcast_scraper.exceptions import ProviderAuthError
+
+        with self.assertRaises(ProviderAuthError):
+            provider.clean_transcript("x")
+
+
+@pytest.mark.unit
+class TestGrokProviderGIL(unittest.TestCase):
+    """GIL: generate_insights, extract_quotes, score_entailment."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="grok",
+            grok_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    def test_generate_insights_success(self, mock_render, mock_openai):
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="One\nTwo"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        out = provider.generate_insights("t")
+        self.assertGreaterEqual(len(out), 1)
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    def test_generate_insights_error_returns_empty(self, mock_render, mock_openai):
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = Exception("e")
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.generate_insights("t"), [])
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_generate_insights_not_initialized_returns_empty(self, mock_openai):
+        mock_openai.return_value = Mock()
+        provider = GrokProvider(self.cfg)
+        self.assertEqual(provider.generate_insights("t"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_extract_quotes_success(self, mock_openai, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content='{"quote_text": "evidence here"}'))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        from podcast_scraper.gi.grounding import QuoteCandidate
+
+        r = provider.extract_quotes("We have evidence here in the text.", "i")
+        self.assertEqual(len(r), 1)
+        self.assertIsInstance(r[0], QuoteCandidate)
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_extract_quotes_not_initialized_returns_empty(self, mock_openai):
+        mock_openai.return_value = Mock()
+        provider = GrokProvider(self.cfg)
+        self.assertEqual(provider.extract_quotes("a", "b"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_extract_quotes_bad_json_returns_empty(self, mock_openai, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="not json"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.extract_quotes("t", "i"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_score_entailment_success(self, mock_openai, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="0.61"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.61)
+
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_score_entailment_not_initialized_returns_zero(self, mock_openai):
+        mock_openai.return_value = Mock()
+        provider = GrokProvider(self.cfg)
+        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.grok.grok_provider.OpenAI")
+    def test_score_entailment_exception_returns_zero(self, mock_openai, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = Exception("fail")
+        provider = GrokProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
 
 @pytest.mark.unit
 class TestGrokProviderPricing(unittest.TestCase):

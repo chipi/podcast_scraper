@@ -730,6 +730,173 @@ class TestMistralProviderSummarization(unittest.TestCase):
 
         self.assertIn("summarization failed", str(context.exception).lower())
 
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_clean_transcript_success(self, mock_mistral_class, mock_render, mock_retry):
+        """clean_transcript uses chat.complete with max_tokens."""
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="cleaned out"))]
+        mock_client.chat.complete.return_value = mock_resp
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="mistral",
+            mistral_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+            transcribe_missing=False,
+        )
+        provider = MistralProvider(cfg)
+        provider.initialize()
+        out = provider.clean_transcript("word " * 30)
+        self.assertEqual(out, "cleaned out")
+        mock_client.chat.complete.assert_called_once()
+        self.assertIn("max_tokens", mock_client.chat.complete.call_args[1])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_clean_transcript_auth_error(self, mock_mistral_class, mock_render, mock_retry):
+        """clean_transcript maps authentication errors to ProviderAuthError."""
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_client.chat.complete.side_effect = Exception("authentication failed for api key")
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="mistral",
+            mistral_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+            transcribe_missing=False,
+        )
+        provider = MistralProvider(cfg)
+        provider.initialize()
+
+        from podcast_scraper.exceptions import ProviderAuthError
+
+        with self.assertRaises(ProviderAuthError):
+            provider.clean_transcript("text")
+
+
+@pytest.mark.unit
+class TestMistralProviderGIL(unittest.TestCase):
+    """GIL: generate_insights, extract_quotes, score_entailment."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="mistral",
+            mistral_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+            transcribe_missing=False,
+        )
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="prompt")
+    def test_generate_insights_success(self, mock_render, mock_mistral_class):
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="Line one\nLine two"))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        out = provider.generate_insights("t")
+        self.assertGreaterEqual(len(out), 1)
+        mock_client.chat.complete.assert_called_once()
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    def test_generate_insights_error_returns_empty(self, mock_render, mock_mistral_class):
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_client.chat.complete.side_effect = Exception("fail")
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.generate_insights("t"), [])
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_generate_insights_not_initialized_returns_empty(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        self.assertEqual(provider.generate_insights("t"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_quotes_success(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content='{"quote_text": "evidence here"}'))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        from podcast_scraper.gi.grounding import QuoteCandidate
+
+        r = provider.extract_quotes("We have evidence here in the text.", "i")
+        self.assertEqual(len(r), 1)
+        self.assertIsInstance(r[0], QuoteCandidate)
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_quotes_not_initialized_returns_empty(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        self.assertEqual(provider.extract_quotes("a", "b"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_quotes_bad_json_returns_empty(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="not json"))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.extract_quotes("t", "i"), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_score_entailment_success(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="0.55"))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.55)
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_score_entailment_not_initialized_returns_zero(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_score_entailment_exception_returns_zero(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_client.chat.complete.side_effect = Exception("fail")
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
 
 @pytest.mark.unit
 class TestMistralProviderPricing(unittest.TestCase):
