@@ -463,12 +463,12 @@ class TestMLProviderSpeakerDetection(unittest.TestCase):
         """Test successful speaker detection."""
         mock_nlp = Mock()
         mock_get_ner.return_value = mock_nlp
-        mock_detect.return_value = (["Alice", "Bob"], {"Alice"}, True)
+        mock_detect.return_value = (["Alice", "Bob"], {"Alice"}, True, False)
 
         provider = MLProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},
@@ -1108,3 +1108,74 @@ class TestMLProviderPreload(unittest.TestCase):
         # Verify spaCy WAS loaded (ML provider)
         self.assertTrue(provider2._spacy_initialized)
         mock_get_ner.assert_called()
+
+
+@pytest.mark.unit
+class TestMLProviderGILEvidence(unittest.TestCase):
+    """Tests for MLProvider extract_quotes and score_entailment (GIL evidence)."""
+
+    def setUp(self):
+        """Set up test config."""
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="spacy",
+            summary_provider="transformers",
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
+    def test_extract_quotes_returns_quote_candidates(self, mock_qa_answer):
+        """extract_quotes returns list of QuoteCandidate from extractive_qa."""
+        from podcast_scraper.gi.grounding import QuoteCandidate
+
+        # Provider uses transcript[span.start:span.end] for text; use indices so slice is "evidence"
+        mock_qa_answer.return_value = type(
+            "QASpan",
+            (),
+            {"start": 3, "end": 11, "answer": "evidence", "score": 0.88},
+        )()
+        transcript = "We evidence here."
+        provider = MLProvider(self.cfg)
+        result = provider.extract_quotes(
+            transcript=transcript,
+            insight_text="An insight.",
+        )
+        self.assertEqual(len(result), 1)
+        self.assertIsInstance(result[0], QuoteCandidate)
+        self.assertEqual(result[0].char_start, 3)
+        self.assertEqual(result[0].char_end, 11)
+        self.assertEqual(result[0].text, transcript[3:11])
+        self.assertEqual(result[0].qa_score, 0.88)
+        mock_qa_answer.assert_called_once()
+
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
+    def test_extract_quotes_empty_input_returns_empty(self, mock_qa_answer):
+        """extract_quotes with empty transcript returns empty list."""
+        provider = MLProvider(self.cfg)
+        result = provider.extract_quotes(transcript="", insight_text="I.")
+        self.assertEqual(result, [])
+        mock_qa_answer.assert_not_called()
+
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    def test_score_entailment_returns_float(self, mock_nli):
+        """score_entailment returns float from nli_loader."""
+        mock_nli.return_value = 0.75
+        provider = MLProvider(self.cfg)
+        result = provider.score_entailment(
+            premise="The quote text.",
+            hypothesis="The insight claim.",
+        )
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, 0.75)
+        mock_nli.assert_called_once()
+
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    def test_score_entailment_empty_input_returns_zero(self, mock_nli):
+        """score_entailment with empty premise returns 0.0."""
+        provider = MLProvider(self.cfg)
+        result = provider.score_entailment(premise="", hypothesis="H.")
+        self.assertEqual(result, 0.0)
+        mock_nli.assert_not_called()

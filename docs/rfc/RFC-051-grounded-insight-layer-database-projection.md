@@ -6,7 +6,7 @@
   consumers, power users
 - **Execution Timing**: **Phase 3b (parallel with
   RFC-049)** — Database projection developed alongside
-  GIL core extraction. Depends on RFC-049 for `kg.json`
+  GIL core extraction. Depends on RFC-049 for `gi.json`
   schema and data model.
 - **Related PRDs**:
   - `docs/prd/PRD-017-grounded-insight-layer.md`
@@ -29,8 +29,8 @@
   - Issue #40: Data storage / DB integration
   - Issue #50: Querying & downstream usage
 - **Related Documents**:
-  - `docs/kg/ontology.md` - Human-readable ontology
-  - `docs/kg/kg.schema.json` - Machine-readable schema
+  - `docs/gi/ontology.md` - Human-readable ontology
+  - `docs/gi/gi.schema.json` - Machine-readable schema
   - `docs/ARCHITECTURE.md` - System architecture
 
 ## Abstract
@@ -46,12 +46,12 @@ Conceptually, exporting to Postgres provides a fast, queryable "projection" of f
 - Preserving file-based outputs as canonical source of truth
 - Enabling incremental updates without reprocessing historical data
 - Providing stable SQL interface for downstream tools (CLI, notebooks, web UIs, agents)
-- Maintaining full provenance traceability to `kg.json` and transcript evidence
+- Maintaining full provenance traceability to `gi.json` and transcript evidence
 - **Supporting the Insight Explorer pattern** (insights + quotes + timestamps)
 
 ## Problem Statement
 
-The Grounded Insight Layer (RFC-049, RFC-050) produces structured `kg.json` files per episode, containing **insights** and **supporting quotes** with grounding relationships. However, file-based access has limitations:
+The Grounded Insight Layer (RFC-049, RFC-050) produces structured `gi.json` files per episode, containing **insights** and **supporting quotes** with grounding relationships. However, file-based access has limitations:
 
 - **Scalability**: Scanning N folders and parsing N JSON files becomes slow at scale (50 episodes is fine; 5,000 is painful)
 - **Query Performance**: No indexing, filtering, or pagination for cross-episode insight queries
@@ -76,7 +76,7 @@ The Grounded Insight Layer (RFC-049, RFC-050) produces structured `kg.json` file
 2. **Support Insight Explorer Pattern**: Make the canonical query (insights + quotes + timestamps) fast
 3. **Support Notebook Research Workflows**: Enable power users to build topic dossiers, speaker profiles
 4. **Provide Stable Integration Interface**: Give downstream tools (CLI, notebooks, web UIs, agents) consistent SQL
-5. **Preserve Provenance**: Every database row traceable to `kg.json`, transcript evidence, extraction metadata
+5. **Preserve Provenance**: Every database row traceable to `gi.json`, transcript evidence, extraction metadata
 6. **Enable Incremental Growth**: Support upserting new episodes without reprocessing historical data
 
 ## Constraints & Assumptions
@@ -84,7 +84,7 @@ The Grounded Insight Layer (RFC-049, RFC-050) produces structured `kg.json` file
 **Constraints:**
 
 - Must not replace file-based outputs as source of truth (files remain canonical)
-- Must preserve full provenance (traceable to `kg.json` and transcript evidence)
+- Must preserve full provenance (traceable to `gi.json` and transcript evidence)
 - Must support incremental updates without reprocessing historical data
 - Must be idempotent and rebuildable from disk
 - Must not require graph database as hard dependency (relational projection is sufficient)
@@ -113,7 +113,7 @@ kg export \
 
 **Export Responsibilities:**
 
-- Validate `kg.json` against schema
+- Validate `gi.json` against schema
 - Load or update episode-level records
 - Upsert global nodes (topics, speakers)
 - Insert episode-scoped nodes (insights, quotes)
@@ -139,7 +139,7 @@ kg export \
 - `metadata_path` - Path to metadata.json
 - `transcript_path` - Path to transcript.json
 - `summary_path` - Path to summary.json (optional)
-- `kg_path` - Path to kg.json
+- `gi_path` - Path to gi.json
 - `schema_version` - KG schema version
 - `ingestion_run_id` - Export run identifier
 
@@ -226,7 +226,7 @@ This enables:
 **Key Rule**: Every row in Postgres should be traceable back to:
 
 - `episode_id` - Source episode
-- `kg_path` - Path to source `kg.json`
+- `gi_path` - Path to source `gi.json`
 - `transcript_ref` + `char_start`/`char_end` - Transcript evidence span
 - `timestamp_start_ms`/`timestamp_end_ms` - Temporal evidence span
 - `schema_version` / `model_version` / `ingestion_run_id` - Extraction metadata
@@ -549,7 +549,7 @@ All targets share the same conceptual export model.
 
 KG export should be integrated into the existing workflow pipeline:
 
-1. **After KG Extraction**: Export runs after `kg.json` files are generated
+1. **After GIL Extraction**: Export runs after `gi.json` files are generated
 2. **Co-Located with Existing Outputs**: Export reads from same episode directories
 3. **Optional Step**: Export can be enabled/disabled via config
 
@@ -570,7 +570,7 @@ KG export should be controlled via `Config` model:
 
 ### 10. Failure Modes
 
-- **Invalid kg.json**: Skip episode, log error, continue with other episodes
+- **Invalid gi.json**: Skip episode, log error, continue with other episodes
 - **Partial episode output**: Ingest what is available, mark incomplete
 - **Schema mismatch**: Fail fast with clear error message
 - **Database connection failure**: Fail with clear error, do not proceed
@@ -598,7 +598,7 @@ KG export should be controlled via `Config` model:
    - **Rationale**: Fast updates for new episodes, full control for schema changes
 
 6. **Provenance Tracking Required**
-   - **Decision**: Every row must be traceable to `kg.json`, transcript evidence, extraction metadata
+   - **Decision**: Every row must be traceable to `gi.json`, transcript evidence, extraction metadata
    - **Rationale**: Enables trust, debugging, explainability, run comparison
 
 ## Alternatives Considered
@@ -632,7 +632,7 @@ KG export should be controlled via `Config` model:
 **Test Coverage:**
 
 - **Unit Tests**: Test export command, schema creation, data transformation, ID generation
-- **Integration Tests**: Test export with real `kg.json` files, validate SQL queries, test incremental updates
+- **Integration Tests**: Test export with real `gi.json` files, validate SQL queries, test incremental updates
 - **E2E Tests**: Test full workflow from KG extraction → export → query → results
 
 **Test Organization:**
@@ -670,7 +670,7 @@ KG export should be controlled via `Config` model:
 2. ✅ UC1–UC5 queries (including Insight Explorer) run faster via DB than file scan
 3. ✅ Grounding relationships are queryable via insight_support table
 4. ✅ Data store can be rebuilt from disk with no data loss
-5. ✅ All database rows are traceable to source `kg.json` files
+5. ✅ All database rows are traceable to source `gi.json` files
 6. ✅ Notebook workflows can query insights + quotes successfully
 
 ## Relationship to Other RFCs
@@ -711,7 +711,7 @@ RFC-053 (Adaptive Routing)      → optimization
 6. **RFC-044: Model Registry** — Model metadata
    tracked in `model_version` provenance fields
 7. **RFC-042: Hybrid ML Platform** — Produces the
-   `kg.json` files that this RFC exports
+   `gi.json` files that this RFC exports
 
 **Complementary RFCs:**
 
@@ -818,7 +818,7 @@ consumption patterns (050) → fast serving (051).**
 - **Related PRD**: `docs/prd/PRD-018-database-projection-grounded-insight-layer.md`
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
-- **Ontology Specification**: `docs/kg/ontology.md`
-- **Schema Specification**: `docs/kg/kg.schema.json`
+- **Ontology Specification**: `docs/gi/ontology.md`
+- **Schema Specification**: `docs/gi/gi.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Related Issues**: #31, #40, #50

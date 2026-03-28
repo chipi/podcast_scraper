@@ -61,6 +61,20 @@ class TestModelRegistryLookup(unittest.TestCase):
             self.assertEqual(caps.model_type, "led", msg=model_id)
             self.assertTrue(caps.supports_long_context, msg=model_id)
 
+    def test_longt5_aliases_and_ids(self):
+        """All LongT5 aliases and full IDs return 8192 max_input_tokens."""
+        for model_id in (
+            "longt5-base",
+            "longt5-large",
+            "google/long-t5-tglobal-base",
+            "google/long-t5-tglobal-large",
+        ):
+            caps = ModelRegistry.get_capabilities(model_id)
+            self.assertEqual(caps.max_input_tokens, 8192, msg=model_id)
+            self.assertEqual(caps.model_type, "longt5", msg=model_id)
+            self.assertEqual(caps.model_family, "map", msg=model_id)
+            self.assertTrue(caps.supports_long_context, msg=model_id)
+
     def test_default_chunk_size_for_bart(self):
         """BART/PEGASUS have default_chunk_size 600, default_overlap 60."""
         caps = ModelRegistry.get_capabilities("bart-small")
@@ -129,6 +143,14 @@ class TestModelRegistryPatternFallback(unittest.TestCase):
         self.assertEqual(caps.model_type, "flan-t5")
         self.assertEqual(caps.model_family, "reduce")
 
+    def test_longt5_pattern_fallback(self):
+        """Unknown model ID containing 'longt5' gets LongT5 capabilities."""
+        caps = ModelRegistry.get_capabilities("org/custom-longt5-8k")
+        self.assertEqual(caps.max_input_tokens, 8192)
+        self.assertEqual(caps.model_type, "longt5")
+        self.assertEqual(caps.model_family, "map")
+        self.assertTrue(caps.supports_long_context)
+
     def test_safe_default_unknown_model(self):
         """Completely unknown model gets safe default 1024."""
         caps = ModelRegistry.get_capabilities("unknown/strange-model-xyz")
@@ -186,3 +208,57 @@ class TestModelRegistryExtensibility(unittest.TestCase):
         finally:
             # Teardown: remove so other tests are not affected (shared _registry)
             del ModelRegistry._registry["custom/my-model"]
+
+
+@pytest.mark.unit
+class TestModelRegistryEvidenceAliases(unittest.TestCase):
+    """Evidence-stack alias resolution (Issue #435)."""
+
+    def test_resolve_embedding_aliases(self):
+        """Embedding aliases resolve to full HF IDs."""
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("minilm-l6"),
+            "sentence-transformers/all-MiniLM-L6-v2",
+        )
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("minilm-l12"),
+            "sentence-transformers/all-MiniLM-L12-v2",
+        )
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("mpnet-base"),
+            "sentence-transformers/all-mpnet-base-v2",
+        )
+
+    def test_resolve_qa_aliases(self):
+        """Extractive QA aliases resolve to full HF IDs."""
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("roberta-squad2"),
+            "deepset/roberta-base-squad2",
+        )
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("deberta-squad2"),
+            "deepset/deberta-v3-base-squad2",
+        )
+
+    def test_resolve_nli_aliases(self):
+        """NLI aliases resolve to full HF IDs."""
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("nli-deberta-base"),
+            "cross-encoder/nli-deberta-v3-base",
+        )
+        self.assertEqual(
+            ModelRegistry.resolve_evidence_model_id("nli-deberta-small"),
+            "cross-encoder/nli-deberta-v3-small",
+        )
+
+    def test_resolve_full_id_passthrough(self):
+        """Full HF ID (contains '/') is returned as-is."""
+        full_id = "sentence-transformers/all-MiniLM-L6-v2"
+        self.assertEqual(ModelRegistry.resolve_evidence_model_id(full_id), full_id)
+
+    def test_resolve_unknown_alias_raises(self):
+        """Unknown alias raises ValueError."""
+        with self.assertRaises(ValueError) as ctx:
+            ModelRegistry.resolve_evidence_model_id("unknown-alias")
+        self.assertIn("Unknown evidence model id", str(ctx.exception))
+        self.assertIn("unknown-alias", str(ctx.exception))

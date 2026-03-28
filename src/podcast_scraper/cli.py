@@ -709,6 +709,63 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "(same level as transcripts/ and metadata/ subdirectories). "
         "Set to empty string to disable metrics export.",
     )
+    parser.add_argument(
+        "--generate-gi",
+        action="store_true",
+        dest="generate_gi",
+        help="Generate Grounded Insight Layer (GIL) artifacts (gi.json) per episode. "
+        "Requires generate_metadata. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
+    )
+    parser.add_argument(
+        "--gi-insight-source",
+        choices=["provider", "summary_bullets", "stub"],
+        default=None,
+        dest="gi_insight_source",
+        help="Source of insight texts: provider (LLM), summary_bullets, or stub (default: stub). "
+        "See docs/guides/GROUNDED_INSIGHTS_GUIDE.md.",
+    )
+    parser.add_argument(
+        "--gi-max-insights",
+        type=int,
+        default=None,
+        metavar="N",
+        dest="gi_max_insights",
+        help="Max number of insights when using provider or summary_bullets (default: 5).",
+    )
+    parser.add_argument(
+        "--quote-extraction-provider",
+        choices=[
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ],
+        default=None,
+        dest="quote_extraction_provider",
+        help="GIL quote extraction (QA) provider; same as summary (default: transformers).",
+    )
+    parser.add_argument(
+        "--entailment-provider",
+        choices=[
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ],
+        default=None,
+        dest="entailment_provider",
+        help="Provider for GIL entailment (NLI). Same backends as summary (default: transformers).",
+    )
 
 
 def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
@@ -818,6 +875,7 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         "--summary-provider",
         choices=[
             "transformers",
+            "hybrid_ml",
             "openai",
             "gemini",
             "anthropic",
@@ -828,6 +886,39 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         ],
         default="transformers",
         help="Summary provider to use (default: transformers)",
+    )
+    parser.add_argument(
+        "--hybrid-map-model",
+        default=None,
+        help="Hybrid MAP model (classic). Example: longt5-base, long-fast, pegasus-cnn.",
+    )
+    parser.add_argument(
+        "--hybrid-reduce-model",
+        default=None,
+        help="Hybrid REDUCE model (instruction-tuned). Example: google/flan-t5-base.",
+    )
+    parser.add_argument(
+        "--hybrid-reduce-backend",
+        choices=["transformers", "ollama", "llama_cpp"],
+        default=None,
+        help="Hybrid REDUCE backend (default: transformers).",
+    )
+    parser.add_argument(
+        "--hybrid-map-device",
+        choices=["cuda", "mps", "cpu", "auto"],
+        default=None,
+        help="Device for hybrid MAP model (default: summary_device/auto).",
+    )
+    parser.add_argument(
+        "--hybrid-reduce-device",
+        choices=["cuda", "mps", "cpu", "auto"],
+        default=None,
+        help="Device for hybrid REDUCE model (default: summary_device/auto).",
+    )
+    parser.add_argument(
+        "--hybrid-quantization",
+        default=None,
+        help="Quantization for hybrid models (e.g., llama_cpp). Optional.",
     )
     parser.add_argument(
         "--summary-mode-id",
@@ -1430,6 +1521,256 @@ def _run_doctor_checks(check_network: bool = False, check_models: bool = False) 
     return 1
 
 
+def _run_gi(args: argparse.Namespace, log: Optional[logging.Logger] = None) -> int:
+    """Dispatch gi subcommand (inspect, show-insight, explore)."""
+    logger = log or _LOGGER
+    sub = getattr(args, "gi_subcommand", None)
+    if sub == "inspect":
+        return _run_gi_inspect(args, logger=logger)
+    if sub == "show-insight":
+        return _run_gi_show_insight(args, logger=logger)
+    if sub == "explore":
+        return _run_gi_explore(args, logger=logger)
+    logger.error("Unknown gi subcommand: %s", sub)
+    return 1
+
+
+def _resolve_artifact_path_gi(args: argparse.Namespace) -> Optional[Path]:
+    """Resolve path to .gi.json from --episode-path or --output-dir + --episode-id."""
+    ep_path = getattr(args, "episode_path", None)
+    output_dir = getattr(args, "output_dir", None)
+    episode_id = getattr(args, "episode_id", None)
+
+    if ep_path:
+        p = Path(ep_path)
+        if p.is_file() and p.suffix == ".json" and ".gi.json" in p.name:
+            return p
+        if p.is_dir():
+            for f in p.glob("*.gi.json"):
+                return f
+        if p.is_file():
+            return p
+        return None
+
+    if output_dir and episode_id:
+        from .gi import find_artifact_by_episode_id
+
+        return find_artifact_by_episode_id(Path(output_dir), episode_id)
+    return None
+
+
+def _run_gi_inspect(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """Run gi inspect: load artifact, build InspectOutput, print."""
+    from .gi import build_inspect_output, load_artifact_and_transcript
+
+    artifact_path = _resolve_artifact_path_gi(args)
+    if not artifact_path:
+        episode_id = getattr(args, "episode_id", None)
+        episode_path = getattr(args, "episode_path", None)
+        output_dir = getattr(args, "output_dir", None)
+        if not episode_id and not episode_path:
+            logger.error("Provide --episode-id with --output-dir, or --episode-path")
+        elif output_dir and not episode_id:
+            logger.error("Provide --episode-id when using --output-dir")
+        else:
+            logger.error("Artifact not found for the given episode")
+        return 1
+
+    try:
+        artifact, transcript_text, _ = load_artifact_and_transcript(
+            artifact_path,
+            validate=True,
+            strict=getattr(args, "strict", False),
+            load_transcript=True,
+        )
+    except FileNotFoundError as e:
+        logger.error("%s", e)
+        return 1
+    except ValueError as e:
+        logger.error("Validation failed: %s", e)
+        return 1
+
+    out = build_inspect_output(artifact, transcript_text)
+    fmt = getattr(args, "format", "pretty")
+    show = getattr(args, "show", False)
+    stats = getattr(args, "stats", True)
+
+    if fmt == "json":
+        print(out.model_dump_json(indent=2))
+        return 0
+
+    # Pretty
+    lines = [
+        f"Episode: {out.episode_id}",
+        f"Schema: {out.schema_version}  Model: {out.model_version}",
+    ]
+    if stats and out.stats:
+        s = out.stats
+        lines.append(
+            f"Insights: {s.get('insight_count', 0)}  "
+            f"Grounded: {s.get('grounded_count', 0)}  "
+            f"Ungrounded: {s.get('ungrounded_count', 0)}  "
+            f"Quotes: {s.get('quote_count', 0)}"
+        )
+    for ins in out.insights:
+        lines.append(f"  [{ins.insight_id}] grounded={ins.grounded}")
+        if show or ins.supporting_quotes:
+            lines.append(f"    {ins.text[:200]}{'...' if len(ins.text) > 200 else ''}")
+            for q in ins.supporting_quotes:
+                lines.append(
+                    f"    → {q.quote_id}: {q.text[:100]}{'...' if len(q.text) > 100 else ''}"
+                )
+    print("\n".join(lines))
+    return 0
+
+
+def _run_gi_show_insight(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """Run gi show-insight: find insight by id, print with quotes and evidence."""
+    from .gi import (
+        build_inspect_output,
+        find_artifact_by_insight_id,
+        load_artifact_and_transcript,
+    )
+
+    insight_id = getattr(args, "id", None)
+    if not insight_id:
+        logger.error("--id INSIGHT_ID is required")
+        return 1
+
+    artifact_path = _resolve_artifact_path_gi(args)
+    if not artifact_path:
+        output_dir = getattr(args, "output_dir", None)
+        if output_dir:
+            artifact_path = find_artifact_by_insight_id(Path(output_dir), insight_id)
+        if not artifact_path:
+            logger.error(
+                "Provide --episode-path to the .gi.json file, or --output-dir to scan for "
+                "artifact containing insight %s",
+                insight_id,
+            )
+            return 1
+
+    try:
+        artifact, transcript_text, _ = load_artifact_and_transcript(
+            artifact_path,
+            validate=True,
+            strict=False,
+            load_transcript=True,
+        )
+    except (FileNotFoundError, ValueError) as e:
+        logger.error("%s", e)
+        return 1
+
+    out = build_inspect_output(artifact, transcript_text)
+    insight = next((i for i in out.insights if i.insight_id == insight_id), None)
+    if not insight:
+        logger.error("Insight %s not found in artifact", insight_id)
+        return 1
+
+    fmt = getattr(args, "format", "pretty")
+    context_chars = getattr(args, "context_chars", 80)
+
+    if fmt == "json":
+        print(insight.model_dump_json(indent=2))
+        return 0
+
+    lines = [
+        f"Insight: {insight.insight_id}",
+        f"  grounded={insight.grounded}  episode_id={insight.episode_id}",
+        f"  {insight.text}",
+        "Supporting quotes:",
+    ]
+    for q in insight.supporting_quotes:
+        lines.append(f"  [{q.quote_id}] {q.text}")
+        if q.evidence.excerpt:
+            ev = q.evidence
+            lines.append("    evidence: " + ev.transcript_ref)
+            lines.append(f"      span: [{ev.char_start}:{ev.char_end}]")
+            lines.append(f"    excerpt: {q.evidence.excerpt}")
+            if transcript_text and context_chars > 0:
+                start = max(0, q.evidence.char_start - context_chars)
+                end = min(len(transcript_text), q.evidence.char_end + context_chars)
+                lines.append(f"    context: ...{transcript_text[start:end]}...")
+    print("\n".join(lines))
+    return 0
+
+
+def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """Run gi explore: scan output_dir, filter by topic, print insights with quotes."""
+    from .gi.explore import (
+        build_explore_output,
+        collect_insights,
+        EXIT_INVALID_ARGS,
+        EXIT_NO_ARTIFACTS,
+        EXIT_NO_RESULTS,
+        EXIT_SUCCESS,
+        load_artifacts,
+        scan_artifact_paths,
+    )
+
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("--output-dir is required for gi explore")
+        return EXIT_INVALID_ARGS
+    out_path = Path(output_dir)
+    if not out_path.is_dir():
+        logger.error("Output directory does not exist: %s", output_dir)
+        return EXIT_NO_ARTIFACTS
+
+    paths = scan_artifact_paths(out_path)
+    if not paths:
+        logger.error("No .gi.json artifacts found under %s", output_dir)
+        return EXIT_NO_ARTIFACTS
+
+    strict = getattr(args, "strict", False)
+    loaded = load_artifacts(paths, validate=strict, strict=strict)
+    topic = getattr(args, "topic", None)
+    grounded_only = getattr(args, "grounded_only", False)
+    min_confidence = getattr(args, "min_confidence", None)
+    limit = getattr(args, "limit", 50)
+
+    insights = collect_insights(
+        loaded,
+        topic=topic,
+        grounded_only=grounded_only,
+        min_confidence=min_confidence,
+        limit=limit,
+    )
+    explore_out = build_explore_output(insights, episodes_searched=len(paths), topic=topic)
+
+    out_format = getattr(args, "format", "pretty")
+    out_file = getattr(args, "out", None)
+    if out_format == "json":
+        payload = explore_out.model_dump_json(indent=2)
+    else:
+        lines = [
+            f"Topic: {explore_out.topic or '(all)'}",
+            f"Episodes searched: {explore_out.episodes_searched}",
+            f"Insights: {explore_out.summary.get('insight_count', 0)} "
+            f"(grounded: {explore_out.summary.get('grounded_insight_count', 0)})",
+            f"Quotes: {explore_out.summary.get('quote_count', 0)}",
+            "",
+        ]
+        for ins in explore_out.insights:
+            lines.append(f"[{ins.insight_id}] {ins.episode_id} grounded={ins.grounded}")
+            lines.append(f"  {ins.text}")
+            for q in ins.supporting_quotes:
+                lines.append(
+                    f"    quote: {q.text[:80]}..." if len(q.text) > 80 else f"    quote: {q.text}"
+                )
+        payload = "\n".join(lines)
+
+    if out_file:
+        Path(out_file).write_text(payload, encoding="utf-8")
+        logger.info("Wrote output to %s", out_file)
+    else:
+        print(payload)
+
+    if not insights and topic:
+        return EXIT_NO_RESULTS
+    return EXIT_SUCCESS
+
+
 def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse cache subcommand arguments.
 
@@ -1480,8 +1821,165 @@ def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespac
     return args
 
 
+def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
+    """Parse 'gi' subcommand arguments (inspect, show-insight, explore)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast_scraper gi",
+        description="Inspect Grounded Insight Layer (GIL) artifacts (gi.json).",
+    )
+    subparsers = parser.add_subparsers(dest="gi_subcommand", required=True, help="Command")
+
+    # gi inspect
+    inspect_parser = subparsers.add_parser("inspect", help="Inspect one episode's GIL artifact")
+    inspect_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Output directory containing metadata/*.gi.json",
+    )
+    inspect_parser.add_argument(
+        "--episode-id",
+        type=str,
+        default=None,
+        help="Episode ID (artifact episode_id field); required if not using --episode-path",
+    )
+    inspect_parser.add_argument(
+        "--episode-path",
+        type=str,
+        default=None,
+        help="Path to .gi.json file (or directory containing one .gi.json)",
+    )
+    inspect_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail if artifact does not pass schema validation",
+    )
+    inspect_parser.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="pretty",
+        help="Output format (default: pretty)",
+    )
+    inspect_parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Show full insight text and supporting quotes",
+    )
+    inspect_parser.add_argument(
+        "--stats",
+        action="store_true",
+        default=True,
+        help="Show summary stats (default: True)",
+    )
+    inspect_parser.add_argument("--no-stats", dest="stats", action="store_false")
+
+    # gi show-insight
+    show_parser = subparsers.add_parser(
+        "show-insight",
+        help="Show one insight by ID with quotes and evidence",
+    )
+    show_parser.add_argument(
+        "--id",
+        type=str,
+        required=True,
+        metavar="INSIGHT_ID",
+        help="Insight node ID (e.g. insight:episode:0)",
+    )
+    show_parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Output directory containing metadata/*.gi.json",
+    )
+    show_parser.add_argument(
+        "--episode-path",
+        type=str,
+        default=None,
+        help="Path to .gi.json file for the episode",
+    )
+    show_parser.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="pretty",
+        help="Output format (default: pretty)",
+    )
+    show_parser.add_argument(
+        "--context-chars",
+        type=int,
+        default=80,
+        metavar="N",
+        help="Characters of context around evidence span (default: 80)",
+    )
+
+    # gi explore
+    explore_parser = subparsers.add_parser(
+        "explore",
+        help="Cross-episode query: insights about a topic with supporting quotes",
+    )
+    explore_parser.add_argument(
+        "--topic",
+        type=str,
+        default=None,
+        metavar="LABEL",
+        help="Topic filter (match Topic label or substring in insight text)",
+    )
+    explore_parser.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        metavar="PATH",
+        help="Output directory containing metadata/*.gi.json",
+    )
+    explore_parser.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Max number of insights to return (default: 50)",
+    )
+    explore_parser.add_argument(
+        "--grounded-only",
+        action="store_true",
+        help="Only return grounded insights",
+    )
+    explore_parser.add_argument(
+        "--min-confidence",
+        type=float,
+        default=None,
+        metavar="0..1",
+        help="Minimum insight confidence (0.0-1.0)",
+    )
+    explore_parser.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="pretty",
+        help="Output format (default: pretty)",
+    )
+    explore_parser.add_argument(
+        "--out",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Write output to file (optional)",
+    )
+    explore_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Skip artifacts that fail schema validation",
+    )
+
+    args = parser.parse_args(gi_argv)
+    args.command = "gi"
+    return args
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse CLI arguments, optionally merging configuration file defaults."""
+    # Check if first argument is "gi" subcommand (#438)
+    if argv and len(argv) > 0 and argv[0] == "gi":
+        gi_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_gi_args(gi_argv)
+
     # Check if first argument is "cache" subcommand
     if argv and len(argv) > 0 and argv[0] == "cache":
         # Handle cache subcommand
@@ -1573,6 +2071,13 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "generate_metadata": args.generate_metadata,
         "metadata_format": args.metadata_format,
         "metadata_subdirectory": args.metadata_subdirectory,
+        "generate_gi": getattr(args, "generate_gi", False),
+        "gi_insight_source": getattr(args, "gi_insight_source", None) or "stub",
+        "gi_max_insights": (
+            5 if getattr(args, "gi_max_insights", None) is None else args.gi_max_insights
+        ),
+        "quote_extraction_provider": getattr(args, "quote_extraction_provider", None),
+        "entailment_provider": getattr(args, "entailment_provider", None),
         "generate_summaries": args.generate_summaries,
         "metrics_output": args.metrics_output,
         "summary_provider": args.summary_provider,
@@ -1597,6 +2102,19 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "preprocessing_target_loudness": getattr(args, "preprocessing_target_loudness", -16),
         "openai_api_base": args.openai_api_base,
     }
+    # Hybrid ML provider args: only set when provided so Config defaults apply.
+    if getattr(args, "hybrid_map_model", None) is not None:
+        payload["hybrid_map_model"] = args.hybrid_map_model
+    if getattr(args, "hybrid_reduce_model", None) is not None:
+        payload["hybrid_reduce_model"] = args.hybrid_reduce_model
+    if getattr(args, "hybrid_reduce_backend", None) is not None:
+        payload["hybrid_reduce_backend"] = args.hybrid_reduce_backend
+    if getattr(args, "hybrid_map_device", None) is not None:
+        payload["hybrid_map_device"] = args.hybrid_map_device
+    if getattr(args, "hybrid_reduce_device", None) is not None:
+        payload["hybrid_reduce_device"] = args.hybrid_reduce_device
+    if getattr(args, "hybrid_quantization", None) is not None:
+        payload["hybrid_quantization"] = args.hybrid_quantization
     # Add OpenAI model args only if provided (fields have non-Optional types with defaults)
     if args.openai_transcription_model is not None:
         payload["openai_transcription_model"] = args.openai_transcription_model
@@ -1836,6 +2354,20 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
             logger.info(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
             if cfg.summary_chunk_size:
                 logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
+        elif cfg.summary_provider == "hybrid_ml":
+            logger.info(
+                f"  Hybrid MAP: {getattr(cfg, 'hybrid_map_model', 'longt5-base')}, "
+                f"REDUCE: {getattr(cfg, 'hybrid_reduce_model', 'google/flan-t5-base')}"
+            )
+            logger.info(
+                f"  Hybrid REDUCE backend: {getattr(cfg, 'hybrid_reduce_backend', 'transformers')}"
+            )
+            logger.info(
+                f"  Hybrid devices: MAP={getattr(cfg, 'hybrid_map_device', None) or 'default'}, "
+                f"REDUCE={getattr(cfg, 'hybrid_reduce_device', None) or 'default'}"
+            )
+            if cfg.summary_chunk_size:
+                logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
         logger.info(
             f"  Summary Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
             f"min_new_tokens={cfg.summary_map_params.get('min_new_tokens')}"
@@ -1858,6 +2390,23 @@ def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
             )
         if cfg.summary_prompt:
             logger.info(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
+
+    # Grounded Insights (GIL)
+    logger.info("Grounded Insights (GIL):")
+    logger.info(f"  Generate GI: {cfg.generate_gi}")
+    if cfg.generate_gi:
+        logger.info(f"  GI require grounding: {getattr(cfg, 'gi_require_grounding', True)}")
+        logger.info(f"  GI insight model: {getattr(cfg, 'gi_insight_model', 'stub')}")
+        logger.info(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
+        logger.info(f"  GI max insights: {getattr(cfg, 'gi_max_insights', 5)}")
+        logger.info(
+            "  Quote extraction provider: %s",
+            getattr(cfg, "quote_extraction_provider", "transformers"),
+        )
+        logger.info(
+            "  Entailment provider: %s",
+            getattr(cfg, "entailment_provider", "transformers"),
+        )
 
     # Processing options
     logger.info("Processing Options:")
@@ -1915,8 +2464,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
         argv = sys.argv[1:]
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
-    # Only validate ffmpeg for main pipeline command, not for cache/doctor subcommands
-    if argv and len(argv) > 0 and argv[0] in ("cache", "doctor"):
+    # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi subcommands
+    if argv and len(argv) > 0 and argv[0] in ("cache", "doctor", "gi"):
         pass  # Skip ffmpeg check for subcommands
     else:
         _validate_ffmpeg()
@@ -1946,6 +2495,10 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_network=getattr(args, "check_network", False),
             check_models=getattr(args, "check_models", False),
         )
+
+    # Handle gi subcommand (#438)
+    if hasattr(args, "command") and args.command == "gi":
+        return _run_gi(args, log=log)
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":
@@ -2126,10 +2679,9 @@ if __name__ == "__main__":  # pragma: no cover - script entry
     import warnings
 
     # Silence thinc/spaCy FutureWarning about torch.cuda.amp.autocast (version compatibility issue)
-    # This warning is from thinc/shims/pytorch.py and is not actionable by users
-    # It's a known compatibility issue between thinc and newer PyTorch versions
-    # Tracked in Issue #416 - see docs/guides/DEPENDENCIES_GUIDE.md for details
-    # TODO: Remove this suppression when thinc fixes the deprecation (monitor thinc releases)
+    # This warning is from thinc/shims/pytorch.py and is not actionable by users.
+    # Tracked in Issue #416; see docs/guides/DEPENDENCIES_GUIDE.md for details.
+    # TODO(#416): Remove this suppression when thinc fixes the deprecation (monitor thinc releases).
     warnings.filterwarnings(
         "ignore",
         category=FutureWarning,

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -38,11 +39,12 @@ try:
     from nltk.tokenize import word_tokenize
     from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
-    # Ensure required NLTK data is available
+    # Ensure required NLTK data is available (punkt_tab needed for word_tokenize in NLTK 3.8+)
     try:
         import nltk
 
         nltk.download("punkt", quiet=True)
+        nltk.download("punkt_tab", quiet=True)
     except Exception:
         # If download fails, word_tokenize will fail later - that's OK
         pass
@@ -673,6 +675,58 @@ def compute_embedding_similarity(
     return sum(similarities) / len(similarities)
 
 
+# Match numbers (integers and decimals) for numbers_retained metric
+_NUMBERS_PATTERN = re.compile(r"\d+\.?\d*")
+
+
+def _extract_numbers(text: str) -> set:
+    """Extract numeric tokens from text (integers and decimals)."""
+    if not text or not isinstance(text, str):
+        return set()
+    return set(_NUMBERS_PATTERN.findall(text))
+
+
+def _compute_numbers_retained(
+    pred_by_id: Dict[Any, Dict[str, Any]],
+    ref_by_id: Dict[Any, Dict[str, Any]],
+    pred_ids: set,
+) -> Optional[float]:
+    """Compute fraction of reference numbers that appear in predictions (per-episode average).
+
+    For each episode, extracts numbers from reference and prediction summaries;
+    retention = |ref_numbers ∩ pred_numbers| / |ref_numbers| when ref_numbers non-empty.
+    Returns the average across episodes, or None if no reference numbers in any episode.
+    """
+    retentions = []
+    for episode_id in pred_ids:
+        pred = pred_by_id.get(episode_id, {})
+        ref = ref_by_id.get(episode_id, {})
+        pred_output = pred.get("output", {})
+        pred_summary = (
+            pred_output.get("summary_final")
+            or pred_output.get("summary_long")
+            or (pred_output if isinstance(pred_output, str) else "")
+        )
+        ref_output = ref.get("output", {})
+        ref_summary = (
+            ref_output.get("summary_final")
+            or ref_output.get("summary_long")
+            or (ref_output if isinstance(ref_output, str) else "")
+        )
+        if not isinstance(pred_summary, str):
+            pred_summary = ""
+        if not isinstance(ref_summary, str):
+            ref_summary = ""
+        ref_nums = _extract_numbers(ref_summary)
+        if not ref_nums:
+            continue
+        pred_nums = _extract_numbers(pred_summary)
+        retentions.append(len(ref_nums & pred_nums) / len(ref_nums))
+    if not retentions:
+        return None
+    return sum(retentions) / len(retentions)
+
+
 def compute_vs_reference_metrics(
     predictions: List[Dict[str, Any]],
     reference_id: str,
@@ -790,6 +844,9 @@ def compute_vs_reference_metrics(
         if avg_silver_tokens > 0:
             coverage_ratio = avg_ml_tokens / avg_silver_tokens
 
+    # Numbers retained: fraction of reference numbers that appear in prediction
+    numbers_retained = _compute_numbers_retained(pred_by_id, ref_by_id, pred_ids)
+
     return {
         "reference_quality": reference_quality,
         "rouge1_f1": rouge_scores.get("rouge1_f1"),
@@ -799,7 +856,7 @@ def compute_vs_reference_metrics(
         "wer": wer_score,
         "embedding_cosine": embedding_similarity,
         "coverage_ratio": coverage_ratio,
-        "numbers_retained": None,  # TODO: Implement numbers retention metric
+        "numbers_retained": numbers_retained,
     }
 
 

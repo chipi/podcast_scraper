@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import os
 import queue
 import threading
 import time
 from pathlib import Path
-from typing import Any, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -137,6 +138,9 @@ def _download_or_reuse_media(
     pipeline_metrics: Any,
 ) -> tuple[bool, int, float]:
     """Download media or reuse existing file. Returns (success, total_bytes, dl_elapsed)."""
+    if episode.media_url is None:
+        logger.warning("    media_url is missing; cannot download")
+        return False, 0, 0.0
     if pipeline_metrics is not None:
         pipeline_metrics.record_download_media_attempt()
     if cfg.reuse_media and os.path.exists(temp_media):
@@ -361,6 +365,35 @@ def _save_transcript_file(
     filesystem.write_file(out_path, text.encode("utf-8"), pipeline_metrics=pipeline_metrics)
     rel_path = os.path.relpath(out_path, effective_output_dir)
     return rel_path
+
+
+def _save_transcript_segments_file(
+    segments: List[Dict[str, Any]],
+    rel_transcript_path: str,
+    effective_output_dir: str,
+) -> None:
+    """Save transcription segments to a .segments.json file for GIL timestamp mapping.
+
+    When transcription returns segments (start/end in seconds, text), persist them
+    so the GIL pipeline can attach precise timestamp_start_ms/timestamp_end_ms to
+    quotes (FR2.2). File is written next to the transcript (same base name, .segments.json).
+
+    Args:
+        segments: List of {"start": float, "end": float, "text": str}.
+        rel_transcript_path: Relative path to the transcript file (e.g. transcripts/01 - ep.txt).
+        effective_output_dir: Output directory path.
+    """
+    if not segments or not rel_transcript_path:
+        return
+    full_path = os.path.join(effective_output_dir, rel_transcript_path)
+    base, _ = os.path.splitext(full_path)
+    segments_path = base + ".segments.json"
+    try:
+        with open(segments_path, "w", encoding="utf-8") as f:
+            json.dump(segments, f, indent=0)
+        logger.debug("Saved transcription segments for GIL timestamps: %s", segments_path)
+    except OSError as e:
+        logger.debug("Could not save segments file %s: %s", segments_path, e)
 
 
 def _cleanup_temp_media(temp_media: str, cfg: Optional[config.Config] = None) -> None:
@@ -927,6 +960,9 @@ def transcribe_media_to_text(
             text, job, run_suffix, effective_output_dir, pipeline_metrics=pipeline_metrics
         )
         logger.info(f"    saved transcript: {rel_path} (transcribed in {tc_elapsed:.1f}s)")
+        segments = result.get("segments") if isinstance(result, dict) else None
+        if isinstance(segments, list) and len(segments) > 0:
+            _save_transcript_segments_file(segments, rel_path, effective_output_dir)
 
         # Save transcript to cache for future use (enables fast multi-provider experimentation)
         _save_transcript_to_cache_if_needed(job, cfg, temp_media, text, transcription_provider)

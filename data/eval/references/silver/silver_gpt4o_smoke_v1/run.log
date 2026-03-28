@@ -1,0 +1,43 @@
+2026-02-13 12:04:38,939 INFO __main__: ================================================================================
+2026-02-13 12:04:38,940 INFO __main__: Starting experiment run: silver_openai_gpt4o_smoke_v1
+2026-02-13 12:04:38,940 INFO __main__: Results directory: data/eval/runs/silver_openai_gpt4o_smoke_v1
+2026-02-13 12:04:38,940 INFO __main__: Execution log: data/eval/runs/silver_openai_gpt4o_smoke_v1/run.log
+2026-02-13 12:04:38,940 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-02-13 12:04:38,940 INFO __main__: ================================================================================
+2026-02-13 12:04:38,940 INFO __main__: Creating summarization provider...
+2026-02-13 12:04:39,305 INFO __main__: Found 5 episode(s) to process
+2026-02-13 12:04:39,305 INFO __main__: Phase 1: Running inference...
+2026-02-13 12:04:39,305 INFO __main__: Processing episode: p01_e01
+2026-02-13 12:04:39,312 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-02-13 12:04:49,710 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-13 12:04:49,718 INFO __main__: Episode p01_e01 completed in 10.4s, summary length=2027 chars
+2026-02-13 12:04:49,718 INFO __main__: Processing episode: p02_e01
+2026-02-13 12:04:49,724 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-02-13 12:04:58,908 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-13 12:04:58,914 INFO __main__: Episode p02_e01 completed in 9.2s, summary length=2069 chars
+2026-02-13 12:04:58,915 INFO __main__: Processing episode: p03_e01
+2026-02-13 12:04:58,919 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-02-13 12:05:08,245 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-13 12:05:08,255 INFO __main__: Episode p03_e01 completed in 9.3s, summary length=2202 chars
+2026-02-13 12:05:08,255 INFO __main__: Processing episode: p04_e01
+2026-02-13 12:05:08,260 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-02-13 12:05:16,593 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-13 12:05:16,597 INFO __main__: Episode p04_e01 completed in 8.3s, summary length=1691 chars
+2026-02-13 12:05:16,597 INFO __main__: Processing episode: p05_e01
+2026-02-13 12:05:16,602 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-02-13 12:05:26,275 INFO httpx: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-13 12:05:26,283 INFO __main__: Episode p05_e01 completed in 9.7s, summary length=2308 chars
+2026-02-13 12:05:26,283 INFO __main__: Phase 1 completed in 47.0s
+2026-02-13 12:05:26,283 INFO __main__: Total input: 53,793 chars, output: 10,297 chars
+2026-02-13 12:05:26,283 INFO __main__: Average compression: 5.2x
+2026-02-13 12:05:26,283 INFO __main__: Predictions: data/eval/runs/silver_openai_gpt4o_smoke_v1/predictions.jsonl
+2026-02-13 12:05:26,283 INFO __main__: Metadata: data/eval/runs/silver_openai_gpt4o_smoke_v1/baseline.json
+2026-02-13 12:05:26,283 INFO __main__: Fingerprint: data/eval/runs/silver_openai_gpt4o_smoke_v1/fingerprint.json
+2026-02-13 12:05:26,284 INFO __main__: Created README.md: data/eval/runs/silver_openai_gpt4o_smoke_v1/README.md
+2026-02-13 12:05:26,285 INFO __main__: Computing metrics...
+2026-02-13 12:05:26,286 INFO __main__: Metrics: data/eval/runs/silver_openai_gpt4o_smoke_v1/metrics.json
+2026-02-13 12:05:26,288 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'episodes' is a required property (continuing anyway)
+2026-02-13 12:05:26,288 INFO __main__: ✓ Summarization metrics validation completed
+2026-02-13 12:05:26,288 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/silver_openai_gpt4o_smoke_v1/metrics_report.md
+2026-02-13 12:05:26,288 INFO __main__: Episodes=5, avg_time=9.4s, avg_compression=5.2x
+2026-02-13 12:05:26,288 INFO __main__: ✓ Execution log saved: data/eval/runs/silver_openai_gpt4o_smoke_v1/run.log

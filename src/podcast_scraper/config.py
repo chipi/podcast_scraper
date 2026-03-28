@@ -1301,6 +1301,117 @@ class Config(BaseModel):
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
+    # GIL evidence stack (Issue #435): loaded lazily when GIL or dependent feature enabled
+    embedding_model: str = Field(
+        default=config_constants.DEFAULT_EMBEDDING_MODEL,
+        alias="embedding_model",
+        description="Model for sentence embeddings (GIL grounding). Alias or full HF ID.",
+    )
+    embedding_device: Optional[str] = Field(
+        default=None,
+        alias="embedding_device",
+        description="Device for embedding model (cpu, cuda, mps, or None for auto).",
+    )
+    extractive_qa_model: str = Field(
+        default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
+        alias="extractive_qa_model",
+        description="Model for extractive QA (GIL quote extraction). Alias or full HF ID.",
+    )
+    extractive_qa_device: Optional[str] = Field(
+        default=None,
+        alias="extractive_qa_device",
+        description="Device for extractive QA model (cpu, cuda, mps, or None for auto).",
+    )
+    nli_model: str = Field(
+        default=config_constants.DEFAULT_NLI_MODEL,
+        alias="nli_model",
+        description="Model for NLI entailment (GIL grounding). Alias or full HF ID.",
+    )
+    nli_device: Optional[str] = Field(
+        default=None,
+        alias="nli_device",
+        description="Device for NLI model (cpu, cuda, mps, or None for auto).",
+    )
+    # GIL extraction (Issue #356): per-episode gi.json when enabled
+    generate_gi: bool = Field(
+        default=False,
+        alias="generate_gi",
+        description="Enable Grounded Insight Layer extraction; writes gi.json per episode.",
+    )
+    gi_insight_model: str = Field(
+        default="google/flan-t5-base",
+        alias="gi_insight_model",
+        description="Model for insight extraction (alias or full HF ID); resolved via registry.",
+    )
+    gi_qa_model: str = Field(
+        default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
+        alias="gi_qa_model",
+        description="Model for quote extraction (reuses evidence stack QA).",
+    )
+    gi_embedding_model: str = Field(
+        default=config_constants.DEFAULT_EMBEDDING_MODEL,
+        alias="gi_embedding_model",
+        description="Model for embeddings when GIL uses similarity (reuses evidence stack).",
+    )
+    gi_nli_model: str = Field(
+        default=config_constants.DEFAULT_NLI_MODEL,
+        alias="gi_nli_model",
+        description="Model for entailment when grounding (reuses evidence stack).",
+    )
+    gi_require_grounding: bool = Field(
+        default=True,
+        alias="gi_require_grounding",
+        description="If True, only emit SUPPORTED_BY edges when QA+NLI pass thresholds.",
+    )
+    quote_extraction_provider: Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "mistral",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ] = Field(
+        default="transformers",
+        alias="quote_extraction_provider",
+        description=(
+            "Provider for GIL quote extraction (QA). Same backends as summary_provider; "
+            "default 'transformers' uses local extractive QA."
+        ),
+    )
+    entailment_provider: Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "mistral",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ] = Field(
+        default="transformers",
+        alias="entailment_provider",
+        description=(
+            "Provider for GIL entailment (NLI). Same backends as summary_provider; "
+            "default 'transformers' uses local NLI model."
+        ),
+    )
+    gi_insight_source: Literal["provider", "summary_bullets", "stub"] = Field(
+        default="stub",
+        alias="gi_insight_source",
+        description=(
+            "Source of insight texts for GIL: 'provider' = call generate_insights() on "
+            "provider (LLM), 'summary_bullets', or 'stub' (default)."
+        ),
+    )
+    gi_max_insights: int = Field(
+        default=5,
+        alias="gi_max_insights",
+        description="Max insights when gi_insight_source is provider or summary_bullets.",
+    )
     metrics_output: Optional[str] = Field(
         default=None,
         alias="metrics_output",
@@ -1329,6 +1440,7 @@ class Config(BaseModel):
     )
     summary_provider: Literal[
         "transformers",
+        "hybrid_ml",
         "openai",
         "gemini",
         "grok",
@@ -1341,6 +1453,69 @@ class Config(BaseModel):
         alias="summary_provider",
         description=(
             "Summary generation provider " "(default: 'transformers' for HuggingFace Transformers)."
+        ),
+    )
+    hybrid_map_model: str = Field(
+        default="longt5-base",
+        alias="hybrid_map_model",
+        description=(
+            "Hybrid MAP model (classic summarizer). "
+            "Recommended: longt5-base (8k context) for medium-long transcripts."
+        ),
+    )
+    hybrid_reduce_model: str = Field(
+        default="google/flan-t5-base",
+        alias="hybrid_reduce_model",
+        description=(
+            "Hybrid REDUCE model (instruction-tuned). "
+            "Tier 1 default: google/flan-t5-base via transformers backend."
+        ),
+    )
+    hybrid_reduce_backend: Literal["transformers", "ollama", "llama_cpp"] = Field(
+        default="transformers",
+        alias="hybrid_reduce_backend",
+        description=(
+            "Hybrid REDUCE backend. "
+            "transformers = FLAN-T5 via local transformers; "
+            "ollama = send reduce step to local Ollama server; "
+            "llama_cpp = GGUF via llama.cpp (optional)."
+        ),
+    )
+    hybrid_map_device: Optional[str] = Field(
+        default=None,
+        alias="hybrid_map_device",
+        description="Device for hybrid MAP model (cpu/cuda/mps/auto). Defaults to summary_device.",
+    )
+    hybrid_reduce_device: Optional[str] = Field(
+        default=None,
+        alias="hybrid_reduce_device",
+        description=(
+            "Device for hybrid REDUCE model (cpu/cuda/mps/auto). "
+            "Defaults to summarization_device/summary_device."
+        ),
+    )
+    hybrid_quantization: Optional[str] = Field(
+        default=None,
+        alias="hybrid_quantization",
+        description=(
+            "Optional quantization hint for hybrid REDUCE backend "
+            "(e.g., '4bit', '8bit', 'q4'). Backend-specific; ignored if unsupported."
+        ),
+    )
+    hybrid_llama_n_ctx: Optional[int] = Field(
+        default=None,
+        alias="hybrid_llama_n_ctx",
+        description=(
+            "Context length for llama_cpp REDUCE backend (e.g., 4096). "
+            "When unset, provider uses 4096. Only used when hybrid_reduce_backend is llama_cpp."
+        ),
+    )
+    hybrid_reduce_instruction_style: Optional[Literal["structured", "paragraph"]] = Field(
+        default=None,
+        alias="hybrid_reduce_instruction_style",
+        description=(
+            "REDUCE instruction style: 'structured' = Takeaways/Outline/Actions (default); "
+            "'paragraph' = silver-style 4-6 paragraphs, no headings. Used for tuning toward silver."
         ),
     )
     summary_2nd_pass_distill: bool = Field(
@@ -1860,6 +2035,7 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "deepseek_api_base", "DEEPSEEK_API_BASE")
         cls._load_string_env_var(data, "grok_api_key", "GROK_API_KEY")
         cls._load_string_env_var(data, "grok_api_base", "GROK_API_BASE")
+        cls._load_string_env_var(data, "ollama_api_base", "OLLAMA_API_BASE")
 
         # Load integer environment variables
         cls._load_int_env_var(data, "workers", "WORKERS")
@@ -2204,9 +2380,16 @@ class Config(BaseModel):
 
     @field_validator("summary_provider", mode="before")
     @classmethod
-    def _validate_summary_provider(
-        cls, value: Any
-    ) -> Literal["transformers", "openai", "gemini", "grok", "deepseek", "anthropic", "ollama"]:
+    def _validate_summary_provider(cls, value: Any) -> Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ]:
         """Validate summary provider."""
         if value is None or value == "":
             return "transformers"
@@ -2214,6 +2397,7 @@ class Config(BaseModel):
 
         if value_str not in (
             "transformers",
+            "hybrid_ml",
             "openai",
             "gemini",
             "grok",
@@ -2223,10 +2407,57 @@ class Config(BaseModel):
             "ollama",
         ):
             raise ValueError(
-                "summary_provider must be 'transformers', 'openai', 'gemini', "
+                "summary_provider must be 'transformers', 'hybrid_ml', 'openai', 'gemini', "
                 "'grok', 'mistral', 'deepseek', 'anthropic', or 'ollama'"
             )
         return value_str  # type: ignore[return-value]
+
+    @field_validator("quote_extraction_provider", "entailment_provider", mode="before")
+    @classmethod
+    def _validate_evidence_providers(cls, value: Any) -> Literal[
+        "transformers",
+        "hybrid_ml",
+        "openai",
+        "gemini",
+        "grok",
+        "deepseek",
+        "anthropic",
+        "ollama",
+    ]:
+        """Validate quote_extraction_provider and entailment_provider (same as summary)."""
+        if value is None or value == "":
+            return "transformers"
+        value_str = str(value).strip().lower()
+        if value_str not in (
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ):
+            raise ValueError(
+                "quote_extraction_provider/entailment_provider must be one of: "
+                "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
+                "'mistral', 'deepseek', 'anthropic', 'ollama'"
+            )
+        return value_str  # type: ignore[return-value]
+
+    @field_validator("hybrid_map_device", "hybrid_reduce_device", mode="before")
+    @classmethod
+    def _coerce_hybrid_devices(cls, value: Any) -> Optional[str]:
+        """Coerce hybrid device fields to string or None (supports 'auto')."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip().lower()
+        if value_str == "auto":
+            return None
+        if value_str not in ("cuda", "mps", "cpu"):
+            raise ValueError("hybrid_*_device must be 'cuda', 'mps', 'cpu', or 'auto'")
+        return value_str
 
     @field_validator("openai_temperature", mode="before")
     @classmethod
@@ -2419,6 +2650,10 @@ class Config(BaseModel):
             openai_providers_used.append("speaker_detection")
         if self.summary_provider == "openai":
             openai_providers_used.append("summarization")
+        if self.quote_extraction_provider == "openai":
+            openai_providers_used.append("quote_extraction")
+        if self.entailment_provider == "openai":
+            openai_providers_used.append("entailment")
 
         if openai_providers_used and not self.openai_api_key:
             providers_str = ", ".join(openai_providers_used)
@@ -2439,6 +2674,10 @@ class Config(BaseModel):
             gemini_providers_used.append("speaker_detection")
         if self.summary_provider == "gemini":
             gemini_providers_used.append("summarization")
+        if self.quote_extraction_provider == "gemini":
+            gemini_providers_used.append("quote_extraction")
+        if self.entailment_provider == "gemini":
+            gemini_providers_used.append("entailment")
 
         if gemini_providers_used and not self.gemini_api_key:
             providers_str = ", ".join(gemini_providers_used)
@@ -2459,6 +2698,10 @@ class Config(BaseModel):
             anthropic_providers_used.append("speaker_detection")
         if self.summary_provider == "anthropic":
             anthropic_providers_used.append("summarization")
+        if self.quote_extraction_provider == "anthropic":
+            anthropic_providers_used.append("quote_extraction")
+        if self.entailment_provider == "anthropic":
+            anthropic_providers_used.append("entailment")
 
         if anthropic_providers_used and not self.anthropic_api_key:
             providers_str = ", ".join(anthropic_providers_used)
@@ -2477,6 +2720,10 @@ class Config(BaseModel):
             deepseek_providers_used.append("speaker_detection")
         if self.summary_provider == "deepseek":
             deepseek_providers_used.append("summarization")
+        if self.quote_extraction_provider == "deepseek":
+            deepseek_providers_used.append("quote_extraction")
+        if self.entailment_provider == "deepseek":
+            deepseek_providers_used.append("entailment")
 
         if deepseek_providers_used and not self.deepseek_api_key:
             providers_str = ", ".join(deepseek_providers_used)
@@ -2528,6 +2775,10 @@ class Config(BaseModel):
             grok_providers_used.append("speaker_detection")
         if self.summary_provider == "grok":
             grok_providers_used.append("summarization")
+        if self.quote_extraction_provider == "grok":
+            grok_providers_used.append("quote_extraction")
+        if self.entailment_provider == "grok":
+            grok_providers_used.append("entailment")
 
         if grok_providers_used and not self.grok_api_key:
             providers_str = ", ".join(grok_providers_used)
@@ -2548,6 +2799,10 @@ class Config(BaseModel):
             mistral_providers_used.append("speaker_detection")
         if self.summary_provider == "mistral":
             mistral_providers_used.append("summarization")
+        if self.quote_extraction_provider == "mistral":
+            mistral_providers_used.append("quote_extraction")
+        if self.entailment_provider == "mistral":
+            mistral_providers_used.append("entailment")
 
         if mistral_providers_used and not self.mistral_api_key:
             providers_str = ", ".join(mistral_providers_used)
@@ -2828,6 +3083,14 @@ class Config(BaseModel):
             raise ValueError(
                 "generate_summaries=True requires generate_metadata=True "
                 "(summaries are stored in metadata files)"
+            )
+
+        # 6b. generate_gi requires generate_metadata
+        #     GIL artifact is per-episode alongside metadata
+        if self.generate_gi and not self.generate_metadata:
+            raise ValueError(
+                "generate_gi=True requires generate_metadata=True "
+                "(GIL artifact is written alongside episode metadata)"
             )
 
         # === Output Control Validation ===

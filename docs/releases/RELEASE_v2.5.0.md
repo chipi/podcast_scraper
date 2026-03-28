@@ -201,14 +201,14 @@ completion_tokens=B, estimated_cost=C
 Added complete documentation for the Podcast Knowledge Graph (PKG) system:
 
 - **Ontology Documentation**: Node types, edge types, properties, identity rules
-- **Schema Reference**: JSON schema for kg.json outputs
+- **Schema Reference**: JSON schema for gi.json outputs
 - **Design Principles**: Evidence-first, minimal ontology, stable IDs
 - **Implementation Guide**: How to generate and consume knowledge graphs
 
 **Documentation:**
 
-- [Knowledge Graph Ontology](../kg/ontology.md) - Complete ontology reference
-- [Knowledge Graph Schema](../kg/kg.schema.json) - JSON schema validation
+- [Grounded Insights Ontology](../gi/ontology.md) - Complete ontology reference
+- [Grounded Insights Schema](../gi/gi.schema.json) - JSON schema validation
 
 **Related PR:** #391
 

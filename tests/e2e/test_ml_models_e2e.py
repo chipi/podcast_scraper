@@ -223,7 +223,7 @@ class TestSpacySpeakerDetection:
             episode_description = "Maya talks with trail builder Liam Verbeek about drainage."
             known_hosts = set()
 
-            speakers, hosts, success = detector.detect_speakers(
+            speakers, hosts, success, _ = detector.detect_speakers(
                 episode_title=episode_title,
                 episode_description=episode_description,
                 known_hosts=known_hosts,
@@ -399,7 +399,7 @@ class TestAllMLModelsTogether:
             )
             detector = create_speaker_detector(cfg_speaker)
             detector.initialize()
-            speakers, hosts, success = detector.detect_speakers(
+            speakers, hosts, success, _ = detector.detect_speakers(
                 episode_title="Test Episode",
                 episode_description="Test description",
                 known_hosts=set(),

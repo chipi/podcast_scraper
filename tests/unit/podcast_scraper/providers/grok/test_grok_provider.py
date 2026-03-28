@@ -226,7 +226,7 @@ class TestGrokProviderSpeakerDetection(unittest.TestCase):
         provider = GrokProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Test Episode",
             episode_description="Test description",
             known_hosts={"John Doe"},
@@ -263,7 +263,7 @@ class TestGrokProviderSpeakerDetection(unittest.TestCase):
         provider = GrokProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers("Test", None, set())
+        speakers, hosts, success, _ = provider.detect_speakers("Test", None, set())
 
         self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertEqual(hosts, set())
@@ -534,7 +534,7 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
         provider.initialize()
 
         # Should fallback to text parsing
-        speakers, hosts, success = provider.detect_speakers("Test", None, set())
+        speakers, hosts, success, _ = provider.detect_speakers("Test", None, set())
 
         # Should return defaults or parsed text
         self.assertIsInstance(speakers, list)
@@ -569,7 +569,7 @@ class TestGrokProviderEdgeCases(unittest.TestCase):
         provider = GrokProvider(cfg)
         # Don't initialize
 
-        speakers, hosts, success = provider.detect_speakers("Test", None, set())
+        speakers, hosts, success, _ = provider.detect_speakers("Test", None, set())
 
         self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         self.assertEqual(hosts, set())
@@ -663,7 +663,7 @@ class TestGrokProviderErrorHandling(unittest.TestCase):
         provider = GrokProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 

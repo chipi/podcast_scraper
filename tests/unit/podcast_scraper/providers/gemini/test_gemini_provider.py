@@ -471,7 +471,7 @@ class TestGeminiProviderSpeakerDetection(unittest.TestCase):
         provider = GeminiProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},
@@ -804,7 +804,7 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         provider.initialize()
 
         # Should return default speakers on JSON decode error
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 
@@ -826,7 +826,7 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         provider = GeminiProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 

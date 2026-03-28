@@ -456,10 +456,10 @@ class TestProcessingStage(unittest.TestCase):
 
         # Mock detect_speakers to return both hosts so validation passes
         # The validation checks if hosts appear in first episode, so return them
-        # detect_speakers returns (speaker_names_list, known_hosts_set, success_bool)
+        # detect_speakers returns (speaker_names_list, known_hosts_set, success_bool, used_defaults)
         # Need to handle both with and without pipeline_metrics parameter
         def mock_detect_speakers(*args, **kwargs):
-            return (["Host 1", "Host 2"], set(), True)
+            return (["Host 1", "Host 2"], set(), True, False)
 
         mock_detector.detect_speakers = Mock(side_effect=mock_detect_speakers)
         # Mock inspect.signature to return a signature that doesn't have pipeline_metrics

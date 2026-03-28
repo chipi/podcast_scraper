@@ -119,10 +119,10 @@ class TestNERSpeakerDetector(unittest.TestCase):
         """Test detect_speakers method."""
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
-        mock_detect.return_value = (["Alice", "Bob"], {"Alice"}, True)
+        mock_detect.return_value = (["Alice", "Bob"], {"Alice"}, True, False)
 
         detector = create_speaker_detector(self.cfg)
-        speaker_names, detected_hosts, success = detector.detect_speakers(
+        speaker_names, detected_hosts, success, _ = detector.detect_speakers(
             "Episode Title", "Episode Description", {"Alice"}
         )
 
@@ -146,7 +146,7 @@ class TestNERSpeakerDetector(unittest.TestCase):
         """Test detect_speakers auto-initializes if not initialized."""
         mock_nlp = Mock()
         mock_get_model.return_value = mock_nlp
-        mock_detect.return_value = ([], set(), False)
+        mock_detect.return_value = ([], set(), False, False)
 
         detector = create_speaker_detector(self.cfg)
         # Don't call initialize() manually

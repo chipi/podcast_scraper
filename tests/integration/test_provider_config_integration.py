@@ -119,6 +119,11 @@ class TestProviderConfigFields(unittest.TestCase):
         )
         self.assertEqual(cfg_transformers.summary_provider, "transformers")
 
+        cfg_hybrid = config.Config(
+            rss_url="https://example.com/feed.xml", summary_provider="hybrid_ml"
+        )
+        self.assertEqual(cfg_hybrid.summary_provider, "hybrid_ml")
+
         # OpenAI provider requires API key
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
@@ -200,6 +205,23 @@ class TestProviderFactories(unittest.TestCase):
         # Verify it's the unified ML provider
         self.assertEqual(provider.__class__.__name__, "MLProvider")
         # Verify protocol compliance
+        self.assertTrue(hasattr(provider, "summarize"))
+        self.assertTrue(hasattr(provider, "initialize"))
+        self.assertTrue(hasattr(provider, "cleanup"))
+
+    def test_summarization_provider_factory_creates_hybrid_ml_provider(self):
+        """Test that summarization provider factory creates HybridMLProvider for hybrid_ml."""
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="hybrid_ml",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+        provider = create_summarization_provider(cfg)
+        self.assertIsNotNone(provider)
+        self.assertEqual(provider.__class__.__name__, "HybridMLProvider")
         self.assertTrue(hasattr(provider, "summarize"))
         self.assertTrue(hasattr(provider, "initialize"))
         self.assertTrue(hasattr(provider, "cleanup"))

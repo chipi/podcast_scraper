@@ -125,6 +125,42 @@ def get_transformers_cache_dir() -> Path:
     return Path.home() / ".cache" / "huggingface" / "hub"
 
 
+def get_transformers_snapshot_path(
+    model_id: str,
+    revision: Optional[str] = None,
+    cache_dir: Optional[Path] = None,
+) -> Optional[Path]:
+    """Return path to a model's snapshot in the HF cache if it exists.
+
+    Use this to load from a local directory and avoid repo-id resolution bugs
+    (e.g. checkpoint_files discovery with mixed safetensors/PyTorch cache).
+
+    Args:
+        model_id: Hugging Face model id (e.g. "google/flan-t5-base").
+        revision: Git revision (SHA or ref). If None, uses refs/main.
+        cache_dir: Cache root (default: get_transformers_cache_dir()).
+
+    Returns:
+        Path to the snapshot directory, or None if not found.
+    """
+    cache_dir = cache_dir or get_transformers_cache_dir()
+    repo_dir = cache_dir / f"models--{model_id.replace('/', '--')}"
+    if not repo_dir.exists():
+        return None
+    if revision:
+        snapshot_dir = repo_dir / "snapshots" / revision
+        if snapshot_dir.exists():
+            return snapshot_dir
+        return None
+    refs_main = repo_dir / "refs" / "main"
+    if refs_main.exists():
+        sha = refs_main.read_text().strip()
+        snapshot_dir = repo_dir / "snapshots" / sha
+        if snapshot_dir.exists():
+            return snapshot_dir
+    return None
+
+
 def get_spacy_cache_dir() -> Optional[Path]:
     """Get spaCy model cache directory.
 

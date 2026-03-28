@@ -82,8 +82,7 @@ def create_run_summary(
             metrics_summary["io_and_waiting_wall_seconds"] = (
                 pipeline_metrics.io_and_waiting_wall_seconds
             )
-        # Backward compatibility (deprecated)
-        if hasattr(pipeline_metrics, "time_io_and_waiting"):
+        if hasattr(pipeline_metrics, "io_and_waiting_thread_sum_seconds"):
             metrics_summary["time_io_and_waiting_seconds"] = (
                 pipeline_metrics.io_and_waiting_thread_sum_seconds
             )

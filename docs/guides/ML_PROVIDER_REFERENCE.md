@@ -253,11 +253,42 @@ The following issues are architectural limits of BART/LED, not bugs:
 
 ---
 
+## Hybrid ML Provider (summary_provider: hybrid_ml)
+
+**Status**: Implemented (RFC-042).
+
+The **Hybrid ML** provider performs MAP-REDUCE summarization with a local MAP phase (e.g. LongT5-base) and a configurable REDUCE phase. Use `summary_provider: hybrid_ml` in config.
+
+### Flow
+
+1. **MAP phase**: Transcript is chunked and each chunk is summarized using the MAP model (e.g. `longt5-base`), producing structured notes.
+2. **REDUCE phase**: Notes are combined into a final summary using one of three backends:
+   * **transformers** — FLAN-T5 or similar (default: `google/flan-t5-base`). Runs locally via PyTorch.
+   * **ollama** — Local LLMs (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`). Requires Ollama running; the reduce instruction is sent as an inline prompt (no template file).
+   * **llama_cpp** — GGUF models via `llama-cpp-python`. `hybrid_reduce_model` is the path to a `.gguf` file.
+
+### Configuration
+
+| Config key | Default | Description |
+| --- | --- | --- |
+| `hybrid_map_model` | `longt5-base` | HuggingFace model for MAP (chunk summarization). |
+| `hybrid_reduce_model` | `google/flan-t5-base` | Model for REDUCE: HuggingFace ID (transformers), Ollama tag (ollama), or path to GGUF (llama_cpp). |
+| `hybrid_reduce_backend` | `transformers` | One of: `transformers`, `ollama`, `llama_cpp`. |
+| `hybrid_reduce_device` | (auto) | Device for REDUCE when using `transformers` (e.g. `mps`, `cuda`, `cpu`). |
+| `hybrid_reduce_n_ctx` | (optional) | Context size for `llama_cpp` (default 4096). |
+
+Transcription and speaker detection are not provided by `HybridMLProvider`; use `whisper` and `spacy` (or other providers) for those. See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for using Ollama as the REDUCE backend and acceptance test configs.
+
+---
+
 ## Next Steps & Evolution
 
-The current BART/LED implementation serves as the **Classic Summarizer Baseline**. The next evolution includes:
+The current BART/LED implementation serves as the **Classic Summarizer Baseline**. Implemented and available:
 
-* **Hybrid MAP-REDUCE (RFC-042)**: Replacing the REDUCE phase with instruction-following models (Mistral, Qwen) for better abstraction.
+* **Hybrid MAP-REDUCE (RFC-042)**: REDUCE phase can use instruction-following models via **transformers** (FLAN-T5), **ollama** (e.g. Llama, Mistral, Qwen), or **llama_cpp** (GGUF) for better abstraction.
+
+Planned or in progress:
+
 * **Semantic Cleaning**: Using lightweight models to filter ads based on meaning.
 * **Experimentation Runner (RFC-015)**: Benchmarking new models against this frozen baseline.
 
@@ -303,10 +334,20 @@ Even on high-end hardware (e.g., Mac Studio or MBP M4 Pro with 48GB+ RAM), attem
 * **Memory vs. Context**: Use large RAM/VRAM to run **better** models (e.g., `bart-large` vs `bart-small`) and more **parallel chunks**, rather than attempting to increase the context window beyond the model's training limit.
 * **Recursive Reduction**: For extremely long transcripts, the system uses hierarchical reduction to consolidate summaries without losing key insights.
 
-### 9.3 Evolution Roadmap
+### 9.3 Evidence Stack and Grounded Insights (GIL)
+
+The **evidence stack** provides embedding, extractive QA, and NLI models used by the Grounded Insight Layer (GIL) when enabled. These load **lazily** (on first use when GIL or a dependent feature runs):
+
+* **Embedding**: `embedding_loader` — sentence embeddings (e.g. MiniLM, mpnet); used for similarity and retrieval.
+* **Extractive QA**: `extractive_qa` — question-answering over context; returns answer spans with character offsets and scores; used for quote extraction ("What evidence supports this insight?").
+* **NLI**: `nli_loader` — premise/hypothesis entailment scoring; used to validate that a quote supports an insight.
+
+Config keys: `embedding_model`, `embedding_device`, `extractive_qa_model`, `extractive_qa_device`, `nli_model`, `nli_device`. Model IDs can be aliases (e.g. `minilm-l6`, `roberta-squad2`, `nli-deberta-base`) or full HuggingFace IDs. See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md).
+
+### 9.4 Evolution Roadmap
 
 | Phase | Strategy | Model Class | Context Handling |
 | :--- | :--- | :--- | :--- |
 | **Current (Stable)** | Classic Map-Reduce | Encoder-Decoder (BART/LED) | Fixed chunking (600 tokens) |
-| **Medium Term** | Hybrid Map-Reduce | LLM (Mistral/Llama/Qwen) | Larger chunks (4k-8k tokens) |
+| **Current (Available)** | Hybrid Map-Reduce | LongT5 MAP + FLAN/Ollama/llama_cpp REDUCE | MAP chunking; REDUCE via transformers, ollama, or llama_cpp |
 | **Future** | Intelligent Synthesis | Mixture-of-Experts (MoE) | Semantic chunking |

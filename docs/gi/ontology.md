@@ -14,8 +14,8 @@ Define the canonical ontology contract for the **Grounded Insight Layer (GIL)**:
 - **Grounding contract** (the 2025 moat)
 - Provenance & evidence requirements
 
-This document is the source of truth for contributors. All `kg.json` outputs MUST conform
-to this ontology and the companion schema (`docs/kg/kg.schema.json`).
+This document is the source of truth for contributors. All `gi.json` outputs MUST conform
+to this ontology and the companion schema (`docs/gi/gi.schema.json`).
 
 ---
 
@@ -110,7 +110,7 @@ Any node produced by ML extraction SHOULD include:
 
 - `confidence` (0.0–1.0) - Extraction certainty (not factual truth)
 
-The root `kg.json` file MUST include:
+The root `gi.json` file MUST include:
 
 - `model_version` - Model identifier used for extraction
 - `prompt_version` - Prompt version used (enables A/B testing)
@@ -317,9 +317,9 @@ Optional properties:
 
 ---
 
-## Required Output Artifact: kg.json
+## Required Output Artifact: gi.json
 
-Each episode output folder contains a `kg.json` capturing nodes/edges for the episode.
+Each episode output folder contains a `gi.json` capturing nodes/edges for the episode.
 
 ### Root-level fields
 
@@ -334,7 +334,7 @@ Each episode output folder contains a `kg.json` capturing nodes/edges for the ep
 
 - Episode-local Insight and Quote nodes live here
 - Global nodes (Topic, Speaker) may be referenced or introduced
-- The logical full GIL is the union of all episode `kg.json` files
+- The logical full GIL is the union of all episode `gi.json` files
 - Every Insight must have `grounded` field set explicitly
 
 ---

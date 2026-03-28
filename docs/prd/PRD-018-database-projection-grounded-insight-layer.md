@@ -10,8 +10,8 @@
   - RFC-051 (Database Projection — technical design)
 - **Related Issues**: #31, #40, #50
 - **Related Documents**:
-  - `docs/kg/ontology.md` - Human-readable ontology
-  - `docs/kg/kg.schema.json` - Machine-readable schema
+  - `docs/gi/ontology.md` - Human-readable ontology
+  - `docs/gi/gi.schema.json` - Machine-readable schema
 
 ## Summary
 
@@ -34,7 +34,7 @@ podcast data into applications.
 ## Background & Context
 
 The Grounded Insight Layer (PRD-017) produces
-structured `kg.json` files per episode, enabling
+structured `gi.json` files per episode, enabling
 evidence-backed insight retrieval. However, file-based
 access has limitations:
 
@@ -61,7 +61,7 @@ the serving layer.
 **How it relates to existing features:**
 
 - **Grounded Insight Layer (PRD-017)**: Database export
-  projects GIL data from `kg.json` files into tables
+  projects GIL data from `gi.json` files into tables
 - **Metadata Generation (PRD-004)**: Episode metadata
   is also exported for complete episode context
 - **Transcript Pipeline (PRD-001)**: Transcript paths
@@ -80,7 +80,7 @@ the serving layer.
    downstream tools (CLI, notebooks, web UIs, agents)
    a consistent SQL interface
 4. **Preserve Provenance**: Every database row is
-   traceable back to `kg.json`, transcript evidence,
+   traceable back to `gi.json`, transcript evidence,
    and extraction metadata
 5. **Enable Incremental Growth**: Support upserting
    new episodes without reprocessing historical data
@@ -151,7 +151,7 @@ the serving layer.
 - **FR2.1**: Export episode-level records (id, title,
   publish_date, podcast_id, file paths)
 - **FR2.2**: Store paths to `metadata.json`,
-  `transcript.json`, `summary.json`, `kg.json`
+  `transcript.json`, `summary.json`, `gi.json`
 - **FR2.3**: Include `schema_version` and
   `ingestion_run_id` for lineage tracking
 
@@ -184,7 +184,7 @@ the serving layer.
 - **FR5.3**: Include `model_version` and
   `prompt_version` for ML-derived data
 - **FR5.4**: Ensure every row is traceable back to
-  `kg.json` path and episode_id
+  `gi.json` path and episode_id
 
 ### FR6: Query Support for UC1–UC5
 
@@ -221,7 +221,7 @@ the serving layer.
 - **Export Speed**: Export completes in < 5 minutes for
   1,000 episodes
 - **Provenance Accuracy**: 100% of database rows are
-  traceable to source `kg.json` files
+  traceable to source `gi.json` files
 - **Notebook Workflow Adoption**: Positive feedback
   from power users on research workflow speed
 - **Integration Success**: CLI tools and notebooks can
@@ -233,10 +233,10 @@ the serving layer.
   export)
 - **RFC-044**: Model Registry (model metadata tracked
   in provenance fields)
-- **RFC-042**: Hybrid ML Platform (produces `kg.json`
+- **RFC-042**: Hybrid ML Platform (produces `gi.json`
   files via extraction models)
 - **RFC-049**: Core GIL Concepts & Data Model (defines
-  ontology and `kg.json` schema)
+  ontology and `gi.json` schema)
 - **RFC-050**: GIL Use Cases & Insight Explorer
   (defines UC1–UC5 query patterns)
 - **RFC-051**: Database Projection (technical
@@ -249,7 +249,7 @@ the serving layer.
 - Must not replace file-based outputs as source of
   truth
 - Must preserve full provenance (traceable to
-  `kg.json` and transcript evidence)
+  `gi.json` and transcript evidence)
 - Must support incremental updates without
   reprocessing historical data
 - Must be idempotent and rebuildable from disk
@@ -265,7 +265,7 @@ the serving layer.
   in v1)
 - Users understand SQL or can use provided query
   examples
-- GIL extraction (RFC-049) produces valid `kg.json`
+- GIL extraction (RFC-049) produces valid `gi.json`
   files conforming to schema
 
 ## Design Considerations
@@ -307,7 +307,7 @@ the serving layer.
 
 Database export enhances the Grounded Insight Layer by:
 
-- **GIL File Output**: Projects `kg.json` files into
+- **GIL File Output**: Projects `gi.json` files into
   queryable tables without changing file format
 - **Episode Metadata**: Combines GIL data with episode
   metadata for complete context
@@ -518,7 +518,7 @@ are recorded here for traceability.
 - **RFC-044**: Model Registry — model metadata tracked
   in provenance fields
 - **RFC-042**: Hybrid ML Platform — produces the
-  `kg.json` files
+  `gi.json` files
 - **RFC-049**: Core GIL Concepts & Data Model
 - **RFC-050**: GIL Use Cases & Insight Explorer
 - **RFC-051**: Database Projection — technical design
@@ -537,6 +537,6 @@ are recorded here for traceability.
       rebuilds
 - [ ] UC1–UC5 queries validated against Postgres
 - [ ] Notebook examples created and documented
-- [ ] CLI integration verified (`kg explore`, etc.)
+- [ ] CLI integration verified (`gi explore`, etc.)
 - [ ] Documentation updated (README, query examples)
 - [ ] Integration with GIL pipeline verified

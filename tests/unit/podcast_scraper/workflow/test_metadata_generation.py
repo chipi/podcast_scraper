@@ -1392,6 +1392,112 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.assertEqual(result, metadata_path)
         self.assertEqual(mock_metrics.metadata_files_generated, 1)
 
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    @patch("podcast_scraper.gi.build_artifact")
+    @patch("podcast_scraper.gi.write_artifact")
+    def test_generate_episode_metadata_calls_gil_when_generate_gi_true(
+        self, mock_write_artifact, mock_build_artifact, mock_determine, mock_serialize
+    ):
+        """When generate_gi is True, build_artifact and write_artifact are called."""
+        self.cfg = create_test_config(
+            generate_metadata=True, generate_gi=True, gi_insight_model="stub"
+        )
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_build_artifact.return_value = {
+            "schema_version": "1.0",
+            "model_version": "stub",
+            "prompt_version": "v1",
+            "episode_id": "ep:1",
+            "nodes": [],
+            "edges": [],
+        }
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+            transcript_file_path="transcripts/ep1.txt",
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_build_artifact.assert_called_once()
+        mock_write_artifact.assert_called_once()
+        call_pos = mock_build_artifact.call_args[0]
+        call_kw = mock_build_artifact.call_args[1]
+        self.assertEqual(len(call_pos), 2, "build_artifact(episode_id, transcript_text)")
+        self.assertTrue(call_pos[0].startswith("sha256:") or len(call_pos[0]) > 0)
+        self.assertEqual(call_kw.get("model_version"), "stub")
+
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    @patch("podcast_scraper.gi.build_artifact")
+    def test_generate_episode_metadata_passes_evidence_providers_when_generate_gi_true(
+        self, mock_build_artifact, mock_determine, mock_serialize
+    ):
+        """build_artifact gets evidence providers when generate_gi and gi_require_grounding True."""
+        mock_summary_provider = MagicMock()
+        self.cfg = create_test_config(
+            generate_metadata=True,
+            generate_gi=True,
+            gi_insight_model="stub",
+            gi_require_grounding=True,
+        )
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_build_artifact.return_value = {
+            "schema_version": "1.0",
+            "model_version": "stub",
+            "prompt_version": "v1",
+            "episode_id": "ep:1",
+            "nodes": [],
+            "edges": [],
+        }
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+            transcript_file_path="transcripts/ep1.txt",
+            summary_provider=mock_summary_provider,
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_build_artifact.assert_called_once()
+        call_kw = mock_build_artifact.call_args[1]
+        self.assertIn("quote_extraction_provider", call_kw)
+        self.assertIn("entailment_provider", call_kw)
+        self.assertIs(call_kw["quote_extraction_provider"], mock_summary_provider)
+        self.assertIs(call_kw["entailment_provider"], mock_summary_provider)
+
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    @patch("podcast_scraper.gi.build_artifact")
+    def test_generate_episode_metadata_gil_failure_non_fatal(
+        self, mock_build_artifact, mock_determine, mock_serialize
+    ):
+        """When GIL (build_artifact/write_artifact) fails, metadata path still returned."""
+        self.cfg = create_test_config(generate_metadata=True, generate_gi=True)
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_build_artifact.side_effect = RuntimeError("GIL model load failed")
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_serialize.assert_called_once()
+
 
 class TestEntityNormalization(unittest.TestCase):
     """Tests for entity normalization functionality (Issue #387)."""
@@ -2088,6 +2194,36 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
         self.assertIn("model_revision", result)
         self.assertEqual(result["model_revision"], "a" * 40)
 
+    def test_hybrid_ml_provider_includes_map_reduce_backend(self):
+        """Episode metadata includes map_model, reduce_model, reduce_backend for hybrid_ml."""
+        cfg = create_test_config(
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["provider"], "hybrid_ml")
+        self.assertEqual(result["map_model"], "longt5-base")
+        self.assertEqual(result["reduce_model"], "google/flan-t5-base")
+        self.assertEqual(result["reduce_backend"], "transformers")
+
+    @patch("podcast_scraper.workflow.run_manifest._revision_for_summary_model")
+    def test_hybrid_ml_provider_includes_model_revision_when_available(self, mock_revision):
+        """Episode metadata includes model_revision for hybrid_ml when run_manifest returns it."""
+        mock_revision.return_value = "a" * 40
+        cfg = create_test_config(
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["provider"], "hybrid_ml")
+        self.assertIn("model_revision", result)
+        self.assertEqual(result["model_revision"], "a" * 40)
+        mock_revision.assert_called_once_with("longt5-base")
+
 
 @pytest.mark.unit
 class TestNormalizeEntity(unittest.TestCase):
@@ -2227,6 +2363,26 @@ class TestDetermineMetadataPath(unittest.TestCase):
         # not being in the path is too strict since the path is just a string
         # The important thing is that custom_meta is used
         self.assertTrue("custom_meta" in result)
+
+
+@pytest.mark.unit
+class TestDetermineGIPath(unittest.TestCase):
+    """Tests for _determine_gi_path helper (GIL artifact path from metadata path)."""
+
+    def test_gi_path_from_metadata_json(self):
+        """Metadata .metadata.json -> .gi.json."""
+        result = metadata._determine_gi_path("/out/metadata/1_ep.metadata.json")
+        self.assertEqual(result, "/out/metadata/1_ep.gi.json")
+
+    def test_gi_path_from_metadata_yaml(self):
+        """Metadata .metadata.yaml -> .gi.json."""
+        result = metadata._determine_gi_path("/out/metadata/1_ep.metadata.yaml")
+        self.assertEqual(result, "/out/metadata/1_ep.gi.json")
+
+    def test_gi_path_fallback_splitext(self):
+        """Fallback: any other extension -> base + .gi.json."""
+        result = metadata._determine_gi_path("/out/metadata/1_ep.metadata.other")
+        self.assertEqual(result, "/out/metadata/1_ep.metadata.gi.json")
 
 
 @pytest.mark.unit

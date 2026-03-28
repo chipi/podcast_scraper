@@ -436,6 +436,39 @@ podcast-scraper --rss https://example.com/feed.xml \
   --ollama-timeout 300
 ```
 
+#### Hybrid ML (MAP-REDUCE) Configuration
+
+When `summary_provider: hybrid_ml`, summarization uses a local MAP model (e.g. LongT5) for chunk summarization and a configurable REDUCE backend for the final synthesis.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `hybrid_map_model` | `--hybrid-map-model` | `longt5-base` | HuggingFace model for MAP phase (chunk summarization). |
+| `hybrid_reduce_model` | `--hybrid-reduce-model` | `google/flan-t5-base` | REDUCE model: HuggingFace ID (transformers), Ollama tag (e.g. `llama3.1:8b`) for ollama, or path to GGUF file for llama_cpp. |
+| `hybrid_reduce_backend` | `--hybrid-reduce-backend` | `transformers` | REDUCE backend: `transformers`, `ollama`, or `llama_cpp`. |
+| `hybrid_reduce_device` | `--hybrid-reduce-device` | (auto) | Device for REDUCE when backend is transformers (e.g. `mps`, `cuda`, `cpu`). |
+| `hybrid_reduce_n_ctx` | N/A | (optional) | Context size for llama_cpp REDUCE (default 4096). Config file only. |
+
+**Example** (Hybrid ML with Ollama REDUCE):
+
+```yaml
+summary_provider: hybrid_ml
+hybrid_map_model: longt5-base
+hybrid_reduce_backend: ollama
+hybrid_reduce_model: llama3.1:8b
+```
+
+**Example** (Hybrid ML with transformers REDUCE):
+
+```yaml
+summary_provider: hybrid_ml
+hybrid_map_model: longt5-base
+hybrid_reduce_backend: transformers
+hybrid_reduce_model: google/flan-t5-base
+hybrid_reduce_device: mps
+```
+
+See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) and [Ollama Provider Guide](../guides/OLLAMA_PROVIDER_GUIDE.md) for details.
+
 #### Logging Configuration
 
 **`LOG_LEVEL`**
@@ -710,6 +743,17 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 **Note**: LLM-based cleaning is only available when using LLM providers for summarization. ML providers (transformers) always use pattern-based cleaning.
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
+
+#### Grounded Insights (GIL) evidence providers
+
+When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a configurable evidence stack for quote extraction (QA) and entailment (NLI). Same backends as `summary_provider`.
+
+| Field | CLI Flag | Default | Description |
+| ------- | ---------- | --------- | ------------- |
+| `quote_extraction_provider` | `--quote-extraction-provider` | `transformers` | Provider for GIL quote extraction (QA). Options: transformers, hybrid_ml, openai, gemini, grok, mistral, deepseek, anthropic, ollama. |
+| `entailment_provider` | `--entailment-provider` | `transformers` | Provider for GIL entailment (NLI). Same options as quote_extraction_provider. |
+
+If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set. See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md) and RFC-049.
 
 #### Logging & Operational Configuration (Issue #379)
 
@@ -1087,6 +1131,14 @@ The configuration system handles various aliases for backward compatibility:
 - `rss_url` or `rss` → `rss_url`
 - `output_dir` or `output_directory` → `output_dir`
 - `screenplay_gap` or `screenplay_gap_s` → `screenplay_gap_s`
+
+### Deprecated fields
+
+The following field names are still accepted for backward compatibility but are deprecated. Use the replacement and expect removal in a future release. Config applies these mappings in `Config._handle_deprecated_fields` (config.py); removal is planned for a future major version.
+
+| Deprecated | Replacement | Notes |
+| ---------- | ----------- | ----- |
+| `speaker_detector_type` | `speaker_detector_provider` | Value `ner` maps to `spacy`. Set via config or env; a one-time `DeprecationWarning` is emitted when the deprecated field is used. |
 
 ## Validation
 

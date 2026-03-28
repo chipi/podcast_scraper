@@ -97,22 +97,26 @@ class E2EServerURLs:
     def gemini_api_base(self) -> str:
         """Get Gemini API base URL (points to E2E server).
 
+        google-genai joins ``api_version`` (``v1beta``) onto ``base_url``. Do not
+        append ``/v1beta`` here or requests hit ``.../v1beta/v1beta/models/...`` (404).
+
         Returns:
-            Gemini API base URL (e.g., "http://127.0.0.1:8000/v1beta")
+            Server root (e.g., ``http://127.0.0.1:8000``)
         """
-        return f"{self.base_url}/v1beta"
+        return self.base_url
 
     def mistral_api_base(self) -> str:
         """Get Mistral API base URL (points to E2E server).
 
-        Mistral uses OpenAI-compatible API format, so it uses the same endpoints:
-        - /v1/chat/completions for chat models
-        - /v1/audio/transcriptions for audio transcription
+        Mistral Python SDK appends ``/v1/...`` to ``server_url``. Do not include
+        ``/v1`` here or requests become ``/v1/v1/chat/completions`` (404).
+
+        Mock server paths: ``/v1/chat/completions``, ``/v1/audio/transcriptions``.
 
         Returns:
-            Mistral API base URL (e.g., "http://127.0.0.1:8000/v1")
+            Server root (e.g., ``http://127.0.0.1:8000``)
         """
-        return f"{self.base_url}/v1"
+        return self.base_url
 
     def grok_api_base(self) -> str:
         """Get Grok API base URL (points to E2E server).
@@ -452,7 +456,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # Route: OpenAI API endpoints
-        # /v1/chat/completions -> Mock chat completions (summarization, speaker detection)
+        # /v1/chat/completions -> Mock chat completions (summarization, speaker detection,
+        # GIL extract_quotes, GIL score_entailment)
         if path == "/v1/chat/completions":
             self._handle_chat_completions()
             return
@@ -484,7 +489,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_error(404, "File not found")
 
     def _handle_chat_completions(self):
-        """Handle OpenAI chat completions API requests."""
+        """Handle OpenAI chat (summarization, speaker, GIL extract_quotes/score_entailment)."""
         try:
             # Read request body
             content_length = int(self.headers.get("Content-Length", 0))
@@ -498,12 +503,17 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             # Extract request details
             messages = request_data.get("messages", [])
             user_message = next((m for m in messages if m.get("role") == "user"), {})
-            user_content = user_message.get("content", "")
+            raw_content = user_message.get("content", "")
+            # Normalize content: OpenAI sends string; Mistral can send string or list of parts
+            if isinstance(raw_content, list):
+                user_content = " ".join(
+                    p.get("text", "") if isinstance(p, dict) else str(p) for p in raw_content
+                )
+            else:
+                user_content = raw_content if isinstance(raw_content, str) else ""
             response_format = request_data.get("response_format", {})
 
-            # Determine response type based on response_format
-            # If response_format is {"type": "json_object"}, it's speaker detection
-            # Otherwise, it's summarization
+            # Determine response type: speaker (json_object), GIL evidence, or summarization
             if response_format.get("type") == "json_object":
                 # Speaker detection response
                 response_data = {
@@ -529,8 +539,54 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     ],
                     "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
                 }
+            elif "Insight:" in user_content and "quote_text" in user_content:
+                # GIL extract_quotes (user prompt has transcript + insight, wants JSON quote_text)
+                # Return a short substring from the transcript so transcript.find(quote) succeeds
+                if "Transcript (excerpt):" in user_content:
+                    excerpt = user_content.split("Transcript (excerpt):")[1].split("Insight:")[0]
+                else:
+                    excerpt = user_content.split("Insight:")[0]
+                excerpt = excerpt.strip()
+                mock_quote = (
+                    excerpt[:60].strip()
+                    if len(excerpt) > 10
+                    else (excerpt or "Evidence from transcript.")
+                )
+                response_data = {
+                    "id": "chatcmpl-test-extract-quote",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {
+                                "role": "assistant",
+                                "content": json.dumps({"quote_text": mock_quote}),
+                            },
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 80, "completion_tokens": 20, "total_tokens": 100},
+                }
+            elif "Premise:" in user_content and "Hypothesis:" in user_content:
+                # GIL score_entailment (premise + hypothesis; 0–1 instruction may be in system msg)
+                response_data = {
+                    "id": "chatcmpl-test-entailment",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": "0.85"},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 60, "completion_tokens": 2, "total_tokens": 62},
+                }
             else:
-                # Summarization response
+                # Summarization response (or generate_insights, cleaning, etc.)
                 # Generate a simple summary based on text length
                 summary_length = min(200, len(user_content) // 10)
                 summary = (
@@ -671,6 +727,12 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "llama3.1:latest"},
                     {"name": "llama3.1:8b"},
                     {"name": "llama3:latest"},
+                    # Hybrid Ollama reduce models (config/acceptance/summarization/*hybrid*ollama*)
+                    {"name": "mistral:7b"},
+                    {"name": "qwen2.5:7b"},
+                    {"name": "phi3:mini"},
+                    # Planet Money Ollama acceptance (acceptance_planet_money_ollama_gemma2_9b.yaml)
+                    {"name": "gemma2:9b"},
                 ]
             }
             response_json = json.dumps(models_response)
@@ -690,6 +752,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         Anthropic API uses POST /v1/messages
         This handler supports:
         - Speaker detection (when system prompt contains "speaker" or "NER")
+        - GIL extract_quotes / score_entailment (Insight+quote_text or Premise+Hypothesis)
         - Summarization (default)
         """
         try:
@@ -717,59 +780,97 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 user_content = str(user_content_raw)
             system = request_data.get("system", "")
 
-            # Determine response type based on system prompt
-            # If system prompt contains "speaker" or "NER", it's speaker detection
-            is_speaker_detection = (
-                "speaker" in system.lower() or "ner" in system.lower() or "name" in system.lower()
-            )
-
-            if is_speaker_detection:
-                # Speaker detection response (Anthropic format)
+            # GIL extract_quotes: user has Transcript (excerpt) + Insight, wants JSON quote_text
+            if "Insight:" in user_content and (
+                "quote_text" in user_content or "Transcript (excerpt):" in user_content
+            ):
+                if "Transcript (excerpt):" in user_content:
+                    excerpt = user_content.split("Transcript (excerpt):")[1].split("Insight:")[0]
+                else:
+                    excerpt = user_content.split("Insight:")[0]
+                excerpt = excerpt.strip()
+                mock_quote = (
+                    excerpt[:60].strip()
+                    if len(excerpt) > 10
+                    else (excerpt or "Evidence from transcript.")
+                )
                 response_data = {
-                    "id": "msg-test-speaker",
+                    "id": "msg-test-extract-quote",
                     "type": "message",
                     "role": "assistant",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": json.dumps(
-                                {
-                                    "speakers": ["Host", "Guest"],
-                                    "hosts": ["Host"],
-                                    "guests": ["Guest"],
-                                }
-                            ),
-                        }
-                    ],
+                    "content": [{"type": "text", "text": json.dumps({"quote_text": mock_quote})}],
                     "model": request_data.get("model", "claude-3-5-haiku-latest"),
                     "stop_reason": "end_turn",
                     "stop_sequence": None,
-                    "usage": {
-                        "input_tokens": 100,
-                        "output_tokens": 50,
-                    },
+                    "usage": {"input_tokens": 80, "output_tokens": 20},
+                }
+            elif "Premise:" in user_content and "Hypothesis:" in user_content:
+                # GIL score_entailment: user has Premise + Hypothesis, wants 0–1 number
+                response_data = {
+                    "id": "msg-test-entailment",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": "0.85"}],
+                    "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                    "stop_reason": "end_turn",
+                    "stop_sequence": None,
+                    "usage": {"input_tokens": 60, "output_tokens": 2},
                 }
             else:
-                # Summarization response (Anthropic format)
-                # Generate a simple summary based on text length
-                summary_length = min(200, len(user_content) // 10)
-                summary = (
-                    f"This is a test summary of the transcript. {user_content[:summary_length]}..."
+                # Determine response type based on system prompt
+                # If system prompt contains "speaker" or "NER", it's speaker detection
+                is_speaker_detection = (
+                    "speaker" in system.lower()
+                    or "ner" in system.lower()
+                    or "name" in system.lower()
                 )
 
-                response_data = {
-                    "id": "msg-test-summary",
-                    "type": "message",
-                    "role": "assistant",
-                    "content": [{"type": "text", "text": summary}],
-                    "model": request_data.get("model", "claude-3-5-haiku-latest"),
-                    "stop_reason": "end_turn",
-                    "stop_sequence": None,
-                    "usage": {
-                        "input_tokens": 100,
-                        "output_tokens": 50,
-                    },
-                }
+                if is_speaker_detection:
+                    # Speaker detection response (Anthropic format)
+                    response_data = {
+                        "id": "msg-test-speaker",
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": json.dumps(
+                                    {
+                                        "speakers": ["Host", "Guest"],
+                                        "hosts": ["Host"],
+                                        "guests": ["Guest"],
+                                    }
+                                ),
+                            }
+                        ],
+                        "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                        "stop_reason": "end_turn",
+                        "stop_sequence": None,
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                        },
+                    }
+                else:
+                    # Summarization response (Anthropic format)
+                    summary_length = min(200, len(user_content) // 10)
+                    summary = (
+                        f"This is a test summary of the transcript. "
+                        f"{user_content[:summary_length]}..."
+                    )
+                    response_data = {
+                        "id": "msg-test-summary",
+                        "type": "message",
+                        "role": "assistant",
+                        "content": [{"type": "text", "text": summary}],
+                        "model": request_data.get("model", "claude-3-5-haiku-latest"),
+                        "stop_reason": "end_turn",
+                        "stop_sequence": None,
+                        "usage": {
+                            "input_tokens": 100,
+                            "output_tokens": 50,
+                        },
+                    }
 
             # Send response
             response_json = json.dumps(response_data)
@@ -792,6 +893,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         Gemini API uses POST /v1beta/models/{model}:generateContent
         This handler supports:
         - Audio transcription (multimodal input with audio)
+        - GIL extract_quotes / score_entailment (Insight+quote_text or Premise+Hypothesis)
         - Text generation (summarization, speaker detection)
         """
         try:
@@ -859,12 +961,57 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     },
                 }
             else:
-                # Text generation (summarization or speaker detection)
-                # Check if it's JSON response (speaker detection) or text (summarization)
+                # Text generation: GIL evidence, speaker detection, or summarization
                 generation_config = request_data.get("generationConfig", {})
                 response_mime_type = generation_config.get("response_mime_type", "")
 
-                if response_mime_type == "application/json":
+                if "Insight:" in text_prompt and (
+                    "quote_text" in text_prompt or "Transcript (excerpt):" in text_prompt
+                ):
+                    if "Transcript (excerpt):" in text_prompt:
+                        excerpt = text_prompt.split("Transcript (excerpt):")[1].split("Insight:")[0]
+                    else:
+                        excerpt = text_prompt.split("Insight:")[0]
+                    excerpt = excerpt.strip()
+                    mock_quote = (
+                        excerpt[:60].strip()
+                        if len(excerpt) > 10
+                        else (excerpt or "Evidence from transcript.")
+                    )
+                    response_data = {
+                        "candidates": [
+                            {
+                                "content": {
+                                    "parts": [{"text": json.dumps({"quote_text": mock_quote})}],
+                                    "role": "model",
+                                },
+                                "finishReason": "STOP",
+                            }
+                        ],
+                        "usageMetadata": {
+                            "promptTokenCount": 80,
+                            "candidatesTokenCount": 20,
+                            "totalTokenCount": 100,
+                        },
+                    }
+                elif "Premise:" in text_prompt and "Hypothesis:" in text_prompt:
+                    response_data = {
+                        "candidates": [
+                            {
+                                "content": {
+                                    "parts": [{"text": "0.85"}],
+                                    "role": "model",
+                                },
+                                "finishReason": "STOP",
+                            }
+                        ],
+                        "usageMetadata": {
+                            "promptTokenCount": 60,
+                            "candidatesTokenCount": 2,
+                            "totalTokenCount": 62,
+                        },
+                    }
+                elif response_mime_type == "application/json":
                     # Speaker detection response
                     response_data = {
                         "candidates": [
@@ -894,10 +1041,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     }
                 else:
                     # Summarization response
-                    # Generate a simple summary based on text length
                     summary_length = min(200, len(text_prompt) // 10)
                     summary = (
-                        f"This is a test summary from Gemini. {text_prompt[:summary_length]}..."
+                        f"This is a test summary from Gemini. " f"{text_prompt[:summary_length]}..."
                     )
                     response_data = {
                         "candidates": [

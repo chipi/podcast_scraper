@@ -1,0 +1,236 @@
+2026-02-13 11:55:23,400 INFO __main__: ================================================================================
+2026-02-13 11:55:23,401 INFO __main__: Starting experiment run: baseline_ml_prod_authority_smoke_v1
+2026-02-13 11:55:23,401 INFO __main__: Results directory: data/eval/runs/baseline_ml_prod_authority_smoke_v1
+2026-02-13 11:55:23,401 INFO __main__: Execution log: data/eval/runs/baseline_ml_prod_authority_smoke_v1/run.log
+2026-02-13 11:55:23,401 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-02-13 11:55:23,401 INFO __main__: ================================================================================
+2026-02-13 11:55:23,401 INFO __main__: Creating summarization provider...
+2026-02-13 11:55:23,401 INFO __main__: Checking if required models are cached...
+2026-02-13 11:55:24,056 INFO podcast_scraper.providers.ml.speaker_detection: Loaded spaCy model (NER only): en_core_web_sm
+2026-02-13 11:55:24,056 INFO podcast_scraper.providers.ml.ml_provider: Initializing Transformers summarization models...
+2026-02-13 11:55:24,056 INFO podcast_scraper.providers.ml.ml_provider: Loading MAP model: google/pegasus-cnn_dailymail
+2026-02-13 11:55:24,056 INFO podcast_scraper.providers.ml.summarizer: Loading summarization model: google/pegasus-cnn_dailymail on mps (Apple Silicon GPU)
+2026-02-13 11:55:24,056 INFO podcast_scraper.providers.ml.summarizer: [PEGASUS LOAD] Using pinned revision for model: 40d588fdab0cc077b80d950b300bf66ad3c75b92
+2026-02-13 11:55:24,056 INFO podcast_scraper.providers.ml.summarizer: [PEGASUS LOAD] transformers version: 4.57.6
+2026-02-13 11:55:26,427 INFO podcast_scraper.providers.ml.summarizer: [PEGASUS LOAD] Model loaded successfully. Expected missing keys (static positional embeddings): ['model.decoder.embed_positions.weight', 'model.encoder.embed_positions.weight']
+2026-02-13 11:55:26,453 WARNING transformers.pipelines.base: Device set to use mps
+2026-02-13 11:55:26,454 INFO podcast_scraper.providers.ml.summarizer: PEGASUS_OK static_pos=True max_pos_emb=1024 d_model=1024 encoder_shape=1024x1024 decoder_shape=1024x1024 embed_pos_shape_ok=True generate_ok=True transformers=4.57.6 torch=2.9.1 device=mps revision=40d588fdab0cc077b80d950b300bf66ad3c75b92
+2026-02-13 11:55:26,455 INFO podcast_scraper.providers.ml.ml_provider: ✓ MAP model loaded: google/pegasus-cnn_dailymail
+2026-02-13 11:55:26,455 INFO podcast_scraper.providers.ml.ml_provider: Loading REDUCE model: allenai/led-base-16384
+2026-02-13 11:55:26,455 INFO podcast_scraper.providers.ml.summarizer: Loading summarization model: allenai/led-base-16384 on mps (Apple Silicon GPU)
+2026-02-13 11:55:26,841 WARNING transformers.pipelines.base: Device set to use mps
+2026-02-13 11:55:26,842 INFO podcast_scraper.providers.ml.ml_provider: ✓ REDUCE model loaded: allenai/led-base-16384
+2026-02-13 11:55:26,842 INFO podcast_scraper.providers.ml.ml_provider: Transformers summarization initialized successfully
+2026-02-13 11:55:26,842 INFO __main__: ================================================================================
+2026-02-13 11:55:26,842 INFO __main__: === Generation Parameters ===
+2026-02-13 11:55:26,842 INFO __main__: Map stage:
+2026-02-13 11:55:26,842 INFO __main__:   Model: google/pegasus-cnn_dailymail
+2026-02-13 11:55:26,842 INFO __main__:   max_new_tokens: 200
+2026-02-13 11:55:26,842 INFO __main__:   min_new_tokens: 80
+2026-02-13 11:55:26,842 INFO __main__:   num_beams: 6
+2026-02-13 11:55:26,842 INFO __main__:   no_repeat_ngram_size: 3
+2026-02-13 11:55:26,842 INFO __main__:   length_penalty: 1.0
+2026-02-13 11:55:26,842 INFO __main__:   early_stopping: True
+2026-02-13 11:55:26,842 INFO __main__:   repetition_penalty: 1.1
+2026-02-13 11:55:26,842 INFO __main__: Reduce stage:
+2026-02-13 11:55:26,842 INFO __main__:   Model: allenai/led-base-16384
+2026-02-13 11:55:26,842 INFO __main__:   max_new_tokens: 650
+2026-02-13 11:55:26,842 INFO __main__:   min_new_tokens: 220
+2026-02-13 11:55:26,842 INFO __main__:   num_beams: 4
+2026-02-13 11:55:26,842 INFO __main__:   no_repeat_ngram_size: 3
+2026-02-13 11:55:26,842 INFO __main__:   length_penalty: 1.0
+2026-02-13 11:55:26,842 INFO __main__:   early_stopping: False
+2026-02-13 11:55:26,842 INFO __main__:   repetition_penalty: 1.12
+2026-02-13 11:55:26,842 INFO __main__: Tokenization:
+2026-02-13 11:55:26,842 INFO __main__:   map_max_input_tokens: 1024
+2026-02-13 11:55:26,842 INFO __main__:   reduce_max_input_tokens: 4096
+2026-02-13 11:55:26,842 INFO __main__:   truncation: True
+2026-02-13 11:55:26,842 INFO __main__: Chunking:
+2026-02-13 11:55:26,842 INFO __main__:   strategy: word_chunking
+2026-02-13 11:55:26,842 INFO __main__:   word_chunk_size: 900
+2026-02-13 11:55:26,842 INFO __main__:   word_overlap: 150
+2026-02-13 11:55:26,842 INFO __main__: Preprocessing:
+2026-02-13 11:55:26,842 INFO __main__:   profile: cleaning_v4
+2026-02-13 11:55:26,842 INFO __main__: ================================================================================
+2026-02-13 11:55:26,950 INFO __main__: Found 5 episode(s) to process
+2026-02-13 11:55:26,951 INFO __main__: Phase 1: Running inference...
+2026-02-13 11:55:26,951 INFO __main__: Processing episode: p01_e01
+2026-02-13 11:55:26,958 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-02-13 11:55:26,958 INFO podcast_scraper.providers.ml.ml_provider: === Using ML Parameters from Config ===
+2026-02-13 11:55:26,958 INFO podcast_scraper.providers.ml.ml_provider: Map stage:
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 200
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 80
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 6
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: True
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.1
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider: Reduce stage:
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 650
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 220
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 4
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: False
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.12
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider: Tokenization:
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   map_max_input_tokens: 1024
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   reduce_max_input_tokens: 4096
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   truncation: True
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider: Chunking:
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   strategy: word_chunking
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   word_chunk_size: 900
+2026-02-13 11:55:26,959 INFO podcast_scraper.providers.ml.ml_provider:   word_overlap: 150
+2026-02-13 11:55:26,964 INFO podcast_scraper.providers.ml.summarizer: [PREPROCESSING] Profile: cleaning_v4, lines: 50 (no changes)
+2026-02-13 11:55:48,462 INFO podcast_scraper.providers.ml.summarizer: [MAP-REDUCE VALIDATION] Policy: cap_v2_standard (ratio=0.45, min_floor=0 when input >= 250 tokens) - Capping reduce params to prevent expansion: max_new_tokens=650→240, min_new_tokens=220→0 (input=535 tokens)
+2026-02-13 11:55:50,725 INFO __main__: Episode p01_e01 map/reduce stats: map_chunks=4, avg_map_summary=626 chars, reduce_input=2,481 chars
+2026-02-13 11:55:50,725 INFO __main__: Episode p01_e01 completed in 23.8s, summary length=223 chars
+2026-02-13 11:55:50,726 INFO __main__: Processing episode: p02_e01
+2026-02-13 11:55:50,731 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider: === Using ML Parameters from Config ===
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider: Map stage:
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 200
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 80
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 6
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: True
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.1
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider: Reduce stage:
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 650
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 220
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 4
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: False
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.12
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider: Tokenization:
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   map_max_input_tokens: 1024
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   reduce_max_input_tokens: 4096
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   truncation: True
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider: Chunking:
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   strategy: word_chunking
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   word_chunk_size: 900
+2026-02-13 11:55:50,731 INFO podcast_scraper.providers.ml.ml_provider:   word_overlap: 150
+2026-02-13 11:55:50,736 INFO podcast_scraper.providers.ml.summarizer: [PREPROCESSING] Profile: cleaning_v4, lines: 52 (no changes)
+2026-02-13 11:56:10,350 INFO podcast_scraper.providers.ml.summarizer: [MAP-REDUCE VALIDATION] Policy: cap_v2_standard (ratio=0.45, min_floor=0 when input >= 250 tokens) - Capping reduce params to prevent expansion: max_new_tokens=650→236, min_new_tokens=220→0 (input=526 tokens)
+2026-02-13 11:56:11,593 INFO __main__: Episode p02_e01 map/reduce stats: map_chunks=4, avg_map_summary=624 chars, reduce_input=2,471 chars
+2026-02-13 11:56:11,593 INFO __main__: Episode p02_e01 completed in 20.9s, summary length=178 chars
+2026-02-13 11:56:11,593 INFO __main__: Processing episode: p03_e01
+2026-02-13 11:56:11,598 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider: === Using ML Parameters from Config ===
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider: Map stage:
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 200
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 80
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 6
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: True
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.1
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider: Reduce stage:
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 650
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 220
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 4
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: False
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.12
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider: Tokenization:
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   map_max_input_tokens: 1024
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   reduce_max_input_tokens: 4096
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   truncation: True
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider: Chunking:
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   strategy: word_chunking
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   word_chunk_size: 900
+2026-02-13 11:56:11,598 INFO podcast_scraper.providers.ml.ml_provider:   word_overlap: 150
+2026-02-13 11:56:11,603 INFO podcast_scraper.providers.ml.summarizer: [PREPROCESSING] Profile: cleaning_v4, lines: 52 (no changes)
+2026-02-13 11:56:29,733 INFO podcast_scraper.providers.ml.summarizer: [MAP-REDUCE VALIDATION] Policy: cap_v2_standard (ratio=0.45, min_floor=0 when input >= 250 tokens) - Capping reduce params to prevent expansion: max_new_tokens=650→215, min_new_tokens=220→0 (input=479 tokens)
+2026-02-13 11:56:31,437 INFO __main__: Episode p03_e01 map/reduce stats: map_chunks=4, avg_map_summary=563 chars, reduce_input=2,235 chars
+2026-02-13 11:56:31,437 INFO __main__: Episode p03_e01 completed in 19.8s, summary length=223 chars
+2026-02-13 11:56:31,437 INFO __main__: Processing episode: p04_e01
+2026-02-13 11:56:31,442 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider: === Using ML Parameters from Config ===
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider: Map stage:
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 200
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 80
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 6
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: True
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.1
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider: Reduce stage:
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 650
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 220
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 4
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: False
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.12
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider: Tokenization:
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   map_max_input_tokens: 1024
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   reduce_max_input_tokens: 4096
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   truncation: True
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider: Chunking:
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   strategy: word_chunking
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   word_chunk_size: 900
+2026-02-13 11:56:31,442 INFO podcast_scraper.providers.ml.ml_provider:   word_overlap: 150
+2026-02-13 11:56:31,447 INFO podcast_scraper.providers.ml.summarizer: [PREPROCESSING] Profile: cleaning_v4, lines: 51 (no changes)
+2026-02-13 11:56:48,646 INFO podcast_scraper.providers.ml.summarizer: [MAP-REDUCE VALIDATION] Policy: cap_v2_standard (ratio=0.45, min_floor=0 when input >= 250 tokens) - Capping reduce params to prevent expansion: max_new_tokens=650→206, min_new_tokens=220→0 (input=459 tokens)
+2026-02-13 11:56:49,717 INFO __main__: Episode p04_e01 map/reduce stats: map_chunks=4, avg_map_summary=543 chars, reduce_input=2,154 chars
+2026-02-13 11:56:49,717 INFO __main__: Episode p04_e01 completed in 18.3s, summary length=143 chars
+2026-02-13 11:56:49,718 INFO __main__: Processing episode: p05_e01
+2026-02-13 11:56:49,723 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider: === Using ML Parameters from Config ===
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider: Map stage:
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 200
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 80
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 6
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: True
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.1
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider: Reduce stage:
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   max_new_tokens: 650
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   min_new_tokens: 220
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   num_beams: 4
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   no_repeat_ngram_size: 3
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   length_penalty: 1.0
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   early_stopping: False
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   repetition_penalty: 1.12
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider: Tokenization:
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   map_max_input_tokens: 1024
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   reduce_max_input_tokens: 4096
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   truncation: True
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider: Chunking:
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   strategy: word_chunking
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   word_chunk_size: 900
+2026-02-13 11:56:49,723 INFO podcast_scraper.providers.ml.ml_provider:   word_overlap: 150
+2026-02-13 11:56:49,728 INFO podcast_scraper.providers.ml.summarizer: [PREPROCESSING] Profile: cleaning_v4, lines: 56 (no changes)
+2026-02-13 11:57:08,687 INFO podcast_scraper.providers.ml.summarizer: [MAP-REDUCE VALIDATION] Policy: cap_v2_standard (ratio=0.45, min_floor=0 when input >= 250 tokens) - Capping reduce params to prevent expansion: max_new_tokens=650→221, min_new_tokens=220→0 (input=493 tokens)
+2026-02-13 11:57:10,909 INFO __main__: Episode p05_e01 map/reduce stats: map_chunks=4, avg_map_summary=618 chars, reduce_input=2,448 chars
+2026-02-13 11:57:10,909 INFO __main__: Episode p05_e01 completed in 21.2s, summary length=331 chars
+2026-02-13 11:57:10,910 INFO __main__: Phase 1 completed in 104.0s
+2026-02-13 11:57:10,910 INFO __main__: Total input: 53,793 chars, output: 1,098 chars
+2026-02-13 11:57:10,910 INFO __main__: Average compression: 49.0x
+2026-02-13 11:57:10,910 INFO __main__: Predictions: data/eval/runs/baseline_ml_prod_authority_smoke_v1/predictions.jsonl
+2026-02-13 11:57:11,416 INFO __main__: Metadata: data/eval/runs/baseline_ml_prod_authority_smoke_v1/baseline.json
+2026-02-13 11:57:11,416 INFO __main__: Fingerprint: data/eval/runs/baseline_ml_prod_authority_smoke_v1/fingerprint.json
+2026-02-13 11:57:11,416 INFO __main__: Created README.md: data/eval/runs/baseline_ml_prod_authority_smoke_v1/README.md
+2026-02-13 11:57:11,417 INFO __main__: Computing metrics...
+2026-02-13 11:57:11,419 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,419 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,420 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,421 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,421 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,422 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,422 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,423 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,423 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,424 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-02-13 11:57:11,424 ERROR podcast_scraper.evaluation.scorer: Failed to compute metrics vs reference 'silver_gpt4o_benchmark_v1': Episode ID mismatch for reference 'silver_gpt4o_benchmark_v1': missing={'p04_e02', 'p03_e02', 'p01_e02', 'p02_e02', 'p05_e02'}, extra=set()
+2026-02-13 11:57:11,424 INFO __main__: Metrics: data/eval/runs/baseline_ml_prod_authority_smoke_v1/metrics.json
+2026-02-13 11:57:11,425 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'episodes' is a required property (continuing anyway)
+2026-02-13 11:57:11,425 INFO __main__: ✓ Summarization metrics validation completed
+2026-02-13 11:57:11,426 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/baseline_ml_prod_authority_smoke_v1/metrics_report.md
+2026-02-13 11:57:11,426 INFO __main__: Episodes=5, avg_time=20.8s, avg_compression=49.0x
+2026-02-13 11:57:11,426 INFO __main__: ✓ Execution log saved: data/eval/runs/baseline_ml_prod_authority_smoke_v1/run.log

@@ -63,6 +63,27 @@ class TestMistralProviderStandalone(unittest.TestCase):
         self.assertNotIn("timeout", call_kwargs)
 
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_provider_creation_with_custom_base_uses_server_url(self, mock_mistral_class):
+        """Custom base URL must be passed as server_url (not server) for E2E fixtures."""
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="mistral",
+            speaker_detector_provider="mistral",
+            summary_provider="mistral",
+            mistral_api_key="test-key",
+            mistral_api_base="http://127.0.0.1:63436/v1",
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        MistralProvider(cfg)
+        call_kwargs = mock_mistral_class.call_args[1]
+        self.assertEqual(call_kwargs.get("server_url"), "http://127.0.0.1:63436/v1")
+        self.assertNotIn("server", call_kwargs)
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     def test_provider_creation_requires_api_key(self, mock_mistral_class):
         """Test that MistralProvider requires API key."""
         # Unset environment variable to ensure it's not loaded
@@ -506,7 +527,7 @@ class TestMistralProviderSpeakerDetection(unittest.TestCase):
         provider = MistralProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},

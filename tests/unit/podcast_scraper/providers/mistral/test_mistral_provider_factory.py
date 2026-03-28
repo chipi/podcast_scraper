@@ -78,7 +78,7 @@ class TestMistralSpeakerDetectorFactory(unittest.TestCase):
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test Episode with John Doe",
             episode_description="A test episode",
             known_hosts={"John Doe"},

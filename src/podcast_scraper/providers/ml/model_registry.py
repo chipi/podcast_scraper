@@ -111,6 +111,23 @@ def _led_caps(
     )
 
 
+def _longt5_caps(
+    memory_mb: int = 1000,
+    default_chunk_size: int = 8192,
+    default_overlap: int = 819,
+) -> ModelCapabilities:
+    """LongT5-style capabilities (8192 tokens)."""
+    return ModelCapabilities(
+        max_input_tokens=8192,
+        model_type="longt5",
+        model_family="map",
+        supports_long_context=True,
+        default_chunk_size=default_chunk_size,
+        default_overlap=default_overlap,
+        memory_mb=memory_mb,
+    )
+
+
 class ModelRegistry:
     """Centralized registry of model capabilities and metadata."""
 
@@ -135,6 +152,11 @@ class ModelRegistry:
         "long-fast": _led_caps(memory_mb=1000),
         "allenai/led-large-16384": _led_caps(memory_mb=2000),
         "allenai/led-base-16384": _led_caps(memory_mb=1000),
+        # ── LongT5 models (8192 token limit) ────
+        "longt5-base": _longt5_caps(memory_mb=1000),
+        "longt5-large": _longt5_caps(memory_mb=2500),
+        "google/long-t5-tglobal-base": _longt5_caps(memory_mb=1000),
+        "google/long-t5-tglobal-large": _longt5_caps(memory_mb=2500),
         # ── FLAN-T5 (Tier 1 REDUCE — PyTorch) ──
         "google/flan-t5-base": ModelCapabilities(
             max_input_tokens=512,
@@ -221,6 +243,39 @@ class ModelRegistry:
             memory_mb=200,
         ),
     }
+
+    # Aliases for evidence stack (embedding, extractive QA, NLI) per RFC-042 §12.1
+    _evidence_aliases: Dict[str, str] = {
+        "minilm-l6": "sentence-transformers/all-MiniLM-L6-v2",
+        "minilm-l12": "sentence-transformers/all-MiniLM-L12-v2",
+        "mpnet-base": "sentence-transformers/all-mpnet-base-v2",
+        "roberta-squad2": "deepset/roberta-base-squad2",
+        "deberta-squad2": "deepset/deberta-v3-base-squad2",
+        "nli-deberta-base": "cross-encoder/nli-deberta-v3-base",
+        "nli-deberta-small": "cross-encoder/nli-deberta-v3-small",
+    }
+
+    @classmethod
+    def resolve_evidence_model_id(cls, model_id: str) -> str:
+        """Resolve evidence-stack model alias to full HuggingFace ID.
+
+        Args:
+            model_id: Alias (e.g. 'minilm-l6') or full HF ID.
+
+        Returns:
+            Full HuggingFace model ID for loading.
+        """
+        if not isinstance(model_id, str):
+            model_id = str(model_id)
+        if "/" in model_id:
+            return model_id
+        if model_id in cls._evidence_aliases:
+            return cls._evidence_aliases[model_id]
+        raise ValueError(
+            f"Unknown evidence model id: {model_id}. "
+            f"Available aliases: {list(cls._evidence_aliases.keys())}. "
+            "Or use a full HuggingFace model ID."
+        )
 
     _mode_registry: Dict[str, ModeConfiguration] = {
         # BEGIN MODE REGISTRY (append-only)
@@ -376,6 +431,8 @@ class ModelRegistry:
         lower_id = model_id.lower()
         if "led" in lower_id or "longformer" in lower_id:
             return _led_caps()
+        if "longt5" in lower_id or "long-t5" in lower_id or "long_t5" in lower_id:
+            return _longt5_caps()
         if "bart" in lower_id:
             return _bart_caps()
         if "pegasus" in lower_id:
@@ -447,6 +504,8 @@ class ModelRegistry:
             return "led"
         if "longformer" in model_type:
             return "led"
+        if "longt5" in model_type:
+            return "longt5"
         if "pegasus" in model_type:
             return "pegasus"
         if "t5" in model_type:
@@ -463,7 +522,7 @@ class ModelRegistry:
             return "extractive_qa"
         if "sentence-transformer" in lower_id:
             return "embedding"
-        if model_type in ("bart", "led", "pegasus"):
+        if model_type in ("bart", "led", "pegasus", "longt5"):
             return "map"
         if model_type == "flan-t5":
             return "reduce"

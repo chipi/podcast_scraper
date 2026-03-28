@@ -27,6 +27,9 @@ Usage:
 
     # Skip Transformers preloading (faster, for fast builds)
     SKIP_TRANSFORMERS=1 python scripts/cache/preload_ml_models.py
+
+    # Skip GIL evidence models (QA + NLI)
+    SKIP_GIL=1 python scripts/cache/preload_ml_models.py
 """
 
 import gc
@@ -47,6 +50,7 @@ from podcast_scraper.cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
+from podcast_scraper.providers.ml.model_loader import preload_evidence_models
 from podcast_scraper.providers.ml.summarizer import DEFAULT_SUMMARY_MODELS
 
 
@@ -540,6 +544,9 @@ def main() -> None:
 
         preload_transformers_models(transformers_models)
         print("")
+        print("Preloading GIL evidence models (QA + NLI)...")
+        preload_evidence_models()
+        print("")
     else:
         print("Preloading ML models...")
         print("This will download and cache models to avoid network calls during testing.")
@@ -553,6 +560,7 @@ def main() -> None:
             "true",
             "yes",
         )
+        skip_gil = os.environ.get("SKIP_GIL", "").strip().lower() in ("1", "true", "yes")
 
         # Preload models (unless skipped)
         if not skip_whisper:
@@ -565,6 +573,11 @@ def main() -> None:
 
         if not skip_transformers:
             preload_transformers_models()
+            print("")
+
+        if not skip_gil:
+            print("Preloading GIL evidence models (QA + NLI)...")
+            preload_evidence_models()
             print("")
 
     print("All models preloaded and verified successfully!")

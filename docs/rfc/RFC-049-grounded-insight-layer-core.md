@@ -27,8 +27,8 @@
     (downstream — routes episodes to optimal
     strategies, including GIL extraction)
 - **Related Documents**:
-  - `docs/kg/ontology.md` - Human-readable ontology
-  - `docs/kg/kg.schema.json` - Machine-readable schema
+  - `docs/gi/ontology.md` - Human-readable ontology
+  - `docs/gi/gi.schema.json` - Machine-readable schema
   - `docs/ARCHITECTURE.md` - System architecture
 
 **Execution Order:**
@@ -44,7 +44,7 @@ Phase 2: RFC-042 (Hybrid ML Platform)    ~10 weeks
     ▼
 Phase 3: RFC-049 (this RFC — GIL)        ~6-8 weeks
     │     GIL extraction orchestration,
-    │     kg.json assembly + grounding contract
+    │     gi.json assembly + grounding contract
     ├── Phase 3a: RFC-050 (Use Cases)    parallel
     ├── Phase 3b: RFC-051 (DB Projection) parallel
     ▼
@@ -119,7 +119,7 @@ The existing pipeline produces transcripts and summaries, but lacks a **grounded
   FLAN-T5, extractive QA, sentence-transformers, and NLI
   models for insight/quote extraction and grounding
 - Transcripts are available before GIL extraction
-- Users have sufficient storage for per-episode `kg.json`
+- Users have sufficient storage for per-episode `gi.json`
 - Schema validation can be manual initially, automated
   later via CI
 - Global graph queries deferred to post-v1 (mitigated by
@@ -258,10 +258,10 @@ output/
     metadata.json
     transcript.json
     summary.json
-    kg.json          # NEW: Grounded Insight Layer data
+    gi.json          # NEW: Grounded Insight Layer data
 ```
 
-**kg.json Responsibilities:**
+**gi.json Responsibilities:**
 
 - Contain all Insight and Quote nodes for this episode
 - Reference global IDs for shared nodes (topics, speakers)
@@ -271,7 +271,7 @@ output/
 
 **Graph Assembly Model:**
 
-The full Grounded Insight Layer is a logical union of all per-episode `kg.json` files.
+The full Grounded Insight Layer is a logical union of all per-episode `gi.json` files.
 
 **Advantages:**
 
@@ -323,19 +323,19 @@ The GIL ontology is treated as a first-class, versioned artifact of the project,
 **Ontology Outputs:**
 
 1. **Human-Readable Ontology Specification**
-   - Location: `docs/kg/ontology.md`
+   - Location: `docs/gi/ontology.md`
    - Purpose: Define node and edge semantics, grounding contract, required vs optional properties
    - This document is the canonical reference for contributors and reviewers
 
 2. **Machine-Readable Schema**
-   - Location: `docs/kg/kg.schema.json`
-   - Purpose: Validate `kg.json` outputs, enforce grounding invariants, enable CI validation
+   - Location: `docs/gi/gi.schema.json`
+   - Purpose: Validate `gi.json` outputs, enforce grounding invariants, enable CI validation
    - All GIL outputs must conform to this schema
 
 **Required Artifacts (v1):**
 
-- `docs/kg/ontology.md` - Human-readable ontology specification
-- `docs/kg/kg.schema.json` - Machine-readable schema for validation
+- `docs/gi/ontology.md` - Human-readable ontology specification
+- `docs/gi/gi.schema.json` - Machine-readable schema for validation
 
 These artifacts are considered part of the GIL deliverable, not optional documentation.
 
@@ -344,7 +344,7 @@ These artifacts are considered part of the GIL deliverable, not optional documen
 - RFC approval does not require these artifacts to be complete at design time
 - The RFC is considered successfully implemented only once:
   - Both artifacts exist in the repository
-  - Generated `kg.json` files conform to the schema
+  - Generated `gi.json` files conform to the schema
   - Grounding contract is enforced (every insight has grounded status)
   - Ontology and schema versions are explicitly declared
 
@@ -371,10 +371,10 @@ GIL extraction integrates into the existing workflow:
    (from PRD-008) for quote attribution
 3. **Before/After Summarization**: GIL can run
    independently or alongside summarization
-4. **Co-Located Output**: `kg.json` written to the same
+4. **Co-Located Output**: `gi.json` written to the same
    episode directory
 5. **Optional DB Export**: RFC-051 Postgres export runs
-   after `kg.json` generation
+   after `gi.json` generation
 
 **Module Boundaries:**
 
@@ -418,6 +418,22 @@ The provider tier determines which models are used:
 Extractive QA for quotes is used in **all tiers** because
 it guarantees verbatim spans (grounding contract).
 
+### Implementation update: provider-based evidence (Option B)
+
+**Implemented:** The evidence stack (QA + NLI) can be provided by **any summarization provider** via two optional methods on the same provider classes (no separate "grounding provider" type):
+
+- **`extract_quotes(transcript, insight_text, **kwargs) -> List[QuoteCandidate]`** — Quote extraction (QA). Returns candidate spans (char_start, char_end, text, qa_score). ML providers use local extractive QA (`gi_qa_model`); LLM providers use a single chat call (e.g. JSON `quote_text`, then locate in transcript for offsets).
+- **`score_entailment(premise, hypothesis, **kwargs) -> float`** — Entailment (NLI). Returns score in [0, 1]. ML providers use local NLI (`gi_nli_model`); LLM providers use a single chat call.
+
+**Config (additions):**
+
+- **`quote_extraction_provider`**: Same enum as `summary_provider`; default `"transformers"`. Which provider to use for GIL quote extraction.
+- **`entailment_provider`**: Same enum; default `"transformers"`. Which provider to use for GIL entailment scoring.
+
+**Flow:** When GIL runs with `gi_require_grounding` and the workflow supplies `quote_extraction_provider` and `entailment_provider` instances (resolved from config; reuse `summary_provider` when config matches), the pipeline uses `find_grounded_quotes_via_providers`: for each insight it calls `extract_quotes` then `score_entailment` per candidate, and keeps only candidates above thresholds. If either provider is not supplied, the pipeline falls back to the legacy path (direct `extractive_qa` + `nli_loader` with `gi_qa_model` / `gi_nli_model`).
+
+**References:** User guide: `docs/guides/GROUNDED_INSIGHTS_GUIDE.md` (§ Provider-based evidence). Code: `gi/grounding.py` (`QuoteCandidate`, `find_grounded_quotes_via_providers`), `gi/pipeline.py` (`build_artifact(..., quote_extraction_provider=..., entailment_provider=...)`), `workflow/metadata_generation.py` (provider resolution and `create_summarization_provider(cfg, provider_type_override=...)`). Related: Issue #435 (evidence stack).
+
 ## Key Decisions
 
 1. **Insight-Centric Ontology**
@@ -433,7 +449,7 @@ it guarantees verbatim spans (grounding contract).
    - **Rationale**: Honest about extraction limits; enables quality metrics; builds user trust
 
 4. **Per-Episode Storage**
-   - **Decision**: Store `kg.json` per episode, logical union for global graph
+   - **Decision**: Store `gi.json` per episode, logical union for global graph
    - **Rationale**: Easy debugging, natural sharding, co-location with existing outputs
 
 5. **Entities Deferred to v1.1**
@@ -476,7 +492,7 @@ it guarantees verbatim spans (grounding contract).
 
 - **Unit Tests**: Test node/edge construction, ID generation, grounding validation
 - **Integration Tests**: Test extraction pipeline with real transcripts, validate schema compliance
-- **E2E Tests**: Test full workflow from transcript → GIL extraction → `kg.json` generation
+- **E2E Tests**: Test full workflow from transcript → GIL extraction → `gi.json` generation
 - **Grounding Tests**: Verify every insight has explicit grounding status; verify quote verbatim match
 
 **Test Organization:**
@@ -510,18 +526,18 @@ it guarantees verbatim spans (grounding contract).
 
 **Monitoring:**
 
-- Track extraction success rate (episodes with valid `kg.json`)
+- Track extraction success rate (episodes with valid `gi.json`)
 - Monitor extraction time (should be similar to summarization)
 - Track **insight grounding rate** (% insights with grounded=true)
 - Track **quote validity rate** (% quotes that match transcript verbatim)
-- Track schema compliance (all `kg.json` files pass validation)
+- Track schema compliance (all `gi.json` files pass validation)
 
 **Success Criteria:**
 
 1. ✅ All v1 node types can be extracted from transcripts (Insight, Quote, Topic)
 2. ✅ All v1 edge types can be constructed (HAS_INSIGHT, SUPPORTED_BY, SPOKEN_BY, ABOUT)
 3. ✅ Grounding contract is enforced (every insight has grounded status)
-4. ✅ Generated `kg.json` files conform to schema
+4. ✅ Generated `gi.json` files conform to schema
 5. ✅ Extraction completes within reasonable time bounds
 6. ✅ Integration with existing workflow verified
 
@@ -568,12 +584,12 @@ Phase 4: RFC-053 (Adaptive Routing)      ~4-6 weeks
 
 **Complementary RFCs:**
 
-3. **RFC-052: Locally Hosted LLM Models** — Provides
+1. **RFC-052: Locally Hosted LLM Models** — Provides
    model-specific prompt engineering for Ollama LLMs.
    GIL extraction prompts are added in Phase 6 of
    RFC-052, extending the LLM tier with optimized
    local model prompts.
-4. **RFC-053: Adaptive Summarization Routing** —
+2. **RFC-053: Adaptive Summarization Routing** —
    Downstream consumer. Routes episodes to optimal
    strategies (including GIL extraction) based on
    episode profiling. Runs after GIL is stable.
@@ -702,7 +718,7 @@ extraction.**
 - **Related RFC**: `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
 - **Related RFC**: `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
 - **Related RFC**: `docs/rfc/RFC-053-adaptive-summarization-routing.md`
-- **Ontology**: `docs/kg/ontology.md`
-- **Schema**: `docs/kg/kg.schema.json`
+- **Ontology**: `docs/gi/ontology.md`
+- **Schema**: `docs/gi/gi.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Source Code**: `podcast_scraper/workflow/`

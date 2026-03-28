@@ -164,6 +164,16 @@ podcast-scraper --rss https://example.com/feed.xml \
   --ollama-timeout 600  # 10 minutes
 ```
 
+### Using Ollama as REDUCE Backend (hybrid_ml)
+
+When using **hybrid MAP-REDUCE** summarization (`summary_provider: hybrid_ml`), you can set `hybrid_reduce_backend: ollama` so the REDUCE phase runs on a local Ollama model instead of transformers. The MAP phase (e.g. LongT5-base) still runs locally; only the final synthesis uses Ollama.
+
+- **Config**: `summary_provider: hybrid_ml`, `hybrid_reduce_backend: ollama`, `hybrid_reduce_model: <ollama_tag>` (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`).
+- **No template file**: The reduce instruction is sent to Ollama as an inline prompt; no `custom.j2` or other template file is required.
+- **Acceptance tests**: Example configs under `config/acceptance/` use Ollama for REDUCE (e.g. `acceptance_planet_money_hybrid_ollama_llama3_8b.yaml` with `llama3.1:8b`). Ensure the model is available (`ollama pull llama3.1:8b` or equivalent).
+
+See [ML Provider Reference](ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) for full hybrid_ml configuration.
+
 ### Environment Variables
 
 ```bash

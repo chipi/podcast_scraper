@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def find_reference_path(reference_id: str, dataset_id: str) -> Path:
-    """Find reference path (checks baselines and references directories).
+    """Find reference path (checks silver, gold, baselines, references).
 
     Args:
         reference_id: Reference identifier
@@ -36,7 +36,18 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
     Raises:
         FileNotFoundError: If reference not found
     """
-    # Check references directory first (references/{dataset_id}/{reference_id})
+    # Check silver references (references/silver/{reference_id})
+    silver_path = Path("data/eval/references/silver") / reference_id
+    if silver_path.exists():
+        return silver_path
+
+    # Check gold references (references/gold/{task}/{reference_id})
+    for task in ("ner_entities", "summarization"):
+        gold_path = Path("data/eval/references/gold") / task / reference_id
+        if gold_path.exists():
+            return gold_path
+
+    # Check old structure (references/{dataset_id}/{reference_id})
     ref_path = Path("data/eval/references") / dataset_id / reference_id
     if ref_path.exists():
         return ref_path
@@ -53,7 +64,9 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
 
     raise FileNotFoundError(
         f"Reference '{reference_id}' not found. "
-        f"Checked: data/eval/references/{dataset_id}/{reference_id}, "
+        f"Checked: data/eval/references/silver/{reference_id}, "
+        f"data/eval/references/gold/*/{reference_id}, "
+        f"data/eval/references/{dataset_id}/{reference_id}, "
         f"data/eval/baselines/{reference_id}, benchmarks/baselines/{reference_id}"
     )
 

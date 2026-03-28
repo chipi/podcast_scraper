@@ -35,7 +35,7 @@ from .episode_processor import (
 
 
 def extract_episode_description(item):  # noqa: F811
-    """Extract episode description, using re-exported version if available (for testability)."""
+    """Extract episode description; workflow package may be patched in tests."""
     import sys
     from unittest.mock import Mock
 
@@ -63,7 +63,7 @@ from . import helpers as wf_helpers, metrics, stages as wf_stages
 
 
 def _get_factory_function(factory_name: str, default_factory: Any) -> Any:
-    """Get factory function, checking for test mocks first.
+    """Get factory function; workflow package may be patched in tests.
 
     This allows tests to inject mock factory functions by patching
     the workflow module's factory function attributes.

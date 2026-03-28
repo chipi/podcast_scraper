@@ -920,7 +920,7 @@ Transcript
   ├─► Topic Extraction:
   │     └─► spaCy NER + FLAN-T5 labeling → topics[]
   │
-  └─► Assembly → kg.json (RFC-049 schema)
+  └─► Assembly → gi.json (RFC-049 schema)
 ```
 
 ### 11.5.4 Prompt Templates for Extraction
@@ -1145,12 +1145,12 @@ in RFC-042:
 
 - **GIL extraction orchestration** — coordinating insight,
   quote, and topic extraction into a single pipeline
-- **`kg.json` assembly** — combining extracted data into
+- **`gi.json` assembly** — combining extracted data into
   the GIL schema
 - **Grounding contract enforcement** — ensuring every
   insight has explicit grounding status
 - **Schema validation** — validating outputs against
-  `kg.schema.json`
+  `gi.schema.json`
 - **Workflow integration** — adding GIL as a pipeline
   stage in `orchestration.py`
 

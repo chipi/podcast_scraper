@@ -3,7 +3,7 @@
 This module contains all configuration constants that were previously defined
 in config.py. Extracted to reduce config.py size and improve maintainability.
 
-All constants are re-exported from config.py for convenience.
+Constants are defined here; config.py re-exports them for backward compatibility.
 """
 
 import os
@@ -44,6 +44,9 @@ DEFAULT_TRANSCRIPT_EXTENSION = ".txt"
 DEFAULT_MAX_DETECTED_NAMES = 4
 MIN_NUM_SPEAKERS = 1
 MIN_TIMEOUT_SECONDS = 1
+
+# Legacy placeholder filtered from host/guest lists (Issue #428); single source of truth
+LEGACY_PLACEHOLDER_GUEST = "Guest"
 
 # Summary model identifiers (full Hugging Face model IDs)
 # These are used in alias dictionary and throughout the codebase
@@ -97,28 +100,55 @@ except Exception:
         SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase
     )
 
+# GIL evidence stack defaults (RFC-042 §12.1, Issue #435)
+# Used when generate_gi is enabled; loaders resolve aliases via model_registry.
+DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # minilm-l6
+DEFAULT_EXTRACTIVE_QA_MODEL = "deepset/roberta-base-squad2"  # roberta-squad2
+DEFAULT_NLI_MODEL = "cross-encoder/nli-deberta-v3-base"  # nli-deberta-base
+
 # Model revision pinning (for reproducibility and security)
-# Pin to specific commit SHAs instead of "main" to avoid PR refs and ensure stable weights
-# To find the latest commit SHA for a model, check the model's HuggingFace page or use:
-#   from huggingface_hub import HfApi
-#   api = HfApi()
-#   model_info = api.model_info("google/pegasus-cnn_dailymail", revision="main")
-#   commit_hash = model_info.sha
-# Last updated: 2025-01-XX (commit SHA from main branch)
+# All ML model revisions use 40-character commit SHAs (no "main" refs).
+# To get the latest SHA for a model: HfApi().model_info("org/model-id", revision="main").sha
 PEGASUS_CNN_DAILYMAIL_REVISION = (
     "40d588fdab0cc077b80d950b300bf66ad3c75b92"  # Pinned commit SHA for reproducibility
 )
 # LED model revisions (Issue #379)
-# Pinned commit SHAs for reproducibility (updated 2026-01-XX)
-# To find latest commit SHA:
-#   from huggingface_hub import HfApi
-#   api = HfApi()
-#   model_info = api.model_info("allenai/led-base-16384", revision="main")
-#   commit_hash = model_info.sha
+# Pinned commit SHAs for reproducibility. To get latest SHA:
+#   api = HfApi(); api.model_info("repo/id", revision="main").sha
 LED_BASE_16384_REVISION = (
     "38335783885b338d93791936c54bb4be46bebed9"  # Pinned commit SHA for reproducibility
 )
-LED_LARGE_16384_REVISION = "main"  # Placeholder - update with actual commit SHA when needed
+LED_LARGE_16384_REVISION = (
+    "cd59d11c3528415b7dda4dfc95cc8f138aceda2e"  # allenai/led-large-16384 @ main
+)
+
+# FLAN-T5 revisions (hybrid REDUCE; Issue #352)
+FLAN_T5_BASE_REVISION = "c5050bcda0fe2097b76f41c6908474097b859666"
+FLAN_T5_LARGE_REVISION = "c5050bcda0fe2097b76f41c6908474097b859666"  # Update when needed
+# LongT5 revisions (MAP and REDUCE; Issue #353). Same as other ML models: pinned SHA.
+LONG_T5_TGLOBAL_BASE_REVISION = (
+    "aecb1376e5bd78db32ebc5c9deb257449b9e2b21"  # google/long-t5-tglobal-base @ main
+)
+LONG_T5_TGLOBAL_LARGE_REVISION = (
+    "fb4ba84440d10e9b93fd626fb460683372329d4a"  # google/long-t5-tglobal-large @ main
+)
+
+
+def get_pinned_revision_for_model(model_id: str) -> str | None:
+    """Return pinned revision for a known model ID, or None if not pinned.
+
+    Used by SummaryModel and TransformersReduceBackend for FLAN-T5 and LongT5.
+    """
+    model_lower = model_id.lower()
+    if "flan-t5-base" in model_lower or model_id == "google/flan-t5-base":
+        return FLAN_T5_BASE_REVISION
+    if "flan-t5-large" in model_lower or model_id == "google/flan-t5-large":
+        return FLAN_T5_LARGE_REVISION
+    if "long-t5-tglobal-base" in model_lower or "longt5-base" in model_lower:
+        return LONG_T5_TGLOBAL_BASE_REVISION
+    if "long-t5-tglobal-large" in model_lower or "longt5-large" in model_lower:
+        return LONG_T5_TGLOBAL_LARGE_REVISION
+    return None
 
 
 def is_sha_revision(revision: str) -> bool:
@@ -294,6 +324,10 @@ ALLOWED_HUGGINGFACE_MODELS = frozenset(
         "google/pegasus-large",
         "google/pegasus-cnn_dailymail",
         "google/pegasus-xsum",
+        "google/long-t5-tglobal-base",
+        "google/long-t5-tglobal-large",
+        "google/flan-t5-base",
+        "google/flan-t5-large",
         # AllenAI models
         "allenai/led-large-16384",
         "allenai/led-base-16384",

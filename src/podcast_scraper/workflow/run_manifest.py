@@ -182,7 +182,11 @@ def _revision_for_summary_model(model_name: Optional[str]) -> Optional[str]:
         return getattr(config_constants, "LED_BASE_16384_REVISION", None)
     if "led-large-16384" in model_lower or model_name == "allenai/led-large-16384":
         return getattr(config_constants, "LED_LARGE_16384_REVISION", None)
-    return None
+    # LongT5 and FLAN-T5 (e.g. hybrid_ml map/reduce) use get_pinned_revision_for_model
+    revision = getattr(config_constants, "get_pinned_revision_for_model", lambda _: None)(
+        model_name
+    )
+    return revision
 
 
 def _get_gpu_info() -> Optional[str]:

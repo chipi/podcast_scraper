@@ -251,7 +251,7 @@ class TestSpeakerDetection(unittest.TestCase):
             auto_speakers=True,
         )
 
-        speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+        speakers, hosts, succeeded, _ = speaker_detection.detect_speaker_names(
             episode_title="Interview with Guest Name",
             episode_description=None,
             nlp=mock_nlp,  # Required parameter
@@ -273,7 +273,7 @@ class TestSpeakerDetection(unittest.TestCase):
             auto_speakers=False,
         )
 
-        speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+        speakers, hosts, succeeded, _ = speaker_detection.detect_speaker_names(
             episode_title="Test Episode",
             episode_description=None,
             nlp=mock_nlp,  # Required parameter
@@ -730,7 +730,7 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
             )
 
             mock_nlp = unittest.mock.MagicMock()
-            speakers, hosts, succeeded = speaker_detection.detect_speaker_names(
+            speakers, hosts, succeeded, _ = speaker_detection.detect_speaker_names(
                 episode_title="Interview with Detected Guest",
                 episode_description=None,
                 nlp=mock_nlp,  # Required parameter

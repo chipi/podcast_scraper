@@ -10,7 +10,7 @@ import subprocess  # nosec B404
 import sys
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from ... import config
+from ... import config, config_constants
 
 # Note: spacy is imported lazily in _load_spacy_model() to avoid requiring ML dependencies
 # at module import time. This allows unit tests to import this module without spacy installed.
@@ -152,10 +152,6 @@ def _has_mentioned_only_indicator(name: str, text: str) -> bool:
     return False
 
 
-# Legacy placeholder; treat as default so it is filtered from entity lists (Issue #428)
-_LEGACY_PLACEHOLDER_GUEST = "Guest"
-
-
 def is_default_speaker_name(name: str) -> bool:
     """Check if a speaker name is a default placeholder.
 
@@ -165,7 +161,7 @@ def is_default_speaker_name(name: str) -> bool:
     Returns:
         True if name is in DEFAULT_SPEAKER_NAMES or legacy 'Guest', False otherwise.
     """
-    return name in DEFAULT_SPEAKER_NAMES or name == _LEGACY_PLACEHOLDER_GUEST
+    return name in DEFAULT_SPEAKER_NAMES or name == config_constants.LEGACY_PLACEHOLDER_GUEST
 
 
 def filter_default_speaker_names(names: List[str]) -> List[str]:
@@ -995,17 +991,18 @@ def detect_speaker_names(
         heuristics: Pattern-based heuristics from sample episodes (optional)
 
     Returns:
-        Tuple of (speaker_names_list, detected_hosts_set, detection_succeeded)
+        Tuple of (speaker_names_list, detected_hosts_set, detection_succeeded, used_defaults)
         - detection_succeeded: True if real names were detected, False if defaults were used
+        - used_defaults: True if default names were added to reach min speakers
         Note: detected_hosts_set will be empty as hosts are not detected here
     """
     if cfg and not cfg.auto_speakers:
         logger.debug("Auto-speakers disabled, detection failed")
-        return DEFAULT_SPEAKER_NAMES.copy(), set(), False  # type: ignore[return-value]
+        return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
     if not nlp:
         logger.debug("spaCy model not available, detection failed")
-        return DEFAULT_SPEAKER_NAMES.copy(), set(), False  # type: ignore[return-value]
+        return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
     # Use cached/known hosts, but do NOT detect hosts from episode metadata
     # Priority: known_hosts > cached_hosts
@@ -1103,14 +1100,11 @@ def detect_speaker_names(
     # Build final speaker names list
     guests = [selected_guest] if selected_guest else []
     screenplay_num_speakers = cfg.screenplay_num_speakers if cfg else 2
-    speaker_names, detection_succeeded, _used_defaults = _build_speaker_names_list(
+    speaker_names, detection_succeeded, used_defaults = _build_speaker_names_list(
         hosts, guests, screenplay_num_speakers
     )
 
-    # Return hosts set (hosts are passed in, not detected here)
-    # Note: used_defaults is extracted but not returned (would require API change)
-    # TODO: Add used_defaults to return tuple when updating callers
-    return speaker_names, hosts, detection_succeeded  # type: ignore[return-value]
+    return speaker_names, hosts, detection_succeeded, used_defaults
 
 
 def _calculate_heuristic_score(

@@ -7,7 +7,7 @@
 - **Execution Timing**: **Phase 3a (parallel with
   RFC-049)** — Use case definitions and CLI tooling
   developed alongside GIL core extraction. Depends on
-  RFC-049 for `kg.json` generation.
+  RFC-049 for `gi.json` generation.
 - **Related PRDs**:
   - `docs/prd/PRD-017-grounded-insight-layer.md`
     (Grounded Insight Layer)
@@ -25,8 +25,8 @@
   - `docs/rfc/RFC-053-adaptive-summarization-routing.md`
     (downstream — adaptive routing)
 - **Related Documents**:
-  - `docs/kg/ontology.md` - Human-readable ontology
-  - `docs/kg/kg.schema.json` - Machine-readable schema
+  - `docs/gi/ontology.md` - Human-readable ontology
+  - `docs/gi/gi.schema.json` - Machine-readable schema
   - `docs/ARCHITECTURE.md` - System architecture
 
 ## Abstract
@@ -37,7 +37,7 @@ This RFC builds on RFC-049 (Core Concepts) and focuses on use cases that revolve
 
 **Architecture Alignment:** This RFC aligns with existing architecture by:
 
-- Defining consumption patterns that work with per-episode `kg.json` files
+- Defining consumption patterns that work with per-episode `gi.json` files
 - Specifying output contracts that return insights with supporting_quotes
 - Enabling programmatic access consistent with existing API patterns
 - Supporting evidence-backed queries that leverage transcript references and timestamps
@@ -73,7 +73,7 @@ While RFC-049 defines *how* knowledge is extracted and stored, this RFC addresse
 
 **Constraints:**
 
-- Must work with per-episode `kg.json` files (no global graph storage in v1)
+- Must work with per-episode `gi.json` files (no global graph storage in v1)
 - Must be evidence-backed (all answers traceable to supporting quotes)
 - Must integrate cleanly with existing output directory structure
 - Must support programmatic access (JSON-based, not UI-dependent)
@@ -457,7 +457,7 @@ Three minimal inspection surfaces for developers and power users (plus the Insig
 
 **What it is:**
 
-- A way to view a single episode's `kg.json`
+- A way to view a single episode's `gi.json`
 - Rendered as:
   - Insights with grounding status
   - Supporting quotes with timestamps
@@ -706,7 +706,7 @@ Exactly one of `--episode-id` or `--episode-path` must be provided when the comm
 - `metadata.json`
 - `transcript.json`
 - `summary.json` (optional for CLI)
-- `kg.json`
+- `gi.json`
 
 **Output Formats:**
 
@@ -716,11 +716,11 @@ Exactly one of `--episode-id` or `--episode-path` must be provided when the comm
 **Global Options:**
 
 - `--strict`: Fail if schema validation fails
-- `--schema <path>`: Override schema path (default: `schemas/kg.schema.json`)
+- `--schema <path>`: Override schema path (default: `schemas/gi.schema.json`)
 
 **Command: `kg inspect`**
 
-**Goal:** Inspect a single episode's `kg.json` in a human-friendly way.
+**Goal:** Inspect a single episode's `gi.json` in a human-friendly way.
 
 **Usage:**
 
@@ -737,7 +737,7 @@ kg inspect --episode-path ./output/episode_abc123
 
 **Behavior:**
 
-- Loads `kg.json`
+- Loads `gi.json`
 - Validates against schema (warn by default; fail if `--strict`)
 - Prints:
   - Insight count (grounded vs ungrounded)
@@ -763,7 +763,7 @@ kg show-insight --id insight:episode:abc123:<hash> --output-dir ./output
 **Behavior:**
 
 - Locates the episode containing the insight
-- Loads episode `kg.json` + `transcript.json`
+- Loads episode `gi.json` + `transcript.json`
 - Prints insight text, grounding status, confidence, and all supporting quotes with evidence
 
 **Command: `kg explore` (The Canonical Query)**
@@ -788,7 +788,7 @@ kg explore --topic "AI Regulation" --output-dir ./output
 
 **Behavior:**
 
-- Builds an in-memory logical graph by scanning all `kg.json` files
+- Builds an in-memory logical graph by scanning all `gi.json` files
 - Traverses Topic → Insight → Supporting Quotes → Episode → Speaker
 - Returns insights with supporting quotes and timestamps
 
@@ -805,7 +805,7 @@ For interactive exploration, a Jupyter notebook template
 provides an alternative to CLI commands. The template
 demonstrates:
 
-- Loading episode artifacts (`kg.json`,
+- Loading episode artifacts (`gi.json`,
   `transcript.json`, `metadata.json`)
 - Insight selection and inspection
 - Supporting quote resolution with highlighted
@@ -830,12 +830,12 @@ output/
     metadata.json
     transcript.json
     summary.json
-    kg.json          # NEW: Grounded Insight Layer data
+    gi.json          # NEW: Grounded Insight Layer data
 ```
 
 **Consumption Patterns:**
 
-1. **Direct kg.json Access**: Read `kg.json` directly for programmatic access
+1. **Direct gi.json Access**: Read `gi.json` directly for programmatic access
 2. **Join with Summary**: Combine GIL insights with `summary.json` for narrative context
 3. **Resolve Transcript Spans**: Use `transcript.json` to verify quote evidence
 4. **Metadata Integration**: Use `metadata.json` for episode-level context
@@ -858,11 +858,11 @@ def explore_topic(topic_label: str, output_dir: Path) -> dict:
 
     # Scan all episode directories
     for episode_dir in output_dir.glob("episode_*"):
-        kg_path = episode_dir / "kg.json"
-        if not kg_path.exists():
+        gi_path = episode_dir / "gi.json"
+        if not gi_path.exists():
             continue
 
-        with open(kg_path) as f:
+        with open(gi_path) as f:
             kg_data = json.load(f)
 
         # Find insights about this topic
@@ -963,7 +963,7 @@ The GIL implementation is considered end-to-end successful when:
 - ✅ Quote text matches transcript verbatim (verifiable)
 - ✅ GIL data integrates cleanly with existing scraper artifacts
 - ✅ The Insight Explorer query (UC5) works end-to-end
-- ✅ Generated `kg.json` files conform to schema
+- ✅ Generated `gi.json` files conform to schema
 - ✅ Query patterns are documented and reproducible
 
 ### 7. Failure Modes & Fallbacks
@@ -1028,7 +1028,7 @@ The GIL implementation is considered end-to-end successful when:
 **Test Coverage:**
 
 - **Unit Tests**: Test query functions, output shape validation, evidence resolution
-- **Integration Tests**: Test end-to-end use cases with real `kg.json` files
+- **Integration Tests**: Test end-to-end use cases with real `gi.json` files
 - **E2E Tests**: Test full workflow from transcript → GIL → query → results
 - **Grounding Tests**: Verify insights have supporting quotes; verify quote verbatim match
 
@@ -1109,7 +1109,7 @@ RFC-053 (Adaptive Routing)      → optimization
    infrastructure used by extraction models
 6. **RFC-042: Hybrid ML Platform** — Provides the
    extraction models (FLAN-T5, QA, NLI) that produce
-   the `kg.json` data this RFC consumes
+   the `gi.json` data this RFC consumes
 
 **Complementary RFCs:**
 
@@ -1145,7 +1145,7 @@ recorded here for traceability.
 1. **Query Performance**: How many episodes can be
    scanned before performance degrades?
    **~100 episodes for file scan; DB beyond that.**
-   File-based scanning (loading N `kg.json` files)
+   File-based scanning (loading N `gi.json` files)
    is acceptable up to ~100 episodes (<5 seconds on
    SSD). Beyond that, RFC-051 Postgres projection
    handles scale with indexed queries. The `kg explore`
@@ -1206,7 +1206,7 @@ fast serving (051).**
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
-- **Ontology Specification**: `docs/kg/ontology.md`
-- **Schema Specification**: `docs/kg/kg.schema.json`
+- **Ontology Specification**: `docs/gi/ontology.md`
+- **Schema Specification**: `docs/gi/gi.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Source Code**: `podcast_scraper/workflow/` (integration points)

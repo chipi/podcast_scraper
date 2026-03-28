@@ -410,6 +410,9 @@ DEFAULT_SUMMARY_MODELS = {
     "long-large": "allenai/led-large-16384",
     # LED-base (long docs 16k tokens, ~1GB), NO chunking (production baseline reduce model)
     "long-fast": "allenai/led-base-16384",
+    # LongT5 (8k tokens, ~1GB/2.5GB), medium-long docs (RFC-042 MAP option)
+    "longt5-base": "google/long-t5-tglobal-base",
+    "longt5-large": "google/long-t5-tglobal-large",
 }
 
 
@@ -815,37 +818,51 @@ def _load_with_retry_summarizer(load_func, model_name: str, model_type: str = "m
             retryable_exceptions=retryable,
         )
     except Exception as e:
-        logger.warning(
-            "%s loading failed for %s: %s. Clearing cache and retrying once...",
-            model_type.capitalize(),
-            model_name,
-            e,
+        # Only clear cache for errors that suggest wrong/corrupt cache (e.g. safetensors
+        # mismatch). Do not clear for AttributeError/other bugs so we don't delete a
+        # good cache and then fail on retry due to missing network.
+        msg = str(e).lower()
+        clear_cache = isinstance(e, OSError) and (
+            "safetensors" in msg or "does not appear to have" in msg
         )
-        try:
-            from ...cache.manager import delete_transformers_model_cache
-
-            deleted, freed_bytes = delete_transformers_model_cache(
-                model_name, confirm=False, force=True
-            )
-            if deleted:
-                logger.info(
-                    "Cleared cache for %s (%.1f MB freed)",
-                    model_name,
-                    freed_bytes / (1024 * 1024),
-                )
-        except Exception as cache_error:
-            logger.warning("Failed to clear cache for %s: %s", model_name, cache_error)
-        logger.info("Retrying %s load for %s after cache clear...", model_type, model_name)
-        try:
-            return load_func()
-        except Exception as retry_error:
-            logger.error(
-                "%s load failed again after cache clear: %s. "
-                "Please run 'make preload-ml-models' to re-download the model.",
+        if clear_cache:
+            logger.warning(
+                "%s loading failed for %s: %s. Clearing cache and retrying once...",
                 model_type.capitalize(),
-                retry_error,
+                model_name,
+                e,
             )
-            raise
+            try:
+                from ...cache.manager import delete_transformers_model_cache
+
+                deleted, freed_bytes = delete_transformers_model_cache(
+                    model_name, confirm=False, force=True
+                )
+                if deleted:
+                    logger.info(
+                        "Cleared cache for %s (%.1f MB freed)",
+                        model_name,
+                        freed_bytes / (1024 * 1024),
+                    )
+            except Exception as cache_error:
+                logger.warning("Failed to clear cache for %s: %s", model_name, cache_error)
+            logger.info(
+                "Retrying %s load for %s after cache clear...",
+                model_type,
+                model_name,
+            )
+            try:
+                return load_func()
+            except Exception as retry_error:
+                logger.error(
+                    "%s load failed again after cache clear: %s. "
+                    "Please run 'make preload-ml-models' to re-download the model.",
+                    model_type.capitalize(),
+                    retry_error,
+                )
+                raise
+        logger.error("Failed to load %s for %s: %s", model_type, model_name, e)
+        raise
 
 
 class SummaryModel:
@@ -893,6 +910,12 @@ class SummaryModel:
 
             pinned_revision = LED_LARGE_16384_REVISION
             model_type = "LED-LARGE"
+        else:
+            from ...config_constants import get_pinned_revision_for_model
+
+            pinned_revision = get_pinned_revision_for_model(model_name)
+            if pinned_revision:
+                model_type = "FLAN-T5" if "flan" in model_lower else "LongT5"
 
         if pinned_revision:
             if revision and revision != pinned_revision:
@@ -1131,8 +1154,12 @@ class SummaryModel:
                 # All downloads must go through our centralized preload script logic.
                 logger.debug("Loading model from cache...")
                 model_lower = self.model_name.lower()
-                # Pegasus models don't have safetensors files, so disable safetensors
-                use_safetensors = "pegasus" not in model_lower
+                # Pegasus and LongT5 don't have safetensors on Hub; use PyTorch weights
+                use_safetensors = (
+                    "pegasus" not in model_lower
+                    and "long-t5" not in model_lower
+                    and "longt5" not in model_lower
+                )
                 model_kwargs = {
                     "cache_dir": self.cache_dir,
                     # Always use cache only - downloads via preload script
@@ -1150,15 +1177,13 @@ class SummaryModel:
                     else:
                         logger.debug(f"Using pinned revision: {self.revision}")
                 else:
-                    # This should not happen for Pegasus (we force revision="main" above)
-                    # but log a warning if it does
+                    # Fallback: should not happen (we set pinned SHA for known models)
                     if "pegasus" in model_lower:
-                        logger.warning(
-                            "[PEGASUS LOAD] No revision specified - this should not happen. "
-                            "Forcing revision='main' to avoid PR refs."
-                        )
-                        model_kwargs["revision"] = "main"
-                        self.revision = "main"
+                        from ...config_constants import PEGASUS_CNN_DAILYMAIL_REVISION
+
+                        logger.warning("[PEGASUS LOAD] No revision specified - using pinned SHA.")
+                        model_kwargs["revision"] = PEGASUS_CNN_DAILYMAIL_REVISION
+                        self.revision = PEGASUS_CNN_DAILYMAIL_REVISION
 
                 # Use model-specific classes for better compatibility
                 # This prevents "weights not initialized" warnings that can occur
@@ -1277,7 +1302,9 @@ class SummaryModel:
                         "BART model",
                     )
                 else:
-                    # Fallback to AutoModelForSeq2SeqLM for other models
+                    # Fallback to AutoModelForSeq2SeqLM for other models (e.g. LongT5)
+                    from transformers import AutoModelForSeq2SeqLM
+
                     logger.debug("Using AutoModelForSeq2SeqLM (auto-detection)")
                     self.model = _load_with_retry_summarizer(
                         lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615

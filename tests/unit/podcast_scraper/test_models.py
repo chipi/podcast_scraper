@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unit tests for models.py dataclasses.
+"""Unit tests for models package dataclasses.
 
 Tests cover:
 - RssFeed: Feed metadata and episode items

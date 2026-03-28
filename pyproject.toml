@@ -41,6 +41,10 @@ ml = [
   "accelerate>=0.20.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<7.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
+# llama.cpp for hybrid REDUCE (RFC-042, Issue #352) - optional GGUF inference
+llama = [
+  "llama-cpp-python>=0.2.0,<0.3.0",
+]
 # LLM API providers - grouped for CI/test convenience
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)

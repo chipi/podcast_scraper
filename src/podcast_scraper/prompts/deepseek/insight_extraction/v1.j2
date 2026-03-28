@@ -1,0 +1,10 @@
+Extract {{ max_insights }} key takeaways from the following podcast transcript. Output exactly one short statement per line. Each line should be a standalone insight (1-2 sentences). Do not number or bullet the lines. Do not add any other text before or after the list.
+
+{% if title %}
+Episode: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Key takeaways (one per line):

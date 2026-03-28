@@ -1,0 +1,49 @@
+# Tier 1 smoke — paragraph-style REDUCE (same instruction tuning as tier 2)
+# Same as hybrid_ml_tier1_smoke_v1 plus reduce_instruction_style: "paragraph".
+# FLAN-T5 is instruction-based; this tests whether paragraph instruction improves vs silver.
+# Compare: make experiment-run CONFIG=... BASELINE=baseline_ml_prod_authority_smoke_v1 REFERENCE=silver_gpt4o_smoke_v1
+
+id: "hybrid_ml_tier1_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "hybrid_ml"
+  map_model: "longt5-base"
+  reduce_model: "google/flan-t5-base"
+  reduce_backend: "transformers"
+  reduce_instruction_style: "paragraph"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+reduce_params:
+  do_sample: false
+  num_beams: 4
+  max_new_tokens: 450
+  min_new_tokens: 180
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.12
+  length_penalty: 1.0
+  early_stopping: false
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

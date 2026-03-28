@@ -32,7 +32,39 @@ _patch_ollama.start()
 
 from podcast_scraper import config
 from podcast_scraper.providers.ml import speaker_detection
-from podcast_scraper.providers.ollama.ollama_provider import OllamaProvider
+from podcast_scraper.providers.ollama.ollama_provider import (
+    _ollama_native_api_root,
+    OllamaProvider,
+)
+
+
+@pytest.mark.unit
+class TestOllamaNativeApiRoot(unittest.TestCase):
+    """Regression: rstrip('/v1') corrupts ports ending in 1 (e.g. :51201)."""
+
+    def test_port_51201_unchanged(self) -> None:
+        self.assertEqual(
+            _ollama_native_api_root("http://127.0.0.1:51201/v1"),
+            "http://127.0.0.1:51201",
+        )
+
+    def test_default_localhost(self) -> None:
+        self.assertEqual(
+            _ollama_native_api_root("http://localhost:11434/v1"),
+            "http://localhost:11434",
+        )
+
+    def test_no_v1_suffix_unchanged(self) -> None:
+        self.assertEqual(
+            _ollama_native_api_root("http://localhost:11434"),
+            "http://localhost:11434",
+        )
+
+    def test_trailing_slash_v1(self) -> None:
+        self.assertEqual(
+            _ollama_native_api_root("http://127.0.0.1:51201/v1/"),
+            "http://127.0.0.1:51201",
+        )
 
 
 @pytest.mark.unit
@@ -425,7 +457,7 @@ class TestOllamaProviderSpeakerDetection(unittest.TestCase):
         provider = OllamaProvider(cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},
@@ -681,7 +713,7 @@ class TestOllamaProviderSummarization(unittest.TestCase):
         provider.initialize()
 
         # Should return defaults on invalid JSON
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             episode_title="Test Episode",
             episode_description="Test description",
             known_hosts=set(),
@@ -925,7 +957,7 @@ class TestOllamaProviderErrorHandling(unittest.TestCase):
         provider.initialize()
 
         # Should return default speakers on JSON decode error
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 
@@ -967,7 +999,7 @@ class TestOllamaProviderErrorHandling(unittest.TestCase):
         provider = OllamaProvider(self.cfg)
         provider.initialize()
 
-        speakers, hosts, success = provider.detect_speakers(
+        speakers, hosts, success, _ = provider.detect_speakers(
             "Episode Title", "Description", set(["Host"])
         )
 

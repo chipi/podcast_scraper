@@ -1,3 +1,9 @@
+"""Core data model entities for the podcast scraper.
+
+Defines RssFeed, Episode, and TranscriptionJob dataclasses used across
+workflow, RSS parsing, and providers.
+"""
+
 from __future__ import annotations
 
 # Bandit: ElementTree usage limited to typing references

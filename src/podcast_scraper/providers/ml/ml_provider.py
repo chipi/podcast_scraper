@@ -1035,7 +1035,7 @@ class MLProvider:
         episode_title: str,
         episode_description: str | None,
         known_hosts: Set[str],
-    ) -> Tuple[list[str], Set[str], bool]:
+    ) -> Tuple[list[str], Set[str], bool, bool]:
         """Detect speaker names from episode metadata using spaCy NER.
 
         Args:
@@ -1048,6 +1048,7 @@ class MLProvider:
             - List of detected speaker names
             - Set of detected host names (subset of known_hosts)
             - Success flag (True if detection succeeded)
+            - used_defaults: True if defaults were added to reach min speakers
         """
         # Ensure model is loaded (only if auto_speakers is enabled)
         if self._spacy_nlp is None:
@@ -1061,20 +1062,19 @@ class MLProvider:
             self._initialize_spacy()
 
         # Use detect_speaker_names with adapted parameters
-        # Pass self._spacy_nlp directly (required parameter)
-        speaker_names, detected_hosts_set, detection_succeeded = (
+        speaker_names, detected_hosts_set, detection_succeeded, used_defaults = (
             speaker_detection.detect_speaker_names(  # type: ignore[misc]
                 episode_title=episode_title,
                 episode_description=episode_description,
-                nlp=self._spacy_nlp,  # Required: pass pre-loaded model
+                nlp=self._spacy_nlp,
                 cfg=self.cfg,
-                known_hosts=None,  # Use cached_hosts instead
-                cached_hosts=known_hosts,  # Map known_hosts to cached_hosts
+                known_hosts=None,
+                cached_hosts=known_hosts,
                 heuristics=self._spacy_heuristics,
             )
         )
 
-        return speaker_names, detected_hosts_set, detection_succeeded
+        return speaker_names, detected_hosts_set, detection_succeeded, used_defaults
 
     def detect_hosts(
         self,
@@ -1540,6 +1540,79 @@ class MLProvider:
                 provider="MLProvider/Transformers",
                 suggestion="Check model cache and input text format",
             ) from e
+
+    def generate_insights(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_insights: int = 5,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Generate insight statements (GIL). ML provider does not implement this.
+
+        Returns empty list so GIL falls back to stub or summary_bullets when
+        gi_insight_source=provider.
+        """
+        return []
+
+    def extract_quotes(
+        self,
+        transcript: str,
+        insight_text: str,
+        **kwargs: Any,
+    ) -> List[Any]:
+        """Extract candidate quote spans that support the insight (GIL QA).
+
+        Uses local extractive QA model (gi_qa_model). Returns list of QuoteCandidate
+        (char_start, char_end, text, qa_score).
+        """
+        from ...gi.grounding import QuoteCandidate
+        from . import extractive_qa
+
+        if not (transcript and insight_text):
+            return []
+        question = f"What evidence supports: {insight_text.strip()}"
+        try:
+            span = extractive_qa.answer(
+                context=transcript,
+                question=question,
+                model_id=getattr(self.cfg, "gi_qa_model", "roberta-squad2"),
+                device=getattr(self.cfg, "extractive_qa_device", None),
+            )
+        except Exception as e:
+            logger.warning("Extractive QA failed for extract_quotes: %s", e)
+            return []
+        verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
+        return [
+            QuoteCandidate(
+                char_start=span.start,
+                char_end=span.end,
+                text=verbatim,
+                qa_score=span.score,
+            )
+        ]
+
+    def score_entailment(
+        self,
+        premise: str,
+        hypothesis: str,
+        **kwargs: Any,
+    ) -> float:
+        """Score entailment of hypothesis given premise (GIL NLI). 0–1, higher = more entailment."""
+        from . import nli_loader
+
+        if not (premise and hypothesis):
+            return 0.0
+        try:
+            return nli_loader.entailment_score(
+                premise=premise.strip(),
+                hypothesis=hypothesis.strip(),
+                model_id=getattr(self.cfg, "gi_nli_model", "nli-deberta-base"),
+                device=getattr(self.cfg, "nli_device", None),
+            )
+        except Exception as e:
+            logger.warning("NLI failed for score_entailment: %s", e)
+            return 0.0
 
     # ============================================================================
     # Cleanup Methods

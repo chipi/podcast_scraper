@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, cast, Dict, Optional, Set, Tuple, TYPE_CHECKING
+from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 try:
     from openai import OpenAI
@@ -230,7 +230,7 @@ class DeepSeekProvider:
 
         try:
             # Use detect_speakers with empty known_hosts to detect hosts
-            speakers, detected_hosts, _ = self.detect_speakers(
+            speakers, detected_hosts, _, _ = self.detect_speakers(
                 episode_title=feed_title,
                 episode_description=feed_description,
                 known_hosts=set(),
@@ -246,7 +246,7 @@ class DeepSeekProvider:
         episode_description: str | None,
         known_hosts: Set[str],
         pipeline_metrics: metrics.Metrics | None = None,
-    ) -> Tuple[list[str], Set[str], bool]:
+    ) -> Tuple[list[str], Set[str], bool, bool]:
         """Detect speaker names from episode metadata using DeepSeek API.
 
         Args:
@@ -260,6 +260,7 @@ class DeepSeekProvider:
             - List of detected speaker names (hosts + guests)
             - Set of detected host names (subset of known_hosts)
             - Success flag (True if detection succeeded)
+            - used_defaults: True if default names were returned (e.g. on failure)
 
         Raises:
             ValueError: If detection fails or API key is invalid
@@ -268,7 +269,7 @@ class DeepSeekProvider:
         # If auto_speakers is disabled, return defaults without requiring initialization
         if not self.cfg.auto_speakers:
             logger.debug("Auto-speakers disabled, detection failed")
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
         if not self._speaker_detection_initialized:
             raise RuntimeError(
@@ -306,7 +307,7 @@ class DeepSeekProvider:
             response_text = response.choices[0].message.content
             if not response_text:
                 logger.warning("DeepSeek API returned empty response")
-                return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+                return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
             # Parse JSON response
             speakers, detected_hosts, success = self._parse_speakers_from_response(
@@ -326,11 +327,11 @@ class DeepSeekProvider:
                 output_tokens = response.usage.completion_tokens if response.usage else 0
                 pipeline_metrics.record_llm_speaker_detection_call(input_tokens, output_tokens)
 
-            return speakers, detected_hosts, success
+            return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
             logger.error("Failed to parse DeepSeek API JSON response: %s", exc)
-            return DEFAULT_SPEAKER_NAMES.copy(), set(), False
+            return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
             logger.error("DeepSeek API error in speaker detection: %s", exc)
             from podcast_scraper.exceptions import (
@@ -695,6 +696,190 @@ class DeepSeekProvider:
     def clear_cache(self) -> None:
         """Clear cache (no-op for API provider)."""
         pass
+
+    def generate_insights(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_insights: int = 5,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
+        """Generate a list of short insight statements from transcript (GIL).
+
+        Uses deepseek/insight_extraction/v1 prompt; parses response as one insight per line.
+        Returns empty list on failure so GIL can fall back to stub.
+        """
+        if not self._summarization_initialized:
+            logger.warning("DeepSeek summarization not initialized for generate_insights")
+            return []
+
+        from ...prompts.store import render_prompt
+
+        max_insights = min(max(1, max_insights), 10)
+        text_slice = (text or "").strip()
+        if len(text_slice) > 120000:
+            text_slice = text_slice[:120000] + "\n\n[Transcript truncated.]"
+
+        try:
+            user_prompt = render_prompt(
+                "deepseek/insight_extraction/v1",
+                transcript=text_slice,
+                title=episode_title or "",
+                max_insights=max_insights,
+            )
+            system_prompt = (
+                "Output only the list of key takeaways, one per line. "
+                "No numbering, bullets, or extra text."
+            )
+            response = self.client.chat.completions.create(
+                model=self.summary_model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.3,
+                max_tokens=min(1024, max_insights * 150),
+            )
+            content = (response.choices[0].message.content or "").strip()
+            lines = [
+                line.strip()
+                for line in content.splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            cleaned = []
+            for line in lines:
+                s = line.strip()
+                if not s:
+                    continue
+                if len(s) >= 2 and s[0].isdigit() and s[1] in ".)":
+                    s = s[2:].strip()
+                if s.startswith("- ") or s.startswith("* "):
+                    s = s[2:].strip()
+                if s:
+                    cleaned.append(s)
+            return cleaned[:max_insights]
+        except Exception as e:
+            logger.debug("DeepSeek generate_insights failed: %s", e, exc_info=True)
+            return []
+
+    def extract_quotes(
+        self,
+        transcript: str,
+        insight_text: str,
+        **kwargs: Any,
+    ) -> List[Any]:
+        """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
+        if not self._summarization_initialized or not (transcript and insight_text):
+            return []
+        import json
+
+        from ...gi.grounding import QuoteCandidate
+
+        system = (
+            "You extract a single short quote from the transcript that best supports "
+            "the given insight. Reply with ONLY a JSON object: "
+            '{"quote_text": "exact quote from transcript"}'
+        )
+        user = (
+            f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
+            f"Insight: {insight_text.strip()}\n\n"
+            "Return JSON with quote_text only."
+        )
+        try:
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=self.summary_model,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    temperature=0.0,
+                    max_tokens=512,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+            )
+            content = (response.choices[0].message.content or "").strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+            obj = json.loads(content)
+            quote_text = (obj.get("quote_text") or "").strip()
+            if not quote_text:
+                return []
+            start = transcript.find(quote_text)
+            if start == -1:
+                start, end = 0, len(quote_text)
+            else:
+                end = start + len(quote_text)
+            return [
+                QuoteCandidate(
+                    char_start=start,
+                    char_end=end,
+                    text=quote_text,
+                    qa_score=1.0,
+                )
+            ]
+        except Exception as e:
+            logger.debug("DeepSeek extract_quotes failed: %s", e, exc_info=True)
+            return []
+
+    def score_entailment(
+        self,
+        premise: str,
+        hypothesis: str,
+        **kwargs: Any,
+    ) -> float:
+        """Score entailment of hypothesis given premise (GIL NLI via LLM). 0–1."""
+        if not self._summarization_initialized or not (premise and hypothesis):
+            return 0.0
+        system = (
+            "You rate how much the premise supports the hypothesis. "
+            "Reply with ONLY a number between 0 and 1 (0=not at all, 1=fully supports)."
+        )
+        user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
+        try:
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=self.summary_model,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    temperature=0.0,
+                    max_tokens=10,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+            )
+            content = (response.choices[0].message.content or "0").strip()
+            for part in content.replace(",", " ").split():
+                try:
+                    v = float(part)
+                    return max(0.0, min(1.0, v))
+                except ValueError:
+                    continue
+            return 0.0
+        except Exception as e:
+            logger.debug("DeepSeek score_entailment failed: %s", e, exc_info=True)
+            return 0.0
 
     def clean_transcript(self, text: str) -> str:
         """Clean transcript using LLM for semantic filtering.

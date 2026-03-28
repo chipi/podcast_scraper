@@ -201,7 +201,7 @@ output_dir: ./transcripts
 
 transcription_provider: whisper  # or "openai", "gemini", "mistral"
 speaker_detector_provider: spacy  # or "openai", "gemini", "mistral"
-summary_provider: transformers  # or "openai", "gemini", "mistral"
+summary_provider: transformers  # or "hybrid_ml", "openai", "gemini", "mistral"
 
 # OpenAI configuration (required if using OpenAI providers)
 
@@ -236,6 +236,19 @@ summary_mode_id: ml_prod_authority_v1  # Optional (RFC-044). Uses promoted basel
 summary_model: pegasus-cnn  # Transformers model alias. Options: "pegasus-cnn" (default/prod), "bart-small" (dev), "bart-large", "fast", "pegasus", "long", "long-fast"
 summary_device: cpu  # or "cuda", "mps"
 mps_exclusive: true  # Serialize GPU work on MPS to prevent memory contention (default: true)
+
+# Hybrid MAP-REDUCE (RFC-042) — MAP (LongT5) + REDUCE (transformers / Ollama / llama_cpp)
+# summary_provider: hybrid_ml
+# hybrid_map_model: longt5-base  # MAP model (chunk summarization)
+# hybrid_reduce_model: google/flan-t5-base  # REDUCE: HF ID (transformers), Ollama tag (ollama), or .gguf path (llama_cpp)
+# hybrid_reduce_backend: transformers  # Options: transformers | ollama | llama_cpp
+# hybrid_reduce_device: mps  # For transformers backend (mps | cuda | cpu)
+
+# Grounded Insights (GIL) — optional; writes gi.json per episode (see [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md))
+# generate_gi: false
+# embedding_model: sentence-transformers/all-MiniLM-L6-v2  # Evidence stack (lazy load when GIL enabled)
+# extractive_qa_model: deepset/roberta-base-squad2
+# nli_model: cross-encoder/nli-deberta-v3-base
 ```
 
 **JSON format:**

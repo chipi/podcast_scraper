@@ -305,6 +305,25 @@ class TestFinish(unittest.TestCase):
             "transcribe_count",
             "extract_names_count",
             "summarize_count",
+            "gi_artifacts_generated",
+            "gi_failures",
+            "gi_evidence_path_provider",
+            "gi_evidence_path_legacy",
+            "gi_evidence_extract_quotes_calls",
+            "gi_evidence_score_entailment_calls",
+            "gi_insights_total",
+            "gi_quotes_total",
+            "gi_insights_grounded",
+            "gi_artifacts_with_insights_and_quotes",
+            "gi_quotes_verbatim",
+            "gi_quotes_checked",
+            "gi_grounding_rate_pct",
+            "gi_quote_validity_rate_pct",
+            "gi_extraction_coverage_pct",
+            "gi_avg_insights_per_episode",
+            "gi_avg_quotes_per_episode",
+            "avg_gi_seconds",
+            "gi_count",
             # LLM metrics
             "llm_transcription_calls",
             "llm_transcription_audio_minutes",
@@ -331,7 +350,7 @@ class TestFinish(unittest.TestCase):
             # IO/waiting metrics (Issue #391)
             "io_and_waiting_thread_sum_seconds",
             "io_and_waiting_wall_seconds",
-            "time_io_and_waiting",  # Backward compatibility (deprecated)
+            "time_io_and_waiting",  # Deprecated alias (export compat)
             # Sub-buckets for io_and_waiting (Issue #387)
             "time_download_wait_seconds",
             "time_transcription_wait_seconds",
@@ -376,6 +395,41 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["transcribe_count"], 2)
         self.assertEqual(result["extract_names_count"], 1)
         self.assertEqual(result["summarize_count"], 0)
+
+    def test_record_gi_success_counts_and_derived_rates(self):
+        """Test GIL success metrics accumulation and derived rates in finish()."""
+        m = metrics.Metrics()
+        m.gi_artifacts_generated = 2
+        m.record_gi_success_counts(
+            insights=3,
+            quotes=5,
+            grounded_insights=2,
+            has_insights_and_quotes=True,
+            quotes_verbatim=4,
+            quotes_checked=5,
+        )
+        m.record_gi_success_counts(
+            insights=2,
+            quotes=3,
+            grounded_insights=2,
+            has_insights_and_quotes=True,
+            quotes_verbatim=2,
+            quotes_checked=3,
+        )
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+        self.assertEqual(result["gi_insights_total"], 5)
+        self.assertEqual(result["gi_quotes_total"], 8)
+        self.assertEqual(result["gi_insights_grounded"], 4)
+        self.assertEqual(result["gi_artifacts_with_insights_and_quotes"], 2)
+        self.assertEqual(result["gi_quotes_verbatim"], 6)
+        self.assertEqual(result["gi_quotes_checked"], 8)
+        self.assertEqual(result["gi_grounding_rate_pct"], 80.0)  # 4/5 * 100
+        self.assertEqual(result["gi_quote_validity_rate_pct"], 75.0)  # 6/8 * 100
+        self.assertEqual(result["gi_extraction_coverage_pct"], 100.0)  # 2/2 * 100
+        self.assertEqual(result["gi_avg_insights_per_episode"], 2.5)
+        self.assertEqual(result["gi_avg_quotes_per_episode"], 4.0)
 
 
 class TestPreprocessingMetrics(unittest.TestCase):
@@ -546,50 +600,50 @@ class TestIOAndWaitingSubBuckets(unittest.TestCase):
         m = metrics.Metrics()
         m.record_download_wait_time(5.0)
         self.assertEqual(m.time_download_wait_seconds, 5.0)
-        self.assertEqual(m.time_io_and_waiting, 5.0)  # Should also add to total
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 5.0)  # Should also add to total
         m.record_download_wait_time(3.0)
         self.assertEqual(m.time_download_wait_seconds, 8.0)
-        self.assertEqual(m.time_io_and_waiting, 8.0)
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 8.0)
 
     def test_record_transcription_wait_time(self):
         """Test recording transcription wait time."""
         m = metrics.Metrics()
         m.record_transcription_wait_time(10.0)
         self.assertEqual(m.time_transcription_wait_seconds, 10.0)
-        self.assertEqual(m.time_io_and_waiting, 10.0)  # Should also add to total
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 10.0)  # Should also add to total
         m.record_transcription_wait_time(5.0)
         self.assertEqual(m.time_transcription_wait_seconds, 15.0)
-        self.assertEqual(m.time_io_and_waiting, 15.0)
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 15.0)
 
     def test_record_summarization_wait_time(self):
         """Test recording summarization wait time."""
         m = metrics.Metrics()
         m.record_summarization_wait_time(2.0)
         self.assertEqual(m.time_summarization_wait_seconds, 2.0)
-        self.assertEqual(m.time_io_and_waiting, 2.0)  # Should also add to total
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 2.0)  # Should also add to total
         m.record_summarization_wait_time(1.0)
         self.assertEqual(m.time_summarization_wait_seconds, 3.0)
-        self.assertEqual(m.time_io_and_waiting, 3.0)
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 3.0)
 
     def test_record_thread_sync_time(self):
         """Test recording thread sync time."""
         m = metrics.Metrics()
         m.record_thread_sync_time(0.5)
         self.assertEqual(m.time_thread_sync_seconds, 0.5)
-        self.assertEqual(m.time_io_and_waiting, 0.5)  # Should also add to total
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 0.5)  # Should also add to total
         m.record_thread_sync_time(0.3)
         self.assertEqual(m.time_thread_sync_seconds, 0.8)
-        self.assertEqual(m.time_io_and_waiting, 0.8)
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 0.8)
 
     def test_record_queue_wait_time(self):
         """Test recording queue wait time."""
         m = metrics.Metrics()
         m.record_queue_wait_time(1.0)
         self.assertEqual(m.time_queue_wait_seconds, 1.0)
-        self.assertEqual(m.time_io_and_waiting, 1.0)  # Should also add to total
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 1.0)  # Should also add to total
         m.record_queue_wait_time(0.5)
         self.assertEqual(m.time_queue_wait_seconds, 1.5)
-        self.assertEqual(m.time_io_and_waiting, 1.5)
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, 1.5)
 
     def test_sub_buckets_sum_to_io_and_waiting(self):
         """Test that sub-buckets sum to io_and_waiting total."""
@@ -601,7 +655,7 @@ class TestIOAndWaitingSubBuckets(unittest.TestCase):
         m.record_queue_wait_time(1.0)
 
         expected_total = 5.0 + 10.0 + 2.0 + 0.5 + 1.0
-        self.assertEqual(m.time_io_and_waiting, expected_total)
+        self.assertEqual(m.io_and_waiting_thread_sum_seconds, expected_total)
         self.assertEqual(m.time_download_wait_seconds, 5.0)
         self.assertEqual(m.time_transcription_wait_seconds, 10.0)
         self.assertEqual(m.time_summarization_wait_seconds, 2.0)
@@ -753,7 +807,7 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_writing_storage": 0.0,
             "io_and_waiting_thread_sum_seconds": 0.0,
             "io_and_waiting_wall_seconds": 0.0,
-            "time_io_and_waiting": 0.0,  # Backward compatibility (deprecated)
+            "time_io_and_waiting": 0.0,  # Deprecated alias (export compat)
             "time_download_wait_seconds": 0.0,
             "time_transcription_wait_seconds": 0.0,
             "time_summarization_wait_seconds": 0.0,

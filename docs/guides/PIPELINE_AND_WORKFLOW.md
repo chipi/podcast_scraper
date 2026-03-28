@@ -11,10 +11,10 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 5. **Audio Preprocessing** (RFC-040): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to 16 kHz, silence removed via VAD, loudness normalized, and compressed with Opus codec. This reduces file size (typically 10-25× smaller) and ensures API compatibility (e.g., OpenAI 25 MB limit). Preprocessing happens at the pipeline level in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio. All providers benefit from optimized audio.
 6. **Transcription**: When Whisper fallback is enabled, `workflow.episode_processor.download_media_for_transcription` downloads media to a temp area and `workflow.episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
 7. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-8. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`, or any of 7 LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
+8. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`; the **hybrid_ml** provider (MAP with LongT5 + REDUCE via Ollama, llama.cpp, or transformers); or any of 7 LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
 9. **Run Tracking** (Issue #379): Run manifests capture system state at pipeline start. Per-episode stage timings track processing duration. Run summaries combine manifest and metrics. Episode index files list all processed episodes with status.
 10. **Progress/UI**: All long-running operations report progress through the pluggable factory in `utils.progress`, defaulting to `rich` in the CLI.
-11. **GIL Extraction** (PRD-017, planned): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `kg.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Architecture - Planned Evolution](../ARCHITECTURE.md#planned-architecture-evolution) for details.
+11. **GIL Extraction** (PRD-017, planned): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Architecture - Planned Evolution](../ARCHITECTURE.md#planned-architecture-evolution) for details.
 
 ## Pipeline Flow Diagram
 
@@ -52,8 +52,8 @@ flowchart TD
     GILCheck -->|Yes| ExtractGIL[Extract Insights + Quotes]
     GILCheck -->|No| Cleanup
     ExtractGIL --> GroundInsights[Ground Insights with Quotes]
-    GroundInsights --> WriteKG[Write kg.json]
-    WriteKG --> Cleanup[Cleanup Temp Files]
+    GroundInsights --> WriteGI[Write gi.json]
+    WriteGI --> Cleanup[Cleanup Temp Files]
     Cleanup --> End([Complete])
 
     style Start fill:#e1f5ff
@@ -75,11 +75,12 @@ flowchart TD
 - **workflow.episode_processor**: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - **utils.filesystem**: Filename sanitization, output directory derivation based on feed hash ([ADR-003](../adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
 - **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](../adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Eight unified provider classes implement protocol combinations ([ADR-011](../adr/ADR-011-unified-provider-pattern.md)):
+- **Unified Providers** (RFC-029): Nine summarization options; eight unified provider classes implement protocol combinations ([ADR-011](../adr/ADR-011-unified-provider-pattern.md)):
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
   | `MLProvider` | ✅ Whisper | ✅ spaCy NER | ✅ Transformers | Local, no API cost |
+  | `HybridMLProvider` | ❌ | ❌ | ✅ MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
   | `OpenAIProvider` | ✅ Whisper API | ✅ GPT API | ✅ GPT API | Cloud, prompt-managed |
   | `GeminiProvider` | ✅ Gemini API | ✅ Gemini API | ✅ Gemini API | 2M context, native audio |
   | `AnthropicProvider` | ❌ | ✅ Claude API | ✅ Claude API | High quality reasoning |
@@ -95,7 +96,7 @@ flowchart TD
 - **speaker_detection.py** (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
 - **summarizer.py** (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for details.
 - **utils.progress**: Minimal global progress publishing API so callers can swap in alternative UIs.
-- **models.py**: Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob`) shared across modules. May be extended to include detected speaker metadata.
+- **models/** (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules. May be extended to include detected speaker metadata.
 - **workflow.metadata_generation** (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
 
 ## Module Dependencies Diagram
@@ -118,7 +119,7 @@ graph TB
 
     subgraph "Support Modules"
         Filesystem[utils/filesystem.py]
-        Models[models.py]
+        Models[models/]
         Progress[utils/progress.py]
         Schemas[schemas/summary_schema.py]
     end
@@ -137,6 +138,7 @@ graph TB
 
     subgraph "Local ML Provider"
         MLProvider[providers/ml/ml_provider.py]
+        HybridMLProvider[providers/ml/hybrid_ml_provider.py]
         Whisper[providers/ml/whisper_utils.py]
         SpeakerDetect[providers/ml/speaker_detection.py]
         Summarizer[providers/ml/summarizer.py]
@@ -182,6 +184,7 @@ graph TB
     SpeakerFactory --> GrokProvider
     SpeakerFactory --> OllamaProvider
     SummaryFactory --> MLProvider
+    SummaryFactory --> HybridMLProvider
     SummaryFactory --> OpenAIProvider
     SummaryFactory --> GeminiProvider
     SummaryFactory --> AnthropicProvider
@@ -193,6 +196,7 @@ graph TB
     MLProvider --> SpeakerDetect
     MLProvider --> Summarizer
     MLProvider --> NER
+    HybridMLProvider --> Summarizer
     OpenAIProvider --> PromptStore
     GeminiProvider --> PromptStore
     AnthropicProvider --> PromptStore

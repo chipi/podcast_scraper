@@ -1,0 +1,22 @@
+# Mistral on smoke — for multi-run LLM comparison vs silver reference.
+# Requires: MISTRAL_API_KEY
+
+id: "llm_mistral_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "mistral"
+  model: "mistral-small-latest"
+
+prompts:
+  user: "mistral/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

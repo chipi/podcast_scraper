@@ -315,6 +315,26 @@ class TestSummaryValidation(unittest.TestCase):
         self.assertTrue(cfg.generate_summaries)
         self.assertTrue(cfg.generate_metadata)
 
+    def test_generate_gi_requires_metadata(self):
+        """Test that generate_gi=True requires generate_metadata=True."""
+        with self.assertRaises(ValidationError) as context:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                generate_gi=True,
+                generate_metadata=False,
+            )
+        self.assertIn("requires generate_metadata", str(context.exception))
+
+    def test_generate_gi_with_metadata_succeeds(self):
+        """Test that generate_gi works when metadata is enabled."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+        )
+        self.assertTrue(cfg.generate_gi)
+        self.assertTrue(cfg.generate_metadata)
+
     def test_word_chunk_size_outside_range_warns(self):
         """Test that word_chunk_size outside recommended range warns."""
         with warnings.catch_warnings(record=True) as w:
@@ -483,6 +503,19 @@ class TestValidationEdgeCases(unittest.TestCase):
             preload_models=True,
         )
         self.assertTrue(cfg.preload_models)
+
+    def test_evidence_stack_fields_defaults(self):
+        """Test that GIL evidence stack config fields exist with defaults (Issue #435)."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertIsNotNone(cfg.embedding_model)
+        self.assertIn("/", cfg.embedding_model)
+        self.assertIsNone(cfg.embedding_device)
+        self.assertIsNotNone(cfg.extractive_qa_model)
+        self.assertIn("/", cfg.extractive_qa_model)
+        self.assertIsNone(cfg.extractive_qa_device)
+        self.assertIsNotNone(cfg.nli_model)
+        self.assertIn("/", cfg.nli_model)
+        self.assertIsNone(cfg.nli_device)
 
     def test_mps_exclusive_default(self):
         """Test that mps_exclusive defaults to True."""

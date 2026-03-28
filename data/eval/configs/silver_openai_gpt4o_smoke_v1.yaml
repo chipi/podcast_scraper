@@ -1,0 +1,24 @@
+# Silver Reference: OpenAI GPT-4o on Smoke Dataset (5 episodes)
+#
+# Purpose: Silver reference for smoke experiments so ROUGE can be computed.
+# Same as silver_openai_gpt4o_benchmark_v1 except dataset_id: curated_5feeds_smoke_v1.
+
+id: "silver_openai_gpt4o_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

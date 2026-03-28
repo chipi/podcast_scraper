@@ -767,7 +767,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
                 # Step 3: Detect guests from episode metadata (real spaCy NER)
                 episode_description = rss_parser.extract_episode_description(episode.item)
-                detected_speakers, detected_hosts_set, detection_succeeded = (
+                detected_speakers, detected_hosts_set, detection_succeeded, _ = (
                     speaker_detector.detect_speakers(
                         episode_title=episode.title,
                         episode_description=episode_description,
@@ -997,7 +997,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
                 # Step 3: Detect guests from episode metadata (real spaCy NER)
                 episode_description = rss_parser.extract_episode_description(episode.item)
-                detected_speakers, detected_hosts_set, detection_succeeded = (
+                detected_speakers, detected_hosts_set, detection_succeeded, _ = (
                     speaker_detector.detect_speakers(
                         episode_title=episode.title,
                         episode_description=episode_description,
@@ -1286,7 +1286,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         # Step 3: Detect guests from episode metadata (OpenAI)
         episode_description = rss_parser.extract_episode_description(episode.item)
-        detected_speakers, detected_hosts_set, detection_succeeded = (
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
             speaker_detector.detect_speakers(
                 episode_title=episode.title,
                 episode_description=episode_description,
@@ -2036,7 +2036,7 @@ class TestMultipleComponentsWorkflow(unittest.TestCase):
 
                 # Detect guests from episode metadata (real spaCy NER)
                 episode_description = rss_parser.extract_episode_description(episode.item)
-                detected_speakers, detected_hosts_set, detection_succeeded = (
+                detected_speakers, detected_hosts_set, detection_succeeded, _ = (
                     speaker_detector.detect_speakers(
                         episode_title=episode.title,
                         episode_description=episode_description,

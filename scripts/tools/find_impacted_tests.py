@@ -47,7 +47,7 @@ MODULE_MAPPING = {
     # Utils
     "utils/": "module_utils",
     # Models
-    "models.py": "module_models",
+    "models/": "module_models",
     # Exceptions
     "exceptions.py": "module_exceptions",
 }

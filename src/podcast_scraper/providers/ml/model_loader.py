@@ -160,26 +160,38 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             )
 
             # Retry wrapper for tokenizer loading
-            # Pegasus models don't have safetensors files, so disable for them
+            # Pegasus, LongT5, FLAN-T5 (pinned rev) may not have safetensors; use PyTorch
             model_lower = model_name.lower()
-            use_safetensors = "pegasus" not in model_lower
+            use_safetensors = (
+                "pegasus" not in model_lower
+                and "long-t5" not in model_lower
+                and "longt5" not in model_lower
+                and "flan-t5" not in model_lower
+            )
+            from ...config_constants import get_pinned_revision_for_model
+
+            revision = get_pinned_revision_for_model(model_name)
+            tokenizer_kw: dict = {
+                "cache_dir": str(cache_dir),
+                "local_files_only": False,  # nosec B615
+                "use_safetensors": use_safetensors,
+            }
+            if revision:
+                tokenizer_kw["revision"] = revision
+            model_kw: dict = {
+                "cache_dir": str(cache_dir),
+                "local_files_only": False,  # nosec B615
+                "use_safetensors": use_safetensors,
+            }
+            if revision:
+                model_kw["revision"] = revision
 
             def _load_tokenizer():
-                return AutoTokenizer.from_pretrained(
-                    model_name,
-                    cache_dir=str(cache_dir),
-                    local_files_only=False,  # nosec B615
-                    use_safetensors=use_safetensors,  # Disable for Pegasus (no safetensors files)
-                )
+                return AutoTokenizer.from_pretrained(model_name, **tokenizer_kw)  # nosec B615
 
             # Retry wrapper for model loading
             def _load_model():
-                return AutoModelForSeq2SeqLM.from_pretrained(
-                    model_name,
-                    cache_dir=str(cache_dir),
-                    local_files_only=False,  # nosec B615
-                    use_safetensors=use_safetensors,  # Disable for Pegasus (no safetensors files)
-                )
+                return AutoModelForSeq2SeqLM.from_pretrained(model_name, **model_kw)  # nosec B615
 
             # This is the ONLY place where transformers downloads models
             # Use retry with exponential backoff for transient errors
@@ -210,4 +222,92 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 logger.info(f"  ✓ Downloaded and cached: {model_name}")
         except Exception as e:
             logger.error(f"  ✗ Failed to preload Transformers model {model_name}: {e}")
+            raise
+
+
+def is_evidence_model_cached(model_id: str) -> bool:
+    """Return True if the given evidence-stack model (QA or NLI) is already cached.
+
+    Args:
+        model_id: Alias (e.g. roberta-squad2, nli-deberta-base) or full HF ID.
+
+    Returns:
+        True if the resolved model exists under the transformers/HF cache.
+    """
+    from .model_registry import ModelRegistry
+
+    try:
+        resolved = ModelRegistry.resolve_evidence_model_id(model_id)
+    except ValueError:
+        return False
+    cache_dir = get_transformers_cache_dir()
+    model_cache_name = resolved.replace("/", "--")
+    model_cache_path = cache_dir / f"models--{model_cache_name}"
+    return model_cache_path.exists()
+
+
+def preload_evidence_models(
+    qa_models: Optional[List[str]] = None,
+    nli_models: Optional[List[str]] = None,
+) -> None:
+    """Preload GIL evidence-stack models (QA and NLI) to the central cache.
+
+    This is the ONLY place where evidence-stack models can be downloaded.
+    Uses the same HF cache as Transformers (get_transformers_cache_dir).
+
+    Args:
+        qa_models: List of QA model aliases or HF IDs; if None, uses default
+            from config_constants.
+        nli_models: List of NLI model aliases or HF IDs; if None, uses default
+            from config_constants.
+    """
+    from ... import config_constants
+    from .model_registry import ModelRegistry
+
+    if qa_models is None:
+        qa_models = [config_constants.DEFAULT_EXTRACTIVE_QA_MODEL]
+    if nli_models is None:
+        nli_models = [config_constants.DEFAULT_NLI_MODEL]
+
+    cache_dir = get_transformers_cache_dir()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_dir_str = str(cache_dir.resolve())
+    if os.environ.get("HF_HUB_CACHE") != cache_dir_str:
+        os.environ["HF_HUB_CACHE"] = cache_dir_str
+        logger.info("Set HF_HUB_CACHE for evidence model preload: %s", cache_dir_str)
+
+    for alias in qa_models:
+        resolved = ModelRegistry.resolve_evidence_model_id(alias)
+        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
+        if model_cache_path.exists():
+            logger.info("  QA model %s already cached", resolved)
+            continue
+        logger.info("  Preloading QA model %s...", resolved)
+        try:
+            from transformers import pipeline
+
+            pipeline(
+                "question-answering",
+                model=resolved,
+                device=-1,
+            )
+            logger.info("  ✓ QA model %s cached", resolved)
+        except Exception as e:
+            logger.error("  ✗ Failed to preload QA model %s: %s", resolved, e)
+            raise
+
+    for alias in nli_models:
+        resolved = ModelRegistry.resolve_evidence_model_id(alias)
+        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
+        if model_cache_path.exists():
+            logger.info("  NLI model %s already cached", resolved)
+            continue
+        logger.info("  Preloading NLI model %s...", resolved)
+        try:
+            from sentence_transformers import CrossEncoder
+
+            CrossEncoder(resolved)
+            logger.info("  ✓ NLI model %s cached", resolved)
+        except Exception as e:
+            logger.error("  ✗ Failed to preload NLI model %s: %s", resolved, e)
             raise

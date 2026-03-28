@@ -268,6 +268,7 @@ class TestSummaryModel(unittest.TestCase):
         # When self._load_model() is called, the mock receives 'self' as first arg
         mock_load_model.side_effect = setup_attrs
 
+    @patch("podcast_scraper.config_constants.LED_LARGE_16384_REVISION", "main")
     @patch("podcast_scraper.providers.ml.summarizer.logger")
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
@@ -289,6 +290,24 @@ class TestSummaryModel(unittest.TestCase):
         # Format string is first arg; model_type and pinned_revision are next
         self.assertEqual(call_args[1], "LED-LARGE")
         self.assertEqual(call_args[2], "main")
+
+    @patch("podcast_scraper.providers.ml.summarizer.logger")
+    @patch("podcast_scraper.summarizer.SummaryModel._load_model")
+    @patch("podcast_scraper.summarizer.SummaryModel._detect_device")
+    def test_led_large_pinned_revision_no_error(
+        self, mock_detect_device, mock_load_model, mock_logger
+    ):
+        """LED-LARGE with pinned SHA revision does not log ERROR (Issue #428)."""
+        mock_detect_device.return_value = "cpu"
+        mock_load_model.return_value = None
+
+        summarizer.SummaryModel(
+            model_name="allenai/led-large-16384",
+            device=None,
+            cache_dir=self.temp_dir,
+        )
+
+        mock_logger.error.assert_not_called()
 
     @patch("podcast_scraper.summarizer.SummaryModel._load_model")
     @patch("podcast_scraper.summarizer.SummaryModel._detect_device")

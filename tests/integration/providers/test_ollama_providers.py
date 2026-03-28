@@ -96,7 +96,7 @@ class TestOllamaSpeakerDetector(unittest.TestCase):
         detector.client = mock_client
         detector.initialize()
 
-        speakers, hosts, success = detector.detect_speakers(
+        speakers, hosts, success, _ = detector.detect_speakers(
             episode_title="Alice interviews Bob",
             episode_description="A great conversation",
             known_hosts={"Alice"},

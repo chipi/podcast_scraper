@@ -66,6 +66,30 @@ class TestRevisionForSummaryModel:
         ):
             assert _revision_for_summary_model("allenai/led-base-16384") == "pinned-rev"
 
+    def test_led_large_returns_revision(self):
+        """LED large model returns revision from config_constants."""
+        import podcast_scraper.config_constants as cc
+
+        rev = _revision_for_summary_model("allenai/led-large-16384")
+        assert rev == cc.LED_LARGE_16384_REVISION
+        assert rev is not None and len(rev) == 40
+
+    def test_long_t5_returns_pinned_revision(self):
+        """LongT5 model returns revision via get_pinned_revision_for_model (hybrid_ml)."""
+        import podcast_scraper.config_constants as cc
+
+        rev = _revision_for_summary_model("google/long-t5-tglobal-base")
+        assert rev == cc.LONG_T5_TGLOBAL_BASE_REVISION
+        assert rev is not None and len(rev) == 40
+
+    def test_flan_t5_base_returns_pinned_revision(self):
+        """FLAN-T5 base returns revision via get_pinned_revision_for_model."""
+        import podcast_scraper.config_constants as cc
+
+        rev = _revision_for_summary_model("google/flan-t5-base")
+        assert rev == cc.FLAN_T5_BASE_REVISION
+        assert rev is not None and len(rev) == 40
+
     def test_unknown_model_returns_none(self):
         """Unknown model returns None."""
         assert _revision_for_summary_model("unknown/model") is None

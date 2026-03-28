@@ -181,6 +181,18 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 
 ---
 
+## Grounded Insights
+
+Grounded insights are key takeaways linked to verbatim quotes (evidence). When the GIL pipeline is enabled:
+
+- **Config**: `generate_gi: true`; optional evidence stack: `embedding_model`, `extractive_qa_model`, `nli_model` (and `*_device`).
+- **Output**: One `gi.json` per episode (co-located with transcript/summary).
+- **CLI**: `gi inspect`, `gi show-insight`, `gi explore` (see Grounded Insights Guide).
+
+See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology](../gi/ontology.md).
+
+---
+
 ## Key Files
 
 | File | Purpose |

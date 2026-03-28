@@ -137,7 +137,7 @@ class TestMistralE2EServerIntegration:
         detector.initialize()
 
         # Detect speakers should use E2E server endpoints (real HTTP request via fake SDK)
-        speakers, detected_hosts, success = detector.detect_speakers(
+        speakers, detected_hosts, success, _ = detector.detect_speakers(
             episode_title="Test Episode with Alice and Bob",
             episode_description="Alice interviews Bob about their work",
             known_hosts={"Alice"},

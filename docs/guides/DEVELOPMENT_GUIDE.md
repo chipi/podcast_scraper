@@ -212,7 +212,7 @@ Evaluation is handled automatically by the experiment runner. When you run an ex
 ```bash
 # Run experiment with automatic evaluation
 make experiment-run \
-  CONFIG=config/experiments/my_experiment.yaml \
+  CONFIG=config/playground/my_config.yaml \
   BASELINE=baseline_prod_authority_v1 \
   REFERENCE=silver_gpt52_v1
 ```
@@ -1404,7 +1404,7 @@ def load_whisper():
 - **`providers.ml.summarizer`**: Transcript summarization
 - **`workflow.metadata_generation`**: Metadata document generation
 - **`utils.progress`**: Progress reporting abstraction
-- **`models.py`**: Shared data models
+- **`models/`**: Shared data models (RssFeed, Episode, TranscriptionJob in `entities.py`)
 
 **Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.
 

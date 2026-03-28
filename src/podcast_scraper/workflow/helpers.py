@@ -196,6 +196,30 @@ def generate_pipeline_summary(
             )
         if cfg.generate_summaries and pipeline_metrics.episodes_summarized > 0:
             summary_lines.append(f"  - Episodes summarized: {pipeline_metrics.episodes_summarized}")
+        if getattr(cfg, "generate_gi", False):
+            if pipeline_metrics.gi_artifacts_generated > 0:
+                summary_lines.append(
+                    f"  - GIL artifacts generated: {pipeline_metrics.gi_artifacts_generated}"
+                )
+            if pipeline_metrics.gi_failures > 0:
+                summary_lines.append(f"  - GIL failures: {pipeline_metrics.gi_failures}")
+            if getattr(pipeline_metrics, "gi_evidence_path_provider", 0) > 0:
+                n = pipeline_metrics.gi_evidence_path_provider
+                summary_lines.append(f"  - GIL evidence path (provider): {n}")
+            if getattr(pipeline_metrics, "gi_evidence_path_legacy", 0) > 0:
+                summary_lines.append(
+                    f"  - GIL evidence path (legacy): {pipeline_metrics.gi_evidence_path_legacy}"
+                )
+            if getattr(pipeline_metrics, "gi_evidence_extract_quotes_calls", 0) > 0:
+                summary_lines.append(
+                    f"  - GIL evidence extract_quotes calls: "
+                    f"{pipeline_metrics.gi_evidence_extract_quotes_calls}"
+                )
+            if getattr(pipeline_metrics, "gi_evidence_score_entailment_calls", 0) > 0:
+                summary_lines.append(
+                    f"  - GIL evidence score_entailment calls: "
+                    f"{pipeline_metrics.gi_evidence_score_entailment_calls}"
+                )
 
         # Add error count if any
         if pipeline_metrics.errors_total > 0:

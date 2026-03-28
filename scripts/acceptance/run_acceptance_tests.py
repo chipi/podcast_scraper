@@ -64,24 +64,17 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Exit code used when a run is killed due to --timeout (per-run timeout)
+EXIT_TIMEOUT = 124
 
-def find_config_files(pattern: str) -> List[Path]:
-    """Find config files matching the pattern.
 
-    Args:
-        pattern: Glob pattern (e.g. "config/examples/config.example.yaml" or
-            "config/acceptance/*.yaml")
-
-    Returns:
-        List of matching config file paths
-    """
-    # Convert pattern to Path and find matches
+def _find_config_files_one(pattern: str) -> List[Path]:
+    """Resolve a single glob pattern to config paths (relative to project root)."""
     pattern_path = Path(pattern)
     if pattern_path.is_absolute():
         base_dir = pattern_path.parent
         glob_pattern = pattern_path.name
     else:
-        # Relative to project root
         project_root = Path(__file__).parent.parent.parent
         base_dir = project_root / pattern_path.parent
         glob_pattern = pattern_path.name
@@ -91,14 +84,73 @@ def find_config_files(pattern: str) -> List[Path]:
         return []
 
     matches = list(base_dir.glob(glob_pattern))
-    matches.sort()  # Sort for consistent ordering
-
+    matches.sort()
     if not matches:
         logger.warning(f"No config files found matching pattern: {pattern}")
-        return []
-
-    logger.info(f"Found {len(matches)} config file(s) matching pattern: {pattern}")
+    else:
+        logger.info(f"Found {len(matches)} config file(s) matching pattern: {pattern}")
     return matches
+
+
+def find_config_files(pattern: str) -> List[Path]:
+    """Find config files matching one or more whitespace-separated glob patterns.
+
+    Args:
+        pattern: Single glob, or multiple globs separated by whitespace (e.g.
+            "config/acceptance/summarization/*.yaml config/acceptance/gi/*.yaml")
+
+    Returns:
+        Sorted list of unique matching config file paths
+    """
+    parts = pattern.split()
+    if not parts:
+        return []
+    seen_resolved: set[Path] = set()
+    merged: List[Path] = []
+    for pat in parts:
+        for m in _find_config_files_one(pat):
+            key = m.resolve()
+            if key not in seen_resolved:
+                seen_resolved.add(key)
+                merged.append(m)
+    merged.sort(key=lambda p: str(p))
+    if merged:
+        logger.info("Total unique config files: %d", len(merged))
+    return merged
+
+
+def load_fast_config_stems() -> set[str]:
+    """Load set of config stems considered 'fast' for --fast-only (e.g. for CI).
+
+    Reads config/acceptance/FAST_CONFIGS.txt: one stem per line, # comments and blank
+    lines ignored. Stem = filename without extension (e.g. acceptance_planet_money_ml).
+
+    Returns:
+        Set of stem strings. Empty if file does not exist or is unreadable.
+    """
+    project_root = Path(__file__).parent.parent.parent
+    path = project_root / "config" / "acceptance" / "FAST_CONFIGS.txt"
+    if not path.exists():
+        return set()
+    stems: set[str] = set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.split("#", 1)[0].strip()
+                if line:
+                    stems.add(line)
+    except OSError as e:
+        logger.warning("Could not read FAST_CONFIGS.txt: %s", e)
+        return set()
+    return stems
+
+
+def filter_fast_configs(config_files: List[Path], fast_stems: set[str]) -> List[Path]:
+    """Return only configs whose stem is in fast_stems (for --fast-only)."""
+    if not fast_stems:
+        return config_files
+    filtered = [p for p in config_files if p.stem in fast_stems]
+    return filtered
 
 
 def modify_config_for_fixtures(
@@ -1049,6 +1101,14 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
         provider_info["summary_model"] = config_dict.get("deepseek_summary_model", "deepseek-chat")
     elif summary_provider == "ollama":
         provider_info["summary_model"] = config_dict.get("ollama_summary_model", "llama3.1:8b")
+    elif summary_provider == "hybrid_ml":
+        provider_info["summary_map_model"] = config_dict.get("hybrid_map_model", "longt5-base")
+        provider_info["summary_reduce_model"] = config_dict.get(
+            "hybrid_reduce_model", "google/flan-t5-base"
+        )
+        provider_info["summary_reduce_backend"] = config_dict.get(
+            "hybrid_reduce_backend", "transformers"
+        )
 
     return provider_info
 
@@ -1079,7 +1139,11 @@ def _extract_episodes_from_index_json(index_json_path: Path) -> int:
 
 
 def _execute_process_with_streaming(
-    cmd: list[str], stdout_path: Path, stderr_path: Path, config_name: str
+    cmd: list[str],
+    stdout_path: Path,
+    stderr_path: Path,
+    config_name: str,
+    timeout_seconds: Optional[int] = None,
 ) -> tuple[int, Dict[str, Any]]:
     """Execute process with real-time log streaming.
 
@@ -1088,9 +1152,10 @@ def _execute_process_with_streaming(
         stdout_path: Path to save stdout
         stderr_path: Path to save stderr
         config_name: Config name for log prefix
+        timeout_seconds: If set, kill process after this many seconds (per-run timeout).
 
     Returns:
-        Tuple of (exit_code, resource_usage_dict)
+        Tuple of (exit_code, resource_usage_dict). exit_code is EXIT_TIMEOUT if timed out.
     """
     stdout_file = open(stdout_path, "w", buffering=1)  # Line buffered
     stderr_file = open(stderr_path, "w", buffering=1)  # Line buffered
@@ -1143,8 +1208,17 @@ def _execute_process_with_streaming(
     monitor_thread = threading.Thread(target=monitor_resources, daemon=True)
     monitor_thread.start()
 
-    # Wait for completion
-    exit_code = process.wait()
+    # Wait for completion (with optional timeout)
+    try:
+        exit_code = process.wait(timeout=timeout_seconds if timeout_seconds else None)
+    except subprocess.TimeoutExpired:
+        logger.warning(f"[{config_name}] Run timed out after {timeout_seconds}s, killing process")
+        process.kill()
+        process.wait(timeout=5)
+        exit_code = EXIT_TIMEOUT
+    except Exception:
+        process.kill()
+        raise
 
     # Wait for monitoring to finish
     monitor_thread.join(timeout=2.0)
@@ -1166,7 +1240,10 @@ def _execute_process_with_streaming(
 
 
 def _execute_process_without_streaming(
-    cmd: list[str], stdout_path: Path, stderr_path: Path
+    cmd: list[str],
+    stdout_path: Path,
+    stderr_path: Path,
+    timeout_seconds: Optional[int] = None,
 ) -> tuple[int, Dict[str, Any]]:
     """Execute process without log streaming (only save to files).
 
@@ -1174,9 +1251,10 @@ def _execute_process_without_streaming(
         cmd: Command to execute
         stdout_path: Path to save stdout
         stderr_path: Path to save stderr
+        timeout_seconds: If set, kill process after this many seconds (per-run timeout).
 
     Returns:
-        Tuple of (exit_code, resource_usage_dict)
+        Tuple of (exit_code, resource_usage_dict). exit_code is EXIT_TIMEOUT if timed out.
     """
     with open(stdout_path, "w") as stdout_file, open(stderr_path, "w") as stderr_file:
         process = subprocess.Popen(
@@ -1189,8 +1267,16 @@ def _execute_process_without_streaming(
         # Monitor resources continuously
         resource_usage = monitor_process_resources(process)
 
-        # Wait for completion
-        exit_code = process.wait()
+        # Wait for completion (with optional timeout)
+        try:
+            exit_code = process.wait(timeout=timeout_seconds if timeout_seconds else None)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+            exit_code = EXIT_TIMEOUT
+        except Exception:
+            process.kill()
+            raise
 
     return exit_code, resource_usage
 
@@ -1202,6 +1288,7 @@ def run_config(
     run_id: str,
     use_fixtures: bool = True,
     show_logs: bool = True,
+    timeout_seconds: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Run a single config and collect data.
 
@@ -1212,6 +1299,7 @@ def run_config(
         run_id: Unique run identifier
         use_fixtures: If True, use E2E server fixtures; if False, use real RSS/APIs
         show_logs: If True, stream logs to console in real-time; if False, only save to files
+        timeout_seconds: If set, kill the run after this many seconds (per-run timeout).
 
     Returns:
         Dict with run data
@@ -1264,11 +1352,11 @@ def run_config(
     try:
         if show_logs:
             exit_code, resource_usage = _execute_process_with_streaming(
-                cmd, stdout_path, stderr_path, config_name
+                cmd, stdout_path, stderr_path, config_name, timeout_seconds=timeout_seconds
             )
         else:
             exit_code, resource_usage = _execute_process_without_streaming(
-                cmd, stdout_path, stderr_path
+                cmd, stdout_path, stderr_path, timeout_seconds=timeout_seconds
             )
     except Exception as e:
         logger.error(f"Failed to run config {config_name}: {e}", exc_info=True)
@@ -1350,6 +1438,8 @@ def run_config(
     # Extract provider/model information from config
     provider_info = _extract_provider_info(original_config_copy)
 
+    timed_out = exit_code == EXIT_TIMEOUT
+
     # Build run data (store absolute output_dir so run artifacts are findable regardless of cwd)
     run_data = {
         "run_id": run_id,
@@ -1360,6 +1450,7 @@ def run_config(
         "end_time": end_timestamp,
         "duration_seconds": round(duration_seconds, 2),
         "exit_code": exit_code,
+        "timeout": timed_out,  # True if run was killed by --timeout
         "episodes_processed": episodes_processed,
         "is_dry_run": is_dry_run,  # Flag indicating dry-run mode
         "output_dir": str(run_output_dir.resolve()),
@@ -1377,6 +1468,7 @@ def run_config(
     logger.info(
         f"Completed {config_name}: exit_code={exit_code}, "
         f"duration={duration_seconds:.1f}s, episodes={episodes_processed}"
+        + (" (timed out)" if timed_out else "")
     )
 
     return run_data
@@ -1437,8 +1529,8 @@ def main() -> None:
         type=str,
         required=True,
         help=(
-            "Config file pattern (e.g., 'config/examples/config.example.yaml' "
-            "or 'config/acceptance/*.yaml')"
+            "Config file glob pattern, or multiple space-separated globs "
+            "(e.g. 'config/acceptance/summarization/*.yaml config/acceptance/gi/*.yaml')"
         ),
     )
     parser.add_argument(
@@ -1509,6 +1601,20 @@ def main() -> None:
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         help="Logging level (default: INFO)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        metavar="SECONDS",
+        help="Per-run timeout in seconds. If a config run exceeds this, it is killed and "
+        "recorded as failed (exit 124). Useful for CI or long summarization suites.",
+    )
+    parser.add_argument(
+        "--fast-only",
+        action="store_true",
+        default=False,
+        help="Run only configs listed in config/acceptance/FAST_CONFIGS.txt (fast subset for CI).",
+    )
 
     args = parser.parse_args()
 
@@ -1546,6 +1652,26 @@ def main() -> None:
         logger.error("No config files found")
         sys.exit(1)
 
+    # Optionally restrict to fast subset (for CI: run fast configs on PR, full suite nightly)
+    if args.fast_only:
+        fast_stems = load_fast_config_stems()
+        if not fast_stems:
+            logger.warning(
+                "FAST_CONFIGS.txt not found or empty; --fast-only has no effect. "
+                "See config/acceptance/FAST_CONFIGS.txt."
+            )
+        else:
+            before = len(config_files)
+            config_files = filter_fast_configs(config_files, fast_stems)
+            logger.info(
+                "--fast-only: running %d of %d configs (from FAST_CONFIGS.txt)",
+                len(config_files),
+                before,
+            )
+            if not config_files:
+                logger.error("No configs matched FAST_CONFIGS.txt")
+                sys.exit(1)
+
     # Setup output directory (resolve to absolute so run dirs are deterministic)
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1570,6 +1696,24 @@ def main() -> None:
         # Run all configs sequentially
         runs_data = []
 
+        session_summary_path = session_dir / "session.json"
+
+        def _write_session_summary(runs: List[Dict[str, Any]]) -> None:
+            """Persist current session summary so analysis works after partial/interrupted runs."""
+            summary = {
+                "session_id": session_id,
+                "start_time": runs[0]["start_time"] if runs else None,
+                "end_time": runs[-1]["end_time"] if runs else None,
+                "total_runs": len(runs),
+                "successful_runs": sum(1 for r in runs if r["exit_code"] == 0),
+                "failed_runs": sum(1 for r in runs if r["exit_code"] != 0),
+                "total_duration_seconds": sum(r["duration_seconds"] for r in runs),
+                "config_files": [str(cf) for cf in config_files],
+                "runs": runs,
+            }
+            with open(session_summary_path, "w") as f:
+                json.dump(summary, f, indent=2)
+
         for i, config_file in enumerate(config_files, 1):
             run_id = f"{config_file.stem}_{session_id}"
             run_data = run_config(
@@ -1579,25 +1723,11 @@ def main() -> None:
                 run_id,
                 use_fixtures=use_fixtures,
                 show_logs=args.show_logs,
+                timeout_seconds=args.timeout,
             )
             runs_data.append(run_data)
-
-        # Save session summary in session folder
-        session_summary = {
-            "session_id": session_id,
-            "start_time": runs_data[0]["start_time"] if runs_data else None,
-            "end_time": runs_data[-1]["end_time"] if runs_data else None,
-            "total_runs": len(runs_data),
-            "successful_runs": sum(1 for r in runs_data if r["exit_code"] == 0),
-            "failed_runs": sum(1 for r in runs_data if r["exit_code"] != 0),
-            "total_duration_seconds": sum(r["duration_seconds"] for r in runs_data),
-            "config_files": [str(cf) for cf in config_files],  # Store list of config files used
-            "runs": runs_data,
-        }
-
-        session_summary_path = session_dir / "session.json"
-        with open(session_summary_path, "w") as f:
-            json.dump(session_summary, f, indent=2)
+            # Persist after each config so analysis works if run is interrupted
+            _write_session_summary(runs_data)
 
         logger.info(f"Session summary saved: {session_summary_path}")
 

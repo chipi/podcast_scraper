@@ -334,6 +334,31 @@ def run_experiment(  # noqa: C901
             validate_reference(ref_id, ref_path, dataset_id)
             reference_paths[ref_id] = ref_path
 
+    # If no references passed but we have a baseline, use the baseline's vs_reference
+    # so experiment and baseline are comparable on ROUGE / value metrics
+    if not reference_paths and baseline_id:
+        baseline_path = find_reference_path(baseline_id, dataset_id)
+        baseline_metrics_path = baseline_path / "metrics.json"
+        if baseline_metrics_path.exists():
+            try:
+                baseline_metrics = json.loads(baseline_metrics_path.read_text(encoding="utf-8"))
+                vs_ref = baseline_metrics.get("vs_reference") or {}
+                for ref_id in vs_ref.keys():
+                    if not isinstance(vs_ref[ref_id], dict) or "error" in vs_ref[ref_id]:
+                        continue
+                    try:
+                        ref_path = find_reference_path(ref_id, dataset_id)
+                        validate_reference(ref_id, ref_path, dataset_id)
+                        reference_paths[ref_id] = ref_path
+                    except (FileNotFoundError, ValueError) as e:
+                        logger.warning(f"Cannot use baseline reference '{ref_id}' for scoring: {e}")
+                if reference_paths:
+                    logger.info(
+                        f"Using baseline's vs_reference for scoring: {list(reference_paths.keys())}"
+                    )
+            except Exception as e:
+                logger.warning(f"Could not inherit baseline references: {e}")
+
     run_id = cfg.id
     # Store runs in data/eval/runs/ for consistency with baseline/reference structure
     results_dir = Path("data/eval/runs") / run_id
@@ -449,6 +474,7 @@ def run_experiment(  # noqa: C901
                 summary_reduce_model=reduce_model,
                 generate_summaries=True,
                 generate_metadata=True,  # Required when generate_summaries=True
+                generate_gi=False,  # Experiments are summary-specific; keep GIL off
                 summary_map_params={
                     "max_new_tokens": map_max_length,
                     "min_new_tokens": map_min_length,
@@ -522,6 +548,211 @@ def run_experiment(  # noqa: C901
                 device = getattr(map_model_obj, "device", None)
                 if device:
                     device = str(device)
+        elif cfg.backend.type == "hybrid_ml":
+            # Hybrid MAP-REDUCE (RFC-042): classic MAP + instruction-tuned REDUCE
+            from podcast_scraper import config
+
+            map_model = cfg.backend.map_model
+            reduce_model = cfg.backend.reduce_model
+            reduce_backend = cfg.backend.reduce_backend
+            model_name = f"{map_model}+{reduce_model}({reduce_backend})"
+
+            logger.info("Checking if required models are cached...")
+            if reduce_backend == "transformers":
+                ensure_experiment_models_cached(map_model, reduce_model)
+            else:
+                ensure_experiment_models_cached(map_model, map_model)
+
+            map_max_length = cfg.map_params.max_new_tokens
+            map_min_length = cfg.map_params.min_new_tokens
+            reduce_max_length = cfg.reduce_params.max_new_tokens
+            reduce_min_length = cfg.reduce_params.min_new_tokens
+
+            params_dict = {
+                "map_model": map_model,
+                "reduce_model": reduce_model,
+                "reduce_backend": reduce_backend,
+                "map_params": cfg.map_params.model_dump(),
+                "reduce_params": cfg.reduce_params.model_dump(),
+                "tokenize": cfg.tokenize.model_dump(),
+            }
+
+            hybrid_reduce_instruction_style = getattr(cfg.backend, "reduce_instruction_style", None)
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="hybrid_ml",
+                hybrid_map_model=map_model,
+                hybrid_reduce_model=reduce_model,
+                hybrid_reduce_backend=reduce_backend,
+                hybrid_reduce_instruction_style=hybrid_reduce_instruction_style,
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,  # Experiments are summary-specific; keep GIL off
+                summary_map_params={
+                    "max_new_tokens": map_max_length,
+                    "min_new_tokens": map_min_length,
+                    "num_beams": cfg.map_params.num_beams,
+                    "no_repeat_ngram_size": cfg.map_params.no_repeat_ngram_size,
+                    "length_penalty": cfg.map_params.length_penalty,
+                    "early_stopping": cfg.map_params.early_stopping,
+                    "repetition_penalty": cfg.map_params.repetition_penalty,
+                },
+                summary_reduce_params={
+                    "max_new_tokens": reduce_max_length,
+                    "min_new_tokens": reduce_min_length,
+                    "num_beams": cfg.reduce_params.num_beams,
+                    "no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
+                    "length_penalty": cfg.reduce_params.length_penalty,
+                    "early_stopping": cfg.reduce_params.early_stopping,
+                    "repetition_penalty": cfg.reduce_params.repetition_penalty,
+                },
+                summary_tokenize={
+                    "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,
+                    "reduce_max_input_tokens": cfg.tokenize.reduce_max_input_tokens,
+                    "truncation": cfg.tokenize.truncation,
+                },
+                summary_word_chunk_size=(cfg.chunking.word_chunk_size if cfg.chunking else None),
+                summary_word_overlap=(cfg.chunking.word_overlap if cfg.chunking else None),
+                transcribe_missing=False,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+
+            logger.info("=== Hybrid ML Generation Parameters ===")
+            logger.info(f"  MAP: {map_model}, REDUCE: {reduce_model} ({reduce_backend})")
+            if hybrid_reduce_instruction_style:
+                logger.info(f"  REDUCE instruction style: {hybrid_reduce_instruction_style}")
+            logger.info("=" * 80)
+            device = None
+            map_model_obj = getattr(provider, "_map_model", None)
+            if map_model_obj:
+                device = getattr(map_model_obj, "device", None)
+                if device:
+                    device = str(device)
+        elif cfg.backend.type == "anthropic":
+            from podcast_scraper import config
+
+            params_dict = cfg.params or {}
+            model_name = cfg.backend.model
+            user_prompt = cfg.prompts.user if cfg.prompts else "anthropic/summarization/long_v1"
+            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="anthropic",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                anthropic_summary_model=model_name,
+                anthropic_temperature=params_dict.get("temperature", 0.0),
+                anthropic_max_tokens=params_dict.get("max_length", 800),
+                anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
+                anthropic_summary_user_prompt=user_prompt,
+                anthropic_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict.get("max_length", 800),
+                "temperature": params_dict.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
+            device = None
+        elif cfg.backend.type == "mistral":
+            from podcast_scraper import config
+
+            params_dict = cfg.params or {}
+            model_name = cfg.backend.model
+            user_prompt = cfg.prompts.user if cfg.prompts else "mistral/summarization/long_v1"
+            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="mistral",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                mistral_summary_model=model_name,
+                mistral_temperature=params_dict.get("temperature", 0.0),
+                mistral_max_tokens=params_dict.get("max_length", 800),
+                mistral_api_key=os.getenv("MISTRAL_API_KEY"),
+                mistral_summary_user_prompt=user_prompt,
+                mistral_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict.get("max_length", 800),
+                "temperature": params_dict.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
+            device = None
+        elif cfg.backend.type == "grok":
+            from podcast_scraper import config
+
+            params_dict = cfg.params or {}
+            model_name = cfg.backend.model
+            user_prompt = cfg.prompts.user if cfg.prompts else "grok/summarization/long_v1"
+            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="grok",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                grok_summary_model=model_name,
+                grok_temperature=params_dict.get("temperature", 0.0),
+                grok_max_tokens=params_dict.get("max_length", 800),
+                grok_api_key=os.getenv("GROK_API_KEY"),
+                grok_summary_user_prompt=user_prompt,
+                grok_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict.get("max_length", 800),
+                "temperature": params_dict.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
+            device = None
+        elif cfg.backend.type == "deepseek":
+            from podcast_scraper import config
+
+            params_dict = cfg.params or {}
+            model_name = cfg.backend.model
+            user_prompt = cfg.prompts.user if cfg.prompts else "deepseek/summarization/long_v1"
+            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="deepseek",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                deepseek_summary_model=model_name,
+                deepseek_temperature=params_dict.get("temperature", 0.0),
+                deepseek_max_tokens=params_dict.get("max_length", 800),
+                deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+                deepseek_summary_user_prompt=user_prompt,
+                deepseek_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict.get("max_length", 800),
+                "temperature": params_dict.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
+            device = None
         elif cfg.task == "ner_entities":
             # NER task: load spaCy model
             logger.info("Creating NER provider...")
@@ -636,7 +867,11 @@ def run_experiment(  # noqa: C901
                 try:
                     if cfg.task == "summarization":
                         # Build summary params based on config structure
-                        if cfg.backend.type == "hf_local" and cfg.map_params and cfg.reduce_params:
+                        if (
+                            cfg.backend.type in ("hf_local", "hybrid_ml")
+                            and cfg.map_params
+                            and cfg.reduce_params
+                        ):
                             # New structure: pass explicit generation params
                             summary_params = {
                                 "return_intermediates": True,
@@ -824,7 +1059,6 @@ def run_experiment(  # noqa: C901
                 logger.warning(f"Error cleaning up provider: {e}")
 
         # Save run metadata (using baseline.json format for compatibility)
-        import os
         from datetime import datetime
 
         baseline_metadata = {
@@ -836,13 +1070,22 @@ def run_experiment(  # noqa: C901
             "task": cfg.task,
             "backend": {
                 "type": cfg.backend.type,
-                **({"model": cfg.backend.model} if cfg.backend.type == "openai" else {}),
+                **({"model": cfg.backend.model} if hasattr(cfg.backend, "model") else {}),
                 **(
                     {
                         "map_model": cfg.backend.map_model,
                         "reduce_model": cfg.backend.reduce_model,
                     }
                     if cfg.backend.type == "hf_local"
+                    else {}
+                ),
+                **(
+                    {
+                        "map_model": cfg.backend.map_model,
+                        "reduce_model": cfg.backend.reduce_model,
+                        "reduce_backend": cfg.backend.reduce_backend,
+                    }
+                    if cfg.backend.type == "hybrid_ml"
                     else {}
                 ),
             },
@@ -898,10 +1141,12 @@ def run_experiment(  # noqa: C901
 
     # Score-only mode: Load existing predictions to get metadata
     if score_only:
+        provider = None  # no inference in score_only; ensure defined for cleanup later
         logger.info("Loading existing predictions for metadata...")
         from podcast_scraper.evaluation.scorer import load_predictions
 
         existing_predictions = load_predictions(predictions_path)
+        predictions = existing_predictions  # so later log and code see len(predictions)
         logger.info(f"Loaded {len(existing_predictions)} existing prediction(s)")
 
         # Try to load existing baseline.json for metadata
@@ -945,11 +1190,17 @@ def run_experiment(  # noqa: C901
 
     # Note: score_only mode always runs scoring (that's the point)
 
+    # In score_only mode, input_files was never set; discover them for metadata loading
+    if score_only:
+        input_files = discover_input_files(cfg.data)
+        if not input_files:
+            logger.warning("No input files found for dataset; metadata_map will be empty")
+
     # Load metadata for speaker detection
     from podcast_scraper.evaluation.metadata_validator import validate_episode_metadata
 
     metadata_map: Dict[str, Dict[str, Any]] = {}
-    for path in input_files:
+    for path in input_files or []:
         episode_id = episode_id_from_path(path, cfg.data)
         # Try to find metadata file in same directory as transcript
         metadata_candidates = [
@@ -1060,8 +1311,8 @@ def run_experiment(  # noqa: C901
                 task_type = metrics.get("task")
                 if task_type == "ner_entities":
                     checker = RegressionChecker()
-                    # Check invariants for all references in vs_reference
-                    vs_reference = metrics.get("vs_reference", {})
+                    # Check invariants for all refs in vs_reference (may be None if unscored)
+                    vs_reference = metrics.get("vs_reference") or {}
                     invariant_violations = []
                     for ref_id in vs_reference.keys():
                         violations = checker.check_ner_invariants(metrics, reference_id=ref_id)
@@ -1128,6 +1379,15 @@ def run_experiment(  # noqa: C901
                         logger.info(f"  {key}: {sign}{value}")
             except Exception as e:
                 logger.error(f"Failed to compute comparison vs baseline: {e}", exc_info=True)
+
+    # In score_only mode, avg_time/avg_compression were not set during inference
+    if score_only:
+        avg_time = 0.0
+        if metrics:
+            lat_ms = (metrics.get("intrinsic") or {}).get("performance", {}).get("avg_latency_ms")
+            if lat_ms is not None:
+                avg_time = lat_ms / 1000.0
+        avg_compression = None
 
     logger.info(
         f"Episodes={len(predictions)}, avg_time={avg_time:.1f}s, "
@@ -1234,14 +1494,34 @@ def main() -> None:
         logger.error(f"Failed to load experiment config: {e}")
         sys.exit(1)
 
-    # Validate API key for OpenAI backend
-    if cfg.backend.type == "openai":
-        if not os.getenv("OPENAI_API_KEY"):
-            logger.error(
-                "OPENAI_API_KEY environment variable not set. "
-                "Export it before running this script."
-            )
-            sys.exit(1)
+    # Validate API key for API backends
+    if cfg.backend.type == "openai" and not os.getenv("OPENAI_API_KEY"):
+        logger.error(
+            "OPENAI_API_KEY environment variable not set. " "Export it before running this script."
+        )
+        sys.exit(1)
+    if cfg.backend.type == "anthropic" and not os.getenv("ANTHROPIC_API_KEY"):
+        logger.error(
+            "ANTHROPIC_API_KEY environment variable not set. "
+            "Export it before running this script."
+        )
+        sys.exit(1)
+    if cfg.backend.type == "mistral" and not os.getenv("MISTRAL_API_KEY"):
+        logger.error(
+            "MISTRAL_API_KEY environment variable not set. " "Export it before running this script."
+        )
+        sys.exit(1)
+    if cfg.backend.type == "grok" and not os.getenv("GROK_API_KEY"):
+        logger.error(
+            "GROK_API_KEY environment variable not set. " "Export it before running this script."
+        )
+        sys.exit(1)
+    if cfg.backend.type == "deepseek" and not os.getenv("DEEPSEEK_API_KEY"):
+        logger.error(
+            "DEEPSEEK_API_KEY environment variable not set. "
+            "Export it before running this script."
+        )
+        sys.exit(1)
 
     # Run experiment
     try:

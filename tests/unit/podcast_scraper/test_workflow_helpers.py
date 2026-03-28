@@ -1061,7 +1061,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = mock_response
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True)
+        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(
@@ -1125,7 +1125,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = None
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True)
+        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(
@@ -1191,7 +1191,7 @@ class TestPrepareEpisodeDownloadArgs(unittest.TestCase):
         mock_http_head.return_value = mock_response
 
         mock_detector = Mock()
-        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True)
+        mock_detector.detect_speakers.return_value = (["Speaker1"], set(), True, False)
         mock_create_detector.return_value = mock_detector
 
         transcription_resources = TranscriptionResources(

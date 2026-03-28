@@ -55,7 +55,7 @@ examples.txt
 config/acceptance/
 
 # Experiments (local / ad-hoc configs)
-config/experiments/
+config/playground/
 
 # Evaluation dataset (contains personal transcripts and reference summaries)
 data/eval-old/
