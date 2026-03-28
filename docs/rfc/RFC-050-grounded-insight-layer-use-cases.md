@@ -11,6 +11,8 @@
 - **Related PRDs**:
   - `docs/prd/PRD-017-grounded-insight-layer.md`
     (Grounded Insight Layer)
+  - `docs/prd/PRD-019-knowledge-graph-layer.md`
+    (**separate** — KG / `kg` CLI; not `gi` / GIL)
 - **Related RFCs**:
   - `docs/rfc/RFC-044-model-registry.md`
     (prerequisite — model metadata)
@@ -18,7 +20,7 @@
     (prerequisite — ML platform)
   - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
     (Core Concepts & Data Model — primary dependency)
-  - `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
+  - `docs/rfc/RFC-051-database-projection-gil-kg.md`
     (Database Projection — parallel)
   - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
     (prompt quality for local LLM extraction)
@@ -342,7 +344,7 @@ Topic → Insights (via ABOUT) → Supporting Quotes (via SUPPORTED_BY) → Spea
 **Query Example:**
 
 ```bash
-kg explore --topic "AI Regulation"
+gi explore --topic "AI Regulation"
 ```
 
 **Output Contract (The Complete Insight Report):**
@@ -473,7 +475,7 @@ Three minimal inspection surfaces for developers and power users (plus the Insig
 **Implementation bar:**
 
 - Can be:
-  - A CLI command: `kg inspect --episode <episode_id>`
+  - A CLI command: `gi inspect` with `--episode-id` / `--episode-path` (see §3.4)
   - A simple HTML page
   - A Jupyter notebook
   - **No need for React or backend**
@@ -483,7 +485,7 @@ Three minimal inspection surfaces for developers and power users (plus the Insig
 **Example CLI output:**
 
 ```bash
-$ kg inspect --episode episode:abc123
+$ gi inspect --episode-id episode:abc123 --output-dir ./output
 
 Episode: AI Regulation (episode:abc123)
 Podcast: The Journal (podcast:the-journal)
@@ -544,7 +546,7 @@ Insights:
 **Example CLI output:**
 
 ```bash
-$ kg show-insight insight:episode:abc123:a1b2c3d4
+$ gi show-insight --id insight:episode:abc123:a1b2c3d4 --output-dir ./output
 
 Insight: "AI regulation will significantly lag behind innovation"
 Status: GROUNDED (2 supporting quotes)
@@ -594,7 +596,7 @@ legislative process can keep up...
 - CLI:
 
   ```bash
-  kg explore --topic "AI Regulation"
+  gi explore --topic "AI Regulation"
   ```
 
 - Or notebook function:
@@ -611,7 +613,7 @@ legislative process can keep up...
 **Example CLI output:**
 
 ```bash
-$ kg explore --topic "AI Regulation"
+$ gi explore --topic "AI Regulation"
 
 Topic: AI Regulation
 Found 8 insights (7 grounded) across 5 episodes
@@ -640,7 +642,7 @@ Top Insights:
    confidence: 0.45 | episode: The Future of AI Policy | 0 quotes
    ⚠️ No verbatim evidence found
 
-Use 'kg show-insight <insight_id>' to see full evidence for any insight.
+Use `gi show-insight --id <insight_id> ...` to see full evidence for any insight.
 ```
 
 **What a good v1 UI looks like:**
@@ -666,7 +668,7 @@ If it feels:
 
 Start with:
 
-1. A CLI-based inspector (`kg inspect`, `kg show-insight`, `kg explore`)
+1. A CLI-based inspector (`gi inspect`, `gi show-insight`, `gi explore` on the `podcast_scraper` entrypoint)
 2. A Jupyter notebook for interactive exploration
 3. **No web UI at all**
 
@@ -689,7 +691,9 @@ Only once:
 
 #### 3.4. CLI Specification (Implementation Details)
 
-**CLI Name:** `kg`
+**CLI Name:** `gi` (Grounded Insights subcommand)
+
+Early drafts used a `kg` prefix when the feature was framed as a “knowledge graph” CLI. The shipped interface uses **`gi`** on the main `podcast_scraper` CLI to match the **Grounded Insight Layer** (`generate_gi`, `gi.json`).
 
 **Common Concepts:**
 
@@ -718,16 +722,16 @@ Exactly one of `--episode-id` or `--episode-path` must be provided when the comm
 - `--strict`: Fail if schema validation fails
 - `--schema <path>`: Override schema path (default: `schemas/gi.schema.json`)
 
-**Command: `kg inspect`**
+**Command: `gi inspect`**
 
 **Goal:** Inspect a single episode's `gi.json` in a human-friendly way.
 
 **Usage:**
 
 ```bash
-kg inspect --episode-id episode:abc123 --output-dir ./output
+podcast_scraper gi inspect --episode-id episode:abc123 --output-dir ./output
 # or
-kg inspect --episode-path ./output/episode_abc123
+podcast_scraper gi inspect --episode-path ./output/metadata/episode_abc123.gi.json
 ```
 
 **Options:**
@@ -745,14 +749,14 @@ kg inspect --episode-path ./output/episode_abc123
   - Topic links
   - Insights with supporting quotes summary
 
-**Command: `kg show-insight`**
+**Command: `gi show-insight`**
 
 **Goal:** Resolve an insight to its supporting quotes and transcript evidence.
 
 **Usage:**
 
 ```bash
-kg show-insight --id insight:episode:abc123:<hash> --output-dir ./output
+podcast_scraper gi show-insight --id insight:episode:abc123:<hash> --output-dir ./output
 ```
 
 **Options:**
@@ -766,7 +770,7 @@ kg show-insight --id insight:episode:abc123:<hash> --output-dir ./output
 - Loads episode `gi.json` + `transcript.json`
 - Prints insight text, grounding status, confidence, and all supporting quotes with evidence
 
-**Command: `kg explore` (The Canonical Query)**
+**Command: `gi explore` (The Canonical Query)**
 
 **Goal:** Run the Insight Explorer query proving end-to-end consumption.
 
@@ -775,7 +779,7 @@ kg show-insight --id insight:episode:abc123:<hash> --output-dir ./output
 **Usage:**
 
 ```bash
-kg explore --topic "AI Regulation" --output-dir ./output
+podcast_scraper gi explore --topic "AI Regulation" --output-dir ./output
 ```
 
 **Options:**
@@ -863,20 +867,20 @@ def explore_topic(topic_label: str, output_dir: Path) -> dict:
             continue
 
         with open(gi_path) as f:
-            kg_data = json.load(f)
+            artifact = json.load(f)
 
         # Find insights about this topic
-        for node in kg_data["nodes"]:
+        for node in artifact["nodes"]:
             if node["type"] == "Insight":
                 # Check if insight is about this topic via ABOUT edge
-                for edge in kg_data["edges"]:
+                for edge in artifact["edges"]:
                     if (edge["type"] == "ABOUT" and
                         edge["from"] == node["id"]):
                         # Resolve topic and check label
-                        topic_node = _find_node(kg_data, edge["to"])
+                        topic_node = _find_node(artifact, edge["to"])
                         if topic_node and topic_node["properties"]["label"] == topic_label:
                             # Found relevant insight - get supporting quotes
-                            supporting_quotes = _get_supporting_quotes(kg_data, node["id"])
+                            supporting_quotes = _get_supporting_quotes(artifact, node["id"])
                             results["insights"].append({
                                 "insight": node,
                                 "supporting_quotes": supporting_quotes
@@ -1034,9 +1038,9 @@ The GIL implementation is considered end-to-end successful when:
 
 **Test Organization:**
 
-- Unit tests: `tests/unit/test_kg_queries.py`
-- Integration tests: `tests/integration/test_kg_use_cases.py`
-- E2E tests: `tests/e2e/test_kg_e2e.py`
+- Unit tests: under `tests/unit/podcast_scraper/gi/` (e.g. schema and contracts)
+- Integration tests: `tests/integration/test_gi_integration.py`
+- E2E tests: `tests/e2e/test_gi_cli_e2e.py`
 
 **Test Execution:**
 
@@ -1148,7 +1152,7 @@ recorded here for traceability.
    File-based scanning (loading N `gi.json` files)
    is acceptable up to ~100 episodes (<5 seconds on
    SSD). Beyond that, RFC-051 Postgres projection
-   handles scale with indexed queries. The `kg explore`
+   handles scale with indexed queries. The `gi explore`
    CLI command should detect episode count and suggest
    DB mode when >100 episodes are present.
 
@@ -1156,7 +1160,7 @@ recorded here for traceability.
    translation be added?
    **Post-v1, after Insight Explorer is validated.**
    NL queries add complexity and error surface. v1
-   proves value with structured queries (`kg explore
+   proves value with structured queries (`gi explore
    --topic "X"`). NL layer can be a thin wrapper using
    FLAN-T5 or Qwen (RFC-042/052) to extract topic/
    speaker/filter parameters from natural language and
@@ -1185,8 +1189,8 @@ pattern. The Insight Explorer (UC5) is the canonical
 query that proves the entire system works end-to-end.
 
 The v1 approach is deliberately **developer-oriented**:
-CLI commands (`kg inspect`, `kg show-insight`,
-`kg explore`), structured JSON output, and explicit
+CLI commands (`gi inspect`, `gi show-insight`,
+`gi explore`), structured JSON output, and explicit
 grounding status. This validates extraction quality and
 grounding rates before building polished UIs.
 
@@ -1205,7 +1209,7 @@ fast serving (051).**
 
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-- **Related RFC**: `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
+- **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
 - **Ontology Specification**: `docs/gi/ontology.md`
 - **Schema Specification**: `docs/gi/gi.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`

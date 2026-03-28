@@ -170,7 +170,7 @@ The system must scale to typical single-feed and multi-episode use cases without
 | ----------- | ----------- | ------ | ---------- |
 | **Single-feed, many episodes** | Pipeline handles many episodes per feed within resource limits (timeouts, memory); sequential ML per ADR-001. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ARCHITECTURE](ARCHITECTURE.md) |
 | **Concurrency** | IO-bound work (downloads) uses threading; ML work is sequential to avoid GPU OOM and contention. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md) |
-| **GIL / query scale** | File-based GIL scales to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](rfc/RFC-051-grounded-insight-layer-database-projection.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) |
+| **GIL / KG query scale** | File-based GIL and KG artifacts scale to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](rfc/RFC-051-database-projection-gil-kg.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) |
 
 ### 6.3 Out of Scope (Scalability)
 

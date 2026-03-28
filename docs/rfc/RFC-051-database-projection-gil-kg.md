@@ -1,18 +1,24 @@
-# RFC-051: Grounded Insight Layer – Database Projection
+# RFC-051: Database Projection (GIL & Knowledge Graph)
 
 - **Status**: Draft
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, ML engineers, downstream
   consumers, power users
 - **Execution Timing**: **Phase 3b (parallel with
-  RFC-049)** — Database projection developed alongside
-  GIL core extraction. Depends on RFC-049 for `gi.json`
-  schema and data model.
+  RFC-049)** — GIL database projection alongside GIL
+  core extraction (depends on RFC-049 for `gi.json`).
+  **KG projection** depends on RFC-055 for KG artifact
+  shape and may ship in the same codebase as GIL export
+  once `kg.schema.json` and pipeline outputs exist.
 - **Related PRDs**:
   - `docs/prd/PRD-017-grounded-insight-layer.md`
-    (Grounded Insight Layer)
-  - `docs/prd/PRD-018-database-projection-grounded-insight-layer.md`
-    (Database Projection for GIL)
+    (Grounded Insight Layer — `gi.json` source)
+  - `docs/prd/PRD-018-database-projection-gil-kg.md`
+    (Database Projection for GIL and KG — product scope)
+  - `docs/prd/PRD-019-knowledge-graph-layer.md`
+    (Knowledge Graph Layer — KG artifact source; **in
+    scope** here as relational tables + `kg export`,
+    separate from GIL tables)
 - **Related RFCs**:
   - `docs/rfc/RFC-044-model-registry.md`
     (prerequisite — model metadata for provenance)
@@ -22,6 +28,8 @@
     (Core Concepts & Data Model — primary dependency)
   - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
     (Use Cases & Consumption — parallel)
+  - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
+    (KG artifact model — prerequisite for KG projection)
   - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
     (prompt quality for extraction provenance tracking)
 - **Related Issues**:
@@ -29,25 +37,27 @@
   - Issue #40: Data storage / DB integration
   - Issue #50: Querying & downstream usage
 - **Related Documents**:
-  - `docs/gi/ontology.md` - Human-readable ontology
-  - `docs/gi/gi.schema.json` - Machine-readable schema
+  - `docs/gi/ontology.md`, `docs/gi/gi.schema.json` — GIL
+  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` (planned) — KG
   - `docs/ARCHITECTURE.md` - System architecture
 
 ## Abstract
 
-This RFC defines how episode-level outputs and **Grounded Insight Layer (GIL)** data are projected from file-based artifacts into a queryable data store (e.g., Postgres). The goal is to enable fast **Insight Explorer** queries without changing the canonical file-based model.
+This RFC defines how episode-level outputs, **Grounded Insight Layer (GIL)** data, and **Knowledge Graph (KG)** data are projected from **file-based artifacts** into a queryable data store (e.g., Postgres). **GIL** and **KG** are separate product contracts (PRD-017 vs PRD-019); this RFC gives them **separate relational projections** in the same database when both are enabled.
 
-The key addition is tables for **insights**, **quotes**, and **insight_support** (the grounding join table). This enables the core user value: query a topic → get insights with supporting quotes → navigate to timestamps—all in milliseconds.
+**GIL:** The key tables are **insights**, **quotes**, and **insight_support** (grounding join), plus topics/speakers as already outlined. Goal: fast **Insight Explorer** / UC1–UC5 queries (RFC-050) without scanning every folder.
 
-Conceptually, exporting to Postgres provides a fast, queryable "projection" of file-based episode bundles + GIL data. The files stay the semantic truth; Postgres becomes the serving layer that makes UC1–UC5 cheap and ergonomic. On disk, `output/episode_x/...` is the canonical, auditable record. In Postgres, a normalized, indexed view enables millisecond queries.
+**KG:** Additional tables (or clearly prefixed names) hold **KG nodes and edges** per RFC-055 (episode-anchored graph, entity/topic/relationship semantics distinct from GIL’s Insight/Quote grounding). Goal: fast cross-episode **linking and discovery** queries without conflating KG edges with `SUPPORTED_BY`.
+
+Conceptually, exporting to Postgres provides a fast "projection" of file-based episode bundles. The files stay the semantic truth; Postgres is the serving layer. On disk, `output/episode_x/...` remains canonical. In Postgres, normalized tables enable millisecond queries **per layer**.
 
 **Architecture Alignment:** This RFC aligns with existing architecture by:
 
 - Preserving file-based outputs as canonical source of truth
 - Enabling incremental updates without reprocessing historical data
 - Providing stable SQL interface for downstream tools (CLI, notebooks, web UIs, agents)
-- Maintaining full provenance traceability to `gi.json` and transcript evidence
-- **Supporting the Insight Explorer pattern** (insights + quotes + timestamps)
+- Maintaining full provenance traceability to `gi.json`, KG artifacts, and transcript evidence
+- **Supporting the Insight Explorer pattern** (GIL) and **KG graph queries** (RFC-055) as **independent** projections
 
 ## Problem Statement
 
@@ -62,7 +72,9 @@ The Grounded Insight Layer (RFC-049, RFC-050) produces structured `gi.json` file
 
 **The Solution**: Export to Postgres as a "projection layer" with dedicated tables for **insights**, **quotes**, and **insight_support** (grounding join table). This makes the Insight Explorer query fast and ergonomic.
 
-**Use Cases:**
+**KG (separate concern):** When the pipeline emits **KG artifacts** (RFC-055), file scanning across episodes is equally painful for **entity/topic/relationship** questions. The same relational projection approach applies: **KG nodes**, **KG edges**, and episode linkage — **not** stored as a second copy inside GIL tables.
+
+**Use Cases (GIL):**
 
 1. **UC1 – Cross-Podcast Topic Research**: Query insights about a topic with supporting quotes in milliseconds
 2. **UC2 – Speaker-Centric Insight Mapping**: Build speaker profiles with insights they support via SQL joins
@@ -70,14 +82,18 @@ The Grounded Insight Layer (RFC-049, RFC-050) produces structured `gi.json` file
 4. **UC4 – Semantic Question Answering**: Answer focused questions via deterministic SQL queries
 5. **UC5 – Insight Explorer**: The canonical query that proves the layer works—fast via indexed tables
 
+**Use Cases (KG):** Illustrative (exact queries depend on RFC-055 v1 node/edge types): “Which episodes mention entity X?”, “What relationships co-occur with topic Y?”, cross-episode rollups for **linking** (not grounding).
+
 ## Goals
 
-1. **Enable Fast Insight Queries**: Transform file scanning into indexed SQL queries for UC1–UC5
-2. **Support Insight Explorer Pattern**: Make the canonical query (insights + quotes + timestamps) fast
-3. **Support Notebook Research Workflows**: Enable power users to build topic dossiers, speaker profiles
-4. **Provide Stable Integration Interface**: Give downstream tools (CLI, notebooks, web UIs, agents) consistent SQL
-5. **Preserve Provenance**: Every database row traceable to `gi.json`, transcript evidence, extraction metadata
-6. **Enable Incremental Growth**: Support upserting new episodes without reprocessing historical data
+1. **Enable Fast Insight Queries**: Transform file scanning into indexed SQL queries for UC1–UC5 (GIL)
+2. **Enable Fast KG Queries**: Transform file scanning into indexed SQL for KG traversals (RFC-055)
+3. **Support Insight Explorer Pattern**: Make the canonical GIL query (insights + quotes + timestamps) fast
+4. **Support Notebook Research Workflows**: Enable power users to build topic dossiers, speaker profiles (GIL); entity/topic analytics (KG)
+5. **Provide Stable Integration Interface**: Give downstream tools (CLI, notebooks, web UIs, agents) consistent SQL for **both** layers where implemented
+6. **Preserve Provenance**: Every database row traceable to `gi.json` and/or KG artifact path, transcript evidence where applicable, extraction metadata
+7. **Enable Incremental Growth**: Support upserting new episodes without reprocessing historical data
+8. **Keep Layers Separated**: GIL and KG tables remain distinct; optional cross-links between layers stay out of v1 unless a follow-up RFC adds them
 
 ## Constraints & Assumptions
 
@@ -95,31 +111,49 @@ The Grounded Insight Layer (RFC-049, RFC-050) produces structured `gi.json` file
 - Database schema can be created/managed by export command
 - Transcript text can remain on disk (pointers only in v1)
 - Users understand SQL or can use provided query examples
-- Export command runs after KG extraction completes
+- Export command runs after GIL extraction completes (and after KG artifact generation when KG export is used)
 
 ## Design & Implementation
 
 ### 1. Export Command & Interface
 
-**Export Command (Conceptual):**
+**GIL export (conceptual):**
 
 ```bash
-kg export \
+podcast_scraper gi export \
   --output-dir ./output \
   --target postgres \
   --dsn postgresql://user:pass@host:5432/dbname \
-  [--rebuild]  # Optional: drop and recreate all tables
+  [--rebuild]  # Optional: drop and recreate GIL-related tables
 ```
 
-**Export Responsibilities:**
+**KG export (conceptual):**
 
-- Validate `gi.json` against schema
-- Load or update episode-level records
-- Upsert global nodes (topics, speakers)
+```bash
+podcast_scraper kg export \
+  --output-dir ./output \
+  --target postgres \
+  --dsn postgresql://user:pass@host:5432/dbname \
+  [--rebuild]  # Optional: drop and recreate KG-related tables
+```
+
+**Combined operation:** A single orchestrated command that runs **both** projections in one process (shared `episodes` upsert, separate GIL vs KG table writes) is allowed if documented; flags must keep **GIL-only** and **KG-only** modes for operators who enable only one feature.
+
+**GIL export responsibilities:**
+
+- Validate `gi.json` against `docs/gi/gi.schema.json`
+- Load or update episode-level records (including `gi_path`, `gi_schema_version`)
+- Upsert global nodes (topics, speakers) used by GIL
 - Insert episode-scoped nodes (insights, quotes)
-- Insert edge projections (insight_topics,
-  insight_support)
+- Insert edge projections (insight_topics, insight_support)
 - Track `ingestion_run_id` for run comparison
+
+**KG export responsibilities:**
+
+- Validate KG artifact against `docs/kg/kg.schema.json` when present
+- Upsert episode-level `kg_path`, `kg_schema_version` when KG data exists
+- Insert **kg_nodes**, **kg_edges** (names illustrative; exact columns follow RFC-055 types)
+- Track `ingestion_run_id` (may share run id with GIL export in combined mode)
 
 **Incremental vs Full Rebuild:**
 
@@ -139,9 +173,11 @@ kg export \
 - `metadata_path` - Path to metadata.json
 - `transcript_path` - Path to transcript.json
 - `summary_path` - Path to summary.json (optional)
-- `gi_path` - Path to gi.json
-- `schema_version` - KG schema version
-- `ingestion_run_id` - Export run identifier
+- `gi_path` - Path to `gi.json` (nullable if GIL not generated for this episode)
+- `gi_schema_version` - GIL `gi.schema.json` version when `gi_path` is set
+- `kg_path` - Path to per-episode KG artifact (nullable until RFC-055 output exists)
+- `kg_schema_version` - KG schema version when `kg_path` is set
+- `ingestion_run_id` - Export run identifier (last successful projection)
 
 **`speakers`**
 
@@ -191,9 +227,35 @@ kg export \
 - `topic_id` (FK) - Reference to topics
 - `confidence` - Edge confidence (optional)
 
-**Deferred to v1.1:**
+### 2B. KG Tables (RFC-055)
 
-**`entities`** (Deferred - Entity extraction deferred to v1.1)
+GIL tables above model **insights, quotes, and grounding**. KG uses **separate** tables so `MENTIONS` / `RELATED_TO` (or RFC-055 equivalents) never collide with `SUPPORTED_BY` semantics.
+
+**Illustrative names (finalize with `kg.schema.json`):**
+
+**`kg_nodes`**
+
+- `id` (PK) - Stable node id (episode-scoped or global per RFC-055)
+- `episode_id` (FK) - Episode anchor
+- `node_type` - e.g. Episode, Entity, Topic (RFC-055)
+- `payload` - JSONB or typed columns for label, slug, properties
+- `ingestion_run_id` - Export run identifier
+
+**`kg_edges`**
+
+- `id` (PK) - Edge id
+- `episode_id` (FK) - Episode anchor (v1 per-episode graph)
+- `src_node_id` (FK) - Source node
+- `dst_node_id` (FK) - Destination node
+- `edge_type` - e.g. MENTIONS, RELATED_TO (RFC-055)
+- `properties` - JSONB optional (offsets, confidence)
+- `ingestion_run_id` - Export run identifier
+
+**Deferred / v1.1:**
+
+**`entities` in GIL sense** (RFC-049 entity nodes) may remain deferred separately from **KG Entity** nodes; do not merge without an explicit RFC.
+
+**`entities`** (Deferred - GIL entity extraction deferred to v1.1 per RFC-049)
 
 - `id` (PK) - Entity identifier (global, deduplicated)
 - `name` - Entity name
@@ -211,7 +273,7 @@ kg export \
 
 Every exported row SHOULD include:
 
-- `schema_version` - KG schema version
+- `gi_schema_version` / `kg_schema_version` (as applicable) — line up with `gi.json` vs KG artifact
 - `model_version` - Model version (if ML-derived)
 - `ingestion_run_id` - Export run identifier
 
@@ -547,30 +609,32 @@ All targets share the same conceptual export model.
 
 **Workflow Integration:**
 
-KG export should be integrated into the existing workflow pipeline:
+Database export integrates with the existing pipeline as **optional post-steps**:
 
-1. **After GIL Extraction**: Export runs after `gi.json` files are generated
-2. **Co-Located with Existing Outputs**: Export reads from same episode directories
-3. **Optional Step**: Export can be enabled/disabled via config
+1. **After GIL Extraction**: `gi export` runs after `gi.json` files are generated (when enabled)
+2. **After KG Generation**: `kg export` runs after per-episode KG artifacts exist (when enabled)
+3. **Co-Located with Existing Outputs**: Export reads from the same episode directories
+4. **Optional Step**: Export can be enabled/disabled via config; **GIL and KG toggles remain independent** (PRD-017 / PRD-019)
 
 **Module Boundaries:**
 
-- **Export Module**: New module for database export (follows provider pattern)
+- **Export Module**: Database export module (follows existing project patterns)
 - **Storage Module**: Uses existing filesystem utilities (no new I/O abstractions)
-- **Schema Validation**: Reuses existing KG schema validation
+- **Schema Validation**: Reuses **`gi.schema.json`** validation for GIL; **`kg.schema.json`** validation for KG when available
 
 **Configuration Integration:**
 
-KG export should be controlled via `Config` model:
+Export should be controlled via `Config` model (exact field names TBD in implementation PR):
 
-- `export_to_db: bool` - Enable/disable database export
-- `db_target: str` - Target database ('postgres', 'clickhouse', 'elasticsearch')
+- `export_gi_to_db` / `export_kg_to_db` (or combined `export_to_db` with layer flags) — Enable/disable per layer
+- `db_target: str` - Target database ('postgres', …)
 - `db_dsn: Optional[str]` - Database connection string
-- `db_rebuild: bool` - Rebuild mode (drop and recreate)
+- `db_rebuild: bool` - Rebuild mode (drop and recreate; may be scoped per layer)
 
 ### 10. Failure Modes
 
 - **Invalid gi.json**: Skip episode, log error, continue with other episodes
+- **Invalid KG artifact**: Skip episode for KG tables, log error; GIL export may still proceed
 - **Partial episode output**: Ingest what is available, mark incomplete
 - **Schema mismatch**: Fail fast with clear error message
 - **Database connection failure**: Fail with clear error, do not proceed
@@ -601,10 +665,14 @@ KG export should be controlled via `Config` model:
    - **Decision**: Every row must be traceable to `gi.json`, transcript evidence, extraction metadata
    - **Rationale**: Enables trust, debugging, explainability, run comparison
 
+7. **GIL and KG Projections Stay Separate**
+   - **Decision**: Distinct tables (and CLI entrypoints) for GIL vs KG; episode row may hold both `gi_path` and `kg_path`
+   - **Rationale**: Matches PRD-017 vs PRD-019 separation; avoids mixing grounding edges with KG linking edges
+
 ## Alternatives Considered
 
 1. **Graph Database (Neo4j, ArangoDB)**
-   - **Description**: Store KG in native graph database
+   - **Description**: Store **KG** (or unified graph) in native graph database
    - **Pros**: Faster graph queries, built-in graph operations, natural KG representation
    - **Cons**: Requires separate infrastructure, harder to debug, breaks co-location pattern, adds complexity
    - **Why Rejected**: Relational projection covers UC1–UC4, simpler ops, no new infrastructure needed
@@ -633,13 +701,16 @@ KG export should be controlled via `Config` model:
 
 - **Unit Tests**: Test export command, schema creation, data transformation, ID generation
 - **Integration Tests**: Test export with real `gi.json` files, validate SQL queries, test incremental updates
-- **E2E Tests**: Test full workflow from KG extraction → export → query → results
+- **E2E Tests**: Test full workflow from GIL extraction → export → query → results
 
 **Test Organization:**
 
-- Unit tests: `tests/unit/test_kg_export_*.py`
-- Integration tests: `tests/integration/test_kg_export_*.py`
-- E2E tests: `tests/e2e/test_kg_export_*.py`
+- Unit tests: `tests/unit/test_gi_export_*.py`,
+  `tests/unit/test_kg_export_*.py` (when implemented)
+- Integration tests: `tests/integration/test_gi_export_*.py`,
+  `tests/integration/test_kg_export_*.py`
+- E2E tests: `tests/e2e/test_gi_export_*.py`,
+  `tests/e2e/test_kg_export_*.py`
 
 **Test Execution:**
 
@@ -667,18 +738,19 @@ KG export should be controlled via `Config` model:
 **Success Criteria:**
 
 1. ✅ Episode + GIL data (insights, quotes) can be exported to Postgres
-2. ✅ UC1–UC5 queries (including Insight Explorer) run faster via DB than file scan
-3. ✅ Grounding relationships are queryable via insight_support table
-4. ✅ Data store can be rebuilt from disk with no data loss
-5. ✅ All database rows are traceable to source `gi.json` files
-6. ✅ Notebook workflows can query insights + quotes successfully
+2. ✅ Episode + KG data (nodes, edges) can be exported when KG artifacts exist
+3. ✅ UC1–UC5 queries (including Insight Explorer) run faster via DB than file scan
+4. ✅ Grounding relationships are queryable via `insight_support` table
+5. ✅ Data store can be rebuilt from disk with no data loss
+6. ✅ All database rows are traceable to source `gi.json` and/or KG artifact files
+7. ✅ Notebook workflows can query insights + quotes successfully; KG examples documented when shipped
 
 ## Relationship to Other RFCs
 
-This RFC (RFC-051) is part of the Grounded Insight
-Layer initiative and the broader ML platform:
+This RFC (RFC-051) serves **GIL** (with RFC-049/050) and **KG**
+(with RFC-055) under the broader ML platform.
 
-**Dependency Chain:**
+**Dependency Chain (conceptual):**
 
 ```text
 RFC-044 (Model Registry)        → infra
@@ -686,9 +758,12 @@ RFC-044 (Model Registry)        → infra
 RFC-042 (Hybrid ML Platform)    → models
     ├── RFC-052 (LLM Prompts)   → prompt quality
     ▼
-RFC-049 (GIL Core)              → extraction
+RFC-049 (GIL Core)              → gi.json
     ├── RFC-050 (Use Cases)     → consumption
-    ├── RFC-051 (this RFC)      → serving
+    ├── RFC-051 (this RFC)      → GIL serving (Postgres)
+    ▼
+RFC-055 (KG Core)               → KG artifacts
+    └── RFC-051 (this RFC)      → KG serving (Postgres)
     ▼
 RFC-053 (Adaptive Routing)      → optimization
 ```
@@ -700,30 +775,35 @@ RFC-053 (Adaptive Routing)      → optimization
 2. **RFC-050: GIL Use Cases & Consumption** — Defines
    query patterns and Insight Explorer
 3. **RFC-051 (This RFC): Database Projection** —
-   Projects GIL data into Postgres for fast queries
+   Projects **GIL and KG** data into Postgres for fast queries
 4. **PRD-017: Grounded Insight Layer** — Product
    requirements
 5. **PRD-018: Database Export** — Product requirements
-   for database export
+   for database export (**GIL + KG**)
+6. **RFC-055: Knowledge Graph — Core** — Artifact
+   model for KG projection tables
+7. **PRD-019: Knowledge Graph Layer** — Product
+   requirements for KG
 
 **Prerequisite RFCs:**
 
-6. **RFC-044: Model Registry** — Model metadata
+- **RFC-044: Model Registry** — Model metadata
    tracked in `model_version` provenance fields
-7. **RFC-042: Hybrid ML Platform** — Produces the
-   `gi.json` files that this RFC exports
+- **RFC-042: Hybrid ML Platform** — Produces pipeline
+   outputs including `gi.json` when GIL is enabled
 
 **Complementary RFCs:**
 
-8. **RFC-052: Locally Hosted LLM Models** — Prompts
+- **RFC-052: Locally Hosted LLM Models** — Prompts
    tracked in `prompt_version` provenance fields
 
 **Key Distinction:**
 
-- **RFC-049**: *How* knowledge is extracted and stored
-- **RFC-050**: *How* knowledge is consumed
-- **RFC-051**: *How* knowledge is projected for fast
-  queries (this RFC)
+- **RFC-049**: *How* GIL knowledge is extracted and stored (`gi.json`)
+- **RFC-050**: *How* GIL knowledge is consumed
+- **RFC-055**: *How* KG knowledge is structured on disk
+- **RFC-051**: *How* GIL and KG are projected for fast
+  SQL queries (this RFC)
 
 ## Benefits
 
@@ -789,36 +869,44 @@ recorded here for traceability.
 ## Conclusion
 
 RFC-051 provides the **relational projection layer**
-that makes the Grounded Insight Layer queryable at
-scale. By mapping the GIL ontology (insights, quotes,
-topics, speakers, and their relationships) into
-well-indexed Postgres tables, it enables fast queries
-for all five use cases defined in RFC-050.
+that makes **GIL** queryable at scale and **KG**
+queryable when RFC-055 artifacts exist. By mapping the
+GIL ontology (insights, quotes, topics, speakers, and
+their relationships) and the KG graph (nodes and edges
+per RFC-055) into **separate**, well-indexed Postgres
+tables, it enables fast queries for RFC-050 use cases
+**and** KG discovery workloads without conflating the
+two layers.
 
 **Key design choices:**
 
 - **Pointers over text** — keeps the DB lean; full
-  transcript text is resolved at query time
+  transcript text is resolved at query time (GIL quotes)
 - **Provenance tracking** — `model_version` and
   `ingestion_run_id` enable quality audits and
   regression detection
 - **Slug-based normalization** — simple but effective
-  deduplication for v1
+  deduplication for v1 (GIL topics; KG per RFC-055)
 - **Relational first** — Postgres handles the v1 query
-  complexity; graph databases are a future option
+  complexity; native graph stores remain optional for
+  later evaluation
 
-**RFC-051 runs in parallel with RFC-049 (core
-extraction) and RFC-050 (consumption). Together they
-form the GIL delivery path: extraction (049) →
-consumption patterns (050) → fast serving (051).**
+**RFC-051 aligns with RFC-049 / RFC-050 for GIL and with
+RFC-055 for KG. GIL delivery path: extraction (049) →
+consumption (050) → serving (051). KG delivery path:
+artifact contract (055) → serving (051).**
 
 ## References
 
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
-- **Related PRD**: `docs/prd/PRD-018-database-projection-grounded-insight-layer.md`
+- **Related PRD**: `docs/prd/PRD-018-database-projection-gil-kg.md`
+- **Related PRD**: `docs/prd/PRD-019-knowledge-graph-layer.md`
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
-- **Ontology Specification**: `docs/gi/ontology.md`
-- **Schema Specification**: `docs/gi/gi.schema.json`
+- **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
+- **Ontology Specification (GIL)**: `docs/gi/ontology.md`
+- **Schema Specification (GIL)**: `docs/gi/gi.schema.json`
+- **Ontology (KG)**: `docs/kg/ontology.md`
+- **Schema (KG)**: `docs/kg/kg.schema.json` (planned)
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Related Issues**: #31, #40, #50

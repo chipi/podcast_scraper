@@ -1183,7 +1183,7 @@ jobs:
           echo "- **Branch Coverage**: $BRANCH_COVERAGE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Coverage threshold for combined coverage (not per-test-type) - Issue #432 Phase 6
+          # Coverage threshold for combined coverage (not per-test-type)
           # Note: Individual test types (unit/integration/e2e) have different expected coverage:
           # - Unit: ~70-80%, Integration: ~50-60%, E2E: ~50-55%
           # Only COMBINED coverage is enforced against this threshold
@@ -1285,7 +1285,7 @@ jobs:
         fi
 
         # Generate metrics JSON (includes complexity and pipeline metrics)
-        # Coverage threshold (70%) is for combined coverage only
+        # Coverage threshold (70%) is for combined coverage only (matches Makefile / enforcement step)
         # Save with CI prefix for unified dashboard
         python scripts/dashboard/generate_metrics.py \
           --reports-dir reports \

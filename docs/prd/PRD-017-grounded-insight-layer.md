@@ -9,6 +9,8 @@
   - RFC-049 (Core Concepts & Data Model)
   - RFC-050 (Use Cases & Insight Explorer)
   - RFC-051 (Database Projection)
+- **Related PRDs** (separate feature — not GIL):
+  - [PRD-019: Knowledge Graph Layer (KG)](PRD-019-knowledge-graph-layer.md) (entities/linking; `kg` vs `gi`)
 - **Related Documents**:
   - `docs/gi/ontology.md` - Human-readable ontology
   - `docs/gi/gi.schema.json` - Machine-readable schema

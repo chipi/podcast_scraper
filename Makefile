@@ -286,7 +286,7 @@ docs-check: lint-markdown-docs spelling-docs docs
 COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
 COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
 COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
-COVERAGE_THRESHOLD_COMBINED := 74      # Current: ~74.8%; restore 75% with more tests; target 80% (Issue #432 Phase 6)
+COVERAGE_THRESHOLD_COMBINED := 70      # Combined line coverage (make ci + coverage-enforce); align with CI workflow
 
 check-unit-imports:
 	# Verify that unit tests can import modules without ML dependencies

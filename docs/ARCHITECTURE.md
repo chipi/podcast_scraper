@@ -522,11 +522,12 @@ compliance (every quote must be verbatim).
 (`gi inspect`, `gi show-insight`, `gi explore`) for
 consuming GIL data. Implemented alongside Phase 3.
 
-**RFC-051** (Database Projection): Projects `gi.json`
-files into Postgres tables (`insights`, `quotes`,
-`insight_support`, `insight_topics`) for fast SQL
-queries. Enables the Insight Explorer and notebook
-research workflows.
+**RFC-051** (Database Projection): Projects **`gi.json`**
+(GIL) and **KG artifacts** (RFC-055) into **separate**
+Postgres tables for fast SQL queries (e.g. GIL:
+`insights`, `quotes`, `insight_support`; KG: `kg_nodes`,
+`kg_edges` per RFC-051). Enables Insight Explorer,
+notebook workflows, and KG discovery queries.
 
 ### Phase 4: Adaptive Routing (RFC-053)
 

@@ -26,6 +26,19 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def _mistral_openai_compatible_root(server_url: str) -> str:
+    """Return the OpenAI-compatible API root (``.../v1``) for Mistral HTTP calls.
+
+    The real Mistral SDK uses ``server_url`` as the host root and appends
+    ``/v1/chat/completions`` etc. Tests may pass either the host root (E2E
+    ``mistral_api_base()``) or a URL already ending in ``/v1``.
+    """
+    base = server_url.rstrip("/")
+    if base.endswith("/v1"):
+        return base
+    return f"{base}/v1"
+
+
 class FakeMistralTranscriptionResponse:
     """Fake transcription response that mimics Mistral SDK response structure."""
 
@@ -85,8 +98,9 @@ class FakeMistralAudioTranscriptions:
         Returns:
             FakeMistralTranscriptionResponse with transcribed text
         """
-        # Build URL
-        url = f"{self.base_url}/audio/transcriptions"
+        # Build URL (mock server serves OpenAI-compatible /v1/audio/transcriptions)
+        root = _mistral_openai_compatible_root(self.base_url)
+        url = f"{root}/audio/transcriptions"
 
         # Build request payload
         # Mistral uses multipart/form-data for file uploads (same as OpenAI)
@@ -164,8 +178,9 @@ class FakeMistralChat:
         Returns:
             FakeMistralChatResponse with response content
         """
-        # Build URL
-        url = f"{self.base_url}/chat/completions"
+        # Build URL (mock server serves OpenAI-compatible /v1/chat/completions)
+        root = _mistral_openai_compatible_root(self.base_url)
+        url = f"{root}/chat/completions"
 
         # Build request payload
         request_data: Dict[str, Any] = {
@@ -230,7 +245,8 @@ class FakeMistral:
 
         Args:
             api_key: API key (required for compatibility, but not used with mock server)
-            server: Server URL for E2E mock server (e.g., "http://127.0.0.1:8000/v1")
+            server: Mistral ``server_url`` (host root or ``.../v1``; see SDK and
+                ``mistral_api_base()`` in E2E fixtures)
             **kwargs: Additional arguments (ignored)
         """
         self.api_key = api_key

@@ -7,13 +7,19 @@
   podcast types, developers integrating summarization
 - **Execution Timing**: **Phase 4** — Implement after
   RFC-042 (Hybrid ML Platform) and RFC-049 (GIL) are
-  stable. This RFC is an **optimization layer** that
+  stable. **KG extraction** (RFC-055) can use the same
+  profiling and routing hooks when the KG pipeline is
+  enabled; KG routing ships when PRD-019 / RFC-055
+  artifacts are implemented, not a blocker for
+  summarization-only routing. This RFC is an **optimization layer** that
   makes existing capabilities work better across diverse
   content types. It also serves as the **bridge to
   multi-content-type expansion** beyond podcasts.
 - **Related PRDs**:
   - `docs/prd/PRD-005-episode-summarization.md`
     (Episode summarization requirements)
+  - `docs/prd/PRD-019-knowledge-graph-layer.md`
+    (Knowledge Graph — optional routing for KG extraction)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
     (Current summarization implementation)
@@ -23,6 +29,8 @@
     (Model Registry — model capability lookup)
   - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
     (GIL — extraction routing per content type)
+  - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
+    (KG — entity/topic/relationship extraction; optional routing)
   - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
     (Local LLM models — routing targets)
 - **Related ADRs**:
@@ -38,6 +46,7 @@ Phase 2: RFC-042 (Hybrid ML Platform)      ~10 weeks
     │  + RFC-052 (Local LLM Prompts)       parallel
     ▼
 Phase 3: RFC-049 (GIL)                     ~6-8 weeks
+    │  RFC-055 (KG) may overlap / follow    (separate feature flag)
     ▼
 Phase 4: RFC-053 (this RFC — Routing)      ~4-6 weeks
           Optimization + multi-content bridge
@@ -45,11 +54,15 @@ Phase 4: RFC-053 (this RFC — Routing)      ~4-6 weeks
 
 **Why Phase 4?** RFC-053 routes to capabilities that
 RFC-042 provides (MAP/REDUCE models, FLAN-T5, LLMs) and
-can also optimize GIL extraction (RFC-049). It requires
+can also optimize **GIL** extraction (RFC-049) and,
+when enabled, **KG** extraction (RFC-055). It requires
 those foundations to be stable first. Additionally,
 the profiling data collected during Phase 3 (GIL
 extraction on real episodes) provides empirical evidence
-for tuning routing thresholds.
+for tuning routing thresholds. **KG** uses the same
+`EpisodeProfile` so entity/topic strategies align with
+content shape (dense vs dialogue vs long-form) without
+merging GIL and KG contracts.
 
 ## Abstract
 
@@ -65,6 +78,13 @@ system complexity manageable.
 
 **Key Principle:** Standardize the pipeline and outputs;
 vary strategy via routing.
+
+**GIL vs KG:** Routing is **orthogonal** to the product
+split in PRD-017 vs PRD-019: the same profile informs
+summarization, **grounded insight** extraction, and
+**knowledge-graph** extraction, but outputs remain in
+`gi.json` vs KG artifacts respectively (no shared JSON
+contract).
 
 **Beyond Podcasts:** While v1 focuses on podcast episode
 profiles, the profiling and routing architecture is
@@ -389,8 +409,9 @@ routing_entity_density_threshold: float = 10.0
 
 4. **Structured Artifacts**
    - **Decision**: All strategies produce extraction artifacts before reduction
-   - **Rationale**: Enables consistent reducer interface. Supports future enhancements
-     (knowledge graph, etc.).
+   - **Rationale**: Enables consistent reducer interface. Feeds downstream **KG**
+     construction (RFC-055) when the KG stage consumes the same structured
+     intermediates or transcript slices selected by routing.
 
 5. **Per-Profile Evaluation**
    - **Decision**: Track metrics per episode profile, not globally
@@ -446,13 +467,16 @@ routing_entity_density_threshold: float = 10.0
   to route to
 - RFC-049 (GIL) — stable extraction pipeline for GIL
   routing
+- RFC-055 (KG) — not a hard prerequisite for **summarization**
+  routing; required before **KG** routing can run in production
 
 **Rollout Plan:**
 
 - **Phase 4a**: Implement profiling and routing logic
   (opt-in, podcast profiles only)
 - **Phase 4b**: Validate routing decisions on
-  representative episodes (summarization + GIL)
+  representative episodes (summarization + GIL; **+ KG**
+  when RFC-055 pipeline is available)
 - **Phase 4c**: Enable by default for new episodes
 - **Phase 4d**: Iterate on thresholds based on quality
 - **Phase 4e** (v1.1): Add interview + lecture profiles
@@ -491,10 +515,11 @@ different extraction strategies:
 | Technical | Entity-first extraction | Preserve facts/numbers in insights |
 | Abstract | Claim-mapping extraction | Focus on arguments and positions |
 
-**Implementation:** RFC-053 can expose `route_episode()`
-to both the summarization pipeline and the GIL extraction
-pipeline, allowing RFC-049 to adapt its strategy per
-episode.
+**Implementation:** RFC-053 exposes profiling and
+strategy selectors (e.g. `route_summarization(profile)`,
+`route_gil_extraction(profile)`) so RFC-049 can adapt
+GIL extraction per episode; **`route_kg_extraction(profile)`**
+is the KG analogue for RFC-055 (see § Integration with KG).
 
 ### Shared Profiling
 
@@ -507,11 +532,49 @@ profile = profile_episode(transcript, metadata, speakers)
 summary_strategy = route_summarization(profile)
 
 # GIL uses profile for extraction strategy selection
-extraction_strategy = route_extraction(profile)
+extraction_strategy = route_gil_extraction(profile)
+
+# KG uses profile for graph extraction strategy (when generate_kg / RFC-055)
+kg_strategy = route_kg_extraction(profile)
 ```
 
 This avoids duplicate work and ensures consistent
-routing decisions across both pipelines.
+routing decisions across **summarization**, **GIL**, and
+**KG** pipelines.
+
+## Integration with KG (RFC-055)
+
+### Routing for KG extraction
+
+Episode profiling benefits **Knowledge Graph** extraction
+(RFC-055) as well as summarization and GIL. Different
+content shapes suggest different **entity**, **topic**,
+and **relationship** strategies (still distinct from GIL
+insights and quotes):
+
+| Profile | KG strategy (illustrative) | Rationale |
+| --- | --- | --- |
+| Short Monologue | Lightweight topic + entity pass | Few speakers; small graph |
+| Short Dialogue | Speaker-linked entities and co-mentions | Graph edges reflect dialogue |
+| Long Monologue | Chunked entity/topic passes with merge | Avoids single-shot limits |
+| Long Dialogue / Panel | Topic-segmented graph passes | Aligns clusters with discussion structure |
+| Technical | Entity-first, preserve named entities and relations | High density matches KG value |
+| Abstract | Topic and theme nodes; sparse entity extraction | Low NER yield; focus on themes |
+
+**Implementation:** RFC-053 exposes the same
+`profile_episode()` result to a **`route_kg_extraction(profile)`**
+selector (name illustrative) so RFC-055 can adapt KG
+builders per episode **without** coupling to `gi.json`
+or GIL extraction internals.
+
+### Independence
+
+- **Feature flags**: `generate_gi` and KG generation
+  (per RFC-055 / PRD-019) remain **independently**
+  toggleable; routing hooks exist for both, but neither
+  requires the other.
+- **Artifacts**: KG output paths and schema follow
+  RFC-055 only; RFC-053 does not define KG node types.
 
 ## Beyond Podcasts: Multi-Content Expansion
 
@@ -596,6 +659,7 @@ Phase 2: RFC-042 (Hybrid ML Platform)
     │  + RFC-052 (Local LLM Prompts)
     ▼
 Phase 3: RFC-049 (GIL)
+    │  RFC-055 (KG) — optional parallel track
     ▼
 Phase 4: RFC-053 (this RFC)
           Routing + multi-content bridge
@@ -614,9 +678,12 @@ Phase 4: RFC-053 (this RFC)
    per routing strategy
 4. **RFC-049 (Phase 3)**: GIL extraction — RFC-053 can
    route GIL extraction strategies per content type
-5. **RFC-053 (Phase 4, this RFC)**: Routing — selects
-   optimal strategies for both summarization and GIL
-   extraction based on episode/content profiling
+5. **RFC-055**: KG extraction — RFC-053 can route KG
+   graph-building strategies per content type (when KG
+   is enabled); separate from GIL routing rules
+6. **RFC-053 (Phase 4, this RFC)**: Routing — selects
+   optimal strategies for summarization, GIL, and
+   optionally KG based on episode/content profiling
 
 **Key Distinction:**
 
@@ -625,6 +692,7 @@ Phase 4: RFC-053 (this RFC)
   LLMs, embedding, QA, NLI)
 - **RFC-052**: Prompt quality for local LLMs
 - **RFC-049**: GIL extraction orchestration
+- **RFC-055**: KG artifact model and extraction (PRD-019)
 - **RFC-053**: Adaptive routing — selects the right
   strategy from the available capabilities
 
@@ -634,6 +702,7 @@ Together, these provide:
 - High-quality model platform (RFC-042)
 - Local LLM options with optimized prompts (RFC-052)
 - Evidence-backed insight extraction (RFC-049)
+- Knowledge-graph extraction when enabled (RFC-055)
 - Adaptive routing for diverse content types (RFC-053)
 
 ## Benefits
@@ -683,7 +752,12 @@ Together, these provide:
    the same routing rules as summarization, or separate
    rules? Proposal: shared profiling, separate strategy
    selection.
-7. **Content-Type Detection**: When should auto-detection
+7. **KG Extraction Routing**: Should KG use the same
+   profile thresholds as GIL, or lighter/heavier passes
+   by default per profile? Proposal: shared
+   `EpisodeProfile`, **separate** `route_kg_extraction()`
+   thresholds tuned against RFC-055 graph quality metrics.
+8. **Content-Type Detection**: When should auto-detection
    of content type be implemented? Proposal: Phase 4e
    (v1.1), after podcast routing is validated.
 
@@ -694,6 +768,8 @@ Together, these provide:
 - **Prerequisite**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
 - **Prerequisite**: `docs/rfc/RFC-044-model-registry.md`
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
+- **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
+- **Related PRD**: `docs/prd/PRD-019-knowledge-graph-layer.md`
 - **Related RFC**: `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
 - **Related ADR**: `docs/adr/ADR-010-hierarchical-summarization-pattern.md`
 - **Source Code**: `podcast_scraper/workflow/stages/summarization_stage.py`

@@ -8,7 +8,7 @@ The roadmap is organized around **end-user value** as the central principle. Fea
 
 ### Current Status
 
-- **Open PRDs**: 5 (knowledge graph, experimentation platform, observability, engineering governance)
+- **Open PRDs**: 5 (grounded insights / GIL, experimentation platform, observability, engineering governance)
 - **Open RFCs**: 19 (quality improvements, GIL, model registry, observability, infrastructure)
 - **Completed**: 13 PRDs, 28 RFCs (core pipeline, 8-provider ecosystem v2.5, OpenAI + Anthropic + Mistral + DeepSeek + Gemini + Grok + Ollama, modularization, metrics)
 
@@ -21,7 +21,7 @@ These features directly improve what users can do with the tool:
 - **Provider Ecosystem**: Complete (v2.5) — 8 providers (local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama) for choice, cost, and quality
 - **Summarization Improvements**: Better summaries through adaptive routing (RFC-053), hybrid pipeline (RFC-042), and optimization guides (RFC-045)
 - **Audio Preprocessing**: Cost savings and quality improvements through VAD, normalization, and format optimization (RFC-040)
-- **Knowledge Graph (GIL)**: Structured knowledge extraction (PRD-017, RFC-049, 050, 051) enables advanced querying and analysis
+- **Grounded Insight Layer (GIL)**: Structured, evidence-backed insights and quotes (PRD-017, RFC-049, 050, 051) enable advanced querying and analysis
 
 ### 2. Quality & Reliability (Medium-High Impact)
 
@@ -44,9 +44,9 @@ These features improve maintainability, testing, and operational visibility:
 
 These features enable advanced use cases but are not essential for most users:
 
-- **Knowledge Graph**: Structured knowledge extraction (PRD-017, RFC-049, 050, 051)
+- **Grounded Insight Layer**: Evidence-backed insights and quotes (PRD-017, RFC-049, 050, 051)
 - **Experimentation Platform**: AI quality experimentation and benchmarking (PRD-007, RFC-015, 016, 041)
-- **Database Export**: Fast queryable exports for knowledge graph (PRD-018, RFC-051)
+- **Database Export**: Fast queryable exports for GIL and KG data (PRD-018, RFC-051)
 
 ## Prioritized Roadmap
 
@@ -73,7 +73,8 @@ The following table lists all open PRDs and RFCs, ordered by priority with most 
 | **10** | [RFC-043](rfc/RFC-043-automated-metrics-alerts.md) | RFC | Observability | Medium | Medium | Depends on RFC-027 | **Regression detection**: Automated alerts for quality regressions. Depends on metrics improvements. Medium effort, medium value. |
 | **11** | [RFC-047](rfc/RFC-047-run-comparison-visual-tool.md) | RFC | Developer Tool | Medium | Medium | None | **Quality analysis**: Visual tool for comparing runs and diagnosing regressions. Medium effort, medium value. |
 | **12** | [PRD-017](prd/PRD-017-grounded-insight-layer.md) / [RFC-049](rfc/RFC-049-grounded-insight-layer-core.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) | PRD/RFC | Advanced Feature | Medium | High | None | **Grounded Insight Layer**: Evidence-backed insights and quotes with grounding relationships. High effort, high value (trust + navigation). |
-| **13** | [PRD-018](prd/PRD-018-database-projection-grounded-insight-layer.md) / [RFC-051](rfc/RFC-051-grounded-insight-layer-database-projection.md) | PRD/RFC | Advanced Feature | Medium | Medium | Depends on PRD-017 | **Fast queries**: Database projection for Grounded Insight Layer. Depends on PRD-017. Medium effort, medium value. |
+| **13** | [PRD-018](prd/PRD-018-database-projection-gil-kg.md) / [RFC-051](rfc/RFC-051-database-projection-gil-kg.md) | PRD/RFC | Advanced Feature | Medium | Medium | Depends on PRD-017; KG projection depends on RFC-055 | **Fast queries**: Postgres projection for **GIL** (`gi.json`) and **KG** (RFC-055) — separate tables. Depends on PRD-017; KG path depends on PRD-019 when artifacts exist. |
+| **13a** | [PRD-019](prd/PRD-019-knowledge-graph-layer.md) / [RFC-055](rfc/RFC-055-knowledge-graph-layer-core.md) | PRD/RFC | Advanced Feature | Medium | TBD | None | **Knowledge Graph (KG)**: Entities and linking; separate from GIL (`kg` vs `gi`). Independent feature. |
 | **14** | [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) / [RFC-015](rfc/RFC-015-ai-experiment-pipeline.md), [RFC-041](rfc/RFC-041-podcast-ml-benchmarking-framework.md) | PRD/RFC | Advanced Platform | Low-Medium | High | None | **Experimentation**: Platform for AI quality experimentation (RFC-016 modularization complete). High effort, low-medium value (advanced use case). |
 | **15** | [RFC-046](rfc/RFC-046-materialization-architecture.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Honest comparisons**: Materialization architecture. Depends on experimentation platform. Medium effort, low-medium value. |
 | **16** | [RFC-048](rfc/RFC-048-evaluation-application-alignment.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Alignment**: Ensures evaluation results represent application behavior. Depends on experimentation platform. Medium effort, low-medium value. |
@@ -115,7 +116,7 @@ The 8-provider ecosystem is complete as of v2.5.0: local ML, OpenAI, Anthropic, 
 
 - **High priority**: RFC-054 (E2E mocks), RFC-040 (audio preprocessing), RFC-044 (model registry), RFC-053 (adaptive routing), RFC-042 (hybrid pipeline)
 - **Medium**: RFC-045 (ML optimization guide), RFC-052 (locally hosted LLMs), observability (RFC-027, 043, PRD-016), run comparison (RFC-047)
-- **Advanced**: Grounded Insight Layer (PRD-017, RFC-049/050/051), database projection (PRD-018), experimentation platform (PRD-007, RFC-015/041)
+- **Advanced**: Grounded Insight Layer (PRD-017, RFC-049/050/051), database projection (PRD-018), Knowledge Graph (PRD-019, RFC-055), experimentation platform (PRD-007, RFC-015/041)
 
 ### Future
 
@@ -191,7 +192,7 @@ Items are categorized by effort (Low/Medium/High) and impact (Low/Medium/High):
 
 - RFC-054 (E2E Mock Response Strategy) - Complex infrastructure but critical blocker
 - PRD-016 (Operational Observability) - Comprehensive system, high effort
-- PRD-017 (Knowledge Graph) - Advanced feature, high effort
+- PRD-017 (Grounded Insight Layer) - Advanced feature, high effort
 
 **Medium Impact, Low Effort** (Prioritize Fourth):
 

@@ -37,10 +37,11 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Tightening & Alignment | PRD-007 | Alignment rules ensuring evaluation results are representative of application behavior |
 | [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | Core ontology, grounding contract, storage format for GIL |
 | [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Grounded Insight Layer – Use Cases & End-to-End Consumption | PRD-017 | Use cases, Insight Explorer, query patterns with insights + quotes |
-| [RFC-051](RFC-051-grounded-insight-layer-database-projection.md) | Grounded Insight Layer – Database Projection | PRD-018 | Database export design for fast Insight Explorer queries |
+| [RFC-051](RFC-051-database-projection-gil-kg.md) | Database Projection (GIL & Knowledge Graph) | PRD-018 | Relational export for GIL (`gi.json`) and KG (RFC-055) artifacts |
 | [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | Architecture for locally hosted LLM models with optimized prompts to solve cost and latency |
-| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling and routing system for optimal summarization strategies per episode type |
+| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling; routes summarization, GIL (RFC-049), and KG (RFC-055) strategies |
 | [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
+| [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | KG ontology, artifacts, and separation from GIL (`gi` vs `kg`) |
 
 ## Completed RFCs
 

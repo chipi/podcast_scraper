@@ -126,6 +126,7 @@ Entrypoint: `podcast_scraper gi inspect --episode-path /path/to/ep.gi.json`, `gi
 
 - [GIL Ontology](../gi/ontology.md) — full ontology and grounding contract.
 - [GIL Schema](../gi/gi.schema.json) — JSON schema for `gi.json`.
+- [PRD-019: Knowledge Graph Layer (KG)](../prd/PRD-019-knowledge-graph-layer.md) — **separate feature** from GIL (`kg` vs `gi`; entities/linking, not evidence-first insights).
 - [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) — where GIL fits in the pipeline.
 - [Architecture](../ARCHITECTURE.md) — planned GIL extraction and artifact layout.
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) — config keys and provider options.

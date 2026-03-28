@@ -10,6 +10,8 @@
 - **Related PRDs**:
   - `docs/prd/PRD-017-grounded-insight-layer.md`
     (Grounded Insight Layer)
+  - `docs/prd/PRD-019-knowledge-graph-layer.md`
+    (**separate feature** — Knowledge Graph / KG; not GIL)
 - **Related RFCs**:
   - `docs/rfc/RFC-044-model-registry.md`
     (**prerequisite** — model metadata infrastructure)
@@ -18,7 +20,7 @@
     QA, NLI model loading + structured extraction)
   - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
     (Use Cases & Consumption)
-  - `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
+  - `docs/rfc/RFC-051-database-projection-gil-kg.md`
     (Database Projection)
   - `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
     (model-specific prompts for Ollama LLMs —
@@ -389,21 +391,19 @@ GIL extraction integrates into the existing workflow:
 
 **Configuration Integration:**
 
-GIL extraction controlled via `Config` model:
+GIL extraction is controlled via the `Config` model (see `config.py` and
+`docs/guides/GROUNDED_INSIGHTS_GUIDE.md`). Representative fields:
 
-- `generate_kg: bool` — Enable/disable GIL extraction
-- `kg_extraction_provider: str` — Provider tier
-  (`"ml"`, `"hybrid"`, or cloud LLM name)
-- `kg_insight_model: Optional[str]` — Model for insight
-  extraction (resolved via RFC-044 registry)
-- `kg_qa_model: Optional[str]` — Model for quote
-  extraction (resolved via RFC-044 registry)
-- `kg_embedding_model: Optional[str]` — Model for
-  grounding similarity (resolved via RFC-044 registry)
-- `kg_nli_model: Optional[str]` — Model for grounding
-  validation (resolved via RFC-044 registry)
-- `kg_require_grounding: bool` — Require all insights
-  to be grounded (default: `false`)
+- `generate_gi: bool` — Enable/disable GIL extraction (`--generate-gi` on CLI)
+- `gi_insight_source`, `gi_max_insights` — Where insight text comes from (stub,
+  summary bullets, or provider `generate_insights`)
+- `gi_insight_model`, `gi_qa_model`, `gi_nli_model` — Model IDs or registry
+  aliases for GIL-specific loads (when not using provider-based QA/NLI)
+- `embedding_model` — Sentence embeddings for evidence similarity (shared with
+  other features)
+- `gi_require_grounding: bool` — Evidence stack expectations for grounding
+- `quote_extraction_provider`, `entailment_provider` — Optional provider-backed
+  QA/NLI (same backends as summarization; see §Implementation update below)
 
 **Extraction Tier Selection:**
 
@@ -497,9 +497,9 @@ it guarantees verbatim spans (grounding contract).
 
 **Test Organization:**
 
-- Unit tests: `tests/unit/test_kg_*.py`
-- Integration tests: `tests/integration/test_kg_*.py`
-- E2E tests: `tests/e2e/test_kg_*.py`
+- Unit tests: `tests/unit/podcast_scraper/gi/` and related provider tests
+- Integration tests: `tests/integration/test_gi_integration.py`
+- E2E tests: `tests/e2e/test_gi_cli_e2e.py`
 
 **Test Execution:**
 
@@ -715,7 +715,7 @@ extraction.**
 - **Prerequisite**: `docs/rfc/RFC-042-hybrid-summarization-pipeline.md`
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
 - **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
-- **Related RFC**: `docs/rfc/RFC-051-grounded-insight-layer-database-projection.md`
+- **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
 - **Related RFC**: `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
 - **Related RFC**: `docs/rfc/RFC-053-adaptive-summarization-routing.md`
 - **Ontology**: `docs/gi/ontology.md`
