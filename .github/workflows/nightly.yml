@@ -430,7 +430,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Download ML models from preload job
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: ml-models
         path: /home/runner/.cache
@@ -513,7 +513,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Download ML models from preload job
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: ml-models
         path: /home/runner/.cache
@@ -601,7 +601,7 @@ jobs:
         cache-dependency-path: pyproject.toml
 
     - name: Download ML models from preload job
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         name: ml-models
         path: /home/runner/.cache
@@ -699,7 +699,7 @@ jobs:
         mkdir -p metrics
 
     - name: Download all test reports
-      uses: actions/download-artifact@v7
+      uses: actions/download-artifact@v8
       with:
         path: downloaded-reports
         pattern: nightly-*-reports
