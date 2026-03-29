@@ -180,7 +180,7 @@ jobs:
         fi
 
     - name: Upload ML models artifact (for dependent test jobs in same run)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ml-models
         path: /home/runner/.cache
@@ -394,7 +394,7 @@ jobs:
 
     - name: Upload unit test reports
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: nightly-unit-reports
         path: reports/
@@ -475,7 +475,7 @@ jobs:
 
     - name: Upload integration test reports
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: nightly-integration-reports
         path: reports/
@@ -562,7 +562,7 @@ jobs:
 
     - name: Upload E2E test reports
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: nightly-e2e-reports
         path: reports/
@@ -653,7 +653,7 @@ jobs:
 
     - name: Upload nightly-only test reports
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: nightly-only-reports
         path: reports/
@@ -1060,7 +1060,7 @@ jobs:
         fi
 
     - name: Upload combined test reports (extended retention for trend tracking)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: nightly-test-reports
         path: |
@@ -1068,7 +1068,7 @@ jobs:
         retention-days: 90
 
     - name: Upload metrics artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: nightly-metrics
         path: metrics/
