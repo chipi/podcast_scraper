@@ -277,7 +277,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-unit
         path: |
@@ -287,7 +287,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload pytest JSON report
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pytest-unit
         path: reports/pytest-unit.json
@@ -405,7 +405,7 @@ jobs:
         du -sh "$HOME/.cache/huggingface" 2>/dev/null || echo "  HuggingFace cache not found"
     - name: Upload ML models artifact (for dependent test jobs in same run)
       if: needs.detect-changes.outputs.docs-only != 'true' || needs.detect-changes.outputs.code == 'true'
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ml-models
         path: /home/runner/.cache
@@ -550,7 +550,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-integration
         path: |
@@ -560,7 +560,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload pytest JSON report
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pytest-integration
         path: reports/pytest-integration.json
@@ -735,7 +735,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-integration-fast
         path: reports/coverage-integration.xml
@@ -881,7 +881,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-e2e-fast
         path: reports/coverage-e2e.xml
@@ -982,7 +982,7 @@ jobs:
         fi
     - name: Upload coverage artifacts
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-e2e
         path: |
@@ -992,7 +992,7 @@ jobs:
         if-no-files-found: ignore
     - name: Upload pytest JSON reports
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: pytest-e2e
         path: |
@@ -1278,7 +1278,7 @@ jobs:
           --output metrics/index.html || echo "⚠️ Dashboard generation failed (non-blocking)"
     - name: Upload unified coverage report
       if: always()
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: coverage-unified
         path: reports/coverage-unified.xml
@@ -1295,14 +1295,14 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
     - name: Upload metrics as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: metrics
         path: metrics/
         retention-days: 30
     - name: Upload wily reports as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: wily-reports
         path: |
