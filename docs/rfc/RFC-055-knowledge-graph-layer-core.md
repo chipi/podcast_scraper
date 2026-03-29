@@ -7,10 +7,12 @@
   - `docs/prd/PRD-019-knowledge-graph-layer.md` (Knowledge Graph Layer — **KG**)
   - `docs/prd/PRD-017-grounded-insight-layer.md` (Grounded Insight Layer — **GI / GIL** — separate feature)
 - **Related RFCs** (reference — analogous patterns):
+  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (**consumption** — use cases, query patterns, CLI expectations; pair to this RFC like RFC-050 to RFC-049)
   - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (GIL core — artifact shape, co-location, schema discipline)
   - `docs/rfc/RFC-053-adaptive-summarization-routing.md` (adaptive routing — shared `EpisodeProfile`; optional `route_kg_extraction` per content shape)
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout)
 - **Related Documents**:
+  - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (config and CLI filled in with implementation)
   - `docs/kg/ontology.md` — Human-readable ontology (draft)
   - `docs/kg/kg.schema.json` — JSON Schema (**to be added** when implementation lands; see §Schema)
   - `docs/ARCHITECTURE.md` — Module boundaries
@@ -35,7 +37,8 @@ Downstream users need **linking and structure** (who, what, how topics connect) 
 - **Scope creep** risks overloading GIL with entity extraction concerns deferred in PRD-017.
 - **Consumers** lack a **stable KG** contract to build against.
 
-**Use cases:**
+**Use cases (summary):** Detailed consumption patterns, query sketches, and CLI expectations
+live in [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md). At a high level:
 
 1. **Cross-episode theme exploration**: Find recurring entities or topics across a feed.
 2. **Structured export**: Load KG JSON into a database or visualization tool.
@@ -117,7 +120,8 @@ Cross-links between artifacts (e.g. KG node referencing a GIL `insight_id`) are 
 ## Rollout
 
 - Document flag in `docs/api/CONFIGURATION.md` when implemented.
-- Link PRD-019 and this RFC from `GROUNDED_INSIGHTS_GUIDE.md` or a dedicated **`docs/guides/KNOWLEDGE_GRAPH_GUIDE.md`** when written.
+- Link PRD-019 and this RFC from `GROUNDED_INSIGHTS_GUIDE.md` and from
+  **`docs/guides/KNOWLEDGE_GRAPH_GUIDE.md`** (see RFC-056 for consumption).
 
 ## Alternatives Considered
 
@@ -127,5 +131,6 @@ Cross-links between artifacts (e.g. KG node referencing a GIL `insight_id`) are 
 ## References
 
 - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
+- [RFC-056: KG Use Cases & Consumption](RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md)
 - [RFC-049: GIL Core](RFC-049-grounded-insight-layer-core.md) (pattern reference)

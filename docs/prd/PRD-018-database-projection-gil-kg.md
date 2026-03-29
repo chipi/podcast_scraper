@@ -9,6 +9,7 @@
   - RFC-050 (Use Cases & Insight Explorer — GIL)
   - RFC-051 (Database Projection — technical design for GIL and KG)
   - RFC-055 (Knowledge Graph — artifact model for KG projection)
+  - RFC-056 (Knowledge Graph — use cases and consumption patterns for KG queries)
 - **Related Issues**: #31, #40, #50
 - **Related PRDs** (in scope):
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) — source `gi.json` and GIL semantics

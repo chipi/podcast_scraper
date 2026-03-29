@@ -1,6 +1,6 @@
 # KG Ontology (Draft)
 
-**Status:** Draft — aligns with [PRD-019](../prd/PRD-019-knowledge-graph-layer.md) and [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md).
+**Status:** Draft — aligns with [PRD-019](../prd/PRD-019-knowledge-graph-layer.md), [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md), and [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md).
 
 **Scope:** The **Knowledge Graph Layer (KG)** models **entities, themes, and relationships** for discovery and linking. It is **not** the same as the **Grounded Insight Layer (GIL)** in `docs/gi/ontology.md`, which centers on **insights**, **quotes**, and **grounding**.
 

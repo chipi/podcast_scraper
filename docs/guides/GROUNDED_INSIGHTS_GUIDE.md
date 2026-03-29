@@ -4,6 +4,20 @@ This guide explains **grounded insights**: structured takeaways from podcast epi
 
 ---
 
+## Summaries, KG, and grounded insights (how they fit together)
+
+Episode **summaries**, the **Knowledge Graph (KG)**, and **grounded insights (GIL)** address different jobs. A practical way to use them together:
+
+| Layer | Role |
+| --- | --- |
+| **Summaries** ([PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md)) | **Consume** quickly: skim what an episode is about without reading the transcript. |
+| **KG** ([Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md)) | **Navigate** a large library: entities, themes, and how episodes connect. |
+| **Grounded insights (GIL, this guide)** | **Focus on value and trust**: short takeaways with optional **verbatim quotes** when grounding succeeds. |
+
+Summaries compress nuance and are not a full substitute for primary sources when stakes are high. **GI** adds **traceability to the transcript** where grounding works. **KG** does not replace summaries or GI; it helps you **find** where to read or drill down (see the same stack from the KG side in [Knowledge Graph Guide § How KG fits with summaries and grounded insights](KNOWLEDGE_GRAPH_GUIDE.md#how-kg-fits-with-summaries-and-grounded-insights)).
+
+---
+
 ## What Are Grounded Insights?
 
 Grounded insights are **key takeaways** extracted from episode content, each with an explicit **grounding status** and optional **supporting quotes** from the transcript.
@@ -124,6 +138,8 @@ Entrypoint: `podcast_scraper gi inspect --episode-path /path/to/ep.gi.json`, `gi
 
 ## Related Documentation
 
+- [PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md) — summaries as the fast consumption layer above transcripts.
+- [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) — KG as a separate navigation layer (`kg` vs `gi`).
 - [GIL Ontology](../gi/ontology.md) — full ontology and grounding contract.
 - [GIL Schema](../gi/gi.schema.json) — JSON schema for `gi.json`.
 - [PRD-019: Knowledge Graph Layer (KG)](../prd/PRD-019-knowledge-graph-layer.md) — **separate feature** from GIL (`kg` vs `gi`; entities/linking, not evidence-first insights).
