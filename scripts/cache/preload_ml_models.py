@@ -30,6 +30,11 @@ Usage:
 
     # Skip GIL evidence models (QA + NLI)
     SKIP_GIL=1 python scripts/cache/preload_ml_models.py
+
+Pinned revisions:
+    Transformers downloads use ``get_pinned_revision_for_model`` where defined so the
+    on-disk snapshot matches ``SummaryModel`` / hybrid E2E loads under
+    ``local_files_only=True`` (avoids hub access in CI with socket isolation).
 """
 
 import gc
@@ -50,6 +55,7 @@ from podcast_scraper.cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
+from podcast_scraper.config_constants import get_pinned_revision_for_model
 from podcast_scraper.providers.ml.model_loader import preload_evidence_models
 from podcast_scraper.providers.ml.summarizer import DEFAULT_SUMMARY_MODELS
 
@@ -211,7 +217,20 @@ def preload_spacy_models(model_names: Optional[List[str]] = None) -> None:
             sys.exit(1)
 
 
-def preload_transformers_models(model_names: Optional[List[str]] = None) -> None:
+def _transformers_pretrained_kwargs(
+    cache_dir: Path,
+    *,
+    local_files_only: bool,
+    pinned_revision: Optional[str],
+) -> dict:
+    """Kwargs for ``from_pretrained`` matching SummaryModel pinned SHAs when set."""
+    kw: dict = {"cache_dir": str(cache_dir), "local_files_only": local_files_only}
+    if pinned_revision:
+        kw["revision"] = pinned_revision
+    return kw
+
+
+def preload_transformers_models(model_names: Optional[List[str]] = None) -> None:  # noqa: C901
     """Preload Transformers models.
 
     Args:
@@ -284,9 +303,14 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
     for model_name in model_names:
         # Resolve aliases (e.g., "bart-small" -> "facebook/bart-base")
         resolved_model = DEFAULT_SUMMARY_MODELS.get(model_name, model_name)
+        # Must match SummaryModel / TransformersReduceBackend pinned SHAs (config_constants),
+        # or local_files_only loads in CI miss the snapshot and huggingface_hub tries the network.
+        pinned_revision = get_pinned_revision_for_model(resolved_model)
         print(f"  - {model_name}...")
         if resolved_model != model_name:
             print(f"    Alias resolved: {model_name} -> {resolved_model}")
+        if pinned_revision:
+            print(f"    Pinned revision (same as runtime load): {pinned_revision[:12]}…")
         print(f"    Source: Hugging Face (https://huggingface.co/{resolved_model})")
         print(f"    Cache location: {cache_dir}")
 
@@ -310,12 +334,13 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             # Force download of all files by not using local_files_only
             # This ensures all required files (including optional ones) are cached
             # Use resolved_model (not alias) for actual download
-            tokenizer = AutoTokenizer.from_pretrained(
-                resolved_model, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
+            download_kw = _transformers_pretrained_kwargs(
+                cache_dir,
+                local_files_only=False,  # nosec B615
+                pinned_revision=pinned_revision,
             )
-            model = AutoModelForSeq2SeqLM.from_pretrained(
-                resolved_model, cache_dir=str(cache_dir), local_files_only=False  # nosec B615
-            )
+            tokenizer = AutoTokenizer.from_pretrained(resolved_model, **download_kw)
+            model = AutoModelForSeq2SeqLM.from_pretrained(resolved_model, **download_kw)
 
             # Calculate final size after download
             if model_cache_path.exists():
@@ -358,12 +383,15 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 optional_files = ["tokenizer_config.json", "special_tokens_map.json"]
                 for filename in optional_files:
                     try:
-                        hf_hub_download(  # nosec B615
-                            repo_id=resolved_model,
-                            filename=filename,
-                            cache_dir=str(cache_dir),
-                            local_files_only=False,
-                        )
+                        hub_kw: dict = {
+                            "repo_id": resolved_model,
+                            "filename": filename,
+                            "cache_dir": str(cache_dir),
+                            "local_files_only": False,  # nosec B615
+                        }
+                        if pinned_revision:
+                            hub_kw["revision"] = pinned_revision
+                        hf_hub_download(**hub_kw)  # nosec B615
                     except Exception:
                         # File doesn't exist for this model - that's fine, it's optional
                         pass
@@ -412,19 +440,16 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 # This verifies the model is truly cached and loadable from disk
                 # nosec B615 - local_files_only=True prevents network access
                 # resolved_model from config
-                verified_tokenizer = AutoTokenizer.from_pretrained(
-                    resolved_model,
-                    cache_dir=cache_dir_str,
-                    local_files_only=True,
-                )  # nosec B615
-                # Try loading model with local_files_only=True
-                # nosec B615 - local_files_only=True prevents network access
-                # resolved_model from config
+                verify_kw = _transformers_pretrained_kwargs(
+                    cache_dir,
+                    local_files_only=True,  # nosec B615
+                    pinned_revision=pinned_revision,
+                )
+                verified_tokenizer = AutoTokenizer.from_pretrained(resolved_model, **verify_kw)
                 verified_model = AutoModelForSeq2SeqLM.from_pretrained(
                     resolved_model,
-                    cache_dir=cache_dir_str,
-                    local_files_only=True,
-                )  # nosec B615
+                    **verify_kw,
+                )
                 # Clean up verification models
                 del verified_model, verified_tokenizer
                 gc.collect()
