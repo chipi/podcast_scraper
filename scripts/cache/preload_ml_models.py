@@ -505,7 +505,7 @@ def main() -> None:
         print("")
         print("Test models (for regular tests in nightly):")
         print("  - Whisper: tiny.en")
-        print("  - Transformers: facebook/bart-base, allenai/led-base-16384")
+        print("  - Transformers: facebook/bart-base, allenai/led-base-16384, hybrid LongT5+FLAN-T5")
         print("")
         print("Production models (for nightly-only tests):")
         print("  - Whisper: base.en")
@@ -533,6 +533,9 @@ def main() -> None:
             config.PROD_DEFAULT_SUMMARY_MODEL,
             # allenai/led-base-16384 (Production REDUCE model)
             config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,
+            # Hybrid ML Tier 1 E2E (tests/e2e/test_hybrid_ml_provider_e2e.py): MAP + REDUCE
+            "google/long-t5-tglobal-base",
+            "google/flan-t5-base",
         ]
         spacy_models = ["en_core_web_sm"]  # Same for both
 

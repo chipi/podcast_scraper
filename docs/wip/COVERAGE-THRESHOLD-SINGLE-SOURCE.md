@@ -49,3 +49,13 @@ Then replace:
 
 - This keeps the policy in the same place developers use locally (`make coverage-enforce`, etc.).
 - CI and local development remain consistent automatically after any threshold change.
+
+## CI: combining coverage from multiple jobs (WIP)
+
+The `coverage-unified` job in `.github/workflows/python-app.yml` merges Cobertura XML from
+unit, integration, and E2E artifacts. **Path normalization** maps
+`src/podcast_scraper/...` and `podcast_scraper/...` to the same key so lines are not
+double-counted (which incorrectly **lowered** the combined percentage vs local `make coverage-enforce`).
+
+Artifact download uses `merge-multiple: false` so each job’s report keeps a distinct path
+(avoiding same-filename overwrites when flattening).

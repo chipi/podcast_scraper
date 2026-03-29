@@ -1260,7 +1260,7 @@ preload-ml-models:
 
 preload-ml-models-production:
 	@echo "Preloading production ML models for nightly tests..."
-	@echo "Models: Whisper base, BART-large-cnn, LED-large-16384, en_core_web_sm"
+	@echo "Models: Whisper base, BART/LED/Pegasus, hybrid LongT5+FLAN-T5, en_core_web_sm"
 	@$(PYTHON) scripts/cache/preload_ml_models.py --production
 
 backup-cache:

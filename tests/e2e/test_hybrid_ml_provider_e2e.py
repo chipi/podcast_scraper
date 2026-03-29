@@ -44,7 +44,8 @@ class TestHybridMLProviderE2E:
 
         Requires longt5-base and google/flan-t5-base to be cached (e.g. via preload).
         """
-        require_transformers_model_cached("longt5-base", "google/flan-t5-base")
+        require_transformers_model_cached("longt5-base")
+        require_transformers_model_cached("google/flan-t5-base")
 
         fixture_root = Path(__file__).parent.parent / "fixtures"
         transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"

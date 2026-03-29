@@ -354,7 +354,7 @@ jobs:
           echo "  Contents of HF_CACHE:"
           ls -la "$HF_CACHE" | head -20
         fi
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
@@ -456,7 +456,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
@@ -611,7 +611,7 @@ jobs:
           ls -la "$HF_CACHE" | head -20
           echo "  Total size: $(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)"
         fi
-        for model in "facebook/bart-base" "allenai/led-base-16384"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
@@ -777,7 +777,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
@@ -1076,6 +1076,17 @@ jobs:
         from pathlib import Path
         import os
 
+        def normalize_coverage_filename(filename: str) -> str:
+            """Unify Cobertura paths so unit vs integration jobs merge the same file.
+
+            Otherwise ``src/podcast_scraper/foo.py`` and ``podcast_scraper/foo.py``
+            double-count lines and deflate the combined percentage.
+            """
+            fn = filename.replace("\\", "/")
+            if fn.startswith("src/podcast_scraper/"):
+                return fn[4:]
+            return fn
+
         def parse_coverage_xml(filepath):
             """Parse a coverage XML file and return line coverage data."""
             tree = ET.parse(filepath)
@@ -1084,9 +1095,10 @@ jobs:
 
             for package in root.findall('.//package'):
                 for cls in package.findall('.//class'):
-                    filename = cls.get('filename', '')
-                    if not filename:
+                    raw = cls.get('filename', '')
+                    if not raw:
                         continue
+                    filename = normalize_coverage_filename(raw)
 
                     if filename not in coverage_data:
                         coverage_data[filename] = {'hits': set(), 'misses': set()}
