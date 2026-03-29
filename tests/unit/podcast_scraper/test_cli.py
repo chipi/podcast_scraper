@@ -6,6 +6,7 @@ building functions.
 """
 
 import argparse
+import logging
 import os
 import sys
 import unittest
@@ -1621,6 +1622,13 @@ class TestGiSubcommand(unittest.TestCase):
         self.assertEqual(getattr(args, "id"), "insight:ep:0")
         self.assertEqual(args.output_dir, "/out")
 
+    def test_parse_gi_args_validate(self):
+        """Test _parse_gi_args for validate subcommand (parity with kg validate)."""
+        args = cli._parse_gi_args(["validate", "/tmp/sample.gi.json", "--strict"])
+        self.assertEqual(args.gi_subcommand, "validate")
+        self.assertEqual(args.paths, ["/tmp/sample.gi.json"])
+        self.assertTrue(args.strict)
+
     def test_parse_gi_args_inspect(self):
         """Test _parse_gi_args for inspect subcommand."""
         args = cli._parse_gi_args(["inspect", "--episode-path", "x.gi.json"])
@@ -1688,6 +1696,145 @@ class TestGiSubcommand(unittest.TestCase):
         self.assertEqual(args.topic, "AI")
         self.assertEqual(args.output_dir, "/out")
 
+    def test_parse_args_gi_query(self):
+        """Test that parse_args parses gi query."""
+        args = cli.parse_args(
+            [
+                "gi",
+                "query",
+                "--output-dir",
+                "/out",
+                "--question",
+                "What insights about inflation?",
+            ]
+        )
+        self.assertEqual(args.command, "gi")
+        self.assertEqual(args.gi_subcommand, "query")
+        self.assertEqual(args.output_dir, "/out")
+        self.assertEqual(args.question, "What insights about inflation?")
+        self.assertEqual(args.query_limit, 20)
+
+    def test_main_gi_query_no_pattern_exits_2(self):
+        """gi query with unmatched question exits 2 (invalid args)."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        exit_code = cli.main(
+            [
+                "gi",
+                "query",
+                "--output-dir",
+                str(tmp),
+                "--question",
+                "Random unmatched phrase xyz.",
+            ]
+        )
+        self.assertEqual(exit_code, 2)
+
+    def test_main_gi_query_topic_pattern_returns_0(self):
+        """gi query with UC4 topic pattern runs and exits 0."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        exit_code = cli.main(
+            [
+                "gi",
+                "query",
+                "--output-dir",
+                str(tmp),
+                "--question",
+                "What insights about stub?",
+            ]
+        )
+        self.assertEqual(exit_code, 0)
+
+    def test_main_gi_query_top_topics_returns_0(self):
+        """gi query with topic-leaderboard pattern runs and exits 0."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        art = build_artifact("ep:1", "Transcript.", prompt_version="v1")
+        write_artifact(tmp / "metadata" / "ep1.gi.json", art, validate=True)
+        exit_code = cli.main(
+            [
+                "gi",
+                "query",
+                "--output-dir",
+                str(tmp),
+                "--question",
+                "Top topics?",
+            ]
+        )
+        self.assertEqual(exit_code, 0)
+
+    def test_main_gi_validate_strict_passes(self):
+        """gi validate --strict on a valid artifact exits 0."""
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        gi_path = tmp / "metadata" / "ep1.gi.json"
+        write_artifact(gi_path, build_artifact("ep:1", "Transcript.", prompt_version="v1"))
+        exit_code = cli.main(["gi", "validate", "--strict", str(tmp)])
+        self.assertEqual(exit_code, 0)
+
+    def test_parse_gi_args_export(self):
+        """gi export parses --output-dir and --format merged."""
+        args = cli._parse_gi_args(
+            ["export", "--output-dir", "/out", "--format", "merged", "--out", "/tmp/b.json"]
+        )
+        self.assertEqual(args.gi_subcommand, "export")
+        self.assertEqual(args.output_dir, "/out")
+        self.assertEqual(args.format, "merged")
+        self.assertEqual(args.out, "/tmp/b.json")
+
+    def test_main_gi_export_merged_writes_bundle(self):
+        """gi export --format merged writes gi_corpus_bundle JSON."""
+        import json
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        write_artifact(
+            tmp / "metadata" / "a.gi.json",
+            build_artifact("ep:1", "Hello.", prompt_version="v1"),
+            validate=True,
+        )
+        out_path = tmp / "bundle.json"
+        exit_code = cli.main(
+            [
+                "gi",
+                "export",
+                "--output-dir",
+                str(tmp),
+                "--format",
+                "merged",
+                "--out",
+                str(out_path),
+            ]
+        )
+        self.assertEqual(exit_code, 0)
+        data = json.loads(out_path.read_text(encoding="utf-8"))
+        self.assertEqual(data.get("export_kind"), "gi_corpus_bundle")
+        self.assertEqual(data.get("artifact_count"), 1)
+
     def test_main_gi_explore_no_artifacts_exits_3(self):
         """Test main() with gi explore when no .gi.json found exits 3."""
         import tempfile
@@ -1732,6 +1879,18 @@ class TestGiSubcommand(unittest.TestCase):
             ]
         )
         self.assertEqual(exit_code, 4)
+
+    def test_main_gi_explore_strict_invalid_artifact_exits_5(self):
+        """Test gi explore --strict exits 5 when an artifact fails validation."""
+        from pathlib import Path
+
+        tmp = Path(self.get_tmp_dir())
+        (tmp / "metadata").mkdir(parents=True)
+        (tmp / "metadata" / "bad.gi.json").write_text('{"nodes":[],"edges":[]}', encoding="utf-8")
+        exit_code = cli.main(
+            ["gi", "explore", "--output-dir", str(tmp), "--strict", "--format", "json"]
+        )
+        self.assertEqual(exit_code, 5)
 
     def test_main_gi_show_insight_wrong_id_returns_1(self):
         """Test main() with gi show-insight when --id not in artifact returns 1."""
@@ -2049,6 +2208,38 @@ class TestCLIErrorHandling(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             cli.parse_args(["--version"])
         self.assertEqual(cm.exception.code, 0)
+
+
+class TestLogConfigurationGiStubWarning(unittest.TestCase):
+    """_log_configuration warns when GIL uses stub insights outside test env (Issue #460)."""
+
+    def test_warns_when_generate_gi_stub_and_not_test_env(self):
+        log = logging.getLogger("test_gil_stub_warn")
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            with self.assertLogs(log, level="WARNING") as cm:
+                cfg = config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    generate_metadata=True,
+                    generate_gi=True,
+                    gi_insight_source="stub",
+                )
+                cli._log_configuration(cfg, log)
+        messages = " ".join(r.getMessage() for r in cm.records)
+        self.assertIn("gi_insight_source", messages)
+        self.assertIn("stub", messages)
+
+    def test_no_stub_warning_when_test_environment(self):
+        log = logging.getLogger("test_gil_stub_no_warn")
+        with patch("podcast_scraper.config._is_test_environment", return_value=True):
+            with patch.object(log, "warning") as mock_warn:
+                cfg = config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    generate_metadata=True,
+                    generate_gi=True,
+                    gi_insight_source="stub",
+                )
+                cli._log_configuration(cfg, log)
+                mock_warn.assert_not_called()
 
 
 if __name__ == "__main__":

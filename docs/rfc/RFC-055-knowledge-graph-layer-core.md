@@ -1,6 +1,6 @@
 # RFC-055: Knowledge Graph Layer — Core Concepts & Data Model
 
-- **Status**: Draft
+- **Status**: Draft (KG artifact **v1** ontology + JSON Schema **frozen** per GitHub #464; RFC narrative may still evolve.)
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers
 - **Related PRDs**:
@@ -13,8 +13,8 @@
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout)
 - **Related Documents**:
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (config and CLI filled in with implementation)
-  - `docs/kg/ontology.md` — Human-readable ontology (draft)
-  - `docs/kg/kg.schema.json` — JSON Schema (**to be added** when implementation lands; see §Schema)
+  - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
+  - `docs/kg/kg.schema.json` — JSON Schema (published; see §Schema)
   - `docs/ARCHITECTURE.md` — Module boundaries
 
 ## Abstract
@@ -72,16 +72,17 @@ live in [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md). At a high level:
 
 - **Format**: JSON document per episode, distinct from `*.gi.json`.
 - **Contents**: `schema_version`, `episode_id`, extraction metadata, `nodes`, `edges` (or equivalent graph serialization), with types enumerated in `docs/kg/ontology.md`.
-- **Co-location**: Same episode directory family as transcripts/metadata; exact relative path TBD (e.g. `metadata/*.kg.json` — finalize during implementation to mirror GIL conventions).
+- **Co-location**: Same directory as episode metadata / GIL: `metadata/<basename>.kg.json`
+  (mirrors `*.gi.json` naming).
 
 ### 2. Ontology v1 (initial categories)
 
-Exact types are **draft** until implementation; initial buckets:
+**Frozen in code + schema (Issue #464).** Initial buckets:
 
 - **Episode-level anchor** (link to episode id).
 - **Entity-like nodes** (e.g. person, organization — naming TBD in ontology).
 - **Topic / theme** nodes (distinct from GIL “Topic” if needed to avoid collision — prefix or separate namespace in IDs).
-- **Edges**: co-occurrence, mentioned_in, related_to (subset to be minimal for v1).
+- **Edges**: v1 aligns with `docs/kg/ontology.md` (e.g. `MENTIONS`, `RELATED_TO`); additional edge kinds (e.g. co-occurrence) may follow in later releases.
 
 Update **`docs/kg/ontology.md`** as the source of truth; RFC references it by path.
 
@@ -108,8 +109,9 @@ Cross-links between artifacts (e.g. KG node referencing a GIL `insight_id`) are 
 
 ## Schema
 
-- Add **`docs/kg/kg.schema.json`** before or with the first implementation PR.
-- Provide **`make validate-kg-schema`** or reuse a generic JSON schema validation pattern (mirror `validate-gi-schema` tooling).
+- **`docs/kg/kg.schema.json`** is checked in; CI/dev validation via **`make validate-kg-schema`**
+  and `scripts/tools/validate_kg_schema.py` (mirror `validate-gi-schema` tooling).
+- **v1 freeze (Issue #464):** The schema and **`docs/kg/ontology.md`** match shipped `kg` pipeline output (node/edge kinds, `MENTIONS` direction, `extraction.model_version` values, Entity `role` enum). Breaking changes require a schema/ontology bump.
 
 ## Testing Strategy
 

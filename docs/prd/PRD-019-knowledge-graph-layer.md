@@ -9,8 +9,8 @@
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) (GI / GIL — evidence-first insights and quotes)
   - [PRD-018: Database Projection](PRD-018-database-projection-gil-kg.md) (Postgres projection for **GIL and KG** — RFC-051)
 - **Related Documents**:
-  - `docs/kg/ontology.md` — Human-readable ontology (draft)
-  - `docs/kg/kg.schema.json` — Machine-readable schema (planned; see RFC-055)
+  - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
+  - `docs/kg/kg.schema.json` — Machine-readable schema (published; validated in CI via `make validate-kg-schema`)
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (updated with implementation)
 
 ## Summary
@@ -38,10 +38,7 @@ Podcast libraries are easier to explore when content is not only summarized (PRD
 2. **Independent feature flag**: Enable or disable KG **without** requiring GIL or changing GIL semantics.
 3. **Clear consumption path**: Document how consumers query or merge KG data (files, and **relational projection** per [PRD-018](PRD-018-database-projection-gil-kg.md) / [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) when enabled).
 4. **Stable contracts**: Versioned schema and ontology artifacts under `docs/kg/` aligned with RFC-055.
-5. **Documented consumption**: End-to-end use cases, query patterns, and CLI expectations
-   for KG are specified in RFC-056 and the Knowledge Graph Guide, **parity with** the
-
-   GIL split (PRD-017 / RFC-049 + RFC-050 + `GROUNDED_INSIGHTS_GUIDE.md`).
+5. **Documented consumption**: End-to-end use cases, query patterns, and CLI expectations for KG are specified in RFC-056 and `KNOWLEDGE_GRAPH_GUIDE.md`, in **parity with** the GIL split (PRD-017 / RFC-049 + RFC-050 + `GROUNDED_INSIGHTS_GUIDE.md`).
 
 ## Documentation parity with GIL (PRD-017)
 
@@ -163,7 +160,7 @@ features.
 
 ## Open Questions
 
-- Minimum viable node/edge set for v1 (to be closed in RFC-055).
+- **v1 node/edge freeze**: **Done (GitHub #464).** `docs/kg/kg.schema.json`, `docs/kg/ontology.md`, and the `build_artifact` pipeline are aligned for v1; strict validation enforces `extraction.model_version` and Entity `role` values shipped by the builder.
 - Relative **implementation priority** of `kg export` vs `gi export` (both are in PRD-018 / RFC-051 scope; shipping order may differ).
 - Which **`kg`** subcommands ship in v1 vs later (RFC-056 lists illustrative commands).
 

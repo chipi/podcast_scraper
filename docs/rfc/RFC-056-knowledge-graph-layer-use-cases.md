@@ -24,8 +24,8 @@
 
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout and run scoping)
 - **Related Documents**:
-  - `docs/kg/ontology.md` — Human-readable ontology (draft)
-  - `docs/kg/kg.schema.json` — Machine-readable schema (when published)
+  - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
+  - `docs/kg/kg.schema.json` — Normative JSON Schema (v1 frozen, #464)
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (living document)
 
 ## Abstract
@@ -164,16 +164,15 @@ both flags are on, without cross-contamination.
 
 **User intent:** Inspect KG contents from the terminal the same way operators inspect GIL.
 
-**Consumption pattern (illustrative):**
+**Consumption pattern (implemented in CLI):**
 
-- **`kg validate`**: Validate KG JSON against published schema (mirror `gi validate`
-  patterns where applicable)
+- **`kg validate`**: Validate KG JSON against published schema (`--strict` for full JSON Schema).
+- **`kg inspect`**: Summarize nodes/edges for one episode or path.
+- **`kg export`**: NDJSON or merged JSON bundle over a run output tree.
+- **`kg entities`** / **`kg topics`**: File-based roll-up and topic co-occurrence (RFC-056 query patterns).
 
-- **`kg inspect`**: Summarize nodes/edges for one episode or path
-- **`kg export`**: Emit corpus-friendly formats for integration tests and tooling
-
-Exact subcommands and flags are **implementation-defined** but must live under the **`kg`**
-namespace per RFC-055.
+Exact flags are documented in `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` and `docs/api/CLI.md`.
+Subcommands live under the **`kg`** namespace per RFC-055.
 
 ## Query Patterns
 

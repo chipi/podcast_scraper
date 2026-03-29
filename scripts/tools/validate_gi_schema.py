@@ -16,32 +16,14 @@ from pathlib import Path
 
 # Allow running from project root; add src to path if needed
 try:
-    from podcast_scraper.gi.io import read_artifact
+    from podcast_scraper.gi.io import collect_gi_paths_from_inputs, read_artifact
     from podcast_scraper.gi.schema import validate_artifact
 except ImportError:
     # Fallback when not installed
     root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(root / "src"))
-    from podcast_scraper.gi.io import read_artifact
+    from podcast_scraper.gi.io import collect_gi_paths_from_inputs, read_artifact
     from podcast_scraper.gi.schema import validate_artifact
-
-
-def collect_gi_json_paths(paths: list[Path]) -> list[Path]:
-    """Return all .gi.json file paths from given files and directories."""
-    result: list[Path] = []
-    for p in paths:
-        if not p.exists():
-            print(f"Error: path does not exist: {p}", file=sys.stderr)
-            sys.exit(1)
-        if p.is_file():
-            if not p.name.endswith(".gi.json"):
-                print(f"Error: not a .gi.json file: {p}", file=sys.stderr)
-                sys.exit(1)
-            result.append(p)
-            continue
-        for child in p.rglob("*.gi.json"):
-            result.append(child)
-    return result
 
 
 def main() -> int:
@@ -61,7 +43,11 @@ def main() -> int:
         help="Only print failures",
     )
     args = parser.parse_args()
-    files_to_validate = sorted(set(collect_gi_json_paths(args.paths)))
+    try:
+        files_to_validate = collect_gi_paths_from_inputs(args.paths)
+    except (FileNotFoundError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
     if not files_to_validate:
         if not args.quiet:
             print("No .gi.json files found under given paths.", file=sys.stderr)

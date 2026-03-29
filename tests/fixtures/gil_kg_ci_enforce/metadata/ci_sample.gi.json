@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "model_version": "stub",
+  "prompt_version": "v1",
+  "episode_id": "episode:ci-fixture",
+  "nodes": [
+    {
+      "id": "ep:episode:ci-fixture",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "podcast:unknown",
+        "title": "Episode",
+        "publish_date": "2020-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "insight:episode:ci-fixture:0",
+      "type": "Insight",
+      "properties": {
+        "text": "Summary insight (stub).",
+        "episode_id": "episode:ci-fixture",
+        "grounded": true
+      }
+    },
+    {
+      "id": "quote:episode:ci-fixture:0",
+      "type": "Quote",
+      "properties": {
+        "text": "Hello world transcript sample for CI quality metrics fixture.",
+        "episode_id": "episode:ci-fixture",
+        "speaker_id": null,
+        "char_start": 0,
+        "char_end": 60,
+        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 0,
+        "transcript_ref": "transcript.txt"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:episode:ci-fixture:0",
+      "to": "quote:episode:ci-fixture:0"
+    }
+  ]
+}

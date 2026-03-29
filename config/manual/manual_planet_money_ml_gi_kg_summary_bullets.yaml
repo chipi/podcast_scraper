@@ -1,0 +1,35 @@
+# Manual validation: NPR Planet Money — local ML summaries; GI + KG from summary_bullets (no OpenAI).
+# Same pattern as acceptance_planet_money_gi_ml_summary_bullets + kg_ml_summary_bullets in one file.
+# On Linux or without GPU: set whisper_device and summary_device to cpu.
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/manual_planet_money_ml_gi_kg_summary_bullets.yaml
+# Requires: local ML stack (Whisper, spaCy, transformers / HF cache)
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/manual/planet_money_ml_gi_kg_summary_bullets
+max_episodes: 3
+
+transcription_provider: whisper
+speaker_detector_provider: spacy
+summary_provider: transformers
+
+whisper_model: base.en
+whisper_device: mps
+summary_model: pegasus-cnn
+summary_reduce_model: long-fast
+summary_device: mps
+
+transcribe_missing: true
+
+generate_metadata: true
+generate_summaries: true
+
+generate_gi: true
+gi_insight_model: stub
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5

@@ -66,6 +66,26 @@ def _node_by_id(artifact: Dict[str, Any], node_id: str) -> Optional[Dict[str, An
     return None
 
 
+def _speaker_graph_meta(
+    artifact: Dict[str, Any],
+    quote_node_id: str,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Return (speaker_node_id, speaker_name) from SPOKEN_BY Quote -> Speaker."""
+    for edge in artifact.get("edges", []):
+        if edge.get("type") != "SPOKEN_BY" or edge.get("from") != quote_node_id:
+            continue
+        to_id = edge.get("to")
+        if not to_id:
+            continue
+        node = _node_by_id(artifact, to_id)
+        if not node or node.get("type") != "Speaker":
+            continue
+        name = (node.get("properties") or {}).get("name")
+        nm = str(name).strip() if name is not None else ""
+        return to_id, nm or None
+    return None, None
+
+
 def _edges_from(artifact: Dict[str, Any], from_id: str, edge_type: str) -> List[Dict[str, Any]]:
     """Return edges with given source and type."""
     return [
@@ -104,12 +124,27 @@ def load_artifact_and_transcript(
     return artifact, transcript_text, transcript_path
 
 
+def _episode_display_from_artifact(artifact: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
+    """Return (title, publish_date) from first Episode node if present."""
+    for node in artifact.get("nodes", []):
+        if node.get("type") != "Episode":
+            continue
+        props = node.get("properties") or {}
+        title = props.get("title")
+        pub = props.get("publish_date")
+        t = str(title).strip() if title is not None else None
+        p = str(pub).strip() if pub is not None else None
+        return (t or None, p or None)
+    return None, None
+
+
 def build_inspect_output(
     artifact: Dict[str, Any],
     transcript_text: Optional[str] = None,
 ) -> InspectOutput:
     """Build InspectOutput from artifact dict; optionally fill quote excerpts from transcript."""
     episode_id = artifact.get("episode_id", "")
+    ep_title, ep_pub = _episode_display_from_artifact(artifact)
     insights_out: List[InsightSummary] = []
     grounded_count = 0
     ungrounded_count = 0
@@ -138,6 +173,7 @@ def build_inspect_output(
                 continue
             quote_count += 1
             qprops = quote_node.get("properties", {})
+            qnid = quote_node.get("id", "")
             char_start = qprops.get("char_start", 0)
             char_end = qprops.get("char_end", 0)
             transcript_ref = qprops.get("transcript_ref", "transcript.txt")
@@ -147,11 +183,13 @@ def build_inspect_output(
                 char_end,
                 transcript_ref=transcript_ref,
             )
+            _, sp_graph_name = _speaker_graph_meta(artifact, qnid)
             supporting.append(
                 SupportingQuote(
-                    quote_id=quote_node.get("id", ""),
+                    quote_id=qnid,
                     text=qprops.get("text", ""),
                     speaker_id=qprops.get("speaker_id"),
+                    speaker_name=sp_graph_name,
                     timestamp_start_ms=qprops.get("timestamp_start_ms"),
                     timestamp_end_ms=qprops.get("timestamp_end_ms"),
                     evidence=evidence,
@@ -165,6 +203,8 @@ def build_inspect_output(
                 grounded=grounded,
                 confidence=confidence,
                 episode_id=episode_id,
+                episode_title=ep_title,
+                publish_date=ep_pub,
                 supporting_quotes=supporting,
             )
         )

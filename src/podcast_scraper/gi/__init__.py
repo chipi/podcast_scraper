@@ -10,11 +10,14 @@ from .contracts import (
     InsightSummary,
     InspectOutput,
     SupportingQuote,
+    TopSpeakerEntry,
 )
 from .explore import (
     build_explore_output,
     collect_insights,
+    explore_output_to_rfc_dict,
     load_artifacts,
+    run_uc5_insight_explorer,
     scan_artifact_paths,
 )
 from .grounding import QuoteCandidate
@@ -34,6 +37,7 @@ __all__ = [
     "build_inspect_output",
     "collect_insights",
     "EvidenceSpan",
+    "explore_output_to_rfc_dict",
     "ExploreOutput",
     "find_artifact_by_episode_id",
     "find_artifact_by_insight_id",
@@ -43,8 +47,10 @@ __all__ = [
     "load_artifacts",
     "QuoteCandidate",
     "read_artifact",
+    "run_uc5_insight_explorer",
     "scan_artifact_paths",
     "SupportingQuote",
+    "TopSpeakerEntry",
     "validate_artifact",
     "write_artifact",
 ]

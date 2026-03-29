@@ -42,6 +42,7 @@ for module_name in OPTIONAL_MODULES:
 MODULES_TO_TEST = [
     "podcast_scraper",
     "podcast_scraper.config",
+    "podcast_scraper.kg",
     "podcast_scraper.metadata",
     "podcast_scraper.rss_parser",
     "podcast_scraper.speaker_detectors.factory",

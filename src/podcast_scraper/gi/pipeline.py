@@ -13,7 +13,8 @@ timestamps), Quote nodes get precise timestamp_start_ms and timestamp_end_ms
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+import re
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from .grounding import GroundedQuote
 
@@ -85,6 +86,96 @@ def _char_range_to_ms(
             first_set = True
         end_ms = int(end_s * 1000)
     return start_ms, end_ms
+
+
+def _segment_speaker_label(seg: Dict[str, Any]) -> Optional[str]:
+    """Return normalized speaker label from a segment dict if present."""
+    raw = seg.get("speaker")
+    if raw is None:
+        raw = seg.get("speaker_id")
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    return s or None
+
+
+def _speaker_id_for_char_range(
+    transcript: str,
+    char_start: int,
+    char_end: int,
+    segments: List[Dict[str, Any]],
+) -> Optional[str]:
+    """Map quote character span to a speaker using optional diarization on segments.
+
+    Segments follow the same layout as ``_char_range_to_ms`` (cumulative ``text``).
+    When ``speaker`` or ``speaker_id`` is set on overlapping segments, prefers the
+    segment containing ``char_start``, else the segment with the largest overlap.
+    Returns ``None`` when labels are absent or transcript/segments do not align.
+    """
+    if not segments or char_start >= char_end:
+        return None
+    seg_list: List[Tuple[int, int, Dict[str, Any]]] = []
+    pos = 0
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        text = seg.get("text") or ""
+        seg_start = pos
+        seg_end = pos + len(text)
+        seg_list.append((seg_start, seg_end, seg))
+        pos = seg_end
+    if not seg_list:
+        return None
+    if abs(len(transcript) - pos) > 50:
+        return None
+    for seg_start, seg_end, seg in seg_list:
+        if seg_start <= char_start < seg_end:
+            sp = _segment_speaker_label(seg)
+            if sp:
+                return sp
+            break
+    best_overlap = 0
+    best: Optional[str] = None
+    for seg_start, seg_end, seg in seg_list:
+        if seg_end <= char_start or seg_start >= char_end:
+            continue
+        ov = min(seg_end, char_end) - max(seg_start, char_start)
+        sp = _segment_speaker_label(seg)
+        if sp and ov > best_overlap:
+            best_overlap = ov
+            best = sp
+    return best
+
+
+def _speaker_slug_component(label: str) -> str:
+    """URL-safe segment for Speaker node id (episode-scoped)."""
+    slug = re.sub(r"[^a-z0-9]+", "-", label.lower()).strip("-")
+    return slug or "unknown"
+
+
+def _attach_speaker_for_quote(
+    nodes: list,
+    edges: list,
+    episode_id: str,
+    quote_id: str,
+    speaker_label: Optional[str],
+    speakers_added: Set[str],
+) -> None:
+    """Add Speaker node and SPOKEN_BY (Quote -> Speaker) when diarization label exists."""
+    if not speaker_label or not str(speaker_label).strip():
+        return
+    raw = str(speaker_label).strip()
+    sid = f"speaker:{episode_id}:{_speaker_slug_component(raw)}"
+    if sid not in speakers_added:
+        nodes.append(
+            {
+                "id": sid,
+                "type": "Speaker",
+                "properties": {"name": raw},
+            }
+        )
+        speakers_added.add(sid)
+    edges.append({"type": "SPOKEN_BY", "from": quote_id, "to": sid})
 
 
 def _build_stub_artifact(
@@ -462,6 +553,7 @@ def _artifact_from_multi_insight(
     ]
     edges: list = []
     quote_global_idx = 0
+    speakers_added: Set[str] = set()
     use_segments = bool(transcript_text and transcript_segments and len(transcript_segments) > 0)
 
     # Pad so we have one quote list per insight
@@ -487,8 +579,15 @@ def _artifact_from_multi_insight(
             quote_id = f"quote:{episode_id}:{quote_global_idx}"
             quote_global_idx += 1
             ts_start, ts_end = 0, 0
+            sp_id: Optional[str] = None
             if use_segments and transcript_segments:
                 ts_start, ts_end = _char_range_to_ms(
+                    transcript_text or "",
+                    gq.char_start,
+                    gq.char_end,
+                    transcript_segments,
+                )
+                sp_id = _speaker_id_for_char_range(
                     transcript_text or "",
                     gq.char_start,
                     gq.char_end,
@@ -501,7 +600,7 @@ def _artifact_from_multi_insight(
                     "properties": {
                         "text": gq.text,
                         "episode_id": episode_id,
-                        "speaker_id": None,
+                        "speaker_id": sp_id,
                         "char_start": gq.char_start,
                         "char_end": gq.char_end,
                         "timestamp_start_ms": ts_start,
@@ -511,6 +610,14 @@ def _artifact_from_multi_insight(
                 }
             )
             edges.append({"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id})
+            _attach_speaker_for_quote(
+                nodes,
+                edges,
+                episode_id,
+                quote_id,
+                sp_id,
+                speakers_added,
+            )
 
     return {
         "schema_version": "1.0",

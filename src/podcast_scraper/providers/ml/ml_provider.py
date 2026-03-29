@@ -1555,6 +1555,17 @@ class MLProvider:
         """
         return []
 
+    def extract_kg_graph(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_topics: int = 5,
+        max_entities: int = 15,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """KG LLM extraction is not implemented for transformers/ML summarization."""
+        return None
+
     def extract_quotes(
         self,
         transcript: str,

@@ -1351,6 +1351,64 @@ class OllamaProvider:
             logger.debug("Ollama generate_insights failed: %s", e, exc_info=True)
             return []
 
+    def extract_kg_graph(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_topics: int = 5,
+        max_entities: int = 15,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Extract topics and entities as JSON (KG layer). Returns None on failure."""
+        if not self._summarization_initialized:
+            logger.warning("Ollama summarization not initialized for extract_kg_graph")
+            return None
+        from ...kg.llm_extract import (
+            build_kg_user_prompt,
+            KG_GRAPH_JSON_SYSTEM,
+            parse_kg_graph_response,
+            resolve_kg_model_id,
+            truncate_transcript_for_kg,
+        )
+
+        max_topics = min(max(1, max_topics), 20)
+        max_entities = min(max(1, max_entities), 50)
+        text_slice = truncate_transcript_for_kg(text or "")
+        if not text_slice.strip():
+            return None
+        model = resolve_kg_model_id(self, params)
+        user_prompt = build_kg_user_prompt(
+            text_slice, episode_title or "", max_topics, max_entities
+        )
+        try:
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": KG_GRAPH_JSON_SYSTEM},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=2048,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+            )
+            raw = (response.choices[0].message.content or "").strip()
+            return parse_kg_graph_response(raw)
+        except Exception as e:
+            logger.debug("Ollama extract_kg_graph failed: %s", e, exc_info=True)
+            return None
+
     def extract_quotes(
         self,
         transcript: str,

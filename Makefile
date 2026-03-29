@@ -21,7 +21,7 @@ export PIP_CACHE_DIR
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports validate-gi-schema deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
+.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports validate-gi-schema validate-kg-schema gil-quality-metrics kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark serve-gi-kg-viz
 
 help:
 	@echo "Common developer commands:"
@@ -43,6 +43,10 @@ help:
 	@echo "Verification commands:"
 	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
 	@echo "  make validate-gi-schema [ARTIFACTS_DIR=path]  Validate gi.json files against GIL schema (strict)"
+	@echo "  make validate-kg-schema [ARTIFACTS_DIR=path]  Validate kg.json files against KG schema (strict)"
+	@echo "  make gil-quality-metrics [DIR=path]  PRD-017 metrics over .gi.json (optional --enforce via ARGS)"
+	@echo "  make kg-quality-metrics [DIR=path]   PRD-019 metrics over .kg.json (optional --enforce via ARGS)"
+	@echo "  make quality-metrics-ci              GIL+KG enforce on tests/fixtures/gil_kg_ci_enforce (matches CI)"
 	@echo "  make deps-analyze        Analyze module dependencies and detect architectural issues (with report)"
 	@echo "  make deps-check          Check dependencies and exit with error if issues found"
 	@echo "  make deps-graph          Generate module dependency graph (SVG) in docs/architecture/"
@@ -51,6 +55,7 @@ help:
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
+	@echo "  make serve-gi-kg-viz     HTTP server for web/gi-kg-viz (issue #445; http://127.0.0.1:8765/)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -306,6 +311,35 @@ validate-gi-schema:
 	else \
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_gi_schema.py tests/fixtures; \
 	fi
+
+validate-kg-schema:
+	# Validate kg.json files against docs/kg/kg.schema.json (strict mode).
+	# Usage: make validate-kg-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
+	@if [ -n "$(ARTIFACTS_DIR)" ]; then \
+		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py "$(ARTIFACTS_DIR)"; \
+	else \
+		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
+	fi
+
+gil-quality-metrics:
+	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
+	# Usage: make gil-quality-metrics DIR=path/to/run [ARGS='--enforce --json']
+	@if [ -z "$(DIR)" ]; then \
+		echo "DIR is required (e.g. make gil-quality-metrics DIR=./output)"; exit 2; \
+	fi
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(DIR)" $(ARGS)
+
+kg-quality-metrics:
+	# PRD-019 KG quality metrics over .kg.json (see scripts/tools/kg_quality_metrics.py).
+	@if [ -z "$(DIR)" ]; then \
+		echo "DIR is required (e.g. make kg-quality-metrics DIR=./output)"; exit 2; \
+	fi
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(DIR)" $(ARGS)
+
+quality-metrics-ci:
+	# Same GIL+KG enforce as GitHub Actions test-unit job (committed fixtures).
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-extraction-coverage 1.0 --min-grounded-insight-rate 1.0 --min-quote-validity-rate 1.0 --min-avg-insights 1 --min-avg-quotes 1
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:
 	# Clean up leftover Python/test processes from previous runs
@@ -1016,7 +1050,7 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling test-fast docs build
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast docs build
 	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
@@ -1165,6 +1199,11 @@ flowcharts:
 
 visualize: deps-graph call-graph flowcharts
 	@echo "✓ Architecture visualizations up to date (see docs/architecture/)"
+
+# Static viewer for GIL/KG JSON artifacts (GitHub #445); CDNs need http(s) origin
+serve-gi-kg-viz:
+	@echo "GI/KG viz → http://127.0.0.1:8765/  (Ctrl+C to stop)"
+	@$(PYTHON) -m http.server 8765 --directory web/gi-kg-viz --bind 127.0.0.1
 
 # Run before release: regenerate diagrams and create release notes draft. Add to release checklist.
 release-docs-prep: visualize

@@ -1498,6 +1498,70 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.assertEqual(result, metadata_path)
         mock_serialize.assert_called_once()
 
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    @patch("podcast_scraper.kg.build_artifact")
+    @patch("podcast_scraper.kg.write_artifact")
+    def test_generate_episode_metadata_calls_kg_when_generate_kg_true(
+        self, mock_kg_write, mock_kg_build, mock_determine, mock_serialize
+    ):
+        """When generate_kg is True, KG build_artifact and write_artifact are called."""
+        self.cfg = create_test_config(generate_metadata=True, generate_kg=True)
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_kg_build.return_value = {
+            "schema_version": "1.0",
+            "episode_id": "ep:1",
+            "extraction": {
+                "model_version": "stub",
+                "extracted_at": "2024-01-01T00:00:00Z",
+                "transcript_ref": "transcripts/ep1.txt",
+            },
+            "nodes": [{"id": "kg:episode:1", "type": "Episode", "properties": {}}],
+            "edges": [],
+        }
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+            transcript_file_path="transcripts/ep1.txt",
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_kg_build.assert_called_once()
+        mock_kg_write.assert_called_once()
+        call_kw = mock_serialize.call_args[0][0]
+        self.assertIsNotNone(call_kw.knowledge_graph)
+        self.assertEqual(call_kw.knowledge_graph.node_count, 1)
+
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    @patch("podcast_scraper.kg.build_artifact")
+    def test_generate_episode_metadata_kg_failure_non_fatal(
+        self, mock_kg_build, mock_determine, mock_serialize
+    ):
+        """When KG generation fails, metadata is still written."""
+        self.cfg = create_test_config(generate_metadata=True, generate_kg=True)
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_kg_build.side_effect = RuntimeError("KG failed")
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_serialize.assert_called_once()
+        call_kw = mock_serialize.call_args[0][0]
+        self.assertIsNone(call_kw.knowledge_graph)
+
 
 class TestEntityNormalization(unittest.TestCase):
     """Tests for entity normalization functionality (Issue #387)."""
@@ -2383,6 +2447,26 @@ class TestDetermineGIPath(unittest.TestCase):
         """Fallback: any other extension -> base + .gi.json."""
         result = metadata._determine_gi_path("/out/metadata/1_ep.metadata.other")
         self.assertEqual(result, "/out/metadata/1_ep.metadata.gi.json")
+
+
+@pytest.mark.unit
+class TestDetermineKGPath(unittest.TestCase):
+    """Tests for _determine_kg_path helper (KG artifact path from metadata path)."""
+
+    def test_kg_path_from_metadata_json(self):
+        """Metadata .metadata.json -> .kg.json."""
+        result = metadata._determine_kg_path("/out/metadata/1_ep.metadata.json")
+        self.assertEqual(result, "/out/metadata/1_ep.kg.json")
+
+    def test_kg_path_from_metadata_yaml(self):
+        """Metadata .metadata.yaml -> .kg.json."""
+        result = metadata._determine_kg_path("/out/metadata/1_ep.metadata.yaml")
+        self.assertEqual(result, "/out/metadata/1_ep.kg.json")
+
+    def test_kg_path_fallback_splitext(self):
+        """Fallback: any other extension -> base + .kg.json."""
+        result = metadata._determine_kg_path("/out/metadata/1_ep.metadata.other")
+        self.assertEqual(result, "/out/metadata/1_ep.metadata.kg.json")
 
 
 @pytest.mark.unit

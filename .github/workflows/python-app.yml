@@ -200,6 +200,24 @@ jobs:
         python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
+    - name: GIL and KG quality metrics on CI fixtures (PRD-017 / PRD-019)
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        python scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce \
+          --enforce --strict-schema --fail-on-errors \
+          --min-extraction-coverage 1.0 \
+          --min-grounded-insight-rate 1.0 \
+          --min-quote-validity-rate 1.0 \
+          --min-avg-insights 1 \
+          --min-avg-quotes 1
+        python scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce \
+          --enforce --strict-schema --fail-on-errors \
+          --min-artifacts 1 \
+          --min-avg-nodes 1 \
+          --min-avg-edges 0 \
+          --min-extraction-coverage 1.0
+      env:
+        PACKAGE: podcast_scraper
     - name: Run unit tests with coverage (network isolation enforced, parallel execution)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"

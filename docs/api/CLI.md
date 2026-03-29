@@ -356,6 +356,70 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
   --summary-provider openai
 ```
 
+## Grounded insights (`gi`) subcommands
+
+Inspect and explore **Grounded Insight Layer** artifacts (`*.gi.json`) after a run with `generate_gi` enabled (see [Grounded Insights Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md), RFC-050). **Shallow v1 scope** (ML vs `stub` vs bullets, topic explore semantics, deterministic `gi query`, Postgres deferral): [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460). **With `generate_kg` too:** [KG shallow v1 record](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
+
+```bash
+# Validate artifacts (symmetric with `kg validate`; use --strict for full JSON Schema)
+python -m podcast_scraper.cli gi validate ./output/metadata --strict
+
+# Export corpus: NDJSON (one artifact per line) or merged bundle (symmetric with `kg export`)
+python -m podcast_scraper.cli gi export --output-dir ./output --format ndjson --out gi.ndjson
+python -m podcast_scraper.cli gi export --output-dir ./output --format merged --out gi-bundle.json
+
+# One episode: stats, optional full text and quotes (--show)
+python -m podcast_scraper.cli gi inspect --episode-path ./output/metadata/ep1.gi.json
+python -m podcast_scraper.cli gi inspect --output-dir ./output --episode-id 'sha256:...'
+
+# One insight by id (with evidence spans)
+python -m podcast_scraper.cli gi show-insight --id 'insight:ep:0' --episode-path ./output/metadata/ep1.gi.json
+
+# Cross-episode: topic / speaker filters, sort, RFC-style JSON
+python -m podcast_scraper.cli gi explore --output-dir ./output --topic 'AI regulation' --format json
+python -m podcast_scraper.cli gi explore --output-dir ./output --speaker Host --sort time --strict
+
+# UC4: fixed English question patterns → explore JSON or topic leaderboard (RFC-050)
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What insights about inflation?'
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What insights are there about trade?'
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say?' --limit 10
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say about inflation?'
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'Which topics have the most insights?'
+```
+
+**PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
+
+```bash
+make gil-quality-metrics DIR=./output
+make gil-quality-metrics DIR=./output ARGS='--enforce --min-avg-insights 3 --min-avg-quotes 5'
+make kg-quality-metrics DIR=./output ARGS='--enforce --json'
+make quality-metrics-ci
+```
+
+## Knowledge Graph (`kg`) subcommands
+
+Inspect and export **Knowledge Graph** artifacts (`*.kg.json`) after a run with `generate_kg`
+enabled. Symmetric to the `gi` subcommand for GIL.
+
+```bash
+# Validate all kg.json under a directory (strict schema)
+python -m podcast_scraper.cli kg validate ./output/metadata --strict
+
+# Inspect one episode (by file or by episode id under output dir)
+python -m podcast_scraper.cli kg inspect --episode-path ./output/metadata/1_ep.kg.json
+python -m podcast_scraper.cli kg inspect --output-dir ./output --episode-id 'sha256:...'
+
+# Export corpus: NDJSON (one artifact per line) or single merged JSON bundle
+python -m podcast_scraper.cli kg export --output-dir ./output --format ndjson --out kg.ndjson
+python -m podcast_scraper.cli kg export --output-dir ./output --format merged --out kg-bundle.json
+
+# Aggregate entities across episodes; topic pairs that co-occur in the same episode
+python -m podcast_scraper.cli kg entities --output-dir ./output --min-episodes 2 --format json
+python -m podcast_scraper.cli kg topics --output-dir ./output --min-support 2 --format json
+```
+
+Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md), [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md). **Shallow v1 scope** (extraction + ML, no `kg query` IR, Postgres deferral): [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). **GIL companion:** [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+
 ## See Also
 
 - [Core API](CORE.md) - Programmatic usage

@@ -108,7 +108,7 @@ def cleanup_pipeline(temp_dir: Optional[str]) -> None:
             logger.debug(f"Failed to remove temp directory {temp_dir}: {exc}")
 
 
-def generate_pipeline_summary(
+def generate_pipeline_summary(  # noqa: C901
     cfg: config.Config,
     saved: int,
     transcription_resources: TranscriptionResources,
@@ -220,6 +220,13 @@ def generate_pipeline_summary(
                     f"  - GIL evidence score_entailment calls: "
                     f"{pipeline_metrics.gi_evidence_score_entailment_calls}"
                 )
+        if getattr(cfg, "generate_kg", False):
+            if pipeline_metrics.kg_artifacts_generated > 0:
+                summary_lines.append(
+                    f"  - KG artifacts generated: {pipeline_metrics.kg_artifacts_generated}"
+                )
+            if pipeline_metrics.kg_failures > 0:
+                summary_lines.append(f"  - KG failures: {pipeline_metrics.kg_failures}")
 
         # Add error count if any
         if pipeline_metrics.errors_total > 0:

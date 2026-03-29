@@ -1407,13 +1407,63 @@ class Config(BaseModel):
         alias="gi_insight_source",
         description=(
             "Source of insight texts for GIL: 'provider' = call generate_insights() on "
-            "provider (LLM), 'summary_bullets', or 'stub' (default)."
+            "the summarization provider (LLM only; ML providers return empty), "
+            "'summary_bullets' = first N summary bullets (needs generate_summaries + bullets), "
+            "or 'stub' (default placeholder). See GROUNDED_INSIGHTS_GUIDE.md."
         ),
     )
     gi_max_insights: int = Field(
         default=5,
         alias="gi_max_insights",
         description="Max insights when gi_insight_source is provider or summary_bullets.",
+    )
+    # Knowledge Graph Layer (PRD-019 / RFC-055): per-episode kg.json when enabled
+    generate_kg: bool = Field(
+        default=False,
+        alias="generate_kg",
+        description=(
+            "Enable Knowledge Graph extraction; writes kg.json per episode " "(separate from GIL)."
+        ),
+    )
+    kg_extraction_source: Literal["stub", "summary_bullets", "provider"] = Field(
+        default="summary_bullets",
+        alias="kg_extraction_source",
+        description=(
+            "KG topics/entities source: 'provider' = LLM JSON extraction via "
+            "extract_kg_graph on summary_provider (ML providers no-op); "
+            "'summary_bullets' = topic nodes from summary bullets; "
+            "'stub' = episode + pipeline hosts/guests only (no summary topics)."
+        ),
+    )
+    kg_max_topics: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        alias="kg_max_topics",
+        description="Max topic nodes for summary_bullets or provider KG extraction.",
+    )
+    kg_max_entities: int = Field(
+        default=15,
+        ge=1,
+        le=50,
+        alias="kg_max_entities",
+        description="Max entity nodes from provider KG extraction.",
+    )
+    kg_extraction_model: Optional[str] = Field(
+        default=None,
+        alias="kg_extraction_model",
+        description=(
+            "Optional model override for KG LLM extraction; default uses the "
+            "summarization model for the active provider."
+        ),
+    )
+    kg_merge_pipeline_entities: bool = Field(
+        default=True,
+        alias="kg_merge_pipeline_entities",
+        description=(
+            "When True, merge detected hosts/guests into kg.json after provider extraction "
+            "(deduped by name). When False, only LLM entities (plus Episode)."
+        ),
     )
     metrics_output: Optional[str] = Field(
         default=None,
@@ -3102,6 +3152,13 @@ class Config(BaseModel):
             raise ValueError(
                 "generate_gi=True requires generate_metadata=True "
                 "(GIL artifact is written alongside episode metadata)"
+            )
+
+        # 6c. generate_kg requires generate_metadata (artifact co-located with metadata)
+        if self.generate_kg and not self.generate_metadata:
+            raise ValueError(
+                "generate_kg=True requires generate_metadata=True "
+                "(KG artifact is written alongside episode metadata)"
             )
 
         # === Output Control Validation ===

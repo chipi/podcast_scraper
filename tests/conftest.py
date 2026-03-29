@@ -129,6 +129,9 @@ def create_test_config(**overrides):
     if overrides.get("generate_summaries") and "generate_metadata" not in overrides:
         defaults["generate_metadata"] = True
 
+    if overrides.get("generate_kg") and "generate_metadata" not in overrides:
+        defaults["generate_metadata"] = True
+
     return config.Config(**defaults)
 
 

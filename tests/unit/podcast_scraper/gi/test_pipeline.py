@@ -11,6 +11,7 @@ from podcast_scraper.gi.pipeline import (
     _artifact_from_multi_insight,
     _char_range_to_ms,
     _resolve_insight_texts,
+    _speaker_id_for_char_range,
     build_artifact,
 )
 
@@ -311,6 +312,60 @@ class TestGILPipeline:
         """_char_range_to_ms returns (0, 0) when segments empty or no overlap."""
         assert _char_range_to_ms("hello", 0, 5, []) == (0, 0)
         assert _char_range_to_ms("", 0, 0, [{"start": 0.0, "end": 1.0, "text": "x"}]) == (0, 0)
+
+    def test_speaker_id_for_char_range_prefers_segment_at_char_start(self):
+        """_speaker_id_for_char_range uses speaker on segment containing char_start."""
+        transcript = "AA BB "
+        segments = [
+            {"start": 0.0, "end": 1.0, "text": "AA ", "speaker": "A"},
+            {"start": 1.0, "end": 2.0, "text": "BB ", "speaker": "B"},
+        ]
+        assert _speaker_id_for_char_range(transcript, 0, 2, segments) == "A"
+        assert _speaker_id_for_char_range(transcript, 3, 5, segments) == "B"
+
+    def test_speaker_id_for_char_range_accepts_speaker_id_key(self):
+        """Segment may use speaker_id instead of speaker."""
+        transcript = "x"
+        segments = [{"start": 0.0, "end": 1.0, "text": "x", "speaker_id": "SPK0"}]
+        assert _speaker_id_for_char_range(transcript, 0, 1, segments) == "SPK0"
+
+    def test_artifact_from_multi_insight_sets_speaker_id_from_segments(self):
+        """Quote speaker_id is filled when segments carry speaker labels."""
+        transcript = "First segment. Second segment."
+        segments = [
+            {"start": 0.0, "end": 1.5, "text": "First segment. ", "speaker": "Host"},
+            {"start": 1.5, "end": 3.0, "text": "Second segment.", "speaker": "Guest"},
+        ]
+        gq = GroundedQuote(
+            char_start=15,
+            char_end=32,
+            text="Second segment.",
+            qa_score=0.9,
+            nli_score=0.85,
+        )
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            ["Insight"],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+        )
+        quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
+        assert len(quote_nodes) == 1
+        assert quote_nodes[0]["properties"]["speaker_id"] == "Guest"
+        spoken = [e for e in out["edges"] if e["type"] == "SPOKEN_BY"]
+        assert len(spoken) == 1
+        assert spoken[0]["from"] == quote_nodes[0]["id"]
+        spk_nodes = [n for n in out["nodes"] if n["type"] == "Speaker"]
+        assert len(spk_nodes) == 1
+        assert spk_nodes[0]["properties"]["name"] == "Guest"
+        validate_artifact(out, strict=True)
 
     def test_char_range_to_ms_maps_span_to_timestamps(self):
         """_char_range_to_ms maps quote span to segment start/end in ms (FR2.2)."""

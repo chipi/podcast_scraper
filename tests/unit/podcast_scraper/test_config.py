@@ -335,6 +335,26 @@ class TestSummaryValidation(unittest.TestCase):
         self.assertTrue(cfg.generate_gi)
         self.assertTrue(cfg.generate_metadata)
 
+    def test_generate_kg_requires_metadata(self):
+        """Test that generate_kg=True requires generate_metadata=True."""
+        with self.assertRaises(ValidationError) as context:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                generate_kg=True,
+                generate_metadata=False,
+            )
+        self.assertIn("requires generate_metadata", str(context.exception))
+
+    def test_generate_kg_with_metadata_succeeds(self):
+        """Test that generate_kg works when metadata is enabled."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_kg=True,
+            generate_metadata=True,
+        )
+        self.assertTrue(cfg.generate_kg)
+        self.assertTrue(cfg.generate_metadata)
+
     def test_summary_provider_hybrid_ml_succeeds(self):
         """hybrid_ml summary provider keeps default hybrid model fields."""
         cfg = Config(

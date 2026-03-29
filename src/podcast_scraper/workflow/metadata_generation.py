@@ -408,6 +408,24 @@ class GroundedInsightsMetadata(BaseModel):
         return value.isoformat()
 
 
+class KnowledgeGraphMetadata(BaseModel):
+    """Provenance and index for the KG artifact (kg.json).
+
+    Full graph stays in kg.json; metadata holds counts and path only (PRD-019 FR4.2).
+    """
+
+    artifact_path: str = Field(description="Path to kg.json relative to output directory")
+    node_count: int = Field(description="Number of nodes in the KG artifact")
+    edge_count: int = Field(description="Number of edges in the KG artifact")
+    generated_at: datetime = Field(description="When the KG artifact was generated")
+    schema_version: str = Field(default="1.0", description="KG artifact schema version")
+
+    @field_serializer("generated_at")
+    def serialize_generated_at(self, value: datetime) -> str:
+        """Serialize datetime as ISO 8601 string for database compatibility."""
+        return value.isoformat()
+
+
 class EpisodeMetadataDocument(BaseModel):
     """Complete episode metadata document.
 
@@ -431,6 +449,7 @@ class EpisodeMetadataDocument(BaseModel):
     processing: ProcessingMetadata
     summary: Optional[SummaryMetadata] = None
     grounded_insights: Optional[GroundedInsightsMetadata] = None
+    knowledge_graph: Optional[KnowledgeGraphMetadata] = None
 
 
 def _build_feed_metadata(
@@ -2327,6 +2346,15 @@ def _determine_gi_path(metadata_path: str) -> str:
     return os.path.splitext(metadata_path)[0] + ".gi.json"
 
 
+def _determine_kg_path(metadata_path: str) -> str:
+    """Return path for KG artifact from metadata path (same dir, base name .kg.json)."""
+    if metadata_path.endswith(".metadata.json"):
+        return metadata_path.replace(".metadata.json", ".kg.json")
+    if metadata_path.endswith(".metadata.yaml"):
+        return metadata_path.replace(".metadata.yaml", ".kg.json")
+    return os.path.splitext(metadata_path)[0] + ".kg.json"
+
+
 def _serialize_metadata(
     metadata_doc: EpisodeMetadataDocument,
     metadata_path: str,
@@ -3216,6 +3244,91 @@ def generate_episode_metadata(  # noqa: C901
                     exc_info=True,
                 )
 
+    kg_meta: Optional[KnowledgeGraphMetadata] = None
+    if getattr(cfg, "generate_kg", False):
+        from .helpers import get_episode_id_from_episode
+
+        episode_id_for_kg, _ = get_episode_id_from_episode(episode, feed_url)
+        kg_path = _determine_kg_path(metadata_path)
+        transcript_text_kg = ""
+        if transcript_file_path and output_dir:
+            full_transcript_path_kg = os.path.join(output_dir, transcript_file_path)
+            if os.path.isfile(full_transcript_path_kg):
+                with open(full_transcript_path_kg, encoding="utf-8") as f:
+                    transcript_text_kg = f.read()
+        publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
+        max_kg_topics = int(getattr(cfg, "kg_max_topics", 5) or 5)
+        topic_labels_kg: Optional[List[str]] = None
+        if summary_metadata and getattr(summary_metadata, "bullets", None):
+            bullets_kg = summary_metadata.bullets
+            if bullets_kg:
+                topic_labels_kg = [str(b) for b in bullets_kg[:max_kg_topics]]
+        topic_hint_kg: Optional[str] = None
+        if topic_labels_kg:
+            topic_hint_kg = str(topic_labels_kg[0])[:200]
+        elif summary_text:
+            topic_hint_kg = str(summary_text)[:200]
+        kg_source = getattr(cfg, "kg_extraction_source", "summary_bullets")
+        kg_provider_arg: Optional[Any] = None
+        if kg_source == "provider" and summary_provider is not None:
+            kg_provider_arg = summary_provider
+        try:
+            kg_start = time.time()
+            from ..kg import (
+                build_artifact as kg_build_artifact,
+                write_artifact as kg_write_artifact,
+            )
+
+            kg_payload = kg_build_artifact(
+                episode_id,
+                transcript_text_kg,
+                podcast_id=feed_id,
+                episode_title=episode.title,
+                publish_date=publish_date_str_kg,
+                transcript_ref=transcript_file_path or "transcript.txt",
+                topic_label=topic_hint_kg if not topic_labels_kg else None,
+                topic_labels=topic_labels_kg,
+                detected_hosts=detected_hosts,
+                detected_guests=detected_guests,
+                cfg=cfg,
+                kg_extraction_provider=kg_provider_arg,
+                pipeline_metrics=pipeline_metrics,
+            )
+            kg_write_artifact(Path(kg_path), kg_payload, validate=True)
+            kg_elapsed = time.time() - kg_start
+            logger.debug("[%s] Generated KG artifact: %s", episode.idx, kg_path)
+            nodes_kg = kg_payload.get("nodes") or []
+            edges_kg = kg_payload.get("edges") or []
+            kg_meta = KnowledgeGraphMetadata(
+                artifact_path=os.path.relpath(kg_path, output_dir),
+                node_count=len(nodes_kg),
+                edge_count=len(edges_kg),
+                generated_at=datetime.now(),
+                schema_version=str(kg_payload.get("schema_version", "1.0")),
+            )
+            if pipeline_metrics is not None:
+                pipeline_metrics.kg_artifacts_generated += 1
+                pipeline_metrics.record_kg_artifact_stats(kg_payload)
+                pipeline_metrics.record_kg_time(kg_elapsed)
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id_for_kg, stage="kg_written"
+                )
+                pipeline_metrics.update_episode_metrics(
+                    episode_id=episode_id_for_kg, kg_sec=kg_elapsed
+                )
+        except Exception as kg_exc:
+            if pipeline_metrics is not None:
+                pipeline_metrics.kg_failures += 1
+                pipeline_metrics.update_episode_status(
+                    episode_id=episode_id_for_kg, stage="kg_failed"
+                )
+            logger.warning(
+                "[%s] KG artifact generation failed (non-fatal): %s",
+                episode.idx,
+                kg_exc,
+                exc_info=True,
+            )
+
     # Build complete metadata document (includes grounded_insights when GIL ran)
     metadata_doc = EpisodeMetadataDocument(
         feed=feed_metadata,
@@ -3224,6 +3337,7 @@ def generate_episode_metadata(  # noqa: C901
         processing=processing_metadata,
         summary=summary_metadata,
         grounded_insights=gi_meta,
+        knowledge_graph=kg_meta,
     )
 
     # Serialize and write metadata

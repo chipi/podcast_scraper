@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GI / KG viz — choose viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>GI / KG local viz</h1>
+      <p class="lede">
+        Prototype for
+        <a href="https://github.com/chipi/podcast_scraper/issues/445" rel="noopener noreferrer"
+          >issue #445</a
+        >: load <code>.gi.json</code> / <code>.kg.json</code> from disk, no backend. Two graph
+        engines so you can compare; JSON-only mode skips graph libs.
+      </p>
+    </header>
+
+    <section class="hub">
+      <ul class="hub-list">
+        <li>
+          <a class="hub-card" href="graph-vis.html">
+            <span class="hub-card-title">Graph — vis-network</span>
+            <span class="hub-card-desc"
+              >Physics, filters (node types + hide ungrounded insights), pan/zoom/drag, fit +
+              re-stabilize, Chart.js bars, CLI cheatsheet.</span
+            >
+          </a>
+        </li>
+        <li>
+          <a class="hub-card" href="graph-cyto.html">
+            <span class="hub-card-title">Graph — Cytoscape.js</span>
+            <span class="hub-card-desc"
+              >Same features with cose layout — pick a winner vs vis-network.</span
+            >
+          </a>
+        </li>
+        <li>
+          <a class="hub-card" href="json-only.html">
+            <span class="hub-card-title">JSON + metrics + chart</span>
+            <span class="hub-card-desc"
+              >Overview, node-type pills, Chart.js distribution, raw JSON. Minimal deps.</span
+            >
+          </a>
+        </li>
+      </ul>
+      <p class="hub-run">
+        From repo root:
+        <code>make serve-gi-kg-viz</code>
+        then open
+        <a href="http://127.0.0.1:8765/">http://127.0.0.1:8765/</a>
+        (avoids browser restrictions on CDNs under <code>file://</code>).
+      </p>
+    </section>
+
+    <footer class="footer">
+      <p>See <code>web/gi-kg-viz/README.md</code> for details.</p>
+    </footer>
+  </body>
+</html>

@@ -125,6 +125,7 @@ class JSONLEmitter:
             "transcribe_sec": episode_metrics.transcribe_sec,
             "summary_sec": episode_metrics.summary_sec,
             "gi_sec": episode_metrics.gi_sec,
+            "kg_sec": episode_metrics.kg_sec,
             "retries": episode_metrics.retries,
             "rate_limit_sleep_sec": episode_metrics.rate_limit_sleep_sec,
             "prompt_tokens": episode_metrics.prompt_tokens,
@@ -165,6 +166,14 @@ class JSONLEmitter:
             "gi_evidence_score_entailment_calls": metrics_dict.get(
                 "gi_evidence_score_entailment_calls"
             ),
+            "kg_artifacts_generated": metrics_dict.get("kg_artifacts_generated"),
+            "kg_failures": metrics_dict.get("kg_failures"),
+            "kg_provider_extractions": metrics_dict.get("kg_provider_extractions"),
+            "kg_topic_nodes_total": metrics_dict.get("kg_topic_nodes_total"),
+            "kg_entity_nodes_total": metrics_dict.get("kg_entity_nodes_total"),
+            "kg_extractions_stub": metrics_dict.get("kg_extractions_stub"),
+            "kg_extractions_summary_bullets": metrics_dict.get("kg_extractions_summary_bullets"),
+            "kg_extractions_provider": metrics_dict.get("kg_extractions_provider"),
             "schema_version": metrics_dict.get("schema_version"),
         }
         self._write_line(event)

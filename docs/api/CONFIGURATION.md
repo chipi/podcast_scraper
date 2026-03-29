@@ -754,6 +754,32 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
 
+#### Knowledge Graph (KG)
+
+| Field | CLI Flag | Default | Description |
+| --- | --- | --- | --- |
+| `generate_kg` | `--generate-kg` | `false` | Write per-episode `*.kg.json` during metadata generation. Requires `generate_metadata=true`. Separate from GIL. See [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md). |
+| `kg_extraction_source` | `--kg-extraction-source` | `summary_bullets` | `stub`, `summary_bullets`, or `provider` (LLM `extract_kg_graph` on summary provider; ML providers no-op). |
+| `kg_max_topics` | `--kg-max-topics` | `5` | Max topic nodes (bullets or provider). |
+| `kg_max_entities` | `--kg-max-entities` | `15` | Max entity nodes from provider extraction. |
+| `kg_extraction_model` | `--kg-extraction-model` | (none) | Optional model override for KG LLM calls; else summary model. |
+| `kg_merge_pipeline_entities` | `--no-kg-merge-pipeline-entities` | `true` | Merge hosts/guests after provider extraction unless flag sets false. |
+
+**Shallow v1 decisions (KG):** Extraction vs ML, entity roll-up limits, CLI surface (no `kg query` IR), and Postgres deferral are summarized in [KNOWLEDGE_GRAPH_GUIDE § Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). For GIL, see [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+
+#### Grounded Insights (GIL)
+
+| Field | CLI Flag | Default | Description |
+| --- | --- | --- | --- |
+| `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
+| `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
+| `gi_max_insights` | `--gi-max-insights` | `5` | Max insights when using `provider` or `summary_bullets`. |
+| `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
+
+When `summary_provider` is `transformers` or `hybrid_ml`, use **`gi_insight_source: summary_bullets`** (with bullets) or an LLM provider for real insight wording; **`stub`** is for tests/smoke only (CLI warns outside pytest when `generate_gi` + `stub`).
+
+**Shallow v1 decisions (issue #460):** ML vs `stub` vs `summary_bullets`, topic explore semantics, speaker best-effort behavior, and Postgres deferral are summarized in [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+
 #### Grounded Insights (GIL) evidence providers
 
 When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a configurable evidence stack for quote extraction (QA) and entailment (NLI). Same backends as `summary_provider`.

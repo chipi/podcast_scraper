@@ -7,8 +7,9 @@ evidence-backed insights (`gi.json`).
 
 **Status:** KG is specified in [PRD-019](../prd/PRD-019-knowledge-graph-layer.md) and
 [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) / [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md).
-Operational details below will be filled in as implementation lands (config keys, file
-paths, CLI subcommands).
+**Implemented:** `generate_kg` + per-episode `*.kg.json`, configurable extraction
+(`kg_extraction_source`: stub / summary_bullets / provider with LLM `extract_kg_graph`),
+and the `kg` CLI (RFC-056).
 
 ---
 
@@ -22,7 +23,7 @@ It is **not** a rename of grounded insights. **GIL** (`gi`, `gi.json`) remains
 | Aspect | GIL (PRD-017) | KG (PRD-019) |
 | --- | --- | --- |
 | Primary question | What is claimed, and what evidence supports it? | What is linked to what (entities, themes)? |
-| Canonical artifact | `gi.json` | KG JSON per RFC-055 (filename TBD at implementation) |
+| Canonical artifact | `gi.json` | `*.kg.json` next to metadata (same basename as `.metadata.json`) |
 | User-facing CLI | `gi` | `kg` |
 
 ---
@@ -43,34 +44,51 @@ Summaries are not a substitute for verification when claims matter; **GIL** is w
 
 ## Enabling KG
 
-**Planned (v1):** A config flag such as **`generate_kg`** (default `false`) and optional
-provider/model settings aligned with RFC-055. Exact names will appear in
-`docs/api/CONFIGURATION.md` when implemented.
+- **Config:** `generate_kg: true` (default `false`). Requires `generate_metadata: true`
+  (same rule as GIL).
+- **CLI:** `--generate-kg` (with `--generate-metadata`).
 
-Pipeline order for KG is **after** transcript (and typically after summarization/metadata)
-when those are prerequisites; RFC-055 defines hard prerequisites (e.g. transcript
-available).
+### Extraction modes (GI-style)
+
+| `kg_extraction_source` | Behavior |
+| --- | --- |
+| `summary_bullets` (default) | **Topic** nodes from the first `kg_max_topics` summary bullets (needs `generate_summaries` + bullets). **Entity** nodes from detected hosts/guests. `extraction.model_version` records `summary_bullets`. |
+| `stub` | **Episode** + hosts/guests only; ignores summary bullets for topics. |
+| `provider` | Calls `extract_kg_graph()` on the **summarization** provider (LLM JSON: topics + entities). **ML** providers (`transformers`, `hybrid_ml`) return no graph fragment — pipeline **falls back** to summary bullets when available. Optional `kg_extraction_model` overrides the chat model. `kg_merge_pipeline_entities` (default `true`) adds hosts/guests after LLM entities, deduped by name. |
+
+CLI flags: `--kg-extraction-source`, `--kg-max-topics`, `--kg-max-entities`,
+`--kg-extraction-model`, `--no-kg-merge-pipeline-entities`.
+
+Pipeline: KG runs during **metadata generation**. Use a transcript on disk so provider
+mode can read text; `extraction.transcript_ref` stays in the artifact for provenance.
 
 ---
 
 ## Output Artifacts
 
-- **Per-episode KG JSON** co-located with episode outputs (path pattern finalized in
-  RFC-055).
+- **File:** `metadata/<episode_basename>.kg.json` (alongside `.metadata.json` / `.gi.json`).
+- **Ontology:** [docs/kg/ontology.md](../kg/ontology.md) (**v1 frozen**, GitHub #464 — matches shipped pipeline).
+- **Schema:** [docs/kg/kg.schema.json](../kg/kg.schema.json) — validate with
+  `make validate-kg-schema [ARTIFACTS_DIR=path]`.
 
-- **Ontology**: [docs/kg/ontology.md](../kg/ontology.md) (draft).
-- **Schema**: `docs/kg/kg.schema.json` — published with or before first implementation.
-
-Metadata may include a **lightweight index** to the KG artifact (mirroring the GIL index
-pattern in metadata) per PRD-019 FR4.2.
+Episode **metadata** includes `knowledge_graph` when KG ran: `artifact_path`, `node_count`,
+`edge_count`, `generated_at`, `schema_version` (provenance only; full graph is in `kg.json`).
 
 ---
 
 ## CLI (`kg` namespace)
 
-RFC-055 reserves the **`kg`** namespace for inspect/export/validate-style commands. RFC-056
-describes intended consumption patterns. **Concrete subcommands and flags** will be
-documented here and in `docs/api/CLI.md` once available.
+Run as `python -m podcast_scraper.cli kg <subcommand> ...` (same entrypoint as `gi`).
+
+| Subcommand | Purpose |
+| --- | --- |
+| **`kg validate`** | Validate one or more paths (files or directories) against `kg.schema.json`. Use **`--strict`** for full JSON Schema. **`-q`** / **`--quiet`**: only failures. |
+| **`kg inspect`** | Summarize one episode artifact: **`--episode-path`** to `.kg.json`, or **`--output-dir`** + **`--episode-id`**. **`--format json`** for machine output. |
+| **`kg export`** | Scan **`--output-dir`** for all `*.kg.json`. **`--format ndjson`** (default) or **`merged`**. **`--out PATH`** or stdout. **`--strict`** to require schema-valid artifacts. |
+| **`kg entities`** | Cross-episode **entity roll-up** (counts, episodes, mentions). **`--min-episodes N`**, **`--format json`**. |
+| **`kg topics`** | **Topic pair co-occurrence** within the same episode. **`--min-support N`**, **`--format json`**. |
+
+See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
 
 ---
 
@@ -84,10 +102,58 @@ documented here and in `docs/api/CLI.md` once available.
 
 ## Validation and troubleshooting
 
-When `kg.schema.json` exists, validation should mirror the GIL pattern (e.g. a
-**`validate`** command or CI check). Troubleshooting notes will be added after initial
-implementation (common failure modes: missing transcript, extraction timeouts, schema
-mismatches).
+- **Strict JSON Schema:** `make validate-kg-schema` or
+  `python scripts/tools/validate_kg_schema.py path/to/dir-or-file.kg.json`, or
+  `python -m podcast_scraper.cli kg validate PATH [PATH...] --strict`
+- **PRD-019 metrics (optional gates):** `make kg-quality-metrics DIR=path/to/run`
+  or `python scripts/tools/kg_quality_metrics.py path … [--enforce --strict-schema]`.
+  CI runs the same enforce pass as GIL on `tests/fixtures/gil_kg_ci_enforce` via
+  `make quality-metrics-ci`.
+- **Fixture:** `tests/fixtures/kg/minimal.kg.json` for smoke checks.
+- **Acceptance (E2E configs):** `config/acceptance/kg/*.yaml` — mirrors
+  `config/acceptance/gi/` (Planet Money + The Journal; ML, OpenAI, Ollama, Anthropic,
+  Gemini, Mistral, DeepSeek, Grok). Stub-style configs use `kg_extraction_source: stub`
+  (like GI default `gi_insight_source: stub`); bullet-driven configs use
+  `acceptance_*_kg_ml_summary_bullets.yaml`. Run:
+  `make test-acceptance CONFIGS="config/acceptance/kg/*.yaml"`.
+
+Run metrics export (`metrics.json`) includes KG rollups: `kg_topic_nodes_total`,
+`kg_entity_nodes_total`, `kg_extractions_stub` / `kg_extractions_summary_bullets` /
+`kg_extractions_provider`, `kg_avg_topics_per_artifact`, `kg_avg_entities_per_artifact`.
+
+Failures during KG write are **non-fatal** (metadata is still written); check logs for
+`KG artifact generation failed`. Common causes: disk permissions, or schema drift if
+`kg.schema.json` was tightened without updating the builder.
+
+---
+
+## Choosing a mode (operations)
+
+| When to use | Mode | Notes |
+| --- | --- | --- |
+| Fastest, no LLM cost, corpus smoke tests | `stub` | Episode + detected hosts/guests only; no LLM topics. |
+| Good default when you already generate summary bullets | `summary_bullets` (default) | Topics from bullets; entities from pipeline names. No extra LLM call for KG. |
+| Richer topics/entities from transcript text | `provider` | **Extra** chat completion per episode on the **same** summarization provider as summaries. Adds latency and token cost on top of summarization. |
+
+**ML / hybrid ML summarization:** `extract_kg_graph` is not implemented for local ML-only paths. With `kg_extraction_source: provider`, the pipeline **falls back** to `summary_bullets` when bullets exist; otherwise you may get a sparse graph (stub-like). Prefer **`summary_bullets`** or **`stub`** for ML-heavy runs unless you also use an API summarization provider.
+
+**Empty or tiny graphs:** Check `extraction.model_version` in `*.kg.json` (`stub`, `summary_bullets`, or `provider:…`). If provider calls fail, logs show a debug message and the builder may fall back. Validate artifacts with `kg validate --strict` and inspect counts via `kg inspect --format json`.
+
+**JSONL metrics:** When `jsonl_metrics_enabled` is on, `episode_finished` lines include `kg_sec` (wall time for KG for that episode). `run_finished` lines include KG rollups (`kg_artifacts_generated`, `kg_failures`, `kg_provider_extractions`, extraction-mode counts, node totals) alongside the existing GI fields.
+
+---
+
+## Recorded product decisions (v1, KG shallow) {#recorded-product-decisions-v1-kg}
+
+This table mirrors the **GIL v1 record** in [Grounded Insights Guide § Recorded product decisions (v1, issue 460)](GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460) so operators who enable **both** flags see aligned expectations. It captures **what shallow v1 KG promises**, not the full [depth backlog](https://github.com/chipi/podcast_scraper/issues/466).
+
+| Decision area | v1 choice |
+| --- | --- |
+| **Extraction + ML** | Default **`kg_extraction_source: summary_bullets`** (topics from bullets, entities from pipeline hosts/guests). **`stub`** = episode + hosts/guests only—good for smoke tests. **`provider`** calls LLM **`extract_kg_graph`** on the summarization provider; **`transformers` / `hybrid_ml`** do **not** implement it—the pipeline **falls back** to summary bullets when available, else a sparse graph. The CLI emits a **warning** when **`kg_extraction_source: provider`** and **`summary_provider`** is ML (outside pytest). Details: [Choosing a mode (operations)](#choosing-a-mode-operations). |
+| **Entity / topic identity** | **Episode-local** labels and slugs; **no** web-scale entity resolution or global canonical IDs (per [PRD-019](../prd/PRD-019-knowledge-graph-layer.md) non-goals). **`kg entities`** roll-ups match strings/slugs as extracted—treat counts as **indicative**, not a curated knowledge base. |
+| **Consumption CLI** | **`kg validate`**, **`inspect`**, **`export`**, **`entities`**, **`topics`** only—file scan and aggregations ([RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)). **No** `kg query` IR or NL layer in v1 ([GitHub #466](https://github.com/chipi/podcast_scraper/issues/466)). |
+| **GIL ↔ KG in artifacts** | **No** required links from KG nodes to **`insight_id`** or quotes in v1 (optional future work; same epic as above). |
+| **Scale / SQL** | Same as GIL: **file-based** consumption first. **Postgres** ([PRD-018](../prd/PRD-018-database-projection-gil-kg.md), [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md)) is **separate**—track with a dedicated issue if none exists. |
 
 ---
 
@@ -99,3 +165,4 @@ mismatches).
 - [RFC-056: KG — Use Cases & Consumption](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md) (GIL)
 - [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
+- [Recorded product decisions (v1, KG shallow)](#recorded-product-decisions-v1-kg) — v1 scope table (this guide)

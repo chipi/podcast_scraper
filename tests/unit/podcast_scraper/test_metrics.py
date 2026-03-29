@@ -111,6 +111,24 @@ class TestRecordStage(unittest.TestCase):
         m.record_stage("scraping", 0.5)
         self.assertEqual(m.time_scraping, 3.5)
 
+    def test_record_kg_artifact_stats(self):
+        """KG node counts and extraction-mode tallies from one payload."""
+        m = metrics.Metrics()
+        payload = {
+            "extraction": {"model_version": "provider:gpt-test"},
+            "nodes": [
+                {"type": "Episode"},
+                {"type": "Topic"},
+                {"type": "Entity"},
+                {"type": "Entity"},
+            ],
+        }
+        m.record_kg_artifact_stats(payload)
+        self.assertEqual(m.kg_extractions_provider, 1)
+        self.assertEqual(m.kg_episode_nodes_total, 1)
+        self.assertEqual(m.kg_topic_nodes_total, 1)
+        self.assertEqual(m.kg_entity_nodes_total, 2)
+
 
 class TestRecordDownloadMediaTime(unittest.TestCase):
     """Test record_download_media_time method."""
@@ -307,6 +325,17 @@ class TestFinish(unittest.TestCase):
             "summarize_count",
             "gi_artifacts_generated",
             "gi_failures",
+            "kg_artifacts_generated",
+            "kg_failures",
+            "kg_provider_extractions",
+            "kg_topic_nodes_total",
+            "kg_entity_nodes_total",
+            "kg_episode_nodes_total",
+            "kg_extractions_stub",
+            "kg_extractions_summary_bullets",
+            "kg_extractions_provider",
+            "kg_avg_topics_per_artifact",
+            "kg_avg_entities_per_artifact",
             "gi_evidence_path_provider",
             "gi_evidence_path_legacy",
             "gi_evidence_extract_quotes_calls",
@@ -324,6 +353,8 @@ class TestFinish(unittest.TestCase):
             "gi_avg_quotes_per_episode",
             "avg_gi_seconds",
             "gi_count",
+            "avg_kg_seconds",
+            "kg_count",
             # LLM metrics
             "llm_transcription_calls",
             "llm_transcription_audio_minutes",

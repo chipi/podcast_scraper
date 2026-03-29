@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "episode_id": "fixture:minimal-kg",
+  "extraction": {
+    "model_version": "stub",
+    "extracted_at": "2026-03-29T12:00:00Z",
+    "transcript_ref": "transcript.txt"
+  },
+  "nodes": [
+    {
+      "id": "kg:episode:fixture:minimal-kg",
+      "type": "Episode",
+      "properties": {
+        "podcast_id": "podcast:fixture",
+        "title": "Fixture episode",
+        "publish_date": "2026-03-29T12:00:00Z"
+      }
+    }
+  ],
+  "edges": []
+}

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GI / KG graph — Cytoscape</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script
+      src="https://unpkg.com/cytoscape@3.30.3/dist/cytoscape.min.js"
+      defer
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+      defer
+    ></script>
+    <script src="shared.js" defer></script>
+    <script src="viewer-shell.js" defer></script>
+    <script src="cli-hints.js" defer></script>
+    <script src="metrics-charts.js" defer></script>
+    <script src="filters-panel.js" defer></script>
+    <script src="graph-cyto.js" defer></script>
+  </head>
+  <body>
+    <header class="header">
+      <nav class="viz-nav" aria-label="Viewer variants">
+        <a href="graph-vis.html">vis-network</a>
+        <span class="viz-nav-sep">·</span>
+        <a href="graph-cyto.html" aria-current="page">Cytoscape</a>
+        <span class="viz-nav-sep">·</span>
+        <a href="json-only.html">JSON only</a>
+        <span class="viz-nav-sep">·</span>
+        <a href="index.html">Home</a>
+      </nav>
+      <h1>GI / KG graph (Cytoscape.js)</h1>
+      <p class="lede">
+        Same behavior as the vis-network page: filters, <strong>cose</strong> layout, fit and
+        re-layout, <strong>Chart.js</strong> distribution. Requires CDN (Cytoscape + Chart.js).
+      </p>
+    </header>
+
+    <section class="panel">
+      <label class="file-label" for="file-picker">Load artifacts</label>
+      <input
+        id="file-picker"
+        type="file"
+        accept=".json,application/json"
+        multiple
+      />
+      <button type="button" id="clear-btn" class="secondary">Clear all</button>
+    </section>
+
+    <section class="layout layout-graph">
+      <div class="col graph-sidebar">
+        <h2>Loaded files</h2>
+        <p id="empty-hint" class="hint">No files loaded yet.</p>
+        <ul id="file-list" class="file-list hidden" aria-live="polite"></ul>
+        <div id="filter-panel" class="filter-panel-wrap">
+          <p class="hint">Load a file to use graph filters.</p>
+        </div>
+      </div>
+      <div class="col graph-metrics">
+        <h2>Overview</h2>
+        <div id="metrics-panel" class="metrics-panel">
+          <p class="hint">Select a file from the list.</p>
+        </div>
+        <h2>Node types</h2>
+        <div id="node-type-pills" class="node-type-wrap">
+          <p class="hint">—</p>
+        </div>
+        <h2>Distribution</h2>
+        <div class="chart-wrap">
+          <canvas id="metrics-chart" width="400" height="220" aria-label="Nodes by type"></canvas>
+        </div>
+      </div>
+      <div class="graph-wrap">
+        <h2>Graph</h2>
+        <div class="graph-toolbar">
+          <button type="button" id="btn-fit" class="secondary">Fit view</button>
+          <button type="button" id="btn-layout" class="secondary">Re-run cose</button>
+        </div>
+        <div id="graph-canvas" class="graph-canvas">
+          <p class="hint graph-placeholder">Pick a file to render the graph.</p>
+        </div>
+      </div>
+      <details class="cli-wrap">
+        <summary>CLI — regenerate artifacts</summary>
+        <div data-cli-hints></div>
+      </details>
+      <details class="raw-wrap">
+        <summary>Raw JSON (full file)</summary>
+        <p class="hint raw-hint">
+          Graph and chart use <strong>filtered</strong> nodes/edges; this dump is the full
+          artifact.
+        </p>
+        <pre id="raw-json" class="raw hidden"></pre>
+      </details>
+    </section>
+
+    <footer class="footer">
+      <p>
+        Issue
+        <a
+          href="https://github.com/chipi/podcast_scraper/issues/445"
+          rel="noopener noreferrer"
+          >#445</a
+        >
+        — compare with <a href="graph-vis.html">vis-network</a> variant.
+      </p>
+    </footer>
+  </body>
+</html>

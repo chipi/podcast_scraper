@@ -38,6 +38,7 @@ class EpisodeMetrics:
     transcribe_sec: Optional[float] = None  # Transcription time in seconds
     summary_sec: Optional[float] = None  # Summarization time in seconds
     gi_sec: Optional[float] = None  # GIL artifact generation time in seconds
+    kg_sec: Optional[float] = None  # KG artifact generation time in seconds
     retries: int = 0  # Number of retries (transcription + summarization)
     rate_limit_sleep_sec: float = 0.0  # Time spent sleeping due to rate limits
     prompt_tokens: Optional[int] = None  # Input tokens (transcription + summarization)
@@ -70,6 +71,16 @@ class Metrics:
     metadata_files_generated: int = 0  # Metadata files created
     gi_artifacts_generated: int = 0  # GIL artifacts (gi.json) written
     gi_failures: int = 0  # GIL artifact generation failures (non-fatal)
+    kg_artifacts_generated: int = 0  # KG artifacts (kg.json) written
+    kg_failures: int = 0  # KG artifact generation failures (non-fatal)
+    kg_provider_extractions: int = 0  # KG artifacts that used LLM extract_kg_graph successfully
+    # KG aggregate stats (per-artifact rollups; Issue KG parity with GIL metrics)
+    kg_topic_nodes_total: int = 0  # Sum of Topic nodes across kg.json written this run
+    kg_entity_nodes_total: int = 0  # Sum of Entity nodes across kg.json
+    kg_episode_nodes_total: int = 0  # Sum of Episode nodes (typically == kg_artifacts_generated)
+    kg_extractions_stub: int = 0  # Artifacts whose extraction.model_version is stub-like
+    kg_extractions_summary_bullets: int = 0  # model_version == summary_bullets
+    kg_extractions_provider: int = 0  # model_version startswith provider:
     gi_evidence_path_provider: int = 0  # GIL artifacts built via provider path (QA+NLI)
     gi_evidence_path_legacy: int = 0  # GIL artifacts built via legacy path (direct ML)
     gi_evidence_extract_quotes_calls: int = 0  # extract_quotes calls on provider path
@@ -123,6 +134,7 @@ class Metrics:
         default_factory=list
     )  # Summary generation times per episode
     gi_times: List[float] = field(default_factory=list)  # GIL artifact generation times per episode
+    kg_times: List[float] = field(default_factory=list)  # KG artifact generation times per episode
 
     # LLM API call tracking (for cost estimation)
     llm_transcription_calls: int = 0  # Number of transcription API calls
@@ -323,6 +335,36 @@ class Metrics:
             duration: Duration in seconds
         """
         self.gi_times.append(duration)
+
+    def record_kg_time(self, duration: float) -> None:
+        """Record time spent generating KG artifact for an episode.
+
+        Args:
+            duration: Duration in seconds
+        """
+        self.kg_times.append(duration)
+
+    def record_kg_artifact_stats(self, payload: Dict[str, Any]) -> None:
+        """Accumulate KG node counts and extraction-mode tallies from one kg.json payload.
+
+        Args:
+            payload: Parsed KG artifact dict (schema_version, extraction, nodes, edges).
+        """
+        mv = str((payload.get("extraction") or {}).get("model_version", "") or "")
+        if mv.startswith("provider:"):
+            self.kg_extractions_provider += 1
+        elif mv == "summary_bullets":
+            self.kg_extractions_summary_bullets += 1
+        else:
+            self.kg_extractions_stub += 1
+        for n in payload.get("nodes") or []:
+            t = n.get("type")
+            if t == "Topic":
+                self.kg_topic_nodes_total += 1
+            elif t == "Entity":
+                self.kg_entity_nodes_total += 1
+            elif t == "Episode":
+                self.kg_episode_nodes_total += 1
 
     def record_gi_success_counts(
         self,
@@ -607,6 +649,7 @@ class Metrics:
         transcribe_sec: Optional[float] = None,
         summary_sec: Optional[float] = None,
         gi_sec: Optional[float] = None,
+        kg_sec: Optional[float] = None,
         retries: Optional[int] = None,
         rate_limit_sleep_sec: Optional[float] = None,
         prompt_tokens: Optional[int] = None,
@@ -621,6 +664,7 @@ class Metrics:
             transcribe_sec: Transcription time in seconds
             summary_sec: Summarization time in seconds
             gi_sec: GIL artifact generation time in seconds
+            kg_sec: KG artifact generation time in seconds
             retries: Number of retries (will be added to existing count)
             rate_limit_sleep_sec: Time spent sleeping due to rate limits (will be added)
             prompt_tokens: Input tokens (will be added to existing count)
@@ -638,6 +682,8 @@ class Metrics:
                         metrics.summary_sec = summary_sec
                     if gi_sec is not None:
                         metrics.gi_sec = gi_sec
+                    if kg_sec is not None:
+                        metrics.kg_sec = kg_sec
                     if retries is not None:
                         metrics.retries += retries
                     if rate_limit_sleep_sec is not None:
@@ -665,6 +711,7 @@ class Metrics:
                 transcribe_sec=transcribe_sec,
                 summary_sec=summary_sec,
                 gi_sec=gi_sec,
+                kg_sec=kg_sec,
                 retries=retries or 0,
                 rate_limit_sleep_sec=rate_limit_sleep_sec or 0.0,
                 prompt_tokens=prompt_tokens,
@@ -703,6 +750,7 @@ class Metrics:
             else 0.0
         )
         avg_gi = round(sum(self.gi_times) / len(self.gi_times), 2) if self.gi_times else 0.0
+        avg_kg = round(sum(self.kg_times) / len(self.kg_times), 2) if self.kg_times else 0.0
         avg_preprocessing = (
             round(sum(self.preprocessing_times) / len(self.preprocessing_times), 2)
             if self.preprocessing_times
@@ -735,6 +783,25 @@ class Metrics:
             "metadata_files_generated": self.metadata_files_generated,
             "gi_artifacts_generated": self.gi_artifacts_generated,
             "gi_failures": self.gi_failures,
+            "kg_artifacts_generated": self.kg_artifacts_generated,
+            "kg_failures": self.kg_failures,
+            "kg_provider_extractions": self.kg_provider_extractions,
+            "kg_topic_nodes_total": self.kg_topic_nodes_total,
+            "kg_entity_nodes_total": self.kg_entity_nodes_total,
+            "kg_episode_nodes_total": self.kg_episode_nodes_total,
+            "kg_extractions_stub": self.kg_extractions_stub,
+            "kg_extractions_summary_bullets": self.kg_extractions_summary_bullets,
+            "kg_extractions_provider": self.kg_extractions_provider,
+            "kg_avg_topics_per_artifact": (
+                round(self.kg_topic_nodes_total / self.kg_artifacts_generated, 2)
+                if self.kg_artifacts_generated
+                else 0.0
+            ),
+            "kg_avg_entities_per_artifact": (
+                round(self.kg_entity_nodes_total / self.kg_artifacts_generated, 2)
+                if self.kg_artifacts_generated
+                else 0.0
+            ),
             "gi_evidence_path_provider": self.gi_evidence_path_provider,
             "gi_evidence_path_legacy": self.gi_evidence_path_legacy,
             "gi_evidence_extract_quotes_calls": self.gi_evidence_extract_quotes_calls,
@@ -811,6 +878,7 @@ class Metrics:
             "avg_extract_names_seconds": avg_extract_names,
             "avg_summarize_seconds": avg_summarize,
             "avg_gi_seconds": avg_gi,
+            "avg_kg_seconds": avg_kg,
             # Operation counts for context
             "download_media_count": len(
                 self.download_media_times
@@ -823,6 +891,7 @@ class Metrics:
             "extract_names_count": len(self.extract_names_times),
             "summarize_count": len(self.summarize_times),
             "gi_count": len(self.gi_times),
+            "kg_count": len(self.kg_times),
             # LLM API call tracking
             "llm_transcription_calls": self.llm_transcription_calls,
             "llm_transcription_audio_minutes": round(self.llm_transcription_audio_minutes, 2),
