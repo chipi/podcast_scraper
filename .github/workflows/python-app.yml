@@ -230,6 +230,18 @@ jobs:
         fi
       env:
         PACKAGE: podcast_scraper
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.unit
+          echo "✅ Exported reports/coverage-data.unit for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after unit tests"
+        fi
     - name: Generate coverage summary
       if: always()
       run: |
@@ -268,7 +280,9 @@ jobs:
       uses: actions/upload-artifact@v6
       with:
         name: coverage-unit
-        path: reports/coverage.xml
+        path: |
+          reports/coverage.xml
+          reports/coverage-data.unit
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON report
@@ -522,12 +536,26 @@ jobs:
           echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
           exit $PYTEST_EXIT_CODE
         fi
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.integration
+          echo "✅ Exported reports/coverage-data.integration for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after integration tests"
+        fi
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v6
       with:
         name: coverage-integration
-        path: reports/coverage-integration.xml
+        path: |
+          reports/coverage-integration.xml
+          reports/coverage-data.integration
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON report
@@ -940,12 +968,26 @@ jobs:
           echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
           exit $PYTEST_EXIT_CODE
         fi
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.e2e
+          echo "✅ Exported reports/coverage-data.e2e for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after E2E tests"
+        fi
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v6
       with:
         name: coverage-e2e
-        path: reports/coverage-e2e.xml
+        path: |
+          reports/coverage-e2e.xml
+          reports/coverage-data.e2e
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON reports
@@ -1006,10 +1048,11 @@ jobs:
         python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Install coverage tools only
+    - name: Install coverage tooling and project (for combine + report parity with local)
       run: |
         python -m pip install --upgrade pip
-        pip install coverage[toml]  # Only coverage tool needed for combining reports
+        pip install coverage[toml]
+        pip install -e .
     - name: Download coverage artifacts
       uses: actions/download-artifact@v7
       with:
@@ -1066,119 +1109,30 @@ jobs:
 
         print(f"📊 Combined: {total} tests, {passed} passed, {combined['summary']['failed']} failed")
         EOF
-    - name: Combine coverage reports
+    - name: Combine coverage with coverage.py (matches local make coverage-enforce)
       run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         mkdir -p reports
-        # Combine all coverage XML files into a unified report
-        # Uses Python script to properly merge coverage data from multiple sources
-        python3 << 'EOF'
-        import xml.etree.ElementTree as ET
-        from pathlib import Path
-        import os
-
-        def normalize_coverage_filename(filename: str) -> str:
-            """Unify Cobertura paths so unit vs integration jobs merge the same file.
-
-            Otherwise ``src/podcast_scraper/foo.py`` and ``podcast_scraper/foo.py``
-            double-count lines and deflate the combined percentage.
-            """
-            fn = filename.replace("\\", "/")
-            if fn.startswith("src/podcast_scraper/"):
-                return fn[4:]
-            return fn
-
-        def parse_coverage_xml(filepath):
-            """Parse a coverage XML file and return line coverage data."""
-            tree = ET.parse(filepath)
-            root = tree.getroot()
-            coverage_data = {}
-
-            for package in root.findall('.//package'):
-                for cls in package.findall('.//class'):
-                    raw = cls.get('filename', '')
-                    if not raw:
-                        continue
-                    filename = normalize_coverage_filename(raw)
-
-                    if filename not in coverage_data:
-                        coverage_data[filename] = {'hits': set(), 'misses': set()}
-
-                    for line in cls.findall('.//line'):
-                        line_num = int(line.get('number', 0))
-                        hits = int(line.get('hits', 0))
-                        if hits > 0:
-                            coverage_data[filename]['hits'].add(line_num)
-                            coverage_data[filename]['misses'].discard(line_num)
-                        elif line_num not in coverage_data[filename]['hits']:
-                            coverage_data[filename]['misses'].add(line_num)
-
-            return coverage_data, root
-
-        # Find all coverage XML files
-        artifacts_dir = Path('coverage-artifacts')
-        xml_files = list(artifacts_dir.rglob('*.xml')) if artifacts_dir.exists() else []
-
-        if not xml_files:
-            print("⚠️ No coverage XML files found - skipping coverage combination")
-            print("This can happen if only documentation files were changed.")
-            # Create a minimal coverage XML to prevent downstream failures
-            root = ET.Element('coverage')
-            root.set('line-rate', '0')
-            root.set('branch-rate', '0')
-            root.set('lines-valid', '0')
-            root.set('lines-covered', '0')
-            tree = ET.ElementTree(root)
-            tree.write('reports/coverage-unified.xml', encoding='unicode', xml_declaration=True)
-            print("✅ Created minimal coverage report")
-            exit(0)
-
-        print(f"📊 Found {len(xml_files)} coverage files to combine:")
-        for f in xml_files:
-            print(f"  - {f}")
-
-        # Merge all coverage data
-        merged_coverage = {}
-        base_root = None
-
-        for xml_file in xml_files:
-            try:
-                coverage_data, root = parse_coverage_xml(xml_file)
-                if base_root is None:
-                    base_root = root
-
-                for filename, data in coverage_data.items():
-                    if filename not in merged_coverage:
-                        merged_coverage[filename] = {'hits': set(), 'misses': set()}
-                    merged_coverage[filename]['hits'].update(data['hits'])
-                    # Only keep misses that aren't hits
-                    for miss in data['misses']:
-                        if miss not in merged_coverage[filename]['hits']:
-                            merged_coverage[filename]['misses'].add(miss)
-
-                print(f"  ✅ Merged: {xml_file}")
-            except Exception as e:
-                print(f"  ⚠️ Failed to parse {xml_file}: {e}")
-
-        # Calculate unified coverage stats
-        total_lines = 0
-        covered_lines = 0
-        for filename, data in merged_coverage.items():
-            total_lines += len(data['hits']) + len(data['misses'])
-            covered_lines += len(data['hits'])
-
-        coverage_pct = (covered_lines / total_lines * 100) if total_lines > 0 else 0
-        print(f"\n📈 Unified Coverage: {coverage_pct:.1f}% ({covered_lines}/{total_lines} lines)")
-
-        # Use the first XML as base and update its line-rate
-        if base_root is not None:
-            base_root.set('line-rate', str(covered_lines / total_lines if total_lines > 0 else 0))
-            base_root.set('lines-valid', str(total_lines))
-            base_root.set('lines-covered', str(covered_lines))
-
-            tree = ET.ElementTree(base_root)
-            tree.write('reports/coverage-unified.xml', encoding='unicode', xml_declaration=True)
-            print(f"✅ Written unified coverage to reports/coverage-unified.xml")
-        EOF
+        set -e
+        # Merge unit + integration + E2E using the same engine as `coverage combine` locally.
+        # Cobertura XML merging inflated denominators vs coverage.py (~63% vs ~70%).
+        UNIT=$(find coverage-artifacts -name 'coverage-data.unit' 2>/dev/null | head -1 || true)
+        INT=$(find coverage-artifacts -name 'coverage-data.integration' 2>/dev/null | head -1 || true)
+        E2E=$(find coverage-artifacts -name 'coverage-data.e2e' 2>/dev/null | head -1 || true)
+        if [ -z "$UNIT" ] || [ -z "$INT" ] || [ -z "$E2E" ]; then
+          echo "❌ Missing coverage data files from test-unit / test-integration / test-e2e"
+          echo "UNIT=$UNIT INT=$INT E2E=$E2E"
+          ls -laR coverage-artifacts 2>/dev/null || true
+          exit 1
+        fi
+        rm -f .coverage .coverage.*
+        cp "$UNIT" .coverage.unit
+        cp "$INT" .coverage.integration
+        cp "$E2E" .coverage.e2e
+        coverage combine
+        coverage report --fail-under=70 --show-missing
+        coverage xml -o reports/coverage-unified.xml
+        echo "✅ coverage.xml written to reports/coverage-unified.xml"
     - name: Generate unified coverage summary
       if: always()
       run: |
@@ -1213,20 +1167,13 @@ jobs:
         else
           echo "⚠️ Unified coverage report not found" >> $GITHUB_STEP_SUMMARY
         fi
-    - name: Enforce combined coverage threshold
+    - name: Note on combined coverage threshold
       run: |
-        THRESHOLD=70
-        if [ ! -f reports/coverage-unified.xml ]; then
-          echo "⚠️ No unified coverage file; skipping threshold check (e.g. docs-only change)"
-          exit 0
+        # Line threshold is enforced by `coverage report --fail-under=70` in the combine step
+        # (same semantics as `make coverage-enforce` on a combined .coverage file).
+        if [ -f reports/coverage-unified.xml ]; then
+          echo "✅ Unified coverage file present"
         fi
-        COVERAGE_PCT=$(python3 -c "import xml.etree.ElementTree as ET; t=ET.parse('reports/coverage-unified.xml'); r=t.getroot(); print(float(r.get('line-rate',0))*100)" 2>/dev/null || echo "0")
-        COVERAGE_INT=$(printf "%.0f" "$COVERAGE_PCT")
-        if [ "$COVERAGE_INT" -lt "$THRESHOLD" ]; then
-          echo "❌ Combined coverage ${COVERAGE_PCT}% is below threshold ${THRESHOLD}%"
-          exit 1
-        fi
-        echo "✅ Combined coverage ${COVERAGE_PCT}% meets threshold ${THRESHOLD}%"
     - name: Generate code quality metrics
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: |

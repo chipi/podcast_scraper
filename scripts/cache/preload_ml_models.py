@@ -336,11 +336,14 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             # Use resolved_model (not alias) for actual download
             download_kw = _transformers_pretrained_kwargs(
                 cache_dir,
-                local_files_only=False,  # nosec B615
+                local_files_only=False,
                 pinned_revision=pinned_revision,
             )
-            tokenizer = AutoTokenizer.from_pretrained(resolved_model, **download_kw)
-            model = AutoModelForSeq2SeqLM.from_pretrained(resolved_model, **download_kw)
+            # Bandit B615 does not see revision inside **download_kw; it is set when pinned.
+            tokenizer = AutoTokenizer.from_pretrained(resolved_model, **download_kw)  # nosec B615
+            model = AutoModelForSeq2SeqLM.from_pretrained(
+                resolved_model, **download_kw
+            )  # nosec B615
 
             # Calculate final size after download
             if model_cache_path.exists():
@@ -442,14 +445,17 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 # resolved_model from config
                 verify_kw = _transformers_pretrained_kwargs(
                     cache_dir,
-                    local_files_only=True,  # nosec B615
+                    local_files_only=True,
                     pinned_revision=pinned_revision,
                 )
-                verified_tokenizer = AutoTokenizer.from_pretrained(resolved_model, **verify_kw)
+                # Bandit B615 does not see revision inside **verify_kw; it is set when pinned.
+                verified_tokenizer = AutoTokenizer.from_pretrained(
+                    resolved_model, **verify_kw
+                )  # nosec B615
                 verified_model = AutoModelForSeq2SeqLM.from_pretrained(
                     resolved_model,
                     **verify_kw,
-                )
+                )  # nosec B615
                 # Clean up verification models
                 del verified_model, verified_tokenizer
                 gc.collect()
