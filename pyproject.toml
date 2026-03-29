@@ -85,7 +85,7 @@ dev = [
   "interrogate>=1.5.0,<2.0.0",  # Docstring coverage (RFC-031)
   "codespell>=2.2.0,<3.0.0",  # Spell checking (RFC-031)
   "pydeps>=1.12.0,<4.0.0",  # Module dependency visualization (RFC-038, #170)
-  "pyan3==1.1.1",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
+  "pyan3==2.2.2",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
   "code2flow>=2.5.0,<3.0.0",  # Flowcharts from code (Issue #425)
   "psutil>=5.9.0,<8.0.0",  # System resource monitoring for test worker calculation and memory analysis
 ]
