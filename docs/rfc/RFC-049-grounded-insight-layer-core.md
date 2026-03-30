@@ -397,8 +397,11 @@ GIL extraction is controlled via the `Config` model (see `config.py` and
 - `generate_gi: bool` — Enable/disable GIL extraction (`--generate-gi` on CLI)
 - `gi_insight_source`, `gi_max_insights` — Where insight text comes from (stub,
   summary bullets, or provider `generate_insights`)
-- `gi_insight_model`, `gi_qa_model`, `gi_nli_model` — Model IDs or registry
-  aliases for GIL-specific loads (when not using provider-based QA/NLI)
+- `gi.json` `model_version` — Derived from `gi_insight_source` and the live
+  summarization / insight model (see `gi.provenance`); no separate `gi_insight_model`
+  on `Config`
+- `gi_qa_model`, `gi_nli_model` — Model IDs or registry aliases for local QA/NLI
+  (when not using provider-based QA/NLI)
 - `embedding_model` — Sentence embeddings for evidence similarity (shared with
   other features)
 - `gi_require_grounding: bool` — Evidence stack expectations for grounding

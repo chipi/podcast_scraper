@@ -23,7 +23,7 @@
       "required": ["model_version", "extracted_at", "transcript_ref"],
       "properties": {
         "model_version": {
-          "description": "Extraction tier: `stub`, `summary_bullets`, or `provider:<summarization_model_id>` (see docs/kg/ontology.md § Provenance).",
+          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/kg/ontology.md § Provenance.",
           "oneOf": [
             { "const": "stub" },
             { "const": "summary_bullets" },
@@ -96,6 +96,11 @@
           "required": ["name", "entity_kind"],
           "properties": {
             "name": { "type": "string", "minLength": 1 },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable graph label; pipeline mirrors ``name`` (truncated) for parity with Topic.label."
+            },
             "entity_kind": {
               "type": "string",
               "enum": ["person", "organization"]

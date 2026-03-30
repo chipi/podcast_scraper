@@ -73,7 +73,7 @@ class Metrics:
     gi_failures: int = 0  # GIL artifact generation failures (non-fatal)
     kg_artifacts_generated: int = 0  # KG artifacts (kg.json) written
     kg_failures: int = 0  # KG artifact generation failures (non-fatal)
-    kg_provider_extractions: int = 0  # KG artifacts that used LLM extract_kg_graph successfully
+    kg_provider_extractions: int = 0  # KG artifacts that used LLM extraction successfully
     # KG aggregate stats (per-artifact rollups; Issue KG parity with GIL metrics)
     kg_topic_nodes_total: int = 0  # Sum of Topic nodes across kg.json written this run
     kg_entity_nodes_total: int = 0  # Sum of Entity nodes across kg.json
@@ -81,10 +81,16 @@ class Metrics:
     kg_extractions_stub: int = 0  # Artifacts whose extraction.model_version is stub-like
     kg_extractions_summary_bullets: int = 0  # model_version == summary_bullets
     kg_extractions_provider: int = 0  # model_version startswith provider:
+    # Subset: LLM JSON from summary bullets (not transcript extract_kg_graph)
+    kg_extractions_provider_summary_bullets: int = 0
     gi_evidence_path_provider: int = 0  # GIL artifacts built via provider path (QA+NLI)
-    gi_evidence_path_legacy: int = 0  # GIL artifacts built via legacy path (direct ML)
     gi_evidence_extract_quotes_calls: int = 0  # extract_quotes calls on provider path
-    gi_evidence_score_entailment_calls: int = 0  # score_entailment calls on provider path
+    # Candidates that passed QA threshold and were sent to NLI (may exceed completed NLI calls).
+    gi_evidence_nli_candidates_queued: int = 0
+    # score_entailment invocations that returned without raising (includes low scores).
+    gi_evidence_score_entailment_calls: int = 0
+    gi_episodes_zero_grounded_when_required: int = 0  # gi_require_grounding but 0 quotes
+    gi_grounding_degraded: bool = False  # True if any episode had zero grounded quotes (above)
     # GIL success metrics (PRD-017): accumulated across artifacts this run
     gi_insights_total: int = 0  # Total Insight nodes across all artifacts
     gi_quotes_total: int = 0  # Total Quote nodes across all artifacts
@@ -117,22 +123,15 @@ class Metrics:
         0.0  # Actual file write time only (open/write/flush) - should be tiny
     )
 
-    # Per-episode operation timing (for A/B testing and performance analysis)
-    download_media_times: List[float] = field(
-        default_factory=list
-    )  # Media download times per episode
+    # Per-episode operation timing (key = episode.idx, 1-based; safe under parallel workers)
+    download_media_time_by_episode: Dict[int, float] = field(default_factory=dict)
     download_media_attempts: int = 0  # Total media download attempts (including reused/cached)
-    transcribe_times: List[float] = field(
-        default_factory=list
-    )  # Transcription times per episode (only for actual transcription, NOT cache hits)
-    # Note: When transcript cache is used, this list remains empty because record_transcribe_time()
-    # is never called (cache hit returns early). transcribe_count = len(transcribe_times) will be 0.
-    extract_names_times: List[float] = field(
-        default_factory=list
-    )  # Speaker detection times per episode
-    summarize_times: List[float] = field(
-        default_factory=list
-    )  # Summary generation times per episode
+    transcribe_time_by_episode: Dict[int, float] = field(
+        default_factory=dict
+    )  # Actual transcription only; omitted when transcript cache hit (no API transcribe)
+    extract_names_time_by_episode: Dict[int, float] = field(default_factory=dict)
+    summarize_time_by_episode: Dict[int, float] = field(default_factory=dict)
+    cleaning_time_by_episode: Dict[int, float] = field(default_factory=dict)
     gi_times: List[float] = field(default_factory=list)  # GIL artifact generation times per episode
     kg_times: List[float] = field(default_factory=list)  # KG artifact generation times per episode
 
@@ -145,6 +144,18 @@ class Metrics:
     llm_summarization_calls: int = 0  # Number of summarization API calls
     llm_summarization_input_tokens: int = 0  # Total input tokens for summarization
     llm_summarization_output_tokens: int = 0  # Total output tokens for summarization
+    # Transcript semantic cleaning (LLM path; pattern-only runs do not increment these)
+    llm_cleaning_calls: int = 0
+    llm_cleaning_input_tokens: int = 0
+    llm_cleaning_output_tokens: int = 0
+    # Grounded insights layer: generate_insights + extract_quotes + score_entailment (LLM path)
+    llm_gi_calls: int = 0
+    llm_gi_input_tokens: int = 0
+    llm_gi_output_tokens: int = 0
+    # Knowledge graph: extract_kg_graph (LLM provider path)
+    llm_kg_calls: int = 0
+    llm_kg_input_tokens: int = 0
+    llm_kg_output_tokens: int = 0
 
     # Audio preprocessing metrics (RFC-040, Issue #387)
     preprocessing_times: List[float] = field(
@@ -296,37 +307,29 @@ class Metrics:
         """Record a media download attempt (called regardless of cache/reuse)."""
         self.download_media_attempts += 1
 
-    def record_download_media_time(self, duration: float) -> None:
-        """Record time spent downloading media for an episode.
+    def record_download_media_time(self, duration: float, episode_idx: int) -> None:
+        """Record time spent downloading media for an episode (by episode.idx).
 
-        Args:
-            duration: Duration in seconds
+        Set duration=0 when reuse_media skips HTTP or transcript cache makes download
+        non-billable for reporting (audio was only needed for cache lookup).
         """
-        self.download_media_times.append(duration)
+        self.download_media_time_by_episode[episode_idx] = duration
 
-    def record_transcribe_time(self, duration: float) -> None:
-        """Record time spent transcribing an episode.
+    def record_transcribe_time(self, duration: float, episode_idx: int) -> None:
+        """Record time spent transcribing an episode (by episode.idx)."""
+        self.transcribe_time_by_episode[episode_idx] = duration
 
-        Args:
-            duration: Duration in seconds
-        """
-        self.transcribe_times.append(duration)
+    def record_extract_names_time(self, duration: float, episode_idx: int) -> None:
+        """Record time spent extracting speaker names for an episode (by episode.idx)."""
+        self.extract_names_time_by_episode[episode_idx] = duration
 
-    def record_extract_names_time(self, duration: float) -> None:
-        """Record time spent extracting speaker names for an episode.
+    def record_summarize_time(self, duration: float, episode_idx: int) -> None:
+        """Record time spent generating summary for an episode (by episode.idx)."""
+        self.summarize_time_by_episode[episode_idx] = duration
 
-        Args:
-            duration: Duration in seconds
-        """
-        self.extract_names_times.append(duration)
-
-    def record_summarize_time(self, duration: float) -> None:
-        """Record time spent generating summary for an episode.
-
-        Args:
-            duration: Duration in seconds
-        """
-        self.summarize_times.append(duration)
+    def record_cleaning_time(self, duration: float, episode_idx: int) -> None:
+        """Record wall time for transcript cleaning before summarize (by episode.idx)."""
+        self.cleaning_time_by_episode[episode_idx] = duration
 
     def record_gi_time(self, duration: float) -> None:
         """Record time spent generating GIL artifact for an episode.
@@ -353,6 +356,8 @@ class Metrics:
         mv = str((payload.get("extraction") or {}).get("model_version", "") or "")
         if mv.startswith("provider:"):
             self.kg_extractions_provider += 1
+            if mv.startswith("provider:summary_bullets:"):
+                self.kg_extractions_provider_summary_bullets += 1
         elif mv == "summary_bullets":
             self.kg_extractions_summary_bullets += 1
         else:
@@ -426,6 +431,24 @@ class Metrics:
         self.llm_summarization_calls += 1
         self.llm_summarization_input_tokens += input_tokens
         self.llm_summarization_output_tokens += output_tokens
+
+    def record_llm_cleaning_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record an LLM transcript-cleaning API call (semantic cleaning)."""
+        self.llm_cleaning_calls += 1
+        self.llm_cleaning_input_tokens += input_tokens
+        self.llm_cleaning_output_tokens += output_tokens
+
+    def record_llm_gi_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record an LLM call for the grounded-insights layer (insights / evidence stack)."""
+        self.llm_gi_calls += 1
+        self.llm_gi_input_tokens += input_tokens
+        self.llm_gi_output_tokens += output_tokens
+
+    def record_llm_kg_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record an LLM call for KG extraction (extract_kg_graph)."""
+        self.llm_kg_calls += 1
+        self.llm_kg_input_tokens += input_tokens
+        self.llm_kg_output_tokens += output_tokens
 
     def record_preprocessing_time(self, duration: float) -> None:
         """Record time spent preprocessing audio for an episode.
@@ -642,6 +665,14 @@ class Metrics:
             self.episode_metrics.append(episode_metrics)
             return episode_metrics
 
+    def lookup_episode_metrics(self, episode_id: str) -> Optional[EpisodeMetrics]:
+        """Return existing per-episode metrics row, if any (thread-safe)."""
+        with self._episode_metrics_lock:
+            for em in self.episode_metrics:
+                if em.episode_id == episode_id:
+                    return em
+        return None
+
     def update_episode_metrics(
         self,
         episode_id: str,
@@ -728,29 +759,57 @@ class Metrics:
         """
         self.run_duration_seconds = time.time() - self._start_time
 
-        # Calculate averages for per-episode operations
-        avg_download_media = (
-            round(sum(self.download_media_times) / len(self.download_media_times), 2)
-            if self.download_media_times
-            else 0.0
-        )
-        avg_transcribe = (
-            round(sum(self.transcribe_times) / len(self.transcribe_times), 2)
-            if self.transcribe_times
-            else 0.0
-        )
-        avg_extract_names = (
-            round(sum(self.extract_names_times) / len(self.extract_names_times), 2)
-            if self.extract_names_times
-            else 0.0
-        )
-        avg_summarize = (
-            round(sum(self.summarize_times) / len(self.summarize_times), 2)
-            if self.summarize_times
-            else 0.0
-        )
+        def _avg_episode_dict(d: Dict[int, float]) -> float:
+            return round(sum(d.values()) / len(d), 2) if d else 0.0
+
+        # Calculate averages for per-episode operations (dict keyed by episode.idx)
+        avg_download_media = _avg_episode_dict(self.download_media_time_by_episode)
+        avg_transcribe = _avg_episode_dict(self.transcribe_time_by_episode)
+        avg_extract_names = _avg_episode_dict(self.extract_names_time_by_episode)
+        avg_summarize = _avg_episode_dict(self.summarize_time_by_episode)
+        avg_cleaning = _avg_episode_dict(self.cleaning_time_by_episode)
         avg_gi = round(sum(self.gi_times) / len(self.gi_times), 2) if self.gi_times else 0.0
         avg_kg = round(sum(self.kg_times) / len(self.kg_times), 2) if self.kg_times else 0.0
+
+        def _avg_tokens_per_call(total: int, calls: int) -> float:
+            if calls <= 0:
+                return 0.0
+            return round(total / calls, 2)
+
+        sp_in_avg = _avg_tokens_per_call(
+            self.llm_speaker_detection_input_tokens, self.llm_speaker_detection_calls
+        )
+        sp_out_avg = _avg_tokens_per_call(
+            self.llm_speaker_detection_output_tokens, self.llm_speaker_detection_calls
+        )
+        sum_in_avg = _avg_tokens_per_call(
+            self.llm_summarization_input_tokens, self.llm_summarization_calls
+        )
+        sum_out_avg = _avg_tokens_per_call(
+            self.llm_summarization_output_tokens, self.llm_summarization_calls
+        )
+        cl_in_avg = _avg_tokens_per_call(self.llm_cleaning_input_tokens, self.llm_cleaning_calls)
+        cl_out_avg = _avg_tokens_per_call(self.llm_cleaning_output_tokens, self.llm_cleaning_calls)
+        gi_in_avg = _avg_tokens_per_call(self.llm_gi_input_tokens, self.llm_gi_calls)
+        gi_out_avg = _avg_tokens_per_call(self.llm_gi_output_tokens, self.llm_gi_calls)
+        kg_in_avg = _avg_tokens_per_call(self.llm_kg_input_tokens, self.llm_kg_calls)
+        kg_out_avg = _avg_tokens_per_call(self.llm_kg_output_tokens, self.llm_kg_calls)
+
+        gi_llm_calls_per_artifact = (
+            round(self.llm_gi_calls / self.gi_artifacts_generated, 2)
+            if self.gi_artifacts_generated
+            else 0.0
+        )
+        kg_llm_calls_per_artifact = (
+            round(self.llm_kg_calls / self.kg_artifacts_generated, 2)
+            if self.kg_artifacts_generated
+            else 0.0
+        )
+        cleaning_llm_calls_per_recorded = (
+            round(self.llm_cleaning_calls / len(self.cleaning_time_by_episode), 2)
+            if self.cleaning_time_by_episode
+            else 0.0
+        )
         avg_preprocessing = (
             round(sum(self.preprocessing_times) / len(self.preprocessing_times), 2)
             if self.preprocessing_times
@@ -792,6 +851,9 @@ class Metrics:
             "kg_extractions_stub": self.kg_extractions_stub,
             "kg_extractions_summary_bullets": self.kg_extractions_summary_bullets,
             "kg_extractions_provider": self.kg_extractions_provider,
+            "kg_extractions_provider_summary_bullets": (
+                self.kg_extractions_provider_summary_bullets
+            ),
             "kg_avg_topics_per_artifact": (
                 round(self.kg_topic_nodes_total / self.kg_artifacts_generated, 2)
                 if self.kg_artifacts_generated
@@ -803,9 +865,11 @@ class Metrics:
                 else 0.0
             ),
             "gi_evidence_path_provider": self.gi_evidence_path_provider,
-            "gi_evidence_path_legacy": self.gi_evidence_path_legacy,
             "gi_evidence_extract_quotes_calls": self.gi_evidence_extract_quotes_calls,
+            "gi_evidence_nli_candidates_queued": self.gi_evidence_nli_candidates_queued,
             "gi_evidence_score_entailment_calls": self.gi_evidence_score_entailment_calls,
+            "gi_episodes_zero_grounded_when_required": self.gi_episodes_zero_grounded_when_required,
+            "gi_grounding_degraded": self.gi_grounding_degraded,
             "gi_insights_total": self.gi_insights_total,
             "gi_quotes_total": self.gi_quotes_total,
             "gi_insights_grounded": self.gi_insights_grounded,
@@ -877,19 +941,17 @@ class Metrics:
             "avg_transcribe_seconds": avg_transcribe,
             "avg_extract_names_seconds": avg_extract_names,
             "avg_summarize_seconds": avg_summarize,
+            "avg_cleaning_seconds": avg_cleaning,
             "avg_gi_seconds": avg_gi,
             "avg_kg_seconds": avg_kg,
             # Operation counts for context
-            "download_media_count": len(
-                self.download_media_times
-            ),  # Episodes with actual download time recorded
+            "download_media_count": len(self.download_media_time_by_episode),
             # Total download attempts (including reused/cached)
             "download_media_attempts": self.download_media_attempts,
-            "transcribe_count": len(
-                self.transcribe_times
-            ),  # Number of actual transcriptions (0 when cache is used)
-            "extract_names_count": len(self.extract_names_times),
-            "summarize_count": len(self.summarize_times),
+            "transcribe_count": len(self.transcribe_time_by_episode),
+            "extract_names_count": len(self.extract_names_time_by_episode),
+            "summarize_count": len(self.summarize_time_by_episode),
+            "cleaning_count": len(self.cleaning_time_by_episode),
             "gi_count": len(self.gi_times),
             "kg_count": len(self.kg_times),
             # LLM API call tracking
@@ -898,9 +960,31 @@ class Metrics:
             "llm_speaker_detection_calls": self.llm_speaker_detection_calls,
             "llm_speaker_detection_input_tokens": self.llm_speaker_detection_input_tokens,
             "llm_speaker_detection_output_tokens": self.llm_speaker_detection_output_tokens,
+            "llm_speaker_detection_avg_input_tokens_per_call": sp_in_avg,
+            "llm_speaker_detection_avg_output_tokens_per_call": sp_out_avg,
             "llm_summarization_calls": self.llm_summarization_calls,
             "llm_summarization_input_tokens": self.llm_summarization_input_tokens,
             "llm_summarization_output_tokens": self.llm_summarization_output_tokens,
+            "llm_summarization_avg_input_tokens_per_call": sum_in_avg,
+            "llm_summarization_avg_output_tokens_per_call": sum_out_avg,
+            "llm_cleaning_calls": self.llm_cleaning_calls,
+            "llm_cleaning_input_tokens": self.llm_cleaning_input_tokens,
+            "llm_cleaning_output_tokens": self.llm_cleaning_output_tokens,
+            "llm_cleaning_avg_input_tokens_per_call": cl_in_avg,
+            "llm_cleaning_avg_output_tokens_per_call": cl_out_avg,
+            "llm_cleaning_calls_per_recorded_cleaning_episode": cleaning_llm_calls_per_recorded,
+            "llm_gi_calls": self.llm_gi_calls,
+            "llm_gi_input_tokens": self.llm_gi_input_tokens,
+            "llm_gi_output_tokens": self.llm_gi_output_tokens,
+            "llm_gi_avg_input_tokens_per_call": gi_in_avg,
+            "llm_gi_avg_output_tokens_per_call": gi_out_avg,
+            "llm_gi_calls_per_gi_artifact": gi_llm_calls_per_artifact,
+            "llm_kg_calls": self.llm_kg_calls,
+            "llm_kg_input_tokens": self.llm_kg_input_tokens,
+            "llm_kg_output_tokens": self.llm_kg_output_tokens,
+            "llm_kg_avg_input_tokens_per_call": kg_in_avg,
+            "llm_kg_avg_output_tokens_per_call": kg_out_avg,
+            "llm_kg_calls_per_kg_artifact": kg_llm_calls_per_artifact,
             # Audio preprocessing metrics (Issue #387)
             "avg_preprocessing_seconds": avg_preprocessing,
             "preprocessing_count": len(self.preprocessing_times),
@@ -994,7 +1078,7 @@ class Metrics:
         try:
             temp_filepath.write_text(metrics_json, encoding="utf-8")
             temp_filepath.replace(filepath)  # Atomic rename
-            logger.info(f"Pipeline metrics saved to: {filepath}")
+            logger.debug("Pipeline metrics saved to: %s", filepath)
         except Exception as e:
             # Clean up temp file on error
             if temp_filepath.exists():

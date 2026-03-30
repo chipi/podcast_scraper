@@ -1,0 +1,36 @@
+# Paired GIL benchmark — **candidate** run: local transformers QA + NLI evidence.
+# Pair with `gil_paired_benchmark_openai_evidence.yaml` (same feed + episode count).
+#
+# After two runs, compare:
+#   make compare-gil-runs REF=.test_outputs/benchmark/gil_openai_evidence/run_<id> \
+#     CAND=.test_outputs/benchmark/gil_ml_evidence/run_<id>
+#
+# See docs/wip/gil-ml-vs-openai-outcome-benchmark.md
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/benchmark/gil_ml_evidence
+max_episodes: 3
+
+transcription_provider: whisper
+speaker_detector_provider: spacy
+summary_provider: transformers
+
+whisper_model: base.en
+whisper_device: mps
+summary_model: pegasus-cnn
+summary_reduce_model: long-fast
+summary_device: mps
+
+transcribe_missing: true
+
+generate_metadata: true
+generate_summaries: true
+
+generate_gi: true
+gi_insight_source: summary_bullets
+# Tune for ML stack (see GROUNDED_INSIGHTS_GUIDE); permissive defaults for benchmark demos.
+gi_qa_score_min: 0.05
+gi_nli_entailment_min: 0.0
+
+generate_kg: true
+kg_extraction_source: summary_bullets

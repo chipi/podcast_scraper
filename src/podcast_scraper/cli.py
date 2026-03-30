@@ -29,7 +29,7 @@ from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import __version__, config
+from . import __version__, config, config_constants
 from .utils import filesystem, progress
 from .workflow import orchestration as workflow
 from .workflow.stages import setup
@@ -771,6 +771,24 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         help="Optional model override for KG LLM extraction (uses summary model if omitted).",
     )
     parser.add_argument(
+        "--kg-extraction-provider",
+        choices=[
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ],
+        default=None,
+        dest="kg_extraction_provider",
+        help="When kg_extraction_source is provider, which backend runs extract_kg_graph "
+        "(default: same as summary_provider).",
+    )
+    parser.add_argument(
         "--no-kg-merge-pipeline-entities",
         action="store_false",
         dest="kg_merge_pipeline_entities",
@@ -1395,6 +1413,43 @@ def _parse_doctor_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespa
     )
     args = parser.parse_args(argv)
     return args
+
+
+def _parse_pricing_assumptions_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse arguments for ``pricing-assumptions`` subcommand."""
+    parser = argparse.ArgumentParser(
+        description="Show LLM pricing assumptions YAML status and staleness hints.",
+        prog="podcast_scraper pricing-assumptions",
+    )
+    parser.add_argument(
+        "--file",
+        dest="assumptions_file",
+        type=str,
+        default="config/pricing_assumptions.yaml",
+        help="Path to pricing assumptions YAML (default: config/pricing_assumptions.yaml)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit 1 when last_reviewed is older than stale_review_after_days in metadata",
+    )
+    return parser.parse_args(argv or [])
+
+
+def _run_pricing_assumptions(args: argparse.Namespace) -> int:
+    """Print pricing assumptions report; optional strict exit on stale metadata."""
+    from . import pricing_assumptions
+
+    path_cfg = str(getattr(args, "assumptions_file", "") or "").strip()
+    report = pricing_assumptions.format_status_report(path_cfg)
+    print(report, end="")
+    if getattr(args, "strict", False):
+        payload, _resolved = pricing_assumptions.get_loaded_table(path_cfg)
+        if payload:
+            stale, _msgs = pricing_assumptions.check_staleness(payload)
+            if stale:
+                return 1
+    return 0
 
 
 def _doctor_check_python() -> bool:
@@ -2150,7 +2205,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         type=str,
         required=True,
         metavar="INSIGHT_ID",
-        help="Insight node ID (e.g. insight:episode:0)",
+        help="Insight node id from gi.json (e.g. insight:a1b2c3d4e5f67890)",
     )
     show_parser.add_argument(
         "--output-dir",
@@ -2503,6 +2558,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = "doctor"  # Mark as doctor command
         return args
 
+    if argv and len(argv) > 0 and argv[0] == "pricing-assumptions":
+        pa_argv = list(argv[1:]) if len(argv) > 1 else []
+        args = _parse_pricing_assumptions_args(pa_argv)
+        args.command = "pricing-assumptions"
+        return args
+
     # Normal parsing for main command
     parser = argparse.ArgumentParser(
         description="Download podcast episode transcripts from an RSS feed."
@@ -2582,16 +2643,21 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "generate_kg": getattr(args, "generate_kg", False),
         "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "summary_bullets",
         "kg_max_topics": (
-            5 if getattr(args, "kg_max_topics", None) is None else args.kg_max_topics
+            config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+            if getattr(args, "kg_max_topics", None) is None
+            else args.kg_max_topics
         ),
         "kg_max_entities": (
             15 if getattr(args, "kg_max_entities", None) is None else args.kg_max_entities
         ),
         "kg_extraction_model": getattr(args, "kg_extraction_model", None),
+        "kg_extraction_provider": getattr(args, "kg_extraction_provider", None),
         "kg_merge_pipeline_entities": getattr(args, "kg_merge_pipeline_entities", True),
         "gi_insight_source": getattr(args, "gi_insight_source", None) or "stub",
         "gi_max_insights": (
-            5 if getattr(args, "gi_max_insights", None) is None else args.gi_max_insights
+            config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+            if getattr(args, "gi_max_insights", None) is None
+            else args.gi_max_insights
         ),
         "quote_extraction_provider": getattr(args, "quote_extraction_provider", None),
         "entailment_provider": getattr(args, "entailment_provider", None),
@@ -2792,185 +2858,290 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         and args.transcript_cleaning_strategy is not None
     ):
         payload["transcript_cleaning_strategy"] = args.transcript_cleaning_strategy
+    # GIL / evidence tuning from config file: _load_and_merge_config puts these on args via
+    # set_defaults(model_dump); they must be copied here or CLI runs ignore YAML (Issue: gi_qa
+    # thresholds appeared to "do nothing").
+    _gil_tuning_keys = (
+        "gi_require_grounding",
+        "gi_fail_on_missing_grounding",
+        "gi_evidence_extract_retries",
+        "gi_qa_score_min",
+        "gi_nli_entailment_min",
+        "gi_qa_window_chars",
+        "gi_qa_window_overlap_chars",
+        "gi_qa_model",
+        "gi_nli_model",
+        "gi_embedding_model",
+        "extractive_qa_device",
+        "nli_device",
+    )
+    for _gil_key in _gil_tuning_keys:
+        if hasattr(args, _gil_key):
+            payload[_gil_key] = getattr(args, _gil_key)
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
 
-def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
-    """Log all configuration values in a structured format.
+def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> None:
+    """Log a compact two-line config summary at INFO."""
+    ep = cfg.max_episodes if cfg.max_episodes is not None else "all"
+    if cfg.transcribe_missing:
+        parts = [f"on:{cfg.transcription_provider}", f"screenplay={cfg.screenplay}"]
+        if cfg.transcription_provider == "whisper":
+            parts.insert(1, f"whisper_model={cfg.whisper_model}")
+        transcribe = ",".join(parts)
+    else:
+        transcribe = "off"
+    summ = f"on:{cfg.summary_provider}" if cfg.generate_summaries else "off"
+    meta = f"on:{cfg.metadata_format}" if cfg.generate_metadata else "off"
+    gi = "on" if cfg.generate_gi else "off"
+    kg = "on" if getattr(cfg, "generate_kg", False) else "off"
+    flag_parts = []
+    if cfg.skip_existing:
+        flag_parts.append("skip_existing")
+    if cfg.reuse_media:
+        flag_parts.append("reuse_media")
+    if cfg.clean_output:
+        flag_parts.append("clean_output")
+    if cfg.dry_run:
+        flag_parts.append("dry_run")
+    flags_s = ",".join(flag_parts) if flag_parts else "none"
+    logger.info(
+        "config: rss=%s | out=%s | episodes=%s | workers=%s | log=%s | log_file=%s | run_id=%s",
+        cfg.rss_url,
+        cfg.output_dir,
+        ep,
+        cfg.workers,
+        cfg.log_level,
+        cfg.log_file or "console",
+        cfg.run_id or "-",
+    )
+    logger.info(
+        "config: http timeout=%ss delay=%sms | transcribe=%s | speakers=%s lang=%s ner=%s | "
+        "summary=%s | metadata=%s | gi=%s | kg=%s | flags=%s",
+        cfg.timeout,
+        cfg.delay_ms,
+        transcribe,
+        "on" if cfg.auto_speakers else "off",
+        cfg.language,
+        cfg.ner_model or "-",
+        summ,
+        meta,
+        gi,
+        kg,
+        flags_s,
+    )
+    if cfg.generate_gi:
+        logger.info(
+            "config: gi evidence: qa_min=%s nli_min=%s | quote=%s entail=%s | gi_embedding=%s",
+            cfg.gi_qa_score_min,
+            cfg.gi_nli_entailment_min,
+            getattr(cfg, "quote_extraction_provider", "transformers"),
+            getattr(cfg, "entailment_provider", "transformers"),
+            cfg.gi_embedding_model,
+        )
 
-    Args:
-        cfg: Configuration object
-        logger: Logger instance to use
-    """
-    logger.info("=" * 80)
-    logger.info("Configuration")
-    logger.info("=" * 80)
+
+def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logger) -> None:
+    """Surface important misconfigurations at WARNING (always, not only in DEBUG detail)."""
+    if (
+        cfg.generate_gi
+        and getattr(cfg, "gi_insight_source", "stub") == "stub"
+        and not config._is_test_environment()
+    ):
+        logger.warning(
+            "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
+            "For real wording use gi_insight_source: summary_bullets (with "
+            "generate_summaries and summary bullets) or provider with an LLM "
+            "summary_provider. ML providers (transformers, hybrid_ml) do not "
+            "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
+        )
+    _kg_eff = getattr(cfg, "kg_extraction_provider", None) or getattr(cfg, "summary_provider", "")
+    if (
+        getattr(cfg, "generate_kg", False)
+        and getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider"
+        and _kg_eff in ("transformers", "hybrid_ml")
+        and not config._is_test_environment()
+    ):
+        logger.warning(
+            "KG: kg_extraction_source is 'provider' but the effective KG backend "
+            "(kg_extraction_provider or summary_provider) is ML — "
+            "extract_kg_graph is a no-op; pipeline falls back to summary bullets "
+            "when available, else episode + hosts/guests only."
+        )
+
+
+def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> None:
+    """Full config breakdown (DEBUG only)."""
+    d = logger.debug
+    d("=" * 80)
+    d("Configuration (detail)")
+    d("=" * 80)
 
     # Core settings
-    logger.info("Core Settings:")
-    logger.info(f"  RSS URL: {cfg.rss_url}")
-    logger.info(f"  Output Directory: {cfg.output_dir}")
-    logger.info(f"  Max Episodes: {cfg.max_episodes or 'all'}")
-    logger.info(f"  Workers: {cfg.workers}")
-    logger.info(f"  Log Level: {cfg.log_level}")
-    logger.info(f"  Log File: {cfg.log_file or 'console only'}")
-    logger.info(f"  Run ID: {cfg.run_id or 'none'}")
+    d("Core Settings:")
+    d(f"  RSS URL: {cfg.rss_url}")
+    d(f"  Output Directory: {cfg.output_dir}")
+    d(f"  Max Episodes: {cfg.max_episodes or 'all'}")
+    d(f"  Workers: {cfg.workers}")
+    d(f"  Log Level: {cfg.log_level}")
+    d(f"  Log File: {cfg.log_file or 'console only'}")
+    d(f"  Run ID: {cfg.run_id or 'none'}")
 
     # HTTP settings
-    logger.info("HTTP Settings:")
-    logger.info(f"  Timeout: {cfg.timeout}s")
-    logger.info(f"  Delay: {cfg.delay_ms}ms")
-    logger.info(
+    d("HTTP Settings:")
+    d(f"  Timeout: {cfg.timeout}s")
+    d(f"  Delay: {cfg.delay_ms}ms")
+    d(
         f"  User-Agent: {cfg.user_agent[:50]}..."
         if len(cfg.user_agent) > 50
         else f"  User-Agent: {cfg.user_agent}"
     )
-    logger.info(f"  Prefer Types: {cfg.prefer_types if cfg.prefer_types else 'none'}")
+    d(f"  Prefer Types: {cfg.prefer_types if cfg.prefer_types else 'none'}")
 
     # Transcription settings
-    logger.info("Transcription Settings:")
-    logger.info(f"  Transcribe Missing: {cfg.transcribe_missing}")
+    d("Transcription Settings:")
+    d(f"  Transcribe Missing: {cfg.transcribe_missing}")
     if cfg.transcribe_missing:
-        logger.info(f"  Whisper Model: {cfg.whisper_model}")
-        logger.info(f"  Screenplay Format: {cfg.screenplay}")
+        d(f"  Whisper Model: {cfg.whisper_model}")
+        d(f"  Screenplay Format: {cfg.screenplay}")
         if cfg.screenplay:
-            logger.info(f"  Screenplay Gap: {cfg.screenplay_gap_s}s")
-            logger.info(f"  Number of Speakers: {cfg.screenplay_num_speakers}")
+            d(f"  Screenplay Gap: {cfg.screenplay_gap_s}s")
+            d(f"  Number of Speakers: {cfg.screenplay_num_speakers}")
             if cfg.screenplay_speaker_names:
-                logger.info(f"  Speaker Names: {', '.join(cfg.screenplay_speaker_names)}")
+                d(f"  Speaker Names: {', '.join(cfg.screenplay_speaker_names)}")
 
     # Speaker detection settings
-    logger.info("Speaker Detection Settings:")
-    logger.info(f"  Auto Speakers: {cfg.auto_speakers}")
-    logger.info(f"  Language: {cfg.language}")
+    d("Speaker Detection Settings:")
+    d(f"  Auto Speakers: {cfg.auto_speakers}")
+    d(f"  Language: {cfg.language}")
     if cfg.ner_model:
-        logger.info(f"  NER Model: {cfg.ner_model}")
-    logger.info(f"  Cache Detected Hosts: {cfg.cache_detected_hosts}")
+        d(f"  NER Model: {cfg.ner_model}")
+    d(f"  Cache Detected Hosts: {cfg.cache_detected_hosts}")
 
     # Metadata settings
-    logger.info("Metadata Settings:")
-    logger.info(f"  Generate Metadata: {cfg.generate_metadata}")
+    d("Metadata Settings:")
+    d(f"  Generate Metadata: {cfg.generate_metadata}")
     if cfg.generate_metadata:
-        logger.info(f"  Metadata Format: {cfg.metadata_format}")
+        d(f"  Metadata Format: {cfg.metadata_format}")
         if cfg.metadata_subdirectory:
-            logger.info(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
+            d(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
         else:
-            logger.info("  Metadata Subdirectory: same as transcripts")
+            d("  Metadata Subdirectory: same as transcripts")
 
     # Summarization settings
-    logger.info("Summarization Settings:")
-    logger.info(f"  Generate Summaries: {cfg.generate_summaries}")
+    d("Summarization Settings:")
+    d(f"  Generate Summaries: {cfg.generate_summaries}")
     if cfg.generate_summaries:
-        logger.info(f"  Summary Provider: {cfg.summary_provider}")
+        d(f"  Summary Provider: {cfg.summary_provider}")
         if cfg.summary_provider == "transformers":
             if cfg.summary_model:
-                logger.info(f"  Summary Model: {cfg.summary_model}")
+                d(f"  Summary Model: {cfg.summary_model}")
             else:
-                logger.info("  Summary Model: auto-selected")
-            logger.info(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
+                d("  Summary Model: auto-selected")
+            d(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
             if cfg.summary_chunk_size:
-                logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
+                d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
         elif cfg.summary_provider == "hybrid_ml":
-            logger.info(
+            d(
                 f"  Hybrid MAP: {getattr(cfg, 'hybrid_map_model', 'longt5-base')}, "
                 f"REDUCE: {getattr(cfg, 'hybrid_reduce_model', 'google/flan-t5-base')}"
             )
-            logger.info(
-                f"  Hybrid REDUCE backend: {getattr(cfg, 'hybrid_reduce_backend', 'transformers')}"
-            )
-            logger.info(
+            d(f"  Hybrid REDUCE backend: {getattr(cfg, 'hybrid_reduce_backend', 'transformers')}")
+            d(
                 f"  Hybrid devices: MAP={getattr(cfg, 'hybrid_map_device', None) or 'default'}, "
                 f"REDUCE={getattr(cfg, 'hybrid_reduce_device', None) or 'default'}"
             )
             if cfg.summary_chunk_size:
-                logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
-        logger.info(
-            f"  Summary Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
-            f"min_new_tokens={cfg.summary_map_params.get('min_new_tokens')}"
-        )
-        logger.info(
-            f"  Summary Reduce: max_new_tokens={cfg.summary_reduce_params.get('max_new_tokens')}, "
-            f"min_new_tokens={cfg.summary_reduce_params.get('min_new_tokens')}"
+                d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
+        d(
+            "  Summary map/reduce tokens: map max=%s min=%s | reduce max=%s min=%s",
+            cfg.summary_map_params.get("max_new_tokens"),
+            cfg.summary_map_params.get("min_new_tokens"),
+            cfg.summary_reduce_params.get("max_new_tokens"),
+            cfg.summary_reduce_params.get("min_new_tokens"),
         )
         if cfg.summary_map_params and cfg.summary_reduce_params and cfg.summary_tokenize:
-            logger.info(
-                "  Using explicit ML parameters from config (map_params/reduce_params/tokenize)"
-            )
-            logger.info(
-                f"    Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
-                f"num_beams={cfg.summary_map_params.get('num_beams')}"
-            )
-            logger.info(
-                f"    Reduce: max_new_tokens={cfg.summary_reduce_params.get('max_new_tokens')}, "
-                f"num_beams={cfg.summary_reduce_params.get('num_beams')}"
+            d(
+                "  Summary beams (explicit map/reduce/tokenize): map=%s reduce=%s",
+                cfg.summary_map_params.get("num_beams"),
+                cfg.summary_reduce_params.get("num_beams"),
             )
         if cfg.summary_prompt:
-            logger.info(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
+            d(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
 
-    # Grounded Insights (GIL)
-    logger.info("Grounded Insights (GIL):")
-    logger.info(f"  Generate GI: {cfg.generate_gi}")
+    # Grounded Insights (GIL) — warnings logged separately at WARNING
+    d("Grounded Insights (GIL):")
+    d(f"  Generate GI: {cfg.generate_gi}")
     if cfg.generate_gi:
-        logger.info(f"  GI require grounding: {getattr(cfg, 'gi_require_grounding', True)}")
-        logger.info(f"  GI insight model: {getattr(cfg, 'gi_insight_model', 'stub')}")
-        logger.info(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
-        logger.info(f"  GI max insights: {getattr(cfg, 'gi_max_insights', 5)}")
-        logger.info(
+        d(f"  GI require grounding: {getattr(cfg, 'gi_require_grounding', True)}")
+        d(
+            f"  GI fail on missing grounding: "
+            f"{getattr(cfg, 'gi_fail_on_missing_grounding', False)}"
+        )
+        d(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
+        _gi_max = getattr(
+            cfg,
+            "gi_max_insights",
+            config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+        )
+        d(f"  GI max insights: {_gi_max}")
+        d(
             "  Quote extraction provider: %s",
             getattr(cfg, "quote_extraction_provider", "transformers"),
         )
-        logger.info(
+        d(
             "  Entailment provider: %s",
             getattr(cfg, "entailment_provider", "transformers"),
         )
-        if (
-            getattr(cfg, "gi_insight_source", "stub") == "stub"
-            and not config._is_test_environment()
-        ):
-            logger.warning(
-                "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
-                "For real wording use gi_insight_source: summary_bullets (with "
-                "generate_summaries and summary bullets) or provider with an LLM "
-                "summary_provider. ML providers (transformers, hybrid_ml) do not "
-                "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
-            )
+        d("  GI QA score min: %s", cfg.gi_qa_score_min)
+        d("  GI NLI entailment min: %s", cfg.gi_nli_entailment_min)
+        d("  GI embedding model: %s", getattr(cfg, "gi_embedding_model", ""))
+        d("  GI QA model: %s", getattr(cfg, "gi_qa_model", ""))
+        d("  GI NLI model: %s", getattr(cfg, "gi_nli_model", ""))
 
-    logger.info("Knowledge Graph (KG):")
-    logger.info(f"  Generate KG: {getattr(cfg, 'generate_kg', False)}")
+    d("Knowledge Graph (KG):")
+    d(f"  Generate KG: {getattr(cfg, 'generate_kg', False)}")
     if getattr(cfg, "generate_kg", False):
-        logger.info(
+        d(
             "  KG extraction source: %s",
             getattr(cfg, "kg_extraction_source", "summary_bullets"),
         )
-        logger.info("  KG max topics: %s", getattr(cfg, "kg_max_topics", 5))
-        logger.info("  KG max entities: %s", getattr(cfg, "kg_max_entities", 15))
-        logger.info(
+        _kep = getattr(cfg, "kg_extraction_provider", None)
+        if _kep:
+            d("  KG extraction provider: %s", _kep)
+        elif getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider":
+            d("  KG extraction provider: (same as summary_provider)")
+        d(
+            "  KG max topics: %s",
+            getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX),
+        )
+        d("  KG max entities: %s", getattr(cfg, "kg_max_entities", 15))
+        d(
             "  KG merge pipeline entities: %s",
             getattr(cfg, "kg_merge_pipeline_entities", True),
         )
         km = getattr(cfg, "kg_extraction_model", None)
         if km:
-            logger.info("  KG extraction model override: %s", km)
-        if (
-            getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider"
-            and getattr(cfg, "summary_provider", "") in ("transformers", "hybrid_ml")
-            and not config._is_test_environment()
-        ):
-            logger.warning(
-                "KG: kg_extraction_source is 'provider' but summary_provider is ML — "
-                "extract_kg_graph is a no-op; pipeline falls back to summary bullets "
-                "when available, else episode + hosts/guests only."
-            )
+            d("  KG extraction model override: %s", km)
 
-    # Processing options
-    logger.info("Processing Options:")
-    logger.info(f"  Skip Existing: {cfg.skip_existing}")
-    logger.info(f"  Reuse Media: {cfg.reuse_media}")
-    logger.info(f"  Clean Output: {cfg.clean_output}")
-    logger.info(f"  Dry Run: {cfg.dry_run}")
+    d(
+        "Processing Options: skip_existing=%s reuse_media=%s clean_output=%s dry_run=%s",
+        cfg.skip_existing,
+        cfg.reuse_media,
+        cfg.clean_output,
+        cfg.dry_run,
+    )
 
-    logger.info("=" * 80)
+    d("=" * 80)
+
+
+def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
+    """Log config: compact INFO summary, runtime warnings, optional DEBUG detail."""
+    _log_configuration_summary(cfg, logger)
+    _log_configuration_runtime_warnings(cfg, logger)
+    if logger.isEnabledFor(logging.DEBUG):
+        _log_configuration_detail(cfg, logger)
 
 
 def _validate_python_version() -> None:
@@ -3020,7 +3191,18 @@ def main(  # noqa: C901 - main function handles multiple command paths
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
     # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands
-    if argv and len(argv) > 0 and argv[0] in ("cache", "doctor", "gi", "kg"):
+    if (
+        argv
+        and len(argv) > 0
+        and argv[0]
+        in (
+            "cache",
+            "doctor",
+            "gi",
+            "kg",
+            "pricing-assumptions",
+        )
+    ):
         pass  # Skip ffmpeg check for subcommands
     else:
         _validate_ffmpeg()
@@ -3050,6 +3232,9 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_network=getattr(args, "check_network", False),
             check_models=getattr(args, "check_models", False),
         )
+
+    if hasattr(args, "command") and args.command == "pricing-assumptions":
+        return _run_pricing_assumptions(args)
 
     # Handle gi subcommand (#438)
     if hasattr(args, "command") and args.command == "gi":

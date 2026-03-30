@@ -15,7 +15,7 @@ from podcast_scraper.gi import build_artifact, write_artifact
 p = Path('tests/fixtures/gil_kg_ci_enforce/metadata')
 p.mkdir(parents=True, exist_ok=True)
 art = build_artifact(
-    'episode:ci-fixture',
+    'ci-fixture',
     'Hello world transcript sample for CI quality metrics fixture.',
     prompt_version='v1',
 )

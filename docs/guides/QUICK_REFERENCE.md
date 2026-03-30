@@ -12,7 +12,8 @@ One-page cheat sheet for common podcast_scraper commands.
 
 git clone https://github.com/chipi/podcast_scraper.git && cd podcast_scraper
 python3 -m venv .venv && source .venv/bin/activate
-make init                    # Install all dependencies
+make init                    # Install all dependencies (auto-uses wheels/spacy if *.whl present)
+# Slow ML downloads once: make download-spacy-wheels  →  then make init picks it up
 
 # ML model preloading (for tests)
 
@@ -35,6 +36,10 @@ python -m podcast_scraper.cli doctor
 
 # Include network connectivity check
 python -m podcast_scraper.cli doctor --verbose
+
+# LLM pricing YAML: show path, metadata, staleness (see docs/api/CLI.md)
+python -m podcast_scraper.cli pricing-assumptions
+make check-pricing-assumptions
 ```
 
 ## Daily Development
@@ -188,6 +193,7 @@ Grounded insights are key takeaways linked to verbatim quotes (evidence). When t
 - **Config**: `generate_gi: true`; optional evidence stack: `embedding_model`, `extractive_qa_model`, `nli_model` (and `*_device`).
 - **Output**: One `gi.json` per episode (co-located with transcript/summary).
 - **CLI**: `gi inspect`, `gi show-insight`, `gi explore` (see Grounded Insights Guide).
+- **Browser viewer**: `make serve-gi-kg-viz` — load `*.gi.json` / `*.kg.json` in a local UI ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
 
 See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology](../gi/ontology.md).
 
@@ -222,6 +228,7 @@ See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology]
 
 | Issue | Fix |
 | ----- | --- |
+| spaCy wheels re-download often | `make download-spacy-wheels` then `export PIP_FIND_LINKS="$(pwd)/wheels/spacy"` (see [Dependencies Guide](DEPENDENCIES_GUIDE.md#optional-local-wheel-cache-for-spacy-models)) |
 | Tests skip "model not cached" | `make preload-ml-models` |
 | Import errors | `pip install -e ".[dev,ml]"` |
 | Whisper fails | `brew install ffmpeg` |

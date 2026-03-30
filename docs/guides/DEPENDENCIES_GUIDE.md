@@ -110,7 +110,7 @@ like transcription and summarization.
 
 - **Lazy loading**: Imported conditionally in `whisper_integration.py` to avoid hard dependency
 
-### `spacy` (>=3.7.0) and `en-core-web-sm` (3.7.1)
+### `spacy` (>=3.7.0) and English pipeline models (`en-core-web-sm`, `en-core-web-trf`)
 
 - **Purpose**: Named Entity Recognition (NER) for automatic speaker detection from episode metadata
 
@@ -124,17 +124,56 @@ like transcription and summarization.
 - **Alternatives considered**: `transformers` NER (overkill for this use case), regex
   patterns (too brittle), `nltk` (less accurate)
 
-- **Model installation**: The `en-core-web-sm` model is installed as a dependency
-  from GitHub releases (not PyPI) due to PyPI size constraints.
+- **Model installation**: English models **`en-core-web-sm`** (small, ~13 MB) and
+  **`en-core-web-trf`** (transformer, ~457 MB) are installed as **direct URL**
+  dependencies from GitHub releases (same approach spaCy documents for large assets).
 
-  This is the official and standard method recommended by spaCy.
+  Pins live in `pyproject.toml` under `[project.optional-dependencies]` → `ml`. Versions must
+  stay compatible with spaCy 3.7.x (see [spaCy models](https://spacy.io/usage/models)).
 
-  The model version (3.7.1) is pinned to match spaCy 3.7.x compatibility. See `pyproject.toml` for the exact URL.
+#### Optional local wheel cache for spaCy models
 
-- **Version compatibility**: spaCy 3.7.x requires `en_core_web_sm` 3.7.x.
-  When updating spaCy, ensure the model version matches.
+Pip’s normal cache helps on repeat installs, but new virtualenvs or workflows that clear the
+pip cache (for example some CI jobs) can still re-download the large `.whl` files from GitHub.
 
-  See spaCy's model compatibility documentation for details.
+**Optional workflow:**
+
+1. Download wheels into `wheels/spacy/` (gitignored `*.whl`; see `wheels/README.md`):
+
+   ```bash
+   make download-spacy-wheels
+   ```
+
+2. Install with **`make init`** (recommended): if `wheels/spacy/*.whl` exists, the Makefile sets
+   `PIP_FIND_LINKS` for pip automatically (unless you already exported it).
+
+   For a **manual** `pip install` without Make, point pip at that directory:
+
+   ```bash
+   export PIP_FIND_LINKS="$(pwd)/wheels/spacy"
+   pip install -e ".[dev,ml,gemini]"
+   ```
+
+   On Windows (cmd): `set PIP_FIND_LINKS=%CD%\wheels\spacy` before `pip install`.
+
+3. **CI / Docker:** GitHub Actions already uses `actions/setup-python` **pip** caching; a local
+   wheel directory is most useful for developers, Snyk jobs that run `pip cache purge`, or
+   custom images. Prefer a **narrow cache key** if you add `actions/cache` for `wheels/spacy`
+   (for example hash `scripts/spacy_model_wheels_requirements.txt`).
+
+**When spaCy model pins change in `pyproject.toml`:**
+
+1. Update **`scripts/spacy_model_wheels_requirements.txt`** so its two PEP 508 lines match the
+   new `en-core-web-* @ https://...` entries in `pyproject.toml` (unit test
+   `test_spacy_model_wheels_requirements_sync` enforces this).
+
+2. Re-run `make download-spacy-wheels` (or `pip download -r scripts/spacy_model_wheels_requirements.txt -d wheels/spacy`).
+
+3. Re-install `[ml]` so the new wheels are used.
+
+- **Version compatibility**: spaCy 3.7.x requires matching 3.7.x pipeline packages for these
+  English models. When updating spaCy or model URLs, align both and refresh the requirements
+  file above.
 
 ### `torch` (>=2.0.0) and `transformers` (>=4.30.0)
 

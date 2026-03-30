@@ -96,13 +96,13 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
                     saved_counter=self.saved_counter,
                 )
 
-        # Should log info (not warning) for sequential processing
-        info_calls = [
+        # Provider line is DEBUG to avoid duplicating orchestration parallelism INFO
+        debug_calls = [
             log_call
-            for log_call in mock_logger.info.call_args_list
+            for log_call in mock_logger.debug.call_args_list
             if "configured" in str(log_call) or "effective" in str(log_call)
         ]
-        self.assertGreater(len(info_calls), 0, "Should log info for sequential processing")
+        self.assertGreater(len(debug_calls), 0, "Should log debug for sequential processing")
 
     def test_whisper_parallel_processing_warning(self):
         """Test Whisper logs warning when parallelism > 1 (experimental)."""
@@ -189,15 +189,14 @@ class TestTranscriptionParallelismConfiguration(unittest.TestCase):
                     saved_counter=self.saved_counter,
                 )
 
-        # Should log info (not warning) for OpenAI parallel processing
-        info_calls = [
+        debug_calls = [
             log_call
-            for log_call in mock_logger.info.call_args_list
+            for log_call in mock_logger.debug.call_args_list
             if "configured" in str(log_call)
             or "effective" in str(log_call)
             or "openai" in str(log_call).lower()
         ]
-        self.assertGreater(len(info_calls), 0, "Should log info for OpenAI parallel processing")
+        self.assertGreater(len(debug_calls), 0, "Should log debug for OpenAI parallel processing")
 
     def test_whisper_parallel_processing_uses_threadpool(self):
         """Test Whisper with parallelism > 1 uses ThreadPoolExecutor."""

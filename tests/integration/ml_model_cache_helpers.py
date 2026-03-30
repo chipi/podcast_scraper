@@ -13,6 +13,9 @@ Supply Chain Security:
 Models checked (in order of preference):
 - Local cache: .cache/ in project root (if exists)
 - User cache: ~/.cache/whisper/, ~/.cache/huggingface/hub/, ~/.local/share/spacy/
+
+GIL evidence stack (embedding + extractive QA + NLI) uses the same HF cache and
+``local_files_only`` loading as summarization; see ``is_evidence_stack_cached``.
 """
 
 import os
@@ -493,3 +496,33 @@ def require_transformers_model_cached(model_name: str, cache_dir: Optional[str] 
         )
 
         pytest.skip(skip_message)
+
+
+def is_evidence_stack_cached() -> bool:
+    """Return True if default GIL evidence models are cached for offline runs.
+
+    Root ``tests/conftest.py`` sets ``HF_HUB_OFFLINE=1`` / ``TRANSFORMERS_OFFLINE=1`` for
+    all pytest runs. Integration tests that load embedding, QA, and NLI must not treat
+    offline mode as "skip always"; they should run when the project HF cache contains
+    the three default models.
+
+    Embedding uses the same hub layout as other HF repos; :func:`_is_transformers_model_cached`
+    is unreliable for some sentence-transformers checkpoints, so we use
+    :func:`podcast_scraper.providers.ml.model_loader.is_evidence_model_cached` for the
+    embedding ID. QA and NLI use the tokenizer ``local_files_only`` probe.
+
+    Returns:
+        True if embedding, QA, and NLI defaults are present and loadable offline.
+    """
+    from podcast_scraper import config_constants
+    from podcast_scraper.providers.ml.model_loader import is_evidence_model_cached
+
+    if not is_evidence_model_cached(config_constants.DEFAULT_EMBEDDING_MODEL):
+        return False
+    for model_id in (
+        config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
+        config_constants.DEFAULT_NLI_MODEL,
+    ):
+        if not _is_transformers_model_cached(model_id):
+            return False
+    return True

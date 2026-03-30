@@ -41,11 +41,16 @@ log_level: INFO  # Can also be set via LOG_LEVEL env var (DEBUG, INFO, WARNING, 
 
 generate_metadata: true  # Generate metadata documents alongside transcripts
 generate_summaries: true  # Generate summaries for episodes
+# Default LLM summaries: JSON bullets (e.g. openai/summarization/bullets_json_v1 → shared templates).
+# summary_prompt_params defaults: bullet_min (3), max_words_per_bullet; optional bullet_max caps count.
+# Paragraph mode: <provider>_summary_user_prompt */long_v1 + system */system_v1.
 metadata_format: json  # json or yaml (json recommended for database ingestion)
 # metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
 
 # Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode (see docs/guides/GROUNDED_INSIGHTS_GUIDE.md)
 # generate_gi: false  # Set true to run GIL extraction after transcript/speaker detection
+# gil_evidence_match_summary_provider: true  # Default: align quote+entail with API/hybrid_ml summary when
+#   quote_extraction_provider and entailment_provider are still default transformers. Set false for local QA+NLI.
 # Evidence stack (used when GIL is enabled); models load lazily on first use
 # embedding_model: sentence-transformers/all-MiniLM-L6-v2  # Or alias: minilm-l6
 # embedding_device: null  # cpu, cuda, mps, or null for auto
@@ -98,7 +103,8 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # OpenAI model configuration (optional - defaults are used if not specified)
 # openai_transcription_model: whisper-1  # Default: whisper-1
 # openai_speaker_model: gpt-4o-mini  # Default: gpt-4o-mini (use gpt-4o for production)
-# openai_summary_model: gpt-4o-mini  # Default: gpt-4o-mini (use gpt-4o for production)
+# openai_summary_model: gpt-4o-mini  # Default: test gpt-4o-mini / prod gpt-4o (see config_constants)
+# openai_cleaning_model: gpt-4o-mini  # Default: gpt-4o-mini (hybrid/LLM cleaning; use gpt-3.5-turbo to save cost)
 # openai_temperature: 0.3  # Default: 0.3 (0.0-2.0)
 
 # Gemini model configuration (optional - defaults are used if not specified)
@@ -217,9 +223,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # Options: "pattern" (regex-based, default for ML providers), "llm" (LLM-based semantic), "hybrid" (pattern + conditional LLM, default for LLM providers)
 # transcript_cleaning_strategy: hybrid  # Default: hybrid for LLM providers, pattern for ML providers
 
-# Provider-specific cleaning model configuration (optional - defaults to summary model if not specified)
-# Use cheaper/faster models for cleaning to reduce costs
-# openai_cleaning_model: gpt-4o-mini  # Default: gpt-4o-mini (cheaper than summary model)
+# Provider-specific cleaning (models listed under each provider above, e.g. openai_cleaning_model)
 # openai_cleaning_temperature: 0.2  # Default: 0.2 (lower = more deterministic)
 # openai_cleaning_max_tokens: null  # Default: null (80-90% of input length)
 # openai_cleaning_llm_threshold: 0.10  # Default: 0.10 (use LLM if pattern reduces < 10%)

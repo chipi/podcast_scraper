@@ -1,0 +1,17 @@
+# GIL eval smoke: stub insights, eval_stub backend, curated_5feeds_smoke_v1.
+# Requires: make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1
+id: gil_eval_stub_curated_5feeds_smoke_v1
+task: grounded_insights
+
+backend:
+  type: eval_stub
+
+data:
+  dataset_id: curated_5feeds_smoke_v1
+
+preprocessing_profile: cleaning_v3
+
+params:
+  gi_insight_source: stub
+  gi_require_grounding: false
+  gi_max_insights: 5

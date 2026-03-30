@@ -156,6 +156,14 @@ class ProviderRuntimeError(ProviderError):
         super().__init__(message=message, provider=provider, suggestion=suggestion)
 
 
+class GILGroundingUnsatisfiedError(ProviderRuntimeError):
+    """Raised when gi_fail_on_missing_grounding is True and no quotes passed QA+NLI.
+
+    Not caught by the generic GIL retry loop in metadata generation; propagates to fail
+    the episode so CI or strict manual runs cannot succeed with empty grounding.
+    """
+
+
 class ProviderNotInitializedError(ProviderError):
     """Raised when a provider method is called before initialization.
 

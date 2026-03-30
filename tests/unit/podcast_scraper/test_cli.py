@@ -430,6 +430,9 @@ class TestBuildConfig(unittest.TestCase):
             openai_speaker_model=None,
             openai_summary_model=None,
             openai_temperature=None,
+            gi_qa_score_min=0.11,
+            gi_nli_entailment_min=0.41,
+            gi_embedding_model="minilm-l6",
         )
         cfg = cli._build_config(args)
         self.assertIsInstance(cfg, config.Config)
@@ -466,6 +469,9 @@ class TestBuildConfig(unittest.TestCase):
         self.assertIsNone(cfg.log_file)
         self.assertEqual(cfg.language, "en")
         self.assertEqual(cfg.workers, 4)
+        self.assertAlmostEqual(cfg.gi_qa_score_min, 0.11)
+        self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.41)
+        self.assertEqual(cfg.gi_embedding_model, "minilm-l6")
 
     def test_build_config_with_defaults(self):
         """Test that Config uses defaults when args are not provided."""
@@ -524,6 +530,9 @@ class TestBuildConfig(unittest.TestCase):
         self.assertIsNone(cfg.max_episodes)
         self.assertFalse(cfg.transcribe_missing)
         self.assertFalse(cfg.screenplay)
+        # GIL tuning keys omitted from Namespace → Config field defaults
+        self.assertAlmostEqual(cfg.gi_qa_score_min, 0.3)
+        self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.5)
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
     def test_build_config_with_transcription_provider(self):

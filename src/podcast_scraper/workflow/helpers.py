@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 import threading
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from .. import config
 from . import metrics
@@ -206,27 +206,49 @@ def generate_pipeline_summary(  # noqa: C901
             if getattr(pipeline_metrics, "gi_evidence_path_provider", 0) > 0:
                 n = pipeline_metrics.gi_evidence_path_provider
                 summary_lines.append(f"  - GIL evidence path (provider): {n}")
-            if getattr(pipeline_metrics, "gi_evidence_path_legacy", 0) > 0:
-                summary_lines.append(
-                    f"  - GIL evidence path (legacy): {pipeline_metrics.gi_evidence_path_legacy}"
-                )
             if getattr(pipeline_metrics, "gi_evidence_extract_quotes_calls", 0) > 0:
                 summary_lines.append(
                     f"  - GIL evidence extract_quotes calls: "
                     f"{pipeline_metrics.gi_evidence_extract_quotes_calls}"
                 )
+            if getattr(pipeline_metrics, "gi_evidence_nli_candidates_queued", 0) > 0:
+                summary_lines.append(
+                    f"  - GIL evidence NLI candidates (QA-pass): "
+                    f"{pipeline_metrics.gi_evidence_nli_candidates_queued}"
+                )
             if getattr(pipeline_metrics, "gi_evidence_score_entailment_calls", 0) > 0:
                 summary_lines.append(
-                    f"  - GIL evidence score_entailment calls: "
+                    f"  - GIL evidence NLI completed calls: "
                     f"{pipeline_metrics.gi_evidence_score_entailment_calls}"
                 )
-        if getattr(cfg, "generate_kg", False):
-            if pipeline_metrics.kg_artifacts_generated > 0:
+            if getattr(pipeline_metrics, "gi_episodes_zero_grounded_when_required", 0) > 0:
                 summary_lines.append(
-                    f"  - KG artifacts generated: {pipeline_metrics.kg_artifacts_generated}"
+                    f"  - GIL episodes with 0 grounded quotes (require_grounding): "
+                    f"{pipeline_metrics.gi_episodes_zero_grounded_when_required}"
+                )
+            if getattr(pipeline_metrics, "gi_grounding_degraded", False):
+                summary_lines.append(
+                    "  - GIL grounding degraded: at least one episode had no quotes"
+                )
+        if getattr(cfg, "generate_kg", False):
+            n_kg = pipeline_metrics.kg_artifacts_generated
+            if n_kg > 0:
+                tt = pipeline_metrics.kg_topic_nodes_total
+                ee = pipeline_metrics.kg_entity_nodes_total
+                avg_topics = round(tt / n_kg, 2) if n_kg else 0.0
+                avg_entities = round(ee / n_kg, 2) if n_kg else 0.0
+                summary_lines.append(
+                    f"  - KG: {n_kg} episode graph(s), "
+                    f"{tt} topic + {ee} entity nodes "
+                    f"(avg {avg_topics} topics, {avg_entities} entities per graph)"
                 )
             if pipeline_metrics.kg_failures > 0:
                 summary_lines.append(f"  - KG failures: {pipeline_metrics.kg_failures}")
+            if getattr(pipeline_metrics, "kg_provider_extractions", 0) > 0:
+                summary_lines.append(
+                    f"  - KG LLM JSON extractions (succeeded): "
+                    f"{pipeline_metrics.kg_provider_extractions}"
+                )
 
         # Add error count if any
         if pipeline_metrics.errors_total > 0:
@@ -285,6 +307,17 @@ def generate_pipeline_summary(  # noqa: C901
         return saved, summary
 
 
+def _transcription_estimated_cost_usd(
+    pricing: Dict[str, float], audio_minutes: float
+) -> Optional[float]:
+    """Return USD cost for audio given per-minute or per-second rates."""
+    if "cost_per_minute" in pricing:
+        return float(audio_minutes) * float(pricing["cost_per_minute"])
+    if "cost_per_second" in pricing:
+        return float(audio_minutes) * 60.0 * float(pricing["cost_per_second"])
+    return None
+
+
 def calculate_provider_cost(
     cfg: config.Config,
     provider_type: str,
@@ -321,17 +354,118 @@ def calculate_provider_cost(
         if "output_cost_per_1m_tokens" in pricing and completion_tokens:
             cost += (completion_tokens / 1_000_000) * pricing["output_cost_per_1m_tokens"]
 
-    # Audio-based pricing (minutes)
-    if audio_minutes is not None and "cost_per_minute" in pricing:
-        cost += audio_minutes * pricing["cost_per_minute"]
+    # Audio-based pricing (minutes or per-second rates)
+    if audio_minutes is not None:
+        audio_cost = _transcription_estimated_cost_usd(pricing, float(audio_minutes))
+        if audio_cost is not None:
+            cost += audio_cost
 
     return cost if cost > 0 else None
+
+
+def _cleaning_model_for_summary_provider(cfg: config.Config) -> Tuple[str, str]:
+    """Return (provider_type, cleaning_model) for the active summary provider."""
+    p = str(getattr(cfg, "summary_provider", "transformers"))
+    attr_by_provider = {
+        "openai": "openai_cleaning_model",
+        "gemini": "gemini_cleaning_model",
+        "anthropic": "anthropic_cleaning_model",
+        "mistral": "mistral_cleaning_model",
+        "deepseek": "deepseek_cleaning_model",
+        "grok": "grok_cleaning_model",
+        "ollama": "ollama_cleaning_model",
+    }
+    defaults = {
+        "openai": "gpt-4o-mini",
+        "gemini": "gemini-1.5-pro",
+        "anthropic": "claude-3-5-sonnet-20241022",
+        "mistral": "mistral-small",
+        "deepseek": "deepseek-chat",
+        "grok": "grok-beta",
+        "ollama": "llama3.1:8b",
+    }
+    attr = attr_by_provider.get(p)
+    if not attr:
+        return p, ""
+    model = getattr(cfg, attr, None) or defaults.get(p, "")
+    return p, str(model)
+
+
+def _effective_kg_extraction_provider(cfg: config.Config) -> str:
+    """Provider name used for KG LLM extraction when source is ``provider``."""
+    explicit = getattr(cfg, "kg_extraction_provider", None)
+    if explicit is not None:
+        return str(explicit)
+    return str(getattr(cfg, "summary_provider", "transformers"))
+
+
+def _kg_model_for_pricing(cfg: config.Config, kg_provider: str) -> str:
+    """Model id for KG cost estimate (override or provider default summary model)."""
+    override = getattr(cfg, "kg_extraction_model", None)
+    if override:
+        return str(override)
+    model_attr = {
+        "openai": "openai_summary_model",
+        "gemini": "gemini_summary_model",
+        "anthropic": "anthropic_summary_model",
+        "mistral": "mistral_summary_model",
+        "deepseek": "deepseek_summary_model",
+        "grok": "grok_summary_model",
+        "ollama": "ollama_summary_model",
+    }.get(kg_provider)
+    defaults = {
+        "openai": "gpt-4o-mini",
+        "gemini": "gemini-1.5-pro",
+        "anthropic": "claude-3-5-sonnet-20241022",
+        "mistral": "mistral-small",
+        "deepseek": "deepseek-chat",
+        "grok": "grok-beta",
+        "ollama": "llama3.1:8b",
+    }
+    if not model_attr:
+        return ""
+    return str(getattr(cfg, model_attr, defaults.get(kg_provider, "")))
+
+
+def _builtin_provider_pricing(provider_type: str, capability: str, model: str) -> Dict[str, float]:
+    """Built-in USD rates from provider modules (no YAML)."""
+    if provider_type == "openai":
+        from ..providers.openai.openai_provider import OpenAIProvider
+
+        return OpenAIProvider.get_pricing(model, capability)
+    if provider_type == "gemini":
+        from ..providers.gemini.gemini_provider import GeminiProvider
+
+        return GeminiProvider.get_pricing(model, capability)
+    if provider_type == "anthropic":
+        from ..providers.anthropic.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider.get_pricing(model, capability)
+    if provider_type == "mistral":
+        from ..providers.mistral.mistral_provider import MistralProvider
+
+        return MistralProvider.get_pricing(model, capability)
+    if provider_type == "deepseek":
+        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
+
+        return DeepSeekProvider.get_pricing(model, capability)
+    if provider_type == "grok":
+        from ..providers.grok.grok_provider import GrokProvider
+
+        return GrokProvider.get_pricing(model, capability)
+    if provider_type == "ollama":
+        from ..providers.ollama.ollama_provider import OllamaProvider
+
+        return OllamaProvider.get_pricing(model, capability)
+    return {}
 
 
 def _get_provider_pricing(
     cfg: config.Config, provider_type: str, capability: str, model: str
 ) -> Dict[str, float]:
     """Get pricing information from the appropriate provider.
+
+    Merges optional ``pricing_assumptions_file`` YAML overrides on top of built-in rates.
 
     Args:
         cfg: Configuration object
@@ -342,35 +476,232 @@ def _get_provider_pricing(
     Returns:
         Dictionary with pricing information, or empty dict if not available
     """
-    if provider_type == "openai":
-        from ..providers.openai.openai_provider import OpenAIProvider
+    base = _builtin_provider_pricing(provider_type, capability, model)
+    path_cfg = str(getattr(cfg, "pricing_assumptions_file", "") or "").strip()
+    if not path_cfg:
+        return base
+    from .. import pricing_assumptions
 
-        return OpenAIProvider.get_pricing(model, capability)
-    elif provider_type == "gemini":
-        from ..providers.gemini.gemini_provider import GeminiProvider
+    table, _resolved = pricing_assumptions.get_loaded_table(path_cfg)
+    if not table:
+        return base
+    ext = pricing_assumptions.lookup_external_pricing(table, provider_type, capability, model)
+    if not ext:
+        return base
+    merged = dict(base)
+    merged.update(ext)
+    return merged
 
-        return GeminiProvider.get_pricing(model, capability)
-    elif provider_type == "anthropic":
-        from ..providers.anthropic.anthropic_provider import AnthropicProvider
 
-        return AnthropicProvider.get_pricing(model, capability)
-    elif provider_type == "mistral":
-        from ..providers.mistral.mistral_provider import MistralProvider
+def _metrics_wall_suffix(
+    metrics_dict: Dict[str, Any],
+    avg_key: str,
+    count_key: str,
+    label: str,
+) -> str:
+    """Suffix for cost lines: avg wall seconds over episodes with recorded stage timings."""
+    cnt = int(metrics_dict.get(count_key) or 0)
+    if cnt <= 0:
+        return ""
+    avg = float(metrics_dict.get(avg_key) or 0.0)
+    return f", {label} avg wall {avg:.2f}s ({cnt} eps)"
 
-        return MistralProvider.get_pricing(model, capability)
-    elif provider_type == "deepseek":
-        from ..providers.deepseek.deepseek_provider import DeepSeekProvider
 
-        return DeepSeekProvider.get_pricing(model, capability)
-    elif provider_type == "grok":
-        from ..providers.grok.grok_provider import GrokProvider
+def _llm_cost_cleaning_section(
+    cfg: config.Config,
+    metrics_dict: Dict[str, Any],
+    cleaning_strategy: str,
+    uses_llm_summarization: bool,
+    llm_cleaning_calls: int,
+) -> Tuple[List[str], float]:
+    """LLM transcript-cleaning subsection for the pipeline cost summary."""
+    lines: List[str] = []
+    extra_cost = 0.0
+    cleaning_provider_type, cleaning_model = _cleaning_model_for_summary_provider(cfg)
+    uses_semantic_cleaning_cfg = (
+        cleaning_strategy in ("llm", "hybrid") and uses_llm_summarization and bool(cleaning_model)
+    )
+    if uses_semantic_cleaning_cfg:
+        c_in = int(metrics_dict.get("llm_cleaning_input_tokens", 0) or 0)
+        c_out = int(metrics_dict.get("llm_cleaning_output_tokens", 0) or 0)
+        clean_wall = _metrics_wall_suffix(
+            metrics_dict, "avg_cleaning_seconds", "cleaning_count", "transcript clean"
+        )
+        cl_in_avg = float(metrics_dict.get("llm_cleaning_avg_input_tokens_per_call") or 0.0)
+        cl_out_avg = float(metrics_dict.get("llm_cleaning_avg_output_tokens_per_call") or 0.0)
+        tok_avg = ""
+        if llm_cleaning_calls > 0:
+            tok_avg = (
+                f", avg {cl_in_avg:.1f} in + {cl_out_avg:.1f} out tok/call"
+                if (cl_in_avg > 0 or cl_out_avg > 0)
+                else ""
+            )
+        if llm_cleaning_calls > 0:
+            pricing = _get_provider_pricing(
+                cfg, cleaning_provider_type, "summarization", cleaning_model
+            )
+            if pricing and "input_cost_per_1m_tokens" in pricing:
+                clean_cost = (c_in / 1_000_000) * pricing["input_cost_per_1m_tokens"] + (
+                    c_out / 1_000_000
+                ) * pricing["output_cost_per_1m_tokens"]
+                extra_cost += clean_cost
+                lines.append(
+                    f"  - Cleaning: {llm_cleaning_calls} calls, "
+                    f"{c_in:,} input + {c_out:,} output tokens{tok_avg}{clean_wall}, "
+                    f"${clean_cost:.4f} (model: {cleaning_model})"
+                )
+            else:
+                lines.append(
+                    f"  - Cleaning: {llm_cleaning_calls} calls, "
+                    f"{c_in:,} input + {c_out:,} output tokens{tok_avg}{clean_wall} "
+                    f"(model: {cleaning_model}; pricing unavailable)"
+                )
+        elif cleaning_strategy == "llm":
+            lines.append(
+                f"  - Cleaning: strategy=llm, 0 LLM calls recorded, $0.0000 "
+                f"(model: {cleaning_model}){clean_wall}"
+            )
+        else:
+            lines.append(
+                "  - Cleaning: hybrid (0 LLM calls; pattern-only this run), " f"$0.0000{clean_wall}"
+            )
+    elif cleaning_strategy == "pattern":
+        lines.append("  - Cleaning: pattern-based (no LLM), $0.0000")
+    return lines, extra_cost
 
-        return GrokProvider.get_pricing(model, capability)
-    elif provider_type == "ollama":
-        from ..providers.ollama.ollama_provider import OllamaProvider
 
-        return OllamaProvider.get_pricing(model, capability)
-    return {}
+def _llm_cost_gil_section(
+    cfg: config.Config,
+    metrics_dict: Dict[str, Any],
+    llm_summarization_provider: str,
+    uses_llm_summarization: bool,
+    llm_gi_calls: int,
+) -> Tuple[List[str], float]:
+    """GIL LLM subsection (insights + provider evidence stack)."""
+    lines: List[str] = []
+    extra_cost = 0.0
+    if llm_gi_calls <= 0:
+        return lines, extra_cost
+    g_in = int(metrics_dict.get("llm_gi_input_tokens", 0) or 0)
+    g_out = int(metrics_dict.get("llm_gi_output_tokens", 0) or 0)
+    gi_wall = _metrics_wall_suffix(metrics_dict, "avg_gi_seconds", "gi_count", "GIL total")
+    gi_in_avg = float(metrics_dict.get("llm_gi_avg_input_tokens_per_call") or 0.0)
+    gi_out_avg = float(metrics_dict.get("llm_gi_avg_output_tokens_per_call") or 0.0)
+    gi_tok_avg = (
+        f", avg {gi_in_avg:.1f} in + {gi_out_avg:.1f} out tok/call"
+        if (gi_in_avg > 0 or gi_out_avg > 0)
+        else ""
+    )
+    if uses_llm_summarization:
+        model_attr = f"{llm_summarization_provider}_summary_model"
+        default_models = {
+            "openai": "gpt-4o-mini",
+            "gemini": "gemini-1.5-pro",
+            "anthropic": "claude-3-5-sonnet-20241022",
+            "mistral": "mistral-small",
+            "deepseek": "deepseek-chat",
+            "grok": "grok-beta",
+            "ollama": "llama3.1:8b",
+        }
+        gi_model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
+        pricing = _get_provider_pricing(
+            cfg, str(llm_summarization_provider), "summarization", gi_model
+        )
+        if pricing and "input_cost_per_1m_tokens" in pricing:
+            gi_cost = (g_in / 1_000_000) * pricing["input_cost_per_1m_tokens"] + (
+                g_out / 1_000_000
+            ) * pricing["output_cost_per_1m_tokens"]
+            extra_cost += gi_cost
+            lines.append(
+                f"  - GIL (insights/evidence LLM): {llm_gi_calls} calls, "
+                f"{g_in:,} input + {g_out:,} output tokens{gi_tok_avg}{gi_wall}, "
+                f"${gi_cost:.4f} (model: {gi_model})"
+            )
+        else:
+            lines.append(
+                f"  - GIL (insights/evidence LLM): {llm_gi_calls} calls, "
+                f"{g_in:,} input + {g_out:,} output tokens{gi_tok_avg}{gi_wall} "
+                f"(model: {gi_model}; pricing unavailable)"
+            )
+    else:
+        lines.append(
+            f"  - GIL (insights/evidence LLM): {llm_gi_calls} calls, "
+            f"{g_in:,} input + {g_out:,} output tokens{gi_tok_avg}{gi_wall} "
+            "(summary provider is not a billable LLM; cost n/a)"
+        )
+    return lines, extra_cost
+
+
+def _kg_llm_cost_headline(metrics_dict: Dict[str, Any]) -> str:
+    """Human-readable KG LLM mode for CLI summary (uses finished metrics rollups)."""
+    k_sb = int(metrics_dict.get("kg_extractions_provider_summary_bullets", 0) or 0)
+    k_pv = int(metrics_dict.get("kg_extractions_provider", 0) or 0)
+    if k_pv <= 0:
+        return "LLM extraction"
+    k_sb = min(k_sb, k_pv)
+    k_tx = k_pv - k_sb
+    if k_sb == k_pv:
+        return "summary bullets → topics"
+    if k_tx == k_pv:
+        return "transcript"
+    return f"mixed ({k_tx} transcript, {k_sb} bullet-derived)"
+
+
+def _llm_cost_kg_section(
+    cfg: config.Config,
+    metrics_dict: Dict[str, Any],
+    llm_providers: Set[str],
+    llm_kg_calls: int,
+) -> Tuple[List[str], float]:
+    """KG provider-extraction LLM subsection."""
+    lines: List[str] = []
+    extra_cost = 0.0
+    if llm_kg_calls <= 0:
+        return lines, extra_cost
+    kg_headline = _kg_llm_cost_headline(metrics_dict)
+    kg_provider = _effective_kg_extraction_provider(cfg)
+    k_in = int(metrics_dict.get("llm_kg_input_tokens", 0) or 0)
+    k_out = int(metrics_dict.get("llm_kg_output_tokens", 0) or 0)
+    kg_wall = _metrics_wall_suffix(metrics_dict, "avg_kg_seconds", "kg_count", "KG total")
+    kg_in_avg = float(metrics_dict.get("llm_kg_avg_input_tokens_per_call") or 0.0)
+    kg_out_avg = float(metrics_dict.get("llm_kg_avg_output_tokens_per_call") or 0.0)
+    kg_tok_avg = (
+        f", avg {kg_in_avg:.1f} in + {kg_out_avg:.1f} out tok/call"
+        if (kg_in_avg > 0 or kg_out_avg > 0)
+        else ""
+    )
+    if kg_provider in llm_providers:
+        kg_model = _kg_model_for_pricing(cfg, kg_provider)
+        if kg_model:
+            pricing = _get_provider_pricing(cfg, kg_provider, "summarization", kg_model)
+            if pricing and "input_cost_per_1m_tokens" in pricing:
+                kg_cost = (k_in / 1_000_000) * pricing["input_cost_per_1m_tokens"] + (
+                    k_out / 1_000_000
+                ) * pricing["output_cost_per_1m_tokens"]
+                extra_cost += kg_cost
+                lines.append(
+                    f"  - KG ({kg_headline}): {llm_kg_calls} calls, "
+                    f"{k_in:,} input + {k_out:,} output tokens{kg_tok_avg}{kg_wall}, "
+                    f"${kg_cost:.4f} (provider: {kg_provider}, model: {kg_model})"
+                )
+            else:
+                lines.append(
+                    f"  - KG ({kg_headline}): {llm_kg_calls} calls, "
+                    f"{k_in:,} input + {k_out:,} output tokens{kg_tok_avg}{kg_wall} "
+                    f"(model: {kg_model}; pricing unavailable)"
+                )
+        else:
+            lines.append(
+                f"  - KG ({kg_headline}): {llm_kg_calls} calls, "
+                f"{k_in:,} input + {k_out:,} output tokens{kg_tok_avg}{kg_wall}"
+            )
+    else:
+        lines.append(
+            f"  - KG ({kg_headline}): {llm_kg_calls} calls, "
+            f"{k_in:,} input + {k_out:,} output tokens{kg_tok_avg}{kg_wall} "
+            f"(provider: {kg_provider}, local processing)"
+        )
+    return lines, extra_cost
 
 
 def _llm_cost_summary_lines_and_total(
@@ -398,7 +729,15 @@ def _llm_cost_summary_lines_and_total(
     uses_llm_speaker = llm_speaker_provider in llm_providers
     uses_llm_summarization = llm_summarization_provider in llm_providers
 
-    if not (uses_llm_transcription or uses_llm_speaker or uses_llm_summarization):
+    cleaning_strategy = str(getattr(cfg, "transcript_cleaning_strategy", "hybrid") or "hybrid")
+    llm_cleaning_calls = int(metrics_dict.get("llm_cleaning_calls", 0) or 0)
+    llm_gi_calls = int(metrics_dict.get("llm_gi_calls", 0) or 0)
+    llm_kg_calls = int(metrics_dict.get("llm_kg_calls", 0) or 0)
+    any_extra_llm_usage = llm_cleaning_calls > 0 or llm_gi_calls > 0 or llm_kg_calls > 0
+
+    if not (
+        uses_llm_transcription or uses_llm_speaker or uses_llm_summarization or any_extra_llm_usage
+    ):
         return summary_lines, 0.0
 
     total_cost = 0.0
@@ -415,14 +754,17 @@ def _llm_cost_summary_lines_and_total(
             }
             model = getattr(cfg, model_attr, default_models.get(llm_transcription_provider, ""))
             pricing = _get_provider_pricing(cfg, llm_transcription_provider, "transcription", model)
-            if pricing and "cost_per_minute" in pricing:
-                transcription_cost = audio_minutes * pricing["cost_per_minute"]
-                total_cost += transcription_cost
-                summary_lines.append(
-                    f"  - Transcription: {transcription_calls} calls, "
-                    f"{audio_minutes:.1f} minutes, ${transcription_cost:.4f} "
-                    f"(model: {model})"
+            if pricing:
+                transcription_cost = _transcription_estimated_cost_usd(
+                    pricing, float(audio_minutes)
                 )
+                if transcription_cost is not None:
+                    total_cost += transcription_cost
+                    summary_lines.append(
+                        f"  - Transcription: {transcription_calls} calls, "
+                        f"{audio_minutes:.1f} minutes, ${transcription_cost:.4f} "
+                        f"(model: {model})"
+                    )
     else:
         transcripts_transcribed = metrics_dict.get("transcripts_transcribed", 0)
         if transcripts_transcribed > 0:
@@ -449,6 +791,20 @@ def _llm_cost_summary_lines_and_total(
             }
             model = getattr(cfg, model_attr, default_models.get(llm_speaker_provider, ""))
             pricing = _get_provider_pricing(cfg, llm_speaker_provider, "speaker_detection", model)
+            sp_wall = _metrics_wall_suffix(
+                metrics_dict, "avg_extract_names_seconds", "extract_names_count", "NER/speaker"
+            )
+            sp_in_avg = float(
+                metrics_dict.get("llm_speaker_detection_avg_input_tokens_per_call") or 0.0
+            )
+            sp_out_avg = float(
+                metrics_dict.get("llm_speaker_detection_avg_output_tokens_per_call") or 0.0
+            )
+            sp_tok_avg = (
+                f", avg {sp_in_avg:.1f} in + {sp_out_avg:.1f} out tok/call"
+                if (sp_in_avg > 0 or sp_out_avg > 0)
+                else ""
+            )
             if pricing and "input_cost_per_1m_tokens" in pricing:
                 input_cost = (speaker_input_tokens / 1_000_000) * pricing[
                     "input_cost_per_1m_tokens"
@@ -460,7 +816,8 @@ def _llm_cost_summary_lines_and_total(
                 total_cost += speaker_cost
                 summary_lines.append(
                     f"  - Speaker Detection: {speaker_calls} calls, "
-                    f"{speaker_input_tokens:,} input + {speaker_output_tokens:,} output tokens, "
+                    f"{speaker_input_tokens:,} input + {speaker_output_tokens:,} "
+                    f"output tokens{sp_tok_avg}{sp_wall}, "
                     f"${speaker_cost:.4f} (model: {model})"
                 )
     else:
@@ -489,6 +846,18 @@ def _llm_cost_summary_lines_and_total(
             }
             model = getattr(cfg, model_attr, default_models.get(llm_summarization_provider, ""))
             pricing = _get_provider_pricing(cfg, llm_summarization_provider, "summarization", model)
+            sum_wall = _metrics_wall_suffix(
+                metrics_dict, "avg_summarize_seconds", "summarize_count", "summarize"
+            )
+            s_in_avg = float(metrics_dict.get("llm_summarization_avg_input_tokens_per_call") or 0.0)
+            s_out_avg = float(
+                metrics_dict.get("llm_summarization_avg_output_tokens_per_call") or 0.0
+            )
+            sum_tok_avg = (
+                f", avg {s_in_avg:.1f} in + {s_out_avg:.1f} out tok/call"
+                if (s_in_avg > 0 or s_out_avg > 0)
+                else ""
+            )
             if pricing and "input_cost_per_1m_tokens" in pricing:
                 input_cost = (summary_input_tokens / 1_000_000) * pricing[
                     "input_cost_per_1m_tokens"
@@ -500,7 +869,8 @@ def _llm_cost_summary_lines_and_total(
                 total_cost += summary_cost
                 summary_lines.append(
                     f"  - Summarization: {summary_calls} calls, "
-                    f"{summary_input_tokens:,} input + {summary_output_tokens:,} output tokens, "
+                    f"{summary_input_tokens:,} input + {summary_output_tokens:,} "
+                    f"output tokens{sum_tok_avg}{sum_wall}, "
                     f"${summary_cost:.4f} (model: {model})"
                 )
     else:
@@ -511,6 +881,30 @@ def _llm_cost_summary_lines_and_total(
                 f"  - Summarization: {episodes_summarized} episodes, $0.0000 "
                 f"(provider: {summary_provider}, local processing)"
             )
+
+    clines, cextra = _llm_cost_cleaning_section(
+        cfg,
+        metrics_dict,
+        cleaning_strategy,
+        uses_llm_summarization,
+        llm_cleaning_calls,
+    )
+    summary_lines.extend(clines)
+    total_cost += cextra
+
+    glines, gextra = _llm_cost_gil_section(
+        cfg,
+        metrics_dict,
+        str(llm_summarization_provider),
+        uses_llm_summarization,
+        llm_gi_calls,
+    )
+    summary_lines.extend(glines)
+    total_cost += gextra
+
+    klines, kextra = _llm_cost_kg_section(cfg, metrics_dict, llm_providers, llm_kg_calls)
+    summary_lines.extend(klines)
+    total_cost += kextra
 
     if total_cost > 0:
         summary_lines.append(f"  - Total estimated cost: ${total_cost:.4f}")
@@ -629,16 +1023,17 @@ def _generate_dry_run_cost_projection(
         }
         model = getattr(cfg, model_attr, default_models.get(llm_transcription_provider, ""))
         pricing = _get_provider_pricing(cfg, llm_transcription_provider, "transcription", model)
-        if pricing and "cost_per_minute" in pricing:
+        if pricing:
             total_audio_minutes = transcription_episodes * avg_duration_minutes
-            transcription_cost = total_audio_minutes * pricing["cost_per_minute"]
-            total_cost += transcription_cost
-            summary_lines.append(
-                f"Transcription ({model}):\n"
-                f"  - Episodes: {transcription_episodes}\n"
-                f"  - Estimated audio: {total_audio_minutes:.1f} minutes\n"
-                f"  - Estimated cost: ${transcription_cost:.4f}"
-            )
+            transcription_cost = _transcription_estimated_cost_usd(pricing, total_audio_minutes)
+            if transcription_cost is not None:
+                total_cost += transcription_cost
+                summary_lines.append(
+                    f"Transcription ({model}):\n"
+                    f"  - Episodes: {transcription_episodes}\n"
+                    f"  - Estimated audio: {total_audio_minutes:.1f} minutes\n"
+                    f"  - Estimated cost: ${transcription_cost:.4f}"
+                )
 
     # Speaker detection cost estimation
     if uses_llm_speaker:

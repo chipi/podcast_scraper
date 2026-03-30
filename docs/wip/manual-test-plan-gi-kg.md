@@ -24,6 +24,7 @@ something works while you **run** the steps.
 | **Ontology and JSON Schema** | [GIL ontology](../gi/ontology.md); [gi.schema.json](../gi/gi.schema.json); [KG ontology](../kg/ontology.md); [kg.schema.json](../kg/kg.schema.json) |
 | **Provider / API setup** | [Provider configuration quick reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
 | **Automated test context (optional)** | [TESTING_STRATEGY.md](../TESTING_STRATEGY.md); acceptance index at repo root: `config/acceptance/README.md` |
+| **Transcript-only GIL/KG eval (stub, `data/eval`)** | `data/eval/configs/README.md` (repo root); sample YAML: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`, `kg_eval_stub_curated_5feeds_smoke_v1.yaml`; [EXPERIMENT_GUIDE — GIL/KG experiments](../guides/EXPERIMENT_GUIDE.md#grounded-insights-gil-and-knowledge-graph-kg-experiments) |
 | **Manual GI+KG configs (this workflow)** | Index: `config/manual/README.md` at repo root — NPR Planet Money `510289`, OpenAI-first presets |
 
 ---
@@ -56,9 +57,17 @@ python -m podcast_scraper.cli --config config/manual/manual_planet_money_openai_
 make test-acceptance CONFIGS="config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml"
 ```
 
-OpenAI steps need **`OPENAI_API_KEY`** (see `examples/.env.example`). For ML step **D**, set
-`whisper_device` / `summary_device` to **`cpu`** in the YAML if you are not on Apple Silicon
-or MPS is unavailable.
+OpenAI steps need **`OPENAI_API_KEY`** (see `examples/.env.example`).
+
+**Step B (OpenAI + summary bullets GI/KG):** Default GIL settings use **local** quote extraction
+and entailment (`transformers`). Install **`pip install -e ".[ml]"`** so `sentence-transformers`
+is available; otherwise the CLI fails fast at pipeline start. Alternatively set
+`entailment_provider` / `quote_extraction_provider` to an LLM (e.g. `openai`) in YAML to avoid
+local NLI (extra API calls). See [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers).
+Design note (why defaults feel wrong): [gil-evidence-defaults-openai-hybrid-problem.md](gil-evidence-defaults-openai-hybrid-problem.md).
+
+For ML step **D**, set `whisper_device` / `summary_device` to **`cpu`** in the YAML if you are not
+on Apple Silicon or MPS is unavailable.
 
 ### Acceptance configs (single-layer or CI-style smoke)
 

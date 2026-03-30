@@ -363,7 +363,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
             get_provider_capabilities(transcription_provider) if transcription_provider else None
         )
         provider_name = provider_caps.provider_name if provider_caps else "unknown"
-        logger.info(
+        logger.debug(
             "Transcription provider '%s': configured=%d, effective=%d",
             provider_name,
             cfg.transcription_parallelism,
@@ -546,7 +546,10 @@ def process_transcription_jobs_concurrent(  # noqa: C901
     # Update saved counter
     saved_counter[0] = saved
     # Note: Queue size is not directly accessible, but we track jobs_processed
-    logger.info(
-        f"Concurrent transcription processing completed: {saved}/{jobs_processed} "
-        f"transcripts saved (parallelism={max_workers})"
+    logger.debug(
+        "Concurrent transcription processing completed: %s/%s transcripts saved "
+        "(parallelism=%s)",
+        saved,
+        jobs_processed,
+        max_workers,
     )

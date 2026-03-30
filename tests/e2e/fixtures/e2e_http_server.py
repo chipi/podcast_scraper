@@ -766,7 +766,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "usage": {"prompt_tokens": 60, "completion_tokens": 2, "total_tokens": 62},
                 }
             elif "knowledge-graph fragment" in system_content.lower():
-                # KG extract_kg_graph (system prompt from kg.llm_extract.KG_GRAPH_JSON_SYSTEM)
+                # KG extract_kg_graph (system from build_kg_transcript_system_prompt)
                 kg_json = {
                     "topics": [{"label": "E2E mock topic"}],
                     "entities": [{"name": "E2E Entity", "entity_kind": "person"}],
@@ -1061,7 +1061,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "usage": {"input_tokens": 60, "output_tokens": 2},
                 }
             elif "knowledge-graph fragment" in _anthropic_system_text(system).lower():
-                # KG extract_kg_graph (system matches kg.llm_extract.KG_GRAPH_JSON_SYSTEM)
+                # KG extract_kg_graph (system from build_kg_transcript_system_prompt)
                 kg_json = {
                     "topics": [{"label": "E2E mock topic"}],
                     "entities": [{"name": "E2E Entity", "entity_kind": "person"}],

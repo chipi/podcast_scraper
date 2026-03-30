@@ -123,13 +123,11 @@ def _handle_dry_run_host_detection(
     if feed.authors:
         cached_hosts = set(feed.authors)
         if cached_hosts:
-            logger.info("=" * 60)
             logger.info(
                 "DETECTED HOSTS (from %s): %s",
                 "RSS author tags",
                 ", ".join(sorted(cached_hosts)),
             )
-            logger.info("=" * 60)
     return HostDetectionResult(cached_hosts, None, None)
 
 
@@ -335,9 +333,7 @@ def _log_detected_hosts(
         source = "config known_hosts (fallback)"
     else:
         source = "feed metadata (NER)"
-    logger.info("=" * 60)
     logger.info("DETECTED HOSTS (from %s): %s", source, ", ".join(sorted(cached_hosts)))
-    logger.info("=" * 60)
 
 
 def detect_feed_hosts_and_patterns(
@@ -389,12 +385,10 @@ def detect_feed_hosts_and_patterns(
         # Merge with feed_hosts (known_hosts takes precedence)
         cached_hosts = known_hosts_set | feed_hosts
         if cached_hosts:
-            logger.info("=" * 60)
             logger.info(
                 "DETECTED HOSTS (from config known_hosts + feed): %s",
                 ", ".join(sorted(cached_hosts)),
             )
-            logger.info("=" * 60)
             # Skip validation since known_hosts are trusted
             return HostDetectionResult(cached_hosts, heuristics, speaker_detector)
 
@@ -409,22 +403,18 @@ def detect_feed_hosts_and_patterns(
         episode_authors = _fallback_to_episode_authors(cfg, episodes)
         if episode_authors:
             cached_hosts = episode_authors
-            logger.info("=" * 60)
             logger.info(
                 "DETECTED HOSTS (from episode-level authors): %s",
                 ", ".join(sorted(cached_hosts)),
             )
-            logger.info("=" * 60)
 
     # Fallback to known_hosts from config if no hosts detected (show-level override)
     if not cached_hosts and cfg.known_hosts:
         cached_hosts = set(cfg.known_hosts)
-        logger.info("=" * 60)
         logger.info(
             "DETECTED HOSTS (from config known_hosts fallback): %s",
             ", ".join(sorted(cached_hosts)),
         )
-        logger.info("=" * 60)
 
     # Log detected hosts with their source
     _log_detected_hosts(cached_hosts, feed, episode_authors, cfg)
@@ -554,7 +544,7 @@ def _detect_speakers_for_episode(
         if cfg.screenplay_speaker_names and len(cfg.screenplay_speaker_names) > 1:
             return cfg.screenplay_speaker_names[1:]
         return None
-    logger.info("Episode %d: %s", episode.idx, episode.title)
+    logger.debug("Episode %d: %s", episode.idx, episode.title)
     if skip_speaker_detection:
         return None
     if cfg.dry_run:
@@ -600,7 +590,7 @@ def _detect_speakers_for_episode(
             )
         )
     if pipeline_metrics is not None:
-        pipeline_metrics.record_extract_names_time(time.time() - extract_names_start)
+        pipeline_metrics.record_extract_names_time(time.time() - extract_names_start, episode.idx)
     if (
         not detection_succeeded
         and cfg.screenplay_speaker_names
@@ -1128,7 +1118,8 @@ def process_processing_jobs_concurrent(  # noqa: C901
             (prevents MPS memory contention when both Whisper and summarization use MPS)
     """
     max_workers = cfg.processing_parallelism
-    logger.info(
+    # Same as orchestration parallelism line when configured == effective; keep DEBUG only
+    logger.debug(
         "Processing workers: configured=%d, effective=%d",
         cfg.processing_parallelism,
         max_workers,
@@ -1488,13 +1479,19 @@ def process_processing_jobs_concurrent(  # noqa: C901
         len(processing_resources.processing_jobs) if processing_resources.processing_jobs else 0
     )
     if jobs_processed_failed > 0:
-        logger.info(
-            f"Concurrent processing completed: {jobs_processed_ok} succeeded, "
-            f"{jobs_processed_failed} failed ({jobs_processed}/{total_jobs} total, "
-            f"parallelism={max_workers})"
+        logger.debug(
+            "Concurrent processing completed: %s succeeded, %s failed "
+            "(%s/%s total, parallelism=%s)",
+            jobs_processed_ok,
+            jobs_processed_failed,
+            jobs_processed,
+            total_jobs,
+            max_workers,
         )
     else:
-        logger.info(
-            f"Concurrent processing completed: {jobs_processed_ok}/{total_jobs} "
-            f"jobs processed (parallelism={max_workers})"
+        logger.debug(
+            "Concurrent processing completed: %s/%s jobs processed (parallelism=%s)",
+            jobs_processed_ok,
+            total_jobs,
+            max_workers,
         )

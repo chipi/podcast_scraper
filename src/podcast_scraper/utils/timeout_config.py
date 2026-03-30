@@ -114,3 +114,43 @@ def get_summarization_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
         write_timeout=10.0,
         pool_timeout=10.0,
     )
+
+
+def get_openai_client_timeout(cfg: config.Config) -> httpx.Timeout | float | None:
+    """HTTP timeout for the unified OpenAI SDK client (Whisper + chat completions).
+
+    One ``OpenAI`` client handles audio transcription and chat (summarization,
+    hybrid transcript cleaning, speaker detection). ``cfg.timeout`` is often set
+    low for RSS/media downloads; using it alone as the read timeout causes
+    spurious timeouts on long chat requests (e.g. cleaning a full episode).
+
+    Read timeout is the maximum of ``timeout``, ``summarization_timeout``, and
+    ``transcription_timeout`` (using config defaults when a value is unset).
+
+    Args:
+        cfg: Configuration object
+
+    Returns:
+        Same shape as :func:`get_http_timeout` (``httpx.Timeout`` when httpx is available).
+    """
+    from .. import config_constants
+
+    summ = getattr(cfg, "summarization_timeout", None)
+    if summ is None:
+        summ = config_constants.DEFAULT_SUMMARIZATION_TIMEOUT_SECONDS
+    trans = getattr(cfg, "transcription_timeout", None)
+    if trans is None:
+        trans = config_constants.DEFAULT_TRANSCRIPTION_TIMEOUT_SECONDS
+
+    base = get_http_timeout(cfg)
+    if httpx is None:
+        base_read = float(base) if not hasattr(base, "read") else float(base.read)
+        return max(base_read, float(summ), float(trans))
+
+    if not isinstance(base, httpx.Timeout):
+        base_read = float(base) if base is not None else float(getattr(cfg, "timeout", 60.0))
+    else:
+        raw_read = base.read
+        base_read = float(raw_read if raw_read is not None else getattr(cfg, "timeout", 60.0))
+    read_timeout = max(base_read, float(summ), float(trans))
+    return get_http_timeout(cfg, read_timeout=read_timeout)

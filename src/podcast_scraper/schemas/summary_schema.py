@@ -20,7 +20,15 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from podcast_scraper import config_constants
+
 logger = logging.getLogger(__name__)
+
+# Sentence-split fallback for prose: merge overflow so we do not emit dozens of fragments.
+# Align with downstream budget (GI/KG default max bullets), not a fixed “summary length”.
+_HEURISTIC_BULLET_CAP = config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+# Multi-paragraph heuristic: allow a bit more than sentence cap for explicit paragraph breaks.
+_HEURISTIC_PARAGRAPH_CAP = max(24, _HEURISTIC_BULLET_CAP + 4)
 
 
 class SummarySchema(BaseModel):
@@ -35,7 +43,8 @@ class SummarySchema(BaseModel):
         key_quotes: Optional list of notable quotes from the episode
         named_entities: Optional list of important entities mentioned
         timestamps: Optional list of timestamp references with descriptions
-        status: Parsing status (valid, degraded, invalid)
+        status: Parsing status (valid, degraded, invalid). JSON with title + bullets
+            is valid even if optional key_quotes / named_entities are omitted.
         raw_text: Original raw text if parsing was degraded/invalid
     """
 
@@ -205,10 +214,13 @@ def _validate_and_create_schema(
         if not bullets:
             return None  # Cannot create schema without bullets
 
-        # Determine status
-        status: Literal["valid", "degraded", "invalid"] = "valid"
-        if not all([title, key_quotes, named_entities]):
-            status = "degraded"  # Missing optional fields
+        # JSON bullet summaries often omit key_quotes / named_entities; that is still a
+        # complete contract when title (or episode_title fallback) and bullets exist.
+        title_clean = title.strip() if isinstance(title, str) else ""
+        if not title_clean:
+            status: Literal["valid", "degraded", "invalid"] = "degraded"
+        else:
+            status = "valid"
 
         return SummarySchema(
             title=title,
@@ -313,7 +325,21 @@ def _extract_bullets_from_text(text: str) -> List[str]:
     # If no bullets found, try to split by paragraphs
     if not bullets:
         paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-        bullets = paragraphs[:10]  # Limit to 10 paragraphs
+        if len(paragraphs) == 1 and len(paragraphs[0]) > 200:
+            # Single prose block (common for LLMs asked for "paragraphs"): split sentences
+            raw = paragraphs[0].strip()
+            sentences = re.split(r"(?<=[.!?])\s+", raw)
+            sentences = [s.strip() for s in sentences if len(s.strip()) > 12]
+            cap = _HEURISTIC_BULLET_CAP
+            if len(sentences) <= cap:
+                bullets = sentences
+            else:
+                # Merge tail so we do not return dozens of tiny bullets
+                head = sentences[: cap - 1]
+                tail = " ".join(sentences[cap - 1 :])
+                bullets = head + ([tail] if tail else [])
+        else:
+            bullets = paragraphs[:_HEURISTIC_PARAGRAPH_CAP]
 
     return bullets
 

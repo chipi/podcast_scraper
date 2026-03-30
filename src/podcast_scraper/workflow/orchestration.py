@@ -293,12 +293,21 @@ def _log_provider_ownership(
     else:
         diarization_str = "none"
 
-    logger.info(
+    parts = [
         f"ownership: transcription={transcription_str}, "
         f"summarization={summarization_str}, "
         f"entities={entities_str}, "
         f"diarization={diarization_str}"
-    )
+    ]
+    if getattr(cfg, "generate_gi", False) and getattr(cfg, "gi_require_grounding", True):
+        parts.append(
+            "gil_evidence: quote=%s entail=%s"
+            % (
+                getattr(cfg, "quote_extraction_provider", "transformers"),
+                getattr(cfg, "entailment_provider", "transformers"),
+            )
+        )
+    logger.info(" | ".join(parts))
 
 
 def _log_episode_metrics(
@@ -319,6 +328,10 @@ def _log_episode_metrics(
 
     All episodes log the same structure with null values for missing data,
     ensuring parsers don't need to branch.
+
+    Log fields are read from the merged in-memory row after ``update_episode_metrics``,
+    so a later call (e.g. after summarization) still shows audio/transcribe set earlier
+    (e.g. transcript cache hit with ``transcribe_sec=0``).
 
     Args:
         episode_id: Unique episode identifier
@@ -348,16 +361,36 @@ def _log_episode_metrics(
             estimated_cost=estimated_cost,
         )
 
-    # Format values for logging (use None/null for missing data)
+    row = (
+        pipeline_metrics.lookup_episode_metrics(episode_id)
+        if pipeline_metrics is not None
+        else None
+    )
+
+    # Format values for logging (merged row when available)
     episode_number_str = str(episode_number) if episode_number is not None else "?"
-    audio_str = f"{audio_sec:.1f}" if audio_sec is not None else "null"
-    transcribe_str = f"{transcribe_sec:.1f}" if transcribe_sec is not None else "null"
-    summary_str = f"{summary_sec:.1f}" if summary_sec is not None else "null"
-    retries_str = str(retries)
-    rate_limit_str = f"{rate_limit_sleep_sec:.1f}" if rate_limit_sleep_sec > 0 else "null"
-    prompt_tokens_str = str(prompt_tokens) if prompt_tokens is not None else "null"
-    completion_tokens_str = str(completion_tokens) if completion_tokens is not None else "null"
-    cost_str = f"{estimated_cost:.4f}" if estimated_cost is not None else "null"
+    if row is not None:
+        audio_str = f"{row.audio_sec:.1f}" if row.audio_sec is not None else "null"
+        transcribe_str = f"{row.transcribe_sec:.1f}" if row.transcribe_sec is not None else "null"
+        summary_str = f"{row.summary_sec:.1f}" if row.summary_sec is not None else "null"
+        retries_str = str(row.retries)
+        rate_limit_str = (
+            f"{row.rate_limit_sleep_sec:.1f}" if row.rate_limit_sleep_sec > 0 else "null"
+        )
+        prompt_tokens_str = str(row.prompt_tokens) if row.prompt_tokens is not None else "null"
+        completion_tokens_str = (
+            str(row.completion_tokens) if row.completion_tokens is not None else "null"
+        )
+        cost_str = f"{row.estimated_cost:.4f}" if row.estimated_cost is not None else "null"
+    else:
+        audio_str = f"{audio_sec:.1f}" if audio_sec is not None else "null"
+        transcribe_str = f"{transcribe_sec:.1f}" if transcribe_sec is not None else "null"
+        summary_str = f"{summary_sec:.1f}" if summary_sec is not None else "null"
+        retries_str = str(retries)
+        rate_limit_str = f"{rate_limit_sleep_sec:.1f}" if rate_limit_sleep_sec > 0 else "null"
+        prompt_tokens_str = str(prompt_tokens) if prompt_tokens is not None else "null"
+        completion_tokens_str = str(completion_tokens) if completion_tokens is not None else "null"
+        cost_str = f"{estimated_cost:.4f}" if estimated_cost is not None else "null"
 
     logger.info(
         f"[{episode_number_str}] episode_metrics: "
@@ -416,62 +449,51 @@ def _log_episode_results(
 
 
 def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[Any]) -> None:
-    """Log effective parallelism configuration for all pipeline stages (Issue #380).
+    """Log effective parallelism for all pipeline stages in one line (Issue #380).
 
     Args:
         cfg: Configuration object
         summary_provider: Optional summary provider instance (for device detection)
     """
-    logger.info("=" * 60)
-    logger.info("Parallelism Configuration:")
-    logger.info(f"  Download workers: {cfg.workers}")
     transcription_configured = cfg.transcription_parallelism
     transcription_effective = (
         1 if cfg.transcription_provider == "whisper" else transcription_configured
     )
     if transcription_effective != transcription_configured:
-        logger.info(
-            f"  Transcription workers: configured={transcription_configured}, "
-            f"effective={transcription_effective} "
-            f"({cfg.transcription_provider} provider limitation)"
+        trans_part = (
+            f"transcribe=effective={transcription_effective} "
+            f"(configured={transcription_configured}, {cfg.transcription_provider})"
         )
     else:
-        logger.info(f"  Transcription workers: {transcription_effective}")
-    processing_configured = cfg.processing_parallelism
-    processing_effective = processing_configured
-    logger.info(f"  Processing workers: {processing_effective}")
+        trans_part = f"transcribe={transcription_effective}"
+
+    proc_part = f"processing={cfg.processing_parallelism}"
+
     if cfg.generate_summaries:
-        # Get actual device from summary provider (Issue #387)
-        # Stage-level device config takes precedence
         model_device = "cpu"  # Default
         if cfg.summarization_device:
             model_device = cfg.summarization_device.lower()
         elif summary_provider:
-            # Try to get device from actual model instances
             if hasattr(summary_provider, "_map_model") and summary_provider._map_model:
                 if hasattr(summary_provider._map_model, "device"):
                     model_device = summary_provider._map_model.device
             elif hasattr(summary_provider, "_reduce_model") and summary_provider._reduce_model:
                 if hasattr(summary_provider._reduce_model, "device"):
                     model_device = summary_provider._reduce_model.device
-            # Fallback to config if model not loaded yet
             elif cfg.summary_device:
                 model_device = cfg.summary_device
-            # Fallback to provider attribute
             elif hasattr(summary_provider, "device"):
                 model_device = summary_provider.device
 
-        # Determine serialization status
         serialization_reasons = []
         if model_device in ("mps", "cuda"):
             if cfg.mps_exclusive:
                 serialization_reasons.append("mps_exclusive")
-            # Check if tokenizer serialization is enabled (lock exists)
             if summary_provider and hasattr(summary_provider, "_map_model"):
                 if hasattr(summary_provider._map_model, "_summarize_lock"):
                     serialization_reasons.append("tokenizer_lock")
-        serialization_status = (
-            f", serialized ({', '.join(serialization_reasons)})" if serialization_reasons else ""
+        serialization_suffix = (
+            f" serialized=({', '.join(serialization_reasons)})" if serialization_reasons else ""
         )
 
         if model_device == "cpu":
@@ -486,13 +508,19 @@ def _log_effective_parallelism(cfg: config.Config, summary_provider: Optional[An
             estimated_workers = min(max_workers_limit, cfg.summary_batch_size or 1)
         else:
             estimated_workers = 1
-        logger.info(
-            f"  Summarization workers: {estimated_workers} (device={model_device}"
-            f"{serialization_status})"
+        sum_part = (
+            f"summary_workers={estimated_workers} device={model_device}{serialization_suffix}"
         )
     else:
-        logger.info("  Summarization workers: N/A (summarization disabled)")
-    logger.info("=" * 60)
+        sum_part = "summary=N/A (summarization disabled)"
+
+    logger.info(
+        "parallelism: download=%s %s %s %s",
+        cfg.workers,
+        trans_part,
+        proc_part,
+        sum_part,
+    )
 
 
 def create_speaker_detector(cfg: config.Config):  # type: ignore[no-redef]  # noqa: F811
@@ -931,7 +959,6 @@ def _create_run_manifest(
         )
         manifest_path = os.path.join(effective_output_dir, "run_manifest.json")
         run_manifest.save_to_file(manifest_path)
-        logger.info(f"Run manifest saved to: {manifest_path}")
         return run_manifest
     except Exception as e:
         logger.warning(f"Failed to generate run manifest: {e}")
@@ -1037,16 +1064,22 @@ def _finalize_emit_and_save(
     jsonl_emitter: Optional[Any],
     pipeline_metrics: Any,
     metrics_path: Optional[str],
-) -> None:
-    """Emit run_finished, save metrics, close JSONL emitter."""
+) -> Optional[str]:
+    """Emit run_finished, save metrics, close JSONL emitter.
+
+    Returns:
+        Absolute path to metrics file if written successfully, else None.
+    """
     if jsonl_emitter:
         try:
             jsonl_emitter.emit_run_finished()
         except Exception as e:
             logger.warning("Failed to emit run_finished JSONL event: %s", e)
+    written: Optional[str] = None
     if metrics_path:
         try:
             pipeline_metrics.save_to_file(metrics_path)
+            written = os.path.abspath(metrics_path)
         except Exception as e:
             logger.warning("Failed to save metrics to %s: %s", metrics_path, e)
     if jsonl_emitter:
@@ -1054,6 +1087,7 @@ def _finalize_emit_and_save(
             jsonl_emitter.__exit__(None, None, None)
         except Exception as e:
             logger.warning("Failed to close JSONL emitter: %s", e)
+    return written
 
 
 def _finalize_run_index(
@@ -1062,10 +1096,14 @@ def _finalize_run_index(
     episodes: List[Episode],  # type: ignore[valid-type]
     effective_output_dir: str,
     run_suffix: Optional[str],
-) -> None:
-    """Generate and save run index if not dry_run."""
+) -> Optional[str]:
+    """Generate and save run index if not dry_run.
+
+    Returns:
+        Absolute path to index.json if written successfully, else None.
+    """
     if cfg.dry_run:
-        return
+        return None
     try:
         from .run_index import create_run_index
 
@@ -1084,9 +1122,10 @@ def _finalize_run_index(
         )
         index_path = os.path.join(effective_output_dir, "index.json")
         run_index.save_to_file(index_path)
-        logger.info("Run index saved to: %s", index_path)
+        return os.path.abspath(index_path)
     except Exception as e:
         logger.warning("Failed to generate run index: %s", e)
+        return None
 
 
 def _finalize_run_summary(
@@ -1094,10 +1133,14 @@ def _finalize_run_summary(
     run_manifest: Optional[Any],
     pipeline_metrics: Any,
     effective_output_dir: str,
-) -> None:
-    """Generate and save run summary if not dry_run."""
+) -> Optional[str]:
+    """Generate and save run summary if not dry_run.
+
+    Returns:
+        Absolute path to run.json if written successfully, else None.
+    """
     if cfg.dry_run:
-        return
+        return None
     try:
         from .run_summary import create_run_summary, save_run_summary
 
@@ -1107,9 +1150,11 @@ def _finalize_run_summary(
             output_dir=effective_output_dir,
             run_id=cfg.run_id,
         )
-        save_run_summary(run_summary, effective_output_dir)
+        path = save_run_summary(run_summary, effective_output_dir)
+        return os.path.abspath(path)
     except Exception as e:
         logger.warning("Failed to generate run summary: %s", e)
+        return None
 
 
 def _finalize_ml_cleanup(
@@ -1181,9 +1226,16 @@ def _finalize_pipeline(
     pipeline_metrics.log_metrics()
     _log_episode_results(pipeline_metrics, episodes)
     metrics_path = _finalize_metrics_path(cfg, effective_output_dir)
-    _finalize_emit_and_save(jsonl_emitter, pipeline_metrics, metrics_path)
-    _finalize_run_index(cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix)
-    _finalize_run_summary(cfg, run_manifest, pipeline_metrics, effective_output_dir)
+    metrics_written = _finalize_emit_and_save(jsonl_emitter, pipeline_metrics, metrics_path)
+    index_written = _finalize_run_index(
+        cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
+    )
+    summary_written = _finalize_run_summary(
+        cfg, run_manifest, pipeline_metrics, effective_output_dir
+    )
+    artifact_paths = [p for p in (metrics_written, index_written, summary_written) if p]
+    if artifact_paths:
+        logger.info("run artifacts written: %s", " | ".join(artifact_paths))
     _finalize_ml_cleanup(summary_provider, transcription_provider)
     return wf_helpers.generate_pipeline_summary(
         cfg, saved, transcription_resources, effective_output_dir, pipeline_metrics, episodes
@@ -1541,6 +1593,11 @@ def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool 
             root_logger.addHandler(file_handler)
             logger.info(f"Logging to file: {log_file}")
 
+    # Quiet httpx/httpcore request INFO lines when the app runs at INFO or higher
+    if numeric_level >= logging.INFO:
+        for _noisy in ("httpx", "httpcore"):
+            logging.getLogger(_noisy).setLevel(logging.WARNING)
+
     logger.setLevel(numeric_level)
 
 
@@ -1622,6 +1679,10 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
         _setup_pipeline_environment(cfg)
     )
+
+    from ..gi.deps import validate_gil_grounding_dependencies
+
+    validate_gil_grounding_dependencies(cfg)
 
     # Initialize JSONL emitter if enabled
     jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)

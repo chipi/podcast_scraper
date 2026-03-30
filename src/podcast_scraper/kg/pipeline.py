@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any, cast, Dict, List, Optional, Set
+
+from .. import config_constants
+from ..graph_id_utils import (
+    entity_node_id,
+    episode_node_id,
+    slugify_label,
+    topic_node_id_from_slug,
+)
+from .llm_extract import _normalize_entity_kind
 
 logger = logging.getLogger(__name__)
 
@@ -17,14 +25,6 @@ def _safe_iso_date(s: Optional[str]) -> str:
     return "1970-01-01T00:00:00Z"
 
 
-def _slugify(label: str, max_len: int = 80) -> str:
-    """Build a filesystem-safe slug from a human label."""
-    s = label.lower().strip()
-    s = re.sub(r"[^a-z0-9]+", "-", s)
-    s = s.strip("-") or "topic"
-    return s[:max_len]
-
-
 def _resolve_source(cfg: Optional[Any]) -> str:
     if cfg is not None:
         return str(getattr(cfg, "kg_extraction_source", "summary_bullets") or "summary_bullets")
@@ -33,9 +33,12 @@ def _resolve_source(cfg: Optional[Any]) -> str:
 
 def _max_topics(cfg: Optional[Any]) -> int:
     if cfg is not None:
-        v = int(getattr(cfg, "kg_max_topics", 5) or 5)
+        v = int(
+            getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
+            or config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+        )
         return max(1, min(v, 20))
-    return 5
+    return config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
 
 
 def _max_entities(cfg: Optional[Any]) -> int:
@@ -89,9 +92,51 @@ def _try_provider_extraction(
             max_topics=max_t,
             max_entities=max_e,
             params=params or None,
+            pipeline_metrics=pipeline_metrics,
         )
     except Exception as exc:
         logger.debug("KG provider extract_kg_graph failed: %s", exc, exc_info=True)
+        return None
+    if not partial or not isinstance(partial, dict):
+        return None
+    topics = partial.get("topics") or []
+    entities = partial.get("entities") or []
+    if not topics and not entities:
+        return None
+    if pipeline_metrics is not None:
+        pipeline_metrics.kg_provider_extractions += 1
+    return cast(Dict[str, Any], partial)
+
+
+def _try_bullet_derived_extraction(
+    bullet_labels: List[str],
+    episode_title: str,
+    cfg: Optional[Any],
+    kg_extraction_provider: Any,
+    pipeline_metrics: Optional[Any],
+) -> Optional[Dict[str, Any]]:
+    """Call ``extract_kg_from_summary_bullets`` when the provider implements it."""
+    if not bullet_labels or kg_extraction_provider is None:
+        return None
+    extract_fn = getattr(kg_extraction_provider, "extract_kg_from_summary_bullets", None)
+    if not callable(extract_fn):
+        return None
+    max_t = _max_topics(cfg)
+    max_e = _max_entities(cfg)
+    params: Dict[str, Any] = {}
+    if cfg is not None and getattr(cfg, "kg_extraction_model", None):
+        params["kg_extraction_model"] = cfg.kg_extraction_model
+    try:
+        partial = extract_fn(
+            bullet_labels,
+            episode_title=episode_title,
+            max_topics=max_t,
+            max_entities=max_e,
+            params=params or None,
+            pipeline_metrics=pipeline_metrics,
+        )
+    except Exception as exc:
+        logger.debug("KG provider extract_kg_from_summary_bullets failed: %s", exc, exc_info=True)
         return None
     if not partial or not isinstance(partial, dict):
         return None
@@ -125,10 +170,13 @@ def build_artifact(
 
     ``kg_extraction_source`` (from ``cfg``): ``stub`` | ``summary_bullets`` | ``provider``.
     When ``provider`` is set, calls ``extract_kg_graph`` on the summarization provider when
-    available; otherwise falls back to ``summary_bullets`` when bullet/topic hints exist.
+    available. When ``summary_bullets`` and ``kg_extraction_provider`` implements
+    ``extract_kg_from_summary_bullets``, topics/entities are derived from bullets via LLM;
+    otherwise topic nodes use bullet text as labels (legacy). Stub skips topic hints.
 
     Args:
-        episode_id: Stable episode id (same family as metadata / GIL).
+        episode_id: Stable episode key (RSS GUID family). Do not prefix with ``episode:``;
+            the Episode node id becomes ``episode:{episode_id}``.
         transcript_text: Full transcript (used for provider extraction).
         podcast_id: Feed / podcast id string.
         episode_title: Episode title for Episode node.
@@ -140,14 +188,15 @@ def build_artifact(
         detected_hosts: Optional host names from speaker pipeline.
         detected_guests: Optional guest names from speaker pipeline.
         cfg: Optional Config (KG extraction source, limits, merge flag).
-        kg_extraction_provider: Summarization provider instance for ``provider`` source.
+        kg_extraction_provider: Summarization provider for ``provider`` source or optional
+            bullet-derived KG when ``summary_bullets`` (if caller passes an API provider).
         pipeline_metrics: Optional metrics collector (increments kg_provider_extractions).
 
     Returns:
         Dict matching docs/kg/kg.schema.json (minimal validation via kg.schema).
     """
     date_str = _safe_iso_date(publish_date)
-    ep_node_id = f"kg:episode:{episode_id}"
+    ep_node_id = episode_node_id(episode_id)
     source = _resolve_source(cfg)
 
     nodes: List[Dict[str, Any]] = [
@@ -166,6 +215,7 @@ def build_artifact(
     bullet_labels = _topic_labels_from_args(topic_labels, topic_label, cfg)
     used_provider = False
     llm_partial: Optional[Dict[str, Any]] = None
+    llm_from_summary_bullets = False
     resolved_model = model_version
 
     if source == "provider":
@@ -177,10 +227,19 @@ def build_artifact(
             pipeline_metrics,
         )
         used_provider = llm_partial is not None
+    elif source == "summary_bullets" and bullet_labels:
+        llm_partial = _try_bullet_derived_extraction(
+            bullet_labels,
+            episode_title or "",
+            cfg,
+            kg_extraction_provider,
+            pipeline_metrics,
+        )
+        used_provider = llm_partial is not None
+        llm_from_summary_bullets = llm_partial is not None
 
     if llm_partial:
         _append_topics_and_entities_from_partial(
-            episode_id,
             ep_node_id,
             llm_partial,
             nodes,
@@ -194,9 +253,13 @@ def build_artifact(
                 mid = getattr(kg_extraction_provider, "summary_model", None)
             if cfg is not None and getattr(cfg, "kg_extraction_model", None):
                 mid = cfg.kg_extraction_model
-            resolved_model = f"provider:{mid or 'unknown'}"
+            mid_s = mid or "unknown"
+            if llm_from_summary_bullets:
+                resolved_model = f"provider:summary_bullets:{mid_s}"
+            else:
+                resolved_model = f"provider:{mid_s}"
     elif source != "stub" and bullet_labels:
-        _append_topics_from_labels(episode_id, ep_node_id, bullet_labels, nodes, edges)
+        _append_topics_from_labels(ep_node_id, bullet_labels, nodes, edges)
         if resolved_model is None:
             # Legacy: callers without cfg keep "stub" label (tests / old metadata).
             resolved_model = "summary_bullets" if cfg is not None else "stub"
@@ -214,13 +277,12 @@ def build_artifact(
         pass
     else:
         _append_pipeline_entities(
-            episode_id,
             ep_node_id,
             detected_hosts,
             detected_guests,
             nodes,
             edges,
-            existing_entity_names=_entity_names_lower(nodes),
+            existing_entity_keys=_entity_identity_keys(nodes),
         )
 
     extracted_at = (
@@ -240,7 +302,14 @@ def build_artifact(
     }
 
 
-def _entity_names_lower(nodes: List[Dict[str, Any]]) -> Set[str]:
+def _entity_dedup_key(*, name: str, entity_kind: Optional[str]) -> str:
+    """Stable (entity_kind, name) key for intra-artifact deduplication."""
+    ek = _normalize_entity_kind(entity_kind)
+    return f"{ek}:{name.strip().lower()}"
+
+
+def _entity_identity_keys(nodes: List[Dict[str, Any]]) -> Set[str]:
+    """Keys for existing Entity nodes: kind + lowercased name (matches node id semantics)."""
     out: Set[str] = set()
     for n in nodes:
         if n.get("type") != "Entity":
@@ -248,12 +317,22 @@ def _entity_names_lower(nodes: List[Dict[str, Any]]) -> Set[str]:
         props = n.get("properties") or {}
         name = props.get("name")
         if isinstance(name, str) and name.strip():
-            out.add(name.strip().lower())
+            out.add(_entity_dedup_key(name=name, entity_kind=props.get("entity_kind")))
     return out
 
 
+def _entity_properties(*, name: str, entity_kind: str, role: str) -> Dict[str, Any]:
+    """Entity node properties: name, label (for graphs / Topic parity), kind, role."""
+    name_s = (name or "").strip()[:500]
+    return {
+        "name": name_s,
+        "label": name_s[:200],
+        "entity_kind": entity_kind,
+        "role": role,
+    }
+
+
 def _append_topics_from_labels(
-    episode_id: str,
     ep_node_id: str,
     labels: List[str],
     nodes: List[Dict[str, Any]],
@@ -264,11 +343,11 @@ def _append_topics_from_labels(
         if not raw.strip():
             continue
         lab = raw.strip()[:500]
-        slug = _slugify(lab)
+        slug = slugify_label(lab)
         if slug in seen_slugs:
             continue
         seen_slugs.add(slug)
-        topic_id = f"kg:topic:{episode_id}:{slug}"
+        topic_id = topic_node_id_from_slug(slug)
         nodes.append(
             {
                 "id": topic_id,
@@ -280,7 +359,6 @@ def _append_topics_from_labels(
 
 
 def _append_topics_and_entities_from_partial(
-    episode_id: str,
     ep_node_id: str,
     partial: Dict[str, Any],
     nodes: List[Dict[str, Any]],
@@ -303,11 +381,11 @@ def _append_topics_and_entities_from_partial(
             if not isinstance(lab, str) or not lab.strip():
                 continue
             lab_s = lab.strip()[:500]
-            slug = _slugify(lab_s)
+            slug = slugify_label(lab_s)
             if slug in seen_slugs:
                 continue
             seen_slugs.add(slug)
-            topic_id = f"kg:topic:{episode_id}:llm:{slug}"
+            topic_id = topic_node_id_from_slug(slug)
             nodes.append(
                 {
                     "id": topic_id,
@@ -319,7 +397,7 @@ def _append_topics_and_entities_from_partial(
             t_count += 1
 
     e_count = 0
-    seen_names: Set[str] = set()
+    seen_entity_keys: Set[str] = set()
     if isinstance(entities, list):
         for item in entities:
             if e_count >= max_entities:
@@ -327,21 +405,20 @@ def _append_topics_and_entities_from_partial(
             if not isinstance(item, dict):
                 continue
             name = item.get("name")
-            kind = item.get("entity_kind") or "person"
             if not isinstance(name, str) or not name.strip():
                 continue
             name_s = name.strip()[:500]
-            key = name_s.lower()
-            if key in seen_names:
+            ek = _normalize_entity_kind(item.get("entity_kind"))
+            key = _entity_dedup_key(name=name_s, entity_kind=ek)
+            if key in seen_entity_keys:
                 continue
-            seen_names.add(key)
-            ek = kind if kind in ("person", "organization") else "person"
-            eid = f"kg:entity:{episode_id}:llm:{e_count}"
+            seen_entity_keys.add(key)
+            eid = entity_node_id(ek, name_s)
             nodes.append(
                 {
                     "id": eid,
                     "type": "Entity",
-                    "properties": {"name": name_s, "entity_kind": ek, "role": "mentioned"},
+                    "properties": _entity_properties(name=name_s, entity_kind=ek, role="mentioned"),
                 }
             )
             edges.append({"from": eid, "to": ep_node_id, "type": "MENTIONS", "properties": {}})
@@ -349,34 +426,28 @@ def _append_topics_and_entities_from_partial(
 
 
 def _append_pipeline_entities(
-    episode_id: str,
     ep_node_id: str,
     detected_hosts: Optional[List[str]],
     detected_guests: Optional[List[str]],
     nodes: List[Dict[str, Any]],
     edges: List[Dict[str, Any]],
-    existing_entity_names: Set[str],
+    existing_entity_keys: Set[str],
 ) -> None:
-    def _add(names: List[str], role: str, kind: str, start_idx: int) -> int:
-        idx = start_idx
+    def _add(names: List[str], role: str, kind: str) -> None:
         for name in names:
             n = (name or "").strip()
             if not n:
                 continue
-            if n.lower() in existing_entity_names:
+            key = _entity_dedup_key(name=n, entity_kind=kind)
+            if key in existing_entity_keys:
                 continue
-            existing_entity_names.add(n.lower())
-            eid = f"kg:entity:{episode_id}:{role}:{idx}"
-            idx += 1
+            existing_entity_keys.add(key)
+            eid = entity_node_id(kind, n)
             nodes.append(
                 {
                     "id": eid,
                     "type": "Entity",
-                    "properties": {
-                        "name": n[:500],
-                        "entity_kind": kind,
-                        "role": role,
-                    },
+                    "properties": _entity_properties(name=n[:500], entity_kind=kind, role=role),
                 }
             )
             edges.append(
@@ -387,9 +458,8 @@ def _append_pipeline_entities(
                     "properties": {},
                 }
             )
-        return idx
 
     hosts = [h for h in (detected_hosts or []) if isinstance(h, str)]
     guests = [g for g in (detected_guests or []) if isinstance(g, str)]
-    nxt = _add(hosts[:20], "host", "person", 0)
-    _add(guests[:20], "guest", "person", nxt)
+    _add(hosts[:20], "host", "person")
+    _add(guests[:20], "guest", "person")

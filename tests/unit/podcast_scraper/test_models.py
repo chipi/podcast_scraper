@@ -244,6 +244,7 @@ class TestTranscriptionJob(unittest.TestCase):
         self.assertEqual(job.ep_title_safe, "episode-1-introduction")
         self.assertEqual(job.temp_media, "/tmp/episode-1.mp3")
         self.assertIsNone(job.detected_speaker_names)
+        self.assertIsNone(job.episode)
 
     def test_transcription_job_with_speaker_names(self):
         """Test TranscriptionJob with detected speaker names."""

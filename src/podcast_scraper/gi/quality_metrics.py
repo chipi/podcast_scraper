@@ -65,11 +65,13 @@ class GilQualityMetrics:
         return self.valid_quotes / self.total_quotes
 
     def avg_insights_per_artifact(self) -> float:
+        """Mean insight count per artifact over collected per-artifact totals."""
         if not self.total_insights_per_artifact:
             return 0.0
         return sum(self.total_insights_per_artifact) / len(self.total_insights_per_artifact)
 
     def avg_quotes_per_artifact(self) -> float:
+        """Mean quote count per artifact over collected per-artifact totals."""
         if not self.total_quotes_per_artifact:
             return 0.0
         return sum(self.total_quotes_per_artifact) / len(self.total_quotes_per_artifact)

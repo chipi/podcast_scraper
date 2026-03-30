@@ -57,7 +57,7 @@ class TestKgSchema(unittest.TestCase):
             },
             "nodes": [
                 {
-                    "id": "kg:episode:e:1",
+                    "id": "episode:e:1",
                     "type": "Episode",
                     "properties": {
                         "podcast_id": "p",
@@ -84,7 +84,7 @@ class TestKgSchema(unittest.TestCase):
             },
             "nodes": [
                 {
-                    "id": "kg:episode:e:1",
+                    "id": "episode:e:1",
                     "type": "Episode",
                     "properties": {
                         "podcast_id": "p",
@@ -93,7 +93,7 @@ class TestKgSchema(unittest.TestCase):
                     },
                 },
                 {
-                    "id": "kg:entity:e:1:x:0",
+                    "id": "entity:person:pat",
                     "type": "Entity",
                     "properties": {
                         "name": "Pat",
@@ -120,7 +120,7 @@ class TestKgSchema(unittest.TestCase):
             },
             "nodes": [
                 {
-                    "id": "kg:episode:e:1",
+                    "id": "episode:e:1",
                     "type": "Episode",
                     "properties": {
                         "podcast_id": "p",
@@ -129,12 +129,12 @@ class TestKgSchema(unittest.TestCase):
                     },
                 },
                 {
-                    "id": "kg:topic:e:1:a",
+                    "id": "topic:a",
                     "type": "Topic",
                     "properties": {"label": "A", "slug": "a"},
                 },
                 {
-                    "id": "kg:topic:e:1:b",
+                    "id": "topic:b",
                     "type": "Topic",
                     "properties": {"label": "B", "slug": "b"},
                 },
@@ -142,8 +142,8 @@ class TestKgSchema(unittest.TestCase):
             "edges": [
                 {
                     "type": "RELATED_TO",
-                    "from": "kg:topic:e:1:a",
-                    "to": "kg:topic:e:1:b",
+                    "from": "topic:a",
+                    "to": "topic:b",
                     "properties": {},
                 }
             ],

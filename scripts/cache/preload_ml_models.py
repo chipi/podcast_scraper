@@ -578,7 +578,7 @@ def main() -> None:
 
         preload_transformers_models(transformers_models)
         print("")
-        print("Preloading GIL evidence models (QA + NLI)...")
+        print("Preloading GIL evidence models (embedding + QA + NLI)...")
         preload_evidence_models()
         print("")
     else:
@@ -610,7 +610,7 @@ def main() -> None:
             print("")
 
         if not skip_gil:
-            print("Preloading GIL evidence models (QA + NLI)...")
+            print("Preloading GIL evidence models (embedding + QA + NLI)...")
             preload_evidence_models()
             print("")
 

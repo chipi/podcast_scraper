@@ -1,0 +1,33 @@
+# Manual validation: NPR Planet Money, Anthropic — GI + KG via provider.
+# Doc: With gil_evidence_match_summary_provider (default True), GIL quote+entail follow this summary provider unless quote_extraction_provider / entailment_provider are set.
+# Transcription: OpenAI whisper-1. Cost-compare peer: manual_planet_money_openai_gi_kg_provider.yaml.
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/manual_planet_money_anthropic_gi_kg_provider.yaml
+# Requires: OPENAI_API_KEY, ANTHROPIC_API_KEY
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/manual/planet_money_anthropic_gi_kg_provider
+max_episodes: 3
+
+transcription_provider: openai
+speaker_detector_provider: anthropic
+summary_provider: anthropic
+
+openai_transcription_model: whisper-1
+
+anthropic_speaker_model: claude-haiku-4-5
+anthropic_summary_model: claude-haiku-4-5
+
+transcribe_missing: true
+preprocessing_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+
+generate_gi: true
+gi_insight_source: provider
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_entities: 15

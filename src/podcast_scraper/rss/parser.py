@@ -35,6 +35,9 @@ DURATION_PARTS_HHMMSS = 3
 DURATION_PARTS_MMSS = 2
 DURATION_PARTS_SS = 1
 
+_ITUNES_TITLE_TAG = "{http://www.itunes.com/dtds/podcast-1.0.dtd}title"
+_ATOM_TITLE_TAG = "{http://www.w3.org/2005/Atom}title"
+
 
 def parse_rss_items(xml_bytes: bytes) -> Tuple[str, List[str], List[ET.Element]]:
     """Parse RSS XML and extract channel title, authors, and items.
@@ -197,26 +200,6 @@ def choose_transcript_url(
     return candidates[0]
 
 
-def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
-    """Extract episode title from RSS item and create safe filename version.
-
-    Args:
-        item: RSS item element
-        idx: Episode index number
-
-    Returns:
-        Tuple of (original_title, safe_filename_title)
-    """
-    title_el = item.find("title")
-    if title_el is None:
-        title_el = next(
-            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("title")), None
-        )
-    ep_title = title_el.text.strip() if title_el is not None and title_el.text else f"episode_{idx}"
-    ep_title_safe = filesystem.sanitize_filename(ep_title)
-    return ep_title, ep_title_safe
-
-
 class _HTMLStripper(HTMLParser):
     """Simple HTML tag stripper that preserves spacing between text segments."""
 
@@ -285,6 +268,69 @@ def _strip_html(text: str) -> str:
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
 
     return cleaned
+
+
+def _plain_title_from_element(elem: Optional[ET.Element]) -> str:
+    """Return stripped, HTML-free text from a title-like element."""
+    if elem is None:
+        return ""
+    parts = [t for t in elem.itertext() if t.strip()]
+    raw = "".join(parts).strip() if parts else (elem.text or "").strip()
+    if not raw:
+        return ""
+    return _strip_html(raw).strip()
+
+
+def extract_episode_title(item: ET.Element, idx: int) -> Tuple[str, str]:
+    """Extract episode title from RSS item and create safe filename version.
+
+    Prefer Apple Podcasts ``itunes:title`` when present (often the human episode title),
+    then RSS 2.0 ``title``, then Atom ``title``, then any element whose tag ends with
+    ``title``. Falls back to ``episode_{idx}`` when none are usable.
+
+    Args:
+        item: RSS item element
+        idx: Episode index number
+
+    Returns:
+        Tuple of (original_title, safe_filename_title)
+    """
+    candidates: List[str] = []
+
+    itunes_el = item.find(_ITUNES_TITLE_TAG)
+    t_itunes = _plain_title_from_element(itunes_el)
+    if t_itunes:
+        candidates.append(t_itunes)
+
+    title_el = item.find("title")
+    if title_el is None:
+        title_el = next(
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag == "title"),
+            None,
+        )
+    t_rss = _plain_title_from_element(title_el)
+    if t_rss:
+        candidates.append(t_rss)
+
+    atom_el = item.find(_ATOM_TITLE_TAG)
+    t_atom = _plain_title_from_element(atom_el)
+    if t_atom:
+        candidates.append(t_atom)
+
+    ep_title = ""
+    if candidates:
+        ep_title = candidates[0]
+    else:
+        wildcard = next(
+            (e for e in item.iter() if isinstance(e.tag, str) and e.tag.endswith("title")),
+            None,
+        )
+        ep_title = _plain_title_from_element(wildcard)
+
+    if not ep_title:
+        ep_title = f"episode_{idx}"
+    ep_title_safe = filesystem.sanitize_filename(ep_title)
+    return ep_title, ep_title_safe
 
 
 def extract_feed_metadata(

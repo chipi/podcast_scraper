@@ -1300,70 +1300,88 @@ class MLProvider:
 
         # All defaults come from Config (no hardcoded values)
         # Params dict can override Config defaults (for experiments)
-        if mode_cfg and mode_precedence == "mode":
-            logger.info("=== Using ML Parameters from ModeConfiguration (precedence=mode) ===")
-            logger.info("Mode fingerprint:")
-            logger.info(f"  mode_id: {mode_cfg.mode_id}")
-            logger.info(f"  promoted_from: {mode_cfg.promoted_from}")
-            logger.info(f"  promoted_at: {mode_cfg.promoted_at}")
-            logger.info(f"  map_model: {mode_cfg.map_model}")
-            logger.info(f"  reduce_model: {mode_cfg.reduce_model}")
-            logger.info(f"  preprocessing_profile: {mode_cfg.preprocessing_profile}")
-        elif mode_cfg and mode_precedence == "config":
-            logger.info("=== ModeConfiguration Available (precedence=config) ===")
-            logger.info("Mode fingerprint:")
-            logger.info(f"  mode_id: {mode_cfg.mode_id}")
-            logger.info(f"  promoted_from: {mode_cfg.promoted_from}")
-            logger.info(f"  promoted_at: {mode_cfg.promoted_at}")
-            logger.info(f"  map_model: {mode_cfg.map_model}")
-            logger.info(f"  reduce_model: {mode_cfg.reduce_model}")
-            logger.info(f"  preprocessing_profile: {mode_cfg.preprocessing_profile}")
-        else:
-            logger.info("=== Using ML Parameters from Config ===")
-        logger.info("Map stage:")
-        logger.info(f"  max_new_tokens: {effective_map_params.get('max_new_tokens')}")
-        logger.info(f"  min_new_tokens: {effective_map_params.get('min_new_tokens')}")
-        logger.info(f"  num_beams: {effective_map_params.get('num_beams')}")
-        logger.info(f"  no_repeat_ngram_size: {effective_map_params.get('no_repeat_ngram_size')}")
-        logger.info(f"  length_penalty: {effective_map_params.get('length_penalty')}")
-        logger.info(f"  early_stopping: {effective_map_params.get('early_stopping')}")
-        logger.info(f"  repetition_penalty: {effective_map_params.get('repetition_penalty')}")
-        logger.info("Reduce stage:")
-        logger.info(f"  max_new_tokens: {effective_reduce_params.get('max_new_tokens')}")
-        logger.info(f"  min_new_tokens: {effective_reduce_params.get('min_new_tokens')}")
-        logger.info(f"  num_beams: {effective_reduce_params.get('num_beams')}")
-        logger.info(
-            f"  no_repeat_ngram_size: {effective_reduce_params.get('no_repeat_ngram_size')}"
-        )
-        logger.info(f"  length_penalty: {effective_reduce_params.get('length_penalty')}")
-        logger.info(f"  early_stopping: {effective_reduce_params.get('early_stopping')}")
-        logger.info(f"  repetition_penalty: {effective_reduce_params.get('repetition_penalty')}")
-        logger.info("Tokenization:")
-        logger.info(f"  map_max_input_tokens: {effective_tokenize.get('map_max_input_tokens')}")
-        logger.info(
-            f"  reduce_max_input_tokens: {effective_tokenize.get('reduce_max_input_tokens')}"
-        )
-        logger.info(f"  truncation: {effective_tokenize.get('truncation')}")
-        # Log chunking params if available
+        effective_word_chunk_size = word_chunk_size or self.cfg.summary_word_chunk_size
+        effective_word_overlap = word_overlap or self.cfg.summary_word_overlap
+        effective_use_word_chunking = use_word_chunking
+        if effective_use_word_chunking is None:
+            effective_use_word_chunking = any(
+                model_keyword
+                in (
+                    self._map_model.model_name if hasattr(self._map_model, "model_name") else ""
+                ).lower()
+                for model_keyword in ["bart", "pegasus", "distilbart"]
+            )
+        chunk_strategy = "word" if effective_use_word_chunking else "token"
+        chunk_bits = ""
         if self.cfg.summary_word_chunk_size or word_chunk_size:
-            logger.info("Chunking:")
-            effective_word_chunk_size = word_chunk_size or self.cfg.summary_word_chunk_size
-            effective_word_overlap = word_overlap or self.cfg.summary_word_overlap
-            effective_use_word_chunking = use_word_chunking
-            if effective_use_word_chunking is None:
-                # Auto-detected
-                effective_use_word_chunking = any(
-                    model_keyword
-                    in (
-                        self._map_model.model_name if hasattr(self._map_model, "model_name") else ""
-                    ).lower()
-                    for model_keyword in ["bart", "pegasus", "distilbart"]
-                )
-            strategy = "word_chunking" if effective_use_word_chunking else "token_chunking"
-            logger.info(f"  strategy: {strategy}")
             if effective_use_word_chunking:
-                logger.info(f"  word_chunk_size: {effective_word_chunk_size}")
-                logger.info(f"  word_overlap: {effective_word_overlap}")
+                chunk_bits = (
+                    f" chunk={chunk_strategy}:{effective_word_chunk_size}+{effective_word_overlap}"
+                )
+            else:
+                chunk_bits = f" chunk={chunk_strategy}"
+
+        if mode_cfg and mode_precedence == "mode":
+            logger.info(
+                "ML summarize precedence=mode mode_id=%s map=%s reduce=%s profile=%s | "
+                "map tok %s-%s beams=%s ngram=%s | red tok %s-%s beams=%s | "
+                "tok_in map=%s red=%s trunc=%s%s",
+                mode_cfg.mode_id,
+                mode_cfg.map_model,
+                mode_cfg.reduce_model,
+                mode_cfg.preprocessing_profile,
+                effective_map_params.get("max_new_tokens"),
+                effective_map_params.get("min_new_tokens"),
+                effective_map_params.get("num_beams"),
+                effective_map_params.get("no_repeat_ngram_size"),
+                effective_reduce_params.get("max_new_tokens"),
+                effective_reduce_params.get("min_new_tokens"),
+                effective_reduce_params.get("num_beams"),
+                effective_tokenize.get("map_max_input_tokens"),
+                effective_tokenize.get("reduce_max_input_tokens"),
+                effective_tokenize.get("truncation"),
+                chunk_bits,
+            )
+            logger.debug(
+                "ML mode meta: promoted_from=%s promoted_at=%s | map early_stop=%s len_pen=%s "
+                "rep_pen=%s | red early_stop=%s len_pen=%s rep_pen=%s ngram_red=%s",
+                mode_cfg.promoted_from,
+                mode_cfg.promoted_at,
+                effective_map_params.get("early_stopping"),
+                effective_map_params.get("length_penalty"),
+                effective_map_params.get("repetition_penalty"),
+                effective_reduce_params.get("early_stopping"),
+                effective_reduce_params.get("length_penalty"),
+                effective_reduce_params.get("repetition_penalty"),
+                effective_reduce_params.get("no_repeat_ngram_size"),
+            )
+        elif mode_cfg and mode_precedence == "config":
+            logger.info(
+                "ML summarize precedence=config mode_id=%s map=%s reduce=%s | "
+                "map tok %s-%s | red tok %s-%s | tok_in map=%s red=%s%s",
+                mode_cfg.mode_id,
+                mode_cfg.map_model,
+                mode_cfg.reduce_model,
+                effective_map_params.get("max_new_tokens"),
+                effective_map_params.get("min_new_tokens"),
+                effective_reduce_params.get("max_new_tokens"),
+                effective_reduce_params.get("min_new_tokens"),
+                effective_tokenize.get("map_max_input_tokens"),
+                effective_tokenize.get("reduce_max_input_tokens"),
+                chunk_bits,
+            )
+        else:
+            logger.info(
+                "ML summarize precedence=config_defaults | map tok %s-%s | red tok %s-%s | "
+                "tok_in map=%s red=%s%s",
+                effective_map_params.get("max_new_tokens"),
+                effective_map_params.get("min_new_tokens"),
+                effective_reduce_params.get("max_new_tokens"),
+                effective_reduce_params.get("min_new_tokens"),
+                effective_tokenize.get("map_max_input_tokens"),
+                effective_tokenize.get("reduce_max_input_tokens"),
+                chunk_bits,
+            )
 
         try:
             # Extract generation params: params dict overrides Config defaults
@@ -1547,6 +1565,7 @@ class MLProvider:
         episode_title: Optional[str] = None,
         max_insights: int = 5,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> List[str]:
         """Generate insight statements (GIL). ML provider does not implement this.
 
@@ -1562,6 +1581,7 @@ class MLProvider:
         max_topics: int = 5,
         max_entities: int = 15,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> Optional[Dict[str, Any]]:
         """KG LLM extraction is not implemented for transformers/ML summarization."""
         return None
@@ -1589,6 +1609,8 @@ class MLProvider:
                 question=question,
                 model_id=getattr(self.cfg, "gi_qa_model", "roberta-squad2"),
                 device=getattr(self.cfg, "extractive_qa_device", None),
+                window_chars=int(getattr(self.cfg, "gi_qa_window_chars", 0)),
+                window_overlap_chars=int(getattr(self.cfg, "gi_qa_window_overlap_chars", 250)),
             )
         except Exception as e:
             logger.warning("Extractive QA failed for extract_quotes: %s", e)

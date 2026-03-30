@@ -30,6 +30,10 @@
         GiKgVizCharts.destroyOn(chartCanvas);
       },
     });
+
+    if (window.GiKgVizQuery) {
+      window.GiKgVizQuery.applyVizNavLinks(document);
+    }
   }
 
   if (document.readyState === "loading") {

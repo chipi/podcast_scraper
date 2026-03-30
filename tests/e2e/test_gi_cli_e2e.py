@@ -15,6 +15,7 @@ Two styles of E2E:
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -80,12 +81,15 @@ def test_gi_inspect_e2e(gi_fixture_output_dir: Path) -> None:
 @pytest.mark.critical_path
 def test_gi_show_insight_e2e(gi_fixture_output_dir: Path) -> None:
     """E2E: gi show-insight by id on fixture dir exits 0."""
+    gi_path = gi_fixture_output_dir / "metadata" / "ep1.gi.json"
+    art = json.loads(gi_path.read_text(encoding="utf-8"))
+    insight_id = next(n["id"] for n in art["nodes"] if n.get("type") == "Insight")
     proc = _run_gi(
         [
             "gi",
             "show-insight",
             "--id",
-            "insight:ep:fixture-1:0",
+            insight_id,
             "--output-dir",
             str(gi_fixture_output_dir),
             "--format",
@@ -94,7 +98,7 @@ def test_gi_show_insight_e2e(gi_fixture_output_dir: Path) -> None:
         cwd=gi_fixture_output_dir,
     )
     assert proc.returncode == 0, (proc.stdout, proc.stderr)
-    assert "insight:ep:fixture-1:0" in proc.stdout or "Summary insight" in proc.stdout
+    assert insight_id in proc.stdout or "Summary insight" in proc.stdout
 
 
 @pytest.mark.e2e

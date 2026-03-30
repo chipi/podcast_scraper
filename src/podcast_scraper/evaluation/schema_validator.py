@@ -122,3 +122,27 @@ def validate_metrics_ner(metrics: Dict[str, Any], strict: bool = False) -> None:
     schema_path = Path("data/eval/schemas/metrics_ner_v1.json")
     # NER metrics structure differs from schema - use lenient validation
     validate_schema(metrics, schema_path, strict=strict)
+
+
+def validate_metrics_gil_reference(metrics: Dict[str, Any], strict: bool = False) -> None:
+    """Validate per-reference GIL metrics dict (under ``vs_reference``)."""
+    schema_path = Path("data/eval/schemas/metrics_gil_v1.json")
+    validate_schema(metrics, schema_path, strict=strict)
+
+
+def validate_metrics_kg_reference(metrics: Dict[str, Any], strict: bool = False) -> None:
+    """Validate per-reference KG metrics dict (under ``vs_reference``)."""
+    schema_path = Path("data/eval/schemas/metrics_kg_v1.json")
+    validate_schema(metrics, schema_path, strict=strict)
+
+
+def validate_metrics_gil_eval_run(metrics: Dict[str, Any], strict: bool = False) -> None:
+    """Validate top-level ``metrics.json`` for grounded_insights experiment runs."""
+    schema_path = Path("data/eval/schemas/metrics_gil_eval_run_v1.json")
+    validate_schema(metrics, schema_path, strict=strict)
+
+
+def validate_metrics_kg_eval_run(metrics: Dict[str, Any], strict: bool = False) -> None:
+    """Validate top-level ``metrics.json`` for knowledge_graph experiment runs."""
+    schema_path = Path("data/eval/schemas/metrics_kg_eval_run_v1.json")
+    validate_schema(metrics, schema_path, strict=strict)

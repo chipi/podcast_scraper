@@ -1,0 +1,24 @@
+# Autoresearch Track A (RFC-057): OpenAI summarization on smoke dataset.
+# ``autoresearch/prompt_tuning/eval/score.py`` sets data.max_episodes from AUTORESEARCH_EVAL_N.
+#
+# Requires: materialized curated_5feeds_smoke_v1, silver reference silver_gpt4o_smoke_v1.
+
+id: "autoresearch_prompt_openai_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o-mini"
+
+prompts:
+  user: "openai/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

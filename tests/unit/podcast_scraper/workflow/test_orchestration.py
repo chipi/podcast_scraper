@@ -233,6 +233,56 @@ class TestEpisodeMetricsInitialization(unittest.TestCase):
             ]
             self.assertEqual(len(debug_calls), 0, "Should not log debug message when metrics exist")
 
+    def test_lookup_episode_metrics_missing_returns_none(self):
+        """lookup_episode_metrics returns None when no row exists."""
+        from podcast_scraper.workflow import metrics
+
+        pipeline_metrics = metrics.Metrics()
+        self.assertIsNone(pipeline_metrics.lookup_episode_metrics("unknown_episode"))
+
+
+@pytest.mark.unit
+class TestLogEpisodeMetricsMerged(unittest.TestCase):
+    """episode_metrics log line reflects merged per-episode row (e.g. after cache + summary)."""
+
+    @patch("podcast_scraper.workflow.orchestration.logger")
+    def test_log_episode_metrics_uses_merged_row(self, mock_logger):
+        """After cache sets audio/transcribe, summary log shows those fields too."""
+        from podcast_scraper.workflow import metrics
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            generate_summaries=True,
+            generate_metadata=True,
+            summary_provider="transformers",
+        )
+        pipeline_metrics = metrics.Metrics()
+        episode_id = "ep_cache_then_summary"
+        pipeline_metrics.get_or_create_episode_metrics(episode_id, 1)
+        pipeline_metrics.update_episode_metrics(
+            episode_id=episode_id,
+            audio_sec=900.0,
+            transcribe_sec=0.0,
+        )
+
+        orchestration._log_episode_metrics(
+            episode_id=episode_id,
+            episode_number=1,
+            pipeline_metrics=pipeline_metrics,
+            cfg=cfg,
+            summary_sec=6.5,
+            retries=0,
+            prompt_tokens=10,
+            completion_tokens=20,
+            estimated_cost=0.0001,
+        )
+
+        log_msg = mock_logger.info.call_args[0][0]
+        self.assertIn("audio_sec=900.0", log_msg)
+        self.assertIn("transcribe_sec=0.0", log_msg)
+        self.assertIn("summary_sec=6.5", log_msg)
+        self.assertIn("prompt_tokens=10", log_msg)
+
 
 @pytest.mark.unit
 class TestGetFactoryFunction(unittest.TestCase):

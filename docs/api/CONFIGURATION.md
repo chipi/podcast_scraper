@@ -88,6 +88,54 @@ WORKERS=4
 - **Note**: Does not cache episode media; use `reuse_media` in config for that. The acceptance test runner sets this variable per session (`sessions/session_*/rss_cache`).
 - **HTTP retries**: Feed downloads use `fetch_rss_feed_url` in code, which applies urllib3 retries with exponential backoff (stronger defaults than transcript/media `fetch_url`). Not separately configurable via environment variables.
 
+#### LLM cost estimate assumptions (optional YAML)
+
+Pipeline **estimated USD spend** (end-of-run LLM summary, per-call estimates, and `--dry-run` projections) can use rates from a **YAML file** merged on top of built-in provider constants. This lets you refresh vendor prices **without reinstalling** the package.
+
+| Mechanism | Description |
+| --------- | ----------- |
+| **Config field** | `pricing_assumptions_file` — path to the YAML (empty string = disabled; built-in rates only). |
+| **Environment** | `PRICING_ASSUMPTIONS_FILE` — same as the field; follows normal [priority](#priority-order) (config file beats env when set). |
+| **Default template** | Repository file `config/pricing_assumptions.yaml` (not loaded until you set the path or env). |
+| **Path resolution** | Relative paths are tried against the **current working directory**, then against **ancestor directories** up to the filesystem root, so `config/pricing_assumptions.yaml` usually resolves from the repo root even if the process CWD is a subfolder. |
+
+**YAML shape (summary)**:
+
+- `schema_version` — integer for future migrations.
+- `metadata` — human workflow only (see **Staleness** below).
+- `providers.<provider>.transcription` — per-model or `default` entries with `cost_per_minute` and/or `cost_per_second` (Gemini-style audio).
+- `providers.<provider>.text` — rates for **both** speaker detection and summarization: `input_cost_per_1m_tokens`, `output_cost_per_1m_tokens` (optional: `cache_hit_input_cost_per_1m_tokens` for DeepSeek). Model keys match by **exact id** or **longest substring** (e.g. `gpt-4o-mini` wins over `gpt-4o`).
+
+**Merge rule**: For each lookup, built-in `*Provider.get_pricing()` values are copied, then **any key present in YAML overwrites** the built-in value. Missing YAML entries keep code defaults.
+
+##### Staleness: when estimates may be out of date
+
+Staleness is **advisory**: it does **not** change runtime math. It exists so teams remember to re-check vendor pages.
+
+| YAML key | Role |
+| -------- | ---- |
+| `metadata.last_reviewed` | **ISO date** (`YYYY-MM-DD`) of the last time someone compared this file to vendor pricing pages. |
+| `metadata.stale_review_after_days` | Positive integer. If **calendar age** of `last_reviewed` exceeds this many **whole days**, the file is considered stale. |
+| `metadata.pricing_effective_date` | Optional note of which price sheet / period the numbers reflect (documentation only). |
+| `metadata.source_urls` | Map of provider → official pricing URL (open in browser when refreshing). |
+
+**Stale condition** (all must hold):
+
+1. `metadata` is a mapping.
+2. `last_reviewed` parses as a date.
+3. `stale_review_after_days` is an integer **greater than zero**.
+4. `(today_utc_date - last_reviewed).days > stale_review_after_days`
+
+If `last_reviewed` or `stale_review_after_days` is missing or invalid, **no staleness message** is emitted (not treated as stale).
+
+**Operational workflow**
+
+1. Run [`pricing-assumptions` CLI](CLI.md#pricing-assumptions-command): `python -m podcast_scraper.cli pricing-assumptions` (or `make check-pricing-assumptions`).
+2. If the report prints a **Staleness** section, open each URL under `source_urls`, update numeric rates in the YAML, then set **`last_reviewed`** to today and optionally **`pricing_effective_date`**.
+3. For automation, pass **`--strict`**: exit code **1** when the stale condition holds (e.g. CI or pre-release). Example: `make check-pricing-assumptions ARGS='--strict'`.
+
+**Related**: [Cost projection / dry-run](CLI.md#cost-projection-in-dry-run-mode) uses the same pricing resolution when the YAML is enabled.
+
 #### OpenAI API Configuration
 
 **`OPENAI_API_KEY`**
@@ -109,6 +157,8 @@ OpenAI providers support configurable model selection for dev/test vs production
 | `openai_summary_model` | `--openai-summary-model` | `gpt-4o-mini` | OpenAI model for summarization |
 | `openai_temperature` | `--openai-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `openai_max_tokens` | `--openai-max-tokens` | `None` | Max tokens for generation (None = model default) |
+
+**Summary bullets (all API `summary_provider` values):** Default user templates expect JSON bullet output. Global `summary_prompt_params` supplies `bullet_min` (soft minimum), `max_words_per_bullet`, and optional `bullet_max` (hard cap). Config points at logical names under `prompts/<provider>/summarization/`; if that file is missing, the loader uses `prompts/shared/summarization/` with the **same filename** (see [RFC-017 — Shared summarization templates](../rfc/RFC-017-prompt-management.md#shared-summarization-templates-vs-per-provider-overrides) and `src/podcast_scraper/prompts/shared/README.md` in the repository). Parsed JSON with a **title** (or episode title fallback) and **bullets** is stored as **`schema_status: valid`** even when `key_quotes` / `named_entities` are omitted (bullet-only contract).
 
 **Note on Transcription Limits**: The OpenAI Whisper API has a **25 MB file size limit**. The system proactively checks file sizes via HTTP HEAD requests before downloading or attempting transcription with the OpenAI provider. Episodes exceeding this limit will be skipped to avoid API errors and unnecessary bandwidth usage.
 
@@ -487,6 +537,10 @@ See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provide
 - **Required**: No (defaults to "INFO" if not specified)
 - **Valid Values**: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`
 - **Priority**: Takes precedence over config file `log_level` field (unlike other variables)
+- **Behavior notes**:
+  - At **`DEBUG`**, the CLI also logs the full resolved configuration (field-by-field detail).
+  - At **`INFO`** and above, HTTP client libraries (`httpx`, `httpcore`) are capped at **WARNING** so routine requests do not flood the log.
+  - End-of-run artifacts (metrics, run index, run summary) log per-file paths at **DEBUG**; a single **INFO** line lists all successfully written artifact paths.
 
 #### Performance Configuration
 
@@ -695,7 +749,7 @@ This reduces LLM API calls by 70-90% while maintaining high quality.
 
 Each LLM provider can use a different model for cleaning (typically cheaper/faster than summarization):
 
-- **OpenAI**: `openai_cleaning_model` (defaults to `gpt-4o-mini`)
+- **OpenAI**: `openai_cleaning_model` (defaults to `gpt-4o-mini` via `TEST_DEFAULT_OPENAI_CLEANING_MODEL` / `PROD_DEFAULT_OPENAI_CLEANING_MODEL` in `config_constants.py`; override with e.g. `gpt-3.5-turbo` for lower cost)
 - **Gemini**: `gemini_cleaning_model` (defaults to `gemini-1.5-flash`)
 - **Anthropic**: `anthropic_cleaning_model` (defaults to `claude-haiku-4-5`)
 - **Mistral**: `mistral_cleaning_model` (defaults to `mistral-small-latest`)
@@ -759,11 +813,12 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 | Field | CLI Flag | Default | Description |
 | --- | --- | --- | --- |
 | `generate_kg` | `--generate-kg` | `false` | Write per-episode `*.kg.json` during metadata generation. Requires `generate_metadata=true`. Separate from GIL. See [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md). |
-| `kg_extraction_source` | `--kg-extraction-source` | `summary_bullets` | `stub`, `summary_bullets`, or `provider` (LLM `extract_kg_graph` on summary provider; ML providers no-op). |
-| `kg_max_topics` | `--kg-max-topics` | `5` | Max topic nodes (bullets or provider). |
+| `kg_extraction_source` | `--kg-extraction-source` | `summary_bullets` | `stub`, `summary_bullets`, or `provider` (LLM `extract_kg_graph`; see `kg_extraction_provider`; default uses `summary_provider`; ML backends no-op). |
+| `kg_extraction_provider` | `--kg-extraction-provider` | (none) | When `kg_extraction_source` is `provider`, which backend runs `extract_kg_graph`. Unset means same as `summary_provider`. |
+| `kg_max_topics` | `--kg-max-topics` | `20` | Max topic nodes (bullets or provider). Hard cap `20` in pipeline. |
 | `kg_max_entities` | `--kg-max-entities` | `15` | Max entity nodes from provider extraction. |
 | `kg_extraction_model` | `--kg-extraction-model` | (none) | Optional model override for KG LLM calls; else summary model. |
-| `kg_merge_pipeline_entities` | `--no-kg-merge-pipeline-entities` | `true` | Merge hosts/guests after provider extraction unless flag sets false. |
+| `kg_merge_pipeline_entities` | `--no-kg-merge-pipeline-entities` | `true` | Merge hosts/guests after provider extraction (dedup vs existing entities by **entity_kind + name**); disable with flag. |
 
 **Shallow v1 decisions (KG):** Extraction vs ML, entity roll-up limits, CLI surface (no `kg query` IR), and Postgres deferral are summarized in [KNOWLEDGE_GRAPH_GUIDE § Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). For GIL, see [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
 
@@ -773,10 +828,25 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 | --- | --- | --- | --- |
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
 | `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
-| `gi_max_insights` | `--gi-max-insights` | `5` | Max insights when using `provider` or `summary_bullets`. |
+| `gi_max_insights` | `--gi-max-insights` | `20` | Max insights when using `provider` or `summary_bullets` (`1`–`50`). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
+| `gi_fail_on_missing_grounding` | (config) | `false` | When true with `gi_require_grounding`, raise `GILGroundingUnsatisfiedError` if an episode ends with zero grounded quotes (strict CI). |
+| `gi_evidence_extract_retries` | (config) | `1` | Provider `extract_quotes` only: extra attempts when the first returns no candidates (hint appended to insight text). NLI still uses the original insight. Range `0`–`5`. |
+| `gi_qa_score_min` | (config) | `0.3` | Minimum extractive QA confidence to keep a quote candidate (local QA or `extract_quotes` `qa_score`). Range `0`–`1`. |
+| `gi_nli_entailment_min` | (config) | `0.5` | Minimum NLI entailment probability to attach a `SUPPORTED_BY` quote. Range `0`–`1`. |
+| `gi_qa_window_chars` | (config) | `1800` | Local GIL QA: when &gt; `0` and transcript is longer, scan overlapping windows of this size (characters) and take the best QA span. `0` = one QA call on the full transcript. |
+| `gi_qa_window_overlap_chars` | (config) | `300` | Overlap between QA windows; must be **&lt;** `gi_qa_window_chars` when windowing is enabled. |
+| `gi_qa_model` | (config) | (see `config_constants`) | HuggingFace / registry id for extractive QA (`transformers` / `hybrid_ml` evidence). |
+| `gi_nli_model` | (config) | (see `config_constants`) | CrossEncoder NLI model id for local entailment. |
+| `gi_embedding_model` | (config) | (see `config_constants`) | Sentence-transformers embedding model used when GIL evidence stack preloads embeddings. |
+
+**Config file and the CLI:** For `python -m podcast_scraper.cli --config <file.yaml>`, validated YAML is merged into argparse defaults, then `cli._build_config()` rebuilds `Config`. GIL tuning keys (thresholds, `gi_qa_model`, `gi_nli_model`, `gi_embedding_model`, `extractive_qa_device`, `nli_device`, window sizes, retries, `gi_require_grounding`, etc.) must be **copied in `_build_config`**; otherwise file values are dropped and model defaults apply. If you add new `Config` fields for GIL, extend that forward list in `cli.py`.
+
+`gi.json` **model_version** is not a separate config field: it is derived from `gi_insight_source` and the summarization / insight model in use (see `podcast_scraper.gi.provenance`).
 
 When `summary_provider` is `transformers` or `hybrid_ml`, use **`gi_insight_source: summary_bullets`** (with bullets) or an LLM provider for real insight wording; **`stub`** is for tests/smoke only (CLI warns outside pytest when `generate_gi` + `stub`).
+
+Local entailment (`entailment_provider`: `transformers` or `hybrid_ml`) requires **`sentence-transformers`** (install **`pip install -e ".[ml]"`**). The pipeline validates this at startup when `generate_gi` and `gi_require_grounding` are true.
 
 **Shallow v1 decisions (issue #460):** ML vs `stub` vs `summary_bullets`, topic explore semantics, speaker best-effort behavior, and Postgres deferral are summarized in [GROUNDED_INSIGHTS_GUIDE § Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
 
@@ -788,6 +858,7 @@ When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a config
 | ------- | ---------- | --------- | ------------- |
 | `quote_extraction_provider` | `--quote-extraction-provider` | `transformers` | Provider for GIL quote extraction (QA). Options: transformers, hybrid_ml, openai, gemini, grok, mistral, deepseek, anthropic, ollama. |
 | `entailment_provider` | `--entailment-provider` | `transformers` | Provider for GIL entailment (NLI). Same options as quote_extraction_provider. |
+| `gil_evidence_match_summary_provider` | N/A | `true` | When `generate_gi` is true: if `summary_provider` is an API LLM or `hybrid_ml` and both evidence fields are still default `transformers`, align them to `summary_provider` so grounding matches the summary backend. Set `false` to keep local QA + NLI with API summaries. |
 
 If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set. See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md) and RFC-049.
 

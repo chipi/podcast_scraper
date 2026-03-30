@@ -8,7 +8,7 @@
   },
   "nodes": [
     {
-      "id": "kg:episode:fixture:minimal-kg",
+      "id": "episode:fixture:minimal-kg",
       "type": "Episode",
       "properties": {
         "podcast_id": "podcast:fixture",

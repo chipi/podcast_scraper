@@ -4,10 +4,16 @@ This directory contains all datasets, references, baselines, and evaluation arti
 
 ## Supported Tasks
 
-The evaluation system supports two task types:
+The evaluation system supports these task types:
 
 - **summarization** - Text summarization tasks (e.g., episode summaries)
 - **ner_entities** - Named Entity Recognition tasks (e.g., extracting host/guest names, show titles)
+- **grounded_insights** - Grounded Insight Layer (GIL) artifacts per episode (`output.gil` in
+  `predictions.jsonl`). Currently **`eval_stub` backend only** (stub pipeline; no LLM).
+- **knowledge_graph** - Knowledge graph artifacts per episode (`output.kg`). Currently
+  **`eval_stub` backend only** (stub extraction; no LLM).
+
+GIL and KG are **separate** experiment configs and runs (not combined in one run).
 
 ## Structure
 
@@ -74,7 +80,9 @@ Frozen reference runs representing known-good system behavior. Used for:
 Frozen quality targets for evaluation. Can be:
 
 - **Silver** - LLM-generated, high-quality targets (used for summarization)
-- **Gold** - Human-verified ground truth (used for both summarization and NER)
+- **Gold** - Human-verified ground truth (summarization, NER, and optional **GIL** / **KG**
+  under `references/gold/gil/{ref_id}/` and `references/gold/kg/{ref_id}/` as
+  `{episode_id}.json` files)
 
 **Immutable** - used for quality metrics:
 

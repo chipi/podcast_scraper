@@ -1,4 +1,5 @@
 # Manual validation: NPR Planet Money, OpenAI — metadata + summaries only (no GI/KG).
+# Doc: Summaries default to JSON bullets (shared prompts). Override *summary_*_prompt for paragraph style.
 # Use as a warm-up / baseline before GI+KG configs.
 #
 # Run:
@@ -16,6 +17,7 @@ summary_provider: openai
 openai_transcription_model: whisper-1
 openai_speaker_model: gpt-4o-mini
 openai_summary_model: gpt-4o-mini
+openai_cleaning_model: gpt-4o-mini
 
 transcribe_missing: true
 preprocessing_enabled: true

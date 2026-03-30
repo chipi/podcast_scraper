@@ -1,4 +1,6 @@
 # Manual validation: NPR Planet Money, OpenAI — GI + KG via provider (generate_insights + extract_kg_graph).
+# Doc: With gil_evidence_match_summary_provider (default True), GIL quote+entail follow this summary
+# provider unless quote_extraction_provider / entailment_provider are set.
 # Heavier than summary_bullets; use after the bullets config if you want LLM-shaped insights and graph.
 #
 # Run:
@@ -16,6 +18,7 @@ summary_provider: openai
 openai_transcription_model: whisper-1
 openai_speaker_model: gpt-4o-mini
 openai_summary_model: gpt-4o-mini
+openai_cleaning_model: gpt-4o-mini
 
 transcribe_missing: true
 preprocessing_enabled: true
@@ -25,10 +28,7 @@ generate_summaries: true
 
 generate_gi: true
 gi_insight_source: provider
-gi_max_insights: 5
-gi_insight_model: gpt-4o-mini
 
 generate_kg: true
 kg_extraction_source: provider
-kg_max_topics: 5
 kg_max_entities: 15

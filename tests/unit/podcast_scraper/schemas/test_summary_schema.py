@@ -77,6 +77,8 @@ class TestParseSummaryOutput(unittest.TestCase):
         self.assertIsNotNone(result.schema)
         self.assertEqual(result.schema.title, "Test")
         self.assertEqual(len(result.schema.bullets), 2)
+        self.assertEqual(result.schema.status, "valid")
+        self.assertIsNone(result.schema.raw_text)
 
     def test_malformed_json_repair(self):
         """Test repairing malformed JSON."""
@@ -158,6 +160,33 @@ class TestTextHeuristics(unittest.TestCase):
         bullets = _extract_bullets_from_text(text)
         self.assertGreaterEqual(len(bullets), 3)
 
+    def test_extract_bullets_single_long_paragraph_splits_sentences(self):
+        """LLM prose (one block) becomes one bullet per sentence up to heuristic cap."""
+        text = (
+            "First idea about markets and pricing dynamics in competitive sectors. "
+            "Second idea about inflation expectations and central bank communication. "
+            "Third idea about labor markets and wage stickiness during downturns. "
+            "Fourth idea about trade balances and currency pass-through effects. "
+            "Fifth idea wraps up the episode with fiscal policy and long-run growth."
+        )
+        self.assertGreater(len(text), 200)
+        bullets = _extract_bullets_from_text(text)
+        self.assertEqual(len(bullets), 5)
+        self.assertIn("First idea", bullets[0])
+
+    def test_extract_bullets_single_paragraph_overflow_merges_tail(self):
+        """Beyond heuristic cap, remaining sentences merge into one tail bullet."""
+        parts = [
+            f"Sentence number {n} about economics and policy with enough words here."
+            for n in range(1, 26)
+        ]
+        text = " ".join(parts)
+        self.assertGreater(len(text), 200)
+        bullets = _extract_bullets_from_text(text)
+        self.assertEqual(len(bullets), 20)
+        self.assertIn("Sentence number 1", bullets[0])
+        self.assertIn("Sentence number 25", bullets[-1])
+
     def test_extract_quotes(self):
         """Test extracting quotes from text."""
         text = 'He said "This is a quote" and then "Another quote".'
@@ -186,6 +215,7 @@ class TestValidateAndCreateSchema(unittest.TestCase):
         self.assertIsNotNone(schema)
         self.assertEqual(schema.title, "Test")
         self.assertEqual(len(schema.bullets), 2)
+        self.assertEqual(schema.status, "valid")
 
     def test_alternative_field_names(self):
         """Test handling alternative field names."""
@@ -197,6 +227,17 @@ class TestValidateAndCreateSchema(unittest.TestCase):
         schema = _validate_and_create_schema(data, "raw text", None)
         self.assertIsNotNone(schema)
         self.assertEqual(len(schema.bullets), 1)
+        self.assertEqual(schema.status, "degraded")
+
+    def test_json_bullets_without_optional_enrichment_is_valid(self):
+        """Bullet JSON without key_quotes/entities is valid when title exists."""
+        data = {"title": "T", "bullets": ["One", "Two"]}
+        schema = _validate_and_create_schema(data, '{"title":...}', None)
+        self.assertIsNotNone(schema)
+        self.assertEqual(schema.status, "valid")
+        self.assertIsNone(schema.raw_text)
+        self.assertIsNone(schema.key_quotes)
+        self.assertIsNone(schema.named_entities)
 
     def test_missing_bullets(self):
         """Test handling missing bullets."""

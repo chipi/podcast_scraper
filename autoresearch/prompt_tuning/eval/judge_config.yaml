@@ -1,0 +1,11 @@
+# Pinned judge models (human-edited between runs only). Immutable during an autoresearch session.
+# Uses cheaper defaults; swap to flagship models for higher fidelity (higher cost).
+
+judge_a:
+  provider: openai
+  model: gpt-4o-mini
+
+judge_b:
+  provider: anthropic
+  # Anthropic retired many 3.5 dated ids; use current API alias (see models overview docs).
+  model: claude-haiku-4-5

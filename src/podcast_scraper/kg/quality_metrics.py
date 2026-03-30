@@ -27,11 +27,13 @@ class KgQualityMetrics:
     errors: List[str] = field(default_factory=list)
 
     def avg_nodes_per_artifact(self) -> float:
+        """Mean node count per KG artifact."""
         if not self.nodes_per_artifact:
             return 0.0
         return sum(self.nodes_per_artifact) / len(self.nodes_per_artifact)
 
     def avg_edges_per_artifact(self) -> float:
+        """Mean edge count per KG artifact."""
         if not self.edges_per_artifact:
             return 0.0
         return sum(self.edges_per_artifact) / len(self.edges_per_artifact)
@@ -43,6 +45,7 @@ class KgQualityMetrics:
         return self.artifacts_with_extraction / self.artifact_paths
 
     def to_dict(self) -> Dict[str, Any]:
+        """JSON-friendly aggregate metrics."""
         return {
             "artifact_paths": self.artifact_paths,
             "total_nodes": self.total_nodes,

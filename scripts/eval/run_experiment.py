@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from podcast_scraper.evaluation.comparator import compare_vs_baseline
 from podcast_scraper.evaluation.experiment_config import (
-    discover_input_files,
+    discover_input_files_limited,
     episode_id_from_path,
     ExperimentConfig,
     load_experiment_config,
@@ -230,6 +230,14 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
     if gold_summarization_path.exists():
         return gold_summarization_path
 
+    # Gold GIL / KG references (same layout as other gold tasks)
+    gold_gil_path = Path("data/eval/references/gold/gil") / reference_id
+    if gold_gil_path.exists():
+        return gold_gil_path
+    gold_kg_path = Path("data/eval/references/gold/kg") / reference_id
+    if gold_kg_path.exists():
+        return gold_kg_path
+
     # Check old structure (references/{dataset_id}/{reference_id}) for backward compatibility
     ref_path = Path("data/eval/references") / dataset_id / reference_id
     if ref_path.exists():
@@ -253,7 +261,9 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
         f"Reference '{reference_id}' not found. "
         f"Checked: data/eval/references/{dataset_id}/{reference_id}, "
         f"data/eval/references/gold/ner_entities/{reference_id}, "
-        f"data/eval/references/gold/{reference_id}, "
+        f"data/eval/references/gold/summarization/{reference_id}, "
+        f"data/eval/references/gold/gil/{reference_id}, "
+        f"data/eval/references/gold/kg/{reference_id}, "
         f"data/eval/baselines/{reference_id}, benchmarks/baselines/{reference_id}"
     )
 
@@ -410,16 +420,31 @@ def run_experiment(  # noqa: C901
         logger.info(f"Score-only mode: Using existing predictions from {predictions_path}")
         logger.info("Skipping inference phase. Proceeding directly to scoring...")
     else:
-        # Support both summarization and ner_entities tasks
-        if cfg.task not in ("summarization", "ner_entities"):
+        # Supported experiment tasks (see ``ExperimentConfig.task``)
+        if cfg.task not in (
+            "summarization",
+            "ner_entities",
+            "grounded_insights",
+            "knowledge_graph",
+        ):
             raise NotImplementedError(
-                f"Only 'summarization' and 'ner_entities' tasks are supported. Got: {cfg.task}"
+                f"Unsupported experiment task: {cfg.task}. "
+                "Expected summarization, ner_entities, grounded_insights, or knowledge_graph."
             )
 
         # Create provider based on task and backend type
         if cfg.task == "summarization":
             logger.info("Creating summarization provider...")
-        if cfg.backend.type == "openai":
+        if cfg.task in ("grounded_insights", "knowledge_graph"):
+            if cfg.backend.type != "eval_stub":
+                raise ValueError(
+                    f"Task {cfg.task} requires backend type eval_stub (see experiment_config)."
+                )
+            logger.info("Eval stub backend: skipping summarization provider (GIL/KG eval).")
+            provider = None
+            model_name = "eval_stub"
+            params_dict = {"eval_task": cfg.task, **(cfg.params or {})}
+        elif cfg.backend.type == "openai":
             # OpenAI backend: use params from config if provided
             # Extract params from config.params (if present)
             params_dict = cfg.params or {}
@@ -798,20 +823,26 @@ def run_experiment(  # noqa: C901
             dataset_id=dataset_id,
             experiment_config=cfg,
             provider=provider,
-            model_name=model_name if cfg.task == "summarization" else cfg.backend.model,
+            model_name=model_name,
             preprocessing_profile=preprocessing_profile,
             git_info=git_info,
         )
 
         # Discover input files
-        input_files = discover_input_files(cfg.data)
+        input_files = discover_input_files_limited(cfg.data)
         if not input_files:
             if cfg.data.dataset_id:
                 raise RuntimeError(f"No input files found for dataset: {cfg.data.dataset_id}")
             else:
                 raise RuntimeError(f"No input files found for glob: {cfg.data.episodes_glob}")
 
-        logger.info(f"Found {len(input_files)} episode(s) to process")
+        if cfg.data.max_episodes is not None:
+            logger.info(
+                f"Found {len(input_files)} episode(s) to process "
+                f"(max_episodes={cfg.data.max_episodes})"
+            )
+        else:
+            logger.info(f"Found {len(input_files)} episode(s) to process")
 
         # Phase 1: Run inference and generate predictions
         logger.info("Phase 1: Running inference...")
@@ -1029,6 +1060,79 @@ def run_experiment(  # noqa: C901
                                 "entities_count": len(entities),
                             },
                         }
+                    elif cfg.task == "grounded_insights":
+                        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
+                            runtime_config_for_grounded_insights_eval,
+                        )
+                        from podcast_scraper.gi.pipeline import build_artifact
+
+                        rt_cfg = runtime_config_for_grounded_insights_eval(cfg.params)
+                        gil_payload = build_artifact(
+                            episode_id,
+                            text,
+                            podcast_id=f"eval_dataset:{dataset_id}",
+                            episode_title=episode_id,
+                            publish_date=None,
+                            transcript_ref=path.name,
+                            cfg=rt_cfg,
+                            pipeline_metrics=None,
+                        )
+                        dt = time.time() - t0
+                        out_text = json.dumps(gil_payload, ensure_ascii=False, sort_keys=True)
+                        total_chars_out += len(out_text)
+                        output_hash = hash_text(out_text)
+                        record = {
+                            "episode_id": episode_id,
+                            "dataset_id": dataset_id,
+                            "output": {"gil": gil_payload},
+                            "fingerprint_ref": "fingerprint.json",
+                            "metadata": {
+                                "input_hash": f"sha256:{input_hash}",
+                                "output_hash": f"sha256:{output_hash}",
+                                "input_path": str(path),
+                                "input_length_chars": len(text),
+                                "output_length_chars": len(out_text),
+                                "processing_time_seconds": dt,
+                            },
+                        }
+                    elif cfg.task == "knowledge_graph":
+                        from podcast_scraper.evaluation.eval_gi_kg_runtime import (
+                            runtime_config_for_knowledge_graph_eval,
+                        )
+                        from podcast_scraper.kg.pipeline import (
+                            build_artifact as kg_build_artifact,
+                        )
+
+                        rt_kg = runtime_config_for_knowledge_graph_eval(cfg.params)
+                        kg_payload = kg_build_artifact(
+                            episode_id,
+                            text,
+                            podcast_id=f"eval_dataset:{dataset_id}",
+                            episode_title=episode_id,
+                            publish_date=None,
+                            transcript_ref=path.name,
+                            cfg=rt_kg,
+                            kg_extraction_provider=None,
+                            pipeline_metrics=None,
+                        )
+                        dt = time.time() - t0
+                        out_text = json.dumps(kg_payload, ensure_ascii=False, sort_keys=True)
+                        total_chars_out += len(out_text)
+                        output_hash = hash_text(out_text)
+                        record = {
+                            "episode_id": episode_id,
+                            "dataset_id": dataset_id,
+                            "output": {"kg": kg_payload},
+                            "fingerprint_ref": "fingerprint.json",
+                            "metadata": {
+                                "input_hash": f"sha256:{input_hash}",
+                                "output_hash": f"sha256:{output_hash}",
+                                "input_path": str(path),
+                                "input_length_chars": len(text),
+                                "output_length_chars": len(out_text),
+                                "processing_time_seconds": dt,
+                            },
+                        }
                     else:
                         raise ValueError(f"Unsupported task: {cfg.task}")
 
@@ -1146,6 +1250,16 @@ def run_experiment(  # noqa: C901
         from podcast_scraper.evaluation.scorer import load_predictions
 
         existing_predictions = load_predictions(predictions_path)
+        if cfg.data.max_episodes is not None:
+            allowed_paths = discover_input_files_limited(cfg.data)
+            allowed_ids = {episode_id_from_path(p, cfg.data) for p in allowed_paths}
+            existing_predictions = [
+                p for p in existing_predictions if p.get("episode_id") in allowed_ids
+            ]
+            logger.info(
+                f"Filtered predictions to {len(existing_predictions)} episode(s) "
+                f"(max_episodes={cfg.data.max_episodes})"
+            )
         predictions = existing_predictions  # so later log and code see len(predictions)
         logger.info(f"Loaded {len(existing_predictions)} existing prediction(s)")
 
@@ -1192,7 +1306,7 @@ def run_experiment(  # noqa: C901
 
     # In score_only mode, input_files was never set; discover them for metadata loading
     if score_only:
-        input_files = discover_input_files(cfg.data)
+        input_files = discover_input_files_limited(cfg.data)
         if not input_files:
             logger.warning("No input files found for dataset; metadata_map will be empty")
 
@@ -1241,6 +1355,7 @@ def run_experiment(  # noqa: C901
         reference_paths=reference_paths if reference_paths else None,
         metadata_map=metadata_map if metadata_map else None,
         scoring_params=scoring_params,
+        task=cfg.task,
     )
 
     # Save metrics.json
@@ -1254,6 +1369,10 @@ def run_experiment(  # noqa: C901
     # Validate metrics.json against schema (lenient - warns on mismatch)
     try:
         from podcast_scraper.evaluation.schema_validator import (
+            validate_metrics_gil_eval_run,
+            validate_metrics_gil_reference,
+            validate_metrics_kg_eval_run,
+            validate_metrics_kg_reference,
             validate_metrics_ner,
             validate_metrics_summarization,
         )
@@ -1265,6 +1384,20 @@ def run_experiment(  # noqa: C901
         elif task_type == "summarization":
             validate_metrics_summarization(metrics, strict=False)  # Lenient for now
             logger.info("✓ Summarization metrics validation completed")
+        elif task_type == "grounded_insights":
+            validate_metrics_gil_eval_run(metrics, strict=False)
+            vs_ref = metrics.get("vs_reference") or {}
+            for _rid, blob in vs_ref.items():
+                if isinstance(blob, dict) and "error" not in blob:
+                    validate_metrics_gil_reference(blob, strict=False)
+            logger.info("✓ GIL metrics validation completed")
+        elif task_type == "knowledge_graph":
+            validate_metrics_kg_eval_run(metrics, strict=False)
+            vs_ref = metrics.get("vs_reference") or {}
+            for _rid, blob in vs_ref.items():
+                if isinstance(blob, dict) and "error" not in blob:
+                    validate_metrics_kg_reference(blob, strict=False)
+            logger.info("✓ KG metrics validation completed")
     except ValueError as e:
         # Only raise if strict validation was requested (not the case here)
         logger.warning(f"Metrics validation issue (non-fatal): {e}")

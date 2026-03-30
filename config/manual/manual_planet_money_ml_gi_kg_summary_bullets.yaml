@@ -1,6 +1,15 @@
 # Manual validation: NPR Planet Money — local ML summaries; GI + KG from summary_bullets (no OpenAI).
+# Transformers/BART-style models do not follow JSON bullet prompts; use markdown bullets from
+# hybrid_ml (structured reduce) or rely on heuristic parsing (list markers, sentence split for prose).
 # Same pattern as acceptance_planet_money_gi_ml_summary_bullets + kg_ml_summary_bullets in one file.
 # On Linux or without GPU: set whisper_device and summary_device to cpu.
+#
+# GIL + ML: gi_insight_source: summary_bullets uses heuristic bullets; gi_require_grounding: true is
+# best-effort (quotes depend on QA/NLI thresholds and transcript quality). NLI uses multi-class
+# CrossEncoder outputs → P(entailment); empty graphs with strict grounding often mean thresholds,
+# not only "no evidence". See docs/guides/GROUNDED_INSIGHTS_GUIDE.md (ML + grounding).
+# Optional tuning: gi_qa_score_min / gi_nli_entailment_min (defaults 0.3 / 0.5);
+# gi_qa_window_chars / gi_qa_window_overlap_chars (defaults 1800 / 300) for long transcripts.
 #
 # Run:
 #   python -m podcast_scraper.cli --config config/manual/manual_planet_money_ml_gi_kg_summary_bullets.yaml
@@ -26,10 +35,12 @@ generate_metadata: true
 generate_summaries: true
 
 generate_gi: true
-gi_insight_model: stub
 gi_insight_source: summary_bullets
-gi_max_insights: 5
+# CLI forwards YAML (cli.py). QA scores are often ~0.01–0.03 on long transcripts.
+gi_qa_score_min: 0.05
+# If NLI runs but gi_quotes_total stays 0, lower entailment floor (default 0.5).
+# ML summary bullets + QA snippets often yield entailment <0.02; 0.0 is permissive (manual only).
+gi_nli_entailment_min: 0.0
 
 generate_kg: true
 kg_extraction_source: summary_bullets
-kg_max_topics: 5

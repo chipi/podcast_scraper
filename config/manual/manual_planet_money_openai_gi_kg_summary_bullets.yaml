@@ -1,5 +1,11 @@
-# Manual validation: NPR Planet Money, OpenAI — GI + KG driven by summary bullets (recommended first GI/KG pass).
-# Insight texts and KG topics come from OpenAI summary bullets; no separate LLM insight/graph JSON calls.
+# Manual validation: NPR Planet Money, OpenAI — GI + KG aligned with summary bullets (recommended first GI/KG pass).
+# GI insights use summary bullets (no separate LLM insight list). KG uses one LLM JSON call per episode to
+# derive short Topic labels (+ entities) from those bullets (kg_extraction_source: summary_bullets + OpenAI).
+#
+# GIL grounding (quote + entailment) follows summary_provider when both evidence fields are still the
+# default "transformers" (see config gil_evidence_match_summary_provider, default True) — so this run
+# uses OpenAI for evidence, not local HuggingFace QA/NLI. Set gil_evidence_match_summary_provider: false
+# and quote_extraction_provider/entailment_provider explicitly if you want local grounding with API summaries.
 #
 # Run:
 #   python -m podcast_scraper.cli --config config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml
@@ -16,6 +22,11 @@ summary_provider: openai
 openai_transcription_model: whisper-1
 openai_speaker_model: gpt-4o-mini
 openai_summary_model: gpt-4o-mini
+openai_cleaning_model: gpt-4o-mini
+
+# Summaries default to JSON bullets (shared prompts): soft minimum, variable count (no fixed target).
+# Optional summary_prompt_params.bullet_max caps the model; gi_max_insights / kg_max_topics cap GI/KG cost.
+# Override openai_summary_* for paragraph mode.
 
 transcribe_missing: true
 preprocessing_enabled: true
@@ -25,9 +36,6 @@ generate_summaries: true
 
 generate_gi: true
 gi_insight_source: summary_bullets
-gi_max_insights: 5
-gi_insight_model: gpt-4o-mini
 
 generate_kg: true
 kg_extraction_source: summary_bullets
-kg_max_topics: 5

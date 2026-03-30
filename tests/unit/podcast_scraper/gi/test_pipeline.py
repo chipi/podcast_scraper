@@ -85,6 +85,7 @@ class TestGILPipeline:
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
         cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
 
         one_quote = [
             GroundedQuote(
@@ -95,7 +96,16 @@ class TestGILPipeline:
                 nli_score=0.7,
             )
         ]
-        with patch("podcast_scraper.gi.grounding.find_grounded_quotes", return_value=one_quote):
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=one_quote,
+            ),
+        ):
             out = build_artifact(
                 "ep:1",
                 "Evidence here.",
@@ -107,8 +117,8 @@ class TestGILPipeline:
         assert insight_nodes[0]["properties"]["grounded"] is True
         assert len(quote_nodes) == 1
         assert quote_nodes[0]["properties"]["text"] == "Evidence"
-        assert len(out["edges"]) == 1
-        assert out["edges"][0]["type"] == "SUPPORTED_BY"
+        assert len(out["edges"]) == 2
+        assert {e["type"] for e in out["edges"]} == {"HAS_INSIGHT", "SUPPORTED_BY"}
 
     def test_build_artifact_with_cfg_no_grounded_quotes_yields_ungrounded_insight(self):
         """With cfg and no grounded quotes, insight has grounded=False and no Quote nodes."""
@@ -120,15 +130,26 @@ class TestGILPipeline:
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
         cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
 
-        with patch("podcast_scraper.gi.grounding.find_grounded_quotes", return_value=[]):
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=[],
+            ),
+        ):
             out = build_artifact("ep:1", "Some transcript.", cfg=cfg)
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(insight_nodes) == 1
         assert insight_nodes[0]["properties"]["grounded"] is False
         assert len(quote_nodes) == 0
-        assert len(out["edges"]) == 0
+        assert len(out["edges"]) == 1
+        assert out["edges"][0]["type"] == "HAS_INSIGHT"
 
     def test_build_artifact_with_evidence_providers_uses_provider_path(self):
         """With quote_extraction_provider and entailment_provider, uses provider path."""
@@ -168,8 +189,8 @@ class TestGILPipeline:
         assert quote_nodes[0]["properties"]["text"] == "evidence"
         assert quote_nodes[0]["properties"]["char_start"] == 1
         assert quote_nodes[0]["properties"]["char_end"] == 8
-        assert len(out["edges"]) == 1
-        assert out["edges"][0]["type"] == "SUPPORTED_BY"
+        assert len(out["edges"]) == 2
+        assert {e["type"] for e in out["edges"]} == {"HAS_INSIGHT", "SUPPORTED_BY"}
 
     def test_build_artifact_with_mock_providers_calls_extract_quotes_and_score_entailment(self):
         """build_artifact calls extract_quotes and score_entailment (mock providers)."""
@@ -289,7 +310,10 @@ class TestGILPipeline:
         assert insight_nodes[1]["properties"]["text"] == "Insight B"
         assert insight_nodes[1]["properties"]["grounded"] is True
         assert len(quote_nodes) == 2
-        assert len(out["edges"]) == 2
+        # Per insight: HAS_INSIGHT + SUPPORTED_BY to quote
+        assert len(out["edges"]) == 4
+        assert sum(1 for e in out["edges"] if e["type"] == "HAS_INSIGHT") == 2
+        assert sum(1 for e in out["edges"] if e["type"] == "SUPPORTED_BY") == 2
 
     def test_artifact_from_multi_insight_pads_quote_lists(self):
         """When insight_quotes_list is shorter than insight_texts, pad with []."""
@@ -447,9 +471,19 @@ class TestGILPipeline:
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
         cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
         provider = MagicMock()
         provider.generate_insights = MagicMock(return_value=["P1", "P2"])
-        with patch("podcast_scraper.gi.grounding.find_grounded_quotes", return_value=[]):
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=[],
+            ),
+        ):
             out = build_artifact(
                 "ep:1",
                 "Transcript.",

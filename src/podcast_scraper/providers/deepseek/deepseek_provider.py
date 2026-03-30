@@ -708,6 +708,7 @@ class DeepSeekProvider:
         episode_title: Optional[str] = None,
         max_insights: int = 5,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
@@ -774,14 +775,15 @@ class DeepSeekProvider:
         max_topics: int = 5,
         max_entities: int = 15,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> Optional[Dict[str, Any]]:
         """Extract topics and entities as JSON (KG layer). Returns None on failure."""
         if not self._summarization_initialized:
             logger.warning("DeepSeek summarization not initialized for extract_kg_graph")
             return None
         from ...kg.llm_extract import (
+            build_kg_transcript_system_prompt,
             build_kg_user_prompt,
-            KG_GRAPH_JSON_SYSTEM,
             parse_kg_graph_response,
             resolve_kg_model_id,
             truncate_transcript_for_kg,
@@ -796,6 +798,7 @@ class DeepSeekProvider:
         user_prompt = build_kg_user_prompt(
             text_slice, episode_title or "", max_topics, max_entities
         )
+        system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
             from ...utils.provider_metrics import retry_with_metrics
 
@@ -803,7 +806,7 @@ class DeepSeekProvider:
                 return self.client.chat.completions.create(
                     model=model,
                     messages=[
-                        {"role": "system", "content": KG_GRAPH_JSON_SYSTEM},
+                        {"role": "system", "content": system_msg},
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=0.1,
@@ -818,9 +821,69 @@ class DeepSeekProvider:
                 retryable_exceptions=(Exception,),
             )
             raw = (response.choices[0].message.content or "").strip()
-            return parse_kg_graph_response(raw)
+            return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
         except Exception as e:
             logger.debug("DeepSeek extract_kg_graph failed: %s", e, exc_info=True)
+            return None
+
+    def extract_kg_from_summary_bullets(
+        self,
+        bullet_labels: List[str],
+        episode_title: Optional[str] = None,
+        max_topics: int = 5,
+        max_entities: int = 15,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Derive KG topics/entities from summary bullets (no transcript)."""
+        if not self._summarization_initialized:
+            logger.warning(
+                "DeepSeek summarization not initialized for " "extract_kg_from_summary_bullets"
+            )
+            return None
+        from ...kg.llm_extract import (
+            build_kg_from_bullets_system_prompt,
+            build_kg_from_bullets_user_prompt,
+            normalize_bullet_labels_for_kg,
+            parse_kg_graph_response,
+            resolve_kg_model_id,
+        )
+
+        max_topics = min(max(1, max_topics), 20)
+        max_entities = min(max(1, max_entities), 50)
+        bullets = normalize_bullet_labels_for_kg(bullet_labels)
+        if not bullets:
+            return None
+        model = resolve_kg_model_id(self, params)
+        user_prompt = build_kg_from_bullets_user_prompt(
+            bullets, episode_title or "", max_topics, max_entities
+        )
+        system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
+        try:
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=2048,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(Exception,),
+            )
+            raw = (response.choices[0].message.content or "").strip()
+            return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
+        except Exception as e:
+            logger.debug("DeepSeek extract_kg_from_summary_bullets failed: %s", e, exc_info=True)
             return None
 
     def extract_quotes(
@@ -834,7 +897,7 @@ class DeepSeekProvider:
             return []
         import json
 
-        from ...gi.grounding import QuoteCandidate
+        from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
         system = (
             "You extract a single short quote from the transcript that best supports "
@@ -876,16 +939,15 @@ class DeepSeekProvider:
             quote_text = (obj.get("quote_text") or "").strip()
             if not quote_text:
                 return []
-            start = transcript.find(quote_text)
-            if start == -1:
-                start, end = 0, len(quote_text)
-            else:
-                end = start + len(quote_text)
+            resolved = resolve_llm_quote_span(transcript, quote_text)
+            if resolved is None:
+                return []
+            start, end, verbatim = resolved
             return [
                 QuoteCandidate(
                     char_start=start,
                     char_end=end,
-                    text=quote_text,
+                    text=verbatim,
                     qa_score=1.0,
                 )
             ]
@@ -942,7 +1004,7 @@ class DeepSeekProvider:
             logger.debug("DeepSeek score_entailment failed: %s", e, exc_info=True)
             return 0.0
 
-    def clean_transcript(self, text: str) -> str:
+    def clean_transcript(self, text: str, pipeline_metrics: Optional[Any] = None) -> str:
         """Clean transcript using LLM for semantic filtering.
 
         Args:

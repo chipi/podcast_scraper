@@ -39,7 +39,7 @@ Grounded insights are produced by the **Grounded Insight Layer (GIL)** pipeline 
   - **`stub`** (default): Single placeholder insight (original behaviour).
   - **`summary_bullets`**: Use the first N bullets from the episode summary as insight texts (requires `generate_summaries` and summary metadata with bullets).
   - **`provider`**: Call the summarization provider’s optional **`generate_insights(transcript, ...)`** to extract key takeaways. LLM providers that implement it (OpenAI, Ollama, Anthropic, Gemini, Mistral, Grok, DeepSeek) return a list of short statements; ML/hybrid providers return an empty list so GIL falls back to stub.
-- **`gi_max_insights`**: Maximum number of insights when using `provider` or `summary_bullets` (default: `5`). Capped in code for safety.
+- **`gi_max_insights`**: Maximum number of insights when using `provider` or `summary_bullets` (default: `20`, range `1`–`50`). Capped in code for safety.
 
 You can set **`--gi-insight-source`** and **`--gi-max-insights`** on the command line to override config.
 
@@ -48,6 +48,10 @@ You can set **`--gi-insight-source`** and **`--gi-max-insights`** on the command
 If **`summary_provider`** is **`transformers`** or **`hybrid_ml`**, treat **`generate_insights`** as **unsupported** for meaningful free-form takeaways: those providers do not populate insight wording via the LLM path. For **real insight text** with ML summaries, set **`gi_insight_source: summary_bullets`**, enable **`generate_summaries`**, and ensure the summary pipeline produces **bullets** (your map/reduce or provider config must emit them). Alternatively, switch **`summary_provider`** to an **LLM** and use **`gi_insight_source: provider`** (or still use **`summary_bullets`** if you prefer bullets as the insight list).
 
 The default **`gi_insight_source: stub`** is appropriate for **tests and smoke runs** only. When **`generate_gi`** is on and **`gi_insight_source`** is **`stub`**, the CLI logs a **warning** (outside pytest) so production configs are less likely to ship with placeholder insights by accident.
+
+### ML bullets, `gi_require_grounding`, and local NLI
+
+With **`summary_provider: transformers`** (or **`hybrid_ml`**) and **`gi_insight_source: summary_bullets`**, insight text comes from **map/reduce (or heuristic) bullets**, not a JSON bullet schema. **`gi_require_grounding: true`** is still **best-effort**: grounded quotes need extractive QA + **NLI** scores above configured thresholds on **noisy transcripts** (e.g. Whisper). If you see **zero grounded quotes**, check logs for evidence-step failures; local **CrossEncoder** NLI models return **multi-class logits**—the pipeline maps them to **P(entailment)** using the model’s **`id2label`**. For stricter or cleaner bullets, prefer an **LLM `summary_provider`** or relax thresholds / disable **`gi_require_grounding`** for exploratory ML runs.
 
 ### Topic nodes, `ABOUT` edges, and `gi explore --topic`
 
@@ -95,6 +99,14 @@ When both are set and the workflow passes the corresponding provider instances i
 2. For each candidate, **`entailment_provider.score_entailment(premise=quote.text, hypothesis=insight_text)`** → float in [0, 1].
 3. Candidates that pass the QA and NLI thresholds become `GroundedQuote` nodes and `SUPPORTED_BY` edges.
 
+**Quote spans (LLM extractors):** The model returns `quote_text` JSON; the pipeline maps it to **`char_start` / `char_end`** in the transcript with `resolve_llm_quote_span` (`gi/grounding.py`): exact match, apostrophe normalization (`'` vs `’`), whitespace-tolerant token regex, and longest contiguous sub-phrase when the model drops a leading word (e.g. `And`). If nothing matches, that candidate is dropped (no fake offsets). Among equal-length regex matches, the **earliest** occurrence in the transcript wins.
+
+**Retries:** Config **`gi_evidence_extract_retries`** (default `1`) adds extra **`extract_quotes`** calls when the first attempt yields no list of candidates. Later attempts append a short “verbatim substring” reminder to the insight text passed to the extractor only; **NLI** still uses the original insight string.
+
+**Thresholds (config):** **`gi_qa_score_min`** (default `0.3`) and **`gi_nli_entailment_min`** (default `0.5`) gate candidates before and after NLI. Lower them slightly for noisy ML **`summary_bullets`** + Whisper transcripts if you want more grounded quotes at the cost of precision.
+
+**Windowed local QA (long transcripts):** When **`gi_qa_window_chars`** &gt; `0` and the transcript is longer, local extractive QA runs on **overlapping windows** of that size and keeps the **best-scoring** span (then NLI as usual). **`gi_qa_window_overlap_chars`** controls overlap (must be **&lt;** the window size). Default windowing is **on** (`1800` / `300`); set **`gi_qa_window_chars: 0`** to restore a **single** QA pass over the full transcript (often weak on very long episodes).
+
 If `quote_extraction_provider` or `entailment_provider` is not passed (e.g. older callers), GIL falls back to the **legacy path**: direct use of local `extractive_qa` and `nli_loader` with `gi_qa_model` and `gi_nli_model`. So existing config and behaviour remain valid.
 
 **Resilience and fallback:**
@@ -131,6 +143,18 @@ Generated `gi.json` files must conform to the schema. Validation utilities (e.g.
 - **Makefile / script**: `make validate-gi-schema [ARTIFACTS_DIR=path]` or `scripts/tools/validate_gi_schema.py` (always strict) for batch checks in CI.
 - **PRD-017 metrics**: `make gil-quality-metrics DIR=<run_root>` or `scripts/tools/gil_quality_metrics.py` — aggregation over `.gi.json` (grounding rate, quote span/timestamp validity, per-episode density). Use `--enforce` and `--min-*` flags to gate releases.
 
+### ML vs LLM evidence — outcome benchmark (v1)
+
+For **comparing outcomes** on the **same episodes** (not YAML threshold parity), use a
+fixed episode set and two runs — e.g. local transformers evidence vs OpenAI
+`extract_quotes` / `score_entailment` with the same `summary_provider` and
+`gi_insight_source`. Pair configs live under `config/manual/gil_paired_benchmark_*.yaml`.
+After runs, compare with **`make compare-gil-runs REF=<ref_run_root> CAND=<cand_run_root>`**
+or **`python scripts/tools/compare_gil_runs.py <ref_run_root> <cand_run_root>`** — per-episode
+quote/grounded counts and a short agreement summary.
+
+Methodology and limits: [WIP: GIL ML vs OpenAI outcome benchmark](../wip/gil-ml-vs-openai-outcome-benchmark.md).
+
 ---
 
 ## CLI
@@ -144,7 +168,18 @@ Available commands (RFC-050):
 - **`gi explore`**: Cross-episode query (RFC-050 UC5). Use `--output-dir <path>` (required). Optional `--topic <label>` (Topic label or substring in insight text) and `--speaker <substring>` (substring match on quote **`speaker_id`** from diarization **or** on graph-backed **`speaker_name`** resolved from **SPOKEN_BY → Speaker** when the quote has no id). Options: `--limit N`, `--grounded-only`, `--min-confidence`, `--sort confidence|time`, `--format pretty|json`, `--out <path>`, `--strict`. JSON output follows the RFC-050 Insight Explorer shape (`topic` object when `--topic` is set, nested `episode` and `supporting_quotes`, `top_speakers`). Exit codes: 0 success, 2 invalid args, 3 no artifacts / bad output dir, 4 no matching insights when `--topic` or `--speaker` is set, 5 `--strict` validation failed on an artifact.
 - **`gi query`**: RFC-050 UC4 — maps a **fixed set of English question patterns** (not open-ended NL interpretation) to **`gi explore`** or a **topic leaderboard**, then prints an envelope (`question`, `answer`, `explanation`). Use `--output-dir <path>` and `--question "<text>"` (required). Optional `--limit N`, `--format pretty|json` (default **json**), `--strict`. Supported patterns include **topic** phrasing (`What insights about …?`, `What insights are there about …?`, `What are insights about …?`, `Insights about …`, `Show me insights about …`, `Tell me about insights on …`), **speaker** phrasing (`What did <name> say?`), **combined** speaker + topic (`What did <name> say about <topic>?`), and **topic ranking** (`Which topics have the most insights?`, `Top topics`, etc.). Leaderboard answers use `answer.topics` (insight counts per topic label) instead of the explore `insights` list. Exit codes: same as explore for load/validation, plus **2** when the question **does not match** any supported pattern (or required args are missing). See [Recorded product decisions (v1, issue 460)](#recorded-product-decisions-v1-issue-460).
 
-Entrypoint: `podcast_scraper gi validate ./output/metadata --strict`, `gi export --output-dir /path/to/output --format ndjson`, `gi inspect --episode-path /path/to/ep.gi.json`, `gi show-insight --id insight:ep:0 --output-dir /path/to/output`, `gi explore --output-dir /path/to/output [--topic "AI"] [--speaker "HOST"]`, or `gi query --output-dir /path/to/output --question 'What insights about inflation?'`.
+Entrypoint: `podcast_scraper gi validate ./output/metadata --strict`, `gi export --output-dir /path/to/output --format ndjson`, `gi inspect --episode-path /path/to/ep.gi.json`, `gi show-insight --id insight:<id-from-gi.json> --output-dir /path/to/output`, `gi explore --output-dir /path/to/output [--topic "AI"] [--speaker "HOST"]`, or `gi query --output-dir /path/to/output --question 'What insights about inflation?'`.
+
+### Browser visualization (prototype)
+
+To explore **`gi.json`** (and optionally **`kg.json`**) as an interactive graph — filters,
+metrics, **Chart.js** bars, and either **vis-network** or **Cytoscape.js** — run
+`make serve-gi-kg-viz` from the repo root and open `http://127.0.0.1:8765/`. Prefer this
+over opening the HTML files as `file://`, so browser CDNs load reliably.
+
+Full usage and layout of the static app: [Development Guide — GI / KG browser
+viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
+[`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
 
 ---
 
@@ -176,6 +211,7 @@ Entrypoint: `podcast_scraper gi validate ./output/metadata --strict`, `gi export
 - [GIL Schema](../gi/gi.schema.json) — JSON schema for `gi.json`.
 - [PRD-019: Knowledge Graph Layer (KG)](../prd/PRD-019-knowledge-graph-layer.md) — **separate feature** from GIL (`kg` vs `gi`; entities/linking, not evidence-first insights).
 - [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) — where GIL fits in the pipeline.
+- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `gi.json` / `kg.json`.
 - [Architecture](../ARCHITECTURE.md) — planned GIL extraction and artifact layout.
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) — config keys and provider options.
 - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core concepts and evidence stack; includes implementation note on provider-based QA/NLI (quote_extraction_provider, entailment_provider).

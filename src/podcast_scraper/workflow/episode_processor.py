@@ -44,6 +44,30 @@ TRANSCRIPT_EXTENSION_TOKENS = ("vtt", "srt", "json", "html")
 TITLE_HASH_PREFIX_LENGTH = 6
 
 
+def _job_has_episode_for_metrics(job: Any) -> bool:
+    """True when job.episode is a real Episode (not a test Mock with auto-children)."""
+    ep = getattr(job, "episode", None)
+    return ep is not None and isinstance(ep, Episode)
+
+
+def _audio_sec_for_transcription_job(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+) -> Optional[float]:
+    """Best-effort episode duration in seconds for per-episode metrics (RSS or job attr)."""
+    episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
+    if episode_duration_seconds is not None and isinstance(episode_duration_seconds, (int, float)):
+        return float(episode_duration_seconds)
+    ep = getattr(job, "episode", None)
+    if ep is None or not getattr(ep, "item", None):
+        return None
+    from ..rss.parser import extract_episode_metadata
+
+    _, _, _, duration, _, _ = extract_episode_metadata(ep.item, "")
+    if duration is not None and isinstance(duration, (int, float)):
+        return float(duration)
+    return None
+
+
 def derive_media_extension(media_type: Optional[str], media_url: str) -> str:
     """Derive file extension for media file based on MIME type or URL.
 
@@ -214,6 +238,7 @@ def download_media_for_transcription(
                 ep_title_safe=episode.title_safe,
                 temp_media="",  # Empty since we're reusing existing transcript
                 detected_speaker_names=speaker_names_copy,
+                episode=episode,
             )
         prefix = "[dry-run] " if cfg.dry_run else ""
         logger.info(
@@ -239,7 +264,11 @@ def download_media_for_transcription(
         )
         logger.info(f"    [dry-run] Whisper output would be: {final_out_path}")
         return TranscriptionJob(  # type: ignore[no-any-return,valid-type]
-            idx=episode.idx, ep_title=episode.title, ep_title_safe=episode.title_safe, temp_media=""
+            idx=episode.idx,
+            ep_title=episode.title,
+            ep_title_safe=episode.title_safe,
+            temp_media="",
+            episode=episode,
         )
     else:
         logger.info(f"[{episode.idx}] no transcript; downloading media: {display_title}")
@@ -260,22 +289,6 @@ def download_media_for_transcription(
     if not ok:
         return None
 
-    # Record download time if metrics available and download actually happened
-    # Note: dl_elapsed will be > 0 if download occurred, 0 if media was reused
-    # We record attempts separately, but only record time for actual downloads
-    if pipeline_metrics is not None and dl_elapsed > 0:
-        pipeline_metrics.record_download_media_time(dl_elapsed)
-    elif (
-        pipeline_metrics is not None
-        and dl_elapsed == 0
-        and cfg.reuse_media
-        and os.path.exists(temp_media)
-    ):
-        # Media was reused - record a tiny time (0.001s) to indicate it was "processed"
-        # This ensures download_media_count reflects all episodes, not just fresh downloads
-        # But we still distinguish via download_media_attempts vs download_media_count
-        pipeline_metrics.record_download_media_time(0.001)
-
     # CRITICAL: Create a copy of detected_speaker_names to prevent shared mutable state
     # This prevents speaker names from one episode leaking to another
     speaker_names_copy = list(detected_speaker_names) if detected_speaker_names else None
@@ -285,6 +298,8 @@ def download_media_for_transcription(
         ep_title_safe=episode.title_safe,
         temp_media=temp_media,
         detected_speaker_names=speaker_names_copy,
+        episode=episode,
+        media_download_elapsed=dl_elapsed,
     )
 
 
@@ -447,9 +462,10 @@ def _check_and_reuse_existing_transcript(
             rel_path,
         )
         # Update episode status: transcribed (reused existing) (Issue #391)
-        if pipeline_metrics is not None and hasattr(job, "episode"):
+        if pipeline_metrics is not None and _job_has_episode_for_metrics(job):
             from podcast_scraper.workflow.helpers import get_episode_id_from_episode
 
+            assert job.episode is not None
             episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
             pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
         return True, rel_path, 0
@@ -486,11 +502,6 @@ def _check_transcript_cache(
     audio_hash = transcript_cache.get_audio_hash(temp_media)
     cached_transcript = transcript_cache.get_cached_transcript(audio_hash, cache_dir)
     if cached_transcript:
-        logger.info(
-            "[%s] Transcript cache hit (hash=%s), skipping transcription",
-            job.idx,
-            audio_hash,
-        )
         # Save cached transcript to output file
         rel_path = _save_transcript_file(
             cached_transcript,
@@ -499,14 +510,29 @@ def _check_transcript_cache(
             effective_output_dir,
             pipeline_metrics=pipeline_metrics,
         )
-        logger.info(f"    saved transcript from cache: {rel_path}")
+        logger.info(
+            "[%s] Transcript cache hit (hash=%s) -> %s",
+            job.idx,
+            audio_hash,
+            rel_path,
+        )
         # Update episode status: transcribed (from cache)
-        if pipeline_metrics is not None:
-            if hasattr(job, "episode"):
-                from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+        if pipeline_metrics is not None and _job_has_episode_for_metrics(job):
+            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
 
-                episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
-                pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
+            assert job.episode is not None
+            episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
+            # Per-episode metrics: no provider transcription time (cache hit); duration from RSS/job
+            audio_sec = _audio_sec_for_transcription_job(job)
+            pipeline_metrics.update_episode_metrics(
+                episode_id=episode_id,
+                audio_sec=audio_sec,
+                transcribe_sec=0.0,
+            )
+        # Audio was downloaded only to hash into transcript cache; treat as 0 for metrics/UI
+        if pipeline_metrics is not None:
+            pipeline_metrics.record_download_media_time(0.0, job.idx)
         _cleanup_temp_media(temp_media, cfg)
         bytes_downloaded = 0
         if os.path.exists(temp_media):
@@ -809,23 +835,18 @@ def _record_transcription_metrics(
     if pipeline_metrics is None:
         return
 
-    pipeline_metrics.record_transcribe_time(tc_elapsed)
+    pipeline_metrics.record_transcribe_time(tc_elapsed, job.idx)
     # Update episode status: transcribed (Issue #391)
-    if hasattr(job, "episode"):
+    if _job_has_episode_for_metrics(job):
         from podcast_scraper.workflow.helpers import get_episode_id_from_episode
         from podcast_scraper.workflow.orchestration import _log_episode_metrics
 
+        assert job.episode is not None
         episode_id, episode_number = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
         pipeline_metrics.update_episode_status(episode_id=episode_id, stage="transcribed")
 
         # Log standardized per-episode metrics after transcription
-        episode_duration_seconds = getattr(job, "episode_duration_seconds", None)
-        # Handle Mock objects from tests by checking type
-        audio_sec = (
-            float(episode_duration_seconds)
-            if episode_duration_seconds and isinstance(episode_duration_seconds, (int, float))
-            else None
-        )
+        audio_sec = _audio_sec_for_transcription_job(job)
         _log_episode_metrics(
             episode_id=episode_id,
             episode_number=episode_number,
@@ -883,6 +904,18 @@ def transcribe_media_to_text(
     if reuse_result:
         return reuse_result
 
+    # Transcript cache before requiring a provider (cache hit skips API and keeps download at 0).
+    cache_result = _check_transcript_cache(
+        job, cfg, temp_media, run_suffix, effective_output_dir, pipeline_metrics
+    )
+    if cache_result:
+        return cache_result
+
+    # Record media download wall time only after a cache miss (avoids attributing full HTTP
+    # time when the transcript is served from cache).
+    if pipeline_metrics is not None and getattr(job, "media_download_elapsed", None) is not None:
+        pipeline_metrics.record_download_media_time(job.media_download_elapsed, job.idx)
+
     # Log detected speaker names (hosts + guests) before transcription
     # IMPORTANT: Log episode idx to catch speaker name leaks between episodes
     if job.detected_speaker_names:
@@ -910,14 +943,6 @@ def transcribe_media_to_text(
             # File size check is optional (for metrics only)
             # Use default value of 0 if stat fails
             pass
-
-    # Transcript caching: Check cache before transcription
-    # (enables fast multi-provider experimentation)
-    cache_result = _check_transcript_cache(
-        job, cfg, temp_media, run_suffix, effective_output_dir, pipeline_metrics
-    )
-    if cache_result:
-        return cache_result
 
     # Audio preprocessing (RFC-040): Preprocess audio BEFORE passing to any provider
     # This happens at the pipeline level, not within providers

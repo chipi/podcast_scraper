@@ -20,6 +20,7 @@ import unittest
 # Bandit: tests construct safe XML elements
 import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -1400,9 +1401,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self, mock_write_artifact, mock_build_artifact, mock_determine, mock_serialize
     ):
         """When generate_gi is True, build_artifact and write_artifact are called."""
-        self.cfg = create_test_config(
-            generate_metadata=True, generate_gi=True, gi_insight_model="stub"
-        )
+        self.cfg = create_test_config(generate_metadata=True, generate_gi=True)
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
         mock_determine.return_value = metadata_path
         mock_build_artifact.return_value = {
@@ -1438,12 +1437,11 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
     def test_generate_episode_metadata_passes_evidence_providers_when_generate_gi_true(
         self, mock_build_artifact, mock_determine, mock_serialize
     ):
-        """build_artifact gets evidence providers when generate_gi and gi_require_grounding True."""
+        """build_artifact gets summary_provider for GIL evidence wiring when grounding required."""
         mock_summary_provider = MagicMock()
         self.cfg = create_test_config(
             generate_metadata=True,
             generate_gi=True,
-            gi_insight_model="stub",
             gi_require_grounding=True,
         )
         metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
@@ -1470,10 +1468,8 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.assertEqual(result, metadata_path)
         mock_build_artifact.assert_called_once()
         call_kw = mock_build_artifact.call_args[1]
-        self.assertIn("quote_extraction_provider", call_kw)
-        self.assertIn("entailment_provider", call_kw)
-        self.assertIs(call_kw["quote_extraction_provider"], mock_summary_provider)
-        self.assertIs(call_kw["entailment_provider"], mock_summary_provider)
+        self.assertIn("summary_provider", call_kw)
+        self.assertIs(call_kw["summary_provider"], mock_summary_provider)
 
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
@@ -1517,7 +1513,7 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
                 "extracted_at": "2024-01-01T00:00:00Z",
                 "transcript_ref": "transcripts/ep1.txt",
             },
-            "nodes": [{"id": "kg:episode:1", "type": "Episode", "properties": {}}],
+            "nodes": [{"id": "episode:ep:1", "type": "Episode", "properties": {}}],
             "edges": [],
         }
 
@@ -1536,6 +1532,64 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         call_kw = mock_serialize.call_args[0][0]
         self.assertIsNotNone(call_kw.knowledge_graph)
         self.assertEqual(call_kw.knowledge_graph.node_count, 1)
+
+    @patch("podcast_scraper.summarization.factory.create_summarization_provider")
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    @patch("podcast_scraper.kg.write_artifact")
+    @patch("podcast_scraper.kg.build_artifact")
+    def test_generate_episode_metadata_kg_provider_override_creates_extra_provider(
+        self,
+        mock_kg_build,
+        mock_kg_write,
+        mock_determine,
+        mock_serialize,
+        mock_create_provider,
+    ):
+        """kg_extraction_provider != summary_provider builds a dedicated KG LLM client."""
+        extra_kg = MagicMock()
+        mock_create_provider.return_value = extra_kg
+        self.cfg = create_test_config(
+            generate_metadata=True,
+            generate_kg=True,
+            kg_extraction_source="provider",
+            kg_extraction_provider="openai",
+            summary_provider="transformers",
+            openai_api_key="sk-test-key-for-unit-tests",
+        )
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_kg_build.return_value = {
+            "schema_version": "1.0",
+            "episode_id": "ep:1",
+            "extraction": {
+                "model_version": "stub",
+                "extracted_at": "2024-01-01T00:00:00Z",
+                "transcript_ref": "transcripts/ep1.txt",
+            },
+            "nodes": [{"id": "episode:ep:1", "type": "Episode", "properties": {}}],
+            "edges": [],
+        }
+        summary_prov = MagicMock()
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+            transcript_file_path="transcripts/ep1.txt",
+            summary_provider=summary_prov,
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_create_provider.assert_called_once()
+        _, ckw = mock_create_provider.call_args
+        self.assertEqual(ckw["provider_type_override"], "openai")
+        mock_kg_build.assert_called_once()
+        kg_kw = mock_kg_build.call_args[1]
+        self.assertIs(kg_kw["kg_extraction_provider"], extra_kg)
+        extra_kg.cleanup.assert_called_once()
 
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
@@ -2288,6 +2342,257 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
         self.assertEqual(result["model_revision"], "a" * 40)
         mock_revision.assert_called_once_with("longt5-base")
 
+    def test_llm_summary_providers_include_summary_and_cleaning_models_when_hybrid(self):
+        """Every API summarization provider records *_model and *_cleaning_model (hybrid)."""
+        cases = (
+            (
+                "openai",
+                {
+                    "summary_provider": "openai",
+                    "openai_api_key": "sk-test-key-for-unit-tests",
+                    "openai_summary_model": "gpt-4o-mini",
+                    "openai_cleaning_model": "openai-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "openai_model",
+                "openai_cleaning_model",
+            ),
+            (
+                "gemini",
+                {
+                    "summary_provider": "gemini",
+                    "gemini_api_key": "fake-gemini-key",
+                    "gemini_summary_model": "gemini-2.0-flash",
+                    "gemini_cleaning_model": "gemini-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "gemini_model",
+                "gemini_cleaning_model",
+            ),
+            (
+                "anthropic",
+                {
+                    "summary_provider": "anthropic",
+                    "anthropic_api_key": "fake-anthropic-key",
+                    "anthropic_summary_model": "claude-haiku-4-5",
+                    "anthropic_cleaning_model": "anthropic-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "anthropic_model",
+                "anthropic_cleaning_model",
+            ),
+            (
+                "mistral",
+                {
+                    "summary_provider": "mistral",
+                    "mistral_api_key": "fake-mistral-key",
+                    "mistral_summary_model": "mistral-large-latest",
+                    "mistral_cleaning_model": "mistral-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "mistral_model",
+                "mistral_cleaning_model",
+            ),
+            (
+                "deepseek",
+                {
+                    "summary_provider": "deepseek",
+                    "deepseek_api_key": "fake-deepseek-key",
+                    "deepseek_summary_model": "deepseek-chat",
+                    "deepseek_cleaning_model": "deepseek-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "deepseek_model",
+                "deepseek_cleaning_model",
+            ),
+            (
+                "grok",
+                {
+                    "summary_provider": "grok",
+                    "grok_api_key": "fake-grok-key",
+                    "grok_summary_model": "grok-2",
+                    "grok_cleaning_model": "grok-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "grok_model",
+                "grok_cleaning_model",
+            ),
+            (
+                "ollama",
+                {
+                    "summary_provider": "ollama",
+                    "ollama_summary_model": "llama3.1:8b",
+                    "ollama_cleaning_model": "ollama-clean-test",
+                    "transcript_cleaning_strategy": "hybrid",
+                },
+                "ollama_model",
+                "ollama_cleaning_model",
+            ),
+        )
+        for name, kwargs, model_key, cleaning_key in cases:
+            with self.subTest(provider=name):
+                cfg = create_test_config(**kwargs)
+                result = metadata._build_summarization_provider_info(cfg)
+                self.assertIsNotNone(result)
+                self.assertEqual(result["provider"], name)
+                self.assertIn(model_key, result)
+                self.assertIn(cleaning_key, result)
+                self.assertTrue(str(result[cleaning_key]).endswith("-test"))
+
+    def test_openai_includes_cleaning_model_when_llm_strategy(self):
+        """transcript_cleaning_strategy=llm also attaches cleaning model ids."""
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_api_key="sk-test-key-for-unit-tests",
+            openai_summary_model="gpt-4o-mini",
+            openai_cleaning_model="openai-clean-llm",
+            transcript_cleaning_strategy="llm",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertEqual(result["openai_cleaning_model"], "openai-clean-llm")
+
+    def test_transformers_hybrid_does_not_attach_llm_cleaning_fields(self):
+        """Local transformers summarization does not use provider cleaning model keys."""
+        cfg = create_test_config(
+            summary_provider="transformers",
+            summary_model="facebook/bart-base",
+            transcript_cleaning_strategy="hybrid",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertIsNotNone(result)
+        for suffix in (
+            "openai_cleaning_model",
+            "gemini_cleaning_model",
+            "anthropic_cleaning_model",
+            "mistral_cleaning_model",
+            "deepseek_cleaning_model",
+            "grok_cleaning_model",
+            "ollama_cleaning_model",
+        ):
+            self.assertNotIn(suffix, result)
+
+    def test_hybrid_ml_hybrid_does_not_attach_llm_cleaning_fields(self):
+        """hybrid_ml uses registry/ML path; no API-provider cleaning model keys."""
+        cfg = create_test_config(
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            transcript_cleaning_strategy="hybrid",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertIsNotNone(result)
+        self.assertEqual(result["provider"], "hybrid_ml")
+        self.assertNotIn("openai_cleaning_model", result)
+        self.assertNotIn("mistral_cleaning_model", result)
+
+    def test_llm_providers_omit_cleaning_model_when_pattern_strategy(self):
+        """Pattern-only cleaning skips *_cleaning_model on summarization snapshot."""
+        pattern_cases = (
+            (
+                "openai",
+                {
+                    "summary_provider": "openai",
+                    "openai_api_key": "sk-test-key-for-unit-tests",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "openai_cleaning_model",
+            ),
+            (
+                "gemini",
+                {
+                    "summary_provider": "gemini",
+                    "gemini_api_key": "fake-gemini-key",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "gemini_cleaning_model",
+            ),
+            (
+                "anthropic",
+                {
+                    "summary_provider": "anthropic",
+                    "anthropic_api_key": "fake-anthropic-key",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "anthropic_cleaning_model",
+            ),
+            (
+                "mistral",
+                {
+                    "summary_provider": "mistral",
+                    "mistral_api_key": "fake-mistral-key",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "mistral_cleaning_model",
+            ),
+            (
+                "deepseek",
+                {
+                    "summary_provider": "deepseek",
+                    "deepseek_api_key": "fake-deepseek-key",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "deepseek_cleaning_model",
+            ),
+            (
+                "grok",
+                {
+                    "summary_provider": "grok",
+                    "grok_api_key": "fake-grok-key",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "grok_cleaning_model",
+            ),
+            (
+                "ollama",
+                {
+                    "summary_provider": "ollama",
+                    "transcript_cleaning_strategy": "pattern",
+                },
+                "ollama_cleaning_model",
+            ),
+        )
+        for name, kwargs, cleaning_key in pattern_cases:
+            with self.subTest(provider=name):
+                cfg = create_test_config(**kwargs)
+                result = metadata._build_summarization_provider_info(cfg)
+                self.assertIsNotNone(result)
+                self.assertEqual(result["provider"], name)
+                self.assertNotIn(cleaning_key, result)
+
+    def test_attach_llm_cleaning_models_openai_hybrid(self):
+        """_attach_llm_cleaning_models_to_summarization_info writes openai_cleaning_model."""
+        info: dict = {"provider": "openai"}
+        cfg = SimpleNamespace(
+            transcript_cleaning_strategy="hybrid",
+            summary_provider="openai",
+            openai_cleaning_model="attach-test-openai",
+            gemini_cleaning_model="ignored",
+        )
+        metadata._attach_llm_cleaning_models_to_summarization_info(info, cfg)
+        self.assertEqual(info["openai_cleaning_model"], "attach-test-openai")
+        self.assertNotIn("gemini_cleaning_model", info)
+
+    def test_attach_llm_cleaning_models_pattern_strategy_noop(self):
+        """Pattern strategy skips attachment entirely."""
+        info = {"provider": "openai"}
+        cfg = SimpleNamespace(
+            transcript_cleaning_strategy="pattern",
+            summary_provider="openai",
+            openai_cleaning_model="should-not-attach",
+        )
+        metadata._attach_llm_cleaning_models_to_summarization_info(info, cfg)
+        self.assertNotIn("openai_cleaning_model", info)
+
+    def test_attach_llm_cleaning_models_deepseek_branch(self):
+        """DeepSeek branch maps cfg.deepseek_cleaning_model."""
+        info = {"provider": "deepseek"}
+        cfg = SimpleNamespace(
+            transcript_cleaning_strategy="llm",
+            summary_provider="deepseek",
+            deepseek_cleaning_model="ds-clean-attach",
+        )
+        metadata._attach_llm_cleaning_models_to_summarization_info(info, cfg)
+        self.assertEqual(info["deepseek_cleaning_model"], "ds-clean-attach")
+
 
 @pytest.mark.unit
 class TestNormalizeEntity(unittest.TestCase):
@@ -2481,10 +2786,11 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
 
     def test_extract_episode_stage_timings_with_timings(self):
         """Test extracting stage timings when available."""
-        self.pipeline_metrics.download_media_times = [1.0, 2.0]
-        self.pipeline_metrics.transcribe_times = [3.0, 4.0]
-        self.pipeline_metrics.extract_names_times = [0.5, 0.6]
-        self.pipeline_metrics.summarize_times = [5.0, 6.0]
+        self.pipeline_metrics.download_media_time_by_episode = {1: 1.0, 2: 2.0}
+        self.pipeline_metrics.transcribe_time_by_episode = {1: 3.0, 2: 4.0}
+        self.pipeline_metrics.extract_names_time_by_episode = {1: 0.5, 2: 0.6}
+        self.pipeline_metrics.cleaning_time_by_episode = {1: 0.2}
+        self.pipeline_metrics.summarize_time_by_episode = {1: 5.0, 2: 6.0}
 
         result = metadata._extract_episode_stage_timings(self.pipeline_metrics, 1)
 
@@ -2492,6 +2798,7 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
         self.assertEqual(result.download_media_time, 1.0)
         self.assertEqual(result.transcribe_time, 3.0)
         self.assertEqual(result.extract_names_time, 0.5)
+        self.assertEqual(result.cleaning_time, 0.2)
         self.assertEqual(result.summarize_time, 5.0)
         self.assertIsNotNone(result.total_processing_time)
 
@@ -2509,7 +2816,7 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
 
     def test_extract_episode_stage_timings_partial_timings(self):
         """Test extracting timings when only some stages have timings."""
-        self.pipeline_metrics.transcribe_times = [3.0]
+        self.pipeline_metrics.transcribe_time_by_episode = {1: 3.0}
 
         result = metadata._extract_episode_stage_timings(self.pipeline_metrics, 1)
 
@@ -2517,3 +2824,14 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
         self.assertIsNone(result.download_media_time)
         self.assertEqual(result.transcribe_time, 3.0)
         self.assertIsNotNone(result.total_processing_time)
+
+    def test_extract_episode_stage_timings_download_zero_is_reuse_not_reported(self):
+        """reuse_media / transcript cache records 0.0 s; episode metadata omits download."""
+        self.pipeline_metrics.download_media_time_by_episode = {1: 0.0}
+        self.pipeline_metrics.transcribe_time_by_episode = {1: 2.0}
+
+        result = metadata._extract_episode_stage_timings(self.pipeline_metrics, 1)
+
+        self.assertIsNotNone(result)
+        self.assertIsNone(result.download_media_time)
+        self.assertEqual(result.transcribe_time, 2.0)

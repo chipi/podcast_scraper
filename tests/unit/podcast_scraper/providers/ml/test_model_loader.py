@@ -26,6 +26,7 @@ from podcast_scraper.providers.ml.model_registry import ModelRegistry
 _ML_LOADER = "podcast_scraper.providers.ml.model_loader"
 _PATCH_QA_EVIDENCE = f"{_ML_LOADER}._download_qa_pipeline_for_cache"
 _PATCH_NLI_EVIDENCE = f"{_ML_LOADER}._download_nli_cross_encoder_for_cache"
+_PATCH_ST_EVIDENCE = f"{_ML_LOADER}._download_sentence_transformer_for_cache"
 
 
 @pytest.mark.unit
@@ -445,7 +446,7 @@ class TestModelLoaderTransformers(unittest.TestCase):
 
 @pytest.mark.unit
 class TestPreloadEvidenceModels(unittest.TestCase):
-    """GIL evidence-stack preload (QA + NLI) for Docker and scripts."""
+    """GIL evidence-stack preload (embedding + QA + NLI) for Docker and scripts."""
 
     def setUp(self) -> None:
         self.temp_dir = tempfile.mkdtemp()
@@ -455,6 +456,22 @@ class TestPreloadEvidenceModels(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
         os.environ.pop("HF_HUB_CACHE", None)
+
+    @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
+    def test_preload_evidence_models_no_args_downloads_embedding_qa_nli(
+        self, mock_get_cache: MagicMock
+    ) -> None:
+        mock_get_cache.return_value = self.cache_root
+        emb_id = "sentence-transformers/all-MiniLM-L6-v2"
+        qa_id = "deepset/roberta-base-squad2"
+        nli_id = "cross-encoder/nli-deberta-v3-base"
+        with patch(_PATCH_ST_EVIDENCE) as mock_st:
+            with patch(_PATCH_QA_EVIDENCE) as mock_qa:
+                with patch(_PATCH_NLI_EVIDENCE) as mock_nli:
+                    preload_evidence_models()
+        mock_st.assert_called_once_with(emb_id)
+        mock_qa.assert_called_once_with(qa_id)
+        mock_nli.assert_called_once_with(nli_id)
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
     def test_preload_evidence_models_calls_pipeline_and_cross_encoder(

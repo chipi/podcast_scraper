@@ -1,0 +1,9 @@
+{# KG extraction from summary bullets only (no transcript). #}
+Episode title: {{ title | default("", true) }}
+
+The following lines are **episode summary bullets** (already distilled). From them only, derive up to {{ max_topics }} distinct **topics** as **short labels** (themes or subject headings — not full sentences copied from a bullet) and up to {{ max_entities }} **named entities** (people or organizations) that the bullets imply. Do not exceed these counts; put the strongest items first.
+
+Summary bullets:
+{% for b in bullets %}
+- {{ b }}
+{% endfor %}

@@ -716,6 +716,21 @@ experiments/               # Experiment configs
 - **Prompt management**: Provider-specific prompt loading happens inside providers
 - **Core workflow**: Workflow code doesn't import `prompt_store` directly
 
+## Shared summarization templates vs per-provider overrides {#shared-summarization-templates-vs-per-provider-overrides}
+
+Summarization prompts for API providers often use a **single output contract** (JSON bullet lists) so downstream features (parsing, metadata, grounded insights, knowledge graph from `summary_bullets`) stay consistent across OpenAI, Gemini, Anthropic, etc. Duplicating that contract in every `prompts/<provider>/summarization/` tree causes drift and review overhead.
+
+**Resolution order** (implemented in `src/podcast_scraper/prompts/store.py`, `_resolve_template_path`):
+
+1. **`prompts/<provider>/summarization/<name>.j2`** if the file exists.
+2. Else **`prompts/shared/summarization/<name>.j2`** for the same `<name>` (fallback only under the `summarization/` segment).
+
+So **shared is the default DRY implementation**; **per-provider folders remain the place to optimize** when a model needs different instructions (JSON discipline, safety wording, length) while keeping the same logical prompt name in config.
+
+**When to override:** Model-specific quirks, A/B experiments, or provider policy text. **Keep shared when:** The change improves the contract for all APIs equally.
+
+**Related:** In-repo overview `src/podcast_scraper/prompts/shared/README.md`; config fields `summary_prompt_params` and `*_summary_*_prompt` in [Configuration](../api/CONFIGURATION.md).
+
 ## Benefits
 
 1. **Unified Interface**: Same `prompt_store` module used everywhere

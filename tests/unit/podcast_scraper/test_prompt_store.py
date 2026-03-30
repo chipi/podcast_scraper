@@ -326,6 +326,36 @@ Guidelines:
         self.assertEqual(metadata1["file"], metadata2["file"])
         self.assertEqual(metadata1["sha256"], metadata2["sha256"])
 
+    def test_shared_summarization_fallback(self):
+        """Provider path missing -> use shared/summarization/<same filename>."""
+        shared = self.prompt_dir / "shared" / "summarization"
+        shared.mkdir(parents=True)
+        shared.joinpath("bullets_json_v1.j2").write_text("SHARED {{ transcript }}")
+
+        set_prompt_dir(self.prompt_dir)
+        out = render_prompt("fakeprovider/summarization/bullets_json_v1", transcript="hi")
+        self.assertEqual(out, "SHARED hi")
+
+        meta = get_prompt_metadata("fakeprovider/summarization/bullets_json_v1")
+        self.assertEqual(meta["file"], "shared/summarization/bullets_json_v1.j2")
+
+
+class TestPromptStoreBundledSharedSummarization(unittest.TestCase):
+    """Integration checks against templates shipped in the package."""
+
+    def test_gemini_logical_name_resolves_shared_bullets(self):
+        clear_cache()
+        set_prompt_dir(get_prompt_dir())
+        text = render_prompt(
+            "gemini/summarization/bullets_json_v1",
+            transcript="x",
+            title="",
+            bullet_min=3,
+            max_words_per_bullet=45,
+        )
+        self.assertIn("JSON", text)
+        self.assertIn("x", text)
+
 
 if __name__ == "__main__":
     unittest.main()

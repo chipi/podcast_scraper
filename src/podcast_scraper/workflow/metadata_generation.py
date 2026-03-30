@@ -31,7 +31,12 @@ if TYPE_CHECKING:
 else:
     Episode = models.Episode  # type: ignore[assignment]
     RssFeed = models.RssFeed  # type: ignore[assignment]
-from ..exceptions import ProviderRuntimeError, RecoverableSummarizationError
+from ..exceptions import (
+    GILGroundingUnsatisfiedError,
+    ProviderRuntimeError,
+    RecoverableSummarizationError,
+)
+from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem
 
@@ -332,6 +337,7 @@ class EpisodeStageTimings:
     download_media_time: Optional[float] = None  # Media download time in seconds
     transcribe_time: Optional[float] = None  # Transcription time in seconds
     extract_names_time: Optional[float] = None  # Speaker detection time in seconds
+    cleaning_time: Optional[float] = None  # Transcript clean before summarize (seconds)
     summarize_time: Optional[float] = None  # Summarization time in seconds
     total_processing_time: Optional[float] = None  # Total processing time in seconds
 
@@ -1728,6 +1734,85 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
     return provider_info
 
 
+def _append_transformers_local_summary_metadata(
+    provider_info: Dict[str, Any], cfg: config.Config
+) -> None:
+    """Populate map/reduce/device and optional library versions for local summarization."""
+    if cfg.summary_model:
+        provider_info["map_model"] = cfg.summary_model
+    if cfg.summary_reduce_model:
+        provider_info["reduce_model"] = cfg.summary_reduce_model
+    if cfg.summary_device:
+        provider_info["device"] = cfg.summary_device
+
+    try:
+        import torch
+        import transformers
+
+        torch_version = getattr(torch, "__version__", "unknown")
+        torch_version_str = str(torch_version) if torch_version != "unknown" else "unknown"
+        provider_info["versions"] = {
+            "transformers": getattr(transformers, "__version__", "unknown"),
+            "torch": torch_version_str,
+        }
+        if cfg.summary_device:
+            provider_info["device"] = cfg.summary_device
+        try:
+            from .run_manifest import _revision_for_summary_model
+
+            summary_rev = _revision_for_summary_model(cfg.summary_model)
+            if summary_rev:
+                provider_info["model_revision"] = summary_rev
+        except (ImportError, AttributeError):
+            pass
+    except (ImportError, AttributeError, ValueError):
+        pass
+
+
+def _append_hybrid_ml_summary_metadata(provider_info: Dict[str, Any], cfg: config.Config) -> None:
+    """Populate hybrid_ml map/reduce/backend/device and optional model revision."""
+    map_model = getattr(cfg, "hybrid_map_model", None)
+    if map_model:
+        provider_info["map_model"] = str(map_model)
+    reduce_model = getattr(cfg, "hybrid_reduce_model", None)
+    if reduce_model:
+        provider_info["reduce_model"] = str(reduce_model)
+    reduce_backend = getattr(cfg, "hybrid_reduce_backend", "transformers")
+    provider_info["reduce_backend"] = str(reduce_backend)
+    device = getattr(cfg, "hybrid_map_device", None) or getattr(cfg, "summary_device", None)
+    if device:
+        provider_info["device"] = device
+    try:
+        from .run_manifest import _revision_for_summary_model
+
+        summary_rev = _revision_for_summary_model(map_model)
+        if summary_rev:
+            provider_info["model_revision"] = summary_rev
+    except (ImportError, AttributeError, TypeError):
+        pass
+
+
+def _append_external_llm_summary_models(provider_info: Dict[str, Any], cfg: config.Config) -> None:
+    """Set provider-specific summary model field for remote LLM summarization."""
+    sp = str(cfg.summary_provider or "")
+    if sp == "openai":
+        provider_info["openai_model"] = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+    elif sp == "gemini":
+        provider_info["gemini_model"] = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
+    elif sp == "anthropic":
+        provider_info["anthropic_model"] = getattr(
+            cfg, "anthropic_summary_model", "claude-haiku-4-5"
+        )
+    elif sp == "mistral":
+        provider_info["mistral_model"] = cfg.mistral_summary_model
+    elif sp == "deepseek":
+        provider_info["deepseek_model"] = cfg.deepseek_summary_model
+    elif sp == "grok":
+        provider_info["grok_model"] = cfg.grok_summary_model
+    elif sp == "ollama":
+        provider_info["ollama_model"] = cfg.ollama_summary_model
+
+
 def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str, Any]]:
     """Build summarization provider information.
 
@@ -1741,74 +1826,42 @@ def _build_summarization_provider_info(cfg: config.Config) -> Optional[Dict[str,
         return None
 
     provider_info: Dict[str, Any] = {"provider": str(cfg.summary_provider)}
+    sp = cfg.summary_provider
 
-    if cfg.summary_provider in ("transformers", "local"):
-        # Include model information for transformers provider
-        if cfg.summary_model:
-            provider_info["map_model"] = cfg.summary_model
-        if cfg.summary_reduce_model:
-            provider_info["reduce_model"] = cfg.summary_reduce_model
-        if cfg.summary_device:
-            provider_info["device"] = cfg.summary_device
+    if sp in ("transformers", "local"):
+        _append_transformers_local_summary_metadata(provider_info, cfg)
+    elif sp == "hybrid_ml":
+        _append_hybrid_ml_summary_metadata(provider_info, cfg)
+    else:
+        _append_external_llm_summary_models(provider_info, cfg)
 
-        # Record library versions and device for reproducibility and drift detection
-        try:
-            import torch
-            import transformers
-
-            # Convert torch version to string (it's a TorchVersion object)
-            torch_version = getattr(torch, "__version__", "unknown")
-            torch_version_str = str(torch_version) if torch_version != "unknown" else "unknown"
-            provider_info["versions"] = {
-                "transformers": getattr(transformers, "__version__", "unknown"),
-                "torch": torch_version_str,
-            }
-            # Record device (mps/cpu/cuda) for reproducibility
-            if cfg.summary_device:
-                provider_info["device"] = cfg.summary_device
-            # Record model revision in episode metadata (Issue #428; same logic as run_manifest)
-            try:
-                from .run_manifest import _revision_for_summary_model
-
-                summary_rev = _revision_for_summary_model(cfg.summary_model)
-                if summary_rev:
-                    provider_info["model_revision"] = summary_rev
-            except (ImportError, AttributeError):
-                pass
-        except (ImportError, AttributeError, ValueError):
-            pass  # Versions not available if libraries not installed or mocked
-    elif cfg.summary_provider == "hybrid_ml":
-        # Include model information for hybrid_ml provider (MAP + REDUCE, optional backend)
-        map_model = getattr(cfg, "hybrid_map_model", None)
-        if map_model:
-            provider_info["map_model"] = str(map_model)
-        reduce_model = getattr(cfg, "hybrid_reduce_model", None)
-        if reduce_model:
-            provider_info["reduce_model"] = str(reduce_model)
-        reduce_backend = getattr(cfg, "hybrid_reduce_backend", "transformers")
-        provider_info["reduce_backend"] = str(reduce_backend)
-        device = getattr(cfg, "hybrid_map_device", None) or getattr(cfg, "summary_device", None)
-        if device:
-            provider_info["device"] = device
-        try:
-            from .run_manifest import _revision_for_summary_model
-
-            summary_rev = _revision_for_summary_model(map_model)
-            if summary_rev:
-                provider_info["model_revision"] = summary_rev
-        except (ImportError, AttributeError, TypeError):
-            pass
-    elif cfg.summary_provider == "openai":
-        summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
-        provider_info["openai_model"] = summary_model
-    elif cfg.summary_provider == "gemini":
-        summary_model = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
-        provider_info["gemini_model"] = summary_model
-    elif cfg.summary_provider == "anthropic":
-        summary_model = getattr(cfg, "anthropic_summary_model", "claude-haiku-4-5")
-        provider_info["anthropic_model"] = summary_model
+    _attach_llm_cleaning_models_to_summarization_info(provider_info, cfg)
 
     return provider_info
+
+
+def _attach_llm_cleaning_models_to_summarization_info(
+    provider_info: Dict[str, Any], cfg: config.Config
+) -> None:
+    """Record per-provider cleaning model when summarization may invoke LLM cleaning."""
+    strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+    if strategy not in ("hybrid", "llm"):
+        return
+    sp = str(cfg.summary_provider or "")
+    if sp == "openai":
+        provider_info["openai_cleaning_model"] = cfg.openai_cleaning_model
+    elif sp == "gemini":
+        provider_info["gemini_cleaning_model"] = cfg.gemini_cleaning_model
+    elif sp == "anthropic":
+        provider_info["anthropic_cleaning_model"] = cfg.anthropic_cleaning_model
+    elif sp == "mistral":
+        provider_info["mistral_cleaning_model"] = cfg.mistral_cleaning_model
+    elif sp == "deepseek":
+        provider_info["deepseek_cleaning_model"] = cfg.deepseek_cleaning_model
+    elif sp == "grok":
+        provider_info["grok_cleaning_model"] = cfg.grok_cleaning_model
+    elif sp == "ollama":
+        provider_info["ollama_cleaning_model"] = cfg.ollama_cleaning_model
 
 
 def _extract_episode_stage_timings(
@@ -1826,60 +1879,50 @@ def _extract_episode_stage_timings(
     if pipeline_metrics is None or episode_idx is None:
         return None
 
-    # Get timings for this episode from the metrics lists
-    # Note: Lists are indexed by processing order, not episode.idx
-    # We use the length of lists to determine which entry corresponds to this episode
-    # This assumes episodes are processed in order (which is generally true)
+    # Per-stage dicts keyed by episode.idx (parallel-safe)
     download_time = None
     transcribe_time = None
     extract_names_time = None
+    cleaning_time = None
     summarize_time = None
 
-    list_idx = episode_idx - 1
+    dmed = getattr(pipeline_metrics, "download_media_time_by_episode", None)
+    if isinstance(dmed, dict) and episode_idx in dmed:
+        raw_dl = dmed[episode_idx]
+        download_time = None if raw_dl == 0.0 else raw_dl
 
-    # Get download time (if available)
-    if (
-        hasattr(pipeline_metrics, "download_media_times")
-        and pipeline_metrics.download_media_times
-        and 0 <= list_idx < len(pipeline_metrics.download_media_times)
-    ):
-        download_time = pipeline_metrics.download_media_times[list_idx]
+    tte = getattr(pipeline_metrics, "transcribe_time_by_episode", None)
+    if isinstance(tte, dict) and episode_idx in tte:
+        transcribe_time = tte[episode_idx]
 
-    # Get transcription time
-    if (
-        hasattr(pipeline_metrics, "transcribe_times")
-        and pipeline_metrics.transcribe_times
-        and 0 <= list_idx < len(pipeline_metrics.transcribe_times)
-    ):
-        transcribe_time = pipeline_metrics.transcribe_times[list_idx]
+    ene = getattr(pipeline_metrics, "extract_names_time_by_episode", None)
+    if isinstance(ene, dict) and episode_idx in ene:
+        extract_names_time = ene[episode_idx]
 
-    # Get speaker detection time
-    if (
-        hasattr(pipeline_metrics, "extract_names_times")
-        and pipeline_metrics.extract_names_times
-        and 0 <= list_idx < len(pipeline_metrics.extract_names_times)
-    ):
-        extract_names_time = pipeline_metrics.extract_names_times[list_idx]
+    cte = getattr(pipeline_metrics, "cleaning_time_by_episode", None)
+    if isinstance(cte, dict) and episode_idx in cte:
+        cleaning_time = cte[episode_idx]
 
-    # Get summarization time
-    if (
-        hasattr(pipeline_metrics, "summarize_times")
-        and pipeline_metrics.summarize_times
-        and 0 <= list_idx < len(pipeline_metrics.summarize_times)
-    ):
-        summarize_time = pipeline_metrics.summarize_times[list_idx]
+    ste = getattr(pipeline_metrics, "summarize_time_by_episode", None)
+    if isinstance(ste, dict) and episode_idx in ste:
+        summarize_time = ste[episode_idx]
 
-    # Calculate total processing time
-    times = [download_time, transcribe_time, extract_names_time, summarize_time]
+    times = [
+        download_time,
+        transcribe_time,
+        extract_names_time,
+        cleaning_time,
+        summarize_time,
+    ]
     valid_times = [t for t in times if t is not None]
     total_time = sum(valid_times) if valid_times else None
 
-    # Create EpisodeStageTimings if we have at least one timing
     if any(t is not None for t in times):
         return EpisodeStageTimings(
             download_media_time=download_time,
             transcribe_time=transcribe_time,
             extract_names_time=extract_names_time,
+            cleaning_time=cleaning_time,
             summarize_time=summarize_time,
             total_processing_time=total_time,
         )
@@ -2035,13 +2078,30 @@ def _generate_episode_summary(  # noqa: C901
                 # Default to pattern-based cleaner
                 cleaning_processor = PatternBasedCleaner()
 
-            # Pass provider to cleaner if it supports it (for HybridCleaner)
-            from ..cleaning import HybridCleaner
+            # Pass provider to cleaner if it supports it (for HybridCleaner / LLMBasedCleaner)
+            from ..cleaning import HybridCleaner, LLMBasedCleaner
 
-            if isinstance(cleaning_processor, HybridCleaner):
-                cleaned_text = cleaning_processor.clean(transcript_text, provider=summary_provider)
-            else:
-                cleaned_text = cleaning_processor.clean(transcript_text)
+            cleaning_started = time.perf_counter()
+            try:
+                if isinstance(cleaning_processor, HybridCleaner):
+                    cleaned_text = cleaning_processor.clean(
+                        transcript_text,
+                        provider=summary_provider,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                elif isinstance(cleaning_processor, LLMBasedCleaner):
+                    cleaned_text = cleaning_processor.clean(
+                        transcript_text,
+                        summary_provider,
+                        pipeline_metrics=pipeline_metrics,
+                    )
+                else:
+                    cleaned_text = cleaning_processor.clean(transcript_text)
+            finally:
+                if pipeline_metrics is not None:
+                    pipeline_metrics.record_cleaning_time(
+                        time.perf_counter() - cleaning_started, episode_idx
+                    )
             # Safely get lengths for logging (handle Mock objects in tests)
             try:
                 original_len = len(transcript_text) if transcript_text else 0
@@ -2173,7 +2233,7 @@ def _generate_episode_summary(  # noqa: C901
                 # Handle Mock objects or other non-string-like objects
                 summary_length = 0
 
-            logger.info(
+            logger.debug(
                 "[%s] Summary generated in %.1fs (length: %d chars)",
                 episode_idx,
                 summary_elapsed,
@@ -2502,8 +2562,11 @@ def _prepare_base_metadata_objects(
     detected_hosts: Optional[List[str]],
     detected_guests: Optional[List[str]],
     pipeline_metrics=None,
-) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo], ProcessingMetadata]:
-    """Prepare base metadata objects (feed, episode, speakers, processing).
+) -> Tuple[FeedMetadata, EpisodeMetadata, List[SpeakerInfo]]:
+    """Prepare base metadata objects (feed, episode, speakers).
+
+    ProcessingMetadata (including stage_timings) is built after summarization so
+    summarize/cleaning metrics are populated.
 
     Args:
         feed: RssFeed object
@@ -2525,10 +2588,10 @@ def _prepare_base_metadata_objects(
         episode_image_url: Episode image URL
         detected_hosts: Detected host names
         detected_guests: Detected guest names
-        pipeline_metrics: Optional metrics object
+        pipeline_metrics: Optional metrics object (unused here; kept for call-site compat)
 
     Returns:
-        Tuple of (feed_metadata, episode_metadata, speakers, processing_metadata)
+        Tuple of (feed_metadata, episode_metadata, speakers)
     """
     feed_metadata = _build_feed_metadata(
         feed, feed_url, feed_id, cfg, feed_description, feed_image_url, feed_last_updated
@@ -2545,10 +2608,7 @@ def _prepare_base_metadata_objects(
         episode_image_url,
     )
     speakers = _build_speakers_from_detected_names(detected_hosts, detected_guests)
-    processing_metadata = _build_processing_metadata(
-        cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
-    )
-    return feed_metadata, episode_metadata, speakers, processing_metadata
+    return feed_metadata, episode_metadata, speakers
 
 
 def _get_nlp_model_for_reconciliation(
@@ -2668,7 +2728,7 @@ def _generate_and_validate_summary(
 
     # Record summary generation time if metrics available
     if pipeline_metrics is not None and summary_elapsed > 0:
-        pipeline_metrics.record_summarize_time(summary_elapsed)
+        pipeline_metrics.record_summarize_time(summary_elapsed, episode.idx)
         # Update episode status: summarized (Issue #391)
         if summary_metadata is not None:
             from ..workflow.orchestration import _log_episode_metrics
@@ -2942,7 +3002,7 @@ def generate_episode_metadata(  # noqa: C901
         cfg,
     )
 
-    feed_metadata, episode_metadata, speakers, processing_metadata = _prepare_base_metadata_objects(
+    feed_metadata, episode_metadata, speakers = _prepare_base_metadata_objects(
         feed,
         episode,
         feed_url,
@@ -2980,6 +3040,10 @@ def generate_episode_metadata(  # noqa: C901
         summary_provider,
         whisper_model,
         pipeline_metrics,
+    )
+
+    processing_metadata = _build_processing_metadata(
+        cfg, output_dir, episode_idx=episode.idx, pipeline_metrics=pipeline_metrics
     )
 
     # Extract summary text for QA flags and entity reconciliation
@@ -3091,6 +3155,7 @@ def generate_episode_metadata(  # noqa: C901
             try:
                 gi_start = time.time()
                 from ..gi import build_artifact, write_artifact
+                from ..gi.provenance import resolve_gil_artifact_model_version
 
                 gi_source = getattr(cfg, "gi_insight_source", "stub")
                 insight_texts_arg: Optional[List[str]] = None
@@ -3100,43 +3165,28 @@ def generate_episode_metadata(  # noqa: C901
                     and summary_metadata
                     and getattr(summary_metadata, "bullets", None)
                 ):
-                    max_gi = getattr(cfg, "gi_max_insights", 5)
-                    insight_texts_arg = summary_metadata.bullets[:max_gi]
+                    max_gi = getattr(
+                        cfg,
+                        "gi_max_insights",
+                        config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+                    )
+                    insight_texts_arg = []
+                    for _b in summary_metadata.bullets[:max_gi]:
+                        _s = strip_known_ml_bullet_prefixes(str(_b))
+                        if _s:
+                            insight_texts_arg.append(_s)
                 elif gi_source == "provider" and summary_provider is not None:
                     insight_provider_arg = summary_provider
 
-                quote_extraction_provider_arg: Optional[Any] = None
-                entailment_provider_arg: Optional[Any] = None
-                if getattr(cfg, "generate_gi", False) and getattr(
-                    cfg, "gi_require_grounding", True
-                ):
-                    from ..summarization.factory import create_summarization_provider
-
-                    if getattr(cfg, "quote_extraction_provider", None) == cfg.summary_provider:
-                        quote_extraction_provider_arg = summary_provider
-                    else:
-                        quote_extraction_provider_arg = create_summarization_provider(
-                            cfg, provider_type_override=cfg.quote_extraction_provider
-                        )
-                        if hasattr(quote_extraction_provider_arg, "initialize"):
-                            quote_extraction_provider_arg.initialize()
-                    if getattr(cfg, "entailment_provider", None) == cfg.summary_provider:
-                        entailment_provider_arg = summary_provider
-                    elif getattr(cfg, "entailment_provider", None) == getattr(
-                        cfg, "quote_extraction_provider", None
-                    ):
-                        entailment_provider_arg = quote_extraction_provider_arg
-                    else:
-                        entailment_provider_arg = create_summarization_provider(
-                            cfg, provider_type_override=cfg.entailment_provider
-                        )
-                        if hasattr(entailment_provider_arg, "initialize"):
-                            entailment_provider_arg.initialize()
-
+                gil_evidence_cleanup: list = []
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
-                    model_version=getattr(cfg, "gi_insight_model", "stub"),
+                    model_version=resolve_gil_artifact_model_version(
+                        cfg,
+                        insight_provider_arg,
+                        gi_insight_source=str(gi_source),
+                    ),
                     prompt_version="v1",
                     podcast_id=feed_id,
                     episode_title=episode.title,
@@ -3146,9 +3196,9 @@ def generate_episode_metadata(  # noqa: C901
                     cfg=cfg,
                     insight_texts=insight_texts_arg,
                     insight_provider=insight_provider_arg,
-                    quote_extraction_provider=quote_extraction_provider_arg,
-                    entailment_provider=entailment_provider_arg,
+                    summary_provider=summary_provider,
                     pipeline_metrics=pipeline_metrics,
+                    gil_created_evidence_providers=gil_evidence_cleanup,
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
                 gi_elapsed = time.time() - gi_start
@@ -3208,26 +3258,22 @@ def generate_episode_metadata(  # noqa: C901
                     pipeline_metrics.update_episode_metrics(
                         episode_id=episode_id_for_status, gi_sec=gi_elapsed
                     )
-                # Clean up GIL-only provider instances (avoid double-cleanup of summary_provider)
-                for prov, name in [
-                    (quote_extraction_provider_arg, "quote_extraction"),
-                    (entailment_provider_arg, "entailment"),
-                ]:
-                    if (
-                        prov is not None
-                        and prov is not summary_provider
-                        and hasattr(prov, "cleanup")
-                    ):
-                        try:
-                            prov.cleanup()
-                        except Exception as cleanup_exc:
-                            logger.debug(
-                                "[%s] GIL %s provider cleanup failed: %s",
-                                episode.idx,
-                                name,
-                                cleanup_exc,
-                            )
+                # Clean up GIL evidence providers instantiated inside build_artifact
+                for idx, prov in enumerate(gil_evidence_cleanup):
+                    if prov is None or not hasattr(prov, "cleanup"):
+                        continue
+                    try:
+                        prov.cleanup()
+                    except Exception as cleanup_exc:
+                        logger.debug(
+                            "[%s] GIL evidence provider cleanup failed (%s): %s",
+                            episode.idx,
+                            idx,
+                            cleanup_exc,
+                        )
                 break
+            except GILGroundingUnsatisfiedError:
+                raise
             except Exception as gi_exc:
                 if attempt < max_attempts - 1:
                     time.sleep(1.0)
@@ -3257,12 +3303,21 @@ def generate_episode_metadata(  # noqa: C901
                 with open(full_transcript_path_kg, encoding="utf-8") as f:
                     transcript_text_kg = f.read()
         publish_date_str_kg = episode_published_date.isoformat() if episode_published_date else None
-        max_kg_topics = int(getattr(cfg, "kg_max_topics", 5) or 5)
+        max_kg_topics = int(
+            getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX)
+            or config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+        )
         topic_labels_kg: Optional[List[str]] = None
         if summary_metadata and getattr(summary_metadata, "bullets", None):
             bullets_kg = summary_metadata.bullets
             if bullets_kg:
-                topic_labels_kg = [str(b) for b in bullets_kg[:max_kg_topics]]
+                topic_labels_kg = []
+                for _b in bullets_kg[:max_kg_topics]:
+                    _s = strip_known_ml_bullet_prefixes(str(_b))
+                    if _s:
+                        topic_labels_kg.append(_s)
+                if not topic_labels_kg:
+                    topic_labels_kg = None
         topic_hint_kg: Optional[str] = None
         if topic_labels_kg:
             topic_hint_kg = str(topic_labels_kg[0])[:200]
@@ -3270,52 +3325,84 @@ def generate_episode_metadata(  # noqa: C901
             topic_hint_kg = str(summary_text)[:200]
         kg_source = getattr(cfg, "kg_extraction_source", "summary_bullets")
         kg_provider_arg: Optional[Any] = None
-        if kg_source == "provider" and summary_provider is not None:
-            kg_provider_arg = summary_provider
-        try:
-            kg_start = time.time()
-            from ..kg import (
-                build_artifact as kg_build_artifact,
-                write_artifact as kg_write_artifact,
-            )
+        kg_provider_extra: Optional[Any] = None
+        if kg_source == "provider" or (kg_source == "summary_bullets" and topic_labels_kg):
+            from ..summarization.factory import create_summarization_provider
 
-            kg_payload = kg_build_artifact(
-                episode_id,
-                transcript_text_kg,
-                podcast_id=feed_id,
-                episode_title=episode.title,
-                publish_date=publish_date_str_kg,
-                transcript_ref=transcript_file_path or "transcript.txt",
-                topic_label=topic_hint_kg if not topic_labels_kg else None,
-                topic_labels=topic_labels_kg,
-                detected_hosts=detected_hosts,
-                detected_guests=detected_guests,
-                cfg=cfg,
-                kg_extraction_provider=kg_provider_arg,
-                pipeline_metrics=pipeline_metrics,
+            desired_backend = getattr(cfg, "kg_extraction_provider", None)
+            if desired_backend is None:
+                desired_backend = cfg.summary_provider
+            use_summary_instance = (
+                summary_provider is not None and desired_backend == cfg.summary_provider
             )
-            kg_write_artifact(Path(kg_path), kg_payload, validate=True)
-            kg_elapsed = time.time() - kg_start
-            logger.debug("[%s] Generated KG artifact: %s", episode.idx, kg_path)
-            nodes_kg = kg_payload.get("nodes") or []
-            edges_kg = kg_payload.get("edges") or []
-            kg_meta = KnowledgeGraphMetadata(
-                artifact_path=os.path.relpath(kg_path, output_dir),
-                node_count=len(nodes_kg),
-                edge_count=len(edges_kg),
-                generated_at=datetime.now(),
-                schema_version=str(kg_payload.get("schema_version", "1.0")),
-            )
-            if pipeline_metrics is not None:
-                pipeline_metrics.kg_artifacts_generated += 1
-                pipeline_metrics.record_kg_artifact_stats(kg_payload)
-                pipeline_metrics.record_kg_time(kg_elapsed)
-                pipeline_metrics.update_episode_status(
-                    episode_id=episode_id_for_kg, stage="kg_written"
+            if use_summary_instance:
+                kg_provider_arg = summary_provider
+            else:
+                kg_provider_extra = create_summarization_provider(
+                    cfg, provider_type_override=desired_backend
                 )
-                pipeline_metrics.update_episode_metrics(
-                    episode_id=episode_id_for_kg, kg_sec=kg_elapsed
+                if hasattr(kg_provider_extra, "initialize"):
+                    kg_provider_extra.initialize()
+                kg_provider_arg = kg_provider_extra
+        try:
+            try:
+                kg_start = time.time()
+                from ..kg import (
+                    build_artifact as kg_build_artifact,
+                    write_artifact as kg_write_artifact,
                 )
+
+                kg_payload = kg_build_artifact(
+                    episode_id,
+                    transcript_text_kg,
+                    podcast_id=feed_id,
+                    episode_title=episode.title,
+                    publish_date=publish_date_str_kg,
+                    transcript_ref=transcript_file_path or "transcript.txt",
+                    topic_label=topic_hint_kg if not topic_labels_kg else None,
+                    topic_labels=topic_labels_kg,
+                    detected_hosts=detected_hosts,
+                    detected_guests=detected_guests,
+                    cfg=cfg,
+                    kg_extraction_provider=kg_provider_arg,
+                    pipeline_metrics=pipeline_metrics,
+                )
+                kg_write_artifact(Path(kg_path), kg_payload, validate=True)
+                kg_elapsed = time.time() - kg_start
+                logger.debug("[%s] Generated KG artifact: %s", episode.idx, kg_path)
+                nodes_kg = kg_payload.get("nodes") or []
+                edges_kg = kg_payload.get("edges") or []
+                kg_meta = KnowledgeGraphMetadata(
+                    artifact_path=os.path.relpath(kg_path, output_dir),
+                    node_count=len(nodes_kg),
+                    edge_count=len(edges_kg),
+                    generated_at=datetime.now(),
+                    schema_version=str(kg_payload.get("schema_version", "1.0")),
+                )
+                if pipeline_metrics is not None:
+                    pipeline_metrics.kg_artifacts_generated += 1
+                    pipeline_metrics.record_kg_artifact_stats(kg_payload)
+                    pipeline_metrics.record_kg_time(kg_elapsed)
+                    pipeline_metrics.update_episode_status(
+                        episode_id=episode_id_for_kg, stage="kg_written"
+                    )
+                    pipeline_metrics.update_episode_metrics(
+                        episode_id=episode_id_for_kg, kg_sec=kg_elapsed
+                    )
+            finally:
+                if (
+                    kg_provider_extra is not None
+                    and kg_provider_extra is not summary_provider
+                    and hasattr(kg_provider_extra, "cleanup")
+                ):
+                    try:
+                        kg_provider_extra.cleanup()
+                    except Exception as cleanup_kg_exc:
+                        logger.debug(
+                            "[%s] KG extraction provider cleanup failed: %s",
+                            episode.idx,
+                            cleanup_kg_exc,
+                        )
         except Exception as kg_exc:
             if pipeline_metrics is not None:
                 pipeline_metrics.kg_failures += 1

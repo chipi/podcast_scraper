@@ -150,6 +150,12 @@ class DeepSeekBackendConfig(BaseModel):
     )
 
 
+class EvalStubBackendConfig(BaseModel):
+    """Eval-only backend: no external model (GIL/KG stub pipeline in ``run_experiment``)."""
+
+    type: Literal["eval_stub"] = "eval_stub"
+
+
 BackendConfig = (
     HFBackendConfig
     | OpenAIBackendConfig
@@ -159,6 +165,7 @@ BackendConfig = (
     | MistralBackendConfig
     | GrokBackendConfig
     | DeepSeekBackendConfig
+    | EvalStubBackendConfig
 )
 
 
@@ -204,6 +211,14 @@ class DataConfig(BaseModel):
             "How to derive episode_id from path (legacy mode only). "
             "'stem' -> filename without extension; "
             "'parent_dir' -> parent folder name."
+        ),
+    )
+    max_episodes: Optional[int] = Field(
+        default=None,
+        ge=1,
+        description=(
+            "If set, only the first N episodes (after stable sort) are processed or scored. "
+            "Used for smoke runs and autoresearch cost control (RFC-057)."
         ),
     )
 
@@ -392,7 +407,13 @@ class ExperimentConfig(BaseModel):
 
     id: str
     task: Literal[
-        "summarization", "ner_entities", "ner_guest_host", "ner_generic", "transcription"
+        "summarization",
+        "ner_entities",
+        "ner_guest_host",
+        "ner_generic",
+        "transcription",
+        "grounded_insights",
+        "knowledge_graph",
     ] = Field(default="summarization")
     backend: BackendConfig
     prompts: Optional[PromptConfig] = Field(
@@ -445,11 +466,32 @@ class ExperimentConfig(BaseModel):
     @model_validator(mode="after")
     def validate_prompts_for_backend(self) -> "ExperimentConfig":
         """Validate that prompts are provided for OpenAI backend."""
+        if self.backend.type == "eval_stub":
+            return self
         if self.backend.type == "openai" and not self.prompts:
             raise ValueError(
                 "prompts are required for OpenAI backend. "
                 "Provide a prompts section with at least a user prompt."
             )
+        return self
+
+    @model_validator(mode="after")
+    def validate_eval_stub_task_pairing(self) -> "ExperimentConfig":
+        """eval_stub is only valid for GIL/KG eval tasks."""
+        if self.backend.type == "eval_stub" and self.task not in (
+            "grounded_insights",
+            "knowledge_graph",
+        ):
+            raise ValueError(
+                "eval_stub backend only supports tasks 'grounded_insights' or "
+                f"'knowledge_graph' (got task={self.task!r})"
+            )
+        if self.task in ("grounded_insights", "knowledge_graph"):
+            if self.backend.type != "eval_stub":
+                raise ValueError(
+                    f"Task {self.task!r} currently only supports backend type 'eval_stub'. "
+                    f"Got {self.backend.type!r}."
+                )
         return self
 
     @model_validator(mode="after")
@@ -596,6 +638,14 @@ def discover_input_files(data_cfg: DataConfig, base_dir: Path | None = None) -> 
         return [p for p in paths if p.is_file()]
     else:
         raise ValueError("Either dataset_id or episodes_glob must be provided in data config")
+
+
+def discover_input_files_limited(data_cfg: DataConfig, base_dir: Path | None = None) -> List[Path]:
+    """Like ``discover_input_files`` but applies ``data_cfg.max_episodes`` when set."""
+    paths = discover_input_files(data_cfg, base_dir=base_dir)
+    if data_cfg.max_episodes is not None:
+        return paths[: data_cfg.max_episodes]
+    return paths
 
 
 def episode_id_from_path(path: Path, data_cfg: DataConfig) -> str:

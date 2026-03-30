@@ -685,6 +685,14 @@ def generate_enhanced_fingerprint(
             generation_params = {}
             map_generation_params = {}
             reduce_generation_params = {}
+        elif experiment_config.task in ("grounded_insights", "knowledge_graph"):
+            generation_params = {}
+            map_generation_params = {}
+            reduce_generation_params = {}
+        elif experiment_config.backend.type == "eval_stub":
+            generation_params = {}
+            map_generation_params = {}
+            reduce_generation_params = {}
         elif experiment_config.backend.type == "openai":
             # OpenAI API parameters (use defaults from SummarizationParams)
             generation_params = {
@@ -1591,12 +1599,14 @@ def materialize_baseline(
         for ref_id in reference_ids:
             try:
                 ref_path = find_reference_path(ref_id, dataset_id)
-                # Validate reference has predictions.jsonl
                 ref_predictions_path = ref_path / "predictions.jsonl"
-                if not ref_predictions_path.exists():
+                gold_json_eps = [
+                    p for p in ref_path.glob("*.json") if p.is_file() and p.name != "index.json"
+                ]
+                if not ref_predictions_path.exists() and not gold_json_eps:
                     logger.warning(
-                        f"Reference '{ref_id}' missing predictions.jsonl, "
-                        "skipping vs_reference metrics"
+                        f"Reference '{ref_id}' has no predictions.jsonl and no per-episode "
+                        f"gold JSON; skipping vs_reference metrics"
                     )
                     continue
                 reference_paths[ref_id] = ref_path
@@ -1615,6 +1625,7 @@ def materialize_baseline(
         dataset_id=dataset_id,
         run_id=metrics_run_id,
         reference_paths=reference_paths,
+        task=experiment_config.task if experiment_config else None,
     )
     metrics_path = baseline_path / "metrics.json"
     metrics_path.write_text(

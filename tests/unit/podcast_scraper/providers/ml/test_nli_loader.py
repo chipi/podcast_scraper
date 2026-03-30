@@ -30,14 +30,14 @@ class TestEntailmentScoreMocked:
         assert score == 0.85
 
     def test_entailment_scores_batch_returns_list(self, monkeypatch):
-        """entailment_scores_batch returns list of floats."""
+        """entailment_scores_batch returns list of floats (one scalar row per pair)."""
         monkeypatch.setattr(
             nli_loader,
             "get_nli_model",
             lambda *args, **kwargs: type(
                 "Model",
                 (),
-                {"predict": lambda self, pairs: [0.7, 0.9]},
+                {"predict": lambda self, pairs: [[0.7], [0.9]]},
             )(),
         )
         scores = nli_loader.entailment_scores_batch(
@@ -47,6 +47,80 @@ class TestEntailmentScoreMocked:
         assert len(scores) == 2
         assert scores[0] == 0.7
         assert scores[1] == 0.9
+
+    def test_entailment_score_three_class_logits_1d(self, monkeypatch):
+        """NLI models return one row of 3 logits; map to softmax P(entailment)."""
+        mock_model = type(
+            "M",
+            (),
+            {
+                "model": type(
+                    "Inner",
+                    (),
+                    {"config": type("C", (), {"id2label": {0: "c", 1: "n", 2: "e"}})()},
+                )(),
+                "predict": lambda self, pairs: [[-2.0, -2.0, 4.0]],
+            },
+        )()
+        monkeypatch.setattr(nli_loader, "get_nli_model", lambda *a, **k: mock_model)
+        score = nli_loader.entailment_score("p", "h", "nli-deberta-base")
+        assert score > 0.9
+
+    def test_entailment_score_respects_id2label_entailment_index(self, monkeypatch):
+        """Use config id2label to find entailment column (not always index 2)."""
+        mock_model = type(
+            "M",
+            (),
+            {
+                "model": type(
+                    "Inner",
+                    (),
+                    {
+                        "config": type(
+                            "Cfg",
+                            (),
+                            {
+                                "id2label": {
+                                    0: "contradiction",
+                                    1: "entailment",
+                                    2: "neutral",
+                                }
+                            },
+                        )()
+                    },
+                )(),
+                "predict": lambda self, pairs: [[0.0, 4.0, 0.0]],
+            },
+        )()
+        monkeypatch.setattr(nli_loader, "get_nli_model", lambda *a, **k: mock_model)
+        score = nli_loader.entailment_score("p", "h", "nli-deberta-base")
+        assert score > 0.9
+
+    def test_entailment_scores_batch_two_by_three_logits(self, monkeypatch):
+        """Batch (n, 3) logits yields n entailment probabilities."""
+        mock_model = type(
+            "M",
+            (),
+            {
+                "model": type(
+                    "Inner",
+                    (),
+                    {"config": type("C", (), {"id2label": {0: "c", 1: "n", 2: "e"}})()},
+                )(),
+                "predict": lambda self, pairs: [
+                    [-2.0, -2.0, 4.0],
+                    [4.0, -2.0, -2.0],
+                ],
+            },
+        )()
+        monkeypatch.setattr(nli_loader, "get_nli_model", lambda *a, **k: mock_model)
+        scores = nli_loader.entailment_scores_batch(
+            [("a", "b"), ("c", "d")],
+            "nli-deberta-base",
+        )
+        assert len(scores) == 2
+        assert scores[0] > 0.9
+        assert scores[1] < 0.1
 
     def test_entailment_score_meta_tensor_fallback(self, monkeypatch):
         """When model returns tensor on meta device, fallback to 0.0 (GIL + API-only)."""
@@ -93,7 +167,7 @@ class TestLoadNliModel:
 
         captured = []
 
-        def fake_cross_encoder(model_id, device=None):
+        def fake_cross_encoder(model_id, device=None, **kwargs):
             captured.append(model_id)
             return type("Fake", (), {"predict": lambda self, pairs: [0.5]})()
 

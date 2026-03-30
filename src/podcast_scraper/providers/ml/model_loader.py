@@ -233,10 +233,12 @@ def _download_qa_pipeline_for_cache(model_id: str) -> None:
     """
     from transformers import pipeline
 
+    cache_dir = str(get_transformers_cache_dir().resolve())
     pipeline(
         "question-answering",
         model=model_id,
         device=-1,
+        model_kwargs={"local_files_only": False, "cache_dir": cache_dir},
     )
 
 
@@ -244,14 +246,30 @@ def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
     """Instantiate CrossEncoder once to populate the HF cache (test seam)."""
     from sentence_transformers import CrossEncoder
 
-    CrossEncoder(model_id)
+    cache_dir = str(get_transformers_cache_dir().resolve())
+    dl_kw = {"local_files_only": False, "cache_dir": cache_dir}
+    CrossEncoder(
+        model_id,
+        tokenizer_args=dl_kw,
+        automodel_args=dl_kw,
+    )
+
+
+def _download_sentence_transformer_for_cache(model_id: str) -> None:
+    """Instantiate SentenceTransformer once to populate the HF cache (test seam)."""
+    from sentence_transformers import SentenceTransformer
+
+    cache_dir = str(get_transformers_cache_dir().resolve())
+    SentenceTransformer(model_id, cache_folder=cache_dir)
 
 
 def is_evidence_model_cached(model_id: str) -> bool:
-    """Return True if the given evidence-stack model (QA or NLI) is already cached.
+    """Return True if the given evidence-stack model is already in the HF hub cache dir.
+
+    Covers embedding (sentence-transformers), extractive QA, and NLI checkpoints.
 
     Args:
-        model_id: Alias (e.g. roberta-squad2, nli-deberta-base) or full HF ID.
+        model_id: Alias (e.g. minilm-l6, roberta-squad2) or full HF ID.
 
     Returns:
         True if the resolved model exists under the transformers/HF cache.
@@ -271,25 +289,33 @@ def is_evidence_model_cached(model_id: str) -> bool:
 def preload_evidence_models(
     qa_models: Optional[List[str]] = None,
     nli_models: Optional[List[str]] = None,
+    embedding_models: Optional[List[str]] = None,
 ) -> None:
-    """Preload GIL evidence-stack models (QA and NLI) to the central cache.
+    """Preload GIL evidence-stack models (embedding, QA, NLI) to the central cache.
 
     This is the ONLY place where evidence-stack models can be downloaded.
     Uses the same HF cache as Transformers (get_transformers_cache_dir).
 
     Args:
-        qa_models: List of QA model aliases or HF IDs; if None, uses default
-            from config_constants.
-        nli_models: List of NLI model aliases or HF IDs; if None, uses default
-            from config_constants.
+        qa_models: List of QA model aliases or HF IDs; if None along with the
+            other two arguments, uses default from config_constants; if this
+            call passes any explicit list (possibly empty), omitted arguments
+            are treated as empty lists (partial preload for setup.py).
+        nli_models: List of NLI model aliases or HF IDs; same semantics as qa_models.
+        embedding_models: Sentence-transformers embedding IDs; same semantics.
     """
     from ... import config_constants
     from .model_registry import ModelRegistry
 
-    if qa_models is None:
+    all_none = qa_models is None and nli_models is None and embedding_models is None
+    if all_none:
         qa_models = [config_constants.DEFAULT_EXTRACTIVE_QA_MODEL]
-    if nli_models is None:
         nli_models = [config_constants.DEFAULT_NLI_MODEL]
+        embedding_models = [config_constants.DEFAULT_EMBEDDING_MODEL]
+    else:
+        qa_models = list(qa_models or [])
+        nli_models = list(nli_models or [])
+        embedding_models = list(embedding_models or [])
 
     cache_dir = get_transformers_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -297,6 +323,20 @@ def preload_evidence_models(
     if os.environ.get("HF_HUB_CACHE") != cache_dir_str:
         os.environ["HF_HUB_CACHE"] = cache_dir_str
         logger.info("Set HF_HUB_CACHE for evidence model preload: %s", cache_dir_str)
+
+    for alias in embedding_models:
+        resolved = ModelRegistry.resolve_evidence_model_id(alias)
+        model_cache_path = cache_dir / f"models--{resolved.replace('/', '--')}"
+        if model_cache_path.exists():
+            logger.info("  Embedding model %s already cached", resolved)
+            continue
+        logger.info("  Preloading embedding model %s...", resolved)
+        try:
+            _download_sentence_transformer_for_cache(resolved)
+            logger.info("  ✓ Embedding model %s cached", resolved)
+        except Exception as e:
+            logger.error("  ✗ Failed to preload embedding model %s: %s", resolved, e)
+            raise
 
     for alias in qa_models:
         resolved = ModelRegistry.resolve_evidence_model_id(alias)

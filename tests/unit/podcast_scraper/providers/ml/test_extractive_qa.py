@@ -91,6 +91,40 @@ class TestAnswerMocked:
         )
         assert span.score == 0.0
 
+    def test_answer_windowed_picks_highest_score_span(self, monkeypatch):
+        """Long context + windowing runs QA per window; best global span wins."""
+
+        def fake_pipeline(*args, question=None, context=None, max_answer_len=None, **kwargs):
+            if "TARGETPHRASE" in context:
+                idx = context.index("TARGETPHRASE")
+                end = idx + len("TARGETPHRASE")
+                return {
+                    "answer": context[idx:end],
+                    "start": idx,
+                    "end": end,
+                    "score": 0.99,
+                }
+            return {"answer": "x", "start": 0, "end": 1, "score": 0.05}
+
+        from podcast_scraper.providers.ml import extractive_qa
+
+        monkeypatch.setattr(
+            extractive_qa,
+            "get_qa_pipeline",
+            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipeline})(),
+        )
+        filler = "A" * 35
+        context = filler + "TARGETPHRASE" + ("B" * 35)
+        span = extractive_qa.answer(
+            context,
+            question="Q?",
+            model_id="roberta-squad2",
+            window_chars=28,
+            window_overlap_chars=8,
+        )
+        assert span.score == 0.99
+        assert context[span.start : span.end] == "TARGETPHRASE"
+
 
 class TestGetDevice:
     """Tests for QA device selection (avoid MPS/meta for HF QA)."""
@@ -124,7 +158,7 @@ class TestLoadQaPipeline:
 
         captured = []
 
-        def fake_pipeline(task, model, device=None):
+        def fake_pipeline(task, model, device=None, **kwargs):
             captured.append(model)
             return lambda **kw: {"answer": "x", "start": 0, "end": 1, "score": 0.9}
 

@@ -1,0 +1,32 @@
+# Manual validation: NPR Planet Money, Gemini — GI + KG via provider (LLM insight + graph).
+# Doc: With gil_evidence_match_summary_provider (default True), GIL quote+entail follow this summary provider unless quote_extraction_provider / entailment_provider are set.
+# Cost-compare peer: manual_planet_money_openai_gi_kg_provider.yaml.
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/manual_planet_money_gemini_gi_kg_provider.yaml
+# Requires: GEMINI_API_KEY
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/manual/planet_money_gemini_gi_kg_provider
+max_episodes: 3
+
+transcription_provider: gemini
+speaker_detector_provider: gemini
+summary_provider: gemini
+
+gemini_transcription_model: gemini-2.0-flash
+gemini_speaker_model: gemini-2.0-flash
+gemini_summary_model: gemini-2.0-flash
+
+transcribe_missing: true
+preprocessing_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+
+generate_gi: true
+gi_insight_source: provider
+
+generate_kg: true
+kg_extraction_source: provider
+kg_max_entities: 15

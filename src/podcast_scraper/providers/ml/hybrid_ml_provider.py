@@ -530,6 +530,7 @@ class HybridMLProvider:
         episode_title: Optional[str] = None,
         max_insights: int = 5,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> List[str]:
         """Generate insight statements (GIL). Hybrid ML provider does not implement this.
 
@@ -545,6 +546,7 @@ class HybridMLProvider:
         max_topics: int = 5,
         max_entities: int = 15,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> Optional[Dict[str, Any]]:
         """KG LLM extraction is not implemented for hybrid_ml summarization."""
         return None
@@ -568,6 +570,8 @@ class HybridMLProvider:
                 question=question,
                 model_id=getattr(self.cfg, "gi_qa_model", "roberta-squad2"),
                 device=getattr(self.cfg, "extractive_qa_device", None),
+                window_chars=int(getattr(self.cfg, "gi_qa_window_chars", 0)),
+                window_overlap_chars=int(getattr(self.cfg, "gi_qa_window_overlap_chars", 250)),
             )
         except Exception as e:
             logger.warning("Extractive QA failed for extract_quotes: %s", e)

@@ -9,14 +9,53 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-KG_GRAPH_JSON_SYSTEM = (
-    "You extract a small knowledge-graph fragment from a podcast transcript. "
-    "Return ONLY valid JSON (no markdown fences, no commentary) with this shape:\n"
-    '{"topics":[{"label":"short topic phrase"}],"entities":[{"name":"Full Name",'
-    '"entity_kind":"person"}]}\n'
-    'entity_kind must be "person" or "organization" only. '
-    "Use concise topic labels (under 200 characters each)."
-)
+# Whisper / subword summarizer artifacts at bullet starts (non-exhaustive; conservative).
+_KNOWN_ML_BULLET_PREFIX_RES = (re.compile(r"^(?:Unden|Exting|Distingu)-\s*", re.IGNORECASE),)
+
+
+def strip_known_ml_bullet_prefixes(text: str) -> str:
+    """Remove common broken subword prefixes from summary bullets (ML / ASR noise)."""
+    s = (text or "").strip()
+    for pat in _KNOWN_ML_BULLET_PREFIX_RES:
+        s = pat.sub("", s)
+    return s.strip()
+
+
+def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str:
+    """System message for transcript-based KG extraction with explicit array caps."""
+    mt = max(1, min(int(max_topics), 20))
+    me = max(1, min(int(max_entities), 50))
+    return (
+        "You extract a small knowledge-graph fragment from a podcast transcript. "
+        "Return ONLY valid JSON (no markdown fences, no commentary) with this shape:\n"
+        '{"topics":[{"label":"short topic phrase"}],"entities":[{"name":"Full Name",'
+        '"entity_kind":"person"}]}\n'
+        'entity_kind must be "person" or "organization" only. '
+        "Use concise topic labels (under 200 characters each). "
+        f"Hard limits: at most {mt} objects in topics and at most {me} in entities — "
+        "never exceed these array lengths. Order by importance (strongest first); "
+        "extras are truncated if you exceed the limit."
+    )
+
+
+def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> str:
+    """System message for summary-bullet-derived KG with explicit array caps."""
+    mt = max(1, min(int(max_topics), 20))
+    me = max(1, min(int(max_entities), 50))
+    return (
+        "You derive a small knowledge-graph fragment from episode summary bullets only "
+        "(there is no full transcript). "
+        "Return ONLY valid JSON (no markdown fences, no commentary) with this shape:\n"
+        '{"topics":[{"label":"short topic phrase"}],"entities":[{"name":"Full Name",'
+        '"entity_kind":"person"}]}\n'
+        'entity_kind must be "person" or "organization" only. '
+        "Topic labels must be short thematic phrases "
+        "(not full bullet sentences pasted as one label). "
+        f"Hard limits: at most {mt} topic objects and at most {me} entity objects — "
+        "never exceed these array lengths. Order topics by importance (strongest first). "
+        "Prefer fewer, broader themes that still cover the bullets over many "
+        "overlapping micro-topics."
+    )
 
 
 def truncate_transcript_for_kg(text: str, limit: int = 120000) -> str:
@@ -45,6 +84,37 @@ def build_kg_user_prompt(
     )
 
 
+def normalize_bullet_labels_for_kg(labels: List[str], max_bullets: int = 30) -> List[str]:
+    """Trim empty entries and cap count for LLM prompts."""
+    out: List[str] = []
+    for raw in labels or []:
+        s = strip_known_ml_bullet_prefixes(str(raw))
+        if s:
+            out.append(s[:2000])
+        if len(out) >= max_bullets:
+            break
+    return out
+
+
+def build_kg_from_bullets_user_prompt(
+    bullet_labels: List[str],
+    title: str,
+    max_topics: int,
+    max_entities: int,
+) -> str:
+    """Render Jinja prompt for KG extraction from summary bullets only."""
+    from ..prompts.store import render_prompt
+
+    bullets = normalize_bullet_labels_for_kg(bullet_labels)
+    return render_prompt(
+        "shared/kg_graph_extraction/from_summary_bullets_v1",
+        bullets=bullets,
+        title=title or "",
+        max_topics=max_topics,
+        max_entities=max_entities,
+    )
+
+
 def _strip_json_fence(raw: str) -> str:
     content = (raw or "").strip()
     if content.startswith("```"):
@@ -59,8 +129,17 @@ def _normalize_entity_kind(kind: Optional[str]) -> str:
     return "person"
 
 
-def parse_kg_graph_response(raw: str) -> Optional[Dict[str, Any]]:
-    """Parse model output into {\"topics\": [...], \"entities\": [...]} or None."""
+def parse_kg_graph_response(
+    raw: str,
+    *,
+    max_topics: Optional[int] = None,
+    max_entities: Optional[int] = None,
+) -> Optional[Dict[str, Any]]:
+    """Parse model output into {\"topics\": [...], \"entities\": [...]} or None.
+
+    When ``max_topics`` / ``max_entities`` are set, lists are truncated after parsing
+    (defense in depth alongside pipeline caps).
+    """
     content = _strip_json_fence(raw)
     if not content:
         return None
@@ -108,6 +187,11 @@ def parse_kg_graph_response(raw: str) -> Optional[Dict[str, Any]]:
                     "entity_kind": _normalize_entity_kind(ek_in),
                 }
             )
+
+    if max_topics is not None and max_topics >= 1:
+        topics_out = topics_out[: int(max_topics)]
+    if max_entities is not None and max_entities >= 1:
+        entities_out = entities_out[: int(max_entities)]
 
     if not topics_out and not entities_out:
         return None

@@ -37,6 +37,7 @@
       cb.checked = state.allowedTypes[t] !== false;
       cb.addEventListener("change", function () {
         state.allowedTypes[t] = cb.checked;
+        state.legendSoloVisual = null;
         onChange(state);
       });
       const lab = document.createElement("label");
@@ -47,7 +48,7 @@
       container.appendChild(wrap);
     }
 
-    if (fullArt.kind === "gi") {
+    if (fullArt.kind === "gi" || fullArt.kind === "both") {
       const id = "flt-hide-ungrounded";
       const wrap = document.createElement("div");
       wrap.className = "filter-row filter-row-gi";
@@ -57,6 +58,7 @@
       cb.checked = state.hideUngroundedInsights;
       cb.addEventListener("change", function () {
         state.hideUngroundedInsights = cb.checked;
+        state.legendSoloVisual = null;
         onChange(state);
       });
       const lab = document.createElement("label");
@@ -86,6 +88,7 @@
         next[fk[k]] = fresh.allowedTypes[fk[k]];
       }
       state.hideUngroundedInsights = false;
+      state.legendSoloVisual = null;
       onChange(state);
       mount(container, fullArt, state, onChange);
     });

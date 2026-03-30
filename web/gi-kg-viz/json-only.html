@@ -10,6 +10,7 @@
       defer
     ></script>
     <script src="shared.js" defer></script>
+    <script src="viz-query.js" defer></script>
     <script src="viewer-shell.js" defer></script>
     <script src="cli-hints.js" defer></script>
     <script src="metrics-charts.js" defer></script>
@@ -18,13 +19,13 @@
   <body>
     <header class="header">
       <nav class="viz-nav" aria-label="Viewer variants">
-        <a href="graph-vis.html">vis-network</a>
+        <a href="graph-vis.html" data-viz-nav>vis-network</a>
         <span class="viz-nav-sep">·</span>
-        <a href="graph-cyto.html">Cytoscape</a>
+        <a href="graph-cyto.html" data-viz-nav>Cytoscape</a>
         <span class="viz-nav-sep">·</span>
         <a href="json-only.html" aria-current="page">JSON only</a>
         <span class="viz-nav-sep">·</span>
-        <a href="index.html">Home</a>
+        <a href="index.html" data-viz-nav>Home</a>
       </nav>
       <h1>GI / KG artifact viewer (JSON only)</h1>
       <p class="lede">

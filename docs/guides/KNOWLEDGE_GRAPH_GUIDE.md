@@ -54,7 +54,7 @@ Summaries are not a substitute for verification when claims matter; **GIL** is w
 | --- | --- |
 | `summary_bullets` (default) | **Topic** nodes from the first `kg_max_topics` summary bullets (needs `generate_summaries` + bullets). **Entity** nodes from detected hosts/guests. `extraction.model_version` records `summary_bullets`. |
 | `stub` | **Episode** + hosts/guests only; ignores summary bullets for topics. |
-| `provider` | Calls `extract_kg_graph()` on the **summarization** provider (LLM JSON: topics + entities). **ML** providers (`transformers`, `hybrid_ml`) return no graph fragment — pipeline **falls back** to summary bullets when available. Optional `kg_extraction_model` overrides the chat model. `kg_merge_pipeline_entities` (default `true`) adds hosts/guests after LLM entities, deduped by name. |
+| `provider` | Calls `extract_kg_graph()` on the **summarization** provider (LLM JSON: topics + entities). **ML** providers (`transformers`, `hybrid_ml`) return no graph fragment — pipeline **falls back** to summary bullets when available. Optional `kg_extraction_model` overrides the chat model. `kg_merge_pipeline_entities` (default `true`) adds hosts/guests after LLM entities, deduped by **entity_kind + name** (same as LLM entity list). |
 
 CLI flags: `--kg-extraction-source`, `--kg-max-topics`, `--kg-max-entities`,
 `--kg-extraction-model`, `--no-kg-merge-pipeline-entities`.
@@ -95,6 +95,10 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
 ## Consumption and integration
 
 - **File-based**: Scan per-episode KG JSON for corpus analytics (see RFC-056 use cases).
+- **Browser viewer (prototype)**: Load `*.kg.json` (and `*.gi.json`) in a static local UI —
+  `make serve-gi-kg-viz`, then `http://127.0.0.1:8765/`. See [Development Guide — GI / KG
+  browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
+  [`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
 - **Database**: Optional relational projection per [PRD-018](../prd/PRD-018-database-projection-gil-kg.md) /
   [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — **separate** from GIL tables.
 
@@ -119,7 +123,8 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
 
 Run metrics export (`metrics.json`) includes KG rollups: `kg_topic_nodes_total`,
 `kg_entity_nodes_total`, `kg_extractions_stub` / `kg_extractions_summary_bullets` /
-`kg_extractions_provider`, `kg_avg_topics_per_artifact`, `kg_avg_entities_per_artifact`.
+`kg_extractions_provider` / `kg_extractions_provider_summary_bullets` (LLM topics from
+bullets only), `kg_avg_topics_per_artifact`, `kg_avg_entities_per_artifact`.
 
 Failures during KG write are **non-fatal** (metadata is still written); check logs for
 `KG artifact generation failed`. Common causes: disk permissions, or schema drift if
@@ -132,12 +137,12 @@ Failures during KG write are **non-fatal** (metadata is still written); check lo
 | When to use | Mode | Notes |
 | --- | --- | --- |
 | Fastest, no LLM cost, corpus smoke tests | `stub` | Episode + detected hosts/guests only; no LLM topics. |
-| Good default when you already generate summary bullets | `summary_bullets` (default) | Topics from bullets; entities from pipeline names. No extra LLM call for KG. |
-| Richer topics/entities from transcript text | `provider` | **Extra** chat completion per episode on the **same** summarization provider as summaries. Adds latency and token cost on top of summarization. |
+| Good default when you already generate summary bullets | `summary_bullets` (default) | With an API `summary_provider`, one **extra** chat completion per episode derives short Topic labels (+ LLM entities) from bullets; `extraction.model_version` is `provider:summary_bullets:<model>`. ML-only summaries keep verbatim bullet labels (`summary_bullets`) with no KG LLM. |
+| Richer topics/entities from transcript text | `provider` | **Extra** chat completion per episode on the **transcript** via `extract_kg_graph`. Adds latency and token cost on top of summarization. |
 
-**ML / hybrid ML summarization:** `extract_kg_graph` is not implemented for local ML-only paths. With `kg_extraction_source: provider`, the pipeline **falls back** to `summary_bullets` when bullets exist; otherwise you may get a sparse graph (stub-like). Prefer **`summary_bullets`** or **`stub`** for ML-heavy runs unless you also use an API summarization provider.
+**ML / hybrid ML summarization:** `extract_kg_graph` is not implemented for local ML-only paths. With `kg_extraction_source: provider`, the pipeline **falls back** to `summary_bullets` when bullets exist; otherwise you may get a sparse graph (stub-like). Prefer **`summary_bullets`** or **`stub`** for ML-heavy runs unless you also use an API summarization provider. Topic labels copied from ML bullets may include **ASR/subword noise**; the pipeline strips a few known broken prefixes (e.g. hyphenated fragment starts) when normalizing bullet text for KG/GI consumers.
 
-**Empty or tiny graphs:** Check `extraction.model_version` in `*.kg.json` (`stub`, `summary_bullets`, or `provider:…`). If provider calls fail, logs show a debug message and the builder may fall back. Validate artifacts with `kg validate --strict` and inspect counts via `kg inspect --format json`.
+**Empty or tiny graphs:** Check `extraction.model_version` in `*.kg.json` (`stub`, verbatim `summary_bullets`, `provider:<model>` for transcript KG, or `provider:summary_bullets:<model>` for bullet-derived LLM KG). If provider calls fail, logs show a debug message and the builder may fall back. Validate artifacts with `kg validate --strict` and inspect counts via `kg inspect --format json`.
 
 **JSONL metrics:** When `jsonl_metrics_enabled` is on, `episode_finished` lines include `kg_sec` (wall time for KG for that episode). `run_finished` lines include KG rollups (`kg_artifacts_generated`, `kg_failures`, `kg_provider_extractions`, extraction-mode counts, node totals) alongside the existing GI fields.
 
@@ -165,4 +170,5 @@ This table mirrors the **GIL v1 record** in [Grounded Insights Guide § Recorded
 - [RFC-056: KG — Use Cases & Consumption](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md) (GIL)
 - [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
+- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `kg.json` / `gi.json`
 - [Recorded product decisions (v1, KG shallow)](#recorded-product-decisions-v1-kg) — v1 scope table (this guide)

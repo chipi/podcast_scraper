@@ -44,10 +44,11 @@ class TestMetricsInitialization(unittest.TestCase):
         self.assertEqual(m.time_parsing, 0.0)
         self.assertEqual(m.time_normalizing, 0.0)
         self.assertEqual(m.time_writing_storage, 0.0)
-        self.assertEqual(m.download_media_times, [])
-        self.assertEqual(m.transcribe_times, [])
-        self.assertEqual(m.extract_names_times, [])
-        self.assertEqual(m.summarize_times, [])
+        self.assertEqual(m.download_media_time_by_episode, {})
+        self.assertEqual(m.transcribe_time_by_episode, {})
+        self.assertEqual(m.extract_names_time_by_episode, {})
+        self.assertEqual(m.summarize_time_by_episode, {})
+        self.assertEqual(m.cleaning_time_by_episode, {})
 
     def test_start_time_initialized(self):
         """Test that _start_time is initialized."""
@@ -125,9 +126,21 @@ class TestRecordStage(unittest.TestCase):
         }
         m.record_kg_artifact_stats(payload)
         self.assertEqual(m.kg_extractions_provider, 1)
+        self.assertEqual(m.kg_extractions_provider_summary_bullets, 0)
         self.assertEqual(m.kg_episode_nodes_total, 1)
         self.assertEqual(m.kg_topic_nodes_total, 1)
         self.assertEqual(m.kg_entity_nodes_total, 2)
+
+    def test_record_kg_artifact_stats_summary_bullet_llm_prefix(self):
+        """provider:summary_bullets:* increments both provider counters."""
+        m = metrics.Metrics()
+        payload = {
+            "extraction": {"model_version": "provider:summary_bullets:gpt-4o-mini"},
+            "nodes": [{"type": "Episode"}, {"type": "Topic"}],
+        }
+        m.record_kg_artifact_stats(payload)
+        self.assertEqual(m.kg_extractions_provider, 1)
+        self.assertEqual(m.kg_extractions_provider_summary_bullets, 1)
 
 
 class TestRecordDownloadMediaTime(unittest.TestCase):
@@ -136,22 +149,29 @@ class TestRecordDownloadMediaTime(unittest.TestCase):
     def test_record_single_download_time(self):
         """Test recording a single download time."""
         m = metrics.Metrics()
-        m.record_download_media_time(1.5)
-        self.assertEqual(m.download_media_times, [1.5])
+        m.record_download_media_time(1.5, 1)
+        self.assertEqual(m.download_media_time_by_episode, {1: 1.5})
 
     def test_record_multiple_download_times(self):
-        """Test recording multiple download times."""
+        """Test recording multiple download times (per episode idx)."""
         m = metrics.Metrics()
-        m.record_download_media_time(1.0)
-        m.record_download_media_time(2.0)
-        m.record_download_media_time(1.5)
-        self.assertEqual(m.download_media_times, [1.0, 2.0, 1.5])
+        m.record_download_media_time(1.0, 1)
+        m.record_download_media_time(2.0, 2)
+        m.record_download_media_time(1.5, 3)
+        self.assertEqual(m.download_media_time_by_episode, {1: 1.0, 2: 2.0, 3: 1.5})
 
     def test_record_zero_duration(self):
         """Test recording zero duration."""
         m = metrics.Metrics()
-        m.record_download_media_time(0.0)
-        self.assertEqual(m.download_media_times, [0.0])
+        m.record_download_media_time(0.0, 1)
+        self.assertEqual(m.download_media_time_by_episode, {1: 0.0})
+
+    def test_record_download_same_episode_overwrites(self):
+        """Later record for same episode idx wins (parallel-safe last-write)."""
+        m = metrics.Metrics()
+        m.record_download_media_time(40.0, 1)
+        m.record_download_media_time(0.0, 1)
+        self.assertEqual(m.download_media_time_by_episode, {1: 0.0})
 
 
 class TestRecordTranscribeTime(unittest.TestCase):
@@ -160,16 +180,16 @@ class TestRecordTranscribeTime(unittest.TestCase):
     def test_record_single_transcribe_time(self):
         """Test recording a single transcription time."""
         m = metrics.Metrics()
-        m.record_transcribe_time(5.0)
-        self.assertEqual(m.transcribe_times, [5.0])
+        m.record_transcribe_time(5.0, 1)
+        self.assertEqual(m.transcribe_time_by_episode, {1: 5.0})
 
     def test_record_multiple_transcribe_times(self):
         """Test recording multiple transcription times."""
         m = metrics.Metrics()
-        m.record_transcribe_time(5.0)
-        m.record_transcribe_time(10.0)
-        m.record_transcribe_time(7.5)
-        self.assertEqual(m.transcribe_times, [5.0, 10.0, 7.5])
+        m.record_transcribe_time(5.0, 1)
+        m.record_transcribe_time(10.0, 2)
+        m.record_transcribe_time(7.5, 3)
+        self.assertEqual(m.transcribe_time_by_episode, {1: 5.0, 2: 10.0, 3: 7.5})
 
 
 class TestRecordExtractNamesTime(unittest.TestCase):
@@ -178,16 +198,16 @@ class TestRecordExtractNamesTime(unittest.TestCase):
     def test_record_single_extract_names_time(self):
         """Test recording a single name extraction time."""
         m = metrics.Metrics()
-        m.record_extract_names_time(0.5)
-        self.assertEqual(m.extract_names_times, [0.5])
+        m.record_extract_names_time(0.5, 1)
+        self.assertEqual(m.extract_names_time_by_episode, {1: 0.5})
 
     def test_record_multiple_extract_names_times(self):
         """Test recording multiple name extraction times."""
         m = metrics.Metrics()
-        m.record_extract_names_time(0.5)
-        m.record_extract_names_time(1.0)
-        m.record_extract_names_time(0.75)
-        self.assertEqual(m.extract_names_times, [0.5, 1.0, 0.75])
+        m.record_extract_names_time(0.5, 1)
+        m.record_extract_names_time(1.0, 2)
+        m.record_extract_names_time(0.75, 3)
+        self.assertEqual(m.extract_names_time_by_episode, {1: 0.5, 2: 1.0, 3: 0.75})
 
 
 class TestRecordSummarizeTime(unittest.TestCase):
@@ -196,16 +216,26 @@ class TestRecordSummarizeTime(unittest.TestCase):
     def test_record_single_summarize_time(self):
         """Test recording a single summarization time."""
         m = metrics.Metrics()
-        m.record_summarize_time(3.0)
-        self.assertEqual(m.summarize_times, [3.0])
+        m.record_summarize_time(3.0, 1)
+        self.assertEqual(m.summarize_time_by_episode, {1: 3.0})
 
     def test_record_multiple_summarize_times(self):
         """Test recording multiple summarization times."""
         m = metrics.Metrics()
-        m.record_summarize_time(3.0)
-        m.record_summarize_time(5.0)
-        m.record_summarize_time(4.0)
-        self.assertEqual(m.summarize_times, [3.0, 5.0, 4.0])
+        m.record_summarize_time(3.0, 1)
+        m.record_summarize_time(5.0, 2)
+        m.record_summarize_time(4.0, 3)
+        self.assertEqual(m.summarize_time_by_episode, {1: 3.0, 2: 5.0, 3: 4.0})
+
+
+class TestRecordCleaningTime(unittest.TestCase):
+    """Test record_cleaning_time."""
+
+    def test_record_cleaning_time(self):
+        m = metrics.Metrics()
+        m.record_cleaning_time(0.01, 1)
+        m.record_cleaning_time(0.05, 2)
+        self.assertEqual(m.cleaning_time_by_episode, {1: 0.01, 2: 0.05})
 
 
 class TestFinish(unittest.TestCase):
@@ -235,10 +265,11 @@ class TestFinish(unittest.TestCase):
     def test_finish_calculates_averages_with_data(self):
         """Test that finish calculates averages when data exists."""
         m = metrics.Metrics()
-        m.download_media_times = [1.0, 2.0, 3.0]
-        m.transcribe_times = [5.0, 10.0]
-        m.extract_names_times = [0.5, 1.0, 1.5]
-        m.summarize_times = [3.0, 5.0, 4.0, 6.0]
+        m.download_media_time_by_episode = {1: 1.0, 2: 2.0, 3: 3.0}
+        m.transcribe_time_by_episode = {1: 5.0, 2: 10.0}
+        m.extract_names_time_by_episode = {1: 0.5, 2: 1.0, 3: 1.5}
+        m.summarize_time_by_episode = {1: 3.0, 2: 5.0, 3: 4.0, 4: 6.0}
+        m.cleaning_time_by_episode = {1: 0.1, 2: 0.2, 3: 0.3, 4: 0.4}
 
         with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
@@ -248,6 +279,7 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["avg_transcribe_seconds"], 7.5)  # (5+10)/2
         self.assertEqual(result["avg_extract_names_seconds"], 1.0)  # (0.5+1+1.5)/3
         self.assertEqual(result["avg_summarize_seconds"], 4.5)  # (3+5+4+6)/4
+        self.assertEqual(result["avg_cleaning_seconds"], 0.25)  # (0.1+0.2+0.3+0.4)/4
 
     def test_finish_handles_empty_lists(self):
         """Test that finish handles empty time lists."""
@@ -260,14 +292,15 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["avg_transcribe_seconds"], 0.0)
         self.assertEqual(result["avg_extract_names_seconds"], 0.0)
         self.assertEqual(result["avg_summarize_seconds"], 0.0)
+        self.assertEqual(result["avg_cleaning_seconds"], 0.0)
 
     def test_finish_rounds_averages(self):
         """Test that finish rounds averages to 2 decimal places."""
         m = metrics.Metrics()
-        m.download_media_times = [1.0, 2.0, 3.0, 4.0]  # Average = 2.5
-        m.transcribe_times = [1.0, 2.0, 3.0]  # Average = 2.0
-        m.extract_names_times = [0.333, 0.666]  # Average = 0.4995 -> 0.5
-        m.summarize_times = [1.111, 2.222]  # Average = 1.6665 -> 1.67
+        m.download_media_time_by_episode = {1: 1.0, 2: 2.0, 3: 3.0, 4: 4.0}  # Avg 2.5
+        m.transcribe_time_by_episode = {1: 1.0, 2: 2.0, 3: 3.0}  # Avg 2.0
+        m.extract_names_time_by_episode = {1: 0.333, 2: 0.666}  # Avg 0.5
+        m.summarize_time_by_episode = {1: 1.111, 2: 2.222}  # Avg 1.67
 
         with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
@@ -277,6 +310,38 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["avg_transcribe_seconds"], 2.0)
         self.assertEqual(result["avg_extract_names_seconds"], 0.5)
         self.assertEqual(result["avg_summarize_seconds"], 1.67)
+
+    def test_finish_llm_token_averages_and_gi_kg_ratios(self):
+        """finish() exposes per-call token averages and LLM calls per artifact."""
+        m = metrics.Metrics()
+        m.record_llm_speaker_detection_call(1000, 500)
+        m.record_llm_speaker_detection_call(3000, 700)
+        m.record_llm_summarization_call(10000, 2000)
+        m.record_llm_cleaning_call(4000, 800)
+        m.record_llm_gi_call(500, 100)
+        m.record_llm_gi_call(500, 100)
+        m.record_llm_kg_call(9000, 500)
+        m.gi_artifacts_generated = 2
+        m.kg_artifacts_generated = 1
+        m.cleaning_time_by_episode = {1: 0.1, 2: 0.1}
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            r = m.finish()
+
+        self.assertEqual(r["llm_speaker_detection_avg_input_tokens_per_call"], 2000.0)
+        self.assertEqual(r["llm_speaker_detection_avg_output_tokens_per_call"], 600.0)
+        self.assertEqual(r["llm_summarization_avg_input_tokens_per_call"], 10000.0)
+        self.assertEqual(r["llm_summarization_avg_output_tokens_per_call"], 2000.0)
+        self.assertEqual(r["llm_cleaning_avg_input_tokens_per_call"], 4000.0)
+        self.assertEqual(r["llm_cleaning_avg_output_tokens_per_call"], 800.0)
+        self.assertEqual(r["llm_gi_avg_input_tokens_per_call"], 500.0)
+        self.assertEqual(r["llm_gi_avg_output_tokens_per_call"], 100.0)
+        self.assertEqual(r["llm_kg_avg_input_tokens_per_call"], 9000.0)
+        self.assertEqual(r["llm_kg_avg_output_tokens_per_call"], 500.0)
+        self.assertEqual(r["llm_gi_calls_per_gi_artifact"], 1.0)
+        self.assertEqual(r["llm_kg_calls_per_kg_artifact"], 1.0)
+        self.assertEqual(r["llm_cleaning_calls_per_recorded_cleaning_episode"], 0.5)
 
     def test_finish_returns_all_metrics(self):
         """Test that finish returns all metrics in the result dict."""
@@ -318,11 +383,13 @@ class TestFinish(unittest.TestCase):
             "avg_transcribe_seconds",
             "avg_extract_names_seconds",
             "avg_summarize_seconds",
+            "avg_cleaning_seconds",
             "download_media_count",
             "download_media_attempts",
             "transcribe_count",
             "extract_names_count",
             "summarize_count",
+            "cleaning_count",
             "gi_artifacts_generated",
             "gi_failures",
             "kg_artifacts_generated",
@@ -334,12 +401,15 @@ class TestFinish(unittest.TestCase):
             "kg_extractions_stub",
             "kg_extractions_summary_bullets",
             "kg_extractions_provider",
+            "kg_extractions_provider_summary_bullets",
             "kg_avg_topics_per_artifact",
             "kg_avg_entities_per_artifact",
             "gi_evidence_path_provider",
-            "gi_evidence_path_legacy",
             "gi_evidence_extract_quotes_calls",
+            "gi_evidence_nli_candidates_queued",
             "gi_evidence_score_entailment_calls",
+            "gi_episodes_zero_grounded_when_required",
+            "gi_grounding_degraded",
             "gi_insights_total",
             "gi_quotes_total",
             "gi_insights_grounded",
@@ -361,9 +431,31 @@ class TestFinish(unittest.TestCase):
             "llm_speaker_detection_calls",
             "llm_speaker_detection_input_tokens",
             "llm_speaker_detection_output_tokens",
+            "llm_speaker_detection_avg_input_tokens_per_call",
+            "llm_speaker_detection_avg_output_tokens_per_call",
             "llm_summarization_calls",
             "llm_summarization_input_tokens",
             "llm_summarization_output_tokens",
+            "llm_summarization_avg_input_tokens_per_call",
+            "llm_summarization_avg_output_tokens_per_call",
+            "llm_cleaning_calls",
+            "llm_cleaning_input_tokens",
+            "llm_cleaning_output_tokens",
+            "llm_cleaning_avg_input_tokens_per_call",
+            "llm_cleaning_avg_output_tokens_per_call",
+            "llm_cleaning_calls_per_recorded_cleaning_episode",
+            "llm_gi_calls",
+            "llm_gi_input_tokens",
+            "llm_gi_output_tokens",
+            "llm_gi_avg_input_tokens_per_call",
+            "llm_gi_avg_output_tokens_per_call",
+            "llm_gi_calls_per_gi_artifact",
+            "llm_kg_calls",
+            "llm_kg_input_tokens",
+            "llm_kg_output_tokens",
+            "llm_kg_avg_input_tokens_per_call",
+            "llm_kg_avg_output_tokens_per_call",
+            "llm_kg_calls_per_kg_artifact",
             # Preprocessing metrics
             "avg_preprocessing_seconds",
             "preprocessing_count",
@@ -413,10 +505,10 @@ class TestFinish(unittest.TestCase):
     def test_finish_includes_operation_counts(self):
         """Test that finish includes operation counts."""
         m = metrics.Metrics()
-        m.download_media_times = [1.0, 2.0, 3.0]
-        m.transcribe_times = [5.0, 10.0]
-        m.extract_names_times = [0.5]
-        m.summarize_times = []
+        m.download_media_time_by_episode = {1: 1.0, 2: 2.0, 3: 3.0}
+        m.transcribe_time_by_episode = {1: 5.0, 2: 10.0}
+        m.extract_names_time_by_episode = {1: 0.5}
+        m.summarize_time_by_episode = {}
 
         with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
             m._start_time = 100.0
@@ -1038,6 +1130,37 @@ class TestRecordLLMSummarizationCall(unittest.TestCase):
         self.assertEqual(m.llm_summarization_output_tokens, 0)
 
 
+class TestRecordLlmCleaningGiKgCall(unittest.TestCase):
+    """Test record_llm_cleaning_call / record_llm_gi_call / record_llm_kg_call."""
+
+    def test_record_cleaning_accumulates(self):
+        """Cleaning calls and tokens aggregate like other LLM stages."""
+        m = metrics.Metrics()
+        m.record_llm_cleaning_call(100, 50)
+        m.record_llm_cleaning_call(200, 25)
+        self.assertEqual(m.llm_cleaning_calls, 2)
+        self.assertEqual(m.llm_cleaning_input_tokens, 300)
+        self.assertEqual(m.llm_cleaning_output_tokens, 75)
+
+    def test_record_gi_accumulates(self):
+        """GIL LLM calls aggregate across insights/evidence API calls."""
+        m = metrics.Metrics()
+        m.record_llm_gi_call(1000, 100)
+        m.record_llm_gi_call(500, 80)
+        self.assertEqual(m.llm_gi_calls, 2)
+        self.assertEqual(m.llm_gi_input_tokens, 1500)
+        self.assertEqual(m.llm_gi_output_tokens, 180)
+
+    def test_record_kg_accumulates(self):
+        """KG extract_kg_graph calls aggregate."""
+        m = metrics.Metrics()
+        m.record_llm_kg_call(4000, 500)
+        m.record_llm_kg_call(1000, 200)
+        self.assertEqual(m.llm_kg_calls, 2)
+        self.assertEqual(m.llm_kg_input_tokens, 5000)
+        self.assertEqual(m.llm_kg_output_tokens, 700)
+
+
 class TestFinishIncludesLLMMetrics(unittest.TestCase):
     """Test that finish() includes LLM metrics in the output."""
 
@@ -1110,6 +1233,36 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         self.assertEqual(result["llm_summarization_calls"], 0)
         self.assertEqual(result["llm_summarization_input_tokens"], 0)
         self.assertEqual(result["llm_summarization_output_tokens"], 0)
+        self.assertEqual(result["llm_cleaning_calls"], 0)
+        self.assertEqual(result["llm_cleaning_input_tokens"], 0)
+        self.assertEqual(result["llm_cleaning_output_tokens"], 0)
+        self.assertEqual(result["llm_gi_calls"], 0)
+        self.assertEqual(result["llm_gi_input_tokens"], 0)
+        self.assertEqual(result["llm_gi_output_tokens"], 0)
+        self.assertEqual(result["llm_kg_calls"], 0)
+        self.assertEqual(result["llm_kg_input_tokens"], 0)
+        self.assertEqual(result["llm_kg_output_tokens"], 0)
+
+    def test_finish_includes_cleaning_gi_kg_llm_metrics(self):
+        """finish() exposes cleaning / GIL / KG LLM counters when set."""
+        m = metrics.Metrics()
+        m.record_llm_cleaning_call(10, 5)
+        m.record_llm_gi_call(100, 20)
+        m.record_llm_kg_call(1000, 300)
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["llm_cleaning_calls"], 1)
+        self.assertEqual(result["llm_cleaning_input_tokens"], 10)
+        self.assertEqual(result["llm_cleaning_output_tokens"], 5)
+        self.assertEqual(result["llm_gi_calls"], 1)
+        self.assertEqual(result["llm_gi_input_tokens"], 100)
+        self.assertEqual(result["llm_gi_output_tokens"], 20)
+        self.assertEqual(result["llm_kg_calls"], 1)
+        self.assertEqual(result["llm_kg_input_tokens"], 1000)
+        self.assertEqual(result["llm_kg_output_tokens"], 300)
 
 
 if __name__ == "__main__":

@@ -14,10 +14,13 @@
       defer
     ></script>
     <script src="shared.js" defer></script>
+    <script src="viz-query.js" defer></script>
     <script src="viewer-shell.js" defer></script>
     <script src="cli-hints.js" defer></script>
     <script src="metrics-charts.js" defer></script>
     <script src="filters-panel.js" defer></script>
+    <script src="graph-drawers.js" defer></script>
+    <script src="graph-legend.js" defer></script>
     <script src="graph-vis.js" defer></script>
   </head>
   <body>
@@ -25,79 +28,149 @@
       <nav class="viz-nav" aria-label="Viewer variants">
         <a href="graph-vis.html" aria-current="page">vis-network</a>
         <span class="viz-nav-sep">·</span>
-        <a href="graph-cyto.html">Cytoscape</a>
+        <a href="graph-cyto.html" data-viz-nav>Cytoscape</a>
         <span class="viz-nav-sep">·</span>
-        <a href="json-only.html">JSON only</a>
+        <a href="json-only.html" data-viz-nav>JSON only</a>
         <span class="viz-nav-sep">·</span>
-        <a href="index.html">Home</a>
+        <a href="index.html" data-viz-nav>Home</a>
       </nav>
       <h1>GI / KG graph (vis-network)</h1>
       <p class="lede">
-        Local <code>.gi.json</code> / <code>.kg.json</code> — filters, pan/zoom/drag, fit and
-        re-stabilize. <strong>Chart.js</strong> bar = node counts for the current (filtered)
-        view. CDN loads vis-network + Chart.js (use <code>make serve-gi-kg-viz</code> if
-        <code>file://</code> blocks scripts).
+        Local <code>.gi.json</code> / <code>.kg.json</code> — filters, <strong>node color
+        legend</strong>, <strong>double-click</strong> a node to show only it and its neighbors
+        (double-click it again or the empty canvas to restore), pan/zoom/drag,
+        <strong>Fit</strong> and re-stabilize. <strong>Chart.js</strong> bar = node counts for
+        the current (filtered) view. CDN loads vis-network + Chart.js (use
+        <code>make serve-gi-kg-viz</code> if <code>file://</code> blocks scripts).
       </p>
     </header>
 
-    <section class="panel">
-      <label class="file-label" for="file-picker">Load artifacts</label>
-      <input
-        id="file-picker"
-        type="file"
-        accept=".json,application/json"
-        multiple
-      />
-      <button type="button" id="clear-btn" class="secondary">Clear all</button>
-    </section>
-
-    <section class="layout layout-graph">
-      <div class="col graph-sidebar">
-        <h2>Loaded files</h2>
-        <p id="empty-hint" class="hint">No files loaded yet.</p>
-        <ul id="file-list" class="file-list hidden" aria-live="polite"></ul>
-        <div id="filter-panel" class="filter-panel-wrap">
-          <p class="hint">Load a file to use graph filters.</p>
-        </div>
-      </div>
-      <div class="col graph-metrics">
-        <h2>Overview</h2>
-        <div id="metrics-panel" class="metrics-panel">
-          <p class="hint">Select a file from the list.</p>
-        </div>
-        <h2>Node types</h2>
-        <div id="node-type-pills" class="node-type-wrap">
-          <p class="hint">—</p>
-        </div>
-        <h2>Distribution</h2>
-        <div class="chart-wrap">
-          <canvas id="metrics-chart" width="400" height="220" aria-label="Nodes by type"></canvas>
-        </div>
-      </div>
-      <div class="graph-wrap">
-        <h2>Graph</h2>
-        <div class="graph-toolbar">
-          <button type="button" id="btn-fit" class="secondary">Fit view</button>
-          <button type="button" id="btn-layout" class="secondary">
-            Re-run physics
+    <!-- No generic .layout here: that class applies display:grid and breaks the drawer row. -->
+    <section id="gi-kg-graph-app" class="layout-graph layout-graph-stage">
+      <div class="graph-stage-row">
+        <aside
+          class="graph-drawer graph-drawer-left is-open"
+          id="graph-drawer-left"
+          aria-label="Files and filters"
+        >
+          <div class="graph-drawer-body graph-drawer-body-left" id="graph-drawer-left-body">
+            <div class="graph-sidebar">
+              <div id="viz-load-section" class="graph-load-section">
+                <label class="file-label" for="file-picker">Load artifacts</label>
+                <div class="graph-load-row">
+                  <input
+                    id="file-picker"
+                    type="file"
+                    accept=".json,application/json"
+                    multiple
+                  />
+                  <button type="button" id="clear-btn" class="secondary">Clear all</button>
+                </div>
+              </div>
+              <div id="filter-panel" class="filter-panel-wrap">
+                <p class="hint">Load a file to use graph filters.</p>
+              </div>
+              <h2 class="graph-sidebar-files-heading">Loaded files</h2>
+              <p id="empty-hint" class="hint">No files loaded yet.</p>
+              <ul id="file-list" class="file-list hidden" aria-live="polite"></ul>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="graph-drawer-edge graph-drawer-edge-left"
+            aria-expanded="true"
+            aria-controls="graph-drawer-left-body"
+          >
+            &#8249;
           </button>
+        </aside>
+        <div class="graph-main-stage">
+          <div class="graph-main-inner">
+            <div class="graph-wrap">
+              <h2>Graph</h2>
+              <div class="graph-toolbar">
+                <button type="button" id="btn-fit" class="secondary">Fit view</button>
+                <button type="button" id="btn-layout" class="secondary">
+                  Re-run physics
+                </button>
+              </div>
+              <div
+                id="graph-legend"
+                class="graph-legend"
+                aria-label="Node type color key"
+              ></div>
+              <p
+                id="graph-interaction-hint"
+                class="hint graph-interaction-hint"
+                aria-live="polite"
+              ></p>
+              <div id="graph-canvas" class="graph-canvas">
+                <p class="hint graph-placeholder">Pick a file to render the graph.</p>
+              </div>
+              <div
+                id="graph-node-detail"
+                class="graph-node-detail-popover hidden"
+                role="dialog"
+                aria-label="Node details"
+              >
+                <div class="graph-node-detail-header">
+                  <span class="graph-node-detail-title">Node details</span>
+                  <button
+                    type="button"
+                    class="graph-node-detail-close"
+                    aria-label="Close node details"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div id="graph-node-detail-body" class="graph-node-detail-body"></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div id="graph-canvas" class="graph-canvas">
-          <p class="hint graph-placeholder">Pick a file to render the graph.</p>
-        </div>
+        <aside
+          class="graph-drawer graph-drawer-right is-open"
+          id="graph-drawer-right"
+          aria-label="Overview, chart, CLI, and raw JSON"
+        >
+          <button
+            type="button"
+            class="graph-drawer-edge graph-drawer-edge-right"
+            aria-expanded="true"
+            aria-controls="graph-drawer-right-body"
+          >
+            &#8250;
+          </button>
+          <div class="graph-drawer-body graph-drawer-body-right" id="graph-drawer-right-body">
+            <div class="graph-metrics">
+              <h2>Overview</h2>
+              <div id="metrics-panel" class="metrics-panel">
+                <p class="hint">Select a file from the list.</p>
+              </div>
+              <h2>Node types</h2>
+              <div id="node-type-pills" class="node-type-wrap">
+                <p class="hint">—</p>
+              </div>
+              <h2>Distribution</h2>
+              <div class="chart-wrap">
+                <canvas id="metrics-chart" width="400" height="220" aria-label="Nodes by type"></canvas>
+              </div>
+              <details class="cli-wrap graph-drawer-cli">
+                <summary>CLI — regenerate artifacts</summary>
+                <div data-cli-hints></div>
+              </details>
+              <details class="raw-wrap graph-drawer-raw">
+                <summary>Raw JSON (full file)</summary>
+                <p class="hint raw-hint">
+                  Graph and chart use <strong>filtered</strong> nodes/edges; this dump is the full
+                  artifact.
+                </p>
+                <pre id="raw-json" class="raw hidden"></pre>
+              </details>
+            </div>
+          </div>
+        </aside>
       </div>
-      <details class="cli-wrap">
-        <summary>CLI — regenerate artifacts</summary>
-        <div data-cli-hints></div>
-      </details>
-      <details class="raw-wrap">
-        <summary>Raw JSON (full file)</summary>
-        <p class="hint raw-hint">
-          Graph and chart use <strong>filtered</strong> nodes/edges; this dump is the full
-          artifact.
-        </p>
-        <pre id="raw-json" class="raw hidden"></pre>
-      </details>
     </section>
 
     <footer class="footer">

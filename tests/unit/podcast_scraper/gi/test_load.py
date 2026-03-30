@@ -99,7 +99,7 @@ class TestGILLoad:
     def test_find_artifact_by_insight_id(self, tmp_path):
         """find_artifact_by_insight_id returns path to artifact containing insight."""
         payload = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
-        insight_id = "insight:ep:1:0"
+        insight_id = next(n["id"] for n in payload["nodes"] if n.get("type") == "Insight")
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         gi_path.parent.mkdir(parents=True)
         with open(gi_path, "w", encoding="utf-8") as f:

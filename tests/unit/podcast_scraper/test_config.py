@@ -256,6 +256,35 @@ class TestSummaryModeProfileDefaults(unittest.TestCase):
                 )
 
 
+class TestOpenAICleaningModelDefaults(unittest.TestCase):
+    """OpenAI transcript-cleaning defaults align with config_constants (RFC-044 adjacency)."""
+
+    def test_get_default_openai_cleaning_model_test_environment(self):
+        """Test/CI uses TEST_DEFAULT_OPENAI_CLEANING_MODEL."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=True):
+            self.assertEqual(
+                config._get_default_openai_cleaning_model(),
+                config.TEST_DEFAULT_OPENAI_CLEANING_MODEL,
+            )
+            self.assertEqual(
+                config._get_default_openai_cleaning_model(),
+                config.config_constants.TEST_DEFAULT_OPENAI_CLEANING_MODEL,
+            )
+
+    def test_get_default_openai_cleaning_model_production_environment(self):
+        """Non-test uses PROD_DEFAULT_OPENAI_CLEANING_MODEL."""
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            self.assertEqual(
+                config._get_default_openai_cleaning_model(),
+                config.PROD_DEFAULT_OPENAI_CLEANING_MODEL,
+            )
+
+    def test_config_openai_cleaning_model_matches_test_default(self):
+        """Config field resolves via factory (pytest runs in test environment)."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertEqual(cfg.openai_cleaning_model, config.TEST_DEFAULT_OPENAI_CLEANING_MODEL)
+
+
 class TestSummaryValidation(unittest.TestCase):
     """Test summary-related cross-field validation."""
 
@@ -335,6 +364,25 @@ class TestSummaryValidation(unittest.TestCase):
         self.assertTrue(cfg.generate_gi)
         self.assertTrue(cfg.generate_metadata)
 
+    def test_gi_qa_window_overlap_must_be_less_than_window(self):
+        """gi_qa_window_overlap_chars must be < gi_qa_window_chars when windowing is on."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                gi_qa_window_chars=100,
+                gi_qa_window_overlap_chars=100,
+            )
+        self.assertIn("gi_qa_window_overlap", str(ctx.exception))
+
+    def test_gi_qa_window_zero_allows_large_overlap(self):
+        """When windowing is disabled (0), overlap is unconstrained."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            gi_qa_window_chars=0,
+            gi_qa_window_overlap_chars=50_000,
+        )
+        self.assertEqual(cfg.gi_qa_window_chars, 0)
+
     def test_generate_kg_requires_metadata(self):
         """Test that generate_kg=True requires generate_metadata=True."""
         with self.assertRaises(ValidationError) as context:
@@ -384,6 +432,58 @@ class TestSummaryValidation(unittest.TestCase):
         self.assertEqual(cfg.gi_embedding_model, "org/custom-embed")
         self.assertEqual(cfg.extractive_qa_model, "org/custom-qa")
         self.assertEqual(cfg.nli_model, "org/custom-nli")
+
+    def test_gil_evidence_aligns_with_openai_summary_when_match_enabled(self):
+        """Default gil_evidence_match_summary_provider upgrades transformers → openai."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+            summary_provider="openai",
+            openai_api_key="sk-test",
+            gil_evidence_match_summary_provider=True,
+        )
+        self.assertEqual(cfg.quote_extraction_provider, "openai")
+        self.assertEqual(cfg.entailment_provider, "openai")
+
+    def test_gil_evidence_stays_local_when_match_disabled(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+            summary_provider="openai",
+            openai_api_key="sk-test",
+            gil_evidence_match_summary_provider=False,
+        )
+        self.assertEqual(cfg.quote_extraction_provider, "transformers")
+        self.assertEqual(cfg.entailment_provider, "transformers")
+
+    def test_gil_evidence_not_changed_for_transformers_summary(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+            summary_provider="transformers",
+        )
+        self.assertEqual(cfg.quote_extraction_provider, "transformers")
+        self.assertEqual(cfg.entailment_provider, "transformers")
+
+    def test_gil_evidence_aligns_with_hybrid_ml_summary_when_match_enabled(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            generate_gi=True,
+            generate_metadata=True,
+            summary_provider="hybrid_ml",
+            gil_evidence_match_summary_provider=True,
+        )
+        self.assertEqual(cfg.quote_extraction_provider, "hybrid_ml")
+        self.assertEqual(cfg.entailment_provider, "hybrid_ml")
+
+    def test_default_summary_prompt_params_include_bullet_defaults(self):
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertEqual(cfg.summary_prompt_params.get("bullet_min"), 3)
+        self.assertEqual(cfg.summary_prompt_params.get("max_words_per_bullet"), 45)
+        self.assertIsNone(cfg.summary_prompt_params.get("bullet_max"))
 
     def test_word_chunk_size_outside_range_warns(self):
         """Test that word_chunk_size outside recommended range warns."""
