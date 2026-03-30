@@ -144,7 +144,14 @@ def get_openai_client_timeout(cfg: config.Config) -> httpx.Timeout | float | Non
 
     base = get_http_timeout(cfg)
     if httpx is None:
-        base_read = float(base) if not hasattr(base, "read") else float(base.read)
+        # ``get_http_timeout`` returns ``float`` here; annotation is wider for the httpx path.
+        if isinstance(base, (int, float)):
+            base_read = float(base)
+        elif base is None:
+            base_read = float(getattr(cfg, "timeout", 60.0))
+        else:
+            raw_read = base.read
+            base_read = float(raw_read if raw_read is not None else getattr(cfg, "timeout", 60.0))
         return max(base_read, float(summ), float(trans))
 
     if not isinstance(base, httpx.Timeout):
