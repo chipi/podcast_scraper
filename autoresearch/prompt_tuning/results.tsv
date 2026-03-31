@@ -3,3 +3,6 @@ exp-0	0.571	+0.000	baseline	Original template: 45-word cap, min 3 bullets. N=5 s
 exp-1	0.584	+0.013	accepted	Directive bullet count: aim for 6-8 vs open-ended 5-10	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
 exp-2	0.565	-0.019	rejected	Structured coverage instruction (topic+evidence+conclusion): added complexity hurt score	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
 exp-3	0.611	+0.027	accepted	Prefer transcript vocabulary/phrasing: improved ROUGE-2 and ROUGE-L significantly	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.606	-0.005	rejected	Anchor bullets in specific claims/data/entities: ROUGE-1/2 up but ROUGE-L and embedding dipped	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-5	0.585	-0.026	rejected	Raise default min bullets 3->5: more coverage but lower ROUGE-L, consecutive fails now 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-6	0.573	-0.038	rejected	Stronger vocab instruction (exact terms, avoid paraphrasing): too verbatim, WER 88.9%, early stop	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
