@@ -49,8 +49,14 @@ from podcast_scraper.evaluation.scorer import load_predictions  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BASE_CONFIG = REPO_ROOT / "data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml"
-DEFAULT_REFERENCE_ID = "silver_gpt4o_smoke_v1"
+DEFAULT_BASE_CONFIG = (
+    REPO_ROOT / "data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml"
+)
+# ROUGE target for bullet JSON (must exist under data/eval/references/silver/...).
+# Create by running experiment_openai_gpt4o_smoke_bullets_v1, then promote; see
+# data/eval/configs/README.md.
+# Interim (mismatched ROUGE): REFERENCE=silver_gpt4o_smoke_v1
+DEFAULT_REFERENCE_ID = "silver_gpt4o_smoke_bullets_v1"
 EVAL_DIR = Path(__file__).resolve().parent
 
 

@@ -37,6 +37,10 @@ references/
 - **Purpose:** Measure distance-to-target metrics (ROUGE, similarity, coverage ratio)
 - **Usage:** Not used for CI blocking
 - **Example:** `silver_gpt4o_benchmark_v1`
+- **How they are created:** Run a normal experiment (`data/eval/configs/*.yaml` → outputs in
+  `data/eval/runs/<run_id>/`), then **promote** that run with `make run-promote` — the config is
+  not “silver” until promotion; see `data/eval/configs/README.md` § *Promoting a run to a silver
+  reference*.
 
 ### Gold References
 

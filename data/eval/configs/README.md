@@ -136,6 +136,49 @@ Examples:
 - Example configs: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`,
   `kg_eval_stub_curated_5feeds_smoke_v1.yaml`
 
+### Promoting a run to a silver reference (summarization)
+
+A **silver reference** is not something you declare in YAML ahead of time. You **run an
+experiment** (outputs land in `data/eval/runs/<run_id>/`), **review** the run, then
+**promote** it with `make run-promote`. Only then does a frozen tree appear under
+`data/eval/references/silver/<promoted_id>/` (e.g. `silver_gpt4o_smoke_bullets_v1`). The
+experiment config’s `id` is the **run id** until promotion; the **promoted id** is chosen at
+promotion time and should describe the reference role.
+
+**Example — bullet JSON summaries (aligned with `bullets_json_v1` for ROUGE vs autoresearch):**
+
+- Config: **`experiment_openai_gpt4o_smoke_bullets_v1.yaml`** — normal experiment; `gpt-4o`,
+  shared bullet system + user templates; same smoke dataset as other evals.
+
+**Steps:**
+
+1. **Materialize** transcripts: `make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1`
+2. **Run the experiment** (creates `data/eval/runs/experiment_openai_gpt4o_smoke_bullets_v1/`):
+
+   ```bash
+   make experiment-run CONFIG=data/eval/configs/experiment_openai_gpt4o_smoke_bullets_v1.yaml
+   ```
+
+3. **Review** `predictions.jsonl` and metrics in that run directory.
+4. **Promote** the run to a new silver reference id (the run under `runs/` is removed after a
+   successful promotion):
+
+   ```bash
+   make run-promote \
+     RUN_ID=experiment_openai_gpt4o_smoke_bullets_v1 \
+     AS=reference \
+     PROMOTED_ID=silver_gpt4o_smoke_bullets_v1 \
+     REASON="GPT-4o JSON bullet summaries on curated_5feeds_smoke_v1; bullet-aligned ROUGE" \
+     REFERENCE_QUALITY=silver
+   ```
+
+5. **Use** the reference in later commands: `--reference silver_gpt4o_smoke_bullets_v1` (or
+   `REFERENCE=` in `make experiment-run` / `make autoresearch-score`).
+
+The legacy paragraph silver `silver_gpt4o_smoke_v1` came from the same kind of flow (historical
+experiment config `silver_openai_gpt4o_smoke_v1` + promotion), not from a file that was “silver”
+before the run existed.
+
 ### spaCy Backend (NER)
 
 - **task**: Must be `"ner_entities"`

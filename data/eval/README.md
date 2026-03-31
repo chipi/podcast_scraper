@@ -25,6 +25,11 @@ GIL and KG are **separate** experiment configs and runs (not combined in one run
 - **references/** - Frozen quality targets (silver/gold references for evaluation)
 - **runs/** - Ad-hoc experiments and temporary outputs
 
+**Autoresearch (RFC-057, bullet summarization):** configs live under `configs/` (e.g.
+`autoresearch_prompt_openai_smoke_bullets_v1.yaml`). The default ROUGE reference
+`silver_gpt4o_smoke_bullets_v1` appears under `references/silver/` only **after** you promote a
+successful run from `experiment_openai_gpt4o_smoke_bullets_v1` (see `configs/README.md`).
+
 ## Invariants
 
 - **sources/**, **datasets/**, **baselines/**, **references/** are immutable once published

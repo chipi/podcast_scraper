@@ -1739,7 +1739,7 @@ autoresearch-score:
 		echo "  Config: $(CONFIG)"; \
 		cmd="$$cmd --config $(CONFIG)"; \
 	else \
-		echo "  Config: (default autoresearch_prompt_openai_smoke_v1.yaml)"; \
+		echo "  Config: (default autoresearch_prompt_openai_smoke_bullets_v1.yaml)"; \
 	fi; \
 	if [ -n "$(REFERENCE)" ]; then \
 		echo "  Reference: $(REFERENCE)"; \
