@@ -12,8 +12,8 @@ Output rules (strict):
 - Use this shape: {"title": null or a short episode headline, "bullets": ["...", ...]}
 - Include at least {{ bullet_min | default(3) }} distinct takeaway(s) when the transcript has enough
   substance; fewer is acceptable only for very short or sparse content.
-- Add one bullet per meaningful theme or beat. Typical episodes often land around 5–10 bullets,
-  but 3, 7, 12, etc. are all fine if they match the material—do not pad weak points.
+- Add one bullet per meaningful theme or beat. Aim for 6–8 bullets for a typical episode;
+  fewer only if the content is genuinely sparse—do not pad weak points.
 {% if bullet_max is defined and bullet_max %}
 - Do not exceed {{ bullet_max }} bullets total.
 {% endif %}
