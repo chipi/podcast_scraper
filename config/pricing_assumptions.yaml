@@ -1,0 +1,139 @@
+# USD pricing assumptions for pipeline LLM cost *estimates* (optional).
+#
+# Enable by setting in your run config or environment:
+#   pricing_assumptions_file: config/pricing_assumptions.yaml
+#   # or: export PRICING_ASSUMPTIONS_FILE=config/pricing_assumptions.yaml
+#
+# When pricing_assumptions_file is empty, estimates use built-in Python constants only.
+# Values in this file override matching keys from built-ins (merge: YAML wins per field).
+#
+# --- Staleness (advisory; does not change math) ---
+# Set metadata.last_reviewed (YYYY-MM-DD) when you last checked vendor pricing pages.
+# Set metadata.stale_review_after_days to a positive integer (e.g. 90).
+# Stale when: (today's date - last_reviewed) > stale_review_after_days  (whole days).
+# If last_reviewed or stale_review_after_days is missing/invalid, no staleness warning.
+#
+# Commands:
+#   python -m podcast_scraper.cli pricing-assumptions          # human-readable report
+#   python -m podcast_scraper.cli pricing-assumptions --strict # exit 1 if stale (CI)
+#   make check-pricing-assumptions
+#   make check-pricing-assumptions ARGS='--strict'
+#
+# After updating rates: bump last_reviewed (and optionally pricing_effective_date).
+# Docs: docs/api/CONFIGURATION.md#llm-cost-estimate-assumptions-optional-yaml
+#       docs/api/CLI.md#pricing-assumptions-command
+#
+schema_version: 1
+metadata:
+  last_reviewed: "2026-03-30"
+  pricing_effective_date: "2026-02-01"
+  stale_review_after_days: 90
+  notes: >
+    Vendor pages change often; treat totals as approximate. Grok rates are placeholders (0.0)
+    until confirmed on xAI docs.
+  source_urls:
+    openai: https://openai.com/pricing
+    gemini: https://ai.google.dev/pricing
+    anthropic: https://www.anthropic.com/pricing
+    mistral: https://docs.mistral.ai/pricing/
+    deepseek: https://platform.deepseek.com/pricing
+    grok: https://docs.x.ai
+
+providers:
+  openai:
+    transcription:
+      whisper-1:
+        cost_per_minute: 0.006
+    text:
+      gpt-4o-mini:
+        input_cost_per_1m_tokens: 0.15
+        output_cost_per_1m_tokens: 0.60
+      gpt-4o:
+        input_cost_per_1m_tokens: 2.5
+        output_cost_per_1m_tokens: 10.0
+
+  gemini:
+    transcription:
+      default:
+        cost_per_second: 0.00025
+    text:
+      gemini-2.0-flash:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.40
+      gemini-1.5-pro:
+        input_cost_per_1m_tokens: 1.25
+        output_cost_per_1m_tokens: 5.00
+      gemini-1.5-flash:
+        input_cost_per_1m_tokens: 0.075
+        output_cost_per_1m_tokens: 0.30
+      default:
+        input_cost_per_1m_tokens: 0.10
+        output_cost_per_1m_tokens: 0.40
+
+  anthropic:
+    transcription:
+      default:
+        cost_per_second: 0.0
+    text:
+      claude-3-5-sonnet:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+      claude-haiku-4-5:
+        input_cost_per_1m_tokens: 1.00
+        output_cost_per_1m_tokens: 5.00
+      claude-3-5-haiku:
+        input_cost_per_1m_tokens: 0.80
+        output_cost_per_1m_tokens: 4.00
+      claude-3-opus:
+        input_cost_per_1m_tokens: 15.00
+        output_cost_per_1m_tokens: 75.00
+      claude-3-haiku:
+        input_cost_per_1m_tokens: 0.25
+        output_cost_per_1m_tokens: 1.25
+      default:
+        input_cost_per_1m_tokens: 3.00
+        output_cost_per_1m_tokens: 15.00
+
+  mistral:
+    transcription:
+      default:
+        cost_per_minute: 0.006
+    text:
+      mistral-small:
+        input_cost_per_1m_tokens: 0.20
+        output_cost_per_1m_tokens: 0.20
+      mistral-large:
+        input_cost_per_1m_tokens: 2.00
+        output_cost_per_1m_tokens: 6.00
+      default:
+        input_cost_per_1m_tokens: 0.20
+        output_cost_per_1m_tokens: 0.20
+
+  deepseek:
+    text:
+      deepseek-chat:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
+      default:
+        input_cost_per_1m_tokens: 0.28
+        output_cost_per_1m_tokens: 0.42
+        cache_hit_input_cost_per_1m_tokens: 0.028
+
+  grok:
+    text:
+      grok-beta:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+      grok-2:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+      default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0
+
+  ollama:
+    text:
+      default:
+        input_cost_per_1m_tokens: 0.0
+        output_cost_per_1m_tokens: 0.0

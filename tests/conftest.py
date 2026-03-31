@@ -19,6 +19,8 @@ os.environ["TERM"] = "dumb"  # Disable rich terminal features
 # Force Hugging Face libraries to work offline (use only cached models)
 # This prevents network access attempts that would fail with pytest-socket blocking
 # Must be set BEFORE any transformers/huggingface_hub imports
+# ML integration tests (summarization, GIL evidence stack) gate on cache probes such as
+# tests.integration.ml_model_cache_helpers — not on disabling these flags.
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
@@ -127,6 +129,9 @@ def create_test_config(**overrides):
     # Auto-enable generate_metadata if generate_summaries is True
     # (required by cross-field validation)
     if overrides.get("generate_summaries") and "generate_metadata" not in overrides:
+        defaults["generate_metadata"] = True
+
+    if overrides.get("generate_kg") and "generate_metadata" not in overrides:
         defaults["generate_metadata"] = True
 
     return config.Config(**defaults)

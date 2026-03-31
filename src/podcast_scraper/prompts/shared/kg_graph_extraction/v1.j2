@@ -1,0 +1,7 @@
+{# Shared KG graph extraction prompt (RFC-055 / GI parity). #}
+Episode title: {{ title | default("", true) }}
+
+Extract up to {{ max_topics }} distinct **topics** (short labels, no paragraphs) and up to {{ max_entities }} **named entities** (people or organizations) that appear in the transcript. Do not exceed these counts; put the strongest items first.
+
+Transcript:
+{{ transcript }}

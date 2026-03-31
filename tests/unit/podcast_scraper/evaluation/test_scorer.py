@@ -12,6 +12,7 @@ from podcast_scraper.evaluation.scorer import (
     compute_bleu_vs_reference,
     compute_intrinsic_metrics,
     compute_rouge_vs_reference,
+    compute_vs_reference_metrics,
     compute_wer_vs_reference,
     estimate_tokens,
     load_predictions,
@@ -252,3 +253,47 @@ class TestComputeIntrinsicMetrics:
         assert "cost" in out
         # 1M in @ $0.15 + 1M out @ $0.60
         assert abs(out["cost"]["total_cost_usd"] - 0.75) < 1e-9
+
+
+@pytest.mark.unit
+class TestComputeVsReferencePartialEpisodes:
+    """Subset predictions vs full reference (max_episodes / autoresearch)."""
+
+    def test_allows_prediction_subset_of_reference(self, tmp_path: Path) -> None:
+        """When predictions cover a subset of reference episodes, score intersection only."""
+        ref_dir = tmp_path / "ref"
+        ref_dir.mkdir()
+        ref_jsonl = ref_dir / "predictions.jsonl"
+        ref_jsonl.write_text(
+            '{"episode_id": "e1", "output": {"summary_final": "alpha beta"}}\n'
+            '{"episode_id": "e2", "output": {"summary_final": "gamma delta"}}\n',
+            encoding="utf-8",
+        )
+        (ref_dir / "baseline.json").write_text(
+            '{"reference_quality": "fixture"}',
+            encoding="utf-8",
+        )
+
+        preds = [
+            {"episode_id": "e1", "output": {"summary_final": "alpha beta"}},
+        ]
+        out = compute_vs_reference_metrics(preds, "fixture_ref", ref_dir)
+        assert "error" not in out
+        assert out.get("rougeL_f1") is not None
+
+    def test_rejects_extra_prediction_episodes(self, tmp_path: Path) -> None:
+        """Predictions must not contain episode_ids absent from reference."""
+        ref_dir = tmp_path / "ref2"
+        ref_dir.mkdir()
+        (ref_dir / "predictions.jsonl").write_text(
+            '{"episode_id": "e1", "output": {"summary_final": "a"}}\n',
+            encoding="utf-8",
+        )
+        (ref_dir / "baseline.json").write_text("{}", encoding="utf-8")
+
+        preds = [
+            {"episode_id": "e1", "output": {"summary_final": "a"}},
+            {"episode_id": "e99", "output": {"summary_final": "orphan"}},
+        ]
+        with pytest.raises(ValueError, match="extra"):
+            compute_vs_reference_metrics(preds, "fixture_ref2", ref_dir)

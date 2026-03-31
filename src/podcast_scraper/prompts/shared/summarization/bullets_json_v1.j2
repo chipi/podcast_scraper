@@ -1,0 +1,24 @@
+Summarize the following podcast episode transcript.
+
+{% if title %}
+Episode Title: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Output rules (strict):
+- Return ONLY valid JSON. No markdown code fences.
+- Use this shape: {"title": null or a short episode headline, "bullets": ["...", ...]}
+- Include at least {{ bullet_min | default(3) }} distinct takeaway(s) when the transcript has enough
+  substance; fewer is acceptable only for very short or sparse content.
+- Add one bullet per meaningful theme or beat. Typical episodes often land around 5–10 bullets,
+  but 3, 7, 12, etc. are all fine if they match the material—do not pad weak points.
+{% if bullet_max is defined and bullet_max %}
+- Do not exceed {{ bullet_max }} bullets total.
+{% endif %}
+- Cap roughly {{ max_words_per_bullet | default(45) }} words per bullet.
+- Cover distinct beats; avoid repeating the same point.
+- Ignore sponsorships, ads, and housekeeping.
+- Do not use speaker names or quoted dialogue.
+- Do not invent facts not supported by the transcript.

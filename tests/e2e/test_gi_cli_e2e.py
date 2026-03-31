@@ -3,18 +3,19 @@
 Two styles of E2E:
 
 1. **Pre-built artifact (no mock server):** Fixture dir with a .gi.json written in-process
-   (build_artifact + write_artifact). Runs gi inspect, gi show-insight, gi explore via
-   subprocess. Simulates: "user already has pipeline output and runs gi commands."
+   (build_artifact + write_artifact). Runs gi validate, export, inspect, show-insight, explore,
+   query via subprocess. Simulates: "user already has pipeline output and runs gi commands."
    Does NOT use the E2E HTTP server; does NOT generate GIs from pipeline content.
 
 2. **Full pipeline + mock server:** Uses e2e_server (RSS + transcripts from mock server).
    Runs the main pipeline with generate_gi=true via config -> produces .gi.json from
-   transcript content -> then runs all three gi commands on that output. Simulates real
-   user flow and generates GIs from content served by the mock server.
+   transcript content -> then runs gi inspect, show-insight, explore, and query on that output.
+   Simulates real user flow and generates GIs from content served by the mock server.
 """
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -63,6 +64,7 @@ def gi_fixture_output_dir(tmp_path: Path) -> Path:
 
 
 @pytest.mark.e2e
+@pytest.mark.critical_path
 def test_gi_inspect_e2e(gi_fixture_output_dir: Path) -> None:
     """E2E: gi inspect on fixture artifact exits 0 and prints stats."""
     gi_path = gi_fixture_output_dir / "metadata" / "ep1.gi.json"
@@ -76,14 +78,18 @@ def test_gi_inspect_e2e(gi_fixture_output_dir: Path) -> None:
 
 
 @pytest.mark.e2e
+@pytest.mark.critical_path
 def test_gi_show_insight_e2e(gi_fixture_output_dir: Path) -> None:
     """E2E: gi show-insight by id on fixture dir exits 0."""
+    gi_path = gi_fixture_output_dir / "metadata" / "ep1.gi.json"
+    art = json.loads(gi_path.read_text(encoding="utf-8"))
+    insight_id = next(n["id"] for n in art["nodes"] if n.get("type") == "Insight")
     proc = _run_gi(
         [
             "gi",
             "show-insight",
             "--id",
-            "insight:ep:fixture-1:0",
+            insight_id,
             "--output-dir",
             str(gi_fixture_output_dir),
             "--format",
@@ -92,10 +98,11 @@ def test_gi_show_insight_e2e(gi_fixture_output_dir: Path) -> None:
         cwd=gi_fixture_output_dir,
     )
     assert proc.returncode == 0, (proc.stdout, proc.stderr)
-    assert "insight:ep:fixture-1:0" in proc.stdout or "Summary insight" in proc.stdout
+    assert insight_id in proc.stdout or "Summary insight" in proc.stdout
 
 
 @pytest.mark.e2e
+@pytest.mark.critical_path
 def test_gi_explore_e2e(gi_fixture_output_dir: Path) -> None:
     """E2E: gi explore on fixture dir exits 0 and returns insights."""
     proc = _run_gi(
@@ -128,6 +135,159 @@ def test_gi_explore_e2e(gi_fixture_output_dir: Path) -> None:
     assert proc2.returncode == 0, (proc2.stdout, proc2.stderr)
 
 
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_query_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi query with UC4 topic pattern exits 0 and prints answer envelope JSON."""
+    proc = _run_gi(
+        [
+            "gi",
+            "query",
+            "--output-dir",
+            str(gi_fixture_output_dir),
+            "--question",
+            "What insights about stub?",
+        ],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert '"question"' in proc.stdout and '"answer"' in proc.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_query_unmatched_pattern_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi query with no UC4 pattern match exits 2."""
+    proc = _run_gi(
+        [
+            "gi",
+            "query",
+            "--output-dir",
+            str(gi_fixture_output_dir),
+            "--question",
+            "Random phrase with no uc4 pattern xyz789.",
+        ],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 2, (proc.stdout, proc.stderr)
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_validate_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi validate --strict on metadata dir exits 0."""
+    proc = _run_gi(
+        ["gi", "validate", "--strict", str(gi_fixture_output_dir / "metadata")],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert "OK" in proc.stdout or "passed validation" in proc.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_export_ndjson_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi export --format ndjson writes lines with episode_id."""
+    out_file = gi_fixture_output_dir / "gi_export.ndjson"
+    proc = _run_gi(
+        [
+            "gi",
+            "export",
+            "--output-dir",
+            str(gi_fixture_output_dir),
+            "--format",
+            "ndjson",
+            "--out",
+            str(out_file),
+        ],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    text = out_file.read_text(encoding="utf-8")
+    assert "ep:fixture-1" in text
+    assert "_artifact_path" in text
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_export_merged_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi export --format merged writes gi_corpus_bundle."""
+    out_file = gi_fixture_output_dir / "gi_bundle.json"
+    proc = _run_gi(
+        [
+            "gi",
+            "export",
+            "--output-dir",
+            str(gi_fixture_output_dir),
+            "--format",
+            "merged",
+            "--out",
+            str(out_file),
+        ],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    text = out_file.read_text(encoding="utf-8")
+    assert "gi_corpus_bundle" in text
+    assert "artifacts" in text
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_query_top_topics_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi query topic-leaderboard pattern exits 0 with topics in JSON."""
+    proc = _run_gi(
+        [
+            "gi",
+            "query",
+            "--output-dir",
+            str(gi_fixture_output_dir),
+            "--question",
+            "Which topics have the most insights?",
+        ],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert '"topics"' in proc.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_query_compound_speaker_topic_e2e(gi_fixture_output_dir: Path) -> None:
+    """E2E: gi query 'What did X say about Y?' exits 0."""
+    proc = _run_gi(
+        [
+            "gi",
+            "query",
+            "--output-dir",
+            str(gi_fixture_output_dir),
+            "--question",
+            "What did nobody say about insight?",
+        ],
+        cwd=gi_fixture_output_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert '"answer"' in proc.stdout
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gil_quality_metrics_script_e2e() -> None:
+    """E2E: gil_quality_metrics.py runs on committed CI fixture (subprocess)."""
+    project_root = Path(__file__).resolve().parent.parent.parent
+    fixture = project_root / "tests" / "fixtures" / "gil_kg_ci_enforce"
+    script = project_root / "scripts" / "tools" / "gil_quality_metrics.py"
+    proc = subprocess.run(
+        [sys.executable, str(script), str(fixture), "--json"],
+        cwd=str(project_root),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    assert "artifact_paths" in proc.stdout
+
+
 # --- Full pipeline + mock server: generate GIs from E2E server content ---
 
 
@@ -152,8 +312,8 @@ def test_gi_commands_after_pipeline_with_generate_gi(
     """E2E: Run pipeline with generate_gi using mock server content, then all gi commands.
 
     Uses E2E HTTP server (RSS + transcript). Runs full pipeline with generate_gi=true
-    so .gi.json is produced from transcript content. Then runs gi inspect, gi show-insight,
-    and gi explore on that output. Simulates what a user would do.
+    so .gi.json is produced from transcript content. Then runs gi inspect, show-insight,
+    explore, and query on that output. Simulates what a user would do.
     """
     import json
 
@@ -199,7 +359,7 @@ def test_gi_commands_after_pipeline_with_generate_gi(
     assert "schema_version" in artifact and "nodes" in artifact
     assert isinstance(artifact.get("edges"), list), "Artifact should have edges list"
 
-    # Run all three gi commands (same as a user would)
+    # Run gi commands (same as a user would)
     inspect_proc = _run_gi(
         ["gi", "inspect", "--episode-path", str(gi_path), "--format", "json"],
         cwd=project_root,
@@ -229,6 +389,20 @@ def test_gi_commands_after_pipeline_with_generate_gi(
     )
     assert explore_proc.returncode == 0, (explore_proc.stdout, explore_proc.stderr)
     assert "episodes_searched" in explore_proc.stdout or "insight_count" in explore_proc.stdout
+
+    query_proc = _run_gi(
+        [
+            "gi",
+            "query",
+            "--output-dir",
+            str(output_dir),
+            "--question",
+            "What insights about insight?",
+        ],
+        cwd=project_root,
+    )
+    assert query_proc.returncode == 0, (query_proc.stdout, query_proc.stderr)
+    assert '"answer"' in query_proc.stdout
 
 
 @pytest.mark.e2e

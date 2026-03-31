@@ -263,10 +263,15 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
             or getattr(cfg, "entailment_provider", "transformers") == "transformers"
         )
         if needs_gil_ml:
+            from ... import config_constants
             from ...providers.ml.model_loader import is_evidence_model_cached
 
+            emb_model = config_constants.DEFAULT_EMBEDDING_MODEL
             qa_model = getattr(cfg, "gi_qa_model", None) or "roberta-squad2"
             nli_model = getattr(cfg, "gi_nli_model", None) or "nli-deberta-base"
+            if not is_evidence_model_cached(emb_model):
+                models_to_download.append(("evidence_embedding", emb_model))
+                logger.info("GIL embedding model %s not cached, will download", emb_model)
             if not is_evidence_model_cached(qa_model):
                 models_to_download.append(("evidence_qa", qa_model))
                 logger.info("GIL QA model %s not cached, will download", qa_model)
@@ -289,6 +294,9 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
                 # Group models by type
                 whisper_models = [m[1] for m in models_to_download if m[0] == "whisper"]
                 transformers_models = [m[1] for m in models_to_download if m[0] == "transformers"]
+                evidence_embedding = [
+                    m[1] for m in models_to_download if m[0] == "evidence_embedding"
+                ]
                 evidence_qa = [m[1] for m in models_to_download if m[0] == "evidence_qa"]
                 evidence_nli = [m[1] for m in models_to_download if m[0] == "evidence_nli"]
 
@@ -296,10 +304,11 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
                     preload_whisper_models(whisper_models)
                 if transformers_models:
                     preload_transformers_models(transformers_models)
-                if evidence_qa or evidence_nli:
+                if evidence_embedding or evidence_qa or evidence_nli:
                     preload_evidence_models(
-                        qa_models=evidence_qa or None,
-                        nli_models=evidence_nli or None,
+                        embedding_models=evidence_embedding,
+                        qa_models=evidence_qa,
+                        nli_models=evidence_nli,
                     )
 
                 logger.info("Missing models downloaded and cached successfully")

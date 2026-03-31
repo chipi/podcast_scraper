@@ -173,7 +173,7 @@ python -m podcast_scraper.cli --config config.yaml
 
 ### Control Options
 
-- `--dry-run` - Preview without writing files (includes cost projection for OpenAI providers) (includes cost projection for OpenAI providers)
+- `--dry-run` - Preview without writing files (includes LLM cost projection when API providers are configured)
 - `--skip-existing` - Skip episodes with existing output
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
@@ -223,7 +223,9 @@ Total Estimated Cost: $1.0670
 Note: Estimates are approximate and based on average episode duration. Actual costs may vary based on actual audio length and transcript complexity.
 ```
 
-**Note:** Cost projection appears when OpenAI or Gemini providers are configured. Estimates use episode durations from RSS feed metadata when available, or a conservative 30-minute average per episode as a fallback.
+**Note:** Cost projection appears when billable LLM providers are configured (OpenAI, Gemini, Mistral, etc.). Estimates use episode durations from RSS feed metadata when available, or a conservative 30-minute average per episode as a fallback.
+
+Optional **YAML pricing overrides** (`pricing_assumptions_file` / `PRICING_ASSUMPTIONS_FILE`) apply to the same formulas; see [LLM cost estimate assumptions](CONFIGURATION.md#llm-cost-estimate-assumptions-optional-yaml) in the configuration guide.
 
 ## Configuration Files
 
@@ -235,7 +237,39 @@ python -m podcast_scraper.cli --config config.json
 
 ## Diagnostic Commands (Issue #379, #429)
 
-**Subcommands:** The first argument can be `doctor` or `cache` (e.g. `podcast-scraper doctor`). Startup checks (Python 3.10+, ffmpeg) run only for the main pipeline; they are skipped for `doctor` and `cache` so you can run doctor even when ffmpeg is missing.
+**Subcommands:** The first argument can be `doctor`, `cache`, or `pricing-assumptions` (e.g. `podcast-scraper doctor`). Startup checks (Python 3.10+, ffmpeg) run only for the main pipeline; they are skipped for these subcommands so you can run doctor even when ffmpeg is missing.
+
+### `pricing-assumptions` Command
+
+Reports whether the pricing YAML resolves, prints `schema_version` and **metadata** (`last_reviewed`, `pricing_effective_date`, `stale_review_after_days`, `source_urls`). Use this after editing rates or on a schedule to see if assumptions need a human refresh.
+
+```bash
+python -m podcast_scraper.cli pricing-assumptions
+python -m podcast_scraper.cli pricing-assumptions --file config/pricing_assumptions.yaml
+make check-pricing-assumptions
+```
+
+#### Staleness in the report
+
+The command loads `metadata` from the YAML and evaluates **staleness** only when both of the following are set and valid:
+
+- `last_reviewed` — ISO date (`YYYY-MM-DD`)
+- `stale_review_after_days` — positive integer
+
+**Rule:** let `age_days` be the number of whole calendar days from `last_reviewed` to **today** (local date of the machine running the CLI). If `age_days > stale_review_after_days`, the file is **stale**. The command then appends a **Staleness:** section with a short explanation (verify vendor sites and update the YAML).
+
+If either field is missing, unparsable, or `stale_review_after_days` is zero or negative, **no staleness line is printed** (the tool does not guess).
+
+#### `--strict` exit code
+
+With **`--strict`**, the command still prints the full report, but exits with code **1** when the stale condition above is true. Exit code **0** means either not stale, or staleness could not be computed (same cases as “no staleness line”). Use this in CI or release scripts so an expired review date fails the step until someone bumps `last_reviewed` after verifying prices.
+
+```bash
+python -m podcast_scraper.cli pricing-assumptions --strict
+make check-pricing-assumptions ARGS='--strict'
+```
+
+Full field semantics and merge behavior: [Configuration: LLM cost estimate assumptions](CONFIGURATION.md#llm-cost-estimate-assumptions-optional-yaml).
 
 ### `doctor` Command
 
@@ -355,6 +389,87 @@ python -m podcast_scraper.cli https://example.com/feed.xml \
   --speaker-detector-provider gemini \
   --summary-provider openai
 ```
+
+## Grounded insights (`gi`) subcommands
+
+Inspect and explore **Grounded Insight Layer** artifacts (`*.gi.json`) after a run with `generate_gi` enabled (see [Grounded Insights Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md), RFC-050). **Shallow v1 scope** (ML vs `stub` vs bullets, topic explore semantics, deterministic `gi query`, Postgres deferral): [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460). **With `generate_kg` too:** [KG shallow v1 record](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg).
+
+```bash
+# Validate artifacts (symmetric with `kg validate`; use --strict for full JSON Schema)
+python -m podcast_scraper.cli gi validate ./output/metadata --strict
+
+# Export corpus: NDJSON (one artifact per line) or merged bundle (symmetric with `kg export`)
+python -m podcast_scraper.cli gi export --output-dir ./output --format ndjson --out gi.ndjson
+python -m podcast_scraper.cli gi export --output-dir ./output --format merged --out gi-bundle.json
+
+# One episode: stats, optional full text and quotes (--show)
+python -m podcast_scraper.cli gi inspect --episode-path ./output/metadata/ep1.gi.json
+python -m podcast_scraper.cli gi inspect --output-dir ./output --episode-id 'sha256:...'
+
+# One insight by id (with evidence spans)
+python -m podcast_scraper.cli gi show-insight --id 'insight:<id-from-gi.json>' --episode-path ./output/metadata/ep1.gi.json
+
+# Cross-episode: topic / speaker filters, sort, RFC-style JSON
+python -m podcast_scraper.cli gi explore --output-dir ./output --topic 'AI regulation' --format json
+python -m podcast_scraper.cli gi explore --output-dir ./output --speaker Host --sort time --strict
+
+# UC4: fixed English question patterns → explore JSON or topic leaderboard (RFC-050)
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What insights about inflation?'
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What insights are there about trade?'
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say?' --limit 10
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say about inflation?'
+python -m podcast_scraper.cli gi query --output-dir ./output --question 'Which topics have the most insights?'
+```
+
+**PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
+
+```bash
+make gil-quality-metrics DIR=./output
+make gil-quality-metrics DIR=./output ARGS='--enforce --min-avg-insights 3 --min-avg-quotes 5'
+make compare-gil-runs REF=./output/run_ref CAND=./output/run_ml
+make kg-quality-metrics DIR=./output ARGS='--enforce --json'
+make quality-metrics-ci
+```
+
+`compare-gil-runs` expects each path to be a **pipeline run root** with `metadata/*.gi.json`
+(see `docs/wip/gil-ml-vs-openai-outcome-benchmark.md`).
+
+## Knowledge Graph (`kg`) subcommands
+
+Inspect and export **Knowledge Graph** artifacts (`*.kg.json`) after a run with `generate_kg`
+enabled. Symmetric to the `gi` subcommand for GIL.
+
+```bash
+# Validate all kg.json under a directory (strict schema)
+python -m podcast_scraper.cli kg validate ./output/metadata --strict
+
+# Inspect one episode (by file or by episode id under output dir)
+python -m podcast_scraper.cli kg inspect --episode-path ./output/metadata/1_ep.kg.json
+python -m podcast_scraper.cli kg inspect --output-dir ./output --episode-id 'sha256:...'
+
+# Export corpus: NDJSON (one artifact per line) or single merged JSON bundle
+python -m podcast_scraper.cli kg export --output-dir ./output --format ndjson --out kg.ndjson
+python -m podcast_scraper.cli kg export --output-dir ./output --format merged --out kg-bundle.json
+
+# Aggregate entities across episodes; topic pairs that co-occur in the same episode
+python -m podcast_scraper.cli kg entities --output-dir ./output --min-episodes 2 --format json
+python -m podcast_scraper.cli kg topics --output-dir ./output --min-support 2 --format json
+```
+
+Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md), [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md). **Shallow v1 scope** (extraction + ML, no `kg query` IR, Postgres deferral): [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). **GIL companion:** [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
+
+## GI / KG artifacts — browser viewer (prototype)
+
+Optional **static** viewer for `*.gi.json` and `*.kg.json` under `web/gi-kg-viz/`
+([GitHub issue #445](https://github.com/chipi/podcast_scraper/issues/445)):
+
+- **Run:** `make serve-gi-kg-viz` → open `http://127.0.0.1:8765/`.
+- **Why HTTP:** Graph pages load **vis-network**, **Cytoscape.js**, and **Chart.js** from CDNs;
+  use this target instead of `file://` when the browser blocks remote scripts.
+
+**Documentation:** [Development Guide — GI / KG browser
+viewer](../guides/DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) ·
+[`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
 
 ## See Also
 

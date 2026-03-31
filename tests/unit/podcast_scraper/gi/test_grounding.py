@@ -12,6 +12,7 @@ from podcast_scraper.gi.grounding import (
     NLI_ENTAILMENT_MIN,
     QA_SCORE_MIN,
     QuoteCandidate,
+    resolve_llm_quote_span,
 )
 
 
@@ -247,6 +248,7 @@ class TestFindGroundedQuotesViaProviders:
             (),
             {
                 "gi_evidence_extract_quotes_calls": 0,
+                "gi_evidence_nli_candidates_queued": 0,
                 "gi_evidence_score_entailment_calls": 0,
             },
         )()
@@ -259,4 +261,91 @@ class TestFindGroundedQuotesViaProviders:
         )
         assert len(result) == 1
         assert metrics.gi_evidence_extract_quotes_calls == 1
+        assert metrics.gi_evidence_nli_candidates_queued == 1
         assert metrics.gi_evidence_score_entailment_calls == 1
+
+    def test_extract_retries_second_call_returns_candidate(self):
+        """When first extract returns [], retry can return a candidate."""
+        candidate = QuoteCandidate(char_start=0, char_end=2, text="ab", qa_score=0.9)
+        calls = []
+
+        def extract_twice(*args, **kwargs):
+            calls.append(kwargs.get("insight_text", ""))
+            if len(calls) == 1:
+                return []
+            return [candidate]
+
+        mock_qa = type("P", (), {"extract_quotes": extract_twice})()
+        mock_nli = type("P", (), {"score_entailment": lambda *a, **k: 0.8})()
+        result = find_grounded_quotes_via_providers(
+            transcript="ab",
+            insight_text="Insight.",
+            quote_extraction_provider=mock_qa,
+            entailment_provider=mock_nli,
+            extract_retries=1,
+        )
+        assert len(result) == 1
+        assert len(calls) == 2
+        assert "Reminder:" in calls[1]
+
+
+@pytest.mark.unit
+class TestResolveLlmQuoteSpan:
+    """resolve_llm_quote_span maps model quote_text to transcript offsets."""
+
+    def test_exact_substring(self):
+        t = "Hello world. More text."
+        r = resolve_llm_quote_span(t, "world")
+        assert r is not None
+        start, end, verbatim = r
+        assert verbatim == "world"
+        assert t[start:end] == "world"
+
+    def test_whitespace_flexible_full_quote(self):
+        t = "Prefix And in\n2003,\tthey won."
+        q = "And in 2003, they won."
+        r = resolve_llm_quote_span(t, q)
+        assert r is not None
+        _, _, verbatim = r
+        assert "2003" in verbatim
+        assert "they won" in verbatim
+
+    def test_drop_leading_words_when_transcript_differs(self):
+        t = "We went. And in 2003, they were able to finish the land deal quickly."
+        q = "In 2003, they were able to finish the land deal quickly."
+        r = resolve_llm_quote_span(t, q)
+        assert r is not None
+        start, end, verbatim = r
+        assert verbatim == t[start:end]
+        assert "2003" in verbatim
+        assert verbatim.startswith("in 2003") or verbatim.startswith("In 2003")
+
+    def test_longest_suffix_when_prefix_paraphrased(self):
+        t = "They'd be luxury units with market rate. But also subsidized units here."
+        q = "Most would be luxury units with market rate. But also subsidized units here."
+        r = resolve_llm_quote_span(t, q)
+        assert r is not None
+        _, _, verbatim = r
+        assert "luxury units with market rate" in verbatim
+        assert "subsidized" in verbatim
+
+    def test_no_match_returns_none(self):
+        assert resolve_llm_quote_span("aaa bbb", "ccc ddd eee fff") is None
+
+    def test_empty_returns_none(self):
+        assert resolve_llm_quote_span("", "hello") is None
+        assert resolve_llm_quote_span("hello", "") is None
+
+    def test_duplicate_phrase_prefers_earlier_occurrence(self):
+        t = "First alpha beta gamma stop. Middle alpha beta gamma stop."
+        q = "alpha beta gamma"
+        r = resolve_llm_quote_span(t, q)
+        assert r is not None
+        assert r[0] < t.index("Middle")
+
+    def test_apostrophe_unicode_vs_ascii(self):
+        t = "She said it\u2019s undeniable here today."
+        q = "it's undeniable here"
+        r = resolve_llm_quote_span(t, q)
+        assert r is not None
+        assert "undeniable" in r[2]

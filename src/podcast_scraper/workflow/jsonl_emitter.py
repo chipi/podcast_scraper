@@ -125,6 +125,7 @@ class JSONLEmitter:
             "transcribe_sec": episode_metrics.transcribe_sec,
             "summary_sec": episode_metrics.summary_sec,
             "gi_sec": episode_metrics.gi_sec,
+            "kg_sec": episode_metrics.kg_sec,
             "retries": episode_metrics.retries,
             "rate_limit_sleep_sec": episode_metrics.rate_limit_sleep_sec,
             "prompt_tokens": episode_metrics.prompt_tokens,
@@ -158,12 +159,78 @@ class JSONLEmitter:
             "gi_artifacts_generated": metrics_dict.get("gi_artifacts_generated"),
             "gi_failures": metrics_dict.get("gi_failures"),
             "gi_evidence_path_provider": metrics_dict.get("gi_evidence_path_provider"),
-            "gi_evidence_path_legacy": metrics_dict.get("gi_evidence_path_legacy"),
             "gi_evidence_extract_quotes_calls": metrics_dict.get(
                 "gi_evidence_extract_quotes_calls"
             ),
+            "gi_evidence_nli_candidates_queued": metrics_dict.get(
+                "gi_evidence_nli_candidates_queued"
+            ),
             "gi_evidence_score_entailment_calls": metrics_dict.get(
                 "gi_evidence_score_entailment_calls"
+            ),
+            "gi_episodes_zero_grounded_when_required": metrics_dict.get(
+                "gi_episodes_zero_grounded_when_required"
+            ),
+            "gi_grounding_degraded": metrics_dict.get("gi_grounding_degraded"),
+            "kg_artifacts_generated": metrics_dict.get("kg_artifacts_generated"),
+            "kg_failures": metrics_dict.get("kg_failures"),
+            "kg_provider_extractions": metrics_dict.get("kg_provider_extractions"),
+            "kg_topic_nodes_total": metrics_dict.get("kg_topic_nodes_total"),
+            "kg_entity_nodes_total": metrics_dict.get("kg_entity_nodes_total"),
+            "kg_extractions_stub": metrics_dict.get("kg_extractions_stub"),
+            "kg_extractions_summary_bullets": metrics_dict.get("kg_extractions_summary_bullets"),
+            "kg_extractions_provider": metrics_dict.get("kg_extractions_provider"),
+            "kg_extractions_provider_summary_bullets": metrics_dict.get(
+                "kg_extractions_provider_summary_bullets"
+            ),
+            "avg_cleaning_seconds": metrics_dict.get("avg_cleaning_seconds"),
+            "cleaning_count": metrics_dict.get("cleaning_count"),
+            "avg_gi_seconds": metrics_dict.get("avg_gi_seconds"),
+            "gi_count": metrics_dict.get("gi_count"),
+            "avg_kg_seconds": metrics_dict.get("avg_kg_seconds"),
+            "kg_count": metrics_dict.get("kg_count"),
+            "avg_summarize_seconds": metrics_dict.get("avg_summarize_seconds"),
+            "summarize_count": metrics_dict.get("summarize_count"),
+            "llm_cleaning_calls": metrics_dict.get("llm_cleaning_calls"),
+            "llm_cleaning_input_tokens": metrics_dict.get("llm_cleaning_input_tokens"),
+            "llm_cleaning_output_tokens": metrics_dict.get("llm_cleaning_output_tokens"),
+            "llm_cleaning_avg_input_tokens_per_call": metrics_dict.get(
+                "llm_cleaning_avg_input_tokens_per_call"
+            ),
+            "llm_cleaning_avg_output_tokens_per_call": metrics_dict.get(
+                "llm_cleaning_avg_output_tokens_per_call"
+            ),
+            "llm_cleaning_calls_per_recorded_cleaning_episode": metrics_dict.get(
+                "llm_cleaning_calls_per_recorded_cleaning_episode"
+            ),
+            "llm_gi_calls": metrics_dict.get("llm_gi_calls"),
+            "llm_gi_input_tokens": metrics_dict.get("llm_gi_input_tokens"),
+            "llm_gi_output_tokens": metrics_dict.get("llm_gi_output_tokens"),
+            "llm_gi_avg_input_tokens_per_call": metrics_dict.get(
+                "llm_gi_avg_input_tokens_per_call"
+            ),
+            "llm_gi_avg_output_tokens_per_call": metrics_dict.get(
+                "llm_gi_avg_output_tokens_per_call"
+            ),
+            "llm_gi_calls_per_gi_artifact": metrics_dict.get("llm_gi_calls_per_gi_artifact"),
+            "llm_kg_calls": metrics_dict.get("llm_kg_calls"),
+            "llm_kg_input_tokens": metrics_dict.get("llm_kg_input_tokens"),
+            "llm_kg_output_tokens": metrics_dict.get("llm_kg_output_tokens"),
+            "llm_kg_avg_input_tokens_per_call": metrics_dict.get(
+                "llm_kg_avg_input_tokens_per_call"
+            ),
+            "llm_kg_avg_output_tokens_per_call": metrics_dict.get(
+                "llm_kg_avg_output_tokens_per_call"
+            ),
+            "llm_kg_calls_per_kg_artifact": metrics_dict.get("llm_kg_calls_per_kg_artifact"),
+            "llm_summarization_calls": metrics_dict.get("llm_summarization_calls"),
+            "llm_summarization_input_tokens": metrics_dict.get("llm_summarization_input_tokens"),
+            "llm_summarization_output_tokens": metrics_dict.get("llm_summarization_output_tokens"),
+            "llm_summarization_avg_input_tokens_per_call": metrics_dict.get(
+                "llm_summarization_avg_input_tokens_per_call"
+            ),
+            "llm_summarization_avg_output_tokens_per_call": metrics_dict.get(
+                "llm_summarization_avg_output_tokens_per_call"
             ),
             "schema_version": metrics_dict.get("schema_version"),
         }

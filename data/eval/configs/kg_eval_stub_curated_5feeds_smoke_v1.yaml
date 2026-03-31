@@ -1,0 +1,15 @@
+# KG eval smoke: stub extraction, eval_stub backend, curated_5feeds_smoke_v1.
+# Requires: make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1
+id: kg_eval_stub_curated_5feeds_smoke_v1
+task: knowledge_graph
+
+backend:
+  type: eval_stub
+
+data:
+  dataset_id: curated_5feeds_smoke_v1
+
+preprocessing_profile: cleaning_v3
+
+params:
+  kg_extraction_source: stub

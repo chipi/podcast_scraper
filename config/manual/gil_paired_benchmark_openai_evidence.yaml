@@ -1,0 +1,45 @@
+# Paired GIL benchmark — **reference** run: same ML summaries/bullets as the ML config,
+# but **OpenAI** for `extract_quotes` + `score_entailment` only.
+#
+# Requires: `OPENAI_API_KEY`. `gil_evidence_match_summary_provider: false` keeps local
+# summarization while forcing API evidence providers.
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/gil_paired_benchmark_openai_evidence.yaml
+#
+# Compare with ML run:
+#   make compare-gil-runs REF=.test_outputs/benchmark/gil_openai_evidence/run_<id> \
+#     CAND=.test_outputs/benchmark/gil_ml_evidence/run_<id>
+#
+# See docs/wip/gil-ml-vs-openai-outcome-benchmark.md
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/benchmark/gil_openai_evidence
+max_episodes: 3
+
+transcription_provider: whisper
+speaker_detector_provider: spacy
+summary_provider: transformers
+
+whisper_model: base.en
+whisper_device: mps
+summary_model: pegasus-cnn
+summary_reduce_model: long-fast
+summary_device: mps
+
+transcribe_missing: true
+
+generate_metadata: true
+generate_summaries: true
+
+generate_gi: true
+gi_insight_source: summary_bullets
+
+gil_evidence_match_summary_provider: false
+quote_extraction_provider: openai
+entailment_provider: openai
+
+openai_summary_model: gpt-4o-mini
+
+generate_kg: true
+kg_extraction_source: summary_bullets

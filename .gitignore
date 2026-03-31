@@ -72,11 +72,18 @@ data/eval/runs/
 # Environment variables
 .env
 .env.local
+.env.autoresearch
 .env.*.local
 
 # Local ML model cache - ignore all contents except README.md
 .cache/*
 !.cache/README.md
+
+# Local spaCy model wheels (see make download-spacy-wheels, docs/guides/DEPENDENCIES_GUIDE.md)
+wheels/spacy/*.whl
+
+# Autoresearch merged experiment configs (temp files next to score.py)
+autoresearch/**/eval/autoresearch_cfg_*.yaml
 
 # Worktree-specific files
 WORKTREE.md

@@ -200,6 +200,24 @@ jobs:
         python scripts/tools/check_unit_test_imports.py
       env:
         PACKAGE: podcast_scraper
+    - name: GIL and KG quality metrics on CI fixtures (PRD-017 / PRD-019)
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+        python scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce \
+          --enforce --strict-schema --fail-on-errors \
+          --min-extraction-coverage 1.0 \
+          --min-grounded-insight-rate 1.0 \
+          --min-quote-validity-rate 1.0 \
+          --min-avg-insights 1 \
+          --min-avg-quotes 1
+        python scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce \
+          --enforce --strict-schema --fail-on-errors \
+          --min-artifacts 1 \
+          --min-avg-nodes 1 \
+          --min-avg-edges 0 \
+          --min-extraction-coverage 1.0
+      env:
+        PACKAGE: podcast_scraper
     - name: Run unit tests with coverage (network isolation enforced, parallel execution)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -303,7 +321,9 @@ jobs:
   # This ensures dependent jobs (test-integration-fast, test-e2e-fast) can still run even when skipping model preload
   preload-ml-models:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # Conservative timeout for model preloading (usually cache hit, ~2 min)
+    # Cold cache: production preload (Whisper + many HF + GIL evidence models) can take 20–40+ min;
+    # cache-hit path still finishes quickly; generous cap avoids killing long downloads.
+    timeout-minutes: 60
     needs: [detect-changes]
     if: always()  # Always run the job, but skip steps if docs-only
     env:
@@ -415,7 +435,8 @@ jobs:
   # Full integration tests - all integration tests, runs on main branch only
   test-integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # Conservative timeout for integration tests with ML models
+    # Large ml-models artifact + full integration suite; align headroom with preload growth.
+    timeout-minutes: 45
     needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
@@ -576,7 +597,8 @@ jobs:
   # Full integration tests run on main branch only
   test-integration-fast:
     runs-on: ubuntu-latest
-    timeout-minutes: 20  # Conservative timeout for fast integration tests
+    # Same ml-models artifact as E2E; allow time for download/unpack + integration pytest.
+    timeout-minutes: 35
     needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
@@ -733,12 +755,26 @@ jobs:
           echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
           exit $PYTEST_EXIT_CODE
         fi
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.integration
+          echo "✅ Exported reports/coverage-data.integration for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after fast integration tests"
+        fi
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: coverage-integration-fast
-        path: reports/coverage-integration.xml
+        path: |
+          reports/coverage-integration.xml
+          reports/coverage-data.integration
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup
@@ -750,7 +786,8 @@ jobs:
   # Full E2E tests run on main branch only
   test-e2e-fast:
     runs-on: ubuntu-latest
-    timeout-minutes: 25  # Conservative timeout for fast E2E tests
+    # After preload: large ml-models artifact restore + pip + ffmpeg + pytest; keep headroom vs preload duration.
+    timeout-minutes: 45
     needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries
@@ -879,12 +916,26 @@ jobs:
           echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
           exit $PYTEST_EXIT_CODE
         fi
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.e2e
+          echo "✅ Exported reports/coverage-data.e2e for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after fast E2E tests"
+        fi
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: coverage-e2e-fast
-        path: reports/coverage-e2e.xml
+        path: |
+          reports/coverage-e2e.xml
+          reports/coverage-data.e2e
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup
@@ -895,7 +946,8 @@ jobs:
   # Full E2E tests - all E2E tests, runs on main branch only
   test-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Conservative timeout for E2E tests with ML models
+    # Full E2E suite + same artifact path as fast E2E; needs slack if models keep growing.
+    timeout-minutes: 60
     needs: [detect-changes, preload-ml-models]  # Wait for change detection and model preload
     env:
       # Ensure consistent cache paths for Hugging Face libraries

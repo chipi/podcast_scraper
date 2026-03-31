@@ -67,6 +67,19 @@ class TestGILLoad:
         assert out.stats["insight_count"] == 1
         assert out.stats["quote_count"] >= 1
 
+    def test_build_inspect_output_episode_title_and_publish_date(self):
+        """Episode node title/publish_date propagate to each InsightSummary."""
+        artifact = build_artifact(
+            "ep:1",
+            "Some transcript.",
+            prompt_version="v1",
+            episode_title="My Episode",
+            publish_date="2024-06-01T12:00:00Z",
+        )
+        out = build_inspect_output(artifact, "Some transcript.")
+        assert out.insights[0].episode_title == "My Episode"
+        assert out.insights[0].publish_date == "2024-06-01T12:00:00Z"
+
     def test_load_artifact_and_transcript_roundtrip(self, tmp_path):
         """Load artifact from path; transcript optional."""
         payload = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
@@ -86,7 +99,7 @@ class TestGILLoad:
     def test_find_artifact_by_insight_id(self, tmp_path):
         """find_artifact_by_insight_id returns path to artifact containing insight."""
         payload = build_artifact("ep:1", "Evidence here.", prompt_version="v1")
-        insight_id = "insight:ep:1:0"
+        insight_id = next(n["id"] for n in payload["nodes"] if n.get("type") == "Insight")
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         gi_path.parent.mkdir(parents=True)
         with open(gi_path, "w", encoding="utf-8") as f:

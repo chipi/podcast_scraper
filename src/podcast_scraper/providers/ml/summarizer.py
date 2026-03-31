@@ -755,31 +755,24 @@ def _build_summarize_pipeline_kwargs(
     effective_truncation: bool,
     repetition_penalty: float,
     no_repeat_ngram_size: int,
-    max_new_tokens: Optional[int],
     effective_max_new_tokens: int,
-    min_new_tokens: Optional[int],
     effective_min_new_tokens: int,
-    max_length: int,
-    min_length: int,
     encoder_no_repeat_ngram_size: Optional[int],
     do_sample: bool,
     num_beams: int,
     length_penalty: float,
 ) -> Dict[str, Any]:
-    """Build pipeline kwargs for summarization."""
+    """Build pipeline kwargs for summarization (HF: max_new_tokens / min_new_tokens only)."""
     kwargs = {
         "truncation": effective_truncation,
         "repetition_penalty": repetition_penalty,
         "no_repeat_ngram_size": no_repeat_ngram_size,
+        # Always pass max_new_tokens / min_new_tokens to the HF pipeline. Passing max_length
+        # while the model's generation_config still defaults max_new_tokens (e.g. 256) makes
+        # transformers warn and apply max_new_tokens precedence — not our max_length cap.
+        "max_new_tokens": effective_max_new_tokens,
+        "min_new_tokens": effective_min_new_tokens,
     }
-    if max_new_tokens is not None:
-        kwargs["max_new_tokens"] = effective_max_new_tokens
-    else:
-        kwargs["max_length"] = max_length
-    if min_new_tokens is not None:
-        kwargs["min_new_tokens"] = effective_min_new_tokens
-    else:
-        kwargs["min_length"] = min_length
     if encoder_no_repeat_ngram_size is not None:
         kwargs["encoder_no_repeat_ngram_size"] = encoder_no_repeat_ngram_size
     if do_sample:
@@ -1479,12 +1472,8 @@ class SummaryModel:
                 effective_truncation,
                 repetition_penalty,
                 no_repeat_ngram_size,
-                max_new_tokens,
                 effective_max_new_tokens,
-                min_new_tokens,
                 effective_min_new_tokens,
-                max_length,
-                min_length,
                 encoder_no_repeat_ngram_size,
                 do_sample,
                 num_beams,

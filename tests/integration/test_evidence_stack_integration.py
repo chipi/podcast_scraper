@@ -33,16 +33,22 @@ except ImportError:
 
 
 def _evidence_stack_models_available():
-    """Skip when offline and models not cached (conftest sets HF_HUB_OFFLINE=1)."""
+    """True when deps exist and default evidence models are cached (offline-safe).
+
+    ``tests/conftest.py`` always sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE so tests do
+    not hit the hub. Those flags must *not* force a skip here; instead we require a
+    loadable HF cache (see ``is_evidence_stack_cached``).
+
+    We do **not** short-circuit on ``ML_MODELS_VALIDATED`` alone: that flag covers
+    broader CI cache checks; without the embedding/QA/NLI artifacts present locally,
+    this suite would still attempt loads and fail offline.
+    """
     if not SENTENCE_TRANSFORMERS_AVAILABLE or not TRANSFORMERS_AVAILABLE:
         return False
-    import os
 
-    if os.environ.get("HF_HUB_OFFLINE", "").strip() == "1":
-        return False
-    if os.environ.get("TRANSFORMERS_OFFLINE", "").strip() == "1":
-        return False
-    return True
+    from tests.integration.ml_model_cache_helpers import is_evidence_stack_cached
+
+    return is_evidence_stack_cached()
 
 
 @pytest.mark.integration
@@ -50,10 +56,34 @@ def _evidence_stack_models_available():
 @pytest.mark.slow
 @pytest.mark.skipif(
     not _evidence_stack_models_available(),
-    reason="evidence stack requires sentence-transformers, transformers, and model cache or network",
+    reason=(
+        "evidence stack needs sentence-transformers + transformers, and default embedding/QA/NLI "
+        "models cached (HF_HUB_OFFLINE=1 in conftest; run make preload-ml-models)"
+    ),
 )
 class TestEvidenceStackLoadAndRun(unittest.TestCase):
     """Load all three evidence components with default config and run minimal workflow."""
+
+    @staticmethod
+    def _skip_if_hf_offline_load_failed(exc: BaseException) -> None:
+        """Skip when cache probes passed but transformers/sentence-transformers still fail."""
+        if not isinstance(exc, OSError):
+            return
+        low = str(exc).lower()
+        if any(
+            s in low
+            for s in (
+                "huggingface",
+                "cached files",
+                "outgoing traffic has been disabled",
+                "local_files_only",
+                "couldn't connect",
+            )
+        ):
+            pytest.skip(
+                "Evidence stack not loadable offline (incomplete HF cache or hub blocked). "
+                f"Try: make preload-ml-models. Underlying error: {exc}"
+            )
 
     def test_load_embedding_qa_nli_and_run_minimal_workflow(self):
         """Load embedding, QA, NLI; encode 2 strings, 1 QA, 1 NLI pair."""
@@ -64,40 +94,44 @@ class TestEvidenceStackLoadAndRun(unittest.TestCase):
         qa_model = config_constants.DEFAULT_EXTRACTIVE_QA_MODEL
         nli_model = config_constants.DEFAULT_NLI_MODEL
 
-        # 1. Embedding: encode two strings
-        vecs = embedding_loader.encode(
-            ["First sentence.", "Second sentence."],
-            model_id=emb_model,
-            device="cpu",
-        )
-        self.assertIsInstance(vecs, list)
-        self.assertEqual(len(vecs), 2)
-        self.assertIsInstance(vecs[0], list)
-        self.assertIsInstance(vecs[1], list)
-        self.assertGreater(len(vecs[0]), 0)
-        self.assertEqual(len(vecs[0]), len(vecs[1]))
+        try:
+            # 1. Embedding: encode two strings
+            vecs = embedding_loader.encode(
+                ["First sentence.", "Second sentence."],
+                model_id=emb_model,
+                device="cpu",
+            )
+            self.assertIsInstance(vecs, list)
+            self.assertEqual(len(vecs), 2)
+            self.assertIsInstance(vecs[0], list)
+            self.assertIsInstance(vecs[1], list)
+            self.assertGreater(len(vecs[0]), 0)
+            self.assertEqual(len(vecs[0]), len(vecs[1]))
 
-        # 2. Extractive QA: one question on short context
-        context = "The capital of France is Paris. It has many museums."
-        span = extractive_qa.answer(
-            context=context,
-            question="What is the capital of France?",
-            model_id=qa_model,
-            device="cpu",
-        )
-        self.assertIn("paris", span.answer.lower())
-        self.assertGreaterEqual(span.start, 0)
-        self.assertLessEqual(span.end, len(context))
-        self.assertGreater(span.score, 0.0)
+            # 2. Extractive QA: one question on short context
+            context = "The capital of France is Paris. It has many museums."
+            span = extractive_qa.answer(
+                context=context,
+                question="What is the capital of France?",
+                model_id=qa_model,
+                device="cpu",
+            )
+            self.assertIn("paris", span.answer.lower())
+            self.assertGreaterEqual(span.start, 0)
+            self.assertLessEqual(span.end, len(context))
+            self.assertGreater(span.score, 0.0)
 
-        # 3. NLI: one premise/hypothesis pair
-        score = nli_loader.entailment_score(
-            premise="The cat sat on the mat.",
-            hypothesis="A cat was on a mat.",
-            model_id=nli_model,
-            device="cpu",
-        )
-        self.assertIsInstance(score, float)
+            # 3. NLI: one premise/hypothesis pair
+            score = nli_loader.entailment_score(
+                premise="The cat sat on the mat.",
+                hypothesis="A cat was on a mat.",
+                model_id=nli_model,
+                device="cpu",
+            )
+            self.assertIsInstance(score, float)
+        except OSError as exc:
+            self._skip_if_hf_offline_load_failed(exc)
+            raise
 
     def test_find_grounded_quotes_integration(self):
         """Run find_grounded_quotes on short text with real QA/NLI (optional integration)."""
@@ -106,14 +140,18 @@ class TestEvidenceStackLoadAndRun(unittest.TestCase):
 
         transcript = "The capital of France is Paris. It has many museums."
         insight_text = "France has a capital city."
-        quotes = find_grounded_quotes(
-            transcript=transcript,
-            insight_text=insight_text,
-            qa_model_id=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
-            nli_model_id=config_constants.DEFAULT_NLI_MODEL,
-            qa_device="cpu",
-            nli_device="cpu",
-        )
+        try:
+            quotes = find_grounded_quotes(
+                transcript=transcript,
+                insight_text=insight_text,
+                qa_model_id=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
+                nli_model_id=config_constants.DEFAULT_NLI_MODEL,
+                qa_device="cpu",
+                nli_device="cpu",
+            )
+        except OSError as exc:
+            self._skip_if_hf_offline_load_failed(exc)
+            raise
         self.assertIsInstance(quotes, list)
         # May be empty or have one span depending on thresholds; just ensure no crash
         for q in quotes:

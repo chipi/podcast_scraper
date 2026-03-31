@@ -1,0 +1,30 @@
+# Manual validation: NPR Planet Money, Grok — metadata + summaries only (no GI/KG).
+# Doc: Summaries default to JSON bullets (shared prompts). Override *summary_*_prompt for paragraph style.
+# Grok has no transcription in this integration: audio uses OpenAI whisper-1 (same as
+# OpenAI baseline) so you isolate speaker + summary cost vs gpt-4o-mini.
+# Models: config_constants test tier (grok-beta); switch to grok-2 in YAML if your key expects it.
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/manual_planet_money_grok_summaries_only.yaml
+# Requires: OPENAI_API_KEY, GROK_API_KEY
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/manual/planet_money_grok_summaries_only
+max_episodes: 3
+
+transcription_provider: openai
+speaker_detector_provider: grok
+summary_provider: grok
+
+openai_transcription_model: whisper-1
+
+grok_speaker_model: grok-beta
+grok_summary_model: grok-beta
+
+transcribe_missing: true
+preprocessing_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+generate_gi: false
+generate_kg: false

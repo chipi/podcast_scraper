@@ -130,11 +130,17 @@ it's likely from the default rule set.
 
 ## Automated Markdown Fixing
 
-**Recommended:** Use `scripts/tools/fix_markdown.py` to automatically fix common markdown linting issues:
+**Recommended (same rules as CI):** `make fix-md` runs `markdownlint --fix` with the same file globs, `--ignore` paths, and `.markdownlint.json` as `make lint-markdown`. That avoids “fix one way, CI fails another” drift.
 
 ```bash
+make fix-md
+make lint-markdown
+```
 
-# Fix all markdown files in the project
+**Optional helper:** `scripts/tools/fix_markdown.py` applies extra heuristics (e.g. some table separator tweaks) that may help beyond markdownlint; it does not use the exact same path filters as `lint-markdown`, so prefer `make fix-md` first for consistency.
+
+```bash
+# Fix all markdown files (custom walker / heuristics)
 
 python scripts/tools/fix_markdown.py
 
@@ -142,30 +148,14 @@ python scripts/tools/fix_markdown.py
 
 python scripts/tools/fix_markdown.py TESTING_STRATEGY.md rfc/RFC-020.md
 
-# Or using Makefile
-
-make fix-md
-
 # Dry run (see what would be fixed)
 
 python scripts/tools/fix_markdown.py --dry-run
+```
 
-# Verify with linter
+**What markdownlint typically auto-fixes:** depends on rule support in your installed `markdownlint-cli` (for example spacing/blank lines where the rule supports `--fix`).
 
-make lint-markdown
-```text
-
-**What the script fixes automatically:**
-
-- Table separator formatting (MD060) - adds spaces around pipes
-- Trailing spaces (MD009)
-- Blank lines around lists (MD032)
-- Blank lines around code fences (MD031)
-- Blank lines around headings (MD022)
-- Code block language specifiers (MD040) - when detectable
-- Trailing newlines (MD047)
-
-**⚠️ Important:** The script only fixes a subset of rules. The pre-commit hook checks **ALL enabled rules** (including all default rules). If you see errors from rules not listed above, you'll need to fix them manually or use `markdownlint --fix`.
+**⚠️ Important:** Pre-commit and CI still enforce **all** enabled rules from `.markdownlint.json`. Anything `markdownlint --fix` cannot correct must be fixed manually.
 
 **When to use:**
 

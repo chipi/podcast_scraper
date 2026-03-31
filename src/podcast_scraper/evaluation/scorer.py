@@ -15,6 +15,14 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from podcast_scraper.evaluation.gi_scorer import (
+    compute_gil_prediction_stats,
+    compute_gil_vs_reference_metrics,
+)
+from podcast_scraper.evaluation.kg_scorer import (
+    compute_kg_prediction_stats,
+    compute_kg_vs_reference_metrics,
+)
 from podcast_scraper.evaluation.ner_scorer import compute_ner_vs_reference_metrics
 from podcast_scraper.evaluation.schema_validator import (
     validate_summarization_reference,
@@ -770,16 +778,27 @@ def compute_vs_reference_metrics(
     pred_by_id = {p.get("episode_id"): p for p in predictions}
     ref_by_id = {p.get("episode_id"): p for p in reference_predictions}
 
-    # Validate episode IDs match
     pred_ids = set(pred_by_id.keys())
     ref_ids = set(ref_by_id.keys())
-    if pred_ids != ref_ids:
-        missing = ref_ids - pred_ids
-        extra = pred_ids - ref_ids
+    extra = pred_ids - ref_ids
+    if extra:
         raise ValueError(
             f"Episode ID mismatch for reference '{reference_id}': "
-            f"missing={missing}, extra={extra}"
+            f"predictions contain unknown episode_ids extra={extra}"
         )
+    missing = ref_ids - pred_ids
+    if missing:
+        # Partial runs (e.g. data.max_episodes, autoresearch smoke): score on intersection only.
+        logger.info(
+            f"Scoring vs reference '{reference_id}' on {len(pred_ids)} episode(s); "
+            f"skipping reference-only episodes missing from predictions: "
+            f"{sorted(missing, key=str)}"
+        )
+        reference_predictions = [
+            p for p in reference_predictions if p.get("episode_id") in pred_ids
+        ]
+        ref_by_id = {p.get("episode_id"): p for p in reference_predictions}
+        ref_ids = set(ref_by_id.keys())
 
     # Compute ROUGE
     try:
@@ -867,6 +886,7 @@ def score_run(
     reference_paths: Optional[Dict[str, Path]] = None,
     metadata_map: Optional[Dict[str, Dict[str, Any]]] = None,
     scoring_params: Optional[Dict[str, Any]] = None,
+    task: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Score a run and compute all metrics.
 
@@ -877,6 +897,7 @@ def score_run(
         reference_paths: Optional dict of {reference_id: reference_path}
         metadata_map: Optional mapping of episode_id -> metadata dict (for speaker detection)
         scoring_params: Optional scoring parameters (e.g., {"match": ["exact", "overlap"]} for NER)
+        task: Optional experiment task; when set, overrides inference from predictions
 
     Returns:
         Complete metrics dictionary with intrinsic and vs_reference sections
@@ -884,20 +905,28 @@ def score_run(
     # Load predictions
     predictions = load_predictions(predictions_path)
 
-    # Determine task type from predictions (check if entities or summary_final exists)
-    task_type = None
-    if predictions:
+    # Determine task type from explicit ``task`` or first prediction output keys
+    task_type: Optional[str] = task
+    if task_type is None and predictions:
         first_pred = predictions[0]
         output = first_pred.get("output", {})
         if "entities" in output:
             task_type = "ner_entities"
         elif "summary_final" in output or "summary_long" in output:
             task_type = "summarization"
+        elif "gil" in output:
+            task_type = "grounded_insights"
+        elif "kg" in output:
+            task_type = "knowledge_graph"
 
     # Compute intrinsic metrics (always)
     intrinsic = compute_intrinsic_metrics(
         predictions, dataset_id, run_id, metadata_map=metadata_map
     )
+    if task_type == "grounded_insights":
+        intrinsic = {**intrinsic, "gil": compute_gil_prediction_stats(predictions)}
+    elif task_type == "knowledge_graph":
+        intrinsic = {**intrinsic, "kg": compute_kg_prediction_stats(predictions)}
 
     # Compute vs_reference metrics (if references provided)
     vs_reference = {}
@@ -912,6 +941,20 @@ def score_run(
                         scoring_params=scoring_params,
                         dataset_id=dataset_id,
                         metadata_map=metadata_map,
+                    )
+                elif task_type == "grounded_insights":
+                    vs_reference[ref_id] = compute_gil_vs_reference_metrics(
+                        predictions,
+                        ref_id,
+                        ref_path,
+                        dataset_id=dataset_id,
+                    )
+                elif task_type == "knowledge_graph":
+                    vs_reference[ref_id] = compute_kg_vs_reference_metrics(
+                        predictions,
+                        ref_id,
+                        ref_path,
+                        dataset_id=dataset_id,
                     )
                 else:
                     vs_reference[ref_id] = compute_vs_reference_metrics(
@@ -938,5 +981,11 @@ def score_run(
     elif task_type == "summarization":
         metrics["schema"] = "metrics_summarization_v1"
         metrics["task"] = "summarization"
+    elif task_type == "grounded_insights":
+        metrics["schema"] = "metrics_gil_eval_run_v1"
+        metrics["task"] = "grounded_insights"
+    elif task_type == "knowledge_graph":
+        metrics["schema"] = "metrics_kg_eval_run_v1"
+        metrics["task"] = "knowledge_graph"
 
     return metrics

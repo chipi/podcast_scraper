@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "metrics_gil_eval_run_v1.json",
+  "title": "GIL experiment run metrics bundle (v1)",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["task", "schema", "dataset_id", "run_id", "episode_count", "intrinsic"],
+  "properties": {
+    "schema": { "type": "string", "const": "metrics_gil_eval_run_v1" },
+    "task": { "type": "string", "const": "grounded_insights" },
+    "dataset_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "episode_count": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -249,6 +249,10 @@ source .venv/bin/activate
 pip install -e .[dev,ml]  # Install package in editable mode with dev and ML dependencies
 ```
 
+**Optional — spaCy wheels on disk:** Run `make download-spacy-wheels`, then `make init`; if
+`wheels/spacy/*.whl` exists, the Makefile sets `PIP_FIND_LINKS` for you (see
+[Dependencies Guide — Optional local wheel cache](DEPENDENCIES_GUIDE.md#optional-local-wheel-cache-for-spacy-models)).
+
 **Why editable mode (`-e`)?**
 
 - Changes to source code are immediately available without reinstalling
@@ -457,6 +461,40 @@ make clean-all
 **Note:** `make clean-cache` removes models from `~/.cache/` locations, not the project-local
 `.cache/` directory. To remove the project-local cache, manually delete `.cache/` or use the
 restore script to replace it.
+
+## GI / KG browser viewer (local prototype) {#gi-kg-browser-viewer-local-prototype}
+
+Optional **static** pages for inspecting **Grounded Insight** (`*.gi.json`) and **Knowledge
+Graph** (`*.kg.json`) artifacts in the browser — no backend
+([GitHub issue #445](https://github.com/chipi/podcast_scraper/issues/445)).
+
+**Run from repository root:**
+
+```bash
+make serve-gi-kg-viz
+```
+
+Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/) and pick a page from the hub:
+
+- **vis-network** or **Cytoscape.js** — interactive graph (pan/zoom/drag), filters (node
+  types; for GIL, hide ungrounded insights), **Chart.js** node-type bars, CLI cheatsheet.
+- **JSON only** — metrics + chart + raw JSON without graph libraries (fewer CDN deps).
+
+**Typical workflow:** Produce artifacts with the main pipeline (`generate_gi` / `generate_kg`)
+or with `gi export` / `kg export` → in the viewer, use **Load artifacts** and select one or
+more `.gi.json` / `.kg.json` files → adjust filters and layout controls as needed.
+
+**Deep link (same server):** `make serve-gi-kg-viz` runs `scripts/gi_kg_viz_server.py`, which
+exposes repo files. You can open e.g.
+`graph-vis.html?data=.test_outputs/.../metadata&layer=both&merged=1` to load every
+`*.gi.json` / `*.kg.json` under that **repo-relative** directory automatically (see
+`web/gi-kg-viz/README.md`).
+
+**Implementation details, offline/CDN notes:**
+[`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
+
+**See also:** [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph
+Guide](KNOWLEDGE_GRAPH_GUIDE.md) · [CLI API](../api/CLI.md) (`gi` / `kg` subcommands).
 
 ## Markdown Linting
 

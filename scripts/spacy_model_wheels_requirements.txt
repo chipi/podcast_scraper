@@ -1,0 +1,4 @@
+# PEP 508 lines for pip download — must match en-core-web-* entries in
+# pyproject.toml [project.optional-dependencies] ml.
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
+en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl

@@ -2,9 +2,34 @@
 
 import json
 from pathlib import Path
-from typing import Any, cast, Dict
+from typing import Any, cast, Dict, List
 
 from .schema import validate_artifact
+
+
+def collect_gi_paths_from_inputs(paths: List[Path]) -> List[Path]:
+    """Expand files and directories to a sorted list of .gi.json paths.
+
+    Args:
+        paths: Files must end with ``.gi.json``; directories are scanned recursively.
+
+    Raises:
+        FileNotFoundError: If a path does not exist.
+        ValueError: If a file path is not a ``.gi.json`` file.
+    """
+    result: List[Path] = []
+    for p in paths:
+        p = Path(p)
+        if not p.exists():
+            raise FileNotFoundError(f"Path does not exist: {p}")
+        if p.is_file():
+            if not p.name.endswith(".gi.json"):
+                raise ValueError(f"Not a .gi.json file: {p}")
+            result.append(p)
+            continue
+        for child in p.rglob("*.gi.json"):
+            result.append(child)
+    return sorted(set(result))
 
 
 def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -> None:

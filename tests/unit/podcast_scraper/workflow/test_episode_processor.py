@@ -5,8 +5,10 @@ These tests verify pure utility functions in episode_processor.py that
 can be tested without I/O operations.
 """
 
+import hashlib
 import os
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
@@ -39,7 +41,8 @@ _patch_openai = patch.dict(
 )
 _patch_openai.start()
 
-from podcast_scraper.workflow import episode_processor
+from podcast_scraper.utils import filesystem
+from podcast_scraper.workflow import episode_processor, metrics
 
 # Import directly from tests.conftest (works with pytest-xdist)
 from tests.conftest import create_test_config, create_test_episode  # noqa: E402
@@ -972,7 +975,78 @@ class TestTranscribeMediaToText(unittest.TestCase):
         )
 
         self.assertTrue(success)
-        mock_metrics.record_transcribe_time.assert_called_once_with(10.5)
+        mock_metrics.record_transcribe_time.assert_called_once_with(10.5, 1)
+
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.cache.transcript_cache.get_cached_transcript")
+    @patch("podcast_scraper.cache.transcript_cache.get_audio_hash")
+    @patch("podcast_scraper.workflow.episode_processor._save_transcript_file")
+    @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
+    def test_transcribe_transcript_cache_hit_records_zero_download_not_enqueue_elapsed(
+        self,
+        mock_cleanup,
+        mock_save,
+        mock_get_hash,
+        mock_get_cached,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+    ):
+        """Cache hit must not attribute HTTP download wall time (job may carry prior elapsed)."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            f.write(b"fake audio" * 100)
+            temp_media = f.name
+        try:
+            job = Mock()
+            job.idx = 1
+            job.ep_title_safe = "Episode_1"
+            job.temp_media = temp_media
+            job.detected_speaker_names = None
+            job.media_download_elapsed = 99.0
+            job.episode = create_test_episode(idx=1, title="Ep")
+
+            cfg = create_test_config(
+                dry_run=False,
+                preprocessing_enabled=False,
+                transcript_cache_enabled=True,
+                rss_url="https://example.com/feed.xml",
+            )
+            mock_build_path.return_value = "/output/0001 - Episode_1.txt"
+            mock_exists.side_effect = lambda p: p == temp_media
+            mock_getsize.return_value = 1000
+            mock_get_hash.return_value = "abc123"
+            mock_get_cached.return_value = "cached transcript"
+            mock_save.return_value = "0001 - Episode_1.txt"
+
+            pipeline_metrics = metrics.Metrics()
+            from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+            eid, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+            pipeline_metrics.get_or_create_episode_metrics(eid, job.idx)
+
+            mock_provider = Mock()
+
+            success, transcript_path, _bd = episode_processor.transcribe_media_to_text(
+                job=job,
+                cfg=cfg,
+                whisper_model=None,
+                run_suffix=None,
+                effective_output_dir="/output",
+                transcription_provider=mock_provider,
+                pipeline_metrics=pipeline_metrics,
+            )
+
+            self.assertTrue(success)
+            self.assertEqual(transcript_path, "0001 - Episode_1.txt")
+            mock_provider.transcribe_with_segments.assert_not_called()
+            self.assertEqual(pipeline_metrics.download_media_time_by_episode.get(1), 0.0)
+        finally:
+            if os.path.isfile(temp_media):
+                os.unlink(temp_media)
 
     @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
     @patch("os.path.exists")
@@ -1328,6 +1402,56 @@ class TestDownloadMediaForTranscription(unittest.TestCase):
         )
 
         self.assertIsNone(result)
+
+    def test_download_media_reuse_records_zero_wall_time(self):
+        """reuse_media returns job with 0.0 s download elapsed (metrics record after cache miss)."""
+        tmp = tempfile.mkdtemp()
+        temp_media = ""
+        try:
+            cfg = create_test_config(
+                skip_existing=False,
+                dry_run=False,
+                reuse_media=True,
+            )
+            episode = create_test_episode(
+                idx=1,
+                title="Test Episode",
+                title_safe="Test_Episode",
+                media_url="https://example.com/episode.mp3",
+            )
+            ep_num_str = f"{episode.idx:0{filesystem.EPISODE_NUMBER_FORMAT_WIDTH}d}"
+            short_title = filesystem.truncate_whisper_title(episode.title_safe, for_log=False)
+            title_hash = hashlib.sha1(
+                f"{episode.media_url}|{episode.idx}|{cfg.rss_url}".encode("utf-8"),
+                usedforsecurity=False,
+            ).hexdigest()[: episode_processor.TITLE_HASH_PREFIX_LENGTH]
+            ext = episode_processor.derive_media_extension(episode.media_type, episode.media_url)
+            self.assertIsNotNone(ext)
+            temp_media = os.path.join(tmp, f"{ep_num_str}_{short_title}_{title_hash}{ext}")
+            with open(temp_media, "wb") as fh:
+                fh.write(b"x")
+
+            pipeline_metrics = metrics.Metrics()
+            with patch(
+                "podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path"
+            ) as mock_build_path:
+                mock_build_path.return_value = "/nonexistent/output/transcript.txt"
+                result = episode_processor.download_media_for_transcription(
+                    episode=episode,
+                    cfg=cfg,
+                    temp_dir=tmp,
+                    effective_output_dir="/output",
+                    run_suffix=None,
+                    pipeline_metrics=pipeline_metrics,
+                )
+
+            self.assertIsNotNone(result)
+            self.assertEqual(result.media_download_elapsed, 0.0)
+            self.assertEqual(pipeline_metrics.download_media_time_by_episode, {})
+        finally:
+            if temp_media and os.path.isfile(temp_media):
+                os.unlink(temp_media)
+            os.rmdir(tmp)
 
 
 class TestFetchTranscriptContent(unittest.TestCase):
@@ -1799,16 +1923,33 @@ class TestCheckTranscriptCache(unittest.TestCase):
         mock_get_cached.return_value = "Cached transcript text"
         mock_save.return_value = "transcript.txt"
 
-        cfg = create_test_config(transcript_cache_enabled=True)
+        cfg = create_test_config(
+            transcript_cache_enabled=True,
+            rss_url="https://example.com/feed.xml",
+        )
+        from podcast_scraper.workflow import metrics as metrics_mod
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        pipeline_metrics = metrics_mod.Metrics()
+        episode_id, _ = get_episode_id_from_episode(self.job.episode, cfg.rss_url or "")
+        pipeline_metrics.get_or_create_episode_metrics(episode_id, self.job.idx)
 
         result = episode_processor._check_transcript_cache(
-            self.job, cfg, self.temp_media, None, self.temp_dir
+            self.job,
+            cfg,
+            self.temp_media,
+            None,
+            self.temp_dir,
+            pipeline_metrics=pipeline_metrics,
         )
 
         self.assertIsNotNone(result)
         self.assertTrue(result[0])  # success
         self.assertEqual(result[1], "transcript.txt")
         mock_cleanup.assert_called_once()
+        row = pipeline_metrics.lookup_episode_metrics(episode_id)
+        self.assertIsNotNone(row)
+        self.assertEqual(row.transcribe_sec, 0.0)
 
     @patch("podcast_scraper.cache.transcript_cache.get_cached_transcript")
     def test_check_transcript_cache_miss(self, mock_get_cached):
@@ -1993,7 +2134,7 @@ class TestRecordTranscriptionMetrics(unittest.TestCase):
             self.job, self.cfg, 10.5, self.call_metrics, self.pipeline_metrics
         )
 
-        self.assertEqual(self.pipeline_metrics.transcribe_times, [10.5])
+        self.assertEqual(self.pipeline_metrics.transcribe_time_by_episode, {1: 10.5})
         mock_log_metrics.assert_called_once()
 
     def test_record_transcription_metrics_no_pipeline_metrics(self):

@@ -11,6 +11,14 @@ PACKAGE = podcast_scraper
 PIP_CACHE_DIR ?= $(HOME)/.cache/pip
 export PIP_CACHE_DIR
 
+# Prefer local spaCy (and related) wheels when present (see make download-spacy-wheels).
+# Does not override PIP_FIND_LINKS if you already exported it in the shell.
+ifneq ($(wildcard wheels/spacy/*.whl),)
+ifeq ($(origin PIP_FIND_LINKS),undefined)
+export PIP_FIND_LINKS := $(abspath wheels/spacy)
+endif
+endif
+
 # Test parallelism: Memory-aware calculation that adapts to available RAM and CPU
 # - Considers available memory and memory per worker (varies by test type)
 # - Reserves 2 cores for system operations
@@ -21,16 +29,16 @@ export PIP_CACHE_DIR
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports validate-gi-schema deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run runs-list baselines-list runs-compare benchmark
+.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list runs-compare benchmark serve-gi-kg-viz
 
 help:
 	@echo "Common developer commands:"
-	@echo "  make init            Install development dependencies"
+	@echo "  make init            Install development dependencies (uses wheels/spacy if *.whl present)"
 	@echo "  make format          Apply formatting with black + isort"
 	@echo "  make format-check    Check formatting without modifying files"
 	@echo "  make lint            Run flake8 linting"
 	@echo "  make lint-markdown   Run markdownlint on markdown files"
-	@echo "  make fix-md          Auto-fix common markdown linting issues"
+	@echo "  make fix-md          Auto-fix markdown (markdownlint --fix; same rules as lint-markdown)"
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo "  make complexity      Run radon complexity analysis"
@@ -42,7 +50,13 @@ help:
 	@echo ""
 	@echo "Verification commands:"
 	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
+	@echo "  make check-pricing-assumptions  Show config/pricing_assumptions.yaml status (optional --strict)"
 	@echo "  make validate-gi-schema [ARTIFACTS_DIR=path]  Validate gi.json files against GIL schema (strict)"
+	@echo "  make validate-kg-schema [ARTIFACTS_DIR=path]  Validate kg.json files against KG schema (strict)"
+	@echo "  make gil-quality-metrics [DIR=path]  PRD-017 metrics over .gi.json (optional --enforce via ARGS)"
+	@echo "  make compare-gil-runs REF=run1 CAND=run2  Compare GIL gi.json stats between two run roots"
+	@echo "  make kg-quality-metrics [DIR=path]   PRD-019 metrics over .kg.json (optional --enforce via ARGS)"
+	@echo "  make quality-metrics-ci              GIL+KG enforce on tests/fixtures/gil_kg_ci_enforce (matches CI)"
 	@echo "  make deps-analyze        Analyze module dependencies and detect architectural issues (with report)"
 	@echo "  make deps-check          Check dependencies and exit with error if issues found"
 	@echo "  make deps-graph          Generate module dependency graph (SVG) in docs/architecture/"
@@ -51,6 +65,7 @@ help:
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
+	@echo "  make serve-gi-kg-viz     GI/KG viz + ?data= repo API (issue #445; http://127.0.0.1:8765/)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -112,7 +127,7 @@ help:
 	@echo "  make coverage-enforce        Fast threshold check on existing .coverage (used by ci)"
 	@echo "  make coverage-report         Generate HTML coverage report from existing .coverage"
 	@echo ""
-	@echo "Other commands:
+	@echo "Other commands:"
 	@echo "  make docs            Build MkDocs site (strict mode, outputs to .build/site/)"
 	@echo "  make docs-check      Run all documentation checks (linting + spelling + build)"
 	@echo "  make build           Build source and wheel distributions (outputs to .build/dist/)"
@@ -131,6 +146,7 @@ help:
 	@echo "  make clean-model-cache  Delete cache for a specific Transformers model (forces re-download)"
 	@echo "                            Usage: make clean-model-cache MODEL_NAME=google/pegasus-cnn_dailymail [FORCE=yes]"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
+	@echo "  make download-spacy-wheels  Download spaCy en_core_web_* wheels into wheels/spacy (use with PIP_FIND_LINKS)"
 	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally (test models)"
 	@echo "  make preload-ml-models-production  Pre-download and cache production ML models (for nightly tests)"
 	@echo "  make backup-cache    Backup .cache directory (ML models)"
@@ -161,6 +177,8 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
+	@echo "  make autoresearch-score  RFC-057 Track A: eval run + ROUGE + dual judges (scalar on stdout)"
+	@echo "                            Usage: make autoresearch-score [CONFIG=...] [REFERENCE=...] [DRY_RUN=1]"
 	@echo "  make report-multi-run   Generate multi-run comparison report (baseline + N runs)"
 	@echo "                            Usage: make report-multi-run [BASELINE_ID=...] RUN_IDS=id1,id2 REFERENCE_ID=ref [OUTPUT=...]"
 	@echo "  make run-freeze          Freeze a run for baseline comparison"
@@ -184,6 +202,14 @@ init:
 	$(PYTHON) -m pip install -e .[dev,ml,gemini]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
 
+# Download spaCy model wheels (matches pyproject.toml [ml] pins). When wheels/spacy/*.whl exists,
+# make sets PIP_FIND_LINKS for recipes (e.g. make init) unless you already exported it.
+# See docs/guides/DEPENDENCIES_GUIDE.md.
+download-spacy-wheels:
+	@mkdir -p wheels/spacy
+	$(PYTHON) -m pip download -r scripts/spacy_model_wheels_requirements.txt -d wheels/spacy
+	@echo "Wheels saved under wheels/spacy/. Run make init (or any pip install via make) to use them automatically."
+
 format:
 	$(PYTHON) -m black .
 	$(PYTHON) -m isort .
@@ -197,21 +223,28 @@ lint:
 	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
 	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
 
+# Shared markdownlint CLI args — keep lint-markdown and fix-md identical (and aligned with CI).
+MARKDOWNLINT_CLI_ARGS = "**/*.md" \
+	--ignore node_modules \
+	--ignore .venv \
+	--ignore .build/site \
+	--ignore "docs/wip/**" \
+	--ignore "tests/fixtures/**" \
+	--ignore "data/eval/runs/**" \
+	--config .markdownlint.json
+
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
-	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --ignore "docs/wip/**" --ignore "tests/fixtures/**" --ignore "data/eval/runs/**" --config .markdownlint.json
+	markdownlint $(MARKDOWNLINT_CLI_ARGS)
+
+fix-md:
+	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
+	@echo "Running markdownlint --fix (same paths and .markdownlint.json as lint-markdown)..."
+	markdownlint --fix $(MARKDOWNLINT_CLI_ARGS)
 
 lint-markdown-docs:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
-
-fix-md:
-	@echo "⚠️  WARNING: fix-md script is disabled due to issues."
-	@echo "Use 'markdownlint --fix' instead for reliable markdown fixes."
-	@echo ""
-	@echo "Example:"
-	@echo "  npx markdownlint-cli2 --fix '**/*.md'"
-	@exit 1
 
 type:
 	$(PYTHON) -m mypy --config-file pyproject.toml .
@@ -297,6 +330,10 @@ check-unit-imports:
 	# Run this when: adding new modules, refactoring imports, or debugging CI failures
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
 
+# Optional ARGS: e.g. make check-pricing-assumptions ARGS="--strict"
+check-pricing-assumptions:
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli pricing-assumptions $(ARGS)
+
 validate-gi-schema:
 	# Validate gi.json files against docs/gi/gi.schema.json (strict mode).
 	# Usage: make validate-gi-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
@@ -306,6 +343,44 @@ validate-gi-schema:
 	else \
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_gi_schema.py tests/fixtures; \
 	fi
+
+validate-kg-schema:
+	# Validate kg.json files against docs/kg/kg.schema.json (strict mode).
+	# Usage: make validate-kg-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
+	@if [ -n "$(ARTIFACTS_DIR)" ]; then \
+		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py "$(ARTIFACTS_DIR)"; \
+	else \
+		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
+	fi
+
+gil-quality-metrics:
+	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
+	# Usage: make gil-quality-metrics DIR=path/to/run [ARGS='--enforce --json']
+	@if [ -z "$(DIR)" ]; then \
+		echo "DIR is required (e.g. make gil-quality-metrics DIR=./output)"; exit 2; \
+	fi
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py "$(DIR)" $(ARGS)
+
+compare-gil-runs:
+	# Compare GIL outcomes between two pipeline run directories (metadata/*.gi.json).
+	# Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run
+	# See scripts/tools/compare_gil_runs.py and docs/wip/gil-ml-vs-openai-outcome-benchmark.md
+	@if [ -z "$(REF)" ] || [ -z "$(CAND)" ]; then \
+		echo "Usage: make compare-gil-runs REF=path/to/reference/run CAND=path/to/candidate/run"; exit 2; \
+	fi
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/compare_gil_runs.py "$(REF)" "$(CAND)"
+
+kg-quality-metrics:
+	# PRD-019 KG quality metrics over .kg.json (see scripts/tools/kg_quality_metrics.py).
+	@if [ -z "$(DIR)" ]; then \
+		echo "DIR is required (e.g. make kg-quality-metrics DIR=./output)"; exit 2; \
+	fi
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py "$(DIR)" $(ARGS)
+
+quality-metrics-ci:
+	# Same GIL+KG enforce as GitHub Actions test-unit job (committed fixtures).
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/gil_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-extraction-coverage 1.0 --min-grounded-insight-rate 1.0 --min-quote-validity-rate 1.0 --min-avg-insights 1 --min-avg-quotes 1
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:
 	# Clean up leftover Python/test processes from previous runs
@@ -1016,7 +1091,7 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling test-fast docs build
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast docs build
 	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
@@ -1026,9 +1101,10 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 	@echo "✓ Full nightly CI chain completed"
 
 docker-build:
-	@echo "Building Docker image (ML-enabled variant, default)..."
+	@echo "Building Docker image (ML-enabled variant, production ML preload, default)..."
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
+		--build-arg PRELOAD_ML_MODELS=true \
 		-t podcast-scraper:test \
 		-f Dockerfile .
 
@@ -1056,13 +1132,12 @@ docker-build-fast:
 	@echo "✓ Fast build complete! Image tagged as: podcast-scraper:test-fast"
 
 docker-build-full:
-	@echo "Building Docker image (full mode - ML variant with model preloading, matches main builds)..."
-	@echo "This will take longer due to ML model downloads..."
+	@echo "Building Docker image (full mode - ML variant with production model preloading)..."
+	@echo "This will take a long time and require significant disk (HF + Whisper + evidence)..."
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
-		--build-arg WHISPER_MODELS=base.en \
 		-t podcast-scraper:test \
 		-f Dockerfile .
 	@echo ""
@@ -1165,6 +1240,12 @@ flowcharts:
 
 visualize: deps-graph call-graph flowcharts
 	@echo "✓ Architecture visualizations up to date (see docs/architecture/)"
+
+# Static viewer for GIL/KG JSON artifacts (GitHub #445); CDNs need http(s) origin.
+# Uses scripts/gi_kg_viz_server.py so ?data=REPO_REL_PATH can auto-load *.gi.json / *.kg.json.
+serve-gi-kg-viz:
+	@echo "GI/KG viz → http://127.0.0.1:8765/  (Ctrl+C to stop)"
+	@$(PYTHON) scripts/gi_kg_viz_server.py --port 8765 --host 127.0.0.1 --repo-root "$(CURDIR)" --viz-dir "$(CURDIR)/web/gi-kg-viz"
 
 # Run before release: regenerate diagrams and create release notes draft. Add to release checklist.
 release-docs-prep: visualize
@@ -1646,6 +1727,41 @@ experiment-run:
 	eval $$cmd
 	@echo ""
 	@echo "✓ Experiment completed. Check data/eval/runs/ directory for output."
+
+autoresearch-score:
+	@# RFC-057 Track A: reuse run_experiment + metrics, then optional LLM judges; final scalar on stdout.
+	@# Usage: make autoresearch-score [CONFIG=path] [REFERENCE=id] [DRY_RUN=1] [LOG_LEVEL=INFO]
+	@# Loads .env and optional .env.autoresearch from repo root (see autoresearch_track_a.load_local_dotenv_files).
+	@# Env: AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY, AUTORESEARCH_JUDGE_* keys; optional AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1
+	@# Optional: AUTORESEARCH_EVAL_N, AUTORESEARCH_SCORE_ROUGE_WEIGHT
+	@cmd="$(PYTHON) autoresearch/prompt_tuning/eval/score.py"; \
+	if [ -n "$(CONFIG)" ]; then \
+		echo "  Config: $(CONFIG)"; \
+		cmd="$$cmd --config $(CONFIG)"; \
+	else \
+		echo "  Config: (default autoresearch_prompt_openai_smoke_v1.yaml)"; \
+	fi; \
+	if [ -n "$(REFERENCE)" ]; then \
+		echo "  Reference: $(REFERENCE)"; \
+		cmd="$$cmd --reference $(REFERENCE)"; \
+	fi; \
+	if [ -n "$(LOG_LEVEL)" ]; then \
+		cmd="$$cmd --log-level $(LOG_LEVEL)"; \
+	fi; \
+	if [ "$(DRY_RUN)" = "1" ]; then \
+		echo "  Mode: dry-run (ROUGE only via score-only, no judges)"; \
+		cmd="$$cmd --dry-run"; \
+	fi; \
+	echo "Running autoresearch score harness..."; \
+	eval $$cmd; \
+	ec=$$?; \
+	echo ""; \
+	if [ $$ec -eq 0 ]; then \
+		echo "✓ Scalar is the lone float line above (stdout)."; \
+	else \
+		echo "❌ autoresearch score failed (exit $$ec)."; \
+	fi; \
+	exit $$ec
 
 run-freeze:
 	@# Freeze a run for baseline comparison (moves to _frozen_pre_cleanup/)

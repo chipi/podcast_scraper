@@ -95,6 +95,34 @@ cp config/examples/.env.example .env
 make ci
 ```
 
+### Optional: spaCy model wheels (faster repeat `[ml]` installs)
+
+The `ml` extra pulls **spaCy English models** from GitHub (~13 MB + ~457 MB). Pip caches wheels,
+but new virtualenvs or cleared caches re-download them. To install from a **local wheel
+directory** instead:
+
+```bash
+make download-spacy-wheels
+make init
+```
+
+When `wheels/spacy/*.whl` exists, the **Makefile** sets `PIP_FIND_LINKS` for `make init` (and
+other targets that run pip) unless you already exported `PIP_FIND_LINKS` yourself.
+`scripts/setup_venv.sh` does the same for its initial `pip install -e .` if wheels are
+present.
+
+If you install **without** `make` (plain `pip install -e ".[dev,ml,gemini]"`), either export
+`PIP_FIND_LINKS` manually or run `python3 scripts/patch_venv_activate_spacy_wheels.py` once
+per venv so `source .venv/bin/activate` sets it when `wheels/spacy/*.whl` exists.
+
+```bash
+export PIP_FIND_LINKS="$(pwd)/wheels/spacy"
+pip install -e ".[dev,ml,gemini]"
+```
+
+Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change**: see
+[Dependencies Guide](docs/guides/DEPENDENCIES_GUIDE.md#optional-local-wheel-cache-for-spacy-models).
+
 **What `make init` does:**
 
 - Upgrades pip and setuptools (required for PEP 660 editable installs)

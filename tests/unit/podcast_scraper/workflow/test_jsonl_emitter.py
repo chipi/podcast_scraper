@@ -114,6 +114,11 @@ class TestJSONLEmitter(unittest.TestCase):
         self.assertEqual(event["event_type"], "run_finished")
         self.assertIn("timestamp", event)
         self.assertIn("run_duration_seconds", event)
+        self.assertIn("kg_artifacts_generated", event)
+        self.assertIn("kg_extractions_provider", event)
+        self.assertIn("avg_cleaning_seconds", event)
+        self.assertIn("llm_gi_calls_per_gi_artifact", event)
+        self.assertIn("llm_summarization_avg_input_tokens_per_call", event)
 
     def test_emitter_appends_to_existing_file(self):
         """Test that emitter appends to existing file."""

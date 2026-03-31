@@ -11,6 +11,7 @@ from podcast_scraper.gi.pipeline import (
     _artifact_from_multi_insight,
     _char_range_to_ms,
     _resolve_insight_texts,
+    _speaker_id_for_char_range,
     build_artifact,
 )
 
@@ -84,6 +85,7 @@ class TestGILPipeline:
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
         cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
 
         one_quote = [
             GroundedQuote(
@@ -94,7 +96,16 @@ class TestGILPipeline:
                 nli_score=0.7,
             )
         ]
-        with patch("podcast_scraper.gi.grounding.find_grounded_quotes", return_value=one_quote):
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=one_quote,
+            ),
+        ):
             out = build_artifact(
                 "ep:1",
                 "Evidence here.",
@@ -106,8 +117,8 @@ class TestGILPipeline:
         assert insight_nodes[0]["properties"]["grounded"] is True
         assert len(quote_nodes) == 1
         assert quote_nodes[0]["properties"]["text"] == "Evidence"
-        assert len(out["edges"]) == 1
-        assert out["edges"][0]["type"] == "SUPPORTED_BY"
+        assert len(out["edges"]) == 2
+        assert {e["type"] for e in out["edges"]} == {"HAS_INSIGHT", "SUPPORTED_BY"}
 
     def test_build_artifact_with_cfg_no_grounded_quotes_yields_ungrounded_insight(self):
         """With cfg and no grounded quotes, insight has grounded=False and no Quote nodes."""
@@ -119,15 +130,26 @@ class TestGILPipeline:
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
         cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
 
-        with patch("podcast_scraper.gi.grounding.find_grounded_quotes", return_value=[]):
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=[],
+            ),
+        ):
             out = build_artifact("ep:1", "Some transcript.", cfg=cfg)
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(insight_nodes) == 1
         assert insight_nodes[0]["properties"]["grounded"] is False
         assert len(quote_nodes) == 0
-        assert len(out["edges"]) == 0
+        assert len(out["edges"]) == 1
+        assert out["edges"][0]["type"] == "HAS_INSIGHT"
 
     def test_build_artifact_with_evidence_providers_uses_provider_path(self):
         """With quote_extraction_provider and entailment_provider, uses provider path."""
@@ -167,8 +189,8 @@ class TestGILPipeline:
         assert quote_nodes[0]["properties"]["text"] == "evidence"
         assert quote_nodes[0]["properties"]["char_start"] == 1
         assert quote_nodes[0]["properties"]["char_end"] == 8
-        assert len(out["edges"]) == 1
-        assert out["edges"][0]["type"] == "SUPPORTED_BY"
+        assert len(out["edges"]) == 2
+        assert {e["type"] for e in out["edges"]} == {"HAS_INSIGHT", "SUPPORTED_BY"}
 
     def test_build_artifact_with_mock_providers_calls_extract_quotes_and_score_entailment(self):
         """build_artifact calls extract_quotes and score_entailment (mock providers)."""
@@ -288,7 +310,10 @@ class TestGILPipeline:
         assert insight_nodes[1]["properties"]["text"] == "Insight B"
         assert insight_nodes[1]["properties"]["grounded"] is True
         assert len(quote_nodes) == 2
-        assert len(out["edges"]) == 2
+        # Per insight: HAS_INSIGHT + SUPPORTED_BY to quote
+        assert len(out["edges"]) == 4
+        assert sum(1 for e in out["edges"] if e["type"] == "HAS_INSIGHT") == 2
+        assert sum(1 for e in out["edges"] if e["type"] == "SUPPORTED_BY") == 2
 
     def test_artifact_from_multi_insight_pads_quote_lists(self):
         """When insight_quotes_list is shorter than insight_texts, pad with []."""
@@ -311,6 +336,60 @@ class TestGILPipeline:
         """_char_range_to_ms returns (0, 0) when segments empty or no overlap."""
         assert _char_range_to_ms("hello", 0, 5, []) == (0, 0)
         assert _char_range_to_ms("", 0, 0, [{"start": 0.0, "end": 1.0, "text": "x"}]) == (0, 0)
+
+    def test_speaker_id_for_char_range_prefers_segment_at_char_start(self):
+        """_speaker_id_for_char_range uses speaker on segment containing char_start."""
+        transcript = "AA BB "
+        segments = [
+            {"start": 0.0, "end": 1.0, "text": "AA ", "speaker": "A"},
+            {"start": 1.0, "end": 2.0, "text": "BB ", "speaker": "B"},
+        ]
+        assert _speaker_id_for_char_range(transcript, 0, 2, segments) == "A"
+        assert _speaker_id_for_char_range(transcript, 3, 5, segments) == "B"
+
+    def test_speaker_id_for_char_range_accepts_speaker_id_key(self):
+        """Segment may use speaker_id instead of speaker."""
+        transcript = "x"
+        segments = [{"start": 0.0, "end": 1.0, "text": "x", "speaker_id": "SPK0"}]
+        assert _speaker_id_for_char_range(transcript, 0, 1, segments) == "SPK0"
+
+    def test_artifact_from_multi_insight_sets_speaker_id_from_segments(self):
+        """Quote speaker_id is filled when segments carry speaker labels."""
+        transcript = "First segment. Second segment."
+        segments = [
+            {"start": 0.0, "end": 1.5, "text": "First segment. ", "speaker": "Host"},
+            {"start": 1.5, "end": 3.0, "text": "Second segment.", "speaker": "Guest"},
+        ]
+        gq = GroundedQuote(
+            char_start=15,
+            char_end=32,
+            text="Second segment.",
+            qa_score=0.9,
+            nli_score=0.85,
+        )
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            ["Insight"],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+        )
+        quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
+        assert len(quote_nodes) == 1
+        assert quote_nodes[0]["properties"]["speaker_id"] == "Guest"
+        spoken = [e for e in out["edges"] if e["type"] == "SPOKEN_BY"]
+        assert len(spoken) == 1
+        assert spoken[0]["from"] == quote_nodes[0]["id"]
+        spk_nodes = [n for n in out["nodes"] if n["type"] == "Speaker"]
+        assert len(spk_nodes) == 1
+        assert spk_nodes[0]["properties"]["name"] == "Guest"
+        validate_artifact(out, strict=True)
 
     def test_char_range_to_ms_maps_span_to_timestamps(self):
         """_char_range_to_ms maps quote span to segment start/end in ms (FR2.2)."""
@@ -392,9 +471,19 @@ class TestGILPipeline:
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
         cfg.nli_device = None
+        cfg.gi_fail_on_missing_grounding = False
         provider = MagicMock()
         provider.generate_insights = MagicMock(return_value=["P1", "P2"])
-        with patch("podcast_scraper.gi.grounding.find_grounded_quotes", return_value=[]):
+        with (
+            patch(
+                "podcast_scraper.gi.deps.create_gil_evidence_providers",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(
+                "podcast_scraper.gi.grounding.find_grounded_quotes_via_providers",
+                return_value=[],
+            ),
+        ):
             out = build_artifact(
                 "ep:1",
                 "Transcript.",

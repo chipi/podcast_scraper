@@ -26,8 +26,8 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-015](PRD-015-engineering-governance-productivity.md) | Engineering Governance & Productivity Platform | RFC-018-024, 030, 031, 038, 039 | Integrated system for developer velocity and quality |
 | [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027 | System for managing operational health and visibility |
 | [PRD-017](PRD-017-grounded-insight-layer.md) | Grounded Insight Layer (GIL) | RFC-049, 050, 051 | Evidence-backed insights and quotes with grounding relationships |
-| [PRD-018](PRD-018-database-projection-gil-kg.md) | Database Projection for GIL and KG | RFC-049, 050, 051, 055 | Postgres projection of `gi.json` and KG artifacts (separate tables) |
-| [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-055 | Entities, topics, and relationships; separate from GIL / GI |
+| [PRD-018](PRD-018-database-projection-gil-kg.md) | Database Projection for GIL and KG | RFC-049, 050, 051, 055, 056 | Postgres projection of `gi.json` and KG artifacts (separate tables) |
+| [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-055, 056 | Entities, topics, and relationships; separate from GIL / GI |
 
 ## Completed PRDs
 

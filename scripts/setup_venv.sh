@@ -11,6 +11,11 @@ python3 -m venv "$VENV_DIR"
 "$VENV_DIR/bin/python" -m pip install --upgrade pip
 
 echo "Installing package in editable mode..."
+SPACY_WHEELS_DIR="$PROJECT_DIR/wheels/spacy"
+if compgen -G "$SPACY_WHEELS_DIR"/*.whl > /dev/null 2>&1; then
+  export PIP_FIND_LINKS="$SPACY_WHEELS_DIR"
+  echo "PIP_FIND_LINKS=$PIP_FIND_LINKS (using local wheels/spacy for pip)"
+fi
 "$VENV_DIR/bin/pip" install -e "$PROJECT_DIR"
 
 echo ""
@@ -24,10 +29,12 @@ Next steps:
 
 2. Install development dependencies (recommended):
    make init
-   # Or manually: pip install -e .[dev,ml]
+   # If wheels/spacy/*.whl exists (from: make download-spacy-wheels), make init uses it
+   # automatically — no need to export PIP_FIND_LINKS manually.
+   # Or manually: pip install -e .[dev,ml,gemini]  (set PIP_FIND_LINKS to wheels/spacy if needed)
 
 3. Set up environment variables (if using OpenAI providers):
-   cp examples/.env.example .env
+   cp config/examples/.env.example .env
    # Edit .env and add your OPENAI_API_KEY
 
 4. Run the CLI:

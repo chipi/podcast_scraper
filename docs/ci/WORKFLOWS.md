@@ -1012,19 +1012,18 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 **Duration:**
 - **PR builds (fast)**: ~3-5 minutes (lightweight, single image, no model preloading)
-- **Main builds (full)**: ~5-10 minutes (parallel builds, both images, with model preloading)
+- **Main builds (full)**: LLM-only ~5-10 minutes; ML variant with production preload is much longer (large downloads; parallel matrix)
 
 **PR Build (docker-build-fast):**
 - Runs only when `Dockerfile` or `.dockerignore` change
-- Builds only default image
-- Skips model preloading (`PRELOAD_ML_MODELS=false`)
+- Builds only the LLM-only image (`INSTALL_EXTRAS=`, no ML deps)
 - Fast feedback for Dockerfile changes
 
 **Main Build (docker-build-full):**
 - Runs on push to `main` branch
 - Uses matrix strategy for parallel builds:
-  - **Default image**: `PRELOAD_ML_MODELS=true`, `WHISPER_MODELS=base.en`
-  - **Multi-model image**: `PRELOAD_ML_MODELS=true`, `WHISPER_MODELS=tiny.en,base.en`
+  - **LLM-only**: `INSTALL_EXTRAS=` (no ML deps)
+  - **ML variant**: `INSTALL_EXTRAS=ml`, `PRELOAD_ML_MODELS=true` (production preload bundle)
 - Scoped caching per image type for better cache hits
 - Full validation with all models
 
@@ -1036,7 +1035,7 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 4. Build Docker image(s):
    - Uses `Dockerfile`
    - Caches layers using GitHub Actions cache
-   - BuildKit cache mounts for pip and model caches
+   - BuildKit cache mounts for pip (model files are baked into the image layer)
    - Tags: `podcast-scraper:test` (default) or `podcast-scraper:multi-model`
 5. Test Docker images:
    - Test `--help` command

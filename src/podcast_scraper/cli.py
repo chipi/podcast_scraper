@@ -18,6 +18,7 @@ from typing import (
     Dict,
     Iterator,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
@@ -28,7 +29,7 @@ from urllib.parse import urlparse
 
 from pydantic import ValidationError
 
-from . import __version__, config
+from . import __version__, config, config_constants
 from .utils import filesystem, progress
 from .workflow import orchestration as workflow
 from .workflow.stages import setup
@@ -733,6 +734,68 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         help="Max number of insights when using provider or summary_bullets (default: 5).",
     )
     parser.add_argument(
+        "--generate-kg",
+        action="store_true",
+        dest="generate_kg",
+        help="Generate Knowledge Graph (KG) artifacts (kg.json) per episode. "
+        "Requires generate_metadata. Separate from GIL; see docs/guides/KNOWLEDGE_GRAPH_GUIDE.md.",
+    )
+    parser.add_argument(
+        "--kg-extraction-source",
+        choices=["stub", "summary_bullets", "provider"],
+        default=None,
+        dest="kg_extraction_source",
+        help="KG extraction source: provider (LLM JSON), summary_bullets, or stub. "
+        "Default: summary_bullets. See KNOWLEDGE_GRAPH_GUIDE.md.",
+    )
+    parser.add_argument(
+        "--kg-max-topics",
+        type=int,
+        default=None,
+        metavar="N",
+        dest="kg_max_topics",
+        help="Max topic nodes (summary bullets or provider extraction). Default: 5.",
+    )
+    parser.add_argument(
+        "--kg-max-entities",
+        type=int,
+        default=None,
+        metavar="N",
+        dest="kg_max_entities",
+        help="Max entity nodes from provider KG extraction. Default: 15.",
+    )
+    parser.add_argument(
+        "--kg-extraction-model",
+        default=None,
+        dest="kg_extraction_model",
+        help="Optional model override for KG LLM extraction (uses summary model if omitted).",
+    )
+    parser.add_argument(
+        "--kg-extraction-provider",
+        choices=[
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ],
+        default=None,
+        dest="kg_extraction_provider",
+        help="When kg_extraction_source is provider, which backend runs extract_kg_graph "
+        "(default: same as summary_provider).",
+    )
+    parser.add_argument(
+        "--no-kg-merge-pipeline-entities",
+        action="store_false",
+        dest="kg_merge_pipeline_entities",
+        help="Do not merge detected hosts/guests after provider KG extraction.",
+    )
+    parser.set_defaults(kg_merge_pipeline_entities=True)
+    parser.add_argument(
         "--quote-extraction-provider",
         choices=[
             "transformers",
@@ -1352,6 +1415,43 @@ def _parse_doctor_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespa
     return args
 
 
+def _parse_pricing_assumptions_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse arguments for ``pricing-assumptions`` subcommand."""
+    parser = argparse.ArgumentParser(
+        description="Show LLM pricing assumptions YAML status and staleness hints.",
+        prog="podcast_scraper pricing-assumptions",
+    )
+    parser.add_argument(
+        "--file",
+        dest="assumptions_file",
+        type=str,
+        default="config/pricing_assumptions.yaml",
+        help="Path to pricing assumptions YAML (default: config/pricing_assumptions.yaml)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exit 1 when last_reviewed is older than stale_review_after_days in metadata",
+    )
+    return parser.parse_args(argv or [])
+
+
+def _run_pricing_assumptions(args: argparse.Namespace) -> int:
+    """Print pricing assumptions report; optional strict exit on stale metadata."""
+    from . import pricing_assumptions
+
+    path_cfg = str(getattr(args, "assumptions_file", "") or "").strip()
+    report = pricing_assumptions.format_status_report(path_cfg)
+    print(report, end="")
+    if getattr(args, "strict", False):
+        payload, _resolved = pricing_assumptions.get_loaded_table(path_cfg)
+        if payload:
+            stale, _msgs = pricing_assumptions.check_staleness(payload)
+            if stale:
+                return 1
+    return 0
+
+
 def _doctor_check_python() -> bool:
     """Check Python version; print result. Return True if OK."""
     import sys
@@ -1522,17 +1622,122 @@ def _run_doctor_checks(check_network: bool = False, check_models: bool = False) 
 
 
 def _run_gi(args: argparse.Namespace, log: Optional[logging.Logger] = None) -> int:
-    """Dispatch gi subcommand (inspect, show-insight, explore)."""
+    """Dispatch gi subcommand (validate, inspect, show-insight, explore, query)."""
     logger = log or _LOGGER
     sub = getattr(args, "gi_subcommand", None)
+    if sub == "validate":
+        return _run_gi_validate(args, logger=logger)
     if sub == "inspect":
         return _run_gi_inspect(args, logger=logger)
     if sub == "show-insight":
         return _run_gi_show_insight(args, logger=logger)
     if sub == "explore":
         return _run_gi_explore(args, logger=logger)
+    if sub == "query":
+        return _run_gi_query(args, logger=logger)
+    if sub == "export":
+        return _run_gi_export(args, logger=logger)
     logger.error("Unknown gi subcommand: %s", sub)
     return 1
+
+
+def _run_gi_export(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """Export all gi.json under a run as NDJSON or merged JSON (symmetric with ``kg export``)."""
+    import json
+    import sys
+
+    from .gi.contracts import build_gi_corpus_bundle_output
+    from .gi.corpus import export_merged_json, export_ndjson, load_gi_artifacts
+    from .gi.explore import EXIT_INVALID_ARGS, EXIT_NO_ARTIFACTS, EXIT_SUCCESS, scan_artifact_paths
+
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("--output-dir is required")
+        return EXIT_INVALID_ARGS
+    out_root = Path(output_dir)
+    if not out_root.is_dir():
+        logger.error("Output directory does not exist: %s", output_dir)
+        return EXIT_NO_ARTIFACTS
+    paths = scan_artifact_paths(out_root)
+    if not paths:
+        logger.error("No .gi.json artifacts found under %s", output_dir)
+        return EXIT_NO_ARTIFACTS
+    strict = getattr(args, "strict", False)
+    try:
+        loaded = load_gi_artifacts(paths, validate=True, strict=strict)
+    except Exception as e:
+        logger.error("Validation failed: %s", e)
+        return 1
+    if not loaded:
+        logger.error("No valid artifacts loaded")
+        return EXIT_NO_ARTIFACTS
+    fmt = getattr(args, "format", "ndjson")
+    out_file = getattr(args, "out", None)
+    if fmt == "ndjson":
+        if out_file:
+            Path(out_file).parent.mkdir(parents=True, exist_ok=True)
+            with open(out_file, "w", encoding="utf-8") as f:
+
+                def _write_ndj(s: str) -> None:
+                    f.write(s)
+
+                export_ndjson(loaded, output_dir=out_root, stream_write=_write_ndj)
+            logger.info("Wrote NDJSON to %s", out_file)
+        else:
+
+            def _write_stdout(s: str) -> None:
+                sys.stdout.write(s)
+
+            export_ndjson(loaded, output_dir=out_root, stream_write=_write_stdout)
+        return EXIT_SUCCESS
+    bundle = export_merged_json(loaded, output_dir=out_root)
+    validated = build_gi_corpus_bundle_output(bundle)
+    text = json.dumps(validated.model_dump(mode="json"), indent=2, ensure_ascii=False)
+    if out_file:
+        Path(out_file).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_file).write_text(text, encoding="utf-8")
+        logger.info("Wrote merged JSON to %s", out_file)
+    else:
+        print(text)
+    return EXIT_SUCCESS
+
+
+def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """Validate .gi.json files (parity with ``kg validate``)."""
+    from .gi.explore import EXIT_INVALID_ARGS, EXIT_NO_ARTIFACTS, EXIT_SUCCESS
+    from .gi.io import collect_gi_paths_from_inputs, read_artifact
+    from .gi.schema import validate_artifact
+
+    paths_arg = list(getattr(args, "paths", None) or [])
+    if not paths_arg:
+        logger.error("Provide one or more paths to .gi.json files or directories")
+        return EXIT_INVALID_ARGS
+    try:
+        paths = collect_gi_paths_from_inputs([Path(p) for p in paths_arg])
+    except (FileNotFoundError, ValueError) as e:
+        logger.error("%s", e)
+        return EXIT_INVALID_ARGS
+    if not paths:
+        logger.error("No .gi.json files found")
+        return EXIT_NO_ARTIFACTS
+    strict = getattr(args, "strict", False)
+    quiet = getattr(args, "quiet", False)
+    failed = 0
+    for path in paths:
+        try:
+            data = read_artifact(path)
+            validate_artifact(data, strict=strict)
+            if not quiet:
+                print(f"OK {path}")
+        except Exception as e:
+            failed += 1
+            logger.error("FAIL %s: %s", path, e)
+    if failed:
+        logger.error("%s of %s file(s) failed validation", failed, len(paths))
+        return 1
+    if not quiet:
+        print(f"All {len(paths)} file(s) passed validation.")
+    return EXIT_SUCCESS
 
 
 def _resolve_artifact_path_gi(args: argparse.Namespace) -> Optional[Path]:
@@ -1696,16 +1901,22 @@ def _run_gi_show_insight(args: argparse.Namespace, logger: logging.Logger) -> in
 
 
 def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
-    """Run gi explore: scan output_dir, filter by topic, print insights with quotes."""
+    """Run gi explore: scan output_dir, filter by topic/speaker, print insights with quotes."""
+    import json
+
     from .gi.explore import (
         build_explore_output,
         collect_insights,
         EXIT_INVALID_ARGS,
         EXIT_NO_ARTIFACTS,
         EXIT_NO_RESULTS,
+        EXIT_STRICT_VALIDATION_FAILED,
         EXIT_SUCCESS,
+        explore_output_to_rfc_dict,
+        ExploreValidationError,
         load_artifacts,
         scan_artifact_paths,
+        sort_insights,
     )
 
     output_dir = getattr(args, "output_dir", None)
@@ -1723,36 +1934,73 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
         return EXIT_NO_ARTIFACTS
 
     strict = getattr(args, "strict", False)
-    loaded = load_artifacts(paths, validate=strict, strict=strict)
+    try:
+        loaded = load_artifacts(paths, validate=strict, strict=strict)
+    except ExploreValidationError as e:
+        logger.error("Strict validation failed for %s: %s", e.path, e)
+        return EXIT_STRICT_VALIDATION_FAILED
+
     topic = getattr(args, "topic", None)
+    speaker = getattr(args, "speaker", None)
     grounded_only = getattr(args, "grounded_only", False)
     min_confidence = getattr(args, "min_confidence", None)
     limit = getattr(args, "limit", 50)
+    sort_by = getattr(args, "explore_sort", "confidence")
 
     insights = collect_insights(
         loaded,
         topic=topic,
+        speaker=speaker,
         grounded_only=grounded_only,
         min_confidence=min_confidence,
-        limit=limit,
+        limit=None,
     )
-    explore_out = build_explore_output(insights, episodes_searched=len(paths), topic=topic)
+    insights = sort_insights(
+        insights,
+        sort_by=cast(Literal["confidence", "time"], sort_by),
+    )
+    if limit and limit > 0:
+        insights = insights[:limit]
+
+    explore_out = build_explore_output(
+        insights,
+        episodes_searched=len(paths),
+        topic=topic,
+        speaker_filter=speaker,
+    )
 
     out_format = getattr(args, "format", "pretty")
     out_file = getattr(args, "out", None)
     if out_format == "json":
-        payload = explore_out.model_dump_json(indent=2)
+        payload = json.dumps(explore_output_to_rfc_dict(explore_out), indent=2)
     else:
         lines = [
             f"Topic: {explore_out.topic or '(all)'}",
+            f"Speaker filter: {explore_out.speaker_filter or '(none)'}",
             f"Episodes searched: {explore_out.episodes_searched}",
             f"Insights: {explore_out.summary.get('insight_count', 0)} "
             f"(grounded: {explore_out.summary.get('grounded_insight_count', 0)})",
             f"Quotes: {explore_out.summary.get('quote_count', 0)}",
+            f"Distinct speakers (quotes): {explore_out.summary.get('speaker_count', 0)}",
             "",
         ]
+        if explore_out.top_speakers:
+            lines.append("Top speakers (by quote count):")
+            for ts in explore_out.top_speakers[:10]:
+                sid = str(ts.speaker_id)
+                nm = (ts.name or "").strip()
+                if nm and nm.casefold() != sid.casefold():
+                    label = f"{sid} ({nm})"
+                else:
+                    label = sid
+                lines.append(f"  {label}: quotes={ts.quote_count}, insights={ts.insight_count}")
+            lines.append("")
         for ins in explore_out.insights:
-            lines.append(f"[{ins.insight_id}] {ins.episode_id} grounded={ins.grounded}")
+            ep_title = ins.episode_title or ""
+            lines.append(
+                f"[{ins.insight_id}] {ins.episode_id}"
+                f"{(' — ' + ep_title) if ep_title else ''} grounded={ins.grounded}"
+            )
             lines.append(f"  {ins.text}")
             for q in ins.supporting_quotes:
                 lines.append(
@@ -1766,8 +2014,60 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     else:
         print(payload)
 
-    if not insights and topic:
+    if not insights and (topic or speaker):
         return EXIT_NO_RESULTS
+    return EXIT_SUCCESS
+
+
+def _run_gi_query(args: argparse.Namespace, logger: logging.Logger) -> int:
+    """Run gi query: UC4 natural-language patterns → explore-style RFC JSON answer."""
+    import json
+
+    from .gi.explore import (
+        EXIT_INVALID_ARGS,
+        EXIT_NO_ARTIFACTS,
+        EXIT_SUCCESS,
+        run_uc4_semantic_qa,
+        scan_artifact_paths,
+    )
+
+    output_dir = getattr(args, "output_dir", None)
+    question = getattr(args, "question", None)
+    if not output_dir or not question or not str(question).strip():
+        logger.error("--output-dir and --question are required for gi query")
+        return EXIT_INVALID_ARGS
+    out_path = Path(output_dir)
+    if not out_path.is_dir():
+        logger.error("Output directory does not exist: %s", output_dir)
+        return EXIT_NO_ARTIFACTS
+    if not scan_artifact_paths(out_path):
+        logger.error("No .gi.json artifacts found under %s", output_dir)
+        return EXIT_NO_ARTIFACTS
+
+    limit = getattr(args, "query_limit", 20)
+    strict = getattr(args, "strict", False)
+    result = run_uc4_semantic_qa(out_path, question.strip(), limit=limit, strict=strict)
+    if result is None:
+        logger.error(
+            "Question did not match a supported pattern (RFC-050 UC4). Examples: "
+            "'What insights about X?', 'What insights are there about X?', "
+            "'What did Y say?', 'What did Y say about X?', "
+            "'Which topics have the most insights?', 'Top topics'."
+        )
+        return EXIT_INVALID_ARGS
+
+    fmt = getattr(args, "format", "json")
+    if fmt == "json":
+        print(json.dumps(result, indent=2))
+    else:
+        print(result.get("explanation", ""))
+        ans = result.get("answer")
+        if isinstance(ans, dict):
+            summ = ans.get("summary") or {}
+            print(
+                f"Insights: {summ.get('insight_count', 0)}  "
+                f"Episodes searched: {ans.get('episodes_searched', 0)}"
+            )
     return EXIT_SUCCESS
 
 
@@ -1822,12 +2122,34 @@ def _parse_cache_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespac
 
 
 def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
-    """Parse 'gi' subcommand arguments (inspect, show-insight, explore)."""
+    """Parse 'gi' subcommand arguments (validate, inspect, show-insight, explore, query)."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper gi",
         description="Inspect Grounded Insight Layer (GIL) artifacts (gi.json).",
     )
     subparsers = parser.add_subparsers(dest="gi_subcommand", required=True, help="Command")
+
+    val = subparsers.add_parser(
+        "validate",
+        help="Validate .gi.json files against schema (use --strict for full JSON Schema)",
+    )
+    val.add_argument(
+        "paths",
+        nargs="+",
+        metavar="PATH",
+        help="Files or directories containing .gi.json",
+    )
+    val.add_argument(
+        "--strict",
+        action="store_true",
+        help="Full JSON Schema validation (docs/gi/gi.schema.json)",
+    )
+    val.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Only print failures",
+    )
 
     # gi inspect
     inspect_parser = subparsers.add_parser("inspect", help="Inspect one episode's GIL artifact")
@@ -1883,7 +2205,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         type=str,
         required=True,
         metavar="INSIGHT_ID",
-        help="Insight node ID (e.g. insight:episode:0)",
+        help="Insight node id from gi.json (e.g. insight:a1b2c3d4e5f67890)",
     )
     show_parser.add_argument(
         "--output-dir",
@@ -1924,6 +2246,13 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         help="Topic filter (match Topic label or substring in insight text)",
     )
     explore_parser.add_argument(
+        "--speaker",
+        type=str,
+        default=None,
+        metavar="SUBSTRING",
+        help="Speaker filter: substring match on quote speaker_id or graph speaker name (UC2)",
+    )
+    explore_parser.add_argument(
         "--output-dir",
         type=str,
         required=True,
@@ -1950,6 +2279,13 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         help="Minimum insight confidence (0.0-1.0)",
     )
     explore_parser.add_argument(
+        "--sort",
+        choices=("confidence", "time"),
+        default="confidence",
+        dest="explore_sort",
+        help="Sort insights by confidence (desc) or episode publish_date (desc; RFC-050)",
+    )
+    explore_parser.add_argument(
         "--format",
         choices=("pretty", "json"),
         default="pretty",
@@ -1965,11 +2301,233 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
     explore_parser.add_argument(
         "--strict",
         action="store_true",
-        help="Skip artifacts that fail schema validation",
+        help="Fail on first artifact that fails schema validation (exit 5)",
+    )
+
+    # gi query (UC4: tiny pattern map → explore RFC answer)
+    query_parser = subparsers.add_parser(
+        "query",
+        help="Natural-language question → matched explore result (RFC-050 UC4)",
+    )
+    query_parser.add_argument(
+        "--question",
+        type=str,
+        required=True,
+        metavar="TEXT",
+        help="Question (e.g. 'What insights about inflation?' or 'What did Sam say?')",
+    )
+    query_parser.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        metavar="PATH",
+        help="Output directory containing metadata/*.gi.json",
+    )
+    query_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        metavar="N",
+        dest="query_limit",
+        help="Max insights in the answer (default: 20)",
+    )
+    query_parser.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="json",
+        help="Output format (default: json)",
+    )
+    query_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail on first artifact that fails schema validation (exit 5)",
+    )
+
+    gi_exp = subparsers.add_parser(
+        "export",
+        help="Export all gi.json under a run as NDJSON or merged JSON bundle (RFC-050 / kg parity)",
+    )
+    gi_exp.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        metavar="PATH",
+        help="Pipeline output directory to scan for .gi.json",
+    )
+    gi_exp.add_argument(
+        "--format",
+        choices=("ndjson", "merged"),
+        default="ndjson",
+        help="ndjson: one artifact per line; merged: single JSON document (default: ndjson)",
+    )
+    gi_exp.add_argument(
+        "--out",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Write to file (default: stdout)",
+    )
+    gi_exp.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail if any artifact fails strict schema validation",
     )
 
     args = parser.parse_args(gi_argv)
     args.command = "gi"
+    return args
+
+
+def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
+    """Parse 'kg' subcommand arguments (validate, inspect, export, entities, topics)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast_scraper kg",
+        description="Knowledge Graph (KG) tools for per-episode kg.json (RFC-056).",
+    )
+    subparsers = parser.add_subparsers(dest="kg_subcommand", required=True, help="Command")
+
+    val = subparsers.add_parser("validate", help="Validate .kg.json files against schema")
+    val.add_argument(
+        "paths",
+        nargs="+",
+        metavar="PATH",
+        help="Files or directories containing .kg.json",
+    )
+    val.add_argument(
+        "--strict",
+        action="store_true",
+        help="Full JSON Schema validation (requires docs/kg/kg.schema.json)",
+    )
+    val.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Only print failures",
+    )
+
+    ins = subparsers.add_parser("inspect", help="Summarize one episode KG artifact")
+    ins.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Output directory containing metadata/*.kg.json",
+    )
+    ins.add_argument(
+        "--episode-id",
+        type=str,
+        default=None,
+        help="Episode ID (artifact episode_id field); required if not using --episode-path",
+    )
+    ins.add_argument(
+        "--episode-path",
+        type=str,
+        default=None,
+        help="Path to .kg.json (or directory containing one .kg.json)",
+    )
+    ins.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail if artifact does not pass strict schema validation",
+    )
+    ins.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="pretty",
+        help="Output format (default: pretty)",
+    )
+
+    exp = subparsers.add_parser(
+        "export",
+        help="Export all kg.json under a run as NDJSON or merged JSON bundle",
+    )
+    exp.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        metavar="PATH",
+        help="Pipeline output directory to scan for .kg.json",
+    )
+    exp.add_argument(
+        "--format",
+        choices=("ndjson", "merged"),
+        default="ndjson",
+        help="ndjson: one artifact per line; merged: single JSON document (default: ndjson)",
+    )
+    exp.add_argument(
+        "--out",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Write to file (default: stdout)",
+    )
+    exp.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail if any artifact fails strict schema validation",
+    )
+
+    ent = subparsers.add_parser(
+        "entities",
+        help="Cross-episode roll-up of Entity nodes (episode counts, mentions)",
+    )
+    ent.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        metavar="PATH",
+        help="Pipeline output directory to scan",
+    )
+    ent.add_argument(
+        "--min-episodes",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Minimum distinct episodes for an entity to appear (default: 1)",
+    )
+    ent.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="pretty",
+        help="Output format (default: pretty)",
+    )
+    ent.add_argument(
+        "--strict",
+        action="store_true",
+        help="Skip artifacts that fail strict schema validation",
+    )
+
+    top = subparsers.add_parser(
+        "topics",
+        help="Topic pair co-occurrence within the same episode",
+    )
+    top.add_argument(
+        "--output-dir",
+        type=str,
+        required=True,
+        metavar="PATH",
+        help="Pipeline output directory to scan",
+    )
+    top.add_argument(
+        "--min-support",
+        type=int,
+        default=1,
+        metavar="N",
+        help="Minimum episodes in which the pair appears (default: 1)",
+    )
+    top.add_argument(
+        "--format",
+        choices=("pretty", "json"),
+        default="pretty",
+        help="Output format (default: pretty)",
+    )
+    top.add_argument(
+        "--strict",
+        action="store_true",
+        help="Skip artifacts that fail strict schema validation",
+    )
+
+    args = parser.parse_args(kg_argv)
+    args.command = "kg"
     return args
 
 
@@ -1979,6 +2537,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     if argv and len(argv) > 0 and argv[0] == "gi":
         gi_argv = list(argv[1:]) if len(argv) > 1 else []
         return _parse_gi_args(gi_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "kg":
+        kg_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_kg_args(kg_argv)
 
     # Check if first argument is "cache" subcommand
     if argv and len(argv) > 0 and argv[0] == "cache":
@@ -1994,6 +2556,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         doctor_argv = list(argv[1:]) if len(argv) > 1 else []
         args = _parse_doctor_args(doctor_argv)
         args.command = "doctor"  # Mark as doctor command
+        return args
+
+    if argv and len(argv) > 0 and argv[0] == "pricing-assumptions":
+        pa_argv = list(argv[1:]) if len(argv) > 1 else []
+        args = _parse_pricing_assumptions_args(pa_argv)
+        args.command = "pricing-assumptions"
         return args
 
     # Normal parsing for main command
@@ -2072,9 +2640,24 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "metadata_format": args.metadata_format,
         "metadata_subdirectory": args.metadata_subdirectory,
         "generate_gi": getattr(args, "generate_gi", False),
+        "generate_kg": getattr(args, "generate_kg", False),
+        "kg_extraction_source": getattr(args, "kg_extraction_source", None) or "summary_bullets",
+        "kg_max_topics": (
+            config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+            if getattr(args, "kg_max_topics", None) is None
+            else args.kg_max_topics
+        ),
+        "kg_max_entities": (
+            15 if getattr(args, "kg_max_entities", None) is None else args.kg_max_entities
+        ),
+        "kg_extraction_model": getattr(args, "kg_extraction_model", None),
+        "kg_extraction_provider": getattr(args, "kg_extraction_provider", None),
+        "kg_merge_pipeline_entities": getattr(args, "kg_merge_pipeline_entities", True),
         "gi_insight_source": getattr(args, "gi_insight_source", None) or "stub",
         "gi_max_insights": (
-            5 if getattr(args, "gi_max_insights", None) is None else args.gi_max_insights
+            config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+            if getattr(args, "gi_max_insights", None) is None
+            else args.gi_max_insights
         ),
         "quote_extraction_provider": getattr(args, "quote_extraction_provider", None),
         "entailment_provider": getattr(args, "entailment_provider", None),
@@ -2275,147 +2858,290 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         and args.transcript_cleaning_strategy is not None
     ):
         payload["transcript_cleaning_strategy"] = args.transcript_cleaning_strategy
+    # GIL / evidence tuning from config file: _load_and_merge_config puts these on args via
+    # set_defaults(model_dump); they must be copied here or CLI runs ignore YAML (Issue: gi_qa
+    # thresholds appeared to "do nothing").
+    _gil_tuning_keys = (
+        "gi_require_grounding",
+        "gi_fail_on_missing_grounding",
+        "gi_evidence_extract_retries",
+        "gi_qa_score_min",
+        "gi_nli_entailment_min",
+        "gi_qa_window_chars",
+        "gi_qa_window_overlap_chars",
+        "gi_qa_model",
+        "gi_nli_model",
+        "gi_embedding_model",
+        "extractive_qa_device",
+        "nli_device",
+    )
+    for _gil_key in _gil_tuning_keys:
+        if hasattr(args, _gil_key):
+            payload[_gil_key] = getattr(args, _gil_key)
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
 
-def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
-    """Log all configuration values in a structured format.
+def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> None:
+    """Log a compact two-line config summary at INFO."""
+    ep = cfg.max_episodes if cfg.max_episodes is not None else "all"
+    if cfg.transcribe_missing:
+        parts = [f"on:{cfg.transcription_provider}", f"screenplay={cfg.screenplay}"]
+        if cfg.transcription_provider == "whisper":
+            parts.insert(1, f"whisper_model={cfg.whisper_model}")
+        transcribe = ",".join(parts)
+    else:
+        transcribe = "off"
+    summ = f"on:{cfg.summary_provider}" if cfg.generate_summaries else "off"
+    meta = f"on:{cfg.metadata_format}" if cfg.generate_metadata else "off"
+    gi = "on" if cfg.generate_gi else "off"
+    kg = "on" if getattr(cfg, "generate_kg", False) else "off"
+    flag_parts = []
+    if cfg.skip_existing:
+        flag_parts.append("skip_existing")
+    if cfg.reuse_media:
+        flag_parts.append("reuse_media")
+    if cfg.clean_output:
+        flag_parts.append("clean_output")
+    if cfg.dry_run:
+        flag_parts.append("dry_run")
+    flags_s = ",".join(flag_parts) if flag_parts else "none"
+    logger.info(
+        "config: rss=%s | out=%s | episodes=%s | workers=%s | log=%s | log_file=%s | run_id=%s",
+        cfg.rss_url,
+        cfg.output_dir,
+        ep,
+        cfg.workers,
+        cfg.log_level,
+        cfg.log_file or "console",
+        cfg.run_id or "-",
+    )
+    logger.info(
+        "config: http timeout=%ss delay=%sms | transcribe=%s | speakers=%s lang=%s ner=%s | "
+        "summary=%s | metadata=%s | gi=%s | kg=%s | flags=%s",
+        cfg.timeout,
+        cfg.delay_ms,
+        transcribe,
+        "on" if cfg.auto_speakers else "off",
+        cfg.language,
+        cfg.ner_model or "-",
+        summ,
+        meta,
+        gi,
+        kg,
+        flags_s,
+    )
+    if cfg.generate_gi:
+        logger.info(
+            "config: gi evidence: qa_min=%s nli_min=%s | quote=%s entail=%s | gi_embedding=%s",
+            cfg.gi_qa_score_min,
+            cfg.gi_nli_entailment_min,
+            getattr(cfg, "quote_extraction_provider", "transformers"),
+            getattr(cfg, "entailment_provider", "transformers"),
+            cfg.gi_embedding_model,
+        )
 
-    Args:
-        cfg: Configuration object
-        logger: Logger instance to use
-    """
-    logger.info("=" * 80)
-    logger.info("Configuration")
-    logger.info("=" * 80)
+
+def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logger) -> None:
+    """Surface important misconfigurations at WARNING (always, not only in DEBUG detail)."""
+    if (
+        cfg.generate_gi
+        and getattr(cfg, "gi_insight_source", "stub") == "stub"
+        and not config._is_test_environment()
+    ):
+        logger.warning(
+            "GIL: gi_insight_source is 'stub' — insight text is a placeholder. "
+            "For real wording use gi_insight_source: summary_bullets (with "
+            "generate_summaries and summary bullets) or provider with an LLM "
+            "summary_provider. ML providers (transformers, hybrid_ml) do not "
+            "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
+        )
+    _kg_eff = getattr(cfg, "kg_extraction_provider", None) or getattr(cfg, "summary_provider", "")
+    if (
+        getattr(cfg, "generate_kg", False)
+        and getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider"
+        and _kg_eff in ("transformers", "hybrid_ml")
+        and not config._is_test_environment()
+    ):
+        logger.warning(
+            "KG: kg_extraction_source is 'provider' but the effective KG backend "
+            "(kg_extraction_provider or summary_provider) is ML — "
+            "extract_kg_graph is a no-op; pipeline falls back to summary bullets "
+            "when available, else episode + hosts/guests only."
+        )
+
+
+def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> None:
+    """Full config breakdown (DEBUG only)."""
+    d = logger.debug
+    d("=" * 80)
+    d("Configuration (detail)")
+    d("=" * 80)
 
     # Core settings
-    logger.info("Core Settings:")
-    logger.info(f"  RSS URL: {cfg.rss_url}")
-    logger.info(f"  Output Directory: {cfg.output_dir}")
-    logger.info(f"  Max Episodes: {cfg.max_episodes or 'all'}")
-    logger.info(f"  Workers: {cfg.workers}")
-    logger.info(f"  Log Level: {cfg.log_level}")
-    logger.info(f"  Log File: {cfg.log_file or 'console only'}")
-    logger.info(f"  Run ID: {cfg.run_id or 'none'}")
+    d("Core Settings:")
+    d(f"  RSS URL: {cfg.rss_url}")
+    d(f"  Output Directory: {cfg.output_dir}")
+    d(f"  Max Episodes: {cfg.max_episodes or 'all'}")
+    d(f"  Workers: {cfg.workers}")
+    d(f"  Log Level: {cfg.log_level}")
+    d(f"  Log File: {cfg.log_file or 'console only'}")
+    d(f"  Run ID: {cfg.run_id or 'none'}")
 
     # HTTP settings
-    logger.info("HTTP Settings:")
-    logger.info(f"  Timeout: {cfg.timeout}s")
-    logger.info(f"  Delay: {cfg.delay_ms}ms")
-    logger.info(
+    d("HTTP Settings:")
+    d(f"  Timeout: {cfg.timeout}s")
+    d(f"  Delay: {cfg.delay_ms}ms")
+    d(
         f"  User-Agent: {cfg.user_agent[:50]}..."
         if len(cfg.user_agent) > 50
         else f"  User-Agent: {cfg.user_agent}"
     )
-    logger.info(f"  Prefer Types: {cfg.prefer_types if cfg.prefer_types else 'none'}")
+    d(f"  Prefer Types: {cfg.prefer_types if cfg.prefer_types else 'none'}")
 
     # Transcription settings
-    logger.info("Transcription Settings:")
-    logger.info(f"  Transcribe Missing: {cfg.transcribe_missing}")
+    d("Transcription Settings:")
+    d(f"  Transcribe Missing: {cfg.transcribe_missing}")
     if cfg.transcribe_missing:
-        logger.info(f"  Whisper Model: {cfg.whisper_model}")
-        logger.info(f"  Screenplay Format: {cfg.screenplay}")
+        d(f"  Whisper Model: {cfg.whisper_model}")
+        d(f"  Screenplay Format: {cfg.screenplay}")
         if cfg.screenplay:
-            logger.info(f"  Screenplay Gap: {cfg.screenplay_gap_s}s")
-            logger.info(f"  Number of Speakers: {cfg.screenplay_num_speakers}")
+            d(f"  Screenplay Gap: {cfg.screenplay_gap_s}s")
+            d(f"  Number of Speakers: {cfg.screenplay_num_speakers}")
             if cfg.screenplay_speaker_names:
-                logger.info(f"  Speaker Names: {', '.join(cfg.screenplay_speaker_names)}")
+                d(f"  Speaker Names: {', '.join(cfg.screenplay_speaker_names)}")
 
     # Speaker detection settings
-    logger.info("Speaker Detection Settings:")
-    logger.info(f"  Auto Speakers: {cfg.auto_speakers}")
-    logger.info(f"  Language: {cfg.language}")
+    d("Speaker Detection Settings:")
+    d(f"  Auto Speakers: {cfg.auto_speakers}")
+    d(f"  Language: {cfg.language}")
     if cfg.ner_model:
-        logger.info(f"  NER Model: {cfg.ner_model}")
-    logger.info(f"  Cache Detected Hosts: {cfg.cache_detected_hosts}")
+        d(f"  NER Model: {cfg.ner_model}")
+    d(f"  Cache Detected Hosts: {cfg.cache_detected_hosts}")
 
     # Metadata settings
-    logger.info("Metadata Settings:")
-    logger.info(f"  Generate Metadata: {cfg.generate_metadata}")
+    d("Metadata Settings:")
+    d(f"  Generate Metadata: {cfg.generate_metadata}")
     if cfg.generate_metadata:
-        logger.info(f"  Metadata Format: {cfg.metadata_format}")
+        d(f"  Metadata Format: {cfg.metadata_format}")
         if cfg.metadata_subdirectory:
-            logger.info(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
+            d(f"  Metadata Subdirectory: {cfg.metadata_subdirectory}")
         else:
-            logger.info("  Metadata Subdirectory: same as transcripts")
+            d("  Metadata Subdirectory: same as transcripts")
 
     # Summarization settings
-    logger.info("Summarization Settings:")
-    logger.info(f"  Generate Summaries: {cfg.generate_summaries}")
+    d("Summarization Settings:")
+    d(f"  Generate Summaries: {cfg.generate_summaries}")
     if cfg.generate_summaries:
-        logger.info(f"  Summary Provider: {cfg.summary_provider}")
+        d(f"  Summary Provider: {cfg.summary_provider}")
         if cfg.summary_provider == "transformers":
             if cfg.summary_model:
-                logger.info(f"  Summary Model: {cfg.summary_model}")
+                d(f"  Summary Model: {cfg.summary_model}")
             else:
-                logger.info("  Summary Model: auto-selected")
-            logger.info(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
+                d("  Summary Model: auto-selected")
+            d(f"  Summary Device: {cfg.summary_device or 'auto-detect'}")
             if cfg.summary_chunk_size:
-                logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
+                d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
         elif cfg.summary_provider == "hybrid_ml":
-            logger.info(
+            d(
                 f"  Hybrid MAP: {getattr(cfg, 'hybrid_map_model', 'longt5-base')}, "
                 f"REDUCE: {getattr(cfg, 'hybrid_reduce_model', 'google/flan-t5-base')}"
             )
-            logger.info(
-                f"  Hybrid REDUCE backend: {getattr(cfg, 'hybrid_reduce_backend', 'transformers')}"
-            )
-            logger.info(
+            d(f"  Hybrid REDUCE backend: {getattr(cfg, 'hybrid_reduce_backend', 'transformers')}")
+            d(
                 f"  Hybrid devices: MAP={getattr(cfg, 'hybrid_map_device', None) or 'default'}, "
                 f"REDUCE={getattr(cfg, 'hybrid_reduce_device', None) or 'default'}"
             )
             if cfg.summary_chunk_size:
-                logger.info(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
-        logger.info(
-            f"  Summary Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
-            f"min_new_tokens={cfg.summary_map_params.get('min_new_tokens')}"
-        )
-        logger.info(
-            f"  Summary Reduce: max_new_tokens={cfg.summary_reduce_params.get('max_new_tokens')}, "
-            f"min_new_tokens={cfg.summary_reduce_params.get('min_new_tokens')}"
+                d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")
+        d(
+            "  Summary map/reduce tokens: map max=%s min=%s | reduce max=%s min=%s",
+            cfg.summary_map_params.get("max_new_tokens"),
+            cfg.summary_map_params.get("min_new_tokens"),
+            cfg.summary_reduce_params.get("max_new_tokens"),
+            cfg.summary_reduce_params.get("min_new_tokens"),
         )
         if cfg.summary_map_params and cfg.summary_reduce_params and cfg.summary_tokenize:
-            logger.info(
-                "  Using explicit ML parameters from config (map_params/reduce_params/tokenize)"
-            )
-            logger.info(
-                f"    Map: max_new_tokens={cfg.summary_map_params.get('max_new_tokens')}, "
-                f"num_beams={cfg.summary_map_params.get('num_beams')}"
-            )
-            logger.info(
-                f"    Reduce: max_new_tokens={cfg.summary_reduce_params.get('max_new_tokens')}, "
-                f"num_beams={cfg.summary_reduce_params.get('num_beams')}"
+            d(
+                "  Summary beams (explicit map/reduce/tokenize): map=%s reduce=%s",
+                cfg.summary_map_params.get("num_beams"),
+                cfg.summary_reduce_params.get("num_beams"),
             )
         if cfg.summary_prompt:
-            logger.info(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
+            d(f"  Summary Prompt: {cfg.summary_prompt[:80]}...")
 
-    # Grounded Insights (GIL)
-    logger.info("Grounded Insights (GIL):")
-    logger.info(f"  Generate GI: {cfg.generate_gi}")
+    # Grounded Insights (GIL) — warnings logged separately at WARNING
+    d("Grounded Insights (GIL):")
+    d(f"  Generate GI: {cfg.generate_gi}")
     if cfg.generate_gi:
-        logger.info(f"  GI require grounding: {getattr(cfg, 'gi_require_grounding', True)}")
-        logger.info(f"  GI insight model: {getattr(cfg, 'gi_insight_model', 'stub')}")
-        logger.info(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
-        logger.info(f"  GI max insights: {getattr(cfg, 'gi_max_insights', 5)}")
-        logger.info(
+        d(f"  GI require grounding: {getattr(cfg, 'gi_require_grounding', True)}")
+        d(
+            f"  GI fail on missing grounding: "
+            f"{getattr(cfg, 'gi_fail_on_missing_grounding', False)}"
+        )
+        d(f"  GI insight source: {getattr(cfg, 'gi_insight_source', 'stub')}")
+        _gi_max = getattr(
+            cfg,
+            "gi_max_insights",
+            config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+        )
+        d(f"  GI max insights: {_gi_max}")
+        d(
             "  Quote extraction provider: %s",
             getattr(cfg, "quote_extraction_provider", "transformers"),
         )
-        logger.info(
+        d(
             "  Entailment provider: %s",
             getattr(cfg, "entailment_provider", "transformers"),
         )
+        d("  GI QA score min: %s", cfg.gi_qa_score_min)
+        d("  GI NLI entailment min: %s", cfg.gi_nli_entailment_min)
+        d("  GI embedding model: %s", getattr(cfg, "gi_embedding_model", ""))
+        d("  GI QA model: %s", getattr(cfg, "gi_qa_model", ""))
+        d("  GI NLI model: %s", getattr(cfg, "gi_nli_model", ""))
 
-    # Processing options
-    logger.info("Processing Options:")
-    logger.info(f"  Skip Existing: {cfg.skip_existing}")
-    logger.info(f"  Reuse Media: {cfg.reuse_media}")
-    logger.info(f"  Clean Output: {cfg.clean_output}")
-    logger.info(f"  Dry Run: {cfg.dry_run}")
+    d("Knowledge Graph (KG):")
+    d(f"  Generate KG: {getattr(cfg, 'generate_kg', False)}")
+    if getattr(cfg, "generate_kg", False):
+        d(
+            "  KG extraction source: %s",
+            getattr(cfg, "kg_extraction_source", "summary_bullets"),
+        )
+        _kep = getattr(cfg, "kg_extraction_provider", None)
+        if _kep:
+            d("  KG extraction provider: %s", _kep)
+        elif getattr(cfg, "kg_extraction_source", "summary_bullets") == "provider":
+            d("  KG extraction provider: (same as summary_provider)")
+        d(
+            "  KG max topics: %s",
+            getattr(cfg, "kg_max_topics", config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX),
+        )
+        d("  KG max entities: %s", getattr(cfg, "kg_max_entities", 15))
+        d(
+            "  KG merge pipeline entities: %s",
+            getattr(cfg, "kg_merge_pipeline_entities", True),
+        )
+        km = getattr(cfg, "kg_extraction_model", None)
+        if km:
+            d("  KG extraction model override: %s", km)
 
-    logger.info("=" * 80)
+    d(
+        "Processing Options: skip_existing=%s reuse_media=%s clean_output=%s dry_run=%s",
+        cfg.skip_existing,
+        cfg.reuse_media,
+        cfg.clean_output,
+        cfg.dry_run,
+    )
+
+    d("=" * 80)
+
+
+def _log_configuration(cfg: config.Config, logger: logging.Logger) -> None:
+    """Log config: compact INFO summary, runtime warnings, optional DEBUG detail."""
+    _log_configuration_summary(cfg, logger)
+    _log_configuration_runtime_warnings(cfg, logger)
+    if logger.isEnabledFor(logging.DEBUG):
+        _log_configuration_detail(cfg, logger)
 
 
 def _validate_python_version() -> None:
@@ -2464,8 +3190,19 @@ def main(  # noqa: C901 - main function handles multiple command paths
         argv = sys.argv[1:]
     # Validate Python version and dependencies at startup (Issue #379)
     _validate_python_version()
-    # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi subcommands
-    if argv and len(argv) > 0 and argv[0] in ("cache", "doctor", "gi"):
+    # Only validate ffmpeg for main pipeline command, not for cache/doctor/gi/kg subcommands
+    if (
+        argv
+        and len(argv) > 0
+        and argv[0]
+        in (
+            "cache",
+            "doctor",
+            "gi",
+            "kg",
+            "pricing-assumptions",
+        )
+    ):
         pass  # Skip ffmpeg check for subcommands
     else:
         _validate_ffmpeg()
@@ -2496,9 +3233,18 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_models=getattr(args, "check_models", False),
         )
 
+    if hasattr(args, "command") and args.command == "pricing-assumptions":
+        return _run_pricing_assumptions(args)
+
     # Handle gi subcommand (#438)
     if hasattr(args, "command") and args.command == "gi":
         return _run_gi(args, log=log)
+
+    # Handle kg subcommand (RFC-056)
+    if hasattr(args, "command") and args.command == "kg":
+        from .kg.cli_handlers import run_kg
+
+        return run_kg(args, log)
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":

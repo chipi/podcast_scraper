@@ -46,11 +46,17 @@ class TestTransformersReduceBackend(unittest.TestCase):
         self.assertIn("Takeaways", out.text)
 
     def test_initialize_short_circuits_when_pipeline_already_set(self) -> None:
+        """Early return: avoid importing transformers in this test.
+
+        Patching ``transformers.*`` forces importing Hugging Face code, which can
+        flake when another test leaves ``openai`` mocked in ``sys.modules`` without
+        ``__spec__`` (optional-dependency checks at import time).
+        """
         backend = TransformersReduceBackend("m", "cpu", None)
-        backend._pipeline = MagicMock()
-        with patch("transformers.AutoTokenizer.from_pretrained") as mock_tok:
-            backend.initialize()
-        mock_tok.assert_not_called()
+        existing = MagicMock()
+        backend._pipeline = existing
+        backend.initialize()
+        self.assertIs(backend._pipeline, existing)
 
     def test_cleanup_clears_pipeline(self) -> None:
         backend = TransformersReduceBackend("m", "cpu", None)
@@ -191,6 +197,12 @@ class TestHybridMLProviderBehavior(unittest.TestCase):
         cfg = Config(rss="https://example.com/f.xml", summary_provider="hybrid_ml")
         p = HybridMLProvider(cfg)
         self.assertAlmostEqual(p.score_entailment("p", "h"), 0.73)
+
+    def test_extract_kg_graph_not_implemented_returns_none(self) -> None:
+        """Hybrid ML has no remote KG extraction; matches MLProvider contract."""
+        cfg = Config(rss="https://example.com/f.xml", summary_provider="hybrid_ml")
+        p = HybridMLProvider(cfg)
+        self.assertIsNone(p.extract_kg_graph("transcript"))
 
     @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
     def test_score_entailment_empty_inputs(self, mock_score: MagicMock) -> None:

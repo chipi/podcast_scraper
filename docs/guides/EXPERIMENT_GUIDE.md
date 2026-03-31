@@ -670,6 +670,21 @@ golden_required: true
 golden_ref: "data/eval"  # Path to golden references
 ```
 
+### Grounded insights (GIL) and knowledge graph (KG) experiments
+
+For **transcript-only** evaluation on a materialized dataset (no RSS run), use **separate**
+configs and runs—one task per YAML:
+
+- **`task: grounded_insights`** with **`backend.type: eval_stub`** → `predictions.jsonl` rows
+  include `output.gil` (GIL-shaped dict). Sample:
+  `data/eval/configs/gil_eval_stub_curated_5feeds_smoke_v1.yaml`.
+- **`task: knowledge_graph`** with **`backend.type: eval_stub`** → `output.kg`. Sample:
+  `data/eval/configs/kg_eval_stub_curated_5feeds_smoke_v1.yaml`.
+
+Details, gold reference layout (`references/gold/gil/`, `references/gold/kg/`), and metrics
+schemas: `data/eval/README.md` and `data/eval/configs/README.md`. Provider/coupled-summary
+modes are **not** wired into `run_experiment` yet (only `eval_stub` is validated today).
+
 ### Data Configuration Modes
 
 The experiment runner supports two data configuration modes:
@@ -929,9 +944,14 @@ References can be:
   - Silver: `data/eval/references/silver/<reference_id>/`
   - Gold NER: `data/eval/references/gold/ner_entities/<reference_id>/`
   - Gold Summarization: `data/eval/references/gold/summarization/<reference_id>/`
+  - Gold GIL: `data/eval/references/gold/gil/<reference_id>/` (`{episode_id}.json` per episode)
+  - Gold KG: `data/eval/references/gold/kg/<reference_id>/` (`{episode_id}.json` per episode)
 - **Legacy baselines**: `benchmarks/baselines/<baseline_id>/`
 
-Each reference must have a `predictions.jsonl` file with the same episode IDs as your run.
+**Reference payloads:** Silver references and summarization-style gold often include
+`predictions.jsonl` with the same episode IDs as your run. Gold **NER**, **GIL**, and **KG**
+may instead use per-episode JSON files only (no `predictions.jsonl`); `rescore_baseline` and
+baseline materialization accept either pattern when resolving references.
 
 #### vs_reference Metrics Computed
 
@@ -1071,8 +1091,7 @@ The comparator generates comparison files with deltas:
 For every reference (baseline/silver/gold), the system enforces:
 
 1. **Episode ID match**: Episode IDs match exactly (no missing/extra)
-2. **Episode ID match**: Episode IDs match exactly (no missing/extra)
-3. **Immutable**: Reference is write-once (cannot be overwritten)
+2. **Immutable**: Reference is write-once (cannot be overwritten)
 
 If any of these fail → scoring refuses to run.
 
@@ -1098,6 +1117,15 @@ references/gold/ner_entities/{reference_id}/
 references/gold/summarization/{reference_id}/
 ├── predictions.jsonl      # Gold summaries per episode
 └── README.md              # Reference documentation
+
+# Gold GIL / KG references (eval vs_reference)
+references/gold/gil/{reference_id}/
+├── {episode_id}.json      # Gold GIL payload per episode (same shape as output.gil)
+└── README.md              # Optional
+
+references/gold/kg/{reference_id}/
+├── {episode_id}.json      # Gold KG payload per episode (same shape as output.kg)
+└── README.md              # Optional
 ```
 
 **Note:** A baseline can be promoted to a reference pack if you want. That's fine.

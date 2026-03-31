@@ -94,6 +94,7 @@ class TranscriptionJob:
         temp_media: Path to the temporary downloaded media file to transcribe.
         detected_speaker_names: Optional list of speaker names detected from episode
             metadata or show notes. Used for screenplay formatting if available.
+        episode: Optional reference to the source Episode (for metrics and stable IDs).
 
     Example:
         >>> job = TranscriptionJob(
@@ -110,3 +111,7 @@ class TranscriptionJob:
     ep_title_safe: str
     temp_media: str
     detected_speaker_names: Optional[List[str]] = None
+    episode: Optional[Episode] = None
+    # Wall time for the media HTTP download (set when enqueueing Whisper jobs). Recorded in
+    # metrics only after a transcript-cache miss so cache hits stay 0 for download_media_time.
+    media_download_elapsed: Optional[float] = None

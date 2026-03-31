@@ -32,13 +32,19 @@ class HybridCleaner:
         self.pattern_cleaner = PatternBasedCleaner()
         self.llm_cleaner = LLMBasedCleaner()
 
-    def clean(self, text: str, provider: Optional[Any] = None) -> str:
+    def clean(
+        self,
+        text: str,
+        provider: Optional[Any] = None,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> str:
         """Clean transcript using hybrid approach.
 
         Args:
             text: Raw transcript text
             provider: Optional provider instance for LLM cleaning.
                 If None, only pattern-based cleaning is used.
+            pipeline_metrics: Optional pipeline ``Metrics`` for LLM token accounting
 
         Returns:
             Cleaned transcript text
@@ -50,7 +56,9 @@ class HybridCleaner:
         if provider is not None and self._needs_llm_cleaning(text, cleaned, provider):
             logger.debug("Pattern-based cleaning likely insufficient, using LLM cleaning")
             try:
-                cleaned = self.llm_cleaner.clean(cleaned, provider)
+                cleaned = self.llm_cleaner.clean(
+                    cleaned, provider, pipeline_metrics=pipeline_metrics
+                )
             except Exception as e:
                 logger.warning(f"LLM cleaning failed, using pattern-cleaned text: {e}")
                 # Continue with pattern-cleaned text if LLM fails

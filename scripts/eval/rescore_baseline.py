@@ -42,7 +42,7 @@ def find_reference_path(reference_id: str, dataset_id: str) -> Path:
         return silver_path
 
     # Check gold references (references/gold/{task}/{reference_id})
-    for task in ("ner_entities", "summarization"):
+    for task in ("ner_entities", "summarization", "gil", "kg"):
         gold_path = Path("data/eval/references/gold") / task / reference_id
         if gold_path.exists():
             return gold_path
@@ -108,8 +108,15 @@ def _collect_reference_paths(reference_ids: list[str], dataset_id: str) -> dict[
     for ref_id in reference_ids:
         try:
             ref_path = find_reference_path(ref_id, dataset_id)
-            if not (ref_path / "predictions.jsonl").exists():
-                logger.warning("Reference '%s' missing predictions.jsonl, skipping", ref_id)
+            has_pred_jsonl = (ref_path / "predictions.jsonl").exists()
+            gold_json_eps = [
+                p for p in ref_path.glob("*.json") if p.is_file() and p.name != "index.json"
+            ]
+            if not has_pred_jsonl and not gold_json_eps:
+                logger.warning(
+                    "Reference '%s' missing predictions.jsonl and per-episode gold JSON; skipping",
+                    ref_id,
+                )
                 continue
             reference_paths[ref_id] = ref_path
             logger.info("Found reference '%s' at %s", ref_id, ref_path)
@@ -186,11 +193,13 @@ def rescore_baseline(
         raise ValueError("No valid references found")
     metrics_path = baseline_dir / "metrics.json"
     run_id = existing_metrics.get("run_id", baseline_id) if existing_metrics else baseline_id
+    task_kw = existing_metrics.get("task") if existing_metrics else None
     metrics = score_run(
         predictions_path=baseline_dir / "predictions.jsonl",
         dataset_id=dataset_id,
         run_id=run_id,
         reference_paths=reference_paths,
+        task=task_kw,
     )
     metrics_path.write_text(
         json.dumps(metrics, indent=2, ensure_ascii=False),

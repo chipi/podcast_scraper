@@ -850,6 +850,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
 - [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
 - [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
+- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/kg/*.yaml` (including `acceptance_planet_money_kg_grok.yaml` for Grok + provider KG).
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
 - [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)
@@ -997,14 +998,25 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 **Unit Tests:**
 
 - [x] `gi/schema.py` — JSON schema validation (`test_schema.py`)
-- [x] `gi/io.py` — read/write gi.json (`test_io.py`)
+- [x] `gi/io.py` — read/write gi.json, `collect_gi_paths_from_inputs` (`test_io.py`)
+- [x] `gi/quality_metrics.py` — PRD-017 aggregates (`test_gil_quality_metrics.py`)
+- [x] `gi/corpus.py` — NDJSON / merged export (`test_gi_corpus.py`)
+- [x] `kg/quality_metrics.py` — PRD-019 aggregates (`test_quality_metrics.py`)
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (`test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (`test_explore.py`)
 - [x] `gi/pipeline.py` — build_artifact stub, grounded (legacy), and provider path (quote_extraction_provider + entailment_provider) (`test_pipeline.py`)
 - [x] `gi/grounding.py` — find_grounded_quotes with mocked QA/NLI; find_grounded_quotes_via_providers with mock extract_quotes/score_entailment; pipeline_metrics evidence call counters (`test_grounding.py`)
 - [x] Providers: extract_quotes and score_entailment (ML and LLM) unit-tested with mocked dependencies (`test_ml_provider.py`, `test_openai_provider.py`, etc.). Provider path and evidence method behaviour are covered in `test_grounding.py` and `test_pipeline.py`.
 - [x] Workflow: generate_episode_metadata passes quote_extraction_provider and entailment_provider into build_artifact when generate_gi and gi_require_grounding true (`test_metadata_generation.py`)
-- [x] CLI gi subcommand: parse, inspect, show-insight, explore, exit codes (`test_cli.py`)
+- [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`)
+- [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
+
+#### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}
+
+- **`make quality-metrics-ci`** — Runs `gil_quality_metrics.py` and `kg_quality_metrics.py` with **`--enforce`** (and strict schema flags) on `tests/fixtures/gil_kg_ci_enforce`. Listed in **`make help`**; depended on by **`make ci-fast`** in the repository `Makefile`.
+- **GitHub Actions** — The `test-unit` job includes **GIL and KG quality metrics on CI fixtures (PRD-017 / PRD-019)** (same fixture tree; see `.github/workflows/python-app.yml`).
+- **Optional local gates** — `make gil-quality-metrics DIR=<run_root>` and `make kg-quality-metrics DIR=<run_root>` with `ARGS='--enforce …'` for release or regression checks over a real run directory.
+- **Critical-path E2E** — `tests/e2e/test_gi_cli_e2e.py` and `tests/e2e/test_kg_cli_e2e.py` carry **`@pytest.mark.critical_path`** on GI/KG CLI scenarios (included in `make test-fast` / `make ci-fast` per project defaults).
 
 **Integration Tests:**
 

@@ -10,6 +10,11 @@ import os
 
 # General defaults
 DEFAULT_LOG_LEVEL = "INFO"
+
+# LLM JSON summaries: soft minimum in prompt; bullet count is not fixed (see bullets_json_v1.j2).
+DEFAULT_SUMMARY_BULLET_MIN = 3
+# How many summary bullets GI/KG may consume by default (ceilings; lower to save grounding cost).
+DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX = 20
 DEFAULT_NUM_SPEAKERS = 2
 DEFAULT_SCREENPLAY_GAP_SECONDS = 1.25
 DEFAULT_TIMEOUT_SECONDS = 20
@@ -176,9 +181,13 @@ def is_sha_revision(revision: str) -> bool:
 TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
 TEST_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
 TEST_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o-mini"  # Cheap, fast for dev/testing
+# Hybrid/LLM transcript cleaning (separate from summarization); align with test summary tier
+TEST_DEFAULT_OPENAI_CLEANING_MODEL = "gpt-4o-mini"
 PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = "whisper-1"  # Only OpenAI option
 PROD_DEFAULT_OPENAI_SPEAKER_MODEL = "gpt-4o-mini"  # Cost-effective for production
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = "gpt-4o"  # Higher quality for production
+# Cleaning: cheaper than prod gpt-4o summary; same family as speaker / test summary
+PROD_DEFAULT_OPENAI_CLEANING_MODEL = "gpt-4o-mini"
 
 # Gemini model defaults (Issue #194)
 # Test defaults: free tier models for dev/testing (gemini-2.0-flash)

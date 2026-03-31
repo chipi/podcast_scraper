@@ -1179,3 +1179,13 @@ class TestMLProviderGILEvidence(unittest.TestCase):
         result = provider.score_entailment(premise="", hypothesis="H.")
         self.assertEqual(result, 0.0)
         mock_nli.assert_not_called()
+
+    def test_extract_kg_graph_not_implemented_returns_none(self):
+        """Transformers summarization has no LLM KG path; API returns None."""
+        provider = MLProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_graph("any transcript text"))
+
+    def test_generate_insights_returns_empty(self):
+        """ML summarization does not run LLM insight extraction; stub returns []."""
+        provider = MLProvider(self.cfg)
+        self.assertEqual(provider.generate_insights("any transcript"), [])

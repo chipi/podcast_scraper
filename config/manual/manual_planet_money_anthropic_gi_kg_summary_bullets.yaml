@@ -1,0 +1,34 @@
+# Manual validation: NPR Planet Money, Anthropic — GI + KG from summary bullets.
+# Transcription: OpenAI whisper-1 (Anthropic has no audio). Cost-compare peer: OpenAI bullets config.
+#
+# Summaries default to JSON bullets (shared prompts). With gil_evidence_match_summary_provider
+# (default True), GIL quote+entail use Anthropic — no .[ml] required for GIL.
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/manual_planet_money_anthropic_gi_kg_summary_bullets.yaml
+# Requires: OPENAI_API_KEY, ANTHROPIC_API_KEY
+
+rss: https://feeds.npr.org/510289/podcast.xml
+output_dir: .test_outputs/manual/planet_money_anthropic_gi_kg_summary_bullets
+max_episodes: 3
+
+transcription_provider: openai
+speaker_detector_provider: anthropic
+summary_provider: anthropic
+
+openai_transcription_model: whisper-1
+
+anthropic_speaker_model: claude-haiku-4-5
+anthropic_summary_model: claude-haiku-4-5
+
+transcribe_missing: true
+preprocessing_enabled: true
+
+generate_metadata: true
+generate_summaries: true
+
+generate_gi: true
+gi_insight_source: summary_bullets
+
+generate_kg: true
+kg_extraction_source: summary_bullets

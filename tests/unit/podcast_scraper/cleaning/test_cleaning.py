@@ -86,7 +86,7 @@ class TestLLMBasedCleaner(unittest.TestCase):
 
         result = cleaner.clean("raw text", mock_provider)
         self.assertEqual(result, "llm cleaned text")
-        mock_provider.clean_transcript.assert_called_once_with("raw text")
+        mock_provider.clean_transcript.assert_called_once_with("raw text", pipeline_metrics=None)
 
     def test_clean_handles_empty_result(self):
         """Test that clean() handles empty result from provider."""
@@ -120,6 +120,42 @@ class TestLLMBasedCleaner(unittest.TestCase):
         result = cleaner.clean("original text", mock_provider)
         # Should return original text if LLM fails
         self.assertEqual(result, "original text")
+
+    def test_clean_rejects_excessively_short_llm_output(self):
+        """If LLM returns a tiny fraction of input, use pattern-cleaned text (bad model output)."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        long_input = "substantive transcript token. " * 120
+        self.assertGreaterEqual(len(long_input), 2000)
+        mock_provider.clean_transcript.return_value = (
+            "Unrelated short paragraph about something else."
+        )
+        result = cleaner.clean(long_input, mock_provider)
+        self.assertEqual(result, long_input)
+
+    def test_clean_accepts_llm_output_at_or_above_ratio_threshold(self):
+        """Output length >= 20% of pattern-cleaned input passes the guard."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        long_input = "word " * 400
+        self.assertGreaterEqual(len(long_input), 2000)
+        acceptable = "y" * (len(long_input) // 5 + 50)
+        self.assertGreaterEqual(len(acceptable) / len(long_input), 0.20)
+        mock_provider.clean_transcript.return_value = acceptable
+        result = cleaner.clean(long_input, mock_provider)
+        self.assertEqual(result, acceptable)
+
+    def test_clean_rejects_llm_output_just_below_ratio_threshold(self):
+        """Output length strictly below 20% falls back to pattern-cleaned text."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        long_input = "word " * 500
+        self.assertGreaterEqual(len(long_input), 2000)
+        too_short = "y" * int(len(long_input) * 0.15)
+        self.assertLess(len(too_short) / len(long_input), 0.20)
+        mock_provider.clean_transcript.return_value = too_short
+        result = cleaner.clean(long_input, mock_provider)
+        self.assertEqual(result, long_input)
 
 
 class TestHybridCleaner(unittest.TestCase):
@@ -182,6 +218,27 @@ class TestHybridCleaner(unittest.TestCase):
         mock_provider.clean_transcript.assert_called_once()
 
     @patch("podcast_scraper.preprocessing.clean_for_summarization")
+    def test_clean_forwards_pipeline_metrics_to_provider(self, mock_clean):
+        """HybridCleaner passes pipeline_metrics through to clean_transcript."""
+        mock_clean.return_value = (
+            "Main content. "
+            "This episode is sponsored by Acme Corp. "
+            "Brought to you by Test Company."
+        )
+        cleaner = HybridCleaner()
+        mock_provider = Mock()
+        mock_provider.clean_transcript.return_value = "llm cleaned text"
+        original = "Main content. " * 10
+        pm = object()
+
+        result = cleaner.clean(original, provider=mock_provider, pipeline_metrics=pm)
+
+        self.assertEqual(result, "llm cleaned text")
+        mock_provider.clean_transcript.assert_called_once()
+        _args, kwargs = mock_provider.clean_transcript.call_args
+        self.assertIs(kwargs.get("pipeline_metrics"), pm)
+
+    @patch("podcast_scraper.preprocessing.clean_for_summarization")
     def test_clean_handles_llm_failure(self, mock_clean):
         """Test that clean() falls back to pattern-cleaned text if LLM fails."""
         mock_clean.return_value = "pattern cleaned text"
@@ -196,6 +253,19 @@ class TestHybridCleaner(unittest.TestCase):
         result = cleaner.clean(original, provider=mock_provider)
         # Should return pattern-cleaned text if LLM fails
         self.assertEqual(result, "x" * 980)
+
+    @patch("podcast_scraper.preprocessing.clean_for_summarization")
+    def test_clean_falls_back_when_llm_output_too_short(self, mock_clean):
+        """Hybrid path must not pass a bogus short LLM 'cleaned' transcript downstream."""
+        mock_clean.side_effect = lambda x: x
+        cleaner = HybridCleaner()
+        mock_provider = Mock()
+        mock_provider.clean_transcript.return_value = "Short unrelated model output."
+        original = "episode words. " * 200
+        self.assertGreaterEqual(len(original), 2000)
+        result = cleaner.clean(original, provider=mock_provider)
+        self.assertEqual(result, original)
+        mock_provider.clean_transcript.assert_called_once()
 
     def test_needs_llm_cleaning_low_reduction_ratio(self):
         """Test that _needs_llm_cleaning returns True for low reduction ratio."""

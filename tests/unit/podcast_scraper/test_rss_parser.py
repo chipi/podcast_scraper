@@ -301,6 +301,33 @@ class TestExtractEpisodeTitle(unittest.TestCase):
         self.assertEqual(result_title, "episode_5")
         self.assertEqual(result_safe, "episode_5")
 
+    def test_prefers_itunes_title_when_both_present(self):
+        """iTunes title is often the real episode name when RSS title is generic."""
+        item = ET.Element("item")
+        rss = ET.SubElement(item, "title")
+        rss.text = "Show Name"
+        it = ET.SubElement(item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}title")
+        it.text = "Episode 42: The Real Story"
+        result_title, _ = rss_parser.extract_episode_title(item, 1)
+        self.assertEqual(result_title, "Episode 42: The Real Story")
+
+    def test_itunes_title_when_rss_title_missing(self):
+        """Use itunes:title when there is no plain title element."""
+        item = ET.Element("item")
+        it = ET.SubElement(item, "{http://www.itunes.com/dtds/podcast-1.0.dtd}title")
+        it.text = "Only iTunes title"
+        result_title, result_safe = rss_parser.extract_episode_title(item, 3)
+        self.assertEqual(result_title, "Only iTunes title")
+        self.assertEqual(result_safe, "Only iTunes title")
+
+    def test_strips_html_from_title(self):
+        """Titles may contain HTML entities or tags in RSS."""
+        item = ET.Element("item")
+        title = ET.SubElement(item, "title")
+        title.text = "Hello &amp; goodbye <b>world</b>"
+        result_title, _ = rss_parser.extract_episode_title(item, 1)
+        self.assertEqual(result_title, "Hello & goodbye world")
+
 
 class TestExtractFeedMetadata(unittest.TestCase):
     """Tests for extract_feed_metadata function."""

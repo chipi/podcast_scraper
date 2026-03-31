@@ -76,7 +76,7 @@ class RunIndex:
 
         index_json = self.to_json()
         filepath.write_text(index_json, encoding="utf-8")
-        logger.info(f"Run index saved to: {filepath}")
+        logger.debug("Run index saved to: %s", filepath)
 
 
 def _build_status_map(episode_statuses: Optional[List[Any]]) -> Dict[str, Dict[str, Any]]:
@@ -354,17 +354,19 @@ def create_run_index(
         status_info = status_map.get(episode_id, {})
         status_from_map = status_info.get("status")
 
-        # Find transcript and metadata files (check multiple patterns including run_suffix)
+        # Find transcript and metadata files (check multiple patterns including run_suffix).
+        # Filenames use truncate_whisper_title (build_whisper_output_name); match that here.
         episode_title_safe = getattr(episode, "title_safe", episode.title)
+        title_for_paths = filesystem.truncate_whisper_title(episode_title_safe, for_log=False)
 
         # Find transcript file
         transcript_path = _find_transcript_file(
-            episode, episode_title_safe, transcripts_dir, effective_output_dir, run_suffix
+            episode, title_for_paths, transcripts_dir, effective_output_dir, run_suffix
         )
 
         # Find metadata file
         metadata_path = _find_metadata_file(
-            episode, episode_title_safe, metadata_dir, effective_output_dir, run_suffix
+            episode, title_for_paths, metadata_dir, effective_output_dir, run_suffix
         )
 
         # Determine status from filesystem (primary source of truth)

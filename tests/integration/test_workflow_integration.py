@@ -461,9 +461,9 @@ class TestIntegrationMain(unittest.TestCase):
                     self.assertIn("(dry-run) would initialize speaker detector", log_text)
                 else:
                     self.assertIn("John Host", log_text)
-                # Verify episode processing happened
-                self.assertIn("Episode 1: Interview with Alice Guest", log_text)
-                self.assertIn("Episode 2: Chat with Bob Guest", log_text)
+                # Verify episode processing happened (log uses RSS item title, not "Episode N:" prefix)
+                self.assertIn("Interview with Alice Guest", log_text)
+                self.assertIn("Chat with Bob Guest", log_text)
                 # Note: Guest detection requires model initialization, which is skipped in dry-run
                 # So we don't check for "Guest:" in dry-run mode
 

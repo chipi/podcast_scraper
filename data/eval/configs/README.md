@@ -6,7 +6,7 @@ This directory contains experiment configuration YAML files that define how expe
 
 Experiment configs are **inputs** to the experiment runner. They specify:
 
-- Task type (`summarization` or `ner_entities`)
+- Task type (`summarization`, `ner_entities`, `grounded_insights`, or `knowledge_graph`)
 - Model/provider configuration (OpenAI, HuggingFace local, spaCy, etc.)
 - Prompt templates to use (for OpenAI backends)
 - Dataset references
@@ -101,7 +101,7 @@ This ensures:
 
 Use descriptive names that indicate:
 
-- Task (e.g., `summarization_`, `ner_entities_`, `transcription_`)
+- Task (e.g., `summarization_`, `ner_entities_`, `gil_eval_`, `kg_eval_`, `transcription_`)
 - Model/provider (e.g., `openai_`, `bart_`, `led_`, `spacy_`)
 - Version (e.g., `_v1`, `_v2`)
 
@@ -125,6 +125,16 @@ Examples:
   - They summarize based on training, not instructions
   - Prompts are ignored if provided
   - You can omit the `prompts` section entirely for cleaner configs
+
+### eval_stub Backend (GIL / KG eval)
+
+- **task**: Must be `"grounded_insights"` or `"knowledge_graph"` (one capability per config).
+- **backend.type**: `"eval_stub"` — runs the product `build_artifact` pipeline with **stub**
+  sources by default (no API keys). Tune via **`params`**:
+  - GIL: `gi_insight_source`, `gi_require_grounding`, `gi_max_insights`
+  - KG: `kg_extraction_source`
+- Example configs: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`,
+  `kg_eval_stub_curated_5feeds_smoke_v1.yaml`
 
 ### spaCy Backend (NER)
 

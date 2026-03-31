@@ -765,6 +765,139 @@ class TestAnthropicProviderGIL(unittest.TestCase):
         provider.initialize()
         self.assertEqual(provider.score_entailment("p", "h"), 0.0)
 
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_score_entailment_no_numeric_token_returns_zero(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text="not a float")]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_quotes_empty_inputs_returns_empty(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertEqual(provider.extract_quotes("", "i"), [])
+        self.assertEqual(provider.extract_quotes("t", ""), [])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_graph_success(self, mock_anthropic, mock_retry):
+        """extract_kg_graph returns parsed topics/entities from Claude JSON."""
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        _kg = (
+            '{"topics": [{"label": "Labor"}], '
+            '"entities": [{"name": "BLS", "entity_kind": "ORG"}]}'
+        )
+        mock_resp.content = [Mock(text=_kg)]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_graph(
+            "Jobs report and labor market discussion.",
+            episode_title="E1",
+            max_topics=5,
+            max_entities=5,
+        )
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "Labor")
+        self.assertEqual(out["entities"][0]["name"], "BLS")
+        mock_client.messages.create.assert_called_once()
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_graph_not_initialized_returns_none(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_graph("text"))
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_graph_empty_text_returns_none(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_graph("   "))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_graph_api_failure_returns_none(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_client.messages.create.side_effect = RuntimeError("api down")
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        self.assertIsNone(provider.extract_kg_graph("Some transcript about markets."))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_from_summary_bullets_success(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text='{"topics": [{"label": "GDP"}], "entities": []}')]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_from_summary_bullets(["Summary point one"], episode_title="Ep")
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "GDP")
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_from_summary_bullets_empty_bullets(self, mock_anthropic):
+        mock_anthropic.return_value = Mock()
+        provider = AnthropicProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_extract_kg_graph_uses_params_model_override(self, mock_anthropic, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text='{"topics": [{"label": "X"}], "entities": []}')]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        provider.extract_kg_graph("hello world", params={"kg_extraction_model": "claude-opus-4"})
+        self.assertEqual(
+            mock_client.messages.create.call_args[1]["model"],
+            "claude-opus-4",
+        )
+
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="insight prompt")
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def test_generate_insights_truncates_long_transcript(self, mock_anthropic, mock_render):
+        mock_client = Mock()
+        mock_anthropic.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.content = [Mock(text="Insight one")]
+        mock_client.messages.create.return_value = mock_resp
+        provider = AnthropicProvider(self.cfg)
+        provider.initialize()
+        long_text = "w" * 120_001
+        provider.generate_insights(long_text, max_insights=3)
+        transcript_arg = mock_render.call_args[1]["transcript"]
+        self.assertIn("[Transcript truncated.]", transcript_arg)
+        self.assertLessEqual(len(transcript_arg), 120_000 + 50)
+
 
 @pytest.mark.unit
 class TestAnthropicProviderPricing(unittest.TestCase):

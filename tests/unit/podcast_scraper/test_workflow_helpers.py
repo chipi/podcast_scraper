@@ -349,6 +349,41 @@ class TestGeneratePipelineSummary(unittest.TestCase):
         self.assertIn("Transcripts downloaded: 3", summary)
         self.assertIn("Episodes transcribed: 2", summary)
 
+    def test_generate_pipeline_summary_kg_graph_nodes_not_file_wording(self):
+        """KG summary uses graph/node counts, not 'artifacts generated' file wording."""
+        from podcast_scraper.workflow import helpers
+        from podcast_scraper.workflow.types import TranscriptionResources
+
+        cfg = create_test_config(
+            rss_url="https://example.com/feed.xml",
+            generate_kg=True,
+        )
+        transcription_resources = TranscriptionResources(
+            transcription_provider=None,
+            temp_dir=None,
+            transcription_jobs=queue.Queue(),
+            transcription_jobs_lock=None,
+            saved_counter_lock=None,
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.kg_artifacts_generated = 3
+        pipeline_metrics.kg_topic_nodes_total = 30
+        pipeline_metrics.kg_entity_nodes_total = 9
+        pipeline_metrics.kg_provider_extractions = 3
+
+        _count, summary = helpers.generate_pipeline_summary(
+            cfg,
+            saved=1,
+            transcription_resources=transcription_resources,
+            effective_output_dir="/tmp/test",
+            pipeline_metrics=pipeline_metrics,
+        )
+
+        self.assertIn("KG: 3 episode graph(s), 30 topic + 9 entity nodes", summary)
+        self.assertIn("(avg 10.0 topics, 3.0 entities per graph)", summary)
+        self.assertIn("KG LLM JSON extractions (succeeded): 3", summary)
+        self.assertNotIn("KG artifacts generated", summary)
+
     def test_generate_pipeline_summary_includes_llm_usage(self):
         """Test that generate_pipeline_summary includes LLM usage when OpenAI providers are used."""
         from podcast_scraper.workflow import helpers
@@ -1337,6 +1372,7 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
         self.assertEqual(len(summary), 2)  # One line for speaker detection, one for total
         self.assertIn("Speaker Detection: 2 calls", summary[0])
         self.assertIn("3,000 input + 1,250 output tokens", summary[0])
+        self.assertIn("tok/call", summary[0])
         self.assertIn("gpt-4o-mini", summary[0])
         # Cost: (3000/1M * 0.15) + (1250/1M * 0.60) = 0.00045 + 0.00075 = 0.0012
         self.assertIn("$0.0012", summary[0])
@@ -1350,18 +1386,21 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
             summary_provider="openai",
             openai_summary_model="gpt-4o",
             openai_api_key="sk-test123",
+            transcript_cleaning_strategy="pattern",
         )
         pipeline_metrics = metrics.Metrics()
         pipeline_metrics.record_llm_summarization_call(input_tokens=50000, output_tokens=10000)
 
         summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
-        self.assertEqual(len(summary), 2)  # One line for summarization, one for total
+        self.assertEqual(len(summary), 3)  # Summarization, cleaning (pattern), total
         self.assertIn("Summarization: 1 calls", summary[0])
         self.assertIn("50,000 input + 10,000 output tokens", summary[0])
+        self.assertIn("tok/call", summary[0])
         self.assertIn("gpt-4o", summary[0])
         # Cost: (50000/1M * 2.50) + (10000/1M * 10.00) = 0.125 + 0.10 = 0.225
         self.assertIn("$0.2250", summary[0])
-        self.assertIn("Total estimated cost: $0.2250", summary[1])
+        self.assertIn("Cleaning: pattern-based", summary[1])
+        self.assertIn("Total estimated cost: $0.2250", summary[2])
 
     def test_generate_llm_call_summary_all_capabilities(self):
         """Test LLM call summary with all capabilities."""
@@ -1375,6 +1414,7 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
             openai_speaker_model="gpt-4o-mini",
             openai_summary_model="gpt-4o",
             openai_api_key="sk-test123",
+            transcript_cleaning_strategy="pattern",
         )
         pipeline_metrics = metrics.Metrics()
         pipeline_metrics.record_llm_transcription_call(10.0)  # 10 minutes
@@ -1382,17 +1422,79 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
         pipeline_metrics.record_llm_summarization_call(input_tokens=50000, output_tokens=10000)
 
         summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
-        self.assertEqual(len(summary), 4)  # 3 capability lines + 1 total line
+        self.assertEqual(len(summary), 5)  # 3 capabilities + cleaning (pattern) + total
         # Check all capabilities are included
         transcription_line = [s for s in summary if "Transcription" in s][0]
         speaker_line = [s for s in summary if "Speaker Detection" in s][0]
         summary_line = [s for s in summary if "Summarization" in s][0]
+        cleaning_line = [s for s in summary if "Cleaning:" in s][0]
         total_line = [s for s in summary if "Total estimated cost" in s][0]
 
         self.assertIn("whisper-1", transcription_line)
         self.assertIn("gpt-4o-mini", speaker_line)
         self.assertIn("gpt-4o", summary_line)
+        self.assertIn("pattern-based", cleaning_line)
         self.assertIn("Total estimated cost", total_line)
+
+    def test_generate_llm_call_summary_includes_cleaning_llm_usage(self):
+        """Semantic cleaning LLM calls appear with token counts and cost (OpenAI pricing)."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o-mini",
+            openai_cleaning_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+            transcript_cleaning_strategy="hybrid",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_cleaning_call(input_tokens=5000, output_tokens=1200)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        cleaning_lines = [s for s in summary if s.startswith("  - Cleaning:") and "calls" in s]
+        self.assertEqual(len(cleaning_lines), 1)
+        self.assertIn("1 calls", cleaning_lines[0])
+        self.assertIn("5,000 input + 1,200 output tokens", cleaning_lines[0])
+        self.assertIn("gpt-4o-mini", cleaning_lines[0])
+
+    def test_generate_llm_call_summary_includes_gil_llm_usage(self):
+        """GIL provider-path LLM usage rolls into a dedicated summary line."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="openai",
+            openai_summary_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+            transcript_cleaning_strategy="pattern",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_gi_call(input_tokens=2000, output_tokens=100)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        gil_lines = [s for s in summary if "GIL (insights/evidence LLM)" in s]
+        self.assertEqual(len(gil_lines), 1)
+        self.assertIn("1 calls", gil_lines[0])
+        self.assertIn("2,000 input + 100 output tokens", gil_lines[0])
+
+    def test_generate_llm_call_summary_kg_without_billable_summary_provider(self):
+        """KG LLM metrics still produce a section when summary is local but KG uses OpenAI."""
+        from podcast_scraper.workflow import helpers
+
+        cfg = create_test_config(
+            summary_provider="transformers",
+            kg_extraction_provider="openai",
+            openai_summary_model="gpt-4o-mini",
+            openai_api_key="sk-test123",
+        )
+        pipeline_metrics = metrics.Metrics()
+        pipeline_metrics.record_llm_kg_call(input_tokens=8000, output_tokens=400)
+
+        summary = helpers._generate_llm_call_summary(cfg, pipeline_metrics)
+        kg_lines = [s for s in summary if "KG (LLM extraction)" in s]
+        self.assertEqual(len(kg_lines), 1)
+        self.assertIn("1 calls", kg_lines[0])
+        self.assertIn("8,000 input + 400 output tokens", kg_lines[0])
+        self.assertIn("gpt-4o-mini", kg_lines[0])
 
     def test_generate_llm_call_summary_no_calls(self):
         """Test LLM call summary when no calls were made."""
@@ -1481,6 +1583,58 @@ class TestGenerateLLMCallSummary(unittest.TestCase):
 
         # Should not include transcription in summary when pricing is missing
         self.assertEqual(summary, [])
+
+
+@pytest.mark.unit
+class TestKgLlmCostHeadline(unittest.TestCase):
+    """_kg_llm_cost_headline for CLI KG cost line."""
+
+    def test_headline_all_bullet_derived(self):
+        from podcast_scraper.workflow import helpers
+
+        self.assertEqual(
+            helpers._kg_llm_cost_headline(
+                {
+                    "kg_extractions_provider": 3,
+                    "kg_extractions_provider_summary_bullets": 3,
+                }
+            ),
+            "summary bullets → topics",
+        )
+
+    def test_headline_all_transcript(self):
+        from podcast_scraper.workflow import helpers
+
+        self.assertEqual(
+            helpers._kg_llm_cost_headline(
+                {
+                    "kg_extractions_provider": 2,
+                    "kg_extractions_provider_summary_bullets": 0,
+                }
+            ),
+            "transcript",
+        )
+
+    def test_headline_mixed(self):
+        from podcast_scraper.workflow import helpers
+
+        self.assertEqual(
+            helpers._kg_llm_cost_headline(
+                {
+                    "kg_extractions_provider": 3,
+                    "kg_extractions_provider_summary_bullets": 1,
+                }
+            ),
+            "mixed (2 transcript, 1 bullet-derived)",
+        )
+
+    def test_headline_no_provider_artifacts(self):
+        from podcast_scraper.workflow import helpers
+
+        self.assertEqual(
+            helpers._kg_llm_cost_headline({}),
+            "LLM extraction",
+        )
 
 
 @pytest.mark.unit

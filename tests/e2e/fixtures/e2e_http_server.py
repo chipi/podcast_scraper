@@ -35,6 +35,156 @@ from podcast_scraper import config
 logger = logging.getLogger(__name__)
 
 
+def _anthropic_system_text(system: Any) -> str:
+    """Normalize Anthropic `system` (str or list of content blocks) to plain text."""
+    if system is None:
+        return ""
+    if isinstance(system, str):
+        return system
+    if isinstance(system, list):
+        chunks: list[str] = []
+        for block in system:
+            if isinstance(block, dict) and block.get("type") == "text":
+                chunks.append(str(block.get("text", "")))
+            elif isinstance(block, str):
+                chunks.append(block)
+        return " ".join(chunks)
+    return str(system)
+
+
+def _gemini_text_response_data(request_data: Dict[str, Any], text_prompt: str) -> Dict[str, Any]:
+    """Build Gemini generateContent response body for non-audio text requests."""
+    generation_config = request_data.get("generationConfig", {})
+    response_mime_type = generation_config.get("response_mime_type", "")
+
+    if "Insight:" in text_prompt and (
+        "quote_text" in text_prompt or "Transcript (excerpt):" in text_prompt
+    ):
+        if "Transcript (excerpt):" in text_prompt:
+            excerpt = text_prompt.split("Transcript (excerpt):")[1].split("Insight:")[0]
+        else:
+            excerpt = text_prompt.split("Insight:")[0]
+        excerpt = excerpt.strip()
+        mock_quote = (
+            excerpt[:60].strip() if len(excerpt) > 10 else (excerpt or "Evidence from transcript.")
+        )
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": json.dumps({"quote_text": mock_quote})}],
+                        "role": "model",
+                    },
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 80,
+                "candidatesTokenCount": 20,
+                "totalTokenCount": 100,
+            },
+        }
+    if "Premise:" in text_prompt and "Hypothesis:" in text_prompt:
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": "0.85"}],
+                        "role": "model",
+                    },
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 60,
+                "candidatesTokenCount": 2,
+                "totalTokenCount": 62,
+            },
+        }
+
+    gc = request_data.get("generationConfig") or {}
+    si_raw = gc.get("system_instruction") or gc.get("systemInstruction")
+    si_blob = ""
+    if isinstance(si_raw, str):
+        si_blob = si_raw
+    tsi = request_data.get("systemInstruction")
+    if isinstance(tsi, dict):
+        for p in tsi.get("parts") or []:
+            if isinstance(p, dict) and "text" in p:
+                si_blob += " " + str(p["text"])
+    tp_low = text_prompt.lower()
+    kg_user_heuristic = (
+        "extract up to" in tp_low and "**topics**" in text_prompt and "transcript:" in tp_low
+    )
+    if "knowledge-graph fragment" in si_blob.lower() or kg_user_heuristic:
+        kg_json = {
+            "topics": [{"label": "E2E mock topic"}],
+            "entities": [{"name": "E2E Entity", "entity_kind": "person"}],
+        }
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": json.dumps(kg_json)}],
+                        "role": "model",
+                    },
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 40,
+                "totalTokenCount": 140,
+            },
+        }
+    if response_mime_type == "application/json":
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {
+                                        "speakers": ["Host", "Guest"],
+                                        "hosts": ["Host"],
+                                        "guests": ["Guest"],
+                                    }
+                                )
+                            }
+                        ],
+                        "role": "model",
+                    },
+                    "finishReason": "STOP",
+                }
+            ],
+            "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 50,
+                "totalTokenCount": 150,
+            },
+        }
+
+    summary_length = min(200, len(text_prompt) // 10)
+    summary = f"This is a test summary from Gemini. {text_prompt[:summary_length]}..."
+    return {
+        "candidates": [
+            {
+                "content": {
+                    "parts": [{"text": summary}],
+                    "role": "model",
+                },
+                "finishReason": "STOP",
+            }
+        ],
+        "usageMetadata": {
+            "promptTokenCount": 100,
+            "candidatesTokenCount": 50,
+            "totalTokenCount": 150,
+        },
+    }
+
+
 class E2EServerURLs:
     """URL helper class for E2E server."""
 
@@ -474,7 +624,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # Route: OpenAI API endpoints
         # /v1/chat/completions -> Mock chat completions (summarization, speaker detection,
-        # GIL extract_quotes, GIL score_entailment)
+        # GIL extract_quotes, GIL score_entailment, KG extract_kg_graph)
         if path == "/v1/chat/completions":
             self._handle_chat_completions()
             return
@@ -533,6 +683,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 )
             else:
                 user_content = raw_content if isinstance(raw_content, str) else ""
+            system_message = next((m for m in messages if m.get("role") == "system"), {})
+            raw_sys = system_message.get("content", "")
+            if isinstance(raw_sys, list):
+                system_content = " ".join(
+                    p.get("text", "") if isinstance(p, dict) else str(p) for p in raw_sys
+                )
+            else:
+                system_content = raw_sys if isinstance(raw_sys, str) else ""
             response_format = request_data.get("response_format", {})
 
             # Determine response type: speaker (json_object), GIL evidence, or summarization
@@ -606,6 +764,29 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         }
                     ],
                     "usage": {"prompt_tokens": 60, "completion_tokens": 2, "total_tokens": 62},
+                }
+            elif "knowledge-graph fragment" in system_content.lower():
+                # KG extract_kg_graph (system from build_kg_transcript_system_prompt)
+                kg_json = {
+                    "topics": [{"label": "E2E mock topic"}],
+                    "entities": [{"name": "E2E Entity", "entity_kind": "person"}],
+                }
+                response_data = {
+                    "id": "chatcmpl-test-kg-extract",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request_data.get("model", config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL),
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {
+                                "role": "assistant",
+                                "content": json.dumps(kg_json),
+                            },
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": {"prompt_tokens": 100, "completion_tokens": 40, "total_tokens": 140},
                 }
             else:
                 # Summarization response (or generate_insights, cleaning, etc.)
@@ -879,6 +1060,22 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "stop_sequence": None,
                     "usage": {"input_tokens": 60, "output_tokens": 2},
                 }
+            elif "knowledge-graph fragment" in _anthropic_system_text(system).lower():
+                # KG extract_kg_graph (system from build_kg_transcript_system_prompt)
+                kg_json = {
+                    "topics": [{"label": "E2E mock topic"}],
+                    "entities": [{"name": "E2E Entity", "entity_kind": "person"}],
+                }
+                response_data = {
+                    "id": "msg-test-kg-extract",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [{"type": "text", "text": json.dumps(kg_json)}],
+                    "model": request_data.get("model", "claude-haiku-4-5"),
+                    "stop_reason": "end_turn",
+                    "stop_sequence": None,
+                    "usage": {"input_tokens": 100, "output_tokens": 40},
+                }
             else:
                 # Determine response type based on system prompt
                 # If system prompt contains "speaker" or "NER", it's speaker detection
@@ -1024,106 +1221,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     },
                 }
             else:
-                # Text generation: GIL evidence, speaker detection, or summarization
-                generation_config = request_data.get("generationConfig", {})
-                response_mime_type = generation_config.get("response_mime_type", "")
-
-                if "Insight:" in text_prompt and (
-                    "quote_text" in text_prompt or "Transcript (excerpt):" in text_prompt
-                ):
-                    if "Transcript (excerpt):" in text_prompt:
-                        excerpt = text_prompt.split("Transcript (excerpt):")[1].split("Insight:")[0]
-                    else:
-                        excerpt = text_prompt.split("Insight:")[0]
-                    excerpt = excerpt.strip()
-                    mock_quote = (
-                        excerpt[:60].strip()
-                        if len(excerpt) > 10
-                        else (excerpt or "Evidence from transcript.")
-                    )
-                    response_data = {
-                        "candidates": [
-                            {
-                                "content": {
-                                    "parts": [{"text": json.dumps({"quote_text": mock_quote})}],
-                                    "role": "model",
-                                },
-                                "finishReason": "STOP",
-                            }
-                        ],
-                        "usageMetadata": {
-                            "promptTokenCount": 80,
-                            "candidatesTokenCount": 20,
-                            "totalTokenCount": 100,
-                        },
-                    }
-                elif "Premise:" in text_prompt and "Hypothesis:" in text_prompt:
-                    response_data = {
-                        "candidates": [
-                            {
-                                "content": {
-                                    "parts": [{"text": "0.85"}],
-                                    "role": "model",
-                                },
-                                "finishReason": "STOP",
-                            }
-                        ],
-                        "usageMetadata": {
-                            "promptTokenCount": 60,
-                            "candidatesTokenCount": 2,
-                            "totalTokenCount": 62,
-                        },
-                    }
-                elif response_mime_type == "application/json":
-                    # Speaker detection response
-                    response_data = {
-                        "candidates": [
-                            {
-                                "content": {
-                                    "parts": [
-                                        {
-                                            "text": json.dumps(
-                                                {
-                                                    "speakers": ["Host", "Guest"],
-                                                    "hosts": ["Host"],
-                                                    "guests": ["Guest"],
-                                                }
-                                            )
-                                        }
-                                    ],
-                                    "role": "model",
-                                },
-                                "finishReason": "STOP",
-                            }
-                        ],
-                        "usageMetadata": {
-                            "promptTokenCount": 100,
-                            "candidatesTokenCount": 50,
-                            "totalTokenCount": 150,
-                        },
-                    }
-                else:
-                    # Summarization response
-                    summary_length = min(200, len(text_prompt) // 10)
-                    summary = (
-                        f"This is a test summary from Gemini. " f"{text_prompt[:summary_length]}..."
-                    )
-                    response_data = {
-                        "candidates": [
-                            {
-                                "content": {
-                                    "parts": [{"text": summary}],
-                                    "role": "model",
-                                },
-                                "finishReason": "STOP",
-                            }
-                        ],
-                        "usageMetadata": {
-                            "promptTokenCount": 100,
-                            "candidatesTokenCount": 50,
-                            "totalTokenCount": 150,
-                        },
-                    }
+                response_data = _gemini_text_response_data(request_data, text_prompt)
 
             # Send response
             response_json = json.dumps(response_data)

@@ -111,9 +111,11 @@ PROD_DEFAULT_SUMMARY_REDUCE_MODEL = config_constants.PROD_DEFAULT_SUMMARY_REDUCE
 TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.TEST_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
 TEST_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.TEST_DEFAULT_OPENAI_SPEAKER_MODEL
 TEST_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.TEST_DEFAULT_OPENAI_SUMMARY_MODEL
+TEST_DEFAULT_OPENAI_CLEANING_MODEL = config_constants.TEST_DEFAULT_OPENAI_CLEANING_MODEL
 PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL = config_constants.PROD_DEFAULT_OPENAI_TRANSCRIPTION_MODEL
 PROD_DEFAULT_OPENAI_SPEAKER_MODEL = config_constants.PROD_DEFAULT_OPENAI_SPEAKER_MODEL
 PROD_DEFAULT_OPENAI_SUMMARY_MODEL = config_constants.PROD_DEFAULT_OPENAI_SUMMARY_MODEL
+PROD_DEFAULT_OPENAI_CLEANING_MODEL = config_constants.PROD_DEFAULT_OPENAI_CLEANING_MODEL
 
 # Validation constants
 VALID_WHISPER_MODELS = config_constants.VALID_WHISPER_MODELS
@@ -355,14 +357,16 @@ def _get_default_mistral_summary_model() -> str:
     return config_constants.PROD_DEFAULT_MISTRAL_SUMMARY_MODEL
 
 
-# Default cleaning models (cheaper models for cost efficiency)
 def _get_default_openai_cleaning_model() -> str:
-    """Get default OpenAI cleaning model (cheaper than summary model).
+    """Get default OpenAI transcript-cleaning model based on environment.
 
     Returns:
-        'gpt-3.5-turbo' (cheaper model for cleaning)
+        Test default in test/CI environments; production default otherwise.
+        Override with ``openai_cleaning_model`` (e.g. ``gpt-3.5-turbo``) to reduce cost.
     """
-    return "gpt-3.5-turbo"
+    if _is_test_environment():
+        return TEST_DEFAULT_OPENAI_CLEANING_MODEL
+    return PROD_DEFAULT_OPENAI_CLEANING_MODEL
 
 
 def _get_default_anthropic_cleaning_model() -> str:
@@ -503,6 +507,29 @@ DEFAULT_DISTILL_REPETITION_PENALTY = 1.3  # Same as map/reduce for consistency
 
 # Default token overlap for chunking
 DEFAULT_TOKEN_OVERLAP = 200
+
+
+def _default_summary_prompt_params() -> Dict[str, Any]:
+    """Defaults for shared summarization Jinja params (JSON bullet templates, etc.)."""
+    return {
+        "bullet_min": config_constants.DEFAULT_SUMMARY_BULLET_MIN,
+        "max_words_per_bullet": 45,
+    }
+
+
+# Summary providers whose GIL quote+entail align with summary when still default transformers.
+_GIL_EVIDENCE_MATCH_SUMMARY_PROVIDERS = frozenset(
+    {
+        "openai",
+        "gemini",
+        "anthropic",
+        "mistral",
+        "deepseek",
+        "grok",
+        "ollama",
+        "hybrid_ml",
+    }
+)
 
 
 class Config(BaseModel):
@@ -806,7 +833,11 @@ class Config(BaseModel):
     openai_cleaning_model: str = Field(
         default_factory=_get_default_openai_cleaning_model,
         alias="openai_cleaning_model",
-        description="OpenAI model for transcript cleaning (default: gpt-3.5-turbo, cheaper than summary model)",  # noqa: E501
+        description=(
+            "OpenAI model for hybrid/LLM transcript cleaning before summarization "
+            "(default: gpt-4o-mini; test/prod via config constants). "
+            "Set to e.g. gpt-3.5-turbo for lower cost."
+        ),
     )
     openai_cleaning_temperature: float = Field(
         default=0.2,
@@ -819,22 +850,30 @@ class Config(BaseModel):
         description="Max tokens for OpenAI generation (None = model default)",
     )
     # Prompt configuration (RFC-017)
-    openai_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    openai_summary_system_prompt: str = Field(
+        default="openai/summarization/system_bullets_v1",
         alias="openai_summary_system_prompt",
-        description="System prompt name for summarization (e.g. 'openai/summarization/system_v1'). "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description=(
+            "System prompt for summarization (default: JSON bullet schema). "
+            "Set to 'openai/summarization/system_v1' for legacy paragraph-style. "
+            "Uses prompt_store (RFC-017); shared templates: prompts/shared/summarization/."
+        ),
     )
     openai_summary_user_prompt: str = Field(
-        default="openai/summarization/long_v1",
+        default="openai/summarization/bullets_json_v1",
         alias="openai_summary_user_prompt",
-        description="User prompt name for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description=(
+            "User prompt for summarization (default: JSON bullets). "
+            "Use 'openai/summarization/long_v1' for paragraphs. Uses prompt_store (RFC-017)."
+        ),
     )
     summary_prompt_params: Dict[str, Any] = Field(
-        default_factory=dict,
+        default_factory=_default_summary_prompt_params,
         alias="summary_prompt_params",
-        description="Template parameters for summary prompts (passed to Jinja2 templates).",
+        description=(
+            "Template parameters for summary prompts (Jinja). Defaults include bullet_min "
+            "and max_words_per_bullet for shared bullet templates; optional bullet_max caps count."
+        ),
     )
     openai_speaker_system_prompt: Optional[str] = Field(
         default=None,
@@ -904,19 +943,18 @@ class Config(BaseModel):
         description="Max tokens for Gemini generation (None = model default)",
     )
     # Gemini Prompt Configuration (following OpenAI pattern)
-    gemini_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    gemini_summary_system_prompt: str = Field(
+        default="gemini/summarization/system_bullets_v1",
         alias="gemini_summary_system_prompt",
         description=(
-            "Gemini system prompt for summarization (default: gemini/summarization/system_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Gemini system prompt for summarization (default: JSON bullets). "
+            "Uses prompt_store (RFC-017); resolves shared/summarization/ when provider file absent."
         ),
     )
     gemini_summary_user_prompt: str = Field(
-        default="gemini/summarization/long_v1",
+        default="gemini/summarization/bullets_json_v1",
         alias="gemini_summary_user_prompt",
-        description="Gemini user prompt for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description="Gemini user prompt for summarization. Uses prompt_store (RFC-017).",
     )
     gemini_speaker_system_prompt: Optional[str] = Field(
         default=None,
@@ -981,20 +1019,18 @@ class Config(BaseModel):
         description="Max tokens for Anthropic generation (None = model default)",
     )
     # Anthropic Prompt Configuration (following OpenAI/Gemini pattern)
-    anthropic_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    anthropic_summary_system_prompt: str = Field(
+        default="anthropic/summarization/system_bullets_v1",
         alias="anthropic_summary_system_prompt",
         description=(
-            "Anthropic system prompt for summarization "
-            "(default: anthropic/summarization/system_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Anthropic system prompt for summarization (default: JSON bullets). "
+            "Uses prompt_store (RFC-017)."
         ),
     )
     anthropic_summary_user_prompt: str = Field(
-        default="anthropic/summarization/long_v1",
+        default="anthropic/summarization/bullets_json_v1",
         alias="anthropic_summary_user_prompt",
-        description="Anthropic user prompt for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description="Anthropic user prompt for summarization. Uses prompt_store (RFC-017).",
     )
     anthropic_speaker_system_prompt: Optional[str] = Field(
         default=None,
@@ -1067,19 +1103,18 @@ class Config(BaseModel):
         description="Ollama user prompt for speaker detection. "
         "Uses prompt_store (RFC-017) for versioned prompts.",
     )
-    ollama_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    ollama_summary_system_prompt: str = Field(
+        default="ollama/summarization/system_bullets_v1",
         alias="ollama_summary_system_prompt",
         description=(
-            "Ollama system prompt for summarization (default: ollama/summarization/system_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Ollama system prompt for summarization (default: JSON bullets). "
+            "Uses prompt_store (RFC-017)."
         ),
     )
     ollama_summary_user_prompt: str = Field(
-        default="ollama/summarization/long_v1",
+        default="ollama/summarization/bullets_json_v1",
         alias="ollama_summary_user_prompt",
-        description="Ollama user prompt for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description="Ollama user prompt for summarization. Uses prompt_store (RFC-017).",
     )
     # DeepSeek API configuration (Issue #107)
     deepseek_api_key: Optional[str] = Field(
@@ -1124,19 +1159,18 @@ class Config(BaseModel):
         description="Max tokens for DeepSeek generation (None = model default)",
     )
     # DeepSeek Prompt Configuration (following OpenAI pattern)
-    deepseek_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    deepseek_summary_system_prompt: str = Field(
+        default="deepseek/summarization/system_bullets_v1",
         alias="deepseek_summary_system_prompt",
         description=(
-            "DeepSeek system prompt for summarization (default: deepseek/summarization/system_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "DeepSeek system prompt for summarization (default: JSON bullets). "
+            "Uses prompt_store (RFC-017)."
         ),
     )
     deepseek_summary_user_prompt: str = Field(
-        default="deepseek/summarization/long_v1",
+        default="deepseek/summarization/bullets_json_v1",
         alias="deepseek_summary_user_prompt",
-        description="DeepSeek user prompt for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description="DeepSeek user prompt for summarization. Uses prompt_store (RFC-017).",
     )
     deepseek_speaker_system_prompt: Optional[str] = Field(
         default=None,
@@ -1196,19 +1230,18 @@ class Config(BaseModel):
         alias="grok_max_tokens",
         description="Max tokens for Grok generation (None = model default)",
     )
-    grok_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    grok_summary_system_prompt: str = Field(
+        default="grok/summarization/system_bullets_v1",
         alias="grok_summary_system_prompt",
         description=(
-            "Grok system prompt for summarization (default: grok/summarization/system_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Grok system prompt for summarization (default: JSON bullets). "
+            "Uses prompt_store (RFC-017)."
         ),
     )
     grok_summary_user_prompt: str = Field(
-        default="grok/summarization/long_v1",
+        default="grok/summarization/bullets_json_v1",
         alias="grok_summary_user_prompt",
-        description="Grok user prompt for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description="Grok user prompt for summarization. Uses prompt_store (RFC-017).",
     )
     grok_speaker_system_prompt: Optional[str] = Field(
         default=None,
@@ -1286,19 +1319,18 @@ class Config(BaseModel):
         description="Mistral user prompt for speaker detection. "
         "Uses prompt_store (RFC-017) for versioned prompts.",
     )
-    mistral_summary_system_prompt: Optional[str] = Field(
-        default=None,
+    mistral_summary_system_prompt: str = Field(
+        default="mistral/summarization/system_bullets_v1",
         alias="mistral_summary_system_prompt",
         description=(
-            "Mistral system prompt for summarization (default: mistral/summarization/system_v1). "
-            "Uses prompt_store (RFC-017) for versioned prompts."
+            "Mistral system prompt for summarization (default: JSON bullets). "
+            "Uses prompt_store (RFC-017)."
         ),
     )
     mistral_summary_user_prompt: str = Field(
-        default="mistral/summarization/long_v1",
+        default="mistral/summarization/bullets_json_v1",
         alias="mistral_summary_user_prompt",
-        description="Mistral user prompt for summarization. "
-        "Uses prompt_store (RFC-017) for versioned prompts.",
+        description="Mistral user prompt for summarization. Uses prompt_store (RFC-017).",
     )
     generate_metadata: bool = Field(default=False, alias="generate_metadata")
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
@@ -1341,11 +1373,6 @@ class Config(BaseModel):
         alias="generate_gi",
         description="Enable Grounded Insight Layer extraction; writes gi.json per episode.",
     )
-    gi_insight_model: str = Field(
-        default="google/flan-t5-base",
-        alias="gi_insight_model",
-        description="Model for insight extraction (alias or full HF ID); resolved via registry.",
-    )
     gi_qa_model: str = Field(
         default=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
         alias="gi_qa_model",
@@ -1365,6 +1392,61 @@ class Config(BaseModel):
         default=True,
         alias="gi_require_grounding",
         description="If True, only emit SUPPORTED_BY edges when QA+NLI pass thresholds.",
+    )
+    gi_fail_on_missing_grounding: bool = Field(
+        default=False,
+        alias="gi_fail_on_missing_grounding",
+        description=(
+            "If True, raise GILGroundingUnsatisfiedError when gi_require_grounding is True "
+            "but evidence produces zero grounded quotes for an episode (strict CI / QA)."
+        ),
+    )
+    gi_evidence_extract_retries: int = Field(
+        default=1,
+        ge=0,
+        le=5,
+        alias="gi_evidence_extract_retries",
+        description=(
+            "Provider GIL extract_quotes: extra attempts when the first returns no span; "
+            "retries append a verbatim-copy hint to the insight text."
+        ),
+    )
+    gi_qa_score_min: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=1.0,
+        alias="gi_qa_score_min",
+        description=(
+            "Minimum extractive QA score to keep a quote candidate before NLI (GIL grounding)."
+        ),
+    )
+    gi_nli_entailment_min: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        alias="gi_nli_entailment_min",
+        description="Minimum NLI entailment probability to attach a grounded quote (GIL).",
+    )
+    gi_qa_window_chars: int = Field(
+        default=1800,
+        ge=0,
+        le=500_000,
+        alias="gi_qa_window_chars",
+        description=(
+            "GIL local QA: when > 0 and the transcript is longer, scan overlapping windows "
+            "of this many characters and keep the best-scoring span. Use 0 to disable "
+            "windowing (single QA call on the full transcript)."
+        ),
+    )
+    gi_qa_window_overlap_chars: int = Field(
+        default=300,
+        ge=0,
+        le=100_000,
+        alias="gi_qa_window_overlap_chars",
+        description=(
+            "Overlap between consecutive QA windows when gi_qa_window_chars > 0. "
+            "Must be less than gi_qa_window_chars."
+        ),
     )
     quote_extraction_provider: Literal[
         "transformers",
@@ -1402,18 +1484,115 @@ class Config(BaseModel):
             "default 'transformers' uses local NLI model."
         ),
     )
+    gil_evidence_match_summary_provider: bool = Field(
+        default=True,
+        alias="gil_evidence_match_summary_provider",
+        description=(
+            "When True (default) and generate_gi is True: if summary_provider is an API LLM "
+            "(openai, gemini, anthropic, mistral, deepseek, grok, ollama) or hybrid_ml, and both "
+            "quote_extraction_provider and entailment_provider are still the default "
+            "'transformers', they are set to summary_provider so GIL grounding uses the same "
+            "backend as summaries (applied in a model_validator before init, so Config(**d) "
+            "and Config.model_validate(d) both work). Set False to keep local extractive QA + "
+            "NLI with an API summary (advanced)."
+        ),
+    )
     gi_insight_source: Literal["provider", "summary_bullets", "stub"] = Field(
         default="stub",
         alias="gi_insight_source",
         description=(
             "Source of insight texts for GIL: 'provider' = call generate_insights() on "
-            "provider (LLM), 'summary_bullets', or 'stub' (default)."
+            "the summarization provider (LLM only; ML providers return empty), "
+            "'summary_bullets' = first N summary bullets (needs generate_summaries + bullets), "
+            "or 'stub' (default placeholder). See GROUNDED_INSIGHTS_GUIDE.md."
         ),
     )
     gi_max_insights: int = Field(
-        default=5,
+        default=config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+        ge=1,
+        le=50,
         alias="gi_max_insights",
-        description="Max insights when gi_insight_source is provider or summary_bullets.",
+        description=(
+            "Max insights when gi_insight_source is provider or summary_bullets. "
+            "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
+        ),
+    )
+    # Knowledge Graph Layer (PRD-019 / RFC-055): per-episode kg.json when enabled
+    generate_kg: bool = Field(
+        default=False,
+        alias="generate_kg",
+        description=(
+            "Enable Knowledge Graph extraction; writes kg.json per episode " "(separate from GIL)."
+        ),
+    )
+    kg_extraction_source: Literal["stub", "summary_bullets", "provider"] = Field(
+        default="summary_bullets",
+        alias="kg_extraction_source",
+        description=(
+            "KG topics/entities source: 'provider' = LLM JSON extraction via "
+            "extract_kg_graph on the transcript (see kg_extraction_provider; "
+            "default uses summary_provider; ML providers no-op); "
+            "'summary_bullets' = when an API summarization provider is available, "
+            "derive short topics/entities from bullets via extract_kg_from_summary_bullets; "
+            "otherwise topic labels mirror bullet text; "
+            "'stub' = episode + pipeline hosts/guests only (no summary topics)."
+        ),
+    )
+    kg_extraction_provider: Optional[
+        Literal[
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ]
+    ] = Field(
+        default=None,
+        alias="kg_extraction_provider",
+        description=(
+            "When kg_extraction_source is 'provider', which backend runs extract_kg_graph; "
+            "when 'summary_bullets', which backend runs extract_kg_from_summary_bullets "
+            "(bullet-derived topics). None means use summary_provider (same instance). "
+            "Same names as summary_provider."
+        ),
+    )
+    kg_max_topics: int = Field(
+        default=config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+        ge=1,
+        le=20,
+        alias="kg_max_topics",
+        description=(
+            "Max topic nodes for summary_bullets or provider KG extraction. "
+            "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (schema max 20)."
+        ),
+    )
+    kg_max_entities: int = Field(
+        default=15,
+        ge=1,
+        le=50,
+        alias="kg_max_entities",
+        description="Max entity nodes from provider KG extraction.",
+    )
+    kg_extraction_model: Optional[str] = Field(
+        default=None,
+        alias="kg_extraction_model",
+        description=(
+            "Optional model override for KG LLM extraction; default uses the "
+            "summarization model for the active provider."
+        ),
+    )
+    kg_merge_pipeline_entities: bool = Field(
+        default=True,
+        alias="kg_merge_pipeline_entities",
+        description=(
+            "When True, merge detected hosts/guests into kg.json after provider extraction "
+            "(deduped by entity_kind + name, same as LLM entities). When False, only LLM "
+            "entities (plus Episode)."
+        ),
     )
     metrics_output: Optional[str] = Field(
         default=None,
@@ -1439,6 +1618,16 @@ class Config(BaseModel):
             "Path to JSONL metrics output file. "
             "If not specified and jsonl_metrics_enabled=True, "
             "defaults to {effective_output_dir}/run.jsonl."
+        ),
+    )
+    pricing_assumptions_file: str = Field(
+        default="",
+        alias="pricing_assumptions_file",
+        description=(
+            "Optional YAML file with USD rates for LLM cost estimates (transcription + tokens). "
+            "When empty, only built-in provider constants are used. "
+            "Relative paths are resolved from the current working directory and then from "
+            "ancestor directories (repo root). See config/pricing_assumptions.yaml."
         ),
     )
     summary_provider: Literal[
@@ -1798,6 +1987,32 @@ class Config(BaseModel):
                 del data["speaker_detector_type"]
         return data
 
+    @model_validator(mode="before")
+    @classmethod
+    def _align_gil_evidence_with_summary_provider(cls, data: Any) -> Any:
+        """Set quote/entail providers from summary_provider when still default transformers.
+
+        Implemented as ``mode='before'`` so ``Config(**kwargs)`` picks up changes: Pydantic v2
+        does not substitute instances returned from ``mode='after'`` / ``mode='wrap'`` when
+        validating via ``__init__``.
+        """
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        if merged.get("gil_evidence_match_summary_provider", True) is not True:
+            return merged
+        if not merged.get("generate_gi", False):
+            return merged
+        summary = merged.get("summary_provider", "transformers")
+        if summary not in _GIL_EVIDENCE_MATCH_SUMMARY_PROVIDERS:
+            return merged
+        quote = merged.get("quote_extraction_provider", "transformers")
+        entail = merged.get("entailment_provider", "transformers")
+        if quote == "transformers" and entail == "transformers":
+            merged["quote_extraction_provider"] = summary
+            merged["entailment_provider"] = summary
+        return merged
+
     @field_validator("rss_url", mode="before")
     @classmethod
     def _strip_rss(cls, value: Any) -> Optional[str]:
@@ -2039,6 +2254,7 @@ class Config(BaseModel):
         cls._load_string_env_var(data, "grok_api_key", "GROK_API_KEY")
         cls._load_string_env_var(data, "grok_api_base", "GROK_API_BASE")
         cls._load_string_env_var(data, "ollama_api_base", "OLLAMA_API_BASE")
+        cls._load_string_env_var(data, "pricing_assumptions_file", "PRICING_ASSUMPTIONS_FILE")
 
         # Load integer environment variables
         cls._load_int_env_var(data, "workers", "WORKERS")
@@ -2456,6 +2672,31 @@ class Config(BaseModel):
                 "'mistral', 'deepseek', 'anthropic', 'ollama'"
             )
         return value_str  # type: ignore[return-value]
+
+    @field_validator("kg_extraction_provider", mode="before")
+    @classmethod
+    def _validate_kg_extraction_provider(cls, value: Any) -> Optional[str]:
+        """Optional KG LLM backend; empty means use summary_provider."""
+        if value is None or value == "":
+            return None
+        value_str = str(value).strip().lower()
+        if value_str not in (
+            "transformers",
+            "hybrid_ml",
+            "openai",
+            "gemini",
+            "grok",
+            "mistral",
+            "deepseek",
+            "anthropic",
+            "ollama",
+        ):
+            raise ValueError(
+                "kg_extraction_provider must be one of: "
+                "'transformers', 'hybrid_ml', 'openai', 'gemini', 'grok', "
+                "'mistral', 'deepseek', 'anthropic', 'ollama'"
+            )
+        return value_str
 
     @field_validator("hybrid_map_device", "hybrid_reduce_device", mode="before")
     @classmethod
@@ -3103,6 +3344,21 @@ class Config(BaseModel):
                 "generate_gi=True requires generate_metadata=True "
                 "(GIL artifact is written alongside episode metadata)"
             )
+
+        # 6c. generate_kg requires generate_metadata (artifact co-located with metadata)
+        if self.generate_kg and not self.generate_metadata:
+            raise ValueError(
+                "generate_kg=True requires generate_metadata=True "
+                "(KG artifact is written alongside episode metadata)"
+            )
+
+        # 6d. GIL windowed QA: overlap must be smaller than window when windowing is on
+        if self.gi_qa_window_chars > 0:
+            if self.gi_qa_window_overlap_chars >= self.gi_qa_window_chars:
+                raise ValueError(
+                    "gi_qa_window_overlap_chars must be strictly less than gi_qa_window_chars "
+                    "when gi_qa_window_chars > 0"
+                )
 
         # === Output Control Validation ===
 

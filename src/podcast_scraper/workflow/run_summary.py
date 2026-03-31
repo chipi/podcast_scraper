@@ -132,6 +132,6 @@ def save_run_summary(
 
     summary_json = json.dumps(run_summary, indent=2, default=str)
     output_path.write_text(summary_json, encoding="utf-8")
-    logger.info(f"Run summary saved to: {output_path}")
+    logger.debug("Run summary saved to: %s", output_path)
 
     return str(output_path)

@@ -9,16 +9,17 @@ Features:
 
 This module implements RFC-017: Prompt Management and Loading.
 
-Note: Prompts are LLM provider-specific (OpenAI, Anthropic, Mistral, etc.).
-ML providers (BART/LED) do not use prompt templates as they learn
-summarization from training, not from prompts.
-
 Prompt directory structure:
   prompts/
-    shared/          # Prompts that work across LLM providers
-    openai/          # OpenAI-specific prompts
-    anthropic/       # Anthropic-specific prompts (future)
-    mistral/         # Mistral-specific prompts (future)
+    shared/summarization/  # Cross-provider templates (e.g. JSON bullet summaries)
+    openai/                # OpenAI-specific prompts
+    anthropic/             # Anthropic-specific prompts
+    ...
+
+Summarization templates under ``<provider>/summarization/<name>.j2`` that are missing on
+disk fall back to ``shared/summarization/<name>.j2`` so every LLM provider can use the same
+bullet/JSON prompts without duplicating files. Rationale: ``docs/rfc/RFC-017-prompt-management.md``
+(§ Shared summarization templates) and ``prompts/shared/README.md``.
 """
 
 from __future__ import annotations
@@ -64,6 +65,43 @@ def get_prompt_dir() -> Path:
     return _PROMPT_DIR
 
 
+def _active_prompt_dir() -> Path:
+    env_prompt_dir = os.getenv("PROMPT_DIR")
+    if env_prompt_dir:
+        return Path(env_prompt_dir).resolve()
+    return _PROMPT_DIR
+
+
+def _rel_path_for_name(name: str) -> Path:
+    if name.endswith(".j2"):
+        return Path(name)
+    return Path(name + ".j2")
+
+
+def _resolve_template_path(prompt_dir: Path, rel_path: Path) -> Path:
+    """Resolve template path, with shared summarization fallback."""
+    primary = prompt_dir / rel_path
+    if primary.is_file():
+        return primary
+    parts = rel_path.parts
+    if len(parts) >= 2 and parts[-2] == "summarization":
+        shared = prompt_dir / Path("shared") / "summarization" / rel_path.name
+        if shared.is_file():
+            return shared
+    return primary
+
+
+def _template_path_or_raise(prompt_dir: Path, rel_path: Path, requested_name: str) -> Path:
+    path = _resolve_template_path(prompt_dir, rel_path)
+    if not path.is_file():
+        raise PromptNotFoundError(
+            f"Prompt template not found: {path}\n"
+            f"  Searched in: {prompt_dir}\n"
+            f"  Requested name: {requested_name}"
+        )
+    return path
+
+
 @lru_cache(maxsize=None)
 def _load_template(name: str) -> Template:
     """
@@ -81,28 +119,9 @@ def _load_template(name: str) -> Template:
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
-    # Check environment variable for custom prompt directory
-    env_prompt_dir = os.getenv("PROMPT_DIR")
-    if env_prompt_dir:
-        prompt_dir = Path(env_prompt_dir).resolve()
-    else:
-        prompt_dir = _PROMPT_DIR
-
-    # Normalize: allow both "openai/summarization/long_v1" and "openai/summarization/long_v1.j2"
-    if name.endswith(".j2"):
-        rel_path = Path(name)
-    else:
-        rel_path = Path(name + ".j2")
-
-    path = prompt_dir / rel_path
-
-    if not path.exists():
-        raise PromptNotFoundError(
-            f"Prompt template not found: {path}\n"
-            f"  Searched in: {prompt_dir}\n"
-            f"  Requested name: {name}"
-        )
-
+    prompt_dir = _active_prompt_dir()
+    rel_path = _rel_path_for_name(name)
+    path = _template_path_or_raise(prompt_dir, rel_path, name)
     text = path.read_text(encoding="utf-8")
     return Template(text)
 
@@ -143,18 +162,9 @@ def get_prompt_source(name: str) -> str:
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
-    # Check environment variable for custom prompt directory
-    env_prompt_dir = os.getenv("PROMPT_DIR")
-    if env_prompt_dir:
-        prompt_dir = Path(env_prompt_dir).resolve()
-    else:
-        prompt_dir = _PROMPT_DIR
-
-    if name.endswith(".j2"):
-        rel_path = Path(name)
-    else:
-        rel_path = Path(name + ".j2")
-    path = prompt_dir / rel_path
+    prompt_dir = _active_prompt_dir()
+    rel_path = _rel_path_for_name(name)
+    path = _template_path_or_raise(prompt_dir, rel_path, name)
     return path.read_text(encoding="utf-8")
 
 
@@ -194,20 +204,10 @@ def get_prompt_metadata(
     Raises:
         PromptNotFoundError: If template file doesn't exist
     """
-    # Check environment variable for custom prompt directory
-    env_prompt_dir = os.getenv("PROMPT_DIR")
-    if env_prompt_dir:
-        prompt_dir = Path(env_prompt_dir).resolve()
-    else:
-        prompt_dir = _PROMPT_DIR
-
-    if name.endswith(".j2"):
-        rel_path = Path(name)
-    else:
-        rel_path = Path(name + ".j2")
-
-    path = prompt_dir / rel_path
-    source = get_prompt_source(name)
+    prompt_dir = _active_prompt_dir()
+    rel_path = _rel_path_for_name(name)
+    path = _template_path_or_raise(prompt_dir, rel_path, name)
+    source = path.read_text(encoding="utf-8")
 
     metadata: Dict[str, Any] = {
         "name": name,

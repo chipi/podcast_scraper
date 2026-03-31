@@ -2,8 +2,10 @@
 
 This test suite runs comprehensive tests with:
 - All 5 podcasts (p01-p05) with all 3 episodes each (15 total episodes)
-- TEMPORARY: Same ML models as integration/e2e (TEST_DEFAULT_*) to confirm OOM
-  hypothesis. Normally uses production models (PROD_DEFAULT_*).
+- Production ML defaults: Whisper ``base.en``, promoted summarization mode
+  ``ml_prod_authority_v1`` (Pegasus-CNN MAP + LED-base REDUCE per Model Registry)
+- spaCy NER stays on ``TEST_DEFAULT_NER_MODEL`` (``en_core_web_sm``): CI preload
+  caches ``en_core_web_sm`` only, not ``PROD_DEFAULT_NER_MODEL`` (``en_core_web_trf``).
 - Full pipeline validation (transcription → NER → summarization → metadata)
 
 These tests are marked with @pytest.mark.nightly (NOT @pytest.mark.e2e) to
@@ -25,28 +27,32 @@ from tests.conftest import create_test_config
 def create_nightly_config(output_dir: str, rss_url: str):
     """Create config for nightly tests.
 
-    TEMPORARY: Uses same small models as integration/e2e (TEST_DEFAULT_*) to confirm
-    OOM hypothesis. If nightly passes with these models, the "Terminated" failures
-    were likely due to production model memory (base.en + prod summary models).
-    Revert to PROD_DEFAULT_WHISPER_MODEL, PROD_DEFAULT_SUMMARY_MODEL,
-    PROD_DEFAULT_SUMMARY_REDUCE_MODEL once confirmed.
+    Mirrors production summarization via ``PROD_DEFAULT_SUMMARY_MODE_ID`` (RFC-044):
+    registry ``ml_prod_authority_v1`` supplies MAP/REDUCE models and generation defaults
+    when ``summary_mode_precedence`` is ``mode``. Explicit ``summary_model`` /
+    ``summary_reduce_model`` are omitted so tests do not fight mode resolution.
+
+    NER remains ``TEST_DEFAULT_NER_MODEL`` because CI ML preload verifies
+    ``en_core_web_sm`` only; production ``en_core_web_trf`` is not preloaded there.
 
     Args:
         output_dir: Output directory for test results
         rss_url: RSS feed URL for the podcast
 
     Returns:
-        Config object with model settings (currently test defaults)
+        Config object aligned with production ML (Whisper + promoted summary mode)
     """
     return create_test_config(
         rss_url=rss_url,
         output_dir=output_dir,
         transcribe_missing=True,
-        whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Same as integration/e2e (tiny.en)
+        whisper_model=config.PROD_DEFAULT_WHISPER_MODEL,
+        summary_model=None,
+        summary_reduce_model=None,
+        summary_mode_id=config.config_constants.PROD_DEFAULT_SUMMARY_MODE_ID,
+        summary_mode_precedence="mode",
         generate_metadata=True,
         generate_summaries=True,
-        summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,  # Same as integration/e2e (bart-small)
-        summary_reduce_model=config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # Same (long-fast)
         auto_speakers=True,
         speaker_detector_provider="spacy",
         summary_provider="transformers",

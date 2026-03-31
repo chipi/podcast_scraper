@@ -185,6 +185,8 @@ nav:
       - RFC-053 Adaptive Summarization Routing: rfc/RFC-053-adaptive-summarization-routing.md
       - RFC-054 Flexible E2E Mock Response Strategy: rfc/RFC-054-e2e-mock-response-strategy.md
       - RFC-055 Knowledge Graph Layer – Core: rfc/RFC-055-knowledge-graph-layer-core.md
+      - RFC-056 Knowledge Graph Layer – Use Cases: rfc/RFC-056-knowledge-graph-layer-use-cases.md
+      - RFC-057 AutoResearch Optimization Loop: rfc/RFC-057-autoresearch-optimization-loop.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -201,6 +203,7 @@ nav:
       - Guide: guides/GROUNDED_INSIGHTS_GUIDE.md
       - GIL Ontology: gi/ontology.md
   - Knowledge Graph (KG):
+      - Guide: guides/KNOWLEDGE_GRAPH_GUIDE.md
       - Overview: kg/README.md
       - KG Ontology (draft): kg/ontology.md
   - Releases:
@@ -223,7 +226,6 @@ nav:
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - AI Quality Implementation Plan: wip/ai-quality-implementation-plan.md
       - Prefect Fit Analysis: wip/PREFECT-FIT-ANALYSIS.md
-      - Coverage threshold single source: wip/COVERAGE-THRESHOLD-SINGLE-SOURCE.md
 theme:
   name: material
   features:

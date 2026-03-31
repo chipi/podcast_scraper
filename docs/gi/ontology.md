@@ -4,6 +4,8 @@
 
 v1 (implementation-ready)
 
+**Shipping note (GIL backlog / Issue #460):** The extractor currently emits **Episode**, **Insight**, **Quote**, and **SUPPORTED_BY** edges. **Topic** nodes and **ABOUT** edges are defined in this ontology for forward compatibility and for **`gi explore`** when artifacts are enriched, but are **not** produced automatically by the default pipeline yet. **Quote.speaker_id** is set when transcription **segments** (e.g. `.segments.json`) include **`speaker`** or **`speaker_id`** aligned with the transcript; otherwise **`null`**. When **`speaker_id`** is set from diarization, the pipeline also emits a **Speaker** node and a **SPOKEN_BY** edge (**Quote → Speaker**) so **`gi explore`** can show graph-backed speaker names even when quote properties omit a human-readable label.
+
 ## Purpose
 
 Define the canonical ontology contract for the **Grounded Insight Layer (GIL)**:
@@ -119,27 +121,14 @@ The root `gi.json` file MUST include:
 
 ## Identity Rules (IDs)
 
-### Episode-scoped IDs
+### Shipped pipeline (GI + KG alignment)
 
-- Episode ID must be stable and derived from RSS entry GUID if available
-- Insight ID should be episode-scoped to avoid accidental global merging
-- Quote ID should be episode-scoped and content-based
+- **Episode** node: `episode:{episode_id}` — same `episode_id` string as the artifact root field and as KG (RSS GUID family).
+- **Insight** node: `insight:{16-hex}` — SHA-256 over `(episode_id, index, insight_text prefix)`; `properties.episode_id` anchors the episode.
+- **Quote** node: `quote:{16-hex}` — SHA-256 over `(episode_id, quote_index, text prefix, char_start, char_end)`; `properties.episode_id` anchors the episode.
+- **Speaker** node: `speaker:{slug(name)}` — global by normalized name slug (merged across episodes in combined graphs).
 
-Recommended format:
-
-- `episode:<rss_guid>`
-- `insight:<episode_id>:<sha1(text_normalized)>`
-- `quote:<episode_id>:<sha1(text)>` or `quote:<episode_id>:<char_start>-<char_end>`
-
-### Global IDs (deduplicated across episodes)
-
-These must be stable across episodes:
-
-- Speaker: `speaker:<slug(name)>`
-- Topic: `topic:<slug(label)>`
-
-Deduplication: Extraction and resolution are separate steps. The extractor may emit
-provisional IDs, but the resolver should converge to stable IDs over time.
+**Topic** / **ABOUT** (when enriched): `topic:{slug(label)}` — global, same family as KG topics.
 
 ---
 

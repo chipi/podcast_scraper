@@ -36,11 +36,23 @@ from ...utils.provider_metadata import (
     log_provider_metadata,
     validate_api_key_format,
 )
-from ...utils.timeout_config import get_http_timeout
+from ...utils.timeout_config import get_openai_client_timeout
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
 
 logger = logging.getLogger(__name__)
+
+
+def _openai_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[int]]:
+    """Best-effort prompt/completion token counts from a chat completion response."""
+    if not hasattr(response, "usage") or not response.usage:
+        return None, None
+    prompt_tokens = getattr(response.usage, "prompt_tokens", None)
+    completion_tokens = getattr(response.usage, "completion_tokens", None)
+    input_tokens = int(prompt_tokens) if isinstance(prompt_tokens, (int, float)) else None
+    output_tokens = int(completion_tokens) if isinstance(completion_tokens, (int, float)) else None
+    return input_tokens, output_tokens
+
 
 # Protocol types imported for type hints (used in docstrings and type annotations)
 # from ..speaker_detectors.base import SpeakerDetector  # noqa: F401
@@ -61,7 +73,7 @@ from ..ml.speaker_detection import DEFAULT_SPEAKER_NAMES
 #
 # Only models actually defined in config_constants.py are tracked here:
 # - whisper-1: Used for transcription (test and prod)
-# - gpt-4o-mini: Used for speaker detection (test and prod) and summarization (test)
+# - gpt-4o-mini: Speaker (test/prod), summarization (test), transcript cleaning (test/prod default)
 # - gpt-4o: Used for summarization (prod)
 OPENAI_WHISPER_COST_PER_MINUTE = 0.006  # Whisper API: $0.006 per minute of audio
 OPENAI_GPT4O_MINI_INPUT_COST_PER_1M_TOKENS = 0.15  # GPT-4o-mini: $0.15 per 1M input tokens
@@ -132,8 +144,10 @@ class OpenAIProvider:
         else:  # hybrid (default)
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
-        # Cleaning model settings (cheaper model for cost efficiency)
-        self.cleaning_model = getattr(cfg, "openai_cleaning_model", "gpt-3.5-turbo")
+        # Cleaning model settings (config default: gpt-4o-mini; override for cheaper tiers)
+        self.cleaning_model = getattr(
+            cfg, "openai_cleaning_model", config.PROD_DEFAULT_OPENAI_CLEANING_MODEL
+        )
         self.cleaning_temperature = getattr(cfg, "openai_cleaning_temperature", 0.2)
 
         # Suppress verbose OpenAI SDK debug logs (they're too long and clutter the output)
@@ -160,10 +174,9 @@ class OpenAIProvider:
         if cfg.openai_api_base:
             client_kwargs["base_url"] = cfg.openai_api_base
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        # Connect timeout: 10s (fail fast on connection issues)
-        # Read timeout: 60s default (from cfg.timeout), longer for transcription/summarization
-        client_kwargs["timeout"] = get_http_timeout(cfg)
+        # Read timeout must cover Whisper and long chat calls (cleaning, summarize);
+        # cfg.timeout alone is often too low (RSS/download tuning).
+        client_kwargs["timeout"] = get_openai_client_timeout(cfg)
 
         self.client = OpenAI(**client_kwargs)
 
@@ -1142,6 +1155,7 @@ class OpenAIProvider:
         episode_title: Optional[str] = None,
         max_insights: int = 5,
         params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
     ) -> List[str]:
         """Generate a list of short insight statements from transcript (GIL).
 
@@ -1180,6 +1194,14 @@ class OpenAIProvider:
                 temperature=0.3,
                 max_tokens=min(1024, max_insights * 150),
             )
+            in_tok, out_tok = _openai_chat_usage_tokens(response)
+            if (
+                pipeline_metrics is not None
+                and in_tok is not None
+                and out_tok is not None
+                and hasattr(pipeline_metrics, "record_llm_gi_call")
+            ):
+                pipeline_metrics.record_llm_gi_call(in_tok, out_tok)
             content = (response.choices[0].message.content or "").strip()
             lines = [
                 line.strip()
@@ -1203,6 +1225,146 @@ class OpenAIProvider:
             logger.debug("OpenAI generate_insights failed: %s", e, exc_info=True)
             return []
 
+    def extract_kg_graph(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        max_topics: int = 5,
+        max_entities: int = 15,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Extract topics and entities as JSON (KG layer). Returns None on failure."""
+        if not self._summarization_initialized:
+            logger.warning("OpenAI summarization not initialized for extract_kg_graph")
+            return None
+        from ...kg.llm_extract import (
+            build_kg_transcript_system_prompt,
+            build_kg_user_prompt,
+            parse_kg_graph_response,
+            resolve_kg_model_id,
+            truncate_transcript_for_kg,
+        )
+
+        max_topics = min(max(1, max_topics), 20)
+        max_entities = min(max(1, max_entities), 50)
+        text_slice = truncate_transcript_for_kg(text or "")
+        if not text_slice.strip():
+            return None
+        model = resolve_kg_model_id(self, params)
+        user_prompt = build_kg_user_prompt(
+            text_slice, episode_title or "", max_topics, max_entities
+        )
+        system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
+        try:
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=2048,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+            )
+            in_tok, out_tok = _openai_chat_usage_tokens(response)
+            pm = pipeline_metrics
+            if (
+                pm is not None
+                and in_tok is not None
+                and out_tok is not None
+                and hasattr(pm, "record_llm_kg_call")
+            ):
+                pm.record_llm_kg_call(in_tok, out_tok)
+            raw = (response.choices[0].message.content or "").strip()
+            return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
+        except Exception as e:
+            logger.debug("OpenAI extract_kg_graph failed: %s", e, exc_info=True)
+            return None
+
+    def extract_kg_from_summary_bullets(
+        self,
+        bullet_labels: List[str],
+        episode_title: Optional[str] = None,
+        max_topics: int = 5,
+        max_entities: int = 15,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Derive KG topics/entities from summary bullets (no transcript)."""
+        if not self._summarization_initialized:
+            logger.warning(
+                "OpenAI summarization not initialized for extract_kg_from_summary_bullets"
+            )
+            return None
+        from ...kg.llm_extract import (
+            build_kg_from_bullets_system_prompt,
+            build_kg_from_bullets_user_prompt,
+            normalize_bullet_labels_for_kg,
+            parse_kg_graph_response,
+            resolve_kg_model_id,
+        )
+
+        max_topics = min(max(1, max_topics), 20)
+        max_entities = min(max(1, max_entities), 50)
+        bullets = normalize_bullet_labels_for_kg(bullet_labels)
+        if not bullets:
+            return None
+        model = resolve_kg_model_id(self, params)
+        user_prompt = build_kg_from_bullets_user_prompt(
+            bullets, episode_title or "", max_topics, max_entities
+        )
+        system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
+        try:
+            from openai import APIError, RateLimitError
+
+            from ...utils.provider_metrics import retry_with_metrics
+
+            def _make_api_call():
+                return self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_msg},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=2048,
+                )
+
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+            )
+            in_tok, out_tok = _openai_chat_usage_tokens(response)
+            pm = pipeline_metrics
+            if (
+                pm is not None
+                and in_tok is not None
+                and out_tok is not None
+                and hasattr(pm, "record_llm_kg_call")
+            ):
+                pm.record_llm_kg_call(in_tok, out_tok)
+            raw = (response.choices[0].message.content or "").strip()
+            return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
+        except Exception as e:
+            logger.debug("OpenAI extract_kg_from_summary_bullets failed: %s", e, exc_info=True)
+            return None
+
     def extract_quotes(
         self,
         transcript: str,
@@ -1212,7 +1374,7 @@ class OpenAIProvider:
         """Extract candidate quote span that supports the insight (GIL QA via LLM)."""
         if not self._summarization_initialized or not (transcript and insight_text):
             return []
-        from ...gi.grounding import QuoteCandidate
+        from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
         from ...prompts.store import render_prompt
 
         system = (
@@ -1248,6 +1410,15 @@ class OpenAIProvider:
                 max_delay=30.0,
                 retryable_exceptions=(RateLimitError, APIError, ConnectionError),
             )
+            in_tok, out_tok = _openai_chat_usage_tokens(response)
+            pm = kwargs.get("pipeline_metrics")
+            if (
+                pm is not None
+                and in_tok is not None
+                and out_tok is not None
+                and hasattr(pm, "record_llm_gi_call")
+            ):
+                pm.record_llm_gi_call(in_tok, out_tok)
             content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
                 content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
@@ -1255,18 +1426,15 @@ class OpenAIProvider:
             quote_text = (obj.get("quote_text") or "").strip()
             if not quote_text:
                 return []
-            # Find first occurrence in transcript for char offsets
-            start = transcript.find(quote_text)
-            if start == -1:
-                # Fuzzy: use start 0 and length for display
-                start, end = 0, len(quote_text)
-            else:
-                end = start + len(quote_text)
+            resolved = resolve_llm_quote_span(transcript, quote_text)
+            if resolved is None:
+                return []
+            start, end, verbatim = resolved
             return [
                 QuoteCandidate(
                     char_start=start,
                     char_end=end,
-                    text=quote_text,
+                    text=verbatim,
                     qa_score=1.0,
                 )
             ]
@@ -1317,6 +1485,15 @@ class OpenAIProvider:
                 max_delay=30.0,
                 retryable_exceptions=(RateLimitError, APIError, ConnectionError),
             )
+            in_tok, out_tok = _openai_chat_usage_tokens(response)
+            pm = kwargs.get("pipeline_metrics")
+            if (
+                pm is not None
+                and in_tok is not None
+                and out_tok is not None
+                and hasattr(pm, "record_llm_gi_call")
+            ):
+                pm.record_llm_gi_call(in_tok, out_tok)
             content = (response.choices[0].message.content or "0").strip()
             # Take first number
             for part in content.replace(",", " ").split():
@@ -1438,11 +1615,16 @@ class OpenAIProvider:
             or self._summarization_initialized
         )
 
-    def clean_transcript(self, text: str) -> str:
+    def clean_transcript(
+        self,
+        text: str,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> str:
         """Clean transcript using LLM for semantic filtering.
 
         Args:
             text: Transcript text to clean (should already be pattern-cleaned)
+            pipeline_metrics: Optional pipeline metrics for LLM usage accounting
 
         Returns:
             Cleaned transcript text
@@ -1513,6 +1695,14 @@ class OpenAIProvider:
             call_metrics.finalize()
 
             cleaned = response.choices[0].message.content
+            in_tok, out_tok = _openai_chat_usage_tokens(response)
+            if (
+                pipeline_metrics is not None
+                and in_tok is not None
+                and out_tok is not None
+                and hasattr(pipeline_metrics, "record_llm_cleaning_call")
+            ):
+                pipeline_metrics.record_llm_cleaning_call(in_tok, out_tok)
             if not cleaned:
                 logger.warning("OpenAI API returned empty cleaned text, using original")
                 return text

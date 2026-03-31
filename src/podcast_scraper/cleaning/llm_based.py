@@ -6,9 +6,15 @@ natural language understanding rather than pattern matching.
 """
 
 import logging
-from typing import Any, cast
+from typing import Any, cast, Optional
 
 logger = logging.getLogger(__name__)
+
+# If pattern-cleaned input is at least this long, reject LLM output that shrinks the
+# transcript by too much (models sometimes return a short unrelated paragraph instead
+# of the full cleaned transcript, which breaks downstream summarization).
+_MIN_INPUT_CHARS_FOR_LENGTH_GUARD = 2000
+_MIN_OUTPUT_TO_INPUT_RATIO = 0.20
 
 
 class LLMBasedCleaner:
@@ -26,13 +32,19 @@ class LLMBasedCleaner:
         """Initialize LLM-based cleaner."""
         pass
 
-    def clean(self, text: str, provider: Any) -> str:
+    def clean(
+        self,
+        text: str,
+        provider: Any,
+        pipeline_metrics: Optional[Any] = None,
+    ) -> str:
         """Clean transcript using LLM for semantic filtering.
 
         Args:
             text: Transcript text to clean (should already be pattern-cleaned)
             provider: Provider instance that supports semantic cleaning
                 (must have clean_transcript() method)
+            pipeline_metrics: Optional pipeline ``Metrics`` for LLM token accounting
 
         Returns:
             Cleaned transcript text
@@ -48,10 +60,21 @@ class LLMBasedCleaner:
             )
 
         try:
-            cleaned = provider.clean_transcript(text)
+            cleaned = provider.clean_transcript(text, pipeline_metrics=pipeline_metrics)
             if not cleaned or not isinstance(cleaned, str):
                 logger.warning("LLM cleaning returned empty or invalid result, using original text")
                 return text
+            stripped = cleaned.strip()
+            input_len = len(text)
+            if input_len >= _MIN_INPUT_CHARS_FOR_LENGTH_GUARD and input_len > 0:
+                ratio = len(stripped) / input_len
+                if ratio < _MIN_OUTPUT_TO_INPUT_RATIO:
+                    logger.warning(
+                        "LLM cleaning shortened transcript excessively "
+                        "(output/input length ratio=%.3f); using pattern-cleaned text",
+                        ratio,
+                    )
+                    return text
             return cast(str, cleaned)
         except Exception as e:
             logger.error(f"LLM cleaning failed: {e}", exc_info=True)
