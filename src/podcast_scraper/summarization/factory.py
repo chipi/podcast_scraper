@@ -262,7 +262,7 @@ def create_summarization_provider(  # noqa: C901
 
             # After conversion above, params is guaranteed to be SummarizationParams
             assert isinstance(params, SummarizationParams)
-            cfg = Config(
+            cfg_kwargs: Dict[str, Any] = dict(
                 rss="",  # Dummy, not used for summarization (use alias)
                 summary_provider="openai",
                 generate_summaries=True,  # Required for OpenAI provider initialization
@@ -272,6 +272,11 @@ def create_summarization_provider(  # noqa: C901
                 openai_api_key=os.getenv("OPENAI_API_KEY"),  # Load from env
                 openai_max_tokens=params.max_length if params.max_length else None,
             )
+            if params.user_prompt is not None:
+                cfg_kwargs["openai_summary_user_prompt"] = params.user_prompt
+            if params.system_prompt is not None:
+                cfg_kwargs["openai_summary_system_prompt"] = params.system_prompt
+            cfg = Config(**cfg_kwargs)
             provider = OpenAIProvider(cfg)
         else:
             provider = OpenAIProvider(cfg)
