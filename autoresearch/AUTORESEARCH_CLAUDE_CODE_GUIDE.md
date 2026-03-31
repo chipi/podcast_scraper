@@ -15,8 +15,9 @@ The three files that define every experiment:
 
 | File | Role | Editable by agent? |
 | --- | --- | --- |
-| `autoresearch/prompt_tuning/program.md` | Agent instructions and loop rules | Human only |
-| `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | What the agent optimizes | Agent only |
+| `autoresearch/prompt_tuning/program_summary_bullets.md` | Agent instructions and loop rules (bullets) | Human only |
+| `autoresearch/prompt_tuning/program_summary.md` | Agent instructions and loop rules (paragraphs) | Human only |
+| `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | What the agent optimizes (bullets) | Agent only |
 | `autoresearch/prompt_tuning/eval/score.py` | Immutable scoring harness | Never |
 
 ---
@@ -94,7 +95,7 @@ Current best is the last committed score. Baseline is logged in `results.tsv`.
 ## Setup (run once before loop)
 1. Run `make autoresearch-preflight` — abort immediately if anything fails.
 2. Run `make autoresearch-score DRY_RUN=1` — confirm a scalar prints to stdout.
-3. Confirm `autoresearch/prompt_tuning/results.tsv` has a baseline row.
+3. Confirm `autoresearch/prompt_tuning/results_summary_bullets.tsv` has a baseline row.
 
 ## Experiment Loop
 For each experiment 1 to $AUTORESEARCH_MAX_EXPERIMENTS:
@@ -103,17 +104,17 @@ For each experiment 1 to $AUTORESEARCH_MAX_EXPERIMENTS:
 2. Edit ONLY `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2`.
 3. Run `make autoresearch-score`.
 4. Read the single float on stdout. Compare to current best.
-5. Delta > +1%: run `git add <template> autoresearch/prompt_tuning/results.tsv`
+5. Delta > +1%: run `git add <template> autoresearch/prompt_tuning/results_summary_bullets.tsv`
    then `git commit -m "[autoresearch] exp-N: <hypothesis>, score X.XXX (+Y.Y%)"`.
 6. Delta ≤ +1%: run `git checkout HEAD -- <template>` to restore.
-7. Append one row to `autoresearch/prompt_tuning/results.tsv` (see column format below).
+7. Append one row to `autoresearch/prompt_tuning/results_summary_bullets.tsv` (see column format below).
 8. If 3 consecutive experiments all ≤ +1%: stop early and write summary.
 9. Start next experiment.
 
 ## Boundaries — never cross these
 - Edit ONLY `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2`.
 - NEVER edit `autoresearch/prompt_tuning/eval/score.py` or anything under `data/eval/`.
-- NEVER edit `autoresearch/prompt_tuning/program.md`.
+- NEVER edit `autoresearch/prompt_tuning/program_summary_bullets.md`.
 - NEVER install new packages.
 - NEVER commit without running the full eval first.
 - NEVER pause to ask the human a question. If uncertain, make a conservative choice,
@@ -126,7 +127,7 @@ make autoresearch-score
 make autoresearch-score DRY_RUN=1
 git diff src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
 git add src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2 \
-        autoresearch/prompt_tuning/results.tsv
+        autoresearch/prompt_tuning/results_summary_bullets.tsv
 git commit -m "..."
 git checkout HEAD -- src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
 git log --oneline -20
@@ -165,8 +166,13 @@ Print "AUTORESEARCH COMPLETE" as the final stdout line.
 Never start an overnight run blind. Watch 3–5 experiments with full output visible:
 
 ```bash
+# For bullets line:
 claude --dangerously-skip-permissions \
-  "Read autoresearch/prompt_tuning/program.md and run exactly 3 experiments, then stop and summarize."
+  "Read autoresearch/prompt_tuning/program_summary_bullets.md and run exactly 3 experiments, then stop and summarize."
+
+# For paragraph summary line:
+claude --dangerously-skip-permissions \
+  "Read autoresearch/prompt_tuning/program_summary.md and run exactly 3 experiments, then stop and summarize."
 ```
 
 Verify it:
@@ -183,7 +189,7 @@ Only proceed to overnight once you have seen this cycle work cleanly.
 
 ```bash
 caffeinate -i claude --dangerously-skip-permissions \
-  "Read autoresearch/prompt_tuning/program.md and begin the autoresearch loop."
+  "Read autoresearch/prompt_tuning/program_summary_bullets.md and begin the autoresearch loop."
 ```
 
 `caffeinate -i` prevents macOS idle sleep for the duration without keeping the display
@@ -196,7 +202,7 @@ of ideas.
 mkdir -p autoresearch/logs
 
 nohup caffeinate -i claude --dangerously-skip-permissions \
-  "Read autoresearch/prompt_tuning/program.md and begin the autoresearch loop." \
+  "Read autoresearch/prompt_tuning/program_summary_bullets.md and begin the autoresearch loop." \
   > autoresearch/logs/run_$(date +%Y%m%d_%H%M).log 2>&1 &
 
 echo "AutoResearch started. PID: $!"
