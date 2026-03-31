@@ -46,7 +46,7 @@ jobs:
           image=moby/buildkit:latest
 
     - name: Build Docker image (LLM-only variant, fast)
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: Dockerfile
@@ -107,7 +107,7 @@ jobs:
           image=moby/buildkit:latest
 
     - name: Build Docker image (${{ matrix.name }})
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@v7
       with:
         context: .
         file: Dockerfile
