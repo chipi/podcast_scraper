@@ -1,3 +1,6 @@
 experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
 exp-0	0.485	+0.000	baseline	Original templates: long_v1.j2 + system_v1.j2. N=5 smoke.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
 exp-1	0.492	+0.007	accepted	Prefer transcript vocabulary/phrasing: small but consistent ROUGE-L gain	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.481	-0.011	rejected	Fix paragraph count default 3-4: hurt score, config already passes values	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.487	-0.005	rejected	Opening sentence states central thesis: marginal loss, consecutive fails now 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.483	-0.009	rejected	Coverage structure (topic+args+conclusions): 3 consecutive fails, early stop	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
