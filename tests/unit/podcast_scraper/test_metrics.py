@@ -404,6 +404,7 @@ class TestFinish(unittest.TestCase):
             "kg_extractions_provider_summary_bullets",
             "kg_avg_topics_per_artifact",
             "kg_avg_entities_per_artifact",
+            "gi_evidence_stack_completed",
             "gi_evidence_path_provider",
             "gi_evidence_extract_quotes_calls",
             "gi_evidence_nli_candidates_queued",
@@ -450,6 +451,8 @@ class TestFinish(unittest.TestCase):
             "llm_gi_avg_input_tokens_per_call",
             "llm_gi_avg_output_tokens_per_call",
             "llm_gi_calls_per_gi_artifact",
+            "llm_gi_evidence_retries",
+            "llm_gi_evidence_rate_limit_sleep_sec",
             "llm_kg_calls",
             "llm_kg_input_tokens",
             "llm_kg_output_tokens",
@@ -518,6 +521,26 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["transcribe_count"], 2)
         self.assertEqual(result["extract_names_count"], 1)
         self.assertEqual(result["summarize_count"], 0)
+
+    def test_gi_evidence_path_provider_alias_matches_stack_completed(self):
+        """gi_evidence_path_provider is a deprecated alias for gi_evidence_stack_completed."""
+        m = metrics.Metrics()
+        m.gi_evidence_path_provider = 3
+        self.assertEqual(m.gi_evidence_stack_completed, 3)
+        m.gi_evidence_stack_completed = 5
+        self.assertEqual(m.gi_evidence_path_provider, 5)
+
+    def test_record_llm_gi_evidence_call_metrics(self):
+        """GIL evidence LLM call metrics accumulate retries and rate-limit sleep."""
+        from podcast_scraper.utils.provider_metrics import ProviderCallMetrics
+
+        m = metrics.Metrics()
+        cm = ProviderCallMetrics()
+        cm.record_retry(sleep_seconds=0.5, reason="429")
+        cm.finalize()
+        m.record_llm_gi_evidence_call_metrics(cm)
+        self.assertEqual(m.llm_gi_evidence_retries, cm.retries)
+        self.assertEqual(m.llm_gi_evidence_rate_limit_sleep_sec, cm.rate_limit_sleep_sec)
 
     def test_record_gi_success_counts_and_derived_rates(self):
         """Test GIL success metrics accumulation and derived rates in finish()."""
@@ -1239,6 +1262,8 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         self.assertEqual(result["llm_gi_calls"], 0)
         self.assertEqual(result["llm_gi_input_tokens"], 0)
         self.assertEqual(result["llm_gi_output_tokens"], 0)
+        self.assertEqual(result["llm_gi_evidence_retries"], 0)
+        self.assertEqual(result["llm_gi_evidence_rate_limit_sleep_sec"], 0.0)
         self.assertEqual(result["llm_kg_calls"], 0)
         self.assertEqual(result["llm_kg_input_tokens"], 0)
         self.assertEqual(result["llm_kg_output_tokens"], 0)

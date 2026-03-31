@@ -10,7 +10,7 @@ import logging
 import random
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Optional, TypeVar
+from typing import Any, Callable, Optional, Tuple, TypeVar
 
 from podcast_scraper.utils.retryable_errors import get_retry_reason, is_retryable_error
 
@@ -185,3 +185,82 @@ def retry_with_metrics(
 
     # This should never be reached, but type checker needs it
     raise RuntimeError("Retry logic error: no exception but function failed")
+
+
+def openai_compatible_chat_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[int]]:
+    """Best-effort prompt/completion token counts from OpenAI-compatible chat responses."""
+    if not hasattr(response, "usage") or not response.usage:
+        return None, None
+    prompt_tokens = getattr(response.usage, "prompt_tokens", None)
+    completion_tokens = getattr(response.usage, "completion_tokens", None)
+    in_tok = int(prompt_tokens) if isinstance(prompt_tokens, (int, float)) else None
+    out_tok = int(completion_tokens) if isinstance(completion_tokens, (int, float)) else None
+    return in_tok, out_tok
+
+
+def anthropic_message_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[int]]:
+    """Best-effort token counts from Anthropic messages API responses."""
+    if not hasattr(response, "usage") or not response.usage:
+        return None, None
+    usage = response.usage
+    it = getattr(usage, "input_tokens", None)
+    ot = getattr(usage, "output_tokens", None)
+    in_tok = int(it) if isinstance(it, (int, float)) else None
+    out_tok = int(ot) if isinstance(ot, (int, float)) else None
+    return in_tok, out_tok
+
+
+def gemini_generate_usage_tokens(response: Any) -> Tuple[Optional[int], Optional[int]]:
+    """Best-effort token counts from Gemini generate_content responses."""
+    if not hasattr(response, "usage_metadata") or not response.usage_metadata:
+        return None, None
+    usage = response.usage_metadata
+    pt = getattr(usage, "prompt_token_count", None)
+    ct = getattr(usage, "candidates_token_count", None)
+    try:
+        in_tok = int(pt) if pt is not None else None
+    except (TypeError, ValueError):
+        in_tok = None
+    try:
+        out_tok = int(ct) if ct is not None else None
+    except (TypeError, ValueError):
+        out_tok = None
+    return in_tok, out_tok
+
+
+def apply_gil_evidence_llm_call_metrics(
+    call_metrics: ProviderCallMetrics,
+    pipeline_metrics: Any,
+    prompt_tokens: Optional[int],
+    completion_tokens: Optional[int],
+) -> None:
+    """Finalize a GIL evidence LLM call and merge into pipeline metrics.
+
+    Records aggregate GI tokens when both token counts are known; always records
+    retry and rate-limit sleep from ``call_metrics`` after :meth:`finalize`.
+    """
+    if prompt_tokens is not None and completion_tokens is not None:
+        call_metrics.set_tokens(prompt_tokens, completion_tokens)
+    call_metrics.finalize()
+    if pipeline_metrics is None:
+        return
+    if hasattr(pipeline_metrics, "record_llm_gi_evidence_call_metrics"):
+        pipeline_metrics.record_llm_gi_evidence_call_metrics(call_metrics)
+    if (
+        prompt_tokens is not None
+        and completion_tokens is not None
+        and hasattr(pipeline_metrics, "record_llm_gi_call")
+    ):
+        pipeline_metrics.record_llm_gi_call(prompt_tokens, completion_tokens)
+
+
+def merge_gil_evidence_call_metrics_on_failure(
+    call_metrics: ProviderCallMetrics,
+    pipeline_metrics: Any,
+) -> None:
+    """After a failed GIL evidence LLM call, record retries and rate-limit sleep only."""
+    call_metrics.finalize()
+    if pipeline_metrics is None:
+        return
+    if hasattr(pipeline_metrics, "record_llm_gi_evidence_call_metrics"):
+        pipeline_metrics.record_llm_gi_evidence_call_metrics(call_metrics)

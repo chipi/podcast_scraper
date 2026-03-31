@@ -524,9 +524,9 @@ def build_artifact(
                 pipeline_metrics=pipeline_metrics,
             )
             if pipeline_metrics is not None and hasattr(
-                pipeline_metrics, "gi_evidence_path_provider"
+                pipeline_metrics, "gi_evidence_stack_completed"
             ):
-                pipeline_metrics.gi_evidence_path_provider += 1
+                pipeline_metrics.gi_evidence_stack_completed += 1
             return _artifact_from_multi_insight(
                 episode_id=episode_id,
                 insight_texts=insights,

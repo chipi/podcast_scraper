@@ -1144,7 +1144,17 @@ class MistralProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                apply_gil_evidence_llm_call_metrics,
+                merge_gil_evidence_call_metrics_on_failure,
+                openai_compatible_chat_usage_tokens,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("mistral")
+            pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
                 return self.client.chat.complete(
@@ -1157,13 +1167,20 @@ class MistralProvider:
                     max_tokens=512,
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=(Exception,),
-            )
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(Exception,),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+                raise
+            in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
+            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "") or ""
             content = content.strip()
@@ -1204,7 +1221,17 @@ class MistralProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                apply_gil_evidence_llm_call_metrics,
+                merge_gil_evidence_call_metrics_on_failure,
+                openai_compatible_chat_usage_tokens,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("mistral")
+            pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
                 return self.client.chat.complete(
@@ -1217,13 +1244,20 @@ class MistralProvider:
                     max_tokens=10,
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=(Exception,),
-            )
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(Exception,),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+                raise
+            in_tok, out_tok = openai_compatible_chat_usage_tokens(response)
+            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "0") or "0"
             content = content.strip()

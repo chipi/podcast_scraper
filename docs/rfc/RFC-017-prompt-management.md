@@ -716,7 +716,7 @@ experiments/               # Experiment configs
 - **Prompt management**: Provider-specific prompt loading happens inside providers
 - **Core workflow**: Workflow code doesn't import `prompt_store` directly
 
-## Shared summarization templates vs per-provider overrides {#shared-summarization-templates-vs-per-provider-overrides}
+## Shared summarization templates vs per-provider overrides {: #shared-summarization-templates-vs-per-provider-overrides }
 
 Summarization prompts for API providers often use a **single output contract** (JSON bullet lists) so downstream features (parsing, metadata, grounded insights, knowledge graph from `summary_bullets`) stay consistent across OpenAI, Gemini, Anthropic, etc. Duplicating that contract in every `prompts/<provider>/summarization/` tree causes drift and review overhead.
 

@@ -284,8 +284,8 @@ streamlit run app.py
 **Make task (convenience):**
 
 ```bash
-make run-compare BASELINE=baseline_ml_dev_authority CANDIDATES="run1 run2 run3"
-# Launches Streamlit with pre-selected runs (user can still change selection)
+make run-compare BASELINE=baseline_ml_dev_authority
+# Launches Streamlit; optional BASELINE sets default baseline in the sidebar when that run is selected
 ```
 
 #### Option B — Static HTML Generator
@@ -347,18 +347,17 @@ tools/run_compare/
 ```makefile
 run-compare:
  @echo "Launching run comparison tool..."
- @BASELINE=$(BASELINE) CANDIDATES="$(CANDIDATES)" \
+ @BASELINE=$(BASELINE) \
   streamlit run tools/run_compare/app.py \
   --server.headless=false \
   --server.port=8501
 ```
 
-**Python code reads environment variables:**
+**Python code reads optional `BASELINE` to set the default baseline in the sidebar when that run appears in the selection.**
 
 ```python
 import os
 baseline = os.environ.get("BASELINE")
-candidates = os.environ.get("CANDIDATES", "").split() if os.environ.get("CANDIDATES") else []
 ```
 
 ## Key Decisions

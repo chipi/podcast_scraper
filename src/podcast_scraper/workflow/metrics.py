@@ -83,7 +83,7 @@ class Metrics:
     kg_extractions_provider: int = 0  # model_version startswith provider:
     # Subset: LLM JSON from summary bullets (not transcript extract_kg_graph)
     kg_extractions_provider_summary_bullets: int = 0
-    gi_evidence_path_provider: int = 0  # GIL artifacts built via provider path (QA+NLI)
+    gi_evidence_stack_completed: int = 0  # GIL artifacts that completed evidence QA+NLI path
     gi_evidence_extract_quotes_calls: int = 0  # extract_quotes calls on provider path
     # Candidates that passed QA threshold and were sent to NLI (may exceed completed NLI calls).
     gi_evidence_nli_candidates_queued: int = 0
@@ -152,6 +152,8 @@ class Metrics:
     llm_gi_calls: int = 0
     llm_gi_input_tokens: int = 0
     llm_gi_output_tokens: int = 0
+    llm_gi_evidence_retries: int = 0  # Retries across GIL evidence LLM calls (extract_quotes / NLI)
+    llm_gi_evidence_rate_limit_sleep_sec: float = 0.0  # Rate-limit sleep on those calls
     # Knowledge graph: extract_kg_graph (LLM provider path)
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0
@@ -206,6 +208,15 @@ class Metrics:
     summarization_device: Optional[str] = None  # Device used for summarization stage
 
     _start_time: float = field(default_factory=time.time, init=False)
+
+    @property
+    def gi_evidence_path_provider(self) -> int:
+        """Deprecated alias for :attr:`gi_evidence_stack_completed` (export/UI compat)."""
+        return self.gi_evidence_stack_completed
+
+    @gi_evidence_path_provider.setter
+    def gi_evidence_path_provider(self, value: int) -> None:
+        self.gi_evidence_stack_completed = value
 
     def record_stage(self, stage: str, duration: float) -> None:
         """Record time spent in a stage.
@@ -443,6 +454,17 @@ class Metrics:
         self.llm_gi_calls += 1
         self.llm_gi_input_tokens += input_tokens
         self.llm_gi_output_tokens += output_tokens
+
+    def record_llm_gi_evidence_call_metrics(self, cm: Any) -> None:
+        """Accumulate retries and rate-limit sleep from one GIL evidence LLM API call.
+
+        Expects :class:`~podcast_scraper.utils.provider_metrics.ProviderCallMetrics`
+        after :meth:`~podcast_scraper.utils.provider_metrics.ProviderCallMetrics.finalize`.
+        """
+        self.llm_gi_evidence_retries += int(getattr(cm, "retries", 0) or 0)
+        self.llm_gi_evidence_rate_limit_sleep_sec += float(
+            getattr(cm, "rate_limit_sleep_sec", 0.0) or 0.0
+        )
 
     def record_llm_kg_call(self, input_tokens: int, output_tokens: int) -> None:
         """Record an LLM call for KG extraction (extract_kg_graph)."""
@@ -864,6 +886,7 @@ class Metrics:
                 if self.kg_artifacts_generated
                 else 0.0
             ),
+            "gi_evidence_stack_completed": self.gi_evidence_stack_completed,
             "gi_evidence_path_provider": self.gi_evidence_path_provider,
             "gi_evidence_extract_quotes_calls": self.gi_evidence_extract_quotes_calls,
             "gi_evidence_nli_candidates_queued": self.gi_evidence_nli_candidates_queued,
@@ -979,6 +1002,10 @@ class Metrics:
             "llm_gi_avg_input_tokens_per_call": gi_in_avg,
             "llm_gi_avg_output_tokens_per_call": gi_out_avg,
             "llm_gi_calls_per_gi_artifact": gi_llm_calls_per_artifact,
+            "llm_gi_evidence_retries": self.llm_gi_evidence_retries,
+            "llm_gi_evidence_rate_limit_sleep_sec": round(
+                self.llm_gi_evidence_rate_limit_sleep_sec, 4
+            ),
             "llm_kg_calls": self.llm_kg_calls,
             "llm_kg_input_tokens": self.llm_kg_input_tokens,
             "llm_kg_output_tokens": self.llm_kg_output_tokens,

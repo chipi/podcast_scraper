@@ -1502,6 +1502,19 @@ data/eval/
 
 ---
 
+## Visual run comparison (RFC-047)
+
+To compare experiment or baseline runs side by side (artifact status, KPI tiles, deltas vs a chosen baseline, token/latency charts, optional map/reduce diagnostics, and per-episode diffs), use the Streamlit tool described in the [run_compare README in the repository](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md).
+
+```bash
+pip install -e '.[run_compare]'
+make run-compare
+```
+
+Optional `BASELINE` picks the default row in the **Baseline (for deltas)** dropdown when that run is selected (see the README). On load, all runs matching the category filter are selected; use **Select all** / **Deselect all** in the sidebar as needed. This complements text reports such as `make runs-compare` and `make report-multi-run`.
+
+---
+
 ## Troubleshooting
 
 ### "Dataset definition not found"
@@ -1548,11 +1561,11 @@ data/eval/
 This guide will evolve as the experiment system matures. Planned additions:
 
 - [ ] Automated evaluation integration
-- [ ] Comparison tools (experiment vs baseline)
+- [x] Comparison tools (experiment vs baseline) — see `make runs-compare`, `make report-multi-run`, and `make run-compare` (RFC-047)
 - [ ] Regression detection
 - [ ] CI/CD integration
 - [ ] Cost tracking
-- [ ] Visualization tools
+- [x] Visualization tools — `make run-compare` (Streamlit, RFC-047)
 
 ---
 

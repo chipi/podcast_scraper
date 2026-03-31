@@ -51,6 +51,13 @@ ml = [
 llama = [
   "llama-cpp-python>=0.2.0,<0.3.0",
 ]
+# Streamlit run comparison UI (RFC-047, Issue #373)
+run_compare = [
+  "streamlit>=1.41.0,<2.0.0",
+  "plotly>=5.18.0,<6.0.0",
+  "pandas>=2.0.0,<3.0.0",
+  "rouge-score>=0.1.2,<1.0.0",
+]
 # LLM API providers - grouped for CI/test convenience
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
@@ -137,6 +144,7 @@ warn_unused_configs = true
 disable_error_code = ["attr-defined"]
 exclude = [
     "^scripts/.*",  # Scripts use sys.path manipulation, exclude from mypy
+    "^tools/.*",  # Standalone Streamlit tools (not part of src package)
 ]
 
 [[tool.mypy.overrides]]

@@ -1311,7 +1311,17 @@ class GeminiProvider:
         try:
             from google.api_core import exceptions as google_exceptions
 
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                apply_gil_evidence_llm_call_metrics,
+                gemini_generate_usage_tokens,
+                merge_gil_evidence_call_metrics_on_failure,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("gemini")
+            pm = kwargs.get("pipeline_metrics")
 
             generation_config = {
                 "temperature": 0.0,
@@ -1326,17 +1336,24 @@ class GeminiProvider:
                     config=generation_config,
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=(
-                    google_exceptions.ResourceExhausted,
-                    google_exceptions.ServiceUnavailable,
-                    ConnectionError,
-                ),
-            )
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(
+                        google_exceptions.ResourceExhausted,
+                        google_exceptions.ServiceUnavailable,
+                        ConnectionError,
+                    ),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+                raise
+            in_tok, out_tok = gemini_generate_usage_tokens(response)
+            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
             if content.startswith("```"):
@@ -1378,7 +1395,17 @@ class GeminiProvider:
         try:
             from google.api_core import exceptions as google_exceptions
 
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                apply_gil_evidence_llm_call_metrics,
+                gemini_generate_usage_tokens,
+                merge_gil_evidence_call_metrics_on_failure,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("gemini")
+            pm = kwargs.get("pipeline_metrics")
 
             generation_config = {
                 "temperature": 0.0,
@@ -1393,17 +1420,24 @@ class GeminiProvider:
                     config=generation_config,
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=(
-                    google_exceptions.ResourceExhausted,
-                    google_exceptions.ServiceUnavailable,
-                    ConnectionError,
-                ),
-            )
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(
+                        google_exceptions.ResourceExhausted,
+                        google_exceptions.ServiceUnavailable,
+                        ConnectionError,
+                    ),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+                raise
+            in_tok, out_tok = gemini_generate_usage_tokens(response)
+            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "0").strip()
             for part in content.replace(",", " ").split():

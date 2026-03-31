@@ -29,7 +29,7 @@ endif
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list runs-compare benchmark serve-gi-kg-viz
+.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
 
 help:
 	@echo "Common developer commands:"
@@ -177,6 +177,8 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
+	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[run_compare]')"
+	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make autoresearch-score  RFC-057 Track A: eval run + ROUGE + dual judges (scalar on stdout)"
 	@echo "                            Usage: make autoresearch-score [CONFIG=...] [REFERENCE=...] [DRY_RUN=1]"
 	@echo "  make report-multi-run   Generate multi-run comparison report (baseline + N runs)"
@@ -1889,6 +1891,13 @@ baselines-list:
 	@# Usage: make baselines-list [DATASET_ID=dataset_id]
 	@$(PYTHON) scripts/eval/list_runs.py --baselines \
 		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
+
+run-compare:
+	@# Streamlit run comparison UI (RFC-047, Issue #373)
+	@# Usage: make run-compare [BASELINE=baseline_id]
+	@echo "Launching run comparison tool..."
+	@BASELINE=$(BASELINE) $(PYTHON) -m streamlit run tools/run_compare/app.py \
+		--server.headless=false --server.port=8501
 
 runs-compare:
 	@# Compare two experiment runs

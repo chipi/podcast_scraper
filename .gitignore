@@ -10,6 +10,9 @@ podcast_scraper.egg-info/
 .test_outputs/
 output/
 run_*/
+# Streamlit run comparison app (path matches run_* above)
+!tools/run_compare/
+!tools/run_compare/**
 reports/
 # Exclude dependency graphs (generated files)
 reports/deps*.svg

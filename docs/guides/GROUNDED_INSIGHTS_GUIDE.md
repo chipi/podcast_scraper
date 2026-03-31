@@ -143,6 +143,8 @@ Generated `gi.json` files must conform to the schema. Validation utilities (e.g.
 - **Makefile / script**: `make validate-gi-schema [ARTIFACTS_DIR=path]` or `scripts/tools/validate_gi_schema.py` (always strict) for batch checks in CI.
 - **PRD-017 metrics**: `make gil-quality-metrics DIR=<run_root>` or `scripts/tools/gil_quality_metrics.py` — aggregation over `.gi.json` (grounding rate, quote span/timestamp validity, per-episode density). Use `--enforce` and `--min-*` flags to gate releases.
 
+**Two views of “quote validity”:** The **file-based** quality script checks **schema** (spans, `transcript_ref`, timestamps) and does not load transcript files. During a **pipeline run**, `Metrics` / `record_gi_success_counts` can also compute **verbatim** agreement between quote text and the transcript slice when the transcript is available. Use the same view when comparing numbers; they are related but not identical.
+
 ### ML vs LLM evidence — outcome benchmark (v1)
 
 For **comparing outcomes** on the **same episodes** (not YAML threshold parity), use a
