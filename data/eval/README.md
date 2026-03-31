@@ -38,6 +38,7 @@ Runs from `scripts/eval/run_experiment.py` write `metrics.json` with
 `data/eval/schemas/metrics_summarization_v2.json`. The older flat layout is documented in
 `metrics_summarization_v1.json` only (not emitted by the current scorer).
 
+
 ## Invariants
 
 - **sources/**, **datasets/**, **baselines/**, **references/** are immutable once published
