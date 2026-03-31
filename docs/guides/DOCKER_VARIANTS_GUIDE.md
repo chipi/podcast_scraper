@@ -103,13 +103,13 @@ Only applies when `INSTALL_EXTRAS=ml`. Controls ML model preloading:
 docker build --build-arg INSTALL_EXTRAS=ml --build-arg PRELOAD_ML_MODELS=false -t podcast-scraper:ml .
 ```
 
-### Other ML Build Arguments
+### ML preloading details
 
-When `INSTALL_EXTRAS=ml`, you can also control:
-
-- `WHISPER_MODELS`: Comma-separated list of Whisper models to preload (default: `base.en`)
-- `TRANSFORMERS_MODELS`: Comma-separated list of Transformers models to preload (default: all)
-- `SKIP_TRANSFORMERS`: Set to `"1"` to skip Transformers preloading
+When `INSTALL_EXTRAS=ml` and `PRELOAD_ML_MODELS=true`, the image runs
+`scripts/cache/preload_ml_models.py --production` (same bundle as `make preload-ml-models-production`):
+Whisper (`tiny.en` + `base.en`), production and test Transformers models, hybrid LongT5/FLAN, and GIL
+evidence models. There are no separate `WHISPER_MODELS` / `SKIP_TRANSFORMERS` Docker build args; use
+`PRELOAD_ML_MODELS=false` for a smaller image that downloads models at runtime.
 
 ## Tagging Strategy
 

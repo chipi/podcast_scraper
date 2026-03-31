@@ -755,12 +755,26 @@ jobs:
           echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
           exit $PYTEST_EXIT_CODE
         fi
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.integration
+          echo "✅ Exported reports/coverage-data.integration for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after fast integration tests"
+        fi
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: coverage-integration-fast
-        path: reports/coverage-integration.xml
+        path: |
+          reports/coverage-integration.xml
+          reports/coverage-data.integration
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup
@@ -902,12 +916,26 @@ jobs:
           echo "ERROR: pytest exited with code $PYTEST_EXIT_CODE (some tests failed)"
           exit $PYTEST_EXIT_CODE
         fi
+    - name: Export coverage data for unified merge
+      if: success()
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        coverage combine || true
+        mkdir -p reports
+        if [ -f .coverage ]; then
+          cp .coverage reports/coverage-data.e2e
+          echo "✅ Exported reports/coverage-data.e2e for coverage-unified job"
+        else
+          echo "⚠️ No .coverage file after fast E2E tests"
+        fi
     - name: Upload coverage artifacts
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: coverage-e2e-fast
-        path: reports/coverage-e2e.xml
+        path: |
+          reports/coverage-e2e.xml
+          reports/coverage-data.e2e
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup

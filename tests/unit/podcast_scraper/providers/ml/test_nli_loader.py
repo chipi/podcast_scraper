@@ -179,3 +179,57 @@ class TestLoadNliModel:
         nli_loader.load_nli_model("nli-deberta-base", device="cpu")
         assert len(captured) == 1
         assert captured[0] == ModelRegistry.resolve_evidence_model_id("nli-deberta-base")
+
+
+class TestPredictOutputHelpers:
+    """Extra branches for ``predict_output_to_entailment_scores`` and batch padding."""
+
+    def test_predict_output_single_logit_row(self) -> None:
+        class _M:
+            model = type(
+                "Inner",
+                (),
+                {"config": type("Cfg", (), {"id2label": {0: "entailment"}})()},
+            )()
+
+        scores = nli_loader.predict_output_to_entailment_scores([[0.25]], _M())
+        assert scores == [0.25]
+
+    def test_entailment_scores_batch_meta_runtime_returns_zeros(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _raise_meta(*_a: object, **_k: object) -> None:
+            raise RuntimeError("meta tensor predict")
+
+        monkeypatch.setattr(
+            nli_loader,
+            "get_nli_model",
+            lambda *a, **k: type("M", (), {"predict": _raise_meta})(),
+        )
+        out = nli_loader.entailment_scores_batch([("p", "h"), ("p2", "h2")], "nli-deberta-base")
+        assert out == [0.0, 0.0]
+
+    def test_entailment_scores_batch_pads_short_output(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_model = type(
+            "M",
+            (),
+            {
+                "model": type(
+                    "Inner",
+                    (),
+                    {"config": type("C", (), {"id2label": {0: "c", 1: "n", 2: "e"}})()},
+                )(),
+                "predict": lambda self, pairs: [[-1.0, -1.0, 3.0]],
+            },
+        )()
+        monkeypatch.setattr(nli_loader, "get_nli_model", lambda *a, **k: mock_model)
+        out = nli_loader.entailment_scores_batch(
+            [("a", "b"), ("c", "d"), ("e", "f")],
+            "nli-deberta-base",
+        )
+        assert len(out) == 3
+        assert out[0] > 0.9
+        assert out[1] == 0.0
+        assert out[2] == 0.0

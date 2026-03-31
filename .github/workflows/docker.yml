@@ -88,7 +88,7 @@ jobs:
             build_args: "INSTALL_EXTRAS="
           - name: ml
             tag: podcast-scraper:test
-            build_args: "INSTALL_EXTRAS=ml\nPRELOAD_ML_MODELS=true\nWHISPER_MODELS=base.en"
+            build_args: "INSTALL_EXTRAS=ml\nPRELOAD_ML_MODELS=true"
     steps:
     - uses: actions/checkout@v6
 

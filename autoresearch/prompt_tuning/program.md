@@ -4,9 +4,41 @@ Human-maintained instructions for the coding agent. **Do not** let the agent edi
 
 ## Goal
 
-Improve allowlisted summarization prompts (`.j2`) for the OpenAI experiment config
-`data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml`, measured by
-`autoresearch/prompt_tuning/eval/score.py` (ROUGE vs silver + dual LLM judges).
+Improve allowlisted **summary-bullet** prompts (`bullets_json_v1.j2` — JSON bullet output)
+for the OpenAI experiment config `data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml`,
+measured by `autoresearch/prompt_tuning/eval/score.py` (ROUGE vs silver + dual LLM judges).
+
+**Naming:** The experiment’s `prompts.user` value is `shared/summarization/bullets_json_v1`
+(RFC-017), i.e. `prompts/shared/summarization/bullets_json_v1.j2`. The middle segment
+`summarization/` is the pipeline task folder, not “paragraph vs bullets”—**`bullets_json_v1`**
+identifies the bullet format.
+
+## Research objectives (what “better summary” means)
+
+**Product intent:** Summaries should help a reader grasp the episode—main ideas, accurate
+facts, and clear bullets—without reading the full transcript. Track A v1 **operationalizes**
+that through one task: **JSON bullet summaries** from the allowlisted template, scored by
+ROUGE vs a silver reference plus dual judges using `eval/rubric.md`.
+
+**Dimensions to improve (inform hypotheses; rubric aligns with 1–3):**
+
+| Dimension | Plain language | How the loop sees it (v1) |
+| --- | --- | --- |
+| **Coverage** | Core themes and beats from the transcript appear. | ROUGE overlap with silver; judges penalize missing main points. |
+| **Fidelity** | No contradictions or invented facts vs. transcript. | Judges penalize hallucinations; ROUGE indirectly rewards alignment with reference. |
+| **Conciseness** | Tight bullets; little fluff or repetition. | Judges; length bounds come from experiment `params` (not agent-edited in v1). |
+| **Format contract** | Valid JSON bullet structure per template. | Invalid output fails downstream; prompt edits should preserve the schema. |
+
+**How to use this in the loop:** Each experiment’s one-line **hypothesis** should say *which*
+dimension(s) you expect to move (e.g. “reduce hedge words to improve conciseness without
+dropping coverage”). The stdout **scalar is a proxy**, not the full product—use `metrics.json`,
+`metrics_report.md`, and spot-checking `predictions.jsonl` when the scalar is flat or
+contested.
+
+**Out of scope unless a human expands the allowlist or adds a new experiment YAML:**
+different backend/model, non-bullet summary shapes, editing `data/eval/**`, preprocessing
+profiles, or GI/KG prompts. Those are valid **research follow-ups**; they need their own
+track or RFC-level scope, not ad-hoc edits in this run.
 
 ## Allowlisted mutable paths (v1)
 

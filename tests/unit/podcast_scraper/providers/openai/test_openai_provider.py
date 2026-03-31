@@ -46,7 +46,10 @@ _patch_openai = patch.dict(
 _patch_openai.start()
 
 from podcast_scraper import config
-from podcast_scraper.providers.openai.openai_provider import OpenAIProvider
+from podcast_scraper.providers.openai.openai_provider import (
+    _openai_chat_usage_tokens,
+    OpenAIProvider,
+)
 
 
 @pytest.mark.unit
@@ -899,6 +902,22 @@ class TestOpenAIProviderPricing(unittest.TestCase):
 
         self.assertEqual(result, [])
 
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_generate_insights_truncates_long_transcript(self, mock_render_prompt):
+        """Very long transcripts are sliced before the insight prompt."""
+        mock_render_prompt.return_value = "User prompt"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "One line insight"
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        provider.generate_insights("z" * 120_001, max_insights=3)
+        transcript_kw = mock_render_prompt.call_args[1]["transcript"]
+        self.assertIn("[Transcript truncated.]", transcript_kw)
+
     def test_extract_quotes_returns_quote_candidate(self):
         """extract_quotes returns list of QuoteCandidate from API JSON."""
         from podcast_scraper.gi.grounding import QuoteCandidate
@@ -934,6 +953,13 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         )
         self.assertEqual(result, [])
 
+    def test_extract_quotes_empty_inputs_returns_empty(self):
+        """extract_quotes with empty transcript or insight returns []."""
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertEqual(provider.extract_quotes("", "insight"), [])
+        self.assertEqual(provider.extract_quotes("transcript", ""), [])
+
     def test_score_entailment_returns_float(self):
         """score_entailment returns float from API response."""
         mock_response = Mock()
@@ -961,3 +987,156 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         provider._summarization_initialized = False
         result = provider.score_entailment(premise="P.", hypothesis="H.")
         self.assertEqual(result, 0.0)
+
+    def test_score_entailment_no_numeric_token_returns_zero(self):
+        """score_entailment returns 0.0 when response has no parseable float."""
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "not a number"
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_extract_kg_graph_success(self, mock_retry):
+        """extract_kg_graph parses JSON topics/entities from chat completion."""
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = (
+            '{"topics": [{"label": "Inflation"}], '
+            '"entities": [{"name": "Fed", "entity_kind": "ORG"}]}'
+        )
+        mock_response.usage = Mock(prompt_tokens=5, completion_tokens=10)
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        pm = Mock()
+        out = provider.extract_kg_graph(
+            "Discussion of inflation and the Fed.",
+            episode_title="E1",
+            max_topics=5,
+            max_entities=5,
+            pipeline_metrics=pm,
+        )
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "Inflation")
+        self.assertEqual(out["entities"][0]["name"], "Fed")
+        mock_client.chat.completions.create.assert_called_once()
+        call_kw = mock_client.chat.completions.create.call_args[1]
+        self.assertEqual(call_kw["model"], provider.summary_model)
+        pm.record_llm_kg_call.assert_called_once_with(5, 10)
+
+    def test_extract_kg_graph_not_initialized_returns_none(self):
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = False
+        self.assertIsNone(provider.extract_kg_graph("text"))
+
+    def test_extract_kg_graph_empty_text_returns_none(self):
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_graph("   "))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_extract_kg_graph_api_error_returns_none(self, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_client.chat.completions.create.side_effect = RuntimeError("boom")
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_graph("Some transcript text here."))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_extract_kg_graph_uses_params_model_override(self, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = '{"topics": [{"label": "T"}], "entities": []}'
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        provider.extract_kg_graph(
+            "x" * 100,
+            params={"kg_extraction_model": "gpt-4o-custom"},
+        )
+        self.assertEqual(
+            mock_client.chat.completions.create.call_args[1]["model"],
+            "gpt-4o-custom",
+        )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    def test_extract_kg_from_summary_bullets_success(self, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = (
+            '{"topics": [{"label": "Trade"}], "entities": []}'
+        )
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        out = provider.extract_kg_from_summary_bullets(
+            ["Bullet one", "Bullet two"],
+            episode_title="Show",
+        )
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "Trade")
+
+    def test_extract_kg_from_summary_bullets_not_initialized_returns_none(self):
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = False
+        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
+
+    def test_extract_kg_from_summary_bullets_empty_labels_returns_none(self):
+        provider = OpenAIProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_generate_insights_records_llm_gi_metrics(self, mock_render):
+        mock_render.return_value = "u"
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = "One insight"
+        mock_usage = Mock()
+        mock_usage.prompt_tokens = 3
+        mock_usage.completion_tokens = 4
+        mock_response.usage = mock_usage
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        metrics_obj = Mock()
+        provider = OpenAIProvider(self.cfg)
+        provider.client = mock_client
+        provider._summarization_initialized = True
+        provider.generate_insights("t", pipeline_metrics=metrics_obj)
+        metrics_obj.record_llm_gi_call.assert_called_once_with(3, 4)
+
+
+@pytest.mark.unit
+class TestOpenAIChatUsageTokens(unittest.TestCase):
+    """Coverage for _openai_chat_usage_tokens (GI/KG token accounting)."""
+
+    def test_returns_prompt_and_completion_ints(self):
+        r = Mock()
+        r.usage = Mock(prompt_tokens=9, completion_tokens=12)
+        self.assertEqual(_openai_chat_usage_tokens(r), (9, 12))
+
+    def test_returns_none_when_no_usage(self):
+        r = Mock(spec=["usage"])
+        r.usage = None
+        self.assertEqual(_openai_chat_usage_tokens(r), (None, None))
+
+    def test_returns_none_when_usage_missing_attrs(self):
+        r = Mock()
+        r.usage = Mock(spec=[])  # no prompt_tokens / completion_tokens
+        self.assertEqual(_openai_chat_usage_tokens(r), (None, None))

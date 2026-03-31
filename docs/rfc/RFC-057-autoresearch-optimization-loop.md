@@ -67,8 +67,8 @@ Autoresearch is **not** a second product pipeline. It is a **thin control loop**
 - Templates are **Jinja2 (`.j2`)** files loaded via `podcast_scraper.prompts.store`, not free-standing YAML prompt blobs under `config/prompts/`.
 - Resolution order: provider-specific path under `src/podcast_scraper/prompts/<provider>/...` overrides `src/podcast_scraper/prompts/shared/...` for the same logical template name (see `prompts/shared/README.md`).
 - **Mutable targets** for a given run are an **allowlist** in `autoresearch/prompt_tuning/program.md`, e.g. one or more of:
-  - `src/podcast_scraper/prompts/openai/summarization/bullets_json_v1.j2`
-  - `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2`
+  - `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` (bundled autoresearch experiment YAML uses logical name `shared/summarization/bullets_json_v1`)
+  - `src/podcast_scraper/prompts/openai/summarization/bullets_json_v1.j2` (optional provider override; switch YAML to `openai/summarization/bullets_json_v1` to prefer it)
   - Other `.j2` paths for speaker detection / cleaning as scoped by the run.
 - **Optional secondary target**: structured knobs already supported by config (e.g. `summary_prompt_params` in YAML config) if the run optimizes parameters passed into templates — document those keys in `program.md` and keep them consistent with `docs/api/CONFIGURATION.md`.
 

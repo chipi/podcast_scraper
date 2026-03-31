@@ -29,7 +29,7 @@ endif
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list runs-compare benchmark serve-gi-kg-viz
+.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list runs-compare benchmark serve-gi-kg-viz
 
 help:
 	@echo "Common developer commands:"
@@ -38,7 +38,7 @@ help:
 	@echo "  make format-check    Check formatting without modifying files"
 	@echo "  make lint            Run flake8 linting"
 	@echo "  make lint-markdown   Run markdownlint on markdown files"
-	@echo "  make fix-md          Auto-fix common markdown linting issues"
+	@echo "  make fix-md          Auto-fix markdown (markdownlint --fix; same rules as lint-markdown)"
 	@echo "  make type            Run mypy type checks"
 	@echo "  make security        Run bandit & pip-audit security scans"
 	@echo "  make complexity      Run radon complexity analysis"
@@ -223,21 +223,28 @@ lint:
 	@# Full flake8 (E501 etc.): must fail on violations so ci-fast catches them before pre-commit
 	$(PYTHON) -m flake8 --config .flake8 . --count --show-source --statistics
 
+# Shared markdownlint CLI args — keep lint-markdown and fix-md identical (and aligned with CI).
+MARKDOWNLINT_CLI_ARGS = "**/*.md" \
+	--ignore node_modules \
+	--ignore .venv \
+	--ignore .build/site \
+	--ignore "docs/wip/**" \
+	--ignore "tests/fixtures/**" \
+	--ignore "data/eval/runs/**" \
+	--config .markdownlint.json
+
 lint-markdown:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
-	markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site --ignore "docs/wip/**" --ignore "tests/fixtures/**" --ignore "data/eval/runs/**" --config .markdownlint.json
+	markdownlint $(MARKDOWNLINT_CLI_ARGS)
+
+fix-md:
+	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
+	@echo "Running markdownlint --fix (same paths and .markdownlint.json as lint-markdown)..."
+	markdownlint --fix $(MARKDOWNLINT_CLI_ARGS)
 
 lint-markdown-docs:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
-
-fix-md:
-	@echo "⚠️  WARNING: fix-md script is disabled due to issues."
-	@echo "Use 'markdownlint --fix' instead for reliable markdown fixes."
-	@echo ""
-	@echo "Example:"
-	@echo "  npx markdownlint-cli2 --fix '**/*.md'"
-	@exit 1
 
 type:
 	$(PYTHON) -m mypy --config-file pyproject.toml .
@@ -1094,9 +1101,10 @@ ci-nightly: format-check lint lint-markdown type security complexity deadcode do
 	@echo "✓ Full nightly CI chain completed"
 
 docker-build:
-	@echo "Building Docker image (ML-enabled variant, default)..."
+	@echo "Building Docker image (ML-enabled variant, production ML preload, default)..."
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
+		--build-arg PRELOAD_ML_MODELS=true \
 		-t podcast-scraper:test \
 		-f Dockerfile .
 
@@ -1124,13 +1132,12 @@ docker-build-fast:
 	@echo "✓ Fast build complete! Image tagged as: podcast-scraper:test-fast"
 
 docker-build-full:
-	@echo "Building Docker image (full mode - ML variant with model preloading, matches main builds)..."
-	@echo "This will take longer due to ML model downloads..."
+	@echo "Building Docker image (full mode - ML variant with production model preloading)..."
+	@echo "This will take a long time and require significant disk (HF + Whisper + evidence)..."
 	@echo ""
 	@DOCKER_BUILDKIT=1 docker build \
 		--build-arg INSTALL_EXTRAS=ml \
 		--build-arg PRELOAD_ML_MODELS=true \
-		--build-arg WHISPER_MODELS=base.en \
 		-t podcast-scraper:test \
 		-f Dockerfile .
 	@echo ""

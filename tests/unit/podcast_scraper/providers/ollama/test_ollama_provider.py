@@ -973,6 +973,189 @@ class TestOllamaProviderGIL(unittest.TestCase):
         provider.initialize()
         self.assertEqual(provider.score_entailment("p", "h"), 0.0)
 
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_generate_insights_truncates_long_transcript(
+        self, mock_openai, mock_httpx, mock_render
+    ):
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="I1"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai.return_value = mock_client
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+        provider.generate_insights("o" * 120_001, max_insights=2)
+        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_score_entailment_no_numeric_token_returns_zero(
+        self, mock_openai, mock_httpx, mock_retry
+    ):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="words only"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai.return_value = mock_client
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_quotes_empty_inputs_returns_empty(self, mock_openai, mock_httpx):
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+        mock_openai.return_value = Mock()
+        provider = OllamaProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertEqual(provider.extract_quotes("", "i"), [])
+        self.assertEqual(provider.extract_quotes("t", ""), [])
+
+
+@pytest.mark.unit
+class TestOllamaProviderKG(unittest.TestCase):
+    """KG: extract_kg_graph, extract_kg_from_summary_bullets (OpenAI-compatible + httpx)."""
+
+    _KG_JSON = '{"topics": [{"label": "Local"}], "entities": []}'
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="ollama",
+            ollama_api_base="http://localhost:11434/v1",
+            auto_speakers=False,
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    def _mock_ollama_http(self, mock_httpx):
+        mock_health = Mock()
+        mock_health.raise_for_status = Mock()
+        mock_models = Mock()
+        mock_models.raise_for_status = Mock()
+        mock_models.json.return_value = {"models": [{"name": "llama3.1:8b"}]}
+        mock_httpx.get.side_effect = [mock_health, mock_models]
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_graph_success(self, mock_openai, mock_httpx, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        self._mock_ollama_http(mock_httpx)
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai.return_value = mock_client
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_graph("Local model KG extraction.")
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "Local")
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_graph_not_initialized_returns_none(self, mock_openai, mock_httpx):
+        self._mock_ollama_http(mock_httpx)
+        mock_openai.return_value = Mock()
+        provider = OllamaProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_graph("t"))
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_graph_empty_text_returns_none(self, mock_openai, mock_httpx):
+        self._mock_ollama_http(mock_httpx)
+        mock_openai.return_value = Mock()
+        provider = OllamaProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_graph("   "))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_graph_api_error_returns_none(self, mock_openai, mock_httpx, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        self._mock_ollama_http(mock_httpx)
+        mock_client = Mock()
+        mock_openai.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = RuntimeError("fail")
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+        self.assertIsNone(provider.extract_kg_graph("body"))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_graph_params_model_override(self, mock_openai, mock_httpx, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        self._mock_ollama_http(mock_httpx)
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai.return_value = mock_client
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+        provider.extract_kg_graph("x", params={"kg_extraction_model": "llama3.1:custom"})
+        self.assertEqual(
+            mock_client.chat.completions.create.call_args[1]["model"],
+            "llama3.1:custom",
+        )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_from_summary_bullets_success(self, mock_openai, mock_httpx, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        self._mock_ollama_http(mock_httpx)
+        mock_client = Mock()
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        mock_openai.return_value = mock_client
+        provider = OllamaProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_from_summary_bullets(["Bullet"], episode_title="E")
+        self.assertIsNotNone(out)
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_openai, mock_httpx):
+        self._mock_ollama_http(mock_httpx)
+        mock_openai.return_value = Mock()
+        provider = OllamaProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
+
+    @patch("podcast_scraper.providers.ollama.ollama_provider.httpx")
+    @patch("podcast_scraper.providers.ollama.ollama_provider.OpenAI")
+    def test_extract_kg_from_summary_bullets_empty(self, mock_openai, mock_httpx):
+        self._mock_ollama_http(mock_httpx)
+        mock_openai.return_value = Mock()
+        provider = OllamaProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
 
 @pytest.mark.unit
 class TestOllamaProviderErrorHandling(unittest.TestCase):

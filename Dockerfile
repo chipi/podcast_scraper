@@ -9,19 +9,10 @@
 #   Default: "ml" for backwards compatibility
 ARG INSTALL_EXTRAS=ml
 
-# PRELOAD_ML_MODELS: Set to "true" to preload all models, "false" to skip (default: "true")
-# Only used when INSTALL_EXTRAS includes "ml"
-# WHISPER_MODELS: Comma-separated list of Whisper models to preload.
-#                 Default in script is "tiny.en" (for local dev speed), but Docker uses "base.en" (production quality).
-#                 Override to use different models (e.g., "tiny.en" for faster builds, "base.en,tiny.en" for multiple).
-# TRANSFORMERS_MODELS: Comma-separated list of Transformers models to preload.
-#                      If empty (default), script preloads all 4 models (bart-base, bart-large-cnn, distilbart, led-base-16384).
-#                      Specify to override (e.g., "facebook/bart-base" for faster builds).
-# SKIP_TRANSFORMERS: Set to "1" to skip Transformers preloading entirely (for fast builds, default in Docker)
+# PRELOAD_ML_MODELS: Set to "true" to bake in the full ML cache (default), "false" to skip (e.g. docker-build-fast).
+# When true and INSTALL_EXTRAS=ml, runs `scripts/cache/preload_ml_models.py --production` — same bundle as CI
+# `make preload-ml-models-production` (Whisper tiny.en + base.en, prod+test HF models, hybrid LongT5/FLAN, GIL evidence).
 ARG PRELOAD_ML_MODELS=true
-ARG WHISPER_MODELS=base.en
-ARG TRANSFORMERS_MODELS=
-ARG SKIP_TRANSFORMERS=1
 
 # ============================================================================
 # Build Stage: Install dependencies and build the package
@@ -35,9 +26,6 @@ ENV PYTHONUNBUFFERED=1 \
 # Accept build arguments
 ARG INSTALL_EXTRAS
 ARG PRELOAD_ML_MODELS
-ARG WHISPER_MODELS
-ARG TRANSFORMERS_MODELS
-ARG SKIP_TRANSFORMERS
 
 # Validate build arguments
 RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" != "ml" ] && [ "$INSTALL_EXTRAS" != "" ]; then \
@@ -50,9 +38,6 @@ RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" != "ml" ] && [ "$INSTALL_
     fi
 
 ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
-ENV WHISPER_MODELS=${WHISPER_MODELS}
-ENV TRANSFORMERS_MODELS=${TRANSFORMERS_MODELS}
-ENV SKIP_TRANSFORMERS=${SKIP_TRANSFORMERS}
 
 # Install build dependencies (only if ML extras are requested)
 # Build deps are needed for compiling some packages from source if wheels aren't available
@@ -116,31 +101,23 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     rm -rf /tmp/pip-* /tmp/build-* /tmp/*.whl /tmp/*.tar.gz || true
 
 # hadolint ignore=SC2261
-# Preload ML models using unified script (only if ML extras are installed)
-# Use BuildKit cache mounts for model caches (faster rebuilds when models already downloaded)
-# Cache locations:
-# - Whisper: /opt/whisper-cache (via XDG_CACHE_HOME)
-# - Transformers: /root/.cache/huggingface (via default cache location)
-# - spaCy: Installed as dependency, no separate cache needed
-RUN --mount=type=cache,target=/opt/whisper-cache \
-    --mount=type=cache,target=/root/.cache/huggingface \
-    bash -c 'set -e; \
+# Preload ML models (production bundle) when INSTALL_EXTRAS=ml and PRELOAD_ML_MODELS=true.
+# Do NOT use BuildKit cache mounts for Whisper/HF paths here: cache mounts are not persisted into
+# image layers, so the runtime image would ship without model files. Pip uses its own cache mounts
+# on earlier RUN steps only.
+# Paths match podcast_scraper.cache.directories (WHISPER_CACHE_DIR, HF_HUB_CACHE).
+RUN bash -c 'set -e; \
+    mkdir -p /opt/whisper-cache /root/.cache/huggingface/hub; \
     if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ] && [ "$PRELOAD_ML_MODELS" = "true" ]; then \
-        echo "Preloading ML models..."; \
+        export WHISPER_CACHE_DIR=/opt/whisper-cache; \
+        export HF_HUB_CACHE=/root/.cache/huggingface/hub; \
+        echo "Preloading ML models (production bundle, same as make preload-ml-models-production)..."; \
         echo "Working directory: $(pwd)"; \
-        echo "Python path: $(which python)"; \
-        echo "Python version: $(python --version)"; \
-        echo "Script exists: $(test -f scripts/cache/preload_ml_models.py && echo yes || echo no)"; \
-        python -c "import sys; print(f\"Python executable: {sys.executable}\"); print(f\"Python path: {sys.path[:3]}\")" || true; \
-        python scripts/cache/preload_ml_models.py 2>&1 || { \
+        python scripts/cache/preload_ml_models.py --production || { \
             echo ""; \
             echo "ERROR: ML model preloading failed with exit code $?"; \
-            echo "This may be due to:"; \
-            echo "  - Network issues downloading models"; \
-            echo "  - Disk space constraints"; \
-            echo "  - Missing dependencies (check imports above)"; \
-            echo ""; \
-            echo "To skip model preloading, rebuild with: --build-arg PRELOAD_ML_MODELS=false"; \
+            echo "This may be due to network, disk space, or missing dependencies."; \
+            echo "To skip: rebuild with --build-arg PRELOAD_ML_MODELS=false (see make docker-build-fast)."; \
             exit 1; \
         }; \
     else \
@@ -169,6 +146,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
     XDG_CACHE_HOME=/opt/whisper-cache \
+    WHISPER_CACHE_DIR=/opt/whisper-cache \
+    HF_HUB_CACHE=/home/podcast/.cache/huggingface/hub \
     PODCAST_SCRAPER_CONFIG=/app/config.yaml \
     PODCAST_SCRAPER_WORK_DIR=/app \
     PATH="/home/podcast/.local/bin:$PATH" \
@@ -221,6 +200,11 @@ RUN useradd -m -u 1000 -s /bin/bash podcast && \
 # Copy Python packages from builder's site-packages
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Bake ML caches from builder (empty dirs when PRELOAD_ML_MODELS=false or INSTALL_EXTRAS="").
+# Paths must match WHISPER_CACHE_DIR and HF_HUB_CACHE above.
+COPY --from=builder --chown=podcast:podcast /opt/whisper-cache /opt/whisper-cache
+COPY --from=builder --chown=podcast:podcast /root/.cache/huggingface /home/podcast/.cache/huggingface
 
 # Copy application files and set permissions
 COPY --chown=podcast:podcast config/examples/config.example.* /opt/podcast_scraper/examples/

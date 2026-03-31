@@ -673,6 +673,139 @@ class TestDeepSeekProviderGIL(unittest.TestCase):
         provider.initialize()
         self.assertEqual(provider.score_entailment("p", "h"), 0.0)
 
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_generate_insights_truncates_long_transcript(self, mock_openai_class, mock_render):
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="A"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = DeepSeekProvider(self.cfg)
+        provider.initialize()
+        provider.generate_insights("q" * 120_001, max_insights=2)
+        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_score_entailment_no_numeric_token_returns_zero(self, mock_openai_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="nope"))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = DeepSeekProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("a", "b"), 0.0)
+
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_quotes_empty_inputs_returns_empty(self, mock_openai_class):
+        mock_openai_class.return_value = Mock()
+        provider = DeepSeekProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertEqual(provider.extract_quotes("", "i"), [])
+        self.assertEqual(provider.extract_quotes("t", ""), [])
+
+
+@pytest.mark.unit
+class TestDeepSeekProviderKG(unittest.TestCase):
+    """KG: extract_kg_graph, extract_kg_from_summary_bullets."""
+
+    _KG_JSON = '{"topics": [{"label": "Rates"}], "entities": []}'
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="deepseek",
+            deepseek_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+        )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_graph_success(self, mock_openai_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = DeepSeekProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_graph("Interest rates and bonds.")
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "Rates")
+
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_graph_not_initialized_returns_none(self, mock_openai_class):
+        mock_openai_class.return_value = Mock()
+        provider = DeepSeekProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_graph("t"))
+
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_graph_empty_text_returns_none(self, mock_openai_class):
+        mock_openai_class.return_value = Mock()
+        provider = DeepSeekProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_graph("   "))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_graph_api_error_returns_none(self, mock_openai_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_client.chat.completions.create.side_effect = RuntimeError("x")
+        provider = DeepSeekProvider(self.cfg)
+        provider.initialize()
+        self.assertIsNone(provider.extract_kg_graph("body"))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_graph_params_model_override(self, mock_openai_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = DeepSeekProvider(self.cfg)
+        provider.initialize()
+        provider.extract_kg_graph("z", params={"kg_extraction_model": "deepseek-x"})
+        self.assertEqual(
+            mock_client.chat.completions.create.call_args[1]["model"],
+            "deepseek-x",
+        )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_from_summary_bullets_success(self, mock_openai_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.completions.create.return_value = mock_resp
+        provider = DeepSeekProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_from_summary_bullets(["One"], episode_title="E")
+        self.assertIsNotNone(out)
+
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_openai_class):
+        mock_openai_class.return_value = Mock()
+        provider = DeepSeekProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
+
+    @patch("podcast_scraper.providers.deepseek.deepseek_provider.OpenAI")
+    def test_extract_kg_from_summary_bullets_empty(self, mock_openai_class):
+        mock_openai_class.return_value = Mock()
+        provider = DeepSeekProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
 
 @pytest.mark.unit
 class TestDeepSeekProviderPricing(unittest.TestCase):

@@ -1,6 +1,12 @@
-# Autoresearch Track A (RFC-057): OpenAI summarization on smoke dataset.
-# ``autoresearch/prompt_tuning/eval/score.py`` sets data.max_episodes from AUTORESEARCH_EVAL_N.
+# Autoresearch Track A (RFC-057): OpenAI backend, **summary bullets** (JSON bullet output),
+# not free-form paragraph summaries. ``task: summarization`` is the pipeline task id; the
+# **output shape** is defined by template ``bullets_json_v1`` (see RFC-017).
 #
+# ``prompts.user`` points at the **on-disk shared** template
+# ``prompts/shared/summarization/bullets_json_v1.j2`` (RFC-017 logical name
+# ``shared/summarization/bullets_json_v1``).
+#
+# ``autoresearch/prompt_tuning/eval/score.py`` sets data.max_episodes from AUTORESEARCH_EVAL_N.
 # Requires: materialized curated_5feeds_smoke_v1, silver reference silver_gpt4o_smoke_v1.
 
 id: "autoresearch_prompt_openai_smoke_v1"
@@ -11,7 +17,7 @@ backend:
   model: "gpt-4o-mini"
 
 prompts:
-  user: "openai/summarization/bullets_json_v1"
+  user: "shared/summarization/bullets_json_v1"
 
 data:
   dataset_id: "curated_5feeds_smoke_v1"

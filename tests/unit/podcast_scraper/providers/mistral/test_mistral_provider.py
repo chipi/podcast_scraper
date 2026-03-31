@@ -897,6 +897,141 @@ class TestMistralProviderGIL(unittest.TestCase):
         provider.initialize()
         self.assertEqual(provider.score_entailment("p", "h"), 0.0)
 
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_generate_insights_truncates_long_transcript(self, mock_mistral_class, mock_render):
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="Line"))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        provider.generate_insights("m" * 120_001, max_insights=4)
+        self.assertIn("[Transcript truncated.]", mock_render.call_args[1]["transcript"])
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_score_entailment_no_numeric_token_returns_zero(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content="x"))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("p", "h"), 0.0)
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_quotes_empty_inputs_returns_empty(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertEqual(provider.extract_quotes("", "i"), [])
+        self.assertEqual(provider.extract_quotes("t", ""), [])
+
+
+@pytest.mark.unit
+class TestMistralProviderKG(unittest.TestCase):
+    """KG: extract_kg_graph, extract_kg_from_summary_bullets (Mistral chat.complete)."""
+
+    _KG_JSON = '{"topics": [{"label": "EU"}], "entities": []}'
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="mistral",
+            mistral_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=False,
+            transcribe_missing=False,
+        )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_graph_success(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_graph("European markets overview.")
+        self.assertIsNotNone(out)
+        self.assertEqual(out["topics"][0]["label"], "EU")
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_graph_not_initialized_returns_none(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_graph("t"))
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_graph_empty_text_returns_none(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_graph("   "))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_graph_api_error_returns_none(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_client.chat.complete.side_effect = RuntimeError("down")
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        self.assertIsNone(provider.extract_kg_graph("text"))
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_graph_params_model_override(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        provider.extract_kg_graph("x", params={"kg_extraction_model": "mistral-large-x"})
+        self.assertEqual(
+            mock_client.chat.complete.call_args[1]["model"],
+            "mistral-large-x",
+        )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_from_summary_bullets_success(self, mock_mistral_class, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_client = Mock()
+        mock_mistral_class.return_value = mock_client
+        mock_resp = Mock()
+        mock_resp.choices = [Mock(message=Mock(content=self._KG_JSON))]
+        mock_client.chat.complete.return_value = mock_resp
+        provider = MistralProvider(self.cfg)
+        provider.initialize()
+        out = provider.extract_kg_from_summary_bullets(["B1"], episode_title="T")
+        self.assertIsNotNone(out)
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_from_summary_bullets_not_initialized(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        self.assertIsNone(provider.extract_kg_from_summary_bullets(["a"]))
+
+    @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
+    def test_extract_kg_from_summary_bullets_empty(self, mock_mistral_class):
+        mock_mistral_class.return_value = Mock()
+        provider = MistralProvider(self.cfg)
+        provider._summarization_initialized = True
+        self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
 
 @pytest.mark.unit
 class TestMistralProviderPricing(unittest.TestCase):

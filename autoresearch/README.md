@@ -17,10 +17,15 @@ Use this section as the **single onboarding context** for Claude Code (or any co
 
 ### Mission
 
-Iteratively **improve summarization quality** for the eval experiment
-`data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml` by editing **only**
+Iteratively **improve summary-bullet quality** (JSON bullet output from the
+`bullets_json_v1` template, not a separate “paragraph summary” prompt) for the eval
+experiment `data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml` by editing **only**
 allowlisted Jinja templates. After each edit, run the score harness and **ratchet**:
 commit if the scalar **improves**, otherwise `git reset --hard HEAD`.
+
+**Research framing (what “better summary” means, dimensions, proxy vs product):**
+`autoresearch/prompt_tuning/program.md` → section *Research objectives*. Use it when
+writing hypotheses and when the scalar disagrees with spot checks.
 
 ### Score command (from repo root)
 
@@ -57,8 +62,14 @@ Useful to re-check ROUGE from existing `predictions.jsonl`; **not** sufficient t
 
 | Path | Role |
 | --- | --- |
-| `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | Primary template (matches experiment `prompts.user`) |
-| `src/podcast_scraper/prompts/openai/summarization/bullets_json_v1.j2` | Optional override (create only if you intend provider-specific wording) |
+| `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | **On-disk** template for summary bullets (this is what `prompts.user: shared/summarization/bullets_json_v1` loads) |
+
+To use a provider-specific override later, switch the experiment YAML to
+`openai/summarization/bullets_json_v1` and add `prompts/openai/summarization/bullets_json_v1.j2`
+(RFC-017: provider path wins over shared).
+
+The `summarization/` folder is the shared **task** namespace; **`bullets_json_v1`** pins the
+bullet-JSON contract.
 
 Do **not** edit other prompts or configs unless `program.md` is updated by a human to expand the allowlist.
 
