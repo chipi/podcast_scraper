@@ -1,0 +1,34 @@
+{
+  "run_id": "experiment_openai_gpt4o_smoke_bullets_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-03-31T08:57:21.772123Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "openai",
+    "model": "gpt-4o"
+  },
+  "params": {
+    "model_name": "gpt-4o",
+    "max_length": 800,
+    "min_length": 200,
+    "chunk_parallelism": 1,
+    "word_chunk_size": 1000,
+    "word_overlap": 150,
+    "temperature": 0.0
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 16.783705234527588,
+    "avg_time_seconds": 3.3567410469055177,
+    "total_chars_in": 53793,
+    "total_chars_out": 4590,
+    "avg_compression": 11.719607843137254
+  },
+  "promoted_from": "experiment_openai_gpt4o_smoke_bullets_v1",
+  "promoted_at": "2026-03-31T09:00:52.573763Z",
+  "promoted_as": "reference",
+  "promoted_id": "silver_gpt4o_smoke_bullets_v1",
+  "reference_quality": "silver"
+}
