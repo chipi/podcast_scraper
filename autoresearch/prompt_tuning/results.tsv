@@ -1,3 +1,5 @@
 experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
-exp-0	0.571	0.000	baseline	Original template: 45-word cap, min 3 bullets. N=5 smoke. Previous 0.660 was N=1 (invalid baseline)	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
-exp-1	0.584	+0.013	accepted	Directive bullet count: aim for 6-8 vs open-ended 5-10. More bullets = better ROUGE coverage	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-0	0.571	+0.000	baseline	Original template: 45-word cap, min 3 bullets. N=5 smoke.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.584	+0.013	accepted	Directive bullet count: aim for 6-8 vs open-ended 5-10	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.565	-0.019	rejected	Structured coverage instruction (topic+evidence+conclusion): added complexity hurt score	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.611	+0.027	accepted	Prefer transcript vocabulary/phrasing: improved ROUGE-2 and ROUGE-L significantly	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
