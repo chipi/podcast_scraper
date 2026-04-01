@@ -39,7 +39,9 @@ from podcast_scraper.evaluation.autoresearch_track_a import (  # noqa: E402
     load_local_dotenv_files,
     mean_judge_scores,
     merge_max_episodes_into_config_yaml,
+    provider_runtime_key_env,
     resolve_experiment_openai_key,
+    resolve_experiment_provider_key,
     resolve_judge_anthropic_key,
     resolve_judge_openai_key,
     rouge_weight_from_env,
@@ -65,6 +67,7 @@ def _run_subprocess(
     merged_config: Path,
     dry_run: bool,
     reference_id: str,
+    backend_type: str = "openai",
 ) -> None:
     cmd = [
         sys.executable,
@@ -81,7 +84,12 @@ def _run_subprocess(
         cmd.append("--force")
 
     env = os.environ.copy()
+    # Always set OPENAI_API_KEY for OpenAI-based experiments (judges also use openai key separately)
     env["OPENAI_API_KEY"] = resolve_experiment_openai_key()
+    # Inject the experiment-specific key for the actual summarization provider,
+    # overriding whatever production key was loaded from .env into os.environ.
+    runtime_env = provider_runtime_key_env(backend_type)
+    env[runtime_env] = resolve_experiment_provider_key(backend_type)
 
     logger.info("Running: %s", " ".join(cmd))
     proc = subprocess.run(
@@ -175,6 +183,7 @@ def main() -> int:
             merged_config=merged_path,
             dry_run=args.dry_run,
             reference_id=args.reference,
+            backend_type=cfg.backend.type,
         )
 
         metrics_path = results_dir / "metrics.json"
