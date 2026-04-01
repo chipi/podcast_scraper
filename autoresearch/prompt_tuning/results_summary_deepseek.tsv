@@ -1,1 +1,5 @@
 experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.487	+0.000	baseline	Baseline: deepseek-chat, long_v1.j2 unmodified. ROUGE-L 28.4%, judge_mean 0.960.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.490	+0.003	rejected	Anchor paragraphs in specific claims/data/entities: ROUGE-L 28.8%, judge_mean 0.963, below 1% threshold, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.491	+0.004	rejected	Add prose-only constraint (no bullets/headers): ROUGE-L 29.4%, judge_mean 0.953, below 1% threshold, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.488	+0.001	rejected	Anchor + prose-only combined: ROUGE-L 28.4%, judge_mean 0.963, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
