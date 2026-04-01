@@ -1,2 +1,3 @@
 experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
 exp-0	0.380	+0.000	baseline	TRUE baseline after bug fix: long_v1.j2 now correctly used (was silently running bullets_json_v1). Prose output vs prose silver. ROUGE-1 69%, embed 90%.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.553	+0.173	accepted	Prefer transcript vocabulary/phrasing: massive gain, judge_mean 0.939, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
