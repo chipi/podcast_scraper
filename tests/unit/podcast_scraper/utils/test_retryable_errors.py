@@ -6,13 +6,26 @@ These tests verify that errors are correctly classified as retryable or non-retr
 
 import unittest
 
-import httpx
-
 from podcast_scraper.utils.retryable_errors import (
     get_retry_reason,
     is_non_retryable_http_error,
     is_retryable_error,
 )
+
+
+class _MiniHttpResponse:
+    """Minimal ``response`` with a real ``int`` status (not ``httpx.Response``).
+
+    ``tests/unit/.../test_ollama_provider.py`` replaces ``sys.modules['httpx']`` with a
+    ``MagicMock`` at import time. Importing real ``httpx`` in this module would yield a
+    mock ``Response`` whose ``status_code`` is not an ``int``, breaking
+    ``_http_status_as_int`` and this test under full unit collection (CI / ``pytest -n 0``).
+    """
+
+    __slots__ = ("status_code",)
+
+    def __init__(self, status_code: int) -> None:
+        self.status_code = status_code
 
 
 class _SdkStyle500Error(Exception):
@@ -22,9 +35,7 @@ class _SdkStyle500Error(Exception):
     handles this shape via ``http_code`` when ``ImportError`` or mocked SDK types.
     """
 
-    def __init__(
-        self, message: str, *, response: httpx.Response | None = None, body: object = None
-    ):
+    def __init__(self, message: str, *, response: object | None = None, body: object = None):
         super().__init__(message)
         self.response = response
         self.body = body
@@ -101,9 +112,7 @@ class TestIsRetryableError(unittest.TestCase):
 
     def test_ollama_local_internal_server_error_not_retryable(self):
         """Local Ollama: SDK-shaped HTTP 500 (response.status_code) is not retried."""
-        req = httpx.Request("POST", "http://127.0.0.1:11434/v1/chat/completions")
-        resp = httpx.Response(500, request=req)
-        err = _SdkStyle500Error("server error", response=resp, body=None)
+        err = _SdkStyle500Error("server error", response=_MiniHttpResponse(500), body=None)
         self.assertFalse(is_retryable_error(err, error_context="ollama_local"))
         self.assertTrue(is_retryable_error(err, error_context="default"))
 
@@ -112,6 +121,30 @@ class TestIsRetryableError(unittest.TestCase):
         err = Exception("Error code: 500 - internal error")
         self.assertFalse(is_retryable_error(err, error_context="ollama_local"))
         self.assertTrue(is_retryable_error(err, error_context="default"))
+
+    def test_ollama_local_internalservererror_typename(self):
+        """Ollama: exception class name InternalServerError fails fast without digits in message."""
+
+        class InternalServerError(Exception):
+            pass
+
+        err = InternalServerError("model OOM")
+        self.assertFalse(is_retryable_error(err, error_context="ollama_local"))
+
+    def test_default_context_structured_5xx_without_text_digits(self):
+        """Remote API: response.status_code 5xx retries even when str(exception) is vague."""
+
+        class OpaqueError(Exception):
+            pass
+
+        err = OpaqueError("upstream failure")
+        err.response = _MiniHttpResponse(503)
+        self.assertTrue(is_retryable_error(err, error_context="default"))
+
+    def test_builtin_connectionerror_retryable_by_type_name(self):
+        """ConnectionError matches retryable type-name heuristics."""
+        err = ConnectionError("reset by peer")
+        self.assertTrue(is_retryable_error(err))
 
 
 class TestIsNonRetryableHttpError(unittest.TestCase):
@@ -147,6 +180,21 @@ class TestIsNonRetryableHttpError(unittest.TestCase):
         error = Exception("500 Internal Server Error")
         self.assertFalse(is_non_retryable_http_error(error))
 
+    def test_405_method_not_allowed(self):
+        self.assertTrue(is_non_retryable_http_error(Exception("405 Method Not Allowed")))
+
+    def test_409_conflict(self):
+        self.assertTrue(is_non_retryable_http_error(Exception("409 Conflict")))
+
+    def test_413_payload_too_large(self):
+        self.assertTrue(is_non_retryable_http_error(Exception("413 Payload Too Large")))
+
+    def test_415_unsupported_media(self):
+        self.assertTrue(is_non_retryable_http_error(Exception("415 Unsupported Media Type")))
+
+    def test_422_unprocessable(self):
+        self.assertTrue(is_non_retryable_http_error(Exception("422 Unprocessable Entity")))
+
 
 class TestGetRetryReason(unittest.TestCase):
     """Test get_retry_reason function."""
@@ -165,6 +213,12 @@ class TestGetRetryReason(unittest.TestCase):
         """Test that 502 errors return '502' as reason."""
         error = Exception("502 Bad Gateway")
         self.assertEqual(get_retry_reason(error), "502")
+
+    def test_503_reason(self):
+        self.assertEqual(get_retry_reason(Exception("503 Service Unavailable")), "503")
+
+    def test_504_reason(self):
+        self.assertEqual(get_retry_reason(Exception("504 Gateway Timeout")), "504")
 
     def test_timeout_reason(self):
         """Test that timeout errors return 'timeout' as reason."""

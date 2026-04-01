@@ -6,7 +6,9 @@ import json
 
 import pytest
 
+import podcast_scraper.evaluation.schema_validator as schema_validator_mod
 from podcast_scraper.evaluation.schema_validator import (
+    HAS_JSONSCHEMA,
     validate_metrics_ner,
     validate_metrics_summarization,
     validate_schema,
@@ -39,6 +41,45 @@ class TestValidateSchema:
         schema_path = tmp_path / "schema.json"
         schema_path.write_text(json.dumps({"required": ["id"]}), encoding="utf-8")
         validate_schema({"id": 1}, schema_path, strict=False)
+
+    @pytest.mark.skipif(not HAS_JSONSCHEMA, reason="jsonschema not installed")
+    def test_jsonschema_invalid_instance_strict_raises(self, tmp_path):
+        schema_path = tmp_path / "schema.json"
+        schema_path.write_text(
+            json.dumps(
+                {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="Schema validation failed"):
+            validate_schema({"n": "not-int"}, schema_path, strict=True)
+
+    @pytest.mark.skipif(not HAS_JSONSCHEMA, reason="jsonschema not installed")
+    def test_jsonschema_invalid_instance_non_strict_returns_false(self, tmp_path):
+        schema_path = tmp_path / "schema.json"
+        schema_path.write_text(
+            json.dumps(
+                {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+            ),
+            encoding="utf-8",
+        )
+        assert validate_schema({"n": "bad"}, schema_path, strict=False) is False
+
+
+@pytest.mark.unit
+class TestNormalizeSummarizationReference:
+    """_normalize_summarization_reference_entry (via public validate)."""
+
+    def test_summary_long_normalized_for_schema(self):
+        from pathlib import Path
+
+        if not Path("data/eval/schemas/summarization_reference_v1.json").is_file():
+            pytest.skip("summarization_reference_v1.json not in tree")
+        text = "A real summary with enough text for the schema minimum. " * 2
+        entry = {"episode_id": "e1", "output": {"summary_long": text}}
+        normalized = schema_validator_mod._normalize_summarization_reference_entry(entry)
+        assert normalized.get("summary") == text
+        assert validate_summarization_reference(entry, strict=False) is True
 
 
 @pytest.mark.unit
