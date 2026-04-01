@@ -21,6 +21,10 @@ nav:
       - Gemini E2E Testing: guides/GEMINI_E2E_TESTING.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
+      - Provider Deep Dives: guides/PROVIDER_DEEP_DIVES.md
+      - Evaluation Reports:
+          - guides/eval-reports/index.md
+          - "Smoke v1 (Mar 2026)": guides/eval-reports/EVAL_SMOKE_V1_2026_03.md
       - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
       - Preprocessing Profiles Guide: guides/PREPROCESSING_PROFILES_GUIDE.md
       - Docker Service Guide: guides/DOCKER_SERVICE_GUIDE.md
