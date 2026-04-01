@@ -58,7 +58,7 @@ def format_delta(delta: Optional[float], format_type: str = "float") -> str:
     return f"{sign}{formatted}"
 
 
-def generate_metrics_report(metrics: Dict[str, Any]) -> str:
+def generate_metrics_report(metrics: Dict[str, Any]) -> str:  # noqa: C901
     """Generate human-readable metrics report.
 
     Args:
@@ -143,6 +143,18 @@ def generate_metrics_report(metrics: Dict[str, Any]) -> str:
             lines.append("")
             avg_latency = format_metric_value(performance.get("avg_latency_ms"), "duration")
             lines.append(f"- **Average Latency:** {avg_latency}")
+            med = performance.get("median_latency_ms")
+            if med is not None:
+                lines.append(f"- **Median Latency:** {format_metric_value(med, 'duration')}")
+            p95 = performance.get("p95_latency_ms")
+            if p95 is not None:
+                lines.append(f"- **P95 Latency:** {format_metric_value(p95, 'duration')}")
+            steady = performance.get("avg_latency_ms_excluding_first")
+            if steady is not None:
+                lines.append(
+                    "- **Avg Latency (excl. first episode):** "
+                    f"{format_metric_value(steady, 'duration')}"
+                )
             lines.append("")
 
         # Cost Metrics (only for OpenAI runs - ML models skip this section)

@@ -1,0 +1,24 @@
+# Google Gemini on smoke — for multi-run LLM comparison vs silver reference.
+# Requires: GEMINI_API_KEY
+# Model: aligned with acceptance (acceptance_planet_money_gemini).
+
+id: "llm_gemini_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "gemini"
+  model: "gemini-2.0-flash"
+
+prompts:
+  user: "gemini/summarization/long_v1"
+  system: "gemini/summarization/system_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

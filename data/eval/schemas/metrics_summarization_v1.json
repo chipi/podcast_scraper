@@ -1,7 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "metrics_summarization_v1.json",
-    "title": "Summarization Metrics (v1)",
+    "title": "Summarization Metrics (v1 — legacy flat layout, not emitted by current scorer)",
+    "description": "Historical schema (flat gates/length/performance). Current runs use metrics_summarization_v2.json.",
     "type": "object",
     "additionalProperties": true,
     "required": ["task", "dataset_id", "episodes", "gates", "length", "performance"],

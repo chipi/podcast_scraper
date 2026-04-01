@@ -35,6 +35,6 @@
       "numbers_retained": null
     }
   },
-  "schema": "metrics_summarization_v1",
+  "schema": "metrics_summarization_v2",
   "task": "summarization"
 }

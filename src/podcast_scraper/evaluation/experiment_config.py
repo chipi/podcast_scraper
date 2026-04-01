@@ -86,6 +86,15 @@ class OpenAIBackendConfig(BaseModel):
     )
 
 
+class GeminiBackendConfig(BaseModel):
+    """Config for Google Gemini models (summarization)."""
+
+    type: Literal["gemini"] = "gemini"
+    model: str = Field(
+        description="Gemini model name, e.g. 'gemini-2.0-flash'.",
+    )
+
+
 class HybridMLBackendConfig(BaseModel):
     """Config for hybrid MAP-REDUCE (RFC-042): classic MAP + instruction-tuned REDUCE."""
 
@@ -132,6 +141,15 @@ class MistralBackendConfig(BaseModel):
     )
 
 
+class OllamaBackendConfig(BaseModel):
+    """Config for local Ollama models (summarization only, single-pass LLM)."""
+
+    type: Literal["ollama"] = "ollama"
+    model: str = Field(
+        description="Ollama model tag, e.g. 'qwen2.5:7b', 'llama3.1:8b'.",
+    )
+
+
 class GrokBackendConfig(BaseModel):
     """Config for Grok models (summarization)."""
 
@@ -159,10 +177,12 @@ class EvalStubBackendConfig(BaseModel):
 BackendConfig = (
     HFBackendConfig
     | OpenAIBackendConfig
+    | GeminiBackendConfig
     | SpacyBackendConfig
     | HybridMLBackendConfig
     | AnthropicBackendConfig
     | MistralBackendConfig
+    | OllamaBackendConfig
     | GrokBackendConfig
     | DeepSeekBackendConfig
     | EvalStubBackendConfig
@@ -418,7 +438,10 @@ class ExperimentConfig(BaseModel):
     backend: BackendConfig
     prompts: Optional[PromptConfig] = Field(
         default=None,
-        description="Prompt configuration (required for OpenAI backend, optional for hf_local).",
+        description=(
+            "Prompt configuration (required for openai, gemini, and ollama backends; "
+            "optional for hf_local / hybrid_ml)."
+        ),
     )
     data: DataConfig
     # ML params (required for hf_local backend)
@@ -468,10 +491,16 @@ class ExperimentConfig(BaseModel):
         """Validate that prompts are provided for OpenAI backend."""
         if self.backend.type == "eval_stub":
             return self
-        if self.backend.type == "openai" and not self.prompts:
+        if self.backend.type in ("openai", "gemini") and not self.prompts:
             raise ValueError(
-                "prompts are required for OpenAI backend. "
+                "prompts are required for openai and gemini backends. "
                 "Provide a prompts section with at least a user prompt."
+            )
+        if self.backend.type == "ollama" and not self.prompts:
+            raise ValueError(
+                "prompts are required for Ollama backend. "
+                "Provide prompts.user (and optionally prompts.system), "
+                "e.g. ollama/summarization/long_v1."
             )
         return self
 

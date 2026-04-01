@@ -70,7 +70,8 @@ jobs:
           wait-for-processing: true
         continue-on-error: true
 
-  # Scan Docker image
+  # Scan Docker image (aligned with docker.yml: fast LLM-only on PRs; on main, same ML+preload
+  # args as docker-build-full `ml` matrix so the scanned image matches prod bake)
   snyk-docker:
     name: Snyk - Docker
     runs-on: ubuntu-latest
@@ -90,16 +91,36 @@ jobs:
         with:
           driver-opts: image=moby/buildkit:latest
 
-      - name: Build Docker image
+      # PRs: same variant as docker-build-fast (INSTALL_EXTRAS=); shares GHA cache scope with it.
+      - name: Build Docker image (PR — LLM-only, fast)
+        if: github.event_name == 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile
+          build-args: |
+            INSTALL_EXTRAS=
           push: false
           load: true
           tags: podcast-scraper:snyk-scan
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=llm-only
+          cache-to: type=gha,mode=max,scope=llm-only
+
+      # Push / workflow_dispatch: identical ML variant to docker-build-full `ml` (prod-like bake)
+      - name: Build Docker image (main — ML + preload)
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            INSTALL_EXTRAS=ml
+            PRELOAD_ML_MODELS=true
+          push: false
+          load: true
+          tags: podcast-scraper:snyk-scan
+          cache-from: type=gha,scope=ml
+          cache-to: type=gha,mode=max,scope=ml
 
       - name: Verify Docker image exists
         run: |

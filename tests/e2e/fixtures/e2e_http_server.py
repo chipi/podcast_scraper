@@ -933,7 +933,14 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "llama3:latest"},
                     # Hybrid Ollama reduce models (config/acceptance/summarization/*hybrid*ollama*)
                     {"name": "mistral:7b"},
+                    {"name": "mistral-nemo:12b"},
+                    {"name": "mistral-small3.2:latest"},
                     {"name": "qwen2.5:7b"},
+                    {"name": "qwen2.5:32b"},
+                    {"name": "qwen3.5:9b"},
+                    {"name": "qwen3.5:27b"},
+                    {"name": "qwen3.5:35b"},
+                    {"name": "qwen3.5:35b-a3b"},
                     {"name": "phi3:mini"},
                     # Planet Money Ollama acceptance (acceptance_planet_money_ollama_gemma2_9b.yaml)
                     {"name": "gemma2:9b"},

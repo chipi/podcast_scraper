@@ -158,6 +158,7 @@ class JSONLEmitter:
             "metadata_files_generated": metrics_dict.get("metadata_files_generated"),
             "gi_artifacts_generated": metrics_dict.get("gi_artifacts_generated"),
             "gi_failures": metrics_dict.get("gi_failures"),
+            "gi_evidence_stack_completed": metrics_dict.get("gi_evidence_stack_completed"),
             "gi_evidence_path_provider": metrics_dict.get("gi_evidence_path_provider"),
             "gi_evidence_extract_quotes_calls": metrics_dict.get(
                 "gi_evidence_extract_quotes_calls"
@@ -213,6 +214,10 @@ class JSONLEmitter:
                 "llm_gi_avg_output_tokens_per_call"
             ),
             "llm_gi_calls_per_gi_artifact": metrics_dict.get("llm_gi_calls_per_gi_artifact"),
+            "llm_gi_evidence_retries": metrics_dict.get("llm_gi_evidence_retries"),
+            "llm_gi_evidence_rate_limit_sleep_sec": metrics_dict.get(
+                "llm_gi_evidence_rate_limit_sleep_sec"
+            ),
             "llm_kg_calls": metrics_dict.get("llm_kg_calls"),
             "llm_kg_input_tokens": metrics_dict.get("llm_kg_input_tokens"),
             "llm_kg_output_tokens": metrics_dict.get("llm_kg_output_tokens"),

@@ -1261,7 +1261,17 @@ class AnthropicProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                anthropic_message_usage_tokens,
+                apply_gil_evidence_llm_call_metrics,
+                merge_gil_evidence_call_metrics_on_failure,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("anthropic")
+            pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
                 return self.client.messages.create(
@@ -1272,13 +1282,20 @@ class AnthropicProvider:
                     messages=[{"role": "user", "content": user}],
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=(Exception,),
-            )
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(Exception,),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+                raise
+            in_tok, out_tok = anthropic_message_usage_tokens(response)
+            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]
@@ -1322,7 +1339,17 @@ class AnthropicProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                anthropic_message_usage_tokens,
+                apply_gil_evidence_llm_call_metrics,
+                merge_gil_evidence_call_metrics_on_failure,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
+
+            call_metrics = ProviderCallMetrics()
+            call_metrics.set_provider_name("anthropic")
+            pm = kwargs.get("pipeline_metrics")
 
             def _make_api_call():
                 return self.client.messages.create(
@@ -1333,13 +1360,20 @@ class AnthropicProvider:
                     messages=[{"role": "user", "content": user}],
                 )
 
-            response = retry_with_metrics(
-                _make_api_call,
-                max_retries=3,
-                initial_delay=1.0,
-                max_delay=30.0,
-                retryable_exceptions=(Exception,),
-            )
+            try:
+                response = retry_with_metrics(
+                    _make_api_call,
+                    max_retries=3,
+                    initial_delay=1.0,
+                    max_delay=30.0,
+                    retryable_exceptions=(Exception,),
+                    metrics=call_metrics,
+                )
+            except Exception:
+                merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
+                raise
+            in_tok, out_tok = anthropic_message_usage_tokens(response)
+            apply_gil_evidence_llm_call_metrics(call_metrics, pm, in_tok, out_tok)
             content = ""
             if response.content and len(response.content) > 0:
                 first = response.content[0]

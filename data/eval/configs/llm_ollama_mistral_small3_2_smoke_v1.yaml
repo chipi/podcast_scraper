@@ -1,0 +1,24 @@
+# Ollama Mistral Small 3.2 — pure LLM summarization smoke (no LongT5 MAP).
+# Requires: ollama pull mistral-small3.2  (Ollama often registers as mistral-small3.2:latest)
+# vs silver: make experiment-run CONFIG=... REFERENCE=silver_gpt4o_smoke_v1
+
+id: "llm_ollama_mistral_small3_2_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "mistral-small3.2:latest"
+
+prompts:
+  user: "ollama/mistral-small3.2/summarization/long_v1"
+  system: "ollama/mistral-small3.2/summarization/system_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

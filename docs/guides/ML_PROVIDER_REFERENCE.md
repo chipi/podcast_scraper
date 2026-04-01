@@ -264,7 +264,7 @@ The **Hybrid ML** provider performs MAP-REDUCE summarization with a local MAP ph
 1. **MAP phase**: Transcript is chunked and each chunk is summarized using the MAP model (e.g. `longt5-base`), producing structured notes.
 2. **REDUCE phase**: Notes are combined into a final summary using one of three backends:
    * **transformers** — FLAN-T5 or similar (default: `google/flan-t5-base`). Runs locally via PyTorch.
-   * **ollama** — Local LLMs (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`). Requires Ollama running; the reduce instruction is sent as an inline prompt (no template file).
+   * **ollama** — Local LLMs (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`, `qwen2.5:32b`). Requires Ollama running; the reduce instruction is sent as an inline prompt (no template file).
    * **llama_cpp** — GGUF models via `llama-cpp-python`. `hybrid_reduce_model` is the path to a `.gguf` file.
 
 ### Configuration

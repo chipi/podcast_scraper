@@ -140,7 +140,7 @@ def test_metrics_json_fixture_roundtrip() -> None:
     """Sanity: metrics shape used by score.py parsing."""
     blob = {
         "vs_reference": {
-            "silver_gpt4o_smoke_v1": {
+            "silver_gpt4o_smoke_bullets_v1": {
                 "rougeL_f1": 0.33,
             },
         },

@@ -16,6 +16,7 @@ from podcast_scraper.evaluation.scorer import (
     compute_wer_vs_reference,
     estimate_tokens,
     load_predictions,
+    score_run,
 )
 
 
@@ -223,6 +224,37 @@ class TestComputeIntrinsicMetrics:
         out = compute_intrinsic_metrics(preds, "ds", "run")
         assert out["performance"]["avg_latency_ms"] == 2000.0
 
+    def test_performance_latency_percentiles_and_steady_state(self):
+        """Multiple episodes get median, p95, and avg excluding first."""
+        preds = [
+            {
+                "episode_id": "e1",
+                "output": {"summary_final": "A"},
+                "metadata": {"processing_time_seconds": 10.0},
+            },
+            {
+                "episode_id": "e2",
+                "output": {"summary_final": "B"},
+                "metadata": {"processing_time_seconds": 2.0},
+            },
+            {
+                "episode_id": "e3",
+                "output": {"summary_final": "C"},
+                "metadata": {"processing_time_seconds": 4.0},
+            },
+            {
+                "episode_id": "e4",
+                "output": {"summary_final": "D"},
+                "metadata": {"processing_time_seconds": 6.0},
+            },
+        ]
+        out = compute_intrinsic_metrics(preds, "ds", "run")
+        perf = out["performance"]
+        assert perf["avg_latency_ms"] == 5500.0
+        assert perf["median_latency_ms"] == 5000.0
+        assert perf["p95_latency_ms"] == 10000.0
+        assert perf["avg_latency_ms_excluding_first"] == pytest.approx(4000.0)
+
     def test_cost_from_metadata_cost_usd(self):
         """Direct cost_usd in metadata populates cost section."""
         preds = [
@@ -253,6 +285,37 @@ class TestComputeIntrinsicMetrics:
         assert "cost" in out
         # 1M in @ $0.15 + 1M out @ $0.60
         assert abs(out["cost"]["total_cost_usd"] - 0.75) < 1e-9
+
+    def test_cost_from_usage_gpt4o_full(self):
+        """usage + model gpt-4o (not mini) uses full GPT-4o pricing."""
+        preds = [
+            {
+                "episode_id": "e1",
+                "output": {"summary_final": "Hi"},
+                "metadata": {
+                    "model": "gpt-4o",
+                    "usage": {"prompt_tokens": 1_000_000, "completion_tokens": 1_000_000},
+                },
+            },
+        ]
+        out = compute_intrinsic_metrics(preds, "ds", "run")
+        assert "cost" in out
+        assert abs(out["cost"]["total_cost_usd"] - 12.50) < 1e-6
+
+    def test_cost_skips_when_usage_tokens_zero(self):
+        """No cost section when usage has zero tokens and no cost_usd."""
+        preds = [
+            {
+                "episode_id": "e1",
+                "output": {"summary_final": "Hi"},
+                "metadata": {
+                    "model": "gpt-4o-mini",
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0},
+                },
+            },
+        ]
+        out = compute_intrinsic_metrics(preds, "ds", "run")
+        assert "cost" not in out
 
 
 @pytest.mark.unit
@@ -297,3 +360,47 @@ class TestComputeVsReferencePartialEpisodes:
         ]
         with pytest.raises(ValueError, match="extra"):
             compute_vs_reference_metrics(preds, "fixture_ref2", ref_dir)
+
+    def test_numbers_retained_metric(self, tmp_path: Path) -> None:
+        """Reference numbers overlapping prediction appear in numbers_retained."""
+        ref_dir = tmp_path / "refn"
+        ref_dir.mkdir()
+        ref_line = (
+            '{"episode_id": "e1", "output": {"summary_final": '
+            '"Revenue was 42 million in 2024."}}\n'
+        )
+        (ref_dir / "predictions.jsonl").write_text(ref_line, encoding="utf-8")
+        (ref_dir / "baseline.json").write_text("{}", encoding="utf-8")
+
+        preds = [
+            {
+                "episode_id": "e1",
+                "output": {"summary_final": "We noted 42 and 2024 in the discussion."},
+            },
+        ]
+        out = compute_vs_reference_metrics(preds, "refnums", ref_dir)
+        assert out.get("numbers_retained") is not None
+        assert 0.0 <= out["numbers_retained"] <= 1.0
+
+
+@pytest.mark.unit
+class TestScoreRun:
+    """score_run top-level orchestration."""
+
+    def test_vs_reference_error_surfaces_under_ref_key(self, tmp_path: Path) -> None:
+        """Broken reference path records error string instead of crashing score_run."""
+        pred_path = tmp_path / "predictions.jsonl"
+        pred_path.write_text(
+            '{"episode_id": "e1", "output": {"summary_final": "hello world there"}}\n',
+            encoding="utf-8",
+        )
+        missing_ref = tmp_path / "no_such_ref_dir"
+        out = score_run(
+            pred_path,
+            "ds_x",
+            "run_y",
+            reference_paths={"broken": missing_ref},
+        )
+        assert out["vs_reference"] is not None
+        assert "error" in out["vs_reference"]["broken"]
+        assert "predictions" in out["vs_reference"]["broken"]["error"].lower()

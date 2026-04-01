@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
+import statistics
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -91,6 +93,19 @@ def estimate_tokens(text: str) -> int:
         Estimated token count
     """
     return len(text) // 4
+
+
+def _percentile_nearest_rank(values: List[float], percentile: float) -> float:
+    """Nearest-rank percentile for ``percentile`` in [0, 100]."""
+    if not values:
+        return 0.0
+    if len(values) == 1:
+        return float(values[0])
+    sorted_vals = sorted(values)
+    # 1-based rank: k = ceil(P/100 * n), clamp to [1, n]
+    k = int(math.ceil((percentile / 100.0) * len(sorted_vals)))
+    k = max(1, min(k, len(sorted_vals)))
+    return float(sorted_vals[k - 1])
 
 
 def compute_intrinsic_metrics(  # noqa: C901
@@ -313,15 +328,23 @@ def compute_intrinsic_metrics(  # noqa: C901
         "max_tokens": max(token_counts) if token_counts else 0,
     }
 
-    # Performance metrics
-    latencies = [
-        pred.get("metadata", {}).get("processing_time_seconds", 0) * 1000  # Convert to ms
-        for pred in predictions
-        if pred.get("metadata", {}).get("processing_time_seconds") is not None
-    ]
-    performance = {
-        "avg_latency_ms": sum(latencies) / len(latencies) if latencies else 0,
+    # Performance metrics (latency in ms; order matches episode processing order)
+    latencies_ms: List[float] = []
+    for pred in predictions:
+        sec = pred.get("metadata", {}).get("processing_time_seconds")
+        if sec is not None:
+            latencies_ms.append(float(sec) * 1000.0)
+
+    performance: Dict[str, Any] = {
+        "avg_latency_ms": sum(latencies_ms) / len(latencies_ms) if latencies_ms else 0.0,
     }
+    if latencies_ms:
+        performance["median_latency_ms"] = float(statistics.median(latencies_ms))
+        performance["p95_latency_ms"] = _percentile_nearest_rank(latencies_ms, 95.0)
+        if len(latencies_ms) > 1:
+            performance["avg_latency_ms_excluding_first"] = sum(latencies_ms[1:]) / (
+                len(latencies_ms) - 1
+            )
 
     # Cost metrics - extract from metadata if available
     # OpenAI providers may include cost information in metadata or usage info
@@ -757,15 +780,13 @@ def compute_vs_reference_metrics(
 
     reference_predictions = load_predictions(ref_predictions_path)
 
-    # Validate each reference entry against schema
+    # Validate each reference entry against schema (summary_final normalized to summary)
     for ref_entry in reference_predictions:
-        try:
-            validate_summarization_reference(ref_entry)
-        except ValueError as e:
+        if not validate_summarization_reference(ref_entry, strict=False):
             raise ValueError(
-                f"Reference entry validation failed for episode "
-                f"{ref_entry.get('episode_id', 'unknown')}: {e}"
-            ) from e
+                "Reference entry failed summarization_reference_v1 schema for episode "
+                f"{ref_entry.get('episode_id', 'unknown')}"
+            )
 
     # Load reference metadata
     ref_metadata_path = reference_path / "baseline.json"
@@ -979,7 +1000,7 @@ def score_run(
         metrics["schema"] = "metrics_ner_v1"
         metrics["task"] = "ner_entities"
     elif task_type == "summarization":
-        metrics["schema"] = "metrics_summarization_v1"
+        metrics["schema"] = "metrics_summarization_v2"
         metrics["task"] = "summarization"
     elif task_type == "grounded_insights":
         metrics["schema"] = "metrics_gil_eval_run_v1"

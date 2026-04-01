@@ -29,7 +29,7 @@ endif
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list runs-compare benchmark serve-gi-kg-viz
+.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
 
 help:
 	@echo "Common developer commands:"
@@ -57,6 +57,14 @@ help:
 	@echo "  make compare-gil-runs REF=run1 CAND=run2  Compare GIL gi.json stats between two run roots"
 	@echo "  make kg-quality-metrics [DIR=path]   PRD-019 metrics over .kg.json (optional --enforce via ARGS)"
 	@echo "  make quality-metrics-ci              GIL+KG enforce on tests/fixtures/gil_kg_ci_enforce (matches CI)"
+	@echo "  make fetch-ci-metrics [N=40]       Download metrics/ artifacts from last N successful main runs (needs gh; default N=40)"
+	@echo "  make fetch-ci-metrics-validate [N=40]  Download (same as above) then validate every run-* bundle"
+	@echo "  make fetch-nightly-metrics [N=25]  N unset: one artifact or Pages curl; N>=1: download N nightlies + merge JSONL for charts"
+	@echo "  make validate-metrics-bundle BUNDLE=path  Validate downloaded latest-*.json + optional history JSONL"
+	@echo "  make build-metrics-dashboard-preview   CI: merged history + nightly + dashboard-data.json → artifacts/dashboard-preview/"
+	@echo "  make metrics-preview-check             Same as preview build with strict history-*.jsonl validation (METRICS_PREVIEW_STRICT)"
+	@echo "  make serve-metrics-dashboard   Rebuild preview + HTTP server (http://127.0.0.1:8777/)"
+	@echo "  make metrics-dashboard-live [N=40]  Fetch + validate + preview + server (same URL; needs gh)"
 	@echo "  make deps-analyze        Analyze module dependencies and detect architectural issues (with report)"
 	@echo "  make deps-check          Check dependencies and exit with error if issues found"
 	@echo "  make deps-graph          Generate module dependency graph (SVG) in docs/architecture/"
@@ -177,6 +185,8 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
+	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[run_compare]')"
+	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make autoresearch-score  RFC-057 Track A: eval run + ROUGE + dual judges (scalar on stdout)"
 	@echo "                            Usage: make autoresearch-score [CONFIG=...] [REFERENCE=...] [DRY_RUN=1]"
 	@echo "  make report-multi-run   Generate multi-run comparison report (baseline + N runs)"
@@ -1247,6 +1257,36 @@ serve-gi-kg-viz:
 	@echo "GI/KG viz → http://127.0.0.1:8765/  (Ctrl+C to stop)"
 	@$(PYTHON) scripts/gi_kg_viz_server.py --port 8765 --host 127.0.0.1 --repo-root "$(CURDIR)" --viz-dir "$(CURDIR)/web/gi-kg-viz"
 
+# Download CI metrics bundles (GitHub CLI). Output: artifacts/ci-metrics-runs/run-<id>/
+fetch-ci-metrics:
+	@bash scripts/dashboard/fetch_ci_metrics_artifacts.sh "$(N)"
+
+fetch-ci-metrics-validate:
+	@export PYTHON="$(PYTHON)"; bash scripts/dashboard/fetch_and_validate_ci_metrics.sh "$(N)"
+
+fetch-nightly-metrics:
+	@export PYTHON="$(PYTHON)" GITHUB_BRANCH="$(GITHUB_BRANCH)"; bash scripts/dashboard/fetch_nightly_metrics.sh "$(N)"
+
+validate-metrics-bundle:
+	@if [ -z "$(BUNDLE)" ]; then echo "Usage: make validate-metrics-bundle BUNDLE=artifacts/ci-metrics-runs/run-<id>"; exit 1; fi
+	@$(PYTHON) scripts/dashboard/validate_metrics_bundle.py "$(BUNDLE)"
+
+# Unified dashboard: CI from newest artifacts/ci-metrics-runs/run-* + nightly from metrics/ (gitignored output).
+build-metrics-dashboard-preview:
+	@export PYTHON="$(PYTHON)"; bash scripts/dashboard/build_local_metrics_preview.sh
+
+# Fails (exit 2) if metrics/history-*.jsonl looks like pretty-printed JSON, not JSONL.
+metrics-preview-check:
+	@export PYTHON="$(PYTHON)" METRICS_PREVIEW_STRICT=1; bash scripts/dashboard/build_local_metrics_preview.sh
+
+serve-metrics-dashboard: build-metrics-dashboard-preview
+	@echo "Metrics dashboard → http://127.0.0.1:8777/  (toggle CI vs Nightly; Ctrl+C to stop)"
+	@$(PYTHON) -m http.server 8777 --bind 127.0.0.1 --directory "$(CURDIR)/artifacts/dashboard-preview"
+
+# Fetch CI metrics (gh), validate, merge with nightly, serve unified dashboard (not MkDocs).
+metrics-dashboard-live:
+	@export PYTHON="$(PYTHON)"; bash scripts/dashboard/metrics_dashboard_live.sh "$(N)"
+
 # Run before release: regenerate diagrams and create release notes draft. Add to release checklist.
 release-docs-prep: visualize
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/create_release_notes_draft.py
@@ -1739,7 +1779,7 @@ autoresearch-score:
 		echo "  Config: $(CONFIG)"; \
 		cmd="$$cmd --config $(CONFIG)"; \
 	else \
-		echo "  Config: (default autoresearch_prompt_openai_smoke_v1.yaml)"; \
+		echo "  Config: (default autoresearch_prompt_openai_smoke_bullets_v1.yaml)"; \
 	fi; \
 	if [ -n "$(REFERENCE)" ]; then \
 		echo "  Reference: $(REFERENCE)"; \
@@ -1890,6 +1930,13 @@ baselines-list:
 	@$(PYTHON) scripts/eval/list_runs.py --baselines \
 		$(if $(DATASET_ID),--dataset-id $(DATASET_ID))
 
+run-compare:
+	@# Streamlit run comparison UI (RFC-047, Issue #373)
+	@# Usage: make run-compare [BASELINE=baseline_id]
+	@echo "Launching run comparison tool..."
+	@BASELINE=$(BASELINE) $(PYTHON) -m streamlit run tools/run_compare/app.py \
+		--server.headless=false --server.port=8501
+
 runs-compare:
 	@# Compare two experiment runs
 	@# Usage: make runs-compare RUN1=run_id1 RUN2=run_id2 [DATASET_ID=dataset_id] [OUTPUT=path/to/report.md]
@@ -1908,6 +1955,7 @@ report-multi-run:
 	@# Generate multi-run comparison report (baseline + N runs, vs-reference metrics)
 	@# Usage: make report-multi-run [BASELINE_ID=id] RUN_IDS=id1,id2,... REFERENCE_ID=ref_id [OUTPUT=path] [TITLE=...] [LABELS=...]
 	@# Default: BASELINE_ID=baseline_ml_prod_authority_smoke_v1 RUN_IDS=hybrid_ml_tier1_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_v1 REFERENCE_ID=silver_gpt4o_smoke_v1
+	@# Optional 32B tier2 (after ollama pull qwen2.5:32b): append hybrid_ml_tier2_qwen25_32b_smoke_v1 to RUN_IDS
 	@REFERENCE_ID="$(REFERENCE_ID)"; \
 	if [ -z "$$REFERENCE_ID" ]; then REFERENCE_ID=silver_gpt4o_smoke_v1; fi; \
 	BASELINE_ID="$(BASELINE_ID)"; RUN_IDS="$(RUN_IDS)"; \

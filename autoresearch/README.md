@@ -7,7 +7,40 @@ Thin automation layer on top of `scripts/eval/run_experiment.py` and
 - **Track B (future):** ML inference params (`config/autoresearch/ml_params.yaml`).
 
 **Full design:** `docs/rfc/RFC-057-autoresearch-optimization-loop.md`  
-**Human loop rules (source of truth for caps / policy):** `autoresearch/prompt_tuning/program.md`
+**Human loop rules (source of truth for caps / policy):**
+
+- **Bullets (JSON):** `autoresearch/prompt_tuning/program.md`
+- **Paragraphs:** `autoresearch/prompt_tuning/program_paragraph.md`
+
+## Two research lines (same harness, different config + reference)
+
+Use **`make autoresearch-score`** with explicit `CONFIG=` and `REFERENCE=` so ROUGE compares like-with-like.
+
+| Line | Config | Silver reference (ROUGE target) | Program (allowlist) |
+| --- | --- | --- | --- |
+| **Summary bullets** | `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml` | `silver_gpt4o_smoke_bullets_v1` (after you promote it) — until then legacy `silver_gpt4o_smoke_v1` is a poor match | `program.md` |
+| **Paragraph summary** | `data/eval/configs/autoresearch_prompt_openai_smoke_paragraph_v1.yaml` | `silver_gpt4o_smoke_v1` | `program_paragraph.md` |
+
+**Examples:**
+
+```bash
+# Bullets — use bullet silver once it exists
+make autoresearch-score \
+  CONFIG=data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml \
+  REFERENCE=silver_gpt4o_smoke_bullets_v1
+
+# Paragraphs — legacy paragraph silver
+make autoresearch-score \
+  CONFIG=data/eval/configs/autoresearch_prompt_openai_smoke_paragraph_v1.yaml \
+  REFERENCE=silver_gpt4o_smoke_v1
+```
+
+Default `make autoresearch-score` (no args) uses the **bullet** config and default reference
+`silver_gpt4o_smoke_bullets_v1` (aligned ROUGE). That reference **must exist** under
+`data/eval/references/silver/` — run `experiment_openai_gpt4o_smoke_bullets_v1`, then **promote**
+the run (see `data/eval/configs/README.md`). Until then, pass `REFERENCE=silver_gpt4o_smoke_v1` only if you
+accept paragraph-vs-bullet ROUGE noise. **Paragraph line:** always pass `CONFIG` + `REFERENCE` as
+in the table.
 
 ---
 
@@ -19,7 +52,7 @@ Use this section as the **single onboarding context** for Claude Code (or any co
 
 Iteratively **improve summary-bullet quality** (JSON bullet output from the
 `bullets_json_v1` template, not a separate “paragraph summary” prompt) for the eval
-experiment `data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml` by editing **only**
+experiment `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml` by editing **only**
 allowlisted Jinja templates. After each edit, run the score harness and **ratchet**:
 commit if the scalar **improves**, otherwise `git reset --hard HEAD`.
 
@@ -55,7 +88,9 @@ Useful to re-check ROUGE from existing `predictions.jsonl`; **not** sufficient t
 
 ### Scoring semantics (short)
 
-- Metric combines **ROUGE-L vs silver** (`silver_gpt4o_smoke_v1`) with **two LLM judges** (OpenAI + Anthropic), per `autoresearch/prompt_tuning/eval/rubric.md` and `judge_config.yaml`.
+- Metric combines **ROUGE-L vs silver** (default `silver_gpt4o_smoke_bullets_v1` for the bullet
+  config; override with `REFERENCE=`) with **two LLM judges** (OpenAI + Anthropic), per
+  `autoresearch/prompt_tuning/eval/rubric.md` and `judge_config.yaml`.
 - If judges **disagree strongly** (contested), the harness falls back to **ROUGE-only** for the final scalar — check stderr for `contested=True`.
 
 ### Allowlisted files you MAY edit
@@ -96,6 +131,10 @@ See `config/examples/.env.example` for the full list.
 ### Prerequisites
 
 - Materialized transcripts: `data/eval/materialized/curated_5feeds_smoke_v1/` (if missing: `make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1`).
+- **Bullet ROUGE:** `data/eval/references/silver/silver_gpt4o_smoke_bullets_v1/` exists only
+  **after** you run `experiment_openai_gpt4o_smoke_bullets_v1`, review the run, and **promote** it
+  (see `data/eval/configs/README.md`). Until then, use `REFERENCE=silver_gpt4o_smoke_v1` only as a
+  temporary mismatch, or wait before scoring.
 
 ### Git workflow
 
@@ -112,4 +151,4 @@ Respect the **maximum experiments per session** written in `autoresearch/prompt_
 
 ### Where outputs land
 
-- Run artifacts: `data/eval/runs/autoresearch_prompt_openai_smoke_v1/` (`predictions.jsonl`, `metrics.json`, `metrics_report.md`).
+- Run artifacts: `data/eval/runs/autoresearch_prompt_openai_smoke_bullets_v1/` (`predictions.jsonl`, `metrics.json`, `metrics_report.md`).

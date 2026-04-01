@@ -6,7 +6,9 @@ import json
 
 import pytest
 
+import podcast_scraper.evaluation.schema_validator as schema_validator_mod
 from podcast_scraper.evaluation.schema_validator import (
+    HAS_JSONSCHEMA,
     validate_metrics_ner,
     validate_metrics_summarization,
     validate_schema,
@@ -40,14 +42,78 @@ class TestValidateSchema:
         schema_path.write_text(json.dumps({"required": ["id"]}), encoding="utf-8")
         validate_schema({"id": 1}, schema_path, strict=False)
 
+    @pytest.mark.skipif(not HAS_JSONSCHEMA, reason="jsonschema not installed")
+    def test_jsonschema_invalid_instance_strict_raises(self, tmp_path):
+        schema_path = tmp_path / "schema.json"
+        schema_path.write_text(
+            json.dumps(
+                {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="Schema validation failed"):
+            validate_schema({"n": "not-int"}, schema_path, strict=True)
+
+    @pytest.mark.skipif(not HAS_JSONSCHEMA, reason="jsonschema not installed")
+    def test_jsonschema_invalid_instance_non_strict_returns_false(self, tmp_path):
+        schema_path = tmp_path / "schema.json"
+        schema_path.write_text(
+            json.dumps(
+                {"type": "object", "properties": {"n": {"type": "integer"}}, "required": ["n"]}
+            ),
+            encoding="utf-8",
+        )
+        assert validate_schema({"n": "bad"}, schema_path, strict=False) is False
+
+
+@pytest.mark.unit
+class TestNormalizeSummarizationReference:
+    """_normalize_summarization_reference_entry (via public validate)."""
+
+    def test_summary_long_normalized_for_schema(self):
+        from pathlib import Path
+
+        if not Path("data/eval/schemas/summarization_reference_v1.json").is_file():
+            pytest.skip("summarization_reference_v1.json not in tree")
+        text = "A real summary with enough text for the schema minimum. " * 2
+        entry = {"episode_id": "e1", "output": {"summary_long": text}}
+        normalized = schema_validator_mod._normalize_summarization_reference_entry(entry)
+        assert normalized.get("summary") == text
+        assert validate_summarization_reference(entry, strict=False) is True
+
 
 @pytest.mark.unit
 class TestValidateSummarizationReference:
     """Test validate_summarization_reference."""
 
-    def test_calls_validate_schema(self):
-        """Does not raise when schema path does not exist (lenient)."""
-        validate_summarization_reference({"episode_id": "ep1"})
+    def test_baseline_output_summary_final_passes_schema(self):
+        """Run/baseline JSONL shape validates after normalization."""
+        from pathlib import Path
+
+        if not Path("data/eval/schemas/summarization_reference_v1.json").is_file():
+            pytest.skip("summarization_reference_v1.json not in tree")
+        entry = {
+            "episode_id": "e1",
+            "output": {"summary_final": "A real summary with enough text."},
+        }
+        assert validate_summarization_reference(entry, strict=False) is True
+
+    def test_top_level_summary_passes_schema(self):
+        """Legacy top-level summary still validates."""
+        from pathlib import Path
+
+        if not Path("data/eval/schemas/summarization_reference_v1.json").is_file():
+            pytest.skip("summarization_reference_v1.json not in tree")
+        entry = {"episode_id": "e1", "summary": "A real summary with enough text."}
+        assert validate_summarization_reference(entry, strict=False) is True
+
+    def test_missing_summary_fails_when_schema_present(self):
+        """episode_id alone does not satisfy schema."""
+        from pathlib import Path
+
+        if not Path("data/eval/schemas/summarization_reference_v1.json").is_file():
+            pytest.skip("summarization_reference_v1.json not in tree")
+        assert validate_summarization_reference({"episode_id": "ep1"}, strict=False) is False
 
 
 @pytest.mark.unit
@@ -57,6 +123,40 @@ class TestValidateMetricsSummarization:
     def test_lenient_when_schema_missing(self):
         """Does not raise when schema file missing (default strict=False)."""
         validate_metrics_summarization({"run_id": "r1"})
+
+    def test_v2_metrics_passes_when_schema_present(self):
+        """metrics_summarization_v2-shaped dict validates when repo schema file exists."""
+        metrics_v2 = {
+            "schema": "metrics_summarization_v2",
+            "task": "summarization",
+            "dataset_id": "curated_5feeds_smoke_v1",
+            "run_id": "test_run",
+            "episode_count": 1,
+            "intrinsic": {
+                "gates": {
+                    "boilerplate_leak_rate": 0.0,
+                    "speaker_label_leak_rate": 0.0,
+                    "truncation_rate": 0.0,
+                    "failed_episodes": [],
+                    "episode_gate_failures": {},
+                },
+                "warnings": {"speaker_name_leak_rate": 0.0},
+                "length": {"avg_tokens": 10.0, "min_tokens": 10.0, "max_tokens": 10.0},
+                "performance": {
+                    "avg_latency_ms": 100.0,
+                    "median_latency_ms": 100.0,
+                    "p95_latency_ms": 100.0,
+                },
+            },
+            "vs_reference": None,
+        }
+        from pathlib import Path
+
+        schema_path = Path("data/eval/schemas/metrics_summarization_v2.json")
+        if not schema_path.is_file():
+            pytest.skip("metrics_summarization_v2.json not in tree")
+        ok = validate_metrics_summarization(metrics_v2, strict=False)
+        assert ok is True
 
 
 @pytest.mark.unit

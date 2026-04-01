@@ -118,7 +118,22 @@ class TestOpenAIBackendConfig(unittest.TestCase):
     def test_openai_backend_config_missing_model(self):
         """Test OpenAIBackendConfig validation fails without required model field."""
         with self.assertRaises(ValidationError):
-            experiment_config.OpenAIBackendConfig()
+            experiment_config.OpenAIBackendConfig()  # type: ignore[call-arg]
+
+
+class TestGeminiBackendConfig(unittest.TestCase):
+    """Test GeminiBackendConfig Pydantic model."""
+
+    def test_gemini_backend_config(self):
+        """Test GeminiBackendConfig with model name."""
+        cfg = experiment_config.GeminiBackendConfig(model="gemini-2.0-flash")
+        self.assertEqual(cfg.type, "gemini")
+        self.assertEqual(cfg.model, "gemini-2.0-flash")
+
+    def test_gemini_backend_config_missing_model(self):
+        """Test GeminiBackendConfig validation fails without required model field."""
+        with self.assertRaises(ValidationError):
+            experiment_config.GeminiBackendConfig()  # type: ignore[call-arg]
 
 
 class TestDataConfig(unittest.TestCase):
@@ -219,6 +234,26 @@ class TestExperimentConfig(unittest.TestCase):
         )
         self.assertEqual(cfg.task, "ner_guest_host")
 
+    def test_experiment_config_ollama_backend_requires_prompts(self):
+        """Ollama backend requires prompts.user."""
+        with self.assertRaises(ValueError):
+            experiment_config.ExperimentConfig(
+                id="test_ollama",
+                backend=experiment_config.OllamaBackendConfig(model="qwen2.5:7b"),
+                data=experiment_config.DataConfig(dataset_id="curated_5feeds_smoke_v1"),
+                params={"max_length": 800, "min_length": 200, "temperature": 0.0},
+            )
+
+    def test_experiment_config_gemini_backend_requires_prompts(self):
+        """Gemini backend requires prompts (validated like OpenAI)."""
+        with self.assertRaises(ValueError):
+            experiment_config.ExperimentConfig(
+                id="test_gemini",
+                backend=experiment_config.GeminiBackendConfig(model="gemini-2.0-flash"),
+                data=experiment_config.DataConfig(dataset_id="curated_5feeds_smoke_v1"),
+                params={"max_length": 800, "temperature": 0.0},
+            )
+
     def test_experiment_config_with_hybrid_ml_backend(self):
         """Test ExperimentConfig with hybrid_ml backend."""
         cfg = experiment_config.ExperimentConfig(
@@ -291,6 +326,65 @@ tokenize:
             self.assertEqual(cfg.tokenize.map_max_input_tokens, 1024)
         finally:
             config_path.unlink(missing_ok=True)
+
+    def test_load_experiment_config_ollama_backend_pure_llm(self):
+        """Test loading llm_ollama_* smoke config (pure Ollama LLM, not hybrid_ml)."""
+        repo_root = Path(__file__).resolve().parents[4]
+        path = repo_root / "data/eval/configs/llm_ollama_qwen25_7b_smoke_v1.yaml"
+        if not path.exists():
+            self.skipTest(f"Config missing: {path}")
+        cfg = experiment_config.load_experiment_config(path)
+        self.assertEqual(cfg.backend.type, "ollama")
+        self.assertEqual(cfg.backend.model, "qwen2.5:7b")
+        self.assertIn("long_v1", cfg.prompts.user)
+        self.assertIsNone(cfg.map_params)
+        self.assertIsNone(cfg.reduce_params)
+
+    def test_load_experiment_config_ollama_mistral_nemo_and_small32_smoke(self):
+        """Test loading Mistral Nemo 12B and Mistral Small 3.2 Ollama smoke configs."""
+        repo_root = Path(__file__).resolve().parents[4]
+        cases = (
+            (
+                "llm_ollama_mistral_nemo_12b_smoke_v1.yaml",
+                "llm_ollama_mistral_nemo_12b_smoke_v1",
+                "mistral-nemo:12b",
+                "ollama/mistral-nemo_12b/summarization/long_v1",
+                "ollama/mistral-nemo_12b/summarization/system_v1",
+            ),
+            (
+                "llm_ollama_mistral_small3_2_smoke_v1.yaml",
+                "llm_ollama_mistral_small3_2_smoke_v1",
+                "mistral-small3.2:latest",
+                "ollama/mistral-small3.2/summarization/long_v1",
+                "ollama/mistral-small3.2/summarization/system_v1",
+            ),
+        )
+        for filename, exp_id, exp_model, exp_user, exp_system in cases:
+            path = repo_root / "data/eval/configs" / filename
+            if not path.exists():
+                self.skipTest(f"Config missing: {path}")
+            cfg = experiment_config.load_experiment_config(path)
+            self.assertEqual(cfg.id, exp_id)
+            self.assertEqual(cfg.backend.type, "ollama")
+            self.assertEqual(cfg.backend.model, exp_model)
+            self.assertEqual(cfg.prompts.user, exp_user)
+            self.assertEqual(cfg.prompts.system, exp_system)
+            self.assertIsNone(cfg.map_params)
+            self.assertIsNone(cfg.reduce_params)
+
+    def test_load_experiment_config_gemini_smoke(self):
+        """Test loading llm_gemini_smoke_v1 (API Gemini, paragraph prompts)."""
+        repo_root = Path(__file__).resolve().parents[4]
+        path = repo_root / "data/eval/configs/llm_gemini_smoke_v1.yaml"
+        if not path.exists():
+            self.skipTest(f"Config missing: {path}")
+        cfg = experiment_config.load_experiment_config(path)
+        self.assertEqual(cfg.backend.type, "gemini")
+        self.assertEqual(cfg.backend.model, "gemini-2.0-flash")
+        self.assertEqual(cfg.prompts.user, "gemini/summarization/long_v1")
+        self.assertEqual(cfg.prompts.system, "gemini/summarization/system_v1")
+        self.assertIsNone(cfg.map_params)
+        self.assertIsNone(cfg.reduce_params)
 
     def test_load_experiment_config_hybrid_ml_backend(self):
         """Test loading experiment config with hybrid_ml backend from YAML."""

@@ -5,9 +5,15 @@ These tests verify retry behavior, jitter, and metrics tracking.
 """
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from podcast_scraper.utils.provider_metrics import (
+    anthropic_message_usage_tokens,
+    apply_gil_evidence_llm_call_metrics,
+    gemini_generate_usage_tokens,
+    merge_gil_evidence_call_metrics_on_failure,
+    openai_compatible_chat_usage_tokens,
     ProviderCallMetrics,
     retry_with_metrics,
 )
@@ -185,6 +191,142 @@ class TestRetryWithMetrics(unittest.TestCase):
         self.assertEqual(len(delays), 2)
         self.assertAlmostEqual(delays[0], 20.0, places=1)
         self.assertAlmostEqual(delays[1], 30.0, places=1)
+
+    def test_non_retryable_error_raises_immediately(self):
+        """401-style errors are not retried (is_retryable_error False)."""
+        func = Mock(side_effect=Exception("401 Unauthorized"))
+        with patch("time.sleep"):
+            with self.assertRaises(Exception) as ctx:
+                retry_with_metrics(func, max_retries=3, initial_delay=0.1)
+        self.assertIn("401", str(ctx.exception))
+        self.assertEqual(func.call_count, 1)
+
+    def test_exception_not_in_retryable_tuple_reraises(self):
+        """Exceptions outside retryable_exceptions bypass retry loop."""
+        func = Mock(side_effect=ValueError("nope"))
+        with self.assertRaises(ValueError):
+            retry_with_metrics(
+                func, max_retries=3, retryable_exceptions=(ConnectionError,), initial_delay=0.1
+            )
+        func.assert_called_once()
+
+    def test_rate_limit_retry_after_invalid_uses_backoff_delay(self):
+        """Invalid retry_after on 429 falls back to exponential delay."""
+
+        class RateLimitExc(Exception):
+            def __init__(self) -> None:
+                super().__init__("429 rate limit")
+                self.retry_after = "not-a-number"
+
+        func = Mock(side_effect=[RateLimitExc(), "ok"])
+        with patch("time.sleep") as mock_sleep:
+            with patch("random.uniform", return_value=1.0):
+                retry_with_metrics(func, max_retries=3, initial_delay=2.0, jitter=False)
+        mock_sleep.assert_called_once_with(2.0)
+
+
+class TestOpenAiCompatibleChatUsageTokens(unittest.TestCase):
+    """openai_compatible_chat_usage_tokens."""
+
+    def test_no_usage_attribute(self):
+        self.assertEqual(openai_compatible_chat_usage_tokens(object()), (None, None))
+
+    def test_usage_empty(self):
+        r = SimpleNamespace(usage=None)
+        self.assertEqual(openai_compatible_chat_usage_tokens(r), (None, None))
+
+    def test_int_tokens(self):
+        u = SimpleNamespace(prompt_tokens=10, completion_tokens=20)
+        r = SimpleNamespace(usage=u)
+        self.assertEqual(openai_compatible_chat_usage_tokens(r), (10, 20))
+
+    def test_float_tokens_coerced(self):
+        u = SimpleNamespace(prompt_tokens=3.0, completion_tokens=4.0)
+        r = SimpleNamespace(usage=u)
+        self.assertEqual(openai_compatible_chat_usage_tokens(r), (3, 4))
+
+    def test_non_numeric_tokens_return_none(self):
+        u = SimpleNamespace(prompt_tokens="x", completion_tokens=5)
+        r = SimpleNamespace(usage=u)
+        self.assertEqual(openai_compatible_chat_usage_tokens(r), (None, 5))
+
+
+class TestAnthropicMessageUsageTokens(unittest.TestCase):
+    """anthropic_message_usage_tokens."""
+
+    def test_no_usage(self):
+        self.assertEqual(anthropic_message_usage_tokens(SimpleNamespace(usage=None)), (None, None))
+
+    def test_int_tokens(self):
+        u = SimpleNamespace(input_tokens=7, output_tokens=8)
+        self.assertEqual(anthropic_message_usage_tokens(SimpleNamespace(usage=u)), (7, 8))
+
+
+class TestGeminiGenerateUsageTokens(unittest.TestCase):
+    """gemini_generate_usage_tokens."""
+
+    def test_no_usage_metadata(self):
+        self.assertEqual(
+            gemini_generate_usage_tokens(SimpleNamespace(usage_metadata=None)), (None, None)
+        )
+
+    def test_valid_counts(self):
+        m = SimpleNamespace(prompt_token_count=1, candidates_token_count=2)
+        self.assertEqual(gemini_generate_usage_tokens(SimpleNamespace(usage_metadata=m)), (1, 2))
+
+    def test_bad_prompt_count_still_parses_completion(self):
+        class Bad:
+            def __int__(self) -> int:
+                raise TypeError("no int")
+
+        m = SimpleNamespace(prompt_token_count=Bad(), candidates_token_count=3)
+        self.assertEqual(gemini_generate_usage_tokens(SimpleNamespace(usage_metadata=m)), (None, 3))
+
+
+class TestGilEvidenceCallMetrics(unittest.TestCase):
+    """apply_gil_evidence_llm_call_metrics / merge on failure."""
+
+    def test_apply_sets_tokens_and_records_pipeline(self):
+        m = ProviderCallMetrics()
+        m.set_provider_name("gil")
+        pipe = Mock()
+        apply_gil_evidence_llm_call_metrics(m, pipe, 10, 20)
+        self.assertEqual(m.prompt_tokens, 10)
+        self.assertEqual(m.completion_tokens, 20)
+        pipe.record_llm_gi_evidence_call_metrics.assert_called_once()
+        pipe.record_llm_gi_call.assert_called_once_with(10, 20)
+
+    def test_apply_pipeline_none_no_crash(self):
+        m = ProviderCallMetrics()
+        apply_gil_evidence_llm_call_metrics(m, None, 1, 2)
+        m.finalize()
+        self.assertEqual(m.retries, 0)
+
+    def test_apply_partial_tokens_skips_record_llm_gi_call(self):
+        m = ProviderCallMetrics()
+
+        class Pipe:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def record_llm_gi_evidence_call_metrics(self, _cm: ProviderCallMetrics) -> None:
+                self.calls += 1
+
+        pipe = Pipe()
+        apply_gil_evidence_llm_call_metrics(m, pipe, None, 20)
+        self.assertEqual(pipe.calls, 1)
+
+    def test_merge_failure_records_evidence_only(self):
+        m = ProviderCallMetrics()
+        pipe = Mock()
+        merge_gil_evidence_call_metrics_on_failure(m, pipe)
+        pipe.record_llm_gi_evidence_call_metrics.assert_called_once()
+
+    def test_merge_failure_pipeline_none(self):
+        m = ProviderCallMetrics()
+        merge_gil_evidence_call_metrics_on_failure(m, None)
+        m.finalize()
+        self.assertEqual(m.retries, 0)
 
 
 if __name__ == "__main__":

@@ -22,6 +22,22 @@ the trend.
 or system performance. For performance tracking, see `make test-track` and
 [Resource Usage](RESOURCE_USAGE.md).
 
+## GitHub Pages dashboard vs this page (wily / radon)
+
+The **[unified metrics dashboard](METRICS.md)** on GitHub Pages plots **saved CI/nightly
+snapshots** from `history-*.jsonl`. The **Code quality history** chart shows **package-wide radon averages**
+(mean cyclomatic complexity and mean maintainability index) for each snapshot. That answers: “How
+did these two numbers move across workflow runs?” (See the chart subtitle on the dashboard for file names and what is card-only.)
+
+**This document** focuses on **wily**: trends across **git commits** and **per-file** reports,
+plus radon semantics. Wily output is **not** rendered as an interactive graph on the public
+dashboard; use local `make complexity-track`, `wily report`, or download the **wily-reports**
+artifact from a workflow run.
+
+**Trend arrows on dashboard cards** (e.g. complexity “+0.1”) come from comparing the current run to
+the **previous metrics snapshot** in history (`wily_trends_to_json.py`), not from the full wily HTML
+report.
+
 ## Local Usage
 
 ### Prerequisites
@@ -135,13 +151,16 @@ New C901 ignores should be avoided; add a row here and a short in-file comment w
 
 ### Viewing CI results
 
-- **Metrics dashboard:** [Unified Metrics Dashboard](METRICS.md) shows complexity and maintainability
-  with trend indicators (↑/↓) and lists of files degrading/improving when wily data is available.
+- **Metrics dashboard:** [CI metrics](METRICS.md) shows **radon snapshot** complexity and
+  maintainability on cards, optional **card** trend strings vs the previous snapshot, and **history
+  charts** when `history-*.jsonl` has enough points. **File-level** degrading/improving lists are only
+  populated when that data is wired into metrics JSON (often empty); rely on wily artifacts for
+  deep file lists.
 - **Artifacts:** In the GitHub Actions run, download the `wily-reports` artifact to inspect
   `.wily/` and `reports/wily/*.txt` locally.
 
-Trends appear in the dashboard after at least two CI runs (first run builds the baseline; second
-run can compute deltas).
+Card trend strings and chart points need **at least two** saved metrics snapshots on the branch;
+the first run after a clean history may show “N/A” on deltas until the next push.
 
 ## Troubleshooting
 

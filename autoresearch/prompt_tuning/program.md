@@ -2,10 +2,12 @@
 
 Human-maintained instructions for the coding agent. **Do not** let the agent edit this file during a run.
 
+For the **paragraph** summary line (`long_v1` + `silver_gpt4o_smoke_v1`), use **`program_paragraph.md`** instead.
+
 ## Goal
 
 Improve allowlisted **summary-bullet** prompts (`bullets_json_v1.j2` — JSON bullet output)
-for the OpenAI experiment config `data/eval/configs/autoresearch_prompt_openai_smoke_v1.yaml`,
+for the OpenAI experiment config `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml`,
 measured by `autoresearch/prompt_tuning/eval/score.py` (ROUGE vs silver + dual LLM judges).
 
 **Naming:** The experiment’s `prompts.user` value is `shared/summarization/bullets_json_v1`

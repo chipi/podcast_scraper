@@ -22,6 +22,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Must match ``generate_metrics.py`` default ``--slowest-top-n`` (rows stored in latest-*.json).
+SLOWEST_TESTS_TABLE_MAX = 10
+
 
 def load_latest_metrics(metrics_path: Path) -> Optional[Dict[str, Any]]:
     """Load latest metrics from JSON file."""
@@ -389,7 +392,7 @@ def generate_static_dashboard(
     slowest_tests_html = ""
     if slowest_tests:
         test_rows = []
-        for test in slowest_tests[:10]:
+        for test in slowest_tests[:SLOWEST_TESTS_TABLE_MAX]:
             test_name = test.get("name", "unknown")
             duration = test.get("duration", 0)
             test_rows.append(f"<tr><td><code>{test_name}</code></td><td>{duration:.2f}s</td></tr>")
@@ -430,7 +433,9 @@ def generate_static_dashboard(
             </table>
         """
     else:
-        flaky_tests_html = '<div class="no-data">✅ No flaky tests detected</div>'
+        flaky_tests_html = (
+            '<div class="no-data">✅ No tests passed after a rerun in merged pytest JSON.</div>'
+        )
 
     # Common head and CSS
     head_html = """
@@ -772,7 +777,7 @@ def generate_static_dashboard(
         {pipeline_performance_section}
 
         <div class="slowest-tests">
-            <h2>🐌 Slowest Tests (Top 10)</h2>
+            <h2>🐌 Slowest Tests (Top {SLOWEST_TESTS_TABLE_MAX})</h2>
             {slowest_tests_html}
         </div>
 
@@ -1020,6 +1025,8 @@ def generate_unified_dashboard(output_path: Path) -> None:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
     <title>Unified Test Metrics Dashboard - Podcast Scraper</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
@@ -1051,10 +1058,18 @@ def generate_unified_dashboard(output_path: Path) -> None:
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
         th { background: #f8f9fa; font-weight: 600; color: #2c3e50; }
         .no-data { text-align: center; color: #7f8c8d; padding: 40px; }
+        .chart-caption { font-size: 0.85em; color: #7f8c8d; margin: 0 0 12px 0; line-height: 1.45; }
+        .chart-placeholder { padding: 24px 16px; min-height: 120px; display: flex; align-items: center; justify-content: center; }
         .source-selector { margin-bottom: 20px; background: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 15px; }
         select { padding: 8px 12px; border-radius: 4px; border: 1px solid #ddd; font-size: 1em; color: #2c3e50; cursor: pointer; }
         .loader { display: none; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 2s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .data-mode-banner { margin-bottom: 16px; padding: 12px 16px; border-radius: 8px; font-size: 0.9em; line-height: 1.5; border: 1px solid #ccc; }
+        .data-mode-loading { background: #f0f0f0; color: #555; }
+        .data-mode-unified { background: #e8f6ef; border-color: #27ae60; color: #1b4332; }
+        .data-mode-legacy { background: #fff9e6; border-color: #e6a23c; color: #5c4a00; }
+        .data-mode-error { background: #fdecea; border-color: #e74c3c; color: #78281f; }
+        .banner-hint { display: block; margin-top: 8px; font-size: 0.95em; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -1068,11 +1083,14 @@ def generate_unified_dashboard(output_path: Path) -> None:
             <div id="loader" class="loader"></div>
         </div>
 
+        <div id="data-mode-banner" class="data-mode-banner data-mode-loading" role="status" aria-live="polite">Loading metrics…</div>
+
         <header id="dashboard-header">
             <div class="header-title">
                 <h1>📊 Test Metrics Dashboard</h1>
                 <div class="timestamp" id="last-updated">Loading...</div>
                 <div class="timestamp" id="commit-info"></div>
+                <div class="timestamp" id="workflow-link"></div>
             </div>
             <div class="header-alerts">
                 <h1>⚠️ Alerts</h1>
@@ -1085,28 +1103,33 @@ def generate_unified_dashboard(output_path: Path) -> None:
         </div>
 
         <div class="chart-section">
-            <h2>📈 Test Metrics Trends (Last 30 Runs)</h2>
-            <div class="chart-container">
+            <h2>📈 Test run history</h2>
+            <p class="chart-caption"><strong>How CI tracks this:</strong> each point is one GitHub Actions metrics deploy. The workflow pulls prior rows from <code>gh-pages</code> into <code>history-ci.jsonl</code> or <code>history-nightly.jsonl</code>, generates <code>latest-*.json</code>, then <strong>appends one compact JSON line</strong> for that run. The chart uses <strong>date + short commit</strong> on the x-axis so several runs on the same calendar day do not collapse into one dot. <strong>Left:</strong> total pytest wall time (s) for that run. <strong>Right:</strong> combined line coverage (%). Summary cards above show the <em>latest</em> snapshot only (test counts, flaky count, docstrings are not plotted here).</p>
+            <div class="chart-container" id="wrap-trends-chart" style="display: none;">
                 <canvas id="trendsChart"></canvas>
             </div>
+            <div class="no-data chart-placeholder" id="placeholder-trends-chart" style="display: none;"></div>
         </div>
 
         <div class="chart-section">
-            <h2>📊 Code Quality Trends (Last 30 Runs)</h2>
-            <div class="chart-container">
+            <h2>📊 Code quality history</h2>
+            <p class="chart-caption"><strong>How CI tracks this:</strong> same <code>history-*.jsonl</code> points as <strong>Test run history</strong>—one row per metrics deploy. For each run, <code>generate_metrics.py</code> reads <strong>radon</strong> outputs in <code>reports/</code> (<code>complexity.json</code>, <code>maintainability.json</code>) and stores <strong>package-wide averages</strong> in the snapshot. <strong>Left:</strong> mean cyclomatic complexity. <strong>Right:</strong> mean maintainability index (MI). This line chart is <strong>not</strong> wily&rsquo;s per-commit file graph; for that, run <code>make complexity-track</code> locally—see <strong>CI → Code quality trends</strong>. <strong>Docstring %, dead-code count, and spelling</strong> from the same run appear in the summary cards only, not on this chart.</p>
+            <div class="chart-container" id="wrap-quality-chart" style="display: none;">
                 <canvas id="quality-chart"></canvas>
             </div>
+            <div class="no-data chart-placeholder" id="placeholder-quality-chart" style="display: none;"></div>
         </div>
 
         <div id="pipeline-section" class="chart-section" style="display: none;">
-            <h2>🚀 Pipeline Performance Trends (Last 30 Runs)</h2>
-            <div class="chart-container">
+            <h2>🚀 Sample pipeline run (history)</h2>
+            <p class="chart-caption">Optional metrics from <code>collect_pipeline_metrics.py</code> when that step succeeds (often 1 episode in CI).</p>
+            <div class="chart-container" id="wrap-pipeline-chart">
                 <canvas id="pipeline-chart"></canvas>
             </div>
         </div>
 
         <div class="slowest-tests">
-            <h2>🐌 Slowest Tests (Top 10)</h2>
+            <h2>🐌 Slowest Tests (Top __SLOWEST_TABLE_MAX__)</h2>
             <div id="slowest-tests-container"></div>
         </div>
 
@@ -1119,35 +1142,281 @@ def generate_unified_dashboard(output_path: Path) -> None:
 
     <script>
         let trendsChart, qualityChart, pipelineChart;
+        let loadSeq = 0;
+
+        /** X-axis label so multiple runs on the same day stay distinct (Chart.js category axis). */
+        function historyChartLabel(h, i) {
+            const day = (h.timestamp || '').substring(0, 10);
+            const sha = (h.commit || '').trim().substring(0, 7);
+            if (day && sha) return day + ' ' + sha;
+            if (day) return day;
+            return 'run ' + (i + 1);
+        }
+
+        /** Pull top-level JSON objects from text (legacy pretty-printed history blobs). */
+        function extractTopLevelJsonObjects(text) {
+            const out = [];
+            const s = text;
+            let i = 0;
+            const n = s.length;
+            while (i < n) {
+                while (i < n && /\\s/.test(s[i])) i++;
+                if (i >= n || s[i] !== '{') { i++; continue; }
+                const start = i;
+                let depth = 0;
+                let inStr = false;
+                let esc = false;
+                for (; i < n; i++) {
+                    const c = s[i];
+                    if (esc) { esc = false; continue; }
+                    if (inStr) {
+                        if (c === '\\\\') esc = true;
+                        else if (c === '"') inStr = false;
+                        continue;
+                    }
+                    if (c === '"') { inStr = true; continue; }
+                    if (c === '{') depth++;
+                    else if (c === '}') {
+                        depth--;
+                        if (depth === 0) {
+                            try {
+                                const o = JSON.parse(s.slice(start, i + 1));
+                                if (o && typeof o === 'object' && !Array.isArray(o)) out.push(o);
+                            } catch (e) { /* skip */ }
+                            i++;
+                            break;
+                        }
+                    }
+                }
+            }
+            return out;
+        }
+
+        function parseMetricsHistoryText(text) {
+            const lines = text.split('\\n').map(l => l.trim()).filter(Boolean);
+            const parsed = [];
+            for (const line of lines) {
+                try {
+                    const o = JSON.parse(line);
+                    if (o && typeof o === 'object' && !Array.isArray(o)) parsed.push(o);
+                } catch (e) { /* skip bad line */ }
+            }
+            if (parsed.length > 0) return parsed;
+            const t = text.trim();
+            if (t.length > 0 && t[0] === '{') {
+                const recovered = extractTopLevelJsonObjects(text);
+                if (recovered.length > 0) return recovered;
+                /* Some hosts store one pretty-printed object in *.jsonl (not JSONL). */
+                try {
+                    const one = JSON.parse(t);
+                    if (one && typeof one === 'object' && !Array.isArray(one) && one.metrics) return [one];
+                    if (Array.isArray(one)) return one.filter(x => x && typeof x === 'object');
+                } catch (e) { /* ignore */ }
+            }
+            return [];
+        }
+
+        /** Merge latest run into history for charts when history is empty or stale (one blob file). */
+        function chartHistoryFrom(latest, history) {
+            const cap = 30;
+            let h = history.slice(-cap);
+            const last = h[h.length - 1];
+            const sameCommit = last && latest.commit && last.commit === latest.commit;
+            if (!sameCommit && latest && latest.metrics) {
+                h = h.concat([latest]);
+            }
+            return h.slice(-cap);
+        }
+
+        function setDataBannerLoading() {
+            const el = document.getElementById('data-mode-banner');
+            if (!el) return;
+            el.className = 'data-mode-banner data-mode-loading';
+            el.textContent = 'Loading metrics…';
+        }
+
+        function setLoadModeBanner(bundle, source, latest, history) {
+            const el = document.getElementById('data-mode-banner');
+            if (!el) return;
+            const hist = history || [];
+            const chartHistory = latest && latest.metrics ? chartHistoryFrom(latest, hist) : [];
+            const chartPts = chartHistory.length;
+            const srcLabel = source === 'ci' ? 'CI' : 'Nightly';
+            if (bundle) {
+                const ciN = bundle.ci && bundle.ci.history ? bundle.ci.history.length : 0;
+                const nyN = bundle.nightly && bundle.nightly.history ? bundle.nightly.history.length : 0;
+                const gen = bundle.generated_at || '—';
+                let html = (
+                    '<strong>Unified data</strong> — loaded from <code>dashboard-data.json</code> (one request). '
+                    + 'Bundle built <code>' + gen + '</code>. History rows in file: CI <strong>' + ciN + '</strong>, '
+                    + 'Nightly <strong>' + nyN + '</strong>. You are viewing <strong>' + srcLabel + '</strong> '
+                    + '(<strong>' + chartPts + '</strong> point' + (chartPts === 1 ? '' : 's') + ' on the charts below).'
+                );
+                if (source === 'nightly' && nyN <= 1) {
+                    html += (
+                        '<span class="banner-hint">Nightly trends stay flat until <code>history-nightly.jsonl</code> '
+                        + 'has more rows—copy from GitHub Pages <code>metrics/</code> or wait for scheduled runs.</span>'
+                    );
+                }
+                const m = latest && latest.metrics ? latest.metrics : null;
+                const th = m && m.test_health ? m.test_health : null;
+                const slow = m && Array.isArray(m.slowest_tests) ? m.slowest_tests : [];
+                const totalT = th ? (th.total || 0) : 0;
+                if (source === 'ci' && totalT > 100 && slow.length === 0) {
+                    html += (
+                        '<span class="banner-hint"><strong>Why slowest is empty:</strong> this <code>latest-ci.json</code> '
+                        + 'was built without per-test timings in the bundle (older CI run or pre-fix snapshot). '
+                        + 'The preview does not re-run <code>generate_metrics.py</code>; it only displays files under '
+                        + '<code>artifacts/dashboard-preview/</code>. After fixes are on <code>main</code>, run '
+                        + '<code>make fetch-ci-metrics</code> to download a newer metrics artifact, then '
+                        + '<code>make build-metrics-dashboard-preview</code>.</span>'
+                    );
+                }
+                if (source === 'nightly' && totalT > 100 && slow.length > 0 && slow.length < __SLOWEST_TABLE_MAX__) {
+                    html += (
+                        '<span class="banner-hint">Only <strong>' + slow.length + '</strong> slowest row(s) in this '
+                        + 'snapshot—often sparse JSON before junit+merge. Newer nightly runs (or local rebuild) can '
+                        + 'fill all <strong>' + __SLOWEST_TABLE_MAX__ + '</strong> slots in metrics JSON.</span>'
+                    );
+                }
+                el.className = 'data-mode-banner data-mode-unified';
+                el.innerHTML = html;
+                return;
+            }
+            el.className = 'data-mode-banner data-mode-legacy';
+            el.innerHTML = (
+                '<strong>Legacy mode</strong> — separate fetches for <code>latest-' + source + '.json</code> and '
+                + '<code>history-' + source + '.jsonl</code>. Viewing <strong>' + srcLabel + '</strong> (<strong>'
+                + chartPts + '</strong> chart point' + (chartPts === 1 ? '' : 's') + '). '
+                + '<span class="banner-hint">Run <code>make build-metrics-dashboard-preview</code> to produce '
+                + '<code>dashboard-data.json</code> beside this page for unified single-fetch mode.</span>'
+            );
+        }
+
+        let cachedBundle = undefined;
+
+        async function tryLoadBundle() {
+            if (cachedBundle !== undefined) return cachedBundle;
+            try {
+                const bust = '_=' + Date.now();
+                const r = await fetch('dashboard-data.json?' + bust, { cache: 'no-store' });
+                if (!r.ok) {
+                    cachedBundle = null;
+                    return null;
+                }
+                const j = await r.json();
+                if (j && j.ci && j.nightly && j.ci.latest && j.nightly.latest
+                        && Array.isArray(j.ci.history) && Array.isArray(j.nightly.history)) {
+                    cachedBundle = j;
+                    return j;
+                }
+                cachedBundle = null;
+                return null;
+            } catch (e) {
+                console.warn('dashboard-data.json load failed, using legacy fetches', e);
+                cachedBundle = null;
+                return null;
+            }
+        }
+
+        async function loadDataLegacy(source, seq) {
+            const fetchOpts = { cache: 'no-store' };
+            const bust = '_=' + Date.now();
+            const [latestResp, historyResp] = await Promise.all([
+                fetch(`latest-${source}.json?` + bust, fetchOpts),
+                fetch(`history-${source}.jsonl?` + bust, fetchOpts)
+            ]);
+
+            if (seq !== loadSeq) return;
+
+            if (!latestResp.ok) {
+                showNoDataState(source, `Metrics file not found (${latestResp.status}). Data is generated after CI runs on main or scheduled nightly runs.`);
+                return;
+            }
+
+            const rawLatest = await latestResp.text();
+            if (seq !== loadSeq) return;
+            let latest;
+            try {
+                latest = rawLatest.trim() ? JSON.parse(rawLatest) : null;
+            } catch (parseErr) {
+                console.error('Invalid JSON in latest-' + source + '.json:', parseErr);
+                showNoDataState(source, 'Metrics file is empty or invalid. Data may not have been generated yet.');
+                return;
+            }
+
+            if (!latest || typeof latest !== 'object') {
+                showNoDataState(source, 'No metrics data available yet.');
+                return;
+            }
+
+            let history = [];
+            if (historyResp.ok) {
+                const text = await historyResp.text();
+                if (seq !== loadSeq) return;
+                history = parseMetricsHistoryText(text);
+            }
+
+            if (seq !== loadSeq) return;
+            setLoadModeBanner(null, source, latest, history);
+            updateDashboard(latest, history);
+        }
 
         async function loadData(source) {
+            const seq = ++loadSeq;
             const loader = document.getElementById('loader');
             loader.style.display = 'block';
+            setDataBannerLoading();
 
             try {
-                const [latestResp, historyResp] = await Promise.all([
-                    fetch(`latest-${source}.json`),
-                    fetch(`history-${source}.jsonl`)
-                ]);
-
-                if (!latestResp.ok) throw new Error(`Could not load latest-${source}.json`);
-                const latest = await latestResp.json();
-
-                let history = [];
-                if (historyResp.ok) {
-                    const text = await historyResp.text();
-                    history = text.split('\\n')
-                        .filter(line => line.trim())
-                        .map(line => JSON.parse(line));
+                const bundle = await tryLoadBundle();
+                if (seq !== loadSeq) return;
+                if (bundle) {
+                    const slice = source === 'ci' ? bundle.ci : bundle.nightly;
+                    const latest = slice.latest;
+                    const history = slice.history || [];
+                    if (!latest || typeof latest !== 'object') {
+                        showNoDataState(source, 'Invalid bundle entry for ' + source + '.');
+                        return;
+                    }
+                    setLoadModeBanner(bundle, source, latest, history);
+                    updateDashboard(latest, history);
+                    return;
                 }
-
-                updateDashboard(latest, history);
+                await loadDataLegacy(source, seq);
             } catch (error) {
                 console.error('Error loading data:', error);
-                alert(`Error loading data for ${source}: ${error.message}`);
+                showNoDataState(source, error.message || 'Failed to load metrics.');
             } finally {
                 loader.style.display = 'none';
             }
+        }
+
+        function showNoDataState(source, message) {
+            const banner = document.getElementById('data-mode-banner');
+            if (banner) {
+                banner.className = 'data-mode-banner data-mode-error';
+                banner.textContent = 'Metrics unavailable: ' + message;
+            }
+            document.getElementById('last-updated').textContent = 'No data';
+            document.getElementById('commit-info').textContent = '';
+            document.getElementById('workflow-link').textContent = '';
+            document.getElementById('alerts-container').innerHTML =
+                '<div class="alert alert-info"><strong>INFO</strong>: ' + message + '</div>';
+            document.getElementById('metrics-grid').innerHTML =
+                '<div class="no-data" style="grid-column: 1 / -1;">' + message + '</div>';
+            document.getElementById('slowest-tests-container').innerHTML = '<div class="no-data">No data</div>';
+            document.getElementById('flaky-tests-container').innerHTML = '<div class="no-data">No data</div>';
+            if (trendsChart) { trendsChart.destroy(); trendsChart = null; }
+            if (qualityChart) { qualityChart.destroy(); qualityChart = null; }
+            if (pipelineChart) { pipelineChart.destroy(); pipelineChart = null; }
+            document.getElementById('wrap-trends-chart').style.display = 'none';
+            document.getElementById('placeholder-trends-chart').style.display = 'block';
+            document.getElementById('placeholder-trends-chart').textContent = 'Charts unavailable until metrics load successfully.';
+            document.getElementById('wrap-quality-chart').style.display = 'none';
+            document.getElementById('placeholder-quality-chart').style.display = 'block';
+            document.getElementById('placeholder-quality-chart').textContent = 'Charts unavailable until metrics load successfully.';
+            document.getElementById('pipeline-section').style.display = 'none';
         }
 
         function formatTimestamp(ts) {
@@ -1166,6 +1435,13 @@ def generate_unified_dashboard(output_path: Path) -> None:
             // Update Header
             document.getElementById('last-updated').innerText = `Last updated: ${formatTimestamp(latest.timestamp)}`;
             document.getElementById('commit-info').innerHTML = `Commit: <code>${(latest.commit || 'unknown').substring(0, 8)}</code> | Branch: <code>${latest.branch || 'unknown'}</code>`;
+            const wf = latest.workflow_run;
+            const wfEl = document.getElementById('workflow-link');
+            if (wf && typeof wf === 'string' && wf.indexOf('http') === 0) {
+                wfEl.innerHTML = `Workflow run: <a href="${wf}" target="_blank" rel="noopener noreferrer">GitHub Actions</a>`;
+            } else {
+                wfEl.textContent = '';
+            }
 
             // Update Alerts
             const alertsContainer = document.getElementById('alerts-container');
@@ -1263,14 +1539,20 @@ def generate_unified_dashboard(output_path: Path) -> None:
             // Update Tables
             updateTables(metrics);
 
-            // Update Charts
-            updateCharts(history);
+            // Update Charts (include latest when it extends one-shot history files)
+            updateCharts(latest, history);
         }
 
         function getTrendHtml(change) {
-            if (!change) return '';
-            const trendClass = change.startsWith('+') ? 'up' : (change.startsWith('-') ? 'down' : 'neutral');
-            return `<div class="metric-trend trend-${trendClass}">${change}</div>`;
+            if (change == null || change === '') return '';
+            const s = String(change);
+            const trendClass = s.startsWith('+') ? 'up' : (s.startsWith('-') ? 'down' : 'neutral');
+            return `<div class="metric-trend trend-${trendClass}">${s}</div>`;
+        }
+
+        function formatTestDuration(seconds) {
+            if (typeof seconds === 'number' && !Number.isNaN(seconds)) return seconds.toFixed(2) + 's';
+            return '—';
         }
 
         function updateTables(metrics) {
@@ -1282,7 +1564,7 @@ def generate_unified_dashboard(output_path: Path) -> None:
                 slowestContainer.innerHTML = `
                     <table>
                         <thead><tr><th>Test Name</th><th>Duration</th></tr></thead>
-                        <tbody>${slowest.slice(0, 10).map(t => `<tr><td><code>${t.name}</code></td><td>${t.duration.toFixed(2)}s</td></tr>`).join('')}</tbody>
+                        <tbody>${slowest.slice(0, __SLOWEST_TABLE_MAX__).map(t => `<tr><td><code>${(t.name || 'unknown')}</code></td><td>${formatTestDuration(t.duration)}</td></tr>`).join('')}</tbody>
                     </table>
                 `;
             } else {
@@ -1294,25 +1576,57 @@ def generate_unified_dashboard(output_path: Path) -> None:
                 flakyContainer.innerHTML = `
                     <table>
                         <thead><tr><th>Test Name</th><th>Duration</th></tr></thead>
-                        <tbody>${flaky.map(t => `<tr><td><code>${t.name}</code></td><td>${t.duration.toFixed(2)}s</td></tr>`).join('')}</tbody>
+                        <tbody>${flaky.map(t => `<tr><td><code>${(t.name || 'unknown')}</code></td><td>${formatTestDuration(t.duration)}</td></tr>`).join('')}</tbody>
                     </table>
                 `;
             } else {
-                flakyContainer.innerHTML = '<div class="no-data">✅ No flaky tests detected</div>';
+                flakyContainer.innerHTML = '<div class="no-data">No tests passed after a pytest-rerunfailures retry in merged CI reports (unit, integration, and E2E use <code>--reruns 2</code> in GitHub Actions).</div>';
             }
         }
 
-        function updateCharts(history) {
-            const chartHistory = history.slice(-30);
-            const labels = chartHistory.map(h => (h.timestamp || '').substring(0, 10));
+        function chartNum(h, pathFn) {
+            const v = pathFn(h);
+            return (typeof v === 'number' && !Number.isNaN(v)) ? v : null;
+        }
 
-            // Test Metrics Trends
+        function updateCharts(latest, history) {
+            const chartHistory = chartHistoryFrom(latest, history);
+            const trendsWrap = document.getElementById('wrap-trends-chart');
+            const trendsPh = document.getElementById('placeholder-trends-chart');
+            const qualWrap = document.getElementById('wrap-quality-chart');
+            const qualPh = document.getElementById('placeholder-quality-chart');
+            const needHistoryMsg = 'No history entries. If you use dashboard-data.json, history arrays may be empty; otherwise check history-*.jsonl is JSONL (one compact JSON object per line). Summary cards still show the latest run.';
+            const onePointMsg = 'Only one snapshot in history so far—trend lines will look flat until more nightly runs append rows.';
+
+            if (chartHistory.length === 0) {
+                if (trendsChart) { trendsChart.destroy(); trendsChart = null; }
+                if (qualityChart) { qualityChart.destroy(); qualityChart = null; }
+                if (pipelineChart) { pipelineChart.destroy(); pipelineChart = null; }
+                trendsWrap.style.display = 'none';
+                trendsPh.style.display = 'block';
+                trendsPh.textContent = needHistoryMsg;
+                qualWrap.style.display = 'none';
+                qualPh.style.display = 'block';
+                qualPh.textContent = needHistoryMsg;
+                document.getElementById('pipeline-section').style.display = 'none';
+                return;
+            }
+
+            trendsWrap.style.display = 'block';
+            trendsPh.style.display = chartHistory.length === 1 ? 'block' : 'none';
+            trendsPh.textContent = onePointMsg;
+            qualWrap.style.display = 'block';
+            qualPh.style.display = chartHistory.length === 1 ? 'block' : 'none';
+            qualPh.textContent = onePointMsg;
+
+            const labels = chartHistory.map((h, i) => historyChartLabel(h, i));
+
+            // Test run history: two axes only (pytest duration + coverage %)
             const trendsData = {
                 labels: labels,
                 datasets: [
-                    { label: 'Runtime (s)', data: chartHistory.map(h => h.metrics.runtime.total), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.1 },
-                    { label: 'Coverage (%)', data: chartHistory.map(h => h.metrics.coverage.overall), borderColor: '#3498db', yAxisID: 'y1', tension: 0.1 },
-                    { label: 'Test Count', data: chartHistory.map(h => h.metrics.test_health.total), borderColor: '#2ecc71', yAxisID: 'y2', tension: 0.1 }
+                    { label: 'Pytest duration (s)', data: chartHistory.map(h => chartNum(h, x => x.metrics && x.metrics.runtime && x.metrics.runtime.total)), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.1 },
+                    { label: 'Line coverage (%)', data: chartHistory.map(h => chartNum(h, x => x.metrics && x.metrics.coverage && x.metrics.coverage.overall)), borderColor: '#3498db', yAxisID: 'y1', tension: 0.1 }
                 ]
             };
 
@@ -1326,19 +1640,17 @@ def generate_unified_dashboard(output_path: Path) -> None:
                     interaction: { mode: 'index', intersect: false },
                     scales: {
                         y: { type: 'linear', position: 'left', title: { display: true, text: 'Seconds' } },
-                        y1: { type: 'linear', position: 'right', title: { display: true, text: '%' }, grid: { drawOnChartArea: false } },
-                        y2: { display: false }
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Coverage %' }, grid: { drawOnChartArea: false } }
                     }
                 }
             });
 
-            // Quality Trends
+            // Code quality history: radon package averages (two axes)
             const qualityData = {
                 labels: labels,
                 datasets: [
-                    { label: 'Complexity', data: chartHistory.map(h => h.metrics.complexity.cyclomatic_complexity), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.1 },
-                    { label: 'Maintainability', data: chartHistory.map(h => h.metrics.complexity.maintainability_index), borderColor: '#2ecc71', yAxisID: 'y1', tension: 0.1 },
-                    { label: 'Docstrings (%)', data: chartHistory.map(h => h.metrics.complexity.docstring_coverage), borderColor: '#3498db', yAxisID: 'y2', tension: 0.1 }
+                    { label: 'Cyclomatic complexity (avg)', data: chartHistory.map(h => chartNum(h, x => x.metrics && x.metrics.complexity && x.metrics.complexity.cyclomatic_complexity)), borderColor: '#e74c3c', yAxisID: 'y', tension: 0.1 },
+                    { label: 'Maintainability index (avg)', data: chartHistory.map(h => chartNum(h, x => x.metrics && x.metrics.complexity && x.metrics.complexity.maintainability_index)), borderColor: '#2ecc71', yAxisID: 'y1', tension: 0.1 }
                 ]
             };
 
@@ -1351,23 +1663,22 @@ def generate_unified_dashboard(output_path: Path) -> None:
                     maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
                     scales: {
-                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Index' } },
-                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'Index' }, grid: { drawOnChartArea: false } },
-                        y2: { type: 'linear', position: 'right', title: { display: true, text: '%' }, grid: { drawOnChartArea: false } }
+                        y: { type: 'linear', position: 'left', title: { display: true, text: 'Complexity' } },
+                        y1: { type: 'linear', position: 'right', title: { display: true, text: 'MI (0–100)' }, grid: { drawOnChartArea: false } }
                     }
                 }
             });
 
             // Pipeline Trends
-            const pipelineHistory = chartHistory.filter(h => h.metrics.pipeline && h.metrics.pipeline.run_duration_seconds);
+            const pipelineHistory = chartHistory.filter(h => h.metrics && h.metrics.pipeline && h.metrics.pipeline.run_duration_seconds);
             if (pipelineHistory.length > 0) {
                 document.getElementById('pipeline-section').style.display = 'block';
-                const pipelineLabels = pipelineHistory.map(h => (h.timestamp || '').substring(0, 10));
+                const pipelineLabels = pipelineHistory.map((h, i) => historyChartLabel(h, i));
                 const pipelineData = {
                     labels: pipelineLabels,
                     datasets: [
-                        { label: 'Duration (s)', data: pipelineHistory.map(h => h.metrics.pipeline.run_duration_seconds), borderColor: '#9b59b6', yAxisID: 'y', tension: 0.1 },
-                        { label: 'Episodes', data: pipelineHistory.map(h => h.metrics.pipeline.episodes_scraped_total), borderColor: '#1abc9c', yAxisID: 'y1', tension: 0.1 }
+                        { label: 'Duration (s)', data: pipelineHistory.map(h => chartNum(h, x => x.metrics && x.metrics.pipeline && x.metrics.pipeline.run_duration_seconds)), borderColor: '#9b59b6', yAxisID: 'y', tension: 0.1 },
+                        { label: 'Episodes', data: pipelineHistory.map(h => chartNum(h, x => x.metrics && x.metrics.pipeline && x.metrics.pipeline.episodes_scraped_total)), borderColor: '#1abc9c', yAxisID: 'y1', tension: 0.1 }
                     ]
                 };
 
@@ -1400,6 +1711,7 @@ def generate_unified_dashboard(output_path: Path) -> None:
 </body>
 </html>
 """
+    html = html.replace("__SLOWEST_TABLE_MAX__", str(SLOWEST_TESTS_TABLE_MAX))
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         f.write(html)

@@ -2,6 +2,14 @@
 
 ## ⚠️ MANDATORY: Read `.ai-coding-guidelines.md` First
 
+## User instructions vs repo defaults
+
+- **Explicit user instructions override** conflicting procedural defaults in this file and `.cursorrules` (staging scope, skipping a validation re-run they say is redundant, stopping work). **Do not** hide behind "the rules say" when the user has been clear.
+- **If anything is ambiguous** (which files, whether to change `.gitignore` or other config, whether to run long CI): **ask before acting** — avoid unrequested "helpful" edits or commands.
+- **Not ~100% sure?** Pause, state your understanding in one line, and ask — **do not** rush into commands or edits to "keep momentum."
+- **Safety** (secrets, push to `main`, push without being asked): still protected — if asked to do something unsafe, **say so and ask** instead of complying silently.
+- **Autonomous execution (default):** When intent is **clear**, run commands and tools yourself (`make`, scripts, tests, downloads); **only** ask when blocked (no auth/secrets, unclear scope, or policy needs explicit approval). See `.cursorrules` and `.ai-coding-guidelines.md` section *Autonomous execution*.
+
 ## 🚨 START-OF-SESSION CHECKLIST (MANDATORY - DO THIS FIRST)
 
 **Before taking ANY action in this project, you MUST:**
@@ -58,6 +66,8 @@ Run `git status --porcelain` first; if there is output, commit, stash, or discar
 ### When to Ask User
 
 - Ambiguous requirements
+- **Unclear scope** (e.g. "commit" without which files; "fix X" without touching unrelated config)
+- **Before changing things the user did not mention** (`.gitignore`, refactors, dependency bumps, new scripts)
 - Multiple valid approaches
 - Breaking changes needed
 - New dependencies required
@@ -66,9 +76,9 @@ Run `git status --porcelain` first; if there is output, commit, stash, or discar
 
 ### When NOT to Ask
 
-- Following established patterns
+- Following established patterns **and** the user's request is unambiguous
 - Standard bug fixes
-- Documentation updates
+- Documentation updates (when requested)
 - Adding type hints (always do)
 - Adding tests (always do)
 - Formatting with black (always do)

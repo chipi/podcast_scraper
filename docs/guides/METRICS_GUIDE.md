@@ -1,5 +1,8 @@
 # Metrics Guide
 
+> **Not the CI dashboard:** for pytest / coverage / GitHub Pages test metrics, see
+> [Test dashboard (GitHub Pages)](../ci/METRICS.md).
+
 This guide explains how metrics are calculated for experiment runs and what each metric means.
 
 ## Overview

@@ -44,6 +44,51 @@ The eval layout is built for **comparable runs** on immutable datasets and confi
 - Outputs under `data/eval/runs/` (or materialized baselines) with run IDs and metrics JSON for side-by-side comparison.
 - Avoid changing transcripts in `sources/`; keep **inputs identical** so differences attribute to cleaning/prompt only.
 
+## Recommended execution approach
+
+Treat this as a staged experiment on a dedicated branch so we can iterate safely and keep `main` stable.
+
+### Branching and PR shape
+
+- Create a feature branch (for example: `feat/issue-477-llm-call-consolidation`).
+- Keep commits small and separated by purpose:
+  1. eval configs only,
+  2. optional prompt variant,
+  3. optional code path and tests,
+  4. final conclusion note.
+- Open one PR that links issue `#477` and contains both the implementation/config changes and evidence from `data/eval`.
+
+### Phase 1: Eval-only (no pipeline code changes)
+
+Start with Arms A-C using only config/prompt changes. This gives cost/quality direction before touching orchestration code.
+
+Expected outputs:
+
+- one run per arm in `data/eval/runs/`,
+- `metrics.json` + `metrics_report.md`,
+- short comparison table (cost, quality gates, latency).
+
+### Phase 2: Optional code experiment (single-call consolidation)
+
+Only if Phase 1 indicates we still need deeper call reduction:
+
+- add one guarded experimental path (feature flag/config switch),
+- keep current behavior as default,
+- compare old/new path on the same dataset and model.
+
+Candidate code experiment:
+
+- one provider call that returns structured output for summary plus downstream artifacts (for example insights/KG seed), while leaving evidence-grounding calls independent.
+
+### Go / no-go criteria
+
+Promote a new default only when all are true:
+
+- lower total estimated LLM cost for comparable quality,
+- no meaningful regression in summary quality gates,
+- acceptable reliability (no increase in empty/failed outputs),
+- maintainable logs/metrics for debugging.
+
 ## Opinion (working)
 
 Searching for balance **via controlled experiments** is the right approach. Prompt-only cleanup is often “good enough” for cost-sensitive pipelines; hybrid earns its keep when we can show **measurable** quality or robustness gains that justify extra tokens. Using `data/eval` keeps the comparison **scientific** (same episodes, same references, frozen configs) instead of anecdotal A/B on one manual run.

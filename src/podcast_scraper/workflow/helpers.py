@@ -203,9 +203,9 @@ def generate_pipeline_summary(  # noqa: C901
                 )
             if pipeline_metrics.gi_failures > 0:
                 summary_lines.append(f"  - GIL failures: {pipeline_metrics.gi_failures}")
-            if getattr(pipeline_metrics, "gi_evidence_path_provider", 0) > 0:
-                n = pipeline_metrics.gi_evidence_path_provider
-                summary_lines.append(f"  - GIL evidence path (provider): {n}")
+            if getattr(pipeline_metrics, "gi_evidence_stack_completed", 0) > 0:
+                n = pipeline_metrics.gi_evidence_stack_completed
+                summary_lines.append(f"  - GIL evidence stack completed: {n}")
             if getattr(pipeline_metrics, "gi_evidence_extract_quotes_calls", 0) > 0:
                 summary_lines.append(
                     f"  - GIL evidence extract_quotes calls: "

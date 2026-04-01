@@ -4,6 +4,18 @@
 
 ## 🚨 CRITICAL RULES (ALWAYS ENFORCE - NO EXCEPTIONS)
 
+### User intent beats defaults (interpretation priority)
+
+- **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "I already ran full `make ci`" → do not re-run `make ci-fast` unless they ask; "stop" / "don't run CI" → stop immediately).
+- **If scope or intent is unclear** (which paths, whether to touch config like `.gitignore`, whether validation is required): **ask first** — do not add unrequested steps (extra edits, long runs, repo policy "help") to be clever.
+- **Prefer pause over action:** if you are **not ~100% sure** what the user wants, **stop, summarize what you understood, and ask** — avoid being eager (extra commands, refactors, config changes, "while I'm here" work).
+- **Non-negotiable safety** (never commit secrets; never push unless asked; never push to `main`): if the user asks for something unsafe, **explain and ask** — do not silently comply or silently ignore without saying why.
+
+### Autonomous execution (default)
+
+- **When intent is clear**, do the work in-session: run Makefile targets, scripts, tests, downloads, and fixes yourself—do **not** habitually close with “you should run X” if the agent environment can run X.
+- **Ask only when blocked:** missing secrets/auth or tools you cannot use; explicit approval required by policy (e.g. commit/push); **unclear scope/intent** (then use “ask first” / “prefer pause” above); unsafe requests.
+
 ### Git & Branch Workflow
 
 0. **NEVER push any branch unless the user explicitly asks**
@@ -26,10 +38,11 @@
   - After applying edits, briefly summarize what changed and ask: "Keep these changes or undo any of them?"
   - Give the user a chance to revert specific files or keep all before moving on
 
-2a. **ALWAYS stage only files changed for current task (never `git add -A`)**
+2a. **Default: stage only files for the current task (avoid blind `git add -A`)**
 
   - Use `git add <specific-file>` for each file you changed
   - Verify with `git status` after staging; ask user if unsure which files
+  - **Exception:** If the user **explicitly** asks to stage everything (e.g. "commit all files", "`git add -A`"), follow that instruction
 
 3. **NEVER push to PR without explicit user approval**
 
@@ -83,11 +96,12 @@
 5. **ALWAYS review/update tests after code changes — never leave failing tests**
 
   - Trigger: After modifying ANY code in `src/` (not just tests)
-  - Action 1: Run `make ci-fast` BEFORE committing
+  - Action 1: Run `make ci-fast` BEFORE committing (unless pre-commit / user-validated — see below)
   - Action 2: If tests fail, fix them BEFORE continuing with other work
   - Action 3: Load `testing-strategy.mdc` when writing new tests
   - Exception: If test failure is complex, document it and ask user before proceeding
   - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
+  - Exception: User **explicitly** says they already ran full CI / equivalent validation and do not want another run — skip `make ci-fast` unless they ask (pre-commit hook may still run on commit)
 
 5a. **When any make target fails (test, ci, lint, format, docs, etc.): root cause first, then fix**
 
@@ -171,23 +185,28 @@ make fix-md        # Auto-fix markdown
 
 - 🚨 NEVER `is_background: true` for make/test/git/pip
 - NEVER push to main (feature branches + PRs only)
-- ALWAYS show changes + get approval before commit/push
+- Prefer showing changes + approval before commit; **user can override** with explicit "go" / "commit all" (see User intent section)
 - ALWAYS use Makefile commands, never direct tools
 - Write lint-valid code from the start
 - Respect module boundaries
-- ALWAYS `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
+- Default: `make ci-fast` before committing (exceptions: workflow-only changes; user says they already validated — see rule 5)
 - ALL analysis/plans → `docs/wip/`
 - Auto-load `.mdc` files for detailed guidance (Rule 16)
 - NEVER commit secrets
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
-- **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion**:
+- **`.cursor/metrics/rule-adherence.jsonl` — write often (do not skip)**:
 
-  - Perform self-audit: review rules applied/missed, `.mdc` files loaded/should-have-loaded; note any **skills** or **subagents** used in the session
-  - Append one JSON line to `.cursor/metrics/rule-adherence.jsonl` (see `.cursor/metrics/README.md` for schema). Include optional `skills_used` and `subagents_used` arrays when applicable
-  - **MUST announce**: "Updated metrics file" (so user can verify)
+  - Append **a new JSON line** whenever a **meaningful chunk of work finishes** (e.g. tests pass for a change, a feature slice is done, docs/lint fixed, CI unblocked) — **not only** at session end. **Multiple lines per session are normal** (often **~2–10**; more is OK for long sessions).
+  - Also append **before commit/push**, when the user says "done"/"wrap up", or at **natural session end** if nothing was logged recently.
+  - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.cursor/metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`.
+  - **Do not ask** permission; **do not** wait for the user to remind you. Announcement optional (silent OK).
+
+- **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion** (in addition to incremental logs above):
+
+  - If you have **not** appended since the last major milestone, perform self-audit and **append** (catch missed checkpoints)
 
 ---
 
-**Version:** 2.0
-**Updated:** 2026-02-09
+**Version:** 2.2
+**Updated:** 2026-03-31
 **Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`

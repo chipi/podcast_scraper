@@ -165,13 +165,8 @@ jobs:
         mkdir -p reports
         radon cc src/podcast_scraper/ -a -s --total-average --json > reports/complexity.json 2>/dev/null || echo '{"total_average": 0}' > reports/complexity.json
         radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
-        interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
-
-        # Save dead code detection results (vulture supports --json)
-        vulture src/podcast_scraper/ .vulture_whitelist.py --min-confidence 80 --json > reports/vulture.json 2>/dev/null || echo '[]' > reports/vulture.json
-
-        # Save spell checking results (codespell doesn't have JSON, parse text output)
-        codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" > reports/codespell.txt 2>&1 || echo "" > reports/codespell.txt
+        # Interrogate 1.7+ / vulture 2.x: no --output-format json / --json; avoid cmd || overwrite >
+        python scripts/dashboard/capture_quality_for_metrics.py --reports-dir reports --vulture-min-confidence 80
 
   # Unit tests - fast, no ML dependencies, network isolation enforced
   test-unit:
@@ -225,7 +220,7 @@ jobs:
         mkdir -p reports
         # Run tests with coverage and capture output and exit code
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-unit.json --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing 2>&1)
+        OUTPUT=$(pytest tests/unit/ -v --tb=short -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-unit.json --junitxml=reports/junit-unit.xml --cov=podcast_scraper --cov-report=xml:reports/coverage.xml --cov-report=term-missing --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -301,6 +296,7 @@ jobs:
         path: |
           reports/coverage.xml
           reports/coverage-data.unit
+          reports/junit-unit.xml
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON report
@@ -536,7 +532,7 @@ jobs:
         mkdir -p reports
         # Run all integration tests with coverage and network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -577,6 +573,7 @@ jobs:
         path: |
           reports/coverage-integration.xml
           reports/coverage-data.integration
+          reports/junit-integration.xml
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON report
@@ -996,10 +993,10 @@ jobs:
         # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
         # Run serial tests first with coverage
-        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial" --json-report --json-report-file=reports/pytest-e2e-serial.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
+        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial" --json-report --json-report-file=reports/pytest-e2e-serial.json --junitxml=reports/junit-e2e-serial.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
         echo "$OUTPUT_SERIAL"
         # Run parallel tests with coverage (append to same file)
-        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e-parallel.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -1040,6 +1037,8 @@ jobs:
         path: |
           reports/coverage-e2e.xml
           reports/coverage-data.e2e
+          reports/junit-e2e-serial.xml
+          reports/junit-e2e-parallel.xml
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON reports
@@ -1105,6 +1104,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install coverage[toml]
         pip install -e .
+        # Same tools as nightly metrics + Makefile quality: not in base install — without these,
+        # `radon` is missing, metrics fall back to complexity 0 / empty MI (flat code-quality chart).
+        pip install "radon>=5.1.0,<5.2" "interrogate>=1.5.0,<2.0.0" "vulture>=2.10,<3.0.0" "codespell>=2.2.0,<3.0.0"
     - name: Download coverage artifacts
       uses: actions/download-artifact@v8
       with:
@@ -1112,6 +1114,11 @@ jobs:
         merge-multiple: false
         path: coverage-artifacts
       continue-on-error: true  # Some jobs may not have run (conditional)
+    - name: Copy JUnit XML from coverage artifacts (slowest tests when JSON lacks timings)
+      run: |
+        mkdir -p reports
+        find coverage-artifacts -type f -name 'junit*.xml' -exec cp -f {} reports/ \; 2>/dev/null || true
+        ls -la reports/junit*.xml 2>/dev/null || echo "(no junit*.xml in coverage artifacts)"
     - name: Download pytest JSON artifacts
       uses: actions/download-artifact@v8
       with:
@@ -1161,6 +1168,15 @@ jobs:
 
         print(f"📊 Combined: {total} tests, {passed} passed, {combined['summary']['failed']} failed")
         EOF
+    - name: Copy sharded pytest JSON into reports/ (slowest-test durations)
+      run: |
+        # Merged reports/pytest.json can lack per-test timings; generate_metrics prefers
+        # pytest-unit.json / pytest-integration.json / pytest-e2e*.json when present.
+        find pytest-artifacts -type f \( \
+          -name 'pytest-unit.json' -o -name 'pytest-integration.json' -o \
+          -name 'pytest-e2e.json' -o -name 'pytest-e2e-serial.json' \
+        \) -exec cp -f {} reports/ \; 2>/dev/null || true
+        ls -la reports/pytest-*.json 2>/dev/null || true
     - name: Combine coverage with coverage.py (matches local make coverage-enforce)
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -1219,6 +1235,25 @@ jobs:
         else
           echo "⚠️ Unified coverage report not found" >> $GITHUB_STEP_SUMMARY
         fi
+
+        # Flaky tests (passed after pytest-rerunfailures retry; match generate_metrics.py / nightly.yml)
+        shopt -s nullglob
+        for report in reports/pytest*.json; do
+          if [ -f "$report" ]; then
+            FLAKY_COUNT=$(jq -r '[.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true))] | length' "$report" 2>/dev/null || echo "0")
+            if [ "${FLAKY_COUNT:-0}" -gt 0 ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "## ⚠️ Flaky tests (passed on rerun)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Report**: \`$(basename "$report")\` — **count**: $FLAKY_COUNT" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Node IDs" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+              jq -r '.tests[] | select((.outcome == "rerun" and .call.outcome == "passed") or (.outcome == "passed" and .rerun == true)) | .nodeid' "$report" 2>/dev/null >> $GITHUB_STEP_SUMMARY || echo "Unable to extract" >> $GITHUB_STEP_SUMMARY
+              echo '```' >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+        done
+        shopt -u nullglob
     - name: Note on combined coverage threshold
       run: |
         # Line threshold is enforced by `coverage report --fail-under=70` in the combine step
@@ -1233,13 +1268,17 @@ jobs:
         # Generate complexity metrics for dashboard
         radon cc src/podcast_scraper/ -a -s --total-average --json > reports/complexity.json 2>/dev/null || echo '{"total_average": 0}' > reports/complexity.json
         radon mi src/podcast_scraper/ -s --json > reports/maintainability.json 2>/dev/null || echo '[]' > reports/maintainability.json
-        interrogate src/podcast_scraper/ --quiet --output-format json > reports/docstrings.json 2>/dev/null || echo '{"coverage_percent": 0}' > reports/docstrings.json
+        python scripts/dashboard/capture_quality_for_metrics.py --reports-dir reports --vulture-min-confidence 80
     - name: Load metrics history from gh-pages (for wily trends)
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
         mkdir -p metrics
-        git fetch origin gh-pages:gh-pages 2>/dev/null || true
-        git show gh-pages:metrics/history-ci.jsonl > metrics/history-ci.jsonl 2>/dev/null || touch metrics/history-ci.jsonl
+        bash scripts/dashboard/fetch_metrics_file_from_pages.sh history-ci.jsonl metrics/history-ci.jsonl
+        if [ -s metrics/history-ci.jsonl ]; then
+          python scripts/dashboard/repair_metrics_jsonl.py metrics/history-ci.jsonl --in-place || true
+        fi
     - name: Install wily
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       run: pip install wily
@@ -1303,31 +1342,40 @@ jobs:
           --output metrics/latest-ci.json \
           --history metrics/history-ci.jsonl \
           --pipeline-metrics reports/output/pipeline_metrics.json \
-          --coverage-threshold 70 || echo "⚠️ Metrics generation failed (non-blocking)"
+          --coverage-threshold 70 \
+          --slowest-top-n 10 || echo "⚠️ Metrics generation failed (non-blocking)"
     - name: Update metrics history
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        # Load existing history from gh-pages if available
+        # Load existing history from live Pages (deploy-pages) or gh-pages git branch
         mkdir -p metrics
-        git fetch origin gh-pages:gh-pages 2>/dev/null || true
-        if git show gh-pages:metrics/history-ci.jsonl > metrics/history-ci.jsonl 2>/dev/null; then
-          echo "✅ Loaded existing CI history"
-        else
-          echo "📝 Creating new CI history file"
-          touch metrics/history-ci.jsonl
+        bash scripts/dashboard/fetch_metrics_file_from_pages.sh history-ci.jsonl metrics/history-ci.jsonl
+
+        if [ -s metrics/history-ci.jsonl ]; then
+          python scripts/dashboard/repair_metrics_jsonl.py metrics/history-ci.jsonl --in-place || true
         fi
 
-        # Append latest metrics to history
+        # Append latest metrics as a single JSONL line (pretty-printed JSON breaks line-based parsers)
         if [ -f metrics/latest-ci.json ]; then
-          echo "$(cat metrics/latest-ci.json)" >> metrics/history-ci.jsonl
+          python scripts/dashboard/append_metrics_history_line.py metrics/latest-ci.json >> metrics/history-ci.jsonl
           echo "✅ Appended to CI history"
         fi
     - name: Generate HTML dashboard
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
+      env:
+        GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
+        bash scripts/dashboard/fetch_metrics_file_from_pages.sh latest-nightly.json metrics/latest-nightly.json
+        if [ ! -s metrics/latest-nightly.json ]; then rm -f metrics/latest-nightly.json; fi
+        bash scripts/dashboard/fetch_metrics_file_from_pages.sh history-nightly.jsonl metrics/history-nightly.jsonl
         python scripts/dashboard/generate_dashboard.py \
           --unified \
           --output metrics/index.html || echo "⚠️ Dashboard generation failed (non-blocking)"
+        python scripts/dashboard/consolidate_dashboard_data.py \
+          --input-dir metrics \
+          --output metrics/dashboard-data.json || echo "⚠️ dashboard-data.json merge failed (non-blocking)"
     - name: Upload unified coverage report
       if: always()
       uses: actions/upload-artifact@v7
@@ -1351,7 +1399,8 @@ jobs:
       with:
         name: metrics
         path: metrics/
-        retention-days: 30
+        # Longer retention so `make fetch-ci-metrics` can merge more run-* bundles locally (was 30).
+        retention-days: 90
     - name: Upload wily reports as artifact
       if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release/2.4' || github.ref == 'refs/heads/release/2.5')
       uses: actions/upload-artifact@v7

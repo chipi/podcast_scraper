@@ -77,6 +77,26 @@ def get_provider_library_info(provider) -> Dict[str, str]:
             }
         except ImportError:
             return {"provider_library": "openai", "provider_library_version": "unknown"}
+    elif provider_type == "GeminiProvider":
+        try:
+            import google.genai as genai
+
+            return {
+                "provider_library": "google-genai",
+                "provider_library_version": getattr(genai, "__version__", "unknown"),
+            }
+        except ImportError:
+            return {"provider_library": "google-genai", "provider_library_version": "unknown"}
+    elif provider_type == "OllamaProvider":
+        try:
+            import openai
+
+            return {
+                "provider_library": "openai",
+                "provider_library_version": getattr(openai, "__version__", "unknown"),
+            }
+        except ImportError:
+            return {"provider_library": "openai", "provider_library_version": "unknown"}
     elif provider_type == "MLProvider":
         try:
             import transformers
@@ -229,6 +249,18 @@ def get_model_details(
 
     elif provider_type == "OpenAIProvider":
         # OpenAI models don't have these details
+        model_info["tokenizer_name"] = None
+        model_info["model_revision"] = None
+        model_info["tokenizer_revision"] = None
+        model_info["weights_format"] = None
+
+    elif provider_type == "GeminiProvider":
+        model_info["tokenizer_name"] = None
+        model_info["model_revision"] = None
+        model_info["tokenizer_revision"] = None
+        model_info["weights_format"] = None
+
+    elif provider_type == "OllamaProvider":
         model_info["tokenizer_name"] = None
         model_info["model_revision"] = None
         model_info["tokenizer_revision"] = None
@@ -479,6 +511,116 @@ def get_runtime_info(provider) -> Dict[str, Any]:  # noqa: C901
                 "inference_backend": "openai_api",
             }
 
+    elif provider_type == "GeminiProvider":
+        # Gemini API — same local-device detection as OpenAI (eval client runs here).
+        try:
+            import torch
+
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                device = "mps"
+                device_name = platform.machine()
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        ["sysctl", "-n", "machdep.cpu.brand_string"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                    )
+                    if result.returncode == 0:
+                        device_name = result.stdout.strip()
+                except Exception:
+                    pass
+                runtime = {
+                    "device": device,
+                    "device_name": device_name,
+                    "backend": "gemini_api",
+                    "inference_backend": "gemini_api",
+                }
+            elif torch.cuda.is_available():
+                device = "cuda"
+                try:
+                    device_name = torch.cuda.get_device_name(0)
+                except Exception:
+                    device_name = None
+                runtime = {
+                    "device": device,
+                    "device_name": device_name,
+                    "backend": "gemini_api",
+                    "inference_backend": "gemini_api",
+                }
+            else:
+                device = "cpu"
+                runtime = {
+                    "device": device,
+                    "device_name": platform.processor() or platform.machine(),
+                    "backend": "gemini_api",
+                    "inference_backend": "gemini_api",
+                }
+        except ImportError:
+            runtime = {
+                "device": "cpu",
+                "device_name": platform.processor() or platform.machine(),
+                "backend": "gemini_api",
+                "inference_backend": "gemini_api",
+            }
+
+    elif provider_type == "OllamaProvider":
+        # Local Ollama via OpenAI-compatible HTTP API
+        try:
+            import torch
+
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                device = "mps"
+                device_name = platform.machine()
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        ["sysctl", "-n", "machdep.cpu.brand_string"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                    )
+                    if result.returncode == 0:
+                        device_name = result.stdout.strip()
+                except Exception:
+                    pass
+                runtime = {
+                    "device": device,
+                    "device_name": device_name,
+                    "backend": "ollama_openai_compatible",
+                    "inference_backend": "ollama_openai_compatible",
+                }
+            elif torch.cuda.is_available():
+                device = "cuda"
+                try:
+                    device_name = torch.cuda.get_device_name(0)
+                except Exception:
+                    device_name = None
+                runtime = {
+                    "device": device,
+                    "device_name": device_name,
+                    "backend": "ollama_openai_compatible",
+                    "inference_backend": "ollama_openai_compatible",
+                }
+            else:
+                device = "cpu"
+                runtime = {
+                    "device": device,
+                    "device_name": platform.processor() or platform.machine(),
+                    "backend": "ollama_openai_compatible",
+                    "inference_backend": "ollama_openai_compatible",
+                }
+        except ImportError:
+            runtime = {
+                "device": "cpu",
+                "device_name": platform.processor() or platform.machine(),
+                "backend": "ollama_openai_compatible",
+                "inference_backend": "ollama_openai_compatible",
+            }
+
     return runtime
 
 
@@ -588,7 +730,7 @@ def get_preprocessing_profile_version(profile_id: str) -> str:
     return "1.0"
 
 
-def generate_enhanced_fingerprint(
+def generate_enhanced_fingerprint(  # noqa: C901
     baseline_id: str,
     dataset_id: str,
     experiment_config: Optional[ExperimentConfig],
@@ -670,6 +812,10 @@ def generate_enhanced_fingerprint(
         elif experiment_config.backend.type == "hf_local":
             # For HuggingFace models, revision is already extracted in get_model_details
             endpoint = None  # Local models don't use API endpoints
+        elif experiment_config.backend.type == "gemini":
+            endpoint = "google.genai.generate_content"
+        elif experiment_config.backend.type == "ollama":
+            endpoint = "chat.completions"  # OpenAI-compatible Ollama v1 API
 
     # Extract generation parameters
     # For baselines, use deterministic defaults (temperature=0.0, top_p=1.0, seed=42)
@@ -703,8 +849,15 @@ def generate_enhanced_fingerprint(
             }
             map_generation_params = {}
             reduce_generation_params = {}
-        elif experiment_config.backend.type in ("anthropic", "mistral", "grok", "deepseek"):
-            # API LLM parameters from config.params
+        elif experiment_config.backend.type in (
+            "anthropic",
+            "mistral",
+            "grok",
+            "deepseek",
+            "gemini",
+            "ollama",
+        ):
+            # API / OpenAI-compatible LLM parameters from config.params
             params_dict = experiment_config.params or {}
             generation_params = {
                 "temperature": params_dict.get("temperature", 0.0),
@@ -928,6 +1081,8 @@ def generate_enhanced_fingerprint(
             "mistral",
             "grok",
             "deepseek",
+            "gemini",
+            "ollama",
         )
         pipeline = {
             "type": "single_stage",
@@ -1013,8 +1168,8 @@ def get_prompt_info(experiment_config: Optional[ExperimentConfig]) -> Optional[D
     This section captures prompt names, file paths, content hashes, and parameters so that
     prompt tuning in the future yields a different fingerprint.
 
-    Include prompts for any backend that has a prompts section (openai, anthropic, mistral,
-    grok, deepseek, etc.). For hybrid_ml, instruction style is added separately in the
+    Include prompts for any backend that has a prompts section (openai, gemini, anthropic,
+    mistral, grok, deepseek, etc.). For hybrid_ml, instruction style is added separately in the
     fingerprint.
 
     Args:
@@ -1428,6 +1583,35 @@ def materialize_baseline(
         )
         provider = create_summarization_provider(cfg)
         provider.initialize()
+    elif experiment_config and experiment_config.backend.type == "gemini":
+        from podcast_scraper import config
+
+        if experiment_config.prompts is None:
+            raise ValueError("Gemini backend requires prompts in experiment config.")
+        params_dict = experiment_config.params or {}
+        model_name = experiment_config.backend.model
+        user_prompt = experiment_config.prompts.user
+        system_prompt = (
+            experiment_config.prompts.system
+            if experiment_config.prompts.system
+            else "gemini/summarization/system_v1"
+        )
+        cfg = config.Config(
+            rss_url="",
+            summary_provider="gemini",
+            generate_summaries=True,
+            generate_metadata=True,
+            generate_gi=False,
+            gemini_summary_model=model_name,
+            gemini_temperature=params_dict.get("temperature", 0.0),
+            gemini_max_tokens=params_dict.get("max_length", 800),
+            gemini_api_key=os.getenv("GEMINI_API_KEY"),
+            gemini_summary_user_prompt=user_prompt,
+            gemini_summary_system_prompt=system_prompt,
+            transcribe_missing=False,
+        )
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
     else:
         # Default: use transformers with BART
         from podcast_scraper import config
@@ -1716,6 +1900,12 @@ def main() -> None:
             if cfg.backend.type == "openai" and not os.getenv("OPENAI_API_KEY"):
                 logger.error(
                     "OPENAI_API_KEY environment variable not set. "
+                    "Export it before running this script."
+                )
+                sys.exit(1)
+            if cfg.backend.type == "gemini" and not os.getenv("GEMINI_API_KEY"):
+                logger.error(
+                    "GEMINI_API_KEY environment variable not set. "
                     "Export it before running this script."
                 )
                 sys.exit(1)

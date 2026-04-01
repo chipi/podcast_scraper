@@ -587,6 +587,7 @@ ollama_summary_model: qwen2.5:7b   # or gemma2:9b for quality
    - Fast speaker detection (8GB+): `ollama pull mistral:7b`
    - General purpose (8GB+): `ollama pull llama3.1:8b` (default)
    - Best JSON/GIL (8GB+): `ollama pull qwen2.5:7b` (recommended)
+   - Qwen 3.5 (9B / 27B / 35B): [Ollama Provider Guide — Qwen 3.5 checklist](OLLAMA_PROVIDER_GUIDE.md#qwen-35-ollama-three-tier-checklist)
    - Balanced quality (12GB+): `ollama pull gemma2:9b`
 4. Verify: `ollama list` should show your models
 

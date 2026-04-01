@@ -25,6 +25,19 @@ GIL and KG are **separate** experiment configs and runs (not combined in one run
 - **references/** - Frozen quality targets (silver/gold references for evaluation)
 - **runs/** - Ad-hoc experiments and temporary outputs
 
+**Autoresearch (RFC-057, bullet summarization):** configs live under `configs/` (e.g.
+`autoresearch_prompt_openai_smoke_bullets_v1.yaml`). The default ROUGE reference
+`silver_gpt4o_smoke_bullets_v1` appears under `references/silver/` only **after** you promote a
+successful run from `experiment_openai_gpt4o_smoke_bullets_v1` (see `configs/README.md`).
+
+## Summarization metrics schema
+
+Runs from `scripts/eval/run_experiment.py` write `metrics.json` with
+`schema: metrics_summarization_v2`: nested `intrinsic` (gates, warnings, length, performance),
+`episode_count`, and optional `vs_reference`. Validated against
+`data/eval/schemas/metrics_summarization_v2.json`. The older flat layout is documented in
+`metrics_summarization_v1.json` only (not emitted by the current scorer).
+
 ## Invariants
 
 - **sources/**, **datasets/**, **baselines/**, **references/** are immutable once published

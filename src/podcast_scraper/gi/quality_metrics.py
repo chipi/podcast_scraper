@@ -3,6 +3,12 @@
 Aggregates grounding rate, quote validity, and density for operator/CI gates.
 Thresholds default to PRD-017 targets; use :func:`enforce_prd017_thresholds` with
 ``--enforce`` in ``scripts/tools/gil_quality_metrics.py``.
+
+**Quote validity (file-based view):** :func:`compute_gil_quality_metrics` checks
+schema/evidence fields (spans, ``transcript_ref``, timestamps). A **pipeline run**
+can additionally compute **verbatim** match vs transcript slices via
+``Metrics.record_gi_success_counts`` when the transcript is available — the two
+rates measure related but not identical things; compare like with like.
 """
 
 from __future__ import annotations

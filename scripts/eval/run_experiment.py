@@ -660,7 +660,11 @@ def run_experiment(  # noqa: C901
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
             user_prompt = cfg.prompts.user if cfg.prompts else "anthropic/summarization/long_v1"
-            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            system_prompt = (
+                cfg.prompts.system
+                if (cfg.prompts and cfg.prompts.system)
+                else "anthropic/summarization/system_v1"
+            )
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="anthropic",
@@ -685,13 +689,52 @@ def run_experiment(  # noqa: C901
                 "system_prompt": system_prompt,
             }
             device = None
+        elif cfg.backend.type == "gemini":
+            from podcast_scraper import config
+
+            params_dict = cfg.params or {}
+            model_name = cfg.backend.model
+            if cfg.prompts is None:
+                raise ValueError("Gemini backend requires prompts (see ExperimentConfig).")
+            user_prompt = cfg.prompts.user
+            system_prompt = (
+                cfg.prompts.system if cfg.prompts.system else "gemini/summarization/system_v1"
+            )
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="gemini",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                gemini_summary_model=model_name,
+                gemini_temperature=params_dict.get("temperature", 0.0),
+                gemini_max_tokens=params_dict.get("max_length", 800),
+                gemini_api_key=os.getenv("GEMINI_API_KEY"),
+                gemini_summary_user_prompt=user_prompt,
+                gemini_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict.get("max_length", 800),
+                "temperature": params_dict.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
+            device = None
         elif cfg.backend.type == "mistral":
             from podcast_scraper import config
 
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
             user_prompt = cfg.prompts.user if cfg.prompts else "mistral/summarization/long_v1"
-            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            system_prompt = (
+                cfg.prompts.system
+                if (cfg.prompts and cfg.prompts.system)
+                else "mistral/summarization/system_v1"
+            )
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="mistral",
@@ -722,7 +765,11 @@ def run_experiment(  # noqa: C901
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
             user_prompt = cfg.prompts.user if cfg.prompts else "grok/summarization/long_v1"
-            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            system_prompt = (
+                cfg.prompts.system
+                if (cfg.prompts and cfg.prompts.system)
+                else "grok/summarization/system_v1"
+            )
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="grok",
@@ -753,7 +800,11 @@ def run_experiment(  # noqa: C901
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
             user_prompt = cfg.prompts.user if cfg.prompts else "deepseek/summarization/long_v1"
-            system_prompt = cfg.prompts.system if (cfg.prompts and cfg.prompts.system) else None
+            system_prompt = (
+                cfg.prompts.system
+                if (cfg.prompts and cfg.prompts.system)
+                else "deepseek/summarization/system_v1"
+            )
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="deepseek",
@@ -773,6 +824,48 @@ def run_experiment(  # noqa: C901
             params_dict = {
                 "model": model_name,
                 "max_length": params_dict.get("max_length", 800),
+                "temperature": params_dict.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
+            device = None
+        elif cfg.backend.type == "ollama":
+            from podcast_scraper import config
+
+            params_dict = cfg.params or {}
+            model_name = cfg.backend.model
+            if cfg.prompts is None:
+                raise ValueError("Ollama backend requires prompts (see ExperimentConfig).")
+            user_prompt = cfg.prompts.user
+            system_prompt = (
+                cfg.prompts.system if cfg.prompts.system else "ollama/summarization/system_v1"
+            )
+            # Longer read timeout for large local models (27B+). Default CLI ollama_timeout is 120s.
+            _ollama_read = os.environ.get("EXPERIMENT_OLLAMA_READ_TIMEOUT", "").strip()
+            _ollama_timeout_kw: Dict[str, int] = {}
+            if _ollama_read.isdigit():
+                _ollama_timeout_kw["ollama_timeout"] = int(_ollama_read)
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="ollama",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                auto_speakers=False,
+                ollama_summary_model=model_name,
+                ollama_temperature=params_dict.get("temperature", 0.0),
+                ollama_max_tokens=params_dict.get("max_length", 800),
+                ollama_summary_user_prompt=user_prompt,
+                ollama_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+                **_ollama_timeout_kw,
+            )
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict.get("max_length", 800),
+                "min_length": params_dict.get("min_length", 200),
                 "temperature": params_dict.get("temperature", 0.0),
                 "user_prompt": user_prompt,
                 "system_prompt": system_prompt,
@@ -949,8 +1042,15 @@ def run_experiment(  # noqa: C901
                                 # Preprocessing profile
                                 "preprocessing_profile": cfg.preprocessing_profile,
                             }
+                        elif cfg.backend.type == "ollama":
+                            api_params = cfg.params or {}
+                            summary_params = {
+                                "preprocessing_profile": cfg.preprocessing_profile,
+                                "max_length": api_params.get("max_length", 800),
+                                "min_length": api_params.get("min_length", 200),
+                            }
                         else:
-                            # OpenAI backend: no special params needed
+                            # API LLMs: openai, gemini, anthropic, mistral, grok, deepseek
                             summary_params = {
                                 "preprocessing_profile": cfg.preprocessing_profile,
                             }
@@ -1382,8 +1482,14 @@ def run_experiment(  # noqa: C901
             validate_metrics_ner(metrics, strict=False)  # Lenient for now
             logger.info("✓ NER metrics validation completed")
         elif task_type == "summarization":
-            validate_metrics_summarization(metrics, strict=False)  # Lenient for now
-            logger.info("✓ Summarization metrics validation completed")
+            summarization_schema_ok = validate_metrics_summarization(metrics, strict=False)
+            if summarization_schema_ok:
+                logger.info("✓ Summarization metrics schema validation passed")
+            else:
+                logger.warning(
+                    "Summarization metrics schema validation reported issues "
+                    "(see warnings above); metrics.json was still written"
+                )
         elif task_type == "grounded_insights":
             validate_metrics_gil_eval_run(metrics, strict=False)
             vs_ref = metrics.get("vs_reference") or {}
@@ -1653,6 +1759,11 @@ def main() -> None:
         logger.error(
             "DEEPSEEK_API_KEY environment variable not set. "
             "Export it before running this script."
+        )
+        sys.exit(1)
+    if cfg.backend.type == "gemini" and not os.getenv("GEMINI_API_KEY"):
+        logger.error(
+            "GEMINI_API_KEY environment variable not set. " "Export it before running this script."
         )
         sys.exit(1)
 

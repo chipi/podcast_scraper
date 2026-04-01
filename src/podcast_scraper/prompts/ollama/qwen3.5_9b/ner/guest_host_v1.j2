@@ -1,0 +1,36 @@
+Analyze the following podcast episode metadata and identify all speakers (hosts and guests).
+
+Episode Title: {{ episode_title }}
+{% if episode_description %}
+Episode Description: {{ episode_description }}
+{% endif %}
+{% if known_hosts %}
+Known Hosts: {{ known_hosts }}
+{% endif %}
+
+Instructions:
+1. Extract all speaker names mentioned in the title and description
+2. Identify which speakers are hosts (from known_hosts) and which are guests
+3. IMPORTANT: Guests should NOT include hosts. If a speaker is identified as a host, they must NOT appear in the guests list.
+4. CRITICAL: Guests must be actual people who appear on the podcast episode as speakers/interviewees, NOT:
+   - Topics, subjects, or people merely mentioned in conversation (e.g., "a public figure" mentioned in a news story about them)
+   - People mentioned in credits/attribution (e.g., "produced by X", "fact-checked by Y", "edited by Z")
+   - People mentioned as sources or references (e.g., "according to X", "X says")
+   - People who are only quoted or referenced but don't actually appear on the show
+5. HOST-ONLY FORMATS: Many podcasts (especially news/radio shows like NPR) have episodes where ONLY hosts speak with no actual guests. In these cases:
+   - If the episode is a host-only format (hosts narrate, report, or discuss topics without interviewing anyone), the guests list MUST be empty []
+   - Examples of host-only formats: news reports, radio shows, solo host episodes, narrative podcasts
+   - Only include guests if there is clear evidence of an actual interview or guest appearance (e.g., "we're joined by X", "interview with X", "speaking with X")
+6. Return a JSON object with:
+   - "speakers": ["Name1", "Name2", ...] (all speakers found)
+   - "hosts": ["Host1", "Host2", ...] (subset of speakers that are hosts, must be from known_hosts if provided)
+   - "guests": ["Guest1", "Guest2", ...] (subset of speakers that are actual guests who appear on the show, must NOT include any hosts, topics, or credits. MUST be empty [] if no actual guests appear)
+
+CRITICAL OUTPUT REQUIREMENTS:
+- Return ONLY valid JSON, no markdown code blocks, no explanations
+- JSON must be well-formed and parseable
+- Use double quotes for all strings
+- Ensure all arrays are properly formatted
+- If no guests are found, return empty array [] for guests, not null or missing field
+
+Return only the JSON object, no additional text.

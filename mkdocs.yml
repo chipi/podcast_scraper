@@ -21,6 +21,10 @@ nav:
       - Gemini E2E Testing: guides/GEMINI_E2E_TESTING.md
       - Critical Path Testing Guide: guides/CRITICAL_PATH_TESTING_GUIDE.md
       - AI Provider Comparison Guide: guides/AI_PROVIDER_COMPARISON_GUIDE.md
+      - Provider Deep Dives: guides/PROVIDER_DEEP_DIVES.md
+      - Evaluation Reports:
+          - guides/eval-reports/index.md
+          - "Smoke v1 (Mar 2026)": guides/eval-reports/EVAL_SMOKE_V1_2026_03.md
       - ML Model Comparison Guide: guides/ML_MODEL_COMPARISON_GUIDE.md
       - Preprocessing Profiles Guide: guides/PREPROCESSING_PROFILES_GUIDE.md
       - Docker Service Guide: guides/DOCKER_SERVICE_GUIDE.md
@@ -37,7 +41,7 @@ nav:
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
       - Experiment Guide: guides/EXPERIMENT_GUIDE.md
-      - Metrics Guide: guides/METRICS_GUIDE.md
+      - "Experiment metrics (eval runs)": guides/METRICS_GUIDE.md
       - Promotion Workflow: guides/PROMOTION_WORKFLOW.md
       - Performance: guides/PERFORMANCE.md
       - Glossary: guides/GLOSSARY.md
@@ -53,8 +57,8 @@ nav:
       - Resource Usage: ci/RESOURCE_USAGE.md
       - Snyk Setup: ci/SNYK_SETUP.md
       - Local Development: ci/LOCAL_DEVELOPMENT.md
-      - Metrics Dashboard: ci/METRICS.md
-      - Code Quality Trends: ci/CODE_QUALITY_TRENDS.md
+      - "Test dashboard (GitHub Pages)": ci/METRICS.md
+      - "Code quality trends (wily)": ci/CODE_QUALITY_TRENDS.md
   - Product Requirements:
       - prd/index.md
       - PRD-001 Transcript Acquisition Pipeline: prd/PRD-001-transcript-pipeline.md
@@ -208,7 +212,7 @@ nav:
       - KG Ontology (draft): kg/ontology.md
   - Releases:
       - releases/index.md
-      - v2.5.0 - [Upcoming Release]: releases/RELEASE_v2.5.0.md
+      - v2.5.0 - LLM Provider Expansion & Production Hardening: releases/RELEASE_v2.5.0.md
       - v2.4.0 - Provider Ecosystem & Production Readiness: releases/RELEASE_v2.4.0.md
       - v2.3.2 - Security Tests & Thread-Safety Fixes: releases/RELEASE_v2.3.2.md
       - v2.3.1 - Security Fixes & Code Quality Improvements: releases/RELEASE_v2.3.1.md
@@ -222,6 +226,7 @@ nav:
   - Work in Progress:
       - wip/WIP_README.md
       - Metrics Gap Analysis: wip/METRICS_GAP_ANALYSIS.md
+      - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - Remaining Work: wip/REMAINING_WORK.md
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - AI Quality Implementation Plan: wip/ai-quality-implementation-plan.md
