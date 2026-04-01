@@ -1,0 +1,30 @@
+=== llm_anthropic ===
+Running experiment: data/eval/configs/llm_anthropic_smoke_v1.yaml
+  References: silver_gpt4o_smoke_v1
+  Force: deleting existing run directory
+2026-03-31 19:38:40,913 INFO __main__: Removing existing run directory (--force): data/eval/runs/llm_anthropic_smoke_v1
+2026-03-31 19:38:40,915 INFO __main__: ================================================================================
+2026-03-31 19:38:40,915 INFO __main__: Starting experiment run: llm_anthropic_smoke_v1
+2026-03-31 19:38:40,915 INFO __main__: Results directory: data/eval/runs/llm_anthropic_smoke_v1
+2026-03-31 19:38:40,915 INFO __main__: Execution log: data/eval/runs/llm_anthropic_smoke_v1/run.log
+2026-03-31 19:38:40,915 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-03-31 19:38:40,915 INFO __main__: ================================================================================
+2026-03-31 19:38:40,915 INFO __main__: Creating summarization provider...
+2026-03-31 19:38:40,916 ERROR __main__: Experiment failed: 1 validation error for Config
+anthropic_summary_system_prompt
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_type
+Traceback (most recent call last):
+  File "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/scripts/eval/run_experiment.py", line 1756, in main
+    run_experiment(
+  File "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/scripts/eval/run_experiment.py", line 664, in run_experiment
+    cfg_obj = config.Config(
+              ^^^^^^^^^^^^^^
+  File "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.venv/lib/python3.11/site-packages/pydantic/main.py", line 250, in __init__
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for Config
+anthropic_summary_system_prompt
+  Input should be a valid string [type=string_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.12/v/string_type
+make: *** [experiment-run] Error 1

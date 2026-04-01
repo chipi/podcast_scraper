@@ -35,8 +35,28 @@ from podcast_scraper.providers.ml import speaker_detection
 from podcast_scraper.providers.ollama.ollama_provider import (
     _flatten_json_speaker_names,
     _ollama_native_api_root,
+    _ollama_openai_chat_extra_kwargs,
     OllamaProvider,
 )
+
+
+@pytest.mark.unit
+class TestOllamaOpenAiChatExtraKwargs(unittest.TestCase):
+    """Qwen 3.5 needs reasoning_effort none so message.content is populated."""
+
+    def test_qwen35_tags_get_reasoning_effort_none(self) -> None:
+        self.assertEqual(
+            _ollama_openai_chat_extra_kwargs("qwen3.5:9b"),
+            {"extra_body": {"reasoning_effort": "none"}},
+        )
+        self.assertEqual(
+            _ollama_openai_chat_extra_kwargs("Qwen3.5:27b"),
+            {"extra_body": {"reasoning_effort": "none"}},
+        )
+
+    def test_non_qwen_empty(self) -> None:
+        self.assertEqual(_ollama_openai_chat_extra_kwargs("llama3.1:8b"), {})
+        self.assertEqual(_ollama_openai_chat_extra_kwargs("qwen2.5:7b"), {})
 
 
 @pytest.mark.unit

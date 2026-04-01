@@ -20,28 +20,87 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
-def extract_test_metrics(pytest_json_path: Path) -> dict:
-    """Extract test health metrics from pytest JSON report."""
-    if not pytest_json_path.exists():
-        return {}
+def _json_duration_value(raw: Any) -> float:
+    """Coerce pytest-json-report duration (number or numeric string) to float."""
+    if isinstance(raw, (int, float)):
+        if isinstance(raw, float) and raw != raw:  # NaN
+            return 0.0
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw.strip())
+        except ValueError:
+            return 0.0
+    return 0.0
 
-    with open(pytest_json_path) as f:
-        pytest_data = json.load(f)
 
-    summary = pytest_data.get("summary", {})
-    tests = pytest_data.get("tests", [])
+def pytest_json_test_duration_seconds(test: Dict[str, Any]) -> float:
+    """Wall time for one test from pytest-json-report.
 
-    # Count flaky tests (tests that passed on rerun)
-    flaky_tests = [t for t in tests if t.get("outcome") == "passed" and t.get("rerun") is True]
+    The plugin usually omits a top-level ``duration``; use setup/call/teardown
+    stage durations when needed.
+    """
+    raw = test.get("duration")
+    top = _json_duration_value(raw) if raw is not None else 0.0
+    if top > 0:
+        return top
+    total = 0.0
+    for when in ("setup", "call", "teardown"):
+        stage = test.get(when)
+        if isinstance(stage, dict):
+            total += _json_duration_value(stage.get("duration"))
+    return total
+
+
+def pytest_json_test_passed_after_rerun(test: Dict[str, Any]) -> bool:
+    """Return True if this test passed only after pytest-rerunfailures retried it.
+
+    ``pytest-json-report`` does **not** set a top-level ``rerun: true`` flag. For a
+    test that fails then passes, the report keeps top-level ``outcome`` as
+    ``rerun`` while ``call.outcome`` is ``passed``. A clean first-pass test has
+    top-level ``outcome`` ``passed``.
+
+    We also accept ``outcome == passed`` with ``rerun is True`` for compatibility
+    if a future report format adds that field.
+    """
+    if test.get("outcome") == "passed" and test.get("rerun") is True:
+        return True
+    call = test.get("call") or {}
+    return test.get("outcome") == "rerun" and call.get("outcome") == "passed"
+
+
+def _merge_pytest_test_record_for_health(
+    prev: Dict[str, Any], new: Dict[str, Any]
+) -> Dict[str, Any]:
+    """When the same nodeid appears in merged + shard JSON, keep flaky-consistent data.
+
+    Merged ``pytest.json`` can lose ``outcome: rerun`` while per-job shards still
+    have it; merging must preserve a passed-after-rerun signal from any source.
+    """
+    p_flaky = pytest_json_test_passed_after_rerun(prev)
+    n_flaky = pytest_json_test_passed_after_rerun(new)
+    if n_flaky and not p_flaky:
+        return new
+    if p_flaky and not n_flaky:
+        return prev
+    return new
+
+
+def _build_test_health_metrics(tests: List[Dict[str, Any]], summary: Dict[str, Any]) -> dict:
+    """Shared test_health dict from a test list + summary block."""
+    flaky_tests = [t for t in tests if pytest_json_test_passed_after_rerun(t)]
     flaky_count = len(flaky_tests)
 
-    # Extract flaky test details
     flaky_details = []
     for test in flaky_tests:
+        duration = test.get("duration")
+        if duration is None:
+            call = test.get("call") or {}
+            duration = call.get("duration", 0)
         flaky_details.append(
             {
                 "name": test.get("nodeid", "unknown"),
-                "duration": test.get("duration", 0),
+                "duration": duration,
             }
         )
 
@@ -57,6 +116,69 @@ def extract_test_metrics(pytest_json_path: Path) -> dict:
         "flaky_tests": flaky_details,
         "pass_rate": passed / total if total > 0 else 0.0,
     }
+
+
+def extract_test_metrics(pytest_json_path: Path) -> dict:
+    """Extract test health metrics from a single pytest JSON report."""
+    if not pytest_json_path.exists():
+        return {}
+
+    with open(pytest_json_path) as f:
+        pytest_data = json.load(f)
+
+    return _build_test_health_metrics(
+        pytest_data.get("tests", []),
+        pytest_data.get("summary", {}),
+    )
+
+
+def extract_test_metrics_from_reports_dir(reports_dir: Path) -> dict:
+    """Extract test health from all pytest JSON under ``reports_dir`` (CI / nightly).
+
+    Combines ``pytest-*.json`` shards and ``pytest.json`` so flaky tests are not
+    dropped when duplicate ``nodeid`` rows disagree or merged output omits rerun
+    metadata. Summary totals prefer ``pytest.json`` when its ``summary.total`` is
+    positive; otherwise sums per-shard summaries.
+    """
+    paths: List[Path] = []
+    for p in sorted(reports_dir.glob("pytest-*.json")):
+        if p.is_file():
+            paths.append(p)
+    merged_path = reports_dir / "pytest.json"
+    if merged_path.is_file():
+        paths.append(merged_path)
+
+    by_node: Dict[str, Dict[str, Any]] = {}
+    shard_summary = {"total": 0, "passed": 0, "failed": 0, "skipped": 0}
+    merged_summary: Optional[Dict[str, Any]] = None
+
+    for path in paths:
+        try:
+            with open(path) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Skipping pytest JSON %s: %s", path, e)
+            continue
+        if path.name == "pytest.json":
+            merged_summary = data.get("summary") or {}
+        else:
+            s = data.get("summary") or {}
+            for k in shard_summary:
+                shard_summary[k] += int(s.get(k, 0) or 0)
+        for t in data.get("tests", []):
+            nid = (t.get("nodeid") or "").strip()
+            if not nid:
+                continue
+            prev = by_node.get(nid)
+            by_node[nid] = t if prev is None else _merge_pytest_test_record_for_health(prev, t)
+
+    tests = list(by_node.values())
+    if merged_summary and int(merged_summary.get("total", 0) or 0) > 0:
+        summary_use: Dict[str, Any] = merged_summary
+    else:
+        summary_use = shard_summary
+
+    return _build_test_health_metrics(tests, summary_use)
 
 
 def extract_runtime_metrics(pytest_json_path: Path) -> dict:
@@ -262,7 +384,7 @@ def _extract_tests_from_json(json_path: Path) -> list:
         test_list = pytest_data.get("tests", [])
         for test in test_list:
             test_name = test.get("nodeid", "unknown")
-            duration = test.get("duration", 0)
+            duration = pytest_json_test_duration_seconds(test)
             if duration > 0:  # Only include tests with duration data
                 tests.append(
                     {
@@ -305,67 +427,113 @@ def _extract_tests_from_junit(junit_xml_path: Path) -> list:
     return tests
 
 
-def extract_slowest_tests(reports_dir: Path, top_n: int = 20) -> list:
-    """Extract slowest tests from pytest JSON reports or JUnit XML.
+def _dedupe_slowest_by_name_max_duration(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep one row per test name with the largest duration (merge shards)."""
+    best: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        name = row.get("name", "unknown")
+        prev = best.get(name)
+        if prev is None or row.get("duration", 0) > prev.get("duration", 0):
+            best[name] = row
+    return list(best.values())
 
-    Looks for pytest JSON files first (preferred), falls back to JUnit XML.
-    Aggregates tests from multiple JSON files if present.
+
+# Per-job reports (uploaded as separate artifacts). Prefer these for slowest tests:
+# the merged ``pytest.json`` in CI can lack usable per-test timings in some cases.
+_PYTEST_SHARD_JSON = (
+    "pytest-unit.json",
+    "pytest-integration.json",
+    "pytest-e2e.json",
+    "pytest-e2e-serial.json",
+    "pytest-nightly.json",
+)
+
+
+def extract_slowest_tests(reports_dir: Path, top_n: int = 10) -> list:
+    """Extract slowest tests from pytest JSON reports and JUnit XML.
+
+    Collects timed tests from pytest JSON (merged + per-job shards when present).
+    **Always** also reads every ``junit*.xml`` under ``reports_dir`` and merges via
+    :func:`_dedupe_slowest_by_name_max_duration` (max duration wins per name).
+
+    Without this merge, sparse JSON (e.g. only a few tests with non-zero durations
+    under xdist) would cap ``slowest_tests`` at that small count and **skip** JUnit
+    entirely—the old logic only opened JUnit when JSON yielded zero timed tests.
 
     Args:
         reports_dir: Directory containing test reports
-        top_n: Number of slowest tests to return (default: 20)
+        top_n: Number of slowest tests to return (default: 10; matches dashboard table)
 
     Returns:
         List of dicts with 'name' and 'duration' keys, sorted by duration descending
     """
-    tests = []
+    tests: List[Dict[str, Any]] = []
 
-    # Try pytest JSON files first (preferred - always generated in CI)
-    pytest_json_patterns = [
-        "pytest.json",
-        "pytest-unit.json",
-        "pytest-integration.json",
-        "pytest-e2e.json",
-        "pytest-nightly.json",
-        "pytest-e2e-serial.json",
-    ]
+    shard_paths = [reports_dir / p for p in _PYTEST_SHARD_JSON if (reports_dir / p).is_file()]
+    merged_path = reports_dir / "pytest.json"
 
-    for pattern in pytest_json_patterns:
-        json_path = reports_dir / pattern
-        if json_path.exists():
-            extracted = _extract_tests_from_json(json_path)
-            tests.extend(extracted)
-            logger.debug(f"Extracted {len(extracted)} tests from {pattern}")
+    paths_to_read: List[Path] = []
+    if shard_paths:
+        paths_to_read = shard_paths
+    elif merged_path.is_file():
+        paths_to_read = [merged_path]
 
-    # Fallback to JUnit XML if no JSON files found
-    if not tests:
-        junit_xml_path = reports_dir / "junit.xml"
-        if junit_xml_path.exists():
-            tests = _extract_tests_from_junit(junit_xml_path)
-            logger.debug(f"Extracted {len(tests)} tests from JUnit XML")
+    for json_path in paths_to_read:
+        extracted = _extract_tests_from_json(json_path)
+        tests.extend(extracted)
+        logger.debug("Extracted %d timed tests from %s", len(extracted), json_path.name)
 
-    # Sort by duration (descending) and return top N
-    tests.sort(key=lambda x: x["duration"], reverse=True)
-    return tests[:top_n]
+    tests = _dedupe_slowest_by_name_max_duration(tests)
+
+    # Shards present but no positive durations — try merged blob as fallback.
+    if not tests and shard_paths and merged_path.is_file():
+        tests = _extract_tests_from_json(merged_path)
+        tests = _dedupe_slowest_by_name_max_duration(tests)
+        logger.debug(
+            "Slowest: shard files had no durations; merged pytest.json yielded %d rows",
+            len(tests),
+        )
+
+    if not tests and not paths_to_read:
+        pytest_json_patterns = [
+            "pytest.json",
+            "pytest-unit.json",
+            "pytest-integration.json",
+            "pytest-e2e.json",
+            "pytest-nightly.json",
+            "pytest-e2e-serial.json",
+        ]
+        for pattern in pytest_json_patterns:
+            json_path = reports_dir / pattern
+            if json_path.exists():
+                extracted = _extract_tests_from_json(json_path)
+                tests.extend(extracted)
+                logger.debug("Extracted %d tests from %s", len(extracted), pattern)
+        tests = _dedupe_slowest_by_name_max_duration(tests)
+
+    junit_tests: List[Dict[str, Any]] = []
+    for junit_xml_path in sorted(reports_dir.glob("junit*.xml")):
+        extracted = _extract_tests_from_junit(junit_xml_path)
+        junit_tests.extend(extracted)
+        logger.debug(
+            "Slowest: extracted %d timed tests from %s",
+            len(extracted),
+            junit_xml_path.name,
+        )
+
+    combined = _dedupe_slowest_by_name_max_duration(tests + junit_tests)
+    combined.sort(key=lambda x: x["duration"], reverse=True)
+    return combined[:top_n]
 
 
 def load_history(history_path: Path) -> List[Dict[str, Any]]:
-    """Load historical metrics from history.jsonl."""
-    if not history_path.exists():
-        return []
+    """Load historical metrics from history.jsonl (tolerates legacy multi-line appends)."""
+    dash_dir = Path(__file__).resolve().parent
+    if str(dash_dir) not in sys.path:
+        sys.path.insert(0, str(dash_dir))
+    from metrics_jsonl import load_metrics_history
 
-    history = []
-    try:
-        with open(history_path) as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    history.append(json.loads(line))
-    except (json.JSONDecodeError, IOError) as e:
-        print(f"⚠️ Warning: Could not load history: {e}", file=sys.stderr)
-        return []
-
-    return history
+    return load_metrics_history(history_path)
 
 
 def calculate_trends(current: Dict[str, Any], previous: Optional[Dict[str, Any]]) -> Dict[str, str]:
@@ -625,6 +793,7 @@ def generate_metrics(
     workflow_run_url: str = None,
     pipeline_metrics_path: Optional[Path] = None,
     coverage_threshold: float = 70.0,
+    slowest_top_n: int = 10,
 ) -> None:
     """Generate metrics JSON from test artifacts.
 
@@ -637,6 +806,7 @@ def generate_metrics(
         workflow_run_url: Workflow run URL (default: constructed from env vars)
         pipeline_metrics_path: Optional path to pipeline metrics JSON file
         coverage_threshold: Coverage threshold for combined coverage (default: 70.0)
+        slowest_top_n: Max slowest-test rows in output (default: 10; same as dashboard)
     """
 
     pytest_json_path = reports_dir / "pytest.json"
@@ -662,9 +832,9 @@ def generate_metrics(
         "workflow_run": workflow_run_url,
         "metrics": {
             "runtime": extract_runtime_metrics(pytest_json_path),
-            "test_health": extract_test_metrics(pytest_json_path),
+            "test_health": extract_test_metrics_from_reports_dir(reports_dir),
             "coverage": extract_coverage_metrics(coverage_xml_path, threshold=coverage_threshold),
-            "slowest_tests": extract_slowest_tests(reports_dir),
+            "slowest_tests": extract_slowest_tests(reports_dir, top_n=slowest_top_n),
             "complexity": extract_complexity_metrics(reports_dir),
         },
     }
@@ -702,6 +872,8 @@ def generate_metrics(
 
     print(f"✅ Generated metrics JSON: {output_path}")
     print(f"   - Total tests: {metrics['metrics']['test_health'].get('total', 0)}")
+    print(f"   - Flaky (passed on rerun): {metrics['metrics']['test_health'].get('flaky', 0)}")
+    print(f"   - Slowest tests (in JSON): {len(metrics['metrics'].get('slowest_tests') or [])}")
     print(f"   - Coverage: {metrics['metrics']['coverage'].get('overall', 0):.1f}%")
     print(f"   - Runtime: {metrics['metrics']['runtime'].get('total', 0):.1f}s")
 
@@ -773,6 +945,13 @@ def main():
         help="Coverage threshold percentage for combined coverage (default: 70.0). "
         "Note: This is only enforced on combined coverage, not on individual test types.",
     )
+    parser.add_argument(
+        "--slowest-top-n",
+        type=int,
+        default=10,
+        metavar="N",
+        help="Number of slowest tests to include in metrics JSON (default: 10)",
+    )
 
     args = parser.parse_args()
 
@@ -786,6 +965,7 @@ def main():
             workflow_run_url=args.workflow_run,
             pipeline_metrics_path=args.pipeline_metrics,
             coverage_threshold=args.coverage_threshold,
+            slowest_top_n=args.slowest_top_n,
         )
     except Exception as e:
         print(f"❌ Error generating metrics: {e}", file=sys.stderr)

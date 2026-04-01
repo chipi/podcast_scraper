@@ -657,7 +657,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 #### Test Execution Pattern
 
 - **Parallel Execution**: Most jobs run in parallel with reserved cores for system stability (`auto - 2`).
-- **Flaky Test Resilience**: Integration and E2E tests use automatic reruns (`--reruns 2`).
+- **Flaky Test Resilience**: Unit, integration, and E2E jobs in GitHub Actions use automatic reruns (`--reruns 2 --reruns-delay 1`) alongside `pytest-json-report` where JSON is emitted.
 - **Network Isolation**: Enforced via `pytest-socket` across all test tiers.
 - **LLM Exclusion**: API-based tests (OpenAI) are excluded from nightly runs to avoid costs.
 

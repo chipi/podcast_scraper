@@ -87,6 +87,7 @@ def retry_with_metrics(
     retryable_exceptions: tuple[type[Exception], ...] = (Exception,),
     metrics: Optional[ProviderCallMetrics] = None,
     jitter: bool = True,
+    error_context: str = "default",
 ) -> T:
     """Retry a function with exponential backoff, jitter, and metrics tracking.
 
@@ -101,6 +102,7 @@ def retry_with_metrics(
         jitter: Whether to add random jitter to delays (default: True).
                 Jitter prevents thundering herd by randomizing retry timing.
                 Adds ±10% random variation to delay.
+        error_context: Passed to :func:`is_retryable_error` (e.g. ``\"ollama_local\"``).
 
     Returns:
         Result of calling func()
@@ -122,7 +124,7 @@ def retry_with_metrics(
         except retryable_exceptions as e:
             last_exception = e
             # Check if error is actually retryable using improved classification
-            if not is_retryable_error(e):
+            if not is_retryable_error(e, error_context=error_context):
                 # Non-retryable error - re-raise immediately
                 logger.debug(f"Non-retryable error detected: {e}")
                 raise

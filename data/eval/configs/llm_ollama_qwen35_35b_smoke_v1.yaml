@@ -1,0 +1,26 @@
+# Ollama Qwen 3.5 35B — pure LLM summarization smoke (no LongT5 MAP).
+# Requires: ollama pull qwen3.5:35b
+# Hybrid MAP+REDUCE: use hybrid_ml_tier2_qwen35_35b_smoke_v1 (or authority).
+# vs silver: make experiment-run CONFIG=... REFERENCE=silver_gpt4o_smoke_v1
+# Provider sends reasoning_effort:none for qwen3.5 tags (see OLLAMA_PROVIDER_GUIDE).
+
+id: "llm_ollama_qwen35_35b_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "qwen3.5:35b"
+
+prompts:
+  user: "ollama/qwen3.5_35b/summarization/long_v1"
+  system: "ollama/qwen3.5_35b/summarization/system_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

@@ -2,6 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "summarization_reference_v1.json",
     "title": "Summarization Reference (v1)",
+    "description": "Logical reference row: episode_id + summary text. Stored JSONL may omit top-level summary and use output.summary_final instead; the validator normalizes before checking.",
     "type": "object",
     "additionalProperties": true,
     "required": ["episode_id", "summary"],

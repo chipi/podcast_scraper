@@ -223,6 +223,37 @@ class TestComputeIntrinsicMetrics:
         out = compute_intrinsic_metrics(preds, "ds", "run")
         assert out["performance"]["avg_latency_ms"] == 2000.0
 
+    def test_performance_latency_percentiles_and_steady_state(self):
+        """Multiple episodes get median, p95, and avg excluding first."""
+        preds = [
+            {
+                "episode_id": "e1",
+                "output": {"summary_final": "A"},
+                "metadata": {"processing_time_seconds": 10.0},
+            },
+            {
+                "episode_id": "e2",
+                "output": {"summary_final": "B"},
+                "metadata": {"processing_time_seconds": 2.0},
+            },
+            {
+                "episode_id": "e3",
+                "output": {"summary_final": "C"},
+                "metadata": {"processing_time_seconds": 4.0},
+            },
+            {
+                "episode_id": "e4",
+                "output": {"summary_final": "D"},
+                "metadata": {"processing_time_seconds": 6.0},
+            },
+        ]
+        out = compute_intrinsic_metrics(preds, "ds", "run")
+        perf = out["performance"]
+        assert perf["avg_latency_ms"] == 5500.0
+        assert perf["median_latency_ms"] == 5000.0
+        assert perf["p95_latency_ms"] == 10000.0
+        assert perf["avg_latency_ms_excluding_first"] == pytest.approx(4000.0)
+
     def test_cost_from_metadata_cost_usd(self):
         """Direct cost_usd in metadata populates cost section."""
         preds = [

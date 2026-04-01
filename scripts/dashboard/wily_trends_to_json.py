@@ -13,6 +13,12 @@ import json
 import sys
 from pathlib import Path
 
+_DASHBOARD_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_DASHBOARD_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_DASHBOARD_SCRIPTS_DIR))
+
+from metrics_jsonl import load_metrics_history  # noqa: E402
+
 
 def _read_json(path: Path, default: object = None) -> object:
     """Read JSON file; return default if missing or invalid."""
@@ -79,17 +85,12 @@ def generate_trends(
 
     prev_cc: float | None = None
     prev_mi: float | None = None
-    if history_path.exists():
-        try:
-            with open(history_path) as f:
-                lines = [line.strip() for line in f if line.strip()]
-            if lines:
-                last = json.loads(lines[-1])
-                comp = last.get("metrics", {}).get("complexity", {})
-                prev_cc = comp.get("cyclomatic_complexity")
-                prev_mi = comp.get("maintainability_index")
-        except (json.JSONDecodeError, OSError, IndexError):
-            pass
+    history = load_metrics_history(history_path)
+    if history:
+        last = history[-1]
+        comp = last.get("metrics", {}).get("complexity", {})
+        prev_cc = comp.get("cyclomatic_complexity")
+        prev_mi = comp.get("maintainability_index")
 
     if prev_cc is not None and prev_cc != 0:
         delta_cc = current_cc - prev_cc

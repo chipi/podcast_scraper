@@ -185,6 +185,26 @@ Scripts used in CI workflows to generate metrics and dashboards:
 - **`collect_pipeline_metrics.py`** - Collect pipeline performance metrics by running a minimal pipeline
 - **`generate_metrics.py`** - Extract metrics from test artifacts (JUnit XML, coverage reports)
 - **`generate_dashboard.py`** - Generate HTML dashboard from metrics
+- **`consolidate_dashboard_data.py`** - Build `dashboard-data.json` (CI + nightly `latest` + `history` arrays) for a single-fetch unified dashboard; **`make build-metrics-dashboard-preview`** runs it automatically
+- **`metrics_jsonl.py`** - Parse metrics history (JSONL); tolerates legacy multi-line appends
+- **`append_metrics_history_line.py`** - Emit one compact JSON line for `history-*.jsonl` (used by CI; do not use `echo "$(cat latest.json)"`)
+- **`repair_metrics_jsonl.py`** - Rewrite `history-ci.jsonl` / `history-nightly.jsonl` as proper one-object-per-line JSONL
+- **`capture_quality_for_metrics.py`** - Run interrogate, vulture, and codespell; emit `docstrings.json`, `vulture.json`, and `codespell.txt` for `generate_metrics.py` (replaces removed CLI flags in interrogate 1.7+ / vulture 2.x)
+- **`fetch_ci_metrics_artifacts.sh`** - Download the `metrics/` workflow artifact from recent successful `python-app.yml` runs on `main` (requires [GitHub CLI](https://cli.github.com/) `gh`). Default **40** run IDs attempted (many runs lack the artifact — use **`N=100`** or higher for ~20–40 bundles). Skips re-download if **`run-<id>/latest-ci.json`** already exists. **`make fetch-ci-metrics`** / **`make fetch-ci-metrics N=80`**
+- **`fetch_metrics_file_from_pages.sh`** - CI helper: download one file from the live site **`.../metrics/<file>`** (default URL from **`GITHUB_REPOSITORY`**) via **`curl`**, else **`git show gh-pages:metrics/...`**. Used by **`nightly.yml`** and **`python-app.yml`** so history accumulates when Pages is deployed with **`deploy-pages`** (the **`gh-pages`** git ref may be stale). Optional env **`METRICS_PAGES_BASE`**, **`GITHUB_REPOSITORY`**.
+- **`fetch_nightly_metrics_artifacts.sh`** - Download **`nightly-metrics`** from up to **`LIMIT`** successful **`nightly.yml`** runs on **`main`** into **`artifacts/nightly-metrics-runs/run-<id>/`** (needs **`gh`**). Default **`LIMIT=25`**. **`merge_nightly_metrics_runs_to_history.py`** merges **`latest-nightly.json`** from each bundle into **`metrics/history-nightly.jsonl`**. **`make fetch-nightly-metrics N=25`**
+- **`merge_nightly_metrics_runs_to_history.py`** - Merge **`run-*/latest-nightly.json`** → one JSONL + copy newest **`latest-nightly.json`**; used by fetch ( **`N`≥1 ) and **`build_local_metrics_preview.sh`** when **`artifacts/nightly-metrics-runs/`** has bundles
+- **`fetch_nightly_metrics.sh`** - **`make fetch-nightly-metrics`** (no **`N`**): latest artifact or Pages **`curl`**. **`make fetch-nightly-metrics N=25`**: multi-download + merge (many nightly chart points). Env: **`GHPAGES_METRICS_BASE`**, **`GITHUB_BRANCH`**, **`METRICS_DIR`**, **`FETCH_NIGHTLY_PREFER_PAGES=1`**
+- **`fetch_and_validate_ci_metrics.sh`** - Runs the fetch script, then **`validate_metrics_bundle.py`** on every `artifacts/ci-metrics-runs/run-*` directory. **`make fetch-ci-metrics-validate`** / **`make fetch-ci-metrics-validate N=80`**
+- **`validate_metrics_bundle.py`** - Sanity-check a downloaded or local `latest-ci.json` / `latest-nightly.json` plus optional `history-*.jsonl`. **`make validate-metrics-bundle BUNDLE=artifacts/ci-metrics-runs/run-<id>`**
+
+**Validate the dashboard HTML from a download:** `cd artifacts/ci-metrics-runs/run-<id>` then `python -m http.server 8765` and open `http://127.0.0.1:8765/index.html` (CI data only unless you also copy nightly JSON/JSONL into that folder).
+
+**Both segments (CI + Nightly) locally:** `make build-metrics-dashboard-preview` merges the newest `artifacts/ci-metrics-runs/run-*` with `metrics/latest-nightly.json` and `metrics/history-nightly.jsonl`, writes `artifacts/dashboard-preview/dashboard-data.json`, then `make serve-metrics-dashboard` → `http://127.0.0.1:8777/`. **`make metrics-preview-check`** rebuilds with strict JSONL validation (fails if `history-*.jsonl` looks like pretty-printed JSON).
+
+**One shot (download + validate + preview + server):** `make metrics-dashboard-live` or `make metrics-dashboard-live N=10` (requires `gh` auth; blocks on HTTP server until Ctrl+C). This is the **metrics** dashboard only, not `make docs` / MkDocs.
+
+**Re-run `generate_metrics.py` like CI** needs a full `reports/` tree (merged `pytest.json`, `coverage.xml`, radon JSON, etc.); that comes from downloading **`coverage-unified`** plus **`pytest-unit`**, **`pytest-integration`**, **`pytest-e2e`** from the *same* run and re-running the merge step from `python-app.yml` locally—not bundled in the `metrics` artifact.
 
 These scripts are primarily used in CI workflows (see `.github/workflows/`). See `docs/ci/WORKFLOWS.md` for details.
 

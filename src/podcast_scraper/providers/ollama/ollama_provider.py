@@ -57,6 +57,21 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 
+def _ollama_openai_chat_extra_kwargs(model: str) -> Dict[str, Any]:
+    """Extra kwargs for Ollama's OpenAI-compatible ``/v1/chat/completions``.
+
+    Qwen 3.5 uses chain-of-thought in the ``reasoning`` field unless disabled.
+    Without ``reasoning_effort: none``, ``message.content`` can stay empty while
+    the model consumes ``max_tokens`` on thinking (finish_reason ``length``).
+
+    See: https://docs.ollama.com/capabilities/thinking
+    """
+    m = (model or "").lower()
+    if "qwen3.5" in m:
+        return {"extra_body": {"reasoning_effort": "none"}}
+    return {}
+
+
 def _flatten_json_speaker_names(value: Any) -> List[str]:
     """Flatten nested JSON name lists from Ollama JSON speaker responses."""
     if value is None:
@@ -312,17 +327,23 @@ class OllamaProvider:
         for use in prompt paths (e.g., "ollama/llama3.1_8b/ner/system_ner_v1").
 
         Args:
-            model: Normalized model name (e.g., "llama3.1:8b", "mistral:7b", "qwen2.5:7b")
+            model: Normalized model name (e.g., "llama3.1:8b", "mistral:7b", "mistral-nemo:12b",
+                "mistral-small3.2", "qwen2.5:7b", "qwen2.5:32b", "qwen3.5:9b", "qwen3.5:35b-a3b")
 
         Returns:
-            Directory name for prompts (e.g., "llama3.1_8b", "mistral_7b", "qwen2.5_7b")
+            Directory name for prompts (e.g., "llama3.1_8b", "mistral_7b", "mistral-nemo_12b",
+                "mistral-small3.2", "qwen2.5_7b", "qwen2.5_32b", "qwen3.5_9b", "qwen3.5_35b-a3b")
         """
         if not model:
             return ""
         # Replace colons with underscores for directory names (keep dots)
         # "llama3.1:8b" -> "llama3.1_8b"
-        # "qwen2.5:7b" -> "qwen2.5_7b"
+        # "qwen2.5:7b" -> "qwen2.5_7b", "qwen2.5:32b" -> "qwen2.5_32b"
+        # "qwen3.5:9b" -> "qwen3.5_9b", "qwen3.5:35b-a3b" -> "qwen3.5_35b-a3b"
         # "mistral:7b" -> "mistral_7b"
+        # "mistral-nemo:12b" -> "mistral-nemo_12b"
+        # "mistral-small3.2" (no colon) -> "mistral-small3.2"
+        # "mistral-small3.2:latest" -> "mistral-small3.2_latest"
         # "phi3:mini" -> "phi3_mini"
         # "gemma2:9b" -> "gemma2_9b"
         return model.replace(":", "_")
@@ -790,6 +811,7 @@ class OllamaProvider:
                 temperature=self.speaker_temperature,
                 max_tokens=300,
                 response_format={"type": "json_object"},  # Request JSON response
+                **_ollama_openai_chat_extra_kwargs(self.speaker_model),
             )
 
             response_text = response.choices[0].message.content
@@ -997,6 +1019,7 @@ class OllamaProvider:
                     ],
                     temperature=self.summary_temperature,
                     max_tokens=max_length,
+                    **_ollama_openai_chat_extra_kwargs(self.summary_model),
                 )
 
             try:
@@ -1007,6 +1030,7 @@ class OllamaProvider:
                     max_delay=30.0,
                     retryable_exceptions=(RateLimitError, APIError, ConnectionError),
                     metrics=call_metrics,
+                    error_context="ollama_local",
                 )
             except Exception:
                 call_metrics.finalize()
@@ -1243,6 +1267,7 @@ class OllamaProvider:
                         estimate_cleaning_output_tokens(len(text.split())),
                         OLLAMA_CLEANING_MAX_TOKENS,
                     ),
+                    **_ollama_openai_chat_extra_kwargs(self.cleaning_model),
                 )
 
             try:
@@ -1253,6 +1278,7 @@ class OllamaProvider:
                     max_delay=30.0,
                     retryable_exceptions=(RateLimitError, APIError, ConnectionError),
                     metrics=call_metrics,
+                    error_context="ollama_local",
                 )
             except Exception:
                 call_metrics.finalize()
@@ -1329,6 +1355,7 @@ class OllamaProvider:
                 ],
                 temperature=0.3,
                 max_tokens=min(1024, max_insights * 150),
+                **_ollama_openai_chat_extra_kwargs(self.summary_model),
             )
             content = (response.choices[0].message.content or "").strip()
             lines = [
@@ -1397,6 +1424,7 @@ class OllamaProvider:
                     ],
                     temperature=0.1,
                     max_tokens=2048,
+                    **_ollama_openai_chat_extra_kwargs(model),
                 )
 
             response = retry_with_metrics(
@@ -1405,6 +1433,7 @@ class OllamaProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                error_context="ollama_local",
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -1459,6 +1488,7 @@ class OllamaProvider:
                     ],
                     temperature=0.1,
                     max_tokens=2048,
+                    **_ollama_openai_chat_extra_kwargs(model),
                 )
 
             response = retry_with_metrics(
@@ -1467,6 +1497,7 @@ class OllamaProvider:
                 initial_delay=1.0,
                 max_delay=30.0,
                 retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                error_context="ollama_local",
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -1521,6 +1552,7 @@ class OllamaProvider:
                     ],
                     temperature=0.0,
                     max_tokens=512,
+                    **_ollama_openai_chat_extra_kwargs(self.summary_model),
                 )
 
             try:
@@ -1531,6 +1563,7 @@ class OllamaProvider:
                     max_delay=30.0,
                     retryable_exceptions=(RateLimitError, APIError, ConnectionError),
                     metrics=call_metrics,
+                    error_context="ollama_local",
                 )
             except Exception:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)
@@ -1598,6 +1631,7 @@ class OllamaProvider:
                     ],
                     temperature=0.0,
                     max_tokens=10,
+                    **_ollama_openai_chat_extra_kwargs(self.summary_model),
                 )
 
             try:
@@ -1608,6 +1642,7 @@ class OllamaProvider:
                     max_delay=30.0,
                     retryable_exceptions=(RateLimitError, APIError, ConnectionError),
                     metrics=call_metrics,
+                    error_context="ollama_local",
                 )
             except Exception:
                 merge_gil_evidence_call_metrics_on_failure(call_metrics, pm)

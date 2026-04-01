@@ -1181,7 +1181,7 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 #### 4. Release notes
 
 - Edit **`docs/releases/RELEASE_vX.Y.Z.md`**: fill in Summary, Key Features, Upgrade Notes (if any), and Full Changelog link (e.g. `https://github.com/chipi/podcast_scraper/compare/vPREVIOUS...vX.Y.Z`).
-- Update **`docs/releases/index.md`**: add the new version to the table and, if appropriate, update the "Latest Release" / "Upcoming" section.
+- Update **`docs/releases/index.md`**: add the new version to the table and update the "Latest Release" section (remove any "upcoming" wording once the version is tagged and published).
 
 #### 5. Quality and validation
 

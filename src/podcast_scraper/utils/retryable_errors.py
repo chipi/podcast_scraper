@@ -7,11 +7,24 @@ helping to determine when retries should be attempted.
 from __future__ import annotations
 
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
 
-def is_retryable_error(error: Exception) -> bool:
+def _http_status_as_int(value: object) -> int | None:
+    """Return HTTP status only for a real int.
+
+    Ignores mocks: ``int(MagicMock)`` is misleadingly truthy.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    return None
+
+
+def is_retryable_error(error: Exception, *, error_context: str = "default") -> bool:
     """Determine if an error is retryable.
 
     Retryable errors are transient failures that may succeed on retry:
@@ -28,12 +41,47 @@ def is_retryable_error(error: Exception) -> bool:
 
     Args:
         error: Exception to classify
+        error_context: When ``\"ollama_local\"``, HTTP 500 / InternalServerError from the
+            local Ollama server is treated as non-retryable. Retrying the same request
+            rarely fixes OOM, context-limit, or model-load crashes and makes runs feel
+            stuck (multiple long timeouts). Remote APIs keep default 5xx retry behavior.
 
     Returns:
         True if error is retryable, False otherwise
     """
     error_str = str(error).lower()
     error_type_name = type(error).__name__.lower()
+
+    resp_obj = getattr(error, "response", None)
+    raw_status = getattr(resp_obj, "status_code", None) if resp_obj is not None else None
+    http_code = _http_status_as_int(raw_status)
+    if http_code is None:
+        http_code = _http_status_as_int(getattr(error, "status_code", None))
+
+    if error_context == "ollama_local":
+        try:
+            from openai import APIStatusError, InternalServerError
+
+            # Tests may patch ``openai`` so these names are not real types; avoid TypeError.
+            if isinstance(InternalServerError, type) and isinstance(error, InternalServerError):
+                return False
+            if isinstance(APIStatusError, type) and isinstance(error, APIStatusError):
+                if getattr(error, "status_code", None) == 500:
+                    return False
+        except ImportError:
+            pass
+        # Duck-type HTTP 500 when SDK classes are mocked but ``response.status_code`` is a real int.
+        if http_code == 500:
+            return False
+        if re.search(r"\b500\b", str(error)) or "internal server error" in error_str:
+            return False
+        # SDK may stringify without status digits; ``InternalServerError`` is 5xx-class.
+        if error_type_name == "internalservererror":
+            return False
+
+    # Structured 5xx (e.g. OpenAI SDK) — retry for remote APIs even if ``str(error)`` is unhelpful.
+    if error_context != "ollama_local" and http_code is not None and 500 <= http_code <= 599:
+        return True
 
     # Rate limit errors (always retryable)
     if (
@@ -54,8 +102,8 @@ def is_retryable_error(error: Exception) -> bool:
         or "503" in str(error)
         or "504" in str(error)
         or "505" in str(error)
-        or "server error" in error_str
         or "internal server error" in error_str
+        or (error_context != "ollama_local" and "server error" in error_str)
         or "bad gateway" in error_str
         or "service unavailable" in error_str
         or "gateway timeout" in error_str

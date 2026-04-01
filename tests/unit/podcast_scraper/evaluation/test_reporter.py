@@ -103,6 +103,23 @@ class TestGenerateMetricsReport:
         assert "42ms" in report
         assert "$1.2300" in report
 
+    def test_performance_extended_latency_lines(self):
+        metrics = {
+            "run_id": "r1",
+            "intrinsic": {
+                "performance": {
+                    "avg_latency_ms": 100.0,
+                    "median_latency_ms": 90.0,
+                    "p95_latency_ms": 200.0,
+                    "avg_latency_ms_excluding_first": 80.0,
+                },
+            },
+        }
+        report = generate_metrics_report(metrics)
+        assert "Median Latency" in report
+        assert "P95 Latency" in report
+        assert "excl. first episode" in report
+
     def test_speaker_name_leak_warning_in_gates(self):
         metrics = {
             "run_id": "r1",

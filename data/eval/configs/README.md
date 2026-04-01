@@ -7,8 +7,8 @@ This directory contains experiment configuration YAML files that define how expe
 Experiment configs are **inputs** to the experiment runner. They specify:
 
 - Task type (`summarization`, `ner_entities`, `grounded_insights`, or `knowledge_graph`)
-- Model/provider configuration (OpenAI, HuggingFace local, spaCy, etc.)
-- Prompt templates to use (for OpenAI backends)
+- Model/provider configuration (OpenAI, Gemini, HuggingFace local, spaCy, etc.)
+- Prompt templates to use (for OpenAI, Gemini, and Ollama backends)
 - Dataset references
 - Generation parameters (temperature, max tokens, etc.)
 - Scoring parameters (for NER tasks: match modes, label sets)
@@ -84,6 +84,22 @@ Configs are referenced when running experiments:
 ```bash
 make experiment-run CONFIG=data/eval/configs/my_experiment.yaml
 ```
+
+Optional: pass a **silver reference** id (comma-separated) so `metrics.json` gets `vs_reference`
+(ROUGE, embedding cosine, etc.):
+
+```bash
+make experiment-run CONFIG=data/eval/configs/llm_ollama_qwen25_7b_smoke_v1.yaml \
+  REFERENCE=silver_gpt4o_smoke_v1
+```
+
+**Preprocessing:** LLM smoke configs (e.g. `llm_ollama_*`, API `llm_*_smoke_v1`) use
+`preprocessing_profile: "cleaning_v4"` so transcripts are cleaned the same way before every model
+sees them — comparable runs across providers.
+
+**Metrics schema:** New summarization runs emit `schema: metrics_summarization_v2` in
+`metrics.json` (nested `intrinsic`, `episode_count`, optional latency percentiles). See
+`data/eval/schemas/metrics_summarization_v2.json`.
 
 ## Naming Convention
 

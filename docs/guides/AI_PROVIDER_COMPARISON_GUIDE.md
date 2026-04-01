@@ -91,40 +91,60 @@ This section is the **single place** for measured differences between summarizat
 
 **Interpretation:** Higher ROUGE / BLEU / Embed / Coverage = closer to reference; lower WER = better. Latency = seconds per episode (inference only).
 
+**Best drop-in vs silver (this smoke):** After OpenAI (same family as the silver run), **Gemini** `gemini-2.0-flash` scores highest among measured cloud APIs on **ROUGE-L** and **embedding cosine**; **Mistral API** `mistral-small-latest` is next on ROUGE-L and the fastest in that set. On **Ollama**, **`mistral-small3.2:latest`** and **`qwen2.5:32b`** **tie** at **38.4%** ROUGE-L; Mistral Small 3.2 leads ROUGE-1/BLEU and embed on this run. **`qwen3.5:9b`** (with `reasoning_effort: none` in the Ollama path) is the best smaller Qwen 3.5 point (~30% ROUGE-L, strong embed). Values below come from `data/eval/runs/<run_id>/metrics.json` vs `silver_gpt4o_smoke_v1`.
+
 ### Full metrics table (vs silver reference)
+
+Cloud APIs first (OpenAI baseline, then others by ROUGE-L), then local Ollama (by ROUGE-L).
 
 | Run | Latency/ep | ROUGE-1 | ROUGE-2 | ROUGE-L | BLEU | Embed | Coverage | WER |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | llm_openai_smoke_v1 | 15.4s | 77.2% | 54.0% | 58.8% | 50.0% | 92.7% | 100.1% | 61.5% |
-| llm_mistral_smoke_v1 | 5.4s | 70.6% | 35.5% | 42.0% | 29.6% | 90.6% | 103.8% | 88.8% |
-| llm_deepseek_smoke_v1 | 13.9s | 59.4% | 19.1% | 26.3% | 14.5% | 84.0% | 98.2% | 93.2% |
-| llm_anthropic_smoke_v1 | 7.9s | 57.4% | 19.5% | 27.3% | 12.8% | 84.3% | 84.9% | 88.4% |
-| llm_grok_smoke_v1 | 8.7s | 59.5% | 21.4% | 30.4% | 15.5% | 87.2% | 94.5% | 92.0% |
-| llm_ollama_qwen25_7b_smoke_v1 | 17.7s | 18.6% | 2.7% | 10.6% | 0.4% | 26.2% | 34.2% | 94.4% |
-| llm_ollama_phi3_mini_smoke_v1 | 19.8s | 28.1% | 4.4% | 12.8% | 1.7% | 25.1% | 97.6% | 103.5% |
-| llm_ollama_mistral_7b_smoke_v1 | 81.6s | 28.3% | 3.9% | 15.1% | 1.1% | 24.9% | 70.0% | 92.9% |
-| llm_ollama_llama31_8b_smoke_v1 | 77.7s | 23.7% | 3.0% | 12.4% | 0.6% | 17.1% | 47.0% | 93.6% |
-| llm_ollama_gemma2_9b_smoke_v1 | 48.2s | 3.5% | 0.1% | 2.8% | 0.0% | 15.8% | 3.5% | 98.6% |
+| llm_gemini_smoke_v1 | 2.7s | 61.3% | 23.4% | 33.3% | 16.3% | 87.3% | 78.1% | 83.8% |
+| llm_mistral_smoke_v1 | 2.8s | 59.7% | 23.8% | 32.5% | 17.2% | 84.8% | 99.5% | 92.5% |
+| llm_grok_smoke_v1 | 13.2s | 59.0% | 21.9% | 29.5% | 15.5% | 85.4% | 90.9% | 89.1% |
+| llm_anthropic_smoke_v1 | 4.8s | 58.8% | 23.6% | 29.4% | 16.9% | 81.8% | 100.7% | 93.2% |
+| llm_deepseek_smoke_v1 | 14.2s | 60.5% | 22.3% | 26.3% | 16.1% | 85.0% | 100.7% | 98.5% |
+| llm_ollama_qwen25_32b_smoke_v1 | 54.8s | 65.6% | 30.8% | 38.4% | 22.0% | 85.2% | 78.4% | 81.3% |
+| llm_ollama_mistral_small3_2_smoke_v1 | 48.6s | 69.4% | 33.0% | 38.4% | 27.8% | 85.8% | 91.4% | 83.2% |
+| llm_ollama_mistral_7b_smoke_v1 | 17.4s | 61.4% | 24.8% | 32.8% | 18.9% | 80.4% | 97.0% | 92.2% |
+| llm_ollama_mistral_nemo_12b_smoke_v1 | 22.8s | 59.2% | 23.4% | 30.7% | 16.0% | 82.5% | 112.9% | 102.9% |
+| llm_ollama_qwen35_9b_smoke_v1 | 21.9s | 60.1% | 23.2% | 30.3% | 16.4% | 85.2% | 102.7% | 93.9% |
+| llm_ollama_qwen35_27b_smoke_v1 | 81.5s | 61.2% | 24.8% | 30.2% | 17.2% | 82.4% | 128.5% | 113.1% |
+| llm_ollama_qwen35_35b_smoke_v1 | 23.7s | 61.1% | 23.7% | 30.1% | 17.5% | 80.8% | 116.4% | 108.9% |
+| llm_ollama_llama31_8b_smoke_v1 | 16.4s | 59.6% | 25.7% | 28.8% | 20.0% | 78.8% | 110.0% | 104.4% |
+| llm_ollama_qwen25_7b_smoke_v1 | 12.1s | 63.0% | 24.1% | 28.3% | 17.7% | 84.9% | 95.6% | 95.3% |
+| llm_ollama_gemma2_9b_smoke_v1 | 19.6s | 58.2% | 19.0% | 26.7% | 13.1% | 82.8% | 89.4% | 89.2% |
+| llm_ollama_phi3_mini_smoke_v1 | 17.2s | 53.0% | 17.2% | 22.6% | 9.6% | 86.9% | 189.1% | 172.9% |
 
 ### Cloud LLMs (ranked by ROUGE-L vs silver)
 
 | Rank | Provider | Model (eval config) | ROUGE-L | Embed | Latency | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | **OpenAI** | GPT-4o | **58.8%** | **92.7%** | 15.4s | Same as silver reference. |
-| 2 | Mistral | (API default) | 42.0% | 90.6% | **5.4s** | Fastest; strong quality. |
-| 3 | Grok | grok-3-mini | 30.4% | 87.2% | 8.7s | Best ROUGE-L among non-OpenAI cloud. |
-| 4 | Anthropic | Claude 3.5 Haiku | 27.3% | 84.3% | 7.9s | Solid embed; lower ROUGE. |
-| 5 | DeepSeek | (API default) | 26.3% | 84.0% | 13.9s | Good embed; lowest ROUGE of cloud. |
+| 1 | **OpenAI** | GPT-4o | **58.8%** | **92.7%** | 15.4s | Same family as silver reference. |
+| 2 | **Gemini** | gemini-2.0-flash | 33.3% | 87.3% | **2.7s** | Best non-OpenAI ROUGE-L + embed in this table. |
+| 3 | Mistral | mistral-small-latest | 32.5% | 84.8% | 2.8s | Very fast; strong ROUGE-L. |
+| 4 | Grok | grok-3-mini | 29.5% | 85.4% | 13.2s | Higher latency than Gemini/Mistral here. |
+| 5 | Anthropic | claude-haiku-4-5 | 29.4% | 81.8% | 4.8s | Similar ROUGE-L to Grok; lowest embed in cloud set. |
+| 6 | DeepSeek | (API default) | 26.3% | 85.0% | 14.2s | Lowest ROUGE-L among cloud rows; solid embed. |
 
 ### Local Ollama (vs silver)
 
+Sorted by ROUGE-L (then run id). Hardware and Ollama builds vary; re-run on your machine for decisions.
+
 | Run | ROUGE-L | Embed | Latency | Note |
 | --- | --- | --- | --- | --- |
-| llm_ollama_mistral_7b_smoke_v1 | **15.1%** | 24.9% | 81.6s | Best ROUGE among Ollama. |
-| llm_ollama_phi3_mini_smoke_v1 | 12.8% | 25.1% | 19.8s | Fastest Ollama. |
-| llm_ollama_llama31_8b_smoke_v1 | 12.4% | 17.1% | 77.7s | Slower; lower embed. |
-| llm_ollama_qwen25_7b_smoke_v1 | 10.6% | **26.2%** | 17.7s | Best embed among Ollama. |
-| llm_ollama_gemma2_9b_smoke_v1 | 2.8% | 15.8% | 48.2s | Very short outputs (truncation); outlier. |
+| llm_ollama_qwen25_32b_smoke_v1 | **38.4%** | 85.2% | 54.8s | Ties top ROUGE-L; `qwen2.5:32b`. |
+| llm_ollama_mistral_small3_2_smoke_v1 | **38.4%** | **85.8%** | 48.6s | Ties top ROUGE-L; best ROUGE-1/BLEU/embed among the two; `mistral-small3.2:latest`. |
+| llm_ollama_mistral_7b_smoke_v1 | 32.8% | 80.4% | 17.4s | Strong ROUGE-L for 7B; `mistral:7b`. |
+| llm_ollama_mistral_nemo_12b_smoke_v1 | 30.7% | 82.5% | 22.8s | Good balance of speed vs quality; `mistral-nemo:12b`. |
+| llm_ollama_qwen35_9b_smoke_v1 | 30.3% | 85.2% | 21.9s | Best Qwen 3.5 size/quality tradeoff here; use `reasoning_effort: none` for Qwen 3.5 on Ollama. |
+| llm_ollama_qwen35_27b_smoke_v1 | 30.2% | 82.4% | 81.5s | Similar metrics to 9B/35B; slowest latency in this block. |
+| llm_ollama_qwen35_35b_smoke_v1 | 30.1% | 80.8% | 23.7s | Similar ROUGE-L to other Qwen 3.5 smokes; faster wall time than 27B here. |
+| llm_ollama_llama31_8b_smoke_v1 | 28.8% | 78.8% | 16.4s | `llama3.1:8b`. |
+| llm_ollama_qwen25_7b_smoke_v1 | 28.3% | 84.9% | 12.1s | Fastest Ollama row; `qwen2.5:7b`. |
+| llm_ollama_gemma2_9b_smoke_v1 | 26.7% | 82.8% | 19.6s | `gemma2:9b`. |
+| llm_ollama_phi3_mini_smoke_v1 | 22.6% | 86.9% | 17.2s | High embed but very high coverage/WER vs reference; check output length. |
 
 ### Model IDs (acceptance-tested)
 
@@ -133,9 +153,10 @@ Use these model IDs in eval/acceptance configs to avoid API errors:
 | Provider | Recommended model ID | Deprecated / not found |
 | --- | --- | --- |
 | Anthropic | `claude-haiku-4-5` | `claude-3-5-haiku-20241022` (404 deprecated) |
+| Gemini | `gemini-2.0-flash` | — |
 | Grok | `grok-3-mini` | `grok-2` (400 model not found) |
 
-Eval configs: `data/eval/configs/llm_anthropic_smoke_v1.yaml`, `llm_grok_smoke_v1.yaml`. Acceptance configs: `config/acceptance/summarization/acceptance_planet_money_anthropic.yaml`, `acceptance_planet_money_grok.yaml`.
+Eval configs: `data/eval/configs/llm_anthropic_smoke_v1.yaml`, `llm_gemini_smoke_v1.yaml`, `llm_grok_smoke_v1.yaml`, and siblings under `data/eval/configs/`. Acceptance configs: `config/acceptance/summarization/acceptance_planet_money_anthropic.yaml`, `acceptance_planet_money_gemini.yaml`, `acceptance_planet_money_grok.yaml`.
 
 ### How to re-run or add runs
 

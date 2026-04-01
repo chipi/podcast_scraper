@@ -1376,6 +1376,7 @@ The **multi-run comparison report** builds a single markdown table from one opti
 **Make target: `report-multi-run`**
 
 - **Default:** With no arguments, uses baseline `baseline_ml_prod_authority_smoke_v1`, runs `hybrid_ml_tier1_smoke_v1` and `hybrid_ml_tier2_qwen25_7b_smoke_v1`, reference `silver_gpt4o_smoke_v1`, and writes `docs/wip/multi_run_comparison.md`.
+- **Tier 2 (32B):** For larger hardware, eval config `hybrid_ml_tier2_qwen25_32b_smoke_v1` is available (`ollama pull qwen2.5:32b`). Add it to `RUN_IDS` when comparing against 7B or tier1.
 
 ```bash
 make report-multi-run

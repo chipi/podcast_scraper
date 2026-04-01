@@ -8,6 +8,11 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
+# CI metrics bundles downloaded for local validation (see scripts/dashboard/fetch_ci_metrics_artifacts.sh)
+artifacts/ci-metrics-runs/
+artifacts/nightly-metrics-runs/
+# Local unified dashboard preview (CI bundle + nightly from metrics/)
+artifacts/dashboard-preview/
 output/
 run_*/
 # Streamlit run comparison app (path matches run_* above)
