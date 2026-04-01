@@ -4,10 +4,7 @@
 These tests verify that errors are correctly classified as retryable or non-retryable.
 """
 
-import importlib
-import sys
 import unittest
-from unittest.mock import MagicMock
 
 import httpx
 
@@ -18,23 +15,19 @@ from podcast_scraper.utils.retryable_errors import (
 )
 
 
-def _real_openai_internal_server_error_cls():
-    """Return the real ``openai.InternalServerError`` class.
+class _SdkStyle500Error(Exception):
+    """Mimic OpenAI SDK errors with ``response.status_code`` without importing ``openai``.
 
-    Some unit modules replace ``sys.modules['openai']`` with a ``MagicMock`` (see
-    ``test_openai_provider_factory``). Import the real package briefly so we build a
-    genuine SDK exception.
+    The ``openai`` package is optional in some CI unit jobs; production code still
+    handles this shape via ``http_code`` when ``ImportError`` or mocked SDK types.
     """
-    cached = sys.modules.get("openai")
-    if isinstance(cached, MagicMock):
-        del sys.modules["openai"]
-        try:
-            return importlib.import_module("openai").InternalServerError
-        finally:
-            sys.modules["openai"] = cached
-    from openai import InternalServerError
 
-    return InternalServerError
+    def __init__(
+        self, message: str, *, response: httpx.Response | None = None, body: object = None
+    ):
+        super().__init__(message)
+        self.response = response
+        self.body = body
 
 
 class TestIsRetryableError(unittest.TestCase):
@@ -107,11 +100,10 @@ class TestIsRetryableError(unittest.TestCase):
         self.assertTrue(is_retryable_error(error))
 
     def test_ollama_local_internal_server_error_not_retryable(self):
-        """Local Ollama: OpenAI SDK InternalServerError (HTTP 500) is not retried."""
-        InternalServerError = _real_openai_internal_server_error_cls()
+        """Local Ollama: SDK-shaped HTTP 500 (response.status_code) is not retried."""
         req = httpx.Request("POST", "http://127.0.0.1:11434/v1/chat/completions")
         resp = httpx.Response(500, request=req)
-        err = InternalServerError("server error", response=resp, body=None)
+        err = _SdkStyle500Error("server error", response=resp, body=None)
         self.assertFalse(is_retryable_error(err, error_context="ollama_local"))
         self.assertTrue(is_retryable_error(err, error_context="default"))
 
