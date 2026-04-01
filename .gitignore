@@ -11,6 +11,16 @@ podcast_scraper.egg-info/
 # CI metrics bundles downloaded for local validation (see scripts/dashboard/fetch_ci_metrics_artifacts.sh)
 artifacts/ci-metrics-runs/
 artifacts/nightly-metrics-runs/
+# Unified dashboard data at repo root `metrics/` (generated in CI or fetched locally).
+# Canonical public copies live on GitHub Pages; committing snapshots here causes noise and drift.
+# Populate with `make fetch-ci-metrics`, `make fetch-nightly-metrics`, or workflow outputs — see docs/ci/METRICS.md.
+metrics/*.json
+metrics/*.jsonl
+metrics/index.html
+
+# Ad-hoc experiment batch log (machine-local; regenerate from your runs if needed)
+docs/wip/_batch_experiment_log.txt
+
 # Local unified dashboard preview (CI bundle + nightly from metrics/)
 artifacts/dashboard-preview/
 output/

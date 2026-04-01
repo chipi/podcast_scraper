@@ -34,7 +34,7 @@ They already cross-link; the redesign keeps **two separate pages** (or more if w
 | **GitHub Pages** | `gh-pages` branch `metrics/` | `index.html` + `latest-*.json` + `history-*.jsonl` | Canonical public view; JSONL one compact object per line |
 | **CI workflow output** | Artifacts: `metrics` zip, `pytest-*` JSON | Per-job + merged `pytest.json` | Metrics job generates `latest-ci.json`; history merged from prior gh-pages |
 | **Local preview** | `artifacts/dashboard-preview/` | Copy of CI bundle + `metrics/` nightly | Built by `build_local_metrics_preview.sh` |
-| **Local dev copies** | `metrics/*.json`, `*.jsonl` | Often **wrong** (pretty-printed blob in `.jsonl`) | Root cause of “one dot” / empty charts |
+| **Local dev copies** | `metrics/*.json`, `*.jsonl`, `index.html` | Often **wrong** (pretty-printed blob in `.jsonl`) | **Ignored by git** on `main`; populate with `make fetch-*` / preview builds — see [ci/METRICS.md](../ci/METRICS.md) *Local `metrics/` in your clone* |
 
 **Nightly vs CI** is a **logical** split (two `latest-*` / `history-*` pairs), not two different schemas — same `generate_metrics.py` shape.
 

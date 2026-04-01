@@ -7,6 +7,21 @@ run + a thin history), not a full observability product.
 **Companion:** [Code quality trends](CODE_QUALITY_TRENDS.md) covers **wily** and **radon** over git
 history (different from the dashboard’s per-snapshot radon chart).
 
+## Local `metrics/` in your clone (not in git)
+
+The repo root **`metrics/`** directory is for **machine-local** dashboard files only. **Do not commit**
+`latest-*.json`, `history-*.jsonl`, `index.html`, or `dashboard-data.json` — they are listed in
+**`.gitignore`** so pull requests stay free of metrics churn and stale snapshots.
+
+| Situation | What to do |
+| --------- | ---------- |
+| **Fresh clone, empty charts** | Expected until you fetch data. Run **`make fetch-ci-metrics`** and **`make fetch-nightly-metrics`**, then **`make build-metrics-dashboard-preview`**. |
+| **CI / nightly workflows** | Still write **`metrics/`** inside the runner workspace and upload the **`metrics`** artifact; ignoring the folder in git does **not** change GitHub Actions behavior. |
+| **Canonical public JSON/HTML** | Lives on **GitHub Pages** (same filenames under the published site), not on the **`main`** branch tree. |
+| **Why ignore?** | Avoids merge conflicts, accidental PII or run-specific noise, and confusion between “what CI published” vs “what one laptop had last week”. |
+
+A short pointer file **`metrics/README.md`** is tracked; generated artifacts next to it are not.
+
 ## [Unified metrics dashboard](https://chipi.github.io/podcast_scraper/metrics/)
 
 Single HTML page with a **data source** selector:
@@ -68,11 +83,16 @@ Both deploy the same `index.html` on GitHub Pages. The page prefers **`dashboard
 (single bundle built by `consolidate_dashboard_data.py` from the four files below) so the browser
 does one fetch; `latest-*.json` and `history-*.jsonl` remain for workflows and legacy fallback.
 
-### File layout (`metrics/` on `gh-pages`)
+### File layout (`metrics/` on GitHub Pages vs your laptop)
+
+**Published site (`gh-pages` / Pages deploy):** same relative layout as below. **Your git checkout:**
+only **`metrics/README.md`** is tracked; the rest are optional local files (see *Local `metrics/` in
+your clone* above).
 
 ```text
 metrics/
-├── index.html              # Unified dashboard
+├── README.md               # Tracked: explains local-only data (this repo)
+├── index.html              # Unified dashboard (Pages + optional local copy)
 ├── dashboard-data.json     # CI + nightly latest + history arrays (preferred by the page)
 ├── latest-ci.json
 ├── history-ci.jsonl        # One JSON object per line (compact)
