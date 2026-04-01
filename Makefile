@@ -33,7 +33,7 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
+.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
 
 help:
 	@echo "Common developer commands:"
@@ -193,6 +193,8 @@ help:
 	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make autoresearch-score  RFC-057 Track A: eval run + ROUGE + dual judges (scalar on stdout)"
 	@echo "                            Usage: make autoresearch-score [CONFIG=...] [REFERENCE=...] [DRY_RUN=1]"
+	@echo "  make silver-pairwise    Pairwise LLM judge between two silver candidate runs (winner on stdout)"
+	@echo "                            Usage: make silver-pairwise CANDIDATE_A=<run_id> CANDIDATE_B=<run_id> [OUTPUT=path.json]"
 	@echo "  make report-multi-run   Generate multi-run comparison report (baseline + N runs)"
 	@echo "                            Usage: make report-multi-run [BASELINE_ID=...] RUN_IDS=id1,id2 REFERENCE_ID=ref [OUTPUT=...]"
 	@echo "  make run-freeze          Freeze a run for baseline comparison"
@@ -1807,6 +1809,30 @@ autoresearch-score:
 		echo "❌ autoresearch score failed (exit $$ec)."; \
 	fi; \
 	exit $$ec
+
+silver-pairwise:
+	@# Pairwise LLM judge: compare two silver candidate runs, print winner name on stdout.
+	@# Usage: make silver-pairwise CANDIDATE_A=<run_id> CANDIDATE_B=<run_id> [DATASET=curated_5feeds_smoke_v1] [OUTPUT=path/to/results.json]
+	@# Loads .env and .env.autoresearch for AUTORESEARCH_JUDGE_* keys.
+	@# Example:
+	@#   make silver-pairwise \
+	@#     CANDIDATE_A=silver_candidate_openai_gpt54_smoke_v1 \
+	@#     CANDIDATE_B=silver_candidate_anthropic_sonnet46_smoke_v1
+	@if [ -z "$(CANDIDATE_A)" ] || [ -z "$(CANDIDATE_B)" ]; then \
+		echo "❌ Error: CANDIDATE_A and CANDIDATE_B are required"; \
+		echo ""; \
+		echo "Usage: make silver-pairwise CANDIDATE_A=<run_id> CANDIDATE_B=<run_id>"; \
+		exit 1; \
+	fi
+	@dataset=$${DATASET:-curated_5feeds_smoke_v1}; \
+	cmd="$(PYTHON) scripts/eval/pairwise_judge.py \
+		--candidate-a data/eval/runs/$(CANDIDATE_A) \
+		--candidate-b data/eval/runs/$(CANDIDATE_B) \
+		--transcripts data/eval/materialized/$$dataset"; \
+	if [ -n "$(OUTPUT)" ]; then \
+		cmd="$$cmd --output $(OUTPUT)"; \
+	fi; \
+	eval $$cmd
 
 run-freeze:
 	@# Freeze a run for baseline comparison (moves to _frozen_pre_cleanup/)

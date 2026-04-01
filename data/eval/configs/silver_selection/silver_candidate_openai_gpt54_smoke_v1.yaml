@@ -1,0 +1,34 @@
+# Silver Reference Candidate — OpenAI GPT-5.4 on smoke dataset.
+#
+# Purpose: Generate a candidate silver reference using GPT-5.4 to evaluate
+# whether it produces higher-quality summaries than the current silver (GPT-4o).
+#
+# Run:
+#   make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_openai_gpt54_smoke_v1.yaml FORCE=1
+#
+# Then promote (if selected):
+#   make run-promote RUN_ID=silver_candidate_openai_gpt54_smoke_v1 \
+#     --as reference PROMOTED_ID=silver_gpt54_smoke_v1 \
+#     REFERENCE_QUALITY=silver REASON="GPT-5.4 selected over GPT-4o via pairwise judge"
+#
+# Requires: OPENAI_API_KEY
+
+id: "silver_candidate_openai_gpt54_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-5.4"
+
+prompts:
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
