@@ -168,6 +168,15 @@ class DeepSeekBackendConfig(BaseModel):
     )
 
 
+class GeminiBackendConfig(BaseModel):
+    """Config for Gemini models (summarization)."""
+
+    type: Literal["gemini"] = "gemini"
+    model: str = Field(
+        description="Gemini model name, e.g. 'gemini-2.0-flash'.",
+    )
+
+
 class EvalStubBackendConfig(BaseModel):
     """Eval-only backend: no external model (GIL/KG stub pipeline in ``run_experiment``)."""
 
@@ -185,6 +194,7 @@ BackendConfig = (
     | OllamaBackendConfig
     | GrokBackendConfig
     | DeepSeekBackendConfig
+    | GeminiBackendConfig
     | EvalStubBackendConfig
 )
 
