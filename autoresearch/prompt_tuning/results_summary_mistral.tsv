@@ -1,1 +1,7 @@
 experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.292	+0.000	baseline	Baseline: mistral-small-latest, CONTESTED (judge divergence). ROUGE-L 29.2%, judge_mean 0.886.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.506	+0.214	accepted	Anchor paragraphs in specific claims/data/entities: ROUGE-L 31.7%, judge_mean 0.946, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.314	-0.192	rejected	Add vocab alignment: CONTESTED (judge divergence), ROUGE-L 31.4%, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.532	+0.026	accepted	Add "no bullets/headers, prose only" constraint: ROUGE-L 34.9%, judge_mean 0.960, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.497	-0.035	rejected	Thesis sentence opener: ROUGE-L 30.1%, judge_mean 0.953, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-5	0.525	-0.007	rejected	Replace focus line with "main topic/args/conclusions in order": ROUGE-L 33.8%, judge_mean 0.960, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
