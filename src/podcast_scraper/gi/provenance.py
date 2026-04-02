@@ -34,17 +34,26 @@ def _summary_model_from_cfg(cfg: Any) -> str:
 
 
 def _insight_lineage_model_id(cfg: Any, summary_provider: Optional[Any]) -> str:
-    """Model id associated with insight text (bullets or generate_insights)."""
+    """Model id for insight text produced from summary bullets (summarization model)."""
     if summary_provider is not None:
         sm = getattr(summary_provider, "summary_model", None)
-        if sm is not None and str(sm).strip():
-            return str(sm).strip()
+        if isinstance(sm, str) and sm.strip():
+            return sm.strip()
     return _summary_model_from_cfg(cfg)
+
+
+def _provider_insight_lineage_model_id(cfg: Any, provider: Optional[Any]) -> str:
+    """Model id for gi_insight_source=provider (generate_insights), when distinct from summary."""
+    if provider is not None:
+        im = getattr(provider, "insight_model", None)
+        if isinstance(im, str) and im.strip():
+            return im.strip()
+    return _insight_lineage_model_id(cfg, provider)
 
 
 def resolve_gil_artifact_model_version(
     cfg: Any,
-    summary_provider: Optional[Any],
+    lineage_provider: Optional[Any],
     *,
     gi_insight_source: str,
 ) -> str:
@@ -52,7 +61,9 @@ def resolve_gil_artifact_model_version(
 
     Args:
         cfg: Resolved ``Config``.
-        summary_provider: Summarization provider instance if available.
+        lineage_provider: Summarization provider instance when available (preferred for
+            ``summary_bullets``); same instance is used for ``provider`` when insights
+            come from ``generate_insights``.
         gi_insight_source: ``stub`` | ``summary_bullets`` | ``provider``.
 
     Returns:
@@ -61,7 +72,10 @@ def resolve_gil_artifact_model_version(
     source = (gi_insight_source or "stub").strip().lower()
     if source == "stub":
         return "stub"
-    if source in ("summary_bullets", "provider"):
-        mid = _insight_lineage_model_id(cfg, summary_provider)
+    if source == "summary_bullets":
+        mid = _insight_lineage_model_id(cfg, lineage_provider)
+        return mid if mid and mid != "unknown" else "unknown"
+    if source == "provider":
+        mid = _provider_insight_lineage_model_id(cfg, lineage_provider)
         return mid if mid and mid != "unknown" else "unknown"
     return "stub"

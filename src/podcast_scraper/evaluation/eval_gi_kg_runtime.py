@@ -7,6 +7,9 @@ from typing import Any, cast, Dict, Literal, Optional
 from podcast_scraper import config_constants
 from podcast_scraper.config import Config
 
+_TASK_GI = "grounded_insights"
+_TASK_KG = "knowledge_graph"
+
 
 def runtime_config_for_grounded_insights_eval(params: Optional[Dict[str, Any]]) -> Config:
     """Build ``Config`` for GIL eval (transcript → ``build_artifact``).
@@ -67,3 +70,59 @@ def runtime_config_for_knowledge_graph_eval(params: Optional[Dict[str, Any]]) ->
             "transcribe_missing": False,
         }
     )
+
+
+def merge_eval_task_into_summarizer_config(
+    base: Config,
+    task: str,
+    params: Optional[Dict[str, Any]],
+) -> Config:
+    """Copy summarization runtime ``Config`` and enable GI or KG for eval.
+
+    Used when the experiment regenerates a summary per episode, then runs
+    ``gi.build_artifact`` / ``kg.build_artifact`` with the same provider.
+
+    Args:
+        base: Config used to construct the summarization provider (API keys, models).
+        task: ``grounded_insights`` or ``knowledge_graph``.
+        params: Optional ``ExperimentConfig.params`` (GI/KG knobs).
+
+    Returns:
+        New validated ``Config`` with ``generate_gi`` or ``generate_kg`` set.
+
+    Raises:
+        ValueError: If ``task`` is not a GI/KG eval task.
+    """
+    p = params or {}
+    if task == _TASK_GI:
+        raw_src = p.get("gi_insight_source", "summary_bullets")
+        if raw_src not in ("stub", "provider", "summary_bullets"):
+            raw_src = "summary_bullets"
+        gi_src = cast(Literal["stub", "provider", "summary_bullets"], raw_src)
+        require = p.get("gi_require_grounding", True)
+        max_insights = p.get("gi_max_insights")
+        updates: Dict[str, Any] = {
+            "generate_gi": True,
+            "generate_kg": False,
+            "gi_insight_source": gi_src,
+            "gi_require_grounding": bool(require),
+        }
+        if max_insights is not None:
+            updates["gi_max_insights"] = int(max_insights)
+        return base.model_copy(update=updates)
+    if task == _TASK_KG:
+        raw_kg = p.get("kg_extraction_source", "summary_bullets")
+        if raw_kg not in ("stub", "provider", "summary_bullets"):
+            raw_kg = "summary_bullets"
+        kg_src = cast(Literal["stub", "provider", "summary_bullets"], raw_kg)
+        updates_kg: Dict[str, Any] = {
+            "generate_kg": True,
+            "generate_gi": False,
+            "kg_extraction_source": kg_src,
+        }
+        if p.get("kg_max_topics") is not None:
+            updates_kg["kg_max_topics"] = int(p["kg_max_topics"])
+        if p.get("kg_max_entities") is not None:
+            updates_kg["kg_max_entities"] = int(p["kg_max_entities"])
+        return base.model_copy(update=updates_kg)
+    raise ValueError(f"merge_eval_task_into_summarizer_config: unsupported task {task!r}")

@@ -18,6 +18,7 @@ something works while you **run** the steps.
 | **Product intent** | [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md); [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md); [PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md) (baseline for bullets and consumption) |
 | **Design / use cases** | [RFC-049: GIL core](../rfc/RFC-049-grounded-insight-layer-core.md); [RFC-050: GIL use cases](../rfc/RFC-050-grounded-insight-layer-use-cases.md); [RFC-055: KG core](../rfc/RFC-055-knowledge-graph-layer-core.md); [RFC-056: KG use cases](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) |
 | **Enable flags and config tables** | [CONFIGURATION.md — Knowledge Graph (KG)](../api/CONFIGURATION.md#knowledge-graph-kg); [CONFIGURATION.md — Grounded Insights (GIL)](../api/CONFIGURATION.md#grounded-insights-gil); [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers) |
+| **GIL evidence × provider (matrix, API vs local)** | [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix) |
 | **CLI examples** | [CLI — Grounded insights (`gi`) subcommands](../api/CLI.md#grounded-insights-gi-subcommands); [CLI — Knowledge Graph (`kg`) subcommands](../api/CLI.md#knowledge-graph-kg-subcommands) |
 | **Pipeline placement** | [Grounded Insights Guide — Pipeline order](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights) (GIL after metadata); [Knowledge Graph Guide — Enabling KG](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg); [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
 | **Artifacts and shapes** | [Grounded Insights Guide — Output artifact: gi.json](../guides/GROUNDED_INSIGHTS_GUIDE.md#output-artifact-gijson); [Knowledge Graph Guide — Output artifacts](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts) |
@@ -59,12 +60,13 @@ make test-acceptance CONFIGS="config/manual/manual_planet_money_openai_gi_kg_sum
 
 OpenAI steps need **`OPENAI_API_KEY`** (see `examples/.env.example`).
 
-**Step B (OpenAI + summary bullets GI/KG):** Default GIL settings use **local** quote extraction
-and entailment (`transformers`). Install **`pip install -e ".[ml]"`** so `sentence-transformers`
-is available; otherwise the CLI fails fast at pipeline start. Alternatively set
-`entailment_provider` / `quote_extraction_provider` to an LLM (e.g. `openai`) in YAML to avoid
-local NLI (extra API calls). See [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers).
-Design note (why defaults feel wrong): [gil-evidence-defaults-openai-hybrid-problem.md](gil-evidence-defaults-openai-hybrid-problem.md).
+**Step B (OpenAI + summary bullets GI/KG):** With **`gil_evidence_match_summary_provider: true`** (default),
+`Config` aligns **`quote_extraction_provider`** and **`entailment_provider`** to **`summary_provider`**
+when they would otherwise stay **`transformers`**, so this preset uses **OpenAI for GIL grounding**
+and does **not** require **`.[ml]`** for NLI. Set **`gil_evidence_match_summary_provider: false`**
+if you want **local** HF QA/NLI with API summaries (install **`pip install -e ".[ml]"`**). See
+[GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix)
+and [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers).
 
 For ML step **D**, set `whisper_device` / `summary_device` to **`cpu`** in the YAML if you are not
 on Apple Silicon or MPS is unavailable.

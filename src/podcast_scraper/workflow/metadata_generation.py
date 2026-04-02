@@ -3179,12 +3179,15 @@ def generate_episode_metadata(  # noqa: C901
                     insight_provider_arg = summary_provider
 
                 gil_evidence_cleanup: list = []
+                _gil_lineage_provider = (
+                    summary_provider if summary_provider is not None else insight_provider_arg
+                )
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
                     model_version=resolve_gil_artifact_model_version(
                         cfg,
-                        insight_provider_arg,
+                        _gil_lineage_provider,
                         gi_insight_source=str(gi_source),
                     ),
                     prompt_version="v1",

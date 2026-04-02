@@ -75,6 +75,29 @@ class TestOpenAIProviderStandalone(unittest.TestCase):
         self.assertIsNotNone(provider)
         self.assertEqual(provider.__class__.__name__, "OpenAIProvider")
 
+    def test_insight_model_defaults_to_summary_model(self):
+        """GIL generate_insights uses summary model when openai_insight_model unset."""
+        provider = OpenAIProvider(self.cfg)
+        self.assertEqual(provider.insight_model, provider.summary_model)
+
+    def test_insight_model_respects_openai_insight_model_config(self):
+        """Optional openai_insight_model overrides chat model for generate_insights only."""
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="openai",
+            speaker_detector_provider="openai",
+            summary_provider="openai",
+            openai_api_key="sk-test123",
+            openai_summary_model="gpt-4o-mini",
+            openai_insight_model="gpt-4o",
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        provider = OpenAIProvider(cfg)
+        self.assertEqual(provider.summary_model, "gpt-4o-mini")
+        self.assertEqual(provider.insight_model, "gpt-4o")
+
     def test_provider_creation_requires_api_key(self):
         """Test that OpenAIProvider requires API key."""
         # Unset environment variable to ensure it's not loaded
@@ -886,6 +909,8 @@ class TestOpenAIProviderPricing(unittest.TestCase):
         self.assertLessEqual(len(result), 5)
         self.assertIn("First key takeaway", result[0])
         mock_client.chat.completions.create.assert_called_once()
+        call_kw = mock_client.chat.completions.create.call_args[1]
+        self.assertEqual(call_kw["model"], provider.insight_model)
 
     @patch("podcast_scraper.prompts.store.render_prompt")
     def test_generate_insights_api_error_returns_empty(self, mock_render_prompt):

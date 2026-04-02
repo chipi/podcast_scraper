@@ -10,6 +10,45 @@ from typing import Any, Dict, List, Tuple
 logger = logging.getLogger(__name__)
 
 
+def _load_gil_reference_map(reference_path: Path) -> Dict[str, Dict[str, Any]]:
+    """Load per-episode reference GIL payloads from silver ``predictions.jsonl`` or gold JSON."""
+    silver = reference_path / "predictions.jsonl"
+    if silver.is_file():
+        by_id: Dict[str, Dict[str, Any]] = {}
+        try:
+            raw = silver.read_text(encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Could not read silver reference %s: %s", silver, exc)
+            return {}
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            eid = rec.get("episode_id")
+            gil = rec.get("output", {}).get("gil")
+            if eid is not None and isinstance(gil, dict):
+                by_id[str(eid)] = gil
+        return by_id
+
+    by_file: Dict[str, Dict[str, Any]] = {}
+    for gf in sorted(reference_path.glob("*.json")):
+        if gf.name == "index.json":
+            continue
+        eid = gf.stem
+        try:
+            data = json.loads(gf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Skipping reference GIL file %s: %s", gf, exc)
+            continue
+        if isinstance(data, dict):
+            by_file[eid] = data
+    return by_file
+
+
 def _count_gil_nodes(gil: Dict[str, Any]) -> Tuple[int, int, int]:
     """Return counts of Insight nodes, Quote nodes, and edges."""
     raw_n = gil.get("nodes")
@@ -69,26 +108,18 @@ def compute_gil_vs_reference_metrics(
         Metrics dict stored under ``vs_reference[reference_id]``.
     """
     pred_by_id = {str(p.get("episode_id")): p for p in predictions if p.get("episode_id")}
-    gold_files = sorted(reference_path.glob("*.json"))
-    gold_files = [f for f in gold_files if f.name != "index.json"]
+    ref_map = _load_gil_reference_map(reference_path)
 
     scored = 0
     exact_triple_matches = 0
     missing_pred = 0
-    missing_gold_read = 0
+    missing_ref = 0
 
-    for gf in gold_files:
-        eid = gf.stem
+    for eid, gold in ref_map.items():
         if eid not in pred_by_id:
             continue
-        try:
-            gold = json.loads(gf.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Skipping gold %s: %s", gf, exc)
-            missing_gold_read += 1
-            continue
         if not isinstance(gold, dict):
-            missing_gold_read += 1
+            missing_ref += 1
             continue
 
         pred_gil = pred_by_id[eid].get("output", {}).get("gil")
@@ -114,7 +145,7 @@ def compute_gil_vs_reference_metrics(
         ),
         "counts": {
             "missing_pred_gil": missing_pred,
-            "gold_read_errors": missing_gold_read,
+            "gold_read_errors": missing_ref,
             "exact_triple_matches": exact_triple_matches,
         },
     }

@@ -88,16 +88,20 @@ Models load **lazily** when GIL (or another feature that uses them) is first use
 
 ### Provider-based evidence (QA + NLI)
 
-GIL can use **either** the local evidence stack (extractive QA + NLI models above) **or** the same provider backends used for summarization (Option B: two separate capabilities per provider).
+GIL grounding always goes through **`find_grounded_quotes_via_providers`** in `gi/pipeline.py`: for each insight it calls **`extract_quotes`** then **`score_entailment`** on the configured backends. **`quote_extraction_provider`** and **`entailment_provider`** (config enums, same set as `summary_provider`: `transformers`, `hybrid_ml`, `openai`, `gemini`, `mistral`, `grok`, `deepseek`, `anthropic`, `ollama`) choose **which** implementations run. Defaults **`transformers`** use local extractive QA and NLI (aligned with `gi_qa_model` / `gi_nli_model` and the embedding/QA/NLI settings above); LLM backends use chat-style quote and entailment calls.
 
-- **`quote_extraction_provider`**: Provider used for **quote extraction (QA)** — "find a span that supports this insight." Same backends as `summary_provider`: `transformers`, `hybrid_ml`, `openai`, `gemini`, `mistral`, `grok`, `deepseek`, `anthropic`, `ollama`. Default: `transformers` (local extractive QA).
-- **`entailment_provider`**: Provider used for **entailment (NLI)** — "score premise (quote) vs hypothesis (insight)." Same backends; default: `transformers` (local NLI model).
+- **`quote_extraction_provider`**: Backend for **quote extraction (QA)** — find a span that supports the insight.
+- **`entailment_provider`**: Backend for **entailment (NLI)** — score premise (quote) vs hypothesis (insight).
 
-When both are set and the workflow passes the corresponding provider instances into GIL, the pipeline calls:
+The workflow usually passes provider instances into **`build_artifact`**. If either instance is omitted, **`create_gil_evidence_providers(cfg, summary_provider=...)`** in **`gi/deps.py`** constructs clients from config and reuses **`summary_provider`** when the configured types match (so callers do not need to wire four objects by hand).
 
-1. **`quote_extraction_provider.extract_quotes(transcript, insight_text)`** → list of candidate spans (char_start, char_end, text, qa_score).
-2. For each candidate, **`entailment_provider.score_entailment(premise=quote.text, hypothesis=insight_text)`** → float in [0, 1].
+For each insight the pipeline then:
+
+1. **`extract_quotes(transcript, insight_text)`** → list of candidate spans (char_start, char_end, text, qa_score).
+2. For each candidate, **`score_entailment(premise=quote.text, hypothesis=insight_text)`** → float in [0, 1].
 3. Candidates that pass the QA and NLI thresholds become `GroundedQuote` nodes and `SUPPORTED_BY` edges.
+
+**Tests and advanced use:** **`find_grounded_quotes`** in `gi/grounding.py` calls local QA/NLI loaders directly without a provider wrapper; it is **not** used inside **`build_artifact`**.
 
 **Quote spans (LLM extractors):** The model returns `quote_text` JSON; the pipeline maps it to **`char_start` / `char_end`** in the transcript with `resolve_llm_quote_span` (`gi/grounding.py`): exact match, apostrophe normalization (`'` vs `’`), whitespace-tolerant token regex, and longest contiguous sub-phrase when the model drops a leading word (e.g. `And`). If nothing matches, that candidate is dropped (no fake offsets). Among equal-length regex matches, the **earliest** occurrence in the transcript wins.
 
@@ -107,14 +111,33 @@ When both are set and the workflow passes the corresponding provider instances i
 
 **Windowed local QA (long transcripts):** When **`gi_qa_window_chars`** &gt; `0` and the transcript is longer, local extractive QA runs on **overlapping windows** of that size and keeps the **best-scoring** span (then NLI as usual). **`gi_qa_window_overlap_chars`** controls overlap (must be **&lt;** the window size). Default windowing is **on** (`1800` / `300`); set **`gi_qa_window_chars: 0`** to restore a **single** QA pass over the full transcript (often weak on very long episodes).
 
-If `quote_extraction_provider` or `entailment_provider` is not passed (e.g. older callers), GIL falls back to the **legacy path**: direct use of local `extractive_qa` and `nli_loader` with `gi_qa_model` and `gi_nli_model`. So existing config and behaviour remain valid.
+**Resilience and degraded artifacts:**
 
-**Resilience and fallback:**
+- **Strict grounding (`GILGroundingUnsatisfiedError`):** When **`gi_require_grounding`** is true and the stack produced **zero** grounded quotes while there are insights to ground, the pipeline logs a warning and sets **`gi_grounding_degraded`** on metrics when present. If **`gi_fail_on_missing_grounding`** is true, it **raises** `GILGroundingUnsatisfiedError` and the episode fails.
+- **Provider failures:** **`GILGroundingUnsatisfiedError`** is always **re-raised** if it escapes the evidence stack. Any **other** exception from the stack is caught, logged at debug, and the pipeline emits a **stub** or **multi-insight artifact with empty quote lists** (insights ungrounded) so the run can continue when strict mode is off.
+- **Malformed returns:** Provider return types are validated. If `extract_quotes` returns a non-list (e.g. dict or null), that pass yields no candidates and does not crash. Each candidate must have `char_start`, `char_end`, `text`, and `qa_score`; candidates missing these are skipped. If `score_entailment` fails for a candidate, that candidate is skipped and the rest are still processed.
 
-- **On exception:** If the provider path raises (e.g. `extract_quotes` or `score_entailment` fails, or the provider throws), the pipeline catches the exception and falls back to the legacy path for that episode, so the run continues and an artifact is still produced (possibly with no grounded quotes for affected insights).
-- **Malformed returns:** Provider return types are validated. If `extract_quotes` returns a non-list (e.g. dict or null), the provider path treats it as no candidates and does not crash. Each candidate must have `char_start`, `char_end`, `text`, and `qa_score`; candidates missing these are skipped. If `score_entailment` fails for a candidate, that candidate is skipped and the rest are still processed. Invalid data never crashes the pipeline.
+**Defaults vs API summaries:** Raw defaults for **`quote_extraction_provider`** and **`entailment_provider`** are **`transformers`** (local extractive QA + CrossEncoder NLI; install **`.[ml]`** / **`sentence-transformers`**). When **`gil_evidence_match_summary_provider`** is **`true`** (default) and **`generate_gi`** is on, **`Config`** rewrites both fields from **`transformers`** to **`summary_provider`** if **`summary_provider`** is an API LLM (**`openai`**, **`gemini`**, **`anthropic`**, **`mistral`**, **`deepseek`**, **`grok`**, **`ollama`**) or **`hybrid_ml`** — so a typical “OpenAI + summary bullets” run uses **OpenAI for grounding** without extra keys. Set **`gil_evidence_match_summary_provider: false`** to keep **local** evidence with API summaries (intentional hybrid). If you override only one evidence field to an API and leave the other on **`transformers`**, the CLI logs a **WARNING** about local NLI deps.
 
-**Summary:** Default remains local (transformers) for both. You can set `quote_extraction_provider` and `entailment_provider` to any summarization backend (e.g. `openai`) to use that provider’s `extract_quotes` and `score_entailment` implementations; the same provider instance used for summarization is reused when the config matches.
+---
+
+## GIL evidence: capability × provider matrix {#gil-evidence-provider-matrix}
+
+Each **`summary_provider`** / evidence backend implements **`extract_quotes`** and **`score_entailment`** for GIL (see `gi/grounding.py`, provider modules). **`generate_insights`** is separate: used only when **`gi_insight_source: provider`**.
+
+| Backend | `extract_quotes` | `score_entailment` | `generate_insights` (insight wording) | Notes |
+| --- | --- | --- | --- | --- |
+| **`transformers`** | Yes (local QA) | Yes (CrossEncoder NLI) | No (returns `[]`) | Requires **`.[ml]`**; `gi_qa_model` / `gi_nli_model`. |
+| **`hybrid_ml`** | Yes | Yes | No | Same local evidence stack; map/reduce summaries. |
+| **`openai`** | Yes (LLM JSON span) | Yes (LLM score) | Yes | API key; optional **`openai_insight_model`** for insights only. |
+| **`gemini`** | Yes | Yes | Yes | `GEMINI_API_KEY`. |
+| **`anthropic`** | Yes | Yes | Yes | `ANTHROPIC_API_KEY`. |
+| **`mistral`** | Yes | Yes | Yes | `MISTRAL_API_KEY`. |
+| **`deepseek`** | Yes | Yes | Yes | `DEEPSEEK_API_KEY`. |
+| **`grok`** | Yes | Yes | Yes | `GROK_API_KEY`. |
+| **`ollama`** | Yes | Yes | Yes | Local Ollama server. |
+
+Mixing backends (e.g. OpenAI summaries + local entailment) is **supported**; use **`gil_evidence_match_summary_provider`** and explicit **`quote_extraction_provider`** / **`entailment_provider`** to make the choice deliberate. See [CONFIGURATION — GIL evidence providers](../api/CONFIGURATION.md#grounded-insights-gil-evidence-providers).
 
 ---
 
@@ -127,6 +150,16 @@ The `gi.json` file contains:
 - **Schema and provenance**: `schema_version`, `model_version`, `prompt_version`, `episode_id`.
 - **Nodes**: Podcast, Episode, Speaker, Topic, **Insight**, **Quote**.
 - **Edges**: e.g. `HAS_INSIGHT` (Episode → Insight), `SUPPORTED_BY` (Insight → Quote), `ABOUT` (Insight → Topic).
+
+### Insight text provenance in `gi.json` (`model_version`)
+
+There is **no** separate `gi_insight_model` config field. Top-level **`model_version`** records **which model lineage produced the insight strings** for that artifact, derived at build time by `podcast_scraper.gi.provenance.resolve_gil_artifact_model_version`:
+
+- **`gi_insight_source: stub`** → `"stub"`.
+- **`summary_bullets`** → the summarization model (from the live `summary_provider.summary_model` when present, otherwise from `Config` — e.g. `summary_model` / `openai_summary_model` per provider).
+- **`provider`** → the model used for **`generate_insights`**. For OpenAI, that is **`openai_insight_model`** when set, otherwise **`openai_summary_model`** (same instance exposes `insight_model` on the provider after init).
+
+Use this field for audits and metrics, not a second hand-maintained model id in YAML.
 
 The file is co-located with the transcript and summary. The logical “full” set of grounded insights across the project is the union of all per-episode `gi.json` files (no global store in v1).
 

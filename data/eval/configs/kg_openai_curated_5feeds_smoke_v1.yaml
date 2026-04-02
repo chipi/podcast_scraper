@@ -1,0 +1,24 @@
+# Knowledge graph on smoke data: regenerate summary via OpenAI, then KG from bullets / provider.
+# Requires: OPENAI_API_KEY, make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1
+# Silver reference: predictions.jsonl with output.kg per episode.
+
+id: kg_openai_curated_5feeds_smoke_v1
+task: knowledge_graph
+
+backend:
+  type: openai
+  model: gpt-4o
+
+prompts:
+  user: openai/summarization/long_v1
+
+data:
+  dataset_id: curated_5feeds_smoke_v1
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  kg_extraction_source: summary_bullets

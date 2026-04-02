@@ -398,7 +398,9 @@ GIL extraction is controlled via the `Config` model (see `config.py` and
 - `gi_insight_source`, `gi_max_insights` — Where insight text comes from (stub,
   summary bullets, or provider `generate_insights`)
 - `gi.json` `model_version` — Derived from `gi_insight_source` and the live
-  summarization / insight model (see `gi.provenance`); no separate `gi_insight_model`
+  summarization / `generate_insights` model (see `gi.provenance`); no separate
+  `gi_insight_model`. OpenAI may set `openai_insight_model` so GIL insights use a
+  different chat model than map/reduce summarization while provenance stays accurate.
   on `Config`
 - `gi_qa_model`, `gi_nli_model` — Model IDs or registry aliases for local QA/NLI
   (when not using provider-based QA/NLI)
@@ -433,9 +435,9 @@ it guarantees verbatim spans (grounding contract).
 - **`quote_extraction_provider`**: Same enum as `summary_provider`; default `"transformers"`. Which provider to use for GIL quote extraction.
 - **`entailment_provider`**: Same enum; default `"transformers"`. Which provider to use for GIL entailment scoring.
 
-**Flow:** When GIL runs with `gi_require_grounding` and the workflow supplies `quote_extraction_provider` and `entailment_provider` instances (resolved from config; reuse `summary_provider` when config matches), the pipeline uses `find_grounded_quotes_via_providers`: for each insight it calls `extract_quotes` then `score_entailment` per candidate, and keeps only candidates above thresholds. If either provider is not supplied, the pipeline falls back to the legacy path (direct `extractive_qa` + `nli_loader` with `gi_qa_model` / `gi_nli_model`).
+**Flow:** When GIL runs with `gi_require_grounding`, a non-empty transcript, and resolved insights, `build_artifact` always uses `find_grounded_quotes_via_providers`. The workflow passes `quote_extraction_provider` and `entailment_provider` instances when it can; if either is omitted, `create_gil_evidence_providers(cfg, summary_provider=...)` in `gi/deps.py` instantiates clients from config (reusing `summary_provider` when the configured provider types match). For each insight the pipeline calls `extract_quotes` then `score_entailment` per candidate and keeps only candidates above thresholds. There is no separate in-pipeline “legacy” path: local QA/NLI are reached via the `transformers` (or other) provider implementations. `find_grounded_quotes` in `gi/grounding.py` remains for tests and direct callers only.
 
-**References:** User guide: `docs/guides/GROUNDED_INSIGHTS_GUIDE.md` (§ Provider-based evidence). Code: `gi/grounding.py` (`QuoteCandidate`, `find_grounded_quotes_via_providers`), `gi/pipeline.py` (`build_artifact(..., quote_extraction_provider=..., entailment_provider=...)`), `workflow/metadata_generation.py` (provider resolution and `create_summarization_provider(cfg, provider_type_override=...)`). Related: Issue #435 (evidence stack).
+**References:** User guide: `docs/guides/GROUNDED_INSIGHTS_GUIDE.md` (Provider-based evidence). Code: `gi/grounding.py` (`QuoteCandidate`, `find_grounded_quotes`, `find_grounded_quotes_via_providers`), `gi/deps.py` (`create_gil_evidence_providers`), `gi/pipeline.py` (`build_artifact(..., quote_extraction_provider=..., entailment_provider=...)`), `workflow/metadata_generation.py` (provider resolution and `create_summarization_provider(cfg, provider_type_override=...)`). Related: Issue #435 (evidence stack).
 
 ## Key Decisions
 

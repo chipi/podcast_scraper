@@ -515,12 +515,8 @@ class ExperimentConfig(BaseModel):
                 "eval_stub backend only supports tasks 'grounded_insights' or "
                 f"'knowledge_graph' (got task={self.task!r})"
             )
-        if self.task in ("grounded_insights", "knowledge_graph"):
-            if self.backend.type != "eval_stub":
-                raise ValueError(
-                    f"Task {self.task!r} currently only supports backend type 'eval_stub'. "
-                    f"Got {self.backend.type!r}."
-                )
+        # grounded_insights / knowledge_graph may use eval_stub (cheap CI) or any
+        # summarization-capable backend (regenerate summary, then GI/KG pipelines).
         return self
 
     @model_validator(mode="after")

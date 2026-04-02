@@ -463,6 +463,14 @@ def _add_openai_arguments(parser: argparse.ArgumentParser) -> None:
         help="OpenAI model for summarization (default: gpt-4o-mini)",
     )
     parser.add_argument(
+        "--openai-insight-model",
+        default=None,
+        help=(
+            "OpenAI model for GIL generate_insights only when gi_insight_source=provider "
+            "(default: same as --openai-summary-model)"
+        ),
+    )
+    parser.add_argument(
         "--openai-temperature",
         type=float,
         default=None,
@@ -2705,6 +2713,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         payload["openai_speaker_model"] = args.openai_speaker_model
     if args.openai_summary_model is not None:
         payload["openai_summary_model"] = args.openai_summary_model
+    if hasattr(args, "openai_insight_model") and args.openai_insight_model is not None:
+        payload["openai_insight_model"] = args.openai_insight_model
     if args.openai_temperature is not None:
         payload["openai_temperature"] = args.openai_temperature
     if hasattr(args, "openai_max_tokens") and args.openai_max_tokens is not None:
@@ -2955,6 +2965,28 @@ def _log_configuration_runtime_warnings(cfg: config.Config, logger: logging.Logg
             "generate_summaries and summary bullets) or provider with an LLM "
             "summary_provider. ML providers (transformers, hybrid_ml) do not "
             "implement generate_insights. See docs/guides/GROUNDED_INSIGHTS_GUIDE.md."
+        )
+    _local_gil = frozenset({"transformers", "hybrid_ml"})
+    _sp = getattr(cfg, "summary_provider", "transformers")
+    _qe = getattr(cfg, "quote_extraction_provider", "transformers")
+    _en = getattr(cfg, "entailment_provider", "transformers")
+    if (
+        cfg.generate_gi
+        and getattr(cfg, "gi_require_grounding", True)
+        and _sp in config.GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS
+        and (_qe in _local_gil or _en in _local_gil)
+        and not config._is_test_environment()
+    ):
+        logger.warning(
+            "GIL: summary_provider=%s uses an API or hybrid stack, but "
+            "quote_extraction_provider=%s and/or entailment_provider=%s still use "
+            "local Hugging Face QA/NLI (requires .[ml] / sentence-transformers for NLI). "
+            "For API-only grounding, set both evidence providers to match "
+            "summary_provider, or leave defaults with gil_evidence_match_summary_provider: "
+            "true (default). See GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix.",
+            _sp,
+            _qe,
+            _en,
         )
     _kg_eff = getattr(cfg, "kg_extraction_provider", None) or getattr(cfg, "summary_provider", "")
     if (

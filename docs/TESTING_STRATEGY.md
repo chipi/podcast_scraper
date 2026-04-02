@@ -1004,11 +1004,11 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [x] `kg/quality_metrics.py` — PRD-019 aggregates (`test_quality_metrics.py`)
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (`test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (`test_explore.py`)
-- [x] `gi/pipeline.py` — build_artifact stub, grounded (legacy), and provider path (quote_extraction_provider + entailment_provider) (`test_pipeline.py`)
+- [x] `gi/pipeline.py` — build_artifact stub, grounded via providers (including `create_gil_evidence_providers` / injected quote + entailment providers) (`test_pipeline.py`)
 - [x] `gi/grounding.py` — find_grounded_quotes with mocked QA/NLI; find_grounded_quotes_via_providers with mock extract_quotes/score_entailment; pipeline_metrics evidence call counters (`test_grounding.py`)
 - [x] Providers: extract_quotes and score_entailment (ML and LLM) unit-tested with mocked dependencies (`test_ml_provider.py`, `test_openai_provider.py`, etc.). Provider path and evidence method behaviour are covered in `test_grounding.py` and `test_pipeline.py`.
 - [x] Workflow: generate_episode_metadata passes quote_extraction_provider and entailment_provider into build_artifact when generate_gi and gi_require_grounding true (`test_metadata_generation.py`)
-- [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`)
+- [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`); config logging warnings for GIL stub insights and API summary + local evidence hybrid (`TestLogConfigurationGiStubWarning`, `TestLogConfigurationGilHybridWarning`)
 - [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
 
 #### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}

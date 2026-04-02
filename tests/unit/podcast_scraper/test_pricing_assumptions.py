@@ -129,6 +129,17 @@ def test_load_pricing_assumptions_payload_rejects_non_mapping(tmp_path: Path) ->
 
 
 @pytest.mark.unit
+def test_lookup_external_pricing_unknown_provider() -> None:
+    payload = {
+        "providers": {"openai": {"text": {"gpt-4o-mini": {"input_cost_per_1m_tokens": 1.0}}}}
+    }
+    assert (
+        pricing_assumptions.lookup_external_pricing(payload, "mistral", "summarization", "x")
+        is None
+    )
+
+
+@pytest.mark.unit
 def test_lookup_external_pricing_unknown_capability() -> None:
     payload = {
         "providers": {"openai": {"text": {"gpt-4o-mini": {"input_cost_per_1m_tokens": 1.0}}}}

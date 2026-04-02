@@ -199,6 +199,11 @@ class OpenAIProvider:
 
         # Summarization settings
         self.summary_model = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
+        _insight_override = getattr(cfg, "openai_insight_model", None)
+        if isinstance(_insight_override, str) and _insight_override.strip():
+            self.insight_model = _insight_override.strip()
+        else:
+            self.insight_model = self.summary_model
         self.summary_temperature = getattr(cfg, "openai_temperature", 0.3)
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
@@ -1186,7 +1191,7 @@ class OpenAIProvider:
                 "No numbering, bullets, or extra text."
             )
             response = self.client.chat.completions.create(
-                model=self.summary_model,
+                model=self.insight_model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},

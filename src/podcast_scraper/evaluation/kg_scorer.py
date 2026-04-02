@@ -10,6 +10,45 @@ from typing import Any, Dict, List, Tuple
 logger = logging.getLogger(__name__)
 
 
+def _load_kg_reference_map(reference_path: Path) -> Dict[str, Dict[str, Any]]:
+    """Load per-episode reference KG payloads from silver ``predictions.jsonl`` or gold JSON."""
+    silver = reference_path / "predictions.jsonl"
+    if silver.is_file():
+        by_id: Dict[str, Dict[str, Any]] = {}
+        try:
+            raw = silver.read_text(encoding="utf-8")
+        except OSError as exc:
+            logger.warning("Could not read silver reference %s: %s", silver, exc)
+            return {}
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            eid = rec.get("episode_id")
+            kg = rec.get("output", {}).get("kg")
+            if eid is not None and isinstance(kg, dict):
+                by_id[str(eid)] = kg
+        return by_id
+
+    by_file: Dict[str, Dict[str, Any]] = {}
+    for gf in sorted(reference_path.glob("*.json")):
+        if gf.name == "index.json":
+            continue
+        eid = gf.stem
+        try:
+            data = json.loads(gf.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Skipping reference KG file %s: %s", gf, exc)
+            continue
+        if isinstance(data, dict):
+            by_file[eid] = data
+    return by_file
+
+
 def _count_kg_nodes_edges(kg: Dict[str, Any]) -> Tuple[int, int]:
     """Return node count and edge count."""
     raw_n = kg.get("nodes")
@@ -64,23 +103,15 @@ def compute_kg_vs_reference_metrics(
         Metrics dict stored under ``vs_reference[reference_id]``.
     """
     pred_by_id = {str(p.get("episode_id")): p for p in predictions if p.get("episode_id")}
-    gold_files = sorted(reference_path.glob("*.json"))
-    gold_files = [f for f in gold_files if f.name != "index.json"]
+    ref_map = _load_kg_reference_map(reference_path)
 
     scored = 0
     exact_matches = 0
     missing_pred = 0
     missing_gold_read = 0
 
-    for gf in gold_files:
-        eid = gf.stem
+    for eid, gold in ref_map.items():
         if eid not in pred_by_id:
-            continue
-        try:
-            gold = json.loads(gf.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Skipping gold %s: %s", gf, exc)
-            missing_gold_read += 1
             continue
         if not isinstance(gold, dict):
             missing_gold_read += 1

@@ -26,6 +26,19 @@ def test_resolve_summary_bullets_uses_transformers_summary_model() -> None:
 
 
 @pytest.mark.unit
+def test_resolve_provider_prefers_insight_model_when_distinct() -> None:
+    cfg = create_test_config(
+        gi_insight_source="provider",
+        summary_provider="openai",
+        openai_api_key="sk-test-key-for-unit-tests",
+    )
+    prov = MagicMock()
+    prov.summary_model = "gpt-4o-mini"
+    prov.insight_model = "gpt-4o"
+    assert resolve_gil_artifact_model_version(cfg, prov, gi_insight_source="provider") == "gpt-4o"
+
+
+@pytest.mark.unit
 def test_resolve_provider_prefers_insight_provider_summary_model() -> None:
     cfg = create_test_config(
         gi_insight_source="provider",

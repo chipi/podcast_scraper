@@ -2219,6 +2219,52 @@ class TestCLIErrorHandling(unittest.TestCase):
         self.assertEqual(cm.exception.code, 0)
 
 
+class TestLogConfigurationGilHybridWarning(unittest.TestCase):
+    """Runtime warning when API summary stack pairs with local GIL evidence (WIP hybrid note)."""
+
+    def test_warns_when_api_summary_and_local_evidence(self):
+        log = logging.getLogger("test_gil_hybrid_warn")
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            with self.assertLogs(log, level="WARNING") as cm:
+                cfg = config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    generate_metadata=True,
+                    generate_gi=True,
+                    gi_insight_source="summary_bullets",
+                    gi_require_grounding=True,
+                    summary_provider="openai",
+                    openai_api_key="sk-test-key-for-unit-tests",
+                    quote_extraction_provider="openai",
+                    entailment_provider="transformers",
+                    gil_evidence_match_summary_provider=False,
+                )
+                cli._log_configuration(cfg, log)
+        messages = " ".join(r.getMessage() for r in cm.records)
+        self.assertIn("GIL:", messages)
+        self.assertIn("sentence-transformers", messages)
+
+    def test_no_hybrid_warning_when_evidence_matches_openai(self):
+        log = logging.getLogger("test_gil_hybrid_aligned")
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            with patch.object(log, "warning") as mock_warn:
+                cfg = config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    generate_metadata=True,
+                    generate_gi=True,
+                    gi_insight_source="summary_bullets",
+                    gi_require_grounding=True,
+                    summary_provider="openai",
+                    openai_api_key="sk-test-key-for-unit-tests",
+                )
+                cli._log_configuration(cfg, log)
+                hybrid_calls = [
+                    c
+                    for c in mock_warn.call_args_list
+                    if c.args and "sentence-transformers" in str(c.args[0])
+                ]
+                self.assertEqual(hybrid_calls, [])
+
+
 class TestLogConfigurationGiStubWarning(unittest.TestCase):
     """_log_configuration warns when GIL uses stub insights outside test env (Issue #460)."""
 

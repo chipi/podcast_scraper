@@ -80,7 +80,6 @@ class TestGILPipeline:
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = True
-        cfg.gi_insight_model = "google/flan-t5-base"
         cfg.gi_qa_model = "roberta-squad2"
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
@@ -125,7 +124,6 @@ class TestGILPipeline:
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = True
-        cfg.gi_insight_model = "google/flan-t5-base"
         cfg.gi_qa_model = "roberta-squad2"
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None
@@ -156,7 +154,6 @@ class TestGILPipeline:
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = True
-        cfg.gi_insight_model = "stub"
         cfg.gi_qa_model = "roberta-squad2"
         cfg.gi_nli_model = "nli-deberta-base"
         one_quote = [
@@ -199,7 +196,6 @@ class TestGILPipeline:
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = True
-        cfg.gi_insight_model = "stub"
         candidate = QuoteCandidate(char_start=2, char_end=11, text="the proof", qa_score=0.9)
         mock_qa = MagicMock()
         mock_qa.extract_quotes = MagicMock(return_value=[candidate])
@@ -445,7 +441,6 @@ class TestGILPipeline:
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = False  # Skip evidence stack so no model load
-        cfg.gi_insight_model = "test"
         cfg.gi_max_insights = 5  # Ensure real int for slice in _resolve_insight_texts
         out = build_artifact(
             "ep:1",
@@ -466,7 +461,6 @@ class TestGILPipeline:
         cfg.gi_require_grounding = True
         cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 3
-        cfg.gi_insight_model = "test"
         cfg.gi_qa_model = "roberta-squad2"
         cfg.gi_nli_model = "nli-deberta-base"
         cfg.extractive_qa_device = None

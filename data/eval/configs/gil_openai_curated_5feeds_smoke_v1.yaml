@@ -1,0 +1,25 @@
+# Grounded insights on smoke data: regenerate summary via OpenAI, then GIL from bullets.
+# Requires: OPENAI_API_KEY, make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1
+# Compare vs a silver reference run (predictions.jsonl with output.gil) if configured.
+
+id: gil_openai_curated_5feeds_smoke_v1
+task: grounded_insights
+
+backend:
+  type: openai
+  model: gpt-4o
+
+prompts:
+  user: openai/summarization/long_v1
+
+data:
+  dataset_id: curated_5feeds_smoke_v1
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  gi_insight_source: summary_bullets
+  gi_require_grounding: true
