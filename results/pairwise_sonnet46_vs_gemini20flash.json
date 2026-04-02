@@ -1,0 +1,98 @@
+{
+  "candidate_a": "silver_candidate_anthropic_sonnet46_smoke_v1",
+  "candidate_b": "silver_candidate_gemini31pro_smoke_v1",
+  "judge_openai_model": "gpt-4o-mini",
+  "judge_anthropic_model": "claude-haiku-4-5",
+  "total_episodes": 5,
+  "votes_a": 5,
+  "votes_b": 0,
+  "ties": 0,
+  "overall_winner": "A",
+  "episodes": [
+    {
+      "episode_id": "p01_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more comprehensive coverage of the episode's themes and details while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.75,
+        "reason": "Summary A provides superior thematic coherence by explicitly framing the episode's central philosophy (fundamentals over shortcuts), offers more comprehensive coverage of all major topics with better integration, and maintains better narrative flow while remaining concise; Summary B covers the same points but in a more fragmented, list-like manner without the unifying insight."
+      },
+      "summary_a_length": 335,
+      "summary_b_length": 204
+    },
+    {
+      "episode_id": "p02_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more detailed coverage of key themes and concepts discussed in the episode."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.72,
+        "reason": "Summary A provides more specific, concrete details from the transcript (e.g., the exact framing of on-call design, alert fatigue as design failure, RFC structure) while Summary B is more generic and less grounded in the actual discussion content."
+      },
+      "summary_a_length": 410,
+      "summary_b_length": 280
+    },
+    {
+      "episode_id": "p03_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more comprehensive coverage of the episode's themes and details while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.85,
+        "reason": "Summary A provides superior depth and organization, explaining the psychological and practical rationale behind each recommendation (e.g., why backup lights matter mentally, how silt danger connects to buoyancy), while Summary B lists similar points more superficially without the connective reasoning that makes the episode's core message coherent."
+      },
+      "summary_a_length": 384,
+      "summary_b_length": 228
+    },
+    {
+      "episode_id": "p04_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.8,
+        "reason": "Summary A provides more comprehensive topic coverage and clearer organization of key insights."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.72,
+        "reason": "Summary A provides more comprehensive coverage of key concepts (minimalist approach, foundational habits, practical takeaway) with better organization and slightly more concrete detail, while Summary B is more concise but omits some important nuances about workflow discipline and the philosophy behind simple setups."
+      },
+      "summary_a_length": 383,
+      "summary_b_length": 239
+    },
+    {
+      "episode_id": "p05_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more comprehensive coverage of the episode's key themes and details while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.72,
+        "reason": "Summary A provides richer detail and more specific examples (the 50% loss requiring 100% gain, real estate stress test specifics, the distinction between different drivers vs. different tickers) while maintaining accuracy, whereas Summary B is more generic and omits several concrete points from the transcript."
+      },
+      "summary_a_length": 369,
+      "summary_b_length": 284
+    }
+  ]
+}

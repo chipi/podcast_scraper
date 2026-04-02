@@ -1055,6 +1055,14 @@ class OpenAIProvider:
                 retry_with_metrics,
             )
 
+            # Newer OpenAI models (o1/o3/gpt-5 series) require max_completion_tokens.
+            _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
+            _token_kwarg = (
+                {"max_completion_tokens": max_length}
+                if _uses_completion_tokens
+                else {"max_tokens": max_length}
+            )
+
             def _make_api_call():
                 return self.client.chat.completions.create(
                     model=self.summary_model,
@@ -1063,7 +1071,7 @@ class OpenAIProvider:
                         {"role": "user", "content": user_prompt},
                     ],
                     temperature=self.summary_temperature,
-                    max_tokens=max_length,
+                    **_token_kwarg,
                 )
 
             try:

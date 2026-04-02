@@ -1,0 +1,98 @@
+{
+  "candidate_a": "silver_candidate_openai_gpt54_smoke_v1",
+  "candidate_b": "silver_candidate_gemini31pro_smoke_v1",
+  "judge_openai_model": "gpt-4o-mini",
+  "judge_anthropic_model": "claude-haiku-4-5",
+  "total_episodes": 5,
+  "votes_a": 5,
+  "votes_b": 0,
+  "ties": 0,
+  "overall_winner": "A",
+  "episodes": [
+    {
+      "episode_id": "p01_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more comprehensive coverage of the episode's themes and details while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.85,
+        "reason": "Summary A provides superior topic coverage by explicitly connecting trail sustainability to rider decisions and bike setup, contextualizing maintenance within a broader philosophy of fundamentals over shortcuts, and offering more nuanced framing of how each element (drainage, technique, maintenance, skill development) serves the overarching theme, whereas Summary B lists topics more flatly without these connective insights."
+      },
+      "summary_a_length": 351,
+      "summary_b_length": 204
+    },
+    {
+      "episode_id": "p02_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.8,
+        "reason": "Summary A provides more detailed coverage of the episode's themes and practical advice while maintaining conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.75,
+        "reason": "Summary A more accurately reflects the transcript's actual content and structure with specific quotes, while Summary B adds interpretive language and organizational framing not present in the source material."
+      },
+      "summary_a_length": 312,
+      "summary_b_length": 280
+    },
+    {
+      "episode_id": "p03_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more comprehensive coverage of the episode's themes and details while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.85,
+        "reason": "Summary A provides superior topic coverage by explicitly connecting themes (calm\u2192safety\u2192preparation, navigation redundancy, buoyancy discipline, equipment psychology, judgment/restraint), while Summary B lists similar points but lacks the thematic coherence and depth that makes the episode's argument clear."
+      },
+      "summary_a_length": 439,
+      "summary_b_length": 228
+    },
+    {
+      "episode_id": "p04_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.8,
+        "reason": "Summary A provides more comprehensive topic coverage and emphasizes key themes while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.72,
+        "reason": "Summary A provides better topic coverage with five distinct bullet points addressing lighting control, gear simplification, color management, and workflow discipline, while Summary B covers similar ground but in a less organized and slightly less comprehensive manner."
+      },
+      "summary_a_length": 319,
+      "summary_b_length": 239
+    },
+    {
+      "episode_id": "p05_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.9,
+        "reason": "Summary A provides more comprehensive topic coverage and detail while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.75,
+        "reason": "Summary A captures the episode's specific framework and examples (real estate stress test, drawdown math, diversification drivers) with better structural organization and concrete detail, while Summary B is more generic and misses the real estate example's prominence and the specific closing habit recommendation."
+      },
+      "summary_a_length": 323,
+      "summary_b_length": 284
+    }
+  ]
+}

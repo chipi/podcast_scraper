@@ -1,19 +1,20 @@
-# Silver Reference Candidate — Gemini 3.1 Pro Preview on smoke dataset.
+# Silver Reference Candidate — Gemini 2.0 Flash on smoke dataset.
 #
-# Purpose: Generate a candidate silver reference using Gemini 3.1 Pro to evaluate
+# Purpose: Generate a candidate silver reference using Gemini 2.0 Flash to evaluate
 # whether it produces higher-quality summaries than the current silver (GPT-4o).
 #
-# NOTE: gemini-3.1-pro-preview is still in preview (not GA) as of April 2026.
-# Rate limits may be more restrictive than GA models. If you hit 429s, wait and retry.
-# Do NOT use gemini-3-pro-preview (discontinued March 2026) or gemini-3.1-pro (does not exist).
+# NOTE: Both gemini-3.1-pro-preview and gemini-2.5-pro are thinking models in this SDK
+# (google-genai 0.8.0) — they consume max_output_tokens on internal reasoning and produce
+# empty output at 800 tokens. gemini-2.0-flash is the GA non-thinking frontier model
+# available via this SDK and produces full-length summaries reliably.
 #
 # Run:
 #   make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_gemini31pro_smoke_v1.yaml FORCE=1
 #
 # Then promote (if selected):
 #   make run-promote RUN_ID=silver_candidate_gemini31pro_smoke_v1 \
-#     --as reference PROMOTED_ID=silver_gemini31pro_smoke_v1 \
-#     REFERENCE_QUALITY=silver REASON="Gemini 3.1 Pro selected via pairwise judge"
+#     --as reference PROMOTED_ID=silver_gemini20flash_smoke_v1 \
+#     REFERENCE_QUALITY=silver REASON="Gemini 2.0 Flash selected via pairwise judge"
 #
 # Requires: GEMINI_API_KEY
 
@@ -22,7 +23,7 @@ task: "summarization"
 
 backend:
   type: "gemini"
-  model: "gemini-3.1-pro-preview"
+  model: "gemini-2.0-flash"
 
 prompts:
   system: "gemini/summarization/system_v1"
