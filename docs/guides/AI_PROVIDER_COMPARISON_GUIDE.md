@@ -75,8 +75,12 @@ transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
 | :------------- | :----: | :-- |
 | **Complete Privacy** | Local ML / Hybrid ML / Ollama | Data never leaves your device |
 | **Lowest Cost** | Local ML / Hybrid ML / Ollama | $0 (just electricity) |
-| **Highest Quality** | OpenAI | Industry leader ([measured](eval-reports/EVAL_SMOKE_V1_2026_03.md#cloud-llms-ranked-by-rouge-l)) |
-| **Full Capabilities** | Local ML / Ollama | All 3 capabilities (transcription + speaker detection + summarization) |
+| **Highest Quality (cloud)** | Anthropic | Leads cloud ROUGE-L (32.6%) vs Sonnet 4.6 silver ([measured](eval-reports/EVAL_SMOKE_V1_2026_04.md#cloud-providers-sorted-by-rouge-l)) |
+| **Fastest Cloud** | Gemini | 2.9s/ep paragraphs, 1.9s/ep bullets |
+| **On-prem, quality first** | Ollama (qwen3.5:35b) | 29.9% ROUGE-L, competitive with cloud mid-tier |
+| **On-prem, speed/quality** | Ollama (mistral-small3.2) | Best embedding (85.8% bullets), 30s/ep |
+| **On-prem, low resource** | Ollama (llama3.2:3b) | 7.3s/ep paragraphs, 4.8s/ep bullets, only 2GB |
+| **Full Capabilities** | OpenAI / Local ML | All 3 capabilities |
 | **Local MAP + LLM REDUCE** | Hybrid ML (Ollama/llama_cpp) | LongT5 MAP + local LLM synthesis (RFC-042) |
 | **Real-Time Info** | Grok | Real-time information access (RFC-036) |
 | **Lowest Cloud Cost** | DeepSeek | 95% cheaper than OpenAI (RFC-034) |
@@ -92,48 +96,68 @@ transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
 All claims below are backed by measured data. For the full metrics tables, methodology,
 and metric definitions, see the [Evaluation Reports](eval-reports/index.md).
 
-### Cloud providers (vs silver GPT-4o reference)
+> **Note on the silver reference:** Results were re-measured in April 2026 against
+> `silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, selected via pairwise LLM judge).
+> Rankings shifted significantly — see
+> [why the rankings changed](eval-reports/EVAL_SMOKE_V1_2026_04.md#why-the-rankings-changed-vs-march-2026).
+> The March 2026 numbers (vs GPT-4o silver) are preserved in the
+> [March report](eval-reports/EVAL_SMOKE_V1_2026_03.md) for reference.
 
-**Best non-OpenAI cloud:** **Gemini** (`gemini-2.0-flash`) — highest ROUGE-L (33.3%)
-and embedding similarity (87.3%) among non-OpenAI providers, with the fastest latency
-(2.7s/ep). **Mistral** (`mistral-small-latest`) is a close second (32.5% ROUGE-L,
-2.8s/ep).
+### Cloud providers — paragraphs (vs Sonnet 4.6 silver, April 2026)
+
+**Best cloud provider:** **Anthropic** (`claude-haiku-4-5`) — leads on ROUGE-L (32.6%)
+and embedding similarity (86.8%), driven by round-2 prompt tuning (+82% gain from
+baseline). **Gemini** (`gemini-2.0-flash`) remains the fastest cloud option (2.9s/ep).
 
 | Provider | ROUGE-L | Embed | Latency |
 | -------- | ------- | ----- | ------- |
-| OpenAI (GPT-4o) | 58.8% | 92.7% | 15.4s |
-| Gemini | 33.3% | 87.3% | 2.7s |
-| Mistral | 32.5% | 84.8% | 2.8s |
-| Grok | 29.5% | 85.4% | 13.2s |
-| Anthropic | 29.4% | 81.8% | 4.8s |
-| DeepSeek | 26.3% | 85.0% | 14.2s |
+| **Anthropic** | **32.6%** | **86.8%** | 5.1s |
+| DeepSeek | 28.3% | 81.5% | 9.8s |
+| Gemini | 27.6% | 81.6% | **2.9s** |
+| OpenAI | 25.7% | 82.5% | 8.2s |
+| Mistral | 25.7% | 80.1% | 4.0s |
+| Grok | 25.1% | 77.8% | 8.9s |
 
-> OpenAI scores highest because the silver reference is GPT-4o. Compare non-OpenAI
-> providers against each other for a fairer picture.
+> The Anthropic model used here is `claude-haiku-4-5` (smallest/fastest Haiku). The
+> silver reference is Claude Sonnet 4.6 — Anthropic scores well partly because the
+> models share a generation family.
 
 Full table:
-[Smoke v1 report — Cloud LLMs](eval-reports/EVAL_SMOKE_V1_2026_03.md#cloud-llms-ranked-by-rouge-l)
+[Smoke v1 report — Cloud providers](eval-reports/EVAL_SMOKE_V1_2026_04.md#cloud-providers-sorted-by-rouge-l)
 
-### Local Ollama (vs silver GPT-4o reference)
+### Local Ollama — paragraphs (vs Sonnet 4.6 silver, April 2026)
 
-**Best local models:** **Mistral Small 3.2** and **Qwen 2.5:32b** tie at **38.4%
-ROUGE-L** — both outperform every cloud provider except OpenAI. Mistral Small 3.2
-leads on ROUGE-1, BLEU, and embedding similarity. **Qwen 3.5:9b** (with
-`reasoning_effort: none`) is the best smaller model (~30% ROUGE-L, 85.2% embed).
+**Best local model:** **Qwen 3.5:35b** at 29.9% ROUGE-L (20s/ep) — competitive with
+cloud mid-tier. **Qwen 3.5:27b** is close behind (29.2%) but nearly 4× slower (83s/ep).
+**Mistral Small 3.2** is the best speed/quality balance for large-model budgets (25.2%,
+46s/ep). **llama3.2:3b** (22.6%, 7.3s/ep) is the best fast/low-resource option.
 
 | Model | ROUGE-L | Embed | Latency |
 | ----- | ------- | ----- | ------- |
-| mistral-small3.2:latest | 38.4% | 85.8% | 48.6s |
-| qwen2.5:32b | 38.4% | 85.2% | 54.8s |
-| mistral:7b | 32.8% | 80.4% | 17.4s |
-| qwen3.5:9b | 30.3% | 85.2% | 21.9s |
-| qwen2.5:7b | 28.3% | 84.9% | 12.1s |
+| qwen3.5:35b | **29.9%** | **81.8%** | 20.4s |
+| qwen3.5:27b | 29.2% | 80.4% | 82.8s |
+| qwen2.5:32b | 25.4% | 76.6% | 58.5s |
+| mistral-small3.2 | 25.2% | 77.1% | 45.5s |
+| qwen3.5:9b | 24.7% | 75.8% | 23.9s |
+| llama3.2:3b | 22.6% | 78.9% | **7.3s** |
 
-> Ollama latencies are hardware-dependent. Re-run on your machine before making
-> decisions.
+> Latencies are hardware-dependent (Apple M-series). Re-run on your machine.
 
-Full table:
-[Smoke v1 report — Local Ollama](eval-reports/EVAL_SMOKE_V1_2026_03.md#local-ollama-ranked-by-rouge-l)
+### Local Ollama — bullets (vs Sonnet 4.6 bullets silver, April 2026)
+
+For bullet JSON output, **llama3.2:3b** leads on ROUGE-L (35.5%, 4.8s/ep — fastest).
+**Mistral Small 3.2** leads on embedding similarity (85.8%). **qwen2.5:7b** does not
+reliably follow the JSON format — avoid it for the bullets track.
+
+| Model | ROUGE-L | Embed | Latency |
+| ----- | ------- | ----- | ------- |
+| llama3.2:3b | **35.5%** | 79.8% | **4.8s** |
+| mistral-small3.2 | 34.9% | **85.8%** | 30.5s |
+| qwen3.5:27b | 33.5% | 84.7% | 53.6s |
+| qwen3.5:9b | 33.3% | 83.4% | 15.4s |
+
+Full tables:
+[Smoke v1 report (April 2026)](eval-reports/EVAL_SMOKE_V1_2026_04.md)
 
 ---
 
@@ -306,13 +330,15 @@ grok_summary_model: grok-beta
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  🥇 CHEAPEST CLOUD:      DeepSeek         $0.016/100 episodes (97% off)    │
-│  🥇 HIGHEST QUALITY:     OpenAI GPT-4o    Industry benchmark               │
+│  🥇 BEST CLOUD QUALITY:  Anthropic Haiku  32.6% ROUGE-L (Apr 2026)        │
+│  🥇 FASTEST CLOUD:       Gemini Flash     2.9s/ep paragraphs               │
 │  🥇 LARGEST CONTEXT:     Gemini Pro       2,000,000 tokens                 │
 │  🥇 BEST FREE TIER:      Gemini/Grok      Generous limits                  │
 │  🥇 REAL-TIME INFO:      Grok             X/Twitter integration            │
 │  🥇 EU COMPLIANT:        Mistral          European summarization provider  │
 │  🥇 COMPLETE PRIVACY:    Local/Ollama     Data never leaves device         │
-│  🥇 BEST LOCAL MODEL:    Mistral Small 3.2 / Qwen 2.5:32b (38.4% ROUGE-L)│
+│  🥇 BEST LOCAL (para):   qwen3.5:35b      29.9% ROUGE-L, 20s/ep           │
+│  🥇 BEST LOCAL (bullets):llama3.2:3b      35.5% ROUGE-L, 4.8s/ep          │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
@@ -320,10 +346,10 @@ grok_summary_model: grok-beta
 │     Transcription = 90%+ of cloud costs                                    │
 │     → Use local Whisper + cloud text = massive savings                     │
 │                                                                             │
-│  📊 EVAL INSIGHT:                                                          │
-│     Gemini is best non-OpenAI cloud (33.3% ROUGE-L, 87.3% embed)          │
-│     Ollama top models beat all cloud except OpenAI (38.4% ROUGE-L)         │
-│     → See eval reports for full data                                       │
+│  📊 EVAL INSIGHT (Apr 2026, vs Sonnet 4.6 silver):                        │
+│     Anthropic Haiku leads cloud paragraphs (32.6% ROUGE-L, 86.8% embed)   │
+│     qwen3.5:35b is the only on-prem model in cloud quality range (29.9%)   │
+│     Rankings change when the silver reference changes — see eval reports   │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
