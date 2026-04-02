@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
 from podcast_scraper.config import Config as RuntimeConfig
+from podcast_scraper.evaluation import gi_scorer, kg_scorer
 from podcast_scraper.evaluation.eval_gi_kg_runtime import (
     merge_eval_task_into_summarizer_config,
     runtime_config_for_grounded_insights_eval,
@@ -426,3 +429,198 @@ def test_compute_kg_vs_reference(tmp_path: Path) -> None:
     )
     assert out["scored_episodes"]["scored"] == 1
     assert out["node_edge_count_exact_match_rate"] == 1.0
+
+
+def test_load_gil_silver_predictions_read_oserror_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    silver = ref_dir / "predictions.jsonl"
+    silver.write_text('{"episode_id":"e1","output":{"gil":{}}}\n', encoding="utf-8")
+
+    real_read_text = Path.read_text
+
+    def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self.name == "predictions.jsonl":
+            raise OSError("permission denied")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _read_text)
+    assert gi_scorer._load_gil_reference_map(ref_dir) == {}
+
+
+def test_load_gil_silver_skips_bad_json_and_non_dict_gil(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    good = {"episode_id": "ok", "output": {"gil": {"nodes": [], "edges": []}}}
+    raw = (
+        "not json\n"
+        + json.dumps(good)
+        + "\n"
+        + json.dumps({"episode_id": "x", "output": {}})
+        + "\n"
+    )
+    (ref_dir / "predictions.jsonl").write_text(raw, encoding="utf-8")
+    m = gi_scorer._load_gil_reference_map(ref_dir)
+    assert list(m.keys()) == ["ok"]
+
+
+def test_load_gil_json_skips_index_invalid_json_and_list_payload(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "gold"
+    ref_dir.mkdir()
+    (ref_dir / "index.json").write_text("{}", encoding="utf-8")
+    (ref_dir / "bad.json").write_text("{", encoding="utf-8")
+    (ref_dir / "list.json").write_text("[1,2]", encoding="utf-8")
+    (ref_dir / "good.json").write_text(
+        json.dumps({"nodes": [{"type": "Insight", "id": "i"}], "edges": []}),
+        encoding="utf-8",
+    )
+    m = gi_scorer._load_gil_reference_map(ref_dir)
+    assert set(m.keys()) == {"good"}
+
+
+def test_compute_gil_vs_reference_missing_pred_non_dict_gold_and_mismatch(tmp_path: Path) -> None:
+    gold_dir = tmp_path / "gold"
+    gold_dir.mkdir()
+    (gold_dir / "e1.json").write_text(
+        json.dumps({"nodes": [{"type": "Insight", "id": "x"}], "edges": []}),
+        encoding="utf-8",
+    )
+    predictions = [{"episode_id": "e1", "output": {"gil": None}}]
+    out = compute_gil_vs_reference_metrics(
+        predictions,
+        "ref",
+        gold_dir,
+        dataset_id="d1",
+    )
+    assert out["counts"]["missing_pred_gil"] == 1
+    assert out["insight_quote_edge_count_exact_match_rate"] == 0.0
+
+    with patch.object(
+        gi_scorer,
+        "_load_gil_reference_map",
+        return_value={"e1": []},
+    ):
+        out2 = compute_gil_vs_reference_metrics(
+            [{"episode_id": "e1", "output": {"gil": {"nodes": [], "edges": []}}}],
+            "ref",
+            gold_dir,
+            dataset_id="d1",
+        )
+    assert out2["counts"]["gold_read_errors"] == 1
+
+    (gold_dir / "e2.json").write_text(
+        json.dumps(
+            {"nodes": [{"type": "Insight", "id": "a"}], "edges": [{"x": 1}]},
+        ),
+        encoding="utf-8",
+    )
+    predictions2 = [
+        {
+            "episode_id": "e2",
+            "output": {
+                "gil": {
+                    "nodes": [
+                        {"type": "Insight", "id": "b1"},
+                        {"type": "Insight", "id": "b2"},
+                    ],
+                    "edges": [{"x": 1}],
+                },
+            },
+        }
+    ]
+    out3 = compute_gil_vs_reference_metrics(predictions2, "ref", gold_dir, dataset_id="d1")
+    assert out3["scored_episodes"]["scored"] == 1
+    assert out3["insight_quote_edge_count_exact_match_rate"] == 0.0
+
+
+def test_compute_gil_prediction_stats_coerces_non_list_nodes_and_empty() -> None:
+    stats = compute_gil_prediction_stats(
+        [
+            {"episode_id": "a", "output": {"gil": {"nodes": "nope", "edges": "neither"}}},
+            {"episode_id": "b", "output": {}},
+        ]
+    )
+    assert stats["episodes_with_gil"] == 1
+    assert stats["avg_insight_nodes"] == 0.0
+    assert stats["avg_quote_nodes"] == 0.0
+    assert stats["avg_edges"] == 0.0
+
+    empty = compute_gil_prediction_stats([])
+    assert empty["episodes_with_gil"] == 0
+    assert empty["avg_insight_nodes"] == 0.0
+
+
+def test_load_kg_silver_predictions_read_oserror_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    silver = ref_dir / "predictions.jsonl"
+    silver.write_text('{"episode_id":"e1","output":{"kg":{}}}\n', encoding="utf-8")
+
+    real_read_text = Path.read_text
+
+    def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self.name == "predictions.jsonl":
+            raise OSError("permission denied")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _read_text)
+    assert kg_scorer._load_kg_reference_map(ref_dir) == {}
+
+
+def test_load_kg_silver_skips_bad_json_lines(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    good = {"episode_id": "ok", "output": {"kg": {"nodes": [], "edges": []}}}
+    (ref_dir / "predictions.jsonl").write_text(
+        "not json\n" + json.dumps(good) + "\n",
+        encoding="utf-8",
+    )
+    m = kg_scorer._load_kg_reference_map(ref_dir)
+    assert list(m.keys()) == ["ok"]
+
+
+def test_load_kg_json_skips_index_and_invalid(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "gold"
+    ref_dir.mkdir()
+    (ref_dir / "index.json").write_text("{}", encoding="utf-8")
+    (ref_dir / "bad.json").write_text("{", encoding="utf-8")
+    (ref_dir / "ok.json").write_text(json.dumps({"nodes": [1], "edges": []}), encoding="utf-8")
+    m = kg_scorer._load_kg_reference_map(ref_dir)
+    assert set(m.keys()) == {"ok"}
+
+
+def test_compute_kg_vs_reference_missing_pred_and_non_dict_gold(tmp_path: Path) -> None:
+    gold_dir = tmp_path / "gold"
+    gold_dir.mkdir()
+    (gold_dir / "e1.json").write_text(json.dumps({"nodes": [1], "edges": []}), encoding="utf-8")
+    out = compute_kg_vs_reference_metrics(
+        [{"episode_id": "e1", "output": {"kg": "bad"}}],
+        "ref",
+        gold_dir,
+        dataset_id="d1",
+    )
+    assert out["counts"]["missing_pred_kg"] == 1
+
+    with patch.object(kg_scorer, "_load_kg_reference_map", return_value={"e1": "x"}):
+        out2 = compute_kg_vs_reference_metrics(
+            [{"episode_id": "e1", "output": {"kg": {"nodes": [], "edges": []}}}],
+            "ref",
+            gold_dir,
+            dataset_id="d1",
+        )
+    assert out2["counts"]["gold_read_errors"] == 1
+
+
+def test_compute_kg_prediction_stats_non_list_and_empty() -> None:
+    stats = compute_kg_prediction_stats(
+        [{"episode_id": "a", "output": {"kg": {"nodes": 1, "edges": None}}}]
+    )
+    assert stats["episodes_with_kg"] == 1
+    assert stats["avg_nodes"] == 0.0
+    assert stats["avg_edges"] == 0.0
+    empty = compute_kg_prediction_stats([])
+    assert empty["episodes_with_kg"] == 0

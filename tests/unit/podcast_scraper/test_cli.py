@@ -960,6 +960,60 @@ class TestBuildConfig(unittest.TestCase):
         self.assertEqual(cfg.openai_summary_model, "gpt-4o-mini")
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
+    def test_build_config_with_openai_insight_model(self):
+        """Test that _build_config includes openai_insight_model when provided."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Test default: tiny.en
+            whisper_device=None,
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=True,  # Required when generate_summaries=True
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=True,
+            metrics_output=None,
+            summary_provider="openai",
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model="gpt-4o-mini",
+            openai_insight_model="gpt-4o",
+            openai_temperature=None,
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.openai_insight_model, "gpt-4o")
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
     def test_build_config_with_openai_temperature(self):
         """Test that _build_config includes openai_temperature when provided."""
         args = Namespace(
@@ -1141,6 +1195,7 @@ class TestParseArgs(unittest.TestCase):
         self.assertIsNone(args.openai_transcription_model)
         self.assertIsNone(args.openai_speaker_model)
         self.assertIsNone(args.openai_summary_model)
+        self.assertIsNone(args.openai_insight_model)
         self.assertIsNone(args.openai_temperature)
 
     def test_parse_args_invalid_transcription_provider(self):
@@ -1397,6 +1452,7 @@ class TestAddArgumentGroups(unittest.TestCase):
         self.assertIn("openai_transcription_model", action_dests)
         self.assertIn("openai_speaker_model", action_dests)
         self.assertIn("openai_summary_model", action_dests)
+        self.assertIn("openai_insight_model", action_dests)
         self.assertIn("openai_temperature", action_dests)
         self.assertIn("openai_max_tokens", action_dests)
         self.assertIn("openai_cleaning_model", action_dests)
@@ -1412,6 +1468,7 @@ class TestAddArgumentGroups(unittest.TestCase):
             "openai_transcription_model",
             "openai_speaker_model",
             "openai_summary_model",
+            "openai_insight_model",
             "openai_max_tokens",
             "openai_cleaning_model",
             "openai_cleaning_temperature",
@@ -2235,6 +2292,27 @@ class TestLogConfigurationGilHybridWarning(unittest.TestCase):
                     summary_provider="openai",
                     openai_api_key="sk-test-key-for-unit-tests",
                     quote_extraction_provider="openai",
+                    entailment_provider="transformers",
+                    gil_evidence_match_summary_provider=False,
+                )
+                cli._log_configuration(cfg, log)
+        messages = " ".join(r.getMessage() for r in cm.records)
+        self.assertIn("GIL:", messages)
+        self.assertIn("sentence-transformers", messages)
+
+    def test_warns_when_hybrid_ml_summary_and_local_evidence(self):
+        """Same GIL hybrid warning when summary stack is hybrid_ml (in API-align set)."""
+        log = logging.getLogger("test_gil_hybrid_hybrid_ml")
+        with patch("podcast_scraper.config._is_test_environment", return_value=False):
+            with self.assertLogs(log, level="WARNING") as cm:
+                cfg = config.Config(
+                    rss_url="https://example.com/feed.xml",
+                    generate_metadata=True,
+                    generate_gi=True,
+                    gi_insight_source="summary_bullets",
+                    gi_require_grounding=True,
+                    summary_provider="hybrid_ml",
+                    quote_extraction_provider="transformers",
                     entailment_provider="transformers",
                     gil_evidence_match_summary_provider=False,
                 )
