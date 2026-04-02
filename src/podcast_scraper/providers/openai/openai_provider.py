@@ -31,6 +31,7 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     OPENAI_CLEANING_MAX_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import (
     extract_region_from_endpoint,
     log_provider_metadata,
@@ -122,14 +123,17 @@ class OpenAIProvider:
             )
 
         # Validate API key format
-        is_valid, error_msg = validate_api_key_format(
+        is_valid, _ = validate_api_key_format(
             cfg.openai_api_key,
             "OpenAI",
             expected_prefixes=["sk-", "sk-proj-"],
         )
         if not is_valid:
-            # Note: error_msg does not contain the API key itself, only validation status
-            logger.warning("OpenAI API key validation failed: %s", error_msg)
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "OpenAI API key validation failed (missing, too short, or wrong prefix); "
+                "credentials are never logged."
+            )
 
         self.cfg = cfg
 
@@ -383,11 +387,11 @@ class OpenAIProvider:
             return text
 
         except Exception as exc:
-            logger.error("OpenAI Whisper API error: %s", exc)
+            logger.error("OpenAI Whisper API error: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"OpenAI transcription failed: {exc}",
+                message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
                 provider="OpenAIProvider/Transcription",
             ) from exc
 
@@ -558,7 +562,7 @@ class OpenAIProvider:
 
         except Exception as exc:
             elapsed = time.time() - start_time
-            logger.error("OpenAI Whisper API error: %s", exc)
+            logger.error("OpenAI Whisper API error: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -573,7 +577,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Transcription",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -582,13 +586,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Transcription",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI transcription failed: {exc}",
+                    message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Transcription",
                 ) from exc
 
@@ -635,7 +639,9 @@ class OpenAIProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -725,13 +731,15 @@ class OpenAIProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse OpenAI API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse OpenAI API JSON response: %s", format_exception_for_log(exc)
+            )
             logger.debug(
                 "Response text: %s", response_text if "response_text" in locals() else "N/A"
             )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("OpenAI API error in speaker detection: %s", exc)
+            logger.error("OpenAI API error in speaker detection: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -746,7 +754,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/SpeakerDetection",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -755,13 +763,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI speaker detection failed: {exc}",
+                    message=f"OpenAI speaker detection failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/SpeakerDetection",
                 ) from exc
 
@@ -861,7 +869,9 @@ class OpenAIProvider:
             return speaker_names[:min_speakers], detected_hosts, detection_succeeded
 
         except (json.JSONDecodeError, KeyError, AttributeError) as exc:
-            logger.warning("Failed to parse OpenAI response as JSON: %s", exc)
+            logger.warning(
+                "Failed to parse OpenAI response as JSON: %s", format_exception_for_log(exc)
+            )
             logger.debug("Response text: %s", response_text[:200])
             # Fallback: try to extract names from text response
             return self._parse_speakers_from_text(response_text, known_hosts)
@@ -1120,7 +1130,7 @@ class OpenAIProvider:
             }
 
         except Exception as exc:
-            logger.error("OpenAI API error in summarization: %s", exc)
+            logger.error("OpenAI API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -1135,7 +1145,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -1144,13 +1154,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI summarization failed: {exc}",
+                    message=f"OpenAI summarization failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                 ) from exc
 
@@ -1730,7 +1740,7 @@ class OpenAIProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("OpenAI API error in cleaning: %s", exc)
+            logger.error("OpenAI API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -1745,7 +1755,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Cleaning",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -1754,13 +1764,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI cleaning failed: {exc}",
+                    message=f"OpenAI cleaning failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Cleaning",
                 ) from exc
 

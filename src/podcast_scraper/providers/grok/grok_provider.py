@@ -42,6 +42,7 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     GROK_CLEANING_MAX_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -88,6 +89,20 @@ class GrokProvider:
             raise ValueError(
                 "Grok API key required for Grok provider. "
                 "Set GROK_API_KEY environment variable or grok_api_key in config."
+            )
+
+        from ...utils.provider_metadata import validate_api_key_format
+
+        is_valid, _ = validate_api_key_format(
+            cfg.grok_api_key,
+            "Grok",
+            expected_prefixes=None,
+        )
+        if not is_valid:
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "Grok API key validation failed (missing or too short); "
+                "credentials are never logged."
             )
 
         self.cfg = cfg
@@ -266,7 +281,9 @@ class GrokProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -360,10 +377,12 @@ class GrokProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse Grok API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse Grok API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("Grok API error in speaker detection: %s", exc)
+            logger.error("Grok API error in speaker detection: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -379,7 +398,7 @@ class GrokProvider:
                 try:
                     if isinstance(exc, AuthenticationError):
                         raise ProviderAuthError(
-                            message=f"Grok authentication failed: {exc}",
+                            message=f"Grok authentication failed: {format_exception_for_log(exc)}",
                             provider="GrokProvider/SpeakerDetection",
                             suggestion=(
                                 "Check your GROK_API_KEY environment variable " "or config setting"
@@ -387,7 +406,7 @@ class GrokProvider:
                         ) from exc
                     elif isinstance(exc, RateLimitError):
                         raise ProviderRuntimeError(
-                            message=f"Grok rate limit exceeded: {exc}",
+                            message=f"Grok rate limit exceeded: {format_exception_for_log(exc)}",
                             provider="GrokProvider/SpeakerDetection",
                             suggestion="Wait before retrying or check your API quota",
                         ) from exc
@@ -395,7 +414,7 @@ class GrokProvider:
                         error_msg = str(exc).lower()
                         if "invalid" in error_msg and "model" in error_msg:
                             raise ProviderRuntimeError(
-                                message=f"Grok invalid model: {exc}",
+                                message=f"Grok invalid model: {format_exception_for_log(exc)}",
                                 provider="GrokProvider/SpeakerDetection",
                                 suggestion="Check grok_speaker_model configuration",
                             ) from exc
@@ -407,13 +426,13 @@ class GrokProvider:
                 # Fallback: check by exception type name (works even when mocked)
                 if exc_type_name == "AuthenticationError":
                     raise ProviderAuthError(
-                        message=f"Grok authentication failed: {exc}",
+                        message=f"Grok authentication failed: {format_exception_for_log(exc)}",
                         provider="GrokProvider/SpeakerDetection",
                         suggestion="Check your GROK_API_KEY environment variable or config setting",
                     ) from exc
                 elif exc_type_name == "RateLimitError":
                     raise ProviderRuntimeError(
-                        message=f"Grok rate limit exceeded: {exc}",
+                        message=f"Grok rate limit exceeded: {format_exception_for_log(exc)}",
                         provider="GrokProvider/SpeakerDetection",
                         suggestion="Wait before retrying or check your API quota",
                     ) from exc
@@ -421,7 +440,7 @@ class GrokProvider:
                     error_msg = str(exc).lower()
                     if "invalid" in error_msg and "model" in error_msg:
                         raise ProviderRuntimeError(
-                            message=f"Grok invalid model: {exc}",
+                            message=f"Grok invalid model: {format_exception_for_log(exc)}",
                             provider="GrokProvider/SpeakerDetection",
                             suggestion="Check grok_speaker_model configuration",
                         ) from exc
@@ -445,7 +464,7 @@ class GrokProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"Grok authentication failed: {exc}",
+                    message=f"Grok authentication failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/SpeakerDetection",
                     suggestion="Check your GROK_API_KEY environment variable or config setting",
                 ) from exc
@@ -456,7 +475,7 @@ class GrokProvider:
                 or exc_type_name == "RateLimitError"
             ):
                 raise ProviderRuntimeError(
-                    message=f"Grok rate limit exceeded: {exc}",
+                    message=f"Grok rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="GrokProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
@@ -466,13 +485,13 @@ class GrokProvider:
                 or exc_type_name == "BadRequestError"
             ):
                 raise ProviderRuntimeError(
-                    message=f"Grok invalid model: {exc}",
+                    message=f"Grok invalid model: {format_exception_for_log(exc)}",
                     provider="GrokProvider/SpeakerDetection",
                     suggestion="Check grok_speaker_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Grok speaker detection failed: {exc}",
+                    message=f"Grok speaker detection failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/SpeakerDetection",
                 ) from exc
 
@@ -721,7 +740,7 @@ class GrokProvider:
             }
 
         except Exception as exc:
-            logger.error("Grok API error in summarization: %s", exc)
+            logger.error("Grok API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -731,25 +750,25 @@ class GrokProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Grok authentication failed: {exc}",
+                    message=f"Grok authentication failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Summarization",
                     suggestion="Check your GROK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Grok rate limit exceeded: {exc}",
+                    message=f"Grok rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Grok invalid model: {exc}",
+                    message=f"Grok invalid model: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Summarization",
                     suggestion="Check grok_summary_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Grok summarization failed: {exc}",
+                    message=f"Grok summarization failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Summarization",
                 ) from exc
 
@@ -1227,26 +1246,26 @@ class GrokProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("Grok API error in cleaning: %s", exc)
+            logger.error("Grok API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle Grok-specific error types
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Grok authentication failed: {exc}",
+                    message=f"Grok authentication failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Cleaning",
                     suggestion="Check your GROK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Grok rate limit exceeded: {exc}",
+                    message=f"Grok rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Grok cleaning failed: {exc}",
+                    message=f"Grok cleaning failed: {format_exception_for_log(exc)}",
                     provider="GrokProvider/Cleaning",
                 ) from exc
 

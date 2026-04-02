@@ -28,6 +28,7 @@ from ..providers.capabilities import get_provider_capabilities, is_local_provide
 from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
 )
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 from .episode_processor import (
     process_episode_download as _process_episode_download_original,
     transcribe_media_to_text as _transcribe_media_to_text_original,
@@ -196,7 +197,10 @@ def _create_summarization_provider(
                 provider.warmup(timeout_s=600)  # 10 minute timeout for first load
                 logger.debug("Ollama summarization models warmed up")
             except Exception as exc:
-                logger.warning(f"Failed to warm up Ollama summarization models: {exc}")
+                logger.warning(
+                    "Failed to warm up Ollama summarization models: %s",
+                    format_exception_for_log(exc),
+                )
                 # Don't fail - models will load on first use, just slower
         return provider
     except ImportError as e:
@@ -205,16 +209,16 @@ def _create_summarization_provider(
             f"Summarization dependencies not available but generate_summaries=True: {e}. "
             "Install ML dependencies or set generate_summaries=False."
         )
-        logger.error(error_msg)
-        raise RuntimeError(error_msg) from e
+        logger.error("%s", redact_for_log(error_msg))
+        raise RuntimeError(redact_for_log(error_msg)) from e
     except Exception as e:
         # Fail fast - provider initialization must succeed when generate_summaries=True
         error_msg = (
             f"Failed to initialize summarization provider (generate_summaries=True): {e}. "
             "Cannot proceed with summarization."
         )
-        logger.error(error_msg)
-        raise RuntimeError(error_msg) from e
+        logger.error("%s", redact_for_log(error_msg))
+        raise RuntimeError(redact_for_log(error_msg)) from e
 
 
 def _create_all_providers(

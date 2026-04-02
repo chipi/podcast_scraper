@@ -40,6 +40,7 @@ from ...utils.cleaning_max_tokens import (
     DEEPSEEK_CLEANING_MAX_TOKENS,
     estimate_cleaning_output_tokens,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -86,6 +87,20 @@ class DeepSeekProvider:
             raise ValueError(
                 "DeepSeek API key required for DeepSeek provider. "
                 "Set DEEPSEEK_API_KEY environment variable or deepseek_api_key in config."
+            )
+
+        from ...utils.provider_metadata import validate_api_key_format
+
+        is_valid, _ = validate_api_key_format(
+            cfg.deepseek_api_key,
+            "DeepSeek",
+            expected_prefixes=None,
+        )
+        if not is_valid:
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "DeepSeek API key validation failed (missing or too short); "
+                "credentials are never logged."
             )
 
         self.cfg = cfg
@@ -242,7 +257,9 @@ class DeepSeekProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -335,10 +352,14 @@ class DeepSeekProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse DeepSeek API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse DeepSeek API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("DeepSeek API error in speaker detection: %s", exc)
+            logger.error(
+                "DeepSeek API error in speaker detection: %s", format_exception_for_log(exc)
+            )
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -348,25 +369,25 @@ class DeepSeekProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"DeepSeek authentication failed: {exc}",
+                    message=f"DeepSeek authentication failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                     suggestion="Check your DEEPSEEK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek rate limit exceeded: {exc}",
+                    message=f"DeepSeek rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek invalid model: {exc}",
+                    message=f"DeepSeek invalid model: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                     suggestion="Check deepseek_speaker_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek speaker detection failed: {exc}",
+                    message=f"DeepSeek speaker detection failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                 ) from exc
 
@@ -611,7 +632,7 @@ class DeepSeekProvider:
             }
 
         except Exception as exc:
-            logger.error("DeepSeek API error in summarization: %s", exc)
+            logger.error("DeepSeek API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -621,25 +642,25 @@ class DeepSeekProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"DeepSeek authentication failed: {exc}",
+                    message=f"DeepSeek authentication failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                     suggestion="Check your DEEPSEEK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek rate limit exceeded: {exc}",
+                    message=f"DeepSeek rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek invalid model: {exc}",
+                    message=f"DeepSeek invalid model: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                     suggestion="Check deepseek_summary_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek summarization failed: {exc}",
+                    message=f"DeepSeek summarization failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                 ) from exc
 
@@ -1121,26 +1142,26 @@ class DeepSeekProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("DeepSeek API error in cleaning: %s", exc)
+            logger.error("DeepSeek API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle DeepSeek-specific error types
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"DeepSeek authentication failed: {exc}",
+                    message=f"DeepSeek authentication failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Cleaning",
                     suggestion="Check your DEEPSEEK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek rate limit exceeded: {exc}",
+                    message=f"DeepSeek rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek cleaning failed: {exc}",
+                    message=f"DeepSeek cleaning failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Cleaning",
                 ) from exc
 

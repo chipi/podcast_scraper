@@ -53,6 +53,7 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
 
@@ -108,14 +109,17 @@ class GeminiProvider:
         # Validate API key format
         from ...utils.provider_metadata import validate_api_key_format
 
-        is_valid, error_msg = validate_api_key_format(
+        is_valid, _ = validate_api_key_format(
             cfg.gemini_api_key,
             "Gemini",
             expected_prefixes=None,  # Gemini keys don't have standard prefix
         )
         if not is_valid:
-            # Note: error_msg does not contain the API key itself, only validation status
-            logger.warning("Gemini API key validation failed: %s", error_msg)
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "Gemini API key validation failed (missing or too short); "
+                "credentials are never logged."
+            )
 
         self.cfg = cfg
         self.api_key = cfg.gemini_api_key
@@ -389,19 +393,27 @@ class GeminiProvider:
                     "  Error message: %s\n"
                     "  Full exception: %s",
                     error_type,
-                    error_msg,
-                    exc,
+                    redact_for_log(error_msg),
+                    format_exception_for_log(exc),
                     exc_info=True,
                 )
                 # Check if exception has additional attributes (some SDKs provide rate limit info)
                 if hasattr(exc, "status_code"):
                     logger.error("  HTTP status code: %s", exc.status_code)
                 if hasattr(exc, "response"):
-                    logger.error("  Response object: %s", exc.response)
+                    # Do not log exc.response body: may echo API key or other secrets.
+                    resp = getattr(exc, "response", None)
+                    if resp is not None:
+                        r_status = getattr(resp, "status_code", None)
+                        logger.error(
+                            "  Response attachment: type=%s, status_code=%s",
+                            type(resp).__name__,
+                            r_status,
+                        )
                 if hasattr(exc, "retry_after"):
                     logger.error("  Retry after: %s seconds", exc.retry_after)
             else:
-                logger.error("Gemini API error in transcription: %s", exc)
+                logger.error("Gemini API error in transcription: %s", format_exception_for_log(exc))
 
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
@@ -415,7 +427,7 @@ class GeminiProvider:
                 or "permission" in error_msg_lower
             ):
                 raise ProviderAuthError(
-                    message=f"Gemini authentication failed: {exc}",
+                    message=f"Gemini authentication failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Transcription",
                     suggestion="Check your GEMINI_API_KEY environment variable or config setting",
                 ) from exc
@@ -426,7 +438,7 @@ class GeminiProvider:
                 or "resource exhausted" in error_msg_lower
             ):
                 raise ProviderRuntimeError(
-                    message=f"Gemini rate limit exceeded (429): {exc}",
+                    message=f"Gemini rate limit exceeded (429): {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Transcription",
                     suggestion=(
                         "Gemini API rate limit exceeded. This usually means:\n"
@@ -439,13 +451,13 @@ class GeminiProvider:
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Gemini invalid model: {exc}",
+                    message=f"Gemini invalid model: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Transcription",
                     suggestion="Check gemini_transcription_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Gemini transcription failed: {exc}",
+                    message=f"Gemini transcription failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Transcription",
                 ) from exc
 
@@ -571,7 +583,9 @@ class GeminiProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -681,10 +695,12 @@ class GeminiProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse Gemini API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse Gemini API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("Gemini API error in speaker detection: %s", exc)
+            logger.error("Gemini API error in speaker detection: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -694,25 +710,25 @@ class GeminiProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Gemini authentication failed: {exc}",
+                    message=f"Gemini authentication failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/SpeakerDetection",
                     suggestion="Check your GEMINI_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Gemini rate limit exceeded: {exc}",
+                    message=f"Gemini rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Gemini invalid model: {exc}",
+                    message=f"Gemini invalid model: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/SpeakerDetection",
                     suggestion="Check gemini_speaker_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Gemini speaker detection failed: {exc}",
+                    message=f"Gemini speaker detection failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/SpeakerDetection",
                 ) from exc
 
@@ -974,7 +990,7 @@ class GeminiProvider:
             }
 
         except Exception as exc:
-            logger.error("Gemini API error in summarization: %s", exc)
+            logger.error("Gemini API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -984,25 +1000,25 @@ class GeminiProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Gemini authentication failed: {exc}",
+                    message=f"Gemini authentication failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Summarization",
                     suggestion="Check your GEMINI_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Gemini rate limit exceeded: {exc}",
+                    message=f"Gemini rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Gemini invalid model: {exc}",
+                    message=f"Gemini invalid model: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Summarization",
                     suggestion="Check gemini_summary_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Gemini summarization failed: {exc}",
+                    message=f"Gemini summarization failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Summarization",
                 ) from exc
 
@@ -1544,26 +1560,26 @@ class GeminiProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("Gemini API error in cleaning: %s", exc)
+            logger.error("Gemini API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle Gemini-specific error types
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Gemini authentication failed: {exc}",
+                    message=f"Gemini authentication failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Cleaning",
                     suggestion="Check your GEMINI_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Gemini rate limit exceeded: {exc}",
+                    message=f"Gemini rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Gemini cleaning failed: {exc}",
+                    message=f"Gemini cleaning failed: {format_exception_for_log(exc)}",
                     provider="GeminiProvider/Cleaning",
                 ) from exc
 

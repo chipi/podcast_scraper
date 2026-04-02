@@ -43,6 +43,7 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     MISTRAL_CLEANING_MAX_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...workflow import metrics
 
 logger = logging.getLogger(__name__)
@@ -90,6 +91,20 @@ class MistralProvider:
             raise ValueError(
                 "Mistral API key required for Mistral provider. "
                 "Set MISTRAL_API_KEY environment variable or mistral_api_key in config."
+            )
+
+        from ...utils.provider_metadata import validate_api_key_format
+
+        is_valid, _ = validate_api_key_format(
+            cfg.mistral_api_key,
+            "Mistral",
+            expected_prefixes=None,
+        )
+        if not is_valid:
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "Mistral API key validation failed (missing or too short); "
+                "credentials are never logged."
             )
 
         self.cfg = cfg
@@ -314,7 +329,7 @@ class MistralProvider:
             return text
 
         except Exception as exc:
-            logger.error("Mistral API error in transcription: %s", exc)
+            logger.error("Mistral API error in transcription: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -324,25 +339,25 @@ class MistralProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Mistral authentication failed: {exc}",
+                    message=f"Mistral authentication failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Transcription",
                     suggestion="Check your MISTRAL_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral rate limit exceeded: {exc}",
+                    message=f"Mistral rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Transcription",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral invalid model: {exc}",
+                    message=f"Mistral invalid model: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Transcription",
                     suggestion="Check mistral_transcription_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Mistral transcription failed: {exc}",
+                    message=f"Mistral transcription failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Transcription",
                 ) from exc
 
@@ -443,7 +458,9 @@ class MistralProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -559,10 +576,14 @@ class MistralProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse Mistral API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse Mistral API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("Mistral API error in speaker detection: %s", exc)
+            logger.error(
+                "Mistral API error in speaker detection: %s", format_exception_for_log(exc)
+            )
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -572,25 +593,25 @@ class MistralProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Mistral authentication failed: {exc}",
+                    message=f"Mistral authentication failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/SpeakerDetection",
                     suggestion="Check your MISTRAL_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral rate limit exceeded: {exc}",
+                    message=f"Mistral rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="MistralProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral invalid model: {exc}",
+                    message=f"Mistral invalid model: {format_exception_for_log(exc)}",
                     provider="MistralProvider/SpeakerDetection",
                     suggestion="Check mistral_speaker_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Mistral speaker detection failed: {exc}",
+                    message=f"Mistral speaker detection failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/SpeakerDetection",
                 ) from exc
 
@@ -832,7 +853,7 @@ class MistralProvider:
             }
 
         except Exception as exc:
-            logger.error("Mistral API error in summarization: %s", exc)
+            logger.error("Mistral API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -842,25 +863,25 @@ class MistralProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Mistral authentication failed: {exc}",
+                    message=f"Mistral authentication failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Summarization",
                     suggestion="Check your MISTRAL_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral rate limit exceeded: {exc}",
+                    message=f"Mistral rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral invalid model: {exc}",
+                    message=f"Mistral invalid model: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Summarization",
                     suggestion="Check mistral_summary_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Mistral summarization failed: {exc}",
+                    message=f"Mistral summarization failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Summarization",
                 ) from exc
 
@@ -1353,26 +1374,26 @@ class MistralProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("Mistral API error in cleaning: %s", exc)
+            logger.error("Mistral API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle Mistral-specific error types
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"Mistral authentication failed: {exc}",
+                    message=f"Mistral authentication failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Cleaning",
                     suggestion="Check your MISTRAL_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Mistral rate limit exceeded: {exc}",
+                    message=f"Mistral rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Mistral cleaning failed: {exc}",
+                    message=f"Mistral cleaning failed: {format_exception_for_log(exc)}",
                     provider="MistralProvider/Cleaning",
                 ) from exc
 

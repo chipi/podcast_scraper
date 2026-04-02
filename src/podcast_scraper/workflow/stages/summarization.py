@@ -24,6 +24,7 @@ else:
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import extract_episode_metadata, extract_episode_published_date
 from ...utils import filesystem
+from ...utils.log_redaction import redact_for_log
 from .. import metrics
 from ..metadata_generation import (
     _determine_metadata_path,
@@ -561,8 +562,8 @@ def parallel_episode_summarization(
                 "Summary provider not available but generate_summaries=True. "
                 "Cannot proceed with parallel summarization without provider."
             )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            logger.error("%s", redact_for_log(error_msg))
+            raise RuntimeError(redact_for_log(error_msg))
         # If generate_summaries=False, it's okay to skip
         logger.warning("Summary provider not available, skipping parallel summarization")
         return

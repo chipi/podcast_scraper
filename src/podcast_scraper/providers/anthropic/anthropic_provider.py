@@ -38,6 +38,7 @@ from ...utils.cleaning_max_tokens import (
     clamp_cleaning_max_tokens,
     estimate_cleaning_output_tokens,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 from ..capabilities import ProviderCapabilities
@@ -98,14 +99,17 @@ class AnthropicProvider:
         # Validate API key format
         from ...utils.provider_metadata import validate_api_key_format
 
-        is_valid, error_msg = validate_api_key_format(
+        is_valid, _ = validate_api_key_format(
             cfg.anthropic_api_key,
             "Anthropic",
             expected_prefixes=["sk-ant-"],
         )
         if not is_valid:
-            # Note: error_msg does not contain the API key itself, only validation status
-            logger.warning("Anthropic API key validation failed: %s", error_msg)
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "Anthropic API key validation failed (missing, too short, or wrong prefix); "
+                "credentials are never logged."
+            )
 
         self.cfg = cfg
 
@@ -416,7 +420,9 @@ class AnthropicProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -520,10 +526,14 @@ class AnthropicProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse Anthropic API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse Anthropic API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("Anthropic API error in speaker detection: %s", exc)
+            logger.error(
+                "Anthropic API error in speaker detection: %s", format_exception_for_log(exc)
+            )
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -538,7 +548,7 @@ class AnthropicProvider:
                 or "401" in error_msg
             ):
                 raise ProviderAuthError(
-                    message=f"Anthropic authentication failed: {exc}",
+                    message=f"Anthropic authentication failed: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/SpeakerDetection",
                     suggestion=(
                         "Check your ANTHROPIC_API_KEY environment variable or config setting"
@@ -546,19 +556,19 @@ class AnthropicProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic rate limit exceeded: {exc}",
+                    message=f"Anthropic rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic invalid model: {exc}",
+                    message=f"Anthropic invalid model: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/SpeakerDetection",
                     suggestion="Check anthropic_speaker_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic speaker detection failed: {exc}",
+                    message=f"Anthropic speaker detection failed: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/SpeakerDetection",
                 ) from exc
 
@@ -810,7 +820,7 @@ class AnthropicProvider:
             }
 
         except Exception as exc:
-            logger.error("Anthropic API error in summarization: %s", exc)
+            logger.error("Anthropic API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -825,7 +835,7 @@ class AnthropicProvider:
                 or "401" in error_msg
             ):
                 raise ProviderAuthError(
-                    message=f"Anthropic authentication failed: {exc}",
+                    message=f"Anthropic authentication failed: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Summarization",
                     suggestion=(
                         "Check your ANTHROPIC_API_KEY environment variable or config setting"
@@ -833,19 +843,19 @@ class AnthropicProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic rate limit exceeded: {exc}",
+                    message=f"Anthropic rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic invalid model: {exc}",
+                    message=f"Anthropic invalid model: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Summarization",
                     suggestion="Check anthropic_summary_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic summarization failed: {exc}",
+                    message=f"Anthropic summarization failed: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Summarization",
                 ) from exc
 
@@ -1010,7 +1020,7 @@ class AnthropicProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("Anthropic API error in cleaning: %s", exc)
+            logger.error("Anthropic API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle Anthropic-specific error types
@@ -1022,19 +1032,19 @@ class AnthropicProvider:
                 or "401" in error_msg
             ):
                 raise ProviderAuthError(
-                    message=f"Anthropic authentication failed: {exc}",
+                    message=f"Anthropic authentication failed: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Cleaning",
                     suggestion="Check your ANTHROPIC_API_KEY environment variable or config setting",  # noqa: E501
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic rate limit exceeded: {exc}",
+                    message=f"Anthropic rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Anthropic cleaning failed: {exc}",
+                    message=f"Anthropic cleaning failed: {format_exception_for_log(exc)}",
                     provider="AnthropicProvider/Cleaning",
                 ) from exc
 

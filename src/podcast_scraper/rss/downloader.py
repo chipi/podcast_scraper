@@ -21,6 +21,7 @@ from requests.utils import requote_uri
 from urllib3.util.retry import Retry
 
 from ..utils import progress
+from ..utils.log_redaction import format_exception_for_log
 from ..utils.progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
@@ -331,7 +332,11 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
 
         return b"".join(body_parts), ctype
     except (requests.RequestException, OSError) as exc:
-        logger.warning(f"Failed to read response from {url}: {exc}")
+        logger.warning(
+            "Failed to read response from %s: %s",
+            url,
+            format_exception_for_log(exc),
+        )
         return None, None
     finally:
         resp.close()

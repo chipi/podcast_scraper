@@ -23,6 +23,7 @@ else:
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..rss import choose_transcript_url, downloader
 from ..utils import filesystem
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -1000,15 +1001,25 @@ def transcribe_media_to_text(
         # Handle file size validation errors gracefully
         error_msg = str(exc)
         if "exceeds" in error_msg and "limit" in error_msg:
-            logger.warning(f"[{job.idx}] Skipping episode due to file size limit: {error_msg}")
+            logger.warning(
+                "[%s] Skipping episode due to file size limit: %s",
+                job.idx,
+                redact_for_log(error_msg),
+            )
             # Return False to indicate episode was skipped (not failed)
             return False, None, bytes_downloaded
         else:
             # Re-raise if it's a different ValueError
-            logger.error(f"    Transcription validation failed: {exc}")
+            logger.error(
+                "    Transcription validation failed: %s",
+                format_exception_for_log(exc),
+            )
             return False, None, bytes_downloaded
     except (RuntimeError, OSError, ProviderError) as exc:
-        logger.error(f"    Whisper transcription failed: {exc}")
+        logger.error(
+            "    Whisper transcription failed: %s",
+            format_exception_for_log(exc),
+        )
         return False, None, bytes_downloaded
     finally:
         _cleanup_temp_media(temp_media, cfg)

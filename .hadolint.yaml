@@ -3,6 +3,11 @@
 # See: https://github.com/hadolint/hadolint
 
 ignored:
+  # DL3005: Avoid apt-get upgrade (non-reproducible layers)
+  # We deliberately upgrade the slim base before apt install so distro CVE fixes
+  # (e.g. libtiff / Snyk container findings) ship in rebuilt images.
+  - DL3005
+
   # DL3008: Pin versions in apt-get install
   # We deliberately use latest ffmpeg as we want security updates
   - DL3008

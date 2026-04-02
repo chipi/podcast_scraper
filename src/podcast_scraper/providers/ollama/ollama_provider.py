@@ -51,6 +51,7 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     OLLAMA_CLEANING_MAX_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -514,7 +515,9 @@ class OllamaProvider:
             # httpx exceptions inherit from httpx.HTTPError, but we catch Exception
             # to be safe across different httpx versions
             if "httpx" in type(exc).__module__:
-                logger.warning("Could not validate model availability: %s", exc)
+                logger.warning(
+                    "Could not validate model availability: %s", format_exception_for_log(exc)
+                )
                 # Don't fail - model might still work, just warn
             else:
                 raise
@@ -589,7 +592,7 @@ class OllamaProvider:
                 response.raise_for_status()
                 logger.debug(f"Model {model} warmed up successfully")
             except Exception as exc:
-                logger.warning(f"Failed to warm up model {model}: {exc}")
+                logger.warning(f"Failed to warm up model {model}: {format_exception_for_log(exc)}")
                 # Don't fail - model might still work, just warn
                 # The first real request will trigger loading anyway
 
@@ -663,7 +666,7 @@ class OllamaProvider:
                     logger.debug(f"Model {model} is ready (elapsed: {elapsed:.1f}s)")
                 except Exception as exc:
                     # Model not ready yet, continue polling
-                    logger.debug(f"Model {model} not ready yet: {exc}")
+                    logger.debug(f"Model {model} not ready yet: {format_exception_for_log(exc)}")
 
             # If not all models are ready, wait before next poll
             if len(ready_models) < len(models_to_check):
@@ -734,7 +737,9 @@ class OllamaProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -840,14 +845,16 @@ class OllamaProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse Ollama API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse Ollama API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("Ollama API error in speaker detection: %s", exc)
+            logger.error("Ollama API error in speaker detection: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"Ollama speaker detection failed: {exc}",
+                message=f"Ollama speaker detection failed: {format_exception_for_log(exc)}",
                 provider="OllamaProvider/SpeakerDetection",
             ) from exc
 
@@ -1122,11 +1129,11 @@ class OllamaProvider:
             }
 
         except Exception as exc:
-            logger.error("Ollama API error in summarization: %s", exc)
+            logger.error("Ollama API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"Ollama summarization failed: {exc}",
+                message=f"Ollama summarization failed: {format_exception_for_log(exc)}",
                 provider="OllamaProvider/Summarization",
             ) from exc
 
@@ -1295,20 +1302,20 @@ class OllamaProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("Ollama API error in cleaning: %s", exc)
+            logger.error("Ollama API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             # Handle Ollama-specific error types
             error_msg = str(exc).lower()
             if "connection" in error_msg or "refused" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Ollama server connection failed: {exc}",
+                    message=f"Ollama server connection failed: {format_exception_for_log(exc)}",
                     provider="OllamaProvider/Cleaning",
                     suggestion="Ensure Ollama server is running at the configured base URL",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Ollama cleaning failed: {exc}",
+                    message=f"Ollama cleaning failed: {format_exception_for_log(exc)}",
                     provider="OllamaProvider/Cleaning",
                 ) from exc
 
