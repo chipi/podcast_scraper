@@ -1,0 +1,19 @@
+{
+  "baseline_id": "run_2026-04-02_09-40-49",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-02T07:41:15.782336Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 23.69477605819702,
+    "avg_time_seconds": 4.7389552116394045,
+    "total_chars_in": 55178,
+    "total_chars_out": 4319,
+    "avg_compression": 12.77564250984024
+  },
+  "promoted_from": "run_2026-04-02_09-40-49",
+  "promoted_at": "2026-04-02T07:41:39.263535Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_openai_gpt4omini_smoke_paragraph_v1"
+}

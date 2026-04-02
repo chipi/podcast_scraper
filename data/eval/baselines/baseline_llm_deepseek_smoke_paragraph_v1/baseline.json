@@ -1,0 +1,31 @@
+{
+  "run_id": "autoresearch_prompt_deepseek_smoke_paragraph_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-02T07:46:01.568306Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "deepseek",
+    "model": "deepseek-chat"
+  },
+  "params": {
+    "model": "deepseek-chat",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "deepseek/summarization/long_v1",
+    "system_prompt": "deepseek/summarization/system_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 69.5315420627594,
+    "avg_time_seconds": 13.90630841255188,
+    "total_chars_in": 53793,
+    "total_chars_out": 10251,
+    "avg_compression": 5.247585601404741
+  },
+  "promoted_from": "autoresearch_prompt_deepseek_smoke_paragraph_v1",
+  "promoted_at": "2026-04-02T07:48:12.725295Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_deepseek_smoke_paragraph_v1"
+}

@@ -1,0 +1,15 @@
+id: baseline_llm_grok_smoke_paragraph_v1
+task: summarization
+backend:
+  type: grok
+  model: grok-3-mini
+prompts:
+  system: grok/summarization/system_v1
+  user: grok/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_smoke_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: cleaning_v4

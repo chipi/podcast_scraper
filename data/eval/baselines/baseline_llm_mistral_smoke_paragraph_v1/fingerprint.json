@@ -1,0 +1,87 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-04-02T07:44:32.733635Z",
+    "baseline_id": "autoresearch_prompt_mistral_smoke_paragraph_v1",
+    "dataset_id": "curated_5feeds_smoke_v1",
+    "git": {
+      "commit": "f77bb94570d0d108d6f39be85e1dbc3e4d4d1efc",
+      "branch": "autoresearch",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "mistral",
+    "provider_library": "unknown",
+    "provider_library_version": "unknown"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "mistral",
+          "framework": null,
+          "model_name": "mistral-small-latest",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": null
+        },
+        "generation_params": {
+          "temperature": 0.0,
+          "max_tokens": 800
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true,
+      "strip_episode_header": true,
+      "anonymize_speakers": true,
+      "filter_junk_lines": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "default"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {},
+  "prompts": {
+    "user": {
+      "name": "mistral/summarization/long_v1",
+      "file": "mistral/summarization/long_v1.j2",
+      "sha256": "46f46820cc1b8b3c0f69d902d67b302d5f478024eab29fd036c7c2755533edd9",
+      "params": {}
+    },
+    "system": {
+      "name": "mistral/summarization/system_v1",
+      "file": "mistral/summarization/system_v1.j2",
+      "sha256": "d7aabe400110cb1961ba9dea7e380559713aaf3628347deea7758aba5bc0f7ac",
+      "params": {}
+    }
+  }
+}
