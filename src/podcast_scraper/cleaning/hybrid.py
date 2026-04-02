@@ -8,6 +8,7 @@ when pattern-based cleaning likely failed.
 import logging
 from typing import Any, cast, Optional
 
+from ..utils.log_redaction import format_exception_for_log
 from .llm_based import LLMBasedCleaner
 from .pattern_based import PatternBasedCleaner
 
@@ -60,7 +61,10 @@ class HybridCleaner:
                     cleaned, provider, pipeline_metrics=pipeline_metrics
                 )
             except Exception as e:
-                logger.warning(f"LLM cleaning failed, using pattern-cleaned text: {e}")
+                logger.warning(
+                    "LLM cleaning failed, using pattern-cleaned text: %s",
+                    format_exception_for_log(e),
+                )
                 # Continue with pattern-cleaned text if LLM fails
 
         return cast(str, cleaned)

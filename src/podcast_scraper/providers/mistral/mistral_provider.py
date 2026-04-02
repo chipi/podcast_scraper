@@ -23,9 +23,10 @@ import time
 from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 try:
-    from mistralai import Mistral
+    from mistralai import Mistral, SDKError as MistralSDKError
 except ImportError:
     Mistral = None  # type: ignore
+    MistralSDKError = None  # type: ignore
 
 from ... import config
 
@@ -306,18 +307,32 @@ class MistralProvider:
                 file_content = audio_file.read()
             mistral_file = File(file_name=file_name, content=file_content)
 
-            # Mistral Voxtral API uses 'complete' method (not 'create' like OpenAI)
-            if effective_language is not None:
-                transcription = self.client.audio.transcriptions.complete(
-                    model=self.transcription_model,
-                    file=mistral_file,
-                    language=effective_language,
-                )
-            else:
-                transcription = self.client.audio.transcriptions.complete(
-                    model=self.transcription_model,
-                    file=mistral_file,
-                )
+            # Mistral Voxtral API with retry
+            from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
+                retry_with_metrics,
+            )
+
+            def _make_transcribe_call():
+                if effective_language is not None:
+                    return self.client.audio.transcriptions.complete(
+                        model=self.transcription_model,
+                        file=mistral_file,
+                        language=effective_language,
+                    )
+                else:
+                    return self.client.audio.transcriptions.complete(
+                        model=self.transcription_model,
+                        file=mistral_file,
+                    )
+
+            transcription = retry_with_metrics(
+                _make_transcribe_call,
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_mistral_retryable(),
+            )
 
             # Extract text from response
             text = transcription.text if hasattr(transcription, "text") else str(transcription)
@@ -515,16 +530,27 @@ class MistralProvider:
             )
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Mistral API - uses 'complete' method (not 'completions.create' like OpenAI)
-            response = self.client.chat.complete(
-                model=self.speaker_model,
-                messages=[  # type: ignore[arg-type]
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.speaker_temperature,
-                max_tokens=300,
-                response_format={"type": "json_object"},  # Request JSON response
+            # Call Mistral API with retry
+            from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
+                retry_with_metrics,
+            )
+
+            response = retry_with_metrics(
+                lambda: self.client.chat.complete(
+                    model=self.speaker_model,
+                    messages=[  # type: ignore[arg-type]
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.speaker_temperature,
+                    max_tokens=300,
+                    response_format={"type": "json_object"},
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_mistral_retryable(),
             )
 
             # Mistral SDK response structure: response.choices[0].message.content
@@ -743,7 +769,11 @@ class MistralProvider:
             )
 
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
@@ -767,7 +797,7 @@ class MistralProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),  # Mistral SDK handles specific errors
+                    retryable_exceptions=_safe_mistral_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1045,7 +1075,10 @@ class MistralProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.complete(
@@ -1063,7 +1096,7 @@ class MistralProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_mistral_retryable(),
             )
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "") or ""
@@ -1110,7 +1143,10 @@ class MistralProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.complete(
@@ -1128,7 +1164,7 @@ class MistralProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_mistral_retryable(),
             )
             raw = response.choices[0].message.content
             content = (raw if isinstance(raw, str) else "") or ""
@@ -1166,6 +1202,7 @@ class MistralProvider:
         )
         try:
             from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1194,7 +1231,7 @@ class MistralProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),
+                    retryable_exceptions=_safe_mistral_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1243,6 +1280,7 @@ class MistralProvider:
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
             from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1271,7 +1309,7 @@ class MistralProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),
+                    retryable_exceptions=_safe_mistral_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1330,7 +1368,11 @@ class MistralProvider:
 
         try:
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_mistral_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("mistral")
@@ -1356,7 +1398,7 @@ class MistralProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),  # Mistral SDK handles specific errors
+                    retryable_exceptions=_safe_mistral_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:

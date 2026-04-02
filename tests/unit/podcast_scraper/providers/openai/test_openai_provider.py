@@ -100,26 +100,18 @@ class TestOpenAIProviderStandalone(unittest.TestCase):
 
     def test_provider_creation_requires_api_key(self):
         """Test that OpenAIProvider requires API key."""
-        # Unset environment variable to ensure it's not loaded
         original_key = os.environ.pop("OPENAI_API_KEY", None)
         try:
-            # Note: Config validation happens before provider creation
-            # So we need to catch ValidationError from Config, not ValueError from provider
-            with self.assertRaises(Exception) as context:
+            with self.assertRaises(ValueError) as context:
                 cfg = config.Config(
                     rss_url="https://example.com/feed.xml",
                     transcription_provider="openai",
                 )
                 OpenAIProvider(cfg)
-            # Error can be either ValidationError (from Config) or ValueError (from provider)
         finally:
-            # Restore original environment variable if it existed
             if original_key is not None:
                 os.environ["OPENAI_API_KEY"] = original_key
-        error_msg = str(context.exception)
-        self.assertTrue(
-            "OpenAI API key required" in error_msg or "validation error" in error_msg.lower()
-        )
+        self.assertIn("OpenAI API key required", str(context.exception))
 
     def test_provider_implements_all_protocols(self):
         """Test that OpenAIProvider implements all three protocols."""

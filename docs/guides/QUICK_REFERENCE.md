@@ -230,7 +230,7 @@ See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology]
 | ----- | --- |
 | spaCy wheels re-download often | `make download-spacy-wheels` then `export PIP_FIND_LINKS="$(pwd)/wheels/spacy"` (see [Dependencies Guide](DEPENDENCIES_GUIDE.md#optional-local-wheel-cache-for-spacy-models)) |
 | Tests skip "model not cached" | `make preload-ml-models` |
-| Import errors | `pip install -e ".[dev,ml]"` |
+| Import errors | `pip install -e ".[dev,ml,llm]"` |
 | Whisper fails | `brew install ffmpeg` |
 | `make visualize` / dependency graphs fail | `brew install graphviz` (macOS) or `apt install graphviz` (Linux) |
 | CI fails locally | `make ci` |

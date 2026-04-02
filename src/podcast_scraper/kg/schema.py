@@ -19,14 +19,22 @@ def get_schema_path() -> Optional[Path]:
 
 
 def load_schema() -> Optional[Dict[str, Any]]:
-    """Load kg.schema.json; returns None if file not found."""
+    """Load kg.schema.json; returns None if file not found.
+
+    Uses a module-level cache so the file is read at most once.
+    """
+    global _SCHEMA_CACHE
+    if _SCHEMA_CACHE is not None:
+        return _SCHEMA_CACHE
     path = get_schema_path()
     if not path:
         return None
     import json
 
     with open(path, encoding="utf-8") as f:
-        return cast(Dict[str, Any], json.load(f))
+        schema = cast(Dict[str, Any], json.load(f))
+    _SCHEMA_CACHE = schema
+    return schema
 
 
 def _minimal_validate(data: Dict[str, Any]) -> None:

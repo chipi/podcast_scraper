@@ -6,28 +6,31 @@
 
 ## Summary
 
-v2.5.0 is a **minor release** that expands the LLM provider ecosystem from 2 to 7 cloud providers, introduces **production-hardening features** (MPS exclusive mode, entity reconciliation, run manifests), adds **comprehensive LLM metrics tracking**, and includes significant **quality improvements** and **stability fixes**. This release focuses on making the multi-provider system production-ready with better observability, reproducibility, and correctness.
+v2.5.0 is a **minor release** that expands the LLM provider ecosystem from 2 to 7 providers (6 cloud + 1 local LLM), introduces **production-hardening features** (MPS exclusive mode, entity reconciliation, run manifests), adds **comprehensive LLM metrics tracking**, and includes significant **quality improvements** and **stability fixes**. This release focuses on making the multi-provider system production-ready with better observability, reproducibility, and correctness.
 
 ## 🚀 Key Features
 
-### 🌐 Expanded LLM Provider Ecosystem (7 Cloud Providers)
+### 🌐 Expanded LLM Provider Ecosystem (6 Cloud + 1 Local LLM)
 
 **Complete LLM provider support with unified interface:**
 
 v2.4.0 introduced the multi-provider architecture with OpenAI and Gemini. v2.5.0 adds **5 additional LLM providers**:
 
-#### New Providers
+#### New Cloud Providers
 
 - **Anthropic** - Claude 3.5 Sonnet, Claude 3.7 Opus (speaker detection, summarization)
 - **Mistral** - Mistral Large, Mistral Medium (speaker detection, summarization)
 - **DeepSeek** - DeepSeek Chat, DeepSeek Coder (speaker detection, summarization)
 - **Grok** - xAI's Grok models with real-time information access (speaker detection, summarization)
+
+#### New Local LLM Provider
+
 - **Ollama** - Local LLM inference server (speaker detection, summarization)
 
 **Provider Selection:**
 
 ```yaml
-# config.yaml - Choose from 7 LLM providers
+# config.yaml - Choose from 7 LLM providers (6 cloud + Ollama local)
 
 speaker_detector_provider: anthropic  # or mistral, deepseek, grok, ollama
 summary_provider: mistral             # or anthropic, deepseek, grok, ollama

@@ -17,6 +17,8 @@ import os
 from pathlib import Path
 from typing import Optional
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 ENV_RSS_CACHE_DIR = "PODCAST_SCRAPER_RSS_CACHE_DIR"
@@ -49,7 +51,11 @@ def read_cached_rss(rss_url: str) -> Optional[bytes]:
     try:
         data = path.read_bytes()
     except OSError as exc:
-        logger.warning("Could not read RSS cache %s: %s", path, exc)
+        logger.warning(
+            "Could not read RSS cache %s: %s",
+            path,
+            format_exception_for_log(exc),
+        )
         return None
     if not data:
         return None
@@ -72,4 +78,7 @@ def write_cached_rss(rss_url: str, rss_bytes: bytes) -> None:
         path.write_bytes(rss_bytes)
         logger.debug("Wrote RSS feed cache: %s", path)
     except OSError as exc:
-        logger.warning("Could not write RSS cache: %s", exc)
+        logger.warning(
+            "Could not write RSS cache: %s",
+            format_exception_for_log(exc),
+        )

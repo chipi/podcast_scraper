@@ -74,6 +74,23 @@ from . import metadata as metadata_stage
 
 logger = logging.getLogger(__name__)
 
+_PROCESSING_JOBS_WARN_THRESHOLD = 1000
+_processing_jobs_warned = False
+
+
+def _warn_if_jobs_large(jobs: List) -> None:
+    """Emit a one-time warning when processing_jobs grows large."""
+    global _processing_jobs_warned
+    if _processing_jobs_warned:
+        return
+    n = len(jobs)
+    if n > _PROCESSING_JOBS_WARN_THRESHOLD:
+        _processing_jobs_warned = True
+        logger.warning(
+            "processing_jobs list has %d entries; " "consider reducing episode count",
+            n,
+        )
+
 
 def _flatten_speaker_name_entries(value: Any) -> List[str]:
     """Normalize speaker-detector output to flat, non-empty strings.
@@ -739,8 +756,10 @@ def _handle_episode_download_result(
             if processing_resources.processing_jobs_lock:
                 with processing_resources.processing_jobs_lock:
                     processing_resources.processing_jobs.append(processing_job)
+                    _warn_if_jobs_large(processing_resources.processing_jobs)
             else:
                 processing_resources.processing_jobs.append(processing_job)
+                _warn_if_jobs_large(processing_resources.processing_jobs)
             logger.debug(
                 "Queued processing job for episode %s (transcript_source=%s)",
                 episode.idx,
@@ -941,8 +960,10 @@ def _process_episodes_concurrent(
                             if processing_resources.processing_jobs_lock:
                                 with processing_resources.processing_jobs_lock:
                                     processing_resources.processing_jobs.append(processing_job)
+                                    _warn_if_jobs_large(processing_resources.processing_jobs)
                             else:
                                 processing_resources.processing_jobs.append(processing_job)
+                                _warn_if_jobs_large(processing_resources.processing_jobs)
                             logger.debug(
                                 "Queued processing job for episode %s (transcript_source=%s)",
                                 episode_obj.idx,

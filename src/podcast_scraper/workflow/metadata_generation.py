@@ -39,7 +39,7 @@ from ..exceptions import (
 from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem
-from ..utils.log_redaction import redact_for_log
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -2724,7 +2724,11 @@ def _generate_and_validate_summary(
         )
     except RecoverableSummarizationError as e:
         # Allow metadata generation to continue without summary for recoverable errors
-        logger.warning(f"[{episode.idx}] {e}. Continuing metadata generation without summary.")
+        logger.warning(
+            "[%s] %s. Continuing metadata generation without summary.",
+            episode.idx,
+            format_exception_for_log(e),
+        )
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start

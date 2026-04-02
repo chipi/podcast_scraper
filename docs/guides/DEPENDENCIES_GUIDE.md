@@ -20,7 +20,7 @@ like transcription and summarization.
 - **Purpose**: HTTP client for downloading RSS feeds, transcripts, and media files
 
 - **Why chosen**: Industry-standard library with excellent session management, connection
-  pooling, and retry capabilities. Used throughout `downloader.py` and `rss_parser.py` for
+  pooling, and retry capabilities. Used throughout `rss/downloader.py` and `rss_parser.py` for
 
   all network operations.
 
@@ -108,7 +108,7 @@ like transcription and summarization.
 - **Alternatives considered**: Google Speech-to-Text (API costs), Azure Speech (API costs),
   Vosk (less accurate), Mozilla DeepSpeech (deprecated)
 
-- **Lazy loading**: Imported conditionally in `whisper_integration.py` to avoid hard dependency
+- **Lazy loading**: Imported conditionally in `providers/ml/whisper_utils.py` to avoid hard dependency
 
 ### `spacy` (>=3.7.0) and English pipeline models (`en-core-web-sm`, `en-core-web-trf`)
 
@@ -151,7 +151,7 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
 
    ```bash
    export PIP_FIND_LINKS="$(pwd)/wheels/spacy"
-   pip install -e ".[dev,ml,gemini]"
+   pip install -e ".[dev,ml,llm]"
    ```
 
    On Windows (cmd): `set PIP_FIND_LINKS=%CD%\wheels\spacy` before `pip install`.
@@ -196,7 +196,7 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
 
 - **Alternatives considered**: OpenAI API (costs/privacy), spaCy summarization (less sophisticated)
 
-- **Lazy loading**: Imported conditionally in `summarizer.py` to avoid hard dependency when summarization is disabled
+- **Lazy loading**: Imported conditionally in `providers/ml/summarizer.py` to avoid hard dependency when summarization is disabled
 
 ### `sentencepiece` (>=0.1.99)
 
@@ -308,33 +308,27 @@ If you want to use both OpenAI and local ML providers:
 pip install -e ".[ml]"
 ````
 
-### With API Provider Dependencies (Gemini)
+### With API Provider Dependencies (Gemini, Anthropic, Mistral, Ollama)
 
-**Note**: The `google-genai` package is **not** included in core dependencies. You must install it separately using the `[gemini]` extra:
-
-````bash
-# For Gemini-only users (no ML dependencies needed)
-pip install -e ".[gemini]"
-````
-
-If you want to use both Gemini and local ML providers:
+**Note**: LLM API providers (OpenAI, Gemini, Anthropic, Mistral, Ollama/httpx) are grouped
+in the `[llm]` extra. There is no separate `[gemini]` or `[ollama]` extra.
 
 ````bash
-# For users who want both Gemini and local ML options
-pip install -e ".[ml,gemini]"
+# For LLM API provider users (no ML dependencies needed)
+pip install -e ".[llm]"
 ````
 
-If you want all options (OpenAI, Gemini, and local ML):
+If you want to use both LLM API providers and local ML providers:
 
 ````bash
-# For users who want all provider options
-pip install -e ".[ml,gemini]"
-# Note: OpenAI is already in core, so no need to specify it
+# For users who want both LLM API providers and local ML options
+pip install -e ".[ml,llm]"
 ````
 
-### With API Provider Dependencies (Ollama)
+### With Ollama (Local LLM Server)
 
-**Note**: The `openai` package (used for OpenAI-compatible API client) is **already included** in core dependencies. The `httpx` package is required for Ollama health checks and is available via the `[ollama]` extra.
+**Note**: The `httpx` package required for Ollama health checks is included in the `[llm]`
+extra (there is no separate `[ollama]` extra). Install with `pip install -e ".[llm]"`.
 
 **Prerequisites:**
 
@@ -345,15 +339,15 @@ pip install -e ".[ml,gemini]"
 **Installation:**
 
 ````bash
-# For Ollama-only users (no ML dependencies needed)
-pip install -e ".[ollama]"
+# Ollama support is part of the [llm] extra
+pip install -e ".[llm]"
 ````
 
 If you want to use both Ollama and local ML providers:
 
 ````bash
-# For users who want both Ollama and local ML options
-pip install -e ".[ml,ollama]"
+# For users who want both LLM API providers and local ML options
+pip install -e ".[ml,llm]"
 ````
 
 **Important Notes:**

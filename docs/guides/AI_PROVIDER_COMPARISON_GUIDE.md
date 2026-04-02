@@ -22,15 +22,15 @@ All providers below are **implemented and acceptance-tested** (v2.4.0+).
 
 | Provider | Status | RFC | Notes |
 | ---------- | :------: | :---: | ------- |
-| **Local ML** | ✅ Implemented | - | Default provider (Whisper + spaCy + Transformers) |
+| **Local ML** | ✅ Implemented | - | Default provider (Whisper + spaCy + Transformers): transcription, speaker detection, summarization |
 | **Hybrid ML** | ✅ Implemented | RFC-042 | Summarization only: MAP (LongT5) + REDUCE (transformers / Ollama / llama_cpp) |
-| **OpenAI** | ✅ Implemented | RFC-013 | Full-stack: Whisper API + GPT API |
-| **Gemini** | ✅ Implemented | RFC-035 | Full-stack: Gemini API for all capabilities |
-| **Mistral** | ✅ Implemented | RFC-033 | Full-stack: Mistral API (EU data residency) |
-| **Anthropic** | ✅ Implemented | RFC-032 | Speaker detection + summarization (no transcription) |
-| **DeepSeek** | ✅ Implemented | RFC-034 | Speaker detection + summarization; ultra low-cost |
-| **Grok** | ✅ Implemented | RFC-036 | Real-time information access, speaker detection + summarization |
-| **Ollama** | ✅ Implemented | RFC-037 | Local self-hosted LLMs, zero cost, complete privacy |
+| **OpenAI** | ✅ Implemented | RFC-013 | Transcription + summarization (Whisper API + GPT API) |
+| **Gemini** | ✅ Implemented | RFC-035 | Transcription + summarization (no speaker detection) |
+| **Mistral** | ✅ Implemented | RFC-033 | Summarization only (EU data residency) |
+| **Anthropic** | ✅ Implemented | RFC-032 | Summarization only (no transcription or speaker detection) |
+| **DeepSeek** | ✅ Implemented | RFC-034 | Summarization only; ultra low-cost |
+| **Grok** | ✅ Implemented | RFC-036 | Summarization only; real-time information access |
+| **Ollama** | ✅ Implemented | RFC-037 | Transcription, speaker detection, summarization; local self-hosted LLMs, zero cost, complete privacy |
 
 For hybrid_ml (MAP-REDUCE) configuration and REDUCE backends (Ollama, llama_cpp,
 transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
@@ -44,13 +44,13 @@ transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                        PROVIDER LANDSCAPE OVERVIEW                          │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  9 Summarization Options  │  (Hybrid = MAP+REDUCE)  │  5 Full-Stack Ready  │
+│  9 Summarization Options  │  (Hybrid = MAP+REDUCE)  │  3 Full-Stack Ready  │
 │  ════════════════════     │  ═══════════════════════ │  ═══════════════     │
 │  ✅ Local ML              │  ✅ Hybrid ML (RFC-042)  │  ✅ Local ML          │
-│  ✅ Hybrid ML             │  MAP + Ollama/llama_cpp │  ✅ OpenAI            │
-│  ✅ OpenAI                │  or transformers REDUCE  │  ✅ Gemini            │
-│  ✅ Gemini                │                         │  ✅ Mistral           │
-│  ✅ Mistral               │                         │  ✅ Ollama            │
+│  ✅ Hybrid ML             │  MAP + Ollama/llama_cpp │  ✅ OpenAI (tx+sum)  │
+│  ✅ OpenAI                │  or transformers REDUCE  │  ✅ Ollama            │
+│  ✅ Gemini                │                         │                      │
+│  ✅ Mistral               │                         │                      │
 │  ✅ Anthropic / DeepSeek  │                         │                      │
 │  ✅ Grok / Ollama         │                         │                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -76,7 +76,7 @@ transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
 | **Complete Privacy** | Local ML / Hybrid ML / Ollama | Data never leaves your device |
 | **Lowest Cost** | Local ML / Hybrid ML / Ollama | $0 (just electricity) |
 | **Highest Quality** | OpenAI | Industry leader ([measured](eval-reports/EVAL_SMOKE_V1_2026_03.md#cloud-llms-ranked-by-rouge-l)) |
-| **Full Capabilities** | OpenAI / Local ML | All 3 capabilities |
+| **Full Capabilities** | Local ML / Ollama | All 3 capabilities (transcription + speaker detection + summarization) |
 | **Local MAP + LLM REDUCE** | Hybrid ML (Ollama/llama_cpp) | LongT5 MAP + local LLM synthesis (RFC-042) |
 | **Real-Time Info** | Grok | Real-time information access (RFC-036) |
 | **Lowest Cloud Cost** | DeepSeek | 95% cheaper than OpenAI (RFC-034) |
@@ -145,14 +145,14 @@ Full table:
 | :------- | :-----------: | :-----: | :-----: | :-------: | :-------: |
 | **Local ML** | $0 | $0 | $0 | **$0** | -100% |
 | **Ollama** | N/A | $0 | $0 | **$0** | -100% |
-| **DeepSeek** | N/A | $0.004 | $0.012 | **$0.016** | -97% |
-| **Grok (beta)** | N/A | $0.00 | $0.00 | **$0.00** | -100% |
-| **Mistral (Small)** | N/A | $0.03 | $0.08 | **$0.11** | -80% |
-| **Anthropic (Haiku)** | N/A | $0.10 | $0.30 | **$0.40** | -27% |
-| **Gemini (Flash)** | $0.90 | $0.01 | $0.04 | **$0.95** | +73% |
-| **OpenAI (Nano)** | $36.00 | $0.08 | $0.20 | **$36.28** | baseline |
-| **OpenAI (Mini)** | $36.00 | $0.40 | $1.00 | **$37.40** | +3% |
-| **Mistral (Full)** | $60.00 | $4.00 | $5.00 | **$69.00** | +90% |
+| **DeepSeek** | N/A | N/A | $0.016 | **$0.016** | -97% |
+| **Grok (beta)** | N/A | N/A | $0.00 | **$0.00** | -100% |
+| **Mistral (Small)** | N/A | N/A | $0.11 | **$0.11** | -80% |
+| **Anthropic (Haiku)** | N/A | N/A | $0.40 | **$0.40** | -27% |
+| **Gemini (Flash)** | $0.90 | N/A | $0.05 | **$0.95** | +73% |
+| **OpenAI (Nano)** | $36.00 | N/A | $0.28 | **$36.28** | baseline |
+| **OpenAI (Mini)** | $36.00 | N/A | $1.40 | **$37.40** | +3% |
+| **Mistral (Large)** | N/A | N/A | $9.00 | **$9.00** | -75% |
 
 ### Monthly Cost Projections
 
@@ -168,7 +168,6 @@ Grok                $0.03               $0.26               $2.60
 Anthropic           $0.40               $4.00               $40.00
 OpenAI (text only)  $0.55               $5.50               $55.00
 OpenAI (full)       $37.40              $374.00             $3,740.00
-Mistral (full)      $69.00              $690.00             $6,900.00
 
 ⚠️  At 10,000 episodes/month, OpenAI full stack costs $3,740!
     Using local transcription + DeepSeek: $1.60 (99.96% savings)
@@ -235,8 +234,8 @@ Mistral (full)      $69.00              $690.00             $6,900.00
 ```yaml
 # 97% cheaper than OpenAI
 transcription_provider: whisper       # Free (local)
-speaker_detector_provider: deepseek   # $0.004/100
-summary_provider: deepseek            # $0.012/100
+speaker_detector_provider: spacy      # Free (local; DeepSeek: summarization only)
+summary_provider: deepseek            # $0.016/100
 deepseek_api_key: ${DEEPSEEK_API_KEY}
 ```
 
@@ -245,9 +244,8 @@ deepseek_api_key: ${DEEPSEEK_API_KEY}
 ```yaml
 # Maximum quality
 transcription_provider: openai
-speaker_detector_provider: openai
+speaker_detector_provider: spacy      # OpenAI: summarization only (no speaker detection)
 summary_provider: openai
-openai_speaker_model: gpt-5
 openai_summary_model: gpt-5
 openai_api_key: ${OPENAI_API_KEY}
 ```
@@ -269,23 +267,21 @@ ollama_summary_model: llama3.1:8b
 ### Configuration 4: Speed-First (~$0.25/100 episodes)
 
 ```yaml
-# 10x faster processing
+# Fast cloud summarization
 transcription_provider: whisper       # Local
-speaker_detector_provider: grok
+speaker_detector_provider: spacy      # Local (Grok: summarization only)
 summary_provider: grok
-grok_speaker_model: grok-2
 grok_summary_model: grok-2
 grok_api_key: ${GROK_API_KEY}
 ```
 
-### Configuration 5: EU Compliant (~$65/100 episodes)
+### Configuration 5: EU Compliant (Mistral Summarization)
 
 ```yaml
-# European data residency
-transcription_provider: mistral
-speaker_detector_provider: mistral
+# European data residency for summarization; local for other capabilities
+transcription_provider: whisper            # Local (Mistral: summarization only)
+speaker_detector_provider: spacy           # Local (Mistral: summarization only)
 summary_provider: mistral
-mistral_speaker_model: mistral-large-latest
 mistral_summary_model: mistral-large-latest
 mistral_api_key: ${MISTRAL_API_KEY}
 ```
@@ -295,9 +291,8 @@ mistral_api_key: ${MISTRAL_API_KEY}
 ```yaml
 # Maximize free tiers
 transcription_provider: whisper       # Local
-speaker_detector_provider: gemini     # Free tier
+speaker_detector_provider: spacy      # Local (Gemini/Grok don't support speaker detection)
 summary_provider: grok                # Free tier
-gemini_speaker_model: gemini-2.0-flash
 grok_summary_model: grok-beta
 ```
 
@@ -315,7 +310,7 @@ grok_summary_model: grok-beta
 │  🥇 LARGEST CONTEXT:     Gemini Pro       2,000,000 tokens                 │
 │  🥇 BEST FREE TIER:      Gemini/Grok      Generous limits                  │
 │  🥇 REAL-TIME INFO:      Grok             X/Twitter integration            │
-│  🥇 EU COMPLIANT:        Mistral          Only European full-stack         │
+│  🥇 EU COMPLIANT:        Mistral          European summarization provider  │
 │  🥇 COMPLETE PRIVACY:    Local/Ollama     Data never leaves device         │
 │  🥇 BEST LOCAL MODEL:    Mistral Small 3.2 / Qwen 2.5:32b (38.4% ROUGE-L)│
 │                                                                             │

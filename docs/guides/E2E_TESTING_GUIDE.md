@@ -409,5 +409,5 @@ USE_REAL_GEMINI_API=1 pytest tests/e2e/test_gemini_provider_integration_e2e.py
 
 ## Coverage Targets
 
-- **Total tests:** 100+
+- **Total tests:** ~230
 - **Focus:** Complete user workflows, production-like scenarios

@@ -19,8 +19,10 @@ from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 # Import Anthropic SDK
 try:
+    import anthropic
     from anthropic import Anthropic
 except ImportError:
+    anthropic = None  # type: ignore
     Anthropic = None  # type: ignore
 
 from ... import config
@@ -477,19 +479,29 @@ class AnthropicProvider:
             )
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Anthropic API
-            # Anthropic uses messages API with system parameter
-            response = self.client.messages.create(
-                model=self.speaker_model,
-                max_tokens=300,
-                temperature=self.speaker_temperature,
-                system=system_prompt,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": user_prompt,
-                    }
-                ],
+            # Call Anthropic API with retry
+            from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
+                retry_with_metrics,
+            )
+
+            response = retry_with_metrics(
+                lambda: self.client.messages.create(
+                    model=self.speaker_model,
+                    max_tokens=300,
+                    temperature=self.speaker_temperature,
+                    system=system_prompt,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": user_prompt,
+                        }
+                    ],
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_anthropic_retryable(),
             )
 
             # Extract text from response - handle different block types
@@ -703,7 +715,11 @@ class AnthropicProvider:
             )
 
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
@@ -730,7 +746,7 @@ class AnthropicProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),  # Anthropic SDK handles specific errors
+                    retryable_exceptions=_safe_anthropic_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -965,7 +981,11 @@ class AnthropicProvider:
 
         try:
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("anthropic")
@@ -994,7 +1014,7 @@ class AnthropicProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),  # Anthropic SDK handles specific errors
+                    retryable_exceptions=_safe_anthropic_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1149,7 +1169,10 @@ class AnthropicProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.messages.create(
@@ -1165,7 +1188,7 @@ class AnthropicProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_anthropic_retryable(),
             )
             content = ""
             if response.content and len(response.content) > 0:
@@ -1215,7 +1238,10 @@ class AnthropicProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.messages.create(
@@ -1231,7 +1257,7 @@ class AnthropicProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_anthropic_retryable(),
             )
             content = ""
             if response.content and len(response.content) > 0:
@@ -1272,6 +1298,7 @@ class AnthropicProvider:
         )
         try:
             from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
                 anthropic_message_usage_tokens,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
@@ -1298,7 +1325,7 @@ class AnthropicProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),
+                    retryable_exceptions=_safe_anthropic_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1350,6 +1377,7 @@ class AnthropicProvider:
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
             from ...utils.provider_metrics import (
+                _safe_anthropic_retryable,
                 anthropic_message_usage_tokens,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
@@ -1376,7 +1404,7 @@ class AnthropicProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(Exception,),
+                    retryable_exceptions=_safe_anthropic_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:

@@ -66,7 +66,7 @@ git commit -m "your message"
 
 # - Full validation before commits/PRs
 
-# - Note: No cleanup step (faster), use ci-full for complete validation
+# - Note: No cleanup step (faster), use ci-clean for complete validation
 
 make ci
 
@@ -88,7 +88,7 @@ make ci-fast
 
 # - Use for complete validation before releases
 
-make ci-full
+make ci-clean
 
 # Individual checks (same as CI)
 
@@ -114,7 +114,7 @@ make build         # package build
 
 - **`make ci`**: Full validation before commits/PRs (unit + fast integration + fast e2e tests), matches GitHub Actions PR validation exactly
 - **`make ci-fast`**: Quick feedback during development (unit + fast integration + fast e2e, no coverage), faster iteration
-- **`make ci-full`**: Complete validation with all tests including slow/ml_models tests (unit + integration + e2e, all variants), use before releases
+- **`make ci-clean`**: Complete validation with all tests including slow/ml_models tests (unit + integration + e2e, all variants), use before releases
 
 ## Local CI Validation Flow
 

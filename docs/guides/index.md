@@ -34,7 +34,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all 8 providers: cost, quality, speed, privacy |
+| [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all 9 providers: cost, quality, speed, privacy |
 | [ML Model Comparison](ML_MODEL_COMPARISON_GUIDE.md) | Compare ML models: Whisper, spaCy, Transformers (BART/LED) |
 | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) | Quick provider configuration reference |
 | [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) | Ollama installation, setup, troubleshooting, and testing |

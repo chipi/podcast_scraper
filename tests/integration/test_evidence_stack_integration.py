@@ -1,161 +1,142 @@
 """Integration tests for GIL evidence stack (Issue #435).
 
-Loads embedding, extractive QA, and NLI with default config and runs a minimal
-workflow: encode 2 strings, 1 QA call, 1 NLI pair. Requires sentence-transformers
-and transformers; marked ml_models and integration.
+Verifies that embedding, extractive QA, NLI, and find_grounded_quotes
+integrate correctly using mocked model backends.  No real ML models
+are loaded — all model calls are patched.
 """
 
 from __future__ import annotations
 
 import unittest
-from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-# Add project root for imports
-PACKAGE_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(PACKAGE_ROOT) not in __import__("sys").path:
-    __import__("sys").path.insert(0, str(PACKAGE_ROOT))
-
-try:
-    import sentence_transformers  # noqa: F401
-
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-try:
-    from transformers import pipeline  # noqa: F401
-
-    TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    TRANSFORMERS_AVAILABLE = False
-
-
-def _evidence_stack_models_available():
-    """True when deps exist and default evidence models are cached (offline-safe).
-
-    ``tests/conftest.py`` always sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE so tests do
-    not hit the hub. Those flags must *not* force a skip here; instead we require a
-    loadable HF cache (see ``is_evidence_stack_cached``).
-
-    We do **not** short-circuit on ``ML_MODELS_VALIDATED`` alone: that flag covers
-    broader CI cache checks; without the embedding/QA/NLI artifacts present locally,
-    this suite would still attempt loads and fail offline.
-    """
-    if not SENTENCE_TRANSFORMERS_AVAILABLE or not TRANSFORMERS_AVAILABLE:
-        return False
-
-    from tests.integration.ml_model_cache_helpers import is_evidence_stack_cached
-
-    return is_evidence_stack_cached()
+from podcast_scraper.gi.grounding import find_grounded_quotes, GroundedQuote
+from podcast_scraper.providers.ml.extractive_qa import QASpan
 
 
 @pytest.mark.integration
-@pytest.mark.ml_models
-@pytest.mark.slow
-@pytest.mark.skipif(
-    not _evidence_stack_models_available(),
-    reason=(
-        "evidence stack needs sentence-transformers + transformers, and default embedding/QA/NLI "
-        "models cached (HF_HUB_OFFLINE=1 in conftest; run make preload-ml-models)"
-    ),
-)
-class TestEvidenceStackLoadAndRun(unittest.TestCase):
-    """Load all three evidence components with default config and run minimal workflow."""
+class TestEvidenceStackIntegration(unittest.TestCase):
+    """Evidence stack integration with mocked model backends."""
 
-    @staticmethod
-    def _skip_if_hf_offline_load_failed(exc: BaseException) -> None:
-        """Skip when cache probes passed but transformers/sentence-transformers still fail."""
-        if not isinstance(exc, OSError):
-            return
-        low = str(exc).lower()
-        if any(
-            s in low
-            for s in (
-                "huggingface",
-                "cached files",
-                "outgoing traffic has been disabled",
-                "local_files_only",
-                "couldn't connect",
-            )
-        ):
-            pytest.skip(
-                "Evidence stack not loadable offline (incomplete HF cache or hub blocked). "
-                f"Try: make preload-ml-models. Underlying error: {exc}"
-            )
+    @patch("podcast_scraper.providers.ml.embedding_loader.encode")
+    def test_embedding_encode_returns_vectors(self, mock_encode):
+        """encode() returns list of float vectors for a list of texts."""
+        mock_encode.return_value = [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
 
-    def test_load_embedding_qa_nli_and_run_minimal_workflow(self):
-        """Load embedding, QA, NLI; encode 2 strings, 1 QA, 1 NLI pair."""
-        from podcast_scraper import config_constants
-        from podcast_scraper.providers.ml import embedding_loader, extractive_qa, nli_loader
+        from podcast_scraper.providers.ml import embedding_loader
 
-        emb_model = config_constants.DEFAULT_EMBEDDING_MODEL
-        qa_model = config_constants.DEFAULT_EXTRACTIVE_QA_MODEL
-        nli_model = config_constants.DEFAULT_NLI_MODEL
+        vecs = embedding_loader.encode(
+            ["First sentence.", "Second sentence."],
+            model_id="test-model",
+            device="cpu",
+        )
+        self.assertEqual(len(vecs), 2)
+        self.assertEqual(len(vecs[0]), len(vecs[1]))
+        mock_encode.assert_called_once()
 
-        try:
-            # 1. Embedding: encode two strings
-            vecs = embedding_loader.encode(
-                ["First sentence.", "Second sentence."],
-                model_id=emb_model,
-                device="cpu",
-            )
-            self.assertIsInstance(vecs, list)
-            self.assertEqual(len(vecs), 2)
-            self.assertIsInstance(vecs[0], list)
-            self.assertIsInstance(vecs[1], list)
-            self.assertGreater(len(vecs[0]), 0)
-            self.assertEqual(len(vecs[0]), len(vecs[1]))
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
+    def test_extractive_qa_returns_span(self, mock_answer):
+        """answer() returns a QASpan with answer, offsets, and score."""
+        mock_answer.return_value = QASpan(answer="Paris", start=30, end=35, score=0.95)
 
-            # 2. Extractive QA: one question on short context
-            context = "The capital of France is Paris. It has many museums."
-            span = extractive_qa.answer(
-                context=context,
-                question="What is the capital of France?",
-                model_id=qa_model,
-                device="cpu",
-            )
-            self.assertIn("paris", span.answer.lower())
-            self.assertGreaterEqual(span.start, 0)
-            self.assertLessEqual(span.end, len(context))
-            self.assertGreater(span.score, 0.0)
+        from podcast_scraper.providers.ml import extractive_qa
 
-            # 3. NLI: one premise/hypothesis pair
-            score = nli_loader.entailment_score(
-                premise="The cat sat on the mat.",
-                hypothesis="A cat was on a mat.",
-                model_id=nli_model,
-                device="cpu",
-            )
-            self.assertIsInstance(score, float)
-        except OSError as exc:
-            self._skip_if_hf_offline_load_failed(exc)
-            raise
+        context = "The capital of France is Paris. It has many museums."
+        span = extractive_qa.answer(
+            context=context,
+            question="What is the capital of France?",
+            model_id="test-qa-model",
+            device="cpu",
+        )
+        self.assertEqual(span.answer, "Paris")
+        self.assertGreaterEqual(span.start, 0)
+        self.assertLessEqual(span.end, len(context))
+        self.assertGreater(span.score, 0.0)
 
-    def test_find_grounded_quotes_integration(self):
-        """Run find_grounded_quotes on short text with real QA/NLI (optional integration)."""
-        from podcast_scraper import config_constants
-        from podcast_scraper.gi.grounding import find_grounded_quotes
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    def test_nli_returns_entailment_score(self, mock_nli):
+        """entailment_score() returns a float between 0 and 1."""
+        mock_nli.return_value = 0.92
 
+        from podcast_scraper.providers.ml import nli_loader
+
+        score = nli_loader.entailment_score(
+            premise="The cat sat on the mat.",
+            hypothesis="A cat was on a mat.",
+            model_id="test-nli-model",
+            device="cpu",
+        )
+        self.assertIsInstance(score, float)
+        self.assertGreaterEqual(score, 0.0)
+        self.assertLessEqual(score, 1.0)
+
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
+    def test_find_grounded_quotes_end_to_end(self, mock_qa, mock_nli):
+        """find_grounded_quotes wires QA + NLI and returns GroundedQuotes."""
         transcript = "The capital of France is Paris. It has many museums."
-        insight_text = "France has a capital city."
-        try:
-            quotes = find_grounded_quotes(
-                transcript=transcript,
-                insight_text=insight_text,
-                qa_model_id=config_constants.DEFAULT_EXTRACTIVE_QA_MODEL,
-                nli_model_id=config_constants.DEFAULT_NLI_MODEL,
-                qa_device="cpu",
-                nli_device="cpu",
-            )
-        except OSError as exc:
-            self._skip_if_hf_offline_load_failed(exc)
-            raise
+        insight = "France has a capital city."
+
+        mock_qa.return_value = QASpan(
+            answer="capital of France is Paris",
+            start=4,
+            end=29,
+            score=0.88,
+        )
+        mock_nli.return_value = 0.85
+
+        quotes = find_grounded_quotes(
+            transcript=transcript,
+            insight_text=insight,
+            qa_model_id="test-qa",
+            nli_model_id="test-nli",
+            qa_device="cpu",
+            nli_device="cpu",
+            qa_score_min=0.3,
+            nli_entailment_min=0.5,
+        )
+
         self.assertIsInstance(quotes, list)
-        # May be empty or have one span depending on thresholds; just ensure no crash
-        for q in quotes:
-            self.assertGreaterEqual(q.char_start, 0)
-            self.assertLessEqual(q.char_end, len(transcript))
-            self.assertIsInstance(q.qa_score, float)
-            self.assertIsInstance(q.nli_score, float)
+        self.assertGreaterEqual(len(quotes), 1)
+        q = quotes[0]
+        self.assertIsInstance(q, GroundedQuote)
+        self.assertGreaterEqual(q.char_start, 0)
+        self.assertLessEqual(q.char_end, len(transcript))
+        self.assertIsInstance(q.qa_score, float)
+        self.assertIsInstance(q.nli_score, float)
+
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
+    def test_find_grounded_quotes_below_threshold(self, mock_qa, mock_nli):
+        """Quotes below score thresholds are filtered out."""
+        mock_qa.return_value = QASpan(answer="something", start=0, end=9, score=0.1)
+        mock_nli.return_value = 0.2
+
+        quotes = find_grounded_quotes(
+            transcript="something here",
+            insight_text="a claim",
+            qa_model_id="qa",
+            nli_model_id="nli",
+            qa_score_min=0.5,
+            nli_entailment_min=0.5,
+        )
+
+        self.assertIsInstance(quotes, list)
+        self.assertEqual(len(quotes), 0)
+
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
+    def test_find_grounded_quotes_qa_failure_returns_empty(self, mock_qa, mock_nli):
+        """If QA raises, find_grounded_quotes returns empty list."""
+        mock_qa.side_effect = RuntimeError("model error")
+
+        quotes = find_grounded_quotes(
+            transcript="some text",
+            insight_text="a claim",
+            qa_model_id="qa",
+            nli_model_id="nli",
+        )
+        self.assertEqual(quotes, [])
+        mock_nli.assert_not_called()

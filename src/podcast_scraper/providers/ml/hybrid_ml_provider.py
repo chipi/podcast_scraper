@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Protocol
 
 from ...preprocessing.profiles import apply_profile_with_stats
 from ...summarization.base import SummarizationProvider
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.protocol_verification import verify_protocol_compliance
 from ..ollama.ollama_provider import OllamaProvider
 from . import summarizer
@@ -574,7 +575,9 @@ class HybridMLProvider:
                 window_overlap_chars=int(getattr(self.cfg, "gi_qa_window_overlap_chars", 250)),
             )
         except Exception as e:
-            logger.warning("Extractive QA failed for extract_quotes: %s", e)
+            logger.warning(
+                "Extractive QA failed for extract_quotes: %s", format_exception_for_log(e)
+            )
             return []
         verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
         return [
@@ -605,7 +608,7 @@ class HybridMLProvider:
                 device=getattr(self.cfg, "nli_device", None),
             )
         except Exception as e:
-            logger.warning("NLI failed for score_entailment: %s", e)
+            logger.warning("NLI failed for score_entailment: %s", format_exception_for_log(e))
             return 0.0
 
     def cleanup(self) -> None:

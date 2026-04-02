@@ -13,6 +13,7 @@ from typing import Any, Optional, Tuple
 
 from ... import config
 from ...utils import filesystem
+from ...utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -398,7 +399,7 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
             )
         _preloaded_ml_provider = None
     except Exception as e:
-        logger.error("Failed to preload ML models: %s", e)
+        logger.error("Failed to preload ML models: %s", format_exception_for_log(e))
         _preloaded_ml_provider = None
         # Re-raise to fail fast for required models
         raise

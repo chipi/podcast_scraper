@@ -37,7 +37,7 @@ make test-unit
 
 make test-integration
 
-# E2E tests (serial first, then parallel)
+# E2E tests (parallel, with reruns)
 
 make test-e2e
 
@@ -92,7 +92,7 @@ pytest tests/integration/ -m "integration and critical_path" -v
 # Run with coverage
 
 pytest tests/unit/ --cov=podcast_scraper --cov-report=term-missing
-```yaml
+```
 
 ## Test Markers
 
@@ -113,21 +113,17 @@ pytest tests/unit/ --cov=podcast_scraper --cov-report=term-missing
 
 ## Network Isolation
 
-All tests use network isolation:
+Tests use network isolation appropriate to their layer:
 
-```bash
---disable-socket --allow-hosts=127.0.0.1,localhost
-```
-
-- **Unit tests:** Network calls blocked by pytest plugin
-- **Integration/E2E:** Network calls blocked by pytest-socket
+- **Unit tests:** Full socket blocking (`--disable-socket --allow-hosts=127.0.0.1,localhost`)
+- **Integration/E2E:** Host allowlist only (`--allow-hosts=127.0.0.1,localhost`)
 
 ## Parallel Execution
 
 Tests run in parallel by default using `pytest-xdist`:
 
-1. Tests marked `@pytest.mark.serial` run sequentially first (if any)
-2. Remaining tests run in parallel with memory-aware worker calculation
+All tests run in parallel by default with memory-aware worker calculation. The
+`@pytest.mark.serial` marker is registered but currently unused.
 
 The Makefile automatically calculates the optimal number of workers based on:
 
@@ -217,7 +213,7 @@ Integration and E2E tests use reruns:
 
 ```bash
 pytest --reruns 3 --reruns-delay 1
-```yaml
+```
 
 ## Flaky Test Markers
 
@@ -240,7 +236,7 @@ due to inherent non-determinism. These tests get automatic reruns.
 | `test_basic_e2e.py` | 7 | Full pipeline with OpenAI mocks |
 | `test_whisper_e2e.py` | 4 | Whisper inference variability |
 | `test_full_pipeline_e2e.py` | 2 | Whisper transcription |
-| `test_openai_provider_integration_e2e.py` | 2 | OpenAI mock responses |
+| `test_openai_provider_e2e.py` | 2 | OpenAI mock responses |
 
 ### Tests That Are NOT Flaky
 
@@ -293,7 +289,7 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 
 ### Setting up acceptance configs
 
-The project expects your acceptance configs to live in an **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
+The project expects your acceptance configs to live in a **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
 
 1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
 2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:  
@@ -462,7 +458,7 @@ tests/
 │   ├── fixtures/            # E2E server, HTTP server
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
-```yaml
+```
 
 ## Coverage Thresholds
 

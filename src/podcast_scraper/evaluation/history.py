@@ -15,6 +15,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,7 +48,11 @@ def find_all_runs(base_dir: Path = Path("data/eval/runs")) -> List[Dict[str, Any
             try:
                 metadata = json.loads(baseline_path.read_text(encoding="utf-8"))
             except Exception as e:
-                logger.warning(f"Failed to load baseline.json for {run_id}: {e}")
+                logger.warning(
+                    "Failed to load baseline.json for %s: %s",
+                    run_id,
+                    format_exception_for_log(e),
+                )
 
         # Try to load metrics
         metrics = None
@@ -54,7 +60,11 @@ def find_all_runs(base_dir: Path = Path("data/eval/runs")) -> List[Dict[str, Any
             try:
                 metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
             except Exception as e:
-                logger.warning(f"Failed to load metrics.json for {run_id}: {e}")
+                logger.warning(
+                    "Failed to load metrics.json for %s: %s",
+                    run_id,
+                    format_exception_for_log(e),
+                )
 
         # Extract creation time
         created_at = metadata.get("created_at") or metadata.get("promoted_at")
@@ -106,7 +116,11 @@ def find_all_baselines(base_dir: Path = Path("data/eval/baselines")) -> List[Dic
             try:
                 metadata = json.loads(baseline_json_path.read_text(encoding="utf-8"))
             except Exception as e:
-                logger.warning(f"Failed to load baseline.json for {baseline_id}: {e}")
+                logger.warning(
+                    "Failed to load baseline.json for %s: %s",
+                    baseline_id,
+                    format_exception_for_log(e),
+                )
 
         # Try to load metrics
         metrics = None
@@ -114,7 +128,11 @@ def find_all_baselines(base_dir: Path = Path("data/eval/baselines")) -> List[Dic
             try:
                 metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
             except Exception as e:
-                logger.warning(f"Failed to load metrics.json for {baseline_id}: {e}")
+                logger.warning(
+                    "Failed to load metrics.json for %s: %s",
+                    baseline_id,
+                    format_exception_for_log(e),
+                )
 
         baselines.append(
             {

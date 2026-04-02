@@ -452,10 +452,14 @@ class TestPreloadEvidenceModels(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
         self.cache_root = Path(self.temp_dir) / "hf"
         self.cache_root.mkdir(parents=True, exist_ok=True)
+        self._orig_hf_hub_cache = os.environ.get("HF_HUB_CACHE")
 
     def tearDown(self) -> None:
         shutil.rmtree(self.temp_dir, ignore_errors=True)
-        os.environ.pop("HF_HUB_CACHE", None)
+        if self._orig_hf_hub_cache is not None:
+            os.environ["HF_HUB_CACHE"] = self._orig_hf_hub_cache
+        else:
+            os.environ.pop("HF_HUB_CACHE", None)
 
     @patch("podcast_scraper.providers.ml.model_loader.get_transformers_cache_dir")
     def test_preload_evidence_models_no_args_downloads_embedding_qa_nli(

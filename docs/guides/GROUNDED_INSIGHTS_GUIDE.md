@@ -247,6 +247,6 @@ viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
 - [PRD-019: Knowledge Graph Layer (KG)](../prd/PRD-019-knowledge-graph-layer.md) — **separate feature** from GIL (`kg` vs `gi`; entities/linking, not evidence-first insights).
 - [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) — where GIL fits in the pipeline.
 - [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `gi.json` / `kg.json`.
-- [Architecture](../ARCHITECTURE.md) — planned GIL extraction and artifact layout.
+- [Architecture](../ARCHITECTURE.md) — GIL extraction and artifact layout.
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) — config keys and provider options.
 - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core concepts and evidence stack; includes implementation note on provider-based QA/NLI (quote_extraction_provider, entailment_provider).

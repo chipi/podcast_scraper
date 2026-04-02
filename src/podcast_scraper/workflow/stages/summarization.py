@@ -24,7 +24,7 @@ else:
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import extract_episode_metadata, extract_episode_published_date
 from ...utils import filesystem
-from ...utils.log_redaction import redact_for_log
+from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from .. import metrics
 from ..metadata_generation import (
     _determine_metadata_path,
@@ -398,7 +398,7 @@ def _process_episodes_in_parallel(
         worker_providers = summary_provider.create_worker_instances(max_workers)
         logger.debug(f"Successfully created {len(worker_providers)} worker provider instances")
     except Exception as e:
-        logger.error(f"Failed to create worker provider instances: {e}")
+        logger.error("Failed to create worker provider instances: %s", format_exception_for_log(e))
         logger.warning("Falling back to sequential processing due to worker creation failure")
         _process_episodes_sequentially(
             episodes_to_summarize,
@@ -489,6 +489,8 @@ def _execute_parallel_summarization(
             pipeline_metrics=pipeline_metrics,
         )
 
+    MAX_CONSECUTIVE_FAILURES = 3
+
     try:
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = []
@@ -496,18 +498,31 @@ def _execute_parallel_summarization(
                 future = executor.submit(_summarize_with_worker_provider, episode_data)
                 futures.append(future)
 
-            # Wait for all to complete and log progress
             completed = 0
+            consecutive_failures = 0
             for future in as_completed(futures):
                 completed += 1
                 try:
                     future.result()
+                    consecutive_failures = 0
                     if completed % 5 == 0 or completed == len(futures):
                         logger.info(
-                            f"Completed summarization for {completed}/{len(futures)} episodes"
+                            "Completed summarization for " "%d/%d episodes",
+                            completed,
+                            len(futures),
                         )
                 except Exception as e:
-                    logger.error(f"Error during parallel summarization: {e}")
+                    consecutive_failures += 1
+                    logger.error(
+                        "Error during parallel summarization: %s",
+                        format_exception_for_log(e),
+                    )
+                    if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                        logger.error(
+                            "Stopping parallel summarization " "after %d consecutive failures",
+                            MAX_CONSECUTIVE_FAILURES,
+                        )
+                        break
     finally:
         # Force garbage collection after unloading models
         gc.collect()

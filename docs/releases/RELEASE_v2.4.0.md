@@ -22,7 +22,7 @@ v2.4.0 is a **major minor release** introducing a **comprehensive multi-provider
 - **Whisper** (ML) - Local OpenAI Whisper for transcription
 - **spaCy** (ML) - Local NER for speaker detection
 
-#### Cloud LLM Providers (7 Options)
+#### Cloud LLM Providers (6 Options)
 
 - **OpenAI** - GPT-4, GPT-4o, GPT-4o-mini (transcription, speaker detection, summarization)
 - **Anthropic** - Claude 3.5 Sonnet, Claude 3.7 Opus (speaker detection, summarization)
@@ -30,12 +30,14 @@ v2.4.0 is a **major minor release** introducing a **comprehensive multi-provider
 - **DeepSeek** - DeepSeek Chat, DeepSeek Coder (speaker detection, summarization)
 - **Gemini** - Gemini 1.5 Pro, Gemini 2.0 Flash (speaker detection, summarization)
 - **Grok** - xAI's Grok models with real-time information access (speaker detection, summarization)
-- **Ollama** - Local LLM inference (speaker detection, summarization)
+
+#### Local LLM Provider
+
+- **Ollama** - Local LLM inference server (speaker detection, summarization)
 
 **Provider Selection:**
 
 ```yaml
-
 # config.yaml - Mix and match providers
 
 transcription_provider: whisper      # or openai
@@ -43,13 +45,13 @@ speaker_detector_provider: spacy     # or openai, anthropic, mistral, etc.
 summary_provider: transformers       # or openai, anthropic, mistral, etc.
 ```
 
+```bash
 # CLI - Easy provider switching
 
-python3 -m podcast_scraper.cli <https://example.com/feed.xml> \
+python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --transcription-provider openai \
   --speaker-detector-provider anthropic \
   --summary-provider mistral
-
 ```
 - [AI Provider Comparison Guide](../guides/AI_PROVIDER_COMPARISON_GUIDE.md) - Detailed comparison of all 8 providers
 - [Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration examples
@@ -80,7 +82,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml  # Automatic!
 
 python3 -m podcast_scraper.cli https://example.com/feed.xml --no-transcribe-missing
 
-```python
+```
 
 ## Whisper Model Default (base.en)
 
@@ -226,7 +228,6 @@ BART_TRANSITION_END = 4500
 #### New Directory Structure
 
 ```text
-
 output/
 └── rss_feeds.example.com_abc123/
     └── run_my_run_id/
@@ -237,13 +238,6 @@ output/
         └── metadata/             # NEW: Separate metadata directory
             ├── 001_episode_title.metadata.json
             └── 002_episode_title.metadata.json
-
-```
-
-        ├── 001_episode_title.metadata.json
-        ├── 002_episode_title.txt
-        └── 002_episode_title.metadata.json
-
 ```
 
 - **Filtering**: Easier to list only transcripts or only metadata
@@ -263,14 +257,11 @@ output/
 #### Suffix Format
 
 ```text
-
 run_{base_run_id}_{whisper_model}_{transformers}_{summarizer}_{speaker_detector}
 
+run_2.4.0_w_base.en_tf_bart-large-cnn_r_led-base-16384_sp_spacy_sm
 ```
 
-run_2.4.0_w_base.en_tf_bart-large-cnn_r_led-base-16384_sp_spacy_sm
-
-```python
 - `w_{model}` - Whisper model (e.g., `w_base.en`, `w_small.en`)
 - `tf_{model}` - Transformers MAP model (e.g., `tf_bart-large-cnn`)
 - `r_{model}` - REDUCE model (e.g., `r_led-base-16384`)
@@ -499,31 +490,25 @@ whisper_model: base.en               # Was: base (NEW DEFAULT)
 **New Commands:**
 
 ```bash
-
 # Cache management
-
 python3 -m podcast_scraper.cli cache --status
 python3 -m podcast_scraper.cli cache --clean [whisper|transformers|spacy|all]
 python3 -m podcast_scraper.cli cache --clean --yes
 
 # Select providers
-
 python3 -m podcast_scraper.cli URL --transcription-provider openai
 python3 -m podcast_scraper.cli URL --speaker-detector-provider anthropic
 python3 -m podcast_scraper.cli URL --summary-provider mistral
-
 ```
 
+```bash
 # Transcription (new default behavior)
-
 --transcribe-missing        # Now default (no longer needed)
 --no-transcribe-missing     # NEW: Disable automatic transcription
 
 # Whisper model (new default)
-
 --whisper-model base.en     # Now default (was: base)
-
-```python
+```
 
 ## Migration Notes
 

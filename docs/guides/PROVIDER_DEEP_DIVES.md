@@ -85,7 +85,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Fast (100 tok/s)                                  │
 │  🏆 Quality:  ███████████████████░ Excellent                    │
 │  🔒 Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│  ⚠️  No transcription support                                   │
+│  ⚠️  Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models:                                                        │
 │  ├── Claude Haiku 4.5   $1/$5   │ ⭐ Eval/acceptance alias      │
@@ -113,14 +113,13 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Fast                                              │
 │  🏆 Quality:  ██████████████████░░ Very Good                    │
 │  🔒 Privacy:  ████████████████░░░░ High (EU servers)            │
-│  ✅ FULL STACK - Only non-US alternative to OpenAI!            │
+│  ⚠️  Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models:                                                        │
 │  ├── Large 3      $2/$6      │ ⭐ Production                   │
-│  ├── Small 3.1    $0.10/$0.30│ ⭐ Dev/test (cheapest!)         │
-│  └── Voxtral      ~$0.01/min │ Transcription                   │
+│  └── Small 3.1    $0.10/$0.30│ ⭐ Dev/test (cheapest!)         │
 │                                                                 │
-│  Best For: EU compliance, full OpenAI alternative               │
+│  Best For: EU compliance, summarization with data residency     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -141,7 +140,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Fast (150 tok/s)                                  │
 │  🏆 Quality:  ██████████████░░░░░░ Good                         │
 │  🔒 Privacy:  ████████░░░░░░░░░░░░ China servers                │
-│  ⚠️  No transcription support                                   │
+│  ⚠️  Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models:                                                        │
 │  ├── DeepSeek Chat      $0.28/$0.42 (cache miss)               │
@@ -171,7 +170,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Fast                                              │
 │  🏆 Quality:  ██████████████████░░ Very Good                    │
 │  🔒 Privacy:  ████████████░░░░░░░░ Standard (Google)            │
-│  ✅ FULL STACK with native audio understanding                  │
+│  ✅ Transcription + summarization (no speaker detection)        │
 │                                                                 │
 │  Models:                                                        │
 │  ├── Gemini 2.0 Flash  $0.10/$0.40  │ ⭐ Dev/test              │
@@ -203,7 +202,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  🌐 Feature:  ████████████████████ Real-time X/Twitter access  │
 │  🏆 Quality:  ██████████████░░░░░░ Good (xAI models)           │
 │  🔒 Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│  ⚠️  No transcription support                                   │
+│  ⚠️  Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models (xAI's Grok):                                           │
 │  ├── grok-3-mini                │ ⭐ Eval/acceptance (use this) │
@@ -234,7 +233,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Slow-Medium (hardware dependent, ~30 tok/s)        │
 │  🏆 Quality:  ██████████████░░░░░░ Good (model dependent)       │
 │  🔒 Privacy:  ████████████████████ 100% Complete                │
-│  ⚠️  No transcription support                                   │
+│  ✅ Full-stack: transcription, speaker detection, summarization │
 │                                                                 │
 │  Recommended Models (by Use Case):                             │
 │  ├── qwen2.5:7b        8 GB+ RAM  │ ⭐ Best JSON, GIL          │
@@ -294,7 +293,7 @@ High │    CHALLENGERS     │      LEADERS
              │   ┌─────────┐      │          ▲
              │   │  Grok   │──────┼──────────┤
              │   │  🌐Real │      │   ┌──────┴──────┐
-             │   └─────────┘      │   │   Mistral   │ ← EU + Full stack
+             │   └─────────┘      │   │   Mistral   │ ← EU summarization
              │       ▲            │   │     🇪🇺      │
              │   Speed champion   │   └─────────────┘
              │                    │
@@ -325,7 +324,7 @@ High │    CHALLENGERS     │      LEADERS
 
 | Quadrant | Providers | Characteristics | Best For |
 | -------- | --------- | --------------- | -------- |
-| **Leaders** | OpenAI, Gemini, Mistral | Full capabilities, high quality, proven reliability | Production workloads, quality-critical apps |
+| **Leaders** | OpenAI, Gemini, Mistral | High quality, proven reliability, broad capabilities | Production workloads, quality-critical apps |
 | **Challengers** | Anthropic, Grok | Excellent execution but limited scope | Text-only processing, real-time information |
 | **Visionaries** | Local ML, DeepSeek | Innovative value proposition, some trade-offs | Cost optimization, privacy, experimentation |
 | **Niche Players** | Ollama | Specialized use case, strong in specific domain | Offline, enterprise security, self-hosted |
@@ -336,7 +335,7 @@ High │    CHALLENGERS     │      LEADERS
 | -------- | :----------: | :-------------: | -------- | ------------ |
 | **OpenAI** | 9 | 10 | Leader | Quality benchmark |
 | **Gemini** | 10 | 8 | Leader | 2M context + free tier |
-| **Mistral** | 8 | 7 | Leader | EU compliance + full stack |
+| **Mistral** | 8 | 7 | Leader | EU compliance + summarization |
 | **Anthropic** | 5 | 9 | Challenger | Safety + quality |
 | **Grok** | 5 | 8 | Challenger | Real-time info |
 | **Local ML** | 8 | 5 | Visionary | Zero cost + privacy |
@@ -385,7 +384,7 @@ High │    CHALLENGERS     │      LEADERS
 | -------- | -------------- |
 | OpenAI | Quality is paramount, budget available |
 | Gemini | Need huge context (2M), want free tier |
-| Mistral | EU data residency required |
+| Mistral | EU data residency required (summarization only) |
 
 **CHALLENGERS (Anthropic, Grok)**
 
@@ -506,17 +505,18 @@ DeepSeek    🔒🔒       │████████████████�
                     │  Provider      │ Status   │ 🎙️ Trans │ 👤 Speaker │ 📝 Summary │
                     ├────────────────┼──────────┼──────────┼────────────┼────────────┤
                     │  Local ML      │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
-                    │  OpenAI        │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
+                    │  Hybrid ML     │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
+                    │  OpenAI        │ ✅ Impl  │    ✅    │     ❌     │     ✅     │
+                    │  Gemini        │ ✅ Impl  │    ✅    │     ❌     │     ✅     │
+                    │  Ollama        │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
                     ├────────────────┼──────────┼──────────┼────────────┼────────────┤
-                    │  Mistral       │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
-                    │  Gemini        │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
-                    │  Anthropic     │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
-                    │  Grok          │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
-                    │  Ollama        │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
-                    │  DeepSeek      │ ✅ Impl  │    ❌    │     ✅     │     ✅     │
+                    │  Anthropic     │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
+                    │  Mistral       │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
+                    │  DeepSeek      │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
+                    │  Grok          │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
                     └─────────────────────────────────────────────────────────────────┘
 
-    ✅ Implemented (8): Local ML, OpenAI, Gemini, Mistral, Anthropic, Grok, Ollama, DeepSeek
+    ✅ Implemented (9): Local ML, Hybrid ML, OpenAI, Gemini, Ollama, Anthropic, Mistral, DeepSeek, Grok
 ```
 
 ---

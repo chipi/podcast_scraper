@@ -9,6 +9,8 @@ import subprocess
 import time
 from typing import Any, Dict, Optional, Tuple
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -245,7 +247,10 @@ class FFmpegAudioPreprocessor:
             with open(input_path, "rb") as f:
                 hasher.update(f.read(1024 * 1024))
         except OSError as exc:
-            logger.warning("Failed to hash audio file: %s", exc)
+            logger.warning(
+                "Failed to hash audio file: %s",
+                format_exception_for_log(exc),
+            )
             # Use file path as fallback
             hasher.update(input_path.encode("utf-8"))
 

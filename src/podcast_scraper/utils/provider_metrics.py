@@ -12,6 +12,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Tuple, TypeVar
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.utils.retryable_errors import get_retry_reason, is_retryable_error
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,88 @@ class ProviderCallMetrics:
         self.estimated_cost = cost
 
 
+def _safe_openai_retryable() -> tuple[type[Exception], ...]:
+    """Return retryable OpenAI exception classes with fallback.
+
+    When ``openai`` is mocked in tests the imported names are Mock
+    objects, not real exception classes.  Using them in an ``except``
+    clause raises ``TypeError``.  This helper catches that and falls
+    back to ``(Exception,)`` so ``retry_with_metrics`` still works.
+    """
+    try:
+        from openai import (
+            APIError as _APIError,
+            RateLimitError as _RLError,
+        )
+
+        if (
+            isinstance(_RLError, type)
+            and issubclass(_RLError, BaseException)
+            and isinstance(_APIError, type)
+            and issubclass(_APIError, BaseException)
+        ):
+            return (_RLError, _APIError, ConnectionError)
+    except (ImportError, AttributeError):
+        pass
+    return (Exception,)
+
+
+def _safe_gemini_retryable() -> tuple[type[Exception], ...]:
+    """Return retryable Google API exception classes with fallback.
+
+    Same rationale as :func:`_safe_openai_retryable` but for the
+    ``google.api_core.exceptions`` module used by the Gemini provider.
+    """
+    try:
+        from google.api_core import exceptions as _gexc
+
+        _re = _gexc.ResourceExhausted
+        _su = _gexc.ServiceUnavailable
+        if (
+            isinstance(_re, type)
+            and issubclass(_re, BaseException)
+            and isinstance(_su, type)
+            and issubclass(_su, BaseException)
+        ):
+            return (_re, _su, ConnectionError)
+    except (ImportError, AttributeError):
+        pass
+    return (Exception,)
+
+
+def _safe_anthropic_retryable() -> tuple[type[Exception], ...]:
+    """Return retryable Anthropic exception classes with fallback.
+
+    Same rationale as :func:`_safe_openai_retryable` but for the
+    ``anthropic`` SDK used by the Anthropic provider.
+    """
+    try:
+        import anthropic as _anth
+
+        _ae = _anth.APIError
+        if isinstance(_ae, type) and issubclass(_ae, BaseException):
+            return (_ae, ConnectionError, TimeoutError)
+    except (ImportError, AttributeError):
+        pass
+    return (Exception,)
+
+
+def _safe_mistral_retryable() -> tuple[type[Exception], ...]:
+    """Return retryable Mistral exception classes with fallback.
+
+    Same rationale as :func:`_safe_openai_retryable` but for the
+    ``mistralai`` SDK used by the Mistral provider.
+    """
+    try:
+        from mistralai import SDKError as _SDKError
+
+        if isinstance(_SDKError, type) and issubclass(_SDKError, BaseException):
+            return (_SDKError, ConnectionError, TimeoutError)
+    except (ImportError, AttributeError):
+        pass
+    return (Exception,)
+
+
 def retry_with_metrics(
     func: Callable[[], T],
     max_retries: int = 3,
@@ -126,7 +209,7 @@ def retry_with_metrics(
             # Check if error is actually retryable using improved classification
             if not is_retryable_error(e, error_context=error_context):
                 # Non-retryable error - re-raise immediately
-                logger.debug(f"Non-retryable error detected: {e}")
+                logger.debug("Non-retryable error detected: %s", format_exception_for_log(e))
                 raise
 
             if attempt < max_retries:
@@ -168,17 +251,24 @@ def retry_with_metrics(
                     )
 
                 logger.warning(
-                    f"Attempt {attempt + 1}/{max_retries + 1} failed: {e}. "
-                    f"Retrying in {sleep_time:.1f}s..."
+                    "Attempt %d/%d failed: %s. Retrying in %.1fs...",
+                    attempt + 1,
+                    max_retries + 1,
+                    format_exception_for_log(e),
+                    sleep_time,
                 )
                 time.sleep(sleep_time)
                 # Exponential backoff: double the delay, but cap at max_delay
                 delay = min(delay * 2, max_delay)
             else:
-                logger.error(f"All {max_retries + 1} attempts failed. Last error: {e}")
+                logger.error(
+                    "All %d attempts failed. Last error: %s",
+                    max_retries + 1,
+                    format_exception_for_log(e),
+                )
         except Exception as e:
             # Non-retryable exception - re-raise immediately
-            logger.debug(f"Non-retryable exception: {e}")
+            logger.debug("Non-retryable exception: %s", format_exception_for_log(e))
             raise
 
     # All retries exhausted

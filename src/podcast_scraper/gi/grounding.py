@@ -12,6 +12,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, List, Optional, Tuple
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 # Thresholds for evidence stack (RFC-049 / scope doc)
@@ -187,7 +189,10 @@ def find_grounded_quotes(
             window_overlap_chars=qa_window_overlap_chars,
         )
     except Exception as e:
-        logger.warning("Extractive QA failed for GIL grounding: %s", e)
+        logger.warning(
+            "Extractive QA failed for GIL grounding: %s",
+            format_exception_for_log(e),
+        )
         return []
 
     if span.score < qa_score_min:
@@ -202,7 +207,10 @@ def find_grounded_quotes(
             device=nli_device,
         )
     except Exception as e:
-        logger.warning("NLI failed for GIL grounding: %s", e)
+        logger.warning(
+            "NLI failed for GIL grounding: %s",
+            format_exception_for_log(e),
+        )
         return []
 
     if nli_score < nli_entailment_min:
@@ -275,7 +283,10 @@ def find_grounded_quotes_via_providers(
                 pipeline_metrics=pipeline_metrics,
             )
         except Exception as e:
-            logger.warning("extract_quotes failed for GIL grounding: %s", e)
+            logger.warning(
+                "extract_quotes failed for GIL grounding: %s",
+                format_exception_for_log(e),
+            )
             return []
 
         if pipeline_metrics is not None and hasattr(

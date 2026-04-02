@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +20,11 @@ def _load_kg_reference_map(reference_path: Path) -> Dict[str, Dict[str, Any]]:
         try:
             raw = silver.read_text(encoding="utf-8")
         except OSError as exc:
-            logger.warning("Could not read silver reference %s: %s", silver, exc)
+            logger.warning(
+                "Could not read silver reference %s: %s",
+                silver,
+                format_exception_for_log(exc),
+            )
             return {}
         for line in raw.splitlines():
             line = line.strip()
@@ -42,7 +48,11 @@ def _load_kg_reference_map(reference_path: Path) -> Dict[str, Dict[str, Any]]:
         try:
             data = json.loads(gf.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            logger.warning("Skipping reference KG file %s: %s", gf, exc)
+            logger.warning(
+                "Skipping reference KG file %s: %s",
+                gf,
+                format_exception_for_log(exc),
+            )
             continue
         if isinstance(data, dict):
             by_file[eid] = data

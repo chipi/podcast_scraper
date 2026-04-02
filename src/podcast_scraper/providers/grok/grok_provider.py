@@ -43,6 +43,7 @@ from ...utils.cleaning_max_tokens import (
     GROK_CLEANING_MAX_TOKENS,
 )
 from ...utils.log_redaction import format_exception_for_log
+from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -336,21 +337,29 @@ class GrokProvider:
             system_prompt_name = self.cfg.grok_speaker_system_prompt or "grok/ner/system_ner_v1"
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Grok API (OpenAI-compatible format)
-            # This call may raise exceptions (RateLimitError, AuthenticationError, etc.)
-            response = self.client.chat.completions.create(
-                model=self.speaker_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.speaker_temperature,
-                max_tokens=300,
-                response_format={"type": "json_object"},  # Request JSON response
+            # Call Grok API (OpenAI-compatible format) with retry
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
             )
 
-            # Extract response text (this will raise if response structure is invalid)
-            # Only access response if the API call succeeded
+            response = retry_with_metrics(
+                lambda: self.client.chat.completions.create(
+                    model=self.speaker_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.speaker_temperature,
+                    max_tokens=300,
+                    response_format={"type": "json_object"},
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+            )
+
             response_text = response.choices[0].message.content
             if not response_text:
                 logger.warning("Grok API returned empty response")
@@ -629,14 +638,15 @@ class GrokProvider:
             )
 
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("grok")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -655,7 +665,7 @@ class GrokProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -664,12 +674,21 @@ class GrokProvider:
 
             call_metrics.finalize()
 
+            warn_if_truncated(
+                response.choices[0].finish_reason,
+                "grok",
+                "summarize",
+            )
+
             summary = response.choices[0].message.content
             if not summary:
                 logger.warning("Grok API returned empty summary")
                 summary = ""
 
-            logger.debug("Grok summarization completed: %d characters", len(summary))
+            logger.debug(
+                "Grok summarization completed: %d characters",
+                len(summary),
+            )
 
             # Extract token counts and populate call_metrics
             input_tokens = None
@@ -927,7 +946,10 @@ class GrokProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -945,7 +967,7 @@ class GrokProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_openai_retryable(),
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -985,7 +1007,10 @@ class GrokProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1003,7 +1028,7 @@ class GrokProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_openai_retryable(),
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -1035,9 +1060,8 @@ class GrokProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1066,7 +1090,7 @@ class GrokProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1112,9 +1136,8 @@ class GrokProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1143,7 +1166,7 @@ class GrokProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1199,14 +1222,14 @@ class GrokProvider:
         )
 
         try:
-            # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("grok")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1228,7 +1251,7 @@ class GrokProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:

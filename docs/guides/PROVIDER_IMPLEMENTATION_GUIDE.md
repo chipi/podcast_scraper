@@ -26,16 +26,40 @@ This design allows:
 As of v2.4.0, the project follows a **Unified Provider** pattern where a single class implementation handles multiple protocols using shared libraries or API clients.
 
 - **`MLProvider`**: Unified local implementation using Whisper, spaCy, and Transformers.
+- **`HybridMLProvider`**: Combines local ML MAP phase + LLM REDUCE phase.
 - **`OpenAIProvider`**: Unified API implementation using OpenAI's various endpoints.
+- **`GeminiProvider`**: Google Gemini API (transcription + summarization).
+- **`AnthropicProvider`**: Anthropic Claude API (summarization only).
+- **`MistralProvider`**: Mistral API (summarization only).
+- **`GrokProvider`**: Grok/xAI API (summarization only).
+- **`DeepSeekProvider`**: DeepSeek API (summarization only).
+- **`OllamaProvider`**: Local self-hosted LLMs (transcription, speaker detection, summarization).
 
 **File Structure:**
 
 ```text
 src/podcast_scraper/
-├── ml/
-│   └── ml_provider.py       # Unified Local ML implementation
-├── openai/
-│   └── openai_provider.py   # Unified OpenAI API implementation
+├── providers/
+│   ├── ml/
+│   │   ├── ml_provider.py           # Unified Local ML implementation
+│   │   ├── hybrid_ml_provider.py    # Hybrid MAP-REDUCE implementation
+│   │   ├── whisper_utils.py         # Whisper transcription utilities
+│   │   ├── speaker_detection.py     # spaCy NER speaker detection
+│   │   └── summarizer.py            # Transformers summarization
+│   ├── openai/
+│   │   └── openai_provider.py       # Unified OpenAI API implementation
+│   ├── gemini/
+│   │   └── gemini_provider.py       # Gemini API implementation
+│   ├── anthropic/
+│   │   └── anthropic_provider.py    # Anthropic API implementation
+│   ├── mistral/
+│   │   └── mistral_provider.py      # Mistral API implementation
+│   ├── grok/
+│   │   └── grok_provider.py         # Grok API implementation
+│   ├── deepseek/
+│   │   └── deepseek_provider.py     # DeepSeek API implementation
+│   └── ollama/
+│       └── ollama_provider.py       # Ollama local LLM implementation
 ├── transcription/
 │   ├── base.py              # Protocol definition
 │   └── factory.py           # Factory logic
@@ -107,7 +131,7 @@ Use typed exceptions from `podcast_scraper.exceptions`:
 Use the centralized `prompt_store` for LLM prompts:
 
 ```python
-from ..prompt_store import render_prompt, get_prompt_metadata
+from ..prompts.store import render_prompt, get_prompt_metadata
 
 # Render a versioned prompt
 system_prompt = render_prompt("summarization/system_v1")
@@ -121,10 +145,10 @@ Update the factory functions in `{capability}/factory.py` to include your new pr
 def create_transcription_provider(cfg: config.Config) -> TranscriptionProvider:
     # ...
     if provider_type == "whisper":
-        from ..ml.ml_provider import MLProvider
+        from ..providers.ml.ml_provider import MLProvider
         return MLProvider(cfg)
     elif provider_type == "openai":
-        from ..openai.openai_provider import OpenAIProvider
+        from ..providers.openai.openai_provider import OpenAIProvider
         return OpenAIProvider(cfg)
     # ...
 ```

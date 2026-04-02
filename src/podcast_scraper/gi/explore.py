@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 from .contracts import ExploreOutput, InsightSummary, SupportingQuote, TopSpeakerEntry
 from .io import read_artifact
 from .load import build_inspect_output
@@ -142,7 +144,11 @@ def load_artifacts(
                     path,
                     f"artifact validation failed: {e}",
                 ) from e
-            logger.warning("Skip invalid artifact %s: %s", path, e)
+            logger.warning(
+                "Skip invalid artifact %s: %s",
+                path,
+                format_exception_for_log(e),
+            )
     return result
 
 

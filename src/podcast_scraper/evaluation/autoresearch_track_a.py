@@ -17,6 +17,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,14 +59,22 @@ def load_local_dotenv_files(repo_root: Path) -> None:
         try:
             load_dotenv(env_main, override=False)
         except (OSError, PermissionError) as e:
-            logger.warning("Could not load %s: %s", env_main, e)
+            logger.warning(
+                "Could not load %s: %s",
+                env_main,
+                format_exception_for_log(e),
+            )
 
     env_ar = repo_root / ".env.autoresearch"
     if env_ar.is_file():
         try:
             load_dotenv(env_ar, override=True)
         except (OSError, PermissionError) as e:
-            logger.warning("Could not load %s: %s", env_ar, e)
+            logger.warning(
+                "Could not load %s: %s",
+                env_ar,
+                format_exception_for_log(e),
+            )
 
 
 ALLOW_PRODUCTION_KEYS_ENV = "AUTORESEARCH_ALLOW_PRODUCTION_KEYS"

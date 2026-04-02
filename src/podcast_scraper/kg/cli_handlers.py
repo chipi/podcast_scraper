@@ -9,6 +9,8 @@ from argparse import Namespace
 from pathlib import Path
 from typing import List, Optional
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 from .contracts import (
     build_kg_corpus_bundle_output,
     build_kg_entity_rollup_output,
@@ -64,7 +66,7 @@ def run_kg_validate(args: Namespace, logger: logging.Logger) -> int:
     try:
         paths = collect_kg_paths_from_inputs([Path(p) for p in paths_arg])
     except (FileNotFoundError, ValueError) as e:
-        logger.error("%s", e)
+        logger.error("%s", format_exception_for_log(e))
         return EXIT_INVALID_ARGS
     if not paths:
         logger.error("No .kg.json files found")
@@ -80,7 +82,7 @@ def run_kg_validate(args: Namespace, logger: logging.Logger) -> int:
                 print(f"OK {path}")
         except Exception as e:
             failed += 1
-            logger.error("FAIL %s: %s", path, e)
+            logger.error("FAIL %s: %s", path, format_exception_for_log(e))
     if failed:
         logger.error("%s of %s file(s) failed validation", failed, len(paths))
         return 1
@@ -107,7 +109,7 @@ def run_kg_inspect(args: Namespace, logger: logging.Logger) -> int:
         data = read_artifact(artifact_path)
         validate_artifact(data, strict=getattr(args, "strict", False))
     except (FileNotFoundError, ValueError) as e:
-        logger.error("%s", e)
+        logger.error("%s", format_exception_for_log(e))
         return 1
     summary = inspect_summary(data, artifact_path=artifact_path)
     fmt = getattr(args, "format", "pretty")
@@ -160,7 +162,7 @@ def run_kg_export(args: Namespace, logger: logging.Logger) -> int:
     try:
         loaded = load_kg_artifacts(paths, validate=True, strict=strict)
     except ValueError as e:
-        logger.error("Validation failed: %s", e)
+        logger.error("Validation failed: %s", format_exception_for_log(e))
         return 1
     if not loaded:
         logger.error("No valid artifacts loaded")
@@ -214,7 +216,7 @@ def run_kg_entities(args: Namespace, logger: logging.Logger) -> int:
     try:
         loaded = load_kg_artifacts(paths, validate=True, strict=strict)
     except ValueError as e:
-        logger.error("Validation failed: %s", e)
+        logger.error("Validation failed: %s", format_exception_for_log(e))
         return 1
     min_ep = int(getattr(args, "min_episodes", 1) or 1)
     rows = entity_rollup(loaded, min_episodes=min_ep, output_dir=out_root)
@@ -251,7 +253,7 @@ def run_kg_topics(args: Namespace, logger: logging.Logger) -> int:
     try:
         loaded = load_kg_artifacts(paths, validate=True, strict=strict)
     except ValueError as e:
-        logger.error("Validation failed: %s", e)
+        logger.error("Validation failed: %s", format_exception_for_log(e))
         return 1
     min_sup = int(getattr(args, "min_support", 1) or 1)
     rows = topic_cooccurrence(loaded, min_support=min_sup)

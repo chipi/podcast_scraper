@@ -52,6 +52,7 @@ from ...utils.cleaning_max_tokens import (
     OLLAMA_CLEANING_MAX_TOKENS,
 )
 from ...utils.log_redaction import format_exception_for_log
+from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -801,22 +802,31 @@ class OllamaProvider:
                 )
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Ollama API (OpenAI-compatible format)
+            # Call Ollama API (OpenAI-compatible format) with retry
+            from ...utils.provider_metrics import retry_with_metrics
+
             logger.info(
                 "Calling Ollama API for speaker detection with model: '%s' "
                 "(exact name being sent to Ollama)",
                 self.speaker_model,
             )
-            response = self.client.chat.completions.create(
-                model=self.speaker_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.speaker_temperature,
-                max_tokens=300,
-                response_format={"type": "json_object"},  # Request JSON response
-                **_ollama_openai_chat_extra_kwargs(self.speaker_model),
+
+            response = retry_with_metrics(
+                lambda: self.client.chat.completions.create(
+                    model=self.speaker_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.speaker_temperature,
+                    max_tokens=300,
+                    response_format={"type": "json_object"},
+                    **_ollama_openai_chat_extra_kwargs(self.speaker_model),
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(Exception,),
             )
 
             response_text = response.choices[0].message.content
@@ -1003,14 +1013,15 @@ class OllamaProvider:
             )
 
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("ollama")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 logger.info(
@@ -1035,7 +1046,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )
@@ -1045,12 +1056,21 @@ class OllamaProvider:
 
             call_metrics.finalize()
 
+            warn_if_truncated(
+                response.choices[0].finish_reason,
+                "ollama",
+                "summarize",
+            )
+
             summary = response.choices[0].message.content
             if not summary:
                 logger.warning("Ollama API returned empty summary")
                 summary = ""
 
-            logger.debug("Ollama summarization completed: %d characters", len(summary))
+            logger.debug(
+                "Ollama summarization completed: %d characters",
+                len(summary),
+            )
 
             # Extract token counts and populate call_metrics (Ollama may not report usage)
             input_tokens = None
@@ -1249,13 +1269,14 @@ class OllamaProvider:
 
         try:
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("ollama")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 logger.info(
@@ -1283,7 +1304,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )
@@ -1418,9 +1439,10 @@ class OllamaProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1439,7 +1461,7 @@ class OllamaProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                retryable_exceptions=_safe_openai_retryable(),
                 error_context="ollama_local",
             )
             raw = (response.choices[0].message.content or "").strip()
@@ -1482,9 +1504,10 @@ class OllamaProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1503,7 +1526,7 @@ class OllamaProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                retryable_exceptions=_safe_openai_retryable(),
                 error_context="ollama_local",
             )
             raw = (response.choices[0].message.content or "").strip()
@@ -1536,9 +1559,8 @@ class OllamaProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1568,7 +1590,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )
@@ -1615,9 +1637,8 @@ class OllamaProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1647,7 +1668,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )

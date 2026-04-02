@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any, cast, Dict
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,11 +72,19 @@ def validate_and_load_metadata(metadata_path: str, episode_id: str) -> Dict[str,
         validate_episode_metadata(metadata, episode_id)
         return cast(Dict[str, Any], metadata)
     except json.JSONDecodeError as e:
-        logger.warning(f"Invalid JSON in {metadata_path}: {e}")
+        logger.warning(
+            "Invalid JSON in %s: %s",
+            metadata_path,
+            format_exception_for_log(e),
+        )
         return None
     except AssertionError:
         # Re-raise assertion errors (validation failures)
         raise
     except Exception as e:
-        logger.warning(f"Failed to load metadata from {metadata_path}: {e}")
+        logger.warning(
+            "Failed to load metadata from %s: %s",
+            metadata_path,
+            format_exception_for_log(e),
+        )
         return None

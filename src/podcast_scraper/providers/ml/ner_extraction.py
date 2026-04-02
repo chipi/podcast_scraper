@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
+from ...utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,5 +53,5 @@ def extract_all_entities(
 
         return entities
     except Exception as exc:
-        logger.error(f"Error extracting entities: {exc}", exc_info=True)
+        logger.error("Error extracting entities: %s", format_exception_for_log(exc), exc_info=True)
         return []

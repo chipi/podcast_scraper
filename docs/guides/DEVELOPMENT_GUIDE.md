@@ -37,9 +37,9 @@ make deps-check                # Check dependencies (exits on error)
 make analyze-test-memory       # Analyze test memory usage (default: test-unit)
 make test-unit                 # Unit tests (parallel)
 make test-integration          # Integration tests (parallel, reruns)
-make test-e2e                  # E2E tests (serial first, then parallel)
+make test-e2e                  # E2E tests (parallel, with reruns)
 make test                      # All tests
-make test-fast                 # Unit + critical path only
+make test-fast                 # Unit + critical path integration + critical path E2E
 ```
 
 ### Fast Validation for Changed Files
@@ -99,14 +99,14 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
        from podcast_scraper import speaker_detection
    ```
 
-1. **Use lazy imports**: Import inside functions, not at module level
+2. **Use lazy imports**: Import inside functions, not at module level
 
-1. **Verify imports work without ML deps**: Run `make check-unit-imports` before pushing
+3. **Verify imports work without ML deps**: Run `make check-unit-imports` before pushing
    - This verifies modules can be imported without ML dependencies installed
    - Runs automatically in CI before unit tests
    - Use when: adding new modules, refactoring imports, or debugging CI failures
 
-1. **Run unit tests**: Run `make test-unit` before pushing
+4. **Run unit tests**: Run `make test-unit` before pushing
 
 ### Module Dependency Analysis
 
@@ -212,7 +212,7 @@ Evaluation is handled automatically by the experiment runner. When you run an ex
 ```bash
 # Run experiment with automatic evaluation
 make experiment-run \
-  CONFIG=config/playground/my_config.yaml \
+  CONFIG=data/eval/configs/my_config.yaml \
   BASELINE=baseline_prod_authority_v1 \
   REFERENCE=silver_gpt52_v1
 ```
@@ -246,7 +246,7 @@ If you create a virtual environment manually, you **must** install the package:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .[dev,ml]  # Install package in editable mode with dev and ML dependencies
+pip install -e ".[dev,ml,llm]"  # Editable mode with dev, ML, and LLM extras
 ```
 
 **Optional — spaCy wheels on disk:** Run `make download-spacy-wheels`, then `make init`; if
@@ -589,11 +589,12 @@ git checkout -- path/to/file
 
 ```bash
 git status --porcelain
-```python
+```
 
 **If you see any output, handle it first!**
 
 **What happens if you don't follow this:**
+
 - ❌ Uncommitted changes from previous work get included in your new branch
 - ❌ Your commit will show more files than you actually changed
 - ❌ PR will show confusing diffs with unrelated changes
@@ -662,9 +663,6 @@ nothing to commit, working tree clean  ✅
 - The guidelines are automatically loaded (no setup needed)
 - AI assistants will follow project patterns and workflows
 - Guidelines ensure consistent code quality
-- **Prompt templates available:** `.cursor/prompts/` contains reusable prompt templates for
-  CI debugging, RFC design, code reviews, and implementation planning
-
 - **See also:** [`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`](CURSOR_AI_BEST_PRACTICES_GUIDE.md) -
   Best practices for using Cursor AI effectively, including model selection, workflow
 
@@ -837,7 +835,7 @@ from podcast_scraper.models import Episode
 ✅ **Unit test with mocks for external dependencies:**
 
 ```python
-@patch("podcast_scraper.downloader.requests.Session")
+@patch("podcast_scraper.rss.downloader.requests.Session")
 def test_fetch_url_with_retry(self, mock_session):
     """Test that fetch_url retries on network failure."""
     mock_session.get.side_effect = [
@@ -911,7 +909,7 @@ class TestEpisodeProcessor(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("podcast_scraper.whisper_integration.whisper")
+    @patch("podcast_scraper.providers.ml.whisper_utils.whisper")
     def test_transcription(self, mock_whisper):
         mock_whisper.load_model.return_value = Mock()
         mock_whisper.transcribe.return_value = {"text": "Test transcript"}
@@ -1115,21 +1113,20 @@ If CI fails on your PR:
 **CI Command Differences:**
 
 - **`make ci`**: Full CI suite
-  - Runs `test-ci` (unit + integration + e2e-fast tests, excludes slow/ml_models)
+  - Runs `test` (unit + integration + e2e tests, excludes slow/ml_models)
   - Full validation matching GitHub Actions
   - Use before commits/PRs
 
 - **`make ci-fast`**: Fast CI checks
-  - Skips cleanup step (faster startup)
-  - Runs `test-ci-fast` (unit + fast integration + fast e2e, excludes slow/ml_models, no coverage)
+  - Runs `test-fast` (unit + critical path integration + critical path e2e, no coverage)
+  - Skips `coverage-enforce` (the main difference from `make ci`)
   - Quick feedback during development
   - Use for rapid iteration, but always run `make ci` before pushing
 
-- **`make ci-full`**: Complete CI suite
-  - Runs `clean-all` first (removes build artifacts + ML caches)
-  - Runs `test` (all tests: unit + integration + e2e, all slow/fast variants)
-  - Complete validation including slow/ml_models tests
-  - Use before releases or when you need full test coverage
+- **`make ci-clean`**: Complete CI suite (clean start)
+  - Runs `clean-all format-check lint lint-markdown type security preload-ml-models test docs build`
+  - Starts fresh by removing build artifacts + ML caches, then runs the full validation pipeline
+  - Use before releases or when you need full test coverage from a clean state
 
 **Common failures:**
 
@@ -1140,7 +1137,7 @@ If CI fails on your PR:
 | Type errors | Add missing type hints |
 | Test failures | Fix or update tests |
 | Coverage drop | Add tests for new code |
-| Markdown linting | Run `python scripts/tools/fix_markdown.py` or `markdownlint --fix` |
+| Markdown linting | Run `make fix-md` to auto-fix markdown issues |
 
 **Prevent failures with pre-commit hooks:**
 
@@ -1169,7 +1166,7 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 
 #### 3. Release docs prep
 
-**Why this matters:** Architecture diagrams are not generated in CI. The docs site and all CI jobs use the committed `docs/architecture/*.svg` files. If you release without updating them, the published docs will show outdated architecture, and any subsequent PR or push will fail `check-visualizations`. Running release-docs-prep before every release keeps diagrams in sync with the code you are releasing.
+**Why this matters:** Architecture diagrams are not generated in CI. The docs site and all CI jobs use the committed `docs/architecture/*.svg` files. If you release without updating them, the published docs will show outdated architecture, and subsequent PRs may fail checks until you run `make visualize` and commit updated SVGs. Running release-docs-prep before every release keeps diagrams in sync with the code you are releasing.
 
 - Run **`make release-docs-prep`**. This:
   - Regenerates architecture diagrams (`docs/architecture/*.svg`).
@@ -1196,7 +1193,7 @@ Run all of the following in each release cycle before releasing so the codebase 
   - Dead code (vulture) and spelling (codespell) findings are triaged (fixed or whitelisted/ignored).
   - Test coverage meets the combined threshold (see [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) for background and targets).
 - **Tests**: Run the full CI gate: **`make ci`** (format-check, lint, type, security, complexity, docstrings, spelling, tests, coverage-enforce, docs, build). For maximum confidence (e.g. major release), run **`make ci-clean`** or run **`make test`** then **`make coverage-enforce`**, **`make docs`**, **`make build`**.
-- **Diagrams (required for release):** `make ci` and `make ci-fast` run `make check-visualizations`; if diagrams are stale, the run fails. Run `make visualize` and commit `docs/architecture/*.svg`. Before release, **`make release-docs-prep`** does this and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
+- **Diagrams (required for release):** If diagrams are stale, run `make visualize` and commit `docs/architecture/*.svg`. Before release, **`make release-docs-prep`** regenerates diagrams and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
 - **Build**: Ensure **`make build`** succeeds (sdist/wheel in `.build/dist/` or `dist/`).
 
 #### 6. Commit and push
@@ -1383,17 +1380,17 @@ When in doubt, prefer DEBUG over INFO - it's easier to promote a log level than 
 **Use the `progress.py` abstraction:**
 
 ```python
-from podcast_scraper import progress
+from podcast_scraper.utils.progress import progress_context
 
 # Good - uses progress abstraction
 
-with progress.make_progress(
+with progress_context(
     total=len(episodes),
-    desc="Downloading transcripts"
-) as pbar:
+    description="Downloading transcripts"
+) as reporter:
     for episode in episodes:
         process_episode(episode)
-        pbar.update(1)
+        reporter.update(1)
 
 # Bad - direct tqdm usage
 
@@ -1466,12 +1463,12 @@ The project uses a **protocol-based provider system** for transcription, speaker
 and summarization. When implementing new providers:
 
 1. **Understand the Protocol**: Read the protocol definition in `{capability}/base.py`
-1. **Implement Provider Class**: Create `{capability}/{provider}_provider.py`
-1. **Register in Factory**: Update `{capability}/factory.py` to include new provider
-1. **Add Configuration**: Update `config.py` to support provider selection
-1. **Add CLI Support**: Update `cli.py` with provider arguments (if needed)
-1. **Add E2E Server Mocking**: For API providers, add mock endpoints
-1. **Write Tests**: Create unit, integration, and E2E tests
+2. **Implement Provider Class**: Create `{capability}/{provider}_provider.py`
+3. **Register in Factory**: Update `{capability}/factory.py` to include new provider
+4. **Add Configuration**: Update `config.py` to support provider selection
+5. **Add CLI Support**: Update `cli.py` with provider arguments (if needed)
+6. **Add E2E Server Mocking**: For API providers, add mock endpoints
+7. **Write Tests**: Create unit, integration, and E2E tests
 
 **For complete implementation guide**, see [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
 

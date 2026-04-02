@@ -67,11 +67,7 @@ class TestLLMBasedCleaner(unittest.TestCase):
         """Test that clean() requires a provider with clean_transcript method."""
         cleaner = LLMBasedCleaner()
 
-        # Should raise AttributeError if provider doesn't have clean_transcript
-        provider_without_method = Mock()
-        # Remove clean_transcript attribute if it exists
-        if hasattr(provider_without_method, "clean_transcript"):
-            delattr(provider_without_method, "clean_transcript")
+        provider_without_method = Mock(spec=[])
 
         with self.assertRaises(AttributeError) as context:
             cleaner.clean("text", provider_without_method)
@@ -331,10 +327,173 @@ class TestHybridCleaner(unittest.TestCase):
         """Test that _needs_llm_cleaning returns False when provider doesn't support it."""
         cleaner = HybridCleaner()
 
-        provider_without_method = Mock()
-        # Remove clean_transcript attribute if it exists
-        if hasattr(provider_without_method, "clean_transcript"):
-            delattr(provider_without_method, "clean_transcript")
+        provider_without_method = Mock(spec=[])
 
         result = cleaner._needs_llm_cleaning("original", "cleaned", provider_without_method)
         self.assertFalse(result, "Should not need LLM cleaning if provider doesn't support it")
+
+
+class TestPatternBasedCleanerEdgeCases(unittest.TestCase):
+    """Edge-case tests for PatternBasedCleaner."""
+
+    @patch("podcast_scraper.preprocessing.clean_for_summarization")
+    def test_clean_empty_string(self, mock_clean):
+        """clean('') delegates to preprocessing with empty string."""
+        mock_clean.return_value = ""
+        result = PatternBasedCleaner().clean("")
+        mock_clean.assert_called_once_with("")
+        self.assertEqual(result, "")
+
+    @patch("podcast_scraper.preprocessing.clean_for_summarization")
+    def test_clean_whitespace_only(self, mock_clean):
+        """clean('   ') delegates to preprocessing with whitespace."""
+        mock_clean.return_value = ""
+        result = PatternBasedCleaner().clean("   ")
+        mock_clean.assert_called_once_with("   ")
+        self.assertEqual(result, "")
+
+    @patch("podcast_scraper.preprocessing.remove_sponsor_blocks")
+    def test_remove_sponsors_empty_string(self, mock_remove):
+        """remove_sponsors('') works without error."""
+        mock_remove.return_value = ""
+        result = PatternBasedCleaner().remove_sponsors("")
+        mock_remove.assert_called_once_with("")
+        self.assertEqual(result, "")
+
+    @patch("podcast_scraper.preprocessing.remove_outro_blocks")
+    def test_remove_outros_empty_string(self, mock_remove):
+        """remove_outros('') works without error."""
+        mock_remove.return_value = ""
+        result = PatternBasedCleaner().remove_outros("")
+        mock_remove.assert_called_once_with("")
+        self.assertEqual(result, "")
+
+
+class TestLLMBasedCleanerExtended(unittest.TestCase):
+    """Extended tests for LLMBasedCleaner edge cases."""
+
+    def test_clean_forwards_pipeline_metrics(self):
+        """pipeline_metrics kwarg is forwarded to provider.clean_transcript."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        mock_provider.clean_transcript.return_value = "cleaned"
+        pm = object()
+
+        cleaner.clean("some text", mock_provider, pipeline_metrics=pm)
+
+        mock_provider.clean_transcript.assert_called_once_with("some text", pipeline_metrics=pm)
+
+    def test_clean_non_str_return_falls_back(self):
+        """Provider returning int falls back to original text."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        mock_provider.clean_transcript.return_value = 123
+
+        result = cleaner.clean("original text", mock_provider)
+        self.assertEqual(result, "original text")
+
+    def test_clean_dict_return_falls_back(self):
+        """Provider returning dict falls back to original text."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        mock_provider.clean_transcript.return_value = {}
+
+        result = cleaner.clean("original text", mock_provider)
+        self.assertEqual(result, "original text")
+
+    def test_clean_short_input_skips_length_guard(self):
+        """Input shorter than 2000 chars bypasses the length guard."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        short_input = "a" * 500
+        very_short_output = "b"
+        mock_provider.clean_transcript.return_value = very_short_output
+
+        result = cleaner.clean(short_input, mock_provider)
+        self.assertEqual(result, very_short_output)
+
+    def test_clean_whitespace_only_return_falls_back(self):
+        """Provider returning whitespace-only string falls back (length guard catches it)."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        mock_provider.clean_transcript.return_value = "   "
+        long_input = "word " * 500
+        self.assertGreaterEqual(len(long_input), 2000)
+
+        result = cleaner.clean(long_input, mock_provider)
+        self.assertEqual(result, long_input)
+
+
+class TestHybridCleanerBoundaries(unittest.TestCase):
+    """Boundary-condition tests for HybridCleaner heuristics."""
+
+    def test_needs_llm_cleaning_at_exact_5_percent_boundary(self):
+        """Exactly 5% reduction (reduction_ratio == 0.05) → False (not < 0.05)."""
+        cleaner = HybridCleaner()
+        original = "x" * 1000
+        cleaned = "x" * 950
+        mock_provider = Mock()
+
+        result = cleaner._needs_llm_cleaning(original, cleaned, mock_provider)
+        self.assertFalse(result)
+
+    def test_needs_llm_cleaning_at_4_9_percent(self):
+        """4.9% reduction (reduction_ratio < 0.05) → True."""
+        cleaner = HybridCleaner()
+        original = "x" * 1000
+        cleaned = "x" * 951
+        mock_provider = Mock()
+
+        result = cleaner._needs_llm_cleaning(original, cleaned, mock_provider)
+        self.assertTrue(result)
+
+    def test_needs_llm_cleaning_one_sponsor_keyword_not_enough(self):
+        """Exactly 1 sponsor keyword does not trigger LLM cleaning."""
+        cleaner = HybridCleaner()
+        original = "x" * 100
+        cleaned = "Use the promo code SAVE20 for a discount."
+        mock_provider = Mock()
+
+        result = cleaner._needs_llm_cleaning(original, cleaned, mock_provider)
+        self.assertFalse(result)
+
+    def test_needs_llm_cleaning_two_sponsor_keywords_triggers(self):
+        """Exactly 2 sponsor keywords triggers LLM cleaning."""
+        cleaner = HybridCleaner()
+        original = "x" * 100
+        cleaned = "This episode is sponsored by Acme Corp. " "Brought to you by Test Company."
+        mock_provider = Mock()
+
+        result = cleaner._needs_llm_cleaning(original, cleaned, mock_provider)
+        self.assertTrue(result)
+
+    @patch("podcast_scraper.preprocessing.clean_for_summarization")
+    def test_clean_empty_original(self, mock_clean):
+        """HybridCleaner.clean('') returns pattern-cleaned result of ''."""
+        mock_clean.return_value = ""
+        cleaner = HybridCleaner()
+        mock_provider = Mock()
+
+        result = cleaner.clean("", provider=mock_provider)
+        self.assertEqual(result, "")
+        mock_clean.assert_called_once_with("")
+
+    def test_needs_llm_cleaning_empty_original_skips_reduction_heuristic(self):
+        """Empty original skips the reduction-ratio heuristic (original is falsy)."""
+        cleaner = HybridCleaner()
+        mock_provider = Mock()
+
+        result = cleaner._needs_llm_cleaning("", "cleaned", mock_provider)
+        self.assertFalse(result)
+
+
+class TestTranscriptCleaningProcessorProtocol(unittest.TestCase):
+    """Tests for the TranscriptCleaningProcessor runtime protocol."""
+
+    def test_pattern_cleaner_satisfies_protocol(self):
+        """PatternBasedCleaner is recognised as a TranscriptCleaningProcessor."""
+        self.assertIsInstance(PatternBasedCleaner(), TranscriptCleaningProcessor)
+
+    def test_non_conforming_object_fails_protocol(self):
+        """A plain object does not satisfy TranscriptCleaningProcessor."""
+        self.assertNotIsInstance(object(), TranscriptCleaningProcessor)

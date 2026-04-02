@@ -350,9 +350,11 @@ class GeminiProvider:
             if effective_language:
                 prompt_text += f" The language is {effective_language}."
 
-            # Create content with audio (multimodal input)
-            # New API: client.models.generate_content() instead of
-            # GenerativeModel().generate_content()
+            from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
+                retry_with_metrics,
+            )
+
             contents = [
                 {
                     "mime_type": mime_type,
@@ -360,9 +362,15 @@ class GeminiProvider:
                 },
                 prompt_text,
             ]
-            response = self.client.models.generate_content(
-                model=self.transcription_model,
-                contents=contents,
+            response = retry_with_metrics(
+                lambda: self.client.models.generate_content(
+                    model=self.transcription_model,
+                    contents=contents,
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
             )
 
             # Extract text from response
@@ -492,10 +500,10 @@ class GeminiProvider:
             call_metrics = ProviderCallMetrics()
         call_metrics.set_provider_name("gemini")
 
-        # Wrap transcribe call with retry tracking
-        from google.api_core import exceptions as google_exceptions
-
-        from ...utils.provider_metrics import retry_with_metrics
+        from ...utils.provider_metrics import (
+            _safe_gemini_retryable,
+            retry_with_metrics,
+        )
 
         start_time = time.time()
         try:
@@ -504,11 +512,7 @@ class GeminiProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(
-                    google_exceptions.ResourceExhausted,
-                    google_exceptions.ServiceUnavailable,
-                    ConnectionError,
-                ),
+                retryable_exceptions=_safe_gemini_retryable(),
                 metrics=call_metrics,
             )
         except Exception:
@@ -649,12 +653,21 @@ class GeminiProvider:
                 "system_instruction": system_prompt,
             }
 
-            # New API: client.models.generate_content() instead of
-            # GenerativeModel().generate_content()
-            response = self.client.models.generate_content(
-                model=self.speaker_model,
-                contents=user_prompt,
-                config=generation_config,
+            from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
+                retry_with_metrics,
+            )
+
+            response = retry_with_metrics(
+                lambda: self.client.models.generate_content(
+                    model=self.speaker_model,
+                    contents=user_prompt,
+                    config=generation_config,
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
             )
 
             response_text = response.text if hasattr(response, "text") else str(response)
@@ -868,23 +881,18 @@ class GeminiProvider:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
 
-            # Wrap API call with retry tracking
-            from google.api_core import exceptions as google_exceptions
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
-                # Call Gemini API using new Client API
-                # Use dict format for generation config (more compatible with SDK versions)
-                # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.summary_temperature,
                     "max_output_tokens": max_length,
                     "system_instruction": system_prompt,
                 }
 
-                # New API: client.models.generate_content() instead of
-                # GenerativeModel().generate_content()
                 return self.client.models.generate_content(
                     model=self.summary_model,
                     contents=user_prompt,
@@ -897,11 +905,7 @@ class GeminiProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(
-                        google_exceptions.ResourceExhausted,
-                        google_exceptions.ServiceUnavailable,
-                        ConnectionError,
-                    ),
+                    retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1191,9 +1195,10 @@ class GeminiProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from google.api_core import exceptions as google_exceptions
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
+                retry_with_metrics,
+            )
 
             generation_config = {
                 "temperature": 0.1,
@@ -1213,11 +1218,7 @@ class GeminiProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(
-                    google_exceptions.ResourceExhausted,
-                    google_exceptions.ServiceUnavailable,
-                    ConnectionError,
-                ),
+                retryable_exceptions=_safe_gemini_retryable(),
             )
             raw = response.text if hasattr(response, "text") else str(response)
             return parse_kg_graph_response(
@@ -1263,9 +1264,10 @@ class GeminiProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from google.api_core import exceptions as google_exceptions
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
+                retry_with_metrics,
+            )
 
             generation_config = {
                 "temperature": 0.1,
@@ -1285,11 +1287,7 @@ class GeminiProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(
-                    google_exceptions.ResourceExhausted,
-                    google_exceptions.ServiceUnavailable,
-                    ConnectionError,
-                ),
+                retryable_exceptions=_safe_gemini_retryable(),
             )
             raw = response.text if hasattr(response, "text") else str(response)
             return parse_kg_graph_response(
@@ -1325,9 +1323,8 @@ class GeminiProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from google.api_core import exceptions as google_exceptions
-
             from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 gemini_generate_usage_tokens,
                 merge_gil_evidence_call_metrics_on_failure,
@@ -1358,11 +1355,7 @@ class GeminiProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(
-                        google_exceptions.ResourceExhausted,
-                        google_exceptions.ServiceUnavailable,
-                        ConnectionError,
-                    ),
+                    retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1409,9 +1402,8 @@ class GeminiProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from google.api_core import exceptions as google_exceptions
-
             from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 gemini_generate_usage_tokens,
                 merge_gil_evidence_call_metrics_on_failure,
@@ -1442,11 +1434,7 @@ class GeminiProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(
-                        google_exceptions.ResourceExhausted,
-                        google_exceptions.ServiceUnavailable,
-                        ConnectionError,
-                    ),
+                    retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1503,18 +1491,16 @@ class GeminiProvider:
         )
 
         try:
-            # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_gemini_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("gemini")
 
-            # Wrap API call with retry tracking
-            from google.api_core import exceptions as google_exceptions
-
             def _make_api_call():
-                # Call Gemini API using new Client API
-                # Note: system_instruction is part of config in new API
                 generation_config = {
                     "temperature": self.cleaning_temperature,
                     "max_output_tokens": clamp_cleaning_max_tokens(
@@ -1524,8 +1510,6 @@ class GeminiProvider:
                     "system_instruction": system_prompt,
                 }
 
-                # New API: client.models.generate_content() instead of
-                # GenerativeModel().generate_content()
                 return self.client.models.generate_content(
                     model=self.cleaning_model,
                     contents=user_prompt,
@@ -1538,11 +1522,7 @@ class GeminiProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(
-                        google_exceptions.ResourceExhausted,
-                        google_exceptions.ServiceUnavailable,
-                        ConnectionError,
-                    ),
+                    retryable_exceptions=_safe_gemini_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:

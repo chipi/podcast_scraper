@@ -1639,7 +1639,9 @@ class MLProvider:
                 window_overlap_chars=int(getattr(self.cfg, "gi_qa_window_overlap_chars", 250)),
             )
         except Exception as e:
-            logger.warning("Extractive QA failed for extract_quotes: %s", e)
+            logger.warning(
+                "Extractive QA failed for extract_quotes: %s", format_exception_for_log(e)
+            )
             return []
         verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
         return [
@@ -1670,7 +1672,7 @@ class MLProvider:
                 device=getattr(self.cfg, "nli_device", None),
             )
         except Exception as e:
-            logger.warning("NLI failed for score_entailment: %s", e)
+            logger.warning("NLI failed for score_entailment: %s", format_exception_for_log(e))
             return 0.0
 
     # ============================================================================

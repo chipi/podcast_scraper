@@ -245,30 +245,24 @@ class TestSummarySchemaIntegration(unittest.TestCase):
         # short_summary is a computed field
         self.assertIsNotNone(summary_metadata.short_summary)
 
-    def test_summary_metadata_requires_bullets(self):
-        """Test that SummaryMetadata works with bullets field."""
-        # Empty bullets might be allowed (check actual behavior)
-        # If validation allows empty, test that it works
-        try:
-            empty_metadata = SummaryMetadata(
-                generated_at=datetime.now(),
-                word_count=100,
-                bullets=[],  # Empty bullets
-            )
-            # If it doesn't raise, empty bullets are allowed
-            self.assertEqual(len(empty_metadata.bullets), 0)
-        except Exception:
-            # If it raises, that's also valid behavior
-            pass
+    def test_summary_metadata_allows_empty_bullets(self):
+        """Empty bullets list is accepted by SummaryMetadata."""
+        metadata = SummaryMetadata(
+            generated_at=datetime.now(),
+            word_count=100,
+            bullets=[],
+        )
+        self.assertEqual(len(metadata.bullets), 0)
 
-        # Should succeed with bullets
+    def test_summary_metadata_with_bullets(self):
+        """SummaryMetadata stores bullets and computes short_summary."""
         summary_metadata = SummaryMetadata(
             generated_at=datetime.now(),
             word_count=100,
             bullets=["Point 1", "Point 2"],
         )
         self.assertEqual(len(summary_metadata.bullets), 2)
-        self.assertIsNotNone(summary_metadata.short_summary)  # Computed from bullets
+        self.assertIsNotNone(summary_metadata.short_summary)
 
     def test_provider_capability_detection(self):
         """Test that schema parsing uses provider capabilities."""

@@ -308,7 +308,7 @@ sudo apt install graphviz
 dot -V
 ```
 
-**Note:** Diagrams are not generated in CI; you must run `make visualize` locally and commit `docs/architecture/*.svg`. CI runs `check-visualizations` and fails if diagrams are stale. See [Architecture visualizations](../architecture/README.md) and the [Release checklist](DEVELOPMENT_GUIDE.md#release-checklist).
+**Note:** Diagrams are not generated in CI; you must run `make visualize` locally and commit `docs/architecture/*.svg`. CI runs `make visualize` and fails if diagrams are stale. See [Architecture visualizations](../architecture/README.md) and the [Release checklist](DEVELOPMENT_GUIDE.md#release-checklist).
 
 ### Episodes Skipped with OpenAI Provider
 
@@ -498,7 +498,7 @@ pytest-xdist parallel execution (`-n auto`), this causes deadlocks because:
 
 | File | Usage |
 | ---- | ----- |
-| `src/podcast_scraper/whisper_integration.py` | `InterceptedTqdm` class |
+| `src/podcast_scraper/providers/ml/whisper_utils.py` | `InterceptedTqdm` class |
 | `src/podcast_scraper/transcription/whisper_provider.py` | `InterceptedTqdm` class |
 | `src/podcast_scraper/providers/ml/ml_provider.py` | `InterceptedTqdm` class |
 | `src/podcast_scraper/cli.py` | `_TqdmProgress` class |
