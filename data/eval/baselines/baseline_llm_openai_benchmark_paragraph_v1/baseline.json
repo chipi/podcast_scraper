@@ -1,0 +1,35 @@
+{
+  "run_id": "autoresearch_prompt_openai_benchmark_paragraph_v1",
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "created_at": "2026-04-02T08:55:56.710359Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "openai",
+    "model": "gpt-4o-mini"
+  },
+  "params": {
+    "model_name": "gpt-4o-mini",
+    "max_length": 800,
+    "min_length": 200,
+    "chunk_parallelism": 1,
+    "word_chunk_size": 1000,
+    "word_overlap": 150,
+    "temperature": 0.0,
+    "user_prompt": "openai/summarization/long_v1",
+    "system_prompt": "openai/summarization/system_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 40.75092101097107,
+    "avg_time_seconds": 8.150184202194215,
+    "total_chars_in": 54104,
+    "total_chars_out": 10778,
+    "avg_compression": 5.019855260716274
+  },
+  "promoted_from": "autoresearch_prompt_openai_benchmark_paragraph_v1",
+  "promoted_at": "2026-04-02T09:02:35.364434Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_openai_benchmark_paragraph_v1"
+}

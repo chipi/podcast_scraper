@@ -1,0 +1,94 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-04-02T08:55:15.946082Z",
+    "baseline_id": "autoresearch_prompt_openai_benchmark_paragraph_v1",
+    "dataset_id": "curated_5feeds_benchmark_v1",
+    "git": {
+      "commit": "9be3a519d4c829ab60ccce47390038d58965f465",
+      "branch": "autoresearch",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "openai",
+    "provider_library": "openai",
+    "provider_library_version": "2.30.0"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "openai",
+          "framework": null,
+          "model_name": "gpt-4o-mini",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": "chat.completions"
+        },
+        "generation_params": {
+          "temperature": 0.0,
+          "top_p": 1.0,
+          "max_tokens": 800,
+          "seed": 42
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true,
+      "strip_episode_header": true,
+      "anonymize_speakers": true,
+      "filter_junk_lines": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "default"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {
+    "device": "mps",
+    "device_name": "Apple M4 Pro",
+    "backend": "openai_api",
+    "inference_backend": "openai_api"
+  },
+  "prompts": {
+    "user": {
+      "name": "openai/summarization/long_v1",
+      "file": "openai/summarization/long_v1.j2",
+      "sha256": "738fcc9f87cacc35ac3bc6901a2b84e692bb20f1ddd14c72bb5b4ee97d713fd7",
+      "params": {}
+    },
+    "system": {
+      "name": "openai/summarization/system_v1",
+      "file": "openai/summarization/system_v1.j2",
+      "sha256": "d7aabe400110cb1961ba9dea7e380559713aaf3628347deea7758aba5bc0f7ac",
+      "params": {}
+    }
+  }
+}
