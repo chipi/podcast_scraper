@@ -7,6 +7,7 @@ import os
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, TYPE_CHECKING
+from urllib.parse import urlparse
 
 import yaml
 from dotenv import load_dotenv
@@ -2028,6 +2029,19 @@ class Config(BaseModel):
             return None
         value = str(value).strip()
         return value or None
+
+    @field_validator("rss_url", mode="after")
+    @classmethod
+    def _validate_rss_url_scheme(cls, value: Optional[str]) -> Optional[str]:
+        """Require http(s) and hostname when rss_url is set (matches CLI validation)."""
+        if not value:
+            return value
+        parsed = urlparse(value)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {value}")
+        if not parsed.netloc:
+            raise ValueError(f"RSS URL must include a valid hostname: {value}")
+        return value
 
     @field_validator("output_dir", mode="before")
     @classmethod

@@ -706,6 +706,17 @@ class TestConfigFieldValidators(unittest.TestCase):
         cfg = Config(rss_url=None)
         self.assertIsNone(cfg.rss_url)
 
+    def test_rss_url_rejects_non_http_scheme(self):
+        """Non-http(s) RSS URLs must fail (aligns with CLI _validate_rss_url)."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(rss_url="file:///tmp/feed.xml")
+        err = str(ctx.exception).lower()
+        self.assertIn("http", err)
+
+    def test_rss_url_rejects_missing_hostname(self):
+        with self.assertRaises(ValidationError):
+            Config(rss_url="https://")
+
     def test_output_dir_validator_handles_none(self):
         """Test that output_dir validator handles None."""
         # output_dir can be None in Config - it's derived later in _build_config

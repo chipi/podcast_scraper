@@ -29,6 +29,44 @@ class TestRedactForLog(unittest.TestCase):
         out = redact_for_log(raw)
         self.assertIn("sk-ant-[REDACTED]", out)
 
+    def test_basic_auth_redacted(self):
+        raw = "Proxy-Authenticate: Basic dXNlcjpzZWNyZXRwYXNzd29yZA=="
+        out = redact_for_log(raw)
+        self.assertIn("Basic [REDACTED]", out)
+        self.assertNotIn("dXNlcjpzZWNyZXRwYXNzd29yZA==", out)
+
+    def test_sk_proj_redacted(self):
+        raw = "invalid sk-proj-abcdefghijklmnopqrstuvwxyz1234567890"
+        out = redact_for_log(raw)
+        self.assertIn("sk-proj-[REDACTED]", out)
+        self.assertNotIn("sk-proj-abcdefghijklmnopqrstuvwxyz1234567890", out)
+
+    def test_api_key_kv_redacted(self):
+        raw = 'response body: api_key: "abcdefghijklmnop"'
+        out = redact_for_log(raw)
+        self.assertIn("[REDACTED]", out)
+        self.assertNotIn("abcdefghijklmnop", out)
+
+    def test_password_kv_redacted(self):
+        raw = "login failed password=hunter2secretstuff"
+        out = redact_for_log(raw)
+        self.assertIn("[REDACTED]", out)
+        self.assertNotIn("hunter2secretstuff", out)
+
+    def test_secret_kv_redacted(self):
+        raw = 'config secret="abcd1234extra"'
+        out = redact_for_log(raw)
+        self.assertIn("[REDACTED]", out)
+        self.assertNotIn("abcd1234extra", out)
+
+    def test_google_api_key_redacted(self):
+        # Typical shape: AIza + 35 alphanumeric (39 chars total)
+        token = "AIza" + "0" * 35
+        raw = f"Gemini error: invalid key {token}"
+        out = redact_for_log(raw)
+        self.assertIn("AIza[REDACTED]", out)
+        self.assertNotIn(token, out)
+
     def test_truncation(self):
         long_text = "a" * 5000
         out = redact_for_log(long_text, max_len=100)

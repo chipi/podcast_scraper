@@ -21,6 +21,7 @@ else:
     Episode = models.Episode  # type: ignore[assignment]
     RssFeed = models.RssFeed  # type: ignore[assignment]
 from ...rss import BYTES_PER_MB, http_head, OPENAI_MAX_FILE_SIZE_BYTES
+from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from .. import metrics
 from ..episode_processor import process_episode_download as factory_process_episode_download
 
@@ -173,7 +174,10 @@ def _create_speaker_detector_if_needed(
         speaker_detector.initialize()
         return speaker_detector
     except Exception as exc:
-        logger.error("Failed to initialize speaker detector: %s", exc)
+        logger.error(
+            "Failed to initialize speaker detector: %s",
+            format_exception_for_log(exc),
+        )
         return None
 
 
@@ -963,7 +967,11 @@ def _process_episodes_concurrent(
                         )
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1, saved_counter_lock)
-                logger.error(f"[{idx}] episode processing raised an unexpected error: {exc}")
+                logger.error(
+                    "[%s] episode processing raised an unexpected error: %s",
+                    idx,
+                    format_exception_for_log(exc),
+                )
 
     return saved
 
@@ -1070,7 +1078,7 @@ def _drain_completed_processing_futures(
                 logger.error(
                     "[%s] processing future raised error: %s",
                     episode_idx,
-                    exc,
+                    format_exception_for_log(exc),
                 )
                 fail_fast = getattr(cfg, "fail_fast", False)
                 max_failures = getattr(cfg, "max_failures", None)
@@ -1383,7 +1391,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                 "[%s] Summarization timeout after %ss: %s",
                 job.episode.idx,
                 getattr(cfg, "summarization_timeout", 600),
-                exc,
+                format_exception_for_log(exc),
             )
             if pipeline_metrics is not None:
                 from ..helpers import get_episode_id_from_episode
@@ -1394,12 +1402,16 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     status="failed",
                     stage="summarization",
                     error_type="TimeoutError",
-                    error_message=str(exc)[:500],
+                    error_message=redact_for_log(str(exc), max_len=500),
                 )
             return False
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
-            logger.error(f"[{job.episode.idx}] processing raised an unexpected error: {exc}")
+            logger.error(
+                "[%s] processing raised an unexpected error: %s",
+                job.episode.idx,
+                format_exception_for_log(exc),
+            )
             # Record per-episode failure for run index (Issue #429)
             if pipeline_metrics is not None:
                 from ..helpers import get_episode_id_from_episode
@@ -1410,7 +1422,7 @@ def process_processing_jobs_concurrent(  # noqa: C901
                     status="failed",
                     stage="metadata",
                     error_type=type(exc).__name__,
-                    error_message=str(exc)[:500],
+                    error_message=redact_for_log(str(exc), max_len=500),
                 )
             return False
 

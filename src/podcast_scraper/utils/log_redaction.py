@@ -13,6 +13,8 @@ from typing import Optional, Pattern
 _REDACT_PATTERNS: tuple[tuple[Pattern[str], str], ...] = (
     (re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9._\-~+/=]+"), r"\1[REDACTED]"),
     (re.compile(r"(?i)(Basic\s+)[A-Za-z0-9+/=]+"), r"\1[REDACTED]"),
+    # Google API keys (Gemini, Maps, etc.) — distinct from OpenAI sk-* keys
+    (re.compile(r"\bAIza[0-9A-Za-z\-_]{25,45}\b"), "AIza[REDACTED]"),
     (re.compile(r"\bsk-ant-api[A-Za-z0-9\-_]{8,}\b"), "sk-ant-[REDACTED]"),
     (re.compile(r"\bsk-proj-[A-Za-z0-9\-_]{8,}\b"), "sk-proj-[REDACTED]"),
     (re.compile(r"\bsk-[A-Za-z0-9\-_]{12,}\b"), "sk-[REDACTED]"),

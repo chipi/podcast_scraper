@@ -116,7 +116,10 @@ def _create_transcription_provider(
         )
         return provider
     except Exception as exc:
-        logger.error("Failed to initialize transcription provider: %s", exc)
+        logger.error(
+            "Failed to initialize transcription provider: %s",
+            format_exception_for_log(exc),
+        )
         # Fail fast - provider initialization should succeed
         raise
 
@@ -154,11 +157,17 @@ def _create_speaker_detector(
                 detector.warmup(timeout_s=600)  # 10 minute timeout for first load
                 logger.debug("Ollama speaker detection models warmed up")
             except Exception as exc:
-                logger.warning(f"Failed to warm up Ollama speaker detection models: {exc}")
+                logger.warning(
+                    "Failed to warm up Ollama speaker detection models: %s",
+                    format_exception_for_log(exc),
+                )
                 # Don't fail - models will load on first use, just slower
         return detector
     except Exception as exc:
-        logger.error("Failed to initialize speaker detector: %s", exc)
+        logger.error(
+            "Failed to initialize speaker detector: %s",
+            format_exception_for_log(exc),
+        )
         # Fail fast - provider initialization should succeed
         raise
 

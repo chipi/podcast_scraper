@@ -810,7 +810,10 @@ class MLProvider:
             self._transformers_initialized = True
             logger.info("Transformers summarization initialized successfully")
         except Exception as e:
-            logger.error("Failed to initialize summarization models: %s", e)
+            logger.error(
+                "Failed to initialize summarization models: %s",
+                format_exception_for_log(e),
+            )
             raise
 
     # ============================================================================
