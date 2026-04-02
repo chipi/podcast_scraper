@@ -1,0 +1,40 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "run_id": "autoresearch_prompt_mistral_smoke_bullets_v1",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 283.8,
+      "min_tokens": 267,
+      "max_tokens": 304
+    },
+    "performance": {
+      "avg_latency_ms": 1951.8633365631104
+    }
+  },
+  "vs_reference": {
+    "silver_sonnet46_smoke_bullets_v1": {
+      "reference_quality": "silver",
+      "rouge1_f1": 0.5956068652770998,
+      "rouge2_f1": 0.28349291705437735,
+      "rougeL_f1": 0.32585757679399274,
+      "bleu": 0.29378536985126075,
+      "wer": 0.8355204866619832,
+      "embedding_cosine": 0.8539024829864502,
+      "coverage_ratio": 0.7547872340425532,
+      "numbers_retained": 1.0
+    }
+  },
+  "schema": "metrics_summarization_v1",
+  "task": "summarization"
+}

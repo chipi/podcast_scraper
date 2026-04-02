@@ -1,0 +1,31 @@
+{
+  "run_id": "autoresearch_prompt_anthropic_smoke_bullets_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-02T11:31:25.132865Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "anthropic",
+    "model": "claude-haiku-4-5"
+  },
+  "params": {
+    "model": "claude-haiku-4-5",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "shared/summarization/bullets_json_v1",
+    "system_prompt": "shared/summarization/system_bullets_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 15.532063961029053,
+    "avg_time_seconds": 3.1064127922058105,
+    "total_chars_in": 53793,
+    "total_chars_out": 6090,
+    "avg_compression": 8.833004926108375
+  },
+  "promoted_from": "autoresearch_prompt_anthropic_smoke_bullets_v1",
+  "promoted_at": "2026-04-02T14:12:37.263794Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_anthropic_smoke_bullets_v1"
+}

@@ -13,6 +13,19 @@ Experiment configs are **inputs** to the experiment runner. They specify:
 - Generation parameters (temperature, max tokens, etc.)
 - Scoring parameters (for NER tasks: match modes, label sets)
 
+## Directory Layout
+
+```text
+configs/
+├── summarization/          # Autoresearch paragraph-track configs (autoresearch_prompt_*_paragraph_v1)
+├── summarization_bullets/  # Autoresearch bullets-track configs (autoresearch_prompt_*_bullets_v1)
+├── silver_selection/       # Silver reference candidate configs (silver_candidate_*, silver_openai_*)
+├── ml/                     # HuggingFace / hybrid ML baseline configs (baseline_ml_*, hybrid_ml_*)
+├── ner/                    # NER / spaCy configs (ner_entities_*, baseline_ner_*)
+├── _archive/               # Archived old configs
+└── *.yaml                  # One-off experiments and legacy configs (llm_*, gil_*, kg_*, etc.)
+```
+
 ## Structure
 
 Each config file is a YAML file that follows the `ExperimentConfig` schema:
@@ -82,7 +95,9 @@ params:
 Configs are referenced when running experiments:
 
 ```bash
-make experiment-run CONFIG=data/eval/configs/my_experiment.yaml
+make experiment-run CONFIG=data/eval/configs/summarization/autoresearch_prompt_openai_smoke_paragraph_v1.yaml
+make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_sonnet46_smoke_v1.yaml
+make experiment-run CONFIG=data/eval/configs/my_experiment.yaml  # root for one-offs
 ```
 
 Optional: pass a **silver reference** id (comma-separated) so `metrics.json` gets `vs_reference`

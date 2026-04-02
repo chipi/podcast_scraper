@@ -1,0 +1,29 @@
+# Autoresearch Track A — bullet JSON summaries, Mistral backend.
+#
+# Pair with silver: ``silver_sonnet46_smoke_bullets_v1``
+#
+# Template under tuning: src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
+# Results log: autoresearch/prompt_tuning/results_summary_mistral_bullets_r1.tsv
+#
+# Requires: MISTRAL_API_KEY
+
+id: "autoresearch_prompt_mistral_smoke_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "mistral"
+  model: "mistral-small-latest"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

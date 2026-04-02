@@ -1,0 +1,28 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "run_id": "silver_candidate_anthropic_sonnet46_smoke_bullets_v1",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 376.0,
+      "min_tokens": 362,
+      "max_tokens": 396
+    },
+    "performance": {
+      "avg_latency_ms": 8096.700048446655
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v1",
+  "task": "summarization"
+}

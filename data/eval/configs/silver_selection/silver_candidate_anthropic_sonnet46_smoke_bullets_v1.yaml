@@ -1,0 +1,38 @@
+# Silver Reference Candidate — Anthropic Claude Sonnet 4.6, bullet JSON output, smoke dataset.
+#
+# Purpose: Generate the bullets-track silver reference using Claude Sonnet 4.6.
+# Uses the shared bullets_json_v1 prompt (RFC-017 JSON bullet output format).
+#
+# Run:
+#   make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_sonnet46_smoke_bullets_v1.yaml FORCE=1
+#
+# Then promote:
+#   python scripts/eval/promote_run.py \
+#     --run-id silver_candidate_anthropic_sonnet46_smoke_bullets_v1 \
+#     --as reference \
+#     --promoted-id silver_sonnet46_smoke_bullets_v1 \
+#     --reference-quality silver \
+#     --reason "Claude Sonnet 4.6 bullets silver — same model as paragraph silver, consistent quality"
+#
+# Requires: ANTHROPIC_API_KEY
+
+id: "silver_candidate_anthropic_sonnet46_smoke_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-sonnet-4-6"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
