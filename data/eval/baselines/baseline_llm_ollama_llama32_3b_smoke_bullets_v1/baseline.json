@@ -1,0 +1,32 @@
+{
+  "run_id": "autoresearch_prompt_ollama_llama32_3b_smoke_bullets_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-02T15:27:43.648517Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "ollama",
+    "model": "llama3.2:3b"
+  },
+  "params": {
+    "model": "llama3.2:3b",
+    "max_length": 800,
+    "min_length": 200,
+    "temperature": 0.0,
+    "user_prompt": "shared/summarization/bullets_json_v1",
+    "system_prompt": "shared/summarization/system_bullets_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 24.0869357585907,
+    "avg_time_seconds": 4.8173871517181395,
+    "total_chars_in": 53793,
+    "total_chars_out": 3792,
+    "avg_compression": 14.185917721518987
+  },
+  "promoted_from": "autoresearch_prompt_ollama_llama32_3b_smoke_bullets_v1",
+  "promoted_at": "2026-04-02T21:47:51.163711Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_ollama_llama32_3b_smoke_bullets_v1"
+}

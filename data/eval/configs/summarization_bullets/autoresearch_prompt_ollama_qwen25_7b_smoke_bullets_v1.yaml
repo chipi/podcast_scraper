@@ -1,0 +1,26 @@
+# Autoresearch Track A — bullet JSON summaries, Ollama qwen2.5:7b.
+#
+# Pair with silver: ``silver_sonnet46_smoke_bullets_v1``
+# Template under tuning: src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
+# Requires: ollama pull qwen2.5:7b
+
+id: "autoresearch_prompt_ollama_qwen25_7b_smoke_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "qwen2.5:7b"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

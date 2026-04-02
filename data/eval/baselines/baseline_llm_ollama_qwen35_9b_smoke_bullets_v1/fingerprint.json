@@ -1,0 +1,92 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-04-02T21:41:49.881397Z",
+    "baseline_id": "autoresearch_prompt_ollama_qwen35_9b_smoke_bullets_v1",
+    "dataset_id": "curated_5feeds_smoke_v1",
+    "git": {
+      "commit": "4e1606fd87d0f40d7732d1f61c4e2a43c689c042",
+      "branch": "autoresearch",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "ollama",
+    "provider_library": "openai",
+    "provider_library_version": "2.30.0"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "ollama",
+          "framework": null,
+          "model_name": "qwen3.5:9b",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": "chat.completions"
+        },
+        "generation_params": {
+          "temperature": 0.0,
+          "max_tokens": 800
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true,
+      "strip_episode_header": true,
+      "anonymize_speakers": true,
+      "filter_junk_lines": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "default"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {
+    "device": "mps",
+    "device_name": "Apple M4 Pro",
+    "backend": "ollama_openai_compatible",
+    "inference_backend": "ollama_openai_compatible"
+  },
+  "prompts": {
+    "user": {
+      "name": "shared/summarization/bullets_json_v1",
+      "file": "shared/summarization/bullets_json_v1.j2",
+      "sha256": "da1debdc40a7dd69931573c8a5de5e3713fd3038a2098a8cf902f4c76df5e0a3",
+      "params": {}
+    },
+    "system": {
+      "name": "shared/summarization/system_bullets_v1",
+      "file": "shared/summarization/system_bullets_v1.j2",
+      "sha256": "82f28d35d4a269a989b4b61e31cc7ceacd1bd66958380e21f888e57b1452309a",
+      "params": {}
+    }
+  }
+}

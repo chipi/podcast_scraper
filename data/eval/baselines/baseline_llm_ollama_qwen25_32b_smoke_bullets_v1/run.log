@@ -1,0 +1,56 @@
+2026-04-02 23:38:18,682 INFO __main__: ================================================================================
+2026-04-02 23:38:18,682 INFO __main__: Starting experiment run: autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1
+2026-04-02 23:38:18,682 INFO __main__: Results directory: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1
+2026-04-02 23:38:18,682 INFO __main__: Execution log: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/run.log
+2026-04-02 23:38:18,682 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-04-02 23:38:18,682 INFO __main__: ================================================================================
+2026-04-02 23:38:18,682 INFO __main__: Creating summarization provider...
+2026-04-02 23:38:18,935 INFO podcast_scraper.providers.ollama.ollama_provider: Ollama cleaning model configured: 'llama3.1:8b' -> 'llama3.1:8b'
+2026-04-02 23:38:18,954 INFO httpx: HTTP Request: GET http://localhost:11434/api/version "HTTP/1.1 200 OK"
+2026-04-02 23:38:18,958 INFO podcast_scraper.providers.ollama.ollama_provider: Ollama speaker model configured: 'llama3.1:8b' -> 'llama3.1:8b'
+2026-04-02 23:38:18,959 INFO podcast_scraper.providers.ollama.ollama_provider: Ollama summary model configured: 'qwen2.5:32b' -> 'qwen2.5:32b'
+2026-04-02 23:38:18,976 INFO httpx: HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-04-02 23:38:18,976 INFO podcast_scraper.providers.ollama.ollama_provider: Model 'qwen2.5:32b' validated successfully (available in Ollama). Available models at validation time: gemma2:9b, llama3.1:8b, llama3.2:3b, llama3.3:70b-instruct-q3_K_M, llama3.3:latest, mistral-nemo:12b, mistral-small3.2:latest, mistral:7b, phi3:3.8b, phi3:mini, qwen2.5:32b, qwen2.5:7b, qwen3.5:27b, qwen3.5:35b, qwen3.5:9b
+2026-04-02 23:38:19,039 INFO __main__: Found 5 episode(s) to process
+2026-04-02 23:38:19,039 INFO __main__: Phase 1: Running inference...
+2026-04-02 23:38:19,039 INFO __main__: Processing episode: p01_e01
+2026-04-02 23:38:19,046 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-04-02 23:38:19,050 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen2.5:32b' (exact name being sent to Ollama)
+2026-04-02 23:39:08,356 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 23:39:08,371 INFO __main__: Episode p01_e01 completed in 49.3s, summary length=783 chars
+2026-04-02 23:39:08,371 INFO __main__: Processing episode: p02_e01
+2026-04-02 23:39:08,380 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-04-02 23:39:08,380 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen2.5:32b' (exact name being sent to Ollama)
+2026-04-02 23:39:49,178 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 23:39:49,184 INFO __main__: Episode p02_e01 completed in 40.8s, summary length=900 chars
+2026-04-02 23:39:49,185 INFO __main__: Processing episode: p03_e01
+2026-04-02 23:39:49,199 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-04-02 23:39:49,200 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen2.5:32b' (exact name being sent to Ollama)
+2026-04-02 23:40:27,302 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 23:40:27,306 INFO __main__: Episode p03_e01 completed in 38.1s, summary length=782 chars
+2026-04-02 23:40:27,308 INFO __main__: Processing episode: p04_e01
+2026-04-02 23:40:27,320 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-04-02 23:40:27,320 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen2.5:32b' (exact name being sent to Ollama)
+2026-04-02 23:41:03,819 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 23:41:03,822 INFO __main__: Episode p04_e01 completed in 36.5s, summary length=721 chars
+2026-04-02 23:41:03,823 INFO __main__: Processing episode: p05_e01
+2026-04-02 23:41:03,835 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-04-02 23:41:03,836 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen2.5:32b' (exact name being sent to Ollama)
+2026-04-02 23:41:43,561 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 23:41:43,568 INFO __main__: Episode p05_e01 completed in 39.7s, summary length=750 chars
+2026-04-02 23:41:43,568 INFO __main__: Phase 1 completed in 204.5s
+2026-04-02 23:41:43,568 INFO __main__: Total input: 53,793 chars, output: 3,936 chars
+2026-04-02 23:41:43,568 INFO __main__: Average compression: 13.7x
+2026-04-02 23:41:43,568 INFO __main__: Predictions: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/predictions.jsonl
+2026-04-02 23:41:43,570 INFO __main__: Metadata: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/baseline.json
+2026-04-02 23:41:43,570 INFO __main__: Fingerprint: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/fingerprint.json
+2026-04-02 23:41:43,571 WARNING __main__: Run README template not found: data/eval/runs/RUN_README_TEMPLATE.md, skipping README generation
+2026-04-02 23:41:43,576 INFO __main__: Computing metrics...
+2026-04-02 23:41:43,585 INFO absl: Using default tokenizer.
+2026-04-02 23:41:43,638 INFO sentence_transformers.SentenceTransformer: Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-02 23:41:45,113 INFO sentence_transformers.SentenceTransformer: Use pytorch device_name: mps
+2026-04-02 23:41:45,817 INFO __main__: Metrics: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/metrics.json
+2026-04-02 23:41:45,818 INFO __main__: ✓ Summarization metrics schema validation passed
+2026-04-02 23:41:45,819 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/metrics_report.md
+2026-04-02 23:41:45,819 INFO __main__: Episodes=5, avg_time=40.9s, avg_compression=13.7x
+2026-04-02 23:41:45,819 INFO __main__: ✓ Execution log saved: data/eval/runs/autoresearch_prompt_ollama_qwen25_32b_smoke_bullets_v1/run.log
