@@ -356,9 +356,10 @@ tokenize:
             config_path.unlink(missing_ok=True)
 
     def test_load_experiment_config_ollama_backend_pure_llm(self):
-        """Test loading llm_ollama_* smoke config (pure Ollama LLM, not hybrid_ml)."""
+        """Test loading autoresearch Ollama paragraph smoke config (pure LLM, not hybrid_ml)."""
         repo_root = Path(__file__).resolve().parents[4]
-        path = repo_root / "data/eval/configs/llm_ollama_qwen25_7b_smoke_v1.yaml"
+        cfg_name = "autoresearch_prompt_ollama_qwen25_7b_smoke_paragraph_v1.yaml"
+        path = repo_root / "data/eval/configs/summarization" / cfg_name
         if not path.exists():
             self.skipTest(f"Config missing: {path}")
         cfg = experiment_config.load_experiment_config(path)
@@ -373,15 +374,15 @@ tokenize:
         repo_root = Path(__file__).resolve().parents[4]
         cases = (
             (
-                "llm_ollama_mistral_nemo_12b_smoke_v1.yaml",
-                "llm_ollama_mistral_nemo_12b_smoke_v1",
+                "summarization/autoresearch_prompt_ollama_mistral_nemo_12b_smoke_paragraph_v1.yaml",
+                "autoresearch_prompt_ollama_mistral_nemo_12b_smoke_paragraph_v1",
                 "mistral-nemo:12b",
                 "ollama/mistral-nemo_12b/summarization/long_v1",
                 "ollama/mistral-nemo_12b/summarization/system_v1",
             ),
             (
-                "llm_ollama_mistral_small3_2_smoke_v1.yaml",
-                "llm_ollama_mistral_small3_2_smoke_v1",
+                "summarization/autoresearch_prompt_ollama_mistral_small3_2_smoke_paragraph_v1.yaml",
+                "autoresearch_prompt_ollama_mistral_small3_2_smoke_paragraph_v1",
                 "mistral-small3.2:latest",
                 "ollama/mistral-small3.2/summarization/long_v1",
                 "ollama/mistral-small3.2/summarization/system_v1",
@@ -401,9 +402,12 @@ tokenize:
             self.assertIsNone(cfg.reduce_params)
 
     def test_load_experiment_config_gemini_smoke(self):
-        """Test loading llm_gemini_smoke_v1 (API Gemini, paragraph prompts)."""
+        """Test loading autoresearch Gemini paragraph smoke config."""
         repo_root = Path(__file__).resolve().parents[4]
-        path = repo_root / "data/eval/configs/llm_gemini_smoke_v1.yaml"
+        path = (
+            repo_root
+            / "data/eval/configs/summarization/autoresearch_prompt_gemini_smoke_paragraph_v1.yaml"
+        )
         if not path.exists():
             self.skipTest(f"Config missing: {path}")
         cfg = experiment_config.load_experiment_config(path)

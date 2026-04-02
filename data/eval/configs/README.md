@@ -104,13 +104,12 @@ Optional: pass a **silver reference** id (comma-separated) so `metrics.json` get
 (ROUGE, embedding cosine, etc.):
 
 ```bash
-make experiment-run CONFIG=data/eval/configs/llm_ollama_qwen25_7b_smoke_v1.yaml \
-  REFERENCE=silver_gpt4o_smoke_v1
+make experiment-run CONFIG=data/eval/configs/summarization/autoresearch_prompt_ollama_qwen25_7b_smoke_paragraph_v1.yaml \
+  REFERENCE=silver_sonnet46_smoke_v1
 ```
 
-**Preprocessing:** LLM smoke configs (e.g. `llm_ollama_*`, API `llm_*_smoke_v1`) use
-`preprocessing_profile: "cleaning_v4"` so transcripts are cleaned the same way before every model
-sees them — comparable runs across providers.
+**Preprocessing:** Autoresearch and smoke configs use `preprocessing_profile: "cleaning_v4"` so
+transcripts are cleaned the same way before every model sees them — comparable runs across providers.
 
 **Metrics schema:** New summarization runs emit `schema: metrics_summarization_v2` in
 `metrics.json` (nested `intrinsic`, `episode_count`, optional latency percentiles). See
