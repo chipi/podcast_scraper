@@ -1,0 +1,7 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.2871	+0.000	baseline	Round 2 baseline vs silver_sonnet46_smoke_v1. claude-haiku-4-5, long_v1.j2 current state (anchor + focus line).	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.4884	+0.201	accepted	Thesis opener (begin first paragraph with central thesis): ROUGE-L 28.8%, judge_mean 0.956, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.5129	+0.024	accepted	Vocab alignment (prefer transcript terminology/phrasing): ROUGE-L 32.4%, judge_mean 0.953, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.5037	-0.009	rejected	Remove generic focus line: ROUGE-L 30.7%, judge_mean 0.963, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.5079	-0.005	rejected	Prose-only constraint (no bullets/headers): ROUGE-L 31.4%, judge_mean 0.960, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-5	0.5135	+0.001	rejected	Cause-effect relationships instruction: ROUGE-L 32.2%, judge_mean 0.960, below 1% threshold, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

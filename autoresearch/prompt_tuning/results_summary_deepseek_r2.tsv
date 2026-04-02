@@ -1,0 +1,5 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.5015	+0.000	baseline	Round 2 baseline vs silver_sonnet46_smoke_v1. deepseek-chat, long_v1.j2 current state (focus line only, no anchor/vocab/thesis).	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.4889	-0.013	rejected	Thesis opener + vocab alignment + anchor combined: ROUGE-L 28.9%, judge_mean 0.956, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.4745	-0.027	rejected	Cause-effect relationships instruction: ROUGE-L 26.9%, judge_mean 0.953, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.4873	-0.014	rejected	Prose-only constraint: ROUGE-L 28.8%, judge_mean 0.953, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
