@@ -157,43 +157,39 @@ Examples:
 A **silver reference** is not something you declare in YAML ahead of time. You **run an
 experiment** (outputs land in `data/eval/runs/<run_id>/`), **review** the run, then
 **promote** it with `make run-promote`. Only then does a frozen tree appear under
-`data/eval/references/silver/<promoted_id>/` (e.g. `silver_gpt4o_smoke_bullets_v1`). The
-experiment config’s `id` is the **run id** until promotion; the **promoted id** is chosen at
-promotion time and should describe the reference role.
+`data/eval/references/silver/<promoted_id>/`. The experiment config’s `id` is the **run id**
+until promotion; the **promoted id** is chosen at promotion time.
 
-**Example — bullet JSON summaries (aligned with `bullets_json_v1` for ROUGE vs autoresearch):**
+**Silver reference selection via pairwise judge (current approach):**
 
-- Config: **`experiment_openai_gpt4o_smoke_bullets_v1.yaml`** — normal experiment; `gpt-4o`,
-  shared bullet system + user templates; same smoke dataset as other evals.
+Generate candidate runs for 2–3 competing frontier models using configs in
+`configs/silver_selection/`, then compare them head-to-head:
 
-**Steps:**
+```bash
+# 1. Generate candidates
+make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_openai_gpt54_smoke_v1.yaml FORCE=1
+make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_sonnet46_smoke_v1.yaml FORCE=1
+make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_gemini31pro_smoke_v1.yaml FORCE=1
 
-1. **Materialize** transcripts: `make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1`
-2. **Run the experiment** (creates `data/eval/runs/experiment_openai_gpt4o_smoke_bullets_v1/`):
+# 2. Run pairwise comparisons (dual OpenAI + Anthropic judges, winner on stdout)
+make silver-pairwise CANDIDATE_A=silver_candidate_openai_gpt54_smoke_v1 CANDIDATE_B=silver_candidate_anthropic_sonnet46_smoke_v1 OUTPUT=results/pairwise_a_vs_b.json
+make silver-pairwise CANDIDATE_A=silver_candidate_anthropic_sonnet46_smoke_v1 CANDIDATE_B=silver_candidate_gemini31pro_smoke_v1 OUTPUT=results/pairwise_b_vs_c.json
 
-   ```bash
-   make experiment-run CONFIG=data/eval/configs/experiment_openai_gpt4o_smoke_bullets_v1.yaml
-   ```
+# 3. Promote the winner
+make run-promote RUN_ID=silver_candidate_anthropic_sonnet46_smoke_v1 AS=reference PROMOTED_ID=silver_sonnet46_smoke_v1 REFERENCE_QUALITY=silver REASON=”...”
+```
 
-3. **Review** `predictions.jsonl` and metrics in that run directory.
-4. **Promote** the run to a new silver reference id (the run under `runs/` is removed after a
-   successful promotion):
+**Active silver reference:** `silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, selected April 2026:
+3-1-1 vs GPT-5.4, 5-0 vs Gemini 2.0 Flash). See `scripts/eval/pairwise_judge.py` for judge code.
 
-   ```bash
-   make run-promote \
-     RUN_ID=experiment_openai_gpt4o_smoke_bullets_v1 \
-     AS=reference \
-     PROMOTED_ID=silver_gpt4o_smoke_bullets_v1 \
-     REASON="GPT-4o JSON bullet summaries on curated_5feeds_smoke_v1; bullet-aligned ROUGE" \
-     REFERENCE_QUALITY=silver
-   ```
+**Notes on model compatibility:**
 
-5. **Use** the reference in later commands: `--reference silver_gpt4o_smoke_bullets_v1` (or
-   `REFERENCE=` in `make experiment-run` / `make autoresearch-score`).
+- `gpt-5.4` and newer OpenAI models require `max_completion_tokens` (not `max_tokens`) — handled
+  automatically in the OpenAI provider.
+- `gemini-2.5-pro` and `gemini-3.1-pro-preview` are thinking models that exhaust `max_output_tokens`
+  on internal reasoning; use `gemini-2.0-flash` (GA, non-thinking) for Gemini candidates.
 
-The legacy paragraph silver `silver_gpt4o_smoke_v1` came from the same kind of flow (historical
-experiment config `silver_openai_gpt4o_smoke_v1` + promotion), not from a file that was “silver”
-before the run existed.
+**Use** the active reference in scoring: `REFERENCE=silver_sonnet46_smoke_v1`
 
 ### spaCy Backend (NER)
 
