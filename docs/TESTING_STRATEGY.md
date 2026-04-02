@@ -481,6 +481,11 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 - Production models (Whisper base, BART-large-cnn, LED-large-16384)
 - Run in nightly builds only
 - Focus: Production-quality validation with real models
+- **Memory / CI:** `make test-nightly` uses pytest-xdist (`NIGHTLY_PYTEST_WORKERS`, default `2`).
+  The nightly workflow sets `NIGHTLY_PYTEST_WORKERS=1` because two workers each loading
+  Whisper + large HF models often exceeds RAM on `ubuntu-latest` and the process is killed
+  (`make: ... Terminated` within a few minutes). Use `NIGHTLY_PYTEST_WORKERS=2 make test-nightly`
+  on a machine with enough memory for parallel loads.
 
 **Key Principle:** Code quality tests (Tier 1) run on every PR. Data quality and nightly tests
 (Tiers 2-3) run only in nightly builds to avoid slowing down CI/CD feedback.

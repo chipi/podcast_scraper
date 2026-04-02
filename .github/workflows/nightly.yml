@@ -582,6 +582,9 @@ jobs:
       ML_MODELS_VALIDATED: "true"
       # Nightly mode uses p01-p05 podcasts with production models
       E2E_TEST_MODE: "nightly"
+      # One xdist worker: two workers each load Whisper + large HF models and often OOM on
+      # ubuntu-latest (~7 GB), showing as ``make: ... Terminated`` shortly after pytest starts.
+      NIGHTLY_PYTEST_WORKERS: "1"
     steps:
     - uses: actions/checkout@v6
 
