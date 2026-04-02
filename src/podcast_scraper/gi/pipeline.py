@@ -447,9 +447,10 @@ def build_artifact(
             gi_src_norm = raw_gi_src.strip().lower() or "stub"
         else:
             gi_src_norm = "stub"
+        lineage_provider = summary_provider or insight_provider
         artifact_model_version = resolve_gil_artifact_model_version(
             cfg,
-            insight_provider,
+            lineage_provider,
             gi_insight_source=gi_src_norm,
         )
 

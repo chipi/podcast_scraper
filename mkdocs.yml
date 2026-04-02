@@ -229,7 +229,6 @@ nav:
       - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
       - Remaining Work: wip/REMAINING_WORK.md
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
-      - AI Quality Implementation Plan: wip/ai-quality-implementation-plan.md
       - Prefect Fit Analysis: wip/PREFECT-FIT-ANALYSIS.md
 theme:
   name: material

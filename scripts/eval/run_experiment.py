@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from podcast_scraper.evaluation.comparator import compare_vs_baseline
+from podcast_scraper.evaluation.eval_gi_kg_runtime import merge_eval_task_into_summarizer_config
 from podcast_scraper.evaluation.experiment_config import (
     discover_input_files_limited,
     episode_id_from_path,
@@ -46,7 +47,6 @@ from podcast_scraper.evaluation.reporter import (
     save_report,
 )
 from podcast_scraper.evaluation.scorer import score_run
-from podcast_scraper.providers.params import SummarizationParams
 from podcast_scraper.summarization.factory import create_summarization_provider
 
 logger = logging.getLogger(__name__)
@@ -137,6 +137,58 @@ def ensure_experiment_models_cached(map_model: str, reduce_model: str) -> None:
 def hash_text(text: str) -> str:
     """Compute SHA256 hash of text."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
+    """Parameters for ``SummarizationProvider.summarize`` (same as summarization task)."""
+    if cfg.backend.type in ("hf_local", "hybrid_ml") and cfg.map_params and cfg.reduce_params:
+        return {
+            "return_intermediates": True,
+            "map_max_new_tokens": cfg.map_params.max_new_tokens,
+            "map_min_new_tokens": cfg.map_params.min_new_tokens,
+            "map_num_beams": cfg.map_params.num_beams,
+            "map_no_repeat_ngram_size": cfg.map_params.no_repeat_ngram_size,
+            "map_length_penalty": cfg.map_params.length_penalty,
+            "map_early_stopping": cfg.map_params.early_stopping,
+            "map_repetition_penalty": cfg.map_params.repetition_penalty,
+            "map_encoder_no_repeat_ngram_size": cfg.map_params.encoder_no_repeat_ngram_size,
+            "reduce_max_new_tokens": cfg.reduce_params.max_new_tokens,
+            "reduce_min_new_tokens": cfg.reduce_params.min_new_tokens,
+            "reduce_num_beams": cfg.reduce_params.num_beams,
+            "reduce_no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
+            "reduce_length_penalty": cfg.reduce_params.length_penalty,
+            "reduce_early_stopping": cfg.reduce_params.early_stopping,
+            "reduce_repetition_penalty": cfg.reduce_params.repetition_penalty,
+            "reduce_encoder_no_repeat_ngram_size": cfg.reduce_params.encoder_no_repeat_ngram_size,
+            "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,
+            "reduce_max_input_tokens": cfg.tokenize.reduce_max_input_tokens,
+            "truncation": cfg.tokenize.truncation,
+            "use_word_chunking": (
+                cfg.chunking.strategy == "word_chunking" if cfg.chunking else None
+            ),
+            "word_chunk_size": cfg.chunking.word_chunk_size if cfg.chunking else None,
+            "word_overlap": cfg.chunking.word_overlap if cfg.chunking else None,
+            "preprocessing_profile": cfg.preprocessing_profile,
+        }
+    if cfg.backend.type == "ollama":
+        api_params = cfg.params or {}
+        return {
+            "preprocessing_profile": cfg.preprocessing_profile,
+            "max_length": api_params.get("max_length", 800),
+            "min_length": api_params.get("min_length", 200),
+        }
+    return {"preprocessing_profile": cfg.preprocessing_profile}
+
+
+def _cleanup_gil_evidence_extras(extra_providers: List[Any]) -> None:
+    """Call ``cleanup`` on GIL evidence providers created during ``build_artifact``."""
+    for prov in extra_providers:
+        fn = getattr(prov, "cleanup", None)
+        if callable(fn):
+            try:
+                fn()
+            except Exception as exc:
+                logger.warning("GIL evidence provider cleanup failed: %s", exc)
 
 
 def create_run_readme(
@@ -420,6 +472,7 @@ def run_experiment(  # noqa: C901
         logger.info(f"Score-only mode: Using existing predictions from {predictions_path}")
         logger.info("Skipping inference phase. Proceeding directly to scoring...")
     else:
+        cfg_obj = None
         # Supported experiment tasks (see ``ExperimentConfig.task``)
         if cfg.task not in (
             "summarization",
@@ -435,34 +488,49 @@ def run_experiment(  # noqa: C901
         # Create provider based on task and backend type
         if cfg.task == "summarization":
             logger.info("Creating summarization provider...")
-        if cfg.task in ("grounded_insights", "knowledge_graph"):
-            if cfg.backend.type != "eval_stub":
-                raise ValueError(
-                    f"Task {cfg.task} requires backend type eval_stub (see experiment_config)."
-                )
+        if cfg.task in ("grounded_insights", "knowledge_graph") and cfg.backend.type == "eval_stub":
             logger.info("Eval stub backend: skipping summarization provider (GIL/KG eval).")
             provider = None
             model_name = "eval_stub"
             params_dict = {"eval_task": cfg.task, **(cfg.params or {})}
         elif cfg.backend.type == "openai":
-            # OpenAI backend: use params from config if provided
-            # Extract params from config.params (if present)
-            params_dict = cfg.params or {}
-            max_length = params_dict.get("max_length", 800)
-            min_length = params_dict.get("min_length", 200)
-            temperature = params_dict.get("temperature", 0.0)
-            summarization_params = SummarizationParams(
-                model_name=cfg.backend.model,
-                max_length=max_length,
-                min_length=min_length,
-                temperature=temperature,
-            )
-            provider = create_summarization_provider("openai", summarization_params)
-            provider.initialize()
+            from podcast_scraper import config
+
+            params_dict_raw = cfg.params or {}
             model_name = cfg.backend.model
+            user_prompt = cfg.prompts.user if cfg.prompts else "openai/summarization/long_v1"
+            system_prompt = (
+                cfg.prompts.system
+                if (cfg.prompts and cfg.prompts.system)
+                else "openai/summarization/system_v1"
+            )
+            cfg_obj = config.Config(
+                rss_url="",
+                summary_provider="openai",
+                generate_summaries=True,
+                generate_metadata=True,
+                generate_gi=False,
+                openai_summary_model=model_name,
+                openai_temperature=params_dict_raw.get("temperature", 0.0),
+                openai_max_tokens=params_dict_raw.get("max_length", 800),
+                openai_api_key=os.getenv("OPENAI_API_KEY"),
+                openai_summary_user_prompt=user_prompt,
+                openai_summary_system_prompt=system_prompt,
+                transcribe_missing=False,
+            )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
+            provider = create_summarization_provider(cfg_obj)
+            provider.initialize()
+            params_dict = {
+                "model": model_name,
+                "max_length": params_dict_raw.get("max_length", 800),
+                "min_length": params_dict_raw.get("min_length", 200),
+                "temperature": params_dict_raw.get("temperature", 0.0),
+                "user_prompt": user_prompt,
+                "system_prompt": system_prompt,
+            }
             device = None
-            # Create params dict for metadata
-            params_dict = summarization_params.model_dump()
         elif cfg.backend.type == "hf_local":
             # Use HF models from experiment config
             from podcast_scraper import config
@@ -528,6 +596,8 @@ def run_experiment(  # noqa: C901
                 transcribe_missing=False,  # Don't initialize Whisper
                 # for summarization-only experiments
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
 
             # Initialize provider (this will load models and log model loading)
@@ -640,6 +710,8 @@ def run_experiment(  # noqa: C901
                 summary_word_overlap=(cfg.chunking.word_overlap if cfg.chunking else None),
                 transcribe_missing=False,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
 
@@ -679,6 +751,8 @@ def run_experiment(  # noqa: C901
                 anthropic_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
             params_dict = {
@@ -714,6 +788,8 @@ def run_experiment(  # noqa: C901
                 gemini_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
             params_dict = {
@@ -749,6 +825,8 @@ def run_experiment(  # noqa: C901
                 mistral_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
             params_dict = {
@@ -784,6 +862,8 @@ def run_experiment(  # noqa: C901
                 grok_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
             params_dict = {
@@ -819,6 +899,8 @@ def run_experiment(  # noqa: C901
                 deepseek_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
             params_dict = {
@@ -860,6 +942,8 @@ def run_experiment(  # noqa: C901
                 transcribe_missing=False,
                 **_ollama_timeout_kw,
             )
+            if cfg.task in ("grounded_insights", "knowledge_graph"):
+                cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
             provider = create_summarization_provider(cfg_obj)
             provider.initialize()
             params_dict = {
@@ -901,6 +985,16 @@ def run_experiment(  # noqa: C901
             }
         else:
             raise ValueError(f"Unsupported backend type: {cfg.backend.type}")
+
+        if cfg.task in ("grounded_insights", "knowledge_graph") and cfg.backend.type != "eval_stub":
+            if cfg_obj is None:
+                raise RuntimeError(
+                    "Internal error: GI/KG experiment with non-stub backend did not set cfg_obj."
+                )
+            logger.info(
+                "GI/KG eval: per-episode summary regeneration and artifact build use the "
+                "same summarization provider (override gi_* / kg_* in params as needed)."
+            )
 
         # Generate enhanced fingerprint with pipeline structure
         # Get git info
@@ -1165,18 +1259,69 @@ def run_experiment(  # noqa: C901
                             runtime_config_for_grounded_insights_eval,
                         )
                         from podcast_scraper.gi.pipeline import build_artifact
+                        from podcast_scraper.schemas.summary_schema import parse_summary_output
 
-                        rt_cfg = runtime_config_for_grounded_insights_eval(cfg.params)
-                        gil_payload = build_artifact(
-                            episode_id,
-                            text,
-                            podcast_id=f"eval_dataset:{dataset_id}",
-                            episode_title=episode_id,
-                            publish_date=None,
-                            transcript_ref=path.name,
-                            cfg=rt_cfg,
-                            pipeline_metrics=None,
-                        )
+                        if cfg.backend.type == "eval_stub":
+                            rt_cfg = runtime_config_for_grounded_insights_eval(cfg.params)
+                            gil_payload = build_artifact(
+                                episode_id,
+                                text,
+                                podcast_id=f"eval_dataset:{dataset_id}",
+                                episode_title=episode_id,
+                                publish_date=None,
+                                transcript_ref=path.name,
+                                cfg=rt_cfg,
+                                pipeline_metrics=None,
+                            )
+                        else:
+                            if cfg_obj is None or provider is None:
+                                raise RuntimeError(
+                                    "grounded_insights non-stub run requires cfg_obj and provider"
+                                )
+                            sparams = _episode_summary_params(cfg)
+                            summary_result = provider.summarize(text, params=sparams)
+                            if isinstance(summary_result, dict):
+                                summary = summary_result.get("summary", "")
+                            else:
+                                summary = str(summary_result)
+                            parsed = parse_summary_output(
+                                summary, provider, episode_title=episode_id
+                            )
+                            bullets: List[str] = []
+                            if parsed.schema is not None and getattr(
+                                parsed.schema, "bullets", None
+                            ):
+                                bullets = [
+                                    str(b).strip() for b in parsed.schema.bullets if str(b).strip()
+                                ]
+                            if not bullets and summary.strip():
+                                bullets = [summary.strip()[:2000]]
+                            gil_extra: List[Any] = []
+                            gi_src = getattr(cfg_obj, "gi_insight_source", "summary_bullets")
+                            if gi_src == "summary_bullets":
+                                ins_texts: Optional[List[str]] = bullets
+                                ins_prov = None
+                            elif gi_src == "provider":
+                                ins_texts = None
+                                ins_prov = provider
+                            else:
+                                ins_texts = None
+                                ins_prov = None
+                            gil_payload = build_artifact(
+                                episode_id,
+                                text,
+                                podcast_id=f"eval_dataset:{dataset_id}",
+                                episode_title=episode_id,
+                                publish_date=None,
+                                transcript_ref=path.name,
+                                cfg=cfg_obj,
+                                insight_texts=ins_texts,
+                                insight_provider=ins_prov,
+                                summary_provider=provider,
+                                pipeline_metrics=None,
+                                gil_created_evidence_providers=gil_extra,
+                            )
+                            _cleanup_gil_evidence_extras(gil_extra)
                         dt = time.time() - t0
                         out_text = json.dumps(gil_payload, ensure_ascii=False, sort_keys=True)
                         total_chars_out += len(out_text)
@@ -1202,19 +1347,58 @@ def run_experiment(  # noqa: C901
                         from podcast_scraper.kg.pipeline import (
                             build_artifact as kg_build_artifact,
                         )
+                        from podcast_scraper.schemas.summary_schema import parse_summary_output
 
-                        rt_kg = runtime_config_for_knowledge_graph_eval(cfg.params)
-                        kg_payload = kg_build_artifact(
-                            episode_id,
-                            text,
-                            podcast_id=f"eval_dataset:{dataset_id}",
-                            episode_title=episode_id,
-                            publish_date=None,
-                            transcript_ref=path.name,
-                            cfg=rt_kg,
-                            kg_extraction_provider=None,
-                            pipeline_metrics=None,
-                        )
+                        if cfg.backend.type == "eval_stub":
+                            rt_kg = runtime_config_for_knowledge_graph_eval(cfg.params)
+                            kg_payload = kg_build_artifact(
+                                episode_id,
+                                text,
+                                podcast_id=f"eval_dataset:{dataset_id}",
+                                episode_title=episode_id,
+                                publish_date=None,
+                                transcript_ref=path.name,
+                                cfg=rt_kg,
+                                kg_extraction_provider=None,
+                                pipeline_metrics=None,
+                            )
+                        else:
+                            if cfg_obj is None or provider is None:
+                                raise RuntimeError(
+                                    "knowledge_graph non-stub run requires cfg_obj and provider"
+                                )
+                            sparams_kg = _episode_summary_params(cfg)
+                            summary_result_kg = provider.summarize(text, params=sparams_kg)
+                            if isinstance(summary_result_kg, dict):
+                                summary_kg = summary_result_kg.get("summary", "")
+                            else:
+                                summary_kg = str(summary_result_kg)
+                            parsed_kg = parse_summary_output(
+                                summary_kg, provider, episode_title=episode_id
+                            )
+                            bullets_kg: List[str] = []
+                            if parsed_kg.schema is not None and getattr(
+                                parsed_kg.schema, "bullets", None
+                            ):
+                                bullets_kg = [
+                                    str(b).strip()
+                                    for b in parsed_kg.schema.bullets
+                                    if str(b).strip()
+                                ]
+                            if not bullets_kg and summary_kg.strip():
+                                bullets_kg = [summary_kg.strip()[:2000]]
+                            kg_payload = kg_build_artifact(
+                                episode_id,
+                                text,
+                                podcast_id=f"eval_dataset:{dataset_id}",
+                                episode_title=episode_id,
+                                publish_date=None,
+                                transcript_ref=path.name,
+                                cfg=cfg_obj,
+                                topic_labels=bullets_kg if bullets_kg else None,
+                                kg_extraction_provider=provider,
+                                pipeline_metrics=None,
+                            )
                         dt = time.time() - t0
                         out_text = json.dumps(kg_payload, ensure_ascii=False, sort_keys=True)
                         total_chars_out += len(out_text)

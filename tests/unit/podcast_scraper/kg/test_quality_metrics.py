@@ -4,7 +4,25 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.kg.quality_metrics import compute_kg_quality_metrics, enforce_prd019_thresholds
+from podcast_scraper.kg.quality_metrics import (
+    compute_kg_quality_metrics,
+    enforce_prd019_thresholds,
+    KgQualityMetrics,
+)
+
+
+@pytest.mark.unit
+class TestKgQualityMetricsDataclass:
+    """Empty aggregates return 0.0 (PR-476)."""
+
+    def test_avg_and_coverage_zero_when_empty(self) -> None:
+        m = KgQualityMetrics()
+        assert m.avg_nodes_per_artifact() == 0.0
+        assert m.avg_edges_per_artifact() == 0.0
+        assert m.extraction_coverage() == 0.0
+        d = m.to_dict()
+        assert d["errors"] == []
+        assert d["artifact_paths"] == 0
 
 
 @pytest.mark.unit

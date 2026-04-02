@@ -85,6 +85,7 @@ python -m podcast_scraper.cli --config config.yaml
 - `--openai-transcription-model MODEL` - OpenAI model for transcription (default: `whisper-1`)
 - `--openai-speaker-model MODEL` - OpenAI model for speaker detection (default: `gpt-4o-mini`)
 - `--openai-summary-model MODEL` - OpenAI model for summarization (default: `gpt-4o-mini`)
+- `--openai-insight-model MODEL` - OpenAI model for GIL `generate_insights` when `gi_insight_source=provider` (default: same as summary model)
 - `--openai-temperature TEMP` - Temperature for OpenAI generation (0.0-2.0, default: 0.3)
 - `--openai-max-tokens N` - Maximum tokens for OpenAI responses (default: model-specific)
 - `--openai-cleaning-model MODEL` - OpenAI model for transcript cleaning (default: `gpt-4o-mini`, cheaper than summary model)

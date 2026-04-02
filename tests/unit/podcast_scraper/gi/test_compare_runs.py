@@ -7,10 +7,14 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from typing import cast, List, Optional, Tuple
+
+import pytest
 
 from podcast_scraper.gi.compare_runs import (
     collect_gil_stats_from_run_root,
     format_text_report,
+    GilArtifactStats,
     paired_episode_rows,
     summarize_agreement,
 )
@@ -65,6 +69,85 @@ class TestCompareGilRuns(unittest.TestCase):
         shutil.copy(self.fixture_gi, root / "solo.gi.json")
         stats = collect_gil_stats_from_run_root(root)
         self.assertEqual(len(stats), 1)
+
+
+@pytest.mark.unit
+class TestCompareRunsPairingAndEdges:
+    """Direct tests for pairing, agreement buckets, and resilient collection."""
+
+    def test_paired_episode_rows_union_sorted(self) -> None:
+        ref = {"z": GilArtifactStats("z", "a", 1, 0, 1)}
+        cand = {"a": GilArtifactStats("a", "b", 1, 0, 0)}
+        rows = paired_episode_rows(ref, cand)
+        assert [r[0] for r in rows] == ["a", "z"]
+        assert rows[0] == ("a", None, cand["a"])
+        assert rows[1] == ("z", ref["z"], None)
+
+    def test_summarize_agreement_ref_only_and_cand_only_quotes(self) -> None:
+        ref = {"e1": GilArtifactStats("e1", "p1", 1, 0, 2)}
+        cand = {"e1": GilArtifactStats("e1", "p2", 1, 0, 0)}
+        rows = paired_episode_rows(ref, cand)
+        s = summarize_agreement(rows)
+        assert s["episodes_compared"] == 1
+        assert s["both_have_quotes"] == 0
+        assert s["reference_only_quotes"] == 1
+        assert s["candidate_only_quotes"] == 0
+        assert s["neither_has_quotes"] == 0
+        assert s["missing_in_reference"] == 0
+        assert s["missing_in_candidate"] == 0
+
+        cand2 = {"e1": GilArtifactStats("e1", "p2", 1, 0, 1)}
+        s2 = summarize_agreement(paired_episode_rows(ref, cand2))
+        assert s2["both_have_quotes"] == 1
+
+    def test_summarize_agreement_missing_episode_counts(self) -> None:
+        ref = {"a": GilArtifactStats("a", "p", 0, 0, 0)}
+        cand = {"b": GilArtifactStats("b", "p", 0, 0, 0)}
+        s = summarize_agreement(paired_episode_rows(ref, cand))
+        assert s["episodes_compared"] == 2
+        assert s["missing_in_reference"] == 1
+        assert s["missing_in_candidate"] == 1
+        assert s["neither_has_quotes"] == 2
+
+    def test_collect_skips_bad_json_and_non_dict(self, tmp_path: Path) -> None:
+        meta = tmp_path / "metadata"
+        meta.mkdir()
+        (meta / "good.gi.json").write_text(
+            '{"episode_id": "ok", "nodes": [{"type": "Quote"}], "edges": []}',
+            encoding="utf-8",
+        )
+        (meta / "bad.gi.json").write_text("{not json", encoding="utf-8")
+        (meta / "list.gi.json").write_text("[]", encoding="utf-8")
+        stats = collect_gil_stats_from_run_root(tmp_path)
+        assert set(stats) == {"ok"}
+        assert stats["ok"].n_quotes == 1
+
+    def test_format_text_report_includes_summary_keys(self, tmp_path: Path) -> None:
+        ref_root = tmp_path / "ref"
+        cand_root = tmp_path / "cand"
+        ref_root.mkdir()
+        cand_root.mkdir()
+        rows = cast(
+            List[Tuple[str, Optional[GilArtifactStats], Optional[GilArtifactStats]]],
+            [
+                (
+                    "ep1",
+                    GilArtifactStats("ep1", "r", 1, 1, 1),
+                    GilArtifactStats("ep1", "c", 1, 0, 0),
+                )
+            ],
+        )
+        summary = summarize_agreement(rows)
+        text = format_text_report(ref_root, cand_root, rows, summary)
+        assert "GIL run comparison" in text
+        assert "Summary (quote = at least one Quote node):" in text
+        for key in (
+            "episodes_compared",
+            "both_have_quotes",
+            "reference_only_quotes",
+            "missing_in_reference",
+        ):
+            assert key in text
 
 
 if __name__ == "__main__":

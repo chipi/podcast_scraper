@@ -51,7 +51,6 @@ Introduce an **optional** layer parallel to ML modes—not by overloading
 
 ## Related WIP / docs
 
-- `docs/wip/gi-kg-data-eval-first-class-plan.md` (eval posture for GI/KG).
 - `docs/wip/manual-test-plan-gi-kg.md` (manual runs).
 - `docs/api/CONFIGURATION.md` (field reference).
 

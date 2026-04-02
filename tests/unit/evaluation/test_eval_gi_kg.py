@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
+from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
 
+from podcast_scraper.config import Config as RuntimeConfig
+from podcast_scraper.evaluation import gi_scorer, kg_scorer
 from podcast_scraper.evaluation.eval_gi_kg_runtime import (
+    merge_eval_task_into_summarizer_config,
     runtime_config_for_grounded_insights_eval,
     runtime_config_for_knowledge_graph_eval,
 )
@@ -42,16 +47,124 @@ def test_eval_stub_rejected_for_summarization_task() -> None:
         )
 
 
-def test_grounded_insights_rejects_non_stub_backend() -> None:
-    """GIL/KG eval tasks currently require eval_stub (see experiment_config validators)."""
-    with pytest.raises(ValidationError):
-        ExperimentConfig(
-            id="bad_gi_openai",
-            task="grounded_insights",
-            backend=OpenAIBackendConfig(model="gpt-4o-mini"),
-            prompts=PromptConfig(user="openai/summarization/long_v1"),
-            data=DataConfig(dataset_id="curated_5feeds_smoke_v1"),
-        )
+def test_grounded_insights_accepts_openai_backend() -> None:
+    """GIL eval may use real summarization backends (regenerate summary, then GIL)."""
+    cfg = ExperimentConfig(
+        id="gi_openai_ok",
+        task="grounded_insights",
+        backend=OpenAIBackendConfig(model="gpt-4o-mini"),
+        prompts=PromptConfig(user="openai/summarization/long_v1"),
+        data=DataConfig(dataset_id="curated_5feeds_smoke_v1"),
+    )
+    assert cfg.backend.type == "openai"
+
+
+def test_merge_eval_task_sets_gi_and_kg_flags() -> None:
+    base = RuntimeConfig.model_validate(
+        {
+            "rss": "",
+            "summary_provider": "transformers",
+            "generate_summaries": True,
+            "generate_metadata": True,
+            "generate_gi": False,
+            "generate_kg": False,
+            "transcribe_missing": False,
+        }
+    )
+    gi_cfg = merge_eval_task_into_summarizer_config(
+        base, "grounded_insights", {"gi_require_grounding": False}
+    )
+    assert gi_cfg.generate_gi is True
+    assert gi_cfg.generate_kg is False
+    assert gi_cfg.gi_insight_source == "summary_bullets"
+    assert gi_cfg.gi_require_grounding is False
+    kg_cfg = merge_eval_task_into_summarizer_config(base, "knowledge_graph", None)
+    assert kg_cfg.generate_kg is True
+    assert kg_cfg.generate_gi is False
+    assert kg_cfg.kg_extraction_source == "summary_bullets"
+
+
+def test_merge_eval_task_unsupported_task_raises() -> None:
+    base = RuntimeConfig.model_validate(
+        {
+            "rss": "",
+            "summary_provider": "transformers",
+            "generate_summaries": True,
+            "generate_metadata": True,
+            "generate_gi": False,
+            "generate_kg": False,
+            "transcribe_missing": False,
+        }
+    )
+    with pytest.raises(ValueError, match="unsupported task"):
+        merge_eval_task_into_summarizer_config(base, "summarization", None)
+
+
+def test_merge_eval_task_coerces_invalid_gi_insight_source() -> None:
+    base = RuntimeConfig.model_validate(
+        {
+            "rss": "",
+            "summary_provider": "transformers",
+            "generate_summaries": True,
+            "generate_metadata": True,
+            "generate_gi": False,
+            "generate_kg": False,
+            "transcribe_missing": False,
+        }
+    )
+    gi_cfg = merge_eval_task_into_summarizer_config(
+        base,
+        "grounded_insights",
+        {"gi_insight_source": "not_valid"},
+    )
+    assert gi_cfg.gi_insight_source == "summary_bullets"
+
+
+def test_merge_eval_task_coerces_invalid_kg_extraction_source() -> None:
+    base = RuntimeConfig.model_validate(
+        {
+            "rss": "",
+            "summary_provider": "transformers",
+            "generate_summaries": True,
+            "generate_metadata": True,
+            "generate_gi": False,
+            "generate_kg": False,
+            "transcribe_missing": False,
+        }
+    )
+    kg_cfg = merge_eval_task_into_summarizer_config(
+        base,
+        "knowledge_graph",
+        {"kg_extraction_source": "invalid"},
+    )
+    assert kg_cfg.kg_extraction_source == "summary_bullets"
+
+
+def test_merge_eval_task_applies_numeric_params() -> None:
+    base = RuntimeConfig.model_validate(
+        {
+            "rss": "",
+            "summary_provider": "transformers",
+            "generate_summaries": True,
+            "generate_metadata": True,
+            "generate_gi": False,
+            "generate_kg": False,
+            "transcribe_missing": False,
+        }
+    )
+    gi_cfg = merge_eval_task_into_summarizer_config(
+        base,
+        "grounded_insights",
+        {"gi_max_insights": 3},
+    )
+    assert gi_cfg.gi_max_insights == 3
+    kg_cfg = merge_eval_task_into_summarizer_config(
+        base,
+        "knowledge_graph",
+        {"kg_max_topics": 5, "kg_max_entities": 7},
+    )
+    assert kg_cfg.kg_max_topics == 5
+    assert kg_cfg.kg_max_entities == 7
 
 
 def test_runtime_config_gi_has_gil_enabled() -> None:
@@ -119,6 +232,60 @@ def test_compute_kg_prediction_stats() -> None:
     assert stats["avg_edges"] == 1.0
 
 
+def test_score_run_grounded_insights_with_silver_reference_jsonl(tmp_path: Path) -> None:
+    """score_run wires GI vs_reference to silver predictions.jsonl layout."""
+    ref_dir = tmp_path / "silver_gil"
+    ref_dir.mkdir()
+    gil_ref = {
+        "nodes": [{"type": "Insight", "id": "i1"}, {"type": "Quote", "id": "q1"}],
+        "edges": [{"from": "i1", "to": "q1", "type": "SUPPORTED_BY"}],
+    }
+    line = json.dumps(
+        {"episode_id": "p01_e01", "output": {"gil": gil_ref}},
+    )
+    (ref_dir / "predictions.jsonl").write_text(line + "\n", encoding="utf-8")
+    pred_path = tmp_path / "predictions.jsonl"
+    pred_path.write_text(line + "\n", encoding="utf-8")
+    metrics = score_run(
+        pred_path,
+        dataset_id="curated_5feeds_smoke_v1",
+        run_id="run_with_silver_gil",
+        reference_paths={"silver_gil": ref_dir},
+        task="grounded_insights",
+    )
+    vs = metrics.get("vs_reference") or {}
+    assert "silver_gil" in vs
+    blob = vs["silver_gil"]
+    assert "error" not in blob
+    assert blob.get("insight_quote_edge_count_exact_match_rate") == 1.0
+
+
+def test_score_run_knowledge_graph_with_silver_reference_jsonl(tmp_path: Path) -> None:
+    """score_run wires KG vs_reference to silver predictions.jsonl layout."""
+    ref_dir = tmp_path / "silver_kg"
+    ref_dir.mkdir()
+    kg_ref = {
+        "nodes": [{"id": "n1"}, {"id": "n2"}],
+        "edges": [{"from": "n1", "to": "n2"}],
+    }
+    line = json.dumps({"episode_id": "p01_e01", "output": {"kg": kg_ref}})
+    (ref_dir / "predictions.jsonl").write_text(line + "\n", encoding="utf-8")
+    pred_path = tmp_path / "predictions_kg.jsonl"
+    pred_path.write_text(line + "\n", encoding="utf-8")
+    metrics = score_run(
+        pred_path,
+        dataset_id="curated_5feeds_smoke_v1",
+        run_id="run_with_silver_kg",
+        reference_paths={"silver_kg": ref_dir},
+        task="knowledge_graph",
+    )
+    vs = metrics.get("vs_reference") or {}
+    assert "silver_kg" in vs
+    blob = vs["silver_kg"]
+    assert "error" not in blob
+    assert blob.get("node_edge_count_exact_match_rate") == 1.0
+
+
 def test_score_run_grounded_insights_task(tmp_path: Path) -> None:
     pred_path = tmp_path / "predictions.jsonl"
     pred_path.write_text(
@@ -169,6 +336,37 @@ def test_score_run_knowledge_graph_task(tmp_path: Path) -> None:
     assert "kg" in metrics["intrinsic"]
 
 
+def test_compute_gil_vs_reference_silver_predictions_jsonl(tmp_path: Path) -> None:
+    """Silver references use predictions.jsonl with output.gil per line."""
+    ref_dir = tmp_path / "silver_run"
+    ref_dir.mkdir()
+    gil_ref = {
+        "nodes": [{"type": "Insight", "id": "x"}],
+        "edges": [],
+    }
+    line = json.dumps(
+        {
+            "episode_id": "p01_e01",
+            "output": {"gil": gil_ref},
+        }
+    )
+    (ref_dir / "predictions.jsonl").write_text(line + "\n", encoding="utf-8")
+    predictions = [
+        {
+            "episode_id": "p01_e01",
+            "output": {"gil": gil_ref},
+        }
+    ]
+    out = compute_gil_vs_reference_metrics(
+        predictions,
+        "silver_smoke",
+        ref_dir,
+        dataset_id="curated_5feeds_smoke_v1",
+    )
+    assert out["scored_episodes"]["scored"] == 1
+    assert out["insight_quote_edge_count_exact_match_rate"] == 1.0
+
+
 def test_compute_gil_vs_reference(tmp_path: Path) -> None:
     gold_dir = tmp_path / "gold"
     gold_dir.mkdir()
@@ -193,6 +391,25 @@ def test_compute_gil_vs_reference(tmp_path: Path) -> None:
     assert out["insight_quote_edge_count_exact_match_rate"] == 1.0
 
 
+def test_compute_kg_vs_reference_silver_predictions_jsonl(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "silver_kg"
+    ref_dir.mkdir()
+    kg_ref = {"nodes": [{"id": "ep"}], "edges": [{"from": "a", "to": "b"}]}
+    (ref_dir / "predictions.jsonl").write_text(
+        json.dumps({"episode_id": "e1", "output": {"kg": kg_ref}}) + "\n",
+        encoding="utf-8",
+    )
+    predictions = [{"episode_id": "e1", "output": {"kg": kg_ref}}]
+    out = compute_kg_vs_reference_metrics(
+        predictions,
+        "silver_kg",
+        ref_dir,
+        dataset_id="curated_5feeds_smoke_v1",
+    )
+    assert out["scored_episodes"]["scored"] == 1
+    assert out["node_edge_count_exact_match_rate"] == 1.0
+
+
 def test_compute_kg_vs_reference(tmp_path: Path) -> None:
     gold_dir = tmp_path / "gold"
     gold_dir.mkdir()
@@ -212,3 +429,198 @@ def test_compute_kg_vs_reference(tmp_path: Path) -> None:
     )
     assert out["scored_episodes"]["scored"] == 1
     assert out["node_edge_count_exact_match_rate"] == 1.0
+
+
+def test_load_gil_silver_predictions_read_oserror_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    silver = ref_dir / "predictions.jsonl"
+    silver.write_text('{"episode_id":"e1","output":{"gil":{}}}\n', encoding="utf-8")
+
+    real_read_text = Path.read_text
+
+    def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self.name == "predictions.jsonl":
+            raise OSError("permission denied")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _read_text)
+    assert gi_scorer._load_gil_reference_map(ref_dir) == {}
+
+
+def test_load_gil_silver_skips_bad_json_and_non_dict_gil(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    good = {"episode_id": "ok", "output": {"gil": {"nodes": [], "edges": []}}}
+    raw = (
+        "not json\n"
+        + json.dumps(good)
+        + "\n"
+        + json.dumps({"episode_id": "x", "output": {}})
+        + "\n"
+    )
+    (ref_dir / "predictions.jsonl").write_text(raw, encoding="utf-8")
+    m = gi_scorer._load_gil_reference_map(ref_dir)
+    assert list(m.keys()) == ["ok"]
+
+
+def test_load_gil_json_skips_index_invalid_json_and_list_payload(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "gold"
+    ref_dir.mkdir()
+    (ref_dir / "index.json").write_text("{}", encoding="utf-8")
+    (ref_dir / "bad.json").write_text("{", encoding="utf-8")
+    (ref_dir / "list.json").write_text("[1,2]", encoding="utf-8")
+    (ref_dir / "good.json").write_text(
+        json.dumps({"nodes": [{"type": "Insight", "id": "i"}], "edges": []}),
+        encoding="utf-8",
+    )
+    m = gi_scorer._load_gil_reference_map(ref_dir)
+    assert set(m.keys()) == {"good"}
+
+
+def test_compute_gil_vs_reference_missing_pred_non_dict_gold_and_mismatch(tmp_path: Path) -> None:
+    gold_dir = tmp_path / "gold"
+    gold_dir.mkdir()
+    (gold_dir / "e1.json").write_text(
+        json.dumps({"nodes": [{"type": "Insight", "id": "x"}], "edges": []}),
+        encoding="utf-8",
+    )
+    predictions = [{"episode_id": "e1", "output": {"gil": None}}]
+    out = compute_gil_vs_reference_metrics(
+        predictions,
+        "ref",
+        gold_dir,
+        dataset_id="d1",
+    )
+    assert out["counts"]["missing_pred_gil"] == 1
+    assert out["insight_quote_edge_count_exact_match_rate"] == 0.0
+
+    with patch.object(
+        gi_scorer,
+        "_load_gil_reference_map",
+        return_value={"e1": []},
+    ):
+        out2 = compute_gil_vs_reference_metrics(
+            [{"episode_id": "e1", "output": {"gil": {"nodes": [], "edges": []}}}],
+            "ref",
+            gold_dir,
+            dataset_id="d1",
+        )
+    assert out2["counts"]["gold_read_errors"] == 1
+
+    (gold_dir / "e2.json").write_text(
+        json.dumps(
+            {"nodes": [{"type": "Insight", "id": "a"}], "edges": [{"x": 1}]},
+        ),
+        encoding="utf-8",
+    )
+    predictions2 = [
+        {
+            "episode_id": "e2",
+            "output": {
+                "gil": {
+                    "nodes": [
+                        {"type": "Insight", "id": "b1"},
+                        {"type": "Insight", "id": "b2"},
+                    ],
+                    "edges": [{"x": 1}],
+                },
+            },
+        }
+    ]
+    out3 = compute_gil_vs_reference_metrics(predictions2, "ref", gold_dir, dataset_id="d1")
+    assert out3["scored_episodes"]["scored"] == 1
+    assert out3["insight_quote_edge_count_exact_match_rate"] == 0.0
+
+
+def test_compute_gil_prediction_stats_coerces_non_list_nodes_and_empty() -> None:
+    stats = compute_gil_prediction_stats(
+        [
+            {"episode_id": "a", "output": {"gil": {"nodes": "nope", "edges": "neither"}}},
+            {"episode_id": "b", "output": {}},
+        ]
+    )
+    assert stats["episodes_with_gil"] == 1
+    assert stats["avg_insight_nodes"] == 0.0
+    assert stats["avg_quote_nodes"] == 0.0
+    assert stats["avg_edges"] == 0.0
+
+    empty = compute_gil_prediction_stats([])
+    assert empty["episodes_with_gil"] == 0
+    assert empty["avg_insight_nodes"] == 0.0
+
+
+def test_load_kg_silver_predictions_read_oserror_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    silver = ref_dir / "predictions.jsonl"
+    silver.write_text('{"episode_id":"e1","output":{"kg":{}}}\n', encoding="utf-8")
+
+    real_read_text = Path.read_text
+
+    def _read_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self.name == "predictions.jsonl":
+            raise OSError("permission denied")
+        return real_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", _read_text)
+    assert kg_scorer._load_kg_reference_map(ref_dir) == {}
+
+
+def test_load_kg_silver_skips_bad_json_lines(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "silver"
+    ref_dir.mkdir()
+    good = {"episode_id": "ok", "output": {"kg": {"nodes": [], "edges": []}}}
+    (ref_dir / "predictions.jsonl").write_text(
+        "not json\n" + json.dumps(good) + "\n",
+        encoding="utf-8",
+    )
+    m = kg_scorer._load_kg_reference_map(ref_dir)
+    assert list(m.keys()) == ["ok"]
+
+
+def test_load_kg_json_skips_index_and_invalid(tmp_path: Path) -> None:
+    ref_dir = tmp_path / "gold"
+    ref_dir.mkdir()
+    (ref_dir / "index.json").write_text("{}", encoding="utf-8")
+    (ref_dir / "bad.json").write_text("{", encoding="utf-8")
+    (ref_dir / "ok.json").write_text(json.dumps({"nodes": [1], "edges": []}), encoding="utf-8")
+    m = kg_scorer._load_kg_reference_map(ref_dir)
+    assert set(m.keys()) == {"ok"}
+
+
+def test_compute_kg_vs_reference_missing_pred_and_non_dict_gold(tmp_path: Path) -> None:
+    gold_dir = tmp_path / "gold"
+    gold_dir.mkdir()
+    (gold_dir / "e1.json").write_text(json.dumps({"nodes": [1], "edges": []}), encoding="utf-8")
+    out = compute_kg_vs_reference_metrics(
+        [{"episode_id": "e1", "output": {"kg": "bad"}}],
+        "ref",
+        gold_dir,
+        dataset_id="d1",
+    )
+    assert out["counts"]["missing_pred_kg"] == 1
+
+    with patch.object(kg_scorer, "_load_kg_reference_map", return_value={"e1": "x"}):
+        out2 = compute_kg_vs_reference_metrics(
+            [{"episode_id": "e1", "output": {"kg": {"nodes": [], "edges": []}}}],
+            "ref",
+            gold_dir,
+            dataset_id="d1",
+        )
+    assert out2["counts"]["gold_read_errors"] == 1
+
+
+def test_compute_kg_prediction_stats_non_list_and_empty() -> None:
+    stats = compute_kg_prediction_stats(
+        [{"episode_id": "a", "output": {"kg": {"nodes": 1, "edges": None}}}]
+    )
+    assert stats["episodes_with_kg"] == 1
+    assert stats["avg_nodes"] == 0.0
+    assert stats["avg_edges"] == 0.0
+    empty = compute_kg_prediction_stats([])
+    assert empty["episodes_with_kg"] == 0

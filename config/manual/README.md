@@ -11,9 +11,17 @@ They use the same **NPR Planet Money** RSS as most GI/KG acceptance configs:
 | File | Stack | GI / KG | Notes |
 | --- | --- | --- | --- |
 | `manual_planet_money_openai_summaries_only.yaml` | OpenAI (transcribe + speaker + summary) | Off | Baseline summaries/metadata only. |
-| `manual_planet_money_openai_gi_kg_summary_bullets.yaml` | OpenAI | On; `summary_bullets` from summaries | **Start here** for cheap, coherent GI+KG (no extra LLM insight/graph calls). All API providers default to shared JSON bullet prompts. |
+| `manual_planet_money_openai_gi_kg_summary_bullets.yaml` | OpenAI | On; `summary_bullets` from summaries | **Start here** for cheap, coherent GI+KG (no extra LLM insight/graph calls). With default **`gil_evidence_match_summary_provider: true`**, GIL grounding uses **OpenAI** (not local HF) — no **`.[ml]`** for GIL on this preset. |
 | `manual_planet_money_openai_gi_kg_provider.yaml` | OpenAI | On; `provider` extraction | Stress-tests `generate_insights` + `extract_kg_graph`. |
-| `manual_planet_money_ml_gi_kg_summary_bullets.yaml` | Whisper + spaCy + transformers | On; `summary_bullets` | Local ML; set `whisper_device` / `summary_device` to `cpu` if not on Apple Silicon. |
+| `manual_planet_money_ml_gi_kg_summary_bullets.yaml` | Whisper + spaCy + transformers | On; `summary_bullets` | **Local GI preset:** summaries + GIL evidence on **transformers** / **`.[ml]`** (NLI). Contrast with OpenAI row above. |
+
+### Preset intent (GIL dependency profile)
+
+| Preset | Summaries | GIL evidence (default config) | Typical install |
+| --- | --- | --- | --- |
+| **B1 — API-first GI** | LLM API (`*_gi_kg_summary_bullets.yaml` with `summary_provider: openai` etc.) | Same API as summary (**`gil_evidence_match_summary_provider`** aligns quote + entail) | Provider API keys only |
+| **B2 — Local GI** | `manual_planet_money_ml_gi_kg_summary_bullets.yaml` | **`transformers`** QA + NLI | **`pip install -e ".[ml]"`** |
+| **Hybrid (advanced)** | API | Set **`gil_evidence_match_summary_provider: false`** and choose **`quote_extraction_provider`** / **`entailment_provider`** explicitly | Keys + **`.[ml]`** if any evidence backend is local |
 
 ### Provider cost comparison (same RSS + `max_episodes: 3`)
 

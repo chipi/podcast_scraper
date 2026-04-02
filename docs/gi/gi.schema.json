@@ -22,7 +22,7 @@
     "model_version": {
       "type": "string",
       "minLength": 1,
-      "description": "Model identifier used for extraction (e.g., gpt-4.1-mini-2026-01-xx)"
+      "description": "Insight text lineage: model id derived from gi_insight_source and the summarization / generate_insights stack (see podcast_scraper.gi.provenance and GROUNDED_INSIGHTS_GUIDE.md)"
     },
     "prompt_version": {
       "type": "string",

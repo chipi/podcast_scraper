@@ -52,12 +52,25 @@ Summaries are not a substitute for verification when claims matter; **GIL** is w
 
 | `kg_extraction_source` | Behavior |
 | --- | --- |
-| `summary_bullets` (default) | **Topic** nodes from the first `kg_max_topics` summary bullets (needs `generate_summaries` + bullets). **Entity** nodes from detected hosts/guests. `extraction.model_version` records `summary_bullets`. |
-| `stub` | **Episode** + hosts/guests only; ignores summary bullets for topics. |
-| `provider` | Calls `extract_kg_graph()` on the **summarization** provider (LLM JSON: topics + entities). **ML** providers (`transformers`, `hybrid_ml`) return no graph fragment — pipeline **falls back** to summary bullets when available. Optional `kg_extraction_model` overrides the chat model. `kg_merge_pipeline_entities` (default `true`) adds hosts/guests after LLM entities, deduped by **entity_kind + name** (same as LLM entity list). |
+| `summary_bullets` (default) | **Topic** nodes from the first `kg_max_topics` summary bullets (needs `generate_summaries` + bullets). **Entity** nodes from detected hosts/guests. `extraction.model_version` records `summary_bullets`. When the pipeline uses an LLM for KG-from-bullets, the effective backend follows **`kg_extraction_provider`** or **`summary_provider`** the same way as `provider` mode (see below). |
+| `stub` | **Episode** + hosts/guests only; ignores summary bullets for topics. **`kg_extraction_provider`** is not used (no LLM KG client). |
+| `provider` | Runs **`extract_kg_graph()`** on transcript text using **`kg_extraction_provider`** if set, otherwise **`summary_provider`** (same backend enum as summarization). **ML** providers (`transformers`, `hybrid_ml`) return no graph fragment — pipeline **falls back** to summary bullets when available. Optional **`kg_extraction_model`** overrides the chat model. **`kg_merge_pipeline_entities`** (default `true`) adds hosts/guests after LLM entities, deduped by **entity_kind + name** (same as LLM entity list). |
 
-CLI flags: `--kg-extraction-source`, `--kg-max-topics`, `--kg-max-entities`,
-`--kg-extraction-model`, `--no-kg-merge-pipeline-entities`.
+CLI flags: `--kg-extraction-source`, **`--kg-extraction-provider`**, `--kg-max-topics`,
+`--kg-max-entities`, `--kg-extraction-model`, `--no-kg-merge-pipeline-entities`.
+
+### KG LLM provider vs summary provider {#kg-llm-provider-vs-summary-provider}
+
+- **`kg_extraction_provider`** (config) / **`--kg-extraction-provider`** (CLI): optional.
+  **Unset** means reuse **`summary_provider`** for KG LLM calls — one client, no extra
+  init/cleanup.
+- **Set** to another registered summarization backend (e.g. OpenAI for summaries,
+  Gemini for KG) when you want **`extract_kg_graph`** (and, when applicable, the
+  bullets LLM path) to run on a **different** stack than episode summarization. The
+  pipeline **`create_summarization_provider` → `initialize()`** for that episode and
+  **`cleanup()`** afterward when the instance is not the summary provider (same pattern
+  as GIL evidence providers).
+- **Field reference:** [Configuration API — Knowledge Graph (KG)](../api/CONFIGURATION.md).
 
 Pipeline: KG runs during **metadata generation**. Use a transcript on disk so provider
 mode can read text; `extraction.transcript_ref` stays in the artifact for provenance.

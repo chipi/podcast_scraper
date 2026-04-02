@@ -29,6 +29,12 @@ endif
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
+# pytest-xdist worker count for ``make test-nightly`` (default 2). On memory-constrained
+# runners (e.g. GitHub Actions ubuntu-latest), two workers each loading Whisper + BART/LED
+# can trigger OOM kills (~1–2 min in) showing as ``Terminated``. Set NIGHTLY_PYTEST_WORKERS=1
+# in CI or export before running locally. Example: NIGHTLY_PYTEST_WORKERS=1 make test-nightly
+NIGHTLY_PYTEST_WORKERS ?= 2
+
 .PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
 
 help:
@@ -532,6 +538,7 @@ test-nightly:
 	# Note: Removed --disable-socket for pytest-xdist compatibility with -n (parallel)
 	# pytest-xdist requires localhost socket access for worker communication
 	# Network access is still restricted via --allow-hosts=127.0.0.1,localhost
+	# Parallelism: see NIGHTLY_PYTEST_WORKERS (use 1 on low-RAM CI to avoid OOM)
 	@echo "Running nightly tests with production models..."
 	@echo "Podcasts: p01-p05 (15 episodes total)"
 	@echo "Models: Whisper base.en, BART-large-cnn, LED-large-16384"
@@ -556,11 +563,11 @@ test-nightly:
 	echo "   - Available memory: $$(free -h 2>/dev/null | grep Mem | awk '{print $$7}' || vm_stat 2>/dev/null | head -1 || echo 'unknown')"; \
 	echo "   - Disk space: $$(df -h . | tail -1 | awk '{print $$4 " available"}')"; \
 	echo ""; \
-	echo "🔄 Attempting parallel execution (2 workers)..."; \
+	echo "🔄 Attempting pytest-xdist ($(NIGHTLY_PYTEST_WORKERS) worker(s))..."; \
 	echo "   This may take 30-60 minutes depending on model loading and processing time"; \
 	echo "   Progress will be shown below (each test name as it runs)"; \
 	echo "   ============================================================"; \
-	(E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n 2 --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json 2>&1 | tee /tmp/nightly-test-output.log; echo "$${PIPESTATUS[0]}" > /tmp/nightly-exit-code.txt) || true; \
+	(E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n $(NIGHTLY_PYTEST_WORKERS) --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json 2>&1 | tee /tmp/nightly-test-output.log; echo "$${PIPESTATUS[0]}" > /tmp/nightly-exit-code.txt) || true; \
 	PARALLEL_EXIT_CODE=$$(cat /tmp/nightly-exit-code.txt 2>/dev/null || echo "1"); \
 	if [ "$$PARALLEL_EXIT_CODE" != "0" ]; then \
 		ELAPSED=$$(($$(date +%s) - START_TIME)); \

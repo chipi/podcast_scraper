@@ -6,7 +6,25 @@ from podcast_scraper.gi import build_artifact, write_artifact
 from podcast_scraper.gi.quality_metrics import (
     compute_gil_quality_metrics,
     enforce_prd017_thresholds,
+    GilQualityMetrics,
 )
+
+
+@pytest.mark.unit
+class TestGilQualityMetricsDataclass:
+    """Empty aggregates and stable ``to_dict`` keys (PR-476 / CI scripts)."""
+
+    def test_avg_rates_zero_when_no_data(self) -> None:
+        m = GilQualityMetrics()
+        assert m.artifact_paths == 0
+        assert m.extraction_coverage() == 0.0
+        assert m.grounded_insight_rate() == 0.0
+        assert m.quote_validity_rate() == 0.0
+        assert m.avg_insights_per_artifact() == 0.0
+        assert m.avg_quotes_per_artifact() == 0.0
+        d = m.to_dict()
+        assert d["errors"] == []
+        assert "quote_validity_rate" in d
 
 
 @pytest.mark.unit

@@ -1,7 +1,7 @@
 # WIP: P4 — API / LLM KG for cleaner topics (ML follow-up)
 
 **Status:** idea backlog — not implemented as a single task  
-**See also:** [Knowledge Graph Guide § Choosing a mode](../guides/KNOWLEDGE_GRAPH_GUIDE.md#choosing-a-mode-operations), [kg-extraction-provider plan](kg-extraction-provider-plan.md)
+**See also:** [Knowledge Graph Guide § Choosing a mode](../guides/KNOWLEDGE_GRAPH_GUIDE.md#choosing-a-mode-operations), [KG LLM provider vs summary provider](../guides/KNOWLEDGE_GRAPH_GUIDE.md#kg-llm-provider-vs-summary-provider)
 
 ---
 
@@ -27,4 +27,4 @@ Optional use of an **API summarization / KG-capable provider** so **Topic** labe
 ## Notes
 
 - Local ML providers **do not** implement transcript `extract_kg_graph`; `provider` mode **falls back** when only ML is configured — see the KG guide.
-- Wiring and `kg_extraction_provider` design choices are tracked in **`kg-extraction-provider-plan.md`** (broader than this P4 note).
+- **`kg_extraction_provider`** wiring is documented in the [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md#kg-llm-provider-vs-summary-provider) and [Configuration API](../api/CONFIGURATION.md).

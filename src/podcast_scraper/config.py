@@ -517,8 +517,8 @@ def _default_summary_prompt_params() -> Dict[str, Any]:
     }
 
 
-# Summary providers whose GIL quote+entail align with summary when still default transformers.
-_GIL_EVIDENCE_MATCH_SUMMARY_PROVIDERS = frozenset(
+# Summary providers for which default GIL evidence can align to the same backend (validator).
+GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
     {
         "openai",
         "gemini",
@@ -824,6 +824,14 @@ class Config(BaseModel):
         default_factory=_get_default_openai_summary_model,
         alias="openai_summary_model",
         description="OpenAI model for summarization (default: environment-based)",
+    )
+    openai_insight_model: Optional[str] = Field(
+        default=None,
+        alias="openai_insight_model",
+        description=(
+            "Optional OpenAI chat model used only for GIL generate_insights when "
+            "gi_insight_source is provider; when unset, openai_summary_model is used."
+        ),
     )
     openai_temperature: float = Field(
         default=0.3,
@@ -2004,7 +2012,7 @@ class Config(BaseModel):
         if not merged.get("generate_gi", False):
             return merged
         summary = merged.get("summary_provider", "transformers")
-        if summary not in _GIL_EVIDENCE_MATCH_SUMMARY_PROVIDERS:
+        if summary not in GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS:
             return merged
         quote = merged.get("quote_extraction_provider", "transformers")
         entail = merged.get("entailment_provider", "transformers")

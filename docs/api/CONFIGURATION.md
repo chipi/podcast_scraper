@@ -155,6 +155,7 @@ OpenAI providers support configurable model selection for dev/test vs production
 | `openai_transcription_model` | `--openai-transcription-model` | `whisper-1` | OpenAI model for transcription |
 | `openai_speaker_model` | `--openai-speaker-model` | `gpt-4o-mini` | OpenAI model for speaker detection |
 | `openai_summary_model` | `--openai-summary-model` | `gpt-4o-mini` | OpenAI model for summarization |
+| `openai_insight_model` | `--openai-insight-model` | `None` (uses `openai_summary_model`) | OpenAI model for GIL `generate_insights` when `gi_insight_source` is `provider` |
 | `openai_temperature` | `--openai-temperature` | `0.3` | Temperature for generation (0.0-2.0) |
 | `openai_max_tokens` | `--openai-max-tokens` | `None` | Max tokens for generation (None = model default) |
 
@@ -814,7 +815,7 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 | --- | --- | --- | --- |
 | `generate_kg` | `--generate-kg` | `false` | Write per-episode `*.kg.json` during metadata generation. Requires `generate_metadata=true`. Separate from GIL. See [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md). |
 | `kg_extraction_source` | `--kg-extraction-source` | `summary_bullets` | `stub`, `summary_bullets`, or `provider` (LLM `extract_kg_graph`; see `kg_extraction_provider`; default uses `summary_provider`; ML backends no-op). |
-| `kg_extraction_provider` | `--kg-extraction-provider` | (none) | When `kg_extraction_source` is `provider`, which backend runs `extract_kg_graph`. Unset means same as `summary_provider`. |
+| `kg_extraction_provider` | `--kg-extraction-provider` | (none) | Which summarization backend runs KG LLM calls (`extract_kg_graph`, and KG-from-bullets when that path is used). Unset means same as `summary_provider`. Ignored for `kg_extraction_source: stub`. See [KG guide § KG LLM provider vs summary](../guides/KNOWLEDGE_GRAPH_GUIDE.md#kg-llm-provider-vs-summary-provider). |
 | `kg_max_topics` | `--kg-max-topics` | `20` | Max topic nodes (bullets or provider). Hard cap `20` in pipeline. |
 | `kg_max_entities` | `--kg-max-entities` | `15` | Max entity nodes from provider extraction. |
 | `kg_extraction_model` | `--kg-extraction-model` | (none) | Optional model override for KG LLM calls; else summary model. |
@@ -859,6 +860,10 @@ When `generate_gi` is true and `gi_require_grounding` is true, GIL uses a config
 | `quote_extraction_provider` | `--quote-extraction-provider` | `transformers` | Provider for GIL quote extraction (QA). Options: transformers, hybrid_ml, openai, gemini, grok, mistral, deepseek, anthropic, ollama. |
 | `entailment_provider` | `--entailment-provider` | `transformers` | Provider for GIL entailment (NLI). Same options as quote_extraction_provider. |
 | `gil_evidence_match_summary_provider` | N/A | `true` | When `generate_gi` is true: if `summary_provider` is an API LLM or `hybrid_ml` and both evidence fields are still default `transformers`, align them to `summary_provider` so grounding matches the summary backend. Set `false` to keep local QA + NLI with API summaries. |
+
+**GIL evidence × provider (parity):** All backends in the `quote_extraction_provider` / `entailment_provider` enums implement `extract_quotes` and `score_entailment`. ML backends use local QA + NLI; LLM backends use chat-style calls. Full table: [GROUNDED_INSIGHTS_GUIDE — GIL evidence provider matrix](../guides/GROUNDED_INSIGHTS_GUIDE.md#gil-evidence-provider-matrix).
+
+When `summary_provider` is an API but either evidence field remains `transformers` or `hybrid_ml` (after your overrides), the CLI emits a **WARNING** at config log time about **`.[ml]`** / **sentence-transformers** so hybrid setups are visible.
 
 If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set. See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md) and RFC-049.
 
