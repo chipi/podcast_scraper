@@ -96,9 +96,9 @@ def _safe_openai_retryable() -> tuple[type[Exception], ...]:
 
         if (
             isinstance(_RLError, type)
-            and issubclass(_RLError, BaseException)
+            and issubclass(_RLError, Exception)
             and isinstance(_APIError, type)
-            and issubclass(_APIError, BaseException)
+            and issubclass(_APIError, Exception)
         ):
             return (_RLError, _APIError, ConnectionError)
     except (ImportError, AttributeError):
@@ -119,9 +119,9 @@ def _safe_gemini_retryable() -> tuple[type[Exception], ...]:
         _su = _gexc.ServiceUnavailable
         if (
             isinstance(_re, type)
-            and issubclass(_re, BaseException)
+            and issubclass(_re, Exception)
             and isinstance(_su, type)
-            and issubclass(_su, BaseException)
+            and issubclass(_su, Exception)
         ):
             return (_re, _su, ConnectionError)
     except (ImportError, AttributeError):
@@ -139,7 +139,7 @@ def _safe_anthropic_retryable() -> tuple[type[Exception], ...]:
         import anthropic as _anth
 
         _ae = _anth.APIError
-        if isinstance(_ae, type) and issubclass(_ae, BaseException):
+        if isinstance(_ae, type) and issubclass(_ae, Exception):
             return (_ae, ConnectionError, TimeoutError)
     except (ImportError, AttributeError):
         pass
@@ -155,7 +155,7 @@ def _safe_mistral_retryable() -> tuple[type[Exception], ...]:
     try:
         from mistralai import SDKError as _SDKError
 
-        if isinstance(_SDKError, type) and issubclass(_SDKError, BaseException):
+        if isinstance(_SDKError, type) and issubclass(_SDKError, Exception):
             return (_SDKError, ConnectionError, TimeoutError)
     except (ImportError, AttributeError):
         pass
