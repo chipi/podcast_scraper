@@ -8,7 +8,7 @@
 # - markdownlint on markdown files
 # - JSON syntax validation (JSON files)
 # - YAML syntax validation (YAML/YML files)
-# - mypy type checking (Python files)
+# - mypy type checking (entire project, same as CI `make type`; fails on any error)
 #
 # To customize this template:
 # 1. Copy this file to .github/hooks/pre-commit
@@ -180,10 +180,13 @@ if [ -n "$STAGED_PYTHON" ]; then
                 echo ""
             fi
 
-            # Check types on staged Python files
+            # Type-check entire project (matches CI: export PYTHONPATH + mypy .).
+            # Do not filter by staged paths — a failure anywhere blocks the commit so local
+            # hooks match python-app.yml "Run fast lint checks" (make type).
             if [ -f "$MYPY_CMD" ] || command_exists "$MYPY_CMD"; then
-                echo "→ Running mypy type checking..."
+                echo "→ Running mypy type checking (full project, same as CI make type)..."
                 MYPY_LOG="${LOG_PREFIX}_mypy.log"
+                export PYTHONPATH="${PYTHONPATH}:$(pwd)"
                 if file_exists "pyproject.toml"; then
                     "$MYPY_CMD" --config-file pyproject.toml . > "$MYPY_LOG" 2>&1
                 else
@@ -194,15 +197,9 @@ if [ -n "$STAGED_PYTHON" ]; then
                 if [ $MYPY_EXIT -eq 0 ]; then
                     echo -e "${GREEN}✓${NC} mypy type checking passed"
                 else
-                    # Filter mypy output to only show errors for staged files
-                    FILTERED_ERRORS=$(grep -f <(echo "$STAGED_PYTHON" | sed 's|^|^|' | sed 's|$|:|') "$MYPY_LOG" 2>/dev/null || true)
-                    if [ -n "$FILTERED_ERRORS" ]; then
-                        echo -e "${RED}✗${NC} mypy type checking failed (errors in staged files)"
-                        echo "$FILTERED_ERRORS"
-                        ERRORS=$((ERRORS + 1))
-                    else
-                        echo -e "${GREEN}✓${NC} mypy type checking passed (no errors in staged files)"
-                    fi
+                    echo -e "${RED}✗${NC} mypy type checking failed"
+                    cat "$MYPY_LOG"
+                    ERRORS=$((ERRORS + 1))
                 fi
                 rm -f "$MYPY_LOG"
                 echo ""

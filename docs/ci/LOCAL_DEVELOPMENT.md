@@ -25,18 +25,15 @@ GitHub Actions workflows automatically handle exit codes - a non-zero exit code 
 Install the git pre-commit hook to automatically check your code before every commit:
 
 ```bash
-
 # One-time setup
-
 make install-hooks
+```
 
-```python
-
-- ✅ **Black** formatting check
-- ✅ **isort** import sorting check
-- ✅ **flake8** linting
-- ✅ **markdownlint** (if installed)
-- ✅ **mypy** type checking
+- ✅ **Black** formatting check (staged `.py` files only)
+- ✅ **isort** import sorting check (staged `.py` files only)
+- ✅ **flake8** linting (staged `.py` files only)
+- ✅ **markdownlint** (if installed; staged `.md` files only)
+- ✅ **mypy** on the **entire** repo (`mypy .`), with `PYTHONPATH` including the repo root — same as CI `make type`. Any error fails the commit, not only errors in staged files.
 
 **If any check fails, the commit is blocked** until you fix the issues.
 

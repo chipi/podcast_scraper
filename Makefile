@@ -260,8 +260,9 @@ lint-markdown-docs:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
 
+# Match CI lint job (python-app.yml): PYTHONPATH includes repo root so imports match Actions.
 type:
-	$(PYTHON) -m mypy --config-file pyproject.toml .
+	@export PYTHONPATH="$$PYTHONPATH:$(PWD)" && $(PYTHON) -m mypy --config-file pyproject.toml .
 
 security: security-bandit security-audit
 
