@@ -588,10 +588,15 @@ class ExperimentConfig(BaseModel):
                     f"map_params is required for {self.backend.type} backend. "
                     "Provide map_params with generation parameters for map stage."
                 )
-            if not self.reduce_params:
+            is_ollama_hybrid = (
+                self.backend.type == "hybrid_ml"
+                and getattr(self.backend, "reduce_backend", None) == "ollama"
+            )
+            if not self.reduce_params and not (is_ollama_hybrid and self.ollama_reduce_params):
                 raise ValueError(
                     f"reduce_params is required for {self.backend.type} backend. "
-                    "Provide reduce_params with generation parameters for reduce stage."
+                    "Provide reduce_params with generation parameters for reduce stage. "
+                    "(For hybrid_ml with ollama backend, ollama_reduce_params is accepted instead.)"
                 )
             if not self.tokenize:
                 raise ValueError(
