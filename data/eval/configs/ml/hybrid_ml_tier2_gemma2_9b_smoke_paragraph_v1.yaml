@@ -1,0 +1,48 @@
+# Hybrid ML Tier 2 — Gemma 2:9b reduce, paragraph style
+# Cross-vendor 9B comparison vs Qwen 3.5:9b.
+# Same map params as Qwen 2.5:7b baseline for fair comparison.
+
+id: "hybrid_ml_tier2_gemma2_9b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "hybrid_ml"
+  map_model: "longt5-base"
+  reduce_model: "gemma2:9b"
+  reduce_backend: "ollama"
+  reduce_instruction_style: "paragraph"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+reduce_params:
+  do_sample: false
+  num_beams: 4
+  max_new_tokens: 800
+  min_new_tokens: 200
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.12
+  length_penalty: 1.1
+  early_stopping: false
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150
