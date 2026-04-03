@@ -40,12 +40,12 @@ class TestFindGroundedQuotes:
         )
         assert result == []
 
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
-    def test_qa_below_threshold_returns_empty(self, mock_qa_answer):
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
+    def test_qa_below_threshold_returns_empty(self, mock_candidates):
         """When QA score is below threshold, returns empty (NLI not called)."""
-        mock_qa_answer.return_value = type(
-            "QASpan", (), {"start": 0, "end": 10, "answer": "foo", "score": 0.1}
-        )()
+        mock_candidates.return_value = [
+            type("QASpan", (), {"start": 0, "end": 10, "answer": "foo", "score": 0.1})()
+        ]
         result = find_grounded_quotes(
             transcript="Evidence here in the transcript.",
             insight_text="An insight.",
@@ -54,17 +54,19 @@ class TestFindGroundedQuotes:
             qa_score_min=QA_SCORE_MIN,
         )
         assert result == []
-        mock_qa_answer.assert_called_once()
+        mock_candidates.assert_called_once()
 
     @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
-    def test_nli_below_threshold_returns_empty(self, mock_qa_answer, mock_nli_score):
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
+    def test_nli_below_threshold_returns_empty(self, mock_candidates, mock_nli_score):
         """When NLI score is below threshold, returns empty."""
-        mock_qa_answer.return_value = type(
-            "QASpan",
-            (),
-            {"start": 0, "end": 10, "answer": "Evidence here", "score": 0.9},
-        )()
+        mock_candidates.return_value = [
+            type(
+                "QASpan",
+                (),
+                {"start": 0, "end": 10, "answer": "Evidence here", "score": 0.9},
+            )()
+        ]
         mock_nli_score.return_value = 0.2
         result = find_grounded_quotes(
             transcript="Evidence here in the transcript.",
@@ -77,14 +79,16 @@ class TestFindGroundedQuotes:
         mock_nli_score.assert_called_once()
 
     @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
-    def test_both_pass_returns_one_grounded_quote(self, mock_qa_answer, mock_nli_score):
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
+    def test_both_pass_returns_one_grounded_quote(self, mock_candidates, mock_nli_score):
         """When QA and NLI both pass, returns one GroundedQuote."""
-        mock_qa_answer.return_value = type(
-            "QASpan",
-            (),
-            {"start": 5, "end": 18, "answer": "here in the", "score": 0.85},
-        )()
+        mock_candidates.return_value = [
+            type(
+                "QASpan",
+                (),
+                {"start": 5, "end": 18, "answer": "here in the", "score": 0.85},
+            )()
+        ]
         mock_nli_score.return_value = 0.7
         transcript = "Some evidence here in the transcript."
         result = find_grounded_quotes(
@@ -100,6 +104,36 @@ class TestFindGroundedQuotes:
         assert result[0].text == transcript[5:18]
         assert result[0].qa_score == 0.85
         assert result[0].nli_score == 0.7
+
+    @patch("podcast_scraper.providers.ml.nli_loader.entailment_score")
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
+    def test_two_candidates_both_pass_return_two_grounded_quotes(
+        self, mock_candidates, mock_nli_score
+    ):
+        """When QA returns two spans and NLI passes for each, returns two GroundedQuotes."""
+        transcript = "First span here. Second span there."
+        mock_candidates.return_value = [
+            type(
+                "QASpan",
+                (),
+                {"start": 0, "end": 15, "answer": "First span here", "score": 0.82},
+            )(),
+            type(
+                "QASpan",
+                (),
+                {"start": 17, "end": 35, "answer": "Second span there", "score": 0.81},
+            )(),
+        ]
+        mock_nli_score.return_value = 0.72
+        result = find_grounded_quotes(
+            transcript=transcript,
+            insight_text="An insight.",
+            qa_model_id="roberta-squad2",
+            nli_model_id="nli-deberta-base",
+        )
+        assert len(result) == 2
+        assert {(q.char_start, q.char_end) for q in result} == {(0, 15), (17, 35)}
+        assert mock_nli_score.call_count == 2
 
 
 @pytest.mark.unit

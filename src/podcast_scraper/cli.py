@@ -1715,7 +1715,6 @@ def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
     """Validate .gi.json files (parity with ``kg validate``)."""
     from .gi.explore import EXIT_INVALID_ARGS, EXIT_NO_ARTIFACTS, EXIT_SUCCESS
     from .gi.io import collect_gi_paths_from_inputs, read_artifact
-    from .gi.schema import validate_artifact
 
     paths_arg = list(getattr(args, "paths", None) or [])
     if not paths_arg:
@@ -1734,8 +1733,7 @@ def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
     failed = 0
     for path in paths:
         try:
-            data = read_artifact(path)
-            validate_artifact(data, strict=strict)
+            read_artifact(path, validate=True, strict=strict)
             if not quiet:
                 print(f"OK {path}")
         except Exception as e:
@@ -1914,6 +1912,7 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     import json
 
     from .gi.explore import (
+        aggregate_topic_entries_for_insights,
         build_explore_output,
         collect_insights,
         EXIT_INVALID_ARGS,
@@ -1975,11 +1974,13 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     if limit and limit > 0:
         insights = insights[:limit]
 
+    topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     explore_out = build_explore_output(
         insights,
         episodes_searched=len(paths),
         topic=topic,
         speaker_filter=speaker,
+        topics=topic_rows,
     )
 
     out_format = getattr(args, "format", "pretty")

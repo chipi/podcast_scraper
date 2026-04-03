@@ -31,8 +31,8 @@ Fields and enums are normative in **`kg.schema.json`**.
 | Type | Description |
 | --- | --- |
 | `Episode` | Anchor: `podcast_id`, `title`, `publish_date` (required). Optional `audio_url`, `duration_ms` in schema for consumers; v1 builder does not set them. |
-| `Entity` | `name`, `entity_kind` (`person` \| `organization`). Optional `label` (graph/UI; pipeline copies `name`). Optional `role`: `host`, `guest`, or `mentioned` (v1 builder sets one when emitting an Entity). |
-| `Topic` | `label`, `slug` (both required, non-empty). |
+| `Entity` | `name`, `entity_kind` (`person` \| `organization`). Optional `label` (graph/UI; pipeline copies `name`). Optional `role`: `host`, `guest`, or `mentioned` (v1 builder sets one when emitting an Entity). Optional **`description`** (v1.1 / GitHub #487): short episode-specific context from LLM extraction. |
+| `Topic` | `label`, `slug` (both required, non-empty). Optional **`description`** (v1.1 / #487) for richer embedding context. |
 
 ## Edge types (v1)
 
@@ -43,7 +43,7 @@ Fields and enums are normative in **`kg.schema.json`**.
 
 ## Provenance
 
-- **`schema_version`:** `1.0` (string, matches JSON Schema pattern).
+- **`schema_version`:** `1.0` (legacy) or **`1.1`** (pipeline default when emitting; adds optional Topic/Entity `description` per #487).
 - **`extraction.model_version`:** `stub` \| `summary_bullets` \| `provider:<summarization_model_id>` \| `provider:summary_bullets:<summarization_model_id>`.
 - **`extraction.extracted_at`:** ISO-8601 timestamp (UTC `Z` in shipped output).
 - **`extraction.transcript_ref`:** Relative transcript path or label for the text used in extraction.

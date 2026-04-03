@@ -2,6 +2,7 @@
 
 from .contracts import build_kg_inspect_output, KgEntityRow, KgInspectOutput, KgTopicRow
 from .corpus import (
+    build_embedding_document_for_kg_node,
     entity_rollup,
     load_kg_artifacts,
     scan_kg_artifact_paths,
@@ -13,6 +14,7 @@ from .pipeline import build_artifact
 from .schema import validate_artifact
 
 __all__ = [
+    "build_embedding_document_for_kg_node",
     "KgEntityRow",
     "KgInspectOutput",
     "KgTopicRow",

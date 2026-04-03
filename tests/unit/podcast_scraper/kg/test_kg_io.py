@@ -75,5 +75,5 @@ class TestKgIoWriteRead(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "raw.kg.json"
             write_artifact(path, arbitrary, validate=False)
-            loaded = read_artifact(path)
+            loaded = read_artifact(path, validate=False)
             self.assertEqual(loaded, arbitrary)

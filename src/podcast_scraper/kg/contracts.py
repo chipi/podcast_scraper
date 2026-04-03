@@ -14,6 +14,10 @@ class KgTopicRow(BaseModel):
     id: str = Field(description="Topic node id")
     label: str = Field(description="Topic label")
     slug: str = Field(description="Topic slug")
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional episode-specific topic context (#487)",
+    )
 
 
 class KgEntityRow(BaseModel):
@@ -23,6 +27,10 @@ class KgEntityRow(BaseModel):
     name: str = Field(description="Display name")
     entity_kind: str = Field(description="person or organization")
     role: Optional[str] = Field(default=None, description="host, guest, mentioned, etc.")
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional episode-specific entity context (#487)",
+    )
 
 
 class KgInspectOutput(BaseModel):

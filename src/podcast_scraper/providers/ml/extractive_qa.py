@@ -122,6 +122,45 @@ def _qa_pipeline_call(pipe_fn: Callable[..., Dict[str, Any]], question: str, ctx
     )
 
 
+def _qa_pipeline_call_top_k(
+    pipe_fn: Callable[..., Any],
+    question: str,
+    ctx: str,
+    top_k: int,
+) -> List[QASpan]:
+    """Return up to ``top_k`` QA spans; falls back to single answer if ``top_k`` unsupported."""
+    k = max(1, min(int(top_k), 10))
+    try:
+        raw = pipe_fn(
+            question=question,
+            context=ctx,
+            max_answer_len=512,
+            top_k=k,
+        )
+    except TypeError:
+        return [_qa_pipeline_call(pipe_fn, question, ctx)]
+    rows: List[Dict[str, Any]]
+    if isinstance(raw, dict):
+        rows = [raw]
+    elif isinstance(raw, list):
+        rows = [x for x in raw if isinstance(x, dict)]
+    else:
+        rows = []
+    if not rows:
+        return [_qa_pipeline_call(pipe_fn, question, ctx)]
+    out: List[QASpan] = []
+    for item in rows[:k]:
+        out.append(
+            QASpan(
+                answer=item["answer"],
+                start=item["start"],
+                end=item["end"],
+                score=_safe_score_float(item.get("score")),
+            )
+        )
+    return out
+
+
 def _iter_context_windows(
     context: str,
     window_chars: int,
@@ -212,6 +251,42 @@ def answer(
 
     logger.debug("Windowed QA produced no valid span; falling back to full context")
     return _qa_pipeline_call(pipe_fn, question, context)
+
+
+def answer_candidates(
+    context: str,
+    question: str,
+    model_id: str,
+    device: Optional[str] = None,
+    *,
+    window_chars: int = 0,
+    window_overlap_chars: int = 250,
+    top_k: int = 3,
+) -> List[QASpan]:
+    """Extractive QA returning up to ``top_k`` candidate spans (Issue #487 / EV-1).
+
+    When the transcript fits one context (no windowing), the HF pipeline is called
+    with ``top_k`` so multiple non-identical spans can be scored with NLI downstream.
+
+    When ``window_chars`` > 0 and the transcript is long, windowing still returns a
+    **single** best span (multi-candidate window merge is not implemented yet).
+    """
+    pipe = get_qa_pipeline(model_id, device=device)
+    pipe_fn: Callable[..., Any] = cast(Callable[..., Any], pipe)
+    top_k_i = max(1, min(int(top_k), 10))
+
+    if window_chars <= 0 or len(context) <= window_chars:
+        return _qa_pipeline_call_top_k(pipe_fn, question, context, top_k_i)
+
+    single = answer(
+        context,
+        question,
+        model_id,
+        device=device,
+        window_chars=window_chars,
+        window_overlap_chars=window_overlap_chars,
+    )
+    return [single]
 
 
 def answer_multi(

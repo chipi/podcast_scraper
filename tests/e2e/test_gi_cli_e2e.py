@@ -175,6 +175,10 @@ def test_gi_explore_topic_matches_about_labels_e2e(gi_fixture_topic_labels_dir: 
     data = json.loads(proc.stdout)
     assert data.get("summary", {}).get("insight_count", 0) >= 1
     assert len(data.get("insights", [])) >= 1
+    assert "topics" in data
+    assert isinstance(data["topics"], list)
+    assert data.get("summary", {}).get("topic_count", 0) >= 1
+    assert any("regulatory" in str(row.get("label", "")).lower() for row in data["topics"])
 
 
 @pytest.mark.e2e

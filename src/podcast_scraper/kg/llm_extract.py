@@ -28,8 +28,11 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
     return (
         "You extract a small knowledge-graph fragment from a podcast transcript. "
         "Return ONLY valid JSON (no markdown fences, no commentary) with this shape:\n"
-        '{"topics":[{"label":"short topic phrase"}],"entities":[{"name":"Full Name",'
-        '"entity_kind":"person"}]}\n'
+        '{"topics":[{"label":"short topic phrase","description":"optional 1-3 sentences '
+        'why this topic matters in this episode"}],"entities":[{"name":"Full Name",'
+        '"entity_kind":"person","description":"optional 1-3 sentences on their role '
+        'or relevance here"}]}\n'
+        "Omit description keys when not useful. "
         'entity_kind must be "person" or "organization" only. '
         "Use concise topic labels (under 200 characters each). "
         f"Hard limits: at most {mt} objects in topics and at most {me} in entities — "
@@ -46,8 +49,10 @@ def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> s
         "You derive a small knowledge-graph fragment from episode summary bullets only "
         "(there is no full transcript). "
         "Return ONLY valid JSON (no markdown fences, no commentary) with this shape:\n"
-        '{"topics":[{"label":"short topic phrase"}],"entities":[{"name":"Full Name",'
-        '"entity_kind":"person"}]}\n'
+        '{"topics":[{"label":"short topic phrase","description":"optional context"}],'
+        '"entities":[{"name":"Full Name","entity_kind":"person",'
+        '"description":"optional context"}]}\n'
+        "Omit description when not useful. "
         'entity_kind must be "person" or "organization" only. '
         "Topic labels must be short thematic phrases "
         "(not full bullet sentences pasted as one label). "
@@ -56,6 +61,13 @@ def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> s
         "Prefer fewer, broader themes that still cover the bullets over many "
         "overlapping micro-topics."
     )
+
+
+def _truncate_kg_description(text: Optional[str], limit: int = 2000) -> Optional[str]:
+    s = (text or "").strip()
+    if not s:
+        return None
+    return s[:limit] if len(s) > limit else s
 
 
 def truncate_transcript_for_kg(text: str, limit: int = 120000) -> str:
@@ -169,7 +181,13 @@ def parse_kg_graph_response(
             elif isinstance(item, dict):
                 lab = item.get("label") or item.get("name") or item.get("topic")
                 if isinstance(lab, str) and lab.strip():
-                    topics_out.append({"label": lab.strip()[:500]})
+                    row: Dict[str, str] = {"label": lab.strip()[:500]}
+                    desc = item.get("description")
+                    if isinstance(desc, str):
+                        td = _truncate_kg_description(desc)
+                        if td:
+                            row["description"] = td
+                    topics_out.append(row)
 
     entities_out: List[Dict[str, str]] = []
     if isinstance(raw_entities, list):
@@ -181,12 +199,16 @@ def parse_kg_graph_response(
                 continue
             ek_raw = item.get("entity_kind")
             ek_in = ek_raw if isinstance(ek_raw, str) else None
-            entities_out.append(
-                {
-                    "name": name.strip()[:500],
-                    "entity_kind": _normalize_entity_kind(ek_in),
-                }
-            )
+            erow: Dict[str, str] = {
+                "name": name.strip()[:500],
+                "entity_kind": _normalize_entity_kind(ek_in),
+            }
+            edesc = item.get("description")
+            if isinstance(edesc, str):
+                ed = _truncate_kg_description(edesc)
+                if ed:
+                    erow["description"] = ed
+            entities_out.append(erow)
 
     if max_topics is not None and max_topics >= 1:
         topics_out = topics_out[: int(max_topics)]

@@ -29,14 +29,24 @@ def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -
         )
 
 
-def read_artifact(path: Path) -> Dict[str, Any]:
+def read_artifact(
+    path: Path,
+    *,
+    validate: bool = True,
+    strict: bool = False,
+) -> Dict[str, Any]:
     """Read a KG artifact from path.
 
     Args:
         path: Path to .kg.json file.
+        validate: If True, run minimal (and optional strict JSON Schema) validation.
+        strict: Passed to ``validate_artifact`` when validate is True.
 
     Returns:
-        Parsed artifact dict (not validated by default).
+        Parsed artifact dict.
     """
     with open(path, encoding="utf-8") as f:
-        return cast(Dict[str, Any], json.load(f))
+        data = cast(Dict[str, Any], json.load(f))
+    if validate:
+        validate_artifact(data, strict=strict)
+    return data

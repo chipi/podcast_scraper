@@ -18,7 +18,13 @@ from typing import Any, Dict, List, Literal, Optional, Set, Tuple
 
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
-from .contracts import ExploreOutput, InsightSummary, SupportingQuote, TopSpeakerEntry
+from .contracts import (
+    ExploreOutput,
+    InsightSummary,
+    SupportingQuote,
+    TopicEntry,
+    TopSpeakerEntry,
+)
 from .io import read_artifact
 from .load import build_inspect_output
 
@@ -129,14 +135,10 @@ def load_artifacts(
     When strict is True, validation runs on each file; the first failure raises
     ExploreValidationError. When strict is False, invalid files are skipped with a warning.
     """
-    from .schema import validate_artifact
-
     result: List[Tuple[Path, Dict[str, Any]]] = []
     for path in paths:
         try:
-            artifact = read_artifact(path)
-            if validate or strict:
-                validate_artifact(artifact, strict=strict)
+            artifact = read_artifact(path, validate=validate or strict, strict=strict)
             result.append((path, artifact))
         except Exception as e:
             if strict:
@@ -261,11 +263,59 @@ def _compute_top_speakers(
     return out
 
 
+def aggregate_topic_entries_for_insights(
+    loaded: List[Tuple[Path, Dict[str, Any]]],
+    insights: List[InsightSummary],
+) -> List[TopicEntry]:
+    """Count Topic nodes (ABOUT edges) for insights present in the explore result (#487)."""
+    wanted = {(i.episode_id, i.insight_id) for i in insights}
+    counts: Dict[str, Dict[str, Any]] = {}
+
+    for _path, art in loaded:
+        ep = str(art.get("episode_id") or "")
+        nodes_by_id = {
+            str(n["id"]): n for n in (art.get("nodes") or []) if isinstance(n, dict) and n.get("id")
+        }
+        for edge in art.get("edges") or []:
+            if not isinstance(edge, dict) or edge.get("type") != "ABOUT":
+                continue
+            ins_id = edge.get("from")
+            to_id = edge.get("to")
+            if not ins_id or not to_id:
+                continue
+            if (ep, ins_id) not in wanted:
+                continue
+            tn = nodes_by_id.get(str(to_id))
+            if not tn or tn.get("type") != "Topic":
+                continue
+            _tp = tn.get("properties")
+            props: Dict[str, Any] = _tp if isinstance(_tp, dict) else {}
+            label = str(props.get("label") or "").strip()
+            tid = str(tn.get("id") or to_id)
+            if tid not in counts:
+                counts[tid] = {"label": label or tid, "insight_count": 0}
+            counts[tid]["insight_count"] += 1
+
+    ranked = sorted(
+        counts.items(),
+        key=lambda x: (-x[1]["insight_count"], str(x[1]["label"]).lower()),
+    )
+    return [
+        TopicEntry(
+            topic_id=tid,
+            label=str(meta["label"]),
+            insight_count=int(meta["insight_count"]),
+        )
+        for tid, meta in ranked
+    ]
+
+
 def build_explore_output(
     insights: List[InsightSummary],
     episodes_searched: int,
     topic: Optional[str] = None,
     speaker_filter: Optional[str] = None,
+    topics: Optional[List[TopicEntry]] = None,
 ) -> ExploreOutput:
     """Build ExploreOutput from collected insights and episode count."""
     grounded_count = sum(1 for i in insights if i.grounded)
@@ -278,12 +328,14 @@ def build_explore_output(
             if k:
                 distinct_speakers.add(k)
     top = _compute_top_speakers(insights)
+    topics_out = topics if topics is not None else []
     summary: Dict[str, Any] = {
         "insight_count": len(insights),
         "grounded_insight_count": grounded_count,
         "quote_count": quote_count,
         "episode_count": len(episode_ids),
         "speaker_count": len(distinct_speakers),
+        "topic_count": len(topics_out),
     }
     return ExploreOutput(
         topic=topic,
@@ -291,6 +343,7 @@ def build_explore_output(
         insights=insights,
         summary=summary,
         top_speakers=top,
+        topics=topics_out,
         episodes_searched=episodes_searched,
     )
 
@@ -363,6 +416,7 @@ def explore_output_to_rfc_dict(out: ExploreOutput) -> Dict[str, Any]:
         "topic": topic_obj,
         "speaker_filter": out.speaker_filter,
         "summary": out.summary,
+        "topics": [t.model_dump() for t in out.topics],
         "insights": insights_payload,
         "top_speakers": [ts.model_dump() for ts in out.top_speakers],
         "episodes_searched": out.episodes_searched,
@@ -386,7 +440,7 @@ def run_uc5_insight_explorer(
     """UC5: cross-episode insights with quotes (canonical gi explore behavior)."""
     paths = scan_artifact_paths(output_dir)
     if not paths:
-        return build_explore_output([], 0, topic=topic, speaker_filter=speaker)
+        return build_explore_output([], 0, topic=topic, speaker_filter=speaker, topics=[])
     loaded = load_artifacts(paths, validate=strict, strict=strict)
     insights = collect_insights(
         loaded,
@@ -399,11 +453,13 @@ def run_uc5_insight_explorer(
     insights = sort_insights(insights, sort_by=sort_by)
     if limit > 0:
         insights = insights[:limit]
+    topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     return build_explore_output(
         insights,
         episodes_searched=len(paths),
         topic=topic,
         speaker_filter=speaker,
+        topics=topic_rows,
     )
 
 
@@ -460,6 +516,10 @@ def find_insight_by_id(
 
 def map_uc4_question_to_params(question: str) -> Optional[Dict[str, Any]]:
     """UC4: deterministic pattern map for ``gi query`` (RFC-050).
+
+    Unmatched questions stay ``None``; broadening this list is low priority (GitHub #487
+    EV-2) because semantic corpus search (``podcast search``, #484) is expected to
+    replace prefix-style matching for ad hoc questions.
 
     Returns:
         - ``{"topic": str}`` and/or ``{"speaker": str}`` for explore filters

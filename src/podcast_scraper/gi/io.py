@@ -54,14 +54,24 @@ def write_artifact(path: Path, payload: Dict[str, Any], validate: bool = True) -
         )
 
 
-def read_artifact(path: Path) -> Dict[str, Any]:
+def read_artifact(
+    path: Path,
+    *,
+    validate: bool = True,
+    strict: bool = False,
+) -> Dict[str, Any]:
     """Read a GIL artifact from path.
 
     Args:
         path: Path to .gi.json file.
+        validate: If True, run ``validate_artifact`` (non-strict by default).
+        strict: Passed through when validate is True.
 
     Returns:
-        Parsed artifact dict (not validated by default).
+        Parsed artifact dict.
     """
     with open(path, encoding="utf-8") as f:
-        return cast(Dict[str, Any], json.load(f))
+        data = cast(Dict[str, Any], json.load(f))
+    if validate:
+        validate_artifact(data, strict=strict)
+    return data

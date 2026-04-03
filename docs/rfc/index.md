@@ -48,6 +48,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
 | [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | Vector index over GIL/KG/summary/transcript content; FAISS (Phase 1) + Qdrant (Phase 2); `podcast search` CLI |
+| [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-021 | Vue 3 + Cytoscape.js + FastAPI rebuild of viewer; semantic search panel, index dashboard, explore/QA integration |
 
 ## Completed RFCs
 

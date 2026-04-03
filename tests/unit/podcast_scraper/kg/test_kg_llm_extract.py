@@ -36,6 +36,17 @@ class TestKgLlmExtract(unittest.TestCase):
         self.assertIsNone(parse_kg_graph_response("{}"))
         self.assertIsNone(parse_kg_graph_response('{"topics":[],"entities":[]}'))
 
+    def test_parse_preserves_optional_descriptions(self) -> None:
+        """Topic and entity description strings are kept when present (#487)."""
+        raw = (
+            '{"topics":[{"label":"T","description":"Ctx one"}],'
+            '"entities":[{"name":"N","entity_kind":"person","description":"Ctx two"}]}'
+        )
+        out = parse_kg_graph_response(raw)
+        assert out is not None
+        self.assertEqual(out["topics"][0].get("description"), "Ctx one")
+        self.assertEqual(out["entities"][0].get("description"), "Ctx two")
+
     def test_parse_truncates_to_max_topics_and_entities(self) -> None:
         raw = (
             '{"topics":['

@@ -7,12 +7,15 @@ load layer and contracts for gi inspect / show-insight.
 from .contracts import (
     EvidenceSpan,
     ExploreOutput,
+    GiArtifact,
     InsightSummary,
     InspectOutput,
     SupportingQuote,
+    TopicEntry,
     TopSpeakerEntry,
 )
 from .explore import (
+    aggregate_topic_entries_for_insights,
     build_explore_output,
     collect_insights,
     explore_output_to_rfc_dict,
@@ -32,6 +35,7 @@ from .pipeline import build_artifact
 from .schema import validate_artifact
 
 __all__ = [
+    "aggregate_topic_entries_for_insights",
     "build_artifact",
     "build_explore_output",
     "build_inspect_output",
@@ -39,6 +43,7 @@ __all__ = [
     "EvidenceSpan",
     "explore_output_to_rfc_dict",
     "ExploreOutput",
+    "GiArtifact",
     "find_artifact_by_episode_id",
     "find_artifact_by_insight_id",
     "InspectOutput",
@@ -51,6 +56,7 @@ __all__ = [
     "scan_artifact_paths",
     "SupportingQuote",
     "TopSpeakerEntry",
+    "TopicEntry",
     "validate_artifact",
     "write_artifact",
 ]

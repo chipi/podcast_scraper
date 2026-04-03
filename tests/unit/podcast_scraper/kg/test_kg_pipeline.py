@@ -21,7 +21,7 @@ class TestKgPipeline(unittest.TestCase):
             publish_date="2024-01-15T12:00:00Z",
             transcript_ref="transcripts/ep.txt",
         )
-        self.assertEqual(art["schema_version"], "1.0")
+        self.assertEqual(art["schema_version"], "1.1")
         self.assertEqual(art["episode_id"], "episode:test-1")
         self.assertEqual(len(art["nodes"]), 1)
         self.assertEqual(art["nodes"][0]["type"], "Episode")
@@ -231,3 +231,33 @@ class TestKgPipeline(unittest.TestCase):
         self.assertIn(("organization", "ACME"), kinds)
         self.assertIn(("person", "ACME"), kinds)
         self.assertEqual(len(entities), 2)
+
+    def test_provider_path_propagates_llm_descriptions(self) -> None:
+        """LLM partial topic/entity descriptions land on nodes (#487)."""
+        prov = MagicMock()
+        prov.summary_model = "m"
+        prov.extract_kg_graph.return_value = {
+            "topics": [{"label": "X", "description": "Why X matters."}],
+            "entities": [
+                {"name": "Pat", "entity_kind": "person", "description": "Guest expert."},
+            ],
+        }
+        cfg = SimpleNamespace(
+            kg_extraction_source="provider",
+            kg_max_topics=5,
+            kg_max_entities=10,
+            kg_merge_pipeline_entities=False,
+        )
+        art = build_artifact(
+            "ep:desc",
+            "t",
+            podcast_id="p",
+            episode_title="E",
+            cfg=cfg,
+            kg_extraction_provider=prov,
+        )
+        validate_artifact(art, strict=True)
+        topics = [n for n in art["nodes"] if n["type"] == "Topic"]
+        self.assertEqual(topics[0]["properties"].get("description"), "Why X matters.")
+        ents = [n for n in art["nodes"] if n["type"] == "Entity"]
+        self.assertEqual(ents[0]["properties"].get("description"), "Guest expert.")

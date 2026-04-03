@@ -4,6 +4,7 @@ import pytest
 
 from podcast_scraper.gi.contracts import (
     EvidenceSpan,
+    GiArtifact,
     InsightSummary,
     InspectOutput,
     SupportingQuote,
@@ -61,3 +62,16 @@ class TestGILContracts:
         js = out.model_dump_json()
         out2 = InspectOutput.model_validate_json(js)
         assert out2.episode_id == out.episode_id
+
+    def test_gi_artifact_model_accepts_minimal_gi_json(self):
+        """GiArtifact validates top-level gi.json fields (#487)."""
+        g = GiArtifact(
+            schema_version="1.0",
+            model_version="stub",
+            prompt_version="v1",
+            episode_id="ep:1",
+            nodes=[{"id": "n1", "type": "Insight", "properties": {}}],
+            edges=[],
+        )
+        assert g.episode_id == "ep:1"
+        assert len(g.nodes) == 1

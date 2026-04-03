@@ -16,12 +16,10 @@ from pathlib import Path
 
 try:
     from podcast_scraper.kg.io import read_artifact
-    from podcast_scraper.kg.schema import validate_artifact
 except ImportError:
     root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(root / "src"))
     from podcast_scraper.kg.io import read_artifact
-    from podcast_scraper.kg.schema import validate_artifact
 
 
 def collect_kg_json_paths(paths: list[Path]) -> list[Path]:
@@ -67,8 +65,7 @@ def main() -> int:
     failed: list[tuple[Path, str]] = []
     for path in files_to_validate:
         try:
-            data = read_artifact(path)
-            validate_artifact(data, strict=True)
+            read_artifact(path, validate=True, strict=True)
             if not args.quiet:
                 print(f"OK {path}")
         except Exception as e:

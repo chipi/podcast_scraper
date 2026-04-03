@@ -180,13 +180,14 @@ def find_grounded_quotes(
 
     question = f"What evidence supports: {insight_text.strip()}"
     try:
-        span = extractive_qa.answer(
+        spans = extractive_qa.answer_candidates(
             context=transcript,
             question=question,
             model_id=qa_model_id,
             device=qa_device,
             window_chars=qa_window_chars,
             window_overlap_chars=qa_window_overlap_chars,
+            top_k=3,
         )
     except Exception as e:
         logger.warning(
@@ -195,36 +196,45 @@ def find_grounded_quotes(
         )
         return []
 
-    if span.score < qa_score_min:
-        return []
+    results: List[GroundedQuote] = []
+    seen_spans: set[tuple[int, int]] = set()
+    for span in spans:
+        if span.score < qa_score_min:
+            continue
+        key = (span.start, span.end)
+        if key in seen_spans:
+            continue
+        seen_spans.add(key)
 
-    verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
-    try:
-        nli_score = nli_loader.entailment_score(
-            premise=verbatim,
-            hypothesis=insight_text.strip(),
-            model_id=nli_model_id,
-            device=nli_device,
-        )
-    except Exception as e:
-        logger.warning(
-            "NLI failed for GIL grounding: %s",
-            format_exception_for_log(e),
-        )
-        return []
+        verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
+        try:
+            nli_score = nli_loader.entailment_score(
+                premise=verbatim,
+                hypothesis=insight_text.strip(),
+                model_id=nli_model_id,
+                device=nli_device,
+            )
+        except Exception as e:
+            logger.warning(
+                "NLI failed for GIL grounding: %s",
+                format_exception_for_log(e),
+            )
+            continue
 
-    if nli_score < nli_entailment_min:
-        return []
+        if nli_score < nli_entailment_min:
+            continue
 
-    return [
-        GroundedQuote(
-            char_start=span.start,
-            char_end=span.end,
-            text=verbatim,
-            qa_score=span.score,
-            nli_score=nli_score,
+        results.append(
+            GroundedQuote(
+                char_start=span.start,
+                char_end=span.end,
+                text=verbatim,
+                qa_score=span.score,
+                nli_score=nli_score,
+            )
         )
-    ]
+
+    return results
 
 
 def find_grounded_quotes_via_providers(
