@@ -1,0 +1,56 @@
+{
+  "run_id": "hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-03T06:06:03.586560Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "hybrid_ml",
+    "map_model": "longt5-base",
+    "reduce_model": "qwen3.5:9b",
+    "reduce_backend": "ollama"
+  },
+  "params": {
+    "map_model": "longt5-base",
+    "reduce_model": "qwen3.5:9b",
+    "reduce_backend": "ollama",
+    "map_params": {
+      "max_new_tokens": 200,
+      "min_new_tokens": 80,
+      "num_beams": 6,
+      "no_repeat_ngram_size": 3,
+      "length_penalty": 1.0,
+      "early_stopping": true,
+      "repetition_penalty": 1.1,
+      "encoder_no_repeat_ngram_size": null
+    },
+    "reduce_params": {
+      "max_new_tokens": 800,
+      "min_new_tokens": 200,
+      "num_beams": 4,
+      "no_repeat_ngram_size": 3,
+      "length_penalty": 1.1,
+      "early_stopping": false,
+      "repetition_penalty": 1.12,
+      "encoder_no_repeat_ngram_size": null
+    },
+    "tokenize": {
+      "map_max_input_tokens": 1024,
+      "reduce_max_input_tokens": 4096,
+      "truncation": true
+    }
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 143.86908221244812,
+    "avg_time_seconds": 28.773816442489625,
+    "total_chars_in": 53793,
+    "total_chars_out": 13156,
+    "avg_compression": 4.088856795378534
+  },
+  "promoted_from": "hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1",
+  "promoted_at": "2026-04-03T06:27:28.624479Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_ml_hybrid_qwen35_9b_smoke_paragraph_v1"
+}

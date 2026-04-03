@@ -688,7 +688,7 @@ def run_experiment(  # noqa: C901
             # model isn't constrained to JSON output format.
             ollama_system_prompt_override: Optional[str] = None
             if reduce_backend == "ollama" and hybrid_reduce_instruction_style == "paragraph":
-                ollama_system_prompt_override = "ollama/summarization/system_v1"
+                ollama_system_prompt_override = "ollama/hybrid/system_v1"
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="hybrid_ml",

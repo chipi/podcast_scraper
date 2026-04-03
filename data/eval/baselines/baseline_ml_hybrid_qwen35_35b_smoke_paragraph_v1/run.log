@@ -1,0 +1,65 @@
+2026-04-03 08:19:47,122 INFO __main__: ================================================================================
+2026-04-03 08:19:47,123 INFO __main__: Starting experiment run: hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1
+2026-04-03 08:19:47,123 INFO __main__: Results directory: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1
+2026-04-03 08:19:47,123 INFO __main__: Execution log: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/run.log
+2026-04-03 08:19:47,123 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-04-03 08:19:47,123 INFO __main__: ================================================================================
+2026-04-03 08:19:47,123 INFO __main__: Creating summarization provider...
+2026-04-03 08:19:47,123 INFO __main__: Checking if required models are cached...
+2026-04-03 08:19:47,404 INFO podcast_scraper.providers.ml.summarizer: Loading summarization model: google/long-t5-tglobal-base on mps (Apple Silicon GPU)
+2026-04-03 08:19:48,172 INFO podcast_scraper.providers.ollama.ollama_provider: Ollama cleaning model configured: 'llama3.1:8b' -> 'llama3.1:8b'
+2026-04-03 08:19:48,192 INFO httpx: HTTP Request: GET http://localhost:11434/api/version "HTTP/1.1 200 OK"
+2026-04-03 08:19:48,197 INFO podcast_scraper.providers.ollama.ollama_provider: Ollama speaker model configured: 'llama3.1:8b' -> 'llama3.1:8b'
+2026-04-03 08:19:48,197 INFO podcast_scraper.providers.ollama.ollama_provider: Ollama summary model configured: 'qwen3.5:35b' -> 'qwen3.5:35b'
+2026-04-03 08:19:48,219 INFO httpx: HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-04-03 08:19:48,219 INFO podcast_scraper.providers.ollama.ollama_provider: Model 'llama3.1:8b' validated successfully (available in Ollama). Available models at validation time: gemma2:9b, llama3.1:8b, llama3.2:3b, llama3.3:70b-instruct-q3_K_M, llama3.3:latest, mistral-nemo:12b, mistral-small3.2:latest, mistral:7b, phi3:3.8b, phi3:mini, qwen2.5:32b, qwen2.5:7b, qwen3.5:27b, qwen3.5:35b, qwen3.5:9b
+2026-04-03 08:19:48,227 INFO httpx: HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+2026-04-03 08:19:48,227 INFO podcast_scraper.providers.ollama.ollama_provider: Model 'qwen3.5:35b' validated successfully (available in Ollama). Available models at validation time: gemma2:9b, llama3.1:8b, llama3.2:3b, llama3.3:70b-instruct-q3_K_M, llama3.3:latest, mistral-nemo:12b, mistral-small3.2:latest, mistral:7b, phi3:3.8b, phi3:mini, qwen2.5:32b, qwen2.5:7b, qwen3.5:27b, qwen3.5:35b, qwen3.5:9b
+2026-04-03 08:19:48,941 INFO podcast_scraper.providers.ml.speaker_detection: Loaded spaCy model (NER only): en_core_web_sm
+2026-04-03 08:19:48,942 INFO __main__: === Hybrid ML Generation Parameters ===
+2026-04-03 08:19:48,943 INFO __main__:   MAP: longt5-base, REDUCE: qwen3.5:35b (ollama)
+2026-04-03 08:19:48,943 INFO __main__:   REDUCE instruction style: paragraph
+2026-04-03 08:19:48,943 INFO __main__: ================================================================================
+2026-04-03 08:19:49,022 INFO __main__: Found 5 episode(s) to process
+2026-04-03 08:19:49,022 INFO __main__: Phase 1: Running inference...
+2026-04-03 08:19:49,022 INFO __main__: Processing episode: p01_e01
+2026-04-03 08:19:49,029 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-04-03 08:20:04,034 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen3.5:35b' (exact name being sent to Ollama)
+2026-04-03 08:20:24,947 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-03 08:20:24,960 INFO __main__: Episode p01_e01 completed in 35.9s, summary length=2115 chars
+2026-04-03 08:20:24,961 INFO __main__: Processing episode: p02_e01
+2026-04-03 08:20:24,971 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-04-03 08:20:33,505 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen3.5:35b' (exact name being sent to Ollama)
+2026-04-03 08:20:47,727 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-03 08:20:47,730 INFO __main__: Episode p02_e01 completed in 22.8s, summary length=2434 chars
+2026-04-03 08:20:47,731 INFO __main__: Processing episode: p03_e01
+2026-04-03 08:20:47,743 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-04-03 08:20:55,281 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen3.5:35b' (exact name being sent to Ollama)
+2026-04-03 08:21:11,882 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-03 08:21:11,886 INFO __main__: Episode p03_e01 completed in 24.1s, summary length=2757 chars
+2026-04-03 08:21:11,887 INFO __main__: Processing episode: p04_e01
+2026-04-03 08:21:11,898 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-04-03 08:21:19,669 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen3.5:35b' (exact name being sent to Ollama)
+2026-04-03 08:21:35,128 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-03 08:21:35,130 INFO __main__: Episode p04_e01 completed in 23.2s, summary length=2548 chars
+2026-04-03 08:21:35,131 INFO __main__: Processing episode: p05_e01
+2026-04-03 08:21:35,143 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-04-03 08:21:43,349 INFO podcast_scraper.providers.ollama.ollama_provider: Calling Ollama API for summarization with model: 'qwen3.5:35b' (exact name being sent to Ollama)
+2026-04-03 08:21:57,472 INFO httpx: HTTP Request: POST http://localhost:11434/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-03 08:21:57,475 INFO __main__: Episode p05_e01 completed in 22.3s, summary length=2255 chars
+2026-04-03 08:21:57,475 INFO __main__: Phase 1 completed in 128.5s
+2026-04-03 08:21:57,476 INFO __main__: Total input: 53,793 chars, output: 12,109 chars
+2026-04-03 08:21:57,476 INFO __main__: Average compression: 4.4x
+2026-04-03 08:21:57,476 INFO __main__: Predictions: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/predictions.jsonl
+2026-04-03 08:21:58,464 INFO __main__: Metadata: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/baseline.json
+2026-04-03 08:21:58,465 INFO __main__: Fingerprint: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/fingerprint.json
+2026-04-03 08:21:58,465 WARNING __main__: Run README template not found: data/eval/runs/RUN_README_TEMPLATE.md, skipping README generation
+2026-04-03 08:21:58,466 INFO __main__: Computing metrics...
+2026-04-03 08:21:58,471 INFO absl: Using default tokenizer.
+2026-04-03 08:21:58,581 INFO sentence_transformers.SentenceTransformer: Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-03 08:22:00,519 INFO sentence_transformers.SentenceTransformer: Use pytorch device_name: mps
+2026-04-03 08:22:00,750 INFO __main__: Metrics: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/metrics.json
+2026-04-03 08:22:00,751 INFO __main__: ✓ Summarization metrics schema validation passed
+2026-04-03 08:22:00,751 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/metrics_report.md
+2026-04-03 08:22:00,751 INFO __main__: Episodes=5, avg_time=25.7s, avg_compression=4.4x
+2026-04-03 08:22:00,751 INFO __main__: ✓ Execution log saved: data/eval/runs/hybrid_ml_tier2_qwen35_35b_smoke_paragraph_v1/run.log
