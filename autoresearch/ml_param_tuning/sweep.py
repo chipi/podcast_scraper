@@ -97,7 +97,7 @@ def _score_config(
 ) -> Tuple[Optional[float], Optional[float]]:
     """Run experiment and return (rouge_l, embedding). Returns (None, None) on failure."""
     rc = _run_experiment(config_path, reference_id)
-    if rc not in (0, 138, 139):  # 138/139 = bus error / segfault on MPS cleanup (non-critical)
+    if rc not in (0, -10, 138, 139):  # -10/138/139 = SIGBUS on MPS cleanup (non-critical)
         logger.error("run_experiment failed with code %d", rc)
         return None, None
     return _read_scores(run_id, reference_id)
