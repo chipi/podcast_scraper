@@ -226,6 +226,11 @@ def clean_transcript(
 def remove_sponsor_blocks(text: str) -> str:
     """Remove sponsor/advertisement blocks from transcript.
 
+    Note: A duplicate exists in providers/ml/summarizer.py. The ML path may
+    run sponsor removal twice (once via PatternBasedCleaner, once via
+    cleaning_v4 in summarize_long_text). RFC-060 Phase 1 will consolidate
+    both into a single CommercialDetector.
+
     Args:
         text: Transcript text potentially containing sponsor blocks
 

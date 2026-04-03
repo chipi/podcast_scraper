@@ -118,21 +118,18 @@ class FFmpegAudioPreprocessor:
         """Initialize preprocessor with configuration.
 
         Args:
-            sample_rate: Target sample rate in Hz (default: 16000)
-                Must be one of: 8000, 12000, 16000, 24000, 48000 (Opus supported rates)
+            sample_rate: Target sample rate in Hz (default: 16000).
+                Recommended: 8000, 12000, 16000, 24000, or 48000.
             silence_threshold: Silence detection threshold (default: -50dB)
             silence_duration: Minimum silence duration to remove in seconds (default: 2.0)
             target_loudness: Target loudness in LUFS for normalization (default: -16)
         """
-        # Opus codec only supports specific sample rates: 8000, 12000, 16000, 24000, 48000
-        # If an unsupported rate is provided, use the closest supported rate
-        OPUS_SUPPORTED_RATES = [8000, 12000, 16000, 24000, 48000]
-        if sample_rate not in OPUS_SUPPORTED_RATES:
-            # Find closest supported rate
-            closest_rate = min(OPUS_SUPPORTED_RATES, key=lambda x: abs(x - sample_rate))
+        STANDARD_RATES = [8000, 12000, 16000, 24000, 48000]
+        if sample_rate not in STANDARD_RATES:
+            closest_rate = min(STANDARD_RATES, key=lambda x: abs(x - sample_rate))
             logger.warning(
-                "Sample rate %d Hz is not supported by Opus codec. "
-                "Using closest supported rate: %d Hz",
+                "Sample rate %d Hz is non-standard for speech. "
+                "Using closest standard rate: %d Hz",
                 sample_rate,
                 closest_rate,
             )
@@ -158,7 +155,7 @@ class FFmpegAudioPreprocessor:
         2. Resample to configured sample rate (default: 16 kHz)
         3. Remove silence (VAD)
         4. Normalize loudness to configured target (default: -16 LUFS)
-        5. Compress using speech-optimized codec (Opus @ 24 kbps)
+        5. Encode to MP3 @ 64 kbps (widely supported by all providers)
 
         Args:
             input_path: Path to raw audio file

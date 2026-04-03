@@ -32,9 +32,9 @@ PODCAST_HOSTS: dict[str, str] = {
     "p04": "Leo",
     "p05": "Nora",
     "p06": "TBD",  # Edge cases podcast
-    "p07": "Alex",  # The Long View - Sustainability
-    "p08": "Alex",  # The Long View - Solar Energy
-    "p09": "Alex",  # The Long View - Biohacking
+    "p07": "Alex Morgan",  # The Long View - Sustainability
+    "p08": "Alex Morgan",  # The Long View - Solar Energy
+    "p09": "Alex Morgan",  # The Long View - Biohacking
 }
 
 TS_RE = re.compile(r"^\[\s*\d{1,2}:\d{2}(:\d{2})?\s*\]$")
