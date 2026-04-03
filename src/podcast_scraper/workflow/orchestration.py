@@ -1264,6 +1264,9 @@ def _finalize_pipeline(
     index_written = _finalize_run_index(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
+    from podcast_scraper.search.indexer import maybe_index_corpus
+
+    maybe_index_corpus(effective_output_dir, cfg)
     summary_written = _finalize_run_summary(
         cfg, run_manifest, pipeline_metrics, effective_output_dir
     )

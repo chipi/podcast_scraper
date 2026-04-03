@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EvidenceSpan(BaseModel):
@@ -81,6 +81,17 @@ class TopSpeakerEntry(BaseModel):
     insight_count: int = Field(ge=0, description="Distinct insights with such quotes")
 
 
+class TopicEntry(BaseModel):
+    """Topic node aggregated across an explore result set (ABOUT edges; GitHub #487)."""
+
+    topic_id: str = Field(description="Topic node id from gi.json (e.g. topic:slug)")
+    label: str = Field(description="Topic label from Topic.properties.label")
+    insight_count: int = Field(
+        ge=0,
+        description="Count of insights in the result set linked to this topic",
+    )
+
+
 class ExploreOutput(BaseModel):
     """Output shape for gi explore (cross-episode topic query)."""
 
@@ -103,7 +114,33 @@ class ExploreOutput(BaseModel):
         default_factory=list,
         description="Speakers ranked by quote_count for this result set (RFC-050)",
     )
+    topics: List[TopicEntry] = Field(
+        default_factory=list,
+        description="Topic nodes linked via ABOUT to insights in this result (#487)",
+    )
     episodes_searched: int = Field(description="Number of episode artifacts scanned")
+
+
+class GiArtifact(BaseModel):
+    """Typed top-level shape for one gi.json payload (GitHub #487 / GIL-2).
+
+    Node and edge payloads remain dicts until full discriminated unions exist.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: str
+    model_version: str
+    prompt_version: str
+    episode_id: str
+    nodes: List[Dict[str, Any]] = Field(default_factory=list)
+    edges: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class GiCorpusArtifactEntry(GiArtifact):
+    """One episode artifact inside a merged corpus bundle (allows ``_artifact_path``)."""
+
+    model_config = ConfigDict(extra="allow")
 
 
 class GiCorpusBundleOutput(BaseModel):
@@ -114,9 +151,9 @@ class GiCorpusBundleOutput(BaseModel):
     artifact_count: int
     insight_count_total: int
     quote_count_total: int
-    artifacts: List[Dict[str, Any]] = Field(
+    artifacts: List[GiCorpusArtifactEntry] = Field(
         default_factory=list,
-        description="Per-episode gi.json payloads plus _artifact_path",
+        description="Per-episode gi.json payloads plus optional _artifact_path",
     )
 
 

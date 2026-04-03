@@ -16,17 +16,41 @@ Note: Uses mistralai Python SDK (not OpenAI SDK).
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
 import time
 from typing import Any, cast, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
-try:
-    from mistralai import Mistral, SDKError as MistralSDKError
-except ImportError:
-    Mistral = None  # type: ignore
-    MistralSDKError = None  # type: ignore
+
+def _load_mistral_sdk() -> tuple[Any, Any]:
+    """Return (Mistral client class, SDKError) for mistralai 2.x or 1.x."""
+    try:
+        sdk_mod = importlib.import_module("mistralai.client.sdk")
+        err_mod = importlib.import_module("mistralai.client.errors")
+        return sdk_mod.Mistral, err_mod.SDKError
+    except (ImportError, AttributeError):
+        pass
+    try:
+        pkg = importlib.import_module("mistralai")
+        return pkg.Mistral, pkg.SDKError
+    except (ImportError, AttributeError):
+        return None, None
+
+
+def _mistral_file_class() -> Any:
+    """Resolve ``File`` model for mistralai 2.x (client.models) or 1.x (models.file)."""
+    for mod_name in ("mistralai.client.models", "mistralai.models.file"):
+        try:
+            mod = importlib.import_module(mod_name)
+            return mod.File
+        except (ImportError, AttributeError):
+            continue
+    raise ImportError("mistralai File model not found")
+
+
+Mistral, MistralSDKError = _load_mistral_sdk()
 
 from ... import config
 
@@ -299,13 +323,13 @@ class MistralProvider:
             # Create File object from file path (Mistral SDK handles file opening)
             from pathlib import Path
 
-            from mistralai.models.file import File
+            MistralFile = _mistral_file_class()
 
             # File object requires file_name and binary content
             file_name = Path(audio_path).name
             with open(audio_path, "rb") as audio_file:
                 file_content = audio_file.read()
-            mistral_file = File(file_name=file_name, content=file_content)
+            mistral_file = MistralFile(file_name=file_name, content=file_content)
 
             # Mistral Voxtral API with retry
             from ...utils.provider_metrics import (

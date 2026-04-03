@@ -1,6 +1,6 @@
 # Pipeline and Workflow Guide
 
-This guide describes how the podcast_scraper pipeline runs: entry points, flow, module roles, and behavioral quirks. For strategic architecture, ADRs, and planned evolution, see [Architecture](../ARCHITECTURE.md).
+This guide describes how the podcast_scraper pipeline runs: entry points, flow, module roles, and behavioral quirks. For strategic architecture, ADRs, and planned evolution, see [Architecture](../architecture/ARCHITECTURE.md).
 
 ## High-Level Flow
 
@@ -14,7 +14,7 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 8. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`; the **hybrid_ml** provider (MAP with LongT5 + REDUCE via Ollama, llama.cpp, or transformers); or any of 7 LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
 9. **Run Tracking** (Issue #379): Run manifests capture system state at pipeline start. Per-episode stage timings track processing duration. Run summaries combine manifest and metrics. Episode index files list all processed episodes with status.
 10. **Progress/UI**: All long-running operations report progress through the pluggable factory in `utils.progress`, defaulting to `rich` in the CLI.
-11. **GIL Extraction** (PRD-017): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../ARCHITECTURE.md) for details.
+11. **GIL Extraction** (PRD-017): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../architecture/ARCHITECTURE.md) for details.
 12. **KG Extraction** (RFC-055): When enabled, Knowledge Graph extraction produces structured topic graphs from transcripts and summaries, writing `*.kg.json` per episode. See [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) for details.
 
 ## Pipeline Flow Diagram
@@ -80,8 +80,8 @@ flowchart TD
 - **rss.downloader**: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - **workflow.episode_processor**: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - **utils.filesystem**: Filename sanitization, output directory derivation based on feed hash ([ADR-003](../adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](../adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Nine summarization options; nine unified provider classes (1 local ML + 1 hybrid ML + 7 LLM) implement protocol combinations ([ADR-011](../adr/ADR-011-unified-provider-pattern.md)):
+- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-020](../adr/ADR-020-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+- **Unified Providers** (RFC-029): Nine summarization options; nine unified provider classes (1 local ML + 1 hybrid ML + 7 LLM) implement protocol combinations ([ADR-024](../adr/ADR-024-unified-provider-pattern.md)):
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
@@ -244,9 +244,9 @@ graph TB
 
 **Generated diagrams:**
 
-- [Module dependency graph (pydeps)](../architecture/dependency-graph.svg) — Regenerate with `make visualize` (requires Graphviz).
-- [Workflow call graph (pyan3)](../architecture/workflow-call-graph.svg) — Function-level calls from `workflow/orchestration.py`. Regenerate with `make call-graph`.
-- [Orchestration flowchart](../architecture/orchestration-flow.svg), [Service API flowchart](../architecture/service-flow.svg) — Regenerate with `make flowcharts` (code2flow).
+- [Module dependency graph (pydeps)](../architecture/diagrams/dependency-graph.svg) — Regenerate with `make visualize` (requires Graphviz).
+- [Workflow call graph (pyan3)](../architecture/diagrams/workflow-call-graph.svg) — Function-level calls from `workflow/orchestration.py`. Regenerate with `make call-graph`.
+- [Orchestration flowchart](../architecture/diagrams/orchestration-flow.svg), [Service API flowchart](../architecture/diagrams/service-flow.svg) — Regenerate with `make flowcharts` (code2flow).
 
 ## Pipeline and Workflow Behavior (Quirks)
 

@@ -564,7 +564,7 @@ def calculate_trends(current: Dict[str, Any], previous: Optional[Dict[str, Any]]
     # Test count change
     current_total = current.get("metrics", {}).get("test_health", {}).get("total", 0)
     prev_total = previous.get("metrics", {}).get("test_health", {}).get("total", 0)
-    trends["test_count_change"] = f"{current_total - prev_total:+d}"
+    trends["test_count_change"] = f"{int(current_total - prev_total):+d}"
 
     # Pipeline metrics trends
     current_pipeline = current.get("metrics", {}).get("pipeline", {})
@@ -582,12 +582,12 @@ def calculate_trends(current: Dict[str, Any], previous: Optional[Dict[str, Any]]
         # Episodes scraped change
         current_episodes = current_pipeline.get("episodes_scraped_total", 0)
         prev_episodes = prev_pipeline.get("episodes_scraped_total", 0)
-        trends["pipeline_episodes_change"] = f"{current_episodes - prev_episodes:+d}"
+        trends["pipeline_episodes_change"] = f"{int(current_episodes - prev_episodes):+d}"
 
         # Transcripts transcribed change
         current_transcribed = current_pipeline.get("transcripts_transcribed", 0)
         prev_transcribed = prev_pipeline.get("transcripts_transcribed", 0)
-        trends["pipeline_transcribed_change"] = f"{current_transcribed - prev_transcribed:+d}"
+        trends["pipeline_transcribed_change"] = f"{int(current_transcribed - prev_transcribed):+d}"
 
     return trends
 
@@ -669,7 +669,7 @@ def detect_deviations(
                     "type": "change",
                     "metric": "test_count",
                     "severity": "info",
-                    "message": f"Test count changed by {change:+d} (avg: {avg_total:.0f})",
+                    "message": f"Test count changed by {int(change):+d} (avg: {avg_total:.0f})",
                 }
             )
 

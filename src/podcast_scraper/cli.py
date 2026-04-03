@@ -838,6 +838,47 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         dest="entailment_provider",
         help="Provider for GIL entailment (NLI). Same backends as summary (default: transformers).",
     )
+    parser.add_argument(
+        "--vector-search",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable/disable corpus vector indexing after pipeline finalize (RFC-061 / #484).",
+    )
+    parser.add_argument(
+        "--vector-backend",
+        choices=["faiss", "qdrant"],
+        default=None,
+        help="Vector index backend (default: faiss). qdrant is not implemented in Phase 1.",
+    )
+    parser.add_argument(
+        "--vector-index-path",
+        default=None,
+        dest="vector_index_path",
+        help="Directory for FAISS index (relative paths resolve under output_dir).",
+    )
+    parser.add_argument(
+        "--vector-embedding-model",
+        default=None,
+        dest="vector_embedding_model",
+        help="Embedding model id or registry alias for corpus vectors (default: config).",
+    )
+    parser.add_argument(
+        "--vector-faiss-index-mode",
+        choices=["auto", "flat", "ivf_flat", "ivfpq"],
+        default=None,
+        dest="vector_faiss_index_mode",
+        help="FAISS structure: auto thresholds per #484, or force flat/ivf_flat/ivfpq.",
+    )
+    parser.add_argument(
+        "--vector-index-types",
+        default=None,
+        dest="vector_index_types",
+        metavar="TYPES",
+        help=(
+            "Comma-separated doc types: insight,quote,summary,transcript,"
+            "kg_topic,kg_entity (default: all)."
+        ),
+    )
 
 
 def _add_speaker_detection_arguments(parser: argparse.ArgumentParser) -> None:
@@ -1715,7 +1756,6 @@ def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
     """Validate .gi.json files (parity with ``kg validate``)."""
     from .gi.explore import EXIT_INVALID_ARGS, EXIT_NO_ARTIFACTS, EXIT_SUCCESS
     from .gi.io import collect_gi_paths_from_inputs, read_artifact
-    from .gi.schema import validate_artifact
 
     paths_arg = list(getattr(args, "paths", None) or [])
     if not paths_arg:
@@ -1734,8 +1774,7 @@ def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
     failed = 0
     for path in paths:
         try:
-            data = read_artifact(path)
-            validate_artifact(data, strict=strict)
+            read_artifact(path, validate=True, strict=strict)
             if not quiet:
                 print(f"OK {path}")
         except Exception as e:
@@ -1914,18 +1953,17 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     import json
 
     from .gi.explore import (
+        aggregate_topic_entries_for_insights,
         build_explore_output,
-        collect_insights,
         EXIT_INVALID_ARGS,
         EXIT_NO_ARTIFACTS,
         EXIT_NO_RESULTS,
         EXIT_STRICT_VALIDATION_FAILED,
         EXIT_SUCCESS,
         explore_output_to_rfc_dict,
+        explore_resolve_insights_and_loaded,
         ExploreValidationError,
-        load_artifacts,
         scan_artifact_paths,
-        sort_insights,
     )
 
     output_dir = getattr(args, "output_dir", None)
@@ -1943,8 +1981,24 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
         return EXIT_NO_ARTIFACTS
 
     strict = getattr(args, "strict", False)
+    topic = getattr(args, "topic", None)
+    speaker = getattr(args, "speaker", None)
+    grounded_only = getattr(args, "grounded_only", False)
+    min_confidence = getattr(args, "min_confidence", None)
+    limit = getattr(args, "limit", 50)
+    sort_by = getattr(args, "explore_sort", "confidence")
+
     try:
-        loaded = load_artifacts(paths, validate=strict, strict=strict)
+        insights, _semantic_ranked, loaded, ep_searched = explore_resolve_insights_and_loaded(
+            out_path,
+            paths,
+            topic=topic,
+            speaker=speaker,
+            grounded_only=grounded_only,
+            min_confidence=min_confidence,
+            sort_by=cast(Literal["confidence", "time"], sort_by),
+            strict=strict,
+        )
     except ExploreValidationError as e:
         logger.error(
             "Strict validation failed for %s: %s",
@@ -1953,33 +2007,16 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
         )
         return EXIT_STRICT_VALIDATION_FAILED
 
-    topic = getattr(args, "topic", None)
-    speaker = getattr(args, "speaker", None)
-    grounded_only = getattr(args, "grounded_only", False)
-    min_confidence = getattr(args, "min_confidence", None)
-    limit = getattr(args, "limit", 50)
-    sort_by = getattr(args, "explore_sort", "confidence")
-
-    insights = collect_insights(
-        loaded,
-        topic=topic,
-        speaker=speaker,
-        grounded_only=grounded_only,
-        min_confidence=min_confidence,
-        limit=None,
-    )
-    insights = sort_insights(
-        insights,
-        sort_by=cast(Literal["confidence", "time"], sort_by),
-    )
     if limit and limit > 0:
         insights = insights[:limit]
 
+    topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     explore_out = build_explore_output(
         insights,
-        episodes_searched=len(paths),
+        episodes_searched=ep_searched,
         topic=topic,
         speaker_filter=speaker,
+        topics=topic_rows,
     )
 
     out_format = getattr(args, "format", "pretty")
@@ -2155,7 +2192,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
     val.add_argument(
         "--strict",
         action="store_true",
-        help="Full JSON Schema validation (docs/gi/gi.schema.json)",
+        help="Full JSON Schema validation (docs/architecture/gi/gi.schema.json)",
     )
     val.add_argument(
         "-q",
@@ -2409,7 +2446,7 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     val.add_argument(
         "--strict",
         action="store_true",
-        help="Full JSON Schema validation (requires docs/kg/kg.schema.json)",
+        help="Full JSON Schema validation (requires docs/architecture/kg/kg.schema.json)",
     )
     val.add_argument(
         "-q",
@@ -2554,6 +2591,18 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     if argv and len(argv) > 0 and argv[0] == "kg":
         kg_argv = list(argv[1:]) if len(argv) > 1 else []
         return _parse_kg_args(kg_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "search":
+        from .search.cli_handlers import parse_search_argv
+
+        search_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_search_argv(search_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "index":
+        from .search.cli_handlers import parse_index_argv
+
+        index_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_index_argv(index_argv)
 
     # Check if first argument is "cache" subcommand
     if argv and len(argv) > 0 and argv[0] == "cache":
@@ -2893,6 +2942,30 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     for _gil_key in _gil_tuning_keys:
         if hasattr(args, _gil_key):
             payload[_gil_key] = getattr(args, _gil_key)
+    # Vector / semantic corpus (#484): CLI + YAML via set_defaults must reach Config.
+    _vector_optional_keys = (
+        "vector_index_path",
+        "vector_embedding_model",
+        "vector_chunk_size_tokens",
+        "vector_chunk_overlap_tokens",
+        "vector_backend",
+        "vector_faiss_index_mode",
+    )
+    for _vk in _vector_optional_keys:
+        if hasattr(args, _vk):
+            _vv = getattr(args, _vk)
+            if _vv is not None:
+                payload[_vk] = _vv
+    _vs = getattr(args, "vector_search", None)
+    if _vs is not None:
+        payload["vector_search"] = _vs
+    if hasattr(args, "vector_index_types"):
+        _vit = getattr(args, "vector_index_types")
+        if isinstance(_vit, str):
+            _parsed = [x.strip() for x in _vit.split(",") if x.strip()]
+            payload["vector_index_types"] = _parsed if _parsed else None
+        elif isinstance(_vit, list):
+            payload["vector_index_types"] = _vit
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
@@ -3236,8 +3309,10 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "cache",
             "doctor",
             "gi",
+            "index",
             "kg",
             "pricing-assumptions",
+            "search",
         )
     ):
         pass  # Skip ffmpeg check for subcommands
@@ -3282,6 +3357,17 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .kg.cli_handlers import run_kg
 
         return run_kg(args, log)
+
+    # Semantic corpus search / index (RFC-061 / #484)
+    if hasattr(args, "command") and args.command == "search":
+        from .search.cli_handlers import run_search_cli
+
+        return run_search_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "index":
+        from .search.cli_handlers import run_index_cli
+
+        return run_index_cli(args, log)
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":

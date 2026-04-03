@@ -9,23 +9,26 @@ These are standalone provider tests - they test the provider itself,
 not its integration with the app.
 """
 
+import importlib
 import json
 import os
-import sys
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.providers.mistral import mistral_provider as mistral_provider_mod
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 
-# Mock mistralai.models.file module before importing provider
-# This prevents ImportError when File is imported inside transcribe method
-if "mistralai.models.file" not in sys.modules:
-    mock_file_module = MagicMock()
-    mock_file_module.File = Mock
-    sys.modules["mistralai.models.file"] = mock_file_module
+
+class _DummyMistralUploadFile:
+    """Stand-in for mistralai ``File`` when the SDK is absent or unpatchable in unit tests."""
+
+    def __init__(self, file_name: str = "", content: bytes = b""):
+        self.file_name = file_name
+        self.content = content
 
 
 @pytest.mark.unit
@@ -297,11 +300,13 @@ class TestMistralProviderTranscription(unittest.TestCase):
             transcribe_missing=True,
         )
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_success(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_success(self, mock_exists, mock_open, mock_mistral_class, mock_file_cls):
         """Test successful transcription."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -324,11 +329,15 @@ class TestMistralProviderTranscription(unittest.TestCase):
         self.assertEqual(result, "Hello world")
         mock_client.audio.transcriptions.complete.assert_called_once()
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_with_language(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_with_language(
+        self, mock_exists, mock_open, mock_mistral_class, mock_file_cls
+    ):
         """Test transcription with explicit language."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -380,11 +389,13 @@ class TestMistralProviderTranscription(unittest.TestCase):
 
         self.assertIn("not found", str(context.exception))
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_api_error(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_api_error(self, mock_exists, mock_open, mock_mistral_class, mock_file_cls):
         """Test transcribe handles API errors."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -405,11 +416,15 @@ class TestMistralProviderTranscription(unittest.TestCase):
 
         self.assertIn("transcription failed", str(context.exception))
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_with_segments_success(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_with_segments_success(
+        self, mock_exists, mock_open, mock_mistral_class, mock_file_cls
+    ):
         """Test transcribe_with_segments returns full result."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -1031,6 +1046,50 @@ class TestMistralProviderKG(unittest.TestCase):
         provider = MistralProvider(self.cfg)
         provider._summarization_initialized = True
         self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
+
+@pytest.mark.unit
+class TestMistralSdkPathResolution(unittest.TestCase):
+    """mistralai 1.x vs 2.x import paths (_load_mistral_sdk / _mistral_file_class)."""
+
+    def test_load_mistral_sdk_falls_back_to_package_root(self) -> None:
+        real_import = importlib.import_module
+        sentinel_mistral = object()
+
+        def fake_import(name: str, package: str | None = None):
+            if name in ("mistralai.client.sdk", "mistralai.client.errors"):
+                raise ImportError("no 2.x layout")
+            if name == "mistralai":
+                root = SimpleNamespace(Mistral=sentinel_mistral, SDKError=ValueError)
+                return root
+            return real_import(name, package)
+
+        with patch.object(importlib, "import_module", side_effect=fake_import):
+            Mistral, SDKError = mistral_provider_mod._load_mistral_sdk()
+        self.assertIs(Mistral, sentinel_mistral)
+        self.assertIs(SDKError, ValueError)
+
+    def test_mistral_file_class_second_module_path(self) -> None:
+        file_cls = object()
+
+        def fake_import(name: str, package: str | None = None):
+            if name == "mistralai.client.models":
+                raise ImportError("missing")
+            if name == "mistralai.models.file":
+                return SimpleNamespace(File=file_cls)
+            raise AssertionError(f"unexpected import {name!r}")
+
+        with patch.object(importlib, "import_module", side_effect=fake_import):
+            got = mistral_provider_mod._mistral_file_class()
+        self.assertIs(got, file_cls)
+
+    def test_mistral_file_class_raises_when_unresolved(self) -> None:
+        def fake_import(name: str, package: str | None = None):
+            raise ImportError("missing")
+
+        with patch.object(importlib, "import_module", side_effect=fake_import):
+            with self.assertRaisesRegex(ImportError, "File model"):
+                mistral_provider_mod._mistral_file_class()
 
 
 @pytest.mark.unit

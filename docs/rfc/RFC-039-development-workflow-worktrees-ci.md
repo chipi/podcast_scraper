@@ -4,10 +4,10 @@
 - **Authors**: chipi
 - **Stakeholders**: Developers, CI/CD maintainers
 - **Related ADRs**:
-  - [ADR-016: Git Worktree-Based Development](../adr/ADR-016-git-worktree-based-development.md)
-  - [ADR-017: Stratified CI Execution](../adr/ADR-017-stratified-ci-execution.md)
-  - [ADR-018: Isolated Runtime Environments](../adr/ADR-018-isolated-runtime-environments.md)
-  - [ADR-020: Linear History via Squash-Merge](../adr/ADR-020-linear-history-via-squash-merge.md)
+  - [ADR-032: Git Worktree-Based Development](../adr/ADR-032-git-worktree-based-development.md)
+  - [ADR-033: Stratified CI Execution](../adr/ADR-033-stratified-ci-execution.md)
+  - [ADR-034: Isolated Runtime Environments](../adr/ADR-034-isolated-runtime-environments.md)
+  - [ADR-035: Linear History via Squash-Merge](../adr/ADR-035-linear-history-via-squash-merge.md)
 - **Related PRDs**: None
 - **Related RFCs**:
   - RFC-038: Continuous Review Tooling (CI quality checks)

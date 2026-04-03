@@ -2,7 +2,7 @@
 
 > **See also:**
 >
-> - [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy and test pyramid
+> - [Testing Strategy](../architecture/TESTING_STRATEGY.md) - Overall testing philosophy and test pyramid
 > - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
 > - [Unit Testing Guide](UNIT_TESTING_GUIDE.md) - Unit test implementation
 > - [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) - Integration test guidelines
@@ -349,7 +349,7 @@ critical path is solid, then expand to extended features.
 
 ## References
 
-- [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy
+- [Testing Strategy](../architecture/TESTING_STRATEGY.md) - Overall testing philosophy
 - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution
 - [Unit Testing Guide](UNIT_TESTING_GUIDE.md) - Unit test implementation
 - [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) - Integration test guidelines

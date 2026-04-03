@@ -11,7 +11,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 - The `podcast_scraper` application targets researchers, archivists, and power listeners who need canonical text versions of podcast episodes.
 - Many shows publish transcripts via Podcasting 2.0 tags; users want an automated way to resolve those assets and save them locally.
-- `docs/ARCHITECTURE.md` describes the technical blueprint and module ownership. This document focuses on _what_ needs to happen from a user and product perspective.
+- `docs/architecture/ARCHITECTURE.md` describes the technical blueprint and module ownership. This document focuses on _what_ needs to happen from a user and product perspective.
 
 ## Goals
 

@@ -37,6 +37,41 @@ class TestKgContracts(unittest.TestCase):
         dumped = out.model_dump(mode="json")
         self.assertIn("topics", dumped)
 
+    def test_build_kg_inspect_output_includes_topic_and_entity_descriptions(self) -> None:
+        """Inspect rows carry optional description when present on Topic/Entity nodes."""
+        art = {
+            "episode_id": "ep:desc-1",
+            "schema_version": "1.1",
+            "nodes": [
+                {
+                    "id": "topic:lag",
+                    "type": "Topic",
+                    "properties": {
+                        "label": "Regulatory lag",
+                        "slug": "regulatory-lag",
+                        "description": "  Episode-specific context.  ",
+                    },
+                },
+                {
+                    "id": "entity:acme",
+                    "type": "Entity",
+                    "properties": {
+                        "name": "Acme Corp",
+                        "entity_kind": "organization",
+                        "description": "Mentioned as example.",
+                    },
+                },
+                {"id": "ep:1", "type": "Episode", "properties": {"title": "T"}},
+            ],
+            "edges": [],
+            "extraction": {},
+        }
+        out = build_kg_inspect_output(art, artifact_path=Path("metadata") / "x.kg.json")
+        self.assertEqual(len(out.topics), 1)
+        self.assertEqual(out.topics[0].description, "Episode-specific context.")
+        self.assertEqual(len(out.entities), 1)
+        self.assertEqual(out.entities[0].description, "Mentioned as example.")
+
     def test_entity_rollup_and_topic_contracts(self) -> None:
         """Roll-up and topic-pair CLI JSON validate via Pydantic."""
         art = build_artifact(

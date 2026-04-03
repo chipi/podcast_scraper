@@ -97,7 +97,7 @@ class GeminiProvider:
         if genai is None:
             raise ImportError(
                 "google-genai package required for Gemini provider. "
-                "Install with: pip install 'podcast-scraper[gemini]'"
+                'Install with: pip install -e ".[llm]" (or pip install "podcast-scraper[llm]")'
             )
 
         if not cfg.gemini_api_key:
@@ -365,7 +365,7 @@ class GeminiProvider:
             response = retry_with_metrics(
                 lambda: self.client.models.generate_content(
                     model=self.transcription_model,
-                    contents=contents,
+                    contents=cast(Any, contents),
                 ),
                 max_retries=2,
                 initial_delay=1.0,
@@ -662,7 +662,7 @@ class GeminiProvider:
                 lambda: self.client.models.generate_content(
                     model=self.speaker_model,
                     contents=user_prompt,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 ),
                 max_retries=2,
                 initial_delay=1.0,
@@ -896,7 +896,7 @@ class GeminiProvider:
                 return self.client.models.generate_content(
                     model=self.summary_model,
                     contents=user_prompt,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 )
 
             try:
@@ -1138,7 +1138,7 @@ class GeminiProvider:
             response = self.client.models.generate_content(
                 model=self.summary_model,
                 contents=user_prompt,
-                config=generation_config,
+                config=cast(Any, generation_config),
             )
             content = response.text if hasattr(response, "text") else str(response)
             content = (content or "").strip()
@@ -1210,7 +1210,7 @@ class GeminiProvider:
                 return self.client.models.generate_content(
                     model=model,
                     contents=user_prompt,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 )
 
             response = retry_with_metrics(
@@ -1279,7 +1279,7 @@ class GeminiProvider:
                 return self.client.models.generate_content(
                     model=model,
                     contents=user_prompt,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 )
 
             response = retry_with_metrics(
@@ -1346,7 +1346,7 @@ class GeminiProvider:
                 return self.client.models.generate_content(
                     model=self.summary_model,
                     contents=user,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 )
 
             try:
@@ -1425,7 +1425,7 @@ class GeminiProvider:
                 return self.client.models.generate_content(
                     model=self.summary_model,
                     contents=user,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 )
 
             try:
@@ -1513,7 +1513,7 @@ class GeminiProvider:
                 return self.client.models.generate_content(
                     model=self.cleaning_model,
                     contents=user_prompt,
-                    config=generation_config,
+                    config=cast(Any, generation_config),
                 )
 
             try:

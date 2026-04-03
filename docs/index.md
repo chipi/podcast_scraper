@@ -41,7 +41,7 @@ pip install -e .
 # macOS: brew install ffmpeg
 # Ubuntu: sudo apt install ffmpeg
 
-# (Optional) To regenerate architecture diagrams: install Graphviz, run make visualize, then commit docs/architecture/*.svg
+# (Optional) To regenerate architecture diagrams: install Graphviz, run make visualize, then commit docs/architecture/diagrams/*.svg
 # make ci / make ci-fast fail if diagrams are stale (visualize)
 # macOS: brew install graphviz
 # Ubuntu: sudo apt install graphviz
@@ -135,8 +135,8 @@ skip_existing: true
 | Resource | Description |
 | :--- | :--- |
 | **[Quick Reference](guides/QUICK_REFERENCE.md)** | ⭐ One-page cheat sheet for common commands |
-| **[Architecture Overview](ARCHITECTURE.md)** | High-level system design and module responsibilities |
-| **[Testing Strategy](TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
+| **[Architecture Overview](architecture/ARCHITECTURE.md)** | High-level system design and module responsibilities |
+| **[Testing Strategy](architecture/TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
 | **[Experiment Guide](guides/EXPERIMENT_GUIDE.md)** | **Complete guide: datasets, baselines, experiments, and evaluation** |
 | **[CI/CD Overview](ci/index.md)** | CI/CD pipeline documentation |

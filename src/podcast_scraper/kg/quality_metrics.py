@@ -79,7 +79,7 @@ def compute_kg_quality_metrics(
 
     for gpath in kg_paths:
         try:
-            data = read_artifact(gpath)
+            data = read_artifact(gpath, validate=False)
             validate_artifact(data, strict=strict_schema)
         except Exception as e:
             out.errors.append(f"{gpath}: {e}")

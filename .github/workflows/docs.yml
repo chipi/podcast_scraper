@@ -10,8 +10,8 @@ on:
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
       - 'docs/index.md'
-      - 'docs/ARCHITECTURE.md'
-      - 'docs/TESTING_STRATEGY.md'
+      - 'docs/architecture/ARCHITECTURE.md'
+      - 'docs/architecture/TESTING_STRATEGY.md'
       - 'docs/CI_CD.md'
       - 'docs/legal.md'
       - 'docs/api/**'
@@ -31,8 +31,8 @@ on:
     paths:
       # Only files that are part of the MkDocs site (see mkdocs.yml nav)
       - 'docs/index.md'
-      - 'docs/ARCHITECTURE.md'
-      - 'docs/TESTING_STRATEGY.md'
+      - 'docs/architecture/ARCHITECTURE.md'
+      - 'docs/architecture/TESTING_STRATEGY.md'
       - 'docs/CI_CD.md'
       - 'docs/legal.md'
       - 'docs/api/**'

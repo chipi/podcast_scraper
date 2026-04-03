@@ -343,7 +343,7 @@ class GeminiProvider:
         if genai is None:
             raise ImportError(
                 "google-genai package required for Gemini provider. "
-                "Install with: pip install 'podcast-scraper[gemini]'"
+                'Install with: pip install -e ".[llm]" (or pip install "podcast-scraper[llm]")'
             )
 
         if not cfg.gemini_api_key:
@@ -977,14 +977,9 @@ Similar updates for `speaker_detectors/factory.py` and `summarization/factory.py
 
 ### 6. Dependencies
 
-Add to `pyproject.toml`:
+Gemini uses **`google-genai`** in the shared **`[llm]`** optional dependency group (there is no separate `[gemini]` extra). See `[project.optional-dependencies]` → `llm` in `pyproject.toml`.
 
-```toml
-[project.optional-dependencies]
-gemini = [
-    "google-genai>=0.1.0,<1.0.0",  # Migrated from google-generativeai in Issue #415
-]
-```
+**Install:** `pip install -e ".[llm]"` (or `pip install "podcast-scraper[llm]"`).
 
 **Note:** Package name is `google-genai` (migrated from `google-generativeai` in Issue #415).
 
@@ -1022,7 +1017,7 @@ Same pattern as OpenAI provider:
 
 - **Breaking Changes**: None (new provider, backward compatible)
 - **Configuration**: Add `GEMINI_API_KEY` to `.env` file
-- **Dependencies**: Install with `pip install 'podcast-scraper[gemini]'`
+- **Dependencies**: Install with `pip install -e ".[llm]"` (Gemini via `google-genai` in the `llm` extra)
 
 ## References
 

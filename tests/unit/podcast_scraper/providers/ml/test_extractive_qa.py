@@ -2,7 +2,12 @@
 
 import pytest
 
-from podcast_scraper.providers.ml.extractive_qa import answer, answer_multi, QASpan
+from podcast_scraper.providers.ml.extractive_qa import (
+    answer,
+    answer_candidates,
+    answer_multi,
+    QASpan,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -124,6 +129,52 @@ class TestAnswerMocked:
         )
         assert span.score == 0.99
         assert context[span.start : span.end] == "TARGETPHRASE"
+
+    def test_answer_candidates_returns_multiple_top_k(self, monkeypatch):
+        """answer_candidates uses pipeline top_k when supported (#487)."""
+
+        def fake_pipe(
+            *args, question=None, context=None, max_answer_len=None, top_k=None, **kwargs
+        ):
+            return [
+                {"answer": "one", "start": 0, "end": 3, "score": 0.9},
+                {"answer": "two", "start": 4, "end": 7, "score": 0.7},
+            ]
+
+        from podcast_scraper.providers.ml import extractive_qa
+
+        monkeypatch.setattr(
+            extractive_qa,
+            "get_qa_pipeline",
+            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipe})(),
+        )
+        spans = answer_candidates(
+            "one two three",
+            "Q?",
+            model_id="roberta-squad2",
+            top_k=2,
+        )
+        assert len(spans) == 2
+        assert spans[0].score == 0.9
+
+    def test_answer_candidates_typeerror_falls_back_single(self, monkeypatch):
+        """When top_k is unsupported, fall back to one span."""
+
+        def fake_pipe(*args, **kwargs):
+            if kwargs.get("top_k") is not None:
+                raise TypeError("unexpected keyword top_k")
+            return {"answer": "x", "start": 0, "end": 1, "score": 0.5}
+
+        from podcast_scraper.providers.ml import extractive_qa
+
+        monkeypatch.setattr(
+            extractive_qa,
+            "get_qa_pipeline",
+            lambda *args, **kwargs: type("Pipe", (), {"__call__": fake_pipe})(),
+        )
+        spans = answer_candidates("ctx", "Q?", model_id="roberta-squad2", top_k=3)
+        assert len(spans) == 1
+        assert spans[0].answer == "x"
 
 
 class TestGetDevice:

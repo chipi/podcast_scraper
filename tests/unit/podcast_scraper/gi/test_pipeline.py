@@ -310,6 +310,54 @@ class TestGILPipeline:
         assert len(out["edges"]) == 4
         assert sum(1 for e in out["edges"] if e["type"] == "HAS_INSIGHT") == 2
         assert sum(1 for e in out["edges"] if e["type"] == "SUPPORTED_BY") == 2
+        assert insight_nodes[0]["confidence"] == pytest.approx(0.9)
+        assert insight_nodes[1]["confidence"] == pytest.approx(0.85)
+
+    def test_artifact_from_multi_insight_confidence_uses_nli_when_qa_missing(self):
+        """When qa_score is absent, confidence falls back to max NLI among quotes."""
+        q = GroundedQuote(
+            char_start=0,
+            char_end=5,
+            text="hello",
+            qa_score=None,
+            nli_score=0.91,
+        )
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            ["Insight A"],
+            [[q]],
+            model_version="test",
+            prompt_version="v1",
+            podcast_id="pod:1",
+            episode_title="Title",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="transcript.txt",
+        )
+        insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
+        assert len(insight_nodes) == 1
+        assert insight_nodes[0]["confidence"] == pytest.approx(0.91)
+
+    def test_artifact_from_multi_insight_topic_labels_add_topics_and_about(self):
+        """topic_labels create Topic nodes and ABOUT edges from each Insight."""
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            ["Insight A"],
+            [[]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            topic_labels=["Climate Policy", "Energy"],
+        )
+        topics = [n for n in out["nodes"] if n["type"] == "Topic"]
+        assert len(topics) == 2
+        about = [e for e in out["edges"] if e["type"] == "ABOUT"]
+        assert len(about) == 2
+        ins_id = next(n["id"] for n in out["nodes"] if n["type"] == "Insight")
+        assert all(e["from"] == ins_id for e in about)
+        validate_artifact(out, strict=True)
 
     def test_artifact_from_multi_insight_pads_quote_lists(self):
         """When insight_quotes_list is shorter than insight_texts, pad with []."""

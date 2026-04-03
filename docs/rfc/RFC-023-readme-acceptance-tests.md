@@ -1,6 +1,6 @@
 # RFC-023: README Acceptance Tests
 
-- **Status**: Draft
+- **Status**: Completed (alternative implementation — script-based `make test-acceptance` with YAML configs instead of pytest marker)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers, first-time users
 - **Related PRDs**:
@@ -16,7 +16,7 @@
   - `rfc/RFC-007-cli-interface.md` (CLI interface)
 - **Related Documents**:
   - [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md) - Main project README (source of truth for examples)
-  - [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) - Overall testing strategy and test categories
+  - [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md) - Overall testing strategy and test categories
 
 ## Abstract
 
@@ -434,6 +434,6 @@ test-acceptance:
 
 - [RFC-019: E2E Test Infrastructure](RFC-019-e2e-test-improvements.md)
 - [RFC-018: Test Structure Reorganization](RFC-018-test-structure-reorganization.md)
-- [Testing Strategy](../TESTING_STRATEGY.md)
+- [Testing Strategy](../architecture/TESTING_STRATEGY.md)
 - [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
 ````

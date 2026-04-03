@@ -37,9 +37,9 @@
   - Issue #40: Data storage / DB integration
   - Issue #50: Querying & downstream usage
 - **Related Documents**:
-  - `docs/gi/ontology.md`, `docs/gi/gi.schema.json` — GIL
-  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` — KG
-  - `docs/ARCHITECTURE.md` - System architecture
+  - `docs/architecture/gi/ontology.md`, `docs/architecture/gi/gi.schema.json` — GIL
+  - `docs/architecture/kg/ontology.md`, `docs/architecture/kg/kg.schema.json` — KG
+  - `docs/architecture/ARCHITECTURE.md` - System architecture
 
 ## Abstract
 
@@ -141,7 +141,7 @@ podcast_scraper kg export \
 
 **GIL export responsibilities:**
 
-- Validate `gi.json` against `docs/gi/gi.schema.json`
+- Validate `gi.json` against `docs/architecture/gi/gi.schema.json`
 - Load or update episode-level records (including `gi_path`, `gi_schema_version`)
 - Upsert global nodes (topics, speakers) used by GIL
 - Insert episode-scoped nodes (insights, quotes)
@@ -150,7 +150,7 @@ podcast_scraper kg export \
 
 **KG export responsibilities:**
 
-- Validate KG artifact against `docs/kg/kg.schema.json` when present
+- Validate KG artifact against `docs/architecture/kg/kg.schema.json` when present
 - Upsert episode-level `kg_path`, `kg_schema_version` when KG data exists
 - Insert **kg_nodes**, **kg_edges** (names illustrative; exact columns follow RFC-055 types)
 - Track `ingestion_run_id` (may share run id with GIL export in combined mode)
@@ -904,9 +904,9 @@ artifact contract (055) → serving (051).**
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
 - **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
-- **Ontology Specification (GIL)**: `docs/gi/ontology.md`
-- **Schema Specification (GIL)**: `docs/gi/gi.schema.json`
-- **Ontology (KG)**: `docs/kg/ontology.md`
-- **Schema (KG)**: `docs/kg/kg.schema.json`
-- **Architecture**: `docs/ARCHITECTURE.md`
+- **Ontology Specification (GIL)**: `docs/architecture/gi/ontology.md`
+- **Schema Specification (GIL)**: `docs/architecture/gi/gi.schema.json`
+- **Ontology (KG)**: `docs/architecture/kg/ontology.md`
+- **Schema (KG)**: `docs/architecture/kg/kg.schema.json`
+- **Architecture**: `docs/architecture/ARCHITECTURE.md`
 - **Related Issues**: #31, #40, #50

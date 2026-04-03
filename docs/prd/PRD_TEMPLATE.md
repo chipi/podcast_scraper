@@ -135,11 +135,12 @@
 
 ## Related Work
 
-[Links to related issues, PRDs, RFCs:]
+[Links to related issues, PRDs, RFCs, UX specs:]
 
 - Issue #XXX: [Related issue description]
 - PRD-XXX: [Related PRD]
 - RFC-XXX: [Related RFC]
+- UXS-NNN: `docs/uxs/UXS-NNN-slug.md` — [short description]
 
 ## Release Checklist
 

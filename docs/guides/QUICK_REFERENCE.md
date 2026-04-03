@@ -195,7 +195,7 @@ Grounded insights are key takeaways linked to verbatim quotes (evidence). When t
 - **CLI**: `gi inspect`, `gi show-insight`, `gi explore` (see Grounded Insights Guide).
 - **Browser viewer**: `make serve-gi-kg-viz` — load `*.gi.json` / `*.kg.json` in a local UI ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
 
-See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology](../gi/ontology.md).
+See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology](../architecture/gi/ontology.md).
 
 ---
 

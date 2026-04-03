@@ -27,10 +27,7 @@ parent_tests_dir = Path(__file__).parent.parent.parent
 if str(parent_tests_dir) not in sys.path:
     sys.path.insert(0, str(parent_tests_dir))
 
-# Mock openai before importing modules that require it
-# Unit tests run without openai package installed
-# (patch already imported above)
-
+# Mock openai for workflow imports; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
 _patch_openai = patch.dict(

@@ -15,7 +15,7 @@
   - `docs/rfc/RFC-024-test-execution-optimization.md` (test execution - complementary)
   - `docs/rfc/RFC-026-metrics-consumption-and-dashboards.md` (metrics consumption - complementary)
 - **Related Documents**:
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
+  - `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy and test categories
   - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
   - `.github/workflows/python-app.yml` - CI test jobs
 
@@ -535,7 +535,7 @@ This explicit definition enables automation and clear identification of unstable
 ## Related Files
 
 - `.github/workflows/python-app.yml`: CI test jobs
-- `docs/TESTING_STRATEGY.md`: Overall testing strategy
+- `docs/architecture/TESTING_STRATEGY.md`: Overall testing strategy
 - `docs/guides/DEVELOPMENT_GUIDE.md`: Development workflow
 - `pyproject.toml`: Pytest configuration and markers
 

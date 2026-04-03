@@ -12,7 +12,6 @@ from typing import Any, cast, Dict, List, Optional, Tuple
 
 from .contracts import EvidenceSpan, InsightSummary, InspectOutput, SupportingQuote
 from .io import read_artifact
-from .schema import validate_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -111,9 +110,7 @@ def load_artifact_and_transcript(
     if not path.is_file():
         raise FileNotFoundError(f"Artifact file not found: {path}")
 
-    artifact = read_artifact(path)
-    if validate:
-        validate_artifact(artifact, strict=strict)
+    artifact = read_artifact(path, validate=validate, strict=strict)
 
     transcript_text: Optional[str] = None
     transcript_path: Optional[Path] = None
@@ -232,7 +229,7 @@ def find_artifact_by_episode_id(output_dir: Path, episode_id: str) -> Optional[P
         return None
     for path in metadata_dir.glob("*.gi.json"):
         try:
-            artifact = read_artifact(path)
+            artifact = read_artifact(path, validate=False)
             if artifact.get("episode_id") == episode_id:
                 return path
         except Exception:
@@ -245,7 +242,7 @@ def find_artifact_by_insight_id(output_dir: Path, insight_id: str) -> Optional[P
     output_path = Path(output_dir)
     for path in output_path.rglob("*.gi.json"):
         try:
-            artifact = read_artifact(path)
+            artifact = read_artifact(path, validate=False)
             for node in artifact.get("nodes", []):
                 if node.get("id") == insight_id:
                     return path

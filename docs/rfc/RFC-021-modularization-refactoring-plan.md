@@ -4,7 +4,7 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing OpenAI providers
 - **Related ADRs**:
-  - [ADR-012: Protocol-Based Provider Discovery](../adr/ADR-012-protocol-based-provider-discovery.md)
+  - [ADR-020: Protocol-Based Provider Discovery](../adr/ADR-020-protocol-based-provider-discovery.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - OpenAI provider implementation (built on this plan)
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture

@@ -30,7 +30,7 @@
 
 **For the procedure:** Use the **commit-with-approval** skill.
 
-**This project:** Validation = `make ci-fast` (~6–10 min). If markdown edited: `make fix-md`, self-check (one H1, blanks after headings, code fences with language, tables), then `make lint-markdown`. Never commit without showing `git status` and `git diff` and getting explicit approval.
+**This project:** Validation = `make ci-fast` (~6–10 min). **Skip a repeat run** before commit if `ci-fast` or `make ci` already passed in-session on the **current** tree and nothing substantive changed after; say so briefly. If markdown edited: `make fix-md`, self-check (one H1, blanks after headings, code fences with language, tables), then `make lint-markdown`. Never commit without showing `git status` and `git diff` and getting explicit approval.
 
 ## 🚨 CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
 
@@ -150,7 +150,7 @@ make docker-test      # Only if changed Dockerfile/structure
 - **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** → Markdown style rules
 - **`docs/guides/GIT_WORKTREE_GUIDE.md`** → Git worktree workflow
 - **`docs/ci/index.md`** → CI/CD pipeline documentation
-- **`docs/ARCHITECTURE.md`** → System design, module responsibilities
+- **`docs/architecture/ARCHITECTURE.md`** → System design, module responsibilities
 - **`CONTRIBUTING.md`** → Human contributor guide
 
 **When user says "load ai coding guidelines":**
@@ -165,7 +165,7 @@ make docker-test      # Only if changed Dockerfile/structure
 
 1. NEVER push to main (use feature branches + PRs)
 2. ALWAYS show changes and get approval before commit/push
-3. ALWAYS run `make ci-fast` before committing
+3. Run `make ci-fast` before committing unless a recent in-session run already passed on the same diff (see `.cursorrules` rule 5)
 4. Write lint-valid code from the start
 5. Respect module boundaries (see `module-boundaries.mdc`)
 6. Mock external deps in tests

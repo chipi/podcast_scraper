@@ -4,9 +4,9 @@
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
 - **Related ADRs**:
-  - [ADR-027: Deep Provider Fingerprinting](../adr/ADR-027-deep-provider-fingerprinting.md)
-  - [ADR-028: Typed Provider Parameter Models](../adr/ADR-028-typed-provider-parameter-models.md)
-  - [ADR-029: Registered Preprocessing Profiles](../adr/ADR-029-registered-preprocessing-profiles.md)
+  - [ADR-015: Deep Provider Fingerprinting](../adr/ADR-015-deep-provider-fingerprinting.md)
+  - [ADR-016: Typed Provider Parameter Models](../adr/ADR-016-typed-provider-parameter-models.md)
+  - [ADR-017: Registered Preprocessing Profiles](../adr/ADR-017-registered-preprocessing-profiles.md)
 - **Related RFCs**: `docs/rfc/RFC-015-ai-experiment-pipeline.md`, `docs/rfc/RFC-017-prompt-management.md`, `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference), `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (completed)
 - **Related Issues**: [#303](https://github.com/chipi/podcast_scraper/issues/303) (RFC-016 Implementation)
 - **Updated**: 2026-01-16

@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, cast, Dict, List, Optional, Tuple
 
-from ...cache import get_transformers_cache_dir
+from .model_loader import build_huggingface_qa_pipeline
 from .model_registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
@@ -79,24 +79,17 @@ def load_qa_pipeline(
     Returns:
         transformers Pipeline for question-answering.
     """
-    from transformers import pipeline
-
     resolved = ModelRegistry.resolve_evidence_model_id(model_id)
     dev = _get_device(device)
     logger.info("Loading extractive QA model %s on %s", resolved, dev)
     # QA pipeline: device -1 = CPU, 0 = CUDA; MPS often unsupported for QA
     pipe_device = 0 if dev == "cuda" else -1
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    # Match summarizer / model_loader: no hub access at load time (preload or
-    # make preload-ml-models must populate the cache).
-    model_kw = {"local_files_only": True, "cache_dir": cache_dir}
-    pipe = pipeline(
-        "question-answering",
-        model=resolved,
+    # No hub access at load time (preload / make preload-ml-models must populate cache).
+    return build_huggingface_qa_pipeline(
+        resolved,
         device=pipe_device,
-        model_kwargs=model_kw,
+        local_files_only=True,
     )
-    return pipe
 
 
 def get_qa_pipeline(
@@ -120,6 +113,45 @@ def _qa_pipeline_call(pipe_fn: Callable[..., Dict[str, Any]], question: str, ctx
         end=out["end"],
         score=_safe_score_float(out["score"]),
     )
+
+
+def _qa_pipeline_call_top_k(
+    pipe_fn: Callable[..., Any],
+    question: str,
+    ctx: str,
+    top_k: int,
+) -> List[QASpan]:
+    """Return up to ``top_k`` QA spans; falls back to single answer if ``top_k`` unsupported."""
+    k = max(1, min(int(top_k), 10))
+    try:
+        raw = pipe_fn(
+            question=question,
+            context=ctx,
+            max_answer_len=512,
+            top_k=k,
+        )
+    except TypeError:
+        return [_qa_pipeline_call(pipe_fn, question, ctx)]
+    rows: List[Dict[str, Any]]
+    if isinstance(raw, dict):
+        rows = [raw]
+    elif isinstance(raw, list):
+        rows = [x for x in raw if isinstance(x, dict)]
+    else:
+        rows = []
+    if not rows:
+        return [_qa_pipeline_call(pipe_fn, question, ctx)]
+    out: List[QASpan] = []
+    for item in rows[:k]:
+        out.append(
+            QASpan(
+                answer=item["answer"],
+                start=item["start"],
+                end=item["end"],
+                score=_safe_score_float(item.get("score")),
+            )
+        )
+    return out
 
 
 def _iter_context_windows(
@@ -212,6 +244,42 @@ def answer(
 
     logger.debug("Windowed QA produced no valid span; falling back to full context")
     return _qa_pipeline_call(pipe_fn, question, context)
+
+
+def answer_candidates(
+    context: str,
+    question: str,
+    model_id: str,
+    device: Optional[str] = None,
+    *,
+    window_chars: int = 0,
+    window_overlap_chars: int = 250,
+    top_k: int = 3,
+) -> List[QASpan]:
+    """Extractive QA returning up to ``top_k`` candidate spans (Issue #487 / EV-1).
+
+    When the transcript fits one context (no windowing), the HF pipeline is called
+    with ``top_k`` so multiple non-identical spans can be scored with NLI downstream.
+
+    When ``window_chars`` > 0 and the transcript is long, windowing still returns a
+    **single** best span (multi-candidate window merge is not implemented yet).
+    """
+    pipe = get_qa_pipeline(model_id, device=device)
+    pipe_fn: Callable[..., Any] = cast(Callable[..., Any], pipe)
+    top_k_i = max(1, min(int(top_k), 10))
+
+    if window_chars <= 0 or len(context) <= window_chars:
+        return _qa_pipeline_call_top_k(pipe_fn, question, context, top_k_i)
+
+    single = answer(
+        context,
+        question,
+        model_id,
+        device=device,
+        window_chars=window_chars,
+        window_overlap_chars=window_overlap_chars,
+    )
+    return [single]
 
 
 def answer_multi(

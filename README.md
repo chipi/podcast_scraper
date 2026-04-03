@@ -32,6 +32,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Operational Hardening** — Retry policies with exponential backoff, timeout enforcement, failure handling flags, and structured JSON logging (Issue #379)
 - **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
+- **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
 - **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
 
 ---
@@ -431,8 +432,8 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | Resource | Description |
 | -------- | ----------- |
 | [Roadmap](docs/ROADMAP.md) | Project roadmap with prioritized PRDs and RFCs |
-| [Architecture](docs/ARCHITECTURE.md) | System design and module responsibilities |
-| [Testing Strategy](docs/TESTING_STRATEGY.md) | Testing approach and test pyramid |
+| [Architecture](docs/architecture/ARCHITECTURE.md) | System design and module responsibilities |
+| [Testing Strategy](docs/architecture/TESTING_STRATEGY.md) | Testing approach and test pyramid |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
 | [Guides](docs/guides/) | Development, testing, and usage guides |

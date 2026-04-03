@@ -2,7 +2,7 @@
 
 ## Status
 
-🟡 **Proposed** - For v2.5 implementation
+🟢 **Completed** - Implemented in v2.5
 
 **Execution Timing:** **Phase 2 of 3** — Implement after
 RFC-044 (Model Registry), before RFC-049 (GIL). This RFC
@@ -23,9 +23,9 @@ Podcast Scraper Team
 
 ## Related ADRs
 
-- [ADR-036: Hybrid MAP-REDUCE Summarization](../adr/ADR-036-hybrid-map-reduce-summarization.md)
-- [ADR-037: Local LLM Backend Abstraction](../adr/ADR-037-local-llm-backend-abstraction.md)
-- [ADR-038: Strict REDUCE Prompt Contract](../adr/ADR-038-strict-reduce-prompt-contract.md)
+- [ADR-043: Hybrid MAP-REDUCE Summarization](../adr/ADR-043-hybrid-map-reduce-summarization.md)
+- [ADR-044: Local LLM Backend Abstraction](../adr/ADR-044-local-llm-backend-abstraction.md)
+- [ADR-045: Strict REDUCE Prompt Contract](../adr/ADR-045-strict-reduce-prompt-contract.md)
 
 ## Related RFCs
 

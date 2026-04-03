@@ -40,6 +40,37 @@ except ImportError:
     summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
 
 
+def _fake_move_to_device_and_pipeline(mock_pipe: Mock):
+    """Assign mock pipeline without ``transformers.pipeline`` (HF cannot infer framework from ``Mock``)."""
+
+    def _impl(self):
+        mock_pipe.model = self.model
+        mock_pipe.tokenizer = self.tokenizer
+        self.pipeline = mock_pipe
+
+    return _impl
+
+
+def _clear_transformers_lazy_cache_attrs() -> None:
+    """Drop cached exports on ``transformers``'s ``_LazyModule`` so patches apply per test.
+
+    After ``from transformers import X``, the lazy package does ``setattr(self, name, value)`` and
+    later imports reuse the cached object. That breaks ``unittest.mock.patch`` on submodules:
+    the code under test keeps calling an old mock while the test asserts on the current patch's mock.
+    """
+    import transformers
+
+    for name in (
+        "AutoModelForSeq2SeqLM",
+        "AutoTokenizer",
+        "BartForConditionalGeneration",
+    ):
+        try:
+            delattr(transformers, name)
+        except AttributeError:
+            pass
+
+
 @pytest.mark.integration
 @pytest.mark.slow
 @unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
@@ -49,18 +80,18 @@ class TestRevisionPinning(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        _clear_transformers_lazy_cache_attrs()
 
     def tearDown(self):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_revision_pinning_passed_to_model(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that revision parameter is passed to model."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -69,39 +100,27 @@ class TestRevisionPinning(unittest.TestCase):
         mock_tokenizer = Mock()
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
-        # Create a mock model that looks like a PyTorch model for pipeline framework inference
         mock_model = Mock()
-        mock_model.to.return_value = mock_model  # Model.to() returns self
-        # Make it look like a PyTorch model for framework inference
-        mock_model.__module__ = "torch.nn"
-        mock_model.__class__.__module__ = "torch.nn"
-        # Ensure hf_device_map is None (not set) to avoid accelerate device map check
+        mock_model.to.return_value = mock_model
         mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Mock pipeline needs to have model and tokenizer attributes for code that accesses them
         mock_pipe = Mock()
-        mock_pipe.model = mock_model
-        mock_pipe.tokenizer = mock_tokenizer
-        # Mock pipeline call to return expected format
         mock_pipe.return_value = [{"summary_text": "test summary"}]
-        # Make pipeline function return our mock immediately (don't process arguments)
-        mock_pipeline.return_value = mock_pipe
-
-        # Also make it callable as a function that returns the mock
-        def pipeline_func(*args, **kwargs):
-            return mock_pipe
-
-        mock_pipeline.side_effect = pipeline_func
 
         revision = "main"
-        summarizer.SummaryModel(
-            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
-            device="cpu",
-            cache_dir=self.temp_dir,
-            revision=revision,
-        )
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _fake_move_to_device_and_pipeline(mock_pipe),
+        ):
+            summarizer.SummaryModel(
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
+                device="cpu",
+                cache_dir=self.temp_dir,
+                revision=revision,
+            )
 
         # Verify revision was passed to model (BART models use BartForConditionalGeneration)
         self.assertTrue(mock_bart_class.from_pretrained.called)
@@ -110,13 +129,12 @@ class TestRevisionPinning(unittest.TestCase):
         self.assertIn("revision", model_call.kwargs)
         self.assertEqual(model_call.kwargs["revision"], revision)
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_no_revision_when_none(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that revision is not passed when None."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -125,44 +143,26 @@ class TestRevisionPinning(unittest.TestCase):
         mock_tokenizer = Mock()
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
-        # Create a mock model that looks like a PyTorch model for pipeline framework inference
         mock_model = Mock()
-        mock_model.to.return_value = mock_model  # Model.to() returns self
-        # Make it look like a PyTorch model for framework inference
-        mock_model.__module__ = "torch.nn"
-        mock_model.__class__.__module__ = "torch.nn"
-        # Ensure hf_device_map is None (not set) to avoid accelerate device map check
+        mock_model.to.return_value = mock_model
         mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Mock pipeline needs to have model and tokenizer attributes for code that accesses them
         mock_pipe = Mock()
-        mock_pipe.model = mock_model
-        mock_pipe.tokenizer = mock_tokenizer
-        # Mock pipeline call to return expected format
         mock_pipe.return_value = [{"summary_text": "test summary"}]
-        # Make pipeline function return our mock immediately (don't process arguments)
-        mock_pipeline.return_value = mock_pipe
 
-        # Also make it callable as a function that returns the mock
-        def pipeline_func(*args, **kwargs):
-            return mock_pipe
-
-        mock_pipeline.side_effect = pipeline_func
-
-        # The test verifies kwargs before pipeline creation, so we can catch
-        # any exceptions from pipeline and still verify the revision parameter
-        try:
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _fake_move_to_device_and_pipeline(mock_pipe),
+        ):
             summarizer.SummaryModel(
                 model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
                 device="cpu",
                 cache_dir=self.temp_dir,
                 revision=None,
             )
-        except Exception:
-            # Pipeline creation may fail with mocks, but we can still verify kwargs
-            pass
 
         # Verify revision is not in tokenizer kwargs
         self.assertTrue(mock_tokenizer_class.from_pretrained.called)
@@ -176,13 +176,12 @@ class TestRevisionPinning(unittest.TestCase):
         self.assertIsNotNone(model_call)
         self.assertNotIn("revision", model_call.kwargs)
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_revision_stored_in_model(
-        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_pipeline, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that revision is stored in model instance."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -192,41 +191,35 @@ class TestRevisionPinning(unittest.TestCase):
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
+        mock_model.to.return_value = mock_model
+        mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Mock pipeline needs to have model and tokenizer attributes for code that accesses them
         mock_pipe = Mock()
-        mock_pipe.model = mock_model
-        mock_pipe.tokenizer = mock_tokenizer
-        # Mock pipeline call to return expected format
         mock_pipe.return_value = [{"summary_text": "test summary"}]
-        # Make pipeline function return our mock immediately (don't process arguments)
-        mock_pipeline.return_value = mock_pipe
-
-        # Also make it callable as a function that returns the mock
-        def pipeline_func(*args, **kwargs):
-            return mock_pipe
-
-        mock_pipeline.side_effect = pipeline_func
 
         revision = "abc123def456"
-        model = summarizer.SummaryModel(
-            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
-            device="cpu",
-            cache_dir=self.temp_dir,
-            revision=revision,
-        )
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _fake_move_to_device_and_pipeline(mock_pipe),
+        ):
+            model = summarizer.SummaryModel(
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
+                device="cpu",
+                cache_dir=self.temp_dir,
+                revision=revision,
+            )
 
         self.assertEqual(model.revision, revision)
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_revision_none_stored_in_model(
-        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_pipeline, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that None revision is stored in model instance."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -236,30 +229,25 @@ class TestRevisionPinning(unittest.TestCase):
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
+        mock_model.to.return_value = mock_model
+        mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Mock pipeline needs to have model and tokenizer attributes for code that accesses them
         mock_pipe = Mock()
-        mock_pipe.model = mock_model
-        mock_pipe.tokenizer = mock_tokenizer
-        # Mock pipeline call to return expected format
         mock_pipe.return_value = [{"summary_text": "test summary"}]
-        # Make pipeline function return our mock immediately (don't process arguments)
-        mock_pipeline.return_value = mock_pipe
 
-        # Also make it callable as a function that returns the mock
-        def pipeline_func(*args, **kwargs):
-            return mock_pipe
-
-        mock_pipeline.side_effect = pipeline_func
-
-        model = summarizer.SummaryModel(
-            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
-            device="cpu",
-            cache_dir=self.temp_dir,
-            revision=None,
-        )
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _fake_move_to_device_and_pipeline(mock_pipe),
+        ):
+            model = summarizer.SummaryModel(
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
+                device="cpu",
+                cache_dir=self.temp_dir,
+                revision=None,
+            )
 
         self.assertIsNone(model.revision)
 
@@ -417,18 +405,18 @@ class TestMemoryCleanup(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        _clear_transformers_lazy_cache_attrs()
 
     def tearDown(self):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_unload_model_sets_to_none(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that unload_model() sets model attributes to None."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -438,29 +426,24 @@ class TestMemoryCleanup(unittest.TestCase):
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
+        mock_model.to.return_value = mock_model
+        mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Mock pipeline needs to have model and tokenizer attributes for code that accesses them
         mock_pipe = Mock()
-        mock_pipe.model = mock_model
-        mock_pipe.tokenizer = mock_tokenizer
-        # Mock pipeline call to return expected format
         mock_pipe.return_value = [{"summary_text": "test summary"}]
-        # Make pipeline function return our mock immediately (don't process arguments)
-        mock_pipeline.return_value = mock_pipe
 
-        # Also make it callable as a function that returns the mock
-        def pipeline_func(*args, **kwargs):
-            return mock_pipe
-
-        mock_pipeline.side_effect = pipeline_func
-
-        model = summarizer.SummaryModel(
-            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
-            device="cpu",
-            cache_dir=self.temp_dir,
-        )
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _fake_move_to_device_and_pipeline(mock_pipe),
+        ):
+            model = summarizer.SummaryModel(
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
+                device="cpu",
+                cache_dir=self.temp_dir,
+            )
 
         # Verify model is loaded
         self.assertIsNotNone(model.model)
@@ -480,13 +463,12 @@ class TestMemoryCleanup(unittest.TestCase):
         # Should not raise an exception
         summarizer.unload_model(None)
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_unload_model_twice(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that unload_model() can be called multiple times safely."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -496,29 +478,24 @@ class TestMemoryCleanup(unittest.TestCase):
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
+        mock_model.to.return_value = mock_model
+        mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Mock pipeline needs to have model and tokenizer attributes for code that accesses them
         mock_pipe = Mock()
-        mock_pipe.model = mock_model
-        mock_pipe.tokenizer = mock_tokenizer
-        # Mock pipeline call to return expected format
         mock_pipe.return_value = [{"summary_text": "test summary"}]
-        # Make pipeline function return our mock immediately (don't process arguments)
-        mock_pipeline.return_value = mock_pipe
 
-        # Also make it callable as a function that returns the mock
-        def pipeline_func(*args, **kwargs):
-            return mock_pipe
-
-        mock_pipeline.side_effect = pipeline_func
-
-        model = summarizer.SummaryModel(
-            model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
-            device="cpu",
-            cache_dir=self.temp_dir,
-        )
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _fake_move_to_device_and_pipeline(mock_pipe),
+        ):
+            model = summarizer.SummaryModel(
+                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
+                device="cpu",
+                cache_dir=self.temp_dir,
+            )
 
         # Unload twice - should not raise an exception
         summarizer.unload_model(model)
@@ -537,13 +514,14 @@ class TestModelLoadingFailures(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
+        _clear_transformers_lazy_cache_attrs()
 
     def tearDown(self):
         """Clean up test fixtures."""
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_tokenizer_loading_failure(self, mock_torch, mock_model_class, mock_tokenizer_class):
         """Test that tokenizer loading failure raises appropriate error."""
@@ -561,13 +539,12 @@ class TestModelLoadingFailures(unittest.TestCase):
             )
         self.assertIn("Network timeout", str(context.exception))
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_model_loading_failure(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that model loading failure raises appropriate error."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -589,13 +566,12 @@ class TestModelLoadingFailures(unittest.TestCase):
             f"Expected 'Model not found' or 'not found in cache' in: {error_msg}",
         )
 
-    @patch("transformers.BartForConditionalGeneration")
-    @patch("transformers.AutoTokenizer")
-    @patch("transformers.AutoModelForSeq2SeqLM")
-    @patch("transformers.pipeline")
+    @patch("transformers.models.bart.modeling_bart.BartForConditionalGeneration")
+    @patch("transformers.models.auto.tokenization_auto.AutoTokenizer")
+    @patch("transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM")
     @patch("podcast_scraper.summarizer.torch", create=True)
     def test_pipeline_creation_failure(
-        self, mock_torch, mock_pipeline, mock_model_class, mock_tokenizer_class, mock_bart_class
+        self, mock_torch, mock_model_class, mock_tokenizer_class, mock_bart_class
     ):
         """Test that pipeline creation failure raises appropriate error."""
         mock_torch.backends.mps.is_available.return_value = False
@@ -605,18 +581,25 @@ class TestModelLoadingFailures(unittest.TestCase):
         mock_tokenizer_class.from_pretrained.return_value = mock_tokenizer
 
         mock_model = Mock()
+        mock_model.to.return_value = mock_model
+        mock_model.hf_device_map = None
         mock_bart_class.from_pretrained.return_value = mock_model
         mock_model_class.from_pretrained.return_value = mock_model
 
-        # Simulate pipeline creation failure
-        mock_pipeline.side_effect = RuntimeError("Pipeline initialization failed")
+        def _raise_pipeline(_self):
+            raise RuntimeError("Pipeline initialization failed")
 
-        with self.assertRaises(RuntimeError) as context:
-            summarizer.SummaryModel(
-                model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
-                device=None,
-                cache_dir=self.temp_dir,
-            )
+        with patch.object(
+            summarizer.SummaryModel,
+            "_load_model_move_to_device_and_pipeline",
+            _raise_pipeline,
+        ):
+            with self.assertRaises(RuntimeError) as context:
+                summarizer.SummaryModel(
+                    model_name=config.TEST_DEFAULT_SUMMARY_MODEL,
+                    device=None,
+                    cache_dir=self.temp_dir,
+                )
         self.assertIn("Pipeline initialization failed", str(context.exception))
 
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, cast, Dict, List, Optional, Protocol
 
 from ...preprocessing.profiles import apply_profile_with_stats
 from ...summarization.base import SummarizationProvider
@@ -176,7 +176,9 @@ class TransformersReduceBackend:
         if device in ("mps", "cuda"):
             model = model.to(device)
         pipeline_device = 0 if device == "cuda" else "mps" if device == "mps" else -1
-        self._pipeline = pipeline(
+        # transformers 5.x overloads are stricter; runtime call is valid
+        _pipe = cast(Any, pipeline)
+        self._pipeline = _pipe(
             "text2text-generation",
             model=model,
             tokenizer=tokenizer,

@@ -28,6 +28,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Canonical extras (no separate [gemini] / [openai] extras):
+#   dev       — tests, lint, typecheck, eval metrics tooling
+#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS, etc.
+#   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
+#   llama     — optional GGUF hybrid REDUCE (RFC-042)
+#   run_compare — Streamlit compare UI (RFC-047)
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
@@ -40,10 +46,15 @@ ml = [
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
   "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
   "torch>=2.0.0,<3.0.0",
-  "transformers>=4.30.0,<5.0.0",
+  # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
+  # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
+  "transformers>=4.41.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
-  "sentence-transformers>=2.2.0,<3.0.0",
+  # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
+  "sentence-transformers>=3.0.0,<6.0.0",
+  # Semantic corpus search (PRD-021 / RFC-061): local vector index
+  "faiss-cpu>=1.9.0,<2.0.0",
   "accelerate>=0.20.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<7.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
 ]
@@ -61,10 +72,12 @@ run_compare = [
 # LLM API providers - grouped for CI/test convenience
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
-  "google-genai>=0.1.0,<1.0.0",  # Gemini API provider (Issue #194, migrated from google-generativeai in Issue #415)
+  # Google Gemini (GeminiProvider); no [gemini] extra — install via .[llm]
+  "google-genai>=0.1.0,<2.0.0",  # Dependabot PR #449; google.genai Client API (Issue #415)
   "google-api-core>=2.0.0,<3.0.0",  # Required by google-genai for some operations
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
-  "mistralai>=1.0.0,<2.0.0",  # Mistral API provider (Issue #106)
+  # mistralai 2.x: client at mistralai.client.sdk (Dependabot PR #473)
+  "mistralai>=1.0.0,<3.0.0",  # Mistral API provider (Issue #106)
   "httpx>=0.24.0,<1.0.0",  # Ollama provider (Issue #196) - for health checks
 ]
 # Development tools
@@ -85,7 +98,7 @@ dev = [
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
   "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
-  "sentence-transformers>=2.2.0,<3.0.0",  # Required for semantic similarity computation
+  "sentence-transformers>=3.0.0,<6.0.0",  # Semantic similarity + eval (aligned with [ml])
   "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
   "radon>=5.1.0,<6.1",  # Code complexity analysis (RFC-031); 5.1.x for wily compatibility (Issue #424)
   "wily>=1.25.0,<3.0.0",  # Code quality trends over git history (Issue #424)

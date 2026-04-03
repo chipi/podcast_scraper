@@ -1777,7 +1777,7 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 
 **Related Documentation:**
 
-- [Module Dependency Analysis](../ARCHITECTURE.md#module-dependency-analysis) - Architecture documentation
+- [Module Dependency Analysis](../architecture/ARCHITECTURE.md#module-dependency-analysis) - Architecture documentation
 - [Issue #170](https://github.com/chipi/podcast_scraper/issues/170) - Module coupling analysis setup
 - [RFC-038: Continuous Review Tooling](../rfc/RFC-038-continuous-review-tooling.md) - Implementation details
 

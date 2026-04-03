@@ -2,7 +2,7 @@
 
 > **Document Structure:**
 >
-> - **[Testing Strategy](../TESTING_STRATEGY.md)** - High-level philosophy, test pyramid, decision criteria
+> - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - High-level philosophy, test pyramid, decision criteria
 > - **This document** - Quick reference, test execution commands
 > - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
@@ -505,7 +505,7 @@ For detailed implementation patterns:
 
 ## References
 
-- [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing philosophy
+- [Testing Strategy](../architecture/TESTING_STRATEGY.md) - Overall testing philosophy
 - [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) - Prioritization
 - [CI/CD Documentation](../ci/index.md) - GitHub Actions workflows
-- [Architecture](../ARCHITECTURE.md) - Testing Notes section
+- [Architecture](../architecture/ARCHITECTURE.md) - Testing Notes section

@@ -574,7 +574,7 @@ Even cleaner summaries       Catches host-read ads that patterns miss
 1. **Core output quality**: Summaries free of commercial content
 2. **Downstream accuracy**: GIL quotes and KG topics not contaminated by ad copy
 3. **Graceful degradation**: Works without diarization (pattern+position), better with it
-4. **Measurable**: Before/after metrics via `eval_cleaning.py`
+4. **Measurable**: Before/after metrics via eval tooling (Issue #477)
 5. **Consolidation**: Single detection system replaces duplicate code
 
 ## Migration Path
@@ -585,7 +585,7 @@ Even cleaner summaries       Catches host-read ads that patterns miss
 ## Open Questions
 
 1. Should `BRAND_NAMES` be configurable per-feed (some podcasts have recurring sponsors)?
-2. What confidence threshold balances precision and recall best? Start at 0.65, tune with `eval_cleaning.py`.
+2. What confidence threshold balances precision and recall best? Start at 0.65, tune with eval tooling.
 3. Should the LLM verification step run for all uncertain candidates or only when hybrid mode is active?
 4. Should removed sponsor segments be preserved in a separate `.sponsors.txt` file for auditing?
 5. How to handle non-English sponsor segments? Current patterns are English-only.

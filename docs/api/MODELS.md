@@ -70,5 +70,5 @@ print(f"Episodes: {len(feed.episodes)}")
 
 ## See Also
 
-- [RSS Parser](../ARCHITECTURE.md) - How these models are populated
+- [RSS Parser](../architecture/ARCHITECTURE.md) - How these models are populated
 - [Core API](CORE.md) - How to run the pipeline using these models

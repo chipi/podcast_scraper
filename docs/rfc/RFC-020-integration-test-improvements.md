@@ -19,7 +19,7 @@
   - `docs/rfc/RFC-005-whisper-integration.md` (Whisper tests)
   - `docs/rfc/RFC-013-openai-provider-implementation.md` (OpenAI providers)
 - **Related Documents**:
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
+  - `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
 
 ## Abstract
 
@@ -538,7 +538,7 @@ Together, these three RFCs provide:
 
 ## References
 
-- **Test Strategy**: `docs/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
+- **Test Strategy**: `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
 - **Test Structure RFC**: `docs/rfc/RFC-018-test-structure-reorganization.md` (foundation)
 - **E2E Test RFC**: `docs/rfc/RFC-019-e2e-test-improvements.md` (related work)
 - **Source Code**: `tests/integration/`

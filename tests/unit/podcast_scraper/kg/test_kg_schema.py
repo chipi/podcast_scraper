@@ -149,3 +149,48 @@ class TestKgSchema(unittest.TestCase):
             ],
         }
         validate_artifact(art, strict=True)
+
+    def test_strict_accepts_1_1_topic_and_entity_descriptions(self) -> None:
+        """Optional description on Topic/Entity validates (GitHub #487)."""
+        art = {
+            "schema_version": "1.1",
+            "episode_id": "e:1",
+            "extraction": {
+                "model_version": "stub",
+                "extracted_at": "2024-01-01T00:00:00Z",
+                "transcript_ref": "t.txt",
+            },
+            "nodes": [
+                {
+                    "id": "episode:e:1",
+                    "type": "Episode",
+                    "properties": {
+                        "podcast_id": "p",
+                        "title": "T",
+                        "publish_date": "2024-01-01T00:00:00Z",
+                    },
+                },
+                {
+                    "id": "topic:ai-policy",
+                    "type": "Topic",
+                    "properties": {
+                        "label": "AI policy",
+                        "slug": "ai-policy",
+                        "description": "Discussion of regulation timelines.",
+                    },
+                },
+                {
+                    "id": "entity:person:alice",
+                    "type": "Entity",
+                    "properties": {
+                        "name": "Alice",
+                        "label": "Alice",
+                        "entity_kind": "person",
+                        "role": "host",
+                        "description": "Lead interviewer on this episode.",
+                    },
+                },
+            ],
+            "edges": [],
+        }
+        validate_artifact(art, strict=True)

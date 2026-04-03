@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from podcast_scraper.kg.corpus import (
+    build_embedding_document_for_kg_node,
     entity_rollup,
     inspect_summary,
     topic_cooccurrence,
@@ -14,6 +15,35 @@ from podcast_scraper.kg.schema import validate_artifact
 
 class TestKgCorpus(unittest.TestCase):
     """Tests for corpus aggregation."""
+
+    def test_build_embedding_document_topic_and_entity(self) -> None:
+        """#487: concatenates labels, descriptions, roles, episode titles."""
+        topic = {
+            "type": "Topic",
+            "properties": {
+                "label": "AI Act",
+                "slug": "ai-act",
+                "description": "EU regulatory context.",
+            },
+        }
+        ent = {
+            "type": "Entity",
+            "properties": {
+                "name": "Jane",
+                "label": "Jane",
+                "entity_kind": "person",
+                "role": "guest",
+                "description": "Policy lawyer.",
+            },
+        }
+        tdoc = build_embedding_document_for_kg_node(topic, episode_titles=["Ep 9"])
+        self.assertIn("AI Act", tdoc)
+        self.assertIn("EU regulatory", tdoc)
+        self.assertIn("episode:Ep 9", tdoc)
+        edoc = build_embedding_document_for_kg_node(ent)
+        self.assertIn("Jane", edoc)
+        self.assertIn("guest", edoc)
+        self.assertIn("Policy lawyer", edoc)
 
     def test_entity_rollup_counts_episodes(self) -> None:
         """Same entity name across two episodes appears in roll-up."""

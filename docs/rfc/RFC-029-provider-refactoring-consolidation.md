@@ -5,13 +5,13 @@
 - **Stakeholders**: Developers working on provider system, test maintainers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related ADRs**:
-  - [ADR-011: Unified Provider Pattern](../adr/ADR-011-unified-provider-pattern.md)
-  - [ADR-013: Technology-Based Provider Naming](../adr/ADR-013-technology-based-provider-naming.md)
+  - [ADR-024: Unified Provider Pattern](../adr/ADR-024-unified-provider-pattern.md)
+  - [ADR-025: Technology-Based Provider Naming](../adr/ADR-025-technology-based-provider-naming.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - Original OpenAI provider design
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
 - **Related Documents**:
-  - `docs/ARCHITECTURE.md` - System architecture
+  - `docs/architecture/ARCHITECTURE.md` - System architecture
   - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md` - Provider implementation guide
   - `docs/wip/PROVIDER_REFACTORING_OPPORTUNITIES.md` - Refactoring opportunities (consolidated here)
   - `docs/wip/UNIFIED_PROVIDERS_STATUS.md` - Status tracking (consolidated here)
@@ -886,7 +886,7 @@ grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummariza
 **Files to Review**:
 
 - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md`
-- `docs/ARCHITECTURE.md`
+- `docs/architecture/ARCHITECTURE.md`
 - `docs/guides/DEVELOPMENT_GUIDE.md`
 - `docs/guides/TESTING_GUIDE.md`
 - All RFCs and PRDs

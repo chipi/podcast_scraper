@@ -549,6 +549,6 @@ def process_podcast(rss_url: str) -> Tuple[int, str]:
 
 ## See Also
 
-- [Architecture](../ARCHITECTURE.md) - System architecture overview
+- [Architecture](../architecture/ARCHITECTURE.md) - System architecture overview
 - [Configuration Examples](CONFIGURATION.md) - Example configuration files
 - [Service Examples](SERVICE.md) - Supervisor and systemd configurations

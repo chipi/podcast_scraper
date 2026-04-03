@@ -10,9 +10,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-# Mock openai and httpx before importing modules that require them
-# Unit tests run without openai/httpx packages installed
-# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+# Mock openai + httpx; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
 mock_httpx = MagicMock()

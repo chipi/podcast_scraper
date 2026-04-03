@@ -193,7 +193,7 @@ completion_tokens=B, estimated_cost=C
 - **Performance Analysis**: Identify bottlenecks and optimize provider selection
 - **Consistent Format**: All episodes log the same keys in the same order
 
-**Related ADR:** [ADR-043: Unified Provider Metrics Contract](../adr/ADR-043-unified-provider-metrics-contract.md)
+**Related ADR:** [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
 
 **Related Issue:** #399
 
@@ -210,8 +210,8 @@ Added complete documentation for the Grounded Insights (GI) system:
 
 **Documentation:**
 
-- [Grounded Insights Ontology](../gi/ontology.md) - Complete ontology reference
-- [Grounded Insights Schema](../gi/gi.schema.json) - JSON schema validation
+- [Grounded Insights Ontology](../architecture/gi/ontology.md) - Complete ontology reference
+- [Grounded Insights Schema](../architecture/gi/gi.schema.json) - JSON schema validation
 
 **Related PR:** #391
 

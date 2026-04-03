@@ -1,0 +1,128 @@
+digraph eval_scorer {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    label="Evaluation Scorer Pipeline: score_run()";
+    labelloc=t;
+    fontsize=14;
+
+    // Inputs
+    subgraph cluster_inputs {
+        label="Inputs";
+        style=dashed;
+        color="#999999";
+        predictions_path [label="predictions_path\n(predictions.jsonl)", shape=parallelogram, fillcolor="#FFF3CD"];
+        references [label="reference_paths\n{ref_id: Path}", shape=parallelogram, fillcolor="#FFF3CD"];
+        metadata [label="metadata_map\n(speaker expectations)", shape=parallelogram, fillcolor="#FFF3CD"];
+    }
+
+    // Load
+    load [label="load_predictions()\n──────────────────\nParse JSONL → list of dicts"];
+
+    // Task detection
+    task_detect [label="Detect task type\nfrom output keys", shape=diamond, fillcolor="#FFF3CD"];
+
+    // Intrinsic metrics
+    subgraph cluster_intrinsic {
+        label="Intrinsic Metrics (always computed)";
+        style=filled;
+        color="#D4EDDA";
+        fillcolor="#F0FFF0";
+
+        gates [label="Quality Gates\n────────────────\nboilerplate_leak_rate\nspeaker_label_leak_rate\ntruncation_rate\nfailed_episodes"];
+        warnings [label="Warnings\n──────────\nspeaker_name_leak_rate\n(WARN only, not a gate)"];
+        length [label="Length Stats\n─────────────\navg/min/max tokens"];
+        performance [label="Performance\n────────────\navg/median/p95\nlatency_ms"];
+        cost [label="Cost (if available)\n──────────────\navg/total cost_usd\n(OpenAI runs only)"];
+    }
+
+    // Task-specific intrinsic
+    gil_stats [label="compute_gil_prediction_stats()\n──────────────────────────\nGIL artifact statistics", fillcolor="#CCE5FF"];
+    kg_stats [label="compute_kg_prediction_stats()\n─────────────────────────\nKG artifact statistics", fillcolor="#CCE5FF"];
+
+    // Extrinsic metrics
+    subgraph cluster_extrinsic {
+        label="vs_reference Metrics (when references exist)";
+        style=filled;
+        color="#F8D7DA";
+        fillcolor="#FFF5F5";
+
+        subgraph cluster_summarization {
+            label="Summarization";
+            style=dashed;
+            rouge [label="ROUGE\n(rouge-score)\n─────────\nrouge1_f1\nrouge2_f1\nrougeL_f1"];
+            bleu [label="BLEU\n(nltk)\n─────\nsentence BLEU\nwith smoothing"];
+            wer [label="WER\n(jiwer)\n─────\nWord Error Rate"];
+            embedding [label="Embedding Cosine\n(sentence-transformers)\n───────────────\nall-MiniLM-L6-v2"];
+            coverage [label="Coverage Ratio\n─────────────\nML tokens / silver tokens"];
+            numbers [label="Numbers Retained\n────────────────\nfraction of ref numbers\nappearing in prediction"];
+        }
+
+        subgraph cluster_ner {
+            label="NER";
+            style=dashed;
+            ner_metrics [label="compute_ner_vs_reference_metrics()\n──────────────────────────────\nPrecision / Recall / F1\nexact + overlap matching"];
+        }
+
+        subgraph cluster_gil {
+            label="GIL";
+            style=dashed;
+            gil_ref [label="compute_gil_vs_reference_metrics()\n──────────────────────────────\nInsight / Quote overlap\nvs reference artifacts"];
+        }
+
+        subgraph cluster_kg_ref {
+            label="KG";
+            style=dashed;
+            kg_ref [label="compute_kg_vs_reference_metrics()\n─────────────────────────────\nTopic / Entity overlap\nvs reference artifacts"];
+        }
+    }
+
+    // Output
+    metrics_output [label="Metrics Dict\n────────────────\nschema, task, dataset_id, run_id\nepisode_count\nintrinsic: {gates, warnings, length,\n           performance, cost, [gil|kg]}\nvs_reference: {ref_id: {...}}", shape=parallelogram, fillcolor="#D1ECF1"];
+
+    // Flow
+    predictions_path -> load;
+    load -> task_detect;
+
+    task_detect -> gates [label="all tasks"];
+    task_detect -> warnings;
+    task_detect -> length;
+    task_detect -> performance;
+    task_detect -> cost;
+
+    task_detect -> gil_stats [label="grounded_insights"];
+    task_detect -> kg_stats [label="knowledge_graph"];
+
+    metadata -> gates;
+    metadata -> warnings;
+
+    references -> rouge [label="summarization"];
+    references -> bleu [label="summarization"];
+    references -> wer [label="summarization"];
+    references -> embedding [label="summarization"];
+    references -> coverage [label="summarization"];
+    references -> numbers [label="summarization"];
+    references -> ner_metrics [label="ner_entities"];
+    references -> gil_ref [label="grounded_insights"];
+    references -> kg_ref [label="knowledge_graph"];
+
+    gates -> metrics_output;
+    warnings -> metrics_output;
+    length -> metrics_output;
+    performance -> metrics_output;
+    cost -> metrics_output;
+    gil_stats -> metrics_output;
+    kg_stats -> metrics_output;
+
+    rouge -> metrics_output;
+    bleu -> metrics_output;
+    wer -> metrics_output;
+    embedding -> metrics_output;
+    coverage -> metrics_output;
+    numbers -> metrics_output;
+    ner_metrics -> metrics_output;
+    gil_ref -> metrics_output;
+    kg_ref -> metrics_output;
+}

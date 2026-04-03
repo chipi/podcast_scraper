@@ -654,6 +654,54 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertTrue(cfg.preload_models)
 
+    def test_vector_search_defaults_false(self):
+        """vector_search is off by default until semantic corpus search is enabled (PRD-021)."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertFalse(cfg.vector_search)
+
+    def test_vector_chunk_overlap_must_be_less_than_chunk_size(self):
+        """vector_chunk_overlap_tokens must be strictly less than vector_chunk_size_tokens."""
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                vector_chunk_size_tokens=50,
+                vector_chunk_overlap_tokens=50,
+            )
+
+    def test_vector_index_types_empty_list_normalized_to_none(self):
+        """Validator maps [] to None (same as unset) for vector_index_types."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            vector_index_types=[],
+        )
+        self.assertIsNone(cfg.vector_index_types)
+
+    def test_vector_index_types_explicit_list(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            vector_index_types=["insight", "transcript"],
+        )
+        self.assertEqual(cfg.vector_index_types, ["insight", "transcript"])
+
+    def test_vector_backend_qdrant_literal_stored(self):
+        """qdrant is allowed for forward compatibility (RFC-061 Phase 2)."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            vector_backend="qdrant",
+        )
+        self.assertEqual(cfg.vector_backend, "qdrant")
+
+    def test_vector_search_true_with_embedding_model(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            vector_search=True,
+            vector_embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+            vector_faiss_index_mode="flat",
+        )
+        self.assertTrue(cfg.vector_search)
+        self.assertEqual(cfg.vector_faiss_index_mode, "flat")
+        self.assertIn("MiniLM", cfg.vector_embedding_model)
+
     def test_evidence_stack_fields_defaults(self):
         """Test that GIL evidence stack config fields exist with defaults (Issue #435)."""
         cfg = Config(rss_url="https://example.com/feed.xml")

@@ -266,7 +266,7 @@ Maya: Welcome back. We were just discussing...
 
 **Brand distribution across episodes:**
 
-- Use brands from existing `eval_cleaning.py` patterns: Figma, Stripe, Linear, Notion, Vanta, Miro, Zapier, HubSpot, Squarespace, Shopify
+- Use well-known podcast sponsor brands: Figma, Stripe, Linear, Notion, Vanta, Miro, Zapier, HubSpot, Squarespace, Shopify
 - Each episode gets 3 different brands (opening, mid-roll, closing)
 - No brand repeats within an episode; brands can repeat across episodes
 - Commercial content uses phrases matching existing `SPONSOR_PATTERNS` in `preprocessing.py`

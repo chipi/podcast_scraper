@@ -411,8 +411,9 @@ def configure_mistral_mock_server(request, monkeypatch):
         from tests.fixtures.mock_server.mistral_mock_client import create_fake_mistral_client
 
         FakeMistral = create_fake_mistral_client(mistral_api_base)
-        # Monkeypatch the SDK's Mistral class
-        monkeypatch.setattr("mistralai.Mistral", FakeMistral)
+        monkeypatch.setattr(
+            "podcast_scraper.providers.mistral.mistral_provider.Mistral", FakeMistral
+        )
         logger.debug(
             "Replaced Mistral SDK Mistral with fake client pointing to %s",
             mistral_api_base,

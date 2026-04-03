@@ -1,0 +1,63 @@
+digraph G {
+concentrate=true;
+splines="ortho";
+rankdir="LR";
+subgraph legend{
+    rank = min;
+    label = "legend";
+    Legend [shape=none, margin=0, label = <
+        <table cellspacing="0" cellpadding="0" border="1"><tr><td>Code2flow Legend</td></tr><tr><td>
+        <table cellspacing="0">
+        <tr><td>Regular function</td><td width="50px" bgcolor='#cccccc'></td></tr>
+        <tr><td>Trunk function (nothing calls this)</td><td bgcolor='#966F33'></td></tr>
+        <tr><td>Leaf function (this calls nothing else)</td><td bgcolor='#6db33f'></td></tr>
+        <tr><td>Function call</td><td><font color='black'>&#8594;</font></td></tr>
+        </table></td></tr></table>
+        >];
+}node_8869c3b8 [label="590: _both_providers_use_mps()" name="orchestration::_both_providers_use_mps" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_d95d36cb [label="978: _cleanup_providers()" name="orchestration::_cleanup_providers" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_4ecbcc32 [label="219: _create_all_providers()" name="orchestration::_create_all_providers" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_1125b348 [label="904: _create_run_manifest()" name="orchestration::_create_run_manifest" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_19d79747 [label="122: _create_speaker_detector()" name="orchestration::_create_speaker_detector" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_85a5e9c3 [label="164: _create_summarization_provider()" name="orchestration::_create_summarization_provider" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_c59dfa2b [label="88: _create_transcription_provider()" name="orchestration::_create_transcription_provider" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_82159a3e [label="778: _fetch_and_prepare_episodes()" name="orchestration::_fetch_and_prepare_episodes" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_61eddd8b [label="1025: _finalize_pipeline()" name="orchestration::_finalize_pipeline" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_db13f745 [label="64: _get_factory_function()" name="orchestration::_get_factory_function" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_5edfb07b [label="417: _log_effective_parallelism()" name="orchestration::_log_effective_parallelism" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_6c50a6f6 [label="374: _log_episode_results()" name="orchestration::_log_episode_results" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_31764a4f [label="240: _log_provider_ownership()" name="orchestration::_log_provider_ownership" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_a1d6769d [label="1218: _process_episodes_with_threading()" name="orchestration::_process_episodes_with_threading" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_bfb6faf9 [label="749: _setup_jsonl_emitter()" name="orchestration::_setup_jsonl_emitter" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_e205b08d [label="852: _setup_logging_and_devices()" name="orchestration::_setup_logging_and_devices" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_fc271dde [label="722: _setup_pipeline_environment()" name="orchestration::_setup_pipeline_environment" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_7226c872 [label="937: _setup_pipeline_resources()" name="orchestration::_setup_pipeline_resources" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_11095657 [label="1542: run_pipeline()" name="orchestration::run_pipeline" shape="rect" style="rounded,filled" fillcolor="#966F33" ];
+node_4ecbcc32 -> node_19d79747 [color="#56B4E9" penwidth="2"];
+node_4ecbcc32 -> node_85a5e9c3 [color="#56B4E9" penwidth="2"];
+node_4ecbcc32 -> node_c59dfa2b [color="#56B4E9" penwidth="2"];
+node_19d79747 -> node_db13f745 [color="#CC79A7" penwidth="2"];
+node_85a5e9c3 -> node_db13f745 [color="#009E73" penwidth="2"];
+node_c59dfa2b -> node_db13f745 [color="#009E73" penwidth="2"];
+node_61eddd8b -> node_6c50a6f6 [color="#009E73" penwidth="2"];
+node_a1d6769d -> node_8869c3b8 [color="#0072B2" penwidth="2"];
+node_e205b08d -> node_5edfb07b [color="#0072B2" penwidth="2"];
+node_e205b08d -> node_31764a4f [color="#0072B2" penwidth="2"];
+node_11095657 -> node_d95d36cb [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_4ecbcc32 [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_1125b348 [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_82159a3e [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_61eddd8b [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_a1d6769d [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_bfb6faf9 [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_e205b08d [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_fc271dde [color="#CC79A7" penwidth="2"];
+node_11095657 -> node_7226c872 [color="#CC79A7" penwidth="2"];
+subgraph cluster_312e5491 {
+    node_db13f745 node_c59dfa2b node_19d79747 node_85a5e9c3 node_4ecbcc32 node_31764a4f node_6c50a6f6 node_5edfb07b node_8869c3b8 node_fc271dde node_bfb6faf9 node_82159a3e node_e205b08d node_1125b348 node_7226c872 node_d95d36cb node_61eddd8b node_a1d6769d node_11095657;
+    label="File: orchestration";
+    name="orchestration";
+    style="filled";
+    graph[style=dotted];
+};
+}

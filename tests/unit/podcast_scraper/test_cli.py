@@ -6,6 +6,7 @@ building functions.
 """
 
 import argparse
+import copy
 import logging
 import os
 import sys
@@ -1065,6 +1066,130 @@ class TestBuildConfig(unittest.TestCase):
         )
         cfg = cli._build_config(args)
         self.assertEqual(cfg.openai_temperature, 0.7)
+
+    def test_build_config_vector_flags_from_cli_namespace(self):
+        """Vector / semantic corpus fields from argparse reach Config (RFC-061 / #484)."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=False,
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=False,
+            metrics_output=None,
+            summary_provider=None,
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
+            vector_index_path="runs/search_idx",
+            vector_embedding_model="minilm-l6",
+            vector_chunk_size_tokens=400,
+            vector_chunk_overlap_tokens=40,
+            vector_backend="faiss",
+            vector_faiss_index_mode="ivf_flat",
+            vector_search=True,
+            vector_index_types="insight, kg_entity",
+        )
+        cfg = cli._build_config(args)
+        self.assertTrue(cfg.vector_search)
+        self.assertEqual(cfg.vector_backend, "faiss")
+        self.assertEqual(cfg.vector_faiss_index_mode, "ivf_flat")
+        self.assertEqual(cfg.vector_chunk_size_tokens, 400)
+        self.assertEqual(cfg.vector_chunk_overlap_tokens, 40)
+        self.assertIn("search_idx", (cfg.vector_index_path or ""))
+        self.assertEqual(cfg.vector_index_types, ["insight", "kg_entity"])
+
+    def test_build_config_vector_index_types_as_list_and_empty_comma_string(self):
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=False,
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=False,
+            metrics_output=None,
+            summary_provider=None,
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
+            vector_search=False,
+            vector_index_types=["quote", "summary"],
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.vector_index_types, ["quote", "summary"])
+
+        args2 = copy.copy(args)
+        args2.vector_index_types = "  , ,  "
+        cfg2 = cli._build_config(args2)
+        self.assertIsNone(cfg2.vector_index_types)
 
 
 class TestParseArgs(unittest.TestCase):

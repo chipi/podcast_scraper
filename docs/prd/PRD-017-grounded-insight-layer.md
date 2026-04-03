@@ -12,8 +12,10 @@
 - **Related PRDs** (separate feature — not GIL):
   - [PRD-019: Knowledge Graph Layer (KG)](PRD-019-knowledge-graph-layer.md) (entities/linking; `kg` vs `gi`)
 - **Related Documents**:
-  - `docs/gi/ontology.md` - Human-readable ontology
-  - `docs/gi/gi.schema.json` - Machine-readable schema
+  - `docs/architecture/gi/ontology.md` - Human-readable ontology
+  - `docs/architecture/gi/gi.schema.json` - Machine-readable schema
+- **Related UX specs**:
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
 
 ## Summary
 
@@ -113,7 +115,7 @@ The existing podcast scraper produces transcripts and summaries, but summaries l
 
 - **FR5.1**: Generate `gi.json` file per episode in the episode output directory
 - **FR5.2**: Co-locate GIL data with existing artifacts (transcript.json, summary.json, metadata.json)
-- **FR5.3**: Ensure all `gi.json` files conform to the machine-readable schema (`docs/gi/gi.schema.json`)
+- **FR5.3**: Ensure all `gi.json` files conform to the machine-readable schema (`docs/architecture/gi/gi.schema.json`)
 - **FR5.4**: Include schema version, model_version, and prompt_version in each `gi.json` file
 
 ### FR6: Query & Consumption (v1-Scoped)
@@ -394,8 +396,8 @@ are recorded here for traceability.
 
 **Specifications:**
 
-- **docs/gi/ontology.md**: Human-readable ontology
-- **docs/gi/gi.schema.json**: Machine-readable schema
+- **docs/architecture/gi/ontology.md**: Human-readable ontology
+- **docs/architecture/gi/gi.schema.json**: Machine-readable schema
 
 ## Release Checklist
 
@@ -403,8 +405,8 @@ are recorded here for traceability.
 - [ ] RFC-049 updated with Insight + Quote ontology
 - [ ] RFC-050 updated with Insight Explorer use case
 - [ ] RFC-051 updated with insights/quotes/insight_support tables
-- [ ] Ontology specification (`docs/gi/ontology.md`) finalized
-- [ ] Schema specification (`docs/gi/gi.schema.json`) finalized
+- [ ] Ontology specification (`docs/architecture/gi/ontology.md`) finalized
+- [ ] Schema specification (`docs/architecture/gi/gi.schema.json`) finalized
 - [ ] Implementation completed
 - [ ] Grounding contract enforced (every insight has grounding status)
 - [ ] Tests cover insight extraction, quote extraction, and grounding

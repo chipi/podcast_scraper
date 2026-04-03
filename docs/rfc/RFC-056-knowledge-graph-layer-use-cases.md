@@ -24,8 +24,8 @@
 
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout and run scoping)
 - **Related Documents**:
-  - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
-  - `docs/kg/kg.schema.json` — Normative JSON Schema (v1 frozen, #464)
+  - `docs/architecture/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
+  - `docs/architecture/kg/kg.schema.json` — Normative JSON Schema (v1 frozen, #464)
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (living document)
 
 ## Abstract
@@ -134,7 +134,7 @@ show (or run), to prioritize listening or analysis.
 
 **Consumption pattern:**
 
-- Read `docs/kg/kg.schema.json`-valid artifacts (when published)
+- Read `docs/architecture/kg/kg.schema.json`-valid artifacts (when published)
 - Optionally run **`kg export`** (or equivalent) to emit **NDJSON**, **single merged
   graph snapshot**, or **SQL** insert stubs — exact flags specified at implementation time
 

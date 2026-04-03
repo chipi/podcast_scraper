@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://podcast-scraper.dev/schemas/kg.schema.json",
+  "title": "Knowledge Graph Layer Episode Artifact (kg.json)",
+  "description": "Per-episode KG: entities, topics, and typed edges (separate from gi.json). v1.1 adds optional Topic/Entity `description` (GitHub #487); v1.0 artifacts remain valid. See docs/architecture/kg/ontology.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "episode_id", "extraction", "nodes", "edges"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^1\\.(0|1)$",
+      "description": "KG artifact schema version (1.0 legacy, 1.1 optional node descriptions)"
+    },
+    "episode_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Episode identifier (pipeline episode id)"
+    },
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model_version", "extracted_at", "transcript_ref"],
+      "properties": {
+        "model_version": {
+          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/kg/ontology.md § Provenance.",
+          "oneOf": [
+            { "const": "stub" },
+            { "const": "summary_bullets" },
+            { "type": "string", "pattern": "^provider:.+" }
+          ]
+        },
+        "extracted_at": {
+          "type": "string",
+          "minLength": 1,
+          "description": "ISO 8601 timestamp when extraction ran"
+        },
+        "transcript_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative path or label for transcript source"
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" },
+      "description": "Graph nodes for this episode"
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" },
+      "description": "Directed edges between nodes"
+    }
+  },
+  "$defs": {
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/episode_node" },
+        { "$ref": "#/$defs/entity_node" },
+        { "$ref": "#/$defs/topic_node" }
+      ]
+    },
+    "episode_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Episode" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["podcast_id", "title", "publish_date"],
+          "properties": {
+            "podcast_id": { "type": "string", "minLength": 1 },
+            "title": { "type": "string", "minLength": 1 },
+            "publish_date": { "type": "string", "minLength": 1 },
+            "audio_url": { "type": "string" },
+            "duration_ms": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "entity_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Entity" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "entity_kind"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable graph label; pipeline mirrors ``name`` (truncated) for parity with Topic.label."
+            },
+            "entity_kind": {
+              "type": "string",
+              "enum": ["person", "organization"]
+            },
+            "role": {
+              "type": "string",
+              "description": "Pipeline role for this entity in v1 (hosts/guests from speaker pipeline, or `mentioned` for LLM-extracted entities).",
+              "enum": ["host", "guest", "mentioned"]
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "Optional 1–3 sentence episode-specific context (LLM extraction; #487)."
+            }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "topic_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "const": "Topic" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label", "slug"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1 },
+            "slug": { "type": "string", "minLength": 1 },
+            "description": {
+              "type": "string",
+              "maxLength": 4000,
+              "description": "Optional thematic context for this topic in the episode (#487)."
+            }
+          }
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "from", "to"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["MENTIONS", "RELATED_TO"],
+          "description": "Edge type. v1 builder emits **MENTIONS** only (Topic|Entity → Episode). **RELATED_TO** is reserved for future use (see docs/architecture/kg/ontology.md)."
+        },
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "properties": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Optional edge metadata"
+        }
+      }
+    }
+  }
+}

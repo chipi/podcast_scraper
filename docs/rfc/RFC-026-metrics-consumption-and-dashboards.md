@@ -20,7 +20,7 @@
 
 This RFC builds on the test execution optimization (RFC-024) and metrics collection (RFC-025) foundations. Ensure those RFCs are implemented before proceeding with metrics consumption and dashboards.
 
-- `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
+- `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy and test categories
 - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
 - `.github/workflows/python-app.yml` - CI test jobs
 

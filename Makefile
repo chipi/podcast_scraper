@@ -212,9 +212,9 @@ init:
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
 	# Install package with all optional dependencies for development
 	# Note: When adding new optional dependency groups to pyproject.toml, add them here too
-	# Current groups: dev (development tools), ml (ML models), gemini (Gemini API provider)
-	$(PYTHON) -m pip install -e .[dev,ml,gemini]
-	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
+	# Current groups: dev, ml (local ML stack), llm (API providers incl. Gemini via google-genai)
+	$(PYTHON) -m pip install --upgrade -e .[dev,ml,llm]
+	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install --upgrade -r docs/requirements.txt; fi
 
 # Download spaCy model wheels (matches pyproject.toml [ml] pins). When wheels/spacy/*.whl exists,
 # make sets PIP_FIND_LINKS for recipes (e.g. make init) unless you already exported it.
@@ -350,7 +350,7 @@ check-pricing-assumptions:
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli pricing-assumptions $(ARGS)
 
 validate-gi-schema:
-	# Validate gi.json files against docs/gi/gi.schema.json (strict mode).
+	# Validate gi.json files against docs/architecture/gi/gi.schema.json (strict mode).
 	# Usage: make validate-gi-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
 	# E2E tests that produce gi.json also run strict validation inline (ci-fast covers them).
 	@if [ -n "$(ARTIFACTS_DIR)" ]; then \
@@ -360,7 +360,7 @@ validate-gi-schema:
 	fi
 
 validate-kg-schema:
-	# Validate kg.json files against docs/kg/kg.schema.json (strict mode).
+	# Validate kg.json files against docs/architecture/kg/kg.schema.json (strict mode).
 	# Usage: make validate-kg-schema [ARTIFACTS_DIR=path]. With no path, validates tests/fixtures (if any).
 	@if [ -n "$(ARTIFACTS_DIR)" ]; then \
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py "$(ARTIFACTS_DIR)"; \
@@ -469,13 +469,24 @@ test-ci:
 test-ci-fast:
 	# Fast CI test suite: parallel execution for speed
 	# Includes: unit + critical path integration + critical path e2e (includes ML if models cached)
-	# Uses conservative worker calculation (default type, caps at 5) for mixed test types
-	# Note: Coverage is excluded here for faster execution; full validation job includes unified coverage
-	# Includes ALL critical path tests, even if slow (critical path cannot be shortened)
-	# Use --durations=20 to monitor slow tests and optimize them separately
-	# Includes reruns for flaky tests (matches CI behavior) - increased to 3 retries for very flaky tests
+	# Note: Three separate pytest processes so unit tests can patch ``sys.modules`` (openai/httpx/google
+	# stubs) without poisoning integration/E2E in the same interpreter (see provider unit tests).
+	# Per-layer worker counts match test-fast; coverage is excluded (full CI jobs measure coverage).
+	# Includes reruns for flaky tests (matches CI behavior).
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	$(PYTHON) -m pytest tests/unit/ tests/integration/ tests/e2e/ -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
+	@set -e; \
+	WU=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4); \
+	WI=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3); \
+	WE=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2); \
+	echo "Running unit (test-ci-fast)..."; \
+	$(PYTHON) -m pytest tests/unit/ -m 'not nightly and not integration and not e2e' \
+		-n $$WU --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	echo "Running critical path integration (test-ci-fast)..."; \
+	$(PYTHON) -m pytest tests/integration/ -m 'not nightly and integration and critical_path' \
+		-n $$WI --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	echo "Running critical path E2E (test-ci-fast)..."; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path' \
+		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
 
 test-e2e: cleanup-processes
 	# E2E tests: parallel execution for speed
@@ -1187,44 +1198,63 @@ deps-check:
 
 # Architecture visualization (Issue #425) - outputs in docs/architecture/ for documentation
 deps-graph:
-	@mkdir -p docs/architecture
+	@mkdir -p docs/architecture/diagrams
 	@echo "Generating module dependency graph (simplified)..."
-	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=2 -o docs/architecture/dependency-graph-simple.svg --no-show
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=2 -o docs/architecture/diagrams/dependency-graph-simple.svg --no-show
 	@echo "Generating module dependency graph (full package)..."
-	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=3 -o docs/architecture/dependency-graph.svg --no-show
-	@touch docs/architecture/dependency-graph.svg docs/architecture/dependency-graph-simple.svg 2>/dev/null || true
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper --cluster --max-bacon=3 -o docs/architecture/diagrams/dependency-graph.svg --no-show
+	@touch docs/architecture/diagrams/dependency-graph.svg docs/architecture/diagrams/dependency-graph-simple.svg 2>/dev/null || true
 	@echo "✓ Dependency graphs written to docs/architecture/"
 
 deps-graph-full:
-	@mkdir -p docs/architecture
+	@mkdir -p docs/architecture/diagrams
 	@echo "Generating full dependency graph (all dependencies)..."
-	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper -o docs/architecture/dependency-graph-full.svg --no-show
-	@echo "✓ Full dependency graph written to docs/architecture/dependency-graph-full.svg"
+	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper -o docs/architecture/diagrams/dependency-graph-full.svg --no-show
+	@echo "✓ Full dependency graph written to docs/architecture/diagrams/dependency-graph-full.svg"
 
 # Call graph (pyan3) - workflow orchestration entry point; pyan3 1.1.1 required (1.2.0 has bugs)
 call-graph:
-	@mkdir -p docs/architecture
+	@mkdir -p docs/architecture/diagrams
 	@echo "Generating workflow call graph (orchestration.py)..."
-	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pyan src/podcast_scraper/workflow/orchestration.py --uses --no-defines --dot --file docs/architecture/workflow-call-graph.dot 2>/dev/null || true
-	@if [ -f docs/architecture/workflow-call-graph.dot ]; then \
-		dot -Tsvg docs/architecture/workflow-call-graph.dot -o docs/architecture/workflow-call-graph.svg 2>/dev/null && echo "✓ Call graph written to docs/architecture/workflow-call-graph.svg"; \
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pyan src/podcast_scraper/workflow/orchestration.py --uses --no-defines --dot --file docs/architecture/diagrams/workflow-call-graph.dot 2>/dev/null || true
+	@if [ -f docs/architecture/diagrams/workflow-call-graph.dot ]; then \
+		dot -Tsvg docs/architecture/diagrams/workflow-call-graph.dot -o docs/architecture/diagrams/workflow-call-graph.svg 2>/dev/null && echo "✓ Call graph written to docs/architecture/diagrams/workflow-call-graph.svg"; \
 	else \
 		echo "⚠ pyan3 call graph skipped (install pyan3==1.1.1 and graphviz)"; \
 	fi
 
 # Flowcharts (code2flow) - orchestration and service entry points
 flowcharts:
-	@mkdir -p docs/architecture
+	@mkdir -p docs/architecture/diagrams
 	@echo "Generating orchestration flowchart..."
-	@$(PYTHON) -m code2flow src/podcast_scraper/workflow/orchestration.py -o docs/architecture/orchestration-flow.svg --language py -q 2>/dev/null || true
-	@touch -r src/podcast_scraper/workflow/orchestration.py docs/architecture/orchestration-flow.svg 2>/dev/null || true
+	@$(PYTHON) -m code2flow src/podcast_scraper/workflow/orchestration.py -o docs/architecture/diagrams/orchestration-flow.svg --language py -q 2>/dev/null || true
+	@touch -r src/podcast_scraper/workflow/orchestration.py docs/architecture/diagrams/orchestration-flow.svg 2>/dev/null || true
 	@echo "Generating service flowchart..."
-	@$(PYTHON) -m code2flow src/podcast_scraper/service.py -o docs/architecture/service-flow.svg --language py -q 2>/dev/null || true
-	@touch -r src/podcast_scraper/service.py docs/architecture/service-flow.svg 2>/dev/null || true
+	@$(PYTHON) -m code2flow src/podcast_scraper/service.py -o docs/architecture/diagrams/service-flow.svg --language py -q 2>/dev/null || true
+	@touch -r src/podcast_scraper/service.py docs/architecture/diagrams/service-flow.svg 2>/dev/null || true
 	@echo "✓ Flowcharts written to docs/architecture/ (orchestration-flow.svg, service-flow.svg)"
 
-visualize: deps-graph call-graph flowcharts
-	@echo "✓ Architecture visualizations up to date (see docs/architecture/)"
+providers-deps:
+	@mkdir -p docs/architecture/diagrams
+	@echo "Generating providers dependency graph..."
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) -m pydeps src/podcast_scraper/providers --cluster --max-bacon=2 -o docs/architecture/diagrams/providers-deps.svg --no-show 2>/dev/null && echo "✓ Providers dependency graph written" || echo "⚠ Providers dependency graph skipped (pydeps not available)"
+
+gi-kg-flow:
+	@mkdir -p docs/architecture/diagrams
+	@echo "Rendering GI pipeline flowchart from DOT..."
+	@dot -Tsvg docs/architecture/diagrams/gi-pipeline-flow.dot -o docs/architecture/diagrams/gi-pipeline-flow.svg 2>/dev/null && echo "  ✓ gi-pipeline-flow.svg" || echo "  ⚠ gi-pipeline-flow.svg skipped (graphviz not available)"
+	@echo "Rendering KG pipeline flowchart from DOT..."
+	@dot -Tsvg docs/architecture/diagrams/kg-pipeline-flow.dot -o docs/architecture/diagrams/kg-pipeline-flow.svg 2>/dev/null && echo "  ✓ kg-pipeline-flow.svg" || echo "  ⚠ kg-pipeline-flow.svg skipped (graphviz not available)"
+	@echo "✓ GI/KG pipeline flowcharts written"
+
+eval-flow:
+	@mkdir -p docs/architecture/diagrams
+	@echo "Rendering evaluation scorer flowchart from DOT..."
+	@dot -Tsvg docs/architecture/diagrams/eval-scorer-flow.dot -o docs/architecture/diagrams/eval-scorer-flow.svg 2>/dev/null && echo "  ✓ eval-scorer-flow.svg" || echo "  ⚠ eval-scorer-flow.svg skipped (graphviz not available)"
+	@echo "✓ Evaluation flowchart written"
+
+visualize: deps-graph call-graph flowcharts providers-deps gi-kg-flow eval-flow
+	@echo "✓ Architecture visualizations up to date (see docs/architecture/diagrams/)"
 
 # Static viewer for GIL/KG JSON artifacts (GitHub #445); CDNs need http(s) origin.
 # Uses scripts/gi_kg_viz_server.py so ?data=REPO_REL_PATH can auto-load *.gi.json / *.kg.json.
@@ -1267,7 +1297,7 @@ release-docs-prep: visualize
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/create_release_notes_draft.py
 	@echo "✓ Release docs prep complete"
 	@echo "Review: git status docs/architecture/ docs/releases/ && git diff docs/architecture/ docs/releases/"
-	@echo "Then commit: git add docs/architecture/*.svg docs/releases/RELEASE_*.md && git commit -m 'docs: release docs prep (visualizations and release notes)'"
+	@echo "Then commit: git add docs/architecture/diagrams/*.svg docs/releases/RELEASE_*.md && git commit -m 'docs: release docs prep (visualizations and release notes)'"
 
 analyze-test-memory:
 	# Analyze test suite memory usage and resource consumption

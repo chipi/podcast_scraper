@@ -10,9 +10,11 @@ Usage:
     ```python
     from tests.fixtures.mock_server.mistral_mock_client import create_fake_mistral_client
 
-    # In conftest.py or test setup
+    # Patch where the provider binds the SDK (works for mistralai 1.x and 2.x)
     FakeMistral = create_fake_mistral_client(base_url)
-    monkeypatch.setattr("mistralai.Mistral", FakeMistral)
+    monkeypatch.setattr(
+        "podcast_scraper.providers.mistral.mistral_provider.Mistral", FakeMistral
+    )
     ```
 """
 
@@ -230,7 +232,7 @@ class FakeMistralChat:
 class FakeMistral:
     """Fake Mistral client that routes calls to E2E mock server.
 
-    This class mimics the interface of mistralai.Mistral but makes HTTP requests
+    This class mimics the interface of the Mistral SDK client but makes HTTP requests
     to the E2E mock server instead of Mistral's API.
     """
 
@@ -239,21 +241,21 @@ class FakeMistral:
         *,
         api_key: Optional[str] = None,
         server: Optional[str] = None,
+        server_url: Optional[str] = None,
         **kwargs: Any,
     ):
         """Initialize fake Mistral client.
 
         Args:
             api_key: API key (required for compatibility, but not used with mock server)
-            server: Mistral ``server_url`` (host root or ``.../v1``; see SDK and
-                ``mistral_api_base()`` in E2E fixtures)
+            server: Legacy kw (mistralai 1.x style host root)
+            server_url: mistralai 2.x / provider uses this for custom base (E2E mocks)
             **kwargs: Additional arguments (ignored)
         """
         self.api_key = api_key
-        # Use server URL if provided, otherwise default to localhost
-        if server:
-            # Remove trailing slash if present
-            self.base_url = server.rstrip("/")
+        root = (server_url or server or "").rstrip("/")
+        if root:
+            self.base_url = root
         else:
             self.base_url = "http://127.0.0.1:8000/v1"
 
@@ -280,8 +282,8 @@ def create_fake_mistral_client(base_url: str) -> type:
 
         def __init__(self, **kwargs: Any):
             """Initialize with pre-configured base URL."""
-            # Remove server from kwargs if present (use the one from closure)
             kwargs.pop("server", None)
-            super().__init__(server=base_url, **kwargs)
+            kwargs.pop("server_url", None)
+            super().__init__(server_url=base_url, **kwargs)
 
     return FakeMistralWithBase

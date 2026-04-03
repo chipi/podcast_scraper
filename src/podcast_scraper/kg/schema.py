@@ -7,12 +7,12 @@ _SCHEMA_CACHE: Optional[Dict[str, Any]] = None
 
 
 def get_schema_path() -> Optional[Path]:
-    """Return path to kg.schema.json when present (e.g. in repo docs/kg/)."""
+    """Return path to kg.schema.json when present (e.g. in repo docs/architecture/kg/)."""
     try:
         from podcast_scraper.cache import get_project_root
 
         root = get_project_root()
-        path = root / "docs" / "kg" / "kg.schema.json"
+        path = root / "docs" / "architecture" / "kg" / "kg.schema.json"
         return path if path.exists() else None
     except Exception:
         return None
@@ -45,8 +45,9 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
             raise ValueError(f"KG artifact missing required key: {key!r}")
     if not isinstance(data.get("schema_version"), str):
         raise ValueError("KG artifact 'schema_version' must be a string")
-    if data.get("schema_version") != "1.0":
-        raise ValueError("KG artifact 'schema_version' must be '1.0'")
+    sv = data.get("schema_version")
+    if sv not in ("1.0", "1.1"):
+        raise ValueError("KG artifact 'schema_version' must be '1.0' or '1.1'")
     ext = data.get("extraction")
     if not isinstance(ext, dict):
         raise ValueError("KG artifact 'extraction' must be an object")

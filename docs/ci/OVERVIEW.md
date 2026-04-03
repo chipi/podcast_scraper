@@ -565,8 +565,8 @@ git push
 ## Related Documentation
 
 - **[Contributing Guide](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)** - Development workflow
-- **[Architecture](../ARCHITECTURE.md)** - System design and module boundaries
-- **[Testing Strategy](../TESTING_STRATEGY.md)** - Test coverage and quality standards
+- **[Architecture](../architecture/ARCHITECTURE.md)** - System design and module boundaries
+- **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Test coverage and quality standards
 - **[Testing Guide](../guides/TESTING_GUIDE.md)** - Test execution commands
 - **[Development Guide](../guides/DEVELOPMENT_GUIDE.md)** - Implementation instructions
 

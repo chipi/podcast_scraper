@@ -4,7 +4,7 @@ This guide documents the key third-party dependencies used in the podcast scrape
 including the rationale for their selection, alternatives considered, and dependency
 management philosophy.
 
-For high-level architectural decisions, see [Architecture](../ARCHITECTURE.md). For general
+For high-level architectural decisions, see [Architecture](../architecture/ARCHITECTURE.md). For general
 development practices, see [Development Guide](DEVELOPMENT_GUIDE.md).
 
 ## Overview
@@ -412,7 +412,7 @@ FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `tor
 
 ## Related Documentation
 
-- [Architecture](../ARCHITECTURE.md) - High-level system design and dependency overview
+- [Architecture](../architecture/ARCHITECTURE.md) - High-level system design and dependency overview
 - [Development Guide](DEVELOPMENT_GUIDE.md) - General development practices
 - [ML Provider Reference](ML_PROVIDER_REFERENCE.md) - Details on ML dependencies
 - [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) - Provider testing with dependencies

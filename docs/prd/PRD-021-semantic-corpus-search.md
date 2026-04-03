@@ -3,7 +3,7 @@
 - **Status**: Draft
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
-  - RFC-060 (Semantic Corpus Search — technical design)
+  - RFC-061 (Semantic Corpus Search — technical design)
   - RFC-049 (GIL Core — prerequisite, provides indexable artifacts)
   - RFC-050 (GIL Use Cases — prerequisite, defines UC4/UC5 that this feature unlocks)
   - RFC-051 (Database Projection — complementary serving layer)
@@ -14,7 +14,9 @@
   - [PRD-018: Database Projection](PRD-018-database-projection-gil-kg.md) (complementary — SQL for structured, vectors for semantic)
 - **Related Documents**:
   - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
-  - `docs/wip/platform-corpus-service-megasketch.md` — Platform context
+  - `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md` — Platform context
+- **Related UX specs**:
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) (viewer surfaces semantic search per RFC-062)
 
 ## Summary
 
@@ -111,8 +113,8 @@ because it:
 
 ### FR1: Vector Store Abstraction
 
-- **FR1.1**: Define a `VectorStore` protocol with `upsert()`, `search()`, `delete()`,
-  `persist()`, and `stats()` operations
+- **FR1.1**: Define a `VectorStore` protocol with `upsert()`, `batch_upsert()`, `search()`,
+  `delete()`, `persist()`, and `stats()` operations
 - **FR1.2**: Implement `FaissVectorStore` using `faiss-cpu` for CLI/local use (Phase 1)
 - **FR1.3**: Index persisted as files on disk (`vectors.faiss` + metadata sidecar)
 - **FR1.4**: Metadata sidecar stores document type, episode_id, feed_id, publish_date,
@@ -286,8 +288,10 @@ Results (top 5):
 
 ## Release Checklist
 
+**Tracking:** [#485](https://github.com/chipi/podcast_scraper/issues/485) (foundation prerequisites), [#484](https://github.com/chipi/podcast_scraper/issues/484) (Phase 1 implementation), epic [#466](https://github.com/chipi/podcast_scraper/issues/466)
+
 - [ ] PRD-021 reviewed and approved
-- [ ] RFC-060 created with technical design
+- [ ] RFC-061 created with technical design
 - [ ] `VectorStore` protocol + `FaissVectorStore` implemented
 - [ ] Transcript chunker implemented
 - [ ] Embed-and-index pipeline stage implemented

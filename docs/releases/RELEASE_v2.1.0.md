@@ -118,8 +118,8 @@ cache_detected_hosts: true        # Cache host detection
 
 - Speaker Detection: [RFC-010](../rfc/RFC-010-speaker-name-detection.md)
 - Metadata Generation Design: [PRD-004](../prd/PRD-004-metadata-generation.md), [RFC-011](../rfc/RFC-011-metadata-generation.md)
-- Architecture: [ARCHITECTURE.md](../ARCHITECTURE.md)
-- Testing Strategy: [TESTING_STRATEGY.md](../TESTING_STRATEGY.md)
+- Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
+- Testing Strategy: [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md)
 
 ## Migration Notes
 

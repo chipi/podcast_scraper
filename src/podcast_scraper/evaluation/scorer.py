@@ -41,10 +41,13 @@ try:
 except ImportError:
     jiwer = None  # type: ignore[assignment]
 
+_SentenceTransformer: Any = None
 try:
-    from sentence_transformers import SentenceTransformer
+    from sentence_transformers import SentenceTransformer as _ST
+
+    _SentenceTransformer = _ST
 except ImportError:
-    SentenceTransformer = None
+    pass
 
 try:
     from nltk.tokenize import word_tokenize
@@ -641,15 +644,15 @@ def compute_embedding_similarity(
     Raises:
         ImportError: If sentence-transformers library is not installed
     """
-    if SentenceTransformer is None:
+    if _SentenceTransformer is None:
         raise ImportError(
             "sentence-transformers library is required for embedding similarity computation. "
-            "Install with: pip install 'sentence-transformers>=2.2.0'"
+            "Install with: pip install 'sentence-transformers>=3.0.0,<6.0.0'"
         )
 
     try:
         # Load model (will download on first use)
-        model = SentenceTransformer(model_name)
+        model = _SentenceTransformer(model_name)
     except Exception as e:
         logger.error(
             "Failed to load sentence-transformer model '%s': %s",

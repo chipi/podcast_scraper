@@ -2,7 +2,7 @@
 
 - **Status**: Completed
 - **Related ADRs**:
-  - [ADR-021: Standardized Test Pyramid](../adr/ADR-021-standardized-test-pyramid.md)
+  - [ADR-019: Standardized Test Pyramid](../adr/ADR-019-standardized-test-pyramid.md)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers writing tests, CI/CD pipeline maintainers
 - **Related PRDs**: N/A
@@ -296,7 +296,7 @@ pytest --reruns 2 --reruns-delay 1
 
 **Stage 7: Documentation Updates**
 
-- Update `docs/TESTING_STRATEGY.md` with new test structure and organization
+- Update `docs/architecture/TESTING_STRATEGY.md` with new test structure and organization
 - Update `CONTRIBUTING.md` with new test running examples and structure
 - Update `docs/guides/DEVELOPMENT_GUIDE.md` if it references test structure
 - Update `README.md` if it has test-related sections

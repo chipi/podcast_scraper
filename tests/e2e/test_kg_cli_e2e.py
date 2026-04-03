@@ -104,8 +104,10 @@ def test_kg_export_ndjson_e2e(kg_fixture_output_dir: Path) -> None:
     assert out.is_file()
     text = out.read_text(encoding="utf-8").strip()
     assert text
-    validate_artifact(
-        read_artifact(kg_fixture_output_dir / "metadata" / "ep1.kg.json"), strict=True
+    read_artifact(
+        kg_fixture_output_dir / "metadata" / "ep1.kg.json",
+        validate=True,
+        strict=True,
     )
 
 

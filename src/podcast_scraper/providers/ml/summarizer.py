@@ -215,18 +215,9 @@ SECTION_SUMMARY_MAX_TOKENS = 300  # Target upper bound for hierarchical section 
 # Increased from 200-480 to 400-800 to produce more comprehensive summaries
 FINAL_SUMMARY_MIN_TOKENS = 400  # Target lower bound for final reduce (was 200)
 FINAL_SUMMARY_MAX_TOKENS = 800  # Target upper bound for final reduce (was 480)
-# Sponsor removal patterns
-SPONSOR_BLOCK_PATTERNS = [
-    r"this episode is brought to you by.*?(?=\n\n|\Z)",
-    r"today['’]s episode is sponsored by.*?(?=\n\n|\Z)",
-    r"our sponsor(?:s)? (?:today|this week) (?:is|are).*?(?=\n\n|\Z)",
-    r"thanks again to our (?:friends|sponsors) at.*?(?=\n\n|\Z)",
-]
 # Re-export OUTRO_BLOCK_PATTERNS from preprocessing for convenience
 from ...preprocessing.core import OUTRO_BLOCK_PATTERNS  # noqa: F401
 
-MAX_SPONSOR_BLOCK_CHARS = 3000  # max size of a single sponsor block
-MAX_SPONSOR_REMOVAL_RATIO = 0.6  # never remove more than 60% of the text
 REDUCE_PROMPT = (
     "You are summarizing a full podcast episode using multiple partial summaries as input.\n"
     "Your task is to produce a clear, accurate, and cohesive final summary.\n"
@@ -533,10 +524,12 @@ def _validate_model_source_legacy(model_name: str) -> None:
 
 
 def remove_sponsor_blocks(text: str) -> str:
-    """Remove common sponsor block phrases from text (e.g. 'brought to you by', 'sponsored by').
+    """Remove common sponsor block phrases from text.
 
-    Strips up to the next blank line or 2000 chars after each matched phrase.
-    Used to reduce noise in transcripts before summarization.
+    Duplicate of preprocessing.core.remove_sponsor_blocks — this copy is
+    called by cleaning_v4 profile in summarize_long_text. The ML path may
+    run sponsor removal twice (once via PatternBasedCleaner, once here).
+    RFC-060 Phase 1 will consolidate into a single CommercialDetector.
 
     Args:
         text: Raw transcript or summary text.
@@ -1285,7 +1278,7 @@ class SummaryModel:
                     self.model = _load_with_retry_summarizer(
                         lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
-                            **led_model_kwargs,
+                            **cast(Any, led_model_kwargs),
                         ),
                         self.model_name,
                         "LED model",
@@ -1298,7 +1291,7 @@ class SummaryModel:
                     self.model = _load_with_retry_summarizer(
                         lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
-                            **model_kwargs,
+                            **cast(Any, model_kwargs),
                         ),
                         self.model_name,
                         "BART model",
@@ -1311,7 +1304,7 @@ class SummaryModel:
                     self.model = _load_with_retry_summarizer(
                         lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
                             self.model_name,
-                            **model_kwargs,
+                            **cast(Any, model_kwargs),
                         ),
                         self.model_name,
                         "AutoModel",

@@ -45,6 +45,6 @@ The CI/CD pipeline consists of **six main workflows**:
 
 ## Related Documentation
 
-- [Testing Strategy](../TESTING_STRATEGY.md) - Overall testing approach
+- [Testing Strategy](../architecture/TESTING_STRATEGY.md) - Overall testing approach
 - [Development Guide](../guides/DEVELOPMENT_GUIDE.md) - Development environment setup
 - [Git Worktree Guide](../guides/GIT_WORKTREE_GUIDE.md) - Development workflow with worktrees

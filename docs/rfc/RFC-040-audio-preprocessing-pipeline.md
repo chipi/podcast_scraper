@@ -1,21 +1,21 @@
 # RFC-040: Audio Pre-Processing Pipeline for Podcast Ingestion
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Architecture Review
 - **Stakeholders**: Core Pipeline, Transcription Providers
 - **Related PRDs**:
   - N/A (new capability)
 - **Related ADRs**:
-  - [ADR-032: Standardized Pre-Provider Audio Stage](../adr/ADR-032-standardized-pre-provider-audio-stage.md)
-  - [ADR-033: Content-Hash Based Audio Caching](../adr/ADR-033-content-hash-based-audio-caching.md)
-  - [ADR-034: FFmpeg-First Audio Manipulation](../adr/ADR-034-ffmpeg-first-audio-manipulation.md)
-  - [ADR-035: Speech-Optimized Codec (Opus)](../adr/ADR-035-speech-optimized-codec-opus.md)
+  - [ADR-036: Standardized Pre-Provider Audio Stage](../adr/ADR-036-standardized-pre-provider-audio-stage.md)
+  - [ADR-037: Content-Hash Based Audio Caching](../adr/ADR-037-content-hash-based-audio-caching.md)
+  - [ADR-038: FFmpeg-First Audio Manipulation](../adr/ADR-038-ffmpeg-first-audio-manipulation.md)
+  - [ADR-039: Speech-Optimized Codec (Opus)](../adr/ADR-039-speech-optimized-codec-opus.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-005-whisper-integration.md` (transcription pipeline)
   - `docs/rfc/RFC-013-openai-provider-implementation.md` (provider pattern)
   - `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (unified provider architecture)
 - **Related Documents**:
-  - `docs/ARCHITECTURE.md` (pipeline flow)
+  - `docs/architecture/ARCHITECTURE.md` (pipeline flow)
   - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md` (provider patterns)
 
 ## Abstract

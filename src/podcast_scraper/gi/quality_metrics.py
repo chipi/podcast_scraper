@@ -117,7 +117,7 @@ def compute_gil_quality_metrics(
     out = GilQualityMetrics(artifact_paths=len(gi_paths))
     for gpath in gi_paths:
         try:
-            data = read_artifact(gpath)
+            data = read_artifact(gpath, validate=False)
             validate_artifact(data, strict=strict_schema)
             inspect = build_inspect_output(data, transcript_text=None)
         except Exception as e:

@@ -11,10 +11,12 @@ Product Requirements Documents (PRDs) define the **what** and **why** behind eac
 
 PRDs serve as the foundation for technical design (RFCs) and help ensure features align with user needs and project goals.
 
+Features with meaningful **UI** may also link **[UX specifications](../uxs/index.md)** (UXS) for tokens, layout, and accessibility; RFCs then reference that UX contract alongside the PRD.
+
 ## How PRDs Work
 
 1. **Define Intent**: PRDs describe the problem to solve and desired outcomes
-2. **Guide Design**: RFCs reference PRDs to ensure technical solutions meet requirements
+2. **Guide Design**: RFCs reference PRDs (and UXSs when UI is in scope) so technical solutions meet requirements and experience constraints
 3. **Track Implementation**: Release notes reference PRDs to show what was delivered
 4. **Document Evolution**: PRDs capture design decisions and rationale
 
@@ -29,7 +31,7 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-018](PRD-018-database-projection-gil-kg.md) | Database Projection for GIL and KG | RFC-049, 050, 051, 055, 056 | Postgres projection of `gi.json` and KG artifacts (separate tables) |
 | [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-055, 056 | Entities, topics, and relationships; separate from GIL / GI |
 | [PRD-020](PRD-020-audio-speaker-diarization.md) | Audio-Based Speaker Diarization & Commercial Cleaning | RFC-058, RFC-059, RFC-060 | True speaker diarization via pyannote.audio; downstream commercial content cleaning |
-| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | RFC-060 | Meaning-based retrieval over insights, quotes, summaries, and transcripts via embeddings + vector index |
+| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | RFC-061 | Meaning-based retrieval over insights, quotes, summaries, and transcripts via embeddings + vector index |
 
 ## Completed PRDs
 
@@ -51,7 +53,7 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 
 ## Quick Links
 
-- **[Architecture](../ARCHITECTURE.md)** - System design and module responsibilities
+- **[Architecture](../architecture/ARCHITECTURE.md)** - System design and module responsibilities
 - **[RFCs](../rfc/index.md)** - Technical design documents
 - **[Releases](../releases/index.md)** - Release notes and version history
 

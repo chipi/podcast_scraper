@@ -22,32 +22,22 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 | RFC | Title | Related PRD | Description |
 | --- | ----- | ----------- | ----------- |
-| [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline |
-| [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | Acceptance tests validating README documentation accuracy |
+| [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline (CI integration pending) |
 | [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Pipeline Metrics Improvements | - | Improvements to pipeline metrics collection and reporting |
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
-| [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | Optional audio preprocessing (VAD, normalization) before transcription |
-| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system |
-| [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | Hybrid MAP-REDUCE with instruction-tuned LLMs (v2.5) |
+| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
 | [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | - | Automated regression alerts and PR comments for pipeline metrics |
-| [RFC-044](RFC-044-model-registry.md) | Model Registry for Architecture Limits | - | Centralized registry to eliminate hardcoded model limits throughout codebase |
-| [RFC-045](RFC-045-ml-model-optimization-guide.md) | ML Model Optimization Guide | PRD-005, PRD-007 | Comprehensive guide for maximizing ML quality via preprocessing and parameter tuning |
-| [RFC-046](RFC-046-materialization-architecture.md) | Materialization Architecture | PRD-007 | Shift preprocessing from run parameter to dataset materialization for honest comparisons |
-| [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | Fast, one-page visual tool for comparing runs and diagnosing regressions |
-| [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Tightening & Alignment | PRD-007 | Alignment rules ensuring evaluation results are representative of application behavior |
-| [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | Core ontology, grounding contract, storage format for GIL |
 | [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Grounded Insight Layer – Use Cases & End-to-End Consumption | PRD-017 | Use cases, Insight Explorer, query patterns with insights + quotes |
 | [RFC-051](RFC-051-database-projection-gil-kg.md) | Database Projection (GIL & Knowledge Graph) | PRD-018 | Relational export for GIL (`gi.json`) and KG (RFC-055) artifacts |
-| [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | Architecture for locally hosted LLM models with optimized prompts to solve cost and latency |
 | [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling; routes summarization, GIL (RFC-049), and KG (RFC-055) strategies |
 | [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
-| [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | KG ontology, artifacts, and separation from GIL (`gi` vs `kg`) |
 | [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Knowledge Graph Layer — Use Cases & End-to-End Consumption | PRD-019 | KG query patterns, export, `kg` CLI expectations, optional DB consumption |
 | [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | - | Agent-driven ratchet loop; immutable eval harness; aligns with RFC-017 prompts and `evaluation/` |
 | [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio integration for neural speaker diarization, replacing gap-based rotation |
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
-| [RFC-060](RFC-060-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | Vector index over GIL/KG/summary/transcript content; FAISS (Phase 1) + Qdrant (Phase 2); `podcast search` CLI |
+| [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | Vector index over GIL/KG/summary/transcript content; FAISS (Phase 1) + Qdrant (Phase 2); `podcast search` CLI |
+| [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-021 | Vue 3 + Cytoscape.js + FastAPI rebuild of viewer; semantic search panel, index dashboard, explore/QA integration |
 
 ## Completed RFCs
 
@@ -87,11 +77,22 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-036](RFC-036-grok-provider-implementation.md) | Grok Provider Implementation (xAI) | PRD-013 | v2.5.0 | Technical design for Grok (xAI's AI model) |
 | [RFC-037](RFC-037-ollama-provider-implementation.md) | Ollama Provider Implementation | PRD-014 | v2.5.0 | Technical design for Ollama (local/offline) |
 | [RFC-039](RFC-039-development-workflow-worktrees-ci.md) | Development Workflow | - | v2.4.0 | Git worktrees, Cursor integration, CI evolution |
+| [RFC-023](RFC-023-readme-acceptance-tests.md) | README Acceptance Tests | - | v2.5.0 | Script-based acceptance tests (`make test-acceptance`) with YAML configs |
+| [RFC-040](RFC-040-audio-preprocessing-pipeline.md) | Audio Preprocessing Pipeline | - | v2.5.0 | FFmpeg preprocessing, opus codec, audio caching, factory pattern |
+| [RFC-042](RFC-042-hybrid-summarization-pipeline.md) | Hybrid Podcast Summarization Pipeline | - | v2.5.0 | Hybrid MAP-REDUCE with instruction-tuned LLMs |
+| [RFC-044](RFC-044-model-registry.md) | Model Registry for Architecture Limits | - | v2.5.0 | Centralized registry for model architecture limits |
+| [RFC-045](RFC-045-ml-model-optimization-guide.md) | ML Model Optimization Guide | PRD-005, PRD-007 | v2.5.0 | cleaning_v4 profile, preprocessing optimization, parameter tuning guide |
+| [RFC-046](RFC-046-materialization-architecture.md) | Materialization Architecture | PRD-007 | v2.5.0 | Dataset materialization for honest evaluation comparisons |
+| [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | v2.5.0 | Streamlit-based visual tool for comparing runs |
+| [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Alignment | PRD-007 | v2.5.0 | Fingerprinting and single-path eval-app alignment |
+| [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | v2.6.0 | Core ontology, grounding contract, storage format for GIL |
+| [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | v2.5.0 | Ollama provider and optimized prompt templates |
+| [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | v2.6.0 | KG ontology, artifacts, and separation from GIL |
 
 ## Quick Links
 
 - **[PRDs](../prd/index.md)** - Product requirements documents
-- **[Architecture](../ARCHITECTURE.md)** - System design and module responsibilities
+- **[Architecture](../architecture/ARCHITECTURE.md)** - System design and module responsibilities
 - **[Releases](../releases/index.md)** - Release notes and version history
 
 ---

@@ -6,7 +6,7 @@
 
 ### User intent beats defaults (interpretation priority)
 
-- **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "I already ran full `make ci`" → do not re-run `make ci-fast` unless they ask; "stop" / "don't run CI" → stop immediately).
+- **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "skip ci-fast" / "I already ran full `make ci`" → do not re-run `make ci-fast` / `make ci` unless they ask; "stop" / "don't run CI" → stop immediately).
 - **If scope or intent is unclear** (which paths, whether to touch config like `.gitignore`, whether validation is required): **ask first** — do not add unrequested steps (extra edits, long runs, repo policy "help") to be clever.
 - **Prefer pause over action:** if you are **not ~100% sure** what the user wants, **stop, summarize what you understood, and ask** — avoid being eager (extra commands, refactors, config changes, "while I'm here" work).
 - **Non-negotiable safety** (never commit secrets; never push unless asked; never push to `main`): if the user asks for something unsafe, **explain and ask** — do not silently comply or silently ignore without saying why.
@@ -101,7 +101,8 @@
   - Action 3: Load `testing-strategy.mdc` when writing new tests
   - Exception: If test failure is complex, document it and ask user before proceeding
   - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
-  - Exception: User **explicitly** says they already ran full CI / equivalent validation and do not want another run — skip `make ci-fast` unless they ask (pre-commit hook may still run on commit)
+  - Exception: **Recent CI on current tree (efficiency)** — skip re-running `make ci-fast` or `make ci` right before commit when **all** are true: (1) the same target already **passed** (exit 0) **in this session** (or the user clearly stated they just ran it), and (2) **no substantive edits** were made **after** that run to anything that gate covers (e.g. `src/`, tests, `pyproject.toml`, workflows, markdown not re-validated). **Re-run** if anything material changed after the last green run, the last run **failed**, or you are **unsure** the tree matches what was validated. State briefly when skipping (e.g. "ci-fast already passed on this diff; skipping repeat run").
+  - Exception: User **explicitly** waives a repeat run — skip unless they ask again (pre-commit hook may still run on commit unless they use `--no-verify`)
 
 5a. **When any make target fails (test, ci, lint, format, docs, etc.): root cause first, then fix**
 
@@ -189,7 +190,7 @@ make fix-md        # Auto-fix markdown
 - ALWAYS use Makefile commands, never direct tools
 - Write lint-valid code from the start
 - Respect module boundaries
-- Default: `make ci-fast` before committing (exceptions: workflow-only changes; user says they already validated — see rule 5)
+- Default: `make ci-fast` before committing (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives — see rule 5)
 - ALL analysis/plans → `docs/wip/`
 - Auto-load `.mdc` files for detailed guidance (Rule 16)
 - NEVER commit secrets

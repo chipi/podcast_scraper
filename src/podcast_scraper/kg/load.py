@@ -15,7 +15,7 @@ def find_kg_artifact_by_episode_id(output_dir: Path, episode_id: str) -> Optiona
         return None
     for path in metadata_dir.glob("*.kg.json"):
         try:
-            artifact = read_artifact(path)
+            artifact = read_artifact(path, validate=False)
             if artifact.get("episode_id") == episode_id:
                 return path
         except Exception:

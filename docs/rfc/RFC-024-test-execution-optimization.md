@@ -12,7 +12,7 @@
   - `docs/rfc/RFC-023-readme-acceptance-tests.md` (acceptance tests)
   - `docs/rfc/RFC-025-test-metrics-and-health-tracking.md` (test metrics - complementary)
 - **Related Documents**:
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy and test categories
+  - `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy and test categories
   - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow and testing requirements
   - `Makefile` - Test execution targets
 
@@ -361,7 +361,7 @@ test-e2e-slow:
 
 - `Makefile`: Test execution targets (optimized per test type)
 - `.github/workflows/python-app.yml`: CI test jobs
-- `docs/TESTING_STRATEGY.md`: Overall testing strategy
+- `docs/architecture/TESTING_STRATEGY.md`: Overall testing strategy
 - `docs/guides/DEVELOPMENT_GUIDE.md`: Development workflow
 - `pyproject.toml`: Pytest configuration and markers
 

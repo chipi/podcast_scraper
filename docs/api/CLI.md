@@ -411,6 +411,7 @@ python -m podcast_scraper.cli gi inspect --output-dir ./output --episode-id 'sha
 python -m podcast_scraper.cli gi show-insight --id 'insight:<id-from-gi.json>' --episode-path ./output/metadata/ep1.gi.json
 
 # Cross-episode: topic / speaker filters, sort, RFC-style JSON
+# When ./output/search/vectors.faiss exists, --topic uses semantic ranking first (RFC-061).
 python -m podcast_scraper.cli gi explore --output-dir ./output --topic 'AI regulation' --format json
 python -m podcast_scraper.cli gi explore --output-dir ./output --speaker Host --sort time --strict
 
@@ -420,6 +421,20 @@ python -m podcast_scraper.cli gi query --output-dir ./output --question 'What in
 python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say?' --limit 10
 python -m podcast_scraper.cli gi query --output-dir ./output --question 'What did Sam say about inflation?'
 python -m podcast_scraper.cli gi query --output-dir ./output --question 'Which topics have the most insights?'
+```
+
+## Semantic corpus search (`search`, `index`)
+
+Meaning-based retrieval over indexed GIL, summaries, and transcripts (RFC-061). See
+[Semantic Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md). Enable indexing with
+`vector_search: true` in config or run `index` manually.
+
+```bash
+python -m podcast_scraper.cli search "supply chain disruptions" --output-dir ./output
+python -m podcast_scraper.cli search "quantum computing" --output-dir ./output --type insight --format json
+python -m podcast_scraper.cli index --output-dir ./output
+python -m podcast_scraper.cli index --output-dir ./output --rebuild
+python -m podcast_scraper.cli index --output-dir ./output --stats
 ```
 
 **PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:

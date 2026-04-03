@@ -193,7 +193,7 @@ def build_artifact(
         pipeline_metrics: Optional metrics collector (increments kg_provider_extractions).
 
     Returns:
-        Dict matching docs/kg/kg.schema.json (minimal validation via kg.schema).
+        Dict matching docs/architecture/kg/kg.schema.json (minimal validation via kg.schema).
     """
     date_str = _safe_iso_date(publish_date)
     ep_node_id = episode_node_id(episode_id)
@@ -290,7 +290,7 @@ def build_artifact(
     )
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "episode_id": episode_id,
         "extraction": {
             "model_version": resolved_model,
@@ -321,15 +321,24 @@ def _entity_identity_keys(nodes: List[Dict[str, Any]]) -> Set[str]:
     return out
 
 
-def _entity_properties(*, name: str, entity_kind: str, role: str) -> Dict[str, Any]:
+def _entity_properties(
+    *,
+    name: str,
+    entity_kind: str,
+    role: str,
+    description: Optional[str] = None,
+) -> Dict[str, Any]:
     """Entity node properties: name, label (for graphs / Topic parity), kind, role."""
     name_s = (name or "").strip()[:500]
-    return {
+    props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],
         "entity_kind": entity_kind,
         "role": role,
     }
+    if description and str(description).strip():
+        props["description"] = str(description).strip()[:2000]
+    return props
 
 
 def _append_topics_from_labels(
@@ -386,11 +395,15 @@ def _append_topics_and_entities_from_partial(
                 continue
             seen_slugs.add(slug)
             topic_id = topic_node_id_from_slug(slug)
+            tprops: Dict[str, Any] = {"label": lab_s[:200], "slug": slug}
+            raw_desc = item.get("description") if isinstance(item, dict) else None
+            if isinstance(raw_desc, str) and raw_desc.strip():
+                tprops["description"] = raw_desc.strip()[:2000]
             nodes.append(
                 {
                     "id": topic_id,
                     "type": "Topic",
-                    "properties": {"label": lab_s[:200], "slug": slug},
+                    "properties": tprops,
                 }
             )
             edges.append({"from": topic_id, "to": ep_node_id, "type": "MENTIONS", "properties": {}})
@@ -414,11 +427,17 @@ def _append_topics_and_entities_from_partial(
                 continue
             seen_entity_keys.add(key)
             eid = entity_node_id(ek, name_s)
+            ent_desc = item.get("description") if isinstance(item.get("description"), str) else None
             nodes.append(
                 {
                     "id": eid,
                     "type": "Entity",
-                    "properties": _entity_properties(name=name_s, entity_kind=ek, role="mentioned"),
+                    "properties": _entity_properties(
+                        name=name_s,
+                        entity_kind=ek,
+                        role="mentioned",
+                        description=ent_desc,
+                    ),
                 }
             )
             edges.append({"from": eid, "to": ep_node_id, "type": "MENTIONS", "properties": {}})

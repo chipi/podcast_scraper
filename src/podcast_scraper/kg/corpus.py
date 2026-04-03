@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 from .io import read_artifact
-from .schema import validate_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +62,7 @@ def load_kg_artifacts(
     out: List[Tuple[Path, Dict[str, Any]]] = []
     for path in paths:
         try:
-            data = read_artifact(path)
-            if validate:
-                validate_artifact(data, strict=strict)
+            data = read_artifact(path, validate=validate, strict=strict)
             out.append((path, data))
         except Exception as e:
             if strict:
@@ -88,29 +85,33 @@ def inspect_summary(
     for n in nodes:
         t = str(n.get("type", "?"))
         by_type[t] += 1
-    topics: List[Dict[str, str]] = []
+    topics: List[Dict[str, Any]] = []
     entities: List[Dict[str, Any]] = []
     ep_title = None
     for n in nodes:
         nt = n.get("type")
         props = n.get("properties") or {}
         if nt == "Topic":
-            topics.append(
-                {
-                    "id": str(n.get("id", "")),
-                    "label": str(props.get("label", "")),
-                    "slug": str(props.get("slug", "")),
-                }
-            )
+            td = props.get("description")
+            trow: Dict[str, Any] = {
+                "id": str(n.get("id", "")),
+                "label": str(props.get("label", "")),
+                "slug": str(props.get("slug", "")),
+            }
+            if isinstance(td, str) and td.strip():
+                trow["description"] = td.strip()
+            topics.append(trow)
         elif nt == "Entity":
-            entities.append(
-                {
-                    "id": str(n.get("id", "")),
-                    "name": str(props.get("name", "")),
-                    "entity_kind": str(props.get("entity_kind", "")),
-                    "role": props.get("role"),
-                }
-            )
+            ed = props.get("description")
+            erow: Dict[str, Any] = {
+                "id": str(n.get("id", "")),
+                "name": str(props.get("name", "")),
+                "entity_kind": str(props.get("entity_kind", "")),
+                "role": props.get("role"),
+            }
+            if isinstance(ed, str) and ed.strip():
+                erow["description"] = ed.strip()
+            entities.append(erow)
         elif nt == "Episode":
             ep_title = props.get("title")
     ext = artifact.get("extraction") or {}
@@ -128,6 +129,60 @@ def inspect_summary(
     if artifact_path is not None:
         summary["artifact_path"] = str(artifact_path)
     return summary
+
+
+def build_embedding_document_for_kg_node(
+    node: Dict[str, Any],
+    *,
+    episode_titles: Optional[List[str]] = None,
+) -> str:
+    """Build one text block for embedding a KG Topic or Entity (GitHub #487).
+
+    For future corpus-scale KG embedding / semantic search. Only ``Topic`` and
+    ``Entity`` nodes return non-empty text; other types return "".
+
+    Args:
+        node: One KG node dict (``type``, ``properties``).
+        episode_titles: Optional episode titles to append as weak context.
+
+    Returns:
+        Text suitable for ``encode()`` or a vector index.
+    """
+    nt = node.get("type")
+    _pr = node.get("properties")
+    props: Dict[str, Any] = _pr if isinstance(_pr, dict) else {}
+    parts: List[str] = []
+    if nt == "Topic":
+        lab = props.get("label")
+        if lab:
+            parts.append(str(lab).strip())
+        desc = props.get("description")
+        if isinstance(desc, str) and desc.strip():
+            parts.append(desc.strip())
+    elif nt == "Entity":
+        name = props.get("name")
+        if name:
+            parts.append(str(name).strip())
+        label = props.get("label")
+        if label and str(label).strip() != str(name or "").strip():
+            parts.append(str(label).strip())
+        ek = props.get("entity_kind")
+        if ek:
+            parts.append(f"kind:{ek}")
+        role = props.get("role")
+        if role:
+            parts.append(f"role:{role}")
+        ed = props.get("description")
+        if isinstance(ed, str) and ed.strip():
+            parts.append(ed.strip())
+    else:
+        return ""
+    if episode_titles:
+        for t in episode_titles:
+            ts = str(t).strip()
+            if ts:
+                parts.append(f"episode:{ts}")
+    return "\n".join(p for p in parts if p).strip()
 
 
 def entity_rollup(

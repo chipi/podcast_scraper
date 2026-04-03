@@ -45,7 +45,7 @@
 ## 📝 Always Update When
 
 - `README.md` → CLI flags, features, installation
-- `docs/ARCHITECTURE.md` → Modules, data flow, design
+- `docs/architecture/ARCHITECTURE.md` → Modules, data flow, design
 - `docs/api/` → Public API changes (auto from docstrings)
 - `mkdocs.yml` → New/moved/deleted doc files (add to nav)
 
@@ -120,7 +120,7 @@ make fix-md
 python scripts/fix_markdown.py
 
 # Fix specific files
-python scripts/fix_markdown.py docs/TESTING_STRATEGY.md
+python scripts/fix_markdown.py docs/architecture/TESTING_STRATEGY.md
 
 # Dry run (preview fixes)
 python scripts/fix_markdown.py --dry-run

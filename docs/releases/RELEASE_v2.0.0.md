@@ -36,14 +36,14 @@ This refactoring improves:
 
 Added extensive documentation infrastructure:
 
-- **Architecture Documentation** (`docs/ARCHITECTURE.md`): Complete system architecture overview
+- **Architecture Documentation** (`docs/architecture/ARCHITECTURE.md`): Complete system architecture overview
 - **Product Requirements Documents (PRDs)**:
   - PRD-001: Transcript Acquisition Pipeline
   - PRD-002: Whisper Fallback Transcription
   - PRD-003: User Interfaces & Configuration
 - **Request for Comments (RFCs)**: 10+ RFCs documenting design decisions
   - RFC-001 through RFC-010 covering all major features
-- **Testing Strategy** (`docs/TESTING_STRATEGY.md`): Comprehensive testing approach
+- **Testing Strategy** (`docs/architecture/TESTING_STRATEGY.md`): Comprehensive testing approach
 - **API Documentation**: Migration guides and API comparisons
 - **MkDocs Site**: Live documentation at <https://chipi.github.io/podcast_scraper/>
 

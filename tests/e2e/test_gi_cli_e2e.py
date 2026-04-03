@@ -63,6 +63,25 @@ def gi_fixture_output_dir(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture
+def gi_fixture_topic_labels_dir(tmp_path: Path) -> Path:
+    """Output dir with GIL artifact whose topic filter matches ABOUT labels, not insight text."""
+    (tmp_path / "metadata").mkdir(parents=True)
+    (tmp_path / "transcripts").mkdir(parents=True)
+    artifact = build_artifact(
+        "ep:fixture-topic-1",
+        "Transcript body for episode.",
+        prompt_version="v1",
+        insight_texts=["Plain economics takeaway."],
+        topic_labels=["Regulatory Lag Topic"],
+    )
+    write_artifact(tmp_path / "metadata" / "ep1.gi.json", artifact, validate=True)
+    (tmp_path / "transcripts" / "ep1.txt").write_text(
+        "Transcript body for episode.", encoding="utf-8"
+    )
+    return tmp_path
+
+
 @pytest.mark.e2e
 @pytest.mark.critical_path
 def test_gi_inspect_e2e(gi_fixture_output_dir: Path) -> None:
@@ -133,6 +152,33 @@ def test_gi_explore_e2e(gi_fixture_output_dir: Path) -> None:
         cwd=gi_fixture_output_dir,
     )
     assert proc2.returncode == 0, (proc2.stdout, proc2.stderr)
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+def test_gi_explore_topic_matches_about_labels_e2e(gi_fixture_topic_labels_dir: Path) -> None:
+    """E2E: --topic matches Topic node label (ABOUT) even if insight text omits the phrase."""
+    proc = _run_gi(
+        [
+            "gi",
+            "explore",
+            "--topic",
+            "regulatory",
+            "--output-dir",
+            str(gi_fixture_topic_labels_dir),
+            "--format",
+            "json",
+        ],
+        cwd=gi_fixture_topic_labels_dir,
+    )
+    assert proc.returncode == 0, (proc.stdout, proc.stderr)
+    data = json.loads(proc.stdout)
+    assert data.get("summary", {}).get("insight_count", 0) >= 1
+    assert len(data.get("insights", [])) >= 1
+    assert "topics" in data
+    assert isinstance(data["topics"], list)
+    assert data.get("summary", {}).get("topic_count", 0) >= 1
+    assert any("regulatory" in str(row.get("label", "")).lower() for row in data["topics"])
 
 
 @pytest.mark.e2e

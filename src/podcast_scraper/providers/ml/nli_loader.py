@@ -210,12 +210,13 @@ def load_nli_model(
     dev = _get_device(device)
     logger.info("Loading NLI model %s on %s", resolved, dev)
     cache_dir = str(get_transformers_cache_dir().resolve())
-    local_kw = {"local_files_only": True, "cache_dir": cache_dir}
+    # ST 3+: local_files_only on CrossEncoder only (not inside tokenizer/model kwargs — duplicate
+    # key error). ST 5.3+: prefer cache_folder + tokenizer_kwargs/model_kwargs over *_args.
     model = CrossEncoder(
         resolved,
         device=dev,
-        tokenizer_args=local_kw,
-        automodel_args=local_kw,
+        local_files_only=True,
+        cache_folder=cache_dir,
     )
     return model
 

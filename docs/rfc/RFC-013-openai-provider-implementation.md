@@ -5,8 +5,8 @@
 - **Stakeholders**: Maintainers, users wanting OpenAI API integration, developers implementing providers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related ADRs**:
-  - [ADR-015: Secure Credential Injection](../adr/ADR-015-secure-credential-injection.md)
-  - [ADR-019: Provider-Agnostic Preprocessing](../adr/ADR-019-provider-agnostic-preprocessing.md)
+  - [ADR-011: Secure Credential Injection](../adr/ADR-011-secure-credential-injection.md)
+  - [ADR-012: Provider-Agnostic Preprocessing](../adr/ADR-012-provider-agnostic-preprocessing.md)
 - **Related RFCs**: `docs/rfc/RFC-017-prompt-management.md`
 - **Related RFCs**: `docs/rfc/RFC-021-modularization-refactoring-plan.md` (historical reference - modularization plan)
 - **Related Issues**: (to be created)

@@ -22,10 +22,10 @@ Podcast Scraper Team
 
 ## Related ADRs
 
-- [ADR-025: Codified Comparison Baselines](../adr/ADR-025-codified-comparison-baselines.md)
-- [ADR-026: Explicit Golden Dataset Versioning](../adr/ADR-026-explicit-golden-dataset-versioning.md)
-- [ADR-030: Multi-Tiered Benchmarking Strategy](../adr/ADR-030-multi-tiered-benchmarking-strategy.md)
-- [ADR-031: Heuristic-Based Quality Gates](../adr/ADR-031-heuristic-based-quality-gates.md)
+- [ADR-014: Codified Comparison Baselines](../adr/ADR-014-codified-comparison-baselines.md)
+- [ADR-040: Explicit Golden Dataset Versioning](../adr/ADR-040-explicit-golden-dataset-versioning.md)
+- [ADR-041: Multi-Tiered Benchmarking Strategy](../adr/ADR-041-multi-tiered-benchmarking-strategy.md)
+- [ADR-042: Heuristic-Based Quality Gates](../adr/ADR-042-heuristic-based-quality-gates.md)
 
 ## Related RFCs
 

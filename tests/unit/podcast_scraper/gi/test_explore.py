@@ -1,5 +1,7 @@
 """Tests for GIL cross-episode explore (scan, collect, build_explore_output)."""
 
+from pathlib import Path
+
 import pytest
 
 from podcast_scraper.gi import (
@@ -10,10 +12,11 @@ from podcast_scraper.gi import (
     scan_artifact_paths,
     write_artifact,
 )
-from podcast_scraper.gi.contracts import EvidenceSpan, InsightSummary, SupportingQuote
+from podcast_scraper.gi.contracts import EvidenceSpan, InsightSummary, SupportingQuote, TopicEntry
 from podcast_scraper.gi.explore import (
     _insight_matches_topic,
     _topic_labels_for_insight,
+    aggregate_topic_entries_for_insights,
     EXIT_NO_ARTIFACTS,
     EXIT_NO_RESULTS,
     EXIT_SUCCESS,
@@ -86,9 +89,63 @@ class TestExploreTopicMatch:
             _insight_matches_topic(artifact, "i:1", "Weather today is nice", "regulation") is False
         )
 
+    def test_insight_matches_topic_via_about_label_not_insight_text(self):
+        """Topic filter matches ABOUT Topic label even when insight text omits the phrase."""
+        artifact = {
+            "nodes": [
+                {
+                    "id": "insight:ep:0",
+                    "type": "Insight",
+                    "properties": {"text": "Plain headline."},
+                },
+                {
+                    "id": "topic:regulatory-lag-topic",
+                    "type": "Topic",
+                    "properties": {"label": "Regulatory Lag Topic"},
+                },
+            ],
+            "edges": [
+                {
+                    "type": "ABOUT",
+                    "from": "insight:ep:0",
+                    "to": "topic:regulatory-lag-topic",
+                }
+            ],
+        }
+        assert _insight_matches_topic(artifact, "insight:ep:0", "Plain headline.", "regulatory")
+
     def test_insight_matches_topic_none_always_true(self):
         """No topic filter matches all."""
         assert _insight_matches_topic({}, "i:1", "Any text", None) is True
+
+    def test_aggregate_topic_entries_counts_about_edges(self):
+        """TopicEntry rows count ABOUT links for insights in the result set (#487)."""
+        art = {
+            "episode_id": "ep:1",
+            "nodes": [
+                {"id": "insight:ep:1:0", "type": "Insight", "properties": {"text": "x"}},
+                {"id": "topic:t1", "type": "Topic", "properties": {"label": "Tax policy"}},
+            ],
+            "edges": [
+                {"type": "ABOUT", "from": "insight:ep:1:0", "to": "topic:t1"},
+            ],
+        }
+        loaded = [(Path("p"), art)]
+        insights = [
+            InsightSummary(
+                insight_id="insight:ep:1:0",
+                text="x",
+                grounded=False,
+                episode_id="ep:1",
+                supporting_quotes=[],
+            )
+        ]
+        rows = aggregate_topic_entries_for_insights(loaded, insights)
+        assert len(rows) == 1
+        assert rows[0].topic_id == "topic:t1"
+        assert rows[0].insight_count == 1
+        assert rows[0].label == "Tax policy"
+        assert isinstance(rows[0], TopicEntry)
 
 
 @pytest.mark.unit
@@ -102,7 +159,7 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=True)
         loaded = load_artifacts([gi_path], validate=False)
-        insights = collect_insights(loaded, topic=None, limit=10)
+        insights, _ = collect_insights(loaded, topic=None, limit=10)
         assert len(insights) == 1
         assert insights[0].episode_id == "ep:1"
         assert insights[0].grounded is True
@@ -119,7 +176,7 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=False)
         loaded = load_artifacts([gi_path], validate=False)
-        insights = collect_insights(loaded, grounded_only=True)
+        insights, _ = collect_insights(loaded, grounded_only=True)
         assert len(insights) == 0
 
     def test_build_explore_output_shape(self):
@@ -139,6 +196,8 @@ class TestExploreCollectAndOutput:
         assert out.summary["insight_count"] == 1
         assert out.summary["grounded_insight_count"] == 1
         assert out.summary["speaker_count"] == 0
+        assert out.summary.get("topic_count") == 0
+        assert out.topics == []
         assert out.top_speakers == []
 
     def test_exit_codes_constants(self):
@@ -219,6 +278,8 @@ class TestExploreCollectAndOutput:
         assert d["topic"]["topic_id"] == f"topic:{topic_slug_for_rfc('world')}"
         assert d["insights"][0]["episode"]["title"] == "Ep title"
         assert "top_speakers" in d
+        assert "topics" in d
+        assert d["topics"] == []
         assert d["episodes_searched"] == 3
 
     def test_map_uc4_question_to_params(self):
@@ -310,8 +371,8 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=True)
         loaded = load_artifacts([gi_path], validate=False)
-        assert len(collect_insights(loaded, speaker="host")) == 1
-        assert len(collect_insights(loaded, speaker="nobody")) == 0
+        assert len(collect_insights(loaded, speaker="host")[0]) == 1
+        assert len(collect_insights(loaded, speaker="nobody")[0]) == 0
 
     def test_collect_insights_speaker_filter_graph_name_only(self, tmp_path):
         """--speaker matches SupportingQuote.speaker_name from SPOKEN_BY when id cleared."""
@@ -347,5 +408,5 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, out, validate=True)
         loaded = load_artifacts([gi_path], validate=False)
-        assert len(collect_insights(loaded, speaker="guest")) == 1
-        assert len(collect_insights(loaded, speaker="host")) == 0
+        assert len(collect_insights(loaded, speaker="guest")[0]) == 1
+        assert len(collect_insights(loaded, speaker="host")[0]) == 0

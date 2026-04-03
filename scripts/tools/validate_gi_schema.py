@@ -17,13 +17,11 @@ from pathlib import Path
 # Allow running from project root; add src to path if needed
 try:
     from podcast_scraper.gi.io import collect_gi_paths_from_inputs, read_artifact
-    from podcast_scraper.gi.schema import validate_artifact
 except ImportError:
     # Fallback when not installed
     root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(root / "src"))
     from podcast_scraper.gi.io import collect_gi_paths_from_inputs, read_artifact
-    from podcast_scraper.gi.schema import validate_artifact
 
 
 def main() -> int:
@@ -55,8 +53,7 @@ def main() -> int:
     failed: list[tuple[Path, str]] = []
     for path in files_to_validate:
         try:
-            data = read_artifact(path)
-            validate_artifact(data, strict=True)
+            read_artifact(path, validate=True, strict=True)
             if not args.quiet:
                 print(f"OK {path}")
         except Exception as e:

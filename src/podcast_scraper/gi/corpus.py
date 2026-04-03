@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 from .io import read_artifact
-from .schema import validate_artifact
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +24,7 @@ def load_gi_artifacts(
     out: List[Tuple[Path, Dict[str, Any]]] = []
     for path in paths:
         try:
-            data = read_artifact(path)
-            if validate:
-                validate_artifact(data, strict=strict)
+            data = read_artifact(path, validate=validate, strict=strict)
             out.append((path, data))
         except Exception as e:
             if strict:

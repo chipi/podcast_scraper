@@ -3189,6 +3189,25 @@ def generate_episode_metadata(  # noqa: C901
                 _gil_lineage_provider = (
                     summary_provider if summary_provider is not None else insight_provider_arg
                 )
+                max_gi_topics = int(
+                    getattr(
+                        cfg,
+                        "kg_max_topics",
+                        config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX,
+                    )
+                    or config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
+                )
+                gi_topic_labels: Optional[List[str]] = None
+                if summary_metadata and getattr(summary_metadata, "bullets", None):
+                    _bullets_gi_topics = summary_metadata.bullets
+                    if _bullets_gi_topics:
+                        gi_topic_labels = []
+                        for _b in _bullets_gi_topics[:max_gi_topics]:
+                            _s = strip_known_ml_bullet_prefixes(str(_b))
+                            if _s:
+                                gi_topic_labels.append(_s)
+                        if not gi_topic_labels:
+                            gi_topic_labels = None
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
@@ -3209,6 +3228,7 @@ def generate_episode_metadata(  # noqa: C901
                     summary_provider=summary_provider,
                     pipeline_metrics=pipeline_metrics,
                     gil_created_evidence_providers=gil_evidence_cleanup,
+                    topic_labels=gi_topic_labels,
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
                 gi_elapsed = time.time() - gi_start
