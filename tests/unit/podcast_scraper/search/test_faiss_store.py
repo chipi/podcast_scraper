@@ -183,7 +183,6 @@ def test_index_meta_format_version(tmp_path: Path) -> None:
 def test_maybe_upgrade_auto_ivf_low_threshold(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    pytest.importorskip("faiss")
     from podcast_scraper.search import faiss_store as fs_mod
 
     monkeypatch.setattr(fs_mod, "FAISS_AUTO_IVF_MIN_VECTORS", 4)

@@ -23,6 +23,14 @@ from podcast_scraper.providers.mistral import mistral_provider as mistral_provid
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 
 
+class _DummyMistralUploadFile:
+    """Stand-in for mistralai ``File`` when the SDK is absent or unpatchable in unit tests."""
+
+    def __init__(self, file_name: str = "", content: bytes = b""):
+        self.file_name = file_name
+        self.content = content
+
+
 @pytest.mark.unit
 class TestMistralProviderStandalone(unittest.TestCase):
     """Standalone tests for MistralProvider - testing the provider itself."""
@@ -292,11 +300,13 @@ class TestMistralProviderTranscription(unittest.TestCase):
             transcribe_missing=True,
         )
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_success(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_success(self, mock_exists, mock_open, mock_mistral_class, mock_file_cls):
         """Test successful transcription."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -319,11 +329,15 @@ class TestMistralProviderTranscription(unittest.TestCase):
         self.assertEqual(result, "Hello world")
         mock_client.audio.transcriptions.complete.assert_called_once()
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_with_language(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_with_language(
+        self, mock_exists, mock_open, mock_mistral_class, mock_file_cls
+    ):
         """Test transcription with explicit language."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -375,11 +389,13 @@ class TestMistralProviderTranscription(unittest.TestCase):
 
         self.assertIn("not found", str(context.exception))
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_api_error(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_api_error(self, mock_exists, mock_open, mock_mistral_class, mock_file_cls):
         """Test transcribe handles API errors."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
@@ -400,11 +416,15 @@ class TestMistralProviderTranscription(unittest.TestCase):
 
         self.assertIn("transcription failed", str(context.exception))
 
+    @patch("podcast_scraper.providers.mistral.mistral_provider._mistral_file_class")
     @patch("podcast_scraper.providers.mistral.mistral_provider.Mistral")
     @patch("builtins.open", create=True)
     @patch("os.path.exists")
-    def test_transcribe_with_segments_success(self, mock_exists, mock_open, mock_mistral_class):
+    def test_transcribe_with_segments_success(
+        self, mock_exists, mock_open, mock_mistral_class, mock_file_cls
+    ):
         """Test transcribe_with_segments returns full result."""
+        mock_file_cls.return_value = _DummyMistralUploadFile
         mock_exists.return_value = True
         mock_file = Mock()
         mock_file.read.return_value = b"fake audio data"
