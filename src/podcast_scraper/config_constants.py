@@ -78,16 +78,21 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 
 # Production defaults (quality models for production use)
 # These are used in production deployments and nightly-only tests
-# Aligned with baseline_ml_prod_authority_v1 (Pegasus-CNN → LED-base)
+# Aligned with ml_small_authority (BART-base → LED-base, proven on podcast content)
 #
 # RFC-044: These identifiers are also promoted into the code Model Registry as a
-# `ModeConfiguration` (e.g. "ml_prod_authority_v1") so app defaults can be tied
+# `ModeConfiguration` (e.g. "ml_small_authority") so app defaults can be tied
 # to proven baselines without runtime imports from `data/eval/`.
 #
 # Dev defaults are represented by a separate promoted mode ID (smaller models),
 # aligned with baseline_ml_dev_authority_smoke_v1 (BART-base → LED-base).
+#
+# NOTE: ml_prod_authority_v1 (Pegasus-CNN → LED-base) is deprecated for podcast
+# content — architectural mismatch (see model_registry.py deprecation_reason).
+# It will be re-evaluated when news is added as a content type.
+# Next prod candidate: ml_longt5_led_v1 (LongT5+LED, autoresearch in progress).
 DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
-PROD_DEFAULT_SUMMARY_MODE_ID = "ml_prod_authority_v1"
+PROD_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
 
 PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
 try:
@@ -99,7 +104,7 @@ try:
 except Exception:
     # Fallback for minimal environments where registry mode may not be available.
     PROD_DEFAULT_SUMMARY_MODEL = (
-        "google/pegasus-cnn_dailymail"  # Production baseline: Pegasus-CNN for map phase
+        "facebook/bart-base"  # Production baseline: BART-base for map phase
     )
     PROD_DEFAULT_SUMMARY_REDUCE_MODEL = (
         SUMMARY_MODEL_LED_BASE_16384  # Production baseline: LED-base for reduce phase

@@ -62,6 +62,8 @@ class ModeConfiguration:
     promoted_from: str
     promoted_at: str
     metrics_summary: Optional[Dict[str, Any]] = None
+    deprecated_at: Optional[str] = None
+    deprecation_reason: Optional[str] = None
 
 
 def _bart_caps(
@@ -372,6 +374,18 @@ class ModelRegistry:
                     "performance": {"avg_latency_ms": 22964.020609855652},
                 },
             },
+            deprecated_at="2026-04-03T00:00:00Z",
+            deprecation_reason=(
+                "Pegasus (CNN/DailyMail) produces near-duplicate chunk summaries on podcast "
+                "transcripts due to its news GSG pretraining objective. LED reduce then exhausts "
+                "its no_repeat_ngram budget on redundant input and stops at ~55-70 tokens "
+                "regardless of param tuning. Architectural mismatch for podcast content — not "
+                "fixable without retraining. Superseded by ml_small_authority (BART+LED) as prod "
+                "default and ml_longt5_led_v1 (LongT5+LED) as the next candidate. "
+                "NOTE: Pegasus is well-suited for news content; re-evaluate when news is added "
+                "as a content type. "
+                "See baseline_ml_pegasus_retirement_smoke_v1 for the tombstone experiment."
+            ),
         ),
         # END MODE REGISTRY (append-only)
     }

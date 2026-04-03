@@ -190,16 +190,26 @@ def _print_promotion_snippet(
     print("\n" + "=" * 72)
     print("PROMOTION SNIPPET — paste into model_registry.py _mode_registry:")
     print("=" * 72)
+
+    def _to_py(obj: Any) -> str:
+        """json.dumps but with Python bool/None literals."""
+        return (
+            json.dumps(obj, indent=16)
+            .replace(": true", ": True")
+            .replace(": false", ": False")
+            .replace(": null", ": None")
+        )
+
     snippet = f"""
         "{mode_id}": ModeConfiguration(
             mode_id="{mode_id}",
             map_model="{best_cfg["backend"]["map_model"]}",
             reduce_model="{best_cfg["backend"]["reduce_model"]}",
             preprocessing_profile="{best_cfg.get("preprocessing_profile", "cleaning_v4")}",
-            map_params={json.dumps(best_cfg.get("map_params", {}), indent=16)},
-            reduce_params={json.dumps(best_cfg.get("reduce_params", {}), indent=16)},
-            tokenize={json.dumps(best_cfg.get("tokenize", {}), indent=16)},
-            chunking={json.dumps(best_cfg.get("chunking"), indent=16)},
+            map_params={_to_py(best_cfg.get("map_params", {}))},
+            reduce_params={_to_py(best_cfg.get("reduce_params", {}))},
+            tokenize={_to_py(best_cfg.get("tokenize", {}))},
+            chunking={_to_py(best_cfg.get("chunking"))},
             promoted_from="{baseline_id}",
             promoted_at="{now}",
             metrics_summary={{

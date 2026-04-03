@@ -14,24 +14,26 @@
 
 # ─── BART/LED (dev baseline: ml_small_authority) ────────────────────────────
 bart_led:
-  base_config: "data/eval/configs/ml/baseline_ml_dev_authority.yaml"
+  # Round 2: base is the round-1 winner (max_new_tokens=550, num_beams=6)
+  # Groups 1-3 (max_new_tokens, num_beams, length_penalty) already swept — disabled.
+  base_config: "autoresearch/ml_param_tuning/results/bart_led_best_config.yaml"
   reference: "silver_sonnet46_smoke_v1"
   description: "BART-base MAP + LED-base-16384 REDUCE (ml_small_authority mode)"
 
   # Reduce params — largest impact on output quality and length
   reduce_params:
     max_new_tokens:
-      enabled: true
+      enabled: false  # round-1: 550 accepted (+2.89%), already in best config
       candidates: [450, 550, 750, 850]
       description: "Output length cap. Current: 650. LED can generate longer with more."
 
     num_beams:
-      enabled: true
+      enabled: false  # round-1: 6 accepted (+1.15%), already in best config
       candidates: [6, 8]
       description: "Beam width. More beams = better quality, slower. Current: 4."
 
     length_penalty:
-      enabled: true
+      enabled: false  # round-1: all rejected (early stop triggered), skipping
       candidates: [1.2, 1.5, 0.8]
       description: "Values >1 encourage longer outputs. Current: 1.0."
 
