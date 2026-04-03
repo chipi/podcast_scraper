@@ -23,7 +23,7 @@ The **podcast_scraper** project includes:
 
 - Update relevant RFCs (status: Draft → Accepted → Completed)
 - Update `docs/guides/DEVELOPMENT_GUIDE.md` if adding new patterns
-- Update `docs/TESTING_STRATEGY.md` if adding new test categories
+- Update `docs/architecture/TESTING_STRATEGY.md` if adding new test categories
 - Update `mkdocs.yml` if adding new docs
 
 **Example prompt:**
@@ -36,7 +36,7 @@ When working on documentation tasks:
 
 1. **Check project guidelines** before starting:
    - Reference `docs/guides/DEVELOPMENT_GUIDE.md` for technical patterns
-   - Check `docs/TESTING_STRATEGY.md` for test requirements
+   - Check `docs/architecture/TESTING_STRATEGY.md` for test requirements
    - Review related RFCs/PRDs for feature context
 
 2. **Update relevant files**:

@@ -210,8 +210,8 @@ Added complete documentation for the Grounded Insights (GI) system:
 
 **Documentation:**
 
-- [Grounded Insights Ontology](../gi/ontology.md) - Complete ontology reference
-- [Grounded Insights Schema](../gi/gi.schema.json) - JSON schema validation
+- [Grounded Insights Ontology](../architecture/gi/ontology.md) - Complete ontology reference
+- [Grounded Insights Schema](../architecture/gi/gi.schema.json) - JSON schema validation
 
 **Related PR:** #391
 

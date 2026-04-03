@@ -15,7 +15,7 @@
   - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (KG use cases — entity/topic roll-ups)
 - **Related Documents**:
   - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
-  - `docs/gi/ontology.md` — GIL ontology (node types, text fields)
+  - `docs/architecture/gi/ontology.md` — GIL ontology (node types, text fields)
 
 ## Abstract
 

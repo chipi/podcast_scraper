@@ -1,0 +1,31 @@
+digraph G {
+concentrate=true;
+splines="ortho";
+rankdir="LR";
+subgraph legend{
+    rank = min;
+    label = "legend";
+    Legend [shape=none, margin=0, label = <
+        <table cellspacing="0" cellpadding="0" border="1"><tr><td>Code2flow Legend</td></tr><tr><td>
+        <table cellspacing="0">
+        <tr><td>Regular function</td><td width="50px" bgcolor='#cccccc'></td></tr>
+        <tr><td>Trunk function (nothing calls this)</td><td bgcolor='#966F33'></td></tr>
+        <tr><td>Leaf function (this calls nothing else)</td><td bgcolor='#6db33f'></td></tr>
+        <tr><td>Function call</td><td><font color='black'>&#8594;</font></td></tr>
+        </table></td></tr></table>
+        >];
+}node_b93e3976 [label="0: (global)()" name="service::(global)" shape="rect" style="rounded,filled" fillcolor="#966F33" ];
+node_b2f12849 [label="159: main()" name="service::main" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_92768996 [label="63: run()" name="service::run" shape="rect" style="rounded,filled" fillcolor="#6db33f" ];
+node_a435beb7 [label="112: run_from_config_file()" name="service::run_from_config_file" shape="rect" style="rounded,filled" fillcolor="#cccccc" ];
+node_b93e3976 -> node_b2f12849 [color="#D55E00" penwidth="2"];
+node_b2f12849 -> node_a435beb7 [color="#E69F00" penwidth="2"];
+node_a435beb7 -> node_92768996 [color="#CC79A7" penwidth="2"];
+subgraph cluster_b2811c89 {
+    node_92768996 node_a435beb7 node_b2f12849 node_b93e3976;
+    label="File: service";
+    name="service";
+    style="filled";
+    graph[style=dotted];
+};
+}

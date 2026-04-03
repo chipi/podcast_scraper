@@ -2,7 +2,7 @@
 
 > **See also:**
 >
-> - [Testing Strategy](../TESTING_STRATEGY.md) - High-level testing philosophy and test pyramid
+> - [Testing Strategy](../architecture/TESTING_STRATEGY.md) - High-level testing philosophy and test pyramid
 > - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
 
 This guide covers E2E test implementation: real HTTP client, E2E server, ML model usage, and OpenAI mock endpoints.

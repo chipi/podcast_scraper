@@ -15,8 +15,8 @@
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) — source `gi.json` and GIL semantics
   - [PRD-019: Knowledge Graph Layer](PRD-019-knowledge-graph-layer.md) — source KG artifacts per RFC-055 (`kg` export and tables are **in scope** here; implementation may ship after GIL export when KG artifacts exist)
 - **Related Documents**:
-  - `docs/gi/ontology.md`, `docs/gi/gi.schema.json` — GIL ontology and schema
-  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` — KG ontology and schema (RFC-055)
+  - `docs/architecture/gi/ontology.md`, `docs/architecture/gi/gi.schema.json` — GIL ontology and schema
+  - `docs/architecture/kg/ontology.md`, `docs/architecture/kg/kg.schema.json` — KG ontology and schema (RFC-055)
 
 ## Summary
 
@@ -251,7 +251,7 @@ the serving layer.
 - **FR8.4**: Support incremental and rebuild modes
   analogous to GIL export; idempotent upserts per
   episode
-- **FR8.5**: Validate against **`docs/kg/kg.schema.json`**
+- **FR8.5**: Validate against **`docs/architecture/kg/kg.schema.json`**
   when present (mirror `make validate-gi-schema` story)
 
 ### FR9: Coexistence and Independence

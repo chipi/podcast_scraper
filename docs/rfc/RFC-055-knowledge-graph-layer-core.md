@@ -13,9 +13,9 @@
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout)
 - **Related Documents**:
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (config and CLI filled in with implementation)
-  - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
-  - `docs/kg/kg.schema.json` — JSON Schema (published; see §Schema)
-  - `docs/ARCHITECTURE.md` — Module boundaries
+  - `docs/architecture/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
+  - `docs/architecture/kg/kg.schema.json` — JSON Schema (published; see §Schema)
+  - `docs/architecture/ARCHITECTURE.md` — Module boundaries
 
 ## Abstract
 
@@ -46,11 +46,11 @@ live in [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md). At a high level:
 
 ## Goals
 
-1. **Define KG ontology** (node/edge types v1) in `docs/kg/ontology.md` and keep it in sync with implementation.
+1. **Define KG ontology** (node/edge types v1) in `docs/architecture/kg/ontology.md` and keep it in sync with implementation.
 2. **Define storage**: Per-episode KG artifact filename, JSON shape, `schema_version`, provenance fields.
 3. **Define configuration**: Feature flag and model/provider hooks (aligned with `Config` patterns used for GIL).
 4. **Separate CLI naming**: **`kg`** subcommands for KG operations vs **`gi`** for GIL (per PRD-019 and user-facing consistency).
-5. **Validation**: Publish `docs/kg/kg.schema.json` and validate in CI when KG is generated in tests.
+5. **Validation**: Publish `docs/architecture/kg/kg.schema.json` and validate in CI when KG is generated in tests.
 
 ## Constraints & Assumptions
 
@@ -71,7 +71,7 @@ live in [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md). At a high level:
 ### 1. Artifact
 
 - **Format**: JSON document per episode, distinct from `*.gi.json`.
-- **Contents**: `schema_version`, `episode_id`, extraction metadata, `nodes`, `edges` (or equivalent graph serialization), with types enumerated in `docs/kg/ontology.md`.
+- **Contents**: `schema_version`, `episode_id`, extraction metadata, `nodes`, `edges` (or equivalent graph serialization), with types enumerated in `docs/architecture/kg/ontology.md`.
 - **Co-location**: Same directory as episode metadata / GIL: `metadata/<basename>.kg.json`
   (mirrors `*.gi.json` naming).
 
@@ -82,9 +82,9 @@ live in [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md). At a high level:
 - **Episode-level anchor** (link to episode id).
 - **Entity-like nodes** (e.g. person, organization — naming TBD in ontology).
 - **Topic / theme** nodes (distinct from GIL “Topic” if needed to avoid collision — prefix or separate namespace in IDs).
-- **Edges**: v1 aligns with `docs/kg/ontology.md` (e.g. `MENTIONS`, `RELATED_TO`); additional edge kinds (e.g. co-occurrence) may follow in later releases.
+- **Edges**: v1 aligns with `docs/architecture/kg/ontology.md` (e.g. `MENTIONS`, `RELATED_TO`); additional edge kinds (e.g. co-occurrence) may follow in later releases.
 
-Update **`docs/kg/ontology.md`** as the source of truth; RFC references it by path.
+Update **`docs/architecture/kg/ontology.md`** as the source of truth; RFC references it by path.
 
 ### 3. Config (illustrative)
 
@@ -109,9 +109,9 @@ Cross-links between artifacts (e.g. KG node referencing a GIL `insight_id`) are 
 
 ## Schema
 
-- **`docs/kg/kg.schema.json`** is checked in; CI/dev validation via **`make validate-kg-schema`**
+- **`docs/architecture/kg/kg.schema.json`** is checked in; CI/dev validation via **`make validate-kg-schema`**
   and `scripts/tools/validate_kg_schema.py` (mirror `validate-gi-schema` tooling).
-- **v1 freeze (Issue #464):** The schema and **`docs/kg/ontology.md`** match shipped `kg` pipeline output (node/edge kinds, `MENTIONS` direction, `extraction.model_version` values, Entity `role` enum). Breaking changes require a schema/ontology bump.
+- **v1 freeze (Issue #464):** The schema and **`docs/architecture/kg/ontology.md`** match shipped `kg` pipeline output (node/edge kinds, `MENTIONS` direction, `extraction.model_version` values, Entity `role` enum). Breaking changes require a schema/ontology bump.
 
 ## Testing Strategy
 

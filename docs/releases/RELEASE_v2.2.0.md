@@ -331,8 +331,8 @@ metadata_subdirectory: "metadata"   # Optional: separate metadata directory
 ## Documentation
 
 - Metadata Generation: [PRD-004](../prd/PRD-004-metadata-generation.md), [RFC-011](../rfc/RFC-011-metadata-generation.md)
-- Testing Strategy: [TESTING_STRATEGY.md](../TESTING_STRATEGY.md)
-- Architecture: [ARCHITECTURE.md](../ARCHITECTURE.md)
+- Testing Strategy: [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md)
+- Architecture: [ARCHITECTURE.md](../architecture/ARCHITECTURE.md)
 
 ## Migration Notes
 

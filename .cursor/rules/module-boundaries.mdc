@@ -1,6 +1,6 @@
 # Module Boundaries - Architecture Constraints
 
-**For complete architecture:** `docs/ARCHITECTURE.md`
+**For complete architecture:** `docs/architecture/ARCHITECTURE.md`
 
 ## 🚨 CRITICAL: Respect Module Boundaries
 
@@ -280,4 +280,4 @@ class OpenAIProvider:
 
 **Version:** 1.0
 **Created:** 2026-01-07
-**Source:** Distilled from `docs/ARCHITECTURE.md` and `.ai-coding-guidelines.md`
+**Source:** Distilled from `docs/architecture/ARCHITECTURE.md` and `.ai-coding-guidelines.md`

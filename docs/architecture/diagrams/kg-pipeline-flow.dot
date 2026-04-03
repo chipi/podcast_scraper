@@ -1,0 +1,90 @@
+digraph kg_pipeline {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    label="KG Extraction Pipeline: build_artifact()";
+    labelloc=t;
+    fontsize=14;
+
+    // Inputs
+    subgraph cluster_inputs {
+        label="Inputs";
+        style=dashed;
+        color="#999999";
+        episode_id [label="episode_id\ntranscript_text\npodcast_id", shape=parallelogram, fillcolor="#FFF3CD"];
+        cfg [label="cfg (Config)\nkg_extraction_source:\nstub | summary_bullets | provider", shape=parallelogram, fillcolor="#FFF3CD"];
+        providers [label="kg_extraction_provider\n(summarization provider)", shape=parallelogram, fillcolor="#FFF3CD"];
+        pipeline_data [label="topic_labels\ndetected_hosts\ndetected_guests", shape=parallelogram, fillcolor="#FFF3CD"];
+    }
+
+    // Resolve source
+    resolve_source [label="_resolve_source(cfg)\n────────────────────\nstub | summary_bullets | provider", fillcolor="#D4EDDA"];
+
+    // Source decision
+    source_decision [label="kg_extraction_source?", shape=diamond, fillcolor="#FFF3CD"];
+
+    // Provider path
+    subgraph cluster_provider {
+        label="Provider Extraction";
+        style=filled;
+        color="#CCE5FF";
+        fillcolor="#F0F8FF";
+
+        try_provider [label="_try_provider_extraction()\n──────────────────────────\nCalls provider.extract_kg_graph()\nReturns {topics: [...], entities: [...]}"];
+    }
+
+    // Summary bullets path
+    subgraph cluster_bullets {
+        label="Summary Bullets Extraction";
+        style=filled;
+        color="#D4EDDA";
+        fillcolor="#F0FFF0";
+
+        try_bullets [label="_try_bullet_derived_extraction()\n───────────────────────────────\nCalls provider.extract_kg_from_summary_bullets()\nDerives topics/entities from bullet text via LLM"];
+        bullet_fallback [label="_append_topics_from_labels()\n────────────────────────────\nLegacy: use bullet text\nas Topic node labels\n(slug-deduped)", fillcolor="#E2E3E5"];
+    }
+
+    // LLM partial processing
+    provider_check [label="LLM partial\nreturned?", shape=diamond, fillcolor="#FFF3CD"];
+
+    append_topics_entities [label="_append_topics_and_entities_from_partial()\n─────────────────────────────────────\nTopic nodes (slug-deduped, capped)\nEntity nodes (kind-deduped, capped)\nMENTIONS edges", fillcolor="#CCE5FF"];
+
+    // Pipeline entities
+    merge_check [label="kg_merge_pipeline_entities?", shape=diamond, fillcolor="#FFF3CD"];
+
+    append_pipeline [label="_append_pipeline_entities()\n──────────────────────────\nEntity nodes from speaker pipeline:\n  hosts → role: host, kind: person\n  guests → role: guest, kind: person\nDeduped against existing entities", fillcolor="#D4EDDA"];
+
+    // Output
+    artifact [label="KG Artifact (kg.json)\n─────────────────────\nschema_version: 1.1\nextraction: {model_version, extracted_at}\nnodes: Episode, Topic, Entity\nedges: MENTIONS", shape=parallelogram, fillcolor="#D1ECF1"];
+
+    // Stub path
+    stub_path [label="No extraction\n(stub mode)", fillcolor="#E2E3E5"];
+
+    // Flow
+    episode_id -> resolve_source;
+    cfg -> resolve_source;
+    resolve_source -> source_decision;
+
+    source_decision -> try_provider [label="provider"];
+    source_decision -> try_bullets [label="summary_bullets\n(+ bullet_labels)"];
+    source_decision -> stub_path [label="stub"];
+
+    try_provider -> provider_check;
+    try_bullets -> provider_check;
+    try_bullets -> bullet_fallback [label="provider N/A\nor failed", style=dashed];
+    bullet_fallback -> merge_check;
+
+    provider_check -> append_topics_entities [label="Yes"];
+    provider_check -> bullet_fallback [label="No (fallback)"];
+
+    append_topics_entities -> merge_check;
+    stub_path -> merge_check;
+
+    pipeline_data -> append_pipeline;
+    merge_check -> append_pipeline [label="Yes (default)"];
+    merge_check -> artifact [label="No\n(LLM-only)"];
+
+    append_pipeline -> artifact;
+}

@@ -14,9 +14,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-# Mock google.genai before importing modules that require it
-# Unit tests run without google-genai package installed
-# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+# Mock google.genai; unit-only pytest (``make test-ci-fast``).
 mock_google = MagicMock()
 mock_genai_module = MagicMock()
 mock_genai_module.configure = Mock()
@@ -32,6 +30,7 @@ _patch_google = patch.dict(
     },
 )
 _patch_google.start()
+
 from podcast_scraper import config
 from podcast_scraper.speaker_detectors.factory import create_speaker_detector
 from podcast_scraper.summarization.factory import create_summarization_provider

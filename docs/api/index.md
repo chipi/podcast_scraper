@@ -49,6 +49,6 @@ This directory contains comprehensive API documentation for `podcast_scraper`, i
 
 ## Quick Links
 
-- **[Architecture](../ARCHITECTURE.md)** — System design and module responsibilities.
+- **[Architecture](../architecture/ARCHITECTURE.md)** — System design and module responsibilities.
 - **[Development Guide](../guides/DEVELOPMENT_GUIDE.md)** — Development practices and guidelines.
 - **[Testing Guide](../guides/TESTING_GUIDE.md)** — Testing strategies and examples.

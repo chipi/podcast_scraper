@@ -75,4 +75,4 @@ We introduce a fourth test tier: **acceptance tests**.
 
 - [RFC-023: README Acceptance Tests](../rfc/RFC-023-readme-acceptance-tests.md)
 - [ADR-019: Standardized Test Pyramid](ADR-019-standardized-test-pyramid.md)
-- [Testing Strategy](../TESTING_STRATEGY.md)
+- [Testing Strategy](../architecture/TESTING_STRATEGY.md)

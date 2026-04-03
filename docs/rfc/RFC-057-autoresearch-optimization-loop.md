@@ -16,8 +16,8 @@
   - `src/podcast_scraper/evaluation/` — scoring (`scorer.py`, `gi_scorer.py`, `kg_scorer.py`, `eval_gi_kg_runtime.py`, experiment config)
   - `src/podcast_scraper/prompts/` — versioned `.j2` templates (see `prompts/shared/README.md`)
   - `docs/api/CONFIGURATION.md` — `summary_prompt_params`, summarization / Whisper fields
-  - `docs/ARCHITECTURE.md` — Provider system and module boundaries
-  - `docs/TESTING_STRATEGY.md` — Existing test pyramid
+  - `docs/architecture/ARCHITECTURE.md` — Provider system and module boundaries
+  - `docs/architecture/TESTING_STRATEGY.md` — Existing test pyramid
 
 ## Abstract
 

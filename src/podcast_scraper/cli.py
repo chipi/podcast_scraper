@@ -2192,7 +2192,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
     val.add_argument(
         "--strict",
         action="store_true",
-        help="Full JSON Schema validation (docs/gi/gi.schema.json)",
+        help="Full JSON Schema validation (docs/architecture/gi/gi.schema.json)",
     )
     val.add_argument(
         "-q",
@@ -2446,7 +2446,7 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     val.add_argument(
         "--strict",
         action="store_true",
-        help="Full JSON Schema validation (requires docs/kg/kg.schema.json)",
+        help="Full JSON Schema validation (requires docs/architecture/kg/kg.schema.json)",
     )
     val.add_argument(
         "-q",

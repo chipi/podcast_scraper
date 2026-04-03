@@ -9,8 +9,8 @@
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) (GI / GIL — evidence-first insights and quotes)
   - [PRD-018: Database Projection](PRD-018-database-projection-gil-kg.md) (Postgres projection for **GIL and KG** — RFC-051)
 - **Related Documents**:
-  - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
-  - `docs/kg/kg.schema.json` — Machine-readable schema (published; validated in CI via `make validate-kg-schema`)
+  - `docs/architecture/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
+  - `docs/architecture/kg/kg.schema.json` — Machine-readable schema (published; validated in CI via `make validate-kg-schema`)
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (updated with implementation)
 - **Related UX specs**:
   - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
@@ -39,7 +39,7 @@ Podcast libraries are easier to explore when content is not only summarized (PRD
 1. **Structured graph export**: Represent episode-scoped and optionally cross-episode **nodes and edges** (entities, topics, relationships) in a **documented** format.
 2. **Independent feature flag**: Enable or disable KG **without** requiring GIL or changing GIL semantics.
 3. **Clear consumption path**: Document how consumers query or merge KG data (files, and **relational projection** per [PRD-018](PRD-018-database-projection-gil-kg.md) / [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) when enabled).
-4. **Stable contracts**: Versioned schema and ontology artifacts under `docs/kg/` aligned with RFC-055.
+4. **Stable contracts**: Versioned schema and ontology artifacts under `docs/architecture/kg/` aligned with RFC-055.
 5. **Documented consumption**: End-to-end use cases, query patterns, and CLI expectations for KG are specified in RFC-056 and `KNOWLEDGE_GRAPH_GUIDE.md`, in **parity with** the GIL split (PRD-017 / RFC-049 + RFC-050 + `GROUNDED_INSIGHTS_GUIDE.md`).
 
 ## Documentation parity with GIL (PRD-017)
@@ -91,11 +91,11 @@ features.
 
 - **FR2.1**: Per-episode KG output path and filename pattern defined in RFC-055 (distinct from `*.gi.json`).
 - **FR2.2**: Artifacts include `schema_version`, extraction provenance, and `episode_id` as specified in RFC-055.
-- **FR2.3**: Machine-readable validation against `docs/kg/kg.schema.json` when schema is published.
+- **FR2.3**: Machine-readable validation against `docs/architecture/kg/kg.schema.json` when schema is published.
 
 ### FR3: Ontology & Relationships
 
-- **FR3.1**: Documented node and edge types in `docs/kg/ontology.md` (entities, topics, relationships as scoped in RFC-055).
+- **FR3.1**: Documented node and edge types in `docs/architecture/kg/ontology.md` (entities, topics, relationships as scoped in RFC-055).
 - **FR3.2**: Cross-episode identity strategy (e.g. slugs, stable IDs) described in RFC-055; semantic merging deferred if marked out of scope.
 
 ### FR4: Integration
@@ -118,7 +118,7 @@ features.
   pipeline patterns (align with PRD-016 / existing metrics where applicable).
 
 - **Versioning**: `schema_version` and ontology evolution follow the same discipline as
-  GIL (`docs/kg/` as source of truth).
+  GIL (`docs/architecture/kg/` as source of truth).
 
 ## Success Metrics
 
@@ -132,7 +132,7 @@ features.
 - **Product**: FR1–FR5 satisfied for a representative run (transcript → KG artifact → validate
   against published schema).
 
-- **Docs**: PRD-019, RFC-055, RFC-056, `KNOWLEDGE_GRAPH_GUIDE.md`, and `docs/kg/ontology.md`
+- **Docs**: PRD-019, RFC-055, RFC-056, `KNOWLEDGE_GRAPH_GUIDE.md`, and `docs/architecture/kg/ontology.md`
   are mutually consistent for the shipped artifact shape.
 
 - **Independence**: With only KG enabled, pipeline behavior does not depend on GIL
@@ -162,7 +162,7 @@ features.
 
 ## Open Questions
 
-- **v1 node/edge freeze**: **Done (GitHub #464).** `docs/kg/kg.schema.json`, `docs/kg/ontology.md`, and the `build_artifact` pipeline are aligned for v1; strict validation enforces `extraction.model_version` and Entity `role` values shipped by the builder.
+- **v1 node/edge freeze**: **Done (GitHub #464).** `docs/architecture/kg/kg.schema.json`, `docs/architecture/kg/ontology.md`, and the `build_artifact` pipeline are aligned for v1; strict validation enforces `extraction.model_version` and Entity `role` values shipped by the builder.
 - Relative **implementation priority** of `kg export` vs `gi export` (both are in PRD-018 / RFC-051 scope; shipping order may differ).
 - Which **`kg`** subcommands ship in v1 vs later (RFC-056 lists illustrative commands).
 

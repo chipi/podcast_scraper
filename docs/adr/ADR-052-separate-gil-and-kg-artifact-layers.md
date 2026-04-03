@@ -25,7 +25,7 @@ We maintain **GIL and KG as separate, independent artifact layers**:
    config fields. Either can be enabled without the other.
 3. **Separate CLI namespaces**: `podcast_scraper gi` for GIL operations, `kg` for KG
    operations.
-4. **Separate ontology docs**: `docs/gi/ontology.md` and `docs/kg/ontology.md`.
+4. **Separate ontology docs**: `docs/architecture/gi/ontology.md` and `docs/architecture/kg/ontology.md`.
 5. **No cross-references required in v1**: Optional links between GIL and KG nodes
    (e.g. `insight_id` in a KG entity) are permitted but not required.
 

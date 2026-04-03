@@ -27,9 +27,9 @@
   - `docs/rfc/RFC-053-adaptive-summarization-routing.md`
     (downstream — adaptive routing)
 - **Related Documents**:
-  - `docs/gi/ontology.md` - Human-readable ontology
-  - `docs/gi/gi.schema.json` - Machine-readable schema
-  - `docs/ARCHITECTURE.md` - System architecture
+  - `docs/architecture/gi/ontology.md` - Human-readable ontology
+  - `docs/architecture/gi/gi.schema.json` - Machine-readable schema
+  - `docs/architecture/ARCHITECTURE.md` - System architecture
 
 ## Abstract
 
@@ -1210,7 +1210,7 @@ fast serving (051).**
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`
 - **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
-- **Ontology Specification**: `docs/gi/ontology.md`
-- **Schema Specification**: `docs/gi/gi.schema.json`
-- **Architecture**: `docs/ARCHITECTURE.md`
+- **Ontology Specification**: `docs/architecture/gi/ontology.md`
+- **Schema Specification**: `docs/architecture/gi/gi.schema.json`
+- **Architecture**: `docs/architecture/ARCHITECTURE.md`
 - **Source Code**: `podcast_scraper/workflow/` (integration points)

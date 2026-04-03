@@ -14,7 +14,7 @@
   - [PRD-018: Database Projection](PRD-018-database-projection-gil-kg.md) (complementary — SQL for structured, vectors for semantic)
 - **Related Documents**:
   - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
-  - `docs/wip/platform-corpus-service-megasketch.md` — Platform context
+  - `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md` — Platform context
 - **Related UX specs**:
   - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) (viewer surfaces semantic search per RFC-062)
 

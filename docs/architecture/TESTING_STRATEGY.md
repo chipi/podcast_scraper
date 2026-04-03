@@ -3,11 +3,11 @@
 > **Document Structure:**
 >
 > - **This document** - High-level strategy, test pyramid, decision criteria
-> - **[Testing Guide](guides/TESTING_GUIDE.md)** - Quick reference, test execution commands
-> - **[Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
-> - **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
-> - **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking
-> - **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
+> - **[Testing Guide](../guides/TESTING_GUIDE.md)** - Quick reference, test execution commands
+> - **[Unit Testing Guide](../guides/UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
+> - **[Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
+> - **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking
+> - **[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Overview
 
@@ -115,7 +115,7 @@ The testing strategy follows a three-tier pyramid:
   - ❌ **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
   - ⚠️ **ML models**: Mocked by default for speed. Use real models with `@pytest.mark.ml_models`
     for ML workflow integration tests (excluded from fast suite, see
-    [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md))
+    [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md))
   - ✅ **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
 - **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
@@ -175,7 +175,7 @@ The testing strategy follows a three-tier pyramid:
 
 ## Decision Criteria
 
-The decision questions above provide a quick way to determine test type. For critical path prioritization, see [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md). For detailed implementation guidelines, see [Testing Guide](guides/TESTING_GUIDE.md).
+The decision questions above provide a quick way to determine test type. For critical path prioritization, see [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md). For detailed implementation guidelines, see [Testing Guide](../guides/TESTING_GUIDE.md).
 
 **Quick Reference:**
 
@@ -183,7 +183,7 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Integration Test**: Multiple components working together, real internal implementations, mocked external services (including ML models for speed)
 - **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (NO mocks)
 
-**Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
+**Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
 ## Test Categories
 
@@ -377,7 +377,7 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Structured Logging**: Test JSON log formatting, log aggregation compatibility, and structured log fields.
 - **Diagnostics**: Test `doctor` command checks (Python version, ffmpeg, write permissions, model cache, network connectivity).
 
-**For detailed unit test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md).**
+**For detailed unit test execution commands, test file descriptions, fixtures, requirements, and coverage, see [Unit Testing Guide](../guides/UNIT_TESTING_GUIDE.md).**
 
 ### 2. Integration Tests
 
@@ -430,7 +430,7 @@ The decision questions above provide a quick way to determine test type. For cri
   - Language-aware model selection
 
 **For detailed integration test execution commands, test file descriptions, fixtures, requirements,
-and coverage, see [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md).**
+and coverage, see [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md).**
 
 ### 3. End-to-End Tests
 
@@ -438,7 +438,7 @@ and coverage, see [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.m
 
 **Critical Path Priority**: The critical path must have E2E tests for all three entry points
 (CLI, Library API, Service API). See
-[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
+[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
 **Every major user-facing entry point should have at least one E2E test:**
 
@@ -454,7 +454,7 @@ and coverage, see [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.m
 
 **Rule of Thumb**: E2E tests should cover "as a user, I want to..." scenarios, not every possible configuration combination.
 
-**For detailed E2E test execution commands and implementation, see [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md).**
+**For detailed E2E test execution commands and implementation, see [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md).**
 
 ### E2E Test Tiers (Code Quality vs Data Quality)
 
@@ -583,7 +583,7 @@ The test suite is organized into three main categories:
 parallel with `-n auto`. All tests use network isolation via
 `--disable-socket --allow-hosts=127.0.0.1,localhost`.
 
-**For detailed test infrastructure information, see [Testing Guide](guides/TESTING_GUIDE.md).**
+**For detailed test infrastructure information, see [Testing Guide](../guides/TESTING_GUIDE.md).**
 
 ## ML Quality Evaluation
 
@@ -606,7 +606,7 @@ Evaluation is performed against human-verified ground
 truth data stored in `data/eval/`. This dataset is
 versioned and frozen to provide a stable baseline for
 comparison. See
-[ADR-040](adr/ADR-040-explicit-golden-dataset-versioning.md)
+[ADR-040](../adr/ADR-040-explicit-golden-dataset-versioning.md)
 for details.
 
 **GIL Golden Dataset**: A golden dataset for GIL
@@ -618,12 +618,12 @@ extraction tiers (ML-only, Hybrid, Cloud LLM).
 ### Continuous Improvement
 
 Quality evaluation is integrated into the
-**[AI Quality & Experimentation Platform](prd/PRD-007-ai-quality-experiment-platform.md)**
+**[AI Quality & Experimentation Platform](../prd/PRD-007-ai-quality-experiment-platform.md)**
 (PRD-007), which uses these metrics to gate new model
 deployments and configuration changes. The complete
 evaluation loop (runner, scorer, comparator) is
 documented in the
-**[Experiment Guide](guides/EXPERIMENT_GUIDE.md)**
+**[Experiment Guide](../guides/EXPERIMENT_GUIDE.md)**
 (Step 4: Evaluate Results).
 
 ## CI/CD Integration
@@ -655,7 +655,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - **Automated Metrics**: Collection of test health,
   code quality, and pipeline performance metrics.
 - **Unified Dashboard**: Deployment of the
-  [Metrics Dashboard](ci/METRICS.md) to GitHub Pages.
+  [Metrics Dashboard](../ci/METRICS.md) to GitHub Pages.
 
 #### 3. Nightly Comprehensive (Deep Analysis)
 
@@ -671,7 +671,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - **Network Isolation**: Enforced via `pytest-socket` across all test tiers.
 - **LLM Exclusion**: API-based tests (OpenAI) are excluded from nightly runs to avoid costs.
 
-**For detailed test execution commands, parallel execution, and coverage configuration, see [Testing Guide](guides/TESTING_GUIDE.md).**
+**For detailed test execution commands, parallel execution, and coverage configuration, see [Testing Guide](../guides/TESTING_GUIDE.md).**
 
 ## Testing Patterns
 
@@ -1065,15 +1065,15 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 
 ## References
 
-- **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)**
+- **[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md)**
   — What to test, prioritization
-- **[Testing Guide](guides/TESTING_GUIDE.md)**
+- **[Testing Guide](../guides/TESTING_GUIDE.md)**
   — Test execution, fixtures, coverage
-- **[Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md)**
+- **[Unit Testing Guide](../guides/UNIT_TESTING_GUIDE.md)**
   — Mocking patterns and isolation
-- **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)**
+- **[Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md)**
   — Integration test mocking guidelines
-- **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)**
+- **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)**
   — E2E server, real ML models, API mocking
 - Test structure reorganization:
   `docs/rfc/RFC-018-test-structure-reorganization.md`
@@ -1086,6 +1086,6 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - Related Issues: #14 (E2E testing), #16 (Library API
   E2E tests), #94 (src/ layout), #98 (Test structure
   reorganization)
-- Architecture: `docs/ARCHITECTURE.md`
-- Non-Functional Requirements: `docs/NON_FUNCTIONAL_REQUIREMENTS.md` (quality attributes validated by tests)
+- Architecture: `docs/architecture/ARCHITECTURE.md`
+- Non-Functional Requirements: `docs/architecture/NON_FUNCTIONAL_REQUIREMENTS.md` (quality attributes validated by tests)
 - Contributing guide: `CONTRIBUTING.md`

@@ -33,7 +33,7 @@
 - ❌ NEVER push to main branch (always use feature branches)
 - ✅ Always show `git status` and `git diff` before committing
 - ✅ Always wait for explicit user approval before committing
-- ✅ Always run `make ci-fast` before committing (exception: workflow-only changes — only `.github/workflows/*.yml` modified)
+- ✅ Run `make ci-fast` before committing when needed (exceptions: workflow-only changes; recent green `ci-fast`/`ci` in-session on same diff — see `.cursorrules` rule 5)
 - ✅ ALWAYS use Makefile commands (never direct pytest/python/black commands)
 - ✅ NEVER use `cd` to project root (already in workspace directory)
 - ✅ ALWAYS use correct GitHub username (check dynamically, not Mac username)
@@ -144,7 +144,7 @@
 
 **Additional Reference Files:**
 
-- **`docs/TESTING_STRATEGY.md`** - Comprehensive testing approach
-- **`docs/ARCHITECTURE.md`** - Architecture design and module responsibilities
+- **`docs/architecture/TESTING_STRATEGY.md`** - Comprehensive testing approach
+- **`docs/architecture/ARCHITECTURE.md`** - Architecture design and module responsibilities
 
 **See the "📚 COMPLETE GUIDE FILE SET" section above for the complete loading pattern.**

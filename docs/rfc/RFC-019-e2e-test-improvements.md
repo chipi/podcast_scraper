@@ -16,7 +16,7 @@
   - `docs/rfc/RFC-003-transcript-downloads.md` (HTTP client)
   - `docs/rfc/RFC-005-whisper-integration.md` (Whisper tests)
 - **Related Documents**:
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
+  - `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy, test pyramid, and test boundary decision framework
 
 ## Abstract
 
@@ -577,8 +577,8 @@ Together, these three RFCs provide:
 
 ## References
 
-- **Test Boundary Decision Framework**: `docs/TESTING_STRATEGY.md` (Test Boundary Decision Framework section)
-- **Test Strategy**: `docs/TESTING_STRATEGY.md` - Overall testing strategy and test pyramid
+- **Test Boundary Decision Framework**: `docs/architecture/TESTING_STRATEGY.md` (Test Boundary Decision Framework section)
+- **Test Strategy**: `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy and test pyramid
 - **Test Structure RFC**: `docs/rfc/RFC-018-test-structure-reorganization.md` (foundation)
 - **Integration Test RFC**: `docs/rfc/RFC-020-integration-test-improvements.md` (related work)
 - **Source Code**: `tests/e2e/`, `tests/fixtures/`

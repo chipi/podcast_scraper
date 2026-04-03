@@ -1,6 +1,6 @@
 # Pipeline and Workflow Guide
 
-This guide describes how the podcast_scraper pipeline runs: entry points, flow, module roles, and behavioral quirks. For strategic architecture, ADRs, and planned evolution, see [Architecture](../ARCHITECTURE.md).
+This guide describes how the podcast_scraper pipeline runs: entry points, flow, module roles, and behavioral quirks. For strategic architecture, ADRs, and planned evolution, see [Architecture](../architecture/ARCHITECTURE.md).
 
 ## High-Level Flow
 
@@ -14,7 +14,7 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 8. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`; the **hybrid_ml** provider (MAP with LongT5 + REDUCE via Ollama, llama.cpp, or transformers); or any of 7 LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
 9. **Run Tracking** (Issue #379): Run manifests capture system state at pipeline start. Per-episode stage timings track processing duration. Run summaries combine manifest and metrics. Episode index files list all processed episodes with status.
 10. **Progress/UI**: All long-running operations report progress through the pluggable factory in `utils.progress`, defaulting to `rich` in the CLI.
-11. **GIL Extraction** (PRD-017): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../ARCHITECTURE.md) for details.
+11. **GIL Extraction** (PRD-017): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../architecture/ARCHITECTURE.md) for details.
 12. **KG Extraction** (RFC-055): When enabled, Knowledge Graph extraction produces structured topic graphs from transcripts and summaries, writing `*.kg.json` per episode. See [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) for details.
 
 ## Pipeline Flow Diagram
@@ -244,9 +244,9 @@ graph TB
 
 **Generated diagrams:**
 
-- [Module dependency graph (pydeps)](../architecture/dependency-graph.svg) — Regenerate with `make visualize` (requires Graphviz).
-- [Workflow call graph (pyan3)](../architecture/workflow-call-graph.svg) — Function-level calls from `workflow/orchestration.py`. Regenerate with `make call-graph`.
-- [Orchestration flowchart](../architecture/orchestration-flow.svg), [Service API flowchart](../architecture/service-flow.svg) — Regenerate with `make flowcharts` (code2flow).
+- [Module dependency graph (pydeps)](../architecture/diagrams/dependency-graph.svg) — Regenerate with `make visualize` (requires Graphviz).
+- [Workflow call graph (pyan3)](../architecture/diagrams/workflow-call-graph.svg) — Function-level calls from `workflow/orchestration.py`. Regenerate with `make call-graph`.
+- [Orchestration flowchart](../architecture/diagrams/orchestration-flow.svg), [Service API flowchart](../architecture/diagrams/service-flow.svg) — Regenerate with `make flowcharts` (code2flow).
 
 ## Pipeline and Workflow Behavior (Quirks)
 

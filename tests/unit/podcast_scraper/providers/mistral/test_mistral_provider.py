@@ -11,21 +11,13 @@ not its integration with the app.
 
 import json
 import os
-import sys
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
 from podcast_scraper import config
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
-
-# Mock mistralai.models.file module before importing provider
-# This prevents ImportError when File is imported inside transcribe method
-if "mistralai.models.file" not in sys.modules:
-    mock_file_module = MagicMock()
-    mock_file_module.File = Mock
-    sys.modules["mistralai.models.file"] = mock_file_module
 
 
 @pytest.mark.unit

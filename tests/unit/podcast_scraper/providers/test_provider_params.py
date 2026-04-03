@@ -9,8 +9,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
-# Mock openai before importing modules that require it
-# Unit tests run without openai package installed
+# Mock openai for factory imports; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
 _patch_openai = patch.dict(

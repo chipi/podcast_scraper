@@ -15,7 +15,7 @@
   - `docs/rfc/RFC-013-openai-provider-implementation.md` (provider pattern)
   - `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (unified provider architecture)
 - **Related Documents**:
-  - `docs/ARCHITECTURE.md` (pipeline flow)
+  - `docs/architecture/ARCHITECTURE.md` (pipeline flow)
   - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md` (provider patterns)
 
 ## Abstract

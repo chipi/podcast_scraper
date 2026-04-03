@@ -24,7 +24,7 @@
   - [GitHub #50](https://github.com/chipi/podcast_scraper/issues/50) — Simple UI + server (v2.7)
   - [GitHub #347](https://github.com/chipi/podcast_scraper/issues/347) — UI to access output from DB (v2.7)
   - [GitHub #46](https://github.com/chipi/podcast_scraper/issues/46) — Docker architecture (v2.7)
-  - `docs/wip/platform-corpus-service-megasketch.md` — Platform architecture vision
+  - `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md` — Platform architecture vision
 
 ## Abstract
 
@@ -842,8 +842,8 @@ complete. These are tracked as part of the implementation issue.
 | Deliverable | Action | Description |
 | ----------- | ------ | ----------- |
 | `docs/guides/SERVER_GUIDE.md` (new) | Create | Comprehensive server guide: tech stack rationale, architecture overview, route conventions, how to add new routes, how to add platform routes, configuration, `podcast serve` usage, dev workflow, extension patterns. This is the go-to reference for anyone extending the server. |
-| `docs/ARCHITECTURE.md` | Update | Add the server module (`src/podcast_scraper/server/`) to the module map. Document the "one pipeline core, multiple shells" pattern. Add the CLI → Server → Platform evolution diagram. |
-| `docs/TESTING_STRATEGY.md` | Update | Add the UI testing layers (Vitest unit/component, Playwright E2E, visual regression). Document Makefile targets (`make test-ui`, `make test-ui-e2e`). Document test fixture strategy for viewer E2E. |
+| `docs/architecture/ARCHITECTURE.md` | Update | Add the server module (`src/podcast_scraper/server/`) to the module map. Document the "one pipeline core, multiple shells" pattern. Add the CLI → Server → Platform evolution diagram. |
+| `docs/architecture/TESTING_STRATEGY.md` | Update | Add the UI testing layers (Vitest unit/component, Playwright E2E, visual regression). Document Makefile targets (`make test-ui`, `make test-ui-e2e`). Document test fixture strategy for viewer E2E. |
 | `docs/guides/DEVELOPMENT_GUIDE.md` | Update | Add `make serve`, `make serve-api`, `make serve-ui-dev`, `make build-ui` to the developer commands section. Document the Vite dev proxy setup. |
 | `README.md` | Update | Add `podcast serve` command to the CLI reference. Mention the viewer and link to `SERVER_GUIDE.md`. |
 | `web/gi-kg-viewer/README.md` (new) | Create | Frontend-specific README: how to install, dev, build, test, lint. Component architecture overview. How to add new views/stores. |
@@ -853,7 +853,7 @@ complete. These are tracked as part of the implementation issue.
 
 This section documents how the server and frontend architecture introduced by this RFC
 grows into the full platform vision described in the
-[megasketch](../wip/platform-corpus-service-megasketch.md) and tracked by
+[megasketch](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md) and tracked by
 [#50](https://github.com/chipi/podcast_scraper/issues/50) (simple UI + server),
 [#347](https://github.com/chipi/podcast_scraper/issues/347) (UI for DB output), and
 [#46](https://github.com/chipi/podcast_scraper/issues/46) (Docker architecture).
@@ -1018,7 +1018,7 @@ CRUD routes, job management, and Postgres integration — all on the same
 - **Related RFC**: `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md`
 - **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
 - **Viewer v1**: `web/gi-kg-viz/` (current implementation from #445)
-- **Platform Vision**: `docs/wip/platform-corpus-service-megasketch.md`
+- **Platform Vision**: `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md`
 - **Platform Issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50) (UI + server),
   [#347](https://github.com/chipi/podcast_scraper/issues/347) (UI for DB),
   [#46](https://github.com/chipi/podcast_scraper/issues/46) (Docker architecture)

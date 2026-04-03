@@ -6,13 +6,13 @@
 > accordingly.
 
 This guide provides detailed implementation instructions for developing the podcast scraper.
-For high-level architectural decisions and design principles, see [Architecture](../ARCHITECTURE.md).
+For high-level architectural decisions and design principles, see [Architecture](../architecture/ARCHITECTURE.md).
 
 ## Testing
 
 For comprehensive testing information, see the dedicated testing documentation:
 
-- **[Testing Strategy](../TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
+- **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
 - **[Experiment Guide](EXPERIMENT_GUIDE.md)** — Complete guide: datasets, baselines, experiments, and evaluation
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
@@ -141,7 +141,7 @@ make deps-check      # Quick check (exits with error if issues found, CI-friendl
 
 **Runs automatically in CI:** In nightly workflow (`nightly-deps-analysis` job) with 90-day artifact retention for tracking architecture changes over time.
 
-**See also:** [Module Dependency Analysis](../ARCHITECTURE.md#module-dependency-analysis) for detailed documentation.
+**See also:** [Module Dependency Analysis](../architecture/ARCHITECTURE.md#module-dependency-analysis) for detailed documentation.
 
 ### Test Memory Analysis
 
@@ -1000,14 +1000,14 @@ You can proceed without PRD/RFC for:
 - Installation requirements change
 - Usage examples need updates
 
-**`docs/ARCHITECTURE.md`** if:
+**`docs/architecture/ARCHITECTURE.md`** if:
 
 - Module responsibilities change
 - New modules are added
 - Data flow changes
 - Design decisions are made
 
-**`TESTING_STRATEGY.md`** if:
+**`docs/architecture/TESTING_STRATEGY.md`** if:
 
 - Testing approach changes
 - New test categories are added
@@ -1178,13 +1178,13 @@ Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-relea
 
 #### 3. Release docs prep
 
-**Why this matters:** Architecture diagrams are not generated in CI. The docs site and all CI jobs use the committed `docs/architecture/*.svg` files. If you release without updating them, the published docs will show outdated architecture, and subsequent PRs may fail checks until you run `make visualize` and commit updated SVGs. Running release-docs-prep before every release keeps diagrams in sync with the code you are releasing.
+**Why this matters:** Architecture diagrams are not generated in CI. The docs site and all CI jobs use the committed `docs/architecture/diagrams/*.svg` files. If you release without updating them, the published docs will show outdated architecture, and subsequent PRs may fail checks until you run `make visualize` and commit updated SVGs. Running release-docs-prep before every release keeps diagrams in sync with the code you are releasing.
 
 - Run **`make release-docs-prep`**. This:
-  - Regenerates architecture diagrams (`docs/architecture/*.svg`).
+  - Regenerates architecture diagrams (`docs/architecture/diagrams/*.svg`).
   - Creates a draft `docs/releases/RELEASE_vX.Y.Z.md` for the current version (from `pyproject.toml`) if it does not exist.
 - Review and commit:
-  - `git add docs/architecture/*.svg docs/releases/RELEASE_*.md`
+  - `git add docs/architecture/diagrams/*.svg docs/releases/RELEASE_*.md`
   - `git commit -m "docs: release docs prep (visualizations and release notes)"`
 
 #### 4. Release notes
@@ -1205,7 +1205,7 @@ Run all of the following in each release cycle before releasing so the codebase 
   - Dead code (vulture) and spelling (codespell) findings are triaged (fixed or whitelisted/ignored).
   - Test coverage meets the combined threshold (see [Issue #432](https://github.com/chipi/podcast_scraper/issues/432) for background and targets).
 - **Tests**: Run the full CI gate: **`make ci`** (format-check, lint, type, security, complexity, docstrings, spelling, tests, coverage-enforce, docs, build). For maximum confidence (e.g. major release), run **`make ci-clean`** or run **`make test`** then **`make coverage-enforce`**, **`make docs`**, **`make build`**.
-- **Diagrams (required for release):** If diagrams are stale, run `make visualize` and commit `docs/architecture/*.svg`. Before release, **`make release-docs-prep`** regenerates diagrams and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
+- **Diagrams (required for release):** If diagrams are stale, run `make visualize` and commit `docs/architecture/diagrams/*.svg`. Before release, **`make release-docs-prep`** regenerates diagrams and drafts release notes—do not skip it or the published docs site will ship with outdated architecture.
 - **Build**: Ensure **`make build`** succeeds (sdist/wheel in `.build/dist/` or `dist/`).
 
 #### 6. Commit and push
@@ -1223,7 +1223,7 @@ Run all of the following in each release cycle before releasing so the codebase 
 
 - If you use a "next dev" version, bump to it (e.g. `X.Y.(Z+1)` or `X.Y.Z-dev`) in `pyproject.toml` and `__init__.py` and commit so the next build is not stuck on the release version.
 
-**See also:** [ADR-031: Mandatory Pre-Release Validation](../adr/ADR-031-mandatory-pre-release-validation.md), [Architecture visualizations](../architecture/README.md), [Releases index](../releases/index.md).
+**See also:** [ADR-031: Mandatory Pre-Release Validation](../adr/ADR-031-mandatory-pre-release-validation.md), [Architecture visualizations](../architecture/diagrams/README.md), [Releases index](../releases/index.md).
 
 ## Modularity
 

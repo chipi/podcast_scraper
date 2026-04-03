@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://podcast-scraper.dev/schemas/kg.schema.json",
   "title": "Knowledge Graph Layer Episode Artifact (kg.json)",
-  "description": "Per-episode KG: entities, topics, and typed edges (separate from gi.json). v1.1 adds optional Topic/Entity `description` (GitHub #487); v1.0 artifacts remain valid. See docs/kg/ontology.md.",
+  "description": "Per-episode KG: entities, topics, and typed edges (separate from gi.json). v1.1 adds optional Topic/Entity `description` (GitHub #487); v1.0 artifacts remain valid. See docs/architecture/kg/ontology.md.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "episode_id", "extraction", "nodes", "edges"],
@@ -23,7 +23,7 @@
       "required": ["model_version", "extracted_at", "transcript_ref"],
       "properties": {
         "model_version": {
-          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/kg/ontology.md § Provenance.",
+          "description": "Extraction tier: `stub`, verbatim `summary_bullets`, `provider:<model>` (transcript LLM), or `provider:summary_bullets:<model>` (LLM from summary bullets only); see docs/architecture/kg/ontology.md § Provenance.",
           "oneOf": [
             { "const": "stub" },
             { "const": "summary_bullets" },
@@ -152,7 +152,7 @@
         "type": {
           "type": "string",
           "enum": ["MENTIONS", "RELATED_TO"],
-          "description": "Edge type. v1 builder emits **MENTIONS** only (Topic|Entity → Episode). **RELATED_TO** is reserved for future use (see docs/kg/ontology.md)."
+          "description": "Edge type. v1 builder emits **MENTIONS** only (Topic|Entity → Episode). **RELATED_TO** is reserved for future use (see docs/architecture/kg/ontology.md)."
         },
         "from": { "type": "string", "minLength": 1 },
         "to": { "type": "string", "minLength": 1 },

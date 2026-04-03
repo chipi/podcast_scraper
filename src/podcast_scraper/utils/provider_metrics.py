@@ -6,6 +6,7 @@ including retries, rate limit sleep time, and token usage.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import random
 import time
@@ -152,13 +153,14 @@ def _safe_mistral_retryable() -> tuple[type[Exception], ...]:
     Same rationale as :func:`_safe_openai_retryable` but for the
     ``mistralai`` SDK used by the Mistral provider.
     """
-    try:
-        from mistralai import SDKError as _SDKError
-
-        if isinstance(_SDKError, type) and issubclass(_SDKError, Exception):
-            return (_SDKError, ConnectionError, TimeoutError)
-    except (ImportError, AttributeError):
-        pass
+    for mod_name in ("mistralai.client.errors", "mistralai"):
+        try:
+            mod = importlib.import_module(mod_name)
+            sdk_err = getattr(mod, "SDKError", None)
+            if isinstance(sdk_err, type) and issubclass(sdk_err, Exception):
+                return (sdk_err, ConnectionError, TimeoutError)
+        except (ImportError, AttributeError, TypeError):
+            continue
     return (Exception,)
 
 

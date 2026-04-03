@@ -5,9 +5,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
-# Mock openai, anthropic, and google.genai before importing modules that require them
-# Unit tests run without these optional packages installed
-# Use patch.dict without 'with' to avoid context manager conflicts with @patch decorators
+# Mock optional SDKs; unit-only pytest (``make test-ci-fast``).
 mock_openai = MagicMock()
 mock_openai.OpenAI = Mock()
 mock_anthropic = MagicMock()

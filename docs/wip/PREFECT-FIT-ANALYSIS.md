@@ -209,5 +209,5 @@ Prefect 3.x is open-source; you can self-host the server or use Prefect Cloud. L
 ## 6. References
 
 - [Prefect Introduction](https://docs.prefect.io/v3/get-started)  
-- Project: `docs/ARCHITECTURE.md`, `src/podcast_scraper/workflow/orchestration.py`, `src/podcast_scraper/service.py`, `src/podcast_scraper/workflow/degradation.py`  
+- Project: `docs/architecture/ARCHITECTURE.md`, `src/podcast_scraper/workflow/orchestration.py`, `src/podcast_scraper/service.py`, `src/podcast_scraper/workflow/degradation.py`  
 - RFCs: RFC-001 (workflow orchestration), RFC-049 (GIL), RFC-042 (hybrid summarization)

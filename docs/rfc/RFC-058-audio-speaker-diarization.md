@@ -17,7 +17,7 @@
 - **Related Issues**:
   - Issue #414: Audio Pipeline Separation
 - **Related Documents**:
-  - `docs/ARCHITECTURE.md` (pipeline flow)
+  - `docs/architecture/ARCHITECTURE.md` (pipeline flow)
 
 ## Abstract
 

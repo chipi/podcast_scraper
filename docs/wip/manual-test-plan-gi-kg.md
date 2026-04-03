@@ -22,9 +22,9 @@ something works while you **run** the steps.
 | **CLI examples** | [CLI — Grounded insights (`gi`) subcommands](../api/CLI.md#grounded-insights-gi-subcommands); [CLI — Knowledge Graph (`kg`) subcommands](../api/CLI.md#knowledge-graph-kg-subcommands) |
 | **Pipeline placement** | [Grounded Insights Guide — Pipeline order](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights) (GIL after metadata); [Knowledge Graph Guide — Enabling KG](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg); [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
 | **Artifacts and shapes** | [Grounded Insights Guide — Output artifact: gi.json](../guides/GROUNDED_INSIGHTS_GUIDE.md#output-artifact-gijson); [Knowledge Graph Guide — Output artifacts](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts) |
-| **Ontology and JSON Schema** | [GIL ontology](../gi/ontology.md); [gi.schema.json](../gi/gi.schema.json); [KG ontology](../kg/ontology.md); [kg.schema.json](../kg/kg.schema.json) |
+| **Ontology and JSON Schema** | [GIL ontology](../architecture/gi/ontology.md); [gi.schema.json](../architecture/gi/gi.schema.json); [KG ontology](../architecture/kg/ontology.md); [kg.schema.json](../architecture/kg/kg.schema.json) |
 | **Provider / API setup** | [Provider configuration quick reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
-| **Automated test context (optional)** | [TESTING_STRATEGY.md](../TESTING_STRATEGY.md); acceptance index at repo root: `config/acceptance/README.md` |
+| **Automated test context (optional)** | [TESTING_STRATEGY.md](../architecture/TESTING_STRATEGY.md); acceptance index at repo root: `config/acceptance/README.md` |
 | **Transcript-only GIL/KG eval (stub, `data/eval`)** | `data/eval/configs/README.md` (repo root); sample YAML: `gil_eval_stub_curated_5feeds_smoke_v1.yaml`, `kg_eval_stub_curated_5feeds_smoke_v1.yaml`; [EXPERIMENT_GUIDE — GIL/KG experiments](../guides/EXPERIMENT_GUIDE.md#grounded-insights-gil-and-knowledge-graph-kg-experiments) |
 | **Manual GI+KG configs (this workflow)** | Index: `config/manual/README.md` at repo root — NPR Planet Money `510289`, OpenAI-first presets |
 
@@ -102,7 +102,7 @@ Pick **one RSS URL** you have actually listened to (or can skim). You will judge
 - Do **GI insights** read like real takeaways (not stub text)?  
   → See [enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights) and [`gi_insight_source`](../api/CONFIGURATION.md#grounded-insights-gil).
 - For **grounded** insights, do **quotes** appear in the transcript and support the claim?  
-  → See [grounding contract / ontology](../gi/ontology.md) and [provider-based evidence (QA + NLI)](../guides/GROUNDED_INSIGHTS_GUIDE.md#provider-based-evidence-qa-nli).
+  → See [grounding contract / ontology](../architecture/gi/ontology.md) and [provider-based evidence (QA + NLI)](../guides/GROUNDED_INSIGHTS_GUIDE.md#provider-based-evidence-qa-nli).
 
 Write down the episode titles or IDs you will use so you can find the right files under
 `metadata/`.
@@ -259,7 +259,7 @@ Use the same **`OUT`** as in §4.
 python -m podcast_scraper.cli kg validate --strict "$OUT/metadata"
 ```
 
-**Read alongside:** [kg.schema.json](../kg/kg.schema.json); [KG ontology](../kg/ontology.md).
+**Read alongside:** [kg.schema.json](../architecture/kg/kg.schema.json); [KG ontology](../architecture/kg/ontology.md).
 
 **One episode summary**
 
@@ -281,7 +281,7 @@ python -m podcast_scraper.cli kg export --output-dir "$OUT" --format ndjson
 
 - [ ] **Entities** include hosts/guests where the pipeline detected them; names look sane.
 - [ ] **Topics** align with summary bullets or LLM extraction (depending on mode).
-- [ ] **Edges** look typed and consistent with [KG ontology](../kg/ontology.md) (no obvious
+- [ ] **Edges** look typed and consistent with [KG ontology](../architecture/kg/ontology.md) (no obvious
   garbage labels on a known episode).
 - [ ] **`metadata.json`** contains **`knowledge_graph`** provenance (path, counts) when KG
   ran — [Output artifacts](../guides/KNOWLEDGE_GRAPH_GUIDE.md#output-artifacts).
@@ -306,10 +306,10 @@ That gives you a reproducible manual baseline next time GI/KG or providers chang
 ## 7. Optional Makefile hooks
 
 - **`make validate-gi-schema [ARTIFACTS_DIR=path]`** — validates `*.gi.json` against
-  [gi.schema.json](../gi/gi.schema.json) (see Makefile `help`). Example:
+  [gi.schema.json](../architecture/gi/gi.schema.json) (see Makefile `help`). Example:
   `ARTIFACTS_DIR=.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets/metadata`
 - **`make validate-kg-schema [ARTIFACTS_DIR=path]`** — validates against
-  [kg.schema.json](../kg/kg.schema.json).
+  [kg.schema.json](../architecture/kg/kg.schema.json).
 - **`make gil-quality-metrics [DIR=path]`** — PRD-017-oriented metrics over `.gi.json`
   (see Makefile `help`).
 - **`make kg-quality-metrics [DIR=path]`** — PRD-019-oriented metrics over `.kg.json`.
@@ -319,4 +319,4 @@ That gives you a reproducible manual baseline next time GI/KG or providers chang
 
 Use these if you want parity with CI without remembering script paths.
 
-**Related automated testing (background reading):** [TESTING_STRATEGY.md — GIL and KG CI quality gates](../TESTING_STRATEGY.md#gil-and-kg-ci-quality-gates). **Operators enabling both layers:** [CONFIGURATION.md — Knowledge Graph (KG)](../api/CONFIGURATION.md#knowledge-graph-kg) (shallow v1 notes link to GIL + KG recorded decisions).
+**Related automated testing (background reading):** [TESTING_STRATEGY.md — GIL and KG CI quality gates](../architecture/TESTING_STRATEGY.md#gil-and-kg-ci-quality-gates). **Operators enabling both layers:** [CONFIGURATION.md — Knowledge Graph (KG)](../api/CONFIGURATION.md#knowledge-graph-kg) (shallow v1 notes link to GIL + KG recorded decisions).

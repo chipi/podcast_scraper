@@ -88,7 +88,7 @@ RFC-054 (E2E mocks) ──► #399 (provider hardening)
 - **[PRDs](prd/index.md)** — Product requirements documents
 - **[RFCs](rfc/index.md)** — Technical design documents
 - **[ADR Index](adr/index.md)** — Architecture decision records (with implementation status)
-- **[Architecture](ARCHITECTURE.md)** — System design and module responsibilities
+- **[Architecture](architecture/ARCHITECTURE.md)** — System design and module responsibilities
 - **[Releases](releases/index.md)** — Release notes and version history
 
 ---

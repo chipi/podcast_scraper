@@ -107,4 +107,4 @@ Users want transcripts that automatically use real speaker names without requiri
 
 - [RFC-010: Automatic Speaker Name Detection](../rfc/RFC-010-speaker-name-detection.md) - Technical implementation
 - [PRD-002: Whisper Fallback Transcription](PRD-002-whisper-fallback.md) - Whisper integration
-- [Architecture](../ARCHITECTURE.md) - System design
+- [Architecture](../architecture/ARCHITECTURE.md) - System design

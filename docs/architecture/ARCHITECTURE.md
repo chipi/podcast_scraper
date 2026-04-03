@@ -1,6 +1,6 @@
 # Podcast Scraper Architecture
 
-> **Strategic Overview**: This document provides high-level architectural decisions, design principles, and system structure. For detailed implementation guides, see the [Development Guide](guides/DEVELOPMENT_GUIDE.md) and other specialized documents linked below.
+> **Strategic Overview**: This document provides high-level architectural decisions, design principles, and system structure. For detailed implementation guides, see the [Development Guide](../guides/DEVELOPMENT_GUIDE.md) and other specialized documents linked below.
 
 ## Navigation
 
@@ -8,36 +8,36 @@ This architecture document is the central hub for understanding the system. For 
 
 ### Core Documentation
 
-- **[ADR Index](adr/index.md)** — **The immutable record of architectural laws and decisions**
+- **[ADR Index](../adr/index.md)** — **The immutable record of architectural laws and decisions**
 - **Architecture — [Ways to run and deploy](#ways-to-run-and-deploy)** — CLI vs service vs Docker; one pipeline, one Config
 - **[Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md)** — Performance, security, reliability, observability, maintainability, scalability
-- **[Development Guide](guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
-- **[Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md)** — Pipeline flow, module roles, behavioral quirks, run tracking
+- **[Development Guide](../guides/DEVELOPMENT_GUIDE.md)** — Detailed implementation instructions, dependency management, code patterns, and development workflows
+- **[Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md)** — Pipeline flow, module roles, behavioral quirks, run tracking
 - **[Testing Strategy](TESTING_STRATEGY.md)** — Testing philosophy, test pyramid, and quality standards
-- **[Testing Guide](guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
-  - [Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md) — Unit test mocking patterns
-  - [Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md) — Integration test guidelines
-  - [E2E Testing Guide](guides/E2E_TESTING_GUIDE.md) — E2E server, real ML models
-  - [Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md) — What to test, prioritization
-- **[CI/CD](ci/index.md)** — Continuous integration and deployment pipeline
+- **[Testing Guide](../guides/TESTING_GUIDE.md)** — Quick reference and test execution commands
+  - [Unit Testing Guide](../guides/UNIT_TESTING_GUIDE.md) — Unit test mocking patterns
+  - [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md) — Integration test guidelines
+  - [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md) — E2E server, real ML models
+  - [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) — What to test, prioritization
+- **[CI/CD](../ci/index.md)** — Continuous integration and deployment pipeline
 
 ### API Documentation
 
-- **[API Reference](api/REFERENCE.md)** — Complete API documentation
-- **[Configuration](api/CONFIGURATION.md)** — Configuration options and examples
-- **[CLI Reference](api/CLI.md)** — Command-line interface documentation
+- **[API Reference](../api/REFERENCE.md)** — Complete API documentation
+- **[Configuration](../api/CONFIGURATION.md)** — Configuration options and examples
+- **[CLI Reference](../api/CLI.md)** — Command-line interface documentation
 
 ### Feature Documentation
 
-- **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** — Complete guide for implementing new providers (includes OpenAI example, testing, E2E server mocking)
-- **[ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md)** — ML implementation details
-- **[Configuration API](api/CONFIGURATION.md)** — Configuration API reference (includes environment variables)
+- **[Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** — Complete guide for implementing new providers (includes OpenAI example, testing, E2E server mocking)
+- **[ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md)** — ML implementation details
+- **[Configuration API](../api/CONFIGURATION.md)** — Configuration API reference (includes environment variables)
 
 ### Specifications
 
-- **[PRDs](prd/index.md)** — Product Requirements
+- **[PRDs](../prd/index.md)** — Product Requirements
   Documents
-- **[RFCs](rfc/index.md)** — Request for Comments
+- **[RFCs](../rfc/index.md)** — Request for Comments
   (design decisions)
 - **[GIL Ontology](gi/ontology.md)** — Grounded
   Insight Layer node/edge types and grounding contract
@@ -81,38 +81,38 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 | ---- | --------- | ------------- | ------------------- |
 | **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, `python -m podcast_scraper.cli`. Subcommands: `doctor`, `cache`. |
 | **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
-| **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](guides/DOCKER_SERVICE_GUIDE.md). |
+| **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md). |
 
-**Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](api/REFERENCE.md) and [Service API](api/SERVICE.md).
+**Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](../api/REFERENCE.md) and [Service API](../api/SERVICE.md).
 
-**Providers:** Nine providers (1 local ML + 1 hybrid ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
+**Providers:** Nine providers (1 local ML + 1 hybrid ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
 
 ## Architectural Decisions (ADRs)
 
-The following architectural principles govern this system. For the full history and rationale, see the **[ADR Index](adr/index.md)**.
+The following architectural principles govern this system. For the full history and rationale, see the **[ADR Index](../adr/index.md)**.
 
 ### Core Patterns
 
-- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode ([ADR-046](adr/ADR-046-mps-exclusive-mode-apple-silicon.md)) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS (enabled by default).
-- **Providers**: Protocol-based discovery ([ADR-020](adr/ADR-020-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-024](adr/ADR-024-unified-provider-pattern.md)), library-based naming ([ADR-025](adr/ADR-025-technology-based-provider-naming.md)), and per-capability provider selection ([ADR-026](adr/ADR-026-per-capability-provider-selection.md)).
-- **Lazy Loading**: Heavy ML dependencies are loaded only when needed ([ADR-005](adr/ADR-005-lazy-ml-dependency-loading.md)).
+- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](../adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode ([ADR-046](../adr/ADR-046-mps-exclusive-mode-apple-silicon.md)) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS (enabled by default).
+- **Providers**: Protocol-based discovery ([ADR-020](../adr/ADR-020-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-024](../adr/ADR-024-unified-provider-pattern.md)), library-based naming ([ADR-025](../adr/ADR-025-technology-based-provider-naming.md)), and per-capability provider selection ([ADR-026](../adr/ADR-026-per-capability-provider-selection.md)).
+- **Lazy Loading**: Heavy ML dependencies are loaded only when needed ([ADR-005](../adr/ADR-005-lazy-ml-dependency-loading.md)).
 
 ### Data & Filesystem
 
-- **Storage**: Hash-based deterministic directory layout ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)) with flat archives ([ADR-004](adr/ADR-004-flat-filesystem-archive-layout.md)).
-- **Identity**: Universal GUID-based episode identification ([ADR-007](adr/ADR-007-universal-episode-identity.md)).
-- **Metadata**: Unified JSON schema compatible with SQL and NoSQL ([ADR-008](adr/ADR-008-database-agnostic-metadata-schema.md)).
+- **Storage**: Hash-based deterministic directory layout ([ADR-003](../adr/ADR-003-deterministic-feed-storage.md)) with flat archives ([ADR-004](../adr/ADR-004-flat-filesystem-archive-layout.md)).
+- **Identity**: Universal GUID-based episode identification ([ADR-007](../adr/ADR-007-universal-episode-identity.md)).
+- **Metadata**: Unified JSON schema compatible with SQL and NoSQL ([ADR-008](../adr/ADR-008-database-agnostic-metadata-schema.md)).
 
 ### ML & AI Processing
 
-- **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-043](adr/ADR-043-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](adr/ADR-009-privacy-first-local-summarization.md)).
-- **Audio**: Mandatory preprocessing ([ADR-036](adr/ADR-036-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-037](adr/ADR-037-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-038](adr/ADR-038-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-039](adr/ADR-039-speech-optimized-codec-opus.md)).
-- **Governance**: Explicit benchmarking gates ([ADR-042](adr/ADR-042-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-040](adr/ADR-040-explicit-golden-dataset-versioning.md)).
+- **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](../adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-043](../adr/ADR-043-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](../adr/ADR-009-privacy-first-local-summarization.md)).
+- **Audio**: Mandatory preprocessing ([ADR-036](../adr/ADR-036-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-037](../adr/ADR-037-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-038](../adr/ADR-038-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md)).
+- **Governance**: Explicit benchmarking gates ([ADR-042](../adr/ADR-042-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-040](../adr/ADR-040-explicit-golden-dataset-versioning.md)).
 
 ### Development & CI
 
-- **Workflow**: Git worktree-based isolation ([ADR-032](adr/ADR-032-git-worktree-based-development.md)) with independent environments ([ADR-034](adr/ADR-034-isolated-runtime-environments.md)).
-- **Quality**: Three-tier test pyramid ([ADR-019](adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](adr/ADR-023-public-operational-metrics.md)).
+- **Workflow**: Git worktree-based isolation ([ADR-032](../adr/ADR-032-git-worktree-based-development.md)) with independent environments ([ADR-034](../adr/ADR-034-isolated-runtime-environments.md)).
+- **Quality**: Three-tier test pyramid ([ADR-019](../adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](../adr/ADR-023-public-operational-metrics.md)).
 
 ### Reproducibility & Operational Hardening (Issue #379)
 
@@ -143,7 +143,7 @@ The following architectural principles govern this system. For the full history 
    of 7 LLM providers (OpenAI, Gemini, Anthropic,
    Mistral, DeepSeek, Grok, Ollama) via prompt
    templates. See
-   [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md)
+   [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md)
    for ML architecture details.
 9. **Run Tracking** (Issue #379): Run manifests
    capture system state at pipeline start. Per-episode
@@ -223,14 +223,14 @@ flowchart TD
 - `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
 - `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
 - `workflow.orchestration`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
-- `rss.parser`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
+- `rss.parser`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](../adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
 - `rss.downloader`: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - `workflow.episode_processor`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
-- `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-020](adr/ADR-020-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+- `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](../adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
+- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-020](../adr/ADR-020-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
 - **Unified Providers** (RFC-029): Nine unified
   provider classes implement protocol combinations
-  ([ADR-024](adr/ADR-024-unified-provider-pattern.md)):
+  ([ADR-024](../adr/ADR-024-unified-provider-pattern.md)):
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
@@ -265,7 +265,7 @@ flowchart TD
     version-tracked prompt engineering.
 - `providers/ml/whisper_utils.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Accessed via `MLProvider` (unified provider pattern).
 - `providers/ml/speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Accessed via `MLProvider` (unified provider pattern).
-- `providers/ml/summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
+- `providers/ml/summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md) for details.
 - `providers/ml/model_registry.py` (RFC-044): Centralized model metadata registry (`ModelRegistry` class) with `ModelCapabilities` dataclass for all models (summarization, embedding, QA, NLI).
 - `gi/` (PRD-017): Grounded Insight Layer — structured insight and quote extraction with evidence grounding. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `grounding.py` (insight↔quote linking), `contracts.py` (grounding contract), `explore.py` (CLI exploration), `corpus.py` (cross-episode operations).
 - `kg/` (RFC-055): Knowledge Graph extraction — structured topic graphs from transcripts and summaries. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `llm_extract.py` (LLM-based extraction), `cli_handlers.py` (CLI subcommands).
@@ -416,7 +416,7 @@ graph TB
 
 The diagram below shows the actual import relationships between modules, generated from code analysis. Compare with the Mermaid diagram above to validate that implementation matches design.
 
-![Module dependency graph](architecture/dependency-graph.svg)
+![Module dependency graph](diagrams/dependency-graph.svg)
 
 *Generated by [pydeps](https://github.com/thebjorn/pydeps). Regenerate with `make visualize` (requires Graphviz).*
 
@@ -424,11 +424,11 @@ The diagram below shows the actual import relationships between modules, generat
 
 The following diagram shows which functions call which in the pipeline entry point (`workflow/orchestration.py`). Useful for understanding orchestration flow and hot paths.
 
-![Workflow call graph](architecture/workflow-call-graph.svg)
+![Workflow call graph](diagrams/workflow-call-graph.svg)
 
 *Generated by [pyan3](https://github.com/Technologicat/pyan).*
 
-**Flowcharts:** For control flow within key modules, see [orchestration flowchart](architecture/orchestration-flow.svg) and [service API flowchart](architecture/service-flow.svg) (generated by [code2flow](https://github.com/scottrogowski/code2flow)).
+**Flowcharts:** For control flow within key modules, see [orchestration flowchart](diagrams/orchestration-flow.svg) and [service API flowchart](diagrams/service-flow.svg) (generated by [code2flow](https://github.com/scottrogowski/code2flow)).
 
 <!-- markdownlint-disable MD037 -->
 - **Typed, immutable configuration**: `Config` is a frozen Pydantic model, ensuring every module receives canonicalized values (e.g., normalized URLs, integer coercions, validated Whisper models). This centralizes validation and guards downstream logic.
@@ -438,11 +438,11 @@ The following diagram shows which functions call which in the pipeline entry poi
 - **Dry-run and resumability**: `--dry-run` walks the entire plan without touching disk, while `--skip-existing` short-circuits work per episode, making repeated runs idempotent.
 - **Pluggable progress/UI**: A narrow `ProgressFactory` abstraction lets embedding applications replace the default `tqdm` progress without touching business logic.
 - **Optional Whisper dependency**: Whisper is imported lazily and guarded so environments without GPU support or `openai-whisper` can still run transcript-only workloads.
-- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md) for details.
+- **Optional summarization dependency** (PRD-005/RFC-012): Summarization requires `torch` and `transformers` dependencies and is imported lazily. When dependencies are unavailable, summarization is gracefully skipped. Models are automatically selected based on available hardware (MPS for Apple Silicon, CUDA for NVIDIA GPUs, CPU fallback). See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md) for details.
 - **Language-aware processing** (RFC-010): A single `language` configuration drives both Whisper model selection (preferring English-only `.en` variants) and NER model selection (e.g., `en_core_web_sm`), ensuring consistent language handling across the pipeline.
 - **Automatic speaker detection** (RFC-010): Named Entity Recognition extracts speaker names from episode metadata transparently. Manual speaker names (`--speaker-names`) are ONLY used as fallback when automatic detection fails, not as override. spaCy is a required dependency for speaker detection.
 - **Host/guest distinction**: Host detection prioritizes RSS author tags (channel-level only) as the most reliable source, falling back to NER extraction from feed metadata when author tags are unavailable. Guests are always detected from episode-specific metadata using NER, ensuring accurate speaker labeling in Whisper screenplay output.
-- **Provider-based architecture** (RFC-013): All capabilities (transcription, speaker detection, summarization) use a protocol-based provider system. Providers are created via factory functions based on configuration, allowing pluggable implementations (e.g., Whisper vs OpenAI for transcription, NER vs OpenAI for speaker detection, local transformers vs OpenAI for summarization). Providers implement consistent interfaces (`initialize()`, protocol methods, `cleanup()`) ensuring type safety and easy testing. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation details.
+- **Provider-based architecture** (RFC-013): All capabilities (transcription, speaker detection, summarization) use a protocol-based provider system. Providers are created via factory functions based on configuration, allowing pluggable implementations (e.g., Whisper vs OpenAI for transcription, NER vs OpenAI for speaker detection, local transformers vs OpenAI for summarization). Providers implement consistent interfaces (`initialize()`, protocol methods, `cleanup()`) ensuring type safety and easy testing. See [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for complete implementation details.
 - **Local-first summarization** (PRD-005/RFC-012): Summarization defaults to local transformer models for privacy and cost-effectiveness. API-based providers (OpenAI) are supported via the provider system. Long transcripts are handled via chunking strategies, and memory optimization is applied for GPU backends (CUDA/MPS). Models are automatically cached and reused across runs, with cache management utilities available via CLI and programmatic APIs. Model loading prefers safetensors format for security and performance (Issue #379). Pinned model revisions ensure reproducibility (Issue #379).
 - **Reproducibility** (Issue #379): Deterministic runs via seed control (`torch`, `numpy`, `transformers`). Run manifests capture complete system state. Per-episode stage timings enable performance analysis. Run summaries combine manifest and metrics for complete run records.
 - **Operational Hardening** (Issue #379): Retry policies with exponential backoff for transient errors. Timeout enforcement for transcription and summarization. Failure handling flags (`--fail-fast`, `--max-failures`) for pipeline control. Structured JSON logging for log aggregation. Path validation and model allowlist validation for security.
@@ -486,8 +486,8 @@ a `ModelCapabilities` dataclass.
   phase via **transformers** (FLAN-T5), **ollama**
   (local LLMs, e.g. llama3.1:8b, mistral:7b), or
   **llama_cpp** (GGUF). See
-  [ML Provider Reference](guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml)
-  and [Ollama Provider Guide](guides/OLLAMA_PROVIDER_GUIDE.md) (Ollama as REDUCE backend).
+  [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml)
+  and [Ollama Provider Guide](../guides/OLLAMA_PROVIDER_GUIDE.md) (Ollama as REDUCE backend).
 
 **New modules (present):**
 
@@ -539,7 +539,7 @@ Transcript → Insight Extraction → Quote Extraction
 - `gi/pipeline.py` — GIL orchestration (called after
   summarization in pipeline)
 - `gi/schema.py` — `gi.json` validation against
-  `docs/gi/gi.schema.json`
+  `docs/architecture/gi/gi.schema.json`
 - `gi/io.py` — Serializes GIL output to `gi.json`
   per episode
 - `gi/grounding.py` — Insight↔Quote grounding logic
@@ -646,7 +646,7 @@ and summarization.
 For detailed dependency information including
 rationale, alternatives considered, version
 requirements, and dependency management philosophy,
-see [Dependencies Guide](guides/DEPENDENCIES_GUIDE.md).
+see [Dependencies Guide](../guides/DEPENDENCIES_GUIDE.md).
 
 ## Module Dependency Analysis
 
@@ -693,20 +693,20 @@ Dependency analysis runs automatically in the **nightly workflow**:
 
 ### Output Files
 
-- `docs/architecture/dependency-graph.svg` - Module dependency graph (clustered, for documentation)
-- `docs/architecture/dependency-graph-simple.svg` - Simplified dependency graph (clustered, max-bacon=2)
-- `docs/architecture/dependency-graph-full.svg` - Full dependency graph with all dependencies (from `make deps-graph-full`)
-- `docs/architecture/workflow-call-graph.svg` - Function call graph for orchestration (from `make call-graph`, pyan3)
-- `docs/architecture/orchestration-flow.svg`, `service-flow.svg` - Flowcharts for orchestration and service (from `make flowcharts`, code2flow)
+- `docs/architecture/diagrams/dependency-graph.svg` - Module dependency graph (clustered, for documentation)
+- `docs/architecture/diagrams/dependency-graph-simple.svg` - Simplified dependency graph (clustered, max-bacon=2)
+- `docs/architecture/diagrams/dependency-graph-full.svg` - Full dependency graph with all dependencies (from `make deps-graph-full`)
+- `docs/architecture/diagrams/workflow-call-graph.svg` - Function call graph for orchestration (from `make call-graph`, pyan3)
+- `docs/architecture/diagrams/orchestration-flow.svg`, `service-flow.svg` - Flowcharts for orchestration and service (from `make flowcharts`, code2flow)
 - `reports/deps-analysis.json` - Detailed analysis report (when using `make deps-analyze` or script `--report`)
 
 ### Related Documentation
 
-- [Architecture visualizations](architecture/README.md) - Generated diagrams in `docs/architecture/`
-- [RFC-038: Continuous Review Tooling](rfc/RFC-038-continuous-review-tooling.md) - Module coupling analysis implementation
+- [Architecture visualizations](diagrams/README.md) - Generated diagrams in `docs/architecture/diagrams/`
+- [RFC-038: Continuous Review Tooling](../rfc/RFC-038-continuous-review-tooling.md) - Module coupling analysis implementation
 - [Issue #170](https://github.com/chipi/podcast_scraper/issues/170) - Module coupling analysis tooling
 - [Issue #425](https://github.com/chipi/podcast_scraper/issues/425) - Codebase visualization tools for documentation
-- [CI/CD Documentation](ci/WORKFLOWS.md) - Nightly workflow details
+- [CI/CD Documentation](../ci/WORKFLOWS.md) - Nightly workflow details
 
 ## Constraints and Assumptions
 
@@ -786,12 +786,12 @@ flowchart TD
   enabled, a `gi.json` file is generated per episode
   containing structured insights, verbatim quotes,
   topics, and their grounding relationships. The file
-  conforms to `docs/gi/gi.schema.json` and is
+  conforms to `docs/architecture/gi/gi.schema.json` and is
   co-located with other episode artifacts.
 - **KG artifacts** (RFC-055): When KG extraction is
   enabled, a `kg.json` file is generated per episode
   containing structured topic graphs.
-- **Run tracking files** (Issue #379, #429): The pipeline writes `run.json`, `index.json`, `run_manifest.json`, and `metrics.json` in each run directory. See [Pipeline and Workflow Guide - Run tracking files](guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429) for details.
+- **Run tracking files** (Issue #379, #429): The pipeline writes `run.json`, `index.json`, `run_manifest.json`, and `metrics.json` in each run directory. See [Pipeline and Workflow Guide - Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429) for details.
 
 ### Filesystem Layout
 
@@ -828,7 +828,7 @@ graph TD
 - Filesystem operations sanitize user-provided paths, emit warnings when outside trusted roots, and handle I/O errors gracefully.
 - Unexpected exceptions inside worker futures are caught and logged without terminating the executor loop.
 
-For detailed error handling patterns and implementation guidelines, see [Development Guide - Error Handling](guides/DEVELOPMENT_GUIDE.md#error-handling).
+For detailed error handling patterns and implementation guidelines, see [Development Guide - Error Handling](../guides/DEVELOPMENT_GUIDE.md#error-handling).
 
 ## Extensibility Points
 
@@ -849,7 +849,7 @@ For detailed error handling patterns and implementation guidelines, see [Develop
   Anthropic, Mistral, DeepSeek, Grok, Ollama). E2E
   testing infrastructure includes mock endpoints for API
   providers. See
-  [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)
+  [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md)
   for complete implementation patterns.
 - **Prompt templates** (RFC-017): LLM providers use
   versioned Jinja2 prompt templates managed by
@@ -873,7 +873,7 @@ For detailed error handling patterns and implementation guidelines, see [Develop
   extraction capabilities can be added by implementing
   the `StructuredExtractor` protocol (RFC-042). The
   `gi.json` schema is versioned and validated against
-  `docs/gi/gi.schema.json`.
+  `docs/architecture/gi/gi.schema.json`.
 - **KG Extraction** (RFC-055): Knowledge Graph
   extraction is an opt-in pipeline stage that produces
   `kg.json` files per episode. Supports stub,
@@ -887,9 +887,9 @@ The project follows a three-tier testing strategy (Unit, Integration, E2E). For 
 | Document | Purpose |
 | ---------- | --------- |
 | **[Testing Strategy](TESTING_STRATEGY.md)** | Testing philosophy, test pyramid, decision criteria |
-| **[Testing Guide](guides/TESTING_GUIDE.md)** | Quick reference, test execution commands |
-| **[Unit Testing Guide](guides/UNIT_TESTING_GUIDE.md)** | Unit test mocking patterns and isolation |
-| **[Integration Testing Guide](guides/INTEGRATION_TESTING_GUIDE.md)** | Integration test guidelines |
-| **[E2E Testing Guide](guides/E2E_TESTING_GUIDE.md)** | E2E server, real ML models |
-| **[Critical Path Testing Guide](guides/CRITICAL_PATH_TESTING_GUIDE.md)** | What to test, prioritization |
-| **[Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Provider-specific testing |
+| **[Testing Guide](../guides/TESTING_GUIDE.md)** | Quick reference, test execution commands |
+| **[Unit Testing Guide](../guides/UNIT_TESTING_GUIDE.md)** | Unit test mocking patterns and isolation |
+| **[Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md)** | Integration test guidelines |
+| **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)** | E2E server, real ML models |
+| **[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md)** | What to test, prioritization |
+| **[Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Provider-specific testing |

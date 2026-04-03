@@ -17,7 +17,7 @@ Define the canonical ontology contract for the **Grounded Insight Layer (GIL)**:
 - Provenance & evidence requirements
 
 This document is the source of truth for contributors. All `gi.json` outputs MUST conform
-to this ontology and the companion schema (`docs/gi/gi.schema.json`).
+to this ontology and the companion schema (`docs/architecture/gi/gi.schema.json`).
 
 ---
 

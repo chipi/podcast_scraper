@@ -1,6 +1,6 @@
 # Testing Strategy - Quick Reference
 
-**For complete details:** `docs/guides/TESTING_GUIDE.md`, `docs/TESTING_STRATEGY.md`
+**For complete details:** `docs/guides/TESTING_GUIDE.md`, `docs/architecture/TESTING_STRATEGY.md`
 
 ## 🚨 After Code Changes: Test Review Checklist
 

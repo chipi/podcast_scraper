@@ -1,0 +1,79 @@
+digraph gi_pipeline {
+    rankdir=TB;
+    fontname="Helvetica";
+    node [fontname="Helvetica", shape=box, style="rounded,filled", fillcolor="#E8F4FD", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    label="GIL Extraction Pipeline: build_artifact()";
+    labelloc=t;
+    fontsize=14;
+
+    // Inputs
+    subgraph cluster_inputs {
+        label="Inputs";
+        style=dashed;
+        color="#999999";
+        episode_id [label="episode_id\ntranscript_text", shape=parallelogram, fillcolor="#FFF3CD"];
+        cfg [label="cfg (Config)", shape=parallelogram, fillcolor="#FFF3CD"];
+        providers [label="insight_provider\nquote_extraction_provider\nentailment_provider", shape=parallelogram, fillcolor="#FFF3CD"];
+        segments [label="transcript_segments\n(optional)", shape=parallelogram, fillcolor="#FFF3CD"];
+    }
+
+    // Step 1: Resolve insights
+    resolve_insights [label="_resolve_insight_texts()\n─────────────────────\n1. Use insight_texts if provided\n2. Call provider.generate_insights()\n3. Fallback: stub insight", fillcolor="#D4EDDA"];
+
+    // Decision: evidence stack?
+    evidence_check [label="cfg.generate_gi AND\ncfg.gi_require_grounding?", shape=diamond, fillcolor="#FFF3CD"];
+
+    // Evidence stack path
+    subgraph cluster_evidence {
+        label="Evidence Stack (grounding path)";
+        style=filled;
+        color="#F8D7DA";
+        fillcolor="#FFF5F5";
+
+        create_providers [label="create_gil_evidence_providers()\n─────────────────────────\nQA extraction provider\nNLI entailment provider"];
+        grounding_loop [label="For each insight:\nfind_grounded_quotes_via_providers()\n─────────────────────────────────\nQA: extract quotes from transcript\nNLI: score entailment"];
+        zero_check [label="Total grounded > 0?", shape=diamond, fillcolor="#FFF3CD"];
+        handle_zero [label="_handle_zero_grounded_quotes()\nWarn / raise if\ngi_fail_on_missing_grounding"];
+    }
+
+    // Stub path
+    stub_artifact [label="_build_stub_artifact()\n──────────────────\n1 Episode + 1 Insight\n+ 1 Quote stub", fillcolor="#E2E3E5"];
+
+    // Multi-insight assembly
+    multi_insight [label="_artifact_from_multi_insight()\n────────────────────────\nEpisode node\n+ N Insight nodes\n+ Quote nodes per insight\n+ Topic nodes (dedupe by slug)\n+ Speaker nodes (from segments)", fillcolor="#CCE5FF"];
+
+    // Timestamp mapping
+    timestamp_map [label="_char_range_to_ms()\n──────────────────\nMap quote char spans\nto segment timestamps\n(FR2.2)", fillcolor="#D4EDDA"];
+
+    speaker_map [label="_speaker_id_for_char_range()\n───────────────────────\nMap quote to speaker\nvia diarization segments", fillcolor="#D4EDDA"];
+
+    // Output
+    artifact [label="GIL Artifact (gi.json)\n─────────────────────\nschema_version, model_version\nnodes: Episode, Insight, Quote,\n       Topic, Speaker\nedges: HAS_INSIGHT, SUPPORTED_BY,\n       ABOUT, SPOKEN_BY", shape=parallelogram, fillcolor="#D1ECF1"];
+
+    // Flow
+    episode_id -> resolve_insights;
+    cfg -> resolve_insights;
+    providers -> resolve_insights;
+    resolve_insights -> evidence_check;
+
+    evidence_check -> create_providers [label="Yes"];
+    evidence_check -> stub_artifact [label="No\n(single stub insight)"];
+    evidence_check -> multi_insight [label="No\n(multiple insights,\nno grounding)"];
+
+    create_providers -> grounding_loop;
+    grounding_loop -> zero_check;
+    zero_check -> handle_zero [label="No (0 quotes)"];
+    zero_check -> multi_insight [label="Yes"];
+    handle_zero -> multi_insight [label="continue\n(degraded)"];
+    handle_zero -> artifact [label="raise\nGILGroundingUnsatisfiedError", style=dashed, color=red];
+
+    segments -> timestamp_map;
+    segments -> speaker_map;
+    timestamp_map -> multi_insight [style=dashed];
+    speaker_map -> multi_insight [style=dashed];
+
+    multi_insight -> artifact;
+    stub_artifact -> artifact;
+}

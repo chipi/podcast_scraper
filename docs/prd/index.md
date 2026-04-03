@@ -53,7 +53,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 
 ## Quick Links
 
-- **[Architecture](../ARCHITECTURE.md)** - System design and module responsibilities
+- **[Architecture](../architecture/ARCHITECTURE.md)** - System design and module responsibilities
 - **[RFCs](../rfc/index.md)** - Technical design documents
 - **[Releases](../releases/index.md)** - Release notes and version history
 

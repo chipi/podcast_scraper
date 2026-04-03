@@ -18,7 +18,7 @@ Usage:
 
 Examples:
     # Fix specific files
-    python scripts/tools/fix_markdown.py docs/TESTING_STRATEGY.md
+    python scripts/tools/fix_markdown.py docs/architecture/TESTING_STRATEGY.md
 
     # Fix all markdown files
     python scripts/tools/fix_markdown.py

@@ -172,8 +172,8 @@ The file is co-located with the transcript and summary. The logical “full” s
 
 ## Schema and Validation
 
-- **Ontology**: [GIL Ontology](../gi/ontology.md) — node/edge types, required properties, grounding contract, ID rules.
-- **JSON Schema**: [gi.schema.json](../gi/gi.schema.json) — machine-readable validation.
+- **Ontology**: [GIL Ontology](../architecture/gi/ontology.md) — node/edge types, required properties, grounding contract, ID rules.
+- **JSON Schema**: [gi.schema.json](../architecture/gi/gi.schema.json) — machine-readable validation.
 
 Generated `gi.json` files must conform to the schema. Validation utilities (e.g. in the `gi` package) can be used in tests and CI.
 
@@ -235,7 +235,7 @@ viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
 ## Troubleshooting
 
 - **No gi.json**: Ensure `generate_gi` is `true` and the pipeline ran past the GIL stage. Check that the episode has a transcript and that the GIL stage did not error (logs).
-- **Validation errors**: Run artifact validation against `docs/gi/gi.schema.json`; fix any missing required fields or invalid types (see ontology for rules).
+- **Validation errors**: Run artifact validation against `docs/architecture/gi/gi.schema.json`; fix any missing required fields or invalid types (see ontology for rules).
 - **Ungrounded insights**: Some insights may be `grounded=false` if no quote passed the evidence thresholds. This is intentional transparency; you can tune QA/NLI thresholds in config when available.
 - **Evidence stack / model load**: If embedding, QA, or NLI models fail to load, check device (e.g. `embedding_device`, `nli_device`) and that `sentence-transformers` and `transformers` are installed (e.g. `pip install -e ".[ml]"`).
 - **Provider-based evidence**: If you set `quote_extraction_provider` or `entailment_provider` to an LLM (e.g. `openai`), ensure that provider is initialized (same as for summarization) and the required API key is set. LLM providers implement `extract_quotes` and `score_entailment` via their chat API; ML providers use the local QA and NLI models (see `gi_qa_model`, `gi_nli_model`).
@@ -247,11 +247,11 @@ viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
 - [Recorded product decisions (v1, issue 460)](#recorded-product-decisions-v1-issue-460) — shallow v1 scope table (ML, topics, speakers, SQL deferral, CLI).
 - [PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md) — summaries as the fast consumption layer above transcripts.
 - [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) — KG as a separate navigation layer (`kg` vs `gi`).
-- [GIL Ontology](../gi/ontology.md) — full ontology and grounding contract.
-- [GIL Schema](../gi/gi.schema.json) — JSON schema for `gi.json`.
+- [GIL Ontology](../architecture/gi/ontology.md) — full ontology and grounding contract.
+- [GIL Schema](../architecture/gi/gi.schema.json) — JSON schema for `gi.json`.
 - [PRD-019: Knowledge Graph Layer (KG)](../prd/PRD-019-knowledge-graph-layer.md) — **separate feature** from GIL (`kg` vs `gi`; entities/linking, not evidence-first insights).
 - [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) — where GIL fits in the pipeline.
 - [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `gi.json` / `kg.json`.
-- [Architecture](../ARCHITECTURE.md) — GIL extraction and artifact layout.
+- [Architecture](../architecture/ARCHITECTURE.md) — GIL extraction and artifact layout.
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) — config keys and provider options.
 - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core concepts and evidence stack; includes implementation note on provider-based QA/NLI (quote_extraction_provider, entailment_provider).

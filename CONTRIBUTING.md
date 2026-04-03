@@ -12,7 +12,7 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | ---- | -------- | ---- | ----------------- |
 | 1 | [README](README.md) | 5 min | What this project does |
 | 2 | [Engineering Process](docs/guides/ENGINEERING_PROCESS.md) | 5 min | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
-| 3 | [Architecture](docs/ARCHITECTURE.md) | 10 min | How it's structured |
+| 3 | [Architecture](docs/architecture/ARCHITECTURE.md) | 10 min | How it's structured |
 | 4 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
 | 5 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
 | 6 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |

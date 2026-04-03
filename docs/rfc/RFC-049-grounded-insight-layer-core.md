@@ -29,9 +29,9 @@
     (downstream — routes episodes to optimal
     strategies, including GIL extraction)
 - **Related Documents**:
-  - `docs/gi/ontology.md` - Human-readable ontology
-  - `docs/gi/gi.schema.json` - Machine-readable schema
-  - `docs/ARCHITECTURE.md` - System architecture
+  - `docs/architecture/gi/ontology.md` - Human-readable ontology
+  - `docs/architecture/gi/gi.schema.json` - Machine-readable schema
+  - `docs/architecture/ARCHITECTURE.md` - System architecture
 
 **Execution Order:**
 
@@ -325,19 +325,19 @@ The GIL ontology is treated as a first-class, versioned artifact of the project,
 **Ontology Outputs:**
 
 1. **Human-Readable Ontology Specification**
-   - Location: `docs/gi/ontology.md`
+   - Location: `docs/architecture/gi/ontology.md`
    - Purpose: Define node and edge semantics, grounding contract, required vs optional properties
    - This document is the canonical reference for contributors and reviewers
 
 2. **Machine-Readable Schema**
-   - Location: `docs/gi/gi.schema.json`
+   - Location: `docs/architecture/gi/gi.schema.json`
    - Purpose: Validate `gi.json` outputs, enforce grounding invariants, enable CI validation
    - All GIL outputs must conform to this schema
 
 **Required Artifacts (v1):**
 
-- `docs/gi/ontology.md` - Human-readable ontology specification
-- `docs/gi/gi.schema.json` - Machine-readable schema for validation
+- `docs/architecture/gi/ontology.md` - Human-readable ontology specification
+- `docs/architecture/gi/gi.schema.json` - Machine-readable schema for validation
 
 These artifacts are considered part of the GIL deliverable, not optional documentation.
 
@@ -723,7 +723,7 @@ extraction.**
 - **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
 - **Related RFC**: `docs/rfc/RFC-052-locally-hosted-llm-models-with-prompts.md`
 - **Related RFC**: `docs/rfc/RFC-053-adaptive-summarization-routing.md`
-- **Ontology**: `docs/gi/ontology.md`
-- **Schema**: `docs/gi/gi.schema.json`
-- **Architecture**: `docs/ARCHITECTURE.md`
+- **Ontology**: `docs/architecture/gi/ontology.md`
+- **Schema**: `docs/architecture/gi/gi.schema.json`
+- **Architecture**: `docs/architecture/ARCHITECTURE.md`
 - **Source Code**: `podcast_scraper/workflow/`

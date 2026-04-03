@@ -43,7 +43,9 @@ class TestMistralE2EServerIntegration:
         FakeMistral = create_fake_mistral_client(mistral_api_base)
 
         # Replace Mistral SDK with fake client (same as e2e conftest does)
-        monkeypatch.setattr("mistralai.Mistral", FakeMistral)
+        monkeypatch.setattr(
+            "podcast_scraper.providers.mistral.mistral_provider.Mistral", FakeMistral
+        )
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
@@ -85,7 +87,9 @@ class TestMistralE2EServerIntegration:
         FakeMistral = create_fake_mistral_client(mistral_api_base)
 
         # Replace Mistral SDK with fake client (same as e2e conftest does)
-        monkeypatch.setattr("mistralai.Mistral", FakeMistral)
+        monkeypatch.setattr(
+            "podcast_scraper.providers.mistral.mistral_provider.Mistral", FakeMistral
+        )
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",
@@ -123,7 +127,9 @@ class TestMistralE2EServerIntegration:
         FakeMistral = create_fake_mistral_client(mistral_api_base)
 
         # Replace Mistral SDK with fake client (same as e2e conftest does)
-        monkeypatch.setattr("mistralai.Mistral", FakeMistral)
+        monkeypatch.setattr(
+            "podcast_scraper.providers.mistral.mistral_provider.Mistral", FakeMistral
+        )
 
         cfg = config.Config(
             rss_url="https://example.com/feed.xml",

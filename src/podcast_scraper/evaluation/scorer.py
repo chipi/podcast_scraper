@@ -41,10 +41,13 @@ try:
 except ImportError:
     jiwer = None  # type: ignore[assignment]
 
+_SentenceTransformer: Any = None
 try:
-    from sentence_transformers import SentenceTransformer as _SentenceTransformer
+    from sentence_transformers import SentenceTransformer as _ST
+
+    _SentenceTransformer = _ST
 except ImportError:
-    _SentenceTransformer = None
+    pass
 
 try:
     from nltk.tokenize import word_tokenize

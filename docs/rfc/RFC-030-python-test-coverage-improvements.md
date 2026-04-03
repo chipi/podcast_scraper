@@ -11,7 +11,7 @@
   - `docs/rfc/RFC-024-test-execution-optimization.md` (test execution optimization)
   - `docs/rfc/RFC-018-test-structure-reorganization.md` (test structure)
 - **Related Documents**:
-  - `docs/TESTING_STRATEGY.md` - Overall testing strategy
+  - `docs/architecture/TESTING_STRATEGY.md` - Overall testing strategy
   - `docs/guides/DEVELOPMENT_GUIDE.md` - Development workflow
   - `.github/workflows/python-app.yml` - Main CI workflow
   - `.github/workflows/nightly.yml` - Nightly comprehensive tests

@@ -432,8 +432,8 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | Resource | Description |
 | -------- | ----------- |
 | [Roadmap](docs/ROADMAP.md) | Project roadmap with prioritized PRDs and RFCs |
-| [Architecture](docs/ARCHITECTURE.md) | System design and module responsibilities |
-| [Testing Strategy](docs/TESTING_STRATEGY.md) | Testing approach and test pyramid |
+| [Architecture](docs/architecture/ARCHITECTURE.md) | System design and module responsibilities |
+| [Testing Strategy](docs/architecture/TESTING_STRATEGY.md) | Testing approach and test pyramid |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
 | [Guides](docs/guides/) | Development, testing, and usage guides |

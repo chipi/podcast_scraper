@@ -92,7 +92,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 ## Quick Links
 
 - **[PRDs](../prd/index.md)** - Product requirements documents
-- **[Architecture](../ARCHITECTURE.md)** - System design and module responsibilities
+- **[Architecture](../architecture/ARCHITECTURE.md)** - System design and module responsibilities
 - **[Releases](../releases/index.md)** - Release notes and version history
 
 ---

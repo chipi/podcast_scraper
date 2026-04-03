@@ -80,8 +80,8 @@ mode can read text; `extraction.transcript_ref` stays in the artifact for proven
 ## Output Artifacts
 
 - **File:** `metadata/<episode_basename>.kg.json` (alongside `.metadata.json` / `.gi.json`).
-- **Ontology:** [docs/kg/ontology.md](../kg/ontology.md) (**v1 frozen**, GitHub #464 — matches shipped pipeline).
-- **Schema:** [docs/kg/kg.schema.json](../kg/kg.schema.json) — validate with
+- **Ontology:** [docs/architecture/kg/ontology.md](../architecture/kg/ontology.md) (**v1 frozen**, GitHub #464 — matches shipped pipeline).
+- **Schema:** [docs/architecture/kg/kg.schema.json](../architecture/kg/kg.schema.json) — validate with
   `make validate-kg-schema [ARTIFACTS_DIR=path]`.
 
 Episode **metadata** includes `knowledge_graph` when KG ran: `artifact_path`, `node_count`,

@@ -227,6 +227,6 @@ Linter for Markdown files. Config in `.markdownlint.json`.
 
 ## Related Documentation
 
-- [Architecture](../ARCHITECTURE.md) - System design overview
+- [Architecture](../architecture/ARCHITECTURE.md) - System design overview
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Test execution reference

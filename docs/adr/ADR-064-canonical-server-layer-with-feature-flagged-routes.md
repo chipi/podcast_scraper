@@ -76,6 +76,6 @@ We create a **canonical server layer** in `src/podcast_scraper/server/`:
 ## References
 
 - [RFC-062: GI/KG Viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
-- [Platform Megasketch](../wip/platform-corpus-service-megasketch.md) — constraint A.2
+- [Platform Megasketch](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md) — constraint A.2
 - [#50: Simple UI + server](https://github.com/chipi/podcast_scraper/issues/50)
 - [#347: UI for DB output](https://github.com/chipi/podcast_scraper/issues/347)

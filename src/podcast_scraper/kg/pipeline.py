@@ -193,7 +193,7 @@ def build_artifact(
         pipeline_metrics: Optional metrics collector (increments kg_provider_extractions).
 
     Returns:
-        Dict matching docs/kg/kg.schema.json (minimal validation via kg.schema).
+        Dict matching docs/architecture/kg/kg.schema.json (minimal validation via kg.schema).
     """
     date_str = _safe_iso_date(publish_date)
     ep_node_id = episode_node_id(episode_id)

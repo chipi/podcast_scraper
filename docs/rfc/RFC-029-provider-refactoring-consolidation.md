@@ -11,7 +11,7 @@
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - Original OpenAI provider design
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture
 - **Related Documents**:
-  - `docs/ARCHITECTURE.md` - System architecture
+  - `docs/architecture/ARCHITECTURE.md` - System architecture
   - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md` - Provider implementation guide
   - `docs/wip/PROVIDER_REFACTORING_OPPORTUNITIES.md` - Refactoring opportunities (consolidated here)
   - `docs/wip/UNIFIED_PROVIDERS_STATUS.md` - Status tracking (consolidated here)
@@ -886,7 +886,7 @@ grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummariza
 **Files to Review**:
 
 - `docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md`
-- `docs/ARCHITECTURE.md`
+- `docs/architecture/ARCHITECTURE.md`
 - `docs/guides/DEVELOPMENT_GUIDE.md`
 - `docs/guides/TESTING_GUIDE.md`
 - All RFCs and PRDs

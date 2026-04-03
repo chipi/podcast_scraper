@@ -1,7 +1,7 @@
 """GIL artifact schema: load gi.schema.json and validate payloads.
 
 Validation is minimal (required keys, types) when the JSON Schema file
-is not available; full validation when docs/gi/gi.schema.json exists.
+is not available; full validation when docs/architecture/gi/gi.schema.json exists.
 """
 
 from pathlib import Path
@@ -11,12 +11,12 @@ _SCHEMA_CACHE: Optional[Dict[str, Any]] = None
 
 
 def get_schema_path() -> Optional[Path]:
-    """Return path to gi.schema.json when present (e.g. in repo docs/gi/)."""
+    """Return path to gi.schema.json when present (e.g. in repo docs/architecture/gi/)."""
     try:
         from podcast_scraper.cache import get_project_root
 
         root = get_project_root()
-        path = root / "docs" / "gi" / "gi.schema.json"
+        path = root / "docs" / "architecture" / "gi" / "gi.schema.json"
         return path if path.exists() else None
     except Exception:
         return None

@@ -7,12 +7,12 @@ _SCHEMA_CACHE: Optional[Dict[str, Any]] = None
 
 
 def get_schema_path() -> Optional[Path]:
-    """Return path to kg.schema.json when present (e.g. in repo docs/kg/)."""
+    """Return path to kg.schema.json when present (e.g. in repo docs/architecture/kg/)."""
     try:
         from podcast_scraper.cache import get_project_root
 
         root = get_project_root()
-        path = root / "docs" / "kg" / "kg.schema.json"
+        path = root / "docs" / "architecture" / "kg" / "kg.schema.json"
         return path if path.exists() else None
     except Exception:
         return None

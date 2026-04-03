@@ -24,7 +24,7 @@ are not yet finalized or integrated into the main documentation.
 - Documents here are **not** part of the official documentation
 - They may be incomplete, outdated, or experimental
 - When ready, documents should be moved to appropriate locations:
-  - Architecture docs → `docs/ARCHITECTURE.md` or new architecture docs
+  - Architecture docs → `docs/architecture/ARCHITECTURE.md` or new architecture docs
   - RFCs → `docs/rfc/`
   - PRDs → `docs/prd/`
   - Release notes → `docs/releases/`
