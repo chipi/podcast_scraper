@@ -199,6 +199,34 @@ class TestExperimentConfig(unittest.TestCase):
         self.assertEqual(cfg.backend.type, "openai")
         self.assertEqual(cfg.backend.model, config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL)
 
+    def test_experiment_config_transcript_cleaning_strategy_optional(self):
+        """transcript_cleaning_strategy is optional; when set it validates."""
+        minimal = experiment_config.ExperimentConfig(
+            id="test_openai_clean",
+            backend=experiment_config.OpenAIBackendConfig(
+                model=config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL
+            ),
+            prompts=experiment_config.PromptConfig(user="openai/summarization/long_v1"),
+            data=experiment_config.DataConfig(dataset_id="curated_5feeds_smoke_v1"),
+            transcript_cleaning_strategy="pattern",
+        )
+        self.assertEqual(minimal.transcript_cleaning_strategy, "pattern")
+
+    def test_load_transcript_cleaning_experiment_yaml_arm_a(self):
+        """Load Arm A transcript-cleaning experiment config from disk."""
+        repo_root = Path(__file__).resolve().parents[4]
+        path = (
+            repo_root
+            / "data"
+            / "eval"
+            / "configs"
+            / "experiment_openai_gpt4o_smoke_cleaning_arm_a_pattern_v1.yaml"
+        )
+        self.assertTrue(path.is_file(), f"missing fixture {path}")
+        loaded = experiment_config.load_experiment_config(path)
+        self.assertEqual(loaded.id, "experiment_openai_gpt4o_smoke_cleaning_arm_a_pattern_v1")
+        self.assertEqual(loaded.transcript_cleaning_strategy, "pattern")
+
     def test_experiment_config_ensure_non_empty_id(self):
         """Test ExperimentConfig validation ensures non-empty ID."""
         with self.assertRaises(ValidationError) as cm:

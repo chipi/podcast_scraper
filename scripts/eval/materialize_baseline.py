@@ -1131,6 +1131,13 @@ def generate_enhanced_fingerprint(  # noqa: C901
             # Fingerprinting it defines why results changed.
             # Preprocessing is deterministic, rule-based, versionable transformations
             # applied before model runs (not part of the model itself).
+            **(
+                {
+                    "transcript_cleaning_strategy": experiment_config.transcript_cleaning_strategy,
+                }
+                if experiment_config and experiment_config.transcript_cleaning_strategy is not None
+                else {}
+            ),
         },
         "tokenization": (
             tokenize_config if tokenize_config else {}
