@@ -1278,7 +1278,7 @@ class SummaryModel:
                     self.model = _load_with_retry_summarizer(
                         lambda: LEDForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
-                            **led_model_kwargs,
+                            **cast(Any, led_model_kwargs),
                         ),
                         self.model_name,
                         "LED model",
@@ -1291,7 +1291,7 @@ class SummaryModel:
                     self.model = _load_with_retry_summarizer(
                         lambda: BartForConditionalGeneration.from_pretrained(  # nosec B615
                             self.model_name,
-                            **model_kwargs,
+                            **cast(Any, model_kwargs),
                         ),
                         self.model_name,
                         "BART model",
@@ -1304,7 +1304,7 @@ class SummaryModel:
                     self.model = _load_with_retry_summarizer(
                         lambda: AutoModelForSeq2SeqLM.from_pretrained(  # nosec B615
                             self.model_name,
-                            **model_kwargs,
+                            **cast(Any, model_kwargs),
                         ),
                         self.model_name,
                         "AutoModel",

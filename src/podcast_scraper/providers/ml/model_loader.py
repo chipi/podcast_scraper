@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import List, Optional
+from typing import Any, cast, List, Optional
 
 from ... import config
 from ...cache import (
@@ -243,11 +243,12 @@ def _download_qa_pipeline_for_cache(model_id: str) -> None:
     from transformers import pipeline
 
     cache_dir = str(get_transformers_cache_dir().resolve())
+    model_kw = {"local_files_only": False, "cache_dir": cache_dir}
     pipeline(
         "question-answering",
         model=model_id,
         device=-1,
-        model_kwargs={"local_files_only": False, "cache_dir": cache_dir},
+        model_kwargs=cast(Any, model_kw),
     )
 
 
@@ -256,11 +257,10 @@ def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
     from sentence_transformers import CrossEncoder
 
     cache_dir = str(get_transformers_cache_dir().resolve())
-    dl_kw = {"local_files_only": False, "cache_dir": cache_dir}
     CrossEncoder(
         model_id,
-        tokenizer_args=dl_kw,
-        automodel_args=dl_kw,
+        local_files_only=False,
+        cache_folder=cache_dir,
     )
 
 

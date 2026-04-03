@@ -94,7 +94,7 @@ def load_qa_pipeline(
         "question-answering",
         model=resolved,
         device=pipe_device,
-        model_kwargs=model_kw,
+        model_kwargs=cast(Any, model_kw),
     )
     return pipe
 

@@ -40,10 +40,12 @@ ml = [
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
   "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
   "torch>=2.0.0,<3.0.0",
-  "transformers>=4.30.0,<5.0.0",
+  # ST 5.x + spaCy trf stack need transformers 5.x (PR #423 / semantic search)
+  "transformers>=4.41.0,<6.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
-  "sentence-transformers>=2.2.0,<3.0.0",
+  # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
+  "sentence-transformers>=3.0.0,<6.0.0",
   # Semantic corpus search (PRD-021 / RFC-061): local vector index
   "faiss-cpu>=1.9.0,<2.0.0",
   "accelerate>=0.20.0,<2.0.0",
@@ -87,7 +89,7 @@ dev = [
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
   "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
-  "sentence-transformers>=2.2.0,<3.0.0",  # Required for semantic similarity computation
+  "sentence-transformers>=3.0.0,<6.0.0",  # Semantic similarity + eval (aligned with [ml])
   "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
   "radon>=5.1.0,<6.1",  # Code complexity analysis (RFC-031); 5.1.x for wily compatibility (Issue #424)
   "wily>=1.25.0,<3.0.0",  # Code quality trends over git history (Issue #424)

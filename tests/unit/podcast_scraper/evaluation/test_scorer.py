@@ -470,14 +470,14 @@ class TestComputeVsReferenceOptionalMetricsBranches:
         assert "Error computing WER" in caplog.text
 
     def test_embedding_model_load_failure_returns_none(self, caplog) -> None:
-        if scorer_mod.SentenceTransformer is None:
+        if scorer_mod._SentenceTransformer is None:
             pytest.skip("sentence-transformers not installed")
         caplog.set_level(logging.ERROR)
         preds = [{"episode_id": "e1", "output": {"summary_final": "a"}}]
         refs = [{"episode_id": "e1", "output": {"summary_final": "b"}}]
         with patch.object(
             scorer_mod,
-            "SentenceTransformer",
+            "_SentenceTransformer",
             side_effect=RuntimeError("cannot load model"),
         ):
             out = compute_embedding_similarity(preds, refs)
