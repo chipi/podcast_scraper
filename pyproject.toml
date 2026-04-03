@@ -46,8 +46,9 @@ ml = [
   "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
   "en-core-web-trf @ https://github.com/explosion/spacy-models/releases/download/en_core_web_trf-3.7.3/en_core_web_trf-3.7.3-py3-none-any.whl",
   "torch>=2.0.0,<3.0.0",
-  # ST 5.x + spaCy trf stack need transformers 5.x (PR #423 / semantic search)
-  "transformers>=4.41.0,<6.0.0",
+  # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
+  # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
+  "transformers>=4.41.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
   # v3+ CrossEncoder: pass local_files_only on constructor, not inside tokenizer/automodel kwargs
