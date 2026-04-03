@@ -891,5 +891,53 @@ class TestConfigFieldValidators(unittest.TestCase):
             Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="invalid")
 
 
+@pytest.mark.unit
+class TestPathTraversalAndTokenValidators(unittest.TestCase):
+    """Hardening validators: no .. in paths; temperatures; max_tokens."""
+
+    def test_output_dir_rejects_parent_components(self):
+        with self.assertRaises(ValidationError):
+            Config(rss_url="https://example.com/feed.xml", output_dir="/tmp/../etc")
+
+    def test_log_file_rejects_traversal(self):
+        with self.assertRaises(ValidationError):
+            Config(rss_url="https://example.com/feed.xml", log_file="logs/../../secret.log")
+
+    def test_summary_cache_dir_rejects_traversal(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                summary_cache_dir="cache/../outside",
+            )
+
+    def test_anthropic_temperature_above_one_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                anthropic_temperature=1.1,
+            )
+
+    def test_mistral_temperature_above_two_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                mistral_temperature=2.1,
+            )
+
+    def test_anthropic_cleaning_temperature_above_one_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                anthropic_cleaning_temperature=1.5,
+            )
+
+    def test_openai_max_tokens_zero_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                openai_max_tokens=0,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

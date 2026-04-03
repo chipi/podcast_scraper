@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import pytest
 
@@ -44,6 +45,25 @@ class TestFindAllRuns:
         r1 = next(r for r in out if r["run_id"] == "run_001")
         assert r1.get("metadata", {}).get("dataset_id") == "d1"
 
+    def test_invalid_baseline_json_logs_and_continues(self, tmp_path, caplog):
+        """Corrupt baseline.json triggers warning with safe exception text; run still listed."""
+        caplog.set_level(logging.WARNING)
+        (tmp_path / "bad_baseline").mkdir()
+        (tmp_path / "bad_baseline" / "baseline.json").write_text("{not json", encoding="utf-8")
+        out = find_all_runs(base_dir=tmp_path)
+        assert len(out) == 1
+        assert out[0]["run_id"] == "bad_baseline"
+        assert "Failed to load baseline.json" in caplog.text
+
+    def test_invalid_metrics_json_logs_and_continues(self, tmp_path, caplog):
+        """Corrupt metrics.json triggers warning; run still listed."""
+        caplog.set_level(logging.WARNING)
+        (tmp_path / "bad_metrics").mkdir()
+        (tmp_path / "bad_metrics" / "metrics.json").write_text("]", encoding="utf-8")
+        out = find_all_runs(base_dir=tmp_path)
+        assert len(out) == 1
+        assert "Failed to load metrics.json" in caplog.text
+
 
 @pytest.mark.unit
 class TestFindAllBaselines:
@@ -63,6 +83,22 @@ class TestFindAllBaselines:
         out = find_all_baselines(base_dir=tmp_path)
         assert len(out) == 1
         assert out[0]["baseline_id"] == "baseline_001"
+
+    def test_invalid_baseline_json_logs(self, tmp_path, caplog):
+        caplog.set_level(logging.WARNING)
+        (tmp_path / "b1").mkdir()
+        (tmp_path / "b1" / "baseline.json").write_text("nullx", encoding="utf-8")
+        out = find_all_baselines(base_dir=tmp_path)
+        assert len(out) == 1
+        assert "Failed to load baseline.json" in caplog.text
+
+    def test_invalid_metrics_json_logs(self, tmp_path, caplog):
+        caplog.set_level(logging.WARNING)
+        (tmp_path / "b2").mkdir()
+        (tmp_path / "b2" / "metrics.json").write_text("{", encoding="utf-8")
+        out = find_all_baselines(base_dir=tmp_path)
+        assert len(out) == 1
+        assert "Failed to load metrics.json" in caplog.text
 
 
 @pytest.mark.unit

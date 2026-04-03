@@ -2375,5 +2375,49 @@ class TestLogConfigurationGiStubWarning(unittest.TestCase):
                 mock_warn.assert_not_called()
 
 
+class TestGiValidateAndExportCli(unittest.TestCase):
+    """GI subcommands: error paths use format_exception_for_log."""
+
+    def test_run_gi_validate_collect_paths_error_returns_invalid_args(self):
+        from argparse import Namespace
+
+        from podcast_scraper.gi.explore import EXIT_INVALID_ARGS
+
+        log = logging.getLogger("test_gi_validate_collect")
+        args = Namespace(paths=["/unlikely/path/only"], strict=False, quiet=True)
+        with patch(
+            "podcast_scraper.gi.io.collect_gi_paths_from_inputs",
+            side_effect=ValueError("synthetic path error"),
+        ):
+            rc = cli._run_gi_validate(args, log)
+        self.assertEqual(rc, EXIT_INVALID_ARGS)
+
+    def test_run_gi_export_load_artifacts_failure_returns_one(self):
+        import tempfile
+        from argparse import Namespace
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            out = root / "gi_run"
+            out.mkdir()
+            log = logging.getLogger("test_gi_export_load")
+            args = Namespace(output_dir=str(out), strict=False, format="ndjson", out=None)
+            fake_path = root / "one.gi.json"
+            fake_path.write_text("{}", encoding="utf-8")
+            with (
+                patch(
+                    "podcast_scraper.gi.explore.scan_artifact_paths",
+                    return_value=[fake_path],
+                ),
+                patch(
+                    "podcast_scraper.gi.corpus.load_gi_artifacts",
+                    side_effect=RuntimeError("synthetic load failure"),
+                ),
+            ):
+                rc = cli._run_gi_export(args, log)
+        self.assertEqual(rc, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from podcast_scraper.evaluation import scorer as scorer_mod
 from podcast_scraper.evaluation.scorer import (
     compute_bleu_vs_reference,
+    compute_embedding_similarity,
     compute_intrinsic_metrics,
     compute_rouge_vs_reference,
     compute_vs_reference_metrics,
@@ -384,6 +387,105 @@ class TestComputeVsReferencePartialEpisodes:
 
 
 @pytest.mark.unit
+class TestComputeVsReferenceOptionalMetricsBranches:
+    """Cover ImportError branches and per-episode exception logging in scorer."""
+
+    @staticmethod
+    def _ref_and_preds(tmp_path: Path) -> tuple[Path, list]:
+        ref_dir = tmp_path / "ref_opt"
+        ref_dir.mkdir()
+        line = '{"episode_id": "e1", "output": {"summary_final": "hello world there"}}\n'
+        (ref_dir / "predictions.jsonl").write_text(line, encoding="utf-8")
+        (ref_dir / "baseline.json").write_text("{}", encoding="utf-8")
+        preds = [{"episode_id": "e1", "output": {"summary_final": "hello world there"}}]
+        return ref_dir, preds
+
+    def test_rouge_skipped_on_import_error(self, tmp_path: Path, caplog) -> None:
+        caplog.set_level(logging.WARNING)
+        ref_dir, preds = self._ref_and_preds(tmp_path)
+        with patch.object(
+            scorer_mod,
+            "compute_rouge_vs_reference",
+            side_effect=ImportError("rouge missing"),
+        ):
+            out = compute_vs_reference_metrics(preds, "r1", ref_dir)
+        assert out["rouge1_f1"] is None
+        assert "ROUGE computation skipped" in caplog.text
+
+    def test_bleu_skipped_on_import_error(self, tmp_path: Path, caplog) -> None:
+        caplog.set_level(logging.WARNING)
+        ref_dir, preds = self._ref_and_preds(tmp_path)
+        with patch.object(
+            scorer_mod,
+            "compute_bleu_vs_reference",
+            side_effect=ImportError("nltk missing"),
+        ):
+            out = compute_vs_reference_metrics(preds, "r1", ref_dir)
+        assert out["bleu"] is None
+        assert "BLEU computation skipped" in caplog.text
+
+    def test_wer_skipped_on_import_error(self, tmp_path: Path, caplog) -> None:
+        caplog.set_level(logging.WARNING)
+        ref_dir, preds = self._ref_and_preds(tmp_path)
+        with patch.object(
+            scorer_mod,
+            "compute_wer_vs_reference",
+            side_effect=ImportError("jiwer missing"),
+        ):
+            out = compute_vs_reference_metrics(preds, "r1", ref_dir)
+        assert out["wer"] is None
+        assert "WER computation skipped" in caplog.text
+
+    def test_embedding_skipped_on_import_error(self, tmp_path: Path, caplog) -> None:
+        caplog.set_level(logging.WARNING)
+        ref_dir, preds = self._ref_and_preds(tmp_path)
+        with patch.object(
+            scorer_mod,
+            "compute_embedding_similarity",
+            side_effect=ImportError("st missing"),
+        ):
+            out = compute_vs_reference_metrics(preds, "r1", ref_dir)
+        assert out["embedding_cosine"] is None
+        assert "Embedding similarity computation skipped" in caplog.text
+
+    def test_bleu_episode_error_logs_safe_message(self, tmp_path: Path, caplog) -> None:
+        if scorer_mod.sentence_bleu is None or scorer_mod.word_tokenize is None:
+            pytest.skip("nltk not installed")
+        caplog.set_level(logging.WARNING)
+        ref_dir, preds = self._ref_and_preds(tmp_path)
+        refs = [{"episode_id": "e1", "output": {"summary_final": "hello world there"}}]
+        with patch.object(scorer_mod, "word_tokenize", side_effect=RuntimeError("token boom")):
+            compute_bleu_vs_reference(preds, refs)
+        assert "Error computing BLEU" in caplog.text
+        assert "e1" in caplog.text
+
+    def test_wer_episode_error_logs_safe_message(self, tmp_path: Path, caplog) -> None:
+        if scorer_mod.jiwer is None:
+            pytest.skip("jiwer not installed")
+        caplog.set_level(logging.WARNING)
+        ref_dir, preds = self._ref_and_preds(tmp_path)
+        refs = [{"episode_id": "e1", "output": {"summary_final": "hello world there"}}]
+        with patch.object(scorer_mod.jiwer, "wer", side_effect=RuntimeError("wer boom")):
+            compute_wer_vs_reference(preds, refs)
+        assert "Error computing WER" in caplog.text
+
+    def test_embedding_model_load_failure_returns_none(self, caplog) -> None:
+        if scorer_mod.SentenceTransformer is None:
+            pytest.skip("sentence-transformers not installed")
+        caplog.set_level(logging.ERROR)
+        preds = [{"episode_id": "e1", "output": {"summary_final": "a"}}]
+        refs = [{"episode_id": "e1", "output": {"summary_final": "b"}}]
+        with patch.object(
+            scorer_mod,
+            "SentenceTransformer",
+            side_effect=RuntimeError("cannot load model"),
+        ):
+            out = compute_embedding_similarity(preds, refs)
+        assert out is None
+        assert "Failed to load sentence-transformer" in caplog.text
+
+
+@pytest.mark.unit
 class TestScoreRun:
     """score_run top-level orchestration."""
 
@@ -404,3 +506,33 @@ class TestScoreRun:
         assert out["vs_reference"] is not None
         assert "error" in out["vs_reference"]["broken"]
         assert "predictions" in out["vs_reference"]["broken"]["error"].lower()
+
+    def test_vs_reference_compute_exception_logs_and_records_error(
+        self, tmp_path: Path, caplog
+    ) -> None:
+        """score_run logs format_exception_for_log when vs-reference compute raises."""
+        caplog.set_level(logging.ERROR)
+        ref_dir = tmp_path / "good_ref"
+        ref_dir.mkdir()
+        (ref_dir / "predictions.jsonl").write_text(
+            '{"episode_id": "e1", "output": {"summary_final": "x"}}\n',
+            encoding="utf-8",
+        )
+        pred_path = tmp_path / "predictions.jsonl"
+        pred_path.write_text(
+            '{"episode_id": "e1", "output": {"summary_final": "x"}}\n',
+            encoding="utf-8",
+        )
+        with patch.object(
+            scorer_mod,
+            "compute_vs_reference_metrics",
+            side_effect=RuntimeError("synthetic ref failure"),
+        ):
+            out = score_run(
+                pred_path,
+                "ds_z",
+                "run_z",
+                reference_paths={"ref_a": ref_dir},
+            )
+        assert "error" in out["vs_reference"]["ref_a"]
+        assert "Failed to compute metrics vs reference" in caplog.text
