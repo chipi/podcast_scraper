@@ -59,6 +59,18 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # nli_model: cross-encoder/nli-deberta-v3-base  # Or alias: nli-deberta-base
 # nli_device: null
 
+# Semantic corpus search (RFC-061 / PRD-021): FAISS index over GIL, summaries, transcripts
+# vector_search: false  # Default off. When true, pipeline runs embed-and-index after finalize
+# vector_backend: faiss  # Phase 1: faiss only; qdrant deferred (RFC-061 Phase 2)
+# vector_index_path: null  # Optional; relative → under output_dir. Default: search/ → <output_dir>/search/
+# vector_embedding_model: minilm-l6  # Registry alias or full sentence-transformers id (see ModelRegistry)
+# vector_index_types: null  # Optional list: insight, quote, summary, transcript, kg_topic, kg_entity (default: all)
+# vector_faiss_index_mode: auto  # auto | flat | ivf_flat | ivfpq (#484 corpus-size thresholds when auto)
+# vector_chunk_size_tokens: 300  # Transcript chunk target (must be > vector_chunk_overlap_tokens)
+# vector_chunk_overlap_tokens: 50  # Overlap between consecutive transcript chunks
+# After a run: `python -m podcast_scraper.cli index --output-dir <out>` to rebuild; `... search ...`
+# for queries. With an index, `gi explore --topic` uses vectors first. Guide: docs/guides/SEMANTIC_SEARCH_GUIDE.md
+
 # OpenAI configuration (required if using any OpenAI providers)
 # Note: OPENAI_API_KEY should be set in .env file (see config/examples/.env.example)
 # openai_api_key: your-key-here  # Not recommended - use .env file instead

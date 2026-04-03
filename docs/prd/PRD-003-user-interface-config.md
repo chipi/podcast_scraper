@@ -2,6 +2,8 @@
 
 - **Status**: ✅ Implemented (v2.0.0)
 - **Related RFCs**: RFC-007, RFC-008, RFC-009
+- **Related UX specs**:
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) (local visualization served with the tool)
 
 ## Summary
 
@@ -75,6 +77,28 @@ Define how operators interact with the podcast scraper via CLI flags and configu
 - [ ] CLI help text audited and examples verified in README.
 - [ ] Integration tests cover CLI happy path, invalid args, config file precedence, programmatic usage.
 - [ ] Version string maintained in sync (`__version__`).
+
+## Viewer v2 — Theme & Appearance (planned)
+
+The GI/KG viewer v2 (RFC-062) extends this PRD with a **token-based theming system**
+that separates visual decisions from component code. This is specified in UXS-001 and
+implemented via CSS custom properties + optional preset files.
+
+**Key capabilities:**
+
+- **Semantic tokens:** All colors, typography, spacing, and radii are defined as named
+  tokens (e.g. `canvas`, `primary`, `gi`, `series-1`). Components consume tokens, never
+  hard-coded values.
+- **Light/dark:** Driven by `prefers-color-scheme`; dark mode is the design baseline.
+- **Preset experimentation:** Alternate value files (`compact.css`, `relaxed.css`) can
+  override tunable parameters (fonts, spacing, border-radius) without touching component
+  code. Once finalized, the chosen values are frozen in UXS-001.
+- **Frozen vs open:** Token *names* and the pairing/split conventions are architectural
+  (frozen). Token *values* (exact hex, font family, spacing unit) are open for tuning
+  during early development.
+
+See [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) § Tunable parameters for the full
+frozen/open matrix, and RFC-062 decision #6 for the implementation approach.
 
 ## Open Questions
 

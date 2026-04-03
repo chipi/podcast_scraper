@@ -659,6 +659,15 @@ class TestValidationEdgeCases(unittest.TestCase):
         cfg = Config(rss_url="https://example.com/feed.xml")
         self.assertFalse(cfg.vector_search)
 
+    def test_vector_chunk_overlap_must_be_less_than_chunk_size(self):
+        """vector_chunk_overlap_tokens must be strictly less than vector_chunk_size_tokens."""
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                vector_chunk_size_tokens=50,
+                vector_chunk_overlap_tokens=50,
+            )
+
     def test_evidence_stack_fields_defaults(self):
         """Test that GIL evidence stack config fields exist with defaults (Issue #435)."""
         cfg = Config(rss_url="https://example.com/feed.xml")

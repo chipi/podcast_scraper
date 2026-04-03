@@ -14,6 +14,8 @@
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` (KG artifact format)
   - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (KG use cases)
   - `docs/rfc/RFC-051-database-projection-gil-kg.md` (future structured query backend)
+- **Related UX specs**:
+  - `docs/uxs/UXS-001-gi-kg-viewer.md` (visual and token contract for viewer v1/v2)
 - **Related Documents**:
   - [GitHub #489](https://github.com/chipi/podcast_scraper/issues/489) — Implementation issue for this RFC
   - [GitHub #445](https://github.com/chipi/podcast_scraper/issues/445) — Viewer v1 implementation
@@ -242,6 +244,12 @@ web/gi-kg-viewer/
 │   │   ├── artifact.ts              # GI/KG TypeScript types
 │   │   ├── search.ts                # SearchResult, IndexStats, SearchFilters
 │   │   └── graph.ts                 # CyNode, CyEdge, VisualConfig
+│   ├── theme/
+│   │   ├── tokens.css               # CSS custom-property definitions (UXS-001 tokens)
+│   │   ├── theme.ts                 # runtime helpers: resolve token, apply preset
+│   │   └── presets/                  # optional alternate value sets for experimentation
+│   │       ├── default.css           # production token values (= UXS-001 table)
+│   │       └── compact.css           # denser spacing / smaller font experiment
 │   └── utils/
 │       ├── colors.ts                # node type → color mapping (from shared.js)
 │       ├── parsing.ts               # artifact parsing (ported from shared.js)
@@ -567,7 +575,21 @@ make build-ui
      data-visualization UI. Tailwind gives dark mode, responsive, and consistent
      spacing out of the box with full design control.
 
-6. **Pinia state management**
+6. **Token-based theming with preset support**
+   - **Decision**: All visual tokens (colors, typography, spacing, radii) are defined as
+     CSS custom properties in `src/theme/tokens.css` and consumed by Tailwind via
+     `tailwind.config.js` `extend.colors` / `extend.fontFamily`. A `theme.ts` helper
+     exposes runtime getters for use in Chart.js and Cytoscape (which cannot read CSS
+     vars directly). Optional CSS preset files (`src/theme/presets/`) can override
+     tunable token values (e.g. fonts, radii, spacing) for rapid experimentation.
+   - **Rationale**: UXS-001 distinguishes **frozen** token names and conventions from
+     **open** values (see "Tunable parameters" section). Separating token definitions
+     from component code lets a developer swap font families, adjust spacing scales,
+     or compare compact vs relaxed density by loading a single preset file -- without
+     touching any Vue component. This is lightweight (no runtime theming library; just
+     CSS cascade) and aligns with the Tailwind workflow.
+
+7. **Pinia state management**
    - **Decision**: Pinia stores for artifacts, search, graph, and index state
    - **Rationale**: Replaces the `window.GiKgViz` / `window.GiKgVizShell` globals
      with typed reactive stores. Components subscribe to store state and dispatch
@@ -575,14 +597,14 @@ make build-ui
      through store watchers, not DOM events or callback chains. Scales cleanly when
      platform stores (`feeds.ts`, `jobs.ts`, `episodes.ts`) are added in v2.7.
 
-7. **Playwright for UI E2E testing**
+8. **Playwright for UI E2E testing**
    - **Decision**: Playwright as the browser E2E test framework
    - **Rationale**: Official Vue recommendation for E2E. Headless by default (CI
      friendly). Multi-browser (Chromium, Firefox, WebKit). Lighter than Cypress (no
      Electron). Built-in web assertions. Test structure mirrors the component
      structure for maintainability.
 
-8. **`podcast serve` CLI command**
+9. **`podcast serve` CLI command**
    - **Decision**: New top-level CLI subcommand to start the server
    - **Rationale**: Replaces the ad-hoc `scripts/gi_kg_viz_server.py` with a proper
      entry point. Supports `--output-dir`, `--port`, and future `--platform` flag.
@@ -756,10 +778,12 @@ export default defineConfig({
 **Rollout Plan:**
 
 - **M1 — Scaffold + Server Shell** (~2-3 days): Vite + Vue + Tailwind + Pinia project
-  in `web/gi-kg-viewer/`. FastAPI server skeleton in `src/podcast_scraper/server/` with
-  `/api/health` and `/api/artifacts` endpoints. `podcast serve` CLI command.
-  `make serve` target. Verify Vite dev proxy works. Platform route placeholder stubs
-  (empty files, not mounted).
+  in `web/gi-kg-viewer/`. Token-based theming layer in `src/theme/` — `tokens.css`
+  (UXS-001 semantic tokens as CSS custom properties), `theme.ts` runtime helper,
+  default preset, Tailwind config wired to tokens. FastAPI server skeleton in
+  `src/podcast_scraper/server/` with `/api/health` and `/api/artifacts` endpoints.
+  `podcast serve` CLI command. `make serve` target. Verify Vite dev proxy works.
+  Platform route placeholder stubs (empty files, not mounted).
 - **M2 — Graph Port** (~3-4 days): `GraphCanvas.vue` wrapping Cytoscape.js with all v1
   capabilities: load artifacts, render nodes/edges, filter by type, grounded-only
   toggle, legend with click-to-solo, 1-hop ego focus on double-click, node detail panel.
@@ -776,9 +800,11 @@ export default defineConfig({
 - **M5 — Explore/QA Integration** (~2-3 days): `/api/explore` endpoint wrapping
   `run_uc5_insight_explorer` and `run_uc4_semantic_qa`. Topic explorer and QA view in
   frontend. Semantic matching when vector index available, substring fallback when not.
-- **M6 — Polish** (~2-3 days): Dark mode (Tailwind), keyboard shortcuts (/ for search,
-  Escape to clear focus), graph export (PNG/SVG via Cytoscape), responsive layout,
-  loading states, error handling, documentation update.
+- **M6 — Polish** (~2-3 days): Dark mode (Tailwind, driven by `tokens.css`
+  `prefers-color-scheme`), finalize open tunable parameters in UXS-001 (typography,
+  radii, spacing), keyboard shortcuts (/ for search, Escape to clear focus), graph
+  export (PNG/SVG via Cytoscape), responsive layout, loading states, error handling,
+  documentation update.
 - **M7 — E2E Test Layer** (~2-3 days): Playwright setup and configuration. Test
   fixtures (sample artifacts, pre-built small FAISS index). Core E2E scenarios: graph
   load, search, search-to-graph focus, filters, dashboard, offline fallback, dark mode.
@@ -800,11 +826,13 @@ export default defineConfig({
 4. File-picker fallback works without backend
 5. `podcast serve` and `make serve` start the full application in one command
 6. `make ci-fast` passes with server backend tests included
-7. Dark mode works correctly
-8. Playwright E2E tests pass in CI (headless Chromium)
-9. Server architecture supports adding platform routes (#50, #347) without restructuring
-10. v1 `web/gi-kg-viz/` can be removed after v2 validation
-11. All documentation deliverables complete (see Definition of Done below)
+7. Dark mode works correctly, driven by UXS-001 semantic tokens in `tokens.css`
+8. Theme presets load correctly; swapping a preset changes typography/spacing/radii
+   without touching component code
+9. Playwright E2E tests pass in CI (headless Chromium)
+10. Server architecture supports adding platform routes (#50, #347) without restructuring
+11. v1 `web/gi-kg-viz/` can be removed after v2 validation
+12. All documentation deliverables complete (see Definition of Done below)
 
 **Definition of Done — Documentation Deliverables:**
 

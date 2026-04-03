@@ -159,7 +159,7 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=True)
         loaded = load_artifacts([gi_path], validate=False)
-        insights = collect_insights(loaded, topic=None, limit=10)
+        insights, _ = collect_insights(loaded, topic=None, limit=10)
         assert len(insights) == 1
         assert insights[0].episode_id == "ep:1"
         assert insights[0].grounded is True
@@ -176,7 +176,7 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=False)
         loaded = load_artifacts([gi_path], validate=False)
-        insights = collect_insights(loaded, grounded_only=True)
+        insights, _ = collect_insights(loaded, grounded_only=True)
         assert len(insights) == 0
 
     def test_build_explore_output_shape(self):
@@ -371,8 +371,8 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, artifact, validate=True)
         loaded = load_artifacts([gi_path], validate=False)
-        assert len(collect_insights(loaded, speaker="host")) == 1
-        assert len(collect_insights(loaded, speaker="nobody")) == 0
+        assert len(collect_insights(loaded, speaker="host")[0]) == 1
+        assert len(collect_insights(loaded, speaker="nobody")[0]) == 0
 
     def test_collect_insights_speaker_filter_graph_name_only(self, tmp_path):
         """--speaker matches SupportingQuote.speaker_name from SPOKEN_BY when id cleared."""
@@ -408,5 +408,5 @@ class TestExploreCollectAndOutput:
         gi_path = tmp_path / "metadata" / "ep1.gi.json"
         write_artifact(gi_path, out, validate=True)
         loaded = load_artifacts([gi_path], validate=False)
-        assert len(collect_insights(loaded, speaker="guest")) == 1
-        assert len(collect_insights(loaded, speaker="host")) == 0
+        assert len(collect_insights(loaded, speaker="guest")[0]) == 1
+        assert len(collect_insights(loaded, speaker="host")[0]) == 0

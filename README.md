@@ -32,6 +32,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Operational Hardening** — Retry policies with exponential backoff, timeout enforcement, failure handling flags, and structured JSON logging (Issue #379)
 - **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
+- **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
 - **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
 
 ---

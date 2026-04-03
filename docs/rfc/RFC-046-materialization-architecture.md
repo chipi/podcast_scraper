@@ -1,6 +1,6 @@
 # RFC-046: Materialization Architecture
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: AI/ML team, Evaluation pipeline users
 - **Related PRDs**:

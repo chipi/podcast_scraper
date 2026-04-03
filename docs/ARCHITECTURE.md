@@ -93,8 +93,8 @@ The following architectural principles govern this system. For the full history 
 
 ### Core Patterns
 
-- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode ([ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md)) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS (enabled by default).
-- **Providers**: Protocol-based discovery ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-011](adr/ADR-011-unified-provider-pattern.md)), library-based naming ([ADR-013](adr/ADR-013-technology-based-provider-naming.md)), and per-capability provider selection ([ADR-049](adr/ADR-049-per-capability-provider-selection.md)).
+- **Concurrency**: IO-bound threading for downloads, sequential CPU/GPU tasks for ML ([ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md)). MPS exclusive mode ([ADR-046](adr/ADR-046-mps-exclusive-mode-apple-silicon.md)) serializes GPU work on Apple Silicon to prevent memory contention when both Whisper and summarization use MPS (enabled by default).
+- **Providers**: Protocol-based discovery ([ADR-020](adr/ADR-020-protocol-based-provider-discovery.md)) using unified provider classes ([ADR-024](adr/ADR-024-unified-provider-pattern.md)), library-based naming ([ADR-025](adr/ADR-025-technology-based-provider-naming.md)), and per-capability provider selection ([ADR-026](adr/ADR-026-per-capability-provider-selection.md)).
 - **Lazy Loading**: Heavy ML dependencies are loaded only when needed ([ADR-005](adr/ADR-005-lazy-ml-dependency-loading.md)).
 
 ### Data & Filesystem
@@ -105,14 +105,14 @@ The following architectural principles govern this system. For the full history 
 
 ### ML & AI Processing
 
-- **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-036](adr/ADR-036-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](adr/ADR-009-privacy-first-local-summarization.md)).
-- **Audio**: Mandatory preprocessing ([ADR-032](adr/ADR-032-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-033](adr/ADR-033-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-034](adr/ADR-034-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-035](adr/ADR-035-speech-optimized-codec-opus.md)).
-- **Governance**: Explicit benchmarking gates ([ADR-031](adr/ADR-031-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-026](adr/ADR-026-explicit-golden-dataset-versioning.md)).
+- **Summarization**: Hybrid MAP-REDUCE strategy ([ADR-010](adr/ADR-010-hierarchical-summarization-pattern.md), [ADR-043](adr/ADR-043-hybrid-map-reduce-summarization.md)) favoring local models ([ADR-009](adr/ADR-009-privacy-first-local-summarization.md)).
+- **Audio**: Mandatory preprocessing ([ADR-036](adr/ADR-036-standardized-pre-provider-audio-stage.md)) with content-hash caching ([ADR-037](adr/ADR-037-content-hash-based-audio-caching.md)) using FFmpeg ([ADR-038](adr/ADR-038-ffmpeg-first-audio-manipulation.md)) and Opus ([ADR-039](adr/ADR-039-speech-optimized-codec-opus.md)).
+- **Governance**: Explicit benchmarking gates ([ADR-042](adr/ADR-042-heuristic-based-quality-gates.md)) and golden dataset versioning ([ADR-040](adr/ADR-040-explicit-golden-dataset-versioning.md)).
 
 ### Development & CI
 
-- **Workflow**: Git worktree-based isolation ([ADR-016](adr/ADR-016-git-worktree-based-development.md)) with independent environments ([ADR-018](adr/ADR-018-isolated-runtime-environments.md)).
-- **Quality**: Three-tier test pyramid ([ADR-021](adr/ADR-021-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](adr/ADR-023-public-operational-metrics.md)).
+- **Workflow**: Git worktree-based isolation ([ADR-032](adr/ADR-032-git-worktree-based-development.md)) with independent environments ([ADR-034](adr/ADR-034-isolated-runtime-environments.md)).
+- **Quality**: Three-tier test pyramid ([ADR-019](adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](adr/ADR-023-public-operational-metrics.md)).
 
 ### Reproducibility & Operational Hardening (Issue #379)
 
@@ -227,10 +227,10 @@ flowchart TD
 - `rss.downloader`: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - `workflow.episode_processor`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
+- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-020](adr/ADR-020-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
 - **Unified Providers** (RFC-029): Nine unified
   provider classes implement protocol combinations
-  ([ADR-011](adr/ADR-011-unified-provider-pattern.md)):
+  ([ADR-024](adr/ADR-024-unified-provider-pattern.md)):
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |

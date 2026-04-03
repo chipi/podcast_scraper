@@ -1,6 +1,6 @@
 # RFC-048: Evaluation ↔ Application Tightening & Alignment
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: ML evaluation team, Core developers
 - **Related RFCs**:

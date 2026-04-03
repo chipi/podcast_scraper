@@ -445,13 +445,13 @@ CLI flags: `--vector-search`, `--vector-backend`, `--vector-index-path`,
 
 **Rollout Plan (Option A — post-hardening slice):**
 
-- **Step 1**: `VectorStore` protocol + `FaissVectorStore` + unit tests
-- **Step 2**: Transcript chunker + unit tests
-- **Step 3**: Embed-and-index pipeline stage + integration tests
-- **Step 4**: `podcast search` CLI + `podcast index` CLI + E2E tests
-- **Step 5**: Config fields + YAML support
-- **Step 6**: `gi explore` semantic upgrade (transparent)
-- **Step 7**: Documentation update (README, config guide, search guide)
+- **Step 1**: `VectorStore` protocol + `FaissVectorStore` + unit tests — **done**
+- **Step 2**: Transcript chunker + unit tests — **done**
+- **Step 3**: Embed-and-index pipeline stage + unit tests (`test_indexer.py`); integration-style coverage in search unit tests — **done**
+- **Step 4**: `podcast search` CLI + `podcast index` CLI + E2E tests — **done**
+- **Step 5**: Config fields + YAML support (`config.py`, `config/examples/config.example.yaml`) — **done**
+- **Step 6**: `gi explore` semantic upgrade (transparent: `<output_dir>/search/vectors.faiss` + `--topic`) — **done**
+- **Step 7**: Documentation update (README, Development Guide, `docs/guides/SEMANTIC_SEARCH_GUIDE.md`, MkDocs nav) — **done**
 
 **Phase 2 (platform, separate RFC/issue):**
 

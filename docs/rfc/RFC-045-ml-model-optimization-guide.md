@@ -1,13 +1,13 @@
 # RFC-045: ML Model Optimization Guide
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Marko Dragoljević
 - **Stakeholders**: ML/AI Engineers, Developers using podcast_scraper
 - **Related PRDs**:
   - `docs/prd/PRD-005-summarization.md` (Summarization feature)
   - `docs/prd/PRD-007-ai-experiments.md` (AI experiment pipeline)
 - **Related ADRs**:
-  - `docs/adr/ADR-029-preprocessing-profiles.md` (Preprocessing profiles)
+  - `docs/adr/ADR-017-registered-preprocessing-profiles.md` (Preprocessing profiles)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md` (Episode summarization)
   - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` (ML benchmarking)

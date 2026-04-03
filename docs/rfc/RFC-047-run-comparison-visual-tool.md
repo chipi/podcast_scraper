@@ -1,6 +1,6 @@
 # RFC-047: Lightweight Run Comparison & Diagnostics Tool
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: ML evaluation team, Core developers
 - **Related RFCs**:

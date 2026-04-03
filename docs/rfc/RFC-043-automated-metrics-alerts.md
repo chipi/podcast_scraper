@@ -2,7 +2,7 @@
 
 - **Status**: 📝 Draft
 - **Related ADRs**:
-  - [ADR-042: Proactive Metric Regression Alerting](../adr/ADR-042-proactive-metric-regression-alerting.md)
+  - [ADR-047: Proactive Metric Regression Alerting](../adr/ADR-047-proactive-metric-regression-alerting.md)
 - **Authors**:
 - **Created**: 2026-01-07
 - **Related Issues**: #216

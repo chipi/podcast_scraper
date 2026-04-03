@@ -62,10 +62,10 @@ The pipeline and its components must complete within bounded time and resource l
 | ----------- | ----------- | ------ | ---------- |
 | **Pipeline stage timing** | Transcription and summarization are bounded by configurable timeouts; no unbounded hangs. | Met | [ARCHITECTURE](ARCHITECTURE.md) (Timeout Enforcement), [TROUBLESHOOTING](guides/TROUBLESHOOTING.md) |
 | **Per-episode summarization** | Full summarization pipeline &lt; 10 min per episode on target hardware (e.g. Mac laptop). | Met | [RFC-042](rfc/RFC-042-hybrid-summarization-pipeline.md) (Performance Requirements) |
-| **Resource / memory** | Full model suite and pipeline stay within documented limits (e.g. &lt; 16 GB on target Mac laptop); sequential ML and MPS exclusive mode avoid unbounded memory growth. | Met | [RFC-042](rfc/RFC-042-hybrid-summarization-pipeline.md), [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md) |
+| **Resource / memory** | Full model suite and pipeline stay within documented limits (e.g. &lt; 16 GB on target Mac laptop); sequential ML and MPS exclusive mode avoid unbounded memory growth. | Met | [RFC-042](rfc/RFC-042-hybrid-summarization-pipeline.md), [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-046](adr/ADR-046-mps-exclusive-mode-apple-silicon.md) |
 | **Model registry** | Registry lookups O(1); no noticeable overhead. | Plan | [RFC-044](rfc/RFC-044-model-registry.md) |
 | **Local inference** | Acceptable latency for local LLMs (e.g. &lt; 5 min per episode where specified). | Met | [RFC-052](rfc/RFC-052-locally-hosted-llm-models-with-prompts.md), [RFC-042](rfc/RFC-042-hybrid-summarization-pipeline.md) |
-| **CI speed** | Fast feedback on push/PR; full CI and nightly runs documented and monitored. | Met | [ADR-017](adr/ADR-017-stratified-ci-execution.md), [CI](ci/index.md) |
+| **CI speed** | Fast feedback on push/PR; full CI and nightly runs documented and monitored. | Met | [ADR-033](adr/ADR-033-stratified-ci-execution.md), [CI](ci/index.md) |
 | **Disk and storage** | Output and cache writes use operator-controlled paths; write failures (e.g. disk full) are reported clearly and do not corrupt existing data. Cache and output growth are operator-managed (no unbounded automatic growth). | Part | [ARCHITECTURE](ARCHITECTURE.md); cache cleanup and size guidance in operations docs to be strengthened (see [Gaps and limitations](#gaps-and-limitations)) |
 
 ### 1.3 Out of Scope (Performance)
@@ -87,7 +87,7 @@ Inputs, dependencies, and model loading must be handled in a security-first way 
 | **RSS/XML parsing** | All RSS/XML parsing uses defusedxml; no unsafe parsing. | Met | [ADR-002](adr/ADR-002-security-first-xml-processing.md) |
 | **Path validation** | Path validation prevents directory traversal; user-controlled paths are validated before use. | Met | [ARCHITECTURE](ARCHITECTURE.md) (Reproducibility & Operational Hardening) |
 | **Model loading** | Model allowlist validation for HuggingFace sources; safetensors preferred; `trust_remote_code=False` enforced. | Met | [ARCHITECTURE](ARCHITECTURE.md), Issue #379 |
-| **Secrets** | No secrets in repo; credentials via environment or config files (not committed). | Met | [ADR-015](adr/ADR-015-secure-credential-injection.md) |
+| **Secrets** | No secrets in repo; credentials via environment or config files (not committed). | Met | [ADR-011](adr/ADR-011-secure-credential-injection.md) |
 | **Dependency and image scanning** | CI runs security scanning (e.g. CodeQL, Snyk, bandit, pip-audit) on code and dependencies; findings addressed or accepted with justification. | Met | [CI WORKFLOWS](ci/WORKFLOWS.md), `make security` |
 | **Vulnerability disclosure** | A documented process for external reporters to report security vulnerabilities and for the project to respond (e.g. acknowledge, triage, fix or decline, disclose). Typically a `SECURITY.md` or equivalent. | Plan | [Gaps and limitations](#gaps-and-limitations) (serious gap until added) |
 
@@ -107,14 +107,14 @@ The pipeline must degrade gracefully under transient failures, respect operator 
 
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
-| **Retries** | Transient errors (network, model loading) use exponential backoff retry with configurable counts/delays; HTTP uses retry adapters. | Met | [ADR-044](adr/ADR-044-unified-retry-policy-with-metrics.md), [ARCHITECTURE](ARCHITECTURE.md) |
-| **Rate limiting** | External API calls respect provider rate limits; on throttling (e.g. HTTP 429) the system backs off and retries (exponential backoff). No unbounded retry storms. | Met | [ADR-044](adr/ADR-044-unified-retry-policy-with-metrics.md), provider PRDs (e.g. [PRD-010](prd/PRD-010-mistral-provider-integration.md), [PRD-011](prd/PRD-011-deepseek-provider-integration.md)) |
+| **Retries** | Transient errors (network, model loading) use exponential backoff retry with configurable counts/delays; HTTP uses retry adapters. | Met | [ADR-028](adr/ADR-028-unified-retry-policy-with-metrics.md), [ARCHITECTURE](ARCHITECTURE.md) |
+| **Rate limiting** | External API calls respect provider rate limits; on throttling (e.g. HTTP 429) the system backs off and retries (exponential backoff). No unbounded retry storms. | Met | [ADR-028](adr/ADR-028-unified-retry-policy-with-metrics.md), provider PRDs (e.g. [PRD-010](prd/PRD-010-mistral-provider-integration.md), [PRD-011](prd/PRD-011-deepseek-provider-integration.md)) |
 | **Timeouts** | Configurable timeouts for transcription and summarization; no indefinite hangs. | Met | [ARCHITECTURE](ARCHITECTURE.md), [TROUBLESHOOTING](guides/TROUBLESHOOTING.md) |
 | **Failure handling** | Operators can set `--fail-fast` and `--max-failures`; episode-level failures are tracked in metrics without masking exit codes. | Met | [ARCHITECTURE](ARCHITECTURE.md) |
 | **Exit codes** | Success, config error, and partial/full failure have well-defined exit codes for scripting and orchestration (CLI and service API). | Met | [ARCHITECTURE](ARCHITECTURE.md), [TESTING_STRATEGY](TESTING_STRATEGY.md) (Failure Handling) |
 | **Deterministic output** | Output layout is deterministic (hash-based paths per feed/episode); same inputs produce same directory structure. | Met | [ADR-003](adr/ADR-003-deterministic-feed-storage.md), [ADR-004](adr/ADR-004-flat-filesystem-archive-layout.md) |
 | **Reproducibility** | Seed-based reproducibility for `torch`, `numpy`, `transformers`; run manifests capture system state (Python, OS, GPU, models, git SHA, config hash). | Met | [ARCHITECTURE](ARCHITECTURE.md), Issue #379 |
-| **MPS / GPU** | On Apple Silicon, MPS exclusive mode (default) serializes GPU work to prevent memory contention; configurable. | Met | [ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md) |
+| **MPS / GPU** | On Apple Silicon, MPS exclusive mode (default) serializes GPU work to prevent memory contention; configurable. | Met | [ADR-046](adr/ADR-046-mps-exclusive-mode-apple-silicon.md) |
 | **Flakiness** | Flaky tests are tracked and reduced; automated retries and health reporting in CI. | Part | [ADR-022](adr/ADR-022-flaky-test-defense.md), [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) |
 
 ---
@@ -130,7 +130,7 @@ Operators and developers must be able to understand pipeline health, stage timin
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
 | **Stage instrumentation** | Major stages (RSS, download, transcription, summarization, etc.) are instrumented; per-episode and aggregate timing available. | Met | [ARCHITECTURE](ARCHITECTURE.md), [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) |
-| **Provider metrics** | Provider calls (e.g. LLM) emit a unified metrics contract (latency, token usage where applicable) for cost and performance analysis. | Met | [ADR-043](adr/ADR-043-unified-provider-metrics-contract.md), [ADR-044](adr/ADR-044-unified-retry-policy-with-metrics.md) |
+| **Provider metrics** | Provider calls (e.g. LLM) emit a unified metrics contract (latency, token usage where applicable) for cost and performance analysis. | Met | [ADR-027](adr/ADR-027-unified-provider-metrics-contract.md), [ADR-028](adr/ADR-028-unified-retry-policy-with-metrics.md) |
 | **Run manifests and metrics** | Run manifests and pipeline metrics (e.g. `metrics.json`) capture system state and stage outcomes for reproducibility and analysis. | Met | [ARCHITECTURE](ARCHITECTURE.md), [RFC-026](rfc/RFC-026-metrics-consumption-and-dashboards.md) |
 | **GIL instrumentation** | When GIL (Grounded Insight Layer) is enabled, the GIL stage is instrumented with success/failure counts and per-episode timing; run manifests and pipeline metrics include GIL outcomes. | Met | [PRD-016](prd/PRD-016-operational-observability-pipeline-intelligence.md) |
 | **GIL evidence stack** | GIL uses a single provider-based path (`find_grounded_quotes_via_providers`): configurable `quote_extraction_provider` and `entailment_provider` (defaults: local transformers). Metrics include `gi_evidence_stack_completed`, `gi_evidence_extract_quotes_calls`, `gi_evidence_nli_candidates_queued`, `gi_evidence_score_entailment_calls`, and optional LLM retry/sleep fields; `gi_evidence_path_provider` is a deprecated alias of `gi_evidence_stack_completed` for export compatibility. Per-call tokens/cost remain optional future work. | Met | [RFC-049](rfc/RFC-049-grounded-insight-layer-core.md), [GROUNDED_INSIGHTS_GUIDE](guides/GROUNDED_INSIGHTS_GUIDE.md) |
@@ -151,7 +151,7 @@ Code and documentation must stay understandable, consistent, and measurable so t
 | ----------- | ----------- | ------ | ---------- |
 | **Code style and quality** | Code conforms to project style (black, isort, flake8, mypy); `make format` and `make lint` pass before merge. | Met | [Development Guide](guides/DEVELOPMENT_GUIDE.md), [CI](ci/index.md) |
 | **Complexity and maintainability** | Complexity and maintainability (e.g. radon, wily) are tracked; significant degradation is reviewed. | Met | [RFC-031](rfc/RFC-031-code-complexity-analysis-tooling.md), [CI CODE_QUALITY_TRENDS](ci/CODE_QUALITY_TRENDS.md) |
-| **Test pyramid and coverage** | Unit, integration, and E2E layers are used consistently; coverage targets (e.g. ≥70%) are enforced in CI. | Met | [ADR-021](adr/ADR-021-standardized-test-pyramid.md), [TESTING_STRATEGY](TESTING_STRATEGY.md) |
+| **Test pyramid and coverage** | Unit, integration, and E2E layers are used consistently; coverage targets (e.g. ≥70%) are enforced in CI. | Met | [ADR-019](adr/ADR-019-standardized-test-pyramid.md), [TESTING_STRATEGY](TESTING_STRATEGY.md) |
 | **Documentation** | Architecture, ADRs, PRDs, RFCs, and guides are kept in sync with implementation; markdown and docs build pass in CI. | Met | [ARCHITECTURE](ARCHITECTURE.md), `make docs`, `make fix-md` |
 | **Module boundaries** | Public surface and module boundaries are respected (e.g. CLI vs service vs workflow vs config). | Met | Project root `.cursorrules`, [ARCHITECTURE](ARCHITECTURE.md) |
 | **Compatibility** | Python 3.10+; public API follows [semantic versioning](api/VERSIONING.md); breaking changes only in MAJOR; deprecations communicated. | Met | [api/VERSIONING](api/VERSIONING.md), [TROUBLESHOOTING](guides/TROUBLESHOOTING.md) |
@@ -169,7 +169,7 @@ The system must scale to typical single-feed and multi-episode use cases without
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
 | **Single-feed, many episodes** | Pipeline handles many episodes per feed within resource limits (timeouts, memory); sequential ML per ADR-001. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ARCHITECTURE](ARCHITECTURE.md) |
-| **Concurrency** | IO-bound work (downloads) uses threading; ML work is sequential to avoid GPU OOM and contention. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-048](adr/ADR-048-mps-exclusive-mode-apple-silicon.md) |
+| **Concurrency** | IO-bound work (downloads) uses threading; ML work is sequential to avoid GPU OOM and contention. | Met | [ADR-001](adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-046](adr/ADR-046-mps-exclusive-mode-apple-silicon.md) |
 | **GIL / KG query scale** | File-based GIL and KG artifacts scale to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](rfc/RFC-051-database-projection-gil-kg.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) |
 
 ### 6.3 Out of Scope (Scalability)
@@ -189,9 +189,9 @@ The system runs locally or in operator-controlled environments with minimal requ
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
 | **Local-first** | Core pipeline (RSS, download, local Whisper, local summarization) runs without mandatory external APIs. | Met | [ADR-009](adr/ADR-009-privacy-first-local-summarization.md), [ARCHITECTURE](ARCHITECTURE.md) |
-| **Config and env** | Configuration via file and/or environment variables; no hardcoded secrets or environment-specific paths in repo. | Met | [ADR-015](adr/ADR-015-secure-credential-injection.md), [Configuration](api/CONFIGURATION.md) |
+| **Config and env** | Configuration via file and/or environment variables; no hardcoded secrets or environment-specific paths in repo. | Met | [ADR-011](adr/ADR-011-secure-credential-injection.md), [Configuration](api/CONFIGURATION.md) |
 | **Diagnostics** | `podcast_scraper doctor` (or equivalent) validates environment (Python, ffmpeg, permissions, model cache, network) for operator troubleshooting. | Met | [ARCHITECTURE](ARCHITECTURE.md) |
-| **Releases** | Pre-release validation and versioning follow project standards; release notes reference PRDs/RFCs. | Met | [ADR-041](adr/ADR-041-mandatory-pre-release-validation.md), [Releases](releases/index.md) |
+| **Releases** | Pre-release validation and versioning follow project standards; release notes reference PRDs/RFCs. | Met | [ADR-031](adr/ADR-031-mandatory-pre-release-validation.md), [Releases](releases/index.md) |
 
 ---
 
@@ -206,7 +206,7 @@ The default pipeline does not require sending data to third parties; cloud and A
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
 | **Local-first default** | Summarization and transcription can run entirely locally; no mandatory external API calls for core pipeline. | Met | [ADR-009](adr/ADR-009-privacy-first-local-summarization.md), [ARCHITECTURE](ARCHITECTURE.md) |
-| **Opt-in providers** | Use of OpenAI, Anthropic, Mistral, and other API providers is explicit via config; no data is sent to third parties unless the user configures a provider. | Met | [ADR-049](adr/ADR-049-per-capability-provider-selection.md), [Configuration](api/CONFIGURATION.md) |
+| **Opt-in providers** | Use of OpenAI, Anthropic, Mistral, and other API providers is explicit via config; no data is sent to third parties unless the user configures a provider. | Met | [ADR-026](adr/ADR-026-per-capability-provider-selection.md), [Configuration](api/CONFIGURATION.md) |
 
 ---
 

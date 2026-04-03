@@ -12,6 +12,8 @@
   - `docs/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
   - `docs/kg/kg.schema.json` — Machine-readable schema (published; validated in CI via `make validate-kg-schema`)
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (updated with implementation)
+- **Related UX specs**:
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
 
 ## Summary
 

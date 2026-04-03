@@ -1530,9 +1530,63 @@ class Config(BaseModel):
         default=False,
         alias="vector_search",
         description=(
-            "When True, enable semantic corpus search indexing (PRD-021 / RFC-061). "
+            "When True, embed and index corpus vectors after pipeline finalize "
+            "(PRD-021 / RFC-061). Index defaults to <output_dir>/search; use podcast search / "
+            "podcast index CLIs and semantic gi explore when a topic filter is set. "
             "Implies embedding model preload alongside GIL evidence models when set without "
-            "generate_gi. Full search implementation is tracked separately."
+            "generate_gi."
+        ),
+    )
+    vector_index_path: Optional[str] = Field(
+        default=None,
+        alias="vector_index_path",
+        description=(
+            "Directory for the FAISS corpus index. Relative paths resolve under output_dir. "
+            "Default when unset: <output_dir>/search."
+        ),
+    )
+    vector_chunk_size_tokens: int = Field(
+        default=300,
+        ge=20,
+        le=2000,
+        alias="vector_chunk_size_tokens",
+        description="Target transcript chunk size (whitespace token count) for embeddings.",
+    )
+    vector_chunk_overlap_tokens: int = Field(
+        default=50,
+        ge=0,
+        le=500,
+        alias="vector_chunk_overlap_tokens",
+        description="Token overlap between consecutive transcript chunks.",
+    )
+    vector_embedding_model: str = Field(
+        default=config_constants.DEFAULT_EMBEDDING_MODEL,
+        alias="vector_embedding_model",
+        description="Sentence-transformers model id for semantic corpus embeddings (GitHub #484).",
+    )
+    vector_backend: Literal["faiss", "qdrant"] = Field(
+        default="faiss",
+        alias="vector_backend",
+        description=(
+            "Vector index backend. Phase 1: faiss only; qdrant deferred (RFC-061 Phase 2)."
+        ),
+    )
+    vector_index_types: Optional[
+        List[Literal["insight", "quote", "summary", "transcript", "kg_topic", "kg_entity"]]
+    ] = Field(
+        default=None,
+        alias="vector_index_types",
+        description=(
+            "Doc types to embed (default: all). "
+            "Values: insight, quote, summary, transcript, kg_topic, kg_entity."
+        ),
+    )
+    vector_faiss_index_mode: Literal["auto", "flat", "ivf_flat", "ivfpq"] = Field(
+        default="auto",
+        alias="vector_faiss_index_mode",
+        description=(
+            "FAISS structure: auto uses #484 thresholds (Flat / IVFFlat / IVFPQ by size); "
+            "or force flat, ivf_flat, ivfpq after indexing."
         ),
     )
     # Knowledge Graph Layer (PRD-019 / RFC-055): per-episode kg.json when enabled
@@ -2030,6 +2084,13 @@ class Config(BaseModel):
             merged["quote_extraction_provider"] = summary
             merged["entailment_provider"] = summary
         return merged
+
+    @field_validator("vector_index_types", mode="before")
+    @classmethod
+    def _normalize_vector_index_types(cls, value: Any) -> Any:
+        if value is None or value == []:
+            return None
+        return value
 
     @field_validator("rss_url", mode="before")
     @classmethod
@@ -3521,6 +3582,11 @@ class Config(BaseModel):
             raise ValueError(
                 "transcribe_missing=True requires a valid whisper_model "
                 "(e.g., 'base', 'small', 'medium')"
+            )
+
+        if self.vector_chunk_overlap_tokens >= self.vector_chunk_size_tokens:
+            raise ValueError(
+                "vector_chunk_overlap_tokens must be strictly less than vector_chunk_size_tokens"
             )
 
         return self

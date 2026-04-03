@@ -193,7 +193,7 @@ completion_tokens=B, estimated_cost=C
 - **Performance Analysis**: Identify bottlenecks and optimize provider selection
 - **Consistent Format**: All episodes log the same keys in the same order
 
-**Related ADR:** [ADR-043: Unified Provider Metrics Contract](../adr/ADR-043-unified-provider-metrics-contract.md)
+**Related ADR:** [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
 
 **Related Issue:** #399
 

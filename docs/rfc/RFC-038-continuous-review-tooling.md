@@ -6,9 +6,9 @@
 - **Title**: Continuous Review Tooling Implementation
 - **Status**: Draft
 - **Related ADRs**:
-  - [ADR-039: Grouped Dependency Automation](../adr/ADR-039-grouped-dependency-automation.md)
-  - [ADR-040: Periodic Module Coupling Analysis](../adr/ADR-040-periodic-module-coupling-analysis.md)
-  - [ADR-041: Mandatory Pre-Release Validation](../adr/ADR-041-mandatory-pre-release-validation.md)
+  - [ADR-029: Grouped Dependency Automation](../adr/ADR-029-grouped-dependency-automation.md)
+  - [ADR-030: Periodic Module Coupling Analysis](../adr/ADR-030-periodic-module-coupling-analysis.md)
+  - [ADR-031: Mandatory Pre-Release Validation](../adr/ADR-031-mandatory-pre-release-validation.md)
 - **Created**: 2026-01-04
 - **Related Issues**: #45, #169, #170
 - **Related RFCs**: RFC-031 (Code Complexity Analysis)

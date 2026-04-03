@@ -9,6 +9,8 @@
   - `docs/adr/ADR-NNN-decision-name.md` (if applicable)
 - **Related RFCs**:
   - `docs/rfc/RFC-XXX-related-feature.md` (if applicable)
+- **Related UX specs**:
+  - `docs/uxs/UXS-NNN-feature-surface.md` (if the RFC affects user-visible UI)
 - **Related Documents**:
   - `docs/ARCHITECTURE.md` (if architecture changes)
   - `docs/TESTING_STRATEGY.md` (if testing changes)

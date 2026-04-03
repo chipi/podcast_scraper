@@ -1,6 +1,6 @@
 # RFC-044: Model Registry for Architecture Limits
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: ML Provider maintainers, Core developers
 - **Execution Timing**: **Phase 1 of 3** — Build first, before

@@ -11,10 +11,12 @@ Product Requirements Documents (PRDs) define the **what** and **why** behind eac
 
 PRDs serve as the foundation for technical design (RFCs) and help ensure features align with user needs and project goals.
 
+Features with meaningful **UI** may also link **[UX specifications](../uxs/index.md)** (UXS) for tokens, layout, and accessibility; RFCs then reference that UX contract alongside the PRD.
+
 ## How PRDs Work
 
 1. **Define Intent**: PRDs describe the problem to solve and desired outcomes
-2. **Guide Design**: RFCs reference PRDs to ensure technical solutions meet requirements
+2. **Guide Design**: RFCs reference PRDs (and UXSs when UI is in scope) so technical solutions meet requirements and experience constraints
 3. **Track Implementation**: Release notes reference PRDs to show what was delivered
 4. **Document Evolution**: PRDs capture design decisions and rationale
 

@@ -55,6 +55,11 @@ With **`summary_provider: transformers`** (or **`hybrid_ml`**) and **`gi_insight
 
 ### Topic nodes, `ABOUT` edges, and `gi explore --topic`
 
+When **`<output_dir>/search/vectors.faiss`** exists (semantic corpus index, RFC-061),
+**`gi explore --topic`** ranks **Insight** rows by embedding similarity to the topic
+string first; if the index is missing, errors, or yields no hits after filters, it falls
+back to the behavior below. See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
+
 The GIL **ontology** includes **Topic** nodes and **ABOUT** (Insight → Topic) edges. **Current pipeline output** does not yet emit those nodes/edges; artifacts are **Episode, Insight, Quote** plus **SUPPORTED_BY**. Therefore **`gi explore --topic`** matches **(1)** Topic labels **if** present in a hand-edited or future-enriched artifact, and **(2)** always **substring match on insight text** (case-insensitive). Until Topic/ABOUT are produced automatically, treat **`--topic`** as **“search insights (and optional Topic labels)”**, not as a dedicated topic-model facet. A follow-up change may add Topic extraction to `gi.json` without changing this filter semantics. The formal v1 milestone wording for this row is in **§ Recorded product decisions (v1, issue 460)** below.
 
 ## Recorded product decisions (v1, issue 460) {#recorded-product-decisions-v1-issue-460}

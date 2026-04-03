@@ -5,8 +5,8 @@
 - **Stakeholders**: Maintainers, researchers tuning AI models/prompts, developers evaluating model performance
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-quality-experiment-platform.md`
 - **Related ADRs**:
-  - [ADR-024: Standalone Experiment Configuration](../adr/ADR-024-standalone-experiment-configuration.md)
-  - [ADR-025: Codified Comparison Baselines](../adr/ADR-025-codified-comparison-baselines.md)
+  - [ADR-013: Standalone Experiment Configuration](../adr/ADR-013-standalone-experiment-configuration.md)
+  - [ADR-014: Codified Comparison Baselines](../adr/ADR-014-codified-comparison-baselines.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
   - `docs/rfc/RFC-013-openai-provider-implementation.md`

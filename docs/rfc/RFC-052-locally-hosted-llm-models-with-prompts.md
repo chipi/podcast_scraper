@@ -1,6 +1,6 @@
 # RFC-052: Locally Hosted LLM Models with Prompts
 
-- **Status**: Draft
+- **Status**: Completed
 - **Date**: 2026-02-05
 - **Authors**:
 - **Stakeholders**: Maintainers, privacy-conscious users,

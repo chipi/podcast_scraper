@@ -1,6 +1,6 @@
 # RFC-023: README Acceptance Tests
 
-- **Status**: Draft
+- **Status**: Completed (alternative implementation — script-based `make test-acceptance` with YAML configs instead of pytest marker)
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers, first-time users
 - **Related PRDs**:

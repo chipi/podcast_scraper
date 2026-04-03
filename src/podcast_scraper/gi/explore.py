@@ -4,19 +4,27 @@ Used by gi explore to build an in-memory view from per-episode gi.json files
 (no DB). Supports topic filter via Topic label (ABOUT edge) or substring in insight
 text; optional speaker filter on quote speaker_id or graph speaker_name (RFC-050 UC2).
 
+When ``<output_dir>/search/vectors.faiss`` exists and ``--topic`` is set, topic matching
+uses the semantic corpus index first (RFC-061): metadata files supply ``gi.json`` paths
+so only hit episodes load full artifacts; on failure or no hits, behavior falls back to
+substring/topic-label matching over all artifacts.
+
 Programmatic helpers implement UC1–UC5 patterns as thin wrappers over collect/sort.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple
+from typing import Any, cast, Dict, List, Literal, Optional, Set, Tuple
 
+from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.log_redaction import format_exception_for_log
+from podcast_scraper.workflow.metadata_generation import _determine_gi_path
 
 from .contracts import (
     ExploreOutput,
@@ -110,6 +118,264 @@ def _supporting_quote_speaker_key(q: SupportingQuote) -> Optional[str]:
     return None
 
 
+def default_vector_index_dir(output_dir: Path) -> Optional[Path]:
+    """Return ``output_dir / search`` if a FAISS index is present (RFC-061)."""
+    p = Path(output_dir) / "search"
+    if (p / "vectors.faiss").is_file():
+        return p
+    return None
+
+
+def _load_metadata_doc_quick(path: Path) -> Optional[Dict[str, Any]]:
+    """Load episode metadata JSON/YAML for ``episode_id`` / ``grounded_insights`` mapping."""
+    try:
+        raw = path.read_text(encoding="utf-8")
+        if path.suffix.lower() == ".json":
+            doc = json.loads(raw)
+        else:
+            import yaml
+
+            doc = yaml.safe_load(raw)
+        return doc if isinstance(doc, dict) else None
+    except Exception:
+        return None
+
+
+def _episode_id_to_gi_path_from_metadata(output_dir: Path) -> Dict[str, Path]:
+    """Map ``episode_id`` → resolved ``gi.json`` path from ``metadata/*`` (no gi load)."""
+    meta_dir = output_dir / filesystem.METADATA_SUBDIR
+    out: Dict[str, Path] = {}
+    if not meta_dir.is_dir():
+        return out
+    for pattern in ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml"):
+        for meta_path in sorted(meta_dir.glob(pattern)):
+            doc = _load_metadata_doc_quick(meta_path)
+            if not doc:
+                continue
+            ep = (doc.get("episode") or {}).get("episode_id")
+            if not isinstance(ep, str) or not ep or ep in out:
+                continue
+            gi = doc.get("grounded_insights")
+            if isinstance(gi, dict):
+                rel = gi.get("artifact_path")
+                if isinstance(rel, str) and rel.strip():
+                    gp = (output_dir / rel.strip()).resolve()
+                    if gp.is_file():
+                        out[ep] = gp
+                        continue
+            gp = Path(_determine_gi_path(str(meta_path))).resolve()
+            if gp.is_file():
+                out[ep] = gp
+    return out
+
+
+def _merge_episode_gi_paths(
+    output_dir: Optional[Path],
+    artifacts_with_paths: List[Tuple[Path, Dict[str, Any]]],
+) -> Dict[str, Path]:
+    """Prefer on-disk metadata index; fill gaps from pre-loaded ``(path, artifact)`` pairs."""
+    merged: Dict[str, Path] = {}
+    if output_dir is not None:
+        merged.update(_episode_id_to_gi_path_from_metadata(output_dir))
+    for path, art in artifacts_with_paths:
+        eid = art.get("episode_id")
+        if isinstance(eid, str) and eid not in merged and path.is_file():
+            merged[eid] = path.resolve()
+    return merged
+
+
+def _load_gi_artifacts_for_episode_ids(
+    output_dir: Path,
+    episode_ids: Set[str],
+    *,
+    strict: bool,
+) -> List[Tuple[Path, Dict[str, Any]]]:
+    """Load only ``gi.json`` files for the given episode ids (semantic explore fast path)."""
+    mp = _merge_episode_gi_paths(output_dir, [])
+    loaded: List[Tuple[Path, Dict[str, Any]]] = []
+    for eid in episode_ids:
+        p = mp.get(eid)
+        if not p:
+            continue
+        try:
+            art = read_artifact(p, validate=strict, strict=strict)
+            loaded.append((p, art))
+        except Exception as e:
+            if strict:
+                raise ExploreValidationError(
+                    p,
+                    f"artifact validation failed: {e}",
+                ) from e
+            logger.warning(
+                "Skip invalid artifact %s: %s",
+                p,
+                format_exception_for_log(e),
+            )
+    return loaded
+
+
+def explore_resolve_insights_and_loaded(
+    output_dir: Path,
+    paths: List[Path],
+    *,
+    topic: Optional[str],
+    speaker: Optional[str],
+    grounded_only: bool,
+    min_confidence: Optional[float],
+    sort_by: Literal["confidence", "time"],
+    strict: bool,
+) -> Tuple[List[InsightSummary], bool, List[Tuple[Path, Dict[str, Any]]], int]:
+    """Semantic-first when topic+index exist (metadata map, partial gi load); else full scan.
+
+    Returns:
+        (insights, semantic_ranked, loaded_for_aggregation, episodes_searched_count)
+    """
+    index_dir = default_vector_index_dir(output_dir)
+    t = topic.strip() if isinstance(topic, str) else ""
+    if t and index_dir is not None:
+        try:
+            sem = _collect_insights_semantic(
+                output_dir,
+                [],
+                topic=t,
+                speaker=speaker,
+                grounded_only=grounded_only,
+                min_confidence=min_confidence,
+                limit=None,
+                index_dir=index_dir,
+                strict=strict,
+            )
+        except ExploreValidationError:
+            raise
+        except Exception as exc:
+            logger.warning(
+                "Semantic topic match unavailable (%s); using substring/topic-label match",
+                format_exception_for_log(exc),
+            )
+            sem = []
+        if sem:
+            ep_ids = {i.episode_id for i in sem}
+            loaded = _load_gi_artifacts_for_episode_ids(output_dir, ep_ids, strict=strict)
+            n_ep = len(ep_ids)
+            return sem, True, loaded, n_ep
+
+    loaded = load_artifacts(paths, validate=strict, strict=strict)
+    insights, ranked = collect_insights(
+        loaded,
+        topic=topic,
+        speaker=speaker,
+        grounded_only=grounded_only,
+        min_confidence=min_confidence,
+        limit=None,
+        semantic_index_dir=None,
+        output_dir=None,
+        strict=strict,
+    )
+    if not ranked:
+        insights = sort_insights(insights, sort_by=sort_by)
+    return insights, ranked, loaded, len(paths)
+
+
+def _find_insight_summary(artifact: Dict[str, Any], insight_id: str) -> Optional[InsightSummary]:
+    """Return ``InsightSummary`` for ``insight_id`` in ``artifact``, if any."""
+    inspect_out = build_inspect_output(artifact, transcript_text=None)
+    for ins in inspect_out.insights:
+        if ins.insight_id == insight_id:
+            return ins
+    return None
+
+
+def _collect_insights_semantic(
+    output_dir: Optional[Path],
+    artifacts_with_paths: List[Tuple[Path, Dict[str, Any]]],
+    *,
+    topic: str,
+    speaker: Optional[str],
+    grounded_only: bool,
+    min_confidence: Optional[float],
+    limit: Optional[int],
+    index_dir: Path,
+    strict: bool = False,
+) -> List[InsightSummary]:
+    """Rank insights by vector similarity; resolve ``gi.json`` via metadata map or pre-loaded."""
+    from podcast_scraper.providers.ml import embedding_loader
+    from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
+
+    if not (index_dir / VECTORS_FILE).is_file():
+        return []
+
+    store = FaissVectorStore.load(index_dir)
+    if store.ntotal == 0:
+        return []
+
+    model_id = store.stats().embedding_model
+    qvec = embedding_loader.encode(
+        topic,
+        model_id,
+        return_numpy=False,
+        allow_download=False,
+    )
+    if not (isinstance(qvec, list) and qvec and isinstance(qvec[0], float)):
+        raise ValueError("semantic explore: expected a single query embedding")
+    qemb = cast(List[float], qvec)
+
+    top_k = max(1, limit or 200)
+    fetch_k = min(max(top_k * 25, top_k), max(store.ntotal, 1))
+    hits = store.search(
+        qemb,
+        top_k=fetch_k,
+        filters={"doc_type": "insight"},
+        overfetch_factor=1,
+    )
+
+    by_ep_path = _merge_episode_gi_paths(output_dir, artifacts_with_paths)
+
+    collected: List[InsightSummary] = []
+    seen: Set[Tuple[str, str]] = set()
+    for h in hits:
+        meta = h.metadata
+        ep = meta.get("episode_id")
+        iid = meta.get("source_id")
+        if not isinstance(ep, str) or not isinstance(iid, str):
+            continue
+        key = (ep, iid)
+        if key in seen:
+            continue
+        gpath = by_ep_path.get(ep)
+        if not gpath:
+            continue
+        try:
+            artifact = read_artifact(gpath, validate=strict, strict=strict)
+        except Exception as e:
+            if strict:
+                raise ExploreValidationError(
+                    gpath,
+                    f"artifact validation failed: {e}",
+                ) from e
+            logger.warning(
+                "Skip invalid artifact %s: %s",
+                gpath,
+                format_exception_for_log(e),
+            )
+            continue
+        ins = _find_insight_summary(artifact, iid)
+        if ins is None:
+            continue
+        if not _insight_matches_speaker(ins, speaker):
+            continue
+        if grounded_only and not ins.grounded:
+            continue
+        if min_confidence is not None and (
+            ins.confidence is None or ins.confidence < min_confidence
+        ):
+            continue
+        seen.add(key)
+        collected.append(ins)
+        if limit is not None and len(collected) >= limit:
+            break
+    return collected
+
+
 def _insight_matches_speaker(ins: InsightSummary, speaker_substring: Optional[str]) -> bool:
     """True if filter is None or any quote matches speaker_id or speaker_name."""
     if not speaker_substring or not speaker_substring.strip():
@@ -161,12 +427,49 @@ def collect_insights(
     grounded_only: bool = False,
     min_confidence: Optional[float] = None,
     limit: Optional[int] = None,
-) -> List[InsightSummary]:
+    *,
+    semantic_index_dir: Optional[Path] = None,
+    output_dir: Optional[Path] = None,
+    strict: bool = False,
+) -> Tuple[List[InsightSummary], bool]:
     """Collect InsightSummary from artifacts with optional topic/speaker/grounded filters.
 
-    Does not sort or cap by relevance until after collection when using sort; pass
-    limit=None to collect all matches before sort+slice in the caller.
+    When ``topic`` is set and ``semantic_index_dir`` contains ``vectors.faiss``, tries
+    vector-ranked insights first (RFC-061). If that yields at least one result, returns
+    ``(insights, True)`` (caller should not re-sort by confidence/time). Otherwise falls
+    back to substring/topic-label matching and returns ``(insights, False)``.
+
+    Pass ``output_dir`` to resolve ``gi.json`` paths from ``metadata/*`` without requiring
+    pre-loaded artifacts (CLI semantic fast path). Pre-loaded pairs still merge into the map.
+
+    Does not cap by relevance until after collection when using sort; pass
+    ``limit=None`` to collect all matches before sort+slice in the caller.
     """
+    t = topic.strip() if isinstance(topic, str) else ""
+    if t and semantic_index_dir is not None:
+        try:
+            sem = _collect_insights_semantic(
+                output_dir,
+                artifacts_with_paths,
+                topic=t,
+                speaker=speaker,
+                grounded_only=grounded_only,
+                min_confidence=min_confidence,
+                limit=limit,
+                index_dir=semantic_index_dir,
+                strict=strict,
+            )
+        except ExploreValidationError:
+            raise
+        except Exception as exc:
+            logger.warning(
+                "Semantic topic match unavailable (%s); using substring/topic-label match",
+                format_exception_for_log(exc),
+            )
+            sem = []
+        if sem:
+            return sem, True
+
     collected: List[InsightSummary] = []
     for _path, artifact in artifacts_with_paths:
         inspect_out = build_inspect_output(artifact, transcript_text=None)
@@ -183,8 +486,8 @@ def collect_insights(
                 continue
             collected.append(ins)
             if limit is not None and len(collected) >= limit:
-                return collected
-    return collected
+                return collected, False
+    return collected, False
 
 
 def _parse_publish_sort_key(iso: Optional[str]) -> float:
@@ -441,22 +744,22 @@ def run_uc5_insight_explorer(
     paths = scan_artifact_paths(output_dir)
     if not paths:
         return build_explore_output([], 0, topic=topic, speaker_filter=speaker, topics=[])
-    loaded = load_artifacts(paths, validate=strict, strict=strict)
-    insights = collect_insights(
-        loaded,
+    insights, _semantic_ranked, loaded, ep_count = explore_resolve_insights_and_loaded(
+        output_dir,
+        paths,
         topic=topic,
         speaker=speaker,
         grounded_only=grounded_only,
         min_confidence=min_confidence,
-        limit=None,
+        sort_by=sort_by,
+        strict=strict,
     )
-    insights = sort_insights(insights, sort_by=sort_by)
     if limit > 0:
         insights = insights[:limit]
     topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     return build_explore_output(
         insights,
-        episodes_searched=len(paths),
+        episodes_searched=ep_count,
         topic=topic,
         speaker_filter=speaker,
         topics=topic_rows,

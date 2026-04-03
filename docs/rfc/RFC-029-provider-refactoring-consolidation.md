@@ -5,8 +5,8 @@
 - **Stakeholders**: Developers working on provider system, test maintainers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
 - **Related ADRs**:
-  - [ADR-011: Unified Provider Pattern](../adr/ADR-011-unified-provider-pattern.md)
-  - [ADR-013: Technology-Based Provider Naming](../adr/ADR-013-technology-based-provider-naming.md)
+  - [ADR-024: Unified Provider Pattern](../adr/ADR-024-unified-provider-pattern.md)
+  - [ADR-025: Technology-Based Provider Naming](../adr/ADR-025-technology-based-provider-naming.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-013-openai-provider-implementation.md` - Original OpenAI provider design
   - `docs/rfc/RFC-016-modularization-for-ai-experiments.md` - Provider system architecture

@@ -462,6 +462,17 @@ make clean-all
 `.cache/` directory. To remove the project-local cache, manually delete `.cache/` or use the
 restore script to replace it.
 
+## Semantic corpus search (RFC-061) {#semantic-corpus-search-rfc-061}
+
+Optional **vector index** under `<output_dir>/search/` for meaning-based retrieval over
+GIL, summaries, and transcripts. Enable with **`vector_search: true`** in config (YAML
+keys mirror `Config`: `vector_index_path`, `vector_embedding_model`,
+`vector_chunk_size_tokens`, `vector_chunk_overlap_tokens`). The pipeline runs
+embed-and-index after finalize when enabled; you can also run **`podcast index`** /
+**`podcast search`** and get **semantic `gi explore --topic`** when the index exists.
+
+**Full guide:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
+
 ## GI / KG browser viewer (local prototype) {#gi-kg-browser-viewer-local-prototype}
 
 Optional **static** pages for inspecting **Grounded Insight** (`*.gi.json`) and **Knowledge
@@ -493,8 +504,9 @@ exposes repo files. You can open e.g.
 **Implementation details, offline/CDN notes:**
 [`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
 
-**See also:** [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph
-Guide](KNOWLEDGE_GRAPH_GUIDE.md) · [CLI API](../api/CLI.md) (`gi` / `kg` subcommands).
+**See also:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Grounded Insights
+Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
+[CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
 ## Markdown Linting
 
@@ -1152,7 +1164,7 @@ make install-hooks
 
 ### Release checklist
 
-Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-release` exists (see [ADR-041](../adr/ADR-041-mandatory-pre-release-validation.md)), follow these steps manually.
+Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-release` exists (see [ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md)), follow these steps manually.
 
 #### 1. Pre-flight
 
@@ -1211,7 +1223,7 @@ Run all of the following in each release cycle before releasing so the codebase 
 
 - If you use a "next dev" version, bump to it (e.g. `X.Y.(Z+1)` or `X.Y.Z-dev`) in `pyproject.toml` and `__init__.py` and commit so the next build is not stuck on the release version.
 
-**See also:** [ADR-041: Mandatory Pre-Release Validation](../adr/ADR-041-mandatory-pre-release-validation.md), [Architecture visualizations](../architecture/README.md), [Releases index](../releases/index.md).
+**See also:** [ADR-031: Mandatory Pre-Release Validation](../adr/ADR-031-mandatory-pre-release-validation.md), [Architecture visualizations](../architecture/README.md), [Releases index](../releases/index.md).
 
 ## Modularity
 

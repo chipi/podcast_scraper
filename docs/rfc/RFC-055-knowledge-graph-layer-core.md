@@ -1,6 +1,6 @@
 # RFC-055: Knowledge Graph Layer — Core Concepts & Data Model
 
-- **Status**: Draft (KG artifact **v1** ontology + JSON Schema **frozen** per GitHub #464; RFC narrative may still evolve.)
+- **Status**: Completed (KG artifact **v1** ontology + JSON Schema **frozen** per GitHub #464)
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers
 - **Related PRDs**:

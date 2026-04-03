@@ -1,6 +1,6 @@
 # RFC-049: Grounded Insight Layer – Core Concepts & Data Model
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, ML engineers, downstream consumers
 - **Execution Timing**: **Phase 3 of 3** — Implement after
