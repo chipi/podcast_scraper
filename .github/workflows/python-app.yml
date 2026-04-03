@@ -974,6 +974,58 @@ jobs:
       with:
         name: ml-models
         path: /home/runner/.cache
+    - name: Validate ML model cache
+      id: validate-cache
+      run: |
+        echo "🔍 Validating ML model cache..."
+        MISSING_MODELS=""
+        MODELS_COMPLETE=true
+
+        # Check Whisper models
+        echo "📦 Whisper models:"
+        for model in "tiny.en" "base.en"; do
+          WHISPER_PATH="$HOME/.cache/whisper/${model}.pt"
+          if [ -f "$WHISPER_PATH" ] && [ -s "$WHISPER_PATH" ]; then
+            SIZE=$(du -h "$WHISPER_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE)"
+          else
+            echo "  ❌ $model - MISSING or empty"
+            MISSING_MODELS="$MISSING_MODELS whisper:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        # Check Hugging Face models
+        echo ""
+        echo "📦 Hugging Face models:"
+        HF_CACHE="$HOME/.cache/huggingface/hub"
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+          MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
+          MODEL_PATH="$HF_CACHE/$MODEL_DIR"
+          TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)
+          if [ -d "$MODEL_PATH" ] && [ "$TOTAL_FILES" -gt 0 ]; then
+            SIZE=$(du -sh "$MODEL_PATH" | cut -f1)
+            echo "  ✅ $model ($SIZE, $TOTAL_FILES files)"
+          else
+            echo "  ❌ $model - MISSING or incomplete (0 files found)"
+            MISSING_MODELS="$MISSING_MODELS hf:$model"
+            MODELS_COMPLETE=false
+          fi
+        done
+
+        echo ""
+        if [ "$MODELS_COMPLETE" = true ]; then
+          echo "✅ All required ML models are cached!"
+          echo "models_complete=true" >> $GITHUB_OUTPUT
+        else
+          echo "⚠️  Some models are missing: $MISSING_MODELS"
+          echo "models_complete=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+    - name: Set ML_MODELS_VALIDATED (only if cache validated)
+      if: steps.validate-cache.outputs.models_complete == 'true'
+      run: |
+        echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
     - name: Install full dependencies (including ML)
       run: |
         python -m pip install --upgrade pip

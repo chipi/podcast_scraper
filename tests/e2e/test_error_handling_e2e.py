@@ -18,6 +18,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -261,36 +262,33 @@ class TestInvalidConfig:
     """Invalid config error handling E2E tests."""
 
     def test_invalid_rss_url(self, e2e_server):
-        """Test handling of invalid RSS URL."""
+        """Malformed rss_url is rejected at Config validation (before pipeline)."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Use an invalid URL format
-            cfg = Config(
-                rss_url="not-a-valid-url",
-                output_dir=tmpdir,
-                max_episodes=1,
-                whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
-            )
-
-            # Run pipeline - should raise ValueError when URL is invalid
-            with pytest.raises(ValueError, match="Failed to fetch RSS feed"):
-                run_pipeline(cfg)
+            with pytest.raises(ValidationError, match="RSS URL must use http or https"):
+                Config(
+                    rss_url="not-a-valid-url",
+                    output_dir=tmpdir,
+                    max_episodes=1,
+                    whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+                )
 
     def test_service_api_invalid_config(self, e2e_server):
-        """Test service API error handling with invalid config."""
+        """Service returns failure when RSS URL is valid but feed cannot be fetched."""
         with tempfile.TemporaryDirectory() as tmpdir:
+            bad_feed = e2e_server.urls.base() + "/feeds/nonexistent/feed.xml"
             cfg = Config(
-                rss_url="not-a-valid-url",
+                rss_url=bad_feed,
                 output_dir=tmpdir,
                 max_episodes=1,
                 whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             )
 
-            # Run service - should handle invalid config gracefully
             result = service.run(cfg)
 
-            # Service should indicate failure or process 0 episodes
-            assert result.episodes_processed == 0, "Should process 0 episodes with invalid config"
-            assert isinstance(result.summary, str), "Summary should be a string"
+            assert result.episodes_processed == 0
+            assert not result.success
+            assert result.error
+            assert isinstance(result.summary, str)
 
 
 @pytest.mark.e2e
