@@ -9,14 +9,17 @@ These are standalone provider tests - they test the provider itself,
 not its integration with the app.
 """
 
+import importlib
 import json
 import os
 import unittest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 import pytest
 
 from podcast_scraper import config
+from podcast_scraper.providers.mistral import mistral_provider as mistral_provider_mod
 from podcast_scraper.providers.mistral.mistral_provider import MistralProvider
 
 
@@ -1023,6 +1026,50 @@ class TestMistralProviderKG(unittest.TestCase):
         provider = MistralProvider(self.cfg)
         provider._summarization_initialized = True
         self.assertIsNone(provider.extract_kg_from_summary_bullets([]))
+
+
+@pytest.mark.unit
+class TestMistralSdkPathResolution(unittest.TestCase):
+    """mistralai 1.x vs 2.x import paths (_load_mistral_sdk / _mistral_file_class)."""
+
+    def test_load_mistral_sdk_falls_back_to_package_root(self) -> None:
+        real_import = importlib.import_module
+        sentinel_mistral = object()
+
+        def fake_import(name: str, package: str | None = None):
+            if name in ("mistralai.client.sdk", "mistralai.client.errors"):
+                raise ImportError("no 2.x layout")
+            if name == "mistralai":
+                root = SimpleNamespace(Mistral=sentinel_mistral, SDKError=ValueError)
+                return root
+            return real_import(name, package)
+
+        with patch.object(importlib, "import_module", side_effect=fake_import):
+            Mistral, SDKError = mistral_provider_mod._load_mistral_sdk()
+        self.assertIs(Mistral, sentinel_mistral)
+        self.assertIs(SDKError, ValueError)
+
+    def test_mistral_file_class_second_module_path(self) -> None:
+        file_cls = object()
+
+        def fake_import(name: str, package: str | None = None):
+            if name == "mistralai.client.models":
+                raise ImportError("missing")
+            if name == "mistralai.models.file":
+                return SimpleNamespace(File=file_cls)
+            raise AssertionError(f"unexpected import {name!r}")
+
+        with patch.object(importlib, "import_module", side_effect=fake_import):
+            got = mistral_provider_mod._mistral_file_class()
+        self.assertIs(got, file_cls)
+
+    def test_mistral_file_class_raises_when_unresolved(self) -> None:
+        def fake_import(name: str, package: str | None = None):
+            raise ImportError("missing")
+
+        with patch.object(importlib, "import_module", side_effect=fake_import):
+            with self.assertRaisesRegex(ImportError, "File model"):
+                mistral_provider_mod._mistral_file_class()
 
 
 @pytest.mark.unit

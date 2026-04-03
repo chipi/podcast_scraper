@@ -31,7 +31,7 @@ Next steps:
    make init
    # If wheels/spacy/*.whl exists (from: make download-spacy-wheels), make init uses it
    # automatically — no need to export PIP_FIND_LINKS manually.
-   # Or manually: pip install -e .[dev,ml,gemini]  (set PIP_FIND_LINKS to wheels/spacy if needed)
+   # Or manually: pip install -e .[dev,ml,llm]  (set PIP_FIND_LINKS to wheels/spacy if needed)
 
 3. Set up environment variables (if using OpenAI providers):
    cp config/examples/.env.example .env

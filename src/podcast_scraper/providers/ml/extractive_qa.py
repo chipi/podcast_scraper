@@ -10,7 +10,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, cast, Dict, List, Optional, Tuple
 
-from ...cache import get_transformers_cache_dir
+from .model_loader import build_huggingface_qa_pipeline
 from .model_registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
@@ -79,24 +79,17 @@ def load_qa_pipeline(
     Returns:
         transformers Pipeline for question-answering.
     """
-    from transformers import pipeline
-
     resolved = ModelRegistry.resolve_evidence_model_id(model_id)
     dev = _get_device(device)
     logger.info("Loading extractive QA model %s on %s", resolved, dev)
     # QA pipeline: device -1 = CPU, 0 = CUDA; MPS often unsupported for QA
     pipe_device = 0 if dev == "cuda" else -1
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    # Match summarizer / model_loader: no hub access at load time (preload or
-    # make preload-ml-models must populate the cache).
-    model_kw = {"local_files_only": True, "cache_dir": cache_dir}
-    pipe = pipeline(
-        "question-answering",
-        model=resolved,
+    # No hub access at load time (preload / make preload-ml-models must populate cache).
+    return build_huggingface_qa_pipeline(
+        resolved,
         device=pipe_device,
-        model_kwargs=cast(Any, model_kw),
+        local_files_only=True,
     )
-    return pipe
 
 
 def get_qa_pipeline(

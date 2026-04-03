@@ -484,6 +484,14 @@ class TestComputeVsReferenceOptionalMetricsBranches:
         assert out is None
         assert "Failed to load sentence-transformer" in caplog.text
 
+    def test_compute_embedding_similarity_import_error_when_st_unavailable(self) -> None:
+        """Cover _SentenceTransformer None guard (matches dev without [ml] / ST)."""
+        preds = [{"episode_id": "e1", "output": {"summary_final": "a"}}]
+        refs = [{"episode_id": "e1", "output": {"summary_final": "b"}}]
+        with patch.object(scorer_mod, "_SentenceTransformer", None):
+            with pytest.raises(ImportError, match=r"sentence-transformers>=3"):
+                compute_embedding_similarity(preds, refs)
+
 
 @pytest.mark.unit
 class TestScoreRun:

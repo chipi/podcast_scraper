@@ -234,22 +234,66 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             raise
 
 
+def build_huggingface_qa_pipeline(
+    model_id: str,
+    *,
+    device: int,
+    local_files_only: bool,
+) -> Any:
+    """Instantiate a Hugging Face ``question-answering`` pipeline with our cache dir.
+
+    Newer ``transformers`` merges a top-level ``local_files_only`` into hub kwargs; if the
+    same flag is also inside ``model_kwargs``, ``AutoConfig.from_pretrained`` raises
+    "multiple values for keyword argument 'local_files_only'". Older versions expect the
+    flag only in ``model_kwargs``. Preload (downloads allowed) uses cache_dir only; offline
+    load tries ``model_kwargs`` first, then the top-level argument.
+
+    Args:
+        model_id: Hub id or local path passed to ``pipeline(model=...)``.
+        device: ``pipeline`` device index (e.g. ``-1`` for CPU).
+        local_files_only: If True, do not hit the hub (cache must be populated).
+
+    Returns:
+        The transformers QA pipeline instance.
+    """
+    from transformers import pipeline
+
+    cache_dir = str(get_transformers_cache_dir().resolve())
+    _hf_pipeline = cast(Any, pipeline)
+    if not local_files_only:
+        return _hf_pipeline(
+            "question-answering",
+            model=model_id,
+            device=device,
+            model_kwargs={"cache_dir": cache_dir},
+        )
+    model_kw: dict[str, Any] = {"local_files_only": True, "cache_dir": cache_dir}
+    try:
+        return _hf_pipeline(
+            "question-answering",
+            model=model_id,
+            device=device,
+            model_kwargs=model_kw,
+        )
+    except TypeError as exc:
+        if "multiple values" not in str(exc) or "local_files_only" not in str(exc):
+            raise
+        return _hf_pipeline(
+            "question-answering",
+            model=model_id,
+            device=device,
+            model_kwargs={"cache_dir": cache_dir},
+            local_files_only=True,
+        )
+
+
 def _download_qa_pipeline_for_cache(model_id: str) -> None:
     """Run transformers QA pipeline once to populate the HF cache.
 
     Extracted as a module-level hook so unit tests can patch it without
     fighting ``from transformers import pipeline`` name binding.
     """
-    from transformers import pipeline
-
-    cache_dir = str(get_transformers_cache_dir().resolve())
-    model_kw = {"local_files_only": False, "cache_dir": cache_dir}
-    pipeline(
-        "question-answering",
-        model=model_id,
-        device=-1,
-        model_kwargs=cast(Any, model_kw),
-    )
+    build_huggingface_qa_pipeline(model_id, device=-1, local_files_only=False)
 
 
 def _download_nli_cross_encoder_for_cache(model_id: str) -> None:

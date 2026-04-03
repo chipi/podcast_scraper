@@ -28,6 +28,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Canonical extras (no separate [gemini] / [openai] extras):
+#   dev       — tests, lint, typecheck, eval metrics tooling
+#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS, etc.
+#   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
+#   llama     — optional GGUF hybrid REDUCE (RFC-042)
+#   run_compare — Streamlit compare UI (RFC-047)
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
@@ -65,8 +71,8 @@ run_compare = [
 # LLM API providers - grouped for CI/test convenience
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
-  # Permit google-genai 1.x (Dependabot PR #449); gemini_provider uses google.genai Client API
-  "google-genai>=0.1.0,<2.0.0",  # Gemini API provider (Issue #194, migrated from google-generativeai in Issue #415)
+  # Google Gemini (GeminiProvider); no [gemini] extra — install via .[llm]
+  "google-genai>=0.1.0,<2.0.0",  # Dependabot PR #449; google.genai Client API (Issue #415)
   "google-api-core>=2.0.0,<3.0.0",  # Required by google-genai for some operations
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
   # mistralai 2.x: client at mistralai.client.sdk (Dependabot PR #473)

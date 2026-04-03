@@ -97,7 +97,7 @@ class GeminiProvider:
         if genai is None:
             raise ImportError(
                 "google-genai package required for Gemini provider. "
-                "Install with: pip install 'podcast-scraper[gemini]'"
+                'Install with: pip install -e ".[llm]" (or pip install "podcast-scraper[llm]")'
             )
 
         if not cfg.gemini_api_key:

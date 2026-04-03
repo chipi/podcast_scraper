@@ -212,9 +212,9 @@ init:
 	$(PYTHON) -m pip install --upgrade pip setuptools wheel
 	# Install package with all optional dependencies for development
 	# Note: When adding new optional dependency groups to pyproject.toml, add them here too
-	# Current groups: dev (development tools), ml (ML models), gemini (Gemini API provider)
-	$(PYTHON) -m pip install -e .[dev,ml,gemini]
-	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install -r docs/requirements.txt; fi
+	# Current groups: dev, ml (local ML stack), llm (API providers incl. Gemini via google-genai)
+	$(PYTHON) -m pip install --upgrade -e .[dev,ml,llm]
+	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install --upgrade -r docs/requirements.txt; fi
 
 # Download spaCy model wheels (matches pyproject.toml [ml] pins). When wheels/spacy/*.whl exists,
 # make sets PIP_FIND_LINKS for recipes (e.g. make init) unless you already exported it.
