@@ -1077,6 +1077,24 @@ class Config(BaseModel):
         alias="ollama_temperature",
         description="Temperature for Ollama generation (0.0-2.0, lower = more deterministic)",
     )
+    ollama_reduce_temperature: Optional[float] = Field(
+        default=None,
+        alias="ollama_reduce_temperature",
+        description=(
+            "Override temperature for Ollama reduce stage in hybrid_ml pipeline. "
+            "When None, falls back to ollama_temperature."
+        ),
+    )
+    ollama_reduce_top_p: Optional[float] = Field(
+        default=None,
+        alias="ollama_reduce_top_p",
+        description="Top-p (nucleus sampling) for Ollama reduce stage. When None, uses 0.9.",
+    )
+    ollama_reduce_frequency_penalty: Optional[float] = Field(
+        default=None,
+        alias="ollama_reduce_frequency_penalty",
+        description="Frequency penalty for Ollama reduce stage. When None, uses 0.0.",
+    )
     ollama_cleaning_model: str = Field(
         default_factory=_get_default_ollama_cleaning_model,
         alias="ollama_cleaning_model",

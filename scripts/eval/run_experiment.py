@@ -689,6 +689,19 @@ def run_experiment(  # noqa: C901
             ollama_system_prompt_override: Optional[str] = None
             if reduce_backend == "ollama" and hybrid_reduce_instruction_style == "paragraph":
                 ollama_system_prompt_override = "ollama/hybrid/system_v1"
+
+            # Ollama-specific reduce params (temperature, top_p, frequency_penalty)
+            ollama_reduce_overrides: dict = {}
+            if reduce_backend == "ollama" and cfg.ollama_reduce_params is not None:
+                orp = cfg.ollama_reduce_params
+                ollama_reduce_overrides = {
+                    "ollama_reduce_temperature": orp.temperature,
+                    "ollama_reduce_top_p": orp.top_p,
+                    "ollama_reduce_frequency_penalty": orp.frequency_penalty,
+                }
+                # max_tokens from ollama_reduce_params overrides reduce_params.max_new_tokens
+                reduce_max_length = orp.max_tokens
+
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="hybrid_ml",
@@ -701,6 +714,7 @@ def run_experiment(  # noqa: C901
                     if ollama_system_prompt_override
                     else {}
                 ),
+                **ollama_reduce_overrides,
                 generate_summaries=True,
                 generate_metadata=True,
                 generate_gi=False,  # Experiments are summary-specific; keep GIL off
