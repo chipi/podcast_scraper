@@ -22,11 +22,12 @@ def _stub_faiss_if_missing(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         yield
         return
     fake_path = Path(__file__).with_name("fake_faiss_for_unit_tests.py")
-    spec = importlib.util.spec_from_file_location("_podcast_fake_faiss", fake_path)
+    # Module name must be ``faiss`` so pickle can resolve ``faiss.IndexIDMap`` on load.
+    spec = importlib.util.spec_from_file_location("faiss", fake_path)
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
     monkeypatch.setitem(sys.modules, "faiss", mod)
+    spec.loader.exec_module(mod)
     yield
 
 
