@@ -11,6 +11,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from podcast_scraper.workflow.stages.setup import (
+    _append_gil_evidence_downloads,
     _collect_hybrid_ml_models_to_download,
     ensure_ml_models_cached,
     set_reproducibility_seeds,
@@ -119,6 +120,19 @@ class TestShouldPreloadMLModels(unittest.TestCase):
         result = should_preload_ml_models(cfg)
         self.assertTrue(result)
 
+    def test_returns_true_when_vector_search_enabled(self):
+        """vector_search=True preloads embedding model path (PRD-021 / #485)."""
+        cfg = Mock()
+        cfg.transcribe_missing = False
+        cfg.transcription_provider = "openai"
+        cfg.generate_summaries = False
+        cfg.summary_provider = "openai"
+        cfg.generate_gi = False
+        cfg.vector_search = True
+
+        result = should_preload_ml_models(cfg)
+        self.assertTrue(result)
+
 
 @pytest.mark.unit
 class TestCollectHybridMlModelsToDownload(unittest.TestCase):
@@ -183,6 +197,45 @@ class TestCollectHybridMlModelsToDownload(unittest.TestCase):
         result = _collect_hybrid_ml_models_to_download(cfg, cache_dir)
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0][1], "google/custom-model")
+
+
+@pytest.mark.unit
+class TestAppendGilEvidenceDownloads(unittest.TestCase):
+    """Tests for _append_gil_evidence_downloads (vector_search vs full GIL ML)."""
+
+    @patch("podcast_scraper.providers.ml.model_loader.is_evidence_model_cached")
+    def test_vector_search_only_queues_embedding_not_qa_nli(self, mock_cached):
+        """vector_search without generate_gi still queues embedding model only."""
+        mock_cached.return_value = False
+        cfg = Mock()
+        cfg.generate_gi = False
+        cfg.vector_search = True
+        cfg.gi_embedding_model = "minilm-l6"
+        models: list = []
+        _append_gil_evidence_downloads(cfg, models)
+        kinds = [m[0] for m in models]
+        self.assertIn("evidence_embedding", kinds)
+        self.assertNotIn("evidence_qa", kinds)
+        self.assertNotIn("evidence_nli", kinds)
+
+    @patch("podcast_scraper.providers.ml.model_loader.is_evidence_model_cached")
+    def test_generate_gil_transformers_queues_embedding_qa_nli(self, mock_cached):
+        """GIL with transformers evidence queues embedding plus QA and NLI when missing."""
+        mock_cached.return_value = False
+        cfg = Mock()
+        cfg.generate_gi = True
+        cfg.vector_search = False
+        cfg.quote_extraction_provider = "transformers"
+        cfg.entailment_provider = "transformers"
+        cfg.gi_embedding_model = "minilm-l6"
+        cfg.gi_qa_model = "roberta-squad2"
+        cfg.gi_nli_model = "nli-deberta-base"
+        models: list = []
+        _append_gil_evidence_downloads(cfg, models)
+        kinds = [m[0] for m in models]
+        self.assertIn("evidence_embedding", kinds)
+        self.assertIn("evidence_qa", kinds)
+        self.assertIn("evidence_nli", kinds)
 
 
 @pytest.mark.unit

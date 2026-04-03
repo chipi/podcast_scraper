@@ -1431,6 +1431,54 @@ class TestGenerateEpisodeMetadataEdgeCases(unittest.TestCase):
         self.assertTrue(call_pos[0].startswith("sha256:") or len(call_pos[0]) > 0)
         self.assertEqual(call_kw.get("model_version"), "stub")
 
+    @patch("podcast_scraper.workflow.metadata_generation._generate_and_validate_summary")
+    @patch("podcast_scraper.gi.write_artifact")
+    @patch("podcast_scraper.gi.build_artifact")
+    @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
+    @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
+    def test_generate_episode_metadata_passes_topic_labels_from_summary_bullets(
+        self, mock_determine, mock_serialize, mock_build_artifact, mock_write_artifact, mock_gen_sum
+    ):
+        """Summary bullets become topic_labels on build_artifact when GIL runs."""
+        from datetime import datetime
+
+        self.cfg = create_test_config(
+            generate_metadata=True,
+            generate_gi=True,
+            generate_summaries=True,
+        )
+        metadata_path = os.path.join(self.temp_dir, "test.metadata.json")
+        mock_determine.return_value = metadata_path
+        mock_summary = metadata.SummaryMetadata(
+            bullets=["Alpha Topic", "Beta Topic"],
+            generated_at=datetime.now(),
+            word_count=100,
+            schema_status="valid",
+        )
+        mock_gen_sum.return_value = (mock_summary, 0.0, None)
+        mock_build_artifact.return_value = {
+            "schema_version": "1.0",
+            "model_version": "stub",
+            "prompt_version": "v1",
+            "episode_id": "ep:1",
+            "nodes": [],
+            "edges": [],
+        }
+
+        result = metadata.generate_episode_metadata(
+            feed=self.feed,
+            episode=self.episode,
+            feed_url=TEST_FEED_URL,
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+            transcript_file_path="transcripts/ep1.txt",
+        )
+
+        self.assertEqual(result, metadata_path)
+        mock_build_artifact.assert_called_once()
+        call_kw = mock_build_artifact.call_args[1]
+        self.assertEqual(call_kw.get("topic_labels"), ["Alpha Topic", "Beta Topic"])
+
     @patch("podcast_scraper.workflow.metadata_generation._serialize_metadata")
     @patch("podcast_scraper.workflow.metadata_generation._determine_metadata_path")
     @patch("podcast_scraper.gi.build_artifact")

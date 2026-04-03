@@ -86,6 +86,31 @@ class TestExploreTopicMatch:
             _insight_matches_topic(artifact, "i:1", "Weather today is nice", "regulation") is False
         )
 
+    def test_insight_matches_topic_via_about_label_not_insight_text(self):
+        """Topic filter matches ABOUT Topic label even when insight text omits the phrase."""
+        artifact = {
+            "nodes": [
+                {
+                    "id": "insight:ep:0",
+                    "type": "Insight",
+                    "properties": {"text": "Plain headline."},
+                },
+                {
+                    "id": "topic:regulatory-lag-topic",
+                    "type": "Topic",
+                    "properties": {"label": "Regulatory Lag Topic"},
+                },
+            ],
+            "edges": [
+                {
+                    "type": "ABOUT",
+                    "from": "insight:ep:0",
+                    "to": "topic:regulatory-lag-topic",
+                }
+            ],
+        }
+        assert _insight_matches_topic(artifact, "insight:ep:0", "Plain headline.", "regulatory")
+
     def test_insight_matches_topic_none_always_true(self):
         """No topic filter matches all."""
         assert _insight_matches_topic({}, "i:1", "Any text", None) is True

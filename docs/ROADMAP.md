@@ -8,9 +8,9 @@ The roadmap is organized around **end-user value** as the central principle. Fea
 
 ### Current Status
 
-- **Open PRDs**: 5 (grounded insights / GIL, experimentation platform, observability, engineering governance)
-- **Open RFCs**: 19 (quality improvements, GIL, model registry, observability, infrastructure)
-- **Completed**: 13 PRDs, 28 RFCs (core pipeline, 9-provider ecosystem v2.5, OpenAI + Anthropic + Mistral + DeepSeek + Gemini + Grok + Ollama + xAI, modularization, metrics)
+- **Open PRDs**: 8 (GIL, KG, semantic search, diarization, experimentation, observability, DB projection, engineering governance)
+- **Open RFCs**: 26 (semantic search, GIL, KG, diarization, quality improvements, model registry, observability, infrastructure)
+- **Completed**: 25 PRDs, 46 RFCs (core pipeline, 9-provider ecosystem v2.5, OpenAI + Anthropic + Mistral + DeepSeek + Gemini + Grok + Ollama + xAI, modularization, metrics)
 
 ## Categories
 
@@ -22,6 +22,8 @@ These features directly improve what users can do with the tool:
 - **Summarization Improvements**: Better summaries through adaptive routing (RFC-053), hybrid pipeline (RFC-042), and optimization guides (RFC-045)
 - **Audio Preprocessing**: Cost savings and quality improvements through VAD, normalization, and format optimization (RFC-040)
 - **Grounded Insight Layer (GIL)**: Structured, evidence-backed insights and quotes (PRD-017, RFC-049, 050, 051) enable advanced querying and analysis
+- **Knowledge Graph (KG)**: Structured entities, topics, and relationships per episode (PRD-019, RFC-055, 056)
+- **Semantic Corpus Search**: Meaning-based retrieval over insights, quotes, summaries, and transcripts via embeddings and FAISS vector index (PRD-021, RFC-061, [#466](https://github.com/chipi/podcast_scraper/issues/466))
 
 ### 2. Quality & Reliability (Medium-High Impact)
 
@@ -44,9 +46,9 @@ These features improve maintainability, testing, and operational visibility:
 
 These features enable advanced use cases but are not essential for most users:
 
-- **Grounded Insight Layer**: Evidence-backed insights and quotes (PRD-017, RFC-049, 050, 051)
 - **Experimentation Platform**: AI quality experimentation and benchmarking (PRD-007, RFC-015, 016, 041)
-- **Database Export**: Fast queryable exports for GIL and KG data (PRD-018, RFC-051)
+- **Database Projection**: Postgres serving layer for GIL and KG artifacts (PRD-018, RFC-051)
+- **Audio Diarization & Commercial Cleaning**: Speaker diarization and commercial content detection (PRD-020, RFC-058, 059, 060)
 
 ## Prioritized Roadmap
 
@@ -75,6 +77,7 @@ The following table lists all open PRDs and RFCs, ordered by priority with most 
 | **12** | [PRD-017](prd/PRD-017-grounded-insight-layer.md) / [RFC-049](rfc/RFC-049-grounded-insight-layer-core.md), [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) | PRD/RFC | Advanced Feature | Medium | High | None | **Grounded Insight Layer**: Evidence-backed insights and quotes with grounding relationships. High effort, high value (trust + navigation). |
 | **13** | [PRD-018](prd/PRD-018-database-projection-gil-kg.md) / [RFC-051](rfc/RFC-051-database-projection-gil-kg.md) | PRD/RFC | Advanced Feature | Medium | Medium | Depends on PRD-017; KG projection depends on RFC-055 | **Fast queries**: Postgres projection for **GIL** (`gi.json`) and **KG** (RFC-055) — separate tables. Depends on PRD-017; KG path depends on PRD-019 when artifacts exist. |
 | **13a** | [PRD-019](prd/PRD-019-knowledge-graph-layer.md) / [RFC-055](rfc/RFC-055-knowledge-graph-layer-core.md), [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) | PRD/RFC | Advanced Feature | Medium | TBD | None | **Knowledge Graph (KG)**: Entities and linking; separate from GIL (`kg` vs `gi`). Independent feature; consumption spec in RFC-056. |
+| **13b** | [PRD-021](prd/PRD-021-semantic-corpus-search.md) / [RFC-061](rfc/RFC-061-semantic-corpus-search.md) | PRD/RFC | Direct Feature | High | Medium | Depends on PRD-017/019 artifacts | **Semantic Corpus Search**: Embedding-based retrieval over GIL insights, quotes, summaries, and transcript chunks. FAISS Phase 1 (CLI), Qdrant Phase 2 (platform). [#466](https://github.com/chipi/podcast_scraper/issues/466) |
 | **14** | [PRD-007](prd/PRD-007-ai-quality-experiment-platform.md) / [RFC-015](rfc/RFC-015-ai-experiment-pipeline.md), [RFC-041](rfc/RFC-041-podcast-ml-benchmarking-framework.md) | PRD/RFC | Advanced Platform | Low-Medium | High | None | **Experimentation**: Platform for AI quality experimentation (RFC-016 modularization complete). High effort, low-medium value (advanced use case). |
 | **15** | [RFC-046](rfc/RFC-046-materialization-architecture.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Honest comparisons**: Materialization architecture. Depends on experimentation platform. Medium effort, low-medium value. |
 | **16** | [RFC-048](rfc/RFC-048-evaluation-application-alignment.md) | RFC | Infrastructure | Low-Medium | Medium | Depends on PRD-007 | **Alignment**: Ensures evaluation results represent application behavior. Depends on experimentation platform. Medium effort, low-medium value. |
@@ -111,12 +114,13 @@ The 9-provider ecosystem is complete as of v2.5.0: local ML, OpenAI, Anthropic, 
 ### In Progress
 
 - Provider hardening (retry policies, timeouts — #399); blocked by RFC-054 for full E2E error testing
+- GIL/KG depth beyond shallow v1 ([#466](https://github.com/chipi/podcast_scraper/issues/466)): foundation gaps ([#485](https://github.com/chipi/podcast_scraper/issues/485)), then Semantic Corpus Search Phase 1 ([#484](https://github.com/chipi/podcast_scraper/issues/484))
 
 ### Planned (Ahead)
 
 - **High priority**: RFC-054 (E2E mocks), RFC-040 (audio preprocessing), RFC-044 (model registry), RFC-053 (adaptive routing), RFC-042 (hybrid pipeline)
 - **Medium**: RFC-045 (ML optimization guide), RFC-052 (locally hosted LLMs), observability (RFC-027, 043, PRD-016), run comparison (RFC-047)
-- **Advanced**: Grounded Insight Layer (PRD-017, RFC-049/050/051), database projection (PRD-018), Knowledge Graph (PRD-019, RFC-055/056), experimentation platform (PRD-007, RFC-015/041)
+- **Advanced**: Database projection (PRD-018), audio diarization (PRD-020, RFC-058/059/060), experimentation platform (PRD-007, RFC-015/041)
 
 ### Future
 
@@ -255,5 +259,5 @@ Priorities are reviewed quarterly or when:
 
 ---
 
-**Last Updated**: 2026-02-10
+**Last Updated**: 2026-04-03
 **Next Review**: Quarterly (or as priorities shift)

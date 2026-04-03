@@ -1526,6 +1526,15 @@ class Config(BaseModel):
             "Default matches DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX (avoid truncating long lists)."
         ),
     )
+    vector_search: bool = Field(
+        default=False,
+        alias="vector_search",
+        description=(
+            "When True, enable semantic corpus search indexing (PRD-021 / RFC-061). "
+            "Implies embedding model preload alongside GIL evidence models when set without "
+            "generate_gi. Full search implementation is tracked separately."
+        ),
+    )
     # Knowledge Graph Layer (PRD-019 / RFC-055): per-episode kg.json when enabled
     generate_kg: bool = Field(
         default=False,

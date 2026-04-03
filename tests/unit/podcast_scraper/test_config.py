@@ -654,6 +654,11 @@ class TestValidationEdgeCases(unittest.TestCase):
         )
         self.assertTrue(cfg.preload_models)
 
+    def test_vector_search_defaults_false(self):
+        """vector_search is off by default until semantic corpus search is enabled (PRD-021)."""
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertFalse(cfg.vector_search)
+
     def test_evidence_stack_fields_defaults(self):
         """Test that GIL evidence stack config fields exist with defaults (Issue #435)."""
         cfg = Config(rss_url="https://example.com/feed.xml")

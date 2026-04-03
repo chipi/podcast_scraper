@@ -44,8 +44,8 @@ class GroundedQuote:
     char_start: int
     char_end: int
     text: str
-    qa_score: float
-    nli_score: float
+    qa_score: Optional[float] = None
+    nli_score: Optional[float] = None
 
 
 def _normalize_apostrophes(s: str) -> str:

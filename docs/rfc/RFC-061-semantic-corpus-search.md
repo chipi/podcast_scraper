@@ -1,4 +1,4 @@
-# RFC-060: Semantic Corpus Search
+# RFC-061: Semantic Corpus Search
 
 - **Status**: Draft
 - **Authors**: Podcast Scraper Team
@@ -12,6 +12,7 @@
   - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md` (UC4/UC5 — semantic QA, Insight Explorer)
   - `docs/rfc/RFC-051-database-projection-gil-kg.md` (complementary SQL serving)
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` (KG artifacts)
+  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (KG use cases — entity/topic roll-ups)
 - **Related Documents**:
   - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
   - `docs/gi/ontology.md` — GIL ontology (node types, text fields)
@@ -474,13 +475,13 @@ CLI flags: `--vector-search`, `--vector-backend`, `--vector-index-path`,
 
 ## Relationship to Other RFCs
 
-This RFC (RFC-060) is part of the GIL/KG **depth** initiative ([#466](https://github.com/chipi/podcast_scraper/issues/466)):
+This RFC (RFC-061) is part of the GIL/KG **depth** initiative ([#466](https://github.com/chipi/podcast_scraper/issues/466)):
 
 ```text
 RFC-049 (GIL Core)              → artifacts to index
 RFC-050 (GIL Use Cases)         → UC4/UC5 that search enables
     ↓
-RFC-060 (this RFC)              → semantic search over corpus
+RFC-061 (this RFC)              → semantic search over corpus
     ↓
 RFC-051 (DB Projection)         → complementary structured serving
 Platform megasketch              → digest, API, multi-tenant search
@@ -489,10 +490,10 @@ Platform megasketch              → digest, API, multi-tenant search
 **Key Distinction:**
 
 - **RFC-049/050**: Define *what* GIL extracts and *how* it's consumed (structured)
-- **RFC-060**: Adds *meaning-based discovery* over GIL + KG + summary + transcript content
+- **RFC-061**: Adds *meaning-based discovery* over GIL + KG + summary + transcript content
 - **RFC-051**: Adds *SQL-based serving* for structured queries (complementary, not competing)
 
-Together, semantic search (RFC-060) and database projection (RFC-051) provide two
+Together, semantic search (RFC-061) and database projection (RFC-051) provide two
 complementary query paths: "find by meaning" (vectors) and "filter by structure" (SQL).
 
 ## Benefits

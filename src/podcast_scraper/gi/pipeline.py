@@ -23,7 +23,9 @@ from ..graph_id_utils import (
     episode_node_id,
     gil_insight_node_id,
     gil_quote_node_id,
+    slugify_label,
     speaker_node_id,
+    topic_node_id_from_slug,
 )
 from .grounding import GroundedQuote
 from .provenance import resolve_gil_artifact_model_version
@@ -35,6 +37,45 @@ logger = logging.getLogger(__name__)
 
 # Stub insight text used when no real insights (single stub)
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
+
+
+def _dedupe_topic_node_specs(
+    topic_labels: Optional[List[str]],
+) -> List[Tuple[str, str]]:
+    """Build ordered (topic_node_id, display_label) list; slug-dedupe like KG."""
+    if not topic_labels:
+        return []
+    seen_slugs: Set[str] = set()
+    out: List[Tuple[str, str]] = []
+    for lab in topic_labels:
+        raw = (lab or "").strip()
+        if not raw:
+            continue
+        slug = slugify_label(raw)
+        if slug in seen_slugs:
+            continue
+        seen_slugs.add(slug)
+        out.append((topic_node_id_from_slug(slug), raw[:200]))
+    return out
+
+
+def _insight_confidence_from_quotes(quotes: List[GroundedQuote]) -> Optional[float]:
+    """Aggregate QA (preferred) or NLI scores from grounded quotes for Insight.confidence."""
+    qa_vals = [
+        float(gq.qa_score)
+        for gq in quotes
+        if isinstance(gq, GroundedQuote) and gq.qa_score is not None
+    ]
+    if qa_vals:
+        return max(qa_vals)
+    nli_vals = [
+        float(gq.nli_score)
+        for gq in quotes
+        if isinstance(gq, GroundedQuote) and gq.nli_score is not None
+    ]
+    if nli_vals:
+        return max(nli_vals)
+    return None
 
 
 def _cfg_float(cfg: Any, name: str, default: float) -> float:
@@ -387,6 +428,7 @@ def build_artifact(
     summary_provider: Optional[Any] = None,
     pipeline_metrics: Optional[Any] = None,
     gil_created_evidence_providers: Optional[List[Any]] = None,
+    topic_labels: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -423,6 +465,8 @@ def build_artifact(
         pipeline_metrics: Optional metrics; when set, evidence path counters are updated.
         gil_created_evidence_providers: When set, instantiated evidence providers (not equal
             to ``summary_provider``) are appended for caller cleanup (e.g. ``.cleanup()``).
+        topic_labels: Optional episode topic labels (e.g. from summary bullets); creates
+            Topic nodes and ABOUT edges (Insight → Topic) aligned with KG ``topic:{slug}`` ids.
 
     Returns:
         Dict with schema_version, model_version, prompt_version, episode_id, nodes, edges.
@@ -540,6 +584,7 @@ def build_artifact(
                 transcript_ref=transcript_ref,
                 transcript_text=transcript_text or "",
                 transcript_segments=transcript_segments,
+                topic_labels=topic_labels,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -578,6 +623,7 @@ def build_artifact(
             transcript_ref=transcript_ref,
             transcript_text=transcript_text or "",
             transcript_segments=transcript_segments,
+            topic_labels=topic_labels,
         )
     except Exception:
         return _build_stub_artifact(
@@ -605,6 +651,7 @@ def _artifact_from_multi_insight(
     transcript_ref: str,
     transcript_text: Optional[str] = None,
     transcript_segments: Optional[List[Dict[str, Any]]] = None,
+    topic_labels: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -627,6 +674,15 @@ def _artifact_from_multi_insight(
     quote_global_idx = 0
     speakers_added: Set[str] = set()
     use_segments = bool(transcript_text and transcript_segments and len(transcript_segments) > 0)
+    topic_node_specs = _dedupe_topic_node_specs(topic_labels)
+    for tid, display_label in topic_node_specs:
+        nodes.append(
+            {
+                "id": tid,
+                "type": "Topic",
+                "properties": {"label": display_label},
+            }
+        )
 
     # Pad so we have one quote list per insight
     while len(insight_quotes_list) < len(insight_texts):
@@ -634,18 +690,22 @@ def _artifact_from_multi_insight(
 
     for idx, (it_text, quotes) in enumerate(zip(insight_texts, insight_quotes_list)):
         insight_id = gil_insight_node_id(episode_id, idx, it_text)
-        nodes.append(
-            {
-                "id": insight_id,
-                "type": "Insight",
-                "properties": {
-                    "text": it_text,
-                    "episode_id": episode_id,
-                    "grounded": len(quotes) > 0,
-                },
-            }
-        )
+        insight_confidence = _insight_confidence_from_quotes(quotes)
+        insight_node: Dict[str, Any] = {
+            "id": insight_id,
+            "type": "Insight",
+            "properties": {
+                "text": it_text,
+                "episode_id": episode_id,
+                "grounded": len(quotes) > 0,
+            },
+        }
+        if insight_confidence is not None:
+            insight_node["confidence"] = float(insight_confidence)
+        nodes.append(insight_node)
         edges.append({"type": "HAS_INSIGHT", "from": ep_node_id, "to": insight_id})
+        for tid, _ in topic_node_specs:
+            edges.append({"type": "ABOUT", "from": insight_id, "to": tid})
         for gq in quotes:
             if not isinstance(gq, GroundedQuote):
                 continue

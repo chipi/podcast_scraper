@@ -29,7 +29,7 @@ PRDs serve as the foundation for technical design (RFCs) and help ensure feature
 | [PRD-018](PRD-018-database-projection-gil-kg.md) | Database Projection for GIL and KG | RFC-049, 050, 051, 055, 056 | Postgres projection of `gi.json` and KG artifacts (separate tables) |
 | [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-055, 056 | Entities, topics, and relationships; separate from GIL / GI |
 | [PRD-020](PRD-020-audio-speaker-diarization.md) | Audio-Based Speaker Diarization & Commercial Cleaning | RFC-058, RFC-059, RFC-060 | True speaker diarization via pyannote.audio; downstream commercial content cleaning |
-| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | RFC-060 | Meaning-based retrieval over insights, quotes, summaries, and transcripts via embeddings + vector index |
+| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | RFC-061 | Meaning-based retrieval over insights, quotes, summaries, and transcripts via embeddings + vector index |
 
 ## Completed PRDs
 

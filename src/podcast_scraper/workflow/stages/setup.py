@@ -130,8 +130,17 @@ def should_preload_ml_models(cfg: config.Config) -> bool:
         getattr(cfg, "quote_extraction_provider", "transformers") == "transformers"
         or getattr(cfg, "entailment_provider", "transformers") == "transformers"
     )
+    # Use `is True` so unittest.Mock without vector_search does not treat MagicMock as enabled.
+    needs_vector_search = getattr(cfg, "vector_search", False) is True
 
-    return needs_whisper or needs_transformers or needs_hybrid_ml or needs_spacy or needs_gil_ml
+    return (
+        needs_whisper
+        or needs_transformers
+        or needs_hybrid_ml
+        or needs_spacy
+        or needs_gil_ml
+        or needs_vector_search
+    )
 
 
 def _collect_hybrid_ml_models_to_download(
@@ -179,6 +188,33 @@ def _collect_hybrid_ml_models_to_download(
                 out.append(("transformers", resolved_reduce))
                 logger.info(f"Hybrid REDUCE model {reduce_model} not cached, will download")
     return out
+
+
+def _append_gil_evidence_downloads(cfg: config.Config, models_to_download: list) -> None:
+    """Queue embedding and optionally QA/NLI for GIL transformers path or vector_search."""
+    needs_gil_ml = cfg.generate_gi and (
+        getattr(cfg, "quote_extraction_provider", "transformers") == "transformers"
+        or getattr(cfg, "entailment_provider", "transformers") == "transformers"
+    )
+    needs_embedding_only = getattr(cfg, "vector_search", False) is True
+    if not (needs_gil_ml or needs_embedding_only):
+        return
+    from ... import config_constants
+    from ...providers.ml.model_loader import is_evidence_model_cached
+
+    emb_model = getattr(cfg, "gi_embedding_model", None) or config_constants.DEFAULT_EMBEDDING_MODEL
+    if not is_evidence_model_cached(emb_model):
+        models_to_download.append(("evidence_embedding", emb_model))
+        logger.info("Embedding model %s not cached, will download", emb_model)
+    if needs_gil_ml:
+        qa_model = getattr(cfg, "gi_qa_model", None) or "roberta-squad2"
+        nli_model = getattr(cfg, "gi_nli_model", None) or "nli-deberta-base"
+        if not is_evidence_model_cached(qa_model):
+            models_to_download.append(("evidence_qa", qa_model))
+            logger.info("GIL QA model %s not cached, will download", qa_model)
+        if not is_evidence_model_cached(nli_model):
+            models_to_download.append(("evidence_nli", nli_model))
+            logger.info("GIL NLI model %s not cached, will download", nli_model)
 
 
 def ensure_ml_models_cached(cfg: config.Config) -> None:
@@ -257,28 +293,7 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
                 _collect_hybrid_ml_models_to_download(cfg, transformers_cache)
             )
 
-        # Check GIL evidence models (QA + NLI) when generate_gi and evidence provider
-        # is transformers
-        needs_gil_ml = cfg.generate_gi and (
-            getattr(cfg, "quote_extraction_provider", "transformers") == "transformers"
-            or getattr(cfg, "entailment_provider", "transformers") == "transformers"
-        )
-        if needs_gil_ml:
-            from ... import config_constants
-            from ...providers.ml.model_loader import is_evidence_model_cached
-
-            emb_model = config_constants.DEFAULT_EMBEDDING_MODEL
-            qa_model = getattr(cfg, "gi_qa_model", None) or "roberta-squad2"
-            nli_model = getattr(cfg, "gi_nli_model", None) or "nli-deberta-base"
-            if not is_evidence_model_cached(emb_model):
-                models_to_download.append(("evidence_embedding", emb_model))
-                logger.info("GIL embedding model %s not cached, will download", emb_model)
-            if not is_evidence_model_cached(qa_model):
-                models_to_download.append(("evidence_qa", qa_model))
-                logger.info("GIL QA model %s not cached, will download", qa_model)
-            if not is_evidence_model_cached(nli_model):
-                models_to_download.append(("evidence_nli", nli_model))
-                logger.info("GIL NLI model %s not cached, will download", nli_model)
+        _append_gil_evidence_downloads(cfg, models_to_download)
 
         # Download missing models using centralized preload functions
         if models_to_download:
