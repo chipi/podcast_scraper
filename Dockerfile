@@ -44,6 +44,7 @@ ENV PRELOAD_ML_MODELS=${PRELOAD_ML_MODELS}
 # Python 3.12 has good wheel support, so most packages won't need compilation
 RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
         apt-get update && \
+        apt-get upgrade -y --no-install-recommends && \
         apt-get install -y --no-install-recommends \
             gcc \
             g++ \
@@ -159,8 +160,10 @@ ENV PYTHONUNBUFFERED=1 \
 # ffmpeg is only needed for local Whisper transcription (ML mode)
 # If using LLM-only mode, ffmpeg is not required
 ARG INSTALL_EXTRAS
+# Upgrade base image packages first (e.g. libtiff CVEs flagged by Snyk) before adding deps.
 RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
         apt-get update && \
+        apt-get upgrade -y --no-install-recommends && \
         apt-get install -y --no-install-recommends \
             ffmpeg \
             supervisor && \
@@ -168,6 +171,7 @@ RUN if [ -n "$INSTALL_EXTRAS" ] && [ "$INSTALL_EXTRAS" = "ml" ]; then \
         rm -rf /var/lib/apt/lists/*; \
     else \
         apt-get update && \
+        apt-get upgrade -y --no-install-recommends && \
         apt-get install -y --no-install-recommends \
             supervisor && \
         apt-get clean && \

@@ -2835,3 +2835,29 @@ class TestExtractEpisodeStageTimings(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertIsNone(result.download_media_time)
         self.assertEqual(result.transcribe_time, 2.0)
+
+
+@pytest.mark.unit
+class TestGenerateAndValidateSummaryRecoverable(unittest.TestCase):
+    """Recoverable summarization path logs with format_exception_for_log."""
+
+    @patch("podcast_scraper.workflow.metadata_generation._generate_episode_summary")
+    def test_recoverable_summarization_error_returns_none_metadata(self, mock_generate_summary):
+        from podcast_scraper.exceptions import RecoverableSummarizationError
+
+        mock_generate_summary.side_effect = RecoverableSummarizationError(7, "soft failure")
+        episode = SimpleNamespace(idx=7)
+        cfg = create_test_config(generate_summaries=True, generate_metadata=True)
+        summary_meta, elapsed, call_m = metadata._generate_and_validate_summary(
+            episode,
+            TEST_FEED_URL,
+            "/tmp/transcript_unit.txt",
+            "/tmp/out_unit",
+            cfg,
+            MagicMock(),
+            "tiny.en",
+            pipeline_metrics=None,
+        )
+        self.assertIsNone(summary_meta)
+        self.assertGreaterEqual(elapsed, 0.0)
+        mock_generate_summary.assert_called_once()

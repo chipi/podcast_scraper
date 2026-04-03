@@ -29,7 +29,7 @@ implementations, mock external dependencies.
 1. **HTTP Requests** (External Network)
 
    ```python
-   @patch("podcast_scraper.downloader.fetch_url")
+   @patch("podcast_scraper.rss.downloader.fetch_url")
    def test_component_workflow(self, mock_fetch):
        mock_fetch.return_value = b"<rss>...</rss>"
        # Test component interactions
@@ -41,9 +41,7 @@ implementations, mock external dependencies.
    @patch("podcast_scraper.providers.openai.openai_provider.OpenAI")
    def test_openai_provider_integration(self, mock_client):
 
-```text
        # Mock API client, test provider integration
-```yaml
 
 ### Conditionally Mock
 
@@ -120,7 +118,7 @@ def test_rss_to_provider_workflow(self):
     episodes = create_episodes(feed)
 
     # Mock external HTTP
-    with patch("podcast_scraper.downloader.fetch_url") as mock_fetch:
+    with patch("podcast_scraper.rss.downloader.fetch_url") as mock_fetch:
         mock_fetch.return_value = b"transcript content"
         result = process_episodes(episodes, cfg)
 
@@ -173,7 +171,7 @@ def test_with_real_models(self):
     require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
     require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
     # Test with real models...
-```yaml
+```
 
 ## Test Files
 
@@ -217,8 +215,6 @@ pytest tests/integration/test_component_workflows.py -v -m integration
 - `@pytest.mark.critical_path` - Critical path tests (run in fast suite).
   See [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)
 
-- `@pytest.mark.serial` - Tests that must run sequentially
-
 ## Provider Testing
 
 For provider-specific integration testing (E2E server mock endpoints, provider switching):
@@ -234,5 +230,5 @@ Covers:
 
 ## Coverage Targets
 
-- **Total tests:** 50+
+- **Total tests:** ~530
 - **Focus:** Critical paths, component interactions, edge cases

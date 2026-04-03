@@ -39,6 +39,7 @@ from ...exceptions import (
     ProviderRuntimeError,
 )
 from ...utils import progress
+from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from ..capabilities import ProviderCapabilities
 from . import speaker_detection, summarizer
 from .model_registry import ModelRegistry
@@ -76,8 +77,10 @@ def _import_third_party_whisper() -> ModuleType:
     except ImportError as exc:
         # Re-raise with clearer error message
         raise ImportError(
-            f"Failed to import openai-whisper library: {exc}. "
-            "Make sure 'openai-whisper' is installed: pip install openai-whisper"
+            redact_for_log(
+                f"Failed to import openai-whisper library: {exc}. "
+                "Make sure 'openai-whisper' is installed: pip install openai-whisper"
+            )
         ) from exc
 
 
@@ -235,15 +238,21 @@ class MLProvider:
                 worker.initialize()
                 workers.append(worker)
             except Exception as e:
-                logger.error(f"Failed to create worker provider instance {i+1}/{num_workers}: {e}")
+                logger.error(
+                    "Failed to create worker provider instance %s/%s: %s",
+                    i + 1,
+                    num_workers,
+                    format_exception_for_log(e),
+                )
                 # Cleanup any successfully created workers
                 for worker in workers:
                     try:
                         worker.cleanup()
                     except Exception:
                         pass
+                _werr = format_exception_for_log(e)
                 raise ProviderRuntimeError(
-                    message=f"Failed to create worker provider instances: {e}",
+                    message=f"Failed to create worker provider instances: {_werr}",
                     provider="MLProvider",
                     suggestion="Check model cache and device availability",
                 ) from e
@@ -302,8 +311,8 @@ class MLProvider:
                     self._initialize_whisper()
                 logger.info("✓ Whisper model preloaded successfully")
             except Exception as e:
-                error_msg = f"Failed to preload Whisper model: {e}"
-                logger.error(error_msg)
+                error_msg = redact_for_log(f"Failed to preload Whisper model: {e}")
+                logger.error("%s", error_msg)
                 raise ProviderDependencyError(
                     message=error_msg,
                     provider="MLProvider/Whisper",
@@ -321,8 +330,8 @@ class MLProvider:
                     self._initialize_spacy()
                 logger.info("✓ spaCy model preloaded successfully")
             except Exception as e:
-                error_msg = f"Failed to preload spaCy model: {e}"
-                logger.error(error_msg)
+                error_msg = redact_for_log(f"Failed to preload spaCy model: {e}")
+                logger.error("%s", error_msg)
                 raise ProviderDependencyError(
                     message=error_msg,
                     provider="MLProvider/spaCy",
@@ -337,8 +346,8 @@ class MLProvider:
                     self._initialize_transformers()
                 logger.info("✓ Transformers models preloaded successfully")
             except Exception as e:
-                error_msg = f"Failed to preload Transformers models: {e}"
-                logger.error(error_msg)
+                error_msg = redact_for_log(f"Failed to preload Transformers models: {e}")
+                logger.error("%s", error_msg)
                 raise ProviderDependencyError(
                     message=error_msg,
                     provider="MLProvider/Transformers",
@@ -702,25 +711,34 @@ class MLProvider:
                 return
             except FileNotFoundError as exc:
                 last_error = exc
-                logger.warning("Whisper model %s not found: %s", attempt_model, exc)
+                logger.warning(
+                    "Whisper model %s not found: %s",
+                    attempt_model,
+                    format_exception_for_log(exc),
+                )
                 continue
             except (RuntimeError, OSError) as exc:
                 # RuntimeError/OSError could be network errors, disk space issues,
                 # corrupted model files, or GPU/CUDA errors
                 last_error = exc
-                logger.warning("Failed to load Whisper model %s: %s", attempt_model, exc)
+                logger.warning(
+                    "Failed to load Whisper model %s: %s",
+                    attempt_model,
+                    format_exception_for_log(exc),
+                )
                 continue
 
         # All models failed
+        last_err_txt = format_exception_for_log(last_error) if last_error is not None else "unknown"
         logger.error(
             "Failed to load any Whisper model. Tried: %s. Last error: %s",
             fallback_models,
-            last_error,
+            last_err_txt,
         )
         raise ProviderDependencyError(
             message=(
                 f"Failed to load any Whisper model. Tried: {fallback_models}. "
-                f"Last error: {last_error}"
+                f"Last error: {last_err_txt}"
             ),
             provider="MLProvider/Whisper",
             dependency="whisper-model",
@@ -792,7 +810,10 @@ class MLProvider:
             self._transformers_initialized = True
             logger.info("Transformers summarization initialized successfully")
         except Exception as e:
-            logger.error("Failed to initialize summarization models: %s", e)
+            logger.error(
+                "Failed to initialize summarization models: %s",
+                format_exception_for_log(e),
+            )
             raise
 
     # ============================================================================
@@ -1214,7 +1235,11 @@ class MLProvider:
             try:
                 mode_cfg = ModelRegistry.get_mode_configuration(str(mode_id))
             except ValueError as exc:
-                logger.warning("summary_mode_id '%s' not found in registry (%s)", mode_id, exc)
+                logger.warning(
+                    "summary_mode_id '%s' not found in registry (%s)",
+                    mode_id,
+                    format_exception_for_log(exc),
+                )
                 mode_cfg = None
 
         # Resolve effective defaults:
@@ -1538,12 +1563,13 @@ class MLProvider:
             # Handle "Already borrowed" error from Rust tokenizer in parallel execution
             if "already borrowed" in error_msg:
                 logger.error(
-                    f"Tokenizer threading error during summarization: {e}. "
+                    "Tokenizer threading error during summarization: %s. "
                     "This can occur in parallel execution with Rust-based tokenizers. "
-                    "Consider reducing parallelism or using sequential processing."
+                    "Consider reducing parallelism or using sequential processing.",
+                    format_exception_for_log(e),
                 )
                 raise ProviderRuntimeError(
-                    message=f"Summarization failed: {e}",
+                    message=f"Summarization failed: {format_exception_for_log(e)}",
                     provider="MLProvider/Transformers",
                     suggestion=(
                         "Tokenizer threading error - try sequential processing "
@@ -1552,9 +1578,9 @@ class MLProvider:
                 ) from e
             raise
         except Exception as e:
-            logger.error("Summarization failed: %s", e)
+            logger.error("Summarization failed: %s", format_exception_for_log(e))
             raise ProviderRuntimeError(
-                message=f"Summarization failed: {e}",
+                message=f"Summarization failed: {format_exception_for_log(e)}",
                 provider="MLProvider/Transformers",
                 suggestion="Check model cache and input text format",
             ) from e
@@ -1613,7 +1639,9 @@ class MLProvider:
                 window_overlap_chars=int(getattr(self.cfg, "gi_qa_window_overlap_chars", 250)),
             )
         except Exception as e:
-            logger.warning("Extractive QA failed for extract_quotes: %s", e)
+            logger.warning(
+                "Extractive QA failed for extract_quotes: %s", format_exception_for_log(e)
+            )
             return []
         verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
         return [
@@ -1644,7 +1672,7 @@ class MLProvider:
                 device=getattr(self.cfg, "nli_device", None),
             )
         except Exception as e:
-            logger.warning("NLI failed for score_entailment: %s", e)
+            logger.warning("NLI failed for score_entailment: %s", format_exception_for_log(e))
             return 0.0
 
     # ============================================================================

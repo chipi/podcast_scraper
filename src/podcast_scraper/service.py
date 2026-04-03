@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import __version__, config
+from .utils.log_redaction import redact_for_log
 from .workflow import orchestration as workflow
 from .workflow.stages import setup
 
@@ -99,13 +100,13 @@ def run(cfg: config.Config) -> ServiceResult:
             error=None,
         )
     except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Pipeline execution failed: {error_msg}", exc_info=True)
+        error_safe = redact_for_log(str(e))
+        logger.error("Pipeline execution failed: %s", error_safe, exc_info=True)
         return ServiceResult(
             episodes_processed=0,
             summary="",
             success=False,
-            error=error_msg,
+            error=error_safe,
         )
 
 
@@ -136,21 +137,22 @@ def run_from_config_file(config_path: str | Path) -> ServiceResult:
         cfg = config.Config(**config_dict)
     except FileNotFoundError:
         error_msg = f"Configuration file not found: {config_path}"
-        logger.error(error_msg)
+        error_safe = redact_for_log(error_msg)
+        logger.error("%s", error_safe)
         return ServiceResult(
             episodes_processed=0,
             summary="",
             success=False,
-            error=error_msg,
+            error=error_safe,
         )
     except Exception as exc:
-        error_msg = f"Failed to load configuration file: {exc}"
-        logger.error(error_msg)
+        error_safe = redact_for_log(f"Failed to load configuration file: {exc}")
+        logger.error("%s", error_safe)
         return ServiceResult(
             episodes_processed=0,
             summary="",
             success=False,
-            error=error_msg,
+            error=error_safe,
         )
 
     return run(cfg)

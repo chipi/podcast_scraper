@@ -42,7 +42,7 @@ pip install -e .
 # Ubuntu: sudo apt install ffmpeg
 
 # (Optional) To regenerate architecture diagrams: install Graphviz, run make visualize, then commit docs/architecture/*.svg
-# make ci / make ci-fast fail if diagrams are stale (check-visualizations)
+# make ci / make ci-fast fail if diagrams are stale (visualize)
 # macOS: brew install graphviz
 # Ubuntu: sudo apt install graphviz
 ```

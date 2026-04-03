@@ -21,6 +21,7 @@ from requests.utils import requote_uri
 from urllib3.util.retry import Retry
 
 from ..utils import progress
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 from ..utils.progress import ProgressReporter
 
 logger = logging.getLogger(__name__)
@@ -236,7 +237,11 @@ def _open_http_request(
         )
         return resp
     except requests.RequestException as exc:
-        logger.warning(f"Failed to fetch {url}: {exc}")
+        logger.warning(
+            "Failed to fetch %s: %s",
+            redact_for_log(url),
+            format_exception_for_log(exc),
+        )
         return None
 
 
@@ -331,7 +336,11 @@ def http_get(url: str, user_agent: str, timeout: int) -> Tuple[Optional[bytes], 
 
         return b"".join(body_parts), ctype
     except (requests.RequestException, OSError) as exc:
-        logger.warning(f"Failed to read response from {url}: {exc}")
+        logger.warning(
+            "Failed to read response from %s: %s",
+            url,
+            format_exception_for_log(exc),
+        )
         return None, None
     finally:
         resp.close()
@@ -381,7 +390,18 @@ def http_download_to_file(
         logger.debug("Finished downloading %s (%s bytes written)", url, total_bytes)
         return True, total_bytes
     except (requests.RequestException, OSError) as exc:
-        logger.warning(f"Failed to download {url} to {out_path}: {exc}")
+        logger.warning(
+            "Failed to download %s to %s: %s",
+            redact_for_log(url),
+            out_path,
+            format_exception_for_log(exc),
+        )
+        try:
+            if os.path.exists(out_path):
+                os.remove(out_path)
+                logger.debug("Removed partial download: %s", out_path)
+        except OSError:
+            pass
         return False, 0
     finally:
         resp.close()

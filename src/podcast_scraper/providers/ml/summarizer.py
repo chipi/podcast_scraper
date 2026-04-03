@@ -44,6 +44,7 @@ if TYPE_CHECKING:
 
 from ... import preprocessing
 from ...preprocessing.profiles import apply_profile_with_stats
+from ...utils.log_redaction import format_exception_for_log
 from .model_registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
@@ -854,7 +855,12 @@ def _load_with_retry_summarizer(load_func, model_name: str, model_type: str = "m
                     retry_error,
                 )
                 raise
-        logger.error("Failed to load %s for %s: %s", model_type, model_name, e)
+        logger.error(
+            "Failed to load %s for %s: %s",
+            model_type,
+            model_name,
+            format_exception_for_log(e),
+        )
         raise
 
 
@@ -957,7 +963,7 @@ class SummaryModel:
                 validated_path = validate_cache_path(cache_dir)
                 self.cache_dir = str(validated_path)
             except ValueError as e:
-                logger.error(f"Invalid cache directory: {e}")
+                logger.error("Invalid cache directory: %s", format_exception_for_log(e))
                 raise
         else:
             try:
@@ -1105,7 +1111,10 @@ class SummaryModel:
                     )
             except Exception as e:
                 self._pegasus_health_checks["generate_ok"] = False  # type: ignore
-                logger.warning("[PEGASUS MODEL VERIFICATION] Sanity check error: %s", e)
+                logger.warning(
+                    "[PEGASUS MODEL VERIFICATION] Sanity check error: %s",
+                    format_exception_for_log(e),
+                )
         if self.pipeline is not None and getattr(self.pipeline, "model", None) is not None:
             model = self.pipeline.model
             if getattr(model, "generation_config", None) is not None:
@@ -1318,7 +1327,7 @@ class SummaryModel:
             logger.debug("Successfully loaded model: %s", self.model_name)
 
         except Exception as e:
-            logger.error(f"Failed to load summarization model: {e}")
+            logger.error("Failed to load summarization model: %s", format_exception_for_log(e))
             raise
 
     def _summarize_truncate_input(
@@ -1660,7 +1669,12 @@ class SummaryModel:
                             )
                             continue
                         else:
-                            logger.error(f"Retry {attempt + 1}/{max_retries} failed: {retry_error}")
+                            logger.error(
+                                "Retry %d/%d failed: %s",
+                                attempt + 1,
+                                max_retries,
+                                format_exception_for_log(retry_error),
+                            )
                             if attempt == max_retries - 1:
                                 logger.error(
                                     "All retries exhausted. This should not happen with proper "
@@ -1669,8 +1683,10 @@ class SummaryModel:
                                 return ""
                     except Exception as retry_error:
                         logger.error(
-                            f"Retry {attempt + 1}/{max_retries} raised unexpected error: "
-                            f"{retry_error}"
+                            "Retry %d/%d raised unexpected error: %s",
+                            attempt + 1,
+                            max_retries,
+                            format_exception_for_log(retry_error),
                         )
                         if attempt == max_retries - 1:
                             return ""
@@ -1679,7 +1695,7 @@ class SummaryModel:
                 return ""
             raise
         except Exception as e:
-            logger.error(f"Summarization failed: {e}")
+            logger.error("Summarization failed: %s", format_exception_for_log(e))
             return ""
 
 
@@ -2724,7 +2740,7 @@ def _summarize_chunks_parallel(
                 ),
             )
         except Exception as e:
-            logger.error(f"Error summarizing chunk {chunk_idx}: {e}")
+            logger.error("Error summarizing chunk %d: %s", chunk_idx, format_exception_for_log(e))
             return (chunk_idx, None)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -3699,7 +3715,10 @@ def _combine_summaries_extractive(
 
             return final_summary
         except Exception as e:
-            logger.warning(f"Final summarization failed ({e}), using extractive summaries directly")
+            logger.warning(
+                "Final summarization failed (%s), using extractive summaries directly",
+                format_exception_for_log(e),
+            )
             return _join_summaries_with_structure(selected_summaries)
     else:
         logger.debug("Using extractive summaries directly (no further summarization)")
@@ -4325,10 +4344,14 @@ def safe_summarize(
         if isinstance(e, RuntimeError) and (
             "out of memory" in str(e).lower() or "mps" in str(e).lower()
         ):
-            logger.error(f"Device out of memory during summarization ({model.device}): {e}")
+            logger.error(
+                "Device out of memory during summarization (%s): %s",
+                model.device,
+                format_exception_for_log(e),
+            )
             # Fallback: use CPU or smaller model
             return ""
-        logger.error(f"Summarization error: {e}")
+        logger.error("Summarization error: %s", format_exception_for_log(e))
         return ""
 
 
@@ -4584,6 +4607,6 @@ def prune_cache(cache_dir: Optional[str] = None, dry_run: bool = False) -> int:
                 cache_path,
             )
     except (OSError, PermissionError) as e:
-        logger.error("Error pruning cache: %s", e)
+        logger.error("Error pruning cache: %s", format_exception_for_log(e))
 
     return deleted_count

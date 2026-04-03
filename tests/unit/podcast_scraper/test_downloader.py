@@ -2,7 +2,9 @@
 """Tests for HTTP downloader functionality."""
 
 import os
+import shutil
 import sys
+import tempfile
 
 # Allow importing the package when tests run from within the package directory.
 PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -841,6 +843,43 @@ class TestHTTPDownloadToFile(unittest.TestCase):
         self.assertEqual(mock_file.write.call_count, 2)
         mock_file.write.assert_any_call(b"chunk1")
         mock_file.write.assert_any_call(b"chunk2")
+
+    @patch("podcast_scraper.rss.downloader.fetch_url")
+    @patch("podcast_scraper.rss.downloader.progress.progress_context")
+    def test_http_download_to_file_removes_partial_file_on_stream_error(
+        self, mock_progress, mock_fetch
+    ):
+        """After bytes are written, a stream error must not leave a corrupt partial file."""
+        tmpdir = tempfile.mkdtemp()
+        try:
+            out_path = os.path.join(tmpdir, "partial.bin")
+            mock_response = Mock()
+            mock_response.headers = {"Content-Length": "100"}
+
+            def _failing_stream(chunk_size=None):
+                yield b"partial"
+                raise requests.RequestException("connection reset")
+
+            mock_response.iter_content = Mock(side_effect=_failing_stream)
+            mock_response.close = Mock()
+            mock_fetch.return_value = mock_response
+            mock_reporter = Mock()
+            mock_progress.return_value.__enter__.return_value = mock_reporter
+            mock_progress.return_value.__exit__.return_value = None
+
+            success, nbytes = downloader.http_download_to_file(
+                "https://example.com/file.bin", "test-agent", 10, out_path
+            )
+
+            self.assertFalse(success)
+            self.assertEqual(nbytes, 0)
+            self.assertFalse(
+                os.path.exists(out_path),
+                "partial download file should be removed on failure",
+            )
+            mock_response.close.assert_called_once()
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 class TestHTTPHead(unittest.TestCase):

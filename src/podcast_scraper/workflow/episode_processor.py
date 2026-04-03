@@ -23,6 +23,7 @@ else:
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..rss import choose_transcript_url, downloader
 from ..utils import filesystem
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,10 @@ def _download_or_reuse_media(
                 return True, file_size, 0.0
             logger.warning("    media file is empty, re-downloading: %s", temp_media)
         except OSError as exc:
-            logger.warning("    error checking media file, re-downloading: %s", exc)
+            logger.warning(
+                "    error checking media file, re-downloading: %s",
+                format_exception_for_log(exc),
+            )
         if pipeline_metrics is not None:
             pipeline_metrics.record_download_media_attempt()
     dl_start = time.time()
@@ -345,7 +349,10 @@ def _format_transcript_if_needed(
             if formatted and formatted.strip():
                 text = formatted
         except (ValueError, KeyError, TypeError) as exc:
-            logger.warning(f"    failed to format as screenplay, using plain transcript: {exc}")
+            logger.warning(
+                "    failed to format as screenplay, using plain transcript: %s",
+                format_exception_for_log(exc),
+            )
     return text
 
 
@@ -405,7 +412,7 @@ def _save_transcript_segments_file(
     segments_path = base + ".segments.json"
     try:
         with open(segments_path, "w", encoding="utf-8") as f:
-            json.dump(segments, f, indent=0)
+            json.dump(segments, f, indent=0, allow_nan=False)
         logger.debug("Saved transcription segments for GIL timestamps: %s", segments_path)
     except OSError as e:
         logger.debug("Could not save segments file %s: %s", segments_path, e)
@@ -813,7 +820,11 @@ def _save_transcript_to_cache_if_needed(
         logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
     except Exception as exc:
         # Cache save failure is non-fatal - log and continue
-        logger.warning("[%s] Failed to save transcript to cache: %s", job.idx, exc)
+        logger.warning(
+            "[%s] Failed to save transcript to cache: %s",
+            job.idx,
+            format_exception_for_log(exc),
+        )
 
 
 def _record_transcription_metrics(
@@ -1000,15 +1011,25 @@ def transcribe_media_to_text(
         # Handle file size validation errors gracefully
         error_msg = str(exc)
         if "exceeds" in error_msg and "limit" in error_msg:
-            logger.warning(f"[{job.idx}] Skipping episode due to file size limit: {error_msg}")
+            logger.warning(
+                "[%s] Skipping episode due to file size limit: %s",
+                job.idx,
+                redact_for_log(error_msg),
+            )
             # Return False to indicate episode was skipped (not failed)
             return False, None, bytes_downloaded
         else:
             # Re-raise if it's a different ValueError
-            logger.error(f"    Transcription validation failed: {exc}")
+            logger.error(
+                "    Transcription validation failed: %s",
+                format_exception_for_log(exc),
+            )
             return False, None, bytes_downloaded
     except (RuntimeError, OSError, ProviderError) as exc:
-        logger.error(f"    Whisper transcription failed: {exc}")
+        logger.error(
+            "    Whisper transcription failed: %s",
+            format_exception_for_log(exc),
+        )
         return False, None, bytes_downloaded
     finally:
         _cleanup_temp_media(temp_media, cfg)
@@ -1142,7 +1163,7 @@ def _write_transcript_file(
         rel_path = os.path.relpath(out_path, effective_output_dir)
         return rel_path
     except (IOError, OSError) as exc:
-        logger.error(f"    failed to write file: {exc}")
+        logger.error("    failed to write file: %s", format_exception_for_log(exc))
         return None
 
 

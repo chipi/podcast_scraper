@@ -10,5 +10,5 @@ This folder holds **Knowledge Graph Layer (KG)** artifacts referenced by [PRD-01
 
 | File | Purpose |
 | --- | --- |
-| [ontology.md](ontology.md) | Draft node/edge types and naming rules for KG v1 |
-| `kg.schema.json` | JSON Schema for KG artifacts (**planned** with first implementation) |
+| [ontology.md](ontology.md) | Node/edge types and naming rules for KG v1 (frozen, GitHub #464) |
+| `kg.schema.json` | JSON Schema for KG artifacts (v1, validates `*.kg.json`) |

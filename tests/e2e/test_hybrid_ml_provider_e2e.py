@@ -80,3 +80,118 @@ class TestHybridMLProviderE2E:
             assert len(result["summary"]) > 0
 
             provider.cleanup()
+
+    def test_hybrid_ml_provider_cleanup_is_idempotent(self, e2e_server):
+        """Calling cleanup() twice after summarize does not raise."""
+        require_transformers_model_cached("longt5-base")
+        require_transformers_model_cached("google/flan-t5-base")
+
+        fixture_root = Path(__file__).parent.parent / "fixtures"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        if not transcript_file.exists():
+            pytest.skip(f"Transcript fixture not found: {transcript_file}")
+
+        transcript_text = transcript_file.read_text(encoding="utf-8")
+
+        cfg = Config(
+            rss="",
+            generate_metadata=True,
+            generate_summaries=True,
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+            language="en",
+        )
+
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+        provider.summarize(text=transcript_text, episode_title="Test Episode")
+
+        provider.cleanup()
+        provider.cleanup()
+
+    def test_hybrid_ml_provider_result_has_expected_keys(self, e2e_server):
+        """Summarize result dict contains 'summary' key with a non-empty string."""
+        require_transformers_model_cached("longt5-base")
+        require_transformers_model_cached("google/flan-t5-base")
+
+        fixture_root = Path(__file__).parent.parent / "fixtures"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        if not transcript_file.exists():
+            pytest.skip(f"Transcript fixture not found: {transcript_file}")
+
+        transcript_text = transcript_file.read_text(encoding="utf-8")
+
+        cfg = Config(
+            rss="",
+            generate_metadata=True,
+            generate_summaries=True,
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+            language="en",
+        )
+
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+
+        result = provider.summarize(
+            text=transcript_text,
+            episode_title="Test Episode",
+        )
+
+        assert "summary" in result
+        assert isinstance(result["summary"], str)
+        assert len(result["summary"].strip()) > 0
+
+        provider.cleanup()
+
+    def test_hybrid_ml_provider_extract_kg_graph_returns_none(self, e2e_server):
+        """extract_kg_graph() returns None (not implemented for hybrid)."""
+        require_transformers_model_cached("longt5-base")
+        require_transformers_model_cached("google/flan-t5-base")
+
+        cfg = Config(
+            rss="",
+            generate_metadata=True,
+            generate_summaries=True,
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+            language="en",
+        )
+
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+
+        result = provider.extract_kg_graph("some text")
+        assert result is None
+
+        provider.cleanup()
+
+    def test_hybrid_ml_provider_generate_insights_returns_empty(self, e2e_server):
+        """generate_insights() returns empty list (not implemented for hybrid)."""
+        require_transformers_model_cached("longt5-base")
+        require_transformers_model_cached("google/flan-t5-base")
+
+        cfg = Config(
+            rss="",
+            generate_metadata=True,
+            generate_summaries=True,
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+            language="en",
+        )
+
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+
+        result = provider.generate_insights("some text")
+        assert result == []
+
+        provider.cleanup()

@@ -185,7 +185,7 @@ make init
 # 8. Open in Cursor
 
 cursor .
-```yaml
+```
 
 ## Why Isolated Virtual Environments?
 
@@ -240,7 +240,7 @@ ls -la .venv/bin/python3
 
 # Should print: Worktree paths: None (clean!)
 
-```go
+```
 
 **3. Never install package in global Python:**
 
@@ -357,7 +357,7 @@ python3 -m pip show podcast-scraper 2>&1 | head -3
 
 # Should point to current worktree's src/ directory
 
-```python
+```
 
 ## Troubleshooting Cross-Worktree Issues
 
@@ -413,7 +413,7 @@ cursor ../podcast_scraper-169-dependabot
 
 cd ../podcast_scraper-169-dependabot
 cursor .
-```python
+```
 
 ## Configure Python Interpreter
 
@@ -429,7 +429,7 @@ Or add to `.vscode/settings.json` (gitignored):
 {
   "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python"
 }
-```yaml
+```
 
 ### Files That Propagate Automatically
 
@@ -447,12 +447,14 @@ These files are tracked in Git and automatically available in each worktree:
 ### When to Rebase
 
 Rebase your branch when:
+
 - ✅ PR is ready for review (clean diff for reviewers)
 - ✅ CI is failing due to main changes (get latest fixes)
 - ✅ Merge conflicts expected (smaller conflicts)
 - ✅ Main has breaking changes you need
 
 Don't rebase when:
+
 - ❌ Just want latest changes for curiosity (adds noise)
 - ❌ Actively coding, no blockers (rebase when ready)
 
@@ -481,7 +483,7 @@ git rebase --abort            # Return to pre-rebase state
 # Push rebased branch
 
 git push --force-with-lease   # NEVER use --force
-```yaml
+```
 
 ## Rebase Best Practices
 
@@ -533,7 +535,7 @@ make wt-remove
 # Prune stale worktree references
 
 make wt-prune
-```yaml
+```
 
 ## Workflow Rules
 
@@ -801,7 +803,7 @@ python3 -m pip show podcast-scraper
 # Uninstall from global if found
 
 python3 -m pip uninstall -y podcast-scraper
-```yaml
+```
 
 ## GitHub Issue Auto-Close Keywords
 
@@ -824,7 +826,7 @@ Use these in PR title or description to automatically close issues when PR merge
 
 ## References
 
-- **Git Worktrees Documentation**: https://git-scm.com/docs/git-worktree
-- **GitHub Actions Triggers**: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows
-- **Branch Protection**: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches
-- **Cursor Documentation**: https://cursor.sh/docs
+- **Git Worktrees Documentation**: <https://git-scm.com/docs/git-worktree>
+- **GitHub Actions Triggers**: <https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows>
+- **Branch Protection**: <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches>
+- **Cursor Documentation**: <https://cursor.sh/docs>

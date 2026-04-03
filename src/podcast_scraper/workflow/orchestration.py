@@ -28,6 +28,7 @@ from ..providers.capabilities import get_provider_capabilities, is_local_provide
 from ..rss import (
     extract_episode_description as _extract_episode_description_rss,
 )
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 from .episode_processor import (
     process_episode_download as _process_episode_download_original,
     transcribe_media_to_text as _transcribe_media_to_text_original,
@@ -115,7 +116,10 @@ def _create_transcription_provider(
         )
         return provider
     except Exception as exc:
-        logger.error("Failed to initialize transcription provider: %s", exc)
+        logger.error(
+            "Failed to initialize transcription provider: %s",
+            format_exception_for_log(exc),
+        )
         # Fail fast - provider initialization should succeed
         raise
 
@@ -153,11 +157,17 @@ def _create_speaker_detector(
                 detector.warmup(timeout_s=600)  # 10 minute timeout for first load
                 logger.debug("Ollama speaker detection models warmed up")
             except Exception as exc:
-                logger.warning(f"Failed to warm up Ollama speaker detection models: {exc}")
+                logger.warning(
+                    "Failed to warm up Ollama speaker detection models: %s",
+                    format_exception_for_log(exc),
+                )
                 # Don't fail - models will load on first use, just slower
         return detector
     except Exception as exc:
-        logger.error("Failed to initialize speaker detector: %s", exc)
+        logger.error(
+            "Failed to initialize speaker detector: %s",
+            format_exception_for_log(exc),
+        )
         # Fail fast - provider initialization should succeed
         raise
 
@@ -196,7 +206,10 @@ def _create_summarization_provider(
                 provider.warmup(timeout_s=600)  # 10 minute timeout for first load
                 logger.debug("Ollama summarization models warmed up")
             except Exception as exc:
-                logger.warning(f"Failed to warm up Ollama summarization models: {exc}")
+                logger.warning(
+                    "Failed to warm up Ollama summarization models: %s",
+                    format_exception_for_log(exc),
+                )
                 # Don't fail - models will load on first use, just slower
         return provider
     except ImportError as e:
@@ -205,16 +218,16 @@ def _create_summarization_provider(
             f"Summarization dependencies not available but generate_summaries=True: {e}. "
             "Install ML dependencies or set generate_summaries=False."
         )
-        logger.error(error_msg)
-        raise RuntimeError(error_msg) from e
+        logger.error("%s", redact_for_log(error_msg))
+        raise RuntimeError(redact_for_log(error_msg)) from e
     except Exception as e:
         # Fail fast - provider initialization must succeed when generate_summaries=True
         error_msg = (
             f"Failed to initialize summarization provider (generate_summaries=True): {e}. "
             "Cannot proceed with summarization."
         )
-        logger.error(error_msg)
-        raise RuntimeError(error_msg) from e
+        logger.error("%s", redact_for_log(error_msg))
+        raise RuntimeError(redact_for_log(error_msg)) from e
 
 
 def _create_all_providers(
@@ -614,6 +627,10 @@ logger = logging.getLogger(__name__)
 # Module-level registry for preloaded MLProvider instance
 # This allows factories to reuse the same instance across capabilities
 _preloaded_ml_provider: Optional[Any] = None
+_preloaded_ml_provider_lock = threading.Lock()
+
+# Generous timeout for thread joins (transcription / processing)
+_THREAD_JOIN_TIMEOUT = 300  # seconds
 
 
 def _both_providers_use_mps(
@@ -646,7 +663,7 @@ def _both_providers_use_mps(
             try:
                 whisper_device = transcription_provider._detect_whisper_device()
                 transcription_uses_mps = whisper_device == "mps"
-            except (AttributeError, Exception):
+            except Exception:
                 # If method doesn't exist or fails, assume not MPS
                 transcription_uses_mps = False
         else:
@@ -687,7 +704,7 @@ def _both_providers_use_mps(
                             summarization_uses_mps = True
                     except ImportError:
                         summarization_uses_mps = False
-            except (AttributeError, Exception):
+            except Exception:
                 # If attributes don't exist or fail, check config
                 if cfg.summary_device:
                     summarization_uses_mps = cfg.summary_device == "mps"
@@ -961,7 +978,7 @@ def _create_run_manifest(
         run_manifest.save_to_file(manifest_path)
         return run_manifest
     except Exception as e:
-        logger.warning(f"Failed to generate run manifest: {e}")
+        logger.warning("Failed to generate run manifest: %s", format_exception_for_log(e))
         return None
 
 
@@ -1029,25 +1046,35 @@ def _cleanup_providers(
             provider.cleanup()
             logger.debug("Cleaned up transcription provider")
         except Exception as e:
-            logger.warning("Failed to cleanup transcription provider: %s", e)
+            logger.warning(
+                "Failed to cleanup transcription provider: %s",
+                format_exception_for_log(e),
+            )
 
     # Stage 4: Cleanup provider (which handles model unloading)
     # Cleanup preloaded MLProvider instance
     global _preloaded_ml_provider
-    if _preloaded_ml_provider is not None:
-        try:
-            _preloaded_ml_provider.cleanup()
-        except Exception as e:
-            logger.warning("Error cleaning up preloaded MLProvider: %s", e)
-        finally:
-            _preloaded_ml_provider = None
+    with _preloaded_ml_provider_lock:
+        if _preloaded_ml_provider is not None:
+            try:
+                _preloaded_ml_provider.cleanup()
+            except Exception as e:
+                logger.warning(
+                    "Error cleaning up preloaded MLProvider: %s",
+                    format_exception_for_log(e),
+                )
+            finally:
+                _preloaded_ml_provider = None
 
     if summary_provider is not None:
         try:
             summary_provider.cleanup()
             logger.debug("Cleaned up summarization provider")
         except Exception as e:
-            logger.warning("Failed to cleanup summarization provider: %s", e)
+            logger.warning(
+                "Failed to cleanup summarization provider: %s",
+                format_exception_for_log(e),
+            )
 
     # Note: spaCy model cache was removed. Models are managed by providers
     # and cleaned up via provider.cleanup() method above.
@@ -1074,19 +1101,26 @@ def _finalize_emit_and_save(
         try:
             jsonl_emitter.emit_run_finished()
         except Exception as e:
-            logger.warning("Failed to emit run_finished JSONL event: %s", e)
+            logger.warning(
+                "Failed to emit run_finished JSONL event: %s",
+                format_exception_for_log(e),
+            )
     written: Optional[str] = None
     if metrics_path:
         try:
             pipeline_metrics.save_to_file(metrics_path)
             written = os.path.abspath(metrics_path)
         except Exception as e:
-            logger.warning("Failed to save metrics to %s: %s", metrics_path, e)
+            logger.warning(
+                "Failed to save metrics to %s: %s",
+                metrics_path,
+                format_exception_for_log(e),
+            )
     if jsonl_emitter:
         try:
             jsonl_emitter.__exit__(None, None, None)
         except Exception as e:
-            logger.warning("Failed to close JSONL emitter: %s", e)
+            logger.warning("Failed to close JSONL emitter: %s", format_exception_for_log(e))
     return written
 
 
@@ -1124,7 +1158,7 @@ def _finalize_run_index(
         run_index.save_to_file(index_path)
         return os.path.abspath(index_path)
     except Exception as e:
-        logger.warning("Failed to generate run index: %s", e)
+        logger.warning("Failed to generate run index: %s", format_exception_for_log(e))
         return None
 
 
@@ -1153,7 +1187,7 @@ def _finalize_run_summary(
         path = save_run_summary(run_summary, effective_output_dir)
         return os.path.abspath(path)
     except Exception as e:
-        logger.warning("Failed to generate run summary: %s", e)
+        logger.warning("Failed to generate run summary: %s", format_exception_for_log(e))
         return None
 
 
@@ -1161,7 +1195,7 @@ def _finalize_ml_cleanup(
     summary_provider: Optional[Any],
     transcription_provider: Optional[Any],
 ) -> None:
-    """Clean up ML providers and PyTorch/MPS before exit."""
+    """Clean up ML providers (idempotent) and free PyTorch/MPS memory."""
     try:
         if summary_provider is not None:
             logger.debug("Cleaning up summary provider before exit")
@@ -1432,7 +1466,12 @@ def _process_episodes_with_threading(
         # Track thread sync time for transcription (Issue #387)
         transcription_sync_start = time.time()
         # Wait for transcription thread to finish processing remaining jobs
-        transcription_thread.join()
+        transcription_thread.join(timeout=_THREAD_JOIN_TIMEOUT)
+        if transcription_thread.is_alive():
+            logger.warning(
+                "Transcription thread did not finish within %ss",
+                _THREAD_JOIN_TIMEOUT,
+            )
         transcription_sync_time = time.time() - transcription_sync_start
         if pipeline_metrics is not None:
             pipeline_metrics.record_thread_sync_time(transcription_sync_time)
@@ -1466,7 +1505,12 @@ def _process_episodes_with_threading(
         # Track thread sync time for processing (Issue #387, #391)
         processing_sync_start = time.time()
         # Wait for processing thread to finish
-        processing_thread.join()
+        processing_thread.join(timeout=_THREAD_JOIN_TIMEOUT)
+        if processing_thread.is_alive():
+            logger.warning(
+                "Processing thread did not finish within %ss",
+                _THREAD_JOIN_TIMEOUT,
+            )
         processing_sync_time = time.time() - processing_sync_start
         if pipeline_metrics is not None:
             pipeline_metrics.record_thread_sync_time(processing_sync_time)
@@ -1741,6 +1785,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         # Step 9.5: Unload models to free memory
         # This runs even if exceptions occur above, preventing memory leaks
         _cleanup_providers(transcription_resources, summary_provider)
+        if jsonl_emitter is not None:
+            try:
+                jsonl_emitter.__exit__(None, None, None)
+            except Exception:
+                pass
 
     # Step 10-15: Finalize pipeline (cleanup, save metrics, generate reports)
     return _finalize_pipeline(

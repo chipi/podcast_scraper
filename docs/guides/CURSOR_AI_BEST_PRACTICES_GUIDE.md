@@ -467,10 +467,12 @@ You: "@Rules testing-strategy
 
 **Example:**
 
-````text
+```text
 ❌ Bad: "Fix the CI failure" (no context)
 ✅ Good: Select CI log output + paste into chat + "Analyze root cause of this CI failure"
-```text
+```
+
+**Words that push Auto upward:**
 
 - analyze
 - root cause
@@ -497,7 +499,7 @@ You: "@Rules testing-strategy
 
 ❌ "Update the workflow"
 ✅ "Review this workflow change for architecture implications and potential risks"
-````
+```
 
 > "Give 2–3 viable approaches for implementing RFC-025 metrics collection, explain tradeoffs, recommend one."
 
@@ -653,7 +655,7 @@ Update the README with new features
 
 @Rules module-boundaries
 Refactor the workflow pipeline
-```yaml
+```
 
 ## Comparison Table
 
@@ -671,7 +673,7 @@ Refactor the workflow pipeline
 #### Example 1: Normal Coding (No @Rules)
 
 ```text
-You: "Add a new function to downloader.py"
+You: "Add a new function to rss/downloader.py"
 
 AI has access to:
 ✅ .cursorrules (automatic)
@@ -746,7 +748,7 @@ AI provides:
     ├── design-rfc.md
     ├── code-review.txt
     └── implementation-plan.txt
-```python
+```
 
 ## Prompt Files in `.cursor/prompts/`
 
@@ -860,7 +862,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 4. **Add your specific context** (CI logs, code diff, feature description, etc.)
 5. **Send the prompt** - Cursor will use appropriate model based on prompt structure
 
-```python
+```text
 2. **Codex Max (Composer)**
    - Paste `design-rfc.md` template
    - "Implement Phase 1: Basic Metrics Collection from JUnit XML"
@@ -874,6 +876,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 
 5. **Composer**
    - "Generate PR description with checklist based on RFC-025 Phase 1"
+```
 
 ## Subagents and Commands
 
@@ -882,7 +885,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 **Subagents** are separate AI agents the main Cursor agent can **delegate** to. Each has its own context; long or noisy work (e.g. full CI, acceptance tests) runs there and the main chat gets a **summary**. Rule 9 (no background make in main chat) applies to the **main** agent; a subagent running `make ci` in its own context returns a short result and does not violate that. All subagents use the **project venv only**: run from project root and use Makefile (which uses `.venv/bin/python`); never use global `python`/`pip`/`pytest`/`npx`.
 
 | Aspect | Meaning |
-|--------|--------|
+| -------- | -------- |
 | **Own context** | Subagent's logs and output stay in its context; main chat stays clean. |
 | **Foreground / background** | Foreground = main agent waits for result. Background = you can keep working while subagent runs. |
 | **Built-in** | Explore (codebase search), Bash (shell commands), Browser (MCP). Cursor uses these when appropriate. |
@@ -891,7 +894,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 ### Commands vs Subagents
 
 | | **Commands** (`/name`) | **Subagents** |
-|---|-------------------------|----------------|
+| --- | ------------------------- | ---------------- |
 | **What** | You type `/verify` etc.; Cursor injects the command's Markdown as the prompt. **Main** agent does the work in the **same** chat. | Main agent **delegates** to another agent; that agent has its **own** context and returns a summary. |
 | **Where** | `.cursor/commands/*.md` or `~/.cursor/commands/` | Built-in (Explore, Bash, Browser) or custom `.cursor/agents/*.md` |
 | **Best for** | Repeatable start of a workflow (verify, review, pr, debug-ci, rfc) in one conversation. | Long/noisy runs (full CI, acceptance tests), deep search, parallel work, dedicated verifier. |
@@ -904,7 +907,7 @@ The following prompt templates are available in `.cursor/prompts/`:
 This project defines three custom subagents. All run from **project root** and use the **project venv only** (Makefile uses `.venv` when present).
 
 | Subagent | File | When to use |
-|----------|------|--------------|
+| ---------- | ------ | -------------- |
 | **Verifier** | `verifier.md` | "Verify before commit," "run ci and report," "is the tree green?" Runs format-check, lint, lint-markdown, full **make ci**; optionally docker-test. Returns PASSED/FAILED + short summary. |
 | **CI Fix Loop** | `ci-fix-loop.md` | "Run ci and fix until it passes," "make ci green." Runs full **make ci**; on failure fixes and re-runs up to 3 times. Returns final status + what was fixed. |
 | **Acceptance** | `acceptance.md` | "Run acceptance tests," "run all acceptance configs." Runs `make test-acceptance CONFIGS="config/acceptance/*.yaml"` (or user pattern). Returns Status, Session ID, Summary; suggests `make analyze-acceptance SESSION_ID=…`. |
@@ -934,9 +937,9 @@ Optional later: **Docs check** (lint-markdown + docs), **PR prep** (status/diff 
 
 ```text
 
-❌ Bad: "Write tests for downloader.py"
+❌ Bad: "Write tests for rss/downloader.py"
 ✅ Good: "@Rules testing-strategy
-        Write tests for downloader.py with appropriate pytest markers"
+        Write tests for rss/downloader.py with appropriate pytest markers"
 
 ❌ Bad: "Update README.md"
 ✅ Good: "@Rules markdown-style
@@ -965,8 +968,7 @@ AI automatically:
 - Adds type hints (.cursorrules)
 - Uses correct import order (.cursorrules)
 [No @Rules needed for basic standards]
-
-```python
+```
 
 ### 3. Mandatory Workflow Steps (Enforced by .cursorrules)
 
@@ -1013,15 +1015,16 @@ make test-e2e-slow         # Full E2E with ML models
 # Before final PR: Full validation
 
 make ci  # ~10-15 min (includes coverage)
+```
 
 ```text
-I changed whisper_integration.py. What tests should I run?
+I changed providers/ml/whisper_utils.py. What tests should I run?
 
 AI response:
 
 1. make ci-fast (always)
 2. make test-integration-slow (because ML code changed)
-3. Verify specific test: pytest tests/integration/test_whisper_integration.py -v
+3. Verify specific test: pytest tests/integration/test_whisper_utils.py -v
 ```
 
 ## 5. Documentation Updates (Use @Rules markdown-style)
@@ -1039,7 +1042,6 @@ AI response:
 
 @Rules markdown-style
 Update README.md with new provider feature and run markdown validation
-
 ```
 
 ### 6. Git Worktree Workflow (Use @Rules git-worktree)
@@ -1102,7 +1104,6 @@ Check docs/ci/index.md for CI pipeline details
 
 @Rules markdown-style
 Follow MARKDOWN_LINTING_GUIDE.md standards
-
 ```
 
 ## Making This Fast (Recommended)

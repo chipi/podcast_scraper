@@ -72,7 +72,11 @@ The critical path should be tested at **all three levels** of the test pyramid:
     /------------\
    /    Unit      \   ← Critical path individual functions
   /----------------\
-```python
+```
+
+### Unit Tests (Bottom Layer)
+
+**What to Test:**
 
 - Individual functions in the critical path
 - Each step in isolation: RSS parsing, transcript download, transcription, NER, summarization, metadata generation
@@ -80,10 +84,10 @@ The critical path should be tested at **all three levels** of the test pyramid:
 **Examples:**
 
 - `rss_parser.py`: Parse RSS feeds correctly
-- `downloader.py`: Download transcripts/audio correctly
-- `whisper_integration.py`: Transcribe audio correctly
+- `rss/downloader.py`: Download transcripts/audio correctly
+- `providers/ml/whisper_utils.py`: Transcribe audio correctly
 - `speaker_detection.py`: Detect speakers from text
-- `summarizer.py`: Generate summaries from transcripts
+- `providers/ml/summarizer.py`: Generate summaries from transcripts
 - `metadata.py`: Generate metadata files
 
 **Priority**: **HIGH** - These are the building blocks of the critical path
@@ -220,7 +224,7 @@ When deciding what to test, ask:
 ## Critical Path Test Coverage Matrix
 
 |Scenario|Unit Tests|Integration Tests|E2E Tests|
-| -------- | ---------- | ----------------- | --------- |
+|--------|----------|-----------------|---------|
 |RSS parsing|✅ Parse RSS feeds|✅ RSS → Episode|✅ Full workflow|
 |Transcript download|✅ Download logic|✅ Download → Metadata|✅ Full workflow|
 |Transcription|✅ Whisper integration|✅ Audio → Transcript|✅ Full workflow|

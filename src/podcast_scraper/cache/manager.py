@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from ..utils.log_redaction import format_exception_for_log
 from .directories import (
     get_spacy_cache_dir,
     get_transformers_cache_dir,
@@ -236,7 +237,7 @@ def clean_whisper_cache(confirm: bool = True) -> Tuple[int, int]:
                 deleted_count += 1
                 freed_bytes += size
         except (OSError, PermissionError) as e:
-            logger.warning(f"Failed to delete {model['name']}: {e}")
+            logger.warning("Failed to delete %s: %s", model["name"], format_exception_for_log(e))
 
     return deleted_count, freed_bytes
 
@@ -298,7 +299,11 @@ def delete_transformers_model_cache(
         logger.info("The model will be re-downloaded on next use.")
         return True, size
     except (OSError, PermissionError) as e:
-        logger.error(f"Failed to delete cache for model '{model_name}': {e}")
+        logger.error(
+            "Failed to delete cache for model '%s': %s",
+            model_name,
+            format_exception_for_log(e),
+        )
         return False, 0
 
 
@@ -339,7 +344,7 @@ def clean_transformers_cache(confirm: bool = True) -> Tuple[int, int]:
             deleted_count += 1
             freed_bytes += size
         except (OSError, PermissionError) as e:
-            logger.warning(f"Failed to delete {model['name']}: {e}")
+            logger.warning("Failed to delete %s: %s", model["name"], format_exception_for_log(e))
 
     return deleted_count, freed_bytes
 
@@ -379,7 +384,7 @@ def clean_spacy_cache(confirm: bool = True) -> Tuple[int, int]:
             deleted_count += 1
             freed_bytes += size
         except (OSError, PermissionError) as e:
-            logger.warning(f"Failed to delete {model['name']}: {e}")
+            logger.warning("Failed to delete %s: %s", model["name"], format_exception_for_log(e))
 
     return deleted_count, freed_bytes
 

@@ -7,6 +7,7 @@ import os
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, TYPE_CHECKING
+from urllib.parse import urlparse
 
 import yaml
 from dotenv import load_dotenv
@@ -2029,6 +2030,19 @@ class Config(BaseModel):
         value = str(value).strip()
         return value or None
 
+    @field_validator("rss_url", mode="after")
+    @classmethod
+    def _validate_rss_url_scheme(cls, value: Optional[str]) -> Optional[str]:
+        """Require http(s) and hostname when rss_url is set (matches CLI validation)."""
+        if not value:
+            return value
+        parsed = urlparse(value)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {value}")
+        if not parsed.netloc:
+            raise ValueError(f"RSS URL must include a valid hostname: {value}")
+        return value
+
     @field_validator("output_dir", mode="before")
     @classmethod
     def _load_output_dir_from_env(cls, value: Any) -> Optional[str]:
@@ -2512,6 +2526,28 @@ class Config(BaseModel):
             raise ValueError("metadata_subdirectory cannot contain control characters")
         return value
 
+    @staticmethod
+    def _validate_path_no_traversal(v: Optional[str], field_name: str) -> Optional[str]:
+        """Reject paths containing '..' traversal components."""
+        if v is None:
+            return v
+        from pathlib import PurePosixPath, PureWindowsPath
+
+        for cls in (PurePosixPath, PureWindowsPath):
+            if ".." in cls(v).parts:
+                raise ValueError(f"{field_name} must not contain " f"'..' path traversal")
+        return v
+
+    @field_validator("output_dir", mode="after")
+    @classmethod
+    def _validate_output_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
+        return cls._validate_path_no_traversal(v, "output_dir")
+
+    @field_validator("log_file", mode="after")
+    @classmethod
+    def _validate_log_file_traversal(cls, v: Optional[str]) -> Optional[str]:
+        return cls._validate_path_no_traversal(v, "log_file")
+
     @field_validator("gemini_cleaning_model", mode="after")
     @classmethod
     def _migrate_legacy_gemini_cleaning_model(cls, v: str) -> str:
@@ -2900,6 +2936,73 @@ class Config(BaseModel):
             raise ValueError("grok_temperature must be between 0.0 and 2.0")
         return temp
 
+    @field_validator("anthropic_temperature", mode="after")
+    @classmethod
+    def _validate_anthropic_temperature(
+        cls,
+        v: float,
+    ) -> float:
+        if v < 0.0 or v > 1.0:
+            raise ValueError("anthropic_temperature must be between 0.0 and 1.0")
+        return v
+
+    @field_validator("mistral_temperature", mode="after")
+    @classmethod
+    def _validate_mistral_temperature(
+        cls,
+        v: float,
+    ) -> float:
+        if v < 0.0 or v > 2.0:
+            raise ValueError("mistral_temperature must be between 0.0 and 2.0")
+        return v
+
+    @field_validator(
+        "openai_cleaning_temperature",
+        "gemini_cleaning_temperature",
+        "ollama_cleaning_temperature",
+        "deepseek_cleaning_temperature",
+        "grok_cleaning_temperature",
+        "mistral_cleaning_temperature",
+        mode="after",
+    )
+    @classmethod
+    def _validate_cleaning_temperature(
+        cls,
+        v: float,
+    ) -> float:
+        if v < 0.0 or v > 2.0:
+            raise ValueError("cleaning temperature must be between 0.0 and 2.0")
+        return v
+
+    @field_validator("anthropic_cleaning_temperature", mode="after")
+    @classmethod
+    def _validate_anthropic_cleaning_temp(
+        cls,
+        v: float,
+    ) -> float:
+        if v < 0.0 or v > 1.0:
+            raise ValueError("anthropic_cleaning_temperature must be " "between 0.0 and 1.0")
+        return v
+
+    @field_validator(
+        "openai_max_tokens",
+        "gemini_max_tokens",
+        "anthropic_max_tokens",
+        "ollama_max_tokens",
+        "deepseek_max_tokens",
+        "grok_max_tokens",
+        "mistral_max_tokens",
+        mode="after",
+    )
+    @classmethod
+    def _validate_max_tokens(
+        cls,
+        v: Optional[int],
+    ) -> Optional[int]:
+        if v is not None and v < 1:
+            raise ValueError("max_tokens must be >= 1")
+        return v
+
     @model_validator(mode="after")
     def _validate_openai_provider_requirements(self) -> "Config":
         """Validate that OpenAI API key is provided when OpenAI providers are selected."""
@@ -3250,6 +3353,21 @@ class Config(BaseModel):
             return None
         value_str = str(value).strip()
         return value_str or None
+
+    @field_validator("summary_cache_dir", mode="after")
+    @classmethod
+    def _validate_summary_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
+        return cls._validate_path_no_traversal(v, "summary_cache_dir")
+
+    @field_validator("transcript_cache_dir", mode="after")
+    @classmethod
+    def _validate_transcript_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
+        return cls._validate_path_no_traversal(v, "transcript_cache_dir")
+
+    @field_validator("preprocessing_cache_dir", mode="after")
+    @classmethod
+    def _validate_preprocessing_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
+        return cls._validate_path_no_traversal(v, "preprocessing_cache_dir")
 
     @model_validator(mode="after")
     def _validate_cross_field_settings(self) -> "Config":

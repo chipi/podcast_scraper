@@ -706,6 +706,17 @@ class TestConfigFieldValidators(unittest.TestCase):
         cfg = Config(rss_url=None)
         self.assertIsNone(cfg.rss_url)
 
+    def test_rss_url_rejects_non_http_scheme(self):
+        """Non-http(s) RSS URLs must fail (aligns with CLI _validate_rss_url)."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(rss_url="file:///tmp/feed.xml")
+        err = str(ctx.exception).lower()
+        self.assertIn("http", err)
+
+    def test_rss_url_rejects_missing_hostname(self):
+        with self.assertRaises(ValidationError):
+            Config(rss_url="https://")
+
     def test_output_dir_validator_handles_none(self):
         """Test that output_dir validator handles None."""
         # output_dir can be None in Config - it's derived later in _build_config
@@ -878,6 +889,54 @@ class TestConfigFieldValidators(unittest.TestCase):
         """Test that speaker_detector_provider validator rejects invalid values."""
         with self.assertRaises(ValidationError):
             Config(rss_url="https://example.com/feed.xml", speaker_detector_provider="invalid")
+
+
+@pytest.mark.unit
+class TestPathTraversalAndTokenValidators(unittest.TestCase):
+    """Hardening validators: no .. in paths; temperatures; max_tokens."""
+
+    def test_output_dir_rejects_parent_components(self):
+        with self.assertRaises(ValidationError):
+            Config(rss_url="https://example.com/feed.xml", output_dir="/tmp/../etc")
+
+    def test_log_file_rejects_traversal(self):
+        with self.assertRaises(ValidationError):
+            Config(rss_url="https://example.com/feed.xml", log_file="logs/../../secret.log")
+
+    def test_summary_cache_dir_rejects_traversal(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                summary_cache_dir="cache/../outside",
+            )
+
+    def test_anthropic_temperature_above_one_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                anthropic_temperature=1.1,
+            )
+
+    def test_mistral_temperature_above_two_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                mistral_temperature=2.1,
+            )
+
+    def test_anthropic_cleaning_temperature_above_one_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                anthropic_cleaning_temperature=1.5,
+            )
+
+    def test_openai_max_tokens_zero_rejected(self):
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                openai_max_tokens=0,
+            )
 
 
 if __name__ == "__main__":

@@ -50,7 +50,7 @@ and hands-on work with edge and cloud AI/ML technologies.
   - macOS: `brew install graphviz`
   - Linux: `apt install graphviz` or `yum install graphviz`
   - Windows: Download from [graphviz.org](https://graphviz.org/download/)
-  - **Note:** Required for `make visualize`. Diagrams must be committed; `make ci` / `make ci-fast` and CI run `check-visualizations` and fail if they are stale.
+  - **Note:** Required for `make visualize`. Diagrams must be committed; `make ci` / `make ci-fast` and CI run `visualize` and fail if they are stale.
 
 ### Installation Options
 
@@ -68,7 +68,7 @@ Choose the installation method based on your use case:
 - Want to run models locally (Whisper, spaCy, Transformers)? → Install with ML (`pip install -e ".[ml]"`)
 - Want both options? → Install with ML (`pip install -e ".[ml]"`)
 
-**Note:** LLM provider SDKs (like `openai`) are included in core dependencies. For other LLM providers (Gemini, Anthropic, Mistral, Ollama), install with `pip install -e ".[llm]"` or individual extras like `pip install -e ".[gemini]"`. For development with all LLM providers, use `pip install -e ".[dev,ml,llm]"`.
+**Note:** LLM provider SDKs (like `openai`) are included in core dependencies. For other LLM providers (Gemini, Anthropic, Mistral, Ollama), install with `pip install -e ".[llm]"`. For development with all LLM providers, use `pip install -e ".[dev,ml,llm]"`.
 
 ### Install
 
@@ -101,8 +101,8 @@ pip install --upgrade pip setuptools wheel
 # This is sufficient if you're using OpenAI providers for transcription, speaker detection, and summarization
 pip install -e .
 
-# For Gemini providers, install with gemini extras:
-pip install -e ".[gemini]"
+# For Gemini providers, install with llm extras:
+pip install -e ".[llm]"
 ```
 
 **For local ML users (Whisper, spaCy, Transformers):**
@@ -239,7 +239,7 @@ pip install -e ".[ml]"
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify with `python --version` after activating the venv.
 - **Installation is required** — You must run `pip install -e .` (or `pip install -e ".[ml]"` for ML) before running CLI commands. Without it, you'll get `ModuleNotFoundError: No module named 'podcast_scraper'`.
-- **LLM-only users** — If you're using LLM-based providers (OpenAI, Gemini, etc.) only, install with `pip install -e .` for OpenAI or `pip install -e ".[gemini]"` for Gemini (no `[ml]` needed). LLM provider SDKs are included in core dependencies.
+- **LLM-only users** — If you're using LLM-based providers (OpenAI, Gemini, etc.) only, install with `pip install -e .` for OpenAI or `pip install -e ".[llm]"` for all LLM providers including Gemini (no `[ml]` needed). LLM provider SDKs are included in core dependencies.
 - **Local ML users** — If you want to use local Whisper, spaCy, or Transformers, install with `pip install -e ".[ml]"` to get ML dependencies.
 - **Upgrade pip/setuptools first** — If you see `"editable mode currently requires a setuptools-based build"` error, run `pip install --upgrade pip setuptools wheel` and try again.
 - **Always activate the venv** — Remember to activate your virtual environment (`source .venv/bin/activate`) before running any commands.

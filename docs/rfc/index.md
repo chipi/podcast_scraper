@@ -44,6 +44,10 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | KG ontology, artifacts, and separation from GIL (`gi` vs `kg`) |
 | [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Knowledge Graph Layer — Use Cases & End-to-End Consumption | PRD-019 | KG query patterns, export, `kg` CLI expectations, optional DB consumption |
 | [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | - | Agent-driven ratchet loop; immutable eval harness; aligns with RFC-017 prompts and `evaluation/` |
+| [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio integration for neural speaker diarization, replacing gap-based rotation |
+| [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
+| [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
+| [RFC-060](RFC-060-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | Vector index over GIL/KG/summary/transcript content; FAISS (Phase 1) + Qdrant (Phase 2); `podcast search` CLI |
 
 ## Completed RFCs
 

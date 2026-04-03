@@ -10,6 +10,8 @@ import logging
 import time
 from typing import Any, Callable, Optional, Tuple, Type
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 
@@ -53,7 +55,11 @@ def retry_with_exponential_backoff(
                 # Exponential backoff: double the delay, but cap at max_delay
                 delay = min(delay * 2, max_delay)
             else:
-                logger.error(f"All {max_retries + 1} attempts failed. Last error: {e}")
+                logger.error(
+                    "All %d attempts failed. Last error: %s",
+                    max_retries + 1,
+                    format_exception_for_log(e),
+                )
         except Exception as e:
             # Non-retryable exception - re-raise immediately
             logger.debug(f"Non-retryable exception: {e}")

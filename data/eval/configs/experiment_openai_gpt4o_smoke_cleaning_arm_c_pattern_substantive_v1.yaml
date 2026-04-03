@@ -1,0 +1,25 @@
+# Arm C (transcript-cleaning experiment): pattern-only cleaning + stronger summarization prompt
+# (emphasize substantive content; de-emphasize noise). Same dataset as Arms A/B.
+# Requires: OPENAI_API_KEY
+# See: docs/wip/transcript-cleaning-cost-quality-eval-plan.md
+
+id: "experiment_openai_gpt4o_smoke_cleaning_arm_c_pattern_substantive_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  user: "openai/summarization/long_v1_substantive_focus_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+transcript_cleaning_strategy: "pattern"

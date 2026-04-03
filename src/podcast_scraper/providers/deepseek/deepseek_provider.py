@@ -40,6 +40,8 @@ from ...utils.cleaning_max_tokens import (
     DEEPSEEK_CLEANING_MAX_TOKENS,
     estimate_cleaning_output_tokens,
 )
+from ...utils.log_redaction import format_exception_for_log
+from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -86,6 +88,20 @@ class DeepSeekProvider:
             raise ValueError(
                 "DeepSeek API key required for DeepSeek provider. "
                 "Set DEEPSEEK_API_KEY environment variable or deepseek_api_key in config."
+            )
+
+        from ...utils.provider_metadata import validate_api_key_format
+
+        is_valid, _ = validate_api_key_format(
+            cfg.deepseek_api_key,
+            "DeepSeek",
+            expected_prefixes=None,
+        )
+        if not is_valid:
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "DeepSeek API key validation failed (missing or too short); "
+                "credentials are never logged."
             )
 
         self.cfg = cfg
@@ -242,7 +258,9 @@ class DeepSeekProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -297,16 +315,27 @@ class DeepSeekProvider:
             )
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call DeepSeek API (OpenAI-compatible format)
-            response = self.client.chat.completions.create(
-                model=self.speaker_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.speaker_temperature,
-                max_tokens=300,
-                response_format={"type": "json_object"},  # Request JSON response
+            # Call DeepSeek API (OpenAI-compatible format) with retry
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
+
+            response = retry_with_metrics(
+                lambda: self.client.chat.completions.create(
+                    model=self.speaker_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.speaker_temperature,
+                    max_tokens=300,
+                    response_format={"type": "json_object"},
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
             )
 
             response_text = response.choices[0].message.content
@@ -335,10 +364,14 @@ class DeepSeekProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse DeepSeek API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse DeepSeek API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("DeepSeek API error in speaker detection: %s", exc)
+            logger.error(
+                "DeepSeek API error in speaker detection: %s", format_exception_for_log(exc)
+            )
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -348,25 +381,25 @@ class DeepSeekProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"DeepSeek authentication failed: {exc}",
+                    message=f"DeepSeek authentication failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                     suggestion="Check your DEEPSEEK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek rate limit exceeded: {exc}",
+                    message=f"DeepSeek rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek invalid model: {exc}",
+                    message=f"DeepSeek invalid model: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                     suggestion="Check deepseek_speaker_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek speaker detection failed: {exc}",
+                    message=f"DeepSeek speaker detection failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/SpeakerDetection",
                 ) from exc
 
@@ -499,15 +532,15 @@ class DeepSeekProvider:
                 text, episode_title, episode_description, max_length, min_length, custom_prompt
             )
 
-            # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("deepseek")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -526,7 +559,7 @@ class DeepSeekProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -535,12 +568,21 @@ class DeepSeekProvider:
 
             call_metrics.finalize()
 
+            warn_if_truncated(
+                response.choices[0].finish_reason,
+                "deepseek",
+                "summarize",
+            )
+
             summary = response.choices[0].message.content
             if not summary:
                 logger.warning("DeepSeek API returned empty summary")
                 summary = ""
 
-            logger.debug("DeepSeek summarization completed: %d characters", len(summary))
+            logger.debug(
+                "DeepSeek summarization completed: %d characters",
+                len(summary),
+            )
 
             # Extract token counts and populate call_metrics
             input_tokens = None
@@ -611,7 +653,7 @@ class DeepSeekProvider:
             }
 
         except Exception as exc:
-            logger.error("DeepSeek API error in summarization: %s", exc)
+            logger.error("DeepSeek API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import (
                 ProviderAuthError,
                 ProviderRuntimeError,
@@ -621,25 +663,25 @@ class DeepSeekProvider:
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"DeepSeek authentication failed: {exc}",
+                    message=f"DeepSeek authentication failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                     suggestion="Check your DEEPSEEK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek rate limit exceeded: {exc}",
+                    message=f"DeepSeek rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             elif "invalid" in error_msg and "model" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek invalid model: {exc}",
+                    message=f"DeepSeek invalid model: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                     suggestion="Check deepseek_summary_model configuration",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek summarization failed: {exc}",
+                    message=f"DeepSeek summarization failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Summarization",
                 ) from exc
 
@@ -800,7 +842,10 @@ class DeepSeekProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -818,7 +863,7 @@ class DeepSeekProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_openai_retryable(),
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -860,7 +905,10 @@ class DeepSeekProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -878,7 +926,7 @@ class DeepSeekProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(Exception,),
+                retryable_exceptions=_safe_openai_retryable(),
             )
             raw = (response.choices[0].message.content or "").strip()
             return parse_kg_graph_response(raw, max_topics=max_topics, max_entities=max_entities)
@@ -910,9 +958,8 @@ class DeepSeekProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -941,7 +988,7 @@ class DeepSeekProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -987,9 +1034,8 @@ class DeepSeekProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1018,7 +1064,7 @@ class DeepSeekProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1074,14 +1120,14 @@ class DeepSeekProvider:
         )
 
         try:
-            # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("deepseek")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1103,7 +1149,7 @@ class DeepSeekProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1121,26 +1167,26 @@ class DeepSeekProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("DeepSeek API error in cleaning: %s", exc)
+            logger.error("DeepSeek API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle DeepSeek-specific error types
             error_msg = str(exc).lower()
             if "api key" in error_msg or "authentication" in error_msg or "permission" in error_msg:
                 raise ProviderAuthError(
-                    message=f"DeepSeek authentication failed: {exc}",
+                    message=f"DeepSeek authentication failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Cleaning",
                     suggestion="Check your DEEPSEEK_API_KEY environment variable or config setting",
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek rate limit exceeded: {exc}",
+                    message=f"DeepSeek rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"DeepSeek cleaning failed: {exc}",
+                    message=f"DeepSeek cleaning failed: {format_exception_for_log(exc)}",
                     provider="DeepSeekProvider/Cleaning",
                 ) from exc
 

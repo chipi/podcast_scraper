@@ -29,11 +29,9 @@ endif
 # Uses memory-aware calculation script (defaults to integration test estimates)
 PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
 
-# pytest-xdist worker count for ``make test-nightly`` (default 2). On memory-constrained
-# runners (e.g. GitHub Actions ubuntu-latest), two workers each loading Whisper + BART/LED
-# can trigger OOM kills (~1–2 min in) showing as ``Terminated``. Set NIGHTLY_PYTEST_WORKERS=1
-# in CI or export before running locally. Example: NIGHTLY_PYTEST_WORKERS=1 make test-nightly
-NIGHTLY_PYTEST_WORKERS ?= 2
+# Note: NIGHTLY_PYTEST_WORKERS removed — test-nightly now runs sequentially only.
+# Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
+# triggered fallback, doubling wall time).
 
 .PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run autoresearch-score runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
 
@@ -262,8 +260,9 @@ lint-markdown-docs:
 	@command -v markdownlint >/dev/null 2>&1 || { echo "markdownlint not found. Install with: npm install -g markdownlint-cli"; exit 1; }
 	markdownlint "docs/**/*.md" --ignore "docs/wip/**" --config .markdownlint.json
 
+# Match CI lint job (python-app.yml): PYTHONPATH includes repo root so imports match Actions.
 type:
-	$(PYTHON) -m mypy --config-file pyproject.toml .
+	@export PYTHONPATH="$$PYTHONPATH:$(PWD)" && $(PYTHON) -m mypy --config-file pyproject.toml .
 
 security: security-bandit security-audit
 
@@ -532,13 +531,11 @@ test-nightly:
 	# Nightly-only tests: comprehensive tests with production ML models (p01-p05 full suite)
 	# Uses production models: Whisper base.en, BART-large-cnn, LED-large-16384
 	# Runs all 15 episodes across 5 podcasts (p01-p05)
-	# Try parallel execution first (socket issue fixed), fallback to sequential if needed
+	# Sequential execution only — parallel (pytest-xdist) caused double-runs on CI because
+	# exit-code mismatches triggered the fallback path, doubling wall time from ~75 min to ~3 h.
 	# NOT marked with @pytest.mark.e2e - separate category from regular E2E tests
 	# Excludes LLM/OpenAI tests to avoid API costs (see issue #183)
-	# Note: Removed --disable-socket for pytest-xdist compatibility with -n (parallel)
-	# pytest-xdist requires localhost socket access for worker communication
-	# Network access is still restricted via --allow-hosts=127.0.0.1,localhost
-	# Parallelism: see NIGHTLY_PYTEST_WORKERS (use 1 on low-RAM CI to avoid OOM)
+	# Network access restricted via --disable-socket + --allow-hosts
 	@echo "Running nightly tests with production models..."
 	@echo "Podcasts: p01-p05 (15 episodes total)"
 	@echo "Models: Whisper base.en, BART-large-cnn, LED-large-16384"
@@ -553,7 +550,7 @@ test-nightly:
 	@START_TIME=$$(date +%s); \
 	echo ""; \
 	echo "📊 Test execution details:"; \
-	echo "   - Mode: Nightly (production models)"; \
+	echo "   - Mode: Nightly (production models, sequential)"; \
 	echo "   - Episodes: 15 total (5 podcasts × 3 episodes)"; \
 	echo "   - Models: Whisper base.en, BART-large-cnn, LED-large-16384"; \
 	echo "   - Start time: $$(date '+%Y-%m-%d %H:%M:%S')"; \
@@ -563,49 +560,20 @@ test-nightly:
 	echo "   - Available memory: $$(free -h 2>/dev/null | grep Mem | awk '{print $$7}' || vm_stat 2>/dev/null | head -1 || echo 'unknown')"; \
 	echo "   - Disk space: $$(df -h . | tail -1 | awk '{print $$4 " available"}')"; \
 	echo ""; \
-	echo "🔄 Attempting pytest-xdist ($(NIGHTLY_PYTEST_WORKERS) worker(s))..."; \
-	echo "   This may take 30-60 minutes depending on model loading and processing time"; \
+	echo "🔄 Running sequential (no pytest-xdist)..."; \
+	echo "   This may take 60-90 minutes depending on model loading and processing time"; \
 	echo "   Progress will be shown below (each test name as it runs)"; \
 	echo "   ============================================================"; \
-	(E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v -n $(NIGHTLY_PYTEST_WORKERS) --tb=short -ra --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json 2>&1 | tee /tmp/nightly-test-output.log; echo "$${PIPESTATUS[0]}" > /tmp/nightly-exit-code.txt) || true; \
-	PARALLEL_EXIT_CODE=$$(cat /tmp/nightly-exit-code.txt 2>/dev/null || echo "1"); \
-	if [ "$$PARALLEL_EXIT_CODE" != "0" ]; then \
-		ELAPSED=$$(($$(date +%s) - START_TIME)); \
-		echo ""; \
-		echo "============================================================"; \
-		echo "⚠️  Parallel execution failed (exit code $$PARALLEL_EXIT_CODE) at $$(date '+%Y-%m-%d %H:%M:%S')"; \
-		echo "   Elapsed time: $$ELAPSED seconds ($$(($$ELAPSED / 60)) minutes)"; \
-		echo ""; \
-		echo "📋 Last 100 lines of output:"; \
-		tail -100 /tmp/nightly-test-output.log 2>/dev/null || echo "   (No output captured)"; \
-		echo ""; \
-		echo "🔄 Falling back to sequential execution (no parallelism)..."; \
-		echo "   Start time: $$(date '+%Y-%m-%d %H:%M:%S')"; \
-		START_TIME_SEQ=$$(date +%s); \
-		(E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --tb=short -ra --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20 --junitxml=reports/junit-nightly.xml --json-report --json-report-file=reports/pytest-nightly.json 2>&1 | tee /tmp/nightly-test-sequential.log; echo "$${PIPESTATUS[0]}" > /tmp/nightly-sequential-exit-code.txt) || true; \
-		SEQUENTIAL_EXIT_CODE=$$(cat /tmp/nightly-sequential-exit-code.txt 2>/dev/null || echo "1"); \
-		if [ "$$SEQUENTIAL_EXIT_CODE" != "0" ]; then \
-			ELAPSED_SEQ=$$(($$(date +%s) - START_TIME_SEQ)); \
-			echo ""; \
-			echo "============================================================"; \
-			echo "❌ Sequential execution also failed (exit code $$SEQUENTIAL_EXIT_CODE) at $$(date '+%Y-%m-%d %H:%M:%S')"; \
-			echo "   Elapsed time: $$ELAPSED_SEQ seconds ($$(($$ELAPSED_SEQ / 60)) minutes)"; \
-			echo ""; \
-			echo "📋 Last 100 lines of sequential output:"; \
-			tail -100 /tmp/nightly-test-sequential.log 2>/dev/null || echo "   (No output captured)"; \
-			exit $$SEQUENTIAL_EXIT_CODE; \
-		fi; \
-		ELAPSED_SEQ=$$(($$(date +%s) - START_TIME_SEQ)); \
-		echo ""; \
-		echo "✅ Sequential execution completed at $$(date '+%Y-%m-%d %H:%M:%S')"; \
-		echo "   Total elapsed time: $$ELAPSED_SEQ seconds ($$(($$ELAPSED_SEQ / 60)) minutes)"; \
-	else \
-		ELAPSED=$$(($$(date +%s) - START_TIME)); \
-		echo ""; \
-		echo "============================================================"; \
-		echo "✅ Parallel execution completed successfully at $$(date '+%Y-%m-%d %H:%M:%S')"; \
-		echo "   Total elapsed time: $$ELAPSED seconds ($$(($$ELAPSED / 60)) minutes)"; \
-	fi
+	E2E_TEST_MODE=nightly pytest tests/e2e/ -m "nightly and not llm" -v --tb=short -ra \
+		--disable-socket --allow-hosts=127.0.0.1,localhost \
+		--durations=20 \
+		--junitxml=reports/junit-nightly.xml \
+		--json-report --json-report-file=reports/pytest-nightly.json; \
+	ELAPSED=$$(($$(date +%s) - START_TIME)); \
+	echo ""; \
+	echo "============================================================"; \
+	echo "✅ Nightly tests completed at $$(date '+%Y-%m-%d %H:%M:%S')"; \
+	echo "   Total elapsed time: $$ELAPSED seconds ($$(($$ELAPSED / 60)) minutes)"
 
 test-nightly-subset:
 	# Run a subset of nightly tests for local verification

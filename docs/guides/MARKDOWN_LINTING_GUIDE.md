@@ -207,7 +207,7 @@ markdownlint "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
 # Auto-fix issues (when possible)
 
 markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .build/site
-```text
+```
 
 ## Table Formatting Rules
 
@@ -267,7 +267,7 @@ assert h_pipes == d1_pipes == d2_pipes, "Pipes must align exactly!"
 assert len(header) == len(data1) == len(data2), "All rows must be same length!"
 
 print("✅ Alignment verified!")
-```text
+```
 
 - **Column width** = distance between pipes (e.g., 11-0=11, 27-11=16)
 - **Content width** = column width - 3 (accounts for `|` prefix and `|` suffix with spaces)
@@ -300,7 +300,7 @@ make install-hooks
 
 cp .github/hooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
-```text
+```
 
 - ✅ Automatically checks staged markdown files before each commit
 - ✅ Uses same ignore patterns as `make lint-markdown`
@@ -310,19 +310,15 @@ chmod +x .git/hooks/pre-commit
 **Enable auto-fix in pre-commit hook:**
 
 ```bash
-
 # Set environment variable to enable auto-fix
-
 export MARKDOWNLINT_FIX=1
 git commit -m "your message"
-
 # Auto-fixed files will be re-staged automatically
+```
 
 ```bash
-
 git commit --no-verify
-
-```text
+```
 
 - All markdown files are checked, not just changed files
 
@@ -387,7 +383,7 @@ make lint-markdown
 
 # Step 4: Fix remaining errors manually
 
-```text
+```
 
 **Why:** Automated fixes are fast, consistent, and handle the majority of issues. Manual fixes
 should only be for edge cases.
@@ -411,7 +407,7 @@ blank lines:
 
 - Item 1
 
-```text
+```
 
 **MD051 (link-fragments):** Can produce false positives. If headings exist and fragments match
 correctly, consider disabling this rule:
@@ -422,7 +418,7 @@ correctly, consider disabling this rule:
   "MD051": false
 }
 
-```text
+```
 
 **MD013 (line-length):** Many long lines are legitimate (URLs, code examples, technical
 descriptions). Consider:

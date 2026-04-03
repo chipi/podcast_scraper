@@ -1,6 +1,6 @@
 # Knowledge Graph Guide
 
-This guide will document the **Knowledge Graph Layer (KG)**: structured **entities**,
+This guide documents the **Knowledge Graph Layer (KG)**: structured **entities**,
 **topics**, and **relationships** extracted from episode content for linking and discovery.
 It complements the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md), which covers
 evidence-backed insights (`gi.json`).

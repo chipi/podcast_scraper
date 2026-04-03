@@ -23,6 +23,7 @@ else:
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ...providers.capabilities import get_provider_capabilities, is_local_provider
 from ...utils import filesystem, progress
+from ...utils.log_redaction import format_exception_for_log, redact_for_log
 from .. import metrics
 from ..episode_processor import transcribe_media_to_text as factory_transcribe_media_to_text
 from ..helpers import update_metric_safely
@@ -103,7 +104,10 @@ def setup_transcription_resources(
                 type(transcription_provider).__name__,
             )
         except Exception as exc:
-            logger.error("Failed to initialize transcription provider: %s", exc)
+            logger.error(
+                "Failed to initialize transcription provider: %s",
+                format_exception_for_log(exc),
+            )
             # Fail fast - provider initialization should succeed
             # If provider creation fails, we cannot proceed with transcription
             transcription_provider = None
@@ -256,7 +260,11 @@ def process_transcription_jobs(
                             )
             except Exception as exc:  # pragma: no cover
                 update_metric_safely(pipeline_metrics, "errors_total", 1)
-                logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+                logger.error(
+                    "[%s] transcription raised an unexpected error: %s",
+                    job.idx,
+                    format_exception_for_log(exc),
+                )
                 # Record per-episode failure for run index (Issue #429)
                 if pipeline_metrics is not None:
                     episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
@@ -269,7 +277,7 @@ def process_transcription_jobs(
                             status="failed",
                             stage="transcription",
                             error_type=type(exc).__name__,
-                            error_message=str(exc)[:500],
+                            error_message=redact_for_log(str(exc), max_len=500),
                         )
                 # Issue #429 Phase 2: stop on first failure or after N failures
                 fail_fast = getattr(cfg, "fail_fast", False)
@@ -431,7 +439,11 @@ def process_transcription_jobs_concurrent(  # noqa: C901
             return success, transcript_path, bytes_downloaded
         except Exception as exc:  # pragma: no cover
             update_metric_safely(pipeline_metrics, "errors_total", 1)
-            logger.error(f"[{job.idx}] transcription raised an unexpected error: {exc}")
+            logger.error(
+                "[%s] transcription raised an unexpected error: %s",
+                job.idx,
+                format_exception_for_log(exc),
+            )
             # Record per-episode failure for run index (Issue #429)
             if pipeline_metrics is not None:
                 episode_obj = next((ep for ep in episodes if ep.idx == job.idx), None)
@@ -444,7 +456,7 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                         status="failed",
                         stage="transcription",
                         error_type=type(exc).__name__,
-                        error_message=str(exc)[:500],
+                        error_message=redact_for_log(str(exc), max_len=500),
                     )
             return False, None, 0
 
@@ -520,7 +532,11 @@ def process_transcription_jobs_concurrent(  # noqa: C901
                             jobs_processed,
                         )
                     except Exception as exc:  # pragma: no cover
-                        logger.error(f"[{job_idx}] transcription future raised error: {exc}")
+                        logger.error(
+                            "[%s] transcription future raised error: %s",
+                            job_idx,
+                            format_exception_for_log(exc),
+                        )
 
             while True:
                 _submit_new_transcription_jobs()

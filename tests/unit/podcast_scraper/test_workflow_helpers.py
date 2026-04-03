@@ -481,10 +481,13 @@ class TestApplyLogLevel(unittest.TestCase):
 
     def test_apply_log_level_valid(self):
         """Test that apply_log_level works with valid log level."""
-        workflow.apply_log_level("DEBUG")
-
-        root_logger = logging.getLogger()
-        self.assertEqual(root_logger.level, logging.DEBUG)
+        original_level = logging.getLogger().level
+        try:
+            workflow.apply_log_level("DEBUG")
+            root_logger = logging.getLogger()
+            self.assertEqual(root_logger.level, logging.DEBUG)
+        finally:
+            logging.getLogger().setLevel(original_level)
 
     def test_apply_log_level_invalid(self):
         """Test that apply_log_level raises ValueError for invalid log level."""
@@ -557,14 +560,15 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             preload_models=True,
         )
 
-    @patch("podcast_scraper.config._is_test_environment")
-    def test_ensure_ml_models_cached_skips_in_test(self, mock_is_test):
-        """Test that ensure_ml_models_cached skips in test environment."""
-        mock_is_test.return_value = True
-
-        # Function should return early in test environment
-        setup.ensure_ml_models_cached(self.cfg)
-        # The important thing is it doesn't crash
+    def test_ensure_ml_models_cached_skips_in_test(self):
+        """ensure_ml_models_cached returns early when preload is not needed."""
+        with patch(
+            "podcast_scraper.workflow.stages.setup.should_preload_ml_models",
+            return_value=False,
+        ) as mock_preload:
+            result = setup.ensure_ml_models_cached(self.cfg)
+            mock_preload.assert_called_once()
+            self.assertIsNone(result)
 
     @patch("podcast_scraper.config._is_test_environment")
     def test_ensure_ml_models_cached_skips_when_disabled(self, mock_is_test):
@@ -842,19 +846,15 @@ class TestEnsureMLModelsCached(unittest.TestCase):
             whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
         )
 
-        # Mock ImportError when importing cache module (patch the import at module level)
-        # Since cache is imported inside the function, we need to patch sys.modules
         import sys
 
         original_cache = sys.modules.get("podcast_scraper.cache")
         try:
-            # Remove cache from sys.modules to simulate ImportError
             if "podcast_scraper.cache" in sys.modules:
                 del sys.modules["podcast_scraper.cache"]
-            # Should not raise - just passes silently (caught by outer except ImportError)
-            setup.ensure_ml_models_cached(cfg)
+            result = setup.ensure_ml_models_cached(cfg)
+            self.assertIsNone(result)
         finally:
-            # Restore original module
             if original_cache is not None:
                 sys.modules["podcast_scraper.cache"] = original_cache
 

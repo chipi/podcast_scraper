@@ -25,18 +25,15 @@ GitHub Actions workflows automatically handle exit codes - a non-zero exit code 
 Install the git pre-commit hook to automatically check your code before every commit:
 
 ```bash
-
 # One-time setup
-
 make install-hooks
+```
 
-```python
-
-- ✅ **Black** formatting check
-- ✅ **isort** import sorting check
-- ✅ **flake8** linting
-- ✅ **markdownlint** (if installed)
-- ✅ **mypy** type checking
+- ✅ **Black** formatting check (staged `.py` files only)
+- ✅ **isort** import sorting check (staged `.py` files only)
+- ✅ **flake8** linting (staged `.py` files only)
+- ✅ **markdownlint** (if installed; staged `.md` files only)
+- ✅ **mypy** on the **entire** repo (`mypy .`), with `PYTHONPATH` including the repo root — same as CI `make type`. Any error fails the commit, not only errors in staged files.
 
 **If any check fails, the commit is blocked** until you fix the issues.
 
@@ -66,7 +63,7 @@ git commit -m "your message"
 
 # - Full validation before commits/PRs
 
-# - Note: No cleanup step (faster), use ci-full for complete validation
+# - Note: No cleanup step (faster), use ci-clean for complete validation
 
 make ci
 
@@ -88,7 +85,7 @@ make ci-fast
 
 # - Use for complete validation before releases
 
-make ci-full
+make ci-clean
 
 # Individual checks (same as CI)
 
@@ -114,7 +111,7 @@ make build         # package build
 
 - **`make ci`**: Full validation before commits/PRs (unit + fast integration + fast e2e tests), matches GitHub Actions PR validation exactly
 - **`make ci-fast`**: Quick feedback during development (unit + fast integration + fast e2e, no coverage), faster iteration
-- **`make ci-full`**: Complete validation with all tests including slow/ml_models tests (unit + integration + e2e, all variants), use before releases
+- **`make ci-clean`**: Complete validation with all tests including slow/ml_models tests (unit + integration + e2e, all variants), use before releases
 
 ## Local CI Validation Flow
 

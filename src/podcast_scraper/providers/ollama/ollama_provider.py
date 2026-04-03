@@ -51,6 +51,8 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     OLLAMA_CLEANING_MAX_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log
+from ...utils.provider_metadata import warn_if_truncated
 from ...utils.timeout_config import get_http_timeout
 from ...workflow import metrics
 
@@ -514,7 +516,9 @@ class OllamaProvider:
             # httpx exceptions inherit from httpx.HTTPError, but we catch Exception
             # to be safe across different httpx versions
             if "httpx" in type(exc).__module__:
-                logger.warning("Could not validate model availability: %s", exc)
+                logger.warning(
+                    "Could not validate model availability: %s", format_exception_for_log(exc)
+                )
                 # Don't fail - model might still work, just warn
             else:
                 raise
@@ -589,7 +593,7 @@ class OllamaProvider:
                 response.raise_for_status()
                 logger.debug(f"Model {model} warmed up successfully")
             except Exception as exc:
-                logger.warning(f"Failed to warm up model {model}: {exc}")
+                logger.warning(f"Failed to warm up model {model}: {format_exception_for_log(exc)}")
                 # Don't fail - model might still work, just warn
                 # The first real request will trigger loading anyway
 
@@ -663,7 +667,7 @@ class OllamaProvider:
                     logger.debug(f"Model {model} is ready (elapsed: {elapsed:.1f}s)")
                 except Exception as exc:
                     # Model not ready yet, continue polling
-                    logger.debug(f"Model {model} not ready yet: {exc}")
+                    logger.debug(f"Model {model} not ready yet: {format_exception_for_log(exc)}")
 
             # If not all models are ready, wait before next poll
             if len(ready_models) < len(models_to_check):
@@ -734,7 +738,9 @@ class OllamaProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -796,22 +802,31 @@ class OllamaProvider:
                 )
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call Ollama API (OpenAI-compatible format)
+            # Call Ollama API (OpenAI-compatible format) with retry
+            from ...utils.provider_metrics import retry_with_metrics
+
             logger.info(
                 "Calling Ollama API for speaker detection with model: '%s' "
                 "(exact name being sent to Ollama)",
                 self.speaker_model,
             )
-            response = self.client.chat.completions.create(
-                model=self.speaker_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.speaker_temperature,
-                max_tokens=300,
-                response_format={"type": "json_object"},  # Request JSON response
-                **_ollama_openai_chat_extra_kwargs(self.speaker_model),
+
+            response = retry_with_metrics(
+                lambda: self.client.chat.completions.create(
+                    model=self.speaker_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.speaker_temperature,
+                    max_tokens=300,
+                    response_format={"type": "json_object"},
+                    **_ollama_openai_chat_extra_kwargs(self.speaker_model),
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=(Exception,),
             )
 
             response_text = response.choices[0].message.content
@@ -840,14 +855,16 @@ class OllamaProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse Ollama API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse Ollama API JSON response: %s", format_exception_for_log(exc)
+            )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("Ollama API error in speaker detection: %s", exc)
+            logger.error("Ollama API error in speaker detection: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"Ollama speaker detection failed: {exc}",
+                message=f"Ollama speaker detection failed: {format_exception_for_log(exc)}",
                 provider="OllamaProvider/SpeakerDetection",
             ) from exc
 
@@ -996,14 +1013,15 @@ class OllamaProvider:
             )
 
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             if call_metrics is None:
                 call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("ollama")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 logger.info(
@@ -1028,7 +1046,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )
@@ -1038,12 +1056,21 @@ class OllamaProvider:
 
             call_metrics.finalize()
 
+            warn_if_truncated(
+                response.choices[0].finish_reason,
+                "ollama",
+                "summarize",
+            )
+
             summary = response.choices[0].message.content
             if not summary:
                 logger.warning("Ollama API returned empty summary")
                 summary = ""
 
-            logger.debug("Ollama summarization completed: %d characters", len(summary))
+            logger.debug(
+                "Ollama summarization completed: %d characters",
+                len(summary),
+            )
 
             # Extract token counts and populate call_metrics (Ollama may not report usage)
             input_tokens = None
@@ -1122,11 +1149,11 @@ class OllamaProvider:
             }
 
         except Exception as exc:
-            logger.error("Ollama API error in summarization: %s", exc)
+            logger.error("Ollama API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"Ollama summarization failed: {exc}",
+                message=f"Ollama summarization failed: {format_exception_for_log(exc)}",
                 provider="OllamaProvider/Summarization",
             ) from exc
 
@@ -1242,13 +1269,14 @@ class OllamaProvider:
 
         try:
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("ollama")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 logger.info(
@@ -1276,7 +1304,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )
@@ -1295,20 +1323,20 @@ class OllamaProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("Ollama API error in cleaning: %s", exc)
+            logger.error("Ollama API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             # Handle Ollama-specific error types
             error_msg = str(exc).lower()
             if "connection" in error_msg or "refused" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"Ollama server connection failed: {exc}",
+                    message=f"Ollama server connection failed: {format_exception_for_log(exc)}",
                     provider="OllamaProvider/Cleaning",
                     suggestion="Ensure Ollama server is running at the configured base URL",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"Ollama cleaning failed: {exc}",
+                    message=f"Ollama cleaning failed: {format_exception_for_log(exc)}",
                     provider="OllamaProvider/Cleaning",
                 ) from exc
 
@@ -1411,9 +1439,10 @@ class OllamaProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1432,7 +1461,7 @@ class OllamaProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                retryable_exceptions=_safe_openai_retryable(),
                 error_context="ollama_local",
             )
             raw = (response.choices[0].message.content or "").strip()
@@ -1475,9 +1504,10 @@ class OllamaProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1496,7 +1526,7 @@ class OllamaProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                retryable_exceptions=_safe_openai_retryable(),
                 error_context="ollama_local",
             )
             raw = (response.choices[0].message.content or "").strip()
@@ -1529,9 +1559,8 @@ class OllamaProvider:
             "Return JSON with quote_text only."
         )
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1561,7 +1590,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )
@@ -1608,9 +1637,8 @@ class OllamaProvider:
         )
         user = f"Premise: {premise.strip()}\n\nHypothesis: {hypothesis.strip()}"
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 openai_compatible_chat_usage_tokens,
@@ -1640,7 +1668,7 @@ class OllamaProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                     error_context="ollama_local",
                 )

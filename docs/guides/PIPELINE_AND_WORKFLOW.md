@@ -14,7 +14,8 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 8. **Summarization** (PRD-005/RFC-012): When enabled, episode transcripts are summarized using the configured provider — local transformer models (BART, PEGASUS, LED) via `MLProvider`; the **hybrid_ml** provider (MAP with LongT5 + REDUCE via Ollama, llama.cpp, or transformers); or any of 7 LLM providers (OpenAI, Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama) via prompt templates. See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for ML architecture details.
 9. **Run Tracking** (Issue #379): Run manifests capture system state at pipeline start. Per-episode stage timings track processing duration. Run summaries combine manifest and metrics. Episode index files list all processed episodes with status.
 10. **Progress/UI**: All long-running operations report progress through the pluggable factory in `utils.progress`, defaulting to `rich` in the CLI.
-11. **GIL Extraction** (PRD-017, planned): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Architecture - Planned Evolution](../ARCHITECTURE.md#planned-architecture-evolution) for details.
+11. **GIL Extraction** (PRD-017): When enabled, the Grounded Insight Layer extracts structured insights and verbatim quotes from transcripts, links them via grounding relationships, and writes a `gi.json` file per episode. This step runs after summarization and uses the same multi-provider architecture. See [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [Architecture](../ARCHITECTURE.md) for details.
+12. **KG Extraction** (RFC-055): When enabled, Knowledge Graph extraction produces structured topic graphs from transcripts and summaries, writing `*.kg.json` per episode. See [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) for details.
 
 ## Pipeline Flow Diagram
 
@@ -50,10 +51,14 @@ flowchart TD
     Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
     AddSummaryToMetadata --> GILCheck{GIL Extraction?}
     GILCheck -->|Yes| ExtractGIL[Extract Insights + Quotes]
-    GILCheck -->|No| Cleanup
+    GILCheck -->|No| KGCheck
     ExtractGIL --> GroundInsights[Ground Insights with Quotes]
     GroundInsights --> WriteGI[Write gi.json]
-    WriteGI --> Cleanup[Cleanup Temp Files]
+    WriteGI --> KGCheck{KG Extraction?}
+    KGCheck -->|Yes| ExtractKG[Extract Topic Graph]
+    KGCheck -->|No| Cleanup
+    ExtractKG --> WriteKG[Write kg.json]
+    WriteKG --> Cleanup[Cleanup Temp Files]
     Cleanup --> End([Complete])
 
     style Start fill:#e1f5ff
@@ -62,6 +67,7 @@ flowchart TD
     style Transcribe fill:#f8d7da
     style GenerateMetadata fill:#d1ecf1
     style ExtractGIL fill:#e8daef
+    style ExtractKG fill:#d5f5e3
 ```
 
 ## Module Roles in the Pipeline
@@ -75,7 +81,7 @@ flowchart TD
 - **workflow.episode_processor**: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
 - **utils.filesystem**: Filename sanitization, output directory derivation based on feed hash ([ADR-003](../adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
 - **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-012](../adr/ADR-012-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Nine summarization options; eight unified provider classes implement protocol combinations ([ADR-011](../adr/ADR-011-unified-provider-pattern.md)):
+- **Unified Providers** (RFC-029): Nine summarization options; nine unified provider classes (1 local ML + 1 hybrid ML + 7 LLM) implement protocol combinations ([ADR-011](../adr/ADR-011-unified-provider-pattern.md)):
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
@@ -91,12 +97,14 @@ flowchart TD
 
   - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
   - **Capabilities**: `providers/capabilities.py` defines `ProviderCapabilities` — a dataclass describing what each provider supports (JSON mode, tool calls, streaming, etc.). Used by factories and orchestration to select appropriate providers.
-  - **Prompt Management** (RFC-017): `prompts/store.py` implements versioned Jinja2 prompt templates organized by `<provider>/<task>/<version>.j2`. Each of the 8 providers has tuned templates for summarization and NER. LLM providers load prompts via `PromptStore.render()` ensuring consistent, version-tracked prompt engineering.
-- **whisper_integration.py**: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Now accessed via `MLProvider` (unified provider pattern).
+  - **Prompt Management** (RFC-017): `prompts/store.py` implements versioned Jinja2 prompt templates organized by `<provider>/<task>/<version>.j2`. Each of the 9 providers has tuned templates for summarization and NER. LLM providers load prompts via `PromptStore.render()` ensuring consistent, version-tracked prompt engineering.
+- **providers/ml/whisper_utils.py**: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Accessed via `MLProvider` (unified provider pattern).
 - **speaker_detection.py** (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Now accessed via `MLProvider` (unified provider pattern).
-- **summarizer.py** (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Now accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for details.
+- **providers/ml/summarizer.py** (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](ML_PROVIDER_REFERENCE.md) for details.
+- **gi/** (PRD-017): Grounded Insight Layer — structured insight and quote extraction with evidence grounding. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `grounding.py` (insight-quote linking), `contracts.py` (grounding contract), `explore.py` (CLI exploration), `corpus.py` (cross-episode operations), `io.py` (serialization), `provenance.py` (provenance tracking), `compare_runs.py` (cross-run comparison), `quality_metrics.py` (quality scoring).
+- **kg/** (RFC-055): Knowledge Graph extraction — structured topic graphs from transcripts and summaries. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `llm_extract.py` (LLM-based extraction), `cli_handlers.py` (CLI subcommands), `io.py` (serialization), `corpus.py` (cross-episode operations), `contracts.py` (KG contract enforcement), `quality_metrics.py` (quality scoring).
 - **utils.progress**: Minimal global progress publishing API so callers can swap in alternative UIs.
-- **models/** (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules. May be extended to include detected speaker metadata.
+- **models/** (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules.
 - **workflow.metadata_generation** (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
 
 ## Module Dependencies Diagram
@@ -155,6 +163,15 @@ graph TB
         OllamaProvider[providers/ollama/]
     end
 
+    subgraph "Knowledge Extraction"
+        GI[gi/pipeline.py]
+        GISchema[gi/schema.py]
+        GIGrounding[gi/grounding.py]
+        KG[kg/pipeline.py]
+        KGSchema[kg/schema.py]
+        KGExtract[kg/llm_extract.py]
+    end
+
     subgraph "Optional Features"
         Metadata[workflow/metadata_generation.py]
         Evaluation[evaluation/]
@@ -206,7 +223,15 @@ graph TB
     OllamaProvider --> PromptStore
     PromptStore --> PromptTemplates
     Workflow --> Metadata
+    Workflow --> GI
+    Workflow --> KG
     Workflow --> Filesystem
+    GI --> GISchema
+    GI --> GIGrounding
+    GI --> SummaryFactory
+    KG --> KGSchema
+    KG --> KGExtract
+    KGExtract --> SummaryFactory
     EpisodeProc --> Downloader
     EpisodeProc --> Filesystem
     RSSParser --> Models

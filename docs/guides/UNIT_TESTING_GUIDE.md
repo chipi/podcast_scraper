@@ -27,7 +27,7 @@ This guide covers unit test implementation details: what to mock, isolation patt
 1. **HTTP/Network Calls**
 
    ```python
-   @patch("podcast_scraper.downloader.requests.get")
+   @patch("podcast_scraper.rss.downloader.requests.get")
    def test_download(self, mock_get):
        mock_get.return_value.status_code = 200
        mock_get.return_value.content = b"test content"
@@ -43,9 +43,7 @@ This guide covers unit test implementation details: what to mock, isolation patt
    @patch("podcast_scraper.providers.ml.ml_provider.summarizer.SummaryModel")
    def test_provider_creation(self, mock_summary, mock_ner, mock_whisper):
 
-```text
        # Test provider creation without loading real models
-```python
 
 3. **External API Clients** (OpenAI, etc.)
 
@@ -55,15 +53,12 @@ This guide covers unit test implementation details: what to mock, isolation patt
        mock_client.return_value.chat.completions.create.return_value = ...
    ```
 
-1. **Filesystem Operations** (when testing logic, not file operations)
+4. **Filesystem Operations** (when testing logic, not file operations)
 
    ```python
    @patch("builtins.open", mock_open(read_data="test content"))
    def test_file_reading(self):
-
-```text
        # Test file reading logic
-```python
 
 ### Never Mock in Unit Tests
 
@@ -130,8 +125,8 @@ sys.modules["transformers"] = MagicMock()
 
 # Now import the module that uses these
 
-from podcast_scraper import summarizer
-```python
+from podcast_scraper.providers.ml import ml_provider
+```
 
 **CI Verification:** `scripts/tools/check_unit_test_imports.py` verifies modules can import without ML deps.
 
@@ -158,13 +153,9 @@ class TestModuleName(unittest.TestCase):
         # Act
         result = function_under_test(input)
 
-```text
-
         # Assert
         self.assertEqual(result, expected_result)
         mock_dependency.assert_called_once_with(...)
-
-```python
 
     def test_function_error_handling(self):
         """Test function error handling."""
@@ -198,13 +189,11 @@ class TestMLProvider(unittest.TestCase):
 Test factories create correct unified providers:
 
 ```python
-
 def test_create_transcription_provider_ml():
     """Test factory creates MLProvider for 'whisper'."""
     provider = create_transcription_provider(cfg)
     assert hasattr(provider, "transcribe")  # Protocol compliance
-
-```python
+```
 
 **Key Principle:** Verify protocol compliance, not class names.
 
@@ -232,8 +221,7 @@ mock_whisper_model.transcribe.return_value = {
 
 mock_nlp = MagicMock()
 mock_nlp.return_value = [MagicMock(text="John", label_="PERSON")]
-
-```yaml
+```
 
 ## Test Files
 
@@ -242,9 +230,9 @@ mock_nlp.return_value = [MagicMock(text="John", label_="PERSON")]
 | `config.py` | `tests/unit/podcast_scraper/test_config.py` |
 | `filesystem.py` | `tests/unit/podcast_scraper/test_filesystem.py` |
 | `rss_parser.py` | `tests/unit/podcast_scraper/test_rss_parser.py` |
-| `downloader.py` | `tests/unit/podcast_scraper/test_downloader.py` |
+| `rss/downloader.py` | `tests/unit/podcast_scraper/test_downloader.py` |
 | `service.py` | `tests/unit/podcast_scraper/test_service.py` |
-| `summarizer.py` | `tests/unit/podcast_scraper/test_summarizer.py` |
+| `providers/ml/summarizer.py` | `tests/unit/podcast_scraper/test_summarizer.py` |
 | `speaker_detection.py` | `tests/unit/podcast_scraper/test_speaker_detection.py` |
 | `metadata.py` | `tests/unit/podcast_scraper/test_metadata.py` |
 | Provider factories | `tests/unit/podcast_scraper/*/test_*_provider.py` |
@@ -357,4 +345,4 @@ Unit tests should run in **< 100ms each**:
 
 - **Overall:** >80%
 - **Critical modules:** >90% (config, workflow, episode_processor)
-- **Total tests:** 200+
+- **Total tests:** ~3,000

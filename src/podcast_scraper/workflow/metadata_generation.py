@@ -39,6 +39,7 @@ from ..exceptions import (
 from ..kg.llm_extract import strip_known_ml_bullet_prefixes
 from ..schemas.summary_schema import parse_summary_output
 from ..utils import filesystem
+from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -2212,8 +2213,8 @@ def _generate_episode_summary(  # noqa: C901
                         f"(type: {type(short_summary).__name__}). "
                         "Invalid summary format when generate_summaries=True."
                     )
-                    logger.error(error_msg)
-                    raise RuntimeError(error_msg)
+                    logger.error("%s", redact_for_log(error_msg))
+                    raise RuntimeError(redact_for_log(error_msg))
 
             # Sanitize summary to remove page furniture and artifacts (Issue #389)
             # Only sanitize if we have a string
@@ -2250,8 +2251,8 @@ def _generate_episode_summary(  # noqa: C901
                     f"[{episode_idx}] Summary generation returned empty result. "
                     "Empty summaries are not allowed when generate_summaries=True."
                 )
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
+                logger.error("%s", redact_for_log(error_msg))
+                raise RuntimeError(redact_for_log(error_msg))
 
             # Ensure short_summary is a string (Pydantic validation requirement)
             if not isinstance(short_summary, str):
@@ -2261,8 +2262,8 @@ def _generate_episode_summary(  # noqa: C901
                     f"(type: {type(short_summary).__name__}). "
                     "Invalid summary format when generate_summaries=True."
                 )
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
+                logger.error("%s", redact_for_log(error_msg))
+                raise RuntimeError(redact_for_log(error_msg))
 
             word_count = len(transcript_text.split())
 
@@ -2289,8 +2290,8 @@ def _generate_episode_summary(  # noqa: C901
                     f"Error: {parse_result.error or 'Unknown error'}. "
                     "All summaries must use normalized schema format."
                 )
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
+                logger.error("%s", redact_for_log(error_msg))
+                raise RuntimeError(redact_for_log(error_msg))
 
             schema = parse_result.schema
 
@@ -2300,8 +2301,8 @@ def _generate_episode_summary(  # noqa: C901
                     f"[{episode_idx}] Summary schema validation failed: "
                     "bullets list is empty. All summaries must have at least one bullet point."
                 )
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
+                logger.error("%s", redact_for_log(error_msg))
+                raise RuntimeError(redact_for_log(error_msg))
 
             # Build SummaryMetadata with required schema fields
             return (
@@ -2325,22 +2326,24 @@ def _generate_episode_summary(  # noqa: C901
             # This is a known threading issue with Rust-based tokenizers
             if "already borrowed" in error_msg or "tokenizer threading error" in error_msg:
                 logger.warning(
-                    f"[{episode_idx}] Summarization failed due to tokenizer threading error: {e}. "
+                    "[%s] Summarization failed due to tokenizer threading error: %s. "
                     "This can occur in parallel execution. "
-                    "Metadata generation will continue without summary."
+                    "Metadata generation will continue without summary.",
+                    episode_idx,
+                    redact_for_log(str(e)),
                 )
                 # Raise recoverable error to allow metadata generation to continue
                 raise RecoverableSummarizationError(
                     episode_idx=episode_idx,
-                    reason=f"Tokenizer threading error: {e}",
+                    reason=f"Tokenizer threading error: {redact_for_log(str(e))}",
                 ) from e
             # For other provider errors, fail fast
             error_msg_full = (
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
                 "Summarization is required when generate_summaries=True."
             )
-            logger.error(error_msg_full, exc_info=True)
-            raise RuntimeError(error_msg_full) from e
+            logger.error("%s", redact_for_log(error_msg_full), exc_info=True)
+            raise RuntimeError(redact_for_log(error_msg_full)) from e
         except Exception as e:
             call_metrics.finalize()
             # Fail fast - if summarization fails for a specific episode, raise exception
@@ -2348,8 +2351,8 @@ def _generate_episode_summary(  # noqa: C901
                 f"[{episode_idx}] Failed to generate summary using provider: {e}. "
                 "Summarization is required when generate_summaries=True."
             )
-            logger.error(error_msg, exc_info=True)
-            raise RuntimeError(error_msg) from e
+            logger.error("%s", redact_for_log(error_msg), exc_info=True)
+            raise RuntimeError(redact_for_log(error_msg)) from e
 
     # Require summary_provider - no fallback to direct model loading
     # This ensures consistent provider pattern usage and proper encapsulation
@@ -2359,8 +2362,8 @@ def _generate_episode_summary(  # noqa: C901
             "A summarization provider must be created and passed to this function. "
             "Use create_summarization_provider() to create a provider from your Config."
         )
-        logger.error(error_msg)
-        raise ValueError(error_msg)
+        logger.error("%s", redact_for_log(error_msg))
+        raise ValueError(redact_for_log(error_msg))
 
 
 def _determine_metadata_path(
@@ -2721,7 +2724,11 @@ def _generate_and_validate_summary(
         )
     except RecoverableSummarizationError as e:
         # Allow metadata generation to continue without summary for recoverable errors
-        logger.warning(f"[{episode.idx}] {e}. Continuing metadata generation without summary.")
+        logger.warning(
+            "[%s] %s. Continuing metadata generation without summary.",
+            episode.idx,
+            format_exception_for_log(e),
+        )
         summary_metadata = None
         recoverable_error_occurred = True
     summary_elapsed = time.time() - summary_start
@@ -2788,8 +2795,8 @@ def _generate_and_validate_summary(
                 f"[{episode.idx}] Summary generation failed but generate_summaries=True. "
                 "Summarization is required when generate_summaries is enabled."
             )
-            logger.error(error_msg)
-            raise RuntimeError(error_msg)
+            logger.error("%s", redact_for_log(error_msg))
+            raise RuntimeError(redact_for_log(error_msg))
 
     return summary_metadata, summary_elapsed, summary_call_metrics
 

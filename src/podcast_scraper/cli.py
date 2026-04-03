@@ -31,6 +31,7 @@ from pydantic import ValidationError
 
 from . import __version__, config, config_constants
 from .utils import filesystem, progress
+from .utils.log_redaction import format_exception_for_log
 from .workflow import orchestration as workflow
 from .workflow.stages import setup
 
@@ -1674,7 +1675,7 @@ def _run_gi_export(args: argparse.Namespace, logger: logging.Logger) -> int:
     try:
         loaded = load_gi_artifacts(paths, validate=True, strict=strict)
     except Exception as e:
-        logger.error("Validation failed: %s", e)
+        logger.error("Validation failed: %s", format_exception_for_log(e))
         return 1
     if not loaded:
         logger.error("No valid artifacts loaded")
@@ -1723,7 +1724,7 @@ def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
     try:
         paths = collect_gi_paths_from_inputs([Path(p) for p in paths_arg])
     except (FileNotFoundError, ValueError) as e:
-        logger.error("%s", e)
+        logger.error("%s", format_exception_for_log(e))
         return EXIT_INVALID_ARGS
     if not paths:
         logger.error("No .gi.json files found")
@@ -1739,7 +1740,7 @@ def _run_gi_validate(args: argparse.Namespace, logger: logging.Logger) -> int:
                 print(f"OK {path}")
         except Exception as e:
             failed += 1
-            logger.error("FAIL %s: %s", path, e)
+            logger.error("FAIL %s: %s", path, format_exception_for_log(e))
     if failed:
         logger.error("%s of %s file(s) failed validation", failed, len(paths))
         return 1
@@ -1797,10 +1798,10 @@ def _run_gi_inspect(args: argparse.Namespace, logger: logging.Logger) -> int:
             load_transcript=True,
         )
     except FileNotFoundError as e:
-        logger.error("%s", e)
+        logger.error("%s", format_exception_for_log(e))
         return 1
     except ValueError as e:
-        logger.error("Validation failed: %s", e)
+        logger.error("Validation failed: %s", format_exception_for_log(e))
         return 1
 
     out = build_inspect_output(artifact, transcript_text)
@@ -1871,7 +1872,7 @@ def _run_gi_show_insight(args: argparse.Namespace, logger: logging.Logger) -> in
             load_transcript=True,
         )
     except (FileNotFoundError, ValueError) as e:
-        logger.error("%s", e)
+        logger.error("%s", format_exception_for_log(e))
         return 1
 
     out = build_inspect_output(artifact, transcript_text)
@@ -1945,7 +1946,11 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     try:
         loaded = load_artifacts(paths, validate=strict, strict=strict)
     except ExploreValidationError as e:
-        logger.error("Strict validation failed for %s: %s", e.path, e)
+        logger.error(
+            "Strict validation failed for %s: %s",
+            e.path,
+            format_exception_for_log(e),
+        )
         return EXIT_STRICT_VALIDATION_FAILED
 
     topic = getattr(args, "topic", None)

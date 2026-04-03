@@ -29,6 +29,7 @@ from podcast_scraper.evaluation.ner_scorer import compute_ner_vs_reference_metri
 from podcast_scraper.evaluation.schema_validator import (
     validate_summarization_reference,
 )
+from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 try:
     from rouge_score import rouge_scorer
@@ -532,7 +533,11 @@ def compute_bleu_vs_reference(
             bleu = sentence_bleu([ref_tokens], pred_tokens, smoothing_function=smoothing)
             bleu_scores.append(bleu)
         except Exception as e:
-            logger.warning(f"Error computing BLEU for episode {episode_id}: {e}")
+            logger.warning(
+                "Error computing BLEU for episode %s: %s",
+                episode_id,
+                format_exception_for_log(e),
+            )
             continue
 
     if not bleu_scores:
@@ -601,7 +606,11 @@ def compute_wer_vs_reference(
             wer = jiwer.wer(ref_text, pred_text)
             wer_scores.append(wer)
         except Exception as e:
-            logger.warning(f"Error computing WER for episode {episode_id}: {e}")
+            logger.warning(
+                "Error computing WER for episode %s: %s",
+                episode_id,
+                format_exception_for_log(e),
+            )
             continue
 
     if not wer_scores:
@@ -642,7 +651,11 @@ def compute_embedding_similarity(
         # Load model (will download on first use)
         model = SentenceTransformer(model_name)
     except Exception as e:
-        logger.error(f"Failed to load sentence-transformer model '{model_name}': {e}")
+        logger.error(
+            "Failed to load sentence-transformer model '%s': %s",
+            model_name,
+            format_exception_for_log(e),
+        )
         return None
 
     # Match predictions by episode_id
@@ -697,7 +710,11 @@ def compute_embedding_similarity(
             similarity = dot_product / (norm_pred * norm_ref) if (norm_pred * norm_ref) > 0 else 0.0
             similarities.append(float(similarity))
         except Exception as e:
-            logger.warning(f"Error computing embedding similarity for episode {episode_id}: {e}")
+            logger.warning(
+                "Error computing embedding similarity for episode %s: %s",
+                episode_id,
+                format_exception_for_log(e),
+            )
             continue
 
     if not similarities:
@@ -825,28 +842,28 @@ def compute_vs_reference_metrics(
     try:
         rouge_scores = compute_rouge_vs_reference(predictions, reference_predictions)
     except ImportError as e:
-        logger.warning(f"ROUGE computation skipped: {e}")
+        logger.warning("ROUGE computation skipped: %s", format_exception_for_log(e))
         rouge_scores = {"rouge1_f1": None, "rouge2_f1": None, "rougeL_f1": None}
 
     # Compute BLEU
     try:
         bleu_score = compute_bleu_vs_reference(predictions, reference_predictions)
     except ImportError as e:
-        logger.warning(f"BLEU computation skipped: {e}")
+        logger.warning("BLEU computation skipped: %s", format_exception_for_log(e))
         bleu_score = None
 
     # Compute WER
     try:
         wer_score = compute_wer_vs_reference(predictions, reference_predictions)
     except ImportError as e:
-        logger.warning(f"WER computation skipped: {e}")
+        logger.warning("WER computation skipped: %s", format_exception_for_log(e))
         wer_score = None
 
     # Compute embedding similarity
     try:
         embedding_similarity = compute_embedding_similarity(predictions, reference_predictions)
     except ImportError as e:
-        logger.warning(f"Embedding similarity computation skipped: {e}")
+        logger.warning("Embedding similarity computation skipped: %s", format_exception_for_log(e))
         embedding_similarity = None
 
     # Compute coverage ratio (ML tokens / silver tokens)
@@ -982,7 +999,11 @@ def score_run(
                         predictions, ref_id, ref_path
                     )
             except Exception as e:
-                logger.error(f"Failed to compute metrics vs reference '{ref_id}': {e}")
+                logger.error(
+                    "Failed to compute metrics vs reference '%s': %s",
+                    ref_id,
+                    format_exception_for_log(e),
+                )
                 # Continue with other references
                 vs_reference[ref_id] = {"error": str(e)}
 

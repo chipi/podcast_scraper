@@ -11,6 +11,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 # Try to import jsonschema for proper validation
@@ -53,7 +55,11 @@ def validate_schema(obj: Dict[str, Any], schema_path: Path, strict: bool = False
     except Exception as e:
         if strict:
             raise ValueError(f"Failed to load schema from {schema_path}: {e}") from e
-        logger.warning(f"Failed to load schema from {schema_path}: {e}, skipping validation")
+        logger.warning(
+            "Failed to load schema from %s: %s, skipping validation",
+            schema_path,
+            format_exception_for_log(e),
+        )
         return True
 
     if HAS_JSONSCHEMA:

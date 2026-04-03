@@ -1264,3 +1264,56 @@ class TestOrchestrationErrorHandling(unittest.TestCase):
         provider = orchestration._create_summarization_provider(cfg)
 
         self.assertIsNone(provider)
+
+
+@pytest.mark.unit
+class TestFinalizeEmitAndSave(unittest.TestCase):
+    """Cover JSONL / metrics finalize paths (orchestration hardening)."""
+
+    @patch("podcast_scraper.workflow.orchestration.logger")
+    def test_emit_run_finished_failure_logged(self, mock_logger):
+        emitter = Mock()
+        emitter.emit_run_finished = Mock(side_effect=RuntimeError("emit fail"))
+        emitter.__exit__ = Mock(return_value=False)
+        metrics = Mock()
+        metrics.save_to_file = Mock()
+        written = orchestration._finalize_emit_and_save(emitter, metrics, None)
+        self.assertIsNone(written)
+        mock_logger.warning.assert_called()
+        emitter.__exit__.assert_called_once()
+
+    @patch("podcast_scraper.workflow.orchestration.logger")
+    def test_save_metrics_failure_logged(self, mock_logger):
+        metrics = Mock()
+        metrics.save_to_file = Mock(side_effect=OSError("disk full"))
+        written = orchestration._finalize_emit_and_save(None, metrics, "/tmp/m.json")
+        self.assertIsNone(written)
+        mock_logger.warning.assert_called()
+
+    @patch("podcast_scraper.workflow.orchestration.logger")
+    def test_jsonl_exit_failure_logged(self, mock_logger):
+        emitter = Mock()
+        emitter.emit_run_finished = Mock()
+        emitter.__exit__ = Mock(side_effect=RuntimeError("close fail"))
+        metrics = Mock()
+        metrics.save_to_file = Mock()
+        written = orchestration._finalize_emit_and_save(emitter, metrics, "/tmp/m.json")
+        self.assertIsNotNone(written)
+        mock_logger.warning.assert_called()
+
+
+@pytest.mark.unit
+class TestCleanupProvidersPreloadedErrors(unittest.TestCase):
+    """Preloaded ML cleanup exception uses format_exception path."""
+
+    @patch("podcast_scraper.workflow.orchestration.logger")
+    def test_preloaded_ml_cleanup_exception_warns(self, mock_logger):
+        mock_ml = Mock()
+        mock_ml.cleanup = Mock(side_effect=RuntimeError("unload failed"))
+        with patch(
+            "podcast_scraper.workflow.orchestration._preloaded_ml_provider",
+            mock_ml,
+        ):
+            orchestration._cleanup_providers(None, None)
+        mock_ml.cleanup.assert_called_once()
+        mock_logger.warning.assert_called()

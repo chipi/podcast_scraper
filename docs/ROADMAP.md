@@ -10,7 +10,7 @@ The roadmap is organized around **end-user value** as the central principle. Fea
 
 - **Open PRDs**: 5 (grounded insights / GIL, experimentation platform, observability, engineering governance)
 - **Open RFCs**: 19 (quality improvements, GIL, model registry, observability, infrastructure)
-- **Completed**: 13 PRDs, 28 RFCs (core pipeline, 8-provider ecosystem v2.5, OpenAI + Anthropic + Mistral + DeepSeek + Gemini + Grok + Ollama, modularization, metrics)
+- **Completed**: 13 PRDs, 28 RFCs (core pipeline, 9-provider ecosystem v2.5, OpenAI + Anthropic + Mistral + DeepSeek + Gemini + Grok + Ollama + xAI, modularization, metrics)
 
 ## Categories
 
@@ -18,7 +18,7 @@ The roadmap is organized around **end-user value** as the central principle. Fea
 
 These features directly improve what users can do with the tool:
 
-- **Provider Ecosystem**: Complete (v2.5) — 8 providers (local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama) for choice, cost, and quality
+- **Provider Ecosystem**: Complete (v2.5) — 9 providers (local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama, xAI) for choice, cost, and quality
 - **Summarization Improvements**: Better summaries through adaptive routing (RFC-053), hybrid pipeline (RFC-042), and optimization guides (RFC-045)
 - **Audio Preprocessing**: Cost savings and quality improvements through VAD, normalization, and format optimization (RFC-040)
 - **Grounded Insight Layer (GIL)**: Structured, evidence-backed insights and quotes (PRD-017, RFC-049, 050, 051) enable advanced querying and analysis
@@ -98,7 +98,7 @@ The following table lists all open PRDs and RFCs, ordered by priority with most 
 
 ### Provider Ecosystem (Complete)
 
-The 8-provider ecosystem is complete as of v2.5.0: local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, and Ollama. Remaining provider-related work is enhancement (RFC-052: locally hosted LLMs with prompts) and infrastructure (RFC-044: model registry). New provider additions benefit from RFC-044 but are not on the near-term roadmap.
+The 9-provider ecosystem is complete as of v2.5.0: local ML, OpenAI, Anthropic, Mistral, DeepSeek, Gemini, Grok, Ollama, and xAI. Remaining provider-related work is enhancement (RFC-052: locally hosted LLMs with prompts) and infrastructure (RFC-044: model registry). New provider additions benefit from RFC-044 but are not on the near-term roadmap.
 
 ## Implementation Status
 

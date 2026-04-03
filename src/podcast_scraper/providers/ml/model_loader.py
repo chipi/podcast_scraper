@@ -18,6 +18,7 @@ from ...cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
 )
+from ...utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,11 @@ def preload_whisper_models(model_names: Optional[List[str]] = None) -> None:
             else:
                 logger.info(f"  ✓ Whisper {model_name} cached")
         except Exception as e:
-            logger.error(f"  ✗ Failed to preload Whisper model {model_name}: {e}")
+            logger.error(
+                "  ✗ Failed to preload Whisper model %s: %s",
+                model_name,
+                format_exception_for_log(e),
+            )
             raise
 
 
@@ -221,7 +226,11 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
             else:
                 logger.info(f"  ✓ Downloaded and cached: {model_name}")
         except Exception as e:
-            logger.error(f"  ✗ Failed to preload Transformers model {model_name}: {e}")
+            logger.error(
+                "  ✗ Failed to preload Transformers model %s: %s",
+                model_name,
+                format_exception_for_log(e),
+            )
             raise
 
 
@@ -335,7 +344,11 @@ def preload_evidence_models(
             _download_sentence_transformer_for_cache(resolved)
             logger.info("  ✓ Embedding model %s cached", resolved)
         except Exception as e:
-            logger.error("  ✗ Failed to preload embedding model %s: %s", resolved, e)
+            logger.error(
+                "  ✗ Failed to preload embedding model %s: %s",
+                resolved,
+                format_exception_for_log(e),
+            )
             raise
 
     for alias in qa_models:
@@ -349,7 +362,11 @@ def preload_evidence_models(
             _download_qa_pipeline_for_cache(resolved)
             logger.info("  ✓ QA model %s cached", resolved)
         except Exception as e:
-            logger.error("  ✗ Failed to preload QA model %s: %s", resolved, e)
+            logger.error(
+                "  ✗ Failed to preload QA model %s: %s",
+                resolved,
+                format_exception_for_log(e),
+            )
             raise
 
     for alias in nli_models:
@@ -363,5 +380,9 @@ def preload_evidence_models(
             _download_nli_cross_encoder_for_cache(resolved)
             logger.info("  ✓ NLI model %s cached", resolved)
         except Exception as e:
-            logger.error("  ✗ Failed to preload NLI model %s: %s", resolved, e)
+            logger.error(
+                "  ✗ Failed to preload NLI model %s: %s",
+                resolved,
+                format_exception_for_log(e),
+            )
             raise

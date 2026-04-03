@@ -8,6 +8,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 from .io import read_artifact
 from .schema import validate_artifact
 
@@ -68,7 +70,11 @@ def load_kg_artifacts(
         except Exception as e:
             if strict:
                 raise
-            logger.warning("Skip invalid KG artifact %s: %s", path, e)
+            logger.warning(
+                "Skip invalid KG artifact %s: %s",
+                path,
+                format_exception_for_log(e),
+            )
     return out
 
 

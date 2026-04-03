@@ -303,3 +303,187 @@ class TestServiceMain(unittest.TestCase):
         with self.assertRaises(SystemExit) as cm:
             service_module.main()
         self.assertEqual(cm.exception.code, 0)
+
+
+class TestServiceRunLogging(unittest.TestCase):
+    """Test logging-related behaviour of service.run()."""
+
+    def _make_cfg(self, **overrides):
+        from unittest.mock import MagicMock
+
+        cfg = MagicMock()
+        cfg.log_file = overrides.get("log_file", None)
+        cfg.log_level = overrides.get("log_level", None)
+        return cfg
+
+    @patch("podcast_scraper.service.workflow.run_pipeline", return_value=(1, "ok"))
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_no_log_config_skips_apply_log_level(self, mock_apply_log, mock_run_pipeline):
+        """apply_log_level is NOT called when both log_file and log_level are falsy."""
+        cfg = self._make_cfg(log_file=None, log_level=None)
+        result = service_module.run(cfg)
+
+        self.assertTrue(result.success)
+        mock_apply_log.assert_not_called()
+
+    @patch("podcast_scraper.service.workflow.run_pipeline", return_value=(1, "ok"))
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_both_log_level_and_log_file(self, mock_apply_log, mock_run_pipeline):
+        """apply_log_level receives both level and log_file when both are set."""
+        cfg = self._make_cfg(log_level="DEBUG", log_file="/tmp/test.log")
+        result = service_module.run(cfg)
+
+        self.assertTrue(result.success)
+        mock_apply_log.assert_called_once_with(level="DEBUG", log_file="/tmp/test.log")
+
+    @patch("podcast_scraper.service.workflow.run_pipeline", return_value=(1, "ok"))
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_apply_log_level_raises(self, mock_apply_log, mock_run_pipeline):
+        """RuntimeError from apply_log_level produces a failure result."""
+        mock_apply_log.side_effect = RuntimeError("logging init failed")
+        cfg = self._make_cfg(log_level="DEBUG")
+        result = service_module.run(cfg)
+
+        self.assertFalse(result.success)
+        self.assertIn("logging init failed", result.error)
+
+
+class TestServiceRunRedaction(unittest.TestCase):
+    """Test that error messages are redacted in service.run()."""
+
+    @patch(
+        "podcast_scraper.service.redact_for_log",
+        return_value="API key sk-[REDACTED]",
+    )
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_error_uses_redact_for_log(self, mock_apply_log, mock_run_pipeline, mock_redact):
+        """Sensitive data in exceptions is redacted via redact_for_log."""
+        mock_run_pipeline.side_effect = ValueError("API key sk-abc123xyz")
+        from unittest.mock import MagicMock
+
+        cfg = MagicMock()
+        cfg.log_file = None
+        cfg.log_level = None
+
+        result = service_module.run(cfg)
+
+        self.assertFalse(result.success)
+        self.assertNotIn("sk-abc123xyz", result.error)
+        self.assertEqual(result.error, "API key sk-[REDACTED]")
+        mock_redact.assert_called_once_with("API key sk-abc123xyz")
+
+
+class TestServiceRunFromConfigFileExtended(unittest.TestCase):
+    """Extended tests for service.run_from_config_file()."""
+
+    @patch("podcast_scraper.service.run")
+    @patch("podcast_scraper.service.config.load_config_file")
+    @patch("podcast_scraper.service.config.Config")
+    def test_run_from_config_file_with_path_object(self, mock_config_class, mock_load, mock_run):
+        """pathlib.Path argument is converted to str for load_config_file."""
+        from pathlib import Path
+
+        mock_load.return_value = {"rss_url": "https://example.com/feed.xml"}
+        mock_cfg = mock_config_class.return_value
+        mock_run.return_value = ServiceResult(episodes_processed=3, summary="Done", success=True)
+
+        result = service_module.run_from_config_file(Path("config.yaml"))
+
+        self.assertTrue(result.success)
+        mock_load.assert_called_once_with("config.yaml")
+        mock_run.assert_called_once_with(mock_cfg)
+
+    @patch("podcast_scraper.service.config.load_config_file")
+    def test_run_from_config_file_permission_error(self, mock_load):
+        """PermissionError is caught and reported as a failure."""
+        mock_load.side_effect = PermissionError("Permission denied")
+
+        result = service_module.run_from_config_file("secret.yaml")
+
+        self.assertFalse(result.success)
+        self.assertIn("Failed to load", result.error)
+
+    @patch("podcast_scraper.service.config.load_config_file")
+    @patch("podcast_scraper.service.config.Config")
+    def test_run_from_config_file_validation_error(self, mock_config_class, mock_load):
+        """ValidationError from Config() is caught and reported as a failure."""
+        from pydantic import ValidationError
+
+        mock_load.return_value = {"rss_url": "https://example.com/feed.xml"}
+        mock_config_class.side_effect = ValidationError.from_exception_data(
+            title="Config",
+            line_errors=[
+                {
+                    "type": "missing",
+                    "loc": ("output_dir",),
+                    "msg": "Field required",
+                    "input": {},
+                }
+            ],
+        )
+
+        result = service_module.run_from_config_file("bad.yaml")
+
+        self.assertFalse(result.success)
+        self.assertIn("Failed to load", result.error)
+
+
+class TestServiceMainConfigResolution(unittest.TestCase):
+    """Test config resolution logic in service.main()."""
+
+    @patch("podcast_scraper.service.setup.initialize_ml_environment")
+    @patch("podcast_scraper.service.run_from_config_file")
+    @patch("sys.argv", ["service"])
+    def test_main_uses_env_var_when_no_config_flag(self, mock_run_from_config, mock_init_ml):
+        """PODCAST_SCRAPER_CONFIG env var is used when --config is absent."""
+        mock_run_from_config.return_value = ServiceResult(
+            episodes_processed=1, summary="ok", success=True
+        )
+        with patch.dict(os.environ, {"PODCAST_SCRAPER_CONFIG": "/custom/config.yaml"}):
+            with patch("builtins.print"):
+                service_module.main()
+
+        mock_run_from_config.assert_called_once_with("/custom/config.yaml")
+
+    @patch("podcast_scraper.service.setup.initialize_ml_environment")
+    @patch("podcast_scraper.service.run_from_config_file")
+    @patch("sys.argv", ["service"])
+    def test_main_uses_default_when_no_config_and_no_env(self, mock_run_from_config, mock_init_ml):
+        """Default /app/config.yaml is used when --config and env var are absent."""
+        mock_run_from_config.return_value = ServiceResult(
+            episodes_processed=1, summary="ok", success=True
+        )
+        clean_env = {k: v for k, v in os.environ.items() if k != "PODCAST_SCRAPER_CONFIG"}
+        with patch.dict(os.environ, clean_env, clear=True):
+            with patch("builtins.print"):
+                service_module.main()
+
+        mock_run_from_config.assert_called_once_with("/app/config.yaml")
+
+    @patch("podcast_scraper.service.setup.initialize_ml_environment")
+    @patch("podcast_scraper.service.run_from_config_file")
+    @patch("sys.argv", ["service", "--config", "/from/flag.yaml"])
+    def test_main_config_flag_overrides_env_var(self, mock_run_from_config, mock_init_ml):
+        """--config flag takes precedence over PODCAST_SCRAPER_CONFIG env var."""
+        mock_run_from_config.return_value = ServiceResult(
+            episodes_processed=1, summary="ok", success=True
+        )
+        with patch.dict(os.environ, {"PODCAST_SCRAPER_CONFIG": "/from/env.yaml"}):
+            with patch("builtins.print"):
+                service_module.main()
+
+        mock_run_from_config.assert_called_once_with("/from/flag.yaml")
+
+    @patch("podcast_scraper.service.run_from_config_file")
+    @patch("sys.argv", ["service", "--config", "config.yaml"])
+    def test_main_calls_initialize_ml_environment(self, mock_run_from_config):
+        """setup.initialize_ml_environment() is called during main()."""
+        mock_run_from_config.return_value = ServiceResult(
+            episodes_processed=1, summary="ok", success=True
+        )
+        with patch("podcast_scraper.service.setup.initialize_ml_environment") as mock_init_ml:
+            with patch("builtins.print"):
+                service_module.main()
+
+        mock_init_ml.assert_called_once()

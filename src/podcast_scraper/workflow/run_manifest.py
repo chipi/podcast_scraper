@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from ..utils.log_redaction import format_exception_for_log
 from ..utils.redaction import redact_secrets
 
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ def _get_config_hash(cfg: Any) -> tuple[Optional[str], Optional[str], Optional[s
 
         return config_sha256, config_path, config_json
     except Exception as e:
-        logger.warning(f"Failed to calculate config hash: {e}")
+        logger.warning("Failed to calculate config hash: %s", format_exception_for_log(e))
         return None, None, None
 
 

@@ -87,6 +87,21 @@ def extract_region_from_endpoint(endpoint: Optional[str]) -> Optional[str]:
     return None
 
 
+def warn_if_truncated(
+    finish_reason: Optional[str],
+    provider_name: str,
+    operation: str,
+) -> None:
+    """Log warning if API response was truncated."""
+    if finish_reason in ("length", "content_filter"):
+        logger.warning(
+            "[%s] %s response truncated (finish_reason=%s)",
+            provider_name,
+            operation,
+            finish_reason,
+        )
+
+
 def validate_api_key_format(
     api_key: Optional[str],
     provider_name: str,

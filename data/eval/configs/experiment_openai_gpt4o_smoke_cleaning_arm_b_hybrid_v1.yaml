@@ -1,0 +1,25 @@
+# Arm B (transcript-cleaning experiment): explicit hybrid cleaning (product default for API LLMs).
+# Same model/prompts/dataset as llm_openai_smoke_v1.
+# Requires: OPENAI_API_KEY
+# See: docs/wip/transcript-cleaning-cost-quality-eval-plan.md
+
+id: "experiment_openai_gpt4o_smoke_cleaning_arm_b_hybrid_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+transcript_cleaning_strategy: "hybrid"

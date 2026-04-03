@@ -31,10 +31,12 @@ from ...utils.cleaning_max_tokens import (
     estimate_cleaning_output_tokens,
     OPENAI_CLEANING_MAX_TOKENS,
 )
+from ...utils.log_redaction import format_exception_for_log
 from ...utils.provider_metadata import (
     extract_region_from_endpoint,
     log_provider_metadata,
     validate_api_key_format,
+    warn_if_truncated,
 )
 from ...utils.timeout_config import get_openai_client_timeout
 from ...workflow import metrics
@@ -122,14 +124,17 @@ class OpenAIProvider:
             )
 
         # Validate API key format
-        is_valid, error_msg = validate_api_key_format(
+        is_valid, _ = validate_api_key_format(
             cfg.openai_api_key,
             "OpenAI",
             expected_prefixes=["sk-", "sk-proj-"],
         )
         if not is_valid:
-            # Note: error_msg does not contain the API key itself, only validation status
-            logger.warning("OpenAI API key validation failed: %s", error_msg)
+            # Do not log validation detail: CodeQL taints any message from this API-key path.
+            logger.warning(
+                "OpenAI API key validation failed (missing, too short, or wrong prefix); "
+                "credentials are never logged."
+            )
 
         self.cfg = cfg
 
@@ -355,22 +360,34 @@ class OpenAIProvider:
         )
 
         try:
-            with open(audio_path, "rb") as audio_file:
-                # OpenAI API requires keyword-only arguments
-                # When response_format="text", returns str directly
-                if effective_language is not None:
-                    transcript = self.client.audio.transcriptions.create(
-                        model=self.transcription_model,
-                        file=audio_file,
-                        language=effective_language,
-                        response_format="text",  # Simple text response
-                    )
-                else:
-                    transcript = self.client.audio.transcriptions.create(
-                        model=self.transcription_model,
-                        file=audio_file,
-                        response_format="text",  # Simple text response
-                    )
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
+
+            def _make_transcribe_call():
+                with open(audio_path, "rb") as audio_file:
+                    if effective_language is not None:
+                        return self.client.audio.transcriptions.create(
+                            model=self.transcription_model,
+                            file=audio_file,
+                            language=effective_language,
+                            response_format="text",
+                        )
+                    else:
+                        return self.client.audio.transcriptions.create(
+                            model=self.transcription_model,
+                            file=audio_file,
+                            response_format="text",
+                        )
+
+            transcript = retry_with_metrics(
+                _make_transcribe_call,
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+            )
 
             # transcript is a string when response_format="text"
             text = str(transcript) if not isinstance(transcript, str) else transcript
@@ -383,11 +400,11 @@ class OpenAIProvider:
             return text
 
         except Exception as exc:
-            logger.error("OpenAI Whisper API error: %s", exc)
+            logger.error("OpenAI Whisper API error: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderRuntimeError
 
             raise ProviderRuntimeError(
-                message=f"OpenAI transcription failed: {exc}",
+                message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
                 provider="OpenAIProvider/Transcription",
             ) from exc
 
@@ -442,9 +459,10 @@ class OpenAIProvider:
             call_metrics.set_provider_name("openai")
 
             # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 with open(audio_path, "rb") as audio_file:
@@ -469,7 +487,7 @@ class OpenAIProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -558,7 +576,7 @@ class OpenAIProvider:
 
         except Exception as exc:
             elapsed = time.time() - start_time
-            logger.error("OpenAI Whisper API error: %s", exc)
+            logger.error("OpenAI Whisper API error: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -573,7 +591,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Transcription",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -582,13 +600,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Transcription",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI transcription failed: {exc}",
+                    message=f"OpenAI transcription failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Transcription",
                 ) from exc
 
@@ -635,7 +653,9 @@ class OpenAIProvider:
             )
             return detected_hosts
         except Exception as exc:
-            logger.warning("Failed to detect hosts from feed metadata: %s", exc)
+            logger.warning(
+                "Failed to detect hosts from feed metadata: %s", format_exception_for_log(exc)
+            )
             return set()
 
     def detect_speakers(
@@ -687,16 +707,27 @@ class OpenAIProvider:
             system_prompt_name = self.cfg.openai_speaker_system_prompt or "openai/ner/system_ner_v1"
             system_prompt = render_prompt(system_prompt_name)
 
-            # Call OpenAI API
-            response = self.client.chat.completions.create(
-                model=self.speaker_model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=self.speaker_temperature,
-                max_tokens=300,
-                response_format={"type": "json_object"},  # Request JSON response
+            # Call OpenAI API with retry
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
+
+            response = retry_with_metrics(
+                lambda: self.client.chat.completions.create(
+                    model=self.speaker_model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=self.speaker_temperature,
+                    max_tokens=300,
+                    response_format={"type": "json_object"},
+                ),
+                max_retries=2,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
             )
 
             response_text = response.choices[0].message.content
@@ -725,13 +756,15 @@ class OpenAIProvider:
             return speakers, detected_hosts, success, False
 
         except json.JSONDecodeError as exc:
-            logger.error("Failed to parse OpenAI API JSON response: %s", exc)
+            logger.error(
+                "Failed to parse OpenAI API JSON response: %s", format_exception_for_log(exc)
+            )
             logger.debug(
                 "Response text: %s", response_text if "response_text" in locals() else "N/A"
             )
             return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
         except Exception as exc:
-            logger.error("OpenAI API error in speaker detection: %s", exc)
+            logger.error("OpenAI API error in speaker detection: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -746,7 +779,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/SpeakerDetection",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -755,13 +788,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/SpeakerDetection",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI speaker detection failed: {exc}",
+                    message=f"OpenAI speaker detection failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/SpeakerDetection",
                 ) from exc
 
@@ -861,7 +894,9 @@ class OpenAIProvider:
             return speaker_names[:min_speakers], detected_hosts, detection_succeeded
 
         except (json.JSONDecodeError, KeyError, AttributeError) as exc:
-            logger.warning("Failed to parse OpenAI response as JSON: %s", exc)
+            logger.warning(
+                "Failed to parse OpenAI response as JSON: %s", format_exception_for_log(exc)
+            )
             logger.debug("Response text: %s", response_text[:200])
             # Fallback: try to extract names from text response
             return self._parse_speakers_from_text(response_text, known_hosts)
@@ -1015,9 +1050,10 @@ class OpenAIProvider:
             call_metrics.set_provider_name("openai")
 
             # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1036,7 +1072,7 @@ class OpenAIProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1045,12 +1081,21 @@ class OpenAIProvider:
 
             call_metrics.finalize()
 
+            warn_if_truncated(
+                response.choices[0].finish_reason,
+                "openai",
+                "summarize",
+            )
+
             summary = response.choices[0].message.content
             if not summary:
                 logger.warning("OpenAI API returned empty summary")
                 summary = ""
 
-            logger.debug("OpenAI summarization completed: %d characters", len(summary))
+            logger.debug(
+                "OpenAI summarization completed: %d characters",
+                len(summary),
+            )
 
             # Extract token counts and populate call_metrics
             input_tokens = None
@@ -1120,7 +1165,7 @@ class OpenAIProvider:
             }
 
         except Exception as exc:
-            logger.error("OpenAI API error in summarization: %s", exc)
+            logger.error("OpenAI API error in summarization: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -1135,7 +1180,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -1144,13 +1189,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI summarization failed: {exc}",
+                    message=f"OpenAI summarization failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Summarization",
                 ) from exc
 
@@ -1262,9 +1307,10 @@ class OpenAIProvider:
         )
         system_msg = build_kg_transcript_system_prompt(max_topics, max_entities)
         try:
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1282,7 +1328,7 @@ class OpenAIProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                retryable_exceptions=_safe_openai_retryable(),
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             pm = pipeline_metrics
@@ -1333,9 +1379,10 @@ class OpenAIProvider:
         )
         system_msg = build_kg_from_bullets_system_prompt(max_topics, max_entities)
         try:
-            from openai import APIError, RateLimitError
-
-            from ...utils.provider_metrics import retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                retry_with_metrics,
+            )
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1353,7 +1400,7 @@ class OpenAIProvider:
                 max_retries=3,
                 initial_delay=1.0,
                 max_delay=30.0,
-                retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                retryable_exceptions=_safe_openai_retryable(),
             )
             in_tok, out_tok = _openai_chat_usage_tokens(response)
             pm = pipeline_metrics
@@ -1393,9 +1440,8 @@ class OpenAIProvider:
             insight=insight_text.strip(),
         )
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 ProviderCallMetrics,
@@ -1423,7 +1469,7 @@ class OpenAIProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1475,9 +1521,8 @@ class OpenAIProvider:
             hypothesis=hypothesis.strip(),
         )
         try:
-            from openai import APIError, RateLimitError
-
             from ...utils.provider_metrics import (
+                _safe_openai_retryable,
                 apply_gil_evidence_llm_call_metrics,
                 merge_gil_evidence_call_metrics_on_failure,
                 ProviderCallMetrics,
@@ -1505,7 +1550,7 @@ class OpenAIProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1676,13 +1721,14 @@ class OpenAIProvider:
 
         try:
             # Track retries and rate limits
-            from ...utils.provider_metrics import ProviderCallMetrics, retry_with_metrics
+            from ...utils.provider_metrics import (
+                _safe_openai_retryable,
+                ProviderCallMetrics,
+                retry_with_metrics,
+            )
 
             call_metrics = ProviderCallMetrics()
             call_metrics.set_provider_name("openai")
-
-            # Wrap API call with retry tracking
-            from openai import APIError, RateLimitError
 
             def _make_api_call():
                 return self.client.chat.completions.create(
@@ -1704,7 +1750,7 @@ class OpenAIProvider:
                     max_retries=3,
                     initial_delay=1.0,
                     max_delay=30.0,
-                    retryable_exceptions=(RateLimitError, APIError, ConnectionError),
+                    retryable_exceptions=_safe_openai_retryable(),
                     metrics=call_metrics,
                 )
             except Exception:
@@ -1730,7 +1776,7 @@ class OpenAIProvider:
             return cast(str, cleaned)
 
         except Exception as exc:
-            logger.error("OpenAI API error in cleaning: %s", exc)
+            logger.error("OpenAI API error in cleaning: %s", format_exception_for_log(exc))
             from podcast_scraper.exceptions import ProviderAuthError, ProviderRuntimeError
 
             # Handle OpenAI-specific error types
@@ -1745,7 +1791,7 @@ class OpenAIProvider:
                 or exc_type_name == "AuthenticationError"
             ):
                 raise ProviderAuthError(
-                    message=f"OpenAI authentication failed: {exc}",
+                    message=f"OpenAI authentication failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Cleaning",
                     suggestion=(
                         "Check your OPENAI_API_KEY environment variable or config setting. "
@@ -1754,13 +1800,13 @@ class OpenAIProvider:
                 ) from exc
             elif "quota" in error_msg or "rate limit" in error_msg or "429" in error_msg:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI rate limit exceeded: {exc}",
+                    message=f"OpenAI rate limit exceeded: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Cleaning",
                     suggestion="Wait before retrying or check your API quota",
                 ) from exc
             else:
                 raise ProviderRuntimeError(
-                    message=f"OpenAI cleaning failed: {exc}",
+                    message=f"OpenAI cleaning failed: {format_exception_for_log(exc)}",
                     provider="OpenAIProvider/Cleaning",
                 ) from exc
 

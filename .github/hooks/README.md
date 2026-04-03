@@ -10,19 +10,19 @@ The `pre-commit` hook automatically checks your code before each commit to ensur
 
 ```bash
 make install-hooks
-```python
+```
 
 ### What It Checks
 
-The hook runs checks **only on staged files** (files you're committing), making it fast and efficient:
+Most Python checks run **only on staged files** (fast feedback). **mypy** is the exception: it type-checks the **whole** repository with `PYTHONPATH` including the repo root, matching CI `make type`. Any mypy error blocks the commit.
 
-- **Black** formatting check (Python files)
-- **isort** import sorting check (Python files)
-- **flake8** linting (Python files)
+- **Black** formatting check (staged Python files)
+- **isort** import sorting check (staged Python files)
+- **flake8** linting (staged Python files)
 - **markdownlint** (markdown files - **required** when markdown files are staged)
 - **JSON syntax validation** (JSON files - uses Python's json.tool)
 - **YAML syntax validation** (YAML/YML files - uses yamllint if available, otherwise Python yaml module)
-- **mypy** type checking (Python files)
+- **mypy** — entire project (`mypy .`), same as `make type` / CI lint job
 
 > **Note:** If you're committing markdown files, `markdownlint` must be installed. Install it with: `npm install -g markdownlint-cli`
 > **Note:** For better YAML validation, install `yamllint` with: `pip install yamllint` (optional - Python yaml module is used as fallback)
@@ -47,7 +47,7 @@ make format
 # Skip hook for a specific commit (not recommended)
 
 git commit --no-verify -m "your message"
-```python
+```
 
 ## Benefits
 

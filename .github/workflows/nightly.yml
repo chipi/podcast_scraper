@@ -574,7 +574,7 @@ jobs:
   # ===========================================================================
   nightly-only-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # 6 hours for production model tests
+    timeout-minutes: 120  # ~75 min typical sequential run + buffer
     needs: [nightly-test-unit, nightly-test-integration, nightly-test-e2e]
     env:
       HF_HOME: /home/runner/.cache/huggingface
@@ -582,9 +582,6 @@ jobs:
       ML_MODELS_VALIDATED: "true"
       # Nightly mode uses p01-p05 podcasts with production models
       E2E_TEST_MODE: "nightly"
-      # One xdist worker: two workers each load Whisper + large HF models and often OOM on
-      # ubuntu-latest (~7 GB), showing as ``make: ... Terminated`` shortly after pytest starts.
-      NIGHTLY_PYTEST_WORKERS: "1"
     steps:
     - uses: actions/checkout@v6
 
@@ -634,8 +631,8 @@ jobs:
         }
         echo "✅ Test collection successful"
 
-    - name: Run nightly-only tests with production models
-      timeout-minutes: 330  # 5.5 hours (leave buffer for workflow timeout)
+    - name: Run nightly-only tests with production models (sequential)
+      timeout-minutes: 100  # ~75 min typical + buffer
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Uses production models: Whisper base.en, BART-large-cnn, LED-large-16384

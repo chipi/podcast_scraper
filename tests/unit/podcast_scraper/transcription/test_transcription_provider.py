@@ -7,9 +7,13 @@ These tests verify that the transcription provider pattern works correctly.
 import unittest
 from unittest.mock import Mock, patch
 
+import pytest
+
 from podcast_scraper import config
 from podcast_scraper.exceptions import ProviderNotInitializedError, ProviderRuntimeError
 from podcast_scraper.transcription.factory import create_transcription_provider
+
+pytestmark = [pytest.mark.unit]
 
 
 class TestTranscriptionProviderFactory(unittest.TestCase):
@@ -279,3 +283,112 @@ class TestTranscriptionProviderProtocol(unittest.TestCase):
         params = list(sig.parameters.keys())
         self.assertIn("audio_path", params)
         self.assertIn("language", params)
+
+
+class TestTranscriptionFactoryExperimentMode(unittest.TestCase):
+    """Test experiment-mode paths in create_transcription_provider."""
+
+    def test_experiment_mode_invalid_provider_raises_value_error(self):
+        """Passing an unrecognised provider string raises ValueError."""
+        with self.assertRaises(ValueError) as ctx:
+            create_transcription_provider("invalid_provider")
+        self.assertIn("Invalid provider type", str(ctx.exception))
+
+    def test_experiment_mode_invalid_params_type_raises_type_error(self):
+        """Non-dict / non-TranscriptionParams params raise TypeError."""
+        with self.assertRaises(TypeError) as ctx:
+            create_transcription_provider("whisper", params=42)
+        self.assertIn("params must be TranscriptionParams or dict", str(ctx.exception))
+
+    @patch("podcast_scraper.providers.ml.ml_provider.MLProvider.__init__", return_value=None)
+    def test_experiment_mode_dict_params_creates_provider(self, mock_init):
+        """Dict params are converted to TranscriptionParams and provider is created."""
+        provider = create_transcription_provider("whisper", params={"model_name": "base.en"})
+        self.assertIsNotNone(provider)
+        mock_init.assert_called_once()
+
+    @patch("podcast_scraper.providers.ml.ml_provider.MLProvider.__init__", return_value=None)
+    def test_experiment_mode_none_params_uses_defaults(self, mock_init):
+        """Omitting params uses default TranscriptionParams."""
+        provider = create_transcription_provider("whisper")
+        self.assertIsNotNone(provider)
+        mock_init.assert_called_once()
+
+
+class TestTranscriptionFactoryConfigBranches(unittest.TestCase):
+    """Test config-mode branches for gemini, mistral, and anthropic."""
+
+    @patch(
+        "podcast_scraper.providers.gemini.gemini_provider.GeminiProvider.__init__",
+        return_value=None,
+    )
+    def test_config_gemini_creates_gemini_provider(self, mock_init):
+        """Config with transcription_provider='gemini' creates GeminiProvider."""
+        cfg = config.Config(
+            rss="",
+            transcription_provider="gemini",
+            gemini_api_key="test-key",
+            auto_speakers=False,
+        )
+        provider = create_transcription_provider(cfg)
+        self.assertIsNotNone(provider)
+        mock_init.assert_called_once()
+
+    @patch(
+        "podcast_scraper.providers.mistral.mistral_provider.MistralProvider.__init__",
+        return_value=None,
+    )
+    def test_config_mistral_creates_mistral_provider(self, mock_init):
+        """Config with transcription_provider='mistral' creates MistralProvider."""
+        cfg = config.Config(
+            rss="",
+            transcription_provider="mistral",
+            mistral_api_key="test-key",
+            auto_speakers=False,
+        )
+        provider = create_transcription_provider(cfg)
+        self.assertIsNotNone(provider)
+        mock_init.assert_called_once()
+
+    @patch(
+        "podcast_scraper.providers.anthropic.anthropic_provider.AnthropicProvider.__init__",
+        return_value=None,
+    )
+    def test_config_anthropic_creates_anthropic_provider(self, mock_init):
+        """Config with transcription_provider='anthropic' creates AnthropicProvider.
+
+        Config validation doesn't allow 'anthropic' directly, so we use a
+        mock config (same pattern as test_create_invalid_provider).
+        """
+        from unittest.mock import MagicMock
+
+        mock_cfg = MagicMock(spec=config.Config)
+        mock_cfg.transcription_provider = "anthropic"
+        mock_cfg.__class__ = config.Config
+
+        provider = create_transcription_provider(mock_cfg)
+        self.assertIsNotNone(provider)
+        mock_init.assert_called_once()
+
+    def test_config_with_params_raises_type_error(self):
+        """Passing params alongside a Config object raises TypeError."""
+        from podcast_scraper.providers.params import TranscriptionParams
+
+        cfg = config.Config(
+            rss="",
+            transcription_provider="whisper",
+            auto_speakers=False,
+        )
+        with self.assertRaises(TypeError) as ctx:
+            create_transcription_provider(cfg, params=TranscriptionParams(model_name="base.en"))
+        self.assertIn("Cannot provide params", str(ctx.exception))
+
+
+class TestTranscriptionFactoryAnthropicExperiment(unittest.TestCase):
+    """Test that anthropic is NOT available in experiment mode."""
+
+    def test_anthropic_not_in_experiment_mode(self):
+        """'anthropic' is config-only; experiment mode rejects it."""
+        with self.assertRaises(ValueError) as ctx:
+            create_transcription_provider("anthropic")
+        self.assertIn("Invalid provider type", str(ctx.exception))

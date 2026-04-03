@@ -13,10 +13,10 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | 1 | [README](README.md) | 5 min | What this project does |
 | 2 | [Engineering Process](docs/guides/ENGINEERING_PROCESS.md) | 5 min | **The "Triad of Truth": PRDs, RFCs, and ADRs** |
 | 3 | [Architecture](docs/ARCHITECTURE.md) | 10 min | How it's structured |
-| 3 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
-| 4 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
-| 5 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |
-| 6 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
+| 4 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
+| 5 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
+| 6 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |
+| 7 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
 
 ---
 
@@ -34,7 +34,7 @@ Before you begin, ensure you have these installed:
 - **ffmpeg** — Required for Whisper transcription
   - macOS: `brew install ffmpeg`
   - Linux: `apt install ffmpeg` or `yum install ffmpeg`
-- **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). Diagrams are committed; `make ci` / `make ci-fast` and CI run `check-visualizations` and fail if diagrams are stale.
+- **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). Diagrams are committed so most contributors don't need Graphviz.
   - macOS: `brew install graphviz`
   - Linux: `apt install graphviz` or `yum install graphviz`
 - **Node.js and npm** — Required for markdown linting
@@ -78,7 +78,7 @@ pip install --upgrade pip setuptools wheel
 
 # Install package and dependencies
 
-make init  # Installs package with pip install -e ".[ml]" + dev tools + pre-commit hooks
+make init  # Installs package with pip install -e ".[dev,ml,llm]" + dev tools
 
 # Install markdown linting tool (required for make ci)
 
@@ -111,13 +111,13 @@ other targets that run pip) unless you already exported `PIP_FIND_LINKS` yoursel
 `scripts/setup_venv.sh` does the same for its initial `pip install -e .` if wheels are
 present.
 
-If you install **without** `make` (plain `pip install -e ".[dev,ml,gemini]"`), either export
+If you install **without** `make` (plain `pip install -e ".[dev,ml,llm]"`), either export
 `PIP_FIND_LINKS` manually or run `python3 scripts/patch_venv_activate_spacy_wheels.py` once
 per venv so `source .venv/bin/activate` sets it when `wheels/spacy/*.whl` exists.
 
 ```bash
 export PIP_FIND_LINKS="$(pwd)/wheels/spacy"
-pip install -e ".[dev,ml,gemini]"
+pip install -e ".[dev,ml,llm]"
 ```
 
 Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change**: see
@@ -128,14 +128,14 @@ Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change
 - Upgrades pip and setuptools (required for PEP 660 editable installs)
 - Creates virtual environment (if not exists)
 - Installs package in editable mode with all dependencies
-- **Installs pre-commit hooks** (automatically runs checks before each commit)
 - Sets up development tools (black, isort, flake8, mypy)
+- To install pre-commit hooks, run `make install-hooks` separately
 
 **⚠️ Important Notes:**
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.10, recreate the venv with a newer Python version.
 - **Always activate your virtual environment** before running `make` commands. The Makefile uses tools installed in `.venv/bin/`, so they won't be found if the venv isn't activated.
-- **Pre-commit hook is REQUIRED** — The git pre-commit hook automatically checks your code (formatting, linting, type checking) before each commit. It's installed by `make init`, but if you need to reinstall it manually:
+- **Pre-commit hook is REQUIRED** — The git pre-commit hook automatically checks your code (formatting, linting, type checking, markdown linting, JSON/YAML validation) before each commit. Install it with:
 
   ```bash
   make install-hooks
@@ -185,7 +185,7 @@ See [`config/examples/.env.example`](config/examples/.env.example) for all optio
    - Type checking (mypy) should work if configured
 
 4. **Workspace Settings (Optional):**
-   The project includes `.vscode/settings.json` with recommended settings. If you need to configure manually:
+   You can create `.vscode/settings.json` with recommended settings:
 
    ```json
    {
@@ -267,7 +267,7 @@ git status --porcelain
 **Then create your branch:**
 
 ```bash
-git checkout -b feature/my-feature   # or fix/bug-name, docs/update-xyz
+git checkout -b feat/my-feature   # or fix/bug-name, docs/update-xyz
 ```
 
 **💡 Why this matters:** Uncommitted changes get included in your new branch, causing confusing PRs with unrelated files.
@@ -290,7 +290,7 @@ make format
 make lint
 ```
 
-## 3. Test
+### 3. Test
 
 ```bash
 make test-unit          # Fast feedback (~30s)
@@ -304,7 +304,7 @@ git add -A
 git commit -m "feat: add my feature"   # Use conventional commits
 ```
 
-**⚠️ Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated.
+**⚠️ Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking, markdown linting, JSON/YAML validation) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated.
 
 **Commit format:** `type: description`
 
@@ -317,8 +317,8 @@ git commit -m "feat: add my feature"   # Use conventional commits
 ### 5. Push and Create PR
 
 ```bash
-git push -u origin feature/my-feature
-```yaml
+git push -u origin feat/my-feature
+```
 
 Then open a PR on GitHub.
 
@@ -367,7 +367,7 @@ This policy allows automation scripts to distinguish between "pipeline ran succe
 
 When writing scripts or automation that uses `podcast_scraper`, be aware of exit codes:
 
-- **Exit code 0**: Success (pipeline completed, even if some episodes were skipped)
+- **Exit code 0**: Success (pipeline completed, even if some episodes failed)
 - **Exit code 1**: Error (validation, configuration, or pipeline failure)
 
 For detailed exit code semantics and usage examples (shell scripts, process managers, CI/CD), see the [CLI Reference - Exit Codes](docs/api/CLI.md#exit-codes).

@@ -11,6 +11,8 @@ import os
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from podcast_scraper.utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 # Use constant for consistency with other cache directories
@@ -32,7 +34,10 @@ def get_audio_hash(audio_path: str) -> str:
             # Hash first 1MB for performance (same as preprocessing cache)
             hasher.update(f.read(1024 * 1024))
     except OSError as exc:
-        logger.warning("Failed to hash audio file for transcript cache: %s", exc)
+        logger.warning(
+            "Failed to hash audio file for transcript cache: %s",
+            format_exception_for_log(exc),
+        )
         # Use file path as fallback (not ideal, but better than failing)
         hasher.update(audio_path.encode("utf-8"))
     return hasher.hexdigest()[:16]  # 16 hex chars (64 bits)
@@ -66,7 +71,10 @@ def get_cached_transcript(
         logger.warning("Cached transcript file missing 'transcript' field: %s", cache_path)
         return None
     except (OSError, json.JSONDecodeError, KeyError) as exc:
-        logger.warning("Failed to read cached transcript: %s", exc)
+        logger.warning(
+            "Failed to read cached transcript: %s",
+            format_exception_for_log(exc),
+        )
         return None
 
 
@@ -113,9 +121,18 @@ def save_transcript_to_cache(
 
     try:
         with open(cache_path, "w", encoding="utf-8") as f:
-            json.dump(cache_data, f, indent=2, ensure_ascii=False)
+            json.dump(
+                cache_data,
+                f,
+                indent=2,
+                ensure_ascii=False,
+                allow_nan=False,
+            )
         logger.debug("Saved transcript to cache: %s", cache_path)
         return cache_path
     except OSError as exc:
-        logger.warning("Failed to save transcript to cache: %s", exc)
+        logger.warning(
+            "Failed to save transcript to cache: %s",
+            format_exception_for_log(exc),
+        )
         raise

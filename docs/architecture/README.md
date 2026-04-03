@@ -15,4 +15,4 @@ See [ARCHITECTURE.md](../ARCHITECTURE.md) for where each diagram is referenced.
 
 **Regenerate locally:** Diagrams are not generated in CI. Run `make visualize` from the project root when you change code that affects architecture (e.g. new modules, workflow changes), then commit the updated `docs/architecture/*.svg` files. Requires [Graphviz](https://graphviz.org/) (`dot` on PATH) and dev dependencies: `pip install -e .[dev]` (pydeps, pyan3, code2flow). Graphviz: `brew install graphviz` (macOS), `apt install graphviz` (Debian/Ubuntu).
 
-**Enforcement:** `make ci` and `make ci-fast` run `make check-visualizations`; CI (python-app and docs workflows) also runs it. If diagrams are older than the source files they depend on, the check fails. Run `make visualize` and commit the updated SVGs to fix it.
+**Enforcement:** `make ci` and `make ci-fast` run `make visualize`; CI (python-app and docs workflows) also runs it. If diagrams are older than the source files they depend on, the check fails. Run `make visualize` and commit the updated SVGs to fix it.

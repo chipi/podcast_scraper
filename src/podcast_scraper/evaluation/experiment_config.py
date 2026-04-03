@@ -471,6 +471,14 @@ class ExperimentConfig(BaseModel):
             "(e.g., 'cleaning_v3', 'cleaning_v4')"
         ),
     )
+    transcript_cleaning_strategy: Optional[Literal["pattern", "llm", "hybrid"]] = Field(
+        default=None,
+        description=(
+            "When set, passed to podcast_scraper.config.Config.transcript_cleaning_strategy "
+            "for summarization experiments (pattern / llm / hybrid LLM cleaning). "
+            "When omitted, product default applies (typically hybrid for API LLM providers)."
+        ),
+    )
     params: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(

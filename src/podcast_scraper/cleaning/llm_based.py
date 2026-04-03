@@ -8,6 +8,8 @@ natural language understanding rather than pattern matching.
 import logging
 from typing import Any, cast, Optional
 
+from ..utils.log_redaction import format_exception_for_log
+
 logger = logging.getLogger(__name__)
 
 # If pattern-cleaned input is at least this long, reject LLM output that shrinks the
@@ -77,6 +79,6 @@ class LLMBasedCleaner:
                     return text
             return cast(str, cleaned)
         except Exception as e:
-            logger.error(f"LLM cleaning failed: {e}", exc_info=True)
+            logger.error("LLM cleaning failed: %s", format_exception_for_log(e), exc_info=True)
             # Fallback to original text if cleaning fails
             return text

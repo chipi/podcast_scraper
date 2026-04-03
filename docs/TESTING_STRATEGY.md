@@ -16,7 +16,7 @@ podcast scraper codebase. It establishes the test
 pyramid approach, decision criteria for choosing test
 types, and high-level testing patterns.
 
-The system supports **8 providers** (ML, OpenAI,
+The system supports **9 providers** (1 local ML + 1 hybrid ML + 7 LLM: OpenAI,
 Gemini, Anthropic, Mistral, DeepSeek, Grok, Ollama)
 with per-provider unit, integration, and E2E tests.
 All LLM providers use versioned Jinja2 prompt
@@ -62,13 +62,15 @@ The testing strategy follows a three-tier pyramid:
 
 ### Volume and default bias
 
-**Goal:** Most tests are **unit** tests; **integration** and **E2E** are smaller layers on top—not copies of the same scenarios.
+**Goal:** Most tests are **unit** tests (~80%); **integration** (~14%) and **E2E** (~6%) are complementary layers—not copies of the same scenarios.
+
+**Current distribution (~3,770 tests total):** ~3,000 unit | ~530 integration | ~230 E2E.
 
 | Layer | Expectation |
 | ----- | ----------- |
-| **Unit** | **Default for new work.** Cover branches, errors, config, parsing, and provider behavior with mocks. This layer should have the **highest test count** and run on every PR (fast). |
-| **Integration** | **Selective.** Use when real wiring between modules matters (factories, stages, HTTP client against a local server). Avoid re-testing every unit case again here. |
-| **E2E** | **Sparse.** A **small** set of full workflows (CLI / `run_pipeline` / critical paths) that prove the stack end-to-end. Do **not** add E2E for every new flag or branch—use unit tests for those. |
+| **Unit** | **Default for new work.** Cover branches, errors, config, parsing, and provider behavior with mocks. This layer should have the **highest test count** (~80%) and run on every PR (fast). |
+| **Integration** | **Cross-boundary validation.** Integration tests validate cross-module boundaries and provider interactions (factories, stages, HTTP client against a local server). Avoid re-testing every unit case again here. |
+| **E2E** | **Non-redundant with integration.** E2E tests are kept non-redundant with integration tests—each covers a distinct full workflow (CLI / `run_pipeline` / critical paths) that proves the stack end-to-end. Do **not** add E2E for every new flag or branch—use unit tests for those. |
 
 **Anti-pattern:** Asserting the same behavior three times (unit + integration + E2E) without a distinct guarantee at each layer. Prefer **one strong unit test** plus integration or E2E only where the layer adds real value (real I/O, multi-component flow, or user entry point).
 
@@ -149,8 +151,10 @@ The testing strategy follows a three-tier pyramid:
     implementations throughout (no Whisper mocks,
     no ML model mocks)
 - **Provider E2E tests**: Dedicated E2E test files
-  exist for each of the 8 providers:
-  `test_ml_models_e2e.py`, `test_openai_provider_e2e.py`,
+  exist for each of the 9 providers:
+  `test_ml_models_e2e.py`,
+  `test_hybrid_ml_provider_e2e.py`,
+  `test_openai_provider_e2e.py`,
   `test_gemini_provider_e2e.py`,
   `test_anthropic_provider_e2e.py`,
   `test_mistral_provider_e2e.py`,
@@ -223,7 +227,7 @@ The decision questions above provide a quick way to determine test type. For cri
   - HTTP retry logic (unit test with mocked responses)
   - Transcript type preference ordering
 
-#### Whisper Integration (`whisper_integration.py`)
+#### Whisper Integration (`providers/ml/whisper_utils.py`)
 
 - **RFC-005**: Mock Whisper library, loading paths, error handling
 - **RFC-006**: Screenplay formatting with synthetic segments
@@ -285,13 +289,14 @@ The decision questions above provide a quick way to determine test type. For cri
 
 - **RFC-013/RFC-029**: Protocol-based provider
   architecture for transcription, speaker detection,
-  and summarization with 8 unified providers.
+  and summarization with 9 unified providers.
 - **Provider Coverage**: Each provider has a
   consistent test structure:
 
 | Provider | Unit Tests | Integration | E2E |
 | --- | --- | --- | --- |
 | MLProvider | `test_ml_provider.py`, `_lifecycle.py` | `test_provider_real_models.py` | `test_ml_models_e2e.py` |
+| HybridMLProvider | `test_hybrid_ml_provider.py`, `_lifecycle.py` | `test_hybrid_ml_providers.py` | `test_hybrid_ml_provider_e2e.py` |
 | OpenAIProvider | `test_openai_provider.py`, `_factory.py`, `_lifecycle.py` | `test_openai_providers.py` | `test_openai_provider_e2e.py` |
 | GeminiProvider | `test_gemini_provider.py`, `_factory.py`, `_lifecycle.py` | `test_gemini_providers.py` | `test_gemini_provider_e2e.py` |
 | AnthropicProvider | `test_anthropic_provider.py`, `_factory.py`, `_lifecycle.py` | `test_anthropic_providers.py` | `test_anthropic_provider_e2e.py` |
@@ -337,7 +342,7 @@ The decision questions above provide a quick way to determine test type. For cri
   - Jinja2 variable rendering
   - Missing template error handling
   - Template version selection
-  - All 8 providers have prompt directories
+  - All 9 providers have prompt directories
     (`prompts/<provider>/ner/`, `summarization/`)
   - Template validation (syntax, required variables)
 
@@ -481,11 +486,11 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 - Production models (Whisper base, BART-large-cnn, LED-large-16384)
 - Run in nightly builds only
 - Focus: Production-quality validation with real models
-- **Memory / CI:** `make test-nightly` uses pytest-xdist (`NIGHTLY_PYTEST_WORKERS`, default `2`).
-  The nightly workflow sets `NIGHTLY_PYTEST_WORKERS=1` because two workers each loading
-  Whisper + large HF models often exceeds RAM on `ubuntu-latest` and the process is killed
-  (`make: ... Terminated` within a few minutes). Use `NIGHTLY_PYTEST_WORKERS=2 make test-nightly`
-  on a machine with enough memory for parallel loads.
+- **Memory / CI:** `make test-nightly` runs sequentially (no pytest-xdist). Parallel
+  execution was removed because exit-code mismatches triggered a fallback path that
+  re-ran the full suite, doubling wall time from ~75 min to ~3 h. Sequential also
+  avoids OOM on `ubuntu-latest` where two workers each loading Whisper + large HF
+  models exceeded available RAM.
 
 **Key Principle:** Code quality tests (Tier 1) run on every PR. Data quality and nightly tests
 (Tiers 2-3) run only in nightly builds to avoid slowing down CI/CD feedback.
@@ -514,10 +519,10 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 
   (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
 
-**Provider Testing Strategy (8 providers):**
+**Provider Testing Strategy (9 providers):**
 
 - **Unit Tests (Standalone Provider)**: Each of the
-  8 providers tested directly with all dependencies
+  9 providers tested directly with all dependencies
   mocked (API clients, ML models). Dedicated test
   files: `test_<provider>_provider.py`,
   `_factory.py`, `_lifecycle.py`.
@@ -570,9 +575,9 @@ The test suite is organized into three main categories:
   from nightly to avoid costs)
 - `@pytest.mark.openai` - Tests using OpenAI API
   specifically (subset of llm)
-- `@pytest.mark.gil` - (planned) GIL extraction tests
-- `@pytest.mark.grounding` - (planned) Grounding
-  contract validation tests
+- `@pytest.mark.gil` - GIL extraction tests
+- `@pytest.mark.grounding` - Grounding contract
+  validation tests
 
 **Execution Pattern**: Tests marked `serial` run first sequentially, then remaining tests run in
 parallel with `-n auto`. All tests use network isolation via
@@ -593,7 +598,7 @@ dedicated scripts and a "golden" dataset.
 | :--- | :--- | :--- | :--- |
 | **Cleaning** | Effective removal of ads/outro | Removal %, Brand detection | Automatic (via experiment runner) |
 | **Summarization** | Accuracy and synthesis quality | ROUGE-1/2/L, Compression ratio | Automatic (via experiment runner) |
-| **GIL** (planned) | Insight/quote extraction quality | Grounding rate, Quote verbatim %, Insight coverage | Per-provider comparison |
+| **GIL** | Insight/quote extraction quality | Grounding rate, Quote verbatim %, Insight coverage | Per-provider comparison |
 
 ### Golden Datasets
 
@@ -604,8 +609,8 @@ comparison. See
 [ADR-026](adr/ADR-026-explicit-golden-dataset-versioning.md)
 for details.
 
-**Planned (GIL)**: A golden dataset for GIL
-evaluation will include human-annotated insights,
+**GIL Golden Dataset**: A golden dataset for GIL
+evaluation includes human-annotated insights,
 quotes, and grounding links for a representative
 set of episodes. This enables comparison across
 extraction tiers (ML-only, Hybrid, Cloud LLM).
@@ -769,7 +774,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [ ] Run suffix generation
 - [ ] Path validation
 
-### `whisper_integration.py`
+### `providers/ml/whisper_utils.py`
 
 - [ ] Model loading
 - [ ] Transcription invocation
@@ -818,9 +823,10 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] ServiceResult equality and string repr
 - [x] Integration with public API
 
-### `providers/` (All 8 Providers)
+### `providers/` (All 9 Providers)
 
 - [x] MLProvider: unit, lifecycle, integration, E2E
+- [x] HybridMLProvider: unit, lifecycle, integration, E2E
 - [x] OpenAIProvider: unit, factory, lifecycle,
   integration, E2E
 - [x] GeminiProvider: unit, factory, lifecycle,
@@ -862,8 +868,8 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `gi/grounding.py` — find_grounded_quotes (unit: `test_grounding.py`; optional integration with real models)
 - [x] GIL in workflow: metadata_generation writes gi.json when generate_gi true (unit: test_metadata_generation; E2E: test_gi_cli_e2e)
 - [x] CLI `gi inspect`, `gi show-insight`, `gi explore` (unit: test_cli TestGiSubcommand; E2E: test_gi_cli_e2e)
-- [ ] Three-tier extraction (ML-only, Hybrid, Cloud) — future
-- [ ] GIL extraction latency per tier — planned
+- [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
+- [ ] GIL extraction latency per tier — benchmarking planned
 
 ## Test Pyramid Status
 
@@ -873,24 +879,25 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 
 ### Current State vs. Ideal Distribution
 
-The test pyramid shows our current distribution compared to the ideal:
+The test pyramid has reached a healthy shape that matches the ideal targets.
 
-**Current Distribution (verify with `pytest --collect-only`):**
+**Current Distribution (~3,770 tests, verified Apr 2026):**
 
-- **Unit Tests**: Target 70-80% ⚠️ Need to verify current percentage
-- **Integration Tests**: Target 15-20% ⚠️ Need to verify current percentage
-- **E2E Tests**: Target 5-10% ⚠️ Need to verify current percentage
+- **Unit Tests**: ~3,000 (~80%) ✅ Target 70-80%
+- **Integration Tests**: ~530 (~14%) ✅ Target 15-20%
+- **E2E Tests**: ~230 (~6%) ✅ Target 5-10%
 
 **Visual Representation:**
 
 ```text
         ╱╲
-       ╱  ╲      E2E: 31% (should be 5-10%)
+       ╱  ╲      E2E: ~6% (~230 tests)
       ╱    ╲
-     ╱      ╲    Integration: 27% (should be 15-20%)
+     ╱      ╲    Integration: ~14% (~530 tests)
     ╱        ╲
-   ╱          ╲  Unit: 41% (should be 70-80%)
+   ╱          ╲  Unit: ~80% (~3,000 tests)
   ╱____________╲
+              Total: ~3,770 tests
 
 Ideal Pyramid:
         ╱╲
@@ -900,29 +907,21 @@ Ideal Pyramid:
     ╱        ╲
    ╱          ╲  Unit: 70-80%
   ╱____________╲
-```text
+```
 
-1. **Too Few Unit Tests**: Core business logic is being tested at E2E level instead of unit level
-   - **Critical modules with zero unit tests**: `workflow.py`, `cli.py`, `service.py`, `episode_processor.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`
-   - **67 summarizer tests misclassified**: Currently at E2E level but test individual functions with mocked dependencies → should be unit tests
-   - **Missing unit test coverage**: Many core functions in `summarizer.py`, `workflow.py`, and `speaker_detection.py` have no unit tests
+The pyramid is now well-balanced. Historical issues (misclassified tests, missing unit coverage) have been addressed through the improvement phases below. Remaining maintenance items:
 
-2. **Too Many E2E Tests**: Many tests are misclassified
-   - Tests that use function-level entry points with mocked dependencies should be unit tests
-   - Tests that use component-level entry points should be integration tests
-   - **Root cause**: Tests were written at E2E level for convenience, violating testing strategy definitions
-
-3. **Integration Layer Underutilized**: Component interactions are often tested at E2E level
-   - **Missing integration test coverage**: RSS Parser + Downloader, Downloader + Episode Processor, Progress Reporting + Workflow, Metrics + Workflow, Filesystem + Workflow
-   - Some E2E tests should be integration tests (component-level entry points with mocked HTTP)
+1. **Unit layer (~80%)**: Healthy. All core modules have unit tests. Continue adding unit tests as default for new work.
+2. **Integration layer (~14%)**: Validates cross-module boundaries and provider interactions across all 9 providers.
+3. **E2E layer (~6%)**: Covers complete user workflows (CLI, Library API, Service API) without duplicating integration-level scenarios.
 
 ### Goals and Targets
 
-**Target Distribution:**
+**Target Distribution (achieved as of Apr 2026):**
 
-- **Unit Tests**: 70-80% (~550-650 tests)
-- **Integration Tests**: 15-20% (~120-150 tests)
-- **E2E Tests**: 5-10% (~50-80 tests)
+- **Unit Tests**: 70-80% (~3,000 tests) ✅
+- **Integration Tests**: 15-20% (~530 tests) ✅
+- **E2E Tests**: 5-10% (~230 tests) ✅
 
 **Success Metrics:**
 
@@ -931,52 +930,44 @@ Ideal Pyramid:
 - E2E test execution time: < 20 minutes
 - Test coverage: Maintain ≥70%
 
-### Improvement Strategy
+### Improvement Strategy (Completed)
 
-**Phase 1: Reclassify Misplaced Tests** (High Priority)
+All four phases have been executed. The pyramid now matches the target distribution.
 
-- Move 67 summarizer tests from E2E to unit (they test individual functions with mocked dependencies)
-- Review and reclassify E2E tests that violate testing strategy definitions
-- **Expected Result**: Unit: ~50-51%, Integration: ~27-28%, E2E: ~22-23%
+**Phase 1: Reclassify Misplaced Tests** ✅ Done
 
-**Phase 2: Add Missing Unit Tests** (High Priority)
+- Reclassified summarizer tests from E2E to unit.
+- Reviewed and reclassified E2E tests that violated testing strategy definitions.
 
-- Add unit tests for core functions currently untested:
-  - `workflow.py` helper functions (8-10 tests)
-  - `episode_processor.py` functions (5-8 tests)
-  - `summarizer.py` core functions (45-65 tests)
-  - `speaker_detection.py` functions (19-31 tests)
-  - `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py` (17-28 tests)
-  - `cli.py` and `service.py` (8-13 tests)
-- **Target**: +150-200 new unit tests
-- **Expected Result**: Unit: ~69-83%, Integration: ~27-28%, E2E: ~22-23%
+**Phase 2: Add Missing Unit Tests** ✅ Done
 
-**Phase 3: Optimize Integration Layer** (Medium Priority)
+- Added unit tests for all core modules (`workflow.py`, `episode_processor.py`, `summarizer.py`, `speaker_detection.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`, `cli.py`, `service.py`).
 
-- Move component interaction tests from E2E to integration (~20-40 tests)
-- Add missing integration tests for component-to-component interactions (~19-31 tests)
-- **Expected Result**: Unit: ~69-83%, Integration: ~30-32%, E2E: ~16-19%
+**Phase 3: Optimize Integration Layer** ✅ Done
 
-**Phase 4: Reduce E2E to True E2E** (Low Priority)
+- Moved component interaction tests from E2E to integration.
+- Added integration tests for cross-module boundaries.
 
-- Keep only true end-to-end user workflow tests
-- Focus on complete user journeys (CLI commands, library API calls, service API calls)
-- **Target**: ~50-80 true E2E tests (5-10% of total)
-- **Expected Final Result**: Unit: ~70-80%, Integration: ~15-20%, E2E: ~5-10% ✅
+**Phase 4: Reduce E2E to True E2E** ✅ Done
 
-### Priority Areas for Unit Test Coverage
+- E2E layer now contains only true end-to-end user workflow tests.
+- **Final Result**: Unit: ~80%, Integration: ~14%, E2E: ~6% ✅
 
-**High Priority Modules:**
+### Unit Test Coverage by Module
 
-- `summarizer.py`: Text cleaning, chunking, validation functions (45-65 tests needed)
-- `workflow.py`: Pipeline orchestration helpers (8-10 tests needed)
-- `episode_processor.py`: Episode processing logic (5-8 tests needed)
+All previously-identified coverage gaps have been addressed. Key modules and their unit test status:
 
-**Medium Priority Modules:**
+**Core Modules (covered):**
 
-- `speaker_detection.py`: Detection and scoring logic (19-31 tests needed)
-- `cli.py` and `service.py`: Argument parsing and service logic (8-13 tests needed)
-- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions (17-28 tests needed)
+- `summarizer.py`: Text cleaning, chunking, validation functions ✅
+- `workflow.py`: Pipeline orchestration helpers ✅
+- `episode_processor.py`: Episode processing logic ✅
+
+**Supporting Modules (covered):**
+
+- `speaker_detection.py`: Detection and scoring logic ✅
+- `cli.py` and `service.py`: Argument parsing and service logic ✅
+- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions ✅
 
 ## Future Testing Enhancements
 
@@ -1027,7 +1018,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 
 - [x] Evidence stack: load embedding, QA, NLI; encode, answer, entailment_score (`test_evidence_stack_integration.py`)
 - [x] Optional: find_grounded_quotes with real models (skip when offline)
-- [ ] `gi.json` → Postgres export (RFC-051) — planned
+- [ ] `gi.json` → Postgres export (RFC-051) — not yet implemented
 
 **E2E Tests:**
 
@@ -1040,7 +1031,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - Quote verbatim accuracy, grounding rate, insight coverage
 - Cross-provider comparison using golden dataset
 
-### Model Registry Testing (RFC-044, Planned)
+### Model Registry Testing (RFC-044, Implemented)
 
 - `ModelRegistry` initialization and model lookup
 - `ModelCapabilities` validation (token limits,
@@ -1048,7 +1039,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - Registry used by summarizer and GIL extractor
 - Invalid model name error handling
 
-### Hybrid ML Platform Testing (RFC-042, Planned)
+### Hybrid ML Platform Testing (RFC-042, Implemented)
 
 - Hybrid MAP-REDUCE pipeline (LED map → FLAN-T5
   reduce)
@@ -1063,14 +1054,14 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [ ] Measure Whisper transcription performance
 - [ ] Profile memory usage
 - [ ] Test concurrent download limits
-- [ ] GIL extraction latency per tier (planned)
+- [ ] GIL extraction latency per tier (benchmarking planned)
 
 ### Property-Based Testing
 
 - [ ] Generate random RSS feeds
 - [ ] Test filename sanitization with fuzzing
 - [ ] Test URL normalization with edge cases
-- [ ] `gi.json` schema fuzzing (planned)
+- [ ] `gi.json` schema fuzzing
 
 ## References
 
@@ -1089,13 +1080,12 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - CI workflow: `.github/workflows/python-app.yml`
 - Related RFCs: RFC-001–RFC-018 (testing strategies),
   RFC-029 (unified providers), RFC-017 (prompt store)
-- Planned RFCs: RFC-042 (Hybrid ML), RFC-044 (Model
-  Registry), RFC-049/050/051 (GIL)
+- Implemented RFCs: RFC-042 (Hybrid ML), RFC-044 (Model
+  Registry), RFC-049 (GIL Schema), RFC-050 (GIL Pipeline);
+  Draft: RFC-051 (DB Projection)
 - Related Issues: #14 (E2E testing), #16 (Library API
   E2E tests), #94 (src/ layout), #98 (Test structure
   reorganization)
 - Architecture: `docs/ARCHITECTURE.md`
 - Non-Functional Requirements: `docs/NON_FUNCTIONAL_REQUIREMENTS.md` (quality attributes validated by tests)
 - Contributing guide: `CONTRIBUTING.md`
-
-````

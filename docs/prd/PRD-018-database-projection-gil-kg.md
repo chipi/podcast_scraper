@@ -16,7 +16,7 @@
   - [PRD-019: Knowledge Graph Layer](PRD-019-knowledge-graph-layer.md) — source KG artifacts per RFC-055 (`kg` export and tables are **in scope** here; implementation may ship after GIL export when KG artifacts exist)
 - **Related Documents**:
   - `docs/gi/ontology.md`, `docs/gi/gi.schema.json` — GIL ontology and schema
-  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` (planned) — KG ontology and schema (RFC-055)
+  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` — KG ontology and schema (RFC-055)
 
 ## Summary
 

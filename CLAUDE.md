@@ -48,7 +48,7 @@
 
 **Loading pattern:**
 
-```python
+```text
 
 # When user says "load ai coding guidelines" or "load coding guidelines":
 
@@ -62,9 +62,9 @@
 
 # 5. Read docs/guides/MARKDOWN_LINTING_GUIDE.md
 
-# 7. Acknowledge all files loaded and summarize key points
+# 6. Acknowledge all files loaded and summarize key points
 
-```text
+```
 
 ## Full Guidelines
 
@@ -91,6 +91,7 @@
 **When working on related tasks, read these files:**
 
 **Core Guide Files (load all when user asks to "load ai coding guidelines"):**
+
 - **`.ai-coding-guidelines.md`** - Main AI coding guidelines (PRIMARY source of truth)
 - **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** - Cursor AI best practices and model selection
 - **`docs/guides/DEVELOPMENT_GUIDE.md`** - Detailed technical information (code style, testing, CI/CD,
@@ -101,6 +102,7 @@
   formatting, pre-commit hooks, CI/CD integration)
 
 **Additional Reference Files:**
+
 - **`docs/TESTING_STRATEGY.md`** - Comprehensive testing approach
 - **`docs/ARCHITECTURE.md`** - Architecture design and module responsibilities
 

@@ -9,36 +9,39 @@ via CLI, config files, and programmatically.
 
 The podcast scraper uses a **Unified Provider** pattern where a single class implementation handles multiple capabilities.
 
-1. **`MLProvider` (Local)**: Handles `whisper`, `spacy`, and `transformers`.
-2. **`OpenAIProvider` (API)**: Handles all OpenAI-based transcription, speaker detection, and summarization.
-3. **`GeminiProvider` (API)**: Handles all Google Gemini-based transcription, speaker detection, and summarization.
-4. **`AnthropicProvider` (API)**: Handles Anthropic Claude-based speaker detection and summarization (transcription not supported).
-5. **`DeepSeekProvider` (API)**: Handles DeepSeek-based speaker detection and summarization (transcription not supported).
-6. **`GrokProvider` (API)**: Handles Grok-based speaker detection and summarization (real-time information access).
+1. **`MLProvider` (Local)**: Handles `whisper` (transcription), `spacy` (speaker detection), and `transformers` (summarization).
+2. **`HybridMLProvider` (Local)**: Combines local ML MAP + LLM REDUCE for summarization (RFC-042).
+3. **`OpenAIProvider` (API)**: Handles OpenAI-based transcription and summarization (no speaker detection).
+4. **`GeminiProvider` (API)**: Handles Google Gemini-based transcription and summarization (speaker detection not supported).
+5. **`AnthropicProvider` (API)**: Handles Anthropic Claude-based summarization only (no transcription or speaker detection).
+6. **`MistralProvider` (API)**: Handles Mistral-based summarization only (EU data residency).
+7. **`DeepSeekProvider` (API)**: Handles DeepSeek-based summarization only (ultra low-cost).
+8. **`GrokProvider` (API)**: Handles Grok-based summarization only (real-time information access).
+9. **`OllamaProvider` (Local)**: Handles Ollama-based transcription, speaker detection, and summarization (self-hosted LLMs).
 
 ### Transcription Providers
 
 - **`whisper`** (default): Local Whisper models (via `MLProvider`)
 - **`openai`**: OpenAI Whisper API (via `OpenAIProvider`)
 - **`gemini`**: Google Gemini API (via `GeminiProvider`)
+- **`ollama`**: Local Ollama LLMs (via `OllamaProvider`)
 
 ### Speaker Detection Providers
 
 - **`spacy`** (default): Local spaCy NER models (via `MLProvider`)
-- **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
-- **`gemini`**: Google Gemini API (via `GeminiProvider`)
-- **`anthropic`**: Anthropic Claude API (via `AnthropicProvider`) - high quality, 200k context
-- **`deepseek`**: DeepSeek Chat API (via `DeepSeekProvider`) - 95% cheaper than OpenAI
-- **`grok`**: Grok API (via `GrokProvider`) - real-time information access
+- **`ollama`**: Local Ollama LLMs (via `OllamaProvider`)
 
 ### Summarization Providers
 
 - **`transformers`** (default): Local HuggingFace Transformers models (via `MLProvider`)
+- **`hybrid_ml`**: Local MAP-REDUCE with LLM REDUCE (via `HybridMLProvider`)
 - **`openai`**: OpenAI GPT API (via `OpenAIProvider`)
 - **`gemini`**: Google Gemini API (via `GeminiProvider`)
 - **`anthropic`**: Anthropic Claude API (via `AnthropicProvider`) - high quality, 200k context
+- **`mistral`**: Mistral API (via `MistralProvider`) - EU data residency
 - **`deepseek`**: DeepSeek Chat API (via `DeepSeekProvider`) - 95% cheaper than OpenAI
 - **`grok`**: Grok API (via `GrokProvider`) - real-time information access
+- **`ollama`**: Local Ollama LLMs (via `OllamaProvider`) - zero cost, complete privacy
 
 ## Configuration Methods
 
@@ -58,31 +61,23 @@ podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
   --openai-api-key sk-your-key-here
 
-# Use OpenAI for speaker detection
-
-podcast-scraper --rss https://example.com/feed.xml \
-  --speaker-detector-provider openai \
-  --openai-api-key sk-your-key-here
-
 # Use OpenAI for summarization
 
 podcast-scraper --rss https://example.com/feed.xml \
   --summary-provider openai \
   --openai-api-key sk-your-key-here
 
-# Mixed configuration: Whisper transcription + OpenAI speaker detection + Local summarization
+# Mixed configuration: Whisper transcription + Ollama speaker detection + Local summarization
 
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider whisper \
-  --speaker-detector-provider openai \
-  --summary-provider transformers \
-  --openai-api-key sk-your-key-here
+  --speaker-detector-provider ollama \
+  --summary-provider transformers
 
-# All OpenAI providers
+# OpenAI transcription + summarization (speaker detection not supported)
 
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
-  --speaker-detector-provider openai \
   --summary-provider openai \
   --openai-api-key sk-your-key-here
 
@@ -92,23 +87,16 @@ podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider gemini \
   --gemini-api-key your-key-here
 
-# Use Gemini for speaker detection
-
-podcast-scraper --rss https://example.com/feed.xml \
-  --speaker-detector-provider gemini \
-  --gemini-api-key your-key-here
-
 # Use Gemini for summarization
 
 podcast-scraper --rss https://example.com/feed.xml \
   --summary-provider gemini \
   --gemini-api-key your-key-here
 
-# All Gemini providers
+# Gemini transcription + summarization (speaker detection not supported)
 
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider gemini \
-  --speaker-detector-provider gemini \
   --summary-provider gemini \
   --gemini-api-key your-key-here
 ```
@@ -199,9 +187,9 @@ output_dir: ./transcripts
 
 # Provider configuration
 
-transcription_provider: whisper  # or "openai", "gemini", "mistral"
-speaker_detector_provider: spacy  # or "openai", "gemini", "mistral"
-summary_provider: transformers  # or "hybrid_ml", "openai", "gemini", "mistral"
+transcription_provider: whisper  # or "openai", "gemini", "ollama"
+speaker_detector_provider: spacy  # or "ollama"
+summary_provider: transformers  # or "hybrid_ml", "openai", "gemini", "anthropic", "mistral", "deepseek", "grok", "ollama"
 
 # OpenAI configuration (required if using OpenAI providers)
 
@@ -213,8 +201,8 @@ openai_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000
 gemini_api_key: your-key-here  # Optional: can use GEMINI_API_KEY env var instead
 gemini_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1beta" for E2E testing)
 
-# Mistral configuration (required if using Mistral providers)
-# Mistral is a full-stack provider (transcription + speaker detection + summarization) with EU data residency
+# Mistral configuration (required if using Mistral provider)
+# Mistral supports summarization only, with EU data residency
 
 mistral_api_key: your-key-here  # Optional: can use MISTRAL_API_KEY env var instead
 mistral_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
@@ -310,14 +298,6 @@ cfg = Config(
     openai_api_key="sk-your-key-here",  # or set OPENAI_API_KEY env var
 )
 
-# OpenAI speaker detection
-
-cfg = Config(
-    rss_url="https://example.com/feed.xml",
-    speaker_detector_provider="openai",
-    openai_api_key="sk-your-key-here",
-)
-
 # OpenAI summarization
 
 cfg = Config(
@@ -335,14 +315,6 @@ cfg = Config(
     gemini_api_key="your-key-here",  # or set GEMINI_API_KEY env var
 )
 
-# Gemini speaker detection
-
-cfg = Config(
-    rss_url="https://example.com/feed.xml",
-    speaker_detector_provider="gemini",
-    gemini_api_key="your-key-here",
-)
-
 # Gemini summarization
 
 cfg = Config(
@@ -357,34 +329,29 @@ cfg = Config(
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="whisper",      # MLProvider
-    speaker_detector_provider="openai",    # OpenAIProvider
+    speaker_detector_provider="ollama",    # OllamaProvider
     summary_provider="transformers",      # MLProvider
-    openai_api_key="sk-your-key-here",
 )
 
-# All OpenAI providers
+# OpenAI transcription + summarization (speaker detection not supported)
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
-    speaker_detector_provider="openai",
     summary_provider="openai",
     openai_api_key="sk-your-key-here",
     transcribe_missing=True,
-    auto_speakers=True,
     generate_summaries=True,
 )
 
-# All Gemini providers
+# Gemini transcription + summarization (speaker detection not supported)
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="gemini",
-    speaker_detector_provider="gemini",
     summary_provider="gemini",
     gemini_api_key="your-key-here",
     transcribe_missing=True,
-    auto_speakers=True,
     generate_summaries=True,
 )
 
@@ -392,7 +359,7 @@ cfg = Config(
 
 count, summary = run_pipeline(cfg)
 print(f"Processed {count} episodes: {summary}")
-```python
+```
 
 **Load from config file programmatically:**
 
@@ -488,10 +455,10 @@ podcast-scraper --rss https://example.com/feed.xml \
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider gemini
 
-# Or with Mistral
+# Or with Mistral (summarization only)
 
 podcast-scraper --rss https://example.com/feed.xml \
-  --transcription-provider mistral
+  --summary-provider mistral
 ```
 
 ## Common Configuration Patterns
@@ -508,62 +475,57 @@ summary_provider: transformers
 - Requires ML models to be installed/cached
 - Works offline
 
-### Pattern 2: All OpenAI
+### Pattern 2: OpenAI (Transcription + Summarization)
 
 ```yaml
 transcription_provider: openai
-speaker_detector_provider: openai
+speaker_detector_provider: spacy    # OpenAI does not support speaker detection
 summary_provider: openai
 openai_api_key: sk-your-key-here
 ```
 
-- No local ML models needed
+- No local ML models needed for transcription/summarization
 - API costs per request
 - Requires internet connection
 
-### Pattern 2b: All Gemini
+### Pattern 2b: Gemini (Transcription + Summarization)
 
 ```yaml
 transcription_provider: gemini
-speaker_detector_provider: gemini
+speaker_detector_provider: spacy    # Gemini does not support speaker detection
 summary_provider: gemini
 gemini_api_key: your-key-here
 ```
 
-### Pattern 2c: All Mistral
+### Pattern 2c: Mistral Summarization (+ Local for Other Capabilities)
 
 ```yaml
-transcription_provider: mistral
-speaker_detector_provider: mistral
+transcription_provider: whisper     # Mistral supports summarization only
+speaker_detector_provider: spacy    # Mistral supports summarization only
 summary_provider: mistral
 mistral_api_key: your-key-here
 ```
 
-- Full-stack provider (all three capabilities)
 - EU data residency (compliance-friendly)
-- Competitive pricing
-- Requires internet connection
-
-- No local ML models needed
-- API costs per request
-- Requires internet connection
-- Alternative to OpenAI
+- Competitive pricing for summarization
+- Requires internet connection for Mistral; local ML for transcription/speaker detection
 
 ### Pattern 3: Hybrid (Local + API)
 
 ```yaml
 transcription_provider: whisper      # Local (fast, free)
-speaker_detector_provider: openai    # API (accurate)
-summary_provider: transformers       # Local (fast, free)
+speaker_detector_provider: ollama    # Local Ollama (accurate, free)
+summary_provider: openai             # API (highest quality)
 openai_api_key: sk-your-key-here
 ```
 
 - Balance between cost and performance
-- Use local for heavy operations, API for accuracy
+- Use local for heavy operations, API for quality
 
 ### Pattern 4: All Ollama (Local Self-Hosted)
 
 ```yaml
+transcription_provider: ollama
 speaker_detector_provider: ollama
 summary_provider: ollama
 ollama_api_base: http://localhost:11434/v1  # Default, can be omitted
@@ -576,7 +538,6 @@ ollama_summary_model: qwen2.5:7b   # or gemma2:9b for quality
 - Complete privacy (data never leaves your machine)
 - Works offline/air-gapped
 - Requires Ollama installed and models pulled
-- Note: Ollama does NOT support transcription (use `whisper` or `openai`)
 
 **Prerequisites:**
 
@@ -695,20 +656,16 @@ podcast-scraper --rss https://example.com/feed.xml \
 ### Example 3: Mixed Providers (Config File)
 
 ```yaml
-
 # config.yaml
-
 rss: https://example.com/feed.xml
 transcription_provider: whisper
-speaker_detector_provider: openai
+speaker_detector_provider: ollama
 summary_provider: transformers
-openai_api_key: sk-your-key-here
-
 ```
 
-podcast-scraper --config config.yaml
-
 ```bash
+podcast-scraper --config config.yaml
+```
 
 ## Example 4: Programmatic Mixed Providers
 
@@ -719,9 +676,8 @@ from podcast_scraper import Config, run_pipeline
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="whisper",
-    speaker_detector_provider="openai",
+    speaker_detector_provider="ollama",
     summary_provider="transformers",
-    openai_api_key="sk-your-key-here",
     transcribe_missing=True,
     auto_speakers=True,
     generate_summaries=True,

@@ -10,7 +10,7 @@ Ollama is a **local, self-hosted LLM solution** that runs entirely on your machi
 - ✅ **Complete privacy** - Data never leaves your machine
 - ✅ **Offline operation** - No internet required after setup
 - ✅ **Unlimited usage** - No rate limits or quotas
-- ⚠️ **No transcription support** - Use `whisper` or `openai` for transcription
+- ✅ **Full-stack** - Transcription, speaker detection, and summarization
 
 ## Installation
 
@@ -174,11 +174,8 @@ Use this block **after** you work through Tier 1–3. It ties the operational ch
 ### Step 4: Install Podcast Scraper Dependencies
 
 ```bash
-# Install with Ollama support
-pip install -e ".[ollama]"
-
-# Or install all optional dependencies
-pip install -e ".[all]"
+# Install with LLM support (includes Ollama dependencies)
+pip install -e ".[dev,ml,llm]"
 ```
 
 **Required Dependencies:**
@@ -192,6 +189,7 @@ pip install -e ".[all]"
 
 ```yaml
 # config.yaml
+transcription_provider: ollama
 speaker_detector_provider: ollama
 summary_provider: ollama
 
@@ -206,13 +204,15 @@ ollama_timeout: 300                          # 5 minutes for slow inference
 ### CLI Usage
 
 ```bash
-# Basic usage
+# Basic usage (all capabilities)
 podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider ollama \
   --speaker-detector-provider ollama \
   --summary-provider ollama
 
 # With custom model
 podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider ollama \
   --speaker-detector-provider ollama \
   --summary-provider ollama \
   --ollama-speaker-model llama3.2:latest \
@@ -220,6 +220,7 @@ podcast-scraper --rss https://example.com/feed.xml \
 
 # With custom timeout (for slow models)
 podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider ollama \
   --speaker-detector-provider ollama \
   --summary-provider ollama \
   --ollama-timeout 600  # 10 minutes
@@ -569,9 +570,14 @@ ollama pull llama3.3:latest
 # Use Ollama for privacy-sensitive operations
 # Use other providers for speed/cost optimization
 
-transcription_provider: whisper      # Local transcription
+transcription_provider: ollama       # Local Ollama transcription (privacy)
 speaker_detector_provider: ollama    # Local speaker detection (privacy)
 summary_provider: ollama             # Local summarization (privacy)
+
+# Or mix with other providers:
+# transcription_provider: whisper    # Local Whisper (alternative)
+# speaker_detector_provider: ollama  # Local speaker detection
+# summary_provider: openai           # Cloud summarization (quality)
 ```
 
 ## Verification
@@ -590,6 +596,7 @@ ollama run llama3.3:latest "What is a podcast?"
 
 # 4. Test with podcast_scraper
 podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider ollama \
   --speaker-detector-provider ollama \
   --summary-provider ollama \
   --max-episodes 1
@@ -600,6 +607,7 @@ podcast-scraper --rss https://example.com/feed.xml \
 ```bash
 # Run with verbose logging
 podcast-scraper --rss https://example.com/feed.xml \
+  --transcription-provider ollama \
   --speaker-detector-provider ollama \
   --summary-provider ollama \
   --log-level DEBUG \

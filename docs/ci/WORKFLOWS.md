@@ -67,19 +67,13 @@ graph TB
         SNYK2[Docker Scan]
     end
 
-```python
-
     T1 --> P1 & P2 & P3 & P4
     T2 --> P1 & P2 & P3 & P4
     T1 --> D1 --> D2
     T1 --> C1
     T1 --> DOCK1 --> DOCK2
     T1 --> SNYK1 & SNYK2
-
-```python
-<!-- Empty text block for markdown separation -->
-
-```text
+```
 
 - `tests/**` - Test files
 - `pyproject.toml` - Project configuration
@@ -296,11 +290,9 @@ if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 **Conditional Execution:**
 
 ```yaml
-
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
-
-```yaml
+```
 
 - **ML dependencies:** Required (includes ML packages)
 
@@ -322,11 +314,9 @@ needs: [preload-ml-models]
 **Conditional Execution:**
 
 ```yaml
-
 if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 needs: [preload-ml-models]
-
-```yaml
+```
 
 **Key Features:**
 
@@ -741,7 +731,6 @@ Some test jobs include automatic re-runs to handle flaky tests:
 ### Dependency Management
 
 ```mermaid
-
 graph TD
     A[pyproject.toml] --> B{Job Type}
 
@@ -751,30 +740,24 @@ graph TD
     C --> C3[mypy]
     C --> C4[bandit]
 
-    B -->|test-unit Job| C2[dev dependencies only]
-    C2 --> C2A[pytest]
-    C2 --> C2B[No ML deps - fast]
-    C2 --> C2C[Import check script]
+    B -->|test-unit Job| C2a[dev dependencies only]
+    C2a --> C2A[pytest]
+    C2a --> C2B[No ML deps - fast]
+    C2a --> C2C[Import check script]
 
     B -->|test-integration-fast Job| E2[dev + pytest-socket]
     E2 --> E2A[pytest]
     E2 --> E2B[pytest-socket for network guard]
     E2 --> E2C[No ML deps - critical path only]
 
-```python
-
     B -->|test-e2e-fast Job| E5[dev + pytest-socket]
     E5 --> E5A[pytest]
     E5 --> E5B[pytest-socket for network guard]
     E5 --> E5C[No ML deps - critical path only]
 
-```python
-
     B -->|preload-ml-models Job Main| F[dev + ml dependencies]
-    F --> F1[make preload-ml-models]
-    F --> F2[Cache ML models]
-
-```python
+    F --> F1a[make preload-ml-models]
+    F --> F2a[Cache ML models]
 
     B -->|test-integration Job Main| D[dev + ml dependencies]
     D --> D1[pytest]
@@ -784,8 +767,6 @@ graph TD
     D --> D5[spacy]
     D --> D6[Uses preloaded models]
 
-```python
-
     B -->|test-e2e Job Main| E3[dev + ml dependencies + pytest-socket]
     E3 --> E3A[pytest]
     E3 --> E3B[pytest-socket for network guard]
@@ -794,18 +775,13 @@ graph TD
     E3 --> E3E[whisper]
     E3 --> E3F[spacy]
 
-```python
-
     B -->|Docs Job| E[docs + ml dependencies]
     E --> E1[mkdocs-material]
     E --> E2D[mkdocstrings]
     E --> E3G[ML packages for API docs]
 
-```python
-
-    B -->|Build Job| F[build tools only]
-    F --> F1[python -m build]
-
+    B -->|Build Job| Fb[build tools only]
+    Fb --> F1b[python -m build]
 ```
 
 - `docs/**` - Documentation files
@@ -819,7 +795,6 @@ graph TD
 Unlike the Python app workflow, this has a sequential dependency:
 
 ```mermaid
-
 graph LR
     A[Trigger] --> B[Build Job]
     B -->|Generate Site| C[Upload Artifact]
@@ -828,8 +803,7 @@ graph LR
 
     style B fill:#87CEEB
     style D fill:#90EE90
-
-```python
+```
 
 **Purpose:** Build MkDocs site from documentation sources
 
@@ -865,12 +839,10 @@ graph LR
 ### Concurrency Control
 
 ```yaml
-
 concurrency:
   group: "pages"
   cancel-in-progress: true
-
-```text
+```
 
 ## CodeQL Security Workflow
 
@@ -893,7 +865,6 @@ concurrency:
 CodeQL analyzes multiple languages in parallel using a matrix:
 
 ```mermaid
-
 graph TB
     A[CodeQL Workflow] --> B{Matrix Strategy}
 
@@ -910,8 +881,7 @@ graph TB
 
     style C fill:#FFE4B5
     style D fill:#FFE4B5
-
-```text
+```
 
 | Language | Build Mode | Purpose |
 | -------- | ---------- | ------- |
@@ -942,12 +912,9 @@ graph TB
 ### Schedule Details
 
 ```yaml
-
 schedule:
-
   - cron: '17 13 * * 4'
-
-```text
+```
 
 **Runs:** Every Thursday at 13:17 UTC
 **Purpose:** Catch newly discovered vulnerabilities in dependencies
@@ -979,17 +946,20 @@ schedule:
 The Docker workflow uses a **hybrid optimization approach** to balance fast PR feedback with comprehensive validation:
 
 **PR Triggers (Conditional):**
+
 - Docker build runs on PRs **only** when `Dockerfile` or `.dockerignore` change
 - Python code changes (`pyproject.toml`, `*.py`) no longer trigger Docker build on PRs
 - **Result**: ~10 minutes saved per PR for Python-only changes
 
 **Lightweight Build on PRs:**
+
 - When PRs do trigger (Dockerfile changes), they use a lightweight build:
   - Build only default image (skip multi-model build)
   - Skip model preloading (`PRELOAD_ML_MODELS=false`)
   - **Result**: ~3-5 minutes per PR (vs 10+ minutes for full build)
 
 **Optimized Full Build on Main:**
+
 - Push to `main` triggers optimized full build:
   - **Parallel builds**: Both images (default + multi-model) build simultaneously using matrix strategy
   - **Scoped caching**: Separate cache scopes for each image type for better cache hits
@@ -997,6 +967,7 @@ The Docker workflow uses a **hybrid optimization approach** to balance fast PR f
   - **Result**: ~5 minutes saved on main (parallel execution vs sequential)
 
 **Performance Improvements:**
+
 - **PRs**: ~10 minutes saved (no build for Python-only changes) + ~5-7 minutes saved (lightweight build when triggered)
 - **Main**: ~5 minutes saved (parallel builds) + faster rebuilds (better caching)
 
@@ -1011,15 +982,18 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 **Purpose:** Build Docker images and run smoke tests
 
 **Duration:**
+
 - **PR builds (fast)**: ~3-5 minutes (lightweight, single image, no model preloading)
 - **Main builds (full)**: LLM-only ~5-10 minutes; ML variant with production preload is much longer (large downloads; parallel matrix)
 
 **PR Build (docker-build-fast):**
+
 - Runs only when `Dockerfile` or `.dockerignore` change
 - Builds only the LLM-only image (`INSTALL_EXTRAS=`, no ML deps)
 - Fast feedback for Dockerfile changes
 
 **Main Build (docker-build-full):**
+
 - Runs on push to `main` branch
 - Uses matrix strategy for parallel builds:
   - **LLM-only**: `INSTALL_EXTRAS=` (no ML deps)
@@ -1148,12 +1122,9 @@ Provides comprehensive security scanning for both Python dependencies and Docker
 ### Snyk Schedule Details
 
 ```yaml
-
 schedule:
-
   - cron: '0 0 * * 1'
-
-```text
+```
 
 **Runs:** Every Monday at 00:00 UTC
 **Purpose:** Weekly security scan to catch newly discovered vulnerabilities
@@ -1172,7 +1143,7 @@ schedule:
 **File:** `.github/dependabot.yml`
 **Purpose:** Automatically create pull requests to update dependencies, keeping the project secure and current.
 
-### Overview
+### Dependabot Overview
 
 Dependabot automatically monitors dependencies and creates PRs for updates. Unlike Snyk and pip-audit which *alert* about vulnerabilities, Dependabot *creates PRs* to update dependencies automatically.
 
@@ -1194,11 +1165,13 @@ Dependabot is configured to monitor three package ecosystems:
 ### Python Dependencies Configuration
 
 **Schedule:**
+
 - **Interval:** Weekly
 - **Day:** Monday
 - **PR Limit:** 5 open PRs maximum
 
 **Grouping Strategy:**
+
 - **dev-dependencies group:** Development tools (pytest, black, isort, flake8, mypy, bandit, radon, vulture, interrogate, codespell)
   - Updates: Minor and patch versions
   - Rationale: Dev tools can be updated together safely
@@ -1207,34 +1180,41 @@ Dependabot is configured to monitor three package ecosystems:
   - Rationale: ML libraries have frequent breaking changes, so only patches are automated
 
 **Labels:**
+
 - `dependencies`
 - `automated`
 
 **Commit Message:**
+
 - Prefix: `deps`
 
 ### GitHub Actions Configuration
 
 **Schedule:**
+
 - **Interval:** Weekly
 - **Day:** Monday
 - **PR Limit:** 3 open PRs maximum
 
 **Labels:**
+
 - `dependencies`
 - `ci/cd`
 - `automated`
 
 **Commit Message:**
+
 - Prefix: `ci`
 
 ### Docker Configuration
 
 **Schedule:**
+
 - **Interval:** Monthly
 - **PR Limit:** No limit (monthly schedule naturally limits PRs)
 
 **Labels:**
+
 - `dependencies`
 - `docker`
 - `automated`
@@ -1260,17 +1240,20 @@ Dependabot is configured to monitor three package ecosystems:
 ### Reviewing Dependabot PRs
 
 **What to check:**
+
 - ✅ CI passes (all tests, linting, security scans)
 - ✅ No breaking changes (check changelog/release notes)
 - ✅ Compatibility with current codebase
 - ✅ For ML dependencies: Test with actual models if patch update
 
 **When to merge:**
+
 - ✅ CI passes
 - ✅ No obvious breaking changes
 - ✅ PR description looks safe
 
 **When to close:**
+
 - ❌ Breaking changes that require code updates
 - ❌ Known compatibility issues
 - ❌ Update conflicts with other work
@@ -1284,6 +1267,7 @@ Dependabot works alongside existing security tools:
 - **CodeQL:** Security scanning → Dependabot keeps dependencies current
 
 **Workflow:**
+
 1. Snyk/pip-audit identifies vulnerable dependency
 2. Dependabot creates PR to update to secure version
 3. CI validates the update
@@ -1332,20 +1316,17 @@ This maximizes parallelism and reduces total CI time.
 **Within Python Application Workflow - Pull Requests:**
 
 ```text
-
 ├── Lint Job (1-2 min)
 ├── test-unit (2-5 min) - All unit tests
 ├── test-integration-fast (5-8 min) - Critical path only
 ├── test-e2e-fast (8-12 min) - Critical path only
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
-
-```text
+```
 
 **Within Python Application Workflow - Push to Main:**
 
 ```text
-
 ├── Lint Job (1-2 min)
 ├── test-unit Job (2-5 min) - No ML deps, fast
 ├── preload-ml-models (2-5 min) - Preloads ML models for full suite
@@ -1353,14 +1334,12 @@ This maximizes parallelism and reduces total CI time.
 ├── test-e2e (20-30 min) - Full suite, includes re-runs, ML deps, network guard, needs preload-ml-models
 ├── Docs Job (2-3 min)
 └── Build Job (1-2 min)
+```
 
 ```text
-```text
-
 ├── Python Analysis
 └── Actions Analysis
-
-```text
+```
 
 - All three workflows (Python app, docs, CodeQL) trigger independently
 - They run in parallel when triggered by the same event
@@ -1370,10 +1349,8 @@ This maximizes parallelism and reduces total CI time.
 **Documentation Workflow:**
 
 ```text
-
 Build Job → Deploy Job
-
-```text
+```
 
 ## Performance Optimizations
 
@@ -1382,17 +1359,14 @@ Build Job → Deploy Job
 All workflows use pip caching to speed up dependency installation:
 
 ```yaml
-
 - uses: actions/setup-python@v5
   with:
-
     python-version: "3.11"
     cache: "pip"
     cache-dependency-path: pyproject.toml
+```
 
-```text
 ```mermaid
-
 graph TD
     A[Dependency Strategy] --> B[Lint: dev only]
     A --> C[Test: dev + ml]
@@ -1403,27 +1377,22 @@ graph TD
     C --> G[Slow: 10-15 min]
     D --> H[Medium: 3-5 min]
     E --> I[Fast: 2-3 min]
-
-```text
+```
 
 Test job proactively frees ~30GB of disk space before installing ML dependencies:
 
 ```bash
-
 sudo rm -rf /usr/share/dotnet
 sudo rm -rf /usr/local/lib/android
 sudo rm -rf /opt/ghc
-
 # ... more cleanup
+```
 
-```text
 ```bash
-
 rm -rf ~/.cache/huggingface
 rm -rf ~/.cache/torch
 rm -rf ~/.cache/whisper
-
-```text
+```
 
 ## Workflow Triggers Matrix
 
@@ -1480,12 +1449,9 @@ When you change files, here's what runs:
 #### Example 1: Documentation Update
 
 ```bash
-
 # You change only: docs/api/REFERENCE.md
-
 git commit -m "Update API documentation"
-
-```text
+```
 
 - ✅ `docs.yml` runs (3-5 min)
 - ❌ `python-app.yml` skipped
@@ -1496,12 +1462,9 @@ git commit -m "Update API documentation"
 ## Example 2: Python Code Change
 
 ```bash
-
 # You change: downloader.py
-
 git commit -m "Fix download retry logic"
-
-```text
+```
 
 - ✅ `python-app.yml` runs (lint, test, docs, build)
 - ✅ `docs.yml` runs (API docs need rebuild)
@@ -1512,12 +1475,9 @@ git commit -m "Fix download retry logic"
 ## Example 3: Mixed Changes
 
 ```bash
-
 # You change: docs/index.md AND service.py
-
 git commit -m "Update docs and fix service"
-
-```text
+```
 
 - ✅ All workflows run (code changed = full validation needed)
 
@@ -1566,14 +1526,14 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Script: `scripts/tools/check_unit_test_imports.py`
    - Runs before unit tests in CI, catches issues early
 
-4. **Comprehensive Security Scanning**
+5. **Comprehensive Security Scanning**
    - CodeQL for static analysis (Python + Actions)
    - Snyk for dependency and Docker image scanning
    - Scheduled weekly scans for newly discovered vulnerabilities
    - Bandit & pip-audit in lint job for immediate feedback
    - Multiple layers of security validation
 
-5. **Documentation as Code**
+6. **Documentation as Code**
    - Docs build validated on every PR
    - Automatic deployment to GitHub Pages on merge
    - API documentation auto-generated from docstrings
@@ -1624,7 +1584,7 @@ As of issue #248, the nightly workflow also runs on **push to release branches**
 - Test results, coverage reports, and metrics are uploaded for both scheduled and release branch runs
 - 90-day retention for all artifacts
 
-### Overview
+### Nightly Overview
 
 The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Unlike the main branch jobs which focus on fast validation, the nightly workflow:
 
@@ -1673,6 +1633,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Important:** OpenAI/LLM provider tests are **excluded** from nightly runs to avoid API costs (see issue #183). The nightly build uses only local ML models (Whisper, spaCy, Transformers). This excludes ~50 tests marked with `@pytest.mark.llm`.
 
 **Steps:**
+
 1. Checkout code (full history for trend tracking)
 2. Free disk space
 3. Set up Python 3.11
@@ -1695,25 +1656,11 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
    - `--durations=20` (Slowest tests identification)
    - `--reruns 2 --reruns-delay 1` (Flaky test handling)
    - `--disable-socket --allow-hosts=127.0.0.1,localhost` (Network guard)
-8. Generate job summary with key metrics:
-   - Test summary (total, passed, failed, skipped, duration)
-   - Coverage percentage
-   - Slowest tests (top 10)
-   - Flaky tests detection (tests that passed on rerun)
-   - Metric alerts (if any)
-9. Generate metrics (`scripts/dashboard/generate_metrics.py`):
-   - Extracts metrics from pytest JSON and coverage XML
-   - Creates `metrics/latest.json` with trends and alerts
-   - Updates `metrics/history.jsonl` (appends to history)
-   - Calculates trends (runtime, coverage, test count changes)
-   - Detects deviations (regressions, coverage drops, flaky test increases)
-10. Generate HTML dashboard (`scripts/dashboard/generate_dashboard.py`):
-   - Creates interactive dashboard with Chart.js
-   - Displays current metrics, trends, alerts, and slowest tests
-   - Shows flaky test details and historical trends
-   - Outputs `metrics/index.html`
-11. Upload artifacts (test reports, coverage reports, metrics) - 90-day retention
-12. Upload metrics artifact for GitHub Pages deployment
+10. Generate job summary with key metrics — test summary (total, passed, failed, skipped, duration), coverage percentage, slowest tests (top 10), flaky tests detection, metric alerts
+11. Generate metrics (`scripts/dashboard/generate_metrics.py`) — extracts metrics from pytest JSON and coverage XML, creates `metrics/latest.json` with trends and alerts, updates `metrics/history.jsonl`, calculates trends, detects deviations
+12. Generate HTML dashboard (`scripts/dashboard/generate_dashboard.py`) — creates interactive Chart.js dashboard with current metrics, trends, alerts, slowest tests, flaky test details; outputs `metrics/index.html`
+13. Upload artifacts (test reports, coverage reports, metrics) — 90-day retention
+14. Upload metrics artifact for GitHub Pages deployment
 
 #### deploy-metrics Job
 
@@ -1722,12 +1669,14 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Runs:** After `nightly-tests` completes (even if tests fail)
 
 **Steps:**
+
 1. Deploy metrics to GitHub Pages using `actions/deploy-pages@v4`
    - Automatically publishes `metrics/` directory from artifact
    - Accessible via: `https://[username].github.io/podcast_scraper/metrics/`
    - Includes `latest.json`, `history.jsonl`, and `index.html` (dashboard)
 
 **Metrics Dashboard:**
+
 - **URL**: `https://[username].github.io/podcast_scraper/metrics/index.html`
 - **Type**: Unified dashboard with data source selector (CI or Nightly)
 - **Features**: Interactive charts, alerts, slowest tests, trend analysis
@@ -1742,6 +1691,7 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Result:** Metrics accessible via public URL
 
 **Concurrency Control:**
+
 - Uses `concurrency: group: "pages-metrics"` with `cancel-in-progress: false`
 - Allows multiple nightly runs to accumulate metrics without conflicts
 
@@ -1763,11 +1713,9 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 **Critical Path:**
 
 ```text
-
 preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
                                                     ≈ 80 min total
-
-```python
+```
 
 **Key Observations:**
 
@@ -1889,24 +1837,18 @@ preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
 **Via Automation:**
 
 ```bash
-
 # Fetch latest CI metrics
-
 curl https://[username].github.io/podcast_scraper/metrics/latest-ci.json | jq
 
 # Fetch latest nightly metrics
-
 curl https://[username].github.io/podcast_scraper/metrics/latest-nightly.json | jq
 
 # Check CI history (last entry)
-
 curl https://[username].github.io/podcast_scraper/metrics/history-ci.jsonl | tail -1 | jq
 
 # Check nightly history (last entry)
-
 curl https://[username].github.io/podcast_scraper/metrics/history-nightly.jsonl | tail -1 | jq
-
-```yaml
+```
 
 - [RFC-025: Test Metrics and Health Tracking](../rfc/RFC-025-test-metrics-and-health-tracking.md) - Metrics collection strategy
 - [RFC-026: Metrics Consumption and Dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md) - Metrics consumption methods
@@ -1918,25 +1860,19 @@ curl https://[username].github.io/podcast_scraper/metrics/history-nightly.jsonl 
 ### Workflow Files
 
 ```text
-
 .github/workflows/
 ├── python-app.yml    # Main CI (lint, test, docs, build)
 ├── docs.yml          # Documentation deployment
 └── codeql.yml        # Security scanning
+```
 
 ```bash
-
 # Individual checks
-
 make format-check lint type security test docs build
 
 # Auto-fix formatting
-
 make format
-
-```yaml
+```
 
 - [Documentation Deployment](https://github.com/chipi/podcast_scraper/actions/workflows/docs.yml)
 - [CodeQL Security Scanning](https://github.com/chipi/podcast_scraper/actions/workflows/codeql.yml)
-
-````

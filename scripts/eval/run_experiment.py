@@ -139,6 +139,14 @@ def hash_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _eval_podcast_scraper_config_overrides(experiment_cfg: ExperimentConfig) -> Dict[str, Any]:
+    """Optional :class:`~podcast_scraper.config.Config` fields set from experiment YAML."""
+    out: Dict[str, Any] = {}
+    if experiment_cfg.transcript_cleaning_strategy is not None:
+        out["transcript_cleaning_strategy"] = experiment_cfg.transcript_cleaning_strategy
+    return out
+
+
 def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
     """Parameters for ``SummarizationProvider.summarize`` (same as summarization task)."""
     if cfg.backend.type in ("hf_local", "hybrid_ml") and cfg.map_params and cfg.reduce_params:
@@ -517,6 +525,7 @@ def run_experiment(  # noqa: C901
                 openai_summary_user_prompt=user_prompt,
                 openai_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -595,6 +604,7 @@ def run_experiment(  # noqa: C901
                 summary_word_overlap=(cfg.chunking.word_overlap if cfg.chunking else None),
                 transcribe_missing=False,  # Don't initialize Whisper
                 # for summarization-only experiments
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -709,6 +719,7 @@ def run_experiment(  # noqa: C901
                 summary_word_chunk_size=(cfg.chunking.word_chunk_size if cfg.chunking else None),
                 summary_word_overlap=(cfg.chunking.word_overlap if cfg.chunking else None),
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -750,6 +761,7 @@ def run_experiment(  # noqa: C901
                 anthropic_summary_user_prompt=user_prompt,
                 anthropic_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -787,6 +799,7 @@ def run_experiment(  # noqa: C901
                 gemini_summary_user_prompt=user_prompt,
                 gemini_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -824,6 +837,7 @@ def run_experiment(  # noqa: C901
                 mistral_summary_user_prompt=user_prompt,
                 mistral_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -861,6 +875,7 @@ def run_experiment(  # noqa: C901
                 grok_summary_user_prompt=user_prompt,
                 grok_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -898,6 +913,7 @@ def run_experiment(  # noqa: C901
                 deepseek_summary_user_prompt=user_prompt,
                 deepseek_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)
@@ -941,6 +957,7 @@ def run_experiment(  # noqa: C901
                 ollama_summary_system_prompt=system_prompt,
                 transcribe_missing=False,
                 **_ollama_timeout_kw,
+                **_eval_podcast_scraper_config_overrides(cfg),
             )
             if cfg.task in ("grounded_insights", "knowledge_graph"):
                 cfg_obj = merge_eval_task_into_summarizer_config(cfg_obj, cfg.task, cfg.params)

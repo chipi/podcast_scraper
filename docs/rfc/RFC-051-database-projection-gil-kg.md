@@ -38,7 +38,7 @@
   - Issue #50: Querying & downstream usage
 - **Related Documents**:
   - `docs/gi/ontology.md`, `docs/gi/gi.schema.json` — GIL
-  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` (planned) — KG
+  - `docs/kg/ontology.md`, `docs/kg/kg.schema.json` — KG
   - `docs/ARCHITECTURE.md` - System architecture
 
 ## Abstract
@@ -907,6 +907,6 @@ artifact contract (055) → serving (051).**
 - **Ontology Specification (GIL)**: `docs/gi/ontology.md`
 - **Schema Specification (GIL)**: `docs/gi/gi.schema.json`
 - **Ontology (KG)**: `docs/kg/ontology.md`
-- **Schema (KG)**: `docs/kg/kg.schema.json` (planned)
+- **Schema (KG)**: `docs/kg/kg.schema.json`
 - **Architecture**: `docs/ARCHITECTURE.md`
 - **Related Issues**: #31, #40, #50
