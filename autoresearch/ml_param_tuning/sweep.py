@@ -297,7 +297,7 @@ def run_sweep(
     consecutive_fails = 0
 
     # ── Iterate param groups ────────────────────────────────────────────────
-    for group_name in ("reduce_params", "map_params"):
+    for group_name in ("ollama_reduce_params", "reduce_params", "map_params"):
         group_space = space.get(group_name, {})
         if not group_space:
             continue

@@ -124,6 +124,96 @@ longt5_led:
       candidates: [4, 2]
       description: "MAP n-gram blocking. Current: 3."
 
+# ─── Hybrid: LongT5+Llama 3.2:3b ────────────────────────────────────────────
+longt5_llama32_3b:
+  base_config: "data/eval/configs/ml/hybrid_ml_tier2_llama32_3b_smoke_paragraph_v1.yaml"
+  reference: "silver_sonnet46_smoke_v1"
+  description: "LongT5-base MAP + Llama 3.2:3b REDUCE — speed-optimised hybrid candidate"
+
+  # Ollama reduce params — tune first (largest impact for LLM reduce)
+  ollama_reduce_params:
+    temperature:
+      enabled: true
+      candidates: [0.1, 0.5, 0.7]
+      description: "Lower = more focused/factual. Current: 0.3."
+
+    top_p:
+      enabled: true
+      candidates: [0.7, 0.95, 1.0]
+      description: "Nucleus sampling. Current: 0.9."
+
+    frequency_penalty:
+      enabled: true
+      candidates: [0.3, 0.6, 1.0]
+      description: "Penalise repeated tokens. Current: 0.0."
+
+    max_tokens:
+      enabled: true
+      candidates: [600, 1000, 1200]
+      description: "Output length cap. Current: 800."
+
+  # Map params — tune after ollama params
+  map_params:
+    max_new_tokens:
+      enabled: true
+      candidates: [150, 250, 300]
+      description: "MAP output length. Richer notes → better LLM synthesis. Current: 200."
+
+    num_beams:
+      enabled: true
+      candidates: [4, 8]
+      description: "MAP beam width. Current: 6."
+
+    repetition_penalty:
+      enabled: true
+      candidates: [1.0, 1.5]
+      description: "MAP repetition penalty. Current: 1.10."
+
+# ─── Hybrid: LongT5+Qwen 2.5:7b ─────────────────────────────────────────────
+longt5_qwen25_7b:
+  base_config: "data/eval/configs/ml/hybrid_ml_tier2_qwen25_7b_smoke_paragraph_v1.yaml"
+  reference: "silver_sonnet46_smoke_v1"
+  description: "LongT5-base MAP + Qwen 2.5:7b REDUCE — quality anchor hybrid candidate"
+
+  # Ollama reduce params — tune first
+  ollama_reduce_params:
+    temperature:
+      enabled: true
+      candidates: [0.1, 0.5, 0.7]
+      description: "Lower = more focused/factual. Current: 0.3."
+
+    top_p:
+      enabled: true
+      candidates: [0.7, 0.95, 1.0]
+      description: "Nucleus sampling. Current: 0.9."
+
+    frequency_penalty:
+      enabled: true
+      candidates: [0.3, 0.6, 1.0]
+      description: "Penalise repeated tokens. Current: 0.0."
+
+    max_tokens:
+      enabled: true
+      candidates: [600, 1000, 1200]
+      description: "Output length cap. Current: 800."
+
+  # Map params — tune after ollama params
+  map_params:
+    max_new_tokens:
+      enabled: true
+      candidates: [150, 250, 300]
+      description: "MAP output length. Richer notes → better LLM synthesis. Current: 200."
+
+    num_beams:
+      enabled: true
+      candidates: [4, 8]
+      description: "MAP beam width. Current: 6."
+
+    repetition_penalty:
+      enabled: true
+      candidates: [1.0, 1.5]
+      description: "MAP repetition penalty. Current: 1.10."
+
 # ─── Pegasus/LED (RETIRED — architectural mismatch for podcast content) ──────
 # Pegasus kept for future news content type. Do not run sweep.
 # See: data/eval/baselines/baseline_ml_pegasus_retirement_smoke_v1/RETIREMENT.md
