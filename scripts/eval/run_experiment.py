@@ -683,6 +683,12 @@ def run_experiment(  # noqa: C901
             }
 
             hybrid_reduce_instruction_style = getattr(cfg.backend, "reduce_instruction_style", None)
+            # When Ollama reduce is used with paragraph style, override the default
+            # system prompt (system_bullets_v1) to the paragraph system prompt so the
+            # model isn't constrained to JSON output format.
+            ollama_system_prompt_override: Optional[str] = None
+            if reduce_backend == "ollama" and hybrid_reduce_instruction_style == "paragraph":
+                ollama_system_prompt_override = "ollama/summarization/system_v1"
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="hybrid_ml",
@@ -690,6 +696,11 @@ def run_experiment(  # noqa: C901
                 hybrid_reduce_model=reduce_model,
                 hybrid_reduce_backend=reduce_backend,
                 hybrid_reduce_instruction_style=hybrid_reduce_instruction_style,
+                **(
+                    {"ollama_summary_system_prompt": ollama_system_prompt_override}
+                    if ollama_system_prompt_override
+                    else {}
+                ),
                 generate_summaries=True,
                 generate_metadata=True,
                 generate_gi=False,  # Experiments are summary-specific; keep GIL off
