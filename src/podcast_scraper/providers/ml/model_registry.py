@@ -387,6 +387,52 @@ class ModelRegistry:
                 "See baseline_ml_pegasus_retirement_smoke_v1 for the tombstone experiment."
             ),
         ),
+        "ml_bart_led_autoresearch_v1": ModeConfiguration(
+            mode_id="ml_bart_led_autoresearch_v1",
+            map_model="bart-small",
+            reduce_model="long-fast",
+            preprocessing_profile="cleaning_v4",
+            map_params={
+                "do_sample": False,
+                "num_beams": 4,
+                "max_new_tokens": 200,
+                "min_new_tokens": 80,
+                "no_repeat_ngram_size": 3,
+                "repetition_penalty": 1.3,
+                "length_penalty": 1.0,
+                "early_stopping": True,
+            },
+            reduce_params={
+                "do_sample": False,
+                "num_beams": 6,
+                "max_new_tokens": 550,
+                "min_new_tokens": 220,
+                "no_repeat_ngram_size": 3,
+                "repetition_penalty": 1.3,
+                "length_penalty": 1.0,
+                "early_stopping": True,
+            },
+            tokenize={
+                "map_max_input_tokens": 1024,
+                "reduce_max_input_tokens": 4096,
+                "truncation": True,
+            },
+            chunking={"strategy": "word_chunking", "word_chunk_size": 900, "word_overlap": 150},
+            promoted_from="baseline_ml_dev_authority",
+            promoted_at="2026-04-03T00:00:00Z",
+            metrics_summary={
+                "dataset_id": "curated_5feeds_smoke_v1",
+                "reference_id": "silver_sonnet46_smoke_v1",
+                "rouge_l_f1": 0.1882,
+                "embedding_cosine": 0.7259,
+                "sweep_rounds": 2,
+                "experiments_run": 11,
+                "gains": {
+                    "reduce_max_new_tokens": "+2.89% (550 vs 650)",
+                    "reduce_num_beams": "+1.15% (6 vs 4)",
+                },
+            },
+        ),
         # END MODE REGISTRY (append-only)
     }
 

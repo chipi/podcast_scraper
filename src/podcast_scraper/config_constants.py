@@ -92,7 +92,7 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 # It will be re-evaluated when news is added as a content type.
 # Next prod candidate: ml_longt5_led_v1 (LongT5+LED, autoresearch in progress).
 DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
-PROD_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
+PROD_DEFAULT_SUMMARY_MODE_ID = "ml_bart_led_autoresearch_v1"
 
 PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
 try:
