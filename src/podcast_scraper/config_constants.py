@@ -91,12 +91,17 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 # content — architectural mismatch (see model_registry.py deprecation_reason).
 # It will be re-evaluated when news is added as a content type.
 #
-# Hybrid ML champion (RFC-057 Track B, 2026-04-04):
-#   BART-base MAP + Llama 3.2:3b REDUCE (Ollama), temp=0.5, top_p=1.0, max_tokens=1000
-#   Benchmark (10 eps): ROUGE-L 23.7%, embed 72.9%, 15.7s/ep — fully local, zero cost
-#   Fallback: ml_bart_led_autoresearch_v1 (pure ML, no Ollama dependency)
+# Four-tier summarization strategy (ADR-071):
+#   Tier 1 — ML Dev:    ml_small_authority       (~14% ROUGE-L, fast, no GPU)
+#   Tier 2 — ML Prod:   ml_bart_led_autoresearch_v1  (20.4%, 30.6s, zero deps)
+#   Tier 3 — LLM Local: llama3.2:3b direct Ollama    (24.3%, 7.9s, Ollama required)
+#   Tier 4 — LLM Cloud: Anthropic Claude Sonnet 4.6  (~32.6%, ~3s, API key required)
+#
+# PROD_DEFAULT points to Tier 2 (pure ML): guaranteed to work with no external daemons.
+# For best local quality when Ollama is available, use OLLAMA_DEFAULT_SUMMARY_MODEL (Tier 3).
 DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
-PROD_DEFAULT_SUMMARY_MODE_ID = "ml_hybrid_bart_llama32_3b_autoresearch_v1"
+PROD_DEFAULT_SUMMARY_MODE_ID = "ml_bart_led_autoresearch_v1"
+OLLAMA_DEFAULT_SUMMARY_MODEL = "llama3.2:3b"  # Tier 3: direct, temp=0.5, max_tokens=1000
 
 PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
 try:
