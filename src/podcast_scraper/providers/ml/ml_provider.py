@@ -1255,7 +1255,7 @@ class MLProvider:
 
         if mode_cfg and mode_precedence == "mode":
             effective_map_params = mode_cfg.map_params
-            effective_reduce_params = mode_cfg.reduce_params
+            effective_reduce_params = mode_cfg.reduce_params or {}
             effective_tokenize = mode_cfg.tokenize
             if isinstance(mode_cfg.chunking, dict):
                 if "word_chunk_size" in mode_cfg.chunking:
@@ -1266,7 +1266,7 @@ class MLProvider:
             if "summary_map_params" not in self.cfg.model_fields_set:
                 effective_map_params = mode_cfg.map_params
             if "summary_reduce_params" not in self.cfg.model_fields_set:
-                effective_reduce_params = mode_cfg.reduce_params
+                effective_reduce_params = mode_cfg.reduce_params or {}
             if "summary_tokenize" not in self.cfg.model_fields_set:
                 effective_tokenize = mode_cfg.tokenize
             if isinstance(mode_cfg.chunking, dict):

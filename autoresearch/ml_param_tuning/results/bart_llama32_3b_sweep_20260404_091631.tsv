@@ -1,0 +1,8 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+hybrid_ml_bart_llama32_3b_smoke_paragraph_v1	baseline	0.2066	0.7560	+0.00%				initial baseline
+bart_llama32_3b_sweep_exp001	rejected	0.2065	0.7820	-0.05%	ollama_reduce_params	top_p	0.7	below threshold (-0.05%), fails=1
+bart_llama32_3b_sweep_exp002	accepted	0.2271	0.7411	+9.91%	ollama_reduce_params	top_p	0.95	new best rouge_l=0.2271
+bart_llama32_3b_sweep_exp003	accepted	0.2312	0.7775	+1.84%	ollama_reduce_params	top_p	1.0	new best rouge_l=0.2312
+bart_llama32_3b_sweep_exp004	rejected	0.1955	0.7710	-15.44%	ollama_reduce_params	frequency_penalty	0.3	below threshold (-15.44%), fails=1
+bart_llama32_3b_sweep_exp005	rejected	0.2266	0.7558	-1.99%	ollama_reduce_params	frequency_penalty	0.6	below threshold (-1.99%), fails=2
+bart_llama32_3b_sweep_exp006	rejected	0.2004	0.7875	-13.35%	ollama_reduce_params	frequency_penalty	1.0	below threshold (-13.35%), fails=3

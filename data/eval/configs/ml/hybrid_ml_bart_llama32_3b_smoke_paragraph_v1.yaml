@@ -1,0 +1,45 @@
+# Hybrid ML — BART-base MAP + Llama 3.2:3b REDUCE — map stage comparison baseline
+# Purpose: compare BART vs LongT5 as map stage in hybrid pipeline.
+# Identical reduce config to baseline_ml_hybrid_llama32_3b_autoresearch_v1 (temp=0.5).
+# BART map params mirror ml_bart_led_autoresearch_v1 (sweep winner: num_beams=6).
+
+id: "hybrid_ml_bart_llama32_3b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "hybrid_ml"
+  map_model: "bart-small"
+  reduce_model: "llama3.2:3b"
+  reduce_backend: "ollama"
+  reduce_instruction_style: "paragraph"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+ollama_reduce_params:
+  max_tokens: 800
+  temperature: 0.5
+  top_p: 0.9
+  frequency_penalty: 0.0
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

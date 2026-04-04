@@ -1,0 +1,45 @@
+# Hybrid ML — LongT5-base MAP + Llama 3.2:3b REDUCE — autoresearch winner
+# Promoted from autoresearch sweep on longt5_llama32_3b (2026-04-03).
+# Key finding: temperature=0.5 gave +10.0% ROUGE-L vs baseline (0.3 hardcoded).
+# Beats BART+LED autoresearch_v1 (0.188) by +10.6% at 15s latency vs ~30s.
+
+id: "baseline_ml_hybrid_llama32_3b_autoresearch_v1"
+task: "summarization"
+
+backend:
+  type: "hybrid_ml"
+  map_model: "longt5-base"
+  reduce_model: "llama3.2:3b"
+  reduce_backend: "ollama"
+  reduce_instruction_style: "paragraph"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+ollama_reduce_params:
+  max_tokens: 800
+  temperature: 0.5
+  top_p: 0.9
+  frequency_penalty: 0.0
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

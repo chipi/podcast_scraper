@@ -1,0 +1,5 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+baseline_ml_dev_authority_autoresearch_v1	baseline	0.1882	0.7259	+0.00%				initial baseline
+bart_led_sweep_exp001	rejected	0.1856	0.7383	-1.38%	reduce_params	no_repeat_ngram_size	4	below threshold (-1.38%), fails=1
+bart_led_sweep_exp002	rejected	0.1802	0.7214	-4.29%	reduce_params	no_repeat_ngram_size	5	below threshold (-4.29%), fails=2
+bart_led_sweep_exp003	rejected	0.1887	0.7185	+0.25%	reduce_params	no_repeat_ngram_size	2	below threshold (+0.25%), fails=3

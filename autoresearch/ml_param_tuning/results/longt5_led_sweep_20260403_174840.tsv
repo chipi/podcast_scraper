@@ -1,0 +1,5 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+baseline_ml_longt5_led_smoke_v1	baseline	0.0843	0.4662	+0.00%				initial baseline
+longt5_led_sweep_exp001	rejected	0.0843	0.4662	+0.00%	reduce_params	max_new_tokens	450	below threshold (+0.00%), fails=1
+longt5_led_sweep_exp002	rejected	0.0843	0.4662	+0.00%	reduce_params	max_new_tokens	750	below threshold (+0.00%), fails=2
+longt5_led_sweep_exp003	rejected	0.0843	0.4662	+0.00%	reduce_params	max_new_tokens	850	below threshold (+0.00%), fails=3

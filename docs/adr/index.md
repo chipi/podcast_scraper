@@ -80,6 +80,10 @@ Architecture Decision Records (ADRs) capture the **what** and **why** of signifi
 | [ADR-064](ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical Server Layer with Feature-Flagged Route Groups | Accepted | [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | `server/` module with `podcast serve` CLI; viewer routes v2.6, platform routes v2.7 | — |
 | [ADR-065](ADR-065-vue3-vite-cytoscape-frontend-stack.md) | Vue 3 + Vite + Cytoscape.js Frontend Stack | Accepted | [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | Unified frontend stack for viewer and future platform UI | — |
 | [ADR-066](ADR-066-playwright-for-ui-e2e-testing.md) | Playwright for UI End-to-End Testing | Accepted | [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | Browser regression testing; extends ADR-020 test pyramid with UI layer | — |
+| [ADR-067](ADR-067-pegasus-led-retirement-podcast-content.md) | Pegasus/LED Retirement for Podcast Content | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | GSG pretraining mismatch → near-duplicate chunks → LED ngram exhaustion; reserved for news content type | ✅ |
+| [ADR-068](ADR-068-bart-led-as-ml-production-baseline.md) | BART+LED as Local ML Production Baseline | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Autoresearch sweep: +4.26% ROUGE-L over dev baseline (18.82%); 2 params accepted (max_new_tokens=550, num_beams=6) | ✅ |
+| [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md) | Hybrid ML Pipeline as Primary Production Direction | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md), [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md) | BART MAP + Llama 3.2:3b REDUCE at 23.1% ROUGE-L; closes 70% of cloud quality gap; temp=0.5, top_p=1.0 | ✅ |
+| [ADR-070](ADR-070-bart-base-as-hybrid-map-stage.md) | BART-base as Hybrid MAP Stage | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | BART beats LongT5 as MAP (21.2% vs 20.8%); pretraining alignment > context window size | ✅ |
 
 ---
 

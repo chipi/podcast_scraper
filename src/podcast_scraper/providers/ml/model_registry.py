@@ -56,11 +56,15 @@ class ModeConfiguration:
     reduce_model: str
     preprocessing_profile: str
     map_params: Dict[str, Any]
-    reduce_params: Dict[str, Any]
+    reduce_params: Optional[Dict[str, Any]]
     tokenize: Dict[str, Any]
     chunking: Optional[Dict[str, Any]]
     promoted_from: str
     promoted_at: str
+    # Hybrid ollama-reduce fields (set when reduce_backend == "ollama")
+    reduce_backend: Optional[str] = None
+    reduce_instruction_style: Optional[str] = None
+    ollama_reduce_params: Optional[Dict[str, Any]] = None
     metrics_summary: Optional[Dict[str, Any]] = None
     deprecated_at: Optional[str] = None
     deprecation_reason: Optional[str] = None
@@ -431,6 +435,102 @@ class ModelRegistry:
                     "reduce_max_new_tokens": "+2.89% (550 vs 650)",
                     "reduce_num_beams": "+1.15% (6 vs 4)",
                 },
+            },
+        ),
+        "ml_hybrid_bart_llama32_3b_autoresearch_v1": ModeConfiguration(
+            mode_id="ml_hybrid_bart_llama32_3b_autoresearch_v1",
+            map_model="bart-small",
+            reduce_model="llama3.2:3b",
+            reduce_backend="ollama",
+            reduce_instruction_style="paragraph",
+            preprocessing_profile="cleaning_v4",
+            map_params={
+                "do_sample": False,
+                "num_beams": 6,
+                "max_new_tokens": 200,
+                "min_new_tokens": 80,
+                "no_repeat_ngram_size": 3,
+                "repetition_penalty": 1.1,
+                "length_penalty": 1.0,
+                "early_stopping": True,
+            },
+            reduce_params=None,
+            ollama_reduce_params={
+                "max_tokens": 1000,
+                "temperature": 0.5,
+                "top_p": 1.0,
+                "frequency_penalty": 0.0,
+            },
+            tokenize={
+                "map_max_input_tokens": 1024,
+                "reduce_max_input_tokens": 4096,
+                "truncation": True,
+            },
+            chunking={"strategy": "word_chunking", "word_chunk_size": 900, "word_overlap": 150},
+            promoted_from="hybrid_ml_bart_llama32_3b_smoke_paragraph_v1",
+            promoted_at="2026-04-04T00:00:00Z",
+            metrics_summary={
+                "dataset_id": "curated_5feeds_smoke_v1",
+                "reference_id": "silver_sonnet46_smoke_v1",
+                "rouge_l_f1_approx": 0.223,
+                "embedding_cosine_approx": 0.764,
+                "note": "2-3pp sampling variance at temp=0.5; use 3+ runs for stable estimate",
+                "sweep_rounds": 2,
+                "experiments_run": 9,
+                "gains": {
+                    "ollama_temperature": "+10.0% carry-over from longt5 sweep (0.5 vs 0.3)",
+                    "ollama_top_p": "+11.93% total across two steps (0.9 → 0.95 → 1.0)",
+                    "ollama_max_tokens": "+6.96% (1000 vs 800)",
+                },
+                "vs_bart_led": "beats ml_bart_led_autoresearch_v1 (0.188) by ~+22%",
+                "vs_cloud_gap": "closes ~70% of gap to Anthropic Claude 32.6%",
+                "latency_s": 15.5,
+            },
+        ),
+        "ml_hybrid_llama32_3b_autoresearch_v1": ModeConfiguration(
+            mode_id="ml_hybrid_llama32_3b_autoresearch_v1",
+            map_model="longt5-base",
+            reduce_model="llama3.2:3b",
+            reduce_backend="ollama",
+            reduce_instruction_style="paragraph",
+            preprocessing_profile="cleaning_v4",
+            map_params={
+                "do_sample": False,
+                "num_beams": 6,
+                "max_new_tokens": 200,
+                "min_new_tokens": 80,
+                "no_repeat_ngram_size": 3,
+                "repetition_penalty": 1.1,
+                "length_penalty": 1.0,
+                "early_stopping": True,
+            },
+            reduce_params=None,
+            ollama_reduce_params={
+                "max_tokens": 800,
+                "temperature": 0.5,
+                "top_p": 0.9,
+                "frequency_penalty": 0.0,
+            },
+            tokenize={
+                "map_max_input_tokens": 1024,
+                "reduce_max_input_tokens": 4096,
+                "truncation": True,
+            },
+            chunking={"strategy": "word_chunking", "word_chunk_size": 900, "word_overlap": 150},
+            promoted_from="hybrid_ml_tier2_llama32_3b_smoke_paragraph_v1",
+            promoted_at="2026-04-03T00:00:00Z",
+            metrics_summary={
+                "dataset_id": "curated_5feeds_smoke_v1",
+                "reference_id": "silver_sonnet46_smoke_v1",
+                "rouge_l_f1": 0.208,
+                "embedding_cosine": 0.763,
+                "sweep_rounds": 1,
+                "experiments_run": 4,
+                "gains": {
+                    "ollama_temperature": "+10.0% (0.5 vs 0.3)",
+                },
+                "vs_baseline": "beats BART+LED autoresearch_v1 (0.188 ROUGE-L) by +10.6%",
+                "latency_s": 15,
             },
         ),
         # END MODE REGISTRY (append-only)
