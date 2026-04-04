@@ -8,7 +8,7 @@ Transcript:
 {{ transcript }}
 
 Output rules (strict):
-- Return ONLY valid JSON. No markdown code fences.
+- Return ONLY valid JSON. Your response must start with `{` and end with `}`. No markdown, no code fences, no prose.
 - Use this shape: {"title": null or a short episode headline, "bullets": ["...", ...]}
 - Include at least {{ bullet_min | default(3) }} distinct takeaway(s) when the transcript has enough
   substance; fewer is acceptable only for very short or sparse content.
