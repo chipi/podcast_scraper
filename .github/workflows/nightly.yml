@@ -118,9 +118,9 @@ jobs:
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
         # Test models: facebook/bart-base, allenai/led-base-16384
-        # Production models: google/pegasus-cnn_dailymail (MAP), allenai/led-base-16384 (REDUCE)
-        # Note: allenai/led-base-16384 is used for both test and production (reduce phase)
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        # Production models: facebook/bart-base (MAP), llama3.2:3b via Ollama (REDUCE)
+        # Note: allenai/led-base-16384 retained as pure-ML fallback reduce model
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           if [ -d "$MODEL_PATH/snapshots" ] && [ "$(find "$MODEL_PATH/snapshots" -type f 2>/dev/null | head -1)" ]; then
@@ -160,9 +160,9 @@ jobs:
 
         HF_CACHE="$HOME/.cache/huggingface/hub"
         # Test models: facebook/bart-base, allenai/led-base-16384
-        # Production models: google/pegasus-cnn_dailymail (MAP), allenai/led-base-16384 (REDUCE)
-        # Note: allenai/led-base-16384 is used for both test and production (reduce phase)
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        # Production models: facebook/bart-base (MAP), llama3.2:3b via Ollama (REDUCE)
+        # Note: allenai/led-base-16384 retained as pure-ML fallback reduce model
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           if [ ! -d "$HF_CACHE/$MODEL_DIR/snapshots" ]; then
             echo "❌ HF $model still missing!"

@@ -565,10 +565,10 @@ def main() -> None:
             # Test models
             config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
             config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
-            # Production models (from config_constants.py)
-            # google/pegasus-cnn_dailymail (Production MAP model)
+            # Production models (from config_constants.py — resolved dynamically)
+            # PROD_DEFAULT_SUMMARY_MODEL: facebook/bart-base (MAP)
+            # PROD_DEFAULT_SUMMARY_REDUCE_MODEL: llama3.2:3b via Ollama (REDUCE, not preloaded here)
             config.PROD_DEFAULT_SUMMARY_MODEL,
-            # allenai/led-base-16384 (Production REDUCE model)
             config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,
             # Hybrid ML Tier 1 E2E (tests/e2e/test_hybrid_ml_provider_e2e.py): MAP + REDUCE
             "google/long-t5-tglobal-base",
