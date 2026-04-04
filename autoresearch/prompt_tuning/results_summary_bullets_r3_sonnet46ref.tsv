@@ -1,0 +1,4 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.507	+0.000	baseline	Sonnet46 reference baseline. Same template as gpt4o-ref winner (0.611). ROUGE-L 31.5%, judge 0.956. Gap vs gpt4o-ref is structural: gpt4o-mini writes 12-16 word bullets; sonnet46 ref uses 22-28 words. Style mismatch cannot be closed by prompt tuning.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.486	-0.021	rejected	Add implication/consequence instruction per bullet. Phrasing divergence from reference increased despite richer content. consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.483	-0.024	rejected	Replace 45-word cap with 'complete sentence 20-35 words'. Forced length adds non-matching words, LCS shrinks. consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
