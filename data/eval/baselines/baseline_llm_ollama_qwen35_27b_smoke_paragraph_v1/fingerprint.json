@@ -1,0 +1,92 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-04-02T15:14:32.110552Z",
+    "baseline_id": "autoresearch_prompt_ollama_qwen35_27b_smoke_paragraph_v1",
+    "dataset_id": "curated_5feeds_smoke_v1",
+    "git": {
+      "commit": "4e1606fd87d0f40d7732d1f61c4e2a43c689c042",
+      "branch": "autoresearch",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "ollama",
+    "provider_library": "openai",
+    "provider_library_version": "2.30.0"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "ollama",
+          "framework": null,
+          "model_name": "qwen3.5:27b",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": "chat.completions"
+        },
+        "generation_params": {
+          "temperature": 0.0,
+          "max_tokens": 800
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true,
+      "strip_episode_header": true,
+      "anonymize_speakers": true,
+      "filter_junk_lines": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "default"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {
+    "device": "mps",
+    "device_name": "Apple M4 Pro",
+    "backend": "ollama_openai_compatible",
+    "inference_backend": "ollama_openai_compatible"
+  },
+  "prompts": {
+    "user": {
+      "name": "ollama/qwen3.5_27b/summarization/long_v1",
+      "file": "ollama/qwen3.5_27b/summarization/long_v1.j2",
+      "sha256": "6e36f39e3e58b5c25e8b3a45f2b5fbf3fecec96ab970c1653c27ebdb168d1231",
+      "params": {}
+    },
+    "system": {
+      "name": "ollama/qwen3.5_27b/summarization/system_v1",
+      "file": "ollama/qwen3.5_27b/summarization/system_v1.j2",
+      "sha256": "67fc539e319a15ecd6694cfee3e6dab5d36adaef1e462be32da9a9af4f362b35",
+      "params": {}
+    }
+  }
+}

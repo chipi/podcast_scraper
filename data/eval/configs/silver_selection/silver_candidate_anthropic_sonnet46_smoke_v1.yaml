@@ -1,0 +1,36 @@
+# Silver Reference Candidate — Anthropic Claude Sonnet 4.6 on smoke dataset.
+#
+# Purpose: Generate a candidate silver reference using Claude Sonnet 4.6 to evaluate
+# whether it produces higher-quality summaries than the current silver (GPT-4o).
+# Sonnet 4.6 leads the GDPval-AA Elo benchmark for real expert-level office work.
+#
+# Run:
+#   make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_sonnet46_smoke_v1.yaml FORCE=1
+#
+# Then promote (if selected):
+#   make run-promote RUN_ID=silver_candidate_anthropic_sonnet46_smoke_v1 \
+#     --as reference PROMOTED_ID=silver_sonnet46_smoke_v1 \
+#     REFERENCE_QUALITY=silver REASON="Claude Sonnet 4.6 selected via pairwise judge"
+#
+# Requires: ANTHROPIC_API_KEY
+
+id: "silver_candidate_anthropic_sonnet46_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-sonnet-4-6"
+
+prompts:
+  system: "anthropic/summarization/system_v1"
+  user: "anthropic/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

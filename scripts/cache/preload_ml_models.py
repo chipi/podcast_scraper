@@ -249,15 +249,16 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
         if env_models:
             model_names = [m.strip() for m in env_models.split(",") if m.strip()]
         else:
-            # Default: preload only test defaults (small, fast models for local dev/testing)
+            # Default: preload test defaults + hybrid ML models (for local dev/testing and eval)
             # These match the constants in src/podcast_scraper/config.py:
             # - TEST_DEFAULT_SUMMARY_MODEL = "facebook/bart-base"
             #   (small, ~500MB, fast, used in tests)
             # - TEST_DEFAULT_SUMMARY_REDUCE_MODEL = "allenai/led-base-16384"
             #   (long-context, ~1GB, used in both)
+            # - google/long-t5-tglobal-base: hybrid_ml MAP model (longt5-base alias)
+            # - google/flan-t5-base: hybrid_ml tier-1 REDUCE model
             #
-            # For production models (e.g., "facebook/bart-large-cnn", ~2GB), set TRANSFORMERS_MODELS
-            # environment variable explicitly or use in Docker builds with custom model list.
+            # For production Pegasus model or other large models, use --production flag.
             model_names = [
                 # Test default (small, ~500MB)
                 # Matches config.TEST_DEFAULT_SUMMARY_MODEL
@@ -266,6 +267,11 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 # Matches config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL
                 # Used in both tests and production for long-context summarization
                 config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
+                # Hybrid ML MAP model (longt5-base alias) — used by all hybrid_ml configs
+                # Also required by tests/e2e/test_hybrid_ml_provider_e2e.py
+                "google/long-t5-tglobal-base",
+                # Hybrid ML tier-1 REDUCE model (Flan-T5, instruction-tuned)
+                "google/flan-t5-base",
             ]
 
     if not model_names:
@@ -559,10 +565,10 @@ def main() -> None:
             # Test models
             config.TEST_DEFAULT_SUMMARY_MODEL,  # facebook/bart-base
             config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,  # allenai/led-base-16384
-            # Production models (from config_constants.py)
-            # google/pegasus-cnn_dailymail (Production MAP model)
+            # Production models (from config_constants.py — resolved dynamically)
+            # PROD_DEFAULT_SUMMARY_MODEL: facebook/bart-base (MAP)
+            # PROD_DEFAULT_SUMMARY_REDUCE_MODEL: llama3.2:3b via Ollama (REDUCE, not preloaded here)
             config.PROD_DEFAULT_SUMMARY_MODEL,
-            # allenai/led-base-16384 (Production REDUCE model)
             config.PROD_DEFAULT_SUMMARY_REDUCE_MODEL,
             # Hybrid ML Tier 1 E2E (tests/e2e/test_hybrid_ml_provider_e2e.py): MAP + REDUCE
             "google/long-t5-tglobal-base",

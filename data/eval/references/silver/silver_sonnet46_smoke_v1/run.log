@@ -1,0 +1,43 @@
+2026-04-01 15:46:26,557 INFO __main__: ================================================================================
+2026-04-01 15:46:26,557 INFO __main__: Starting experiment run: silver_candidate_anthropic_sonnet46_smoke_v1
+2026-04-01 15:46:26,557 INFO __main__: Results directory: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1
+2026-04-01 15:46:26,557 INFO __main__: Execution log: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/run.log
+2026-04-01 15:46:26,557 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-04-01 15:46:26,557 INFO __main__: ================================================================================
+2026-04-01 15:46:26,557 INFO __main__: Creating summarization provider...
+2026-04-01 15:46:26,839 INFO __main__: Found 5 episode(s) to process
+2026-04-01 15:46:26,839 INFO __main__: Phase 1: Running inference...
+2026-04-01 15:46:26,840 INFO __main__: Processing episode: p01_e01
+2026-04-01 15:46:26,846 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-04-01 15:46:38,387 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-01 15:46:38,402 INFO __main__: Episode p01_e01 completed in 11.6s, summary length=2329 chars
+2026-04-01 15:46:38,403 INFO __main__: Processing episode: p02_e01
+2026-04-01 15:46:38,408 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-04-01 15:46:53,213 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-01 15:46:53,216 INFO __main__: Episode p02_e01 completed in 14.8s, summary length=2825 chars
+2026-04-01 15:46:53,217 INFO __main__: Processing episode: p03_e01
+2026-04-01 15:46:53,225 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-04-01 15:47:06,484 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-01 15:47:06,487 INFO __main__: Episode p03_e01 completed in 13.3s, summary length=2511 chars
+2026-04-01 15:47:06,488 INFO __main__: Processing episode: p04_e01
+2026-04-01 15:47:06,499 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-04-01 15:47:19,044 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-01 15:47:19,046 INFO __main__: Episode p04_e01 completed in 12.5s, summary length=2547 chars
+2026-04-01 15:47:19,047 INFO __main__: Processing episode: p05_e01
+2026-04-01 15:47:19,055 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-04-01 15:47:32,166 INFO httpx: HTTP Request: POST https://api.anthropic.com/v1/messages "HTTP/1.1 200 OK"
+2026-04-01 15:47:32,168 INFO __main__: Episode p05_e01 completed in 13.1s, summary length=2539 chars
+2026-04-01 15:47:32,169 INFO __main__: Phase 1 completed in 65.3s
+2026-04-01 15:47:32,169 INFO __main__: Total input: 53,793 chars, output: 12,751 chars
+2026-04-01 15:47:32,169 INFO __main__: Average compression: 4.2x
+2026-04-01 15:47:32,169 INFO __main__: Predictions: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/predictions.jsonl
+2026-04-01 15:47:32,169 INFO __main__: Metadata: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/baseline.json
+2026-04-01 15:47:32,169 INFO __main__: Fingerprint: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/fingerprint.json
+2026-04-01 15:47:32,169 WARNING __main__: Run README template not found: data/eval/runs/RUN_README_TEMPLATE.md, skipping README generation
+2026-04-01 15:47:32,170 INFO __main__: Computing metrics...
+2026-04-01 15:47:32,172 INFO __main__: Metrics: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/metrics.json
+2026-04-01 15:47:32,173 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'episodes' is a required property (continuing anyway)
+2026-04-01 15:47:32,173 INFO __main__: ✓ Summarization metrics validation completed
+2026-04-01 15:47:32,174 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/metrics_report.md
+2026-04-01 15:47:32,174 INFO __main__: Episodes=5, avg_time=13.1s, avg_compression=4.2x
+2026-04-01 15:47:32,174 INFO __main__: ✓ Execution log saved: data/eval/runs/silver_candidate_anthropic_sonnet46_smoke_v1/run.log

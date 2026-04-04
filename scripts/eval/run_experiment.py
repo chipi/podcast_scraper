@@ -149,7 +149,11 @@ def _eval_podcast_scraper_config_overrides(experiment_cfg: ExperimentConfig) -> 
 
 def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
     """Parameters for ``SummarizationProvider.summarize`` (same as summarization task)."""
-    if cfg.backend.type in ("hf_local", "hybrid_ml") and cfg.map_params and cfg.reduce_params:
+    if (
+        cfg.backend.type in ("hf_local", "hybrid_ml")
+        and cfg.map_params
+        and (cfg.reduce_params or cfg.ollama_reduce_params)
+    ):
         return {
             "return_intermediates": True,
             "map_max_new_tokens": cfg.map_params.max_new_tokens,
@@ -160,14 +164,27 @@ def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
             "map_early_stopping": cfg.map_params.early_stopping,
             "map_repetition_penalty": cfg.map_params.repetition_penalty,
             "map_encoder_no_repeat_ngram_size": cfg.map_params.encoder_no_repeat_ngram_size,
-            "reduce_max_new_tokens": cfg.reduce_params.max_new_tokens,
-            "reduce_min_new_tokens": cfg.reduce_params.min_new_tokens,
-            "reduce_num_beams": cfg.reduce_params.num_beams,
-            "reduce_no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
-            "reduce_length_penalty": cfg.reduce_params.length_penalty,
-            "reduce_early_stopping": cfg.reduce_params.early_stopping,
-            "reduce_repetition_penalty": cfg.reduce_params.repetition_penalty,
-            "reduce_encoder_no_repeat_ngram_size": cfg.reduce_params.encoder_no_repeat_ngram_size,
+            **(
+                {
+                    "reduce_max_new_tokens": cfg.reduce_params.max_new_tokens,
+                    "reduce_min_new_tokens": cfg.reduce_params.min_new_tokens,
+                    "reduce_num_beams": cfg.reduce_params.num_beams,
+                    "reduce_no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
+                    "reduce_length_penalty": cfg.reduce_params.length_penalty,
+                    "reduce_early_stopping": cfg.reduce_params.early_stopping,
+                    "reduce_repetition_penalty": cfg.reduce_params.repetition_penalty,
+                    "reduce_encoder_no_repeat_ngram_size": (
+                        cfg.reduce_params.encoder_no_repeat_ngram_size
+                    ),
+                }
+                if cfg.reduce_params
+                else {
+                    "reduce_max_tokens": cfg.ollama_reduce_params.max_tokens,
+                    "reduce_temperature": cfg.ollama_reduce_params.temperature,
+                    "reduce_top_p": cfg.ollama_reduce_params.top_p,
+                    "reduce_frequency_penalty": cfg.ollama_reduce_params.frequency_penalty,
+                }
+            ),
             "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,
             "reduce_max_input_tokens": cfg.tokenize.reduce_max_input_tokens,
             "truncation": cfg.tokenize.truncation,
@@ -627,13 +644,20 @@ def run_experiment(  # noqa: C901
             logger.info(f"  repetition_penalty: {cfg.map_params.repetition_penalty}")
             logger.info("Reduce stage:")
             logger.info(f"  Model: {reduce_model}")
-            logger.info(f"  max_new_tokens: {cfg.reduce_params.max_new_tokens}")
-            logger.info(f"  min_new_tokens: {cfg.reduce_params.min_new_tokens}")
-            logger.info(f"  num_beams: {cfg.reduce_params.num_beams}")
-            logger.info(f"  no_repeat_ngram_size: {cfg.reduce_params.no_repeat_ngram_size}")
-            logger.info(f"  length_penalty: {cfg.reduce_params.length_penalty}")
-            logger.info(f"  early_stopping: {cfg.reduce_params.early_stopping}")
-            logger.info(f"  repetition_penalty: {cfg.reduce_params.repetition_penalty}")
+            if cfg.reduce_params:
+                logger.info(f"  max_new_tokens: {cfg.reduce_params.max_new_tokens}")
+                logger.info(f"  min_new_tokens: {cfg.reduce_params.min_new_tokens}")
+                logger.info(f"  num_beams: {cfg.reduce_params.num_beams}")
+                logger.info(f"  no_repeat_ngram_size: {cfg.reduce_params.no_repeat_ngram_size}")
+                logger.info(f"  length_penalty: {cfg.reduce_params.length_penalty}")
+                logger.info(f"  early_stopping: {cfg.reduce_params.early_stopping}")
+                logger.info(f"  repetition_penalty: {cfg.reduce_params.repetition_penalty}")
+            elif cfg.ollama_reduce_params:
+                orp = cfg.ollama_reduce_params
+                logger.info(f"  max_tokens: {orp.max_tokens}")
+                logger.info(f"  temperature: {orp.temperature}")
+                logger.info(f"  top_p: {orp.top_p}")
+                logger.info(f"  frequency_penalty: {orp.frequency_penalty}")
             logger.info("Tokenization:")
             logger.info(f"  map_max_input_tokens: {cfg.tokenize.map_max_input_tokens}")
             logger.info(f"  reduce_max_input_tokens: {cfg.tokenize.reduce_max_input_tokens}")
@@ -670,19 +694,40 @@ def run_experiment(  # noqa: C901
 
             map_max_length = cfg.map_params.max_new_tokens
             map_min_length = cfg.map_params.min_new_tokens
-            reduce_max_length = cfg.reduce_params.max_new_tokens
-            reduce_min_length = cfg.reduce_params.min_new_tokens
+            # reduce_params may be absent for ollama-backend hybrid configs
+            # (ollama_reduce_params used instead); fall back to sensible defaults
+            reduce_max_length = cfg.reduce_params.max_new_tokens if cfg.reduce_params else 800
+            reduce_min_length = cfg.reduce_params.min_new_tokens if cfg.reduce_params else 0
 
             params_dict = {
                 "map_model": map_model,
                 "reduce_model": reduce_model,
                 "reduce_backend": reduce_backend,
                 "map_params": cfg.map_params.model_dump(),
-                "reduce_params": cfg.reduce_params.model_dump(),
+                "reduce_params": cfg.reduce_params.model_dump() if cfg.reduce_params else {},
                 "tokenize": cfg.tokenize.model_dump(),
             }
 
             hybrid_reduce_instruction_style = getattr(cfg.backend, "reduce_instruction_style", None)
+            # When Ollama reduce is used with paragraph style, override the default
+            # system prompt (system_bullets_v1) to the paragraph system prompt so the
+            # model isn't constrained to JSON output format.
+            ollama_system_prompt_override: Optional[str] = None
+            if reduce_backend == "ollama" and hybrid_reduce_instruction_style == "paragraph":
+                ollama_system_prompt_override = "ollama/hybrid/system_v1"
+
+            # Ollama-specific reduce params (temperature, top_p, frequency_penalty)
+            ollama_reduce_overrides: dict = {}
+            if reduce_backend == "ollama" and cfg.ollama_reduce_params is not None:
+                orp = cfg.ollama_reduce_params
+                ollama_reduce_overrides = {
+                    "ollama_reduce_temperature": orp.temperature,
+                    "ollama_reduce_top_p": orp.top_p,
+                    "ollama_reduce_frequency_penalty": orp.frequency_penalty,
+                }
+                # max_tokens from ollama_reduce_params overrides reduce_params.max_new_tokens
+                reduce_max_length = orp.max_tokens
+
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="hybrid_ml",
@@ -690,6 +735,12 @@ def run_experiment(  # noqa: C901
                 hybrid_reduce_model=reduce_model,
                 hybrid_reduce_backend=reduce_backend,
                 hybrid_reduce_instruction_style=hybrid_reduce_instruction_style,
+                **(
+                    {"ollama_summary_system_prompt": ollama_system_prompt_override}
+                    if ollama_system_prompt_override
+                    else {}
+                ),
+                **ollama_reduce_overrides,
                 generate_summaries=True,
                 generate_metadata=True,
                 generate_gi=False,  # Experiments are summary-specific; keep GIL off
@@ -705,11 +756,17 @@ def run_experiment(  # noqa: C901
                 summary_reduce_params={
                     "max_new_tokens": reduce_max_length,
                     "min_new_tokens": reduce_min_length,
-                    "num_beams": cfg.reduce_params.num_beams,
-                    "no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
-                    "length_penalty": cfg.reduce_params.length_penalty,
-                    "early_stopping": cfg.reduce_params.early_stopping,
-                    "repetition_penalty": cfg.reduce_params.repetition_penalty,
+                    **(
+                        {
+                            "num_beams": cfg.reduce_params.num_beams,
+                            "no_repeat_ngram_size": cfg.reduce_params.no_repeat_ngram_size,
+                            "length_penalty": cfg.reduce_params.length_penalty,
+                            "early_stopping": cfg.reduce_params.early_stopping,
+                            "repetition_penalty": cfg.reduce_params.repetition_penalty,
+                        }
+                        if cfg.reduce_params
+                        else {}
+                    ),
                 },
                 summary_tokenize={
                     "map_max_input_tokens": cfg.tokenize.map_max_input_tokens,

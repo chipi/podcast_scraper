@@ -1,0 +1,3 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+baseline_ml_dev_authority	baseline	0.1809	0.7237	+0.00%				initial baseline
+bart_led_sweep_exp001	rejected	0.1819	0.7237	+0.55%	reduce_params	max_new_tokens	450	below threshold (+0.55%), fails=1

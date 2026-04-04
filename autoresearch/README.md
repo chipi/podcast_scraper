@@ -6,11 +6,12 @@ Thin automation layer on top of `scripts/eval/run_experiment.py` and
 - **Track A (v1):** `prompt_tuning/` — prompt edits + `eval/score.py` + dual judges.
 - **Track B (future):** ML inference params (`config/autoresearch/ml_params.yaml`).
 
-**Full design:** `docs/rfc/RFC-057-autoresearch-optimization-loop.md`  
+**Full design:** `docs/rfc/RFC-057-autoresearch-optimization-loop.md`
+
 **Human loop rules (source of truth for caps / policy):**
 
-- **Bullets (JSON):** `autoresearch/prompt_tuning/program.md`
-- **Paragraphs:** `autoresearch/prompt_tuning/program_paragraph.md`
+- **Summary bullets (JSON):** `autoresearch/prompt_tuning/program_summary_bullets.md`
+- **Summary paragraphs:** `autoresearch/prompt_tuning/program_summary.md`
 
 ## Two research lines (same harness, different config + reference)
 
@@ -18,8 +19,8 @@ Use **`make autoresearch-score`** with explicit `CONFIG=` and `REFERENCE=` so RO
 
 | Line | Config | Silver reference (ROUGE target) | Program (allowlist) |
 | --- | --- | --- | --- |
-| **Summary bullets** | `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml` | `silver_gpt4o_smoke_bullets_v1` (after you promote it) — until then legacy `silver_gpt4o_smoke_v1` is a poor match | `program.md` |
-| **Paragraph summary** | `data/eval/configs/autoresearch_prompt_openai_smoke_paragraph_v1.yaml` | `silver_gpt4o_smoke_v1` | `program_paragraph.md` |
+| **Summary bullets** | `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml` | `silver_gpt4o_smoke_bullets_v1` | `program_summary_bullets.md` |
+| **Summary paragraphs** | `data/eval/configs/autoresearch_prompt_openai_smoke_paragraph_v1.yaml` | `silver_gpt4o_smoke_v1` | `program_summary.md` |
 
 **Examples:**
 

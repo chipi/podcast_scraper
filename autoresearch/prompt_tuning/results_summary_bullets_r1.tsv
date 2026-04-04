@@ -1,0 +1,5 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.5761	+0.000	baseline	Bullets round 1 baseline vs silver_sonnet46_smoke_bullets_v1. Signal provider: deepseek-chat. Shared template bullets_json_v1.j2. All-provider baselines: deepseek=0.5761, anthropic=0.5620, gemini=0.5488, grok=0.5143, openai=0.5005, mistral=0.4967. Template already has: vocab pref, 6-8 bullet target, 45-word cap, distinct beats, no invented facts.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.5770	+0.001	rejected	Anchor each bullet in specific claims/data/entities: ROUGE-L 41.5%, judge_mean 0.956, below 1% threshold, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.5288	-0.047	rejected	Cause-effect relationships instruction: ROUGE-L 34.3%, judge_mean 0.963, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.5237	-0.052	rejected	First bullet states episode's central thesis: ROUGE-L 34.1%, judge_mean 0.949, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

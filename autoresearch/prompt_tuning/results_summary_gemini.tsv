@@ -1,0 +1,7 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.529	+0.000	baseline	Baseline: gemini-2.0-flash, long_v1.j2 unmodified. ROUGE-L 34.8%, judge_mean 0.953.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.512	-0.017	rejected	Prefer transcript vocabulary/phrasing: ROUGE-L 32.3%, judge_mean 0.953, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.555	+0.026	accepted	Anchor paragraphs in specific claims/data/entities: ROUGE-L 38.8%, judge_mean 0.946, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.549	-0.006	rejected	Thesis sentence opener added: ROUGE-L 37.6%, judge_mean 0.953, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.554	-0.001	rejected	Remove "Focus on key decisions/lessons" line: ROUGE-L 38.4%, judge_mean 0.953, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-5	0.524	-0.031	rejected	Add "no bullets/headers, prose only" constraint: ROUGE-L 34.0%, judge_mean 0.953, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

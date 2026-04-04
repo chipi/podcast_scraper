@@ -1,0 +1,15 @@
+id: silver_gpt4o_smoke_bullets_v1
+task: summarization
+backend:
+  type: openai
+  model: gpt-4o
+prompts:
+  system: shared/summarization/system_bullets_v1
+  user: shared/summarization/bullets_json_v1
+data:
+  dataset_id: curated_5feeds_smoke_v1
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: cleaning_v4

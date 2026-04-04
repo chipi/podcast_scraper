@@ -1,0 +1,7 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+hybrid_ml_tier2_qwen25_7b_smoke_paragraph_v1	baseline	0.1749	0.7807	+0.00%				initial baseline
+longt5_qwen25_7b_sweep_exp001	rejected	0.1731	0.7866	-1.05%	ollama_reduce_params	temperature	0.1	below threshold (-1.05%), fails=1
+longt5_qwen25_7b_sweep_exp002	accepted	0.1823	0.7641	+4.23%	ollama_reduce_params	temperature	0.5	new best rouge_l=0.1823
+longt5_qwen25_7b_sweep_exp003	rejected	0.1728	0.7746	-5.20%	ollama_reduce_params	temperature	0.7	below threshold (-5.20%), fails=1
+longt5_qwen25_7b_sweep_exp004	rejected	0.1838	0.7876	+0.84%	ollama_reduce_params	top_p	0.7	below threshold (+0.84%), fails=2
+longt5_qwen25_7b_sweep_exp005	rejected	0.1697	0.7923	-6.94%	ollama_reduce_params	top_p	0.95	below threshold (-6.94%), fails=3

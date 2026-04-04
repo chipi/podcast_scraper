@@ -1,0 +1,43 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "run_id": "hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 657.2,
+      "min_tokens": 537,
+      "max_tokens": 864
+    },
+    "performance": {
+      "avg_latency_ms": 28763.229274749756,
+      "median_latency_ms": 28429.23069000244,
+      "p95_latency_ms": 32537.40692138672,
+      "avg_latency_ms_excluding_first": 27819.684863090515
+    }
+  },
+  "vs_reference": {
+    "silver_sonnet46_smoke_v1": {
+      "reference_quality": "silver",
+      "rouge1_f1": 0.525726808217581,
+      "rouge2_f1": 0.1559903843281761,
+      "rougeL_f1": 0.18104604586786927,
+      "bleu": 0.11502216303658033,
+      "wer": 1.0118139936316846,
+      "embedding_cosine": 0.7684641122817993,
+      "coverage_ratio": 1.0317111459968604,
+      "numbers_retained": 1.0
+    }
+  },
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}

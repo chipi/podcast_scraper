@@ -1,0 +1,25 @@
+# Experiment Metrics Report
+
+**Run ID:** `experiment_openai_gpt4o_smoke_bullets_v1`
+**Dataset ID:** `curated_5feeds_smoke_v1`
+**Episode Count:** 5
+
+## Intrinsic Metrics
+
+### Quality Gates
+
+- **Boilerplate Leak Rate:** 0.0%
+- **Speaker Label Leak Rate:** 0.0%
+- **Speaker Name Leak Rate (WARN):** 0.0%
+- **Truncation Rate:** 0.0%
+- **Failed Episodes:** None
+
+### Length Metrics
+
+- **Average Tokens:** 229.2000
+- **Min Tokens:** 194.0000
+- **Max Tokens:** 284.0000
+
+### Performance Metrics
+
+- **Average Latency:** 3346ms

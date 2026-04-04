@@ -36,7 +36,10 @@ references/
 - **Not human-verified**
 - **Purpose:** Measure distance-to-target metrics (ROUGE, similarity, coverage ratio)
 - **Usage:** Not used for CI blocking
-- **Example:** `silver_gpt4o_benchmark_v1`
+- **Active reference:** `silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, April 2026)
+- **Selection process:** Generate candidate runs for competing models, then run pairwise LLM
+  judge (`make silver-pairwise`) — both OpenAI and Anthropic judges vote per episode; the
+  candidate with the most episode wins becomes the new silver. See `scripts/eval/pairwise_judge.py`.
 - **How they are created:** Run a normal experiment (`data/eval/configs/*.yaml` → outputs in
   `data/eval/runs/<run_id>/`), then **promote** that run with `make run-promote` — the config is
   not “silver” until promotion; see `data/eval/configs/README.md` § *Promoting a run to a silver

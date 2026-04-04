@@ -1,0 +1,5 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.494	+0.000	baseline	Baseline: grok-3-mini, long_v1.j2 unmodified. ROUGE-L 30.0%, judge_mean 0.946.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.491	-0.003	rejected	Anchor paragraphs in specific claims/data/entities: ROUGE-L 29.6%, judge_mean 0.946, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.497	+0.003	rejected	Add "output only final summary, no reasoning steps": ROUGE-L 29.9%, judge_mean 0.960, below 1% threshold, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.477	-0.017	rejected	Anchor + suppress reasoning combined: ROUGE-L 27.0%, judge_mean 0.960, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

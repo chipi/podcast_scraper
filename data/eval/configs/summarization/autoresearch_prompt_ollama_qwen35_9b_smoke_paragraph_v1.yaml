@@ -1,0 +1,26 @@
+# Autoresearch Track A — paragraph summaries, Ollama qwen3.5:9b.
+#
+# Pair with silver: ``silver_sonnet46_smoke_v1``
+# Template under tuning: src/podcast_scraper/prompts/ollama/qwen3.5_9b/summarization/long_v1.j2
+# Requires: ollama pull qwen3.5:9b
+
+id: "autoresearch_prompt_ollama_qwen35_9b_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "qwen3.5:9b"
+
+prompts:
+  system: "ollama/qwen3.5_9b/summarization/system_v1"
+  user: "ollama/qwen3.5_9b/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

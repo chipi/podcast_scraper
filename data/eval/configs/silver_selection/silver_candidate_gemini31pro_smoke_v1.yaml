@@ -1,0 +1,40 @@
+# Silver Reference Candidate — Gemini 2.0 Flash on smoke dataset.
+#
+# Purpose: Generate a candidate silver reference using Gemini 2.0 Flash to evaluate
+# whether it produces higher-quality summaries than the current silver (GPT-4o).
+#
+# NOTE: Both gemini-3.1-pro-preview and gemini-2.5-pro are thinking models in this SDK
+# (google-genai 0.8.0) — they consume max_output_tokens on internal reasoning and produce
+# empty output at 800 tokens. gemini-2.0-flash is the GA non-thinking frontier model
+# available via this SDK and produces full-length summaries reliably.
+#
+# Run:
+#   make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_gemini31pro_smoke_v1.yaml FORCE=1
+#
+# Then promote (if selected):
+#   make run-promote RUN_ID=silver_candidate_gemini31pro_smoke_v1 \
+#     --as reference PROMOTED_ID=silver_gemini20flash_smoke_v1 \
+#     REFERENCE_QUALITY=silver REASON="Gemini 2.0 Flash selected via pairwise judge"
+#
+# Requires: GEMINI_API_KEY
+
+id: "silver_candidate_gemini31pro_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "gemini"
+  model: "gemini-2.0-flash"
+
+prompts:
+  system: "gemini/summarization/system_v1"
+  user: "gemini/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

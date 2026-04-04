@@ -1,0 +1,31 @@
+{
+  "run_id": "autoresearch_prompt_gemini_smoke_bullets_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-02T11:33:03.104886Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "gemini",
+    "model": "gemini-2.0-flash"
+  },
+  "params": {
+    "model": "gemini-2.0-flash",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "shared/summarization/bullets_json_v1",
+    "system_prompt": "shared/summarization/system_bullets_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 9.695318937301636,
+    "avg_time_seconds": 1.9390637874603271,
+    "total_chars_in": 53793,
+    "total_chars_out": 5511,
+    "avg_compression": 9.761023407729995
+  },
+  "promoted_from": "autoresearch_prompt_gemini_smoke_bullets_v1",
+  "promoted_at": "2026-04-02T14:12:37.371001Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_gemini_smoke_bullets_v1"
+}

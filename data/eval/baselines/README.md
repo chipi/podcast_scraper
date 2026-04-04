@@ -54,12 +54,20 @@ Replace only when:
 
 Baseline IDs should be descriptive and versioned:
 
-- `baseline_ml_prod_authority_v1` - Production authoritative baseline (summarization)
+- `baseline_ml_prod_authority_v1` - Production authoritative ML baseline (summarization)
 - `baseline_ner_prod_authority_v1` - Production authoritative baseline (NER)
 - `baseline_ner_dev_authority_v1` - Development authoritative baseline (NER)
-- `baseline_ml_dev_authority_smoke_v1` - Development smoke test baseline (summarization)
-- `bart_led_small_smoke_v1` - Smoke test baseline with small models (summarization)
+- `baseline_ml_dev_authority_smoke_v1` - Development smoke test ML baseline (summarization)
 - `baseline_ci_smoke_v1` - CI smoke test baseline
+
+**LLM provider baselines (RFC-057 paragraph track, vs `silver_sonnet46_smoke_v1`):**
+
+- `baseline_llm_openai_gpt4omini_smoke_paragraph_v1` - OpenAI gpt-4o-mini
+- `baseline_llm_anthropic_smoke_paragraph_v1` - Anthropic claude-haiku-4-5
+- `baseline_llm_gemini_smoke_paragraph_v1` - Gemini gemini-2.0-flash
+- `baseline_llm_mistral_smoke_paragraph_v1` - Mistral mistral-small-latest
+- `baseline_llm_deepseek_smoke_paragraph_v1` - DeepSeek deepseek-chat
+- `baseline_llm_grok_smoke_paragraph_v1` - Grok grok-3-mini
 
 ## Contents
 

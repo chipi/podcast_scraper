@@ -1,0 +1,28 @@
+{
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "run_id": "autoresearch_prompt_grok_smoke_paragraph_v1",
+  "episode_count": 5,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 464.2,
+      "min_tokens": 397,
+      "max_tokens": 568
+    },
+    "performance": {
+      "avg_latency_ms": 10279.309558868408
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v1",
+  "task": "summarization"
+}

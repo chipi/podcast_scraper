@@ -81,11 +81,30 @@ ALLOW_PRODUCTION_KEYS_ENV = "AUTORESEARCH_ALLOW_PRODUCTION_KEYS"
 EXPERIMENT_OPENAI_KEY_ENV = "AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY"
 JUDGE_OPENAI_KEY_ENV = "AUTORESEARCH_JUDGE_OPENAI_API_KEY"
 JUDGE_ANTHROPIC_KEY_ENV = "AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY"
+
+# Experiment keys per provider: type → (autoresearch env var, production fallback env var)
+_PROVIDER_EXPERIMENT_KEY_MAP: Dict[str, Tuple[str, str]] = {
+    "openai": ("AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY", "OPENAI_API_KEY"),
+    "anthropic": ("AUTORESEARCH_EXPERIMENT_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"),
+    "gemini": ("AUTORESEARCH_EXPERIMENT_GEMINI_API_KEY", "GEMINI_API_KEY"),
+    "grok": ("AUTORESEARCH_EXPERIMENT_GROK_API_KEY", "GROK_API_KEY"),
+    "deepseek": ("AUTORESEARCH_EXPERIMENT_DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY"),
+    "mistral": ("AUTORESEARCH_EXPERIMENT_MISTRAL_API_KEY", "MISTRAL_API_KEY"),
+}
+# Env var name that run_experiment.py reads for each provider
+_PROVIDER_RUNTIME_KEY_ENV: Dict[str, str] = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "grok": "GROK_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+}
 EVAL_N_ENV = "AUTORESEARCH_EVAL_N"
 ROUGE_WEIGHT_ENV = "AUTORESEARCH_SCORE_ROUGE_WEIGHT"
 DEFAULT_ROUGE_WEIGHT = 0.4
 MAX_TRANSCRIPT_CHARS = 28_000
-DIVERGENCE_THRESHOLD = 0.15
+DIVERGENCE_THRESHOLD = 0.25
 
 
 class AutoresearchConfigError(RuntimeError):
@@ -109,6 +128,56 @@ def resolve_experiment_openai_key() -> str:
         f"Set {EXPERIMENT_OPENAI_KEY_ENV} or set {ALLOW_PRODUCTION_KEYS_ENV}=1 with "
         "OPENAI_API_KEY for local development."
     )
+
+
+def resolve_experiment_provider_key(provider: str) -> str:
+    """Return the experiment API key for *provider*, injected into the subprocess env.
+
+    Checks ``AUTORESEARCH_EXPERIMENT_{PROVIDER}_API_KEY`` first.  Falls back to the
+    production key (e.g. ``ANTHROPIC_API_KEY``) only when
+    ``AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1``.
+
+    Args:
+        provider: Backend type string, e.g. ``"anthropic"``, ``"gemini"``, ``"grok"``.
+
+    Returns:
+        API key string to inject as the provider's runtime env var.
+
+    Raises:
+        AutoresearchConfigError: Key not found and production fallback not allowed.
+    """
+    entry = _PROVIDER_EXPERIMENT_KEY_MAP.get(provider)
+    if entry is None:
+        raise AutoresearchConfigError(
+            f"No experiment key mapping for provider '{provider}'. "
+            f"Supported: {list(_PROVIDER_EXPERIMENT_KEY_MAP)}"
+        )
+    autoresearch_env, prod_env = entry
+    direct = os.environ.get(autoresearch_env, "").strip()
+    if direct:
+        return direct
+    if _truthy_env(ALLOW_PRODUCTION_KEYS_ENV):
+        prod = os.environ.get(prod_env, "").strip()
+        if prod:
+            return prod
+    raise AutoresearchConfigError(
+        f"Set {autoresearch_env} or set {ALLOW_PRODUCTION_KEYS_ENV}=1 with {prod_env}."
+    )
+
+
+def provider_runtime_key_env(provider: str) -> str:
+    """Return the env var name that ``run_experiment.py`` reads for *provider*.
+
+    Used by ``score.py`` to know which env var to override in the subprocess.
+    E.g. ``"anthropic"`` → ``"ANTHROPIC_API_KEY"``.
+    """
+    key = _PROVIDER_RUNTIME_KEY_ENV.get(provider)
+    if key is None:
+        raise AutoresearchConfigError(
+            f"No runtime key env for provider '{provider}'. "
+            f"Supported: {list(_PROVIDER_RUNTIME_KEY_ENV)}"
+        )
+    return key
 
 
 def resolve_judge_openai_key() -> str:

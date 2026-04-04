@@ -386,7 +386,7 @@ jobs:
           echo "  Contents of HF_CACHE:"
           ls -la "$HF_CACHE" | head -20
         fi
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
@@ -489,7 +489,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
@@ -660,7 +660,7 @@ jobs:
           ls -la "$HF_CACHE" | head -20
           echo "  Total size: $(du -sh "$HF_CACHE" 2>/dev/null | cut -f1)"
         fi
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           echo "  Checking $model:"
@@ -841,7 +841,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           # Check if model has files anywhere (blobs, snapshots, or root)
@@ -1001,7 +1001,7 @@ jobs:
         echo ""
         echo "📦 Hugging Face models:"
         HF_CACHE="$HOME/.cache/huggingface/hub"
-        for model in "facebook/bart-base" "allenai/led-base-16384" "google/pegasus-cnn_dailymail" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
+        for model in "facebook/bart-base" "allenai/led-base-16384" "google/long-t5-tglobal-base" "google/flan-t5-base"; do
           MODEL_DIR="models--$(echo $model | sed 's|/|--|g')"
           MODEL_PATH="$HF_CACHE/$MODEL_DIR"
           TOTAL_FILES=$(find "$MODEL_PATH" -type f 2>/dev/null | wc -l)

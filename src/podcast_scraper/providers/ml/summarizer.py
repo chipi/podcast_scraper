@@ -4054,8 +4054,11 @@ def _combine_summaries_abstractive(
             f"using higher ratio ({small_input_ratio:.2f}) for fuller summary"
         )
     else:
-        # Larger input: use standard ratio to prevent expansion
-        dynamic_max_new_tokens = max(80, int(combined_tokens * max_output_ratio))
+        # Larger input: use standard ratio to prevent expansion.
+        # Floor raised from 80 → 200: LongT5 map produces short compressed notes
+        # (~15-25 tokens/chunk) so combined input can be 60-125 tokens even after
+        # multiple chunks. A floor of 80 was too low for a readable paragraph summary.
+        dynamic_max_new_tokens = max(200, int(combined_tokens * max_output_ratio))
     effective_max_new_tokens = min(base_max_new_tokens, dynamic_max_new_tokens)
 
     # Dynamic min_new_tokens: 0 (no minimum) or small value, never force expansion

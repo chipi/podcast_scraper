@@ -993,6 +993,16 @@ class OllamaProvider:
         )
         custom_prompt = params.get("prompt") if params else None
 
+        # Ollama-specific reduce params (from ollama_reduce_params in hybrid config)
+        # Fall back to summary_temperature / OpenAI-compat defaults when not set
+        effective_temperature = (
+            getattr(self.cfg, "ollama_reduce_temperature", None) or self.summary_temperature
+        )
+        effective_top_p: Optional[float] = getattr(self.cfg, "ollama_reduce_top_p", None)
+        effective_frequency_penalty: Optional[float] = getattr(
+            self.cfg, "ollama_reduce_frequency_penalty", None
+        )
+
         logger.debug(
             "Summarizing text via Ollama API (model: %s, max_tokens: %d)",
             self.summary_model,
@@ -1029,14 +1039,20 @@ class OllamaProvider:
                     "(exact name being sent to Ollama)",
                     self.summary_model,
                 )
+                optional_kwargs: Dict[str, Any] = {}
+                if effective_top_p is not None:
+                    optional_kwargs["top_p"] = effective_top_p
+                if effective_frequency_penalty is not None:
+                    optional_kwargs["frequency_penalty"] = effective_frequency_penalty
                 return self.client.chat.completions.create(
                     model=self.summary_model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    temperature=self.summary_temperature,
+                    temperature=effective_temperature,
                     max_tokens=max_length,
+                    **optional_kwargs,
                     **_ollama_openai_chat_extra_kwargs(self.summary_model),
                 )
 

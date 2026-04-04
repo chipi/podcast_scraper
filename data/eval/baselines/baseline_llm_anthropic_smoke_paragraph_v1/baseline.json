@@ -1,0 +1,31 @@
+{
+  "run_id": "autoresearch_prompt_anthropic_smoke_paragraph_v1",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-04-02T07:44:13.382158Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "anthropic",
+    "model": "claude-haiku-4-5"
+  },
+  "params": {
+    "model": "claude-haiku-4-5",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "anthropic/summarization/long_v1",
+    "system_prompt": "anthropic/summarization/system_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 25.109946966171265,
+    "avg_time_seconds": 5.021989393234253,
+    "total_chars_in": 53793,
+    "total_chars_out": 10676,
+    "avg_compression": 5.0386849007118775
+  },
+  "promoted_from": "autoresearch_prompt_anthropic_smoke_paragraph_v1",
+  "promoted_at": "2026-04-02T07:48:12.604640Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_anthropic_smoke_paragraph_v1"
+}

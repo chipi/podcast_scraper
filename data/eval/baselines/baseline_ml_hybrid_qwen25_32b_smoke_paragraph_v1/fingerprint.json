@@ -1,0 +1,88 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-04-03T06:15:45.612027Z",
+    "baseline_id": "hybrid_ml_tier2_qwen25_32b_smoke_paragraph_v1",
+    "dataset_id": "curated_5feeds_smoke_v1",
+    "git": {
+      "commit": "70f428f5c8952643b145f01ddfe1b921ac25222c",
+      "branch": "autoresearch",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "hybridml",
+    "provider_library": "unknown",
+    "provider_library_version": "unknown"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "local_ml",
+          "framework": "transformers",
+          "model_name": "longt5-base+qwen2.5:32b(ollama)",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": null
+        },
+        "generation_params": {
+          "max_new_tokens": 200,
+          "min_new_tokens": 80,
+          "num_beams": 6,
+          "no_repeat_ngram_size": 3,
+          "length_penalty": 1.0,
+          "early_stopping": true,
+          "repetition_penalty": 1.1,
+          "temperature": 0.0,
+          "seed": 42
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true,
+      "strip_episode_header": true,
+      "anonymize_speakers": true,
+      "filter_junk_lines": true
+    }
+  },
+  "tokenization": {
+    "map_max_input_tokens": 1024,
+    "reduce_max_input_tokens": 4096,
+    "truncation": true
+  },
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "explicit_config"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {},
+  "instruction": {
+    "reduce_instruction_style": "paragraph",
+    "instruction_builder": "hybrid_ml_provider._build_reduce_instruction"
+  }
+}

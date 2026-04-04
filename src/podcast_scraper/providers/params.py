@@ -112,6 +112,21 @@ class SummarizationParams(BaseModel):
         default=None,
         description="Custom cache directory for transformer models (None = default)",
     )
+    user_prompt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Prompt store name for the user prompt (OpenAI/Anthropic/etc. only). "
+            "Overrides the provider default (e.g. 'openai/summarization/long_v1'). "
+            "None = use provider default."
+        ),
+    )
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Prompt store name for the system prompt (OpenAI/Anthropic/etc. only). "
+            "None = use provider default."
+        ),
+    )
 
     @field_validator("device")
     @classmethod

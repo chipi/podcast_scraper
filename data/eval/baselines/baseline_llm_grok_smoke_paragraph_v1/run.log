@@ -1,0 +1,43 @@
+2026-04-02 09:46:04,122 INFO __main__: ================================================================================
+2026-04-02 09:46:04,122 INFO __main__: Starting experiment run: autoresearch_prompt_grok_smoke_paragraph_v1
+2026-04-02 09:46:04,122 INFO __main__: Results directory: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1
+2026-04-02 09:46:04,122 INFO __main__: Execution log: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/run.log
+2026-04-02 09:46:04,122 INFO __main__: Dataset: curated_5feeds_smoke_v1
+2026-04-02 09:46:04,122 INFO __main__: ================================================================================
+2026-04-02 09:46:04,122 INFO __main__: Creating summarization provider...
+2026-04-02 09:46:04,369 INFO __main__: Found 5 episode(s) to process
+2026-04-02 09:46:04,369 INFO __main__: Phase 1: Running inference...
+2026-04-02 09:46:04,369 INFO __main__: Processing episode: p01_e01
+2026-04-02 09:46:04,375 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-04-02 09:46:16,512 INFO httpx: HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 09:46:16,522 INFO __main__: Episode p01_e01 completed in 12.1s, summary length=2275 chars
+2026-04-02 09:46:16,522 INFO __main__: Processing episode: p02_e01
+2026-04-02 09:46:16,532 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-04-02 09:46:25,737 INFO httpx: HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 09:46:25,740 INFO __main__: Episode p02_e01 completed in 9.2s, summary length=1755 chars
+2026-04-02 09:46:25,741 INFO __main__: Processing episode: p03_e01
+2026-04-02 09:46:25,753 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-04-02 09:46:35,525 INFO httpx: HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 09:46:35,529 INFO __main__: Episode p03_e01 completed in 9.8s, summary length=1814 chars
+2026-04-02 09:46:35,530 INFO __main__: Processing episode: p04_e01
+2026-04-02 09:46:35,542 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 10,723 → 10,518 (205 removed, 1.9%)
+2026-04-02 09:46:46,870 INFO httpx: HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 09:46:46,873 INFO __main__: Episode p04_e01 completed in 11.3s, summary length=1591 chars
+2026-04-02 09:46:46,874 INFO __main__: Processing episode: p05_e01
+2026-04-02 09:46:46,886 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 62 → 56 (6 removed), chars: 11,190 → 10,862 (328 removed, 2.9%)
+2026-04-02 09:46:55,819 INFO httpx: HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-04-02 09:46:55,822 INFO __main__: Episode p05_e01 completed in 8.9s, summary length=1863 chars
+2026-04-02 09:46:55,822 INFO __main__: Phase 1 completed in 51.5s
+2026-04-02 09:46:55,823 INFO __main__: Total input: 53,793 chars, output: 9,298 chars
+2026-04-02 09:46:55,823 INFO __main__: Average compression: 5.8x
+2026-04-02 09:46:55,823 INFO __main__: Predictions: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/predictions.jsonl
+2026-04-02 09:46:55,824 INFO __main__: Metadata: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/baseline.json
+2026-04-02 09:46:55,824 INFO __main__: Fingerprint: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/fingerprint.json
+2026-04-02 09:46:55,824 WARNING __main__: Run README template not found: data/eval/runs/RUN_README_TEMPLATE.md, skipping README generation
+2026-04-02 09:46:55,827 INFO __main__: Computing metrics...
+2026-04-02 09:46:55,830 INFO __main__: Metrics: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/metrics.json
+2026-04-02 09:46:55,833 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'episodes' is a required property (continuing anyway)
+2026-04-02 09:46:55,833 INFO __main__: ✓ Summarization metrics validation completed
+2026-04-02 09:46:55,833 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/metrics_report.md
+2026-04-02 09:46:55,833 INFO __main__: Episodes=5, avg_time=10.3s, avg_compression=5.8x
+2026-04-02 09:46:55,833 INFO __main__: ✓ Execution log saved: data/eval/runs/autoresearch_prompt_grok_smoke_paragraph_v1/run.log

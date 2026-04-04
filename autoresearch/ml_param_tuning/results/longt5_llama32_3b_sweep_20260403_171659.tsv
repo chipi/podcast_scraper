@@ -1,0 +1,7 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+hybrid_ml_tier2_llama32_3b_smoke_paragraph_v1	baseline	0.1892	0.7812	+0.00%				initial baseline
+longt5_llama32_3b_sweep_exp001	rejected	0.1881	0.7526	-0.58%	ollama_reduce_params	temperature	0.1	below threshold (-0.58%), fails=1
+longt5_llama32_3b_sweep_exp002	accepted	0.2081	0.7632	+10.00%	ollama_reduce_params	temperature	0.5	new best rouge_l=0.2081
+longt5_llama32_3b_sweep_exp003	rejected	0.1780	0.7441	-14.44%	ollama_reduce_params	temperature	0.7	below threshold (-14.44%), fails=1
+longt5_llama32_3b_sweep_exp004	rejected	0.1768	0.7615	-15.02%	ollama_reduce_params	top_p	0.7	below threshold (-15.02%), fails=2
+longt5_llama32_3b_sweep_exp005	rejected	0.1635	0.7725	-21.41%	ollama_reduce_params	top_p	0.95	below threshold (-21.41%), fails=3

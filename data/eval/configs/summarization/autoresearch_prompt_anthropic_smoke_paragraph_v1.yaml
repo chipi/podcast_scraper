@@ -1,0 +1,29 @@
+# Autoresearch Track A — paragraph summaries, Anthropic backend.
+#
+# Pair with silver: ``silver_gpt4o_smoke_v1`` (GPT-4o prose reference, reused for all providers).
+#
+# Template under tuning: src/podcast_scraper/prompts/anthropic/summarization/long_v1.j2
+# Results log: autoresearch/prompt_tuning/results_summary_anthropic.tsv
+#
+# Requires: ANTHROPIC_API_KEY
+
+id: "autoresearch_prompt_anthropic_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5"
+
+prompts:
+  system: "anthropic/summarization/system_v1"
+  user: "anthropic/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

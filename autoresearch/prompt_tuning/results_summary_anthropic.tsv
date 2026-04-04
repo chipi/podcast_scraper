@@ -1,0 +1,8 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.492	+0.000	baseline	Baseline: claude-haiku-4-5, long_v1.j2 unmodified. ROUGE-L 29.4%, judge_mean 0.953.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.496	+0.004	rejected	Prefer transcript vocabulary/phrasing: ROUGE-L 29.5%, judge_mean 0.963, below 1% threshold (need 0.497), consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.475	-0.017	rejected	Thesis sentence opener: ROUGE-L 27.0%, judge_mean 0.953, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.504	+0.012	accepted	Anchor paragraphs in specific claims/data/entities: ROUGE-L 30.7%, judge_mean 0.963, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.303	-0.201	rejected	Remove "Focus on key decisions/lessons" line: CONTESTED (judge divergence), ROUGE-L 30.3%, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-5	0.489	-0.015	rejected	Add vocab alignment on top of anchor: ROUGE-L 28.7%, judge_mean 0.960, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-6	0.487	-0.017	rejected	Replace generic focus line with "central topic/arguments/conclusions": ROUGE-L 28.8%, judge_mean 0.953, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

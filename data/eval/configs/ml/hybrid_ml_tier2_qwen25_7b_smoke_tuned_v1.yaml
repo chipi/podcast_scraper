@@ -1,0 +1,46 @@
+# Tier 2 smoke — tuned toward silver (length alignment)
+# Same as hybrid_ml_tier2_qwen25_7b_smoke_v1 but REDUCE length params aligned with silver:
+#   max_new_tokens: 800 (silver uses max_length: 800), min_new_tokens: 200, length_penalty: 1.1
+# Use to test whether longer REDUCE output improves ROUGE/embed vs silver.
+# Compare: make experiment-run CONFIG=... BASELINE=baseline_ml_prod_authority_smoke_v1 REFERENCE=silver_gpt4o_smoke_v1
+# Then: make report-multi-run RUN_IDS=hybrid_ml_tier2_qwen25_7b_smoke_v1,hybrid_ml_tier2_qwen25_7b_smoke_tuned_v1 REFERENCE_ID=silver_gpt4o_smoke_v1
+
+id: "hybrid_ml_tier2_qwen25_7b_smoke_tuned_v1"
+task: "summarization"
+
+backend:
+  type: "hybrid_ml"
+  map_model: "longt5-base"
+  reduce_model: "qwen2.5:7b"
+  reduce_backend: "ollama"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+ollama_reduce_params:
+  max_tokens: 800
+  temperature: 0.3
+  top_p: 0.9
+  frequency_penalty: 0.0
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

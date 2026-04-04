@@ -1078,6 +1078,7 @@ def generate_enhanced_fingerprint(  # noqa: C901
         is_api_llm = experiment_config and experiment_config.backend.type in (
             "openai",
             "anthropic",
+            "gemini",
             "mistral",
             "grok",
             "deepseek",

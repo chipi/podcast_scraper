@@ -39,7 +39,9 @@ from podcast_scraper.evaluation.autoresearch_track_a import (  # noqa: E402
     load_local_dotenv_files,
     mean_judge_scores,
     merge_max_episodes_into_config_yaml,
+    provider_runtime_key_env,
     resolve_experiment_openai_key,
+    resolve_experiment_provider_key,
     resolve_judge_anthropic_key,
     resolve_judge_openai_key,
     rouge_weight_from_env,
@@ -50,11 +52,12 @@ from podcast_scraper.evaluation.scorer import load_predictions  # noqa: E402
 logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_CONFIG = (
-    REPO_ROOT / "data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml"
+    REPO_ROOT
+    / "data/eval/configs/summarization_bullets/autoresearch_prompt_openai_smoke_bullets_v1.yaml"
 )
 # ROUGE target for bullet JSON (must exist under data/eval/references/silver/...).
 # Create by running experiment_openai_gpt4o_smoke_bullets_v1, then promote; see
-# data/eval/configs/README.md.
+# data/eval/configs/summarization_bullets/ and data/eval/configs/README.md.
 # Interim (mismatched ROUGE): REFERENCE=silver_gpt4o_smoke_v1
 DEFAULT_REFERENCE_ID = "silver_gpt4o_smoke_bullets_v1"
 EVAL_DIR = Path(__file__).resolve().parent
@@ -65,6 +68,7 @@ def _run_subprocess(
     merged_config: Path,
     dry_run: bool,
     reference_id: str,
+    backend_type: str = "openai",
 ) -> None:
     cmd = [
         sys.executable,
@@ -81,7 +85,12 @@ def _run_subprocess(
         cmd.append("--force")
 
     env = os.environ.copy()
+    # Always set OPENAI_API_KEY for OpenAI-based experiments (judges also use openai key separately)
     env["OPENAI_API_KEY"] = resolve_experiment_openai_key()
+    # Inject the experiment-specific key for the actual summarization provider,
+    # overriding whatever production key was loaded from .env into os.environ.
+    runtime_env = provider_runtime_key_env(backend_type)
+    env[runtime_env] = resolve_experiment_provider_key(backend_type)
 
     logger.info("Running: %s", " ".join(cmd))
     proc = subprocess.run(
@@ -175,6 +184,7 @@ def main() -> int:
             merged_config=merged_path,
             dry_run=args.dry_run,
             reference_id=args.reference,
+            backend_type=cfg.backend.type,
         )
 
         metrics_path = results_dir / "metrics.json"

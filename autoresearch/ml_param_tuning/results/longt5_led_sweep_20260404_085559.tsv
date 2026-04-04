@@ -1,0 +1,8 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+baseline_ml_longt5_led_smoke_v1	baseline	0.0843	0.4662	+0.00%				initial baseline
+longt5_led_sweep_exp001	rejected	0.0789	0.5032	-6.47%	map_params	max_new_tokens	250	below threshold (-6.47%), fails=1
+longt5_led_sweep_exp002	rejected	0.0789	0.5032	-6.47%	map_params	max_new_tokens	300	below threshold (-6.47%), fails=2
+longt5_led_sweep_exp003	accepted	0.0991	0.4960	+17.53%	map_params	max_new_tokens	150	new best rouge_l=0.0991
+longt5_led_sweep_exp004	rejected	0.0990	0.5069	-0.09%	map_params	num_beams	6	below threshold (-0.09%), fails=1
+longt5_led_sweep_exp005	rejected	0.0802	0.5709	-19.06%	map_params	num_beams	8	below threshold (-19.06%), fails=2
+longt5_led_sweep_exp006	rejected	0.0757	0.4647	-23.63%	map_params	no_repeat_ngram_size	4	below threshold (-23.63%), fails=3

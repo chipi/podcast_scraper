@@ -1,0 +1,31 @@
+{
+  "run_id": "autoresearch_prompt_grok_benchmark_paragraph_v1",
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "created_at": "2026-04-02T09:01:06.655295Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "grok",
+    "model": "grok-3-mini"
+  },
+  "params": {
+    "model": "grok-3-mini",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "grok/summarization/long_v1",
+    "system_prompt": "grok/summarization/system_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 59.880719900131226,
+    "avg_time_seconds": 11.976143980026245,
+    "total_chars_in": 54104,
+    "total_chars_out": 8675,
+    "avg_compression": 6.236772334293948
+  },
+  "promoted_from": "autoresearch_prompt_grok_benchmark_paragraph_v1",
+  "promoted_at": "2026-04-02T09:02:35.547890Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_llm_grok_benchmark_paragraph_v1"
+}

@@ -185,6 +185,7 @@ BackendConfig = (
     | OllamaBackendConfig
     | GrokBackendConfig
     | DeepSeekBackendConfig
+    | GeminiBackendConfig
     | EvalStubBackendConfig
 )
 
@@ -321,6 +322,49 @@ class GenerationParams(BaseModel):
     )
 
 
+class OllamaReduceParams(BaseModel):
+    """Ollama-specific generation parameters for the reduce stage in hybrid_ml configs.
+
+    These are the actual parameters Ollama (via OpenAI-compat API) understands.
+    Replaces the HF-only reduce_params fields (num_beams, no_repeat_ngram_size, etc.)
+    that were silently ignored when reduce_backend is "ollama".
+
+    Example YAML:
+      ollama_reduce_params:
+        max_tokens: 800
+        temperature: 0.3
+        top_p: 0.9
+        frequency_penalty: 0.0
+    """
+
+    max_tokens: int = Field(
+        default=800,
+        ge=1,
+        description="Maximum tokens to generate (maps to max_tokens in OpenAI-compat API).",
+    )
+    temperature: float = Field(
+        default=0.3,
+        ge=0.0,
+        le=2.0,
+        description="Sampling temperature (0.0 = deterministic, higher = more creative).",
+    )
+    top_p: float = Field(
+        default=0.9,
+        ge=0.0,
+        le=1.0,
+        description="Nucleus sampling probability mass (0.9 = top 90% tokens).",
+    )
+    frequency_penalty: float = Field(
+        default=0.0,
+        ge=-2.0,
+        le=2.0,
+        description=(
+            "Penalise tokens that appear frequently in output (reduces repetition). "
+            "Equivalent to repetition_penalty for Ollama via OpenAI-compat API."
+        ),
+    )
+
+
 class TokenizeConfig(BaseModel):
     """Tokenization configuration for input text.
 
@@ -453,6 +497,14 @@ class ExperimentConfig(BaseModel):
         default=None,
         description="Generation parameters for reduce stage (required for hf_local backend)",
     )
+    ollama_reduce_params: Optional[OllamaReduceParams] = Field(
+        default=None,
+        description=(
+            "Ollama-specific reduce params for hybrid_ml with ollama backend. "
+            "Replaces HF-only reduce_params fields (num_beams etc.) that are ignored by Ollama. "
+            "When absent, defaults apply (temperature=0.3, top_p=0.9, max_tokens=800)."
+        ),
+    )
     tokenize: Optional[TokenizeConfig] = Field(
         default=None,
         description="Tokenization configuration for input text (required for hf_local backend)",
@@ -536,10 +588,15 @@ class ExperimentConfig(BaseModel):
                     f"map_params is required for {self.backend.type} backend. "
                     "Provide map_params with generation parameters for map stage."
                 )
-            if not self.reduce_params:
+            is_ollama_hybrid = (
+                self.backend.type == "hybrid_ml"
+                and getattr(self.backend, "reduce_backend", None) == "ollama"
+            )
+            if not self.reduce_params and not (is_ollama_hybrid and self.ollama_reduce_params):
                 raise ValueError(
                     f"reduce_params is required for {self.backend.type} backend. "
-                    "Provide reduce_params with generation parameters for reduce stage."
+                    "Provide reduce_params with generation parameters for reduce stage. "
+                    "(For hybrid_ml with ollama backend, ollama_reduce_params is accepted instead.)"
                 )
             if not self.tokenize:
                 raise ValueError(

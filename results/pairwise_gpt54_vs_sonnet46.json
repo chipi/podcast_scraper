@@ -1,0 +1,98 @@
+{
+  "candidate_a": "silver_candidate_openai_gpt54_smoke_v1",
+  "candidate_b": "silver_candidate_anthropic_sonnet46_smoke_v1",
+  "judge_openai_model": "gpt-4o-mini",
+  "judge_anthropic_model": "claude-haiku-4-5",
+  "total_episodes": 5,
+  "votes_a": 1,
+  "votes_b": 3,
+  "ties": 1,
+  "overall_winner": "B",
+  "episodes": [
+    {
+      "episode_id": "p01_e01",
+      "winner": "B",
+      "contested": false,
+      "judge_openai": {
+        "winner": "B",
+        "confidence": 0.8,
+        "reason": "Summary B provides a more structured and comprehensive overview of the episode's themes while maintaining factual accuracy and conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "B",
+        "confidence": 0.72,
+        "reason": "Summary B is more readable and better organized with clearer section breaks, while both are factually accurate; Summary A's bullet-point format creates unnecessary fragmentation of coherent ideas."
+      },
+      "summary_a_length": 351,
+      "summary_b_length": 335
+    },
+    {
+      "episode_id": "p02_e01",
+      "winner": "B",
+      "contested": false,
+      "judge_openai": {
+        "winner": "B",
+        "confidence": 0.8,
+        "reason": "Summary B provides a more structured and detailed overview of the episode's themes and insights."
+      },
+      "judge_anthropic": {
+        "winner": "B",
+        "confidence": 0.85,
+        "reason": "Summary B provides superior organization, clarity, and narrative flow while covering all key topics accurately; Summary A uses a dense bullet-point format that is harder to parse and less engaging despite covering similar content."
+      },
+      "summary_a_length": 312,
+      "summary_b_length": 410
+    },
+    {
+      "episode_id": "p03_e01",
+      "winner": "tie",
+      "contested": true,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.8,
+        "reason": "Summary A provides more detailed coverage of key themes and practical advice while maintaining conciseness."
+      },
+      "judge_anthropic": {
+        "winner": "B",
+        "confidence": 0.72,
+        "reason": "Summary B presents the same core content more clearly and concisely without the repetitive bullet-point structure, making it easier to follow while maintaining equal accuracy and coverage."
+      },
+      "summary_a_length": 439,
+      "summary_b_length": 384
+    },
+    {
+      "episode_id": "p04_e01",
+      "winner": "B",
+      "contested": false,
+      "judge_openai": {
+        "winner": "B",
+        "confidence": 0.8,
+        "reason": "Summary B provides a more structured and detailed overview of the episode's themes while maintaining conciseness and factual accuracy."
+      },
+      "judge_anthropic": {
+        "winner": "B",
+        "confidence": 0.72,
+        "reason": "Summary B is better organized, more readable, and covers all key topics with equal accuracy while avoiding the bullet-point format that makes Summary A harder to parse; both are factually accurate and comprehensive, but B's prose structure and flow make it more useful as a standalone summary."
+      },
+      "summary_a_length": 319,
+      "summary_b_length": 383
+    },
+    {
+      "episode_id": "p05_e01",
+      "winner": "A",
+      "contested": false,
+      "judge_openai": {
+        "winner": "A",
+        "confidence": 0.8,
+        "reason": "Summary A provides a more structured and detailed overview of the episode's key themes and practical advice."
+      },
+      "judge_anthropic": {
+        "winner": "A",
+        "confidence": 0.72,
+        "reason": "Summary A is more concise and better organized with clear bullet points that capture all key themes without unnecessary elaboration, while Summary B is verbose and somewhat repetitive across paragraphs."
+      },
+      "summary_a_length": 323,
+      "summary_b_length": 369
+    }
+  ]
+}

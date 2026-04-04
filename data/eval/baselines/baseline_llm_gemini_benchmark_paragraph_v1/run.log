@@ -1,0 +1,57 @@
+2026-04-02 10:57:11,569 INFO __main__: ================================================================================
+2026-04-02 10:57:11,569 INFO __main__: Starting experiment run: autoresearch_prompt_gemini_benchmark_paragraph_v1
+2026-04-02 10:57:11,569 INFO __main__: Results directory: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1
+2026-04-02 10:57:11,569 INFO __main__: Execution log: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/run.log
+2026-04-02 10:57:11,569 INFO __main__: Dataset: curated_5feeds_benchmark_v1
+2026-04-02 10:57:11,569 INFO __main__: ================================================================================
+2026-04-02 10:57:11,569 INFO __main__: Creating summarization provider...
+2026-04-02 10:57:11,797 INFO __main__: Found 5 episode(s) to process (max_episodes=5)
+2026-04-02 10:57:11,797 INFO __main__: Phase 1: Running inference...
+2026-04-02 10:57:11,797 INFO __main__: Processing episode: p01_e01
+2026-04-02 10:57:11,804 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 56 → 50 (6 removed), chars: 11,049 → 10,793 (256 removed, 2.3%)
+2026-04-02 10:57:12,069 INFO root: AFC is enabled with max remote calls: 10.
+2026-04-02 10:57:14,570 INFO __main__: Episode p01_e01 completed in 2.8s, summary length=1509 chars
+2026-04-02 10:57:14,570 INFO __main__: Processing episode: p01_e02
+2026-04-02 10:57:14,578 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 57 → 51 (6 removed), chars: 11,059 → 10,749 (310 removed, 2.8%)
+2026-04-02 10:57:14,578 INFO root: AFC is enabled with max remote calls: 10.
+2026-04-02 10:57:17,342 INFO __main__: Episode p01_e02 completed in 2.8s, summary length=1941 chars
+2026-04-02 10:57:17,342 INFO __main__: Processing episode: p02_e01
+2026-04-02 10:57:17,350 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 11,537 → 11,225 (312 removed, 2.7%)
+2026-04-02 10:57:17,351 INFO root: AFC is enabled with max remote calls: 10.
+2026-04-02 10:57:19,968 INFO __main__: Episode p02_e01 completed in 2.6s, summary length=1594 chars
+2026-04-02 10:57:19,969 INFO __main__: Processing episode: p02_e02
+2026-04-02 10:57:19,976 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 59 → 53 (6 removed), chars: 11,265 → 10,942 (323 removed, 2.9%)
+2026-04-02 10:57:19,976 INFO root: AFC is enabled with max remote calls: 10.
+2026-04-02 10:57:22,919 INFO __main__: Episode p02_e02 completed in 2.9s, summary length=1690 chars
+2026-04-02 10:57:22,920 INFO __main__: Processing episode: p03_e01
+2026-04-02 10:57:22,924 INFO __main__: [PREPROCESSING] Profile: cleaning_v4, lines: 58 → 52 (6 removed), chars: 10,679 → 10,395 (284 removed, 2.7%)
+2026-04-02 10:57:22,924 INFO root: AFC is enabled with max remote calls: 10.
+2026-04-02 10:57:25,006 INFO __main__: Episode p03_e01 completed in 2.1s, summary length=1503 chars
+2026-04-02 10:57:25,007 INFO __main__: Phase 1 completed in 13.2s
+2026-04-02 10:57:25,007 INFO __main__: Total input: 54,104 chars, output: 8,237 chars
+2026-04-02 10:57:25,007 INFO __main__: Average compression: 6.6x
+2026-04-02 10:57:25,007 INFO __main__: Predictions: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/predictions.jsonl
+2026-04-02 10:57:25,008 INFO __main__: Metadata: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/baseline.json
+2026-04-02 10:57:25,008 INFO __main__: Fingerprint: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/fingerprint.json
+2026-04-02 10:57:25,008 WARNING __main__: Run README template not found: data/eval/runs/RUN_README_TEMPLATE.md, skipping README generation
+2026-04-02 10:57:25,010 INFO __main__: Computing metrics...
+2026-04-02 10:57:25,014 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,015 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,016 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,017 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,018 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,019 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,019 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,020 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,021 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,022 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'summary' is a required property (continuing anyway)
+2026-04-02 10:57:25,022 INFO podcast_scraper.evaluation.scorer: Scoring vs reference 'silver_sonnet46_benchmark_v1' on 5 episode(s); skipping reference-only episodes missing from predictions: ['p03_e02', 'p04_e01', 'p04_e02', 'p05_e01', 'p05_e02']
+2026-04-02 10:57:25,022 INFO absl: Using default tokenizer.
+2026-04-02 10:57:25,104 INFO sentence_transformers.SentenceTransformer: Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-04-02 10:57:26,443 INFO sentence_transformers.SentenceTransformer: Use pytorch device_name: mps
+2026-04-02 10:57:26,615 INFO __main__: Metrics: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/metrics.json
+2026-04-02 10:57:26,616 WARNING podcast_scraper.evaluation.schema_validator: Schema validation failed: 'episodes' is a required property (continuing anyway)
+2026-04-02 10:57:26,616 INFO __main__: ✓ Summarization metrics validation completed
+2026-04-02 10:57:26,616 INFO podcast_scraper.evaluation.reporter: Report saved to: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/metrics_report.md
+2026-04-02 10:57:26,616 INFO __main__: Episodes=5, avg_time=2.6s, avg_compression=6.6x
+2026-04-02 10:57:26,616 INFO __main__: ✓ Execution log saved: data/eval/runs/autoresearch_prompt_gemini_benchmark_paragraph_v1/run.log

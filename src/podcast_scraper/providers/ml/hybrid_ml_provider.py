@@ -651,7 +651,8 @@ class HybridMLProvider:
             + "- No preamble.\n"
             + "- Do not mention that you were given notes.\n"
             + "- Do not include any other headings.\n"
-            + "- Keep bullets concise.\n"
+            + "- Keep bullets concise.\n\n"
+            + "NOTES:\n{{ transcript }}"
         )
 
     @staticmethod
@@ -677,7 +678,8 @@ class HybridMLProvider:
             + "Do not use quotes or speaker names. Do not invent information not in the notes.\n"
             + "Style: Write in a neutral, professional voice with clear paragraph breaks. "
             + "No preamble, no markdown headings, no bullet lists. "
-            + "Start directly with the summary.\n"
+            + "Start directly with the summary.\n\n"
+            + "NOTES:\n{{ transcript }}"
         )
 
     @staticmethod

@@ -1,0 +1,12 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.380	+0.000	baseline	TRUE baseline after bug fix: long_v1.j2 now correctly used (was silently running bullets_json_v1). Prose output vs prose silver. ROUGE-1 69%, embed 90%.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.553	+0.173	accepted	Prefer transcript vocabulary/phrasing: massive gain, judge_mean 0.939, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.564	+0.011	accepted	Opening sentence states central thesis: ROUGE-L 40%, judge_mean 0.946	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.539	-0.025	rejected	Coverage structure (topic+args+conclusions): ROUGE-L dropped to 36.7%, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.558	-0.006	rejected	System: editorial persona + prose contract; marginal loss, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-5	0.576	+0.012	accepted	Anchor paragraphs in specific claims/data/entities: ROUGE-L 41.4%, judge_mean 0.953 (best)	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-6	0.423	-0.153	rejected	Active voice per sentence: CONTESTED (judge divergence), fell back to ROUGE-only, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-7	0.584	+0.008	accepted	Remove generic "Focus on key decisions/lessons" line: ROUGE-L 42.9%, judge_mean 0.946, not contested	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-8	0.569	-0.015	rejected	Add "Do not hedge/qualify transcript facts": ROUGE-L 41.1%, judge_mean 0.939, consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-9	0.393	-0.191	rejected	Add "Write in present tense throughout": CONTESTED (judge divergence), ROUGE-L 39.3%, consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-10	0.574	-0.010	rejected	Each paragraph covers distinct topic, no repetition: ROUGE-L 41.2%, judge_mean 0.953, consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

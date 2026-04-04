@@ -1,0 +1,75 @@
+# TOMBSTONE EXPERIMENT — Pegasus/LED retirement documentation
+#
+# This config documents the architectural mismatch that caused Pegasus+LED
+# to be retired as the ML prod baseline for podcast content.
+#
+# Root cause (3 layers):
+#   1. Pegasus (CNN/DailyMail) was pretrained with Gap Sentence Generation (GSG)
+#      on news articles — dense, non-repetitive, topic-per-sentence structure.
+#      Podcast transcripts are conversational, repetitive, one idea over many
+#      sentences. Pegasus extracts "key sentences" that turn out to be the most
+#      repeated phrases across chunks → near-duplicate map outputs.
+#
+#   2. LED reduce receives concatenated chunk summaries full of repeated phrases.
+#      With no_repeat_ngram_size=3, LED exhausts its 3-gram budget almost
+#      immediately and stops generating at ~55-70 tokens. Not an error — LED
+#      is behaving correctly given its constraint and the redundant input.
+#
+#   3. Relaxing LED params (no_repeat_ngram_size=6, length_penalty=1.2) in
+#      baseline_ml_prod_authority_smoke_v2 only improved output to 71 tokens.
+#      Treats the symptom (short output), not the cause (duplicate map input).
+#      Param tuning cannot fix this — the map model is wrong for this domain.
+#
+# Evidence:
+#   - baseline_ml_prod_authority_smoke_v1: avg_tokens=54.2, ROUGE-L=10.7%
+#   - baseline_ml_prod_authority_smoke_v2: avg_tokens=71 (relaxed constraints)
+#   - baseline_ml_dev_authority (BART+LED): avg_tokens=217, ROUGE-L=18.1%
+#
+# Decision: Pegasus is NOT deleted from the registry. It is well-suited for
+# news content and will be re-evaluated when news is added as a content type.
+# The mode is deprecated in model_registry.py with full deprecation_reason.
+#
+# Successor: baseline_ml_longt5_led_smoke_v1 (LongT5+LED)
+
+id: "baseline_ml_pegasus_retirement_smoke_v1"
+task: "summarization"
+
+backend:
+  type: "hf_local"
+  map_model: "google/pegasus-cnn_dailymail"
+  reduce_model: "allenai/led-base-16384"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+reduce_params:
+  do_sample: false
+  num_beams: 4
+  max_new_tokens: 650
+  min_new_tokens: 220
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.12
+  length_penalty: 1.0
+  early_stopping: false
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150
