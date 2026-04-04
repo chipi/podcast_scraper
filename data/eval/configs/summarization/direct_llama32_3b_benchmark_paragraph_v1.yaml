@@ -1,0 +1,31 @@
+# Direct LLM — Llama 3.2:3b full transcript → Ollama (no MAP stage)
+# Purpose: compare against hybrid ml_hybrid_bart_llama32_3b_autoresearch_v1 to measure
+# whether the BART MAP stage adds value or is dead weight.
+#
+# Uses same temperature=0.5 and max_tokens=1000 as the hybrid sweep winner for fair comparison.
+# Dataset: curated_5feeds_benchmark_v1 (10 episodes) — same as hybrid benchmark run.
+# Reference: silver_sonnet46_benchmark_v1
+#
+# Key question: if this scores within 2-3pp of hybrid (23.7% ROUGE-L), MAP stage is not
+# justified for episodes of this length. If gap is larger, hybrid architecture is validated.
+
+id: "direct_llama32_3b_benchmark_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "ollama"
+  model: "llama3.2:3b"
+
+prompts:
+  system: "ollama/summarization/system_v1"
+  user: "ollama/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+params:
+  max_length: 1000
+  min_length: 200
+  temperature: 0.5
+
+preprocessing_profile: "cleaning_v4"

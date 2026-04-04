@@ -84,6 +84,7 @@ Architecture Decision Records (ADRs) capture the **what** and **why** of signifi
 | [ADR-068](ADR-068-bart-led-as-ml-production-baseline.md) | BART+LED as Local ML Production Baseline | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Autoresearch sweep: +4.26% ROUGE-L over dev baseline (18.82%); 2 params accepted (max_new_tokens=550, num_beams=6) | ✅ |
 | [ADR-069](ADR-069-hybrid-ml-pipeline-as-production-direction.md) | Hybrid ML Pipeline as Primary Production Direction | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md), [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md) | BART MAP + Llama 3.2:3b REDUCE at 23.1% ROUGE-L; closes 70% of cloud quality gap; temp=0.5, top_p=1.0 | ✅ |
 | [ADR-070](ADR-070-bart-base-as-hybrid-map-stage.md) | BART-base as Hybrid MAP Stage | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | BART beats LongT5 as MAP (21.2% vs 20.8%); pretraining alignment > context window size | ✅ |
+| [ADR-071](ADR-071-four-tier-summarization-strategy.md) | Four-Tier Summarization Strategy | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | ML Dev / ML Prod / LLM Local / LLM Cloud — direct Llama 3.2:3b beats hybrid (24.3% vs 23.7%, 2x faster) | ✅ |
 
 ---
 
