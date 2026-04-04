@@ -1,0 +1,15 @@
+id: direct_llama32_3b_benchmark_paragraph_v1_autoresearch_v1
+task: summarization
+backend:
+  type: ollama
+  model: llama3.2:3b
+prompts:
+  system: ollama/summarization/system_v1
+  user: ollama/summarization/long_v1
+data:
+  dataset_id: curated_5feeds_benchmark_v1
+params:
+  max_length: 1000
+  min_length: 200
+  temperature: 0.3
+preprocessing_profile: cleaning_v4

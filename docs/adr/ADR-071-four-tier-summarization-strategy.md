@@ -67,24 +67,28 @@ guaranteed. The only tier with zero runtime dependencies beyond Python + Hugging
 ### Tier 3 — LLM Local (`llama3.2:3b` via Ollama direct)
 
 ```text
-Config:     direct_llama32_3b_benchmark_paragraph_v1.yaml
+Config:     direct_llama32_3b_autoresearch_v1.yaml  (autoresearch winner)
 Model:      llama3.2:3b (Ollama)
-ROUGE-L:    24.3%  (benchmark, 10 eps)
-Embedding:  76.6%
-Latency:    7.9s/ep
+ROUGE-L:    26.4%  (benchmark, 10 eps)
+Embedding:  79.5%
+Latency:    7.5s/ep
 Deps:       Ollama daemon, llama3.2:3b pulled (~2GB)
-Params:     temperature=0.5, max_tokens=1000
+Params:     temperature=0.3, max_length=1000, min_length=200
 ```
 
 **Purpose:** Best fully-local quality. No cloud, no variable cost, full data privacy.
-Faster than ML Prod (7.9s vs 30.6s) because Ollama inference on Apple Silicon MPS
+Faster than ML Prod (7.5s vs 30.6s) because Ollama inference on Apple Silicon MPS
 outperforms LED beam search. Suitable for production deployments where Ollama can be
 guaranteed to be running.
 
-**Key finding**: Direct LLM *beats* the hybrid BART+Llama pipeline (24.3% vs 23.7% ROUGE-L,
-76.6% vs 72.9% embed, 7.9s vs 15.7s latency). The BART MAP compression stage is lossy —
+**Key finding**: Direct LLM *beats* the hybrid BART+Llama pipeline (26.4% vs 23.7% ROUGE-L,
+79.5% vs 72.9% embed, 7.5s vs 15.7s latency). The BART MAP compression stage is lossy —
 the LLM synthesises better from the full transcript than from compressed chunk notes,
 for current episode lengths (~10-15K transcript tokens).
+
+**Autoresearch sweep result**: +13.0% relative gain from temperature tuning alone.
+temperature=0.3 is optimal for direct inference (focused generation on clean transcript),
+whereas the hybrid sweep winner was temperature=0.5 (BART chunk noise required more diversity).
 
 ---
 
@@ -125,7 +129,7 @@ be architecturally necessary. At that point, the hybrid tier would be reconsider
 | 1 — ML Dev | ml_small_authority | ~14% | ~65% | ~185 | fast | 100% local | $0 |
 | 2 — ML Prod | ml_bart_led_autoresearch_v1 | 20.4% | 70.1% | 265 | 30.6s | 100% local | $0 |
 | — | ml_hybrid_bart_llama32_3b_autoresearch_v1 | 23.7% | 72.9% | 441 | 15.7s | 100% local | $0 |
-| 3 — LLM Local | llama3.2:3b direct | **24.3%** | **76.6%** | 682 | **7.9s** | 100% local | $0 |
+| 3 — LLM Local | direct_llama32_3b_autoresearch_v1 | **26.4%** | **79.5%** | 615 | **7.5s** | 100% local | $0 |
 | 4 — LLM Cloud | Anthropic Claude Sonnet 4.6 | ~32.6% | ~85% | ~420 | ~3s | ☁️ cloud | variable |
 
 ## Constant Assignments
@@ -161,7 +165,7 @@ an external process.
 
 - **Tier 1 registry**: `model_registry.py` → `ml_small_authority`
 - **Tier 2 registry**: `model_registry.py` → `ml_bart_led_autoresearch_v1`
-- **Tier 3 config**: `data/eval/configs/summarization/direct_llama32_3b_benchmark_paragraph_v1.yaml`
+- **Tier 3 config**: `data/eval/configs/summarization/direct_llama32_3b_autoresearch_v1.yaml` (autoresearch winner; benchmark baseline: `direct_llama32_3b_benchmark_paragraph_v1.yaml`)
 - **Tier 3 constant**: `config_constants.py` → `OLLAMA_DEFAULT_SUMMARY_MODEL = "llama3.2:3b"`
 - **Hybrid (archived)**: `model_registry.py` → `ml_hybrid_bart_llama32_3b_autoresearch_v1`
 

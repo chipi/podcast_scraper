@@ -1,0 +1,6 @@
+exp_id	status	rouge_l	embed	delta_pct	param_group	param_name	value	notes
+direct_llama32_3b_benchmark_paragraph_v1	baseline	0.2333	0.7988	+0.00%				initial baseline
+direct_llama32_3b_sweep_exp001	accepted	0.2636	0.7954	+13.02%	params	temperature	0.3	new best rouge_l=0.2636
+direct_llama32_3b_sweep_exp002	rejected	0.2265	0.7737	-14.08%	params	temperature	0.7	below threshold (-14.08%), fails=1
+direct_llama32_3b_sweep_exp003	rejected	0.2384	0.7791	-9.58%	params	temperature	0.1	below threshold (-9.58%), fails=2
+direct_llama32_3b_sweep_exp004	rejected	0.2545	0.7621	-3.46%	params	max_length	800	below threshold (-3.46%), fails=3

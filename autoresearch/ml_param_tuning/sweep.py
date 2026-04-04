@@ -200,11 +200,22 @@ def _print_promotion_snippet(
             .replace(": null", ": None")
         )
 
-    snippet = f"""
+    backend = best_cfg.get("backend", {})
+    is_direct = backend.get("type") == "ollama" and "map_model" not in backend
+    if is_direct:
+        snippet = f"""
+        # Direct Ollama config — register in data/eval/configs/summarization/ not model_registry.py
+        # Canonical config: data/eval/configs/summarization/{mode_id}.yaml
+        # params: {_to_py(best_cfg.get("params", {}))}
+        # rouge_l_f1={rouge_l:.4f}  embed={embed:.4f}
+        # promoted_from="{baseline_id}"  promoted_at="{now}"
+        """
+    else:
+        snippet = f"""
         "{mode_id}": ModeConfiguration(
             mode_id="{mode_id}",
-            map_model="{best_cfg["backend"]["map_model"]}",
-            reduce_model="{best_cfg["backend"]["reduce_model"]}",
+            map_model="{backend.get("map_model", "")}",
+            reduce_model="{backend.get("reduce_model", "")}",
             preprocessing_profile="{best_cfg.get("preprocessing_profile", "cleaning_v4")}",
             map_params={_to_py(best_cfg.get("map_params", {}))},
             reduce_params={_to_py(best_cfg.get("reduce_params", {}))},
@@ -297,7 +308,7 @@ def run_sweep(
     consecutive_fails = 0
 
     # ── Iterate param groups ────────────────────────────────────────────────
-    for group_name in ("ollama_reduce_params", "reduce_params", "map_params"):
+    for group_name in ("ollama_reduce_params", "params", "reduce_params", "map_params"):
         group_space = space.get(group_name, {})
         if not group_space:
             continue
@@ -330,7 +341,7 @@ def run_sweep(
                 with tempfile.NamedTemporaryFile(
                     suffix=".yaml",
                     delete=False,
-                    dir=str(REPO_ROOT / "data/eval/configs/ml"),
+                    dir=str(base_config_path.parent),
                     prefix=f"_sweep_{exp_id}_",
                 ) as tmp:
                     tmp_path = Path(tmp.name)
