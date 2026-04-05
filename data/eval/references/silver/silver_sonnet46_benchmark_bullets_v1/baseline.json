@@ -1,0 +1,32 @@
+{
+  "run_id": "experiment_sonnet46_benchmark_bullets_v1",
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "created_at": "2026-04-05T13:52:13.027144Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "anthropic",
+    "model": "claude-sonnet-4-6"
+  },
+  "params": {
+    "model": "claude-sonnet-4-6",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "shared/summarization/bullets_json_v1",
+    "system_prompt": "shared/summarization/system_bullets_v1"
+  },
+  "stats": {
+    "num_episodes": 10,
+    "total_time_seconds": 70.37430930137634,
+    "avg_time_seconds": 7.037430930137634,
+    "total_chars_in": 108327,
+    "total_chars_out": 14279,
+    "avg_compression": 7.58645563414805
+  },
+  "promoted_from": "experiment_sonnet46_benchmark_bullets_v1",
+  "promoted_at": "2026-04-05T13:55:44.259317Z",
+  "promoted_as": "reference",
+  "promoted_id": "silver_sonnet46_benchmark_bullets_v1",
+  "reference_quality": null
+}

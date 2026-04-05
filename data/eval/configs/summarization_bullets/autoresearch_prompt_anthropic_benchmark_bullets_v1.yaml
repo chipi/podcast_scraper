@@ -1,0 +1,31 @@
+# Autoresearch Track A — bullet JSON summaries, Anthropic backend, benchmark dataset.
+#
+# Pair with silver: ``silver_sonnet46_benchmark_bullets_v1``
+# (generate with: make experiment-run CONFIG=data/eval/configs/summarization_bullets/experiment_sonnet46_benchmark_bullets_v1.yaml)
+# (promote with:  make run-promote RUN_ID=experiment_sonnet46_benchmark_bullets_v1 AS=reference PROMOTED_ID=silver_sonnet46_benchmark_bullets_v1)
+#
+# Template under tuning: src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
+# Results log: autoresearch/prompt_tuning/results_summary_anthropic_bullets_benchmark_v1.tsv
+#
+# Requires: ANTHROPIC_API_KEY
+
+id: "autoresearch_prompt_anthropic_benchmark_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

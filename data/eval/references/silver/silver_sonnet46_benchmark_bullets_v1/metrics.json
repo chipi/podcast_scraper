@@ -1,0 +1,31 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v1",
+  "run_id": "experiment_sonnet46_benchmark_bullets_v1",
+  "episode_count": 10,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 356.6,
+      "min_tokens": 317,
+      "max_tokens": 394
+    },
+    "performance": {
+      "avg_latency_ms": 7025.278329849243,
+      "median_latency_ms": 7290.888071060181,
+      "p95_latency_ms": 8032.402753829956,
+      "avg_latency_ms_excluding_first": 7123.191595077515
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}
