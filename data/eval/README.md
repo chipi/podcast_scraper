@@ -25,12 +25,21 @@ GIL and KG are **separate** experiment configs and runs (not combined in one run
 - **references/** - Frozen quality targets (silver/gold references for evaluation)
 - **runs/** - Ad-hoc experiments and temporary outputs
 
-**Autoresearch (RFC-057, paragraph summarization):** configs live under `configs/` (e.g.
-`autoresearch_prompt_openai_smoke_paragraph_v1.yaml`). The active silver reference is
-`silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, selected via pairwise LLM judge over GPT-5.4 and
-Gemini 2.0 Flash — April 2026). Per-provider baselines live in
-`baselines/baseline_llm_*_smoke_paragraph_v1`. See `configs/README.md` for the silver selection
-and promotion workflow.
+**Autoresearch (RFC-057, summarization):** configs live under `configs/summarization/`
+(paragraph) and `configs/summarization_bullets/` (bullets). Every provider has a **2×2 matrix**
+of configs: smoke/benchmark × paragraph/bullets. The active silver references are:
+
+- `silver_sonnet46_smoke_v1` — prose paragraph, 5 eps (smoke)
+- `silver_sonnet46_benchmark_v1` — prose paragraph, 10 eps (benchmark)
+- `silver_sonnet46_smoke_bullets_v1` — JSON bullets, 5 eps (smoke)
+- `silver_sonnet46_benchmark_bullets_v1` — JSON bullets, 10 eps (benchmark)
+
+All selected via pairwise LLM judge (Claude Sonnet 4.6 won vs GPT-4o and GPT-5.4).
+**Always use `silver_sonnet46_*` for new experiments.** `silver_gpt4o_*` references are
+archived — retained for historical traceability only.
+
+See `configs/README.md` for the full eval run matrix, trigger rules, and silver selection
+workflow. See `references/silver/README.md` for when to create new silver references.
 
 ## Summarization metrics schema
 
