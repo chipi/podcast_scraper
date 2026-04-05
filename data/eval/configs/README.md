@@ -216,6 +216,91 @@ make run-promote RUN_ID=silver_candidate_anthropic_sonnet46_smoke_v1 AS=referenc
   - `mention_exact`: Exact offset matching
   - `mention_overlap`: Overlapping span matching
 
+## Eval run matrix
+
+Every provider must have **4 config types** — the full 2×2 matrix:
+
+```text
+                  smoke (5 eps)                         benchmark (10 eps)
+                  ──────────────────────────────        ────────────────────────────────
+paragraph         autoresearch_prompt_<p>_smoke_        autoresearch_prompt_<p>_benchmark_
+                  paragraph_v1.yaml                     paragraph_v1.yaml
+
+bullets           autoresearch_prompt_<p>_smoke_        autoresearch_prompt_<p>_benchmark_
+                  bullets_v1.yaml                       bullets_v1.yaml
+```
+
+Where `<p>` is the provider key: `anthropic`, `openai`, `gemini`, `deepseek`, `grok`,
+`mistral`, `ollama_llama32_3b`, `ollama_qwen35_9b`, etc.
+
+**Silver reference pairing (always use sonnet46):**
+
+| Config type | Reference |
+| :--- | :--- |
+| `*_smoke_paragraph_v1` | `silver_sonnet46_smoke_v1` |
+| `*_smoke_bullets_v1` | `silver_sonnet46_smoke_bullets_v1` |
+| `*_benchmark_paragraph_v1` | `silver_sonnet46_benchmark_v1` |
+| `*_benchmark_bullets_v1` | `silver_sonnet46_benchmark_bullets_v1` |
+
+**Ollama large models** (`llama3.3:70b`, `qwen3.5:27b`, `qwen3.5:35b`, `qwen2.5:32b`):
+smoke configs exist but **benchmark configs are optional** — these models take 20-40 min
+per 10-episode run. Create benchmark configs only when you need production numbers for a
+specific large model.
+
+## When to create new configs
+
+**New provider added:**
+
+1. Create all 4 configs (smoke paragraph, smoke bullets, benchmark paragraph, benchmark bullets)
+2. Run smoke first to confirm quality gates pass (0% boilerplate/speaker leak)
+3. Run benchmark for production numbers
+4. Add results to the eval report
+
+**New silver reference (replaces old):**
+
+1. Update `# Pair with silver:` comment in all affected configs to the new reference ID
+2. Re-run ALL providers at benchmark scale against the new reference
+3. Re-run smoke if rankings are expected to change
+4. Archive the old silver reference (do not delete — needed for historical traceability)
+5. Publish an updated eval report with the new numbers
+
+**Prompt template changed (e.g. `bullets_json_v1.j2`):**
+
+1. Re-run ALL providers using that template (both smoke and benchmark)
+2. The template change affects every config that references it — numbers are not comparable
+   before and after
+3. Publish an updated eval report
+
+## Running the full eval suite
+
+```bash
+# Smoke paragraph — all providers
+for cfg in data/eval/configs/summarization/autoresearch_prompt_*_smoke_paragraph_v1.yaml; do
+  make experiment-run CONFIG=$cfg REFERENCE=silver_sonnet46_smoke_v1 FORCE=1
+done
+
+# Benchmark paragraph — all providers (cloud + Ollama-small)
+for cfg in data/eval/configs/summarization/autoresearch_prompt_*_benchmark_paragraph_v1.yaml; do
+  make experiment-run CONFIG=$cfg REFERENCE=silver_sonnet46_benchmark_v1 FORCE=1
+done
+
+# Smoke bullets — all providers
+for cfg in data/eval/configs/summarization_bullets/autoresearch_prompt_*_smoke_bullets_v1.yaml; do
+  make experiment-run CONFIG=$cfg REFERENCE=silver_sonnet46_smoke_bullets_v1 FORCE=1
+done
+
+# Benchmark bullets — all providers
+for cfg in data/eval/configs/summarization_bullets/autoresearch_prompt_*_benchmark_bullets_v1.yaml; do
+  make experiment-run CONFIG=$cfg REFERENCE=silver_sonnet46_benchmark_bullets_v1 FORCE=1
+done
+```
+
+After running, collect results:
+
+```bash
+make runs-compare RUN_IDS=<comma-separated-run-ids> REFERENCE_ID=silver_sonnet46_benchmark_v1
+```
+
 ## Notes
 
 - Configs are versioned (via filename) to track changes over time
