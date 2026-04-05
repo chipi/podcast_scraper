@@ -1,9 +1,10 @@
 # Evaluation Report: Benchmark v1 (April 2026)
 
-> **First full benchmark sweep** — 6 cloud APIs + 12 Ollama local models, both paragraph
-> and bullet JSON output, on the 10-episode benchmark dataset. Uses the new Sonnet 4.6
-> silver references. Extends the [April 2026 smoke report](EVAL_SMOKE_V1_2026_04.md)
-> to production-scale: 10 episodes gives more stable rankings than 5.
+> **First full benchmark sweep** — ML baselines, hybrid MAP-REDUCE, 6 cloud APIs, and
+> 12 Ollama local models, both paragraph and bullet JSON output, on the 10-episode
+> benchmark dataset. Uses the new Sonnet 4.6 silver references. Extends the
+> [April 2026 smoke report](EVAL_SMOKE_V1_2026_04.md) to production-scale: 10 episodes
+> gives more stable rankings than 5.
 
 | Field | Value |
 | ----- | ----- |
@@ -48,22 +49,75 @@ your hardware.
 
 ## Key takeaways
 
-1. **Anthropic Haiku 4.5** leads cloud paragraphs (33.7% ROUGE-L, 86.2% embed) and
+1. **ML baselines (no LLM)** sit at 18–24% ROUGE-L and are the only fully air-gapped
+   option. `ml_bart_led_autoresearch_v1` (20.4%, 26s/ep) is Tier 2 production default;
+   `ml_hybrid_bart_llama32_3b_autoresearch_v1` (23.7%, 15s/ep) bridges ML and LLM tiers
+   but requires Ollama. See [ML & hybrid baselines](#ml--hybrid-baselines) below.
+2. **Anthropic Haiku 4.5** leads cloud paragraphs (33.7% ROUGE-L, 86.2% embed) and
    cloud bullets (38.6% ROUGE-L). Rankings are stable vs. smoke.
-2. **DeepSeek** is the strongest non-Anthropic provider: 29.5% ROUGE-L (paragraphs) and
+3. **DeepSeek** is the strongest non-Anthropic provider: 29.5% ROUGE-L (paragraphs) and
    38.0% ROUGE-L with the best embedding similarity across all cloud (85.7%, bullets).
-3. **qwen3.5:35b** is the best on-prem model for paragraphs (31.9% ROUGE-L, 20.8s/ep)
+4. **qwen3.5:35b** is the best on-prem model for paragraphs (31.9% ROUGE-L, 20.8s/ep)
    — it ties with OpenAI/Gemini at benchmark scale, comfortably within the cloud range.
-4. **qwen3.5:35b** also leads on-prem bullets (36.2% ROUGE-L, 14.1s/ep). Unlike smoke
+5. **qwen3.5:35b** also leads on-prem bullets (36.2% ROUGE-L, 14.1s/ep). Unlike smoke
    where llama3.2:3b led bullets, the 35b model takes the top spot at benchmark scale.
-5. **qwen3.5:27b** shows strong semantic alignment (88.4% embedding, bullets) but is
+6. **qwen3.5:27b** shows strong semantic alignment (88.4% embedding, bullets) but is
    impractical for paragraph inference (414 s/ep CPU-offload on this hardware).
-6. **llama3.2:3b** remains the best fast on-prem option: 24.4% ROUGE-L paragraphs
+7. **llama3.2:3b** remains the best fast on-prem option: 24.4% ROUGE-L paragraphs
    (8.5s/ep), 33.6% bullets (5.2s/ep) — 3B params, 2 GB disk.
-7. **phi3:mini** is unsuitable for paragraph summaries: 157.7% WER, 175.5% coverage —
+8. **phi3:mini** is unsuitable for paragraph summaries: 157.7% WER, 175.5% coverage —
    hallucinates / repeats extensively. Its bullet score is mediocre but usable (28.3%).
-8. **qwen2.5:7b** breaks bullet JSON at benchmark scale (19.5% ROUGE-L, 65.0% embed) —
+9. **qwen2.5:7b** breaks bullet JSON at benchmark scale (19.5% ROUGE-L, 65.0% embed) —
    do not use for structured output.
+
+---
+
+## ML & hybrid baselines
+
+ML and hybrid models run entirely on-device — no API key, no cloud dependency. They are
+the fallback when Ollama is unavailable or the deployment is air-gapped. Numbers below
+are from the `curated_5feeds_smoke_v1` (5-episode) evaluation vs `silver_sonnet46_benchmark_v1`
+(benchmark-scale ML configs do not exist yet; smoke numbers are used as a proxy).
+
+| Mode | ID | ROUGE-L | Embed | Coverage | Lat/ep | Dependencies |
+| ---- | -- | ------- | ----- | -------- | ------ | ------------ |
+| **ML Dev** (Tier 1) | `ml_small_authority` | ~14% | ~65% | ~40% | fast | None — CI safe |
+| **ML Prod** (Tier 2) | `ml_bart_led_autoresearch_v1` | **20.4%** | 70.1% | 47.9% | 26s | None — air-gap safe |
+| **Hybrid** | `ml_hybrid_bart_llama32_3b_autoresearch_v1` | **23.7%** | 72.9% | 79.7% | 15s | Ollama (llama3.2:3b) |
+
+**What these tiers are:**
+
+- **ML Dev (Tier 1):** BART-small MAP + authority REDUCE — fast, tiny, used in CI and
+  unit tests. Quality is clearly below production threshold but sufficient for
+  regression gating.
+- **ML Prod (Tier 2):** BART-base MAP + LED-large REDUCE — fully local transformer
+  pipeline, no Ollama required. This is `PROD_DEFAULT_SUMMARY_MODE_ID` in
+  `config_constants.py`. Suitable for air-gapped or low-resource environments.
+- **Hybrid:** BART-base MAP + Llama 3.2:3b REDUCE (via Ollama) — uses the ML pipeline
+  for extractive chunking and a small LLM for synthesis. Bridges the 3-point gap
+  between ML-prod and direct-LLM with only a 3B model. Requires Ollama but not a GPU.
+
+**Quality ladder in context:**
+
+```text
+Tier 1 ML Dev         ~14%  ████████████████
+Tier 2 ML Prod         20.4% ████████████████████
+Hybrid (BART+Llama3b)  23.7% ████████████████████████
+─── LLM threshold ─────────────────────────────────
+Ollama llama3.2:3b     24.4% ████████████████████████
+Ollama qwen3.5:35b     31.9% ████████████████████████████████
+Gemini (cloud)         28.7% █████████████████████████████
+Anthropic (cloud)      33.7% ██████████████████████████████████
+```
+
+The hybrid tier is worth deploying when: (a) Ollama is available but a large model
+is not, or (b) episode transcripts exceed the direct-LLM context window — the BART
+MAP stage chunked compression handles arbitrary-length input.
+
+**Key finding (RFC-057 Track B, ADR-069/070):** temperature=0.5 is optimal for the
+hybrid REDUCE step (BART chunk noise benefits from diversity), vs. temperature=0.3
+for direct Llama on clean transcripts. Switching these values degrades quality.
+See [ADR-072](../../adr/ADR-072-llama32-3b-as-tier3-local-llm.md) for rationale.
 
 ---
 
@@ -186,8 +240,11 @@ benchmark scale.
 | Production, quality-sensitive | Anthropic Haiku 4.5 (cloud) — leads all providers |
 | Production, cost-sensitive | DeepSeek — 2nd best quality at ~$0.02/100 eps |
 | Production, speed-sensitive | Gemini 2.0 Flash — fastest cloud (1.6–2.7s/ep) |
+| Air-gapped / no internet | `ml_bart_led_autoresearch_v1` — 20.4% ROUGE-L, zero deps |
+| Air-gapped + Ollama available | Hybrid `ml_hybrid_bart_llama32_3b_autoresearch_v1` — 23.7%, only llama3.2:3b needed |
 | On-prem required, quality first | qwen3.5:35b (21s/ep, competitive with cloud mid-tier) |
-| On-prem required, speed/quality | llama3.2:3b (8.5s/ep, 2 GB) — best fast on-prem option |
+| On-prem required, speed/quality | llama3.2:3b (8.5s/ep, 2 GB) — best fast on-prem LLM |
+| Very long transcripts (context limit) | Hybrid (BART MAP handles arbitrary length) |
 | Bullet JSON, cloud | Anthropic (highest ROUGE-L) or DeepSeek (best semantic embed) |
 | Bullet JSON, on-prem, quality | qwen3.5:35b (36.2% ROUGE-L, 14s/ep) |
 | Bullet JSON, on-prem, fast | llama3.2:3b (33.6% ROUGE-L, 5.2s/ep) |

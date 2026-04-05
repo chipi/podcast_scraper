@@ -75,6 +75,8 @@ transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
 | :------------- | :----: | :-- |
 | **Complete Privacy** | Local ML / Hybrid ML / Ollama | Data never leaves your device |
 | **Lowest Cost** | Local ML / Hybrid ML / Ollama | $0 (just electricity) |
+| **Air-gapped (no Ollama)** | Local ML (`ml_bart_led_autoresearch_v1`) | 20.4% ROUGE-L, zero deps, prod default |
+| **Air-gapped + Ollama** | Hybrid ML (`ml_hybrid_bart_llama32_3b`) | 23.7% ROUGE-L, only 3B model needed |
 | **Highest Quality (cloud)** | Anthropic | Leads cloud ROUGE-L (33.7% benchmark) vs Sonnet 4.6 silver ([measured](eval-reports/EVAL_BENCHMARK_V1_2026_04.md#cloud-providers-sorted-by-rouge-l)) |
 | **Fastest Cloud** | Gemini | 2.7s/ep paragraphs, 1.6s/ep bullets |
 | **On-prem, quality first** | Ollama (qwen3.5:35b) | 31.9% ROUGE-L, above cloud median (benchmark) |
@@ -97,11 +99,38 @@ All claims below are backed by measured data. For the full metrics tables, metho
 and metric definitions, see the [Evaluation Reports](eval-reports/index.md).
 
 > **Note on the silver reference:** Results were re-measured in April 2026 against
-> `silver_sonnet46_smoke_v1` (Claude Sonnet 4.6, selected via pairwise LLM judge).
-> Rankings shifted significantly — see
+> `silver_sonnet46_benchmark_v1` (Claude Sonnet 4.6, 10-episode benchmark scale).
+> Rankings shifted significantly from March 2026 — see
 > [why the rankings changed](eval-reports/EVAL_SMOKE_V1_2026_04.md#why-the-rankings-changed-vs-march-2026).
 > The March 2026 numbers (vs GPT-4o silver) are preserved in the
 > [March report](eval-reports/EVAL_SMOKE_V1_2026_03.md) for reference.
+
+### Full quality ladder — all four tiers
+
+Every summarization option in one view, ordered by ROUGE-L. ML/hybrid numbers are
+smoke-scale (5 eps); cloud and Ollama numbers are benchmark-scale (10 eps).
+
+| Tier | Mode | ROUGE-L | Embed | Lat/ep | Dependencies |
+| :--- | :--- | ------: | ----: | -----: | :----------- |
+| 1 — ML Dev | `ml_small_authority` | ~14% | ~65% | fast | None (CI safe) |
+| 2 — ML Prod | `ml_bart_led_autoresearch_v1` | 20.4% | 70.1% | 26s | None (air-gap safe) |
+| — Hybrid | `ml_hybrid_bart_llama32_3b_autoresearch_v1` | 23.7% | 72.9% | 15s | Ollama (3B only) |
+| 3 — LLM Local (small) | `llama3.2:3b` direct | 24.4% | 78.6% | 8.5s | Ollama |
+| 3 — LLM Local (large) | `qwen3.5:35b` direct | 31.9% | 81.5% | 21s | Ollama |
+| 4 — LLM Cloud (mid) | Gemini 2.0 Flash | 28.7% | 82.5% | 2.7s | API key |
+| 4 — LLM Cloud (mid) | DeepSeek | 29.5% | 83.6% | 8.9s | API key |
+| 4 — LLM Cloud (best) | Anthropic Haiku 4.5 | **33.7%** | **86.2%** | 5.0s | API key |
+
+**Key observations:**
+
+- The jump from ML-prod (20.4%) to direct-LLM (24.4%+) is roughly 4 ROUGE-L points —
+  meaningful but not dramatic. The hybrid tier (23.7%) covers most of that gap with
+  only a 3B model.
+- qwen3.5:35b (31.9%) exceeds every cloud provider except Anthropic. It is the only
+  on-prem model in the cloud quality range.
+- The hybrid is the right choice when: transcripts exceed LLM context windows (BART MAP
+  chunks arbitrary-length input), Ollama is available but a large model is not, or
+  quality must improve over ML-prod without paying for cloud.
 
 ### Cloud providers — paragraphs (vs Sonnet 4.6 silver, April 2026)
 
