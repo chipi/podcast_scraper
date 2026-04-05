@@ -1,0 +1,38 @@
+@import './theme/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--ps-canvas);
+  color: var(--ps-canvas-foreground);
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+code,
+kbd,
+.font-mono {
+  font-family:
+    'JetBrains Mono',
+    ui-monospace,
+    'Cascadia Code',
+    monospace;
+}
+
+/* UXS-001: visible focus ring (do not rely on browser default alone). */
+:focus-visible {
+  outline: 2px solid var(--ps-primary);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}

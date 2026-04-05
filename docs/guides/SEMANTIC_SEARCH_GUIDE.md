@@ -51,6 +51,16 @@ python -m podcast_scraper.cli search "your question" --output-dir /path/to/run -
 
 Use **`--index-path`** if the index is not under `<output_dir>/search`.
 
+## Web UI (GI / KG Viewer v2)
+
+The Vue viewer can run the **same** corpus search as the CLI via **`GET /api/search`** when
+the FastAPI server is up (`pip install -e ".[server]"` + `[ml]` for FAISS/embeddings) and
+the index exists under `<corpus>/search/`. Set **Corpus root** in the sidebar to your
+pipeline output directory. See
+[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+(*Semantic search*) and [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
+(*GI / KG Viewer*).
+
 ## `gi explore` and `gi query`
 
 - **`gi explore --topic "…"`** — If a FAISS index is present at **`output_dir/search`**

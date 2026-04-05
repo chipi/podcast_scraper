@@ -74,6 +74,8 @@ make ci                      # Run full CI suite locally
 | `make test-fast` | Critical path only | ~1min |
 | `make test` | All tests | ~8min |
 | `make test-nightly` | Nightly tests (production models) | ~4hrs |
+| `make test-ui` | Vitest unit tests for `web/gi-kg-viewer` TS utils (no browser) | ~1s |
+| `make test-ui-e2e` | Playwright E2E for `web/gi-kg-viewer` (Firefox; installs browsers) | ~1–3 min |
 
 ```bash
 
@@ -107,6 +109,24 @@ make lint-markdown           # Check markdown style
 
 mkdocs serve                 # http://localhost:8000
 ```
+
+---
+
+## GI / KG Viewer (v2, RFC-062)
+
+| Command | What it does |
+| ------- | ------------ |
+| `make serve SERVE_OUTPUT_DIR=…` | FastAPI + Vite dev (API **8000**, UI **5173**) |
+| `make serve-api SERVE_OUTPUT_DIR=…` | API only on **8000** |
+| `make serve-ui` | Vite only on **5173** (proxies `/api` → 8000) |
+| `make test-ui` | Vitest unit tests for TS utils (fast, no browser) |
+| `make test-ui-e2e` | Playwright tests (Firefox; Vite on **5174** inside config) |
+
+**Prerequisites:** `pip install -e ".[server]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
+
+**Docs:**
+[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+· [Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
 
 ---
 
@@ -193,7 +213,7 @@ Grounded insights are key takeaways linked to verbatim quotes (evidence). When t
 - **Config**: `generate_gi: true`; optional evidence stack: `embedding_model`, `extractive_qa_model`, `nli_model` (and `*_device`).
 - **Output**: One `gi.json` per episode (co-located with transcript/summary).
 - **CLI**: `gi inspect`, `gi show-insight`, `gi explore` (see Grounded Insights Guide).
-- **Browser viewer**: `make serve-gi-kg-viz` — load `*.gi.json` / `*.kg.json` in a local UI ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
+- **Browser viewer (v2):** `python -m podcast_scraper.cli serve --output-dir …` with built `web/gi-kg-viewer/dist/` — or `make serve` for dev ([Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)).
 
 See the [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md) and [GIL Ontology](../architecture/gi/ontology.md).
 

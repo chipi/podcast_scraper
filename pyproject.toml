@@ -34,6 +34,7 @@ dependencies = [
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
 #   llama     — optional GGUF hybrid REDUCE (RFC-042)
 #   run_compare — Streamlit compare UI (RFC-047)
+#   server    — GI/KG viewer HTTP API: FastAPI + uvicorn (RFC-062 / #489)
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
@@ -79,6 +80,11 @@ llm = [
   # mistralai 2.x: client at mistralai.client.sdk (Dependabot PR #473)
   "mistralai>=1.0.0,<3.0.0",  # Mistral API provider (Issue #106)
   "httpx>=0.24.0,<1.0.0",  # Ollama provider (Issue #196) - for health checks
+]
+# Local GI/KG viewer API server (RFC-062); install when using `podcast serve` or `make serve-api`
+server = [
+  "fastapi>=0.115.0,<1.0.0",
+  "uvicorn[standard]>=0.32.0,<1.0.0",
 ]
 # Development tools
 dev = [

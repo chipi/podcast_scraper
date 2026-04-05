@@ -44,6 +44,12 @@ When working on documentation tasks:
    - Development guide additions
    - Testing strategy updates
    - MkDocs configuration
+   - **GI/KG viewer (`web/gi-kg-viewer/`):** keep
+     [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+     aligned with user-facing commands; sync [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md),
+     [TESTING_GUIDE.md](TESTING_GUIDE.md), [QUICK_REFERENCE.md](QUICK_REFERENCE.md), and root
+     [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md) when `make serve`,
+     `make test-ui-e2e`, or ports change
 
 3. **Follow documentation standards**:
    - Use markdown linting

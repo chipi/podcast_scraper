@@ -108,10 +108,10 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
 ## Consumption and integration
 
 - **File-based**: Scan per-episode KG JSON for corpus analytics (see RFC-056 use cases).
-- **Browser viewer (prototype)**: Load `*.kg.json` (and `*.gi.json`) in a static local UI —
-  `make serve-gi-kg-viz`, then `http://127.0.0.1:8765/`. See [Development Guide — GI / KG
-  browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
-  [`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
+- **Browser viewer (v2)**: `web/gi-kg-viewer/` + `python -m podcast_scraper.cli serve --output-dir …`
+  (needs `[server]`, built `dist/`). Graph, dashboard, search, explore on the same corpus root.
+  See
+  [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 - **Database**: Optional relational projection per [PRD-018](../prd/PRD-018-database-projection-gil-kg.md) /
   [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — **separate** from GIL tables.
 
@@ -183,5 +183,5 @@ This table mirrors the **GIL v1 record** in [Grounded Insights Guide § Recorded
 - [RFC-056: KG — Use Cases & Consumption](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md) (GIL)
 - [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
-- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `kg.json` / `gi.json`
+- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — v2 viewer + legacy UI for `kg.json` / `gi.json`
 - [Recorded product decisions (v1, KG shallow)](#recorded-product-decisions-v1-kg) — v1 scope table (this guide)

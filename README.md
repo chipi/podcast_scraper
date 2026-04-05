@@ -34,6 +34,37 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
 - **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
 - **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
+- **GI / KG Viewer (v2)** — Optional browser UI for `.gi.json` / `.kg.json`, dashboard metrics, semantic search, and explore/query against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
+
+---
+
+## GI / KG Viewer (optional)
+
+Browse **Grounded Insight** and **Knowledge Graph** artifacts, use **semantic search** and **explore** on your corpus, and view a **dashboard**—all against the same **`--output-dir`** you use for the pipeline.
+
+### What you need
+
+| Goal | Install | Notes |
+| ---- | ------- | ----- |
+| **API + built UI in one process** | `pip install -e ".[server]"` and, once, `cd web/gi-kg-viewer && npm install && npm run build` | `make init` does **not** include `[server]` by default; add the extra if you use `serve`. |
+| **Graph only, no Python API** | Just open the UI (e.g. Vite dev) and use **Choose .gi.json / .kg.json files** | Works when `/api/health` fails; no list/search/index from the server. |
+| **Semantic search / index stats** | `[server]` + `[ml]` (FAISS, embeddings) as for `podcast search` | Index lives under `<output_dir>/search/`. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md). |
+
+### Run the server (typical)
+
+From the repository root, with your virtualenv active:
+
+```bash
+pip install -e ".[server]"
+cd web/gi-kg-viewer && npm install && npm run build && cd ../..
+python -m podcast_scraper.cli serve --output-dir /path/to/your/run
+```
+
+Then open **<http://127.0.0.1:8000>** (default port). In the sidebar, set **Corpus root folder** to that **same** directory, click **List files**, select `.gi.json` / `.kg.json`, and **Load selected into graph**.
+
+**Development (API + hot-reload UI):** `make serve SERVE_OUTPUT_DIR=/path/to/your/run` runs the FastAPI app and the Vite dev server together (UI proxied to the API). See [web/gi-kg-viewer/README.md](web/gi-kg-viewer/README.md) and [Server Guide](docs/guides/SERVER_GUIDE.md).
+
+**Testing the viewer:** `make test-ui` (Vitest unit tests, ~1s) and `make test-ui-e2e` (Playwright browser E2E, Firefox).
 
 ---
 

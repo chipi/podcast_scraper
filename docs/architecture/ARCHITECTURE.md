@@ -19,6 +19,7 @@ This architecture document is the central hub for understanding the system. For 
   - [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md) — Integration test guidelines
   - [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md) — E2E server, real ML models
   - [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) — What to test, prioritization
+- **[Server Guide](../guides/SERVER_GUIDE.md)** — FastAPI server, REST API, viewer, development workflow
 - **[CI/CD](../ci/index.md)** — Continuous integration and deployment pipeline
 
 ### API Documentation
@@ -82,8 +83,11 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 | **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, `python -m podcast_scraper.cli`. Subcommands: `doctor`, `cache`. |
 | **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
 | **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md). |
+| **Server (viewer)** | GI/KG visualization, semantic search, explore | `--output-dir` (corpus path) | `podcast serve --output-dir <path>`. FastAPI + Vue SPA. See [Server Guide](../guides/SERVER_GUIDE.md). |
 
 **Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](../api/REFERENCE.md) and [Service API](../api/SERVICE.md).
+
+**Server / viewer:** The FastAPI server in `src/podcast_scraper/server/` is the project's canonical HTTP layer — the viewer is its first consumer, platform routes (#50, #347) will be the second. The server wraps existing Python APIs (`VectorStore.search()`, `gi explore`, artifact loading) behind REST endpoints and serves the Vue SPA as static files. See [Server Guide](../guides/SERVER_GUIDE.md) and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
 
 **Providers:** Nine providers (1 local ML + 1 hybrid ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
 
@@ -269,6 +273,7 @@ flowchart TD
 - `providers/ml/model_registry.py` (RFC-044): Centralized model metadata registry (`ModelRegistry` class) with `ModelCapabilities` dataclass for all models (summarization, embedding, QA, NLI).
 - `gi/` (PRD-017): Grounded Insight Layer — structured insight and quote extraction with evidence grounding. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `grounding.py` (insight↔quote linking), `contracts.py` (grounding contract), `explore.py` (CLI exploration), `corpus.py` (cross-episode operations).
 - `kg/` (RFC-055): Knowledge Graph extraction — structured topic graphs from transcripts and summaries. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `llm_extract.py` (LLM-based extraction), `cli_handlers.py` (CLI subcommands).
+- `server/` (RFC-062): FastAPI HTTP layer. App factory in `app.py`, Pydantic schemas in `schemas.py`, route modules in `routes/` (health, artifacts, search, explore, index_stats). CLI integration via `cli_handlers.py` (`podcast serve`). Serves the Vue SPA (`web/gi-kg-viewer/dist/`) as static files. Platform route stubs in `routes/platform/` for future #50/#347 work.
 - `utils.progress`: Minimal global progress publishing API so callers can swap in alternative UIs.
 - `models/` (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules.
 - `workflow.metadata_generation` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
@@ -330,6 +335,12 @@ graph TB
         OllamaProvider[providers/ollama/]
     end
 
+    subgraph "Server Layer"
+        ServerApp[server/app.py]
+        ServerRoutes[server/routes/]
+        ServerSchemas[server/schemas.py]
+    end
+
     subgraph "Knowledge Extraction"
         GI[gi/pipeline.py]
         GISchema[gi/schema.py]
@@ -347,8 +358,12 @@ graph TB
 
     CLI --> Config
     CLI --> Workflow
+    CLI --> ServerApp
     Service --> Config
     Service --> Workflow
+    ServerApp --> ServerRoutes
+    ServerRoutes --> GI
+    ServerRoutes --> ServerSchemas
     Workflow --> RSSParser
     Workflow --> EpisodeProc
     Workflow --> Downloader
@@ -602,6 +617,27 @@ structure, content type). Uses episode profiling and
 deterministic routing rules. Enables expansion beyond
 podcasts to interviews, lectures, panels, etc.
 
+### Phase 5: Server & Viewer (RFC-062)
+
+**Status**: **Implemented** (M1–M7)
+
+FastAPI server in `src/podcast_scraper/server/` with
+Vue 3 SPA in `web/gi-kg-viewer/`. Endpoints:
+`/api/health`, `/api/artifacts`, `/api/index/stats`,
+`/api/search`, `/api/explore`. CLI: `podcast serve`.
+Playwright E2E tests. Platform route stubs for
+future #50/#347 work.
+
+**Modules (implemented):**
+
+- `server/app.py` — App factory, CORS, static file
+  mounting
+- `server/schemas.py` — Pydantic response models
+- `server/routes/` — Route modules (health, artifacts,
+  search, explore, index_stats)
+- `server/cli_handlers.py` — CLI integration
+  (`podcast serve`)
+
 ### Execution Order Summary
 
 ```text
@@ -613,6 +649,7 @@ Phase 3: RFC-049 (GIL Core)             ✅ Implemented
     3b:  RFC-051 (DB Projection)        planned
     3c:  KG Extraction (RFC-055)        ✅ Implemented
 Phase 4: RFC-053 (Adaptive Routing)     planned
+Phase 5: RFC-062 (Server & Viewer)      ✅ Implemented
 ```
 
 ## Third-Party Dependencies
@@ -879,6 +916,13 @@ For detailed error handling patterns and implementation guidelines, see [Develop
   `kg.json` files per episode. Supports stub,
   summary-bullet-derived, and LLM-based extraction
   modes via `kg_extraction_source` config.
+- **Server / viewer** (RFC-062): The FastAPI server in
+  `server/` exposes REST endpoints wrapping existing
+  Python APIs. New route groups can be added by
+  creating a router in `routes/` and including it in
+  `app.py`. Platform routes (#50, #347) follow this
+  pattern. See
+  [Server Guide](../guides/SERVER_GUIDE.md).
 
 ## Testing
 
@@ -893,3 +937,4 @@ The project follows a three-tier testing strategy (Unit, Integration, E2E). For 
 | **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)** | E2E server, real ML models |
 | **[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md)** | What to test, prioritization |
 | **[Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md)** | Provider-specific testing |
+| **[Server Guide](../guides/SERVER_GUIDE.md)** | Server API testing, Playwright E2E |

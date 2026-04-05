@@ -87,7 +87,7 @@ These RFCs are already marked Completed/Implemented and verified:
 | 059 | Speaker Detection Refactor | Draft | **Partial** | Package stub at `src/podcast_scraper/speaker_detectors/` (empty: "Stage 0"). Original `speaker_detection.py` unchanged. |
 | 060 | Diarization-Aware Commercial Cleaning | Draft | **Not Started** | No `CommercialDetector`, no `cleaning/commercial/` module. Only the four-phrase `remove_sponsor_blocks` exists. |
 | 061 | Semantic Corpus Search | Draft | **Completed (Phase 1 CLI)** | `search/` package: FAISS store, chunker, `index_corpus`, `search`/`index` CLIs; config + YAML; `gi explore --topic` uses `<output_dir>/search` when present; docs `SEMANTIC_SEARCH_GUIDE.md`. Sentence-boundary chunking (ADR-055) still tokenizer-based only. Phase 2 (Qdrant/service) out of scope. |
-| 062 | GI/KG Viewer v2 | Draft | **Not Started** | No `src/podcast_scraper/server/`, no Vue frontend, no `podcast serve` CLI, no Playwright setup. Only legacy `web/gi-kg-viz/` exists. |
+| 062 | GI/KG Viewer v2 | Implemented | **Completed (M1–M7)** | Server (`src/podcast_scraper/server/`), Vue SPA (`web/gi-kg-viewer/`), `podcast serve` CLI, Playwright E2E, v1 removed. |
 
 ## Recommendations Summary
 

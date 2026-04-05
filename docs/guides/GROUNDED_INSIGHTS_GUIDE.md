@@ -210,16 +210,14 @@ Available commands (RFC-050):
 
 Entrypoint: `podcast_scraper gi validate ./output/metadata --strict`, `gi export --output-dir /path/to/output --format ndjson`, `gi inspect --episode-path /path/to/ep.gi.json`, `gi show-insight --id insight:<id-from-gi.json> --output-dir /path/to/output`, `gi explore --output-dir /path/to/output [--topic "AI"] [--speaker "HOST"]`, or `gi query --output-dir /path/to/output --question 'What insights about inflation?'`.
 
-### Browser visualization (prototype)
+### Browser visualization
 
-To explore **`gi.json`** (and optionally **`kg.json`**) as an interactive graph — filters,
-metrics, **Chart.js** bars, and either **vis-network** or **Cytoscape.js** — run
-`make serve-gi-kg-viz` from the repo root and open `http://127.0.0.1:8765/`. Prefer this
-over opening the HTML files as `file://`, so browser CDNs load reliably.
-
-Full usage and layout of the static app: [Development Guide — GI / KG browser
-viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
-[`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
+**Viewer v2 (recommended):** Vue + FastAPI app under `web/gi-kg-viewer/` — graph, dashboard,
+semantic search, and explore against your pipeline **`--output-dir`**. Install **`[server]`**,
+build `dist/` once, then `python -m podcast_scraper.cli serve --output-dir /path/to/run` and
+open **<http://127.0.0.1:8000>**. See
+[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+and [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype).
 
 ---
 
@@ -251,7 +249,7 @@ viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
 - [GIL Schema](../architecture/gi/gi.schema.json) — JSON schema for `gi.json`.
 - [PRD-019: Knowledge Graph Layer (KG)](../prd/PRD-019-knowledge-graph-layer.md) — **separate feature** from GIL (`kg` vs `gi`; entities/linking, not evidence-first insights).
 - [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) — where GIL fits in the pipeline.
-- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `gi.json` / `kg.json`.
+- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — v2 viewer + legacy static UI for `gi.json` / `kg.json`.
 - [Architecture](../architecture/ARCHITECTURE.md) — GIL extraction and artifact layout.
 - [Provider Configuration Quick Reference](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) — config keys and provider options.
 - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core concepts and evidence stack; includes implementation note on provider-based QA/NLI (quote_extraction_provider, entailment_provider).

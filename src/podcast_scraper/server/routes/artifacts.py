@@ -1,0 +1,101 @@
+"""GET /api/artifacts — list and load GI/KG JSON artifacts."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
+
+from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
+
+router = APIRouter(tags=["artifacts"])
+
+
+def _resolve_corpus_dir(path: str) -> Path:
+    root = Path(path).expanduser().resolve()
+    if not root.is_dir():
+        raise HTTPException(status_code=400, detail=f"Not a directory: {root}")
+    return root
+
+
+def _is_under(parent: Path, child: Path) -> bool:
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _kind_for_suffix(name: str) -> Literal["gi", "kg"] | None:
+    if name.endswith(".gi.json"):
+        return "gi"
+    if name.endswith(".kg.json"):
+        return "kg"
+    return None
+
+
+@router.get("/artifacts", response_model=ArtifactListResponse)
+async def list_artifacts(
+    path: str = Query(..., description="Corpus output directory to scan.")
+) -> ArtifactListResponse:
+    """List ``*.gi.json`` and ``*.kg.json`` files under the given directory (recursive)."""
+    base = _resolve_corpus_dir(path)
+    items: list[ArtifactItem] = []
+    seen: set[Path] = set()
+    for pattern in ("**/*.gi.json", "**/*.kg.json"):
+        for p in sorted(base.glob(pattern)):
+            if not p.is_file() or p in seen:
+                continue
+            seen.add(p)
+            kind = _kind_for_suffix(p.name)
+            if kind is None:
+                continue
+            try:
+                rel = p.relative_to(base)
+            except ValueError:
+                continue
+            try:
+                st = p.stat()
+            except OSError:
+                continue
+            items.append(
+                ArtifactItem(
+                    name=p.name,
+                    relative_path=rel.as_posix(),
+                    kind=kind,
+                    size_bytes=int(st.st_size),
+                )
+            )
+    items.sort(key=lambda x: (x.relative_path, x.kind))
+    return ArtifactListResponse(path=str(base), artifacts=items)
+
+
+@router.get("/artifacts/{artifact_path:path}")
+async def get_artifact(
+    artifact_path: str,
+    path: str = Query(..., description="Corpus output directory (root for relative path)."),
+) -> JSONResponse:
+    """Load and return a parsed artifact JSON by path relative to the corpus root."""
+    base = _resolve_corpus_dir(path)
+    rel = Path(artifact_path)
+    if rel.is_absolute() or any(part == ".." for part in rel.parts):
+        raise HTTPException(status_code=400, detail="Invalid artifact path.")
+    target = (base / rel).resolve()
+    if not _is_under(base, target):
+        raise HTTPException(status_code=400, detail="Path escapes corpus root.")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="Artifact not found.")
+    if _kind_for_suffix(target.name) is None:
+        raise HTTPException(status_code=400, detail="Not a .gi.json or .kg.json file.")
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read file: {exc}") from exc
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {exc}") from exc
+    return JSONResponse(content=data)

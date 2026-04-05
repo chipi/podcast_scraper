@@ -33,7 +33,7 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz
+.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
@@ -77,7 +77,8 @@ help:
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
-	@echo "  make serve-gi-kg-viz     GI/KG viz + ?data= repo API (issue #445; http://127.0.0.1:8765/)"
+	@echo "  make test-ui             Vitest unit tests for TypeScript utils in web/gi-kg-viewer (fast, no browser)"
+	@echo "  make test-ui-e2e         Playwright E2E for web/gi-kg-viewer (RFC-062 M7; needs npm install in that dir)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -245,7 +246,9 @@ lint:
 # Shared markdownlint CLI args — keep lint-markdown and fix-md identical (and aligned with CI).
 MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore node_modules \
+	--ignore "**/node_modules/**" \
 	--ignore .venv \
+	--ignore "**/.venv/**" \
 	--ignore .build/site \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" \
@@ -372,6 +375,29 @@ validate-kg-schema:
 	else \
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
+
+# GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd web/gi-kg-viewer && npm install
+.PHONY: serve serve-api serve-ui
+SERVE_OUTPUT_DIR ?= ./output
+serve:
+	@echo "Running serve-api and serve-ui in parallel (Ctrl+C stops both)."
+	@$(MAKE) -j2 serve-api serve-ui
+
+serve-api:
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
+
+serve-ui:
+	@cd web/gi-kg-viewer && npm run dev
+
+# RFC-062: Vitest unit tests for TypeScript utility logic (no browser needed)
+test-ui:
+	@echo "Vitest unit tests (gi-kg-viewer)..."
+	@cd web/gi-kg-viewer && npm install && npm run test:unit
+
+# RFC-062 M7: Playwright browser E2E (install browsers once: cd web/gi-kg-viewer && npx playwright install firefox)
+test-ui-e2e:
+	@echo "Playwright E2E (gi-kg-viewer)..."
+	@cd web/gi-kg-viewer && npm install && npx playwright install firefox && npm run test:e2e
 
 gil-quality-metrics:
 	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
@@ -1261,11 +1287,6 @@ eval-flow:
 visualize: deps-graph call-graph flowcharts providers-deps gi-kg-flow eval-flow
 	@echo "✓ Architecture visualizations up to date (see docs/architecture/diagrams/)"
 
-# Static viewer for GIL/KG JSON artifacts (GitHub #445); CDNs need http(s) origin.
-# Uses scripts/gi_kg_viz_server.py so ?data=REPO_REL_PATH can auto-load *.gi.json / *.kg.json.
-serve-gi-kg-viz:
-	@echo "GI/KG viz → http://127.0.0.1:8765/  (Ctrl+C to stop)"
-	@$(PYTHON) scripts/gi_kg_viz_server.py --port 8765 --host 127.0.0.1 --repo-root "$(CURDIR)" --viz-dir "$(CURDIR)/web/gi-kg-viz"
 
 # Download CI metrics bundles (GitHub CLI). Output: artifacts/ci-metrics-runs/run-<id>/
 fetch-ci-metrics:

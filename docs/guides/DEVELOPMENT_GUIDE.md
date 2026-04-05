@@ -473,36 +473,42 @@ embed-and-index after finalize when enabled; you can also run **`podcast index`*
 
 **Full guide:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
 
-## GI / KG browser viewer (local prototype) {#gi-kg-browser-viewer-local-prototype}
+## GI / KG browser viewer {#gi-kg-browser-viewer-local-prototype}
 
-Optional **static** pages for inspecting **Grounded Insight** (`*.gi.json`) and **Knowledge
-Graph** (`*.kg.json`) artifacts in the browser — no backend
-([GitHub issue #445](https://github.com/chipi/podcast_scraper/issues/445)).
+**v2 (Vue + FastAPI, RFC-062)** is the supported viewer for graph, dashboard,
+semantic search, and explore.
 
-**Run from repository root:**
+### Viewer v2 (RFC-062 / `#489`)
 
-```bash
-make serve-gi-kg-viz
-```
+- **Location:** `web/gi-kg-viewer/`
+- **Python extra:** `[server]` (FastAPI + uvicorn) — not part of the default `make init`
+  line (`.[dev,ml,llm]`); add `server` when you work on or run the viewer API.
+- **End-user flow:** Build `dist/` once (`npm install && npm run build` in
+  `web/gi-kg-viewer`), then `python -m podcast_scraper.cli serve --output-dir <run>`;
+  open **<http://127.0.0.1:8000>** and set **Corpus root** to that same directory.
+  Full walkthrough:
+  [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+  and
+  [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
 
-Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/) and pick a page from the hub:
+**Makefile targets (repository root):**
 
-- **vis-network** or **Cytoscape.js** — interactive graph (pan/zoom/drag), filters (node
-  types; for GIL, hide ungrounded insights), **Chart.js** node-type bars, CLI cheatsheet.
-- **JSON only** — metrics + chart + raw JSON without graph libraries (fewer CDN deps).
+| Target | Purpose |
+| ------ | ------- |
+| `make serve` | Runs **`serve-api`** and **`serve-ui`** in parallel (API + Vite dev on 5173). |
+| `make serve-api SERVE_OUTPUT_DIR=…` | FastAPI only (default port **8000**). |
+| `make serve-ui` | Vite dev server only (`web/gi-kg-viewer`, port **5173**, proxies `/api` → 8000). |
+| `make test-ui` | Vitest unit tests for TS utility logic (parsing, merge, metrics, formatting). Fast (~150 ms), no browser. |
+| `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install firefox`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
 
-**Typical workflow:** Produce artifacts with the main pipeline (`generate_gi` / `generate_kg`)
-or with `gi export` / `kg export` → in the viewer, use **Load artifacts** and select one or
-more `.gi.json` / `.kg.json` files → adjust filters and layout controls as needed.
+**Contributor notes:**
 
-**Deep link (same server):** `make serve-gi-kg-viz` runs `scripts/gi_kg_viz_server.py`, which
-exposes repo files. You can open e.g.
-`graph-vis.html?data=.test_outputs/.../metadata&layer=both&merged=1` to load every
-`*.gi.json` / `*.kg.json` under that **repo-relative** directory automatically (see
-`web/gi-kg-viz/README.md`).
-
-**Implementation details, offline/CDN notes:**
-[`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
+- UI E2E uses **Firefox** (see `web/gi-kg-viewer/playwright.config.ts`).
+- Pytest coverage for the same APIs lives under `tests/unit/podcast_scraper/server/`
+  (`test_viewer_*.py`) and `tests/integration/test_server_api.py` (wired app + real
+  filesystem).
+- **Full server reference:** [Server Guide](SERVER_GUIDE.md) — architecture, all endpoints,
+  adding routes, testing, platform evolution.
 
 **See also:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Grounded Insights
 Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·

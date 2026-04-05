@@ -2,11 +2,11 @@
 
 > **Document Structure:**
 >
-> - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - High-level philosophy, test pyramid, decision criteria
+> - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - High-level philosophy, test pyramid, decision criteria; **Browser UI E2E (Playwright)** as an additive layer
 > - **This document** - Quick reference, test execution commands
 > - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
-> - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes
+> - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes; **browser E2E** for the GI/KG Vue viewer (`make test-ui-e2e`)
 > - **[Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Quick Reference
@@ -16,12 +16,14 @@
 | **Unit** | < 100ms | Single function | All dependencies mocked |
 | **Integration** | < 5s | Component interactions | External services mocked |
 | **E2E** | < 60s | Complete workflow | No mocking (real everything) |
+| **Browser UI E2E** | ~1–3 min (suite) | Vue viewer in Firefox (Playwright) | Vite + route/API mocks in specs |
 
 **Decision Tree:**
 
-1. Testing a complete user workflow? → **E2E Test**
-2. Testing component interactions? → **Integration Test**
-3. Testing a single function? → **Unit Test**
+1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? → **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy — Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
+2. Testing a complete **CLI / library / service** workflow? → **E2E Test** (pytest)
+3. Testing component interactions? → **Integration Test**
+4. Testing a single function? → **Unit Test**
 
 ## Running Tests
 
@@ -45,6 +47,67 @@ make test-e2e
 
 make test
 ```
+
+### Browser E2E (GI / KG Viewer v2) {#browser-e2e-gi-kg-viewer-v2}
+
+Playwright drives a **real browser** against the Vue SPA. This stack is **orthogonal to pytest**:
+specs are not collected by `pytest`, and **`make test` does not run them**. Strategically, it is
+documented as an **additive** layer on the test pyramid — see
+[Testing Strategy — Browser UI E2E (Playwright)](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright)
+and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
+
+#### How it fits next to pytest
+
+| Concern | Tool | Location |
+| -------- | ---- | -------- |
+| Viewer **TS utility logic** (parsing, merge, metrics, formatting) | **Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` |
+| Viewer **HTTP API** (`/api/*`) — mocked internals | pytest **unit** tests (FastAPI `TestClient`) | `tests/unit/podcast_scraper/server/test_viewer_*.py` |
+| Viewer **HTTP API** — wired app + real files | pytest **integration** | `tests/integration/test_server_api.py` |
+| Viewer **UI** (render, click, keyboard, graph container) | **Playwright** | `web/gi-kg-viewer/e2e/*.spec.ts` |
+| Full **pipeline** / CLI / providers | pytest **E2E** | `tests/e2e/` |
+
+#### Commands
+
+```bash
+make test-ui          # Vitest unit tests (fast, no browser)
+make test-ui-e2e      # Playwright browser E2E (needs Firefox)
+```
+
+**`make test-ui`** runs `npm run test:unit` (Vitest) in `web/gi-kg-viewer`. Tests cover pure
+TypeScript logic: artifact parsing, GI+KG merge, metrics, formatting, colors, visual groups,
+and search-focus mapping. No browser or DOM required — runs in ~150 ms.
+
+**`make test-ui-e2e`** runs `npm install` in `web/gi-kg-viewer`, installs the **Firefox** browser
+for Playwright, and runs `npm run test:e2e`. Playwright’s **`webServer`** starts **Vite** on
+**127.0.0.1:5174** so it does not collide with `npm run dev` on **5173**.
+
+For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (see
+[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)).
+
+#### CI
+
+GitHub Actions jobs:
+
+- **`viewer-unit`** — runs `npm run test:unit` (Vitest, fast).
+- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox).
+
+Both are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a PR should
+include green runs for both (see
+[CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)).
+
+#### Writing and extending tests
+
+- **Vitest specs:** `web/gi-kg-viewer/src/utils/*.test.ts` — co-located with source.
+  Add a `.test.ts` file next to any new utility. Config: `vite.config.ts` `test` block.
+- **Playwright specs:** `web/gi-kg-viewer/e2e/*.spec.ts` (e.g. offline graph, search mocks,
+  dashboard, theme).
+- **Playwright config:** `web/gi-kg-viewer/playwright.config.ts` (`testDir: ./e2e`,
+  **Desktop Firefox**, `baseURL` / `webServer` on **5174**).
+- **Shared helpers:** `e2e/fixtures.ts`, `e2e/helpers.ts`.
+
+More detail: [E2E Testing Guide — Browser E2E (Playwright)](E2E_TESTING_GUIDE.md#browser-e2e-playwright),
+[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+(section **Browser E2E (M7)**).
 
 ## Fast Variants (Critical Path Only)
 
@@ -292,7 +355,7 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 The project expects your acceptance configs to live in a **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
 
 1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
-2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:  
+2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:
    `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
 3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
 
@@ -450,7 +513,7 @@ Reports are generated in both Markdown and JSON formats for easy review and prog
 tests/
 ├── unit/                    # Unit tests (fast, isolated)
 │   ├── conftest.py          # Network/filesystem isolation
-│   └── podcast_scraper/     # Per-module tests
+│   └── podcast_scraper/     # Per-module tests (incl. server/test_viewer_*.py)
 ├── integration/             # Integration tests
 │   ├── conftest.py          # Shared fixtures
 │   └── test_*.py            # Component interaction tests
@@ -458,6 +521,12 @@ tests/
 │   ├── fixtures/            # E2E server, HTTP server
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
+
+web/gi-kg-viewer/            # Browser UI E2E (Playwright — not pytest)
+├── e2e/                     # *.spec.ts
+├── e2e/fixtures.ts          # Shared test fixtures
+├── playwright.config.ts     # webServer (Vite :5174), Firefox
+└── package.json             # test:e2e and other frontend scripts
 ```
 
 ## Coverage Thresholds
@@ -505,7 +574,8 @@ For detailed implementation patterns:
 
 ## References
 
-- [Testing Strategy](../architecture/TESTING_STRATEGY.md) - Overall testing philosophy
+- [Testing Strategy](../architecture/TESTING_STRATEGY.md) - Overall testing philosophy (incl. Playwright layer)
+- [ADR-066: Playwright for UI E2E](../adr/ADR-066-playwright-for-ui-e2e-testing.md) - Why Playwright for viewer v2
 - [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) - Prioritization
 - [CI/CD Documentation](../ci/index.md) - GitHub Actions workflows
 - [Architecture](../architecture/ARCHITECTURE.md) - Testing Notes section

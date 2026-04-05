@@ -20,6 +20,7 @@ on:
       - 'Makefile'
       - 'Dockerfile'
       - '.dockerignore'
+      - 'web/gi-kg-viewer/**'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
@@ -30,6 +31,7 @@ on:
       - 'Makefile'
       - 'Dockerfile'
       - '.dockerignore'
+      - 'web/gi-kg-viewer/**'
 
 permissions:
   contents: read
@@ -63,6 +65,48 @@ jobs:
             - 'Dockerfile'
             - '.dockerignore'
             - '.github/workflows/**'
+            - 'web/gi-kg-viewer/**'
+
+  # GI/KG viewer v2 — Vitest unit tests for TypeScript utils (fast, no browser)
+  viewer-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "20"
+        cache: "npm"
+        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+    - name: Install dependencies
+      run: |
+        cd web/gi-kg-viewer
+        npm ci
+    - name: Run Vitest unit tests
+      run: |
+        cd web/gi-kg-viewer
+        npm run test:unit
+
+  # GI/KG viewer v2 — Playwright E2E (RFC-062 M7)
+  viewer-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "20"
+        cache: "npm"
+        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+    - name: Install dependencies and browsers
+      run: |
+        cd web/gi-kg-viewer
+        npm ci
+        npx playwright install --with-deps firefox
+    - name: Run Playwright E2E
+      run: |
+        cd web/gi-kg-viewer
+        npm run test:e2e
 
   # Fast lint checks - blocks tests to catch issues early
   lint:
@@ -181,10 +225,10 @@ jobs:
         python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Install dev dependencies (no ML)
+    - name: Install dev dependencies (no ML; server for FastAPI unit tests)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        pip install -e .[dev,server]
     - name: Install ffmpeg (required for audio preprocessing unit tests)
       run: |
         sudo apt-get update
@@ -518,10 +562,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install full dependencies (including ML)
+    - name: Install full dependencies (including ML + server)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -715,10 +759,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install dev dependencies with ML (pytest-socket for network guard)
+    - name: Install dev dependencies with ML + server (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -870,10 +914,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install dev dependencies (pytest-socket for network guard)
+    - name: Install dev dependencies with server (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1028,10 +1072,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install full dependencies (including ML)
+    - name: Install full dependencies (including ML + server)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1116,7 +1160,7 @@ jobs:
   # Docs deployment happens in docs.yml workflow (separate, already gated properly)
   docs:
     runs-on: ubuntu-latest
-    needs: [coverage-unified]  # Very last step - validates docs after all tests pass
+    needs: [coverage-unified, viewer-unit, viewer-e2e]  # Docs after coverage + viewer tests
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python 3.11

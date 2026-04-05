@@ -30,9 +30,9 @@ corresponding code does not yet exist:
 | :--- | :--- | :--- | :--- | :--- |
 | 062 | Sentence-Boundary Transcript Chunking | Accepted | No sentence-boundary chunking for search indexing in `src/podcast_scraper/search/`. Summarizer has sentence splitting but that is a different context. RFC-061 is Partial. | **Keep Accepted** (decision is sound; implementation in progress with RFC-061) |
 | 063 | Transparent Semantic Upgrade for gi explore | Accepted | `gi explore` does NOT use `VectorStore`/FAISS. Code explicitly treats semantic search as future. RFC-061 is Partial. | **Keep Accepted** (decision is sound; blocked on RFC-061 completion) |
-| 064 | Canonical Server Layer | Accepted | No `src/podcast_scraper/server/` exists. No `podcast serve` CLI. RFC-062 is Not Started. | **Keep Accepted** (decision is sound; implementation is RFC-062 scope) |
-| 065 | Vue 3 + Vite + Cytoscape Frontend | Accepted | No `.vue` files in repo. Only legacy `web/gi-kg-viz/`. RFC-062 is Not Started. | **Keep Accepted** (decision is sound; implementation is RFC-062 scope) |
-| 066 | Playwright for UI E2E Testing | Accepted | No Playwright config in repo. RFC-062 is Not Started. | **Keep Accepted** (decision is sound; implementation is RFC-062 scope) |
+| 064 | Canonical Server Layer | Accepted | **Implemented** — `src/podcast_scraper/server/` exists with `podcast serve` CLI. RFC-062 is Implemented. | **Implemented** — server module and CLI in place |
+| 065 | Vue 3 + Vite + Cytoscape Frontend | Accepted | **Implemented** — Vue 3 SPA in `web/gi-kg-viewer/`. | **Implemented** — Vue 3 SPA in `web/gi-kg-viewer/` |
+| 066 | Playwright for UI E2E Testing | Accepted | Playwright config and E2E specs in `web/gi-kg-viewer/e2e/`. | **Implemented** — Playwright config and E2E specs in `web/gi-kg-viewer/e2e/` |
 | 021 | Acceptance Test Tier as Final CI Gate | Accepted | `tests/acceptance/` with pytest marker does NOT exist. Script-based acceptance exists but is a different shape. RFC-023 is Partial. | **Keep Accepted** (decision is sound; pytest-marker implementation pending) |
 | 049 | Materialization Boundary for Eval Inputs | Accepted | Materialization code exists (`materialize_dataset.py`, `data/eval/materialized/`). The boundary concept is implemented in practice. RFC-046 is Completed. | **Correctly Accepted** (actually implemented) |
 | 050 | Single Code Path for Eval and App | Accepted | Fingerprinting exists, single-path architecture enforced. RFC-048 is Completed. | **Correctly Accepted** (actually implemented) |

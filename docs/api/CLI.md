@@ -474,19 +474,6 @@ python -m podcast_scraper.cli kg topics --output-dir ./output --min-support 2 --
 
 Details: [Knowledge Graph Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md), [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md). **Shallow v1 scope** (extraction + ML, no `kg query` IR, Postgres deferral): [Recorded product decisions (v1, KG shallow)](../guides/KNOWLEDGE_GRAPH_GUIDE.md#recorded-product-decisions-v1-kg). **GIL companion:** [Recorded product decisions (v1, issue 460)](../guides/GROUNDED_INSIGHTS_GUIDE.md#recorded-product-decisions-v1-issue-460).
 
-## GI / KG artifacts — browser viewer (prototype)
-
-Optional **static** viewer for `*.gi.json` and `*.kg.json` under `web/gi-kg-viz/`
-([GitHub issue #445](https://github.com/chipi/podcast_scraper/issues/445)):
-
-- **Run:** `make serve-gi-kg-viz` → open `http://127.0.0.1:8765/`.
-- **Why HTTP:** Graph pages load **vis-network**, **Cytoscape.js**, and **Chart.js** from CDNs;
-  use this target instead of `file://` when the browser blocks remote scripts.
-
-**Documentation:** [Development Guide — GI / KG browser
-viewer](../guides/DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) ·
-[`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
-
 ## See Also
 
 - [Core API](CORE.md) - Programmatic usage

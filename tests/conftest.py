@@ -24,6 +24,15 @@ os.environ["TERM"] = "dumb"  # Disable rich terminal features
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
+# Ollama unit tests replace sys.modules["httpx"] with a MagicMock at import time.
+# Starlette's testclient defines WebSocketDenialResponse(httpx.Response, ...) at import;
+# if that runs after httpx is mocked, Python raises a metaclass conflict. Preload once
+# while the real httpx module is still in sys.modules (see tests/.../ollama/test_*.py).
+try:
+    import starlette.testclient  # noqa: F401
+except ImportError:
+    pass
+
 import argparse
 import gc
 import unittest.mock

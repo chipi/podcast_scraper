@@ -14,7 +14,8 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [GI/KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) (`make serve-gi-kg-viz`) |
+| [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [GI/KG viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — `make serve` / `serve-api` / `serve-ui`, `make test-ui-e2e` |
+| [Server Guide](SERVER_GUIDE.md) | FastAPI server: architecture, REST API, routes, testing, platform evolution |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
@@ -24,10 +25,11 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
-| [Testing Guide](TESTING_GUIDE.md) | Test execution and overview |
+| [Testing Strategy](../architecture/TESTING_STRATEGY.md) | Pyramid, pytest layers, and **Playwright** as additive browser UI E2E |
+| [Testing Guide](TESTING_GUIDE.md) | Commands, markers, and [Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2) (`make test-ui-e2e`) |
 | [Unit Testing Guide](UNIT_TESTING_GUIDE.md) | Unit test patterns and mocking |
 | [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md) | Integration test guidelines |
-| [E2E Testing Guide](E2E_TESTING_GUIDE.md) | End-to-end test infrastructure |
+| [E2E Testing Guide](E2E_TESTING_GUIDE.md) | pytest E2E server/ML; [Playwright](E2E_TESTING_GUIDE.md#browser-e2e-playwright) for the viewer |
 | [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md) | Test prioritization |
 
 ## Provider System

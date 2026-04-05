@@ -2604,6 +2604,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         index_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_index_argv(index_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "serve":
+        from .server.cli_handlers import parse_serve_argv
+
+        serve_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_serve_argv(serve_argv)
+
     # Check if first argument is "cache" subcommand
     if argv and len(argv) > 0 and argv[0] == "cache":
         # Handle cache subcommand
@@ -3313,6 +3319,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "kg",
             "pricing-assumptions",
             "search",
+            "serve",
         )
     ):
         pass  # Skip ffmpeg check for subcommands
@@ -3368,6 +3375,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_index_cli
 
         return run_index_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "serve":
+        from .server.cli_handlers import run_serve
+
+        return run_serve(args, log)
 
     # Handle cache subcommand
     if hasattr(args, "command") and args.command == "cache":
