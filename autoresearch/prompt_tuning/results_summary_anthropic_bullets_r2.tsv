@@ -1,0 +1,5 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+exp-0	0.599	+0.000	baseline	Round 2 baseline: r1 winners (no-fence JSON + single-sentence). ROUGE-L 44.6%, judge 0.956.	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-1	0.576	-0.023	rejected	Thesis-first bullet (central argument in bullet 1). Locks first bullet into generic framing, hurts specificity. ROUGE-L 41.1%. consecutive fails 1	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-2	0.564	-0.035	rejected	Anchor each bullet in specific claim/concept/data. Shifts phrasing away from ref style. ROUGE-L 39.5%. consecutive fails 2	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-3	0.564	-0.035	rejected	Title quality guidance (specific, descriptive, own phrasing). No effect on bullets — title words minimal ROUGE contribution. ROUGE-L 39.5%. consecutive fails 3 → EARLY STOP	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1

@@ -1,0 +1,29 @@
+# Experiment: Claude Sonnet 4.6 JSON bullet summaries on benchmark dataset (10 episodes).
+#
+# Purpose: Generate the silver reference for benchmark-scale bullet evaluation.
+# After running, promote with:
+#   make run-promote RUN_ID=experiment_sonnet46_benchmark_bullets_v1 \
+#     AS=reference PROMOTED_ID=silver_sonnet46_benchmark_bullets_v1
+#
+# Requires: ANTHROPIC_API_KEY in environment (or .env).
+
+id: "experiment_sonnet46_benchmark_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-sonnet-4-6"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
