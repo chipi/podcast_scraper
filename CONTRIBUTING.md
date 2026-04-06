@@ -37,7 +37,9 @@ Before you begin, ensure you have these installed:
 - **Graphviz** — Optional; required only to regenerate architecture diagrams locally (`make visualize`). Diagrams are committed so most contributors don't need Graphviz.
   - macOS: `brew install graphviz`
   - Linux: `apt install graphviz` or `yum install graphviz`
-- **Node.js and npm** — Required for markdown linting
+- **Node.js and npm** — Required for markdown linting; **Node 20+** also for the GI/KG
+  viewer (`web/gi-kg-viewer`) and **`make test-ui-e2e`** (Playwright).
+  For server/API work, see the [Server Guide](docs/guides/SERVER_GUIDE.md)
   - Check with `node --version` and `npm --version`
   - Install from [nodejs.org](https://nodejs.org/) if missing
 - **make** — Usually pre-installed on macOS/Linux
@@ -297,6 +299,15 @@ make test-unit          # Fast feedback (~30s)
 make ci                 # Full suite before PR
 ```
 
+If your PR touches **`web/gi-kg-viewer/`**:
+
+- **`make test-ui`** — Vitest unit tests for TS utility logic (fast, no browser).
+- **`make test-ui-e2e`** — Playwright browser E2E (Firefox; downloads browser binaries on first
+  run).
+
+See [Testing Guide](docs/guides/TESTING_GUIDE.md) (*Browser E2E*). CI runs both in the
+**`viewer-unit`** and **`viewer-e2e`** jobs.
+
 ### 4. Commit
 
 ```bash
@@ -329,6 +340,7 @@ Then open a PR on GitHub.
 Before submitting:
 
 - [ ] `make ci` passes locally
+- [ ] If `web/gi-kg-viewer/` changed: `make test-ui` and `make test-ui-e2e` pass
 - [ ] Tests added/updated for changes
 - [ ] Documentation updated if needed
 - [ ] Commit messages follow conventional format

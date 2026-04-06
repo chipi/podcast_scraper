@@ -5,7 +5,32 @@
 > - [Testing Strategy](../architecture/TESTING_STRATEGY.md) - High-level testing philosophy and test pyramid
 > - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
 
-This guide covers E2E test implementation: real HTTP client, E2E server, ML model usage, and OpenAI mock endpoints.
+This guide covers **pytest** E2E test implementation: real HTTP client, E2E server, ML model
+usage, and OpenAI mock endpoints.
+
+For **where Playwright fits** in the overall strategy (pyramid, CI jobs, pytest vs browser), see
+[Testing Strategy — Browser UI E2E (Playwright)](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
+
+## Browser E2E (Playwright) {#browser-e2e-playwright}
+
+The GI/KG **Vue** viewer (`web/gi-kg-viewer`) uses **Playwright** (TypeScript, **Firefox**), not
+pytest. This section summarizes the **browser** stack only; everything below *Overview* in this
+file remains **pytest** E2E.
+
+| Topic | Detail |
+| ----- | ------ |
+| **Run from repo root** | `make test-ui-e2e` (`npm install`, `playwright install firefox`, `npm run test:e2e`) |
+| **Run in package** | `cd web/gi-kg-viewer && npm run test:e2e` |
+| **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** |
+| **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
+| **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
+| **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
+| **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
+| **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
+
+**Further reading:** [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
+[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 
 ## Overview
 

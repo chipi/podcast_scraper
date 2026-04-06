@@ -107,7 +107,7 @@ Use these model IDs in eval/acceptance configs to avoid API errors:
 | Grok | `grok-3-mini` | `grok-2` (400 model not found) |
 
 Eval configs: `data/eval/configs/llm_*_smoke_v1.yaml`. Acceptance configs:
-`config/acceptance/summarization/acceptance_planet_money_*.yaml`.
+`config/acceptance/full/acceptance_planet_money_*.yaml`.
 
 ---
 

@@ -24,6 +24,9 @@ Common issues and solutions for podcast_scraper development and usage.
 | Want to limit failures | Default has no limit | Use `--max-failures N` flag |
 | `make test-fast` or `make ci-fast` hangs at ~87% | pytest-xdist stall near end of run | `TEST_FAST_WORKERS=2 make test-fast` (or `make ci-fast`) |
 | Unsure if environment is ready | Python, ffmpeg, cache, or models missing | Run `podcast-scraper doctor` (see below) |
+| Viewer shows no **Choose .gi.json** button but API is down | Something answered `/api/health` on port 8000 (proxy “healthy”) | Stop the other process or use offline flow from a clean profile; E2E tests abort `/api/health` for determinism |
+| `make test-ui-e2e` / Playwright “Executable doesn't exist” | Playwright browsers not installed | `cd web/gi-kg-viewer && npx playwright install firefox` |
+| `make serve` / Vite “port already in use” | Another dev server on 5173 or 5174 | Stop the other process; Playwright E2E uses **5174** by config |
 
 ---
 

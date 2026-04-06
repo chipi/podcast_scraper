@@ -168,8 +168,11 @@ Use this block **after** you work through Tier 1–3. It ties the operational ch
 - [ ] **Tier 2 prompts (27B):** `src/podcast_scraper/prompts/ollama/qwen3.5_27b/`
 - [ ] **Tier 3 prompts (35B):** `src/podcast_scraper/prompts/ollama/qwen3.5_35b/`; for tag `qwen3.5:35b-a3b`, use `src/podcast_scraper/prompts/ollama/qwen3.5_35b-a3b/`
 - [ ] **Integration tests:** `pytest tests/integration/providers/ollama/test_qwen3_5_ollama_tiers.py` (or run the full Ollama integration slice via `make test-integration`)
-- [ ] **Eval configs:** Pure Ollama paragraph — `data/eval/configs/summarization/autoresearch_prompt_ollama_*_smoke_paragraph_v1.yaml` (13 models). Bullet JSON — `data/eval/configs/summarization_bullets/autoresearch_prompt_ollama_*_smoke_bullets_v1.yaml`. **`hybrid_ml_tier2_*`** (LongT5 MAP + Ollama REDUCE) — `data/eval/configs/ml/hybrid_ml_tier2_*.yaml`. Qwen 3.5 extras: `hybrid_ml_tier2_qwen35_*b_authority_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_tuned_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1`.
-- [ ] **Acceptance configs (`config/acceptance/summarization/`, mirror Qwen 2.5):** hybrid — `acceptance_planet_money_hybrid_ollama_qwen35_9b.yaml`, `_27b`, `_35b`; full Ollama stack — `acceptance_planet_money_ollama_qwen3_5_9b.yaml`, `_27b`, `_35b`. See `config/acceptance/README.md`.
+- [ ] **Eval configs (`data/eval/configs/`):** **`llm_ollama_*_smoke_v1`** = pure Ollama summarization (no LongT5; same shape as `llm_mistral_smoke_v1`). Mistral-family Ollama smokes include `llm_ollama_mistral_7b_smoke_v1`, `llm_ollama_mistral_nemo_12b_smoke_v1`, `llm_ollama_mistral_small3_2_smoke_v1`. Llama 3.x smokes include `llm_ollama_llama32_3b_smoke_v1`, `llm_ollama_llama33_70b_q3km_smoke_v1`. **`hybrid_ml_tier2_*`** = LongT5 MAP + Ollama REDUCE (needs HF MAP cache + `ollama pull`). Qwen 3.5 tier extras: `hybrid_ml_tier2_qwen35_*b_authority_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_tuned_v1`, `hybrid_ml_tier2_qwen35_9b_smoke_paragraph_v1`.
+- [ ] **Acceptance configs (`config/acceptance/full/`):** Qwen 3.5 variants —
+  `acceptance_planet_money_ollama_qwen3_5_9b.yaml`, `acceptance_planet_money_ollama_qwen3_5_27b.yaml`,
+  `acceptance_planet_money_ollama_qwen3_5_35b.yaml` (and matching `acceptance_the_journal_ollama_qwen3_5_*.yaml`).
+  See `config/acceptance/README.md`.
 
 ### Step 4: Install Podcast Scraper Dependencies
 
@@ -232,7 +235,7 @@ When using **hybrid MAP-REDUCE** summarization (`summary_provider: hybrid_ml`), 
 
 - **Config**: `summary_provider: hybrid_ml`, `hybrid_reduce_backend: ollama`, `hybrid_reduce_model: <ollama_tag>` (e.g. `llama3.1:8b`, `mistral:7b`, `qwen2.5:7b`, `qwen2.5:32b`).
 - **No template file**: The reduce instruction is sent to Ollama as an inline prompt; no `custom.j2` or other template file is required.
-- **Acceptance tests**: Example configs under `config/acceptance/` use Ollama for REDUCE (e.g. `acceptance_planet_money_hybrid_ollama_llama3_8b.yaml` with `llama3.1:8b`). Ensure the model is available (`ollama pull llama3.1:8b` or equivalent).
+- **Acceptance tests**: Example full-pipeline configs under `config/acceptance/full/` use Ollama for summarization (e.g. `acceptance_planet_money_ollama_llama3_1_8b.yaml` with `llama3.1:8b`). Ensure the model is available (`ollama pull llama3.1:8b` or equivalent).
 
 See [ML Provider Reference](ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) for full hybrid_ml configuration.
 
@@ -257,7 +260,7 @@ Use this when you introduce another **Ollama model tag** (e.g. a larger variant 
 
 3. **Eval configs (optional):** Add a new file under `data/eval/configs/` with a unique `id`, copied from a similar run; set `reduce_model` or the relevant Ollama fields to `<tag>` so multi-run / comparison workflows can name the run.
 
-4. **Acceptance configs (optional):** Add something like `config/acceptance/summarization/acceptance_planet_money_hybrid_ollama_<model>.yaml` (mirror an existing hybrid or full-Ollama YAML). Update the table in `config/acceptance/README.md` if the config should be discoverable. **Do not** add Ollama-heavy stems to `config/acceptance/FAST_CONFIGS.txt` unless you want PR CI to run them.
+4. **Acceptance configs (optional):** Add something like `config/acceptance/full/acceptance_planet_money_ollama_<variant>.yaml` (mirror an existing Ollama variant YAML). Update the table in `config/acceptance/README.md` if the config should be discoverable. **Do not** add Ollama-heavy stems to `config/acceptance/FAST_CONFIGS.txt` unless you want PR CI to run them.
 
 5. **Tests (optional):** Extra integration tests are only warranted if you need to pin behavior for that tag; otherwise existing Ollama tests plus config strings usually suffice.
 

@@ -12,15 +12,13 @@
 - **Related issues**:
   - [GitHub #489](https://github.com/chipi/podcast_scraper/issues/489) — Viewer v2 implementation (RFC-062)
 - **Implementation paths**:
-  - **Current (v1):** `web/gi-kg-viz/styles.css` (`:root` CSS variables)
-  - **Charts (v1):** `web/gi-kg-viz/metrics-charts.js` (`themeColors`, palette helpers)
-  - **Planned (v2):** Tailwind theme + shared tokens per RFC-062 (Vue 3 + Vite)
+  - **v2:** Tailwind theme + shared tokens per RFC-062 (Vue 3 + Vite) in `web/gi-kg-viewer/`
 
 ## Summary
 
 The GI/KG viewer is a **local, developer-oriented** surface for exploring grounded insights
 and knowledge-graph artifacts alongside the graph. This UXS locks **semantic colors,
-typography, and light/dark behavior** so v1 and the planned Vue/Tailwind v2 stay visually
+typography, and light/dark behavior** so the Vue/Tailwind v2 stays visually
 coherent and easy to maintain.
 
 ## Principles
@@ -65,8 +63,8 @@ resize/collapse logic, keyboard shortcuts) belong in
 
 Token values are inspired by the **Palantir Blueprint** gray scale with the **shadcn/ui**
 foreground-pairing convention. Every surface token has a matching `-foreground` text token
-so contrast is validated at the token level. V1 (`web/gi-kg-viz/styles.css`) uses a
-subset of these; v2 should map the full set to Tailwind/CSS variables.
+so contrast is validated at the token level. V2 maps the full set to Tailwind/CSS
+variables.
 
 **Design references:** Blueprint gray scale (`#111418` .. `#F6F7F9`), shadcn/ui
 background/foreground pairs, Grafana layered surfaces, Elastic UI intent/vis separation.
@@ -135,21 +133,8 @@ from Blueprint extended palette colors that complement the domain and intent tok
 | `series-4` | `#EC9A3C` | `#C87619` | Fourth series (= warning)|
 | `series-5` | `#3FA6DA` | `#147EB3` | Fifth series (teal)      |
 
-Banners may use `color-mix` against `surface` / `border` as in v1; new variants should
+Banners may use `color-mix` against `surface` / `border`; new variants should
 still derive from the tokens above.
-
-### Migration note (v1 to v2)
-
-V1 uses flat token names (`--bg`, `--surface`, `--text`, `--accent`). V2 maps these to
-the expanded set above. A thin compatibility layer in `theme.css` can alias the old names
-during migration:
-
-- `--bg` maps to `canvas`
-- `--surface` maps to `surface`
-- `--text` maps to `canvas-foreground`
-- `--accent` maps to `primary`
-- `--muted` maps to `muted`
-- `--border` maps to `border`
 
 ## Typography
 
@@ -166,13 +151,12 @@ during migration:
   than body but not below **0.8125rem** without an explicit accessibility review.
 - **Font weights:** 400 (regular body), 500 (medium emphasis), 600 (semibold headings
   and labels), 700 (bold, sparingly).
-- **V1 note:** V1 uses `"Segoe UI", system-ui, sans-serif`. Inter adoption is for v2;
-  v1 keeps the current stack.
+- **Font stack:** Inter is the primary UI font for v2.
 
 ## Layout and spacing
 
 - **Base unit:** **4px** (0.25rem) — spacing and gaps should be multiples where practical.
-- **Max content width:** **960px** for primary column content in v1; graph area may be
+- **Max content width:** **960px** for primary column content; graph area may be
   full viewport width.
 - **Regions:** Header + lede + panel stack; graph pages use full-height canvas with
   overlays/panels that respect `surface` and `border`.

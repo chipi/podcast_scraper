@@ -108,10 +108,10 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
 ## Consumption and integration
 
 - **File-based**: Scan per-episode KG JSON for corpus analytics (see RFC-056 use cases).
-- **Browser viewer (prototype)**: Load `*.kg.json` (and `*.gi.json`) in a static local UI —
-  `make serve-gi-kg-viz`, then `http://127.0.0.1:8765/`. See [Development Guide — GI / KG
-  browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) and
-  [`web/gi-kg-viz/README.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viz/README.md).
+- **Browser viewer (v2)**: `web/gi-kg-viewer/` + `python -m podcast_scraper.cli serve --output-dir …`
+  (needs `[server]`, built `dist/`). Graph, dashboard, search, explore on the same corpus root.
+  See
+  [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 - **Database**: Optional relational projection per [PRD-018](../prd/PRD-018-database-projection-gil-kg.md) /
   [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — **separate** from GIL tables.
 
@@ -127,12 +127,11 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
   CI runs the same enforce pass as GIL on `tests/fixtures/gil_kg_ci_enforce` via
   `make quality-metrics-ci`.
 - **Fixture:** `tests/fixtures/kg/minimal.kg.json` for smoke checks.
-- **Acceptance (E2E configs):** `config/acceptance/kg/*.yaml` — mirrors
-  `config/acceptance/gi/` (Planet Money + The Journal; ML, OpenAI, Ollama, Anthropic,
-  Gemini, Mistral, DeepSeek, Grok). Stub-style configs use `kg_extraction_source: stub`
-  (like GI default `gi_insight_source: stub`); bullet-driven configs use
-  `acceptance_*_kg_ml_summary_bullets.yaml`. Run:
-  `make test-acceptance CONFIGS="config/acceptance/kg/*.yaml"`.
+- **Acceptance (E2E configs):** `config/acceptance/full/*.yaml` — full pipeline
+  (summaries + GI + KG + semantic index) for Planet Money and The Journal across ML,
+  OpenAI, Ollama, Anthropic, Gemini, Mistral, DeepSeek, and Grok. KG uses
+  `kg_extraction_source: summary_bullets` (no stub-only acceptance split). Run:
+  `make test-acceptance CONFIGS="config/acceptance/full/*.yaml"`.
 
 Run metrics export (`metrics.json`) includes KG rollups: `kg_topic_nodes_total`,
 `kg_entity_nodes_total`, `kg_extractions_stub` / `kg_extractions_summary_bullets` /
@@ -183,5 +182,5 @@ This table mirrors the **GIL v1 record** in [Grounded Insights Guide § Recorded
 - [RFC-056: KG — Use Cases & Consumption](../rfc/RFC-056-knowledge-graph-layer-use-cases.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md) (GIL)
 - [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
-- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — optional local UI for `kg.json` / `gi.json`
+- [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — v2 viewer + legacy UI for `kg.json` / `gi.json`
 - [Recorded product decisions (v1, KG shallow)](#recorded-product-decisions-v1-kg) — v1 scope table (this guide)

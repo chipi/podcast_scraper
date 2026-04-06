@@ -66,8 +66,8 @@ We create a **canonical server layer** in `src/podcast_scraper/server/`:
 ## Implementation Notes
 
 - **Module**: `src/podcast_scraper/server/`
-- **Entry point**: `podcast serve --output-dir ./output [--platform] [--port 8100]`
-- **App factory**: `server.app.create_app(output_dir, enable_viewer=True,
+- **Entry point**: `podcast serve --output-dir ./output [--port 8000]`
+- **App factory**: `server.app.create_app(output_dir, static_dir=...,
   enable_platform=False)`
 - **Makefile**: `make serve` (combined), `make serve-api` (backend only)
 - **Relationship to `service.py`**: `service.run()` is one-shot pipeline execution.

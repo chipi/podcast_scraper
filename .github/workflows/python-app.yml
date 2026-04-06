@@ -1,10 +1,11 @@
 # This workflow will install Python dependencies, run tests and quality checks with a single version of Python
 # Dependency flow:
-# 1. lint, build, preload-ml-models run in parallel (no deps)
-# 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
-# 4. coverage-unified gates: security-quality + all test jobs (including test-unit)
-# 5. docs gates coverage-unified (very last step, final validation)
+# 1. lint, build, detect-changes, preload-ml-models run in parallel (no cross-deps at start)
+# 2. After lint+build: security-quality, test-unit, and viewer-unit run in parallel
+# 3. test-integration / test-e2e / test-e2e-fast gate on preload-ml-models (and detect-changes)
+# 4. viewer-e2e runs after lint+build and both Python E2E jobs (Playwright after pytest E2E)
+# 5. coverage-unified gates: security-quality + all Python test jobs (not viewer jobs)
+# 6. docs gates coverage-unified + viewer-unit + viewer-e2e (final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python application
@@ -20,6 +21,7 @@ on:
       - 'Makefile'
       - 'Dockerfile'
       - '.dockerignore'
+      - 'web/gi-kg-viewer/**'
   pull_request:
     branches: [ "main", "release/2.4", "release/2.5" ]
     paths:
@@ -30,6 +32,7 @@ on:
       - 'Makefile'
       - 'Dockerfile'
       - '.dockerignore'
+      - 'web/gi-kg-viewer/**'
 
 permissions:
   contents: read
@@ -63,6 +66,59 @@ jobs:
             - 'Dockerfile'
             - '.dockerignore'
             - '.github/workflows/**'
+            - 'web/gi-kg-viewer/**'
+
+  # GI/KG viewer v2 — Vitest unit tests for TypeScript utils (fast, no browser)
+  # Gates same as test-unit: after lint + build, in parallel with Python unit tests
+  viewer-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [lint, build]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        # Vite 8 requires ^20.19 || >=22.12; bare "20" on the runner can be older and breaks Vite
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+    - name: Install dependencies
+      run: |
+        cd web/gi-kg-viewer
+        npm ci
+    - name: Run Vitest unit tests
+      run: |
+        cd web/gi-kg-viewer
+        npm run test:unit
+
+  # GI/KG viewer v2 — Playwright E2E (RFC-062 M7)
+  # After Python pytest E2E (both fast + full) to avoid two heavy E2E stacks at once
+  viewer-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [lint, build, test-e2e, test-e2e-fast]
+    if: |
+      always() &&
+      needs.lint.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.test-e2e.result == 'success' &&
+      needs.test-e2e-fast.result == 'success'
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+    - name: Install dependencies and browsers
+      run: |
+        cd web/gi-kg-viewer
+        npm ci
+        npx playwright install --with-deps firefox
+    - name: Run Playwright E2E
+      run: |
+        cd web/gi-kg-viewer
+        npm run test:e2e
 
   # Fast lint checks - blocks tests to catch issues early
   lint:
@@ -181,10 +237,10 @@ jobs:
         python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Install dev dependencies (no ML)
+    - name: Install dev dependencies (no ML; server for FastAPI unit tests)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        pip install -e .[dev,server]
     - name: Install ffmpeg (required for audio preprocessing unit tests)
       run: |
         sudo apt-get update
@@ -518,10 +574,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install full dependencies (including ML)
+    - name: Install full dependencies (including ML + server)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -715,10 +771,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install dev dependencies with ML (pytest-socket for network guard)
+    - name: Install dev dependencies with ML + server (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -870,10 +926,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install dev dependencies (pytest-socket for network guard)
+    - name: Install dev dependencies with server (pytest-socket for network guard)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1028,10 +1084,10 @@ jobs:
       if: steps.validate-cache.outputs.models_complete == 'true'
       run: |
         echo "ML_MODELS_VALIDATED=true" >> $GITHUB_ENV
-    - name: Install full dependencies (including ML)
+    - name: Install full dependencies (including ML + server)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket
     - name: Install ffmpeg (required for Whisper)
       run: |
@@ -1116,7 +1172,7 @@ jobs:
   # Docs deployment happens in docs.yml workflow (separate, already gated properly)
   docs:
     runs-on: ubuntu-latest
-    needs: [coverage-unified]  # Very last step - validates docs after all tests pass
+    needs: [coverage-unified, viewer-unit, viewer-e2e]  # Docs after coverage + viewer tests
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python 3.11

@@ -20,7 +20,7 @@ Items currently in progress or next up. High user value or blocking other work.
 | **2** | [RFC-054](rfc/RFC-054-e2e-mock-response-strategy.md) | RFC | **Partial** | E2E mock server exists. Full composable ResponseProfile/Router architecture NOT implemented. Blocks #399 (provider hardening) | High |
 | **3** | [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) / [PRD-017](prd/PRD-017-grounded-insight-layer.md) | RFC | **Partial** | `gi explore` and `gi query` work. `gi list` missing. Insight Explorer pattern partial | Medium-High |
 | **4** | [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) / [PRD-019](prd/PRD-019-knowledge-graph-layer.md) | RFC | **Partial** | `kg validate/inspect/export/entities/topics` work. `kg explore` and `kg list` missing | Medium-High |
-| **5** | [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) / [PRD-021](prd/PRD-021-semantic-corpus-search.md) | RFC | **Not Started** | No FastAPI server, no Vue frontend, no `podcast serve` CLI. Only legacy `web/gi-kg-viz/` | Medium |
+| **5** | [RFC-062](rfc/RFC-062-gi-kg-viewer-v2.md) / [PRD-021](prd/PRD-021-semantic-corpus-search.md) | RFC | **Implemented (M1–M7)** | Server, Vue SPA, Playwright E2E, v1 removed. | Medium |
 
 ## Tier 2 — Quality & Observability
 
@@ -69,9 +69,9 @@ These architectural decisions are accepted/proposed but code does not exist yet:
 | [ADR-059](adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) | Confidence-Scored Commercial Detection | RFC-060 (Not Started) |
 | [ADR-062](adr/ADR-062-sentence-boundary-transcript-chunking.md) | Sentence-Boundary Transcript Chunking | RFC-061 (Phase 1 done) |
 | [ADR-063](adr/ADR-063-transparent-semantic-upgrade-for-gi-explore.md) | Transparent Semantic Upgrade for gi explore | RFC-061 (Phase 1 done) |
-| [ADR-064](adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical Server Layer | RFC-062 (Not Started) |
-| [ADR-065](adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md) | Vue 3 + Vite + Cytoscape Frontend | RFC-062 (Not Started) |
-| [ADR-066](adr/ADR-066-playwright-for-ui-e2e-testing.md) | Playwright for UI E2E Testing | RFC-062 (Not Started) |
+| [ADR-064](adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical Server Layer | RFC-062 (Implemented) |
+| [ADR-065](adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md) | Vue 3 + Vite + Cytoscape Frontend | RFC-062 (Implemented) |
+| [ADR-066](adr/ADR-066-playwright-for-ui-e2e-testing.md) | Playwright for UI E2E Testing | RFC-062 (Implemented) |
 
 ## Dependency Graph
 

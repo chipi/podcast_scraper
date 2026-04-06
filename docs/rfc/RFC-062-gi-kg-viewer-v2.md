@@ -1,6 +1,6 @@
 # RFC-062: GI/KG Viewer v2 — Semantic Search UI & Web Application Architecture
 
-- **Status**: Draft
+- **Status**: Implemented
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, GIL/KG consumers, viewer users
 - **Related PRDs**:
@@ -133,8 +133,7 @@ through a graphical interface.
 - RFC-061 (Semantic Corpus Search) will be implemented before or in parallel with the
   search panel (M4). The viewer backend can be built first; the search endpoint activates
   when a vector index exists.
-- The v1 viewer (`web/gi-kg-viz/`) remains in the repo during v2 development and is
-  removed after v2 reaches feature parity.
+- The v1 viewer (`web/gi-kg-viz/`) has been removed (Phase 4 complete).
 - The target user is a developer or power user running the tool locally.
 
 ## Design & Implementation
@@ -487,12 +486,12 @@ disabled state with an instructional message.
 ```bash
 # Terminal 1: FastAPI backend
 make serve-api
-# Runs: uvicorn podcast_scraper.server.app:create_app --reload --port 8100
+# Runs: uvicorn podcast_scraper.server.app:create_app --reload --port 8000
 
 # Terminal 2: Vite dev server
-make serve-ui-dev
+make serve-ui
 # Runs: cd web/gi-kg-viewer && npm run dev
-# Vite proxies /api/* to localhost:8100
+# Vite proxies /api/* to localhost:8000
 
 # Or combined:
 make serve
@@ -503,7 +502,7 @@ make serve
 
 ```bash
 # Viewer mode (serves built frontend + API)
-podcast serve --output-dir ./output --port 8100
+podcast serve --output-dir ./output --port 8000
 
 # With platform routes enabled (v2.7, future)
 podcast serve --output-dir ./output --platform
@@ -512,8 +511,8 @@ podcast serve --output-dir ./output --platform
 **Production build:**
 
 ```bash
-make build-ui
-# Runs: cd web/gi-kg-viewer && npm run build
+cd web/gi-kg-viewer && npm run build
+# Production build to dist/
 # Output: web/gi-kg-viewer/dist/
 # FastAPI serves dist/ as static files
 ```
@@ -524,10 +523,10 @@ make build-ui
 | ------ | ------ |
 | `make serve` | Start backend + frontend dev servers |
 | `make serve-api` | Start FastAPI backend only |
-| `make serve-ui-dev` | Start Vite dev server only |
-| `make build-ui` | Production build of frontend |
-| `make lint-ui` | ESLint + vue-tsc type check |
-| `make test-ui` | Vitest unit tests for frontend |
+| `make serve-ui` | Start Vite dev server only |
+| `cd web/gi-kg-viewer && npm run build` | Production build of frontend |
+| `make test-ui` | Vitest unit tests for TS utils |
+| `make test-ui-e2e` | Playwright browser E2E (Firefox) |
 | `make test-ui-e2e` | Playwright E2E tests for viewer |
 
 ## Key Decisions
@@ -538,8 +537,7 @@ make build-ui
      is fundamentally incompatible with the reactive component model, typed stores,
      and search integration needed for v2. Porting would require rewriting every file
      while fighting the existing structure. A clean start with proper tooling (Vite,
-     TypeScript, Vue) is faster and produces a better result. v1 remains as reference
-     until v2 reaches parity.
+     TypeScript, Vue) is faster and produces a better result. v1 has been removed.
 
 2. **Cytoscape.js only (drop vis-network)**
    - **Decision**: Consolidate to Cytoscape.js as the sole graph engine
@@ -566,7 +564,7 @@ make build-ui
      starts. Feature flags (`enable_viewer`, `enable_platform`) control which route
      groups are mounted. This follows megasketch constraint A.2: "One pipeline core,
      multiple shells." The `podcast serve` CLI command starts this server. The existing
-     `scripts/gi_kg_viz_server.py` is replaced by this proper module.
+     `scripts/gi_kg_viz_server.py` has been replaced by this proper module.
 
 5. **Tailwind CSS (no component library)**
    - **Decision**: Tailwind utility classes + custom components
@@ -736,76 +734,56 @@ web/gi-kg-viewer/
 
 **Playwright configuration:**
 
-```typescript
-import { defineConfig } from "@playwright/test";
-
-export default defineConfig({
-  testDir: "./e2e/tests",
-  timeout: 30_000,
-  retries: 1,
-  use: {
-    baseURL: "http://localhost:8100",
-    headless: true,
-    screenshot: "only-on-failure",
-    trace: "retain-on-failure",
-  },
-  webServer: {
-    command: "make serve",
-    port: 8100,
-    reuseExistingServer: !process.env.CI,
-  },
-});
-```
+See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
+(Firefox, Vite on port 5174, `testDir: ./e2e`).
 
 ### Test Organization
 
-- `web/gi-kg-viewer/src/__tests__/` — frontend unit + component tests (Vitest)
 - `web/gi-kg-viewer/e2e/` — browser E2E tests (Playwright)
 - `tests/unit/podcast_scraper/server/` — backend unit tests (pytest)
-- `tests/integration/test_server_integration.py` — backend API integration (pytest)
+- `tests/integration/test_server_api.py` — backend API integration (pytest)
 
 ### Test Execution
 
 | Command | What Runs | When |
 | ------- | --------- | ---- |
-| `make test-ui` | Vitest (frontend unit + component) | During dev, pre-commit |
 | `make test-ui-e2e` | Playwright (browser E2E) | Pre-merge, CI |
 | `make ci-fast` | pytest (includes server unit + integration) | Pre-commit |
-| `make ci` | Full suite (pytest + Vitest + Playwright) | CI pipeline |
+| `make ci` | Full suite (pytest + Playwright) | CI pipeline |
 
 ## Rollout & Monitoring
 
 **Rollout Plan:**
 
-- **M1 — Scaffold + Server Shell** (~2-3 days): Vite + Vue + Tailwind + Pinia project
+- **M1 — Scaffold + Server Shell** ✅ (done): Vite + Vue + Tailwind + Pinia project
   in `web/gi-kg-viewer/`. Token-based theming layer in `src/theme/` — `tokens.css`
   (UXS-001 semantic tokens as CSS custom properties), `theme.ts` runtime helper,
   default preset, Tailwind config wired to tokens. FastAPI server skeleton in
   `src/podcast_scraper/server/` with `/api/health` and `/api/artifacts` endpoints.
   `podcast serve` CLI command. `make serve` target. Verify Vite dev proxy works.
   Platform route placeholder stubs (empty files, not mounted).
-- **M2 — Graph Port** (~3-4 days): `GraphCanvas.vue` wrapping Cytoscape.js with all v1
+- **M2 — Graph Port** ✅ (done): `GraphCanvas.vue` wrapping Cytoscape.js with all v1
   capabilities: load artifacts, render nodes/edges, filter by type, grounded-only
   toggle, legend with click-to-solo, 1-hop ego focus on double-click, node detail panel.
   Parsing logic ported from `shared.js` to typed TypeScript (`parsing.ts`, `colors.ts`).
   Merge logic (same-layer, GI+KG cross-layer) ported to `artifacts` store.
-- **M3 — Metrics + Dashboard** (~2-3 days): `MetricsPanel.vue` (key-value display),
+- **M3 — Metrics + Dashboard** ✅ (done): `MetricsPanel.vue` (key-value display),
   `IndexStats.vue` (vector counts, model info, freshness), distribution chart
   (Chart.js bar). File-picker fallback for no-backend mode. `DashboardView` with
   corpus overview.
-- **M4 — Search Panel + Backend** (~3-4 days): `SearchBar`, `SearchResults`,
+- **M4 — Search Panel + Backend** ✅ (done): `SearchBar`, `SearchResults`,
   `SearchFilters`, `ResultCard`. `/api/search` wrapping `VectorStore.search()`.
   Click result → graph focus. Search filters (type, feed, date, speaker, grounded-only,
   top-k). Depends on RFC-061 `VectorStore` being available.
-- **M5 — Explore/QA Integration** (~2-3 days): `/api/explore` endpoint wrapping
+- **M5 — Explore/QA Integration** ✅ (done): `/api/explore` endpoint wrapping
   `run_uc5_insight_explorer` and `run_uc4_semantic_qa`. Topic explorer and QA view in
   frontend. Semantic matching when vector index available, substring fallback when not.
-- **M6 — Polish** (~2-3 days): Dark mode (Tailwind, driven by `tokens.css`
+- **M6 — Polish** ✅ (done): Dark mode (Tailwind, driven by `tokens.css`
   `prefers-color-scheme`), finalize open tunable parameters in UXS-001 (typography,
   radii, spacing), keyboard shortcuts (/ for search, Escape to clear focus), graph
   export (PNG/SVG via Cytoscape), responsive layout, loading states, error handling,
   documentation update.
-- **M7 — E2E Test Layer** (~2-3 days): Playwright setup and configuration. Test
+- **M7 — E2E Test Layer** ✅ (done): Playwright setup and configuration. Test
   fixtures (sample artifacts, pre-built small FAISS index). Core E2E scenarios: graph
   load, search, search-to-graph focus, filters, dashboard, offline fallback, dark mode.
   `make test-ui-e2e` target. CI integration.
@@ -829,9 +807,9 @@ export default defineConfig({
 7. Dark mode works correctly, driven by UXS-001 semantic tokens in `tokens.css`
 8. Theme presets load correctly; swapping a preset changes typography/spacing/radii
    without touching component code
-9. Playwright E2E tests pass in CI (headless Chromium)
+9. Playwright E2E tests pass in CI (headless Firefox)
 10. Server architecture supports adding platform routes (#50, #347) without restructuring
-11. v1 `web/gi-kg-viz/` can be removed after v2 validation
+11. v1 `web/gi-kg-viz/` removed (Phase 4 complete)
 12. All documentation deliverables complete (see Definition of Done below)
 
 **Definition of Done — Documentation Deliverables:**
@@ -839,15 +817,15 @@ export default defineConfig({
 The following documentation must be created or updated before this RFC is considered
 complete. These are tracked as part of the implementation issue.
 
-| Deliverable | Action | Description |
-| ----------- | ------ | ----------- |
-| `docs/guides/SERVER_GUIDE.md` (new) | Create | Comprehensive server guide: tech stack rationale, architecture overview, route conventions, how to add new routes, how to add platform routes, configuration, `podcast serve` usage, dev workflow, extension patterns. This is the go-to reference for anyone extending the server. |
-| `docs/architecture/ARCHITECTURE.md` | Update | Add the server module (`src/podcast_scraper/server/`) to the module map. Document the "one pipeline core, multiple shells" pattern. Add the CLI → Server → Platform evolution diagram. |
-| `docs/architecture/TESTING_STRATEGY.md` | Update | Add the UI testing layers (Vitest unit/component, Playwright E2E, visual regression). Document Makefile targets (`make test-ui`, `make test-ui-e2e`). Document test fixture strategy for viewer E2E. |
-| `docs/guides/DEVELOPMENT_GUIDE.md` | Update | Add `make serve`, `make serve-api`, `make serve-ui-dev`, `make build-ui` to the developer commands section. Document the Vite dev proxy setup. |
-| `README.md` | Update | Add `podcast serve` command to the CLI reference. Mention the viewer and link to `SERVER_GUIDE.md`. |
-| `web/gi-kg-viewer/README.md` (new) | Create | Frontend-specific README: how to install, dev, build, test, lint. Component architecture overview. How to add new views/stores. |
-| `docs/guides/TESTING_GUIDE.md` | Update | Add Playwright E2E section: setup, running, writing new tests, CI integration, fixture management. |
+| Deliverable | Action | Description | Status |
+| ----------- | ------ | ----------- | ------ |
+| `docs/guides/SERVER_GUIDE.md` (new) | Create | Comprehensive server guide: tech stack rationale, architecture overview, route conventions, how to add new routes, how to add platform routes, configuration, `podcast serve` usage, dev workflow, extension patterns. This is the go-to reference for anyone extending the server. | Created |
+| `docs/architecture/ARCHITECTURE.md` | Update | Add the server module (`src/podcast_scraper/server/`) to the module map. Document the "one pipeline core, multiple shells" pattern. Add the CLI → Server → Platform evolution diagram. | Updated |
+| `docs/architecture/TESTING_STRATEGY.md` | Update | Add the UI testing layers (Playwright E2E, visual regression). Document Makefile targets (`make test-ui-e2e`). Document test fixture strategy for viewer E2E. | Updated |
+| `docs/guides/DEVELOPMENT_GUIDE.md` | Update | Add `make serve`, `make serve-api`, `make serve-ui`, `make test-ui`, `make test-ui-e2e` to the developer commands section. Document the Vite dev proxy setup. | Updated |
+| `README.md` | Update | Add `podcast serve` command to the CLI reference. Mention the viewer and link to `SERVER_GUIDE.md`. | Updated |
+| `web/gi-kg-viewer/README.md` (new) | Create | Frontend-specific README: how to install, dev, build, test, lint. Component architecture overview. How to add new views/stores. | Created |
+| `docs/guides/TESTING_GUIDE.md` | Update | Add Playwright E2E section: setup, running, writing new tests, CI integration, fixture management. | Updated |
 
 ## Platform Evolution Path
 
@@ -884,7 +862,7 @@ grows into the full platform vision described in the
 | --------- | --------------- | ----------- |
 | Docker Compose | `postgres` + `api` + `worker` + `caddy` services | Megasketch Part B |
 | Worker process | Same image, different `command` — consumes job queue | Uses `service.run()` internally |
-| Static build | Vite output baked into Docker image | `make build-ui` in Dockerfile |
+| Static build | Vite output baked into Docker image | `npm run build` in Dockerfile |
 
 ### Growth Path (No Architectural Rewrites)
 
@@ -972,14 +950,14 @@ CRUD routes, job management, and Postgres integration — all on the same
 
 ## Migration Path
 
-1. **Phase 1 — Build v2**: New `web/gi-kg-viewer/` directory and
-   `src/podcast_scraper/server/` module. v1 (`web/gi-kg-viz/`) remains untouched.
-2. **Phase 2 — Validate parity**: Confirm all v1 capabilities work in v2. Playwright
-   E2E tests green. Gather feedback.
-3. **Phase 3 — Switch default**: `make serve` points to v2. `podcast serve` is the
-   canonical server command. Add deprecation notice to v1.
-4. **Phase 4 — Remove v1**: Delete `web/gi-kg-viz/` and `scripts/gi_kg_viz_server.py`
-   after v2 is validated.
+1. **Phase 1 — Build v2** ✅: New `web/gi-kg-viewer/` directory and
+   `src/podcast_scraper/server/` module.
+2. **Phase 2 — Validate parity** ✅: v1 capabilities work in v2. Playwright
+   E2E tests green.
+3. **Phase 3 — Switch default** ✅: `make serve` points to v2. `podcast serve` is the
+   canonical server command.
+4. **Phase 4 — Remove v1** ✅: `web/gi-kg-viz/` and `scripts/gi_kg_viz_server.py`
+   deleted. v2 is the sole viewer.
 5. **Phase 5 — Platform extension** (v2.7): Add platform routes, views, and stores to
    the same server and frontend. No structural migration needed.
 
@@ -1017,11 +995,11 @@ CRUD routes, job management, and Postgres integration — all on the same
 - **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
 - **Related RFC**: `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md`
 - **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
-- **Viewer v1**: `web/gi-kg-viz/` (current implementation from #445)
+- **Viewer v1**: `web/gi-kg-viz/` (removed — was the #445 prototype)
 - **Platform Vision**: `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md`
 - **Platform Issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50) (UI + server),
   [#347](https://github.com/chipi/podcast_scraper/issues/347) (UI for DB),
   [#46](https://github.com/chipi/podcast_scraper/issues/46) (Docker architecture)
-- **Source Code**: `scripts/gi_kg_viz_server.py` (current dev server, replaced by `server/`)
+- **Source Code**: `scripts/gi_kg_viz_server.py` (removed — replaced by `server/`)
 - **Source Code**: `podcast_scraper/gi/explore.py` (explore/query logic)
 - **Source Code**: `podcast_scraper/service.py` (one-shot pipeline execution)

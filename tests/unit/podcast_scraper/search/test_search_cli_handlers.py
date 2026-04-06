@@ -124,7 +124,7 @@ def test_run_search_cli_json(capsys: pytest.CaptureFixture[str], tmp_path: Path)
         command="search",
     )
 
-    with patch("podcast_scraper.search.cli_handlers.embedding_loader.encode") as enc:
+    with patch("podcast_scraper.search.corpus_search.embedding_loader.encode") as enc:
         enc.return_value = e0
         assert run_search_cli(args, _LOG) == EXIT_SUCCESS
 
@@ -178,7 +178,7 @@ def test_run_search_cli_doc_type_kg_topic(
     store.persist(idx)
 
     args = _search_args_ns(out, query=["q"], doc_type="kg_topic", top_k=5)
-    with patch("podcast_scraper.search.cli_handlers.embedding_loader.encode") as enc:
+    with patch("podcast_scraper.search.corpus_search.embedding_loader.encode") as enc:
         enc.return_value = e_kg
         assert run_search_cli(args, _LOG) == EXIT_SUCCESS
 
@@ -229,7 +229,7 @@ def test_run_search_cli_grounded_only_drops_ungrounded_insight(
     store.persist(idx)
 
     args = _search_args_ns(out, query=["q"], grounded_only=True, top_k=10)
-    with patch("podcast_scraper.search.cli_handlers.embedding_loader.encode") as enc:
+    with patch("podcast_scraper.search.corpus_search.embedding_loader.encode") as enc:
         enc.return_value = emb
         assert run_search_cli(args, _LOG) == EXIT_SUCCESS
 
@@ -285,7 +285,7 @@ def test_run_search_cli_feed_and_since_filters(
         since="2024-01-01",
         top_k=10,
     )
-    with patch("podcast_scraper.search.cli_handlers.embedding_loader.encode") as enc:
+    with patch("podcast_scraper.search.corpus_search.embedding_loader.encode") as enc:
         enc.return_value = emb
         assert run_search_cli(args, _LOG) == EXIT_SUCCESS
 
@@ -362,7 +362,7 @@ def test_run_search_cli_speaker_filter_on_quote(
     store.persist(idx)
 
     args = _search_args_ns(out, query=["q"], speaker="HOST", top_k=10)
-    with patch("podcast_scraper.search.cli_handlers.embedding_loader.encode") as enc:
+    with patch("podcast_scraper.search.corpus_search.embedding_loader.encode") as enc:
         enc.return_value = emb
         assert run_search_cli(args, _LOG) == EXIT_SUCCESS
 
@@ -434,3 +434,27 @@ def test_run_index_cli_calls_index_corpus_when_not_stats(
     cargs, ckwargs = mock_ic.call_args
     assert cargs[0] == str(tmp_path)
     assert ckwargs["rebuild"] is True
+
+
+@pytest.mark.unit
+@patch("podcast_scraper.search.cli_handlers.index_corpus")
+def test_run_index_cli_passes_vector_index_types_to_config(
+    mock_ic: MagicMock, tmp_path: Path
+) -> None:
+    from podcast_scraper.search.indexer import IndexRunStats
+
+    mock_ic.return_value = IndexRunStats()
+    args = Namespace(
+        output_dir=str(tmp_path),
+        stats=False,
+        rebuild=False,
+        vector_index_path=None,
+        embedding_model=None,
+        vector_faiss_index_mode=None,
+        vector_index_types="insight, quote",
+        command="index",
+    )
+    assert run_index_cli(args, _LOG) == EXIT_SUCCESS
+    mock_ic.assert_called_once()
+    cfg = mock_ic.call_args[0][1]
+    assert cfg.vector_index_types == ["insight", "quote"]

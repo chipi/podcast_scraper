@@ -6,7 +6,7 @@
 > - **[Testing Guide](../guides/TESTING_GUIDE.md)** - Quick reference, test execution commands
 > - **[Unit Testing Guide](../guides/UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
-> - **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking
+> - **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)** - pytest E2E (server, ML, mocks); **browser E2E** (Playwright / viewer v2)
 > - **[Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Overview
@@ -59,6 +59,12 @@ The testing strategy follows a three-tier pyramid:
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
 | **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
 | **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
+| **Frontend unit** | TypeScript utility logic (parsing, merge, metrics) | Node (Vitest) | N/A | Vitest + inline fixtures | N/A |
+| **Browser UI E2E** | Vue viewer in a real browser | Browser (Playwright) | Vite dev server (local) | Playwright + fixture JSON | N/A (no Python ML in UI tests) |
+
+**Frontend unit** tests use **Vitest** (`make test-ui`) to validate pure TS logic in
+`web/gi-kg-viewer/src/utils/*.test.ts` — fast (~150 ms), no browser.
+**Browser UI E2E** is an **additive** layer: it uses **Playwright** under `web/gi-kg-viewer/`, not pytest, and is **not** counted in the ~230 pytest E2E tests. See **[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright)** below and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 
 ### Volume and default bias
 
@@ -77,7 +83,7 @@ The testing strategy follows a three-tier pyramid:
 ### Decision Questions
 
 1. **Am I testing a complete user workflow?** (CLI command, library API call, service API call)
-   - **YES** → E2E Test
+   - **YES** → E2E Test (pytest) — unless the workflow is **only** the **Vue viewer in a browser** (graph, search panel, keyboard, theme), in which case → **Playwright** (`make test-ui-e2e`; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright))
    - **NO** → Continue to question 2
 
 2. **Am I testing how multiple components work together?** (RSS parser → Episode → Provider → File)
@@ -173,6 +179,37 @@ The testing strategy follows a three-tier pyramid:
   with real implementations. NO mocks allowed — tests
   the system as users would use it.
 
+### Browser UI E2E (Playwright) {#browser-ui-e2e-playwright}
+
+The **GI/KG viewer v2** (`web/gi-kg-viewer/`) adds **browser-level** regression tests using
+**Playwright** (TypeScript). This is **not** a fourth pytest marker: specs live in
+`web/gi-kg-viewer/e2e/` and run via **`make test-ui-e2e`** (or `npm run test:e2e` in that
+directory).
+
+| Aspect | Browser UI E2E (Playwright) | pytest E2E (`tests/e2e/`) |
+| ------ | ----------------------------- | ------------------------- |
+| **Runner** | `@playwright/test` | pytest |
+| **Entry point** | Browser → Vue SPA | CLI, `run_pipeline()`, `service.run()` |
+| **Typical proof** | Layout, Cytoscape graph shell, search UI, a11y/keyboard, offline fixtures | Full pipeline, providers, disk artifacts |
+| **Local server** | Playwright `webServer` starts **Vite** on **127.0.0.1:5174** | `e2e_server` fixture (RSS/audio/transcripts + LLM mocks) |
+| **In `make test`?** | No | Yes |
+| **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`); required for docs publish path on main | `test-e2e`, `test-e2e-fast`, etc. |
+
+**Python API for the viewer** (`GET /api/search`, `/api/explore`, etc.) is validated at two pytest
+layers (both skipped when FastAPI / `[server]` extras are missing):
+
+- **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — mocked route internals.
+- **Integration:** `tests/integration/test_server_api.py` — wired `create_app` with real
+  filesystem artifacts (no mocking of route internals).
+
+Use **Playwright** when the risk is **client rendering or interaction**, not when a pure JSON
+contract change is enough.
+
+**References:** [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+[E2E Testing Guide — Playwright](../guides/E2E_TESTING_GUIDE.md#browser-e2e-playwright),
+[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
+[viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
+
 ## Decision Criteria
 
 The decision questions above provide a quick way to determine test type. For critical path prioritization, see [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md). For detailed implementation guidelines, see [Testing Guide](../guides/TESTING_GUIDE.md).
@@ -182,6 +219,7 @@ The decision questions above provide a quick way to determine test type. For cri
 - **Unit Test**: Single function/module in isolation, all dependencies mocked
 - **Integration Test**: Multiple components working together, real internal implementations, mocked external services (including ML models for speed)
 - **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (NO mocks)
+- **Browser UI E2E (Playwright)**: Vue viewer behavior in a real browser; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright) and [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2)
 
 **Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
 
@@ -550,11 +588,13 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 
 ### Test Organization
 
-The test suite is organized into three main categories:
+The test suite is organized into three main **pytest** categories, plus the **frontend** tree:
 
 - **`tests/unit/`** - Unit tests per module (fast, isolated, fully mocked)
 - **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
 - **`tests/e2e/`** - E2E tests (complete workflows, real HTTP client, real ML models)
+- **`web/gi-kg-viewer/src/utils/*.test.ts`** - Vitest unit tests for TS utility logic (`make test-ui`)
+- **`web/gi-kg-viewer/e2e/`** - Playwright specs (`*.spec.ts`); **`web/gi-kg-viewer/playwright.config.ts`** — browser UI E2E (not collected by pytest)
 
 ### Test Markers
 
@@ -642,6 +682,8 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   tests using test ML models (~5-8 min)
 - **test-e2e-fast**: Critical path E2E tests (Tier 1)
   using test ML models (~8-12 min)
+- **viewer-unit**: Vitest unit tests for `web/gi-kg-viewer` TS utils (`make test-ui`; ~150 ms)
+- **viewer-e2e**: Playwright tests for `web/gi-kg-viewer` (`make test-ui-e2e`; Firefox, Vite on 5174)
 - **build**: Package build validation (~2 min)
 - **docs**: Documentation build validation (~3 min)
 
@@ -861,7 +903,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
 - [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
 - [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
-- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/kg/*.yaml` (including `acceptance_planet_money_kg_grok.yaml` for Grok + provider KG).
+- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/full/*.yaml` (including `acceptance_planet_money_grok.yaml` for Grok in the full pipeline).
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
 - [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)
@@ -1074,7 +1116,9 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - **[Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md)**
   — Integration test mocking guidelines
 - **[E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md)**
-  — E2E server, real ML models, API mocking
+  — pytest E2E server, real ML models, API mocking; Playwright viewer stack
+- **[ADR-066: Playwright for UI E2E](../adr/ADR-066-playwright-for-ui-e2e-testing.md)**
+  — browser automation choice for viewer v2
 - Test structure reorganization:
   `docs/rfc/RFC-018-test-structure-reorganization.md`
 - CI workflow: `.github/workflows/python-app.yml`

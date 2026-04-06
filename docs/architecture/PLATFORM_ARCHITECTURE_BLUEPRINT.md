@@ -201,7 +201,7 @@ ToS risks in a threat model.
 ### A.11 Relation to current repo
 
 - **Today:** One `Config`, one `rss`, `run_pipeline` → filesystem; `service.run` one-shot.
-  **CLI** = default mental model. GI/KG viewer v1 (`web/gi-kg-viz/`) is a vanilla-JS prototype.
+  **CLI** = default mental model. GI/KG viewer v2 (`web/gi-kg-viewer/`) is a Vue 3 + FastAPI app (RFC-062).
   Semantic search (RFC-061 Phase 1) adds `podcast search`, `podcast index`, vector store.
 
 - **Platform:** Catalog + subscriptions **when** operator chooses platform mode; workers replace

@@ -1,3 +1,7 @@
+# Dependency / build trees (markdownlint --ignore node_modules only matches ./node_modules)
+**/node_modules/
+**/.venv/
+
 # Files with legitimate long lines (technical descriptions, URLs, etc.)
 docs/ARCHITECTURE.md
 docs/DEPENDENCIES.md

@@ -5,15 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import time
 from argparse import Namespace
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional, Sequence
 
 from podcast_scraper import config
-from podcast_scraper.providers.ml import embedding_loader
-from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.faiss_store import FaissVectorStore
 from podcast_scraper.search.indexer import index_corpus
 from podcast_scraper.search.protocol import SearchResult
@@ -240,98 +237,43 @@ def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
         return EXIT_INVALID_ARGS
 
     out = Path(output_dir)
-    index_dir = _resolve_index_dir(out, getattr(args, "index_path", None))
-    if not (index_dir / "vectors.faiss").is_file():
-        logger.error(
-            "No vector index at %s (run `index` or pipeline with vector_search)", index_dir
-        )
-        return EXIT_NO_ARTIFACTS
+    from podcast_scraper.search.corpus_search import run_corpus_search
 
-    try:
-        store = FaissVectorStore.load(index_dir)
-    except Exception as exc:
-        logger.error("Failed to load index: %s", format_exception_for_log(exc))
-        return EXIT_NO_ARTIFACTS
+    doc_type_raw = getattr(args, "doc_type", None)
+    doc_types: Optional[List[str]] = None
+    if isinstance(doc_type_raw, str) and doc_type_raw.strip():
+        doc_types = [doc_type_raw.strip()]
 
-    idx_model = store.stats().embedding_model
-    cli_override = getattr(args, "embedding_model", None)
-    if isinstance(cli_override, str) and cli_override.strip():
-        if ModelRegistry.resolve_evidence_model_id(
-            cli_override
-        ) != ModelRegistry.resolve_evidence_model_id(idx_model):
-            logger.warning(
-                "search: --embedding-model %s differs from index model %s; "
-                "scores may be unreliable.",
-                cli_override,
-                idx_model,
-            )
-        model_id = cli_override.strip()
-    else:
-        model_id = idx_model
-    t_embed0 = time.perf_counter()
-    try:
-        qvec = embedding_loader.encode(
-            query,
-            model_id,
-            return_numpy=False,
-            allow_download=False,
-        )
-        if isinstance(qvec, list) and qvec and isinstance(qvec[0], float):
-            qemb = cast(List[float], qvec)
-        else:
-            logger.error("search: expected a single query embedding")
-            return EXIT_INVALID_ARGS
-    except Exception as exc:
-        logger.error("Embedding failed: %s", format_exception_for_log(exc))
+    outcome = run_corpus_search(
+        out,
+        query,
+        doc_types=doc_types,
+        feed=getattr(args, "feed", None),
+        since=getattr(args, "since", None),
+        speaker=getattr(args, "speaker", None),
+        grounded_only=bool(getattr(args, "grounded_only", False)),
+        top_k=max(1, int(getattr(args, "top_k", 10) or 10)),
+        index_path=getattr(args, "index_path", None),
+        embedding_model=getattr(args, "embedding_model", None),
+    )
+
+    if outcome.error == "empty_query":
+        logger.error("search: provide a non-empty query")
         return EXIT_INVALID_ARGS
-    embed_sec = time.perf_counter() - t_embed0
+    if outcome.error == "no_index":
+        logger.error(
+            "No vector index at %s (run `index` or pipeline with vector_search)",
+            outcome.detail or "",
+        )
+        return EXIT_NO_ARTIFACTS
+    if outcome.error == "load_failed":
+        logger.error("Failed to load index: %s", outcome.detail or "")
+        return EXIT_NO_ARTIFACTS
+    if outcome.error == "embed_failed":
+        logger.error("Embedding failed: %s", outcome.detail or "")
+        return EXIT_INVALID_ARGS
 
-    doc_type = getattr(args, "doc_type", None)
-    faiss_filters: Optional[Dict[str, Any]] = None
-    if doc_type:
-        faiss_filters = {"doc_type": doc_type}
-
-    top_k = max(1, int(getattr(args, "top_k", 10) or 10))
-    fetch_k = min(max(top_k * 25, top_k), max(store.ntotal, 1))
-
-    t_search0 = time.perf_counter()
-    hits = store.search(
-        qemb,
-        top_k=fetch_k,
-        filters=faiss_filters,
-        overfetch_factor=1,
-    )
-    search_sec = time.perf_counter() - t_search0
-    logger.info(
-        "search: embed_sec=%.4f search_sec=%.4f ntotal=%s fetch_k=%s",
-        embed_sec,
-        search_sec,
-        store.ntotal,
-        fetch_k,
-    )
-
-    feed_substr = getattr(args, "feed", None)
-    speaker_substr = getattr(args, "speaker", None)
-    grounded_only = bool(getattr(args, "grounded_only", False))
-    since_raw = getattr(args, "since", None)
-    since_dt = _parse_since(since_raw) if isinstance(since_raw, str) and since_raw.strip() else None
-
-    gi_cache = _episode_to_gi_path(out)
-    filtered: List[SearchResult] = []
-    for h in hits:
-        if _hit_passes_cli_filters(
-            h,
-            feed_substr=feed_substr,
-            since_dt=since_dt,
-            speaker_substr=speaker_substr,
-            grounded_only=grounded_only,
-            gi_by_episode=gi_cache,
-        ):
-            filtered.append(h)
-        if len(filtered) >= top_k:
-            break
-
-    enriched = [_enrich_hit(h, gi_cache) for h in filtered]
+    enriched = outcome.results
 
     fmt = getattr(args, "format", "pretty") or "pretty"
     if fmt == "json":
