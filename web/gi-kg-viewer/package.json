@@ -19,6 +19,8 @@
     "vue": "^3.5.30"
   },
   "devDependencies": {
+    "@emnapi/core": "^1.9.2",
+    "@emnapi/runtime": "^1.9.2",
     "@playwright/test": "^1.50.1",
     "@types/cytoscape": "^3.21.9",
     "@types/node": "^24.12.0",
