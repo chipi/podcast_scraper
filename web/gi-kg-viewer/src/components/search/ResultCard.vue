@@ -37,6 +37,8 @@ function onFocus(): void {
 <template>
   <article
     class="rounded border border-border bg-elevated p-2 text-xs text-elevated-foreground"
+    :class="focusable ? 'cursor-pointer hover:border-primary/50 hover:bg-overlay transition-colors' : ''"
+    @click="onFocus"
   >
     <div class="mb-1 flex flex-wrap items-center gap-2">
       <span class="font-mono text-[10px] text-primary">{{ docType }}</span>
@@ -45,14 +47,20 @@ function onFocus(): void {
         v-if="episodeId"
         class="text-muted"
       >ep {{ episodeId }}</span>
-      <button
+      <svg
         v-if="focusable"
-        type="button"
-        class="ml-auto rounded border border-border px-2 py-0.5 text-[10px] font-medium hover:bg-overlay"
-        @click="onFocus"
+        class="ml-auto h-3 w-3 shrink-0 text-primary/60"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
       >
-        Show on graph
-      </button>
+        <circle cx="12" cy="12" r="3" />
+        <circle cx="12" cy="12" r="9" stroke-dasharray="4 3" />
+      </svg>
     </div>
     <p class="leading-snug text-surface-foreground">
       {{ truncate(hit.text || '(no text)', 320) }}
@@ -61,6 +69,7 @@ function onFocus(): void {
     <div
       v-if="quotes.length"
       class="mt-1.5"
+      @click.stop
     >
       <button
         type="button"

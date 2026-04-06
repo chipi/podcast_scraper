@@ -4,16 +4,50 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import NodeDetail from './NodeDetail.vue'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useSearchStore } from '../../stores/search'
+import { useThemeStore } from '../../stores/theme'
 import { graphNodeFill } from '../../utils/colors'
 import { toCytoElements } from '../../utils/parsing'
+import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
 
 const gf = useGraphFilterStore()
 const nav = useGraphNavigationStore()
+const searchStore = useSearchStore()
+const themeStore = useThemeStore()
 const container = ref<HTMLDivElement | null>(null)
 const focusNodeId = ref<string | null>(null)
 const selectedNodeId = ref<string | null>(null)
 /** Detail side panel opens on double-click only; selection stays for future node actions. */
 const detailPanelOpen = ref(false)
+
+const searchHighlightIds = computed<Set<string>>(() => {
+  const ids = new Set<string>()
+  for (const hit of searchStore.results) {
+    const id = graphNodeIdFromSearchHit(hit)
+    if (id) ids.add(id)
+  }
+  return ids
+})
+
+const searchHighlightCount = ref(0)
+
+function applySearchHighlights(core: Core): void {
+  core.nodes().removeClass('search-hit')
+  const rawIds = searchHighlightIds.value
+  if (rawIds.size === 0) {
+    searchHighlightCount.value = 0
+    return
+  }
+  const matched = new Set<string>()
+  for (const rawId of rawIds) {
+    const cyId = resolveCyNodeId(core, rawId)
+    if (cyId && !matched.has(cyId)) {
+      matched.add(cyId)
+      core.$id(cyId).addClass('search-hit')
+    }
+  }
+  searchHighlightCount.value = matched.size
+}
 
 const hint = computed(() => {
   if (focusNodeId.value) {
@@ -29,16 +63,15 @@ const hint = computed(() => {
 })
 
 function nodeLabelColor(): string {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    try {
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return '#e8ecf1'
-      }
-    } catch {
-      /* ignore */
-    }
+  try {
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue('--ps-canvas-foreground')
+      .trim()
+    if (v) return v
+  } catch {
+    /* ignore */
   }
-  return '#1a2332'
+  return '#e5e8eb'
 }
 
 function buildCyStyle() {
@@ -97,6 +130,17 @@ function buildCyStyle() {
       },
     } as (typeof style)[number])
   }
+  style.push({
+    selector: 'node.search-hit',
+    style: {
+      'border-width': 4,
+      'border-color': '#fab005',
+      'border-opacity': 0.9,
+      width: 24,
+      height: 24,
+      'z-index': 10,
+    },
+  } as (typeof style)[number])
   return style as never
 }
 
@@ -121,20 +165,21 @@ function destroyCy(): void {
 }
 
 function tryApplyPendingFocus(core: Core): void {
-  const id = nav.pendingFocusNodeId
-  if (!id) return
-  const n = core.$id(id)
-  if (n.empty()) {
-    return
-  }
+  const rawId = nav.pendingFocusNodeId
+  if (!rawId) return
+  const cyId = resolveCyNodeId(core, rawId)
+  if (!cyId) return
+  const n = core.$id(cyId)
   core.nodes().unselect()
   n.select()
-  selectedNodeId.value = id
+  selectedNodeId.value = cyId
   detailPanelOpen.value = true
   try {
+    const targetZoom = Math.max(core.zoom(), 1.6)
     core.animate({
       center: { eles: n },
-      duration: 260,
+      zoom: targetZoom,
+      duration: 320,
     })
   } catch {
     try {
@@ -246,9 +291,13 @@ function redraw(): void {
     elements,
     layout: {
       name: 'cose',
-      padding: 24,
+      padding: 36,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nodeRepulsion: () => 450000,
+      nodeRepulsion: () => 800000,
+      idealEdgeLength: () => 80,
+      edgeElasticity: () => 100,
+      gravity: 0.15,
+      nodeDimensionsIncludeLabels: true,
     } as any,
     style: buildCyStyle(),
     wheelSensitivity: 0.35,
@@ -351,8 +400,18 @@ function redraw(): void {
       }, 160)
     })
     tryApplyPendingFocus(core)
+    applySearchHighlights(core)
   })
 }
+
+watch(
+  () => searchStore.results,
+  () => {
+    const c = cy
+    if (c) applySearchHighlights(c)
+  },
+  { flush: 'post' },
+)
 
 watch(
   () => gf.filteredArtifact,
@@ -363,6 +422,13 @@ watch(
     redraw()
   },
   { flush: 'post' },
+)
+
+watch(
+  () => themeStore.choice,
+  () => {
+    nextTick(() => redraw())
+  },
 )
 
 watch(
@@ -419,6 +485,12 @@ defineExpose({
       >
         Export PNG
       </button>
+      <span
+        v-if="searchHighlightCount > 0"
+        class="rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-600"
+      >
+        {{ searchHighlightCount }} search {{ searchHighlightCount === 1 ? 'hit' : 'hits' }}
+      </span>
       <span class="min-w-0 flex-1 text-xs text-muted">{{ hint }}</span>
     </div>
     <div class="flex min-h-[240px] min-w-0 flex-1 sm:min-h-[380px]">

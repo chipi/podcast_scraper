@@ -57,6 +57,6 @@ Provider keys: `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEE
 ## Related acceptance configs
 
 For provider matrices and CI-style runs, see [`config/acceptance/README.md`](../acceptance/README.md).
-Examples: `config/acceptance/gi/acceptance_planet_money_gi_openai.yaml` (GI only, stub insights),
-`config/acceptance/kg/acceptance_planet_money_kg_openai_provider.yaml` (KG `provider` with mixed
-local Whisper + OpenAI summary).
+Examples: `config/acceptance/full/acceptance_planet_money_openai.yaml` (full pipeline: summaries,
+GI, KG from summary bullets, semantic index). For mixed stacks or `provider`-mode GI/KG, use
+presets under `config/manual/` (see table above).

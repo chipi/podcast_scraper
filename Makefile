@@ -699,7 +699,7 @@ test-acceptance:
 		echo "Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
 		echo ""; \
 		echo "Options:"; \
-		echo "  CONFIGS=pattern         Config file pattern (required, e.g., 'config/examples/config.example.yaml' or 'config/acceptance/summarization/*.yaml' or 'config/acceptance/gi/*.yaml')"; \
+		echo "  CONFIGS=pattern         Config file pattern (required, e.g., 'config/acceptance/full/*.yaml')"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -713,8 +713,8 @@ test-acceptance:
 		echo ""; \
 		echo "Examples:"; \
 		echo "  make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
-		echo "  make test-acceptance CONFIGS=\"config/acceptance/summarization/*.yaml\" USE_FIXTURES=1"; \
-		echo "  make test-acceptance CONFIGS=\"config/acceptance/summarization/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1"; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
 		exit 1; \
 	fi
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \

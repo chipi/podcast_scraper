@@ -148,7 +148,7 @@ def find_config_files(pattern: str) -> List[Path]:
 
     Args:
         pattern: Single glob, or multiple globs separated by whitespace (e.g.
-            "config/acceptance/summarization/*.yaml config/acceptance/gi/*.yaml")
+            "config/acceptance/full/*.yaml")
 
     Returns:
         Sorted list of unique matching config file paths
@@ -840,6 +840,15 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
             shutil.rmtree(transcripts_dest)
         shutil.copytree(transcripts_source, transcripts_dest)
         logger.debug(f"Copied transcript files to: {transcripts_dest}")
+
+    # Copy search/FAISS index directory (vector_search output)
+    search_source = source_dir / "search"
+    if search_source.exists():
+        search_dest = run_output_dir / "search"
+        if search_dest.exists():
+            shutil.rmtree(search_dest)
+        shutil.copytree(search_source, search_dest)
+        logger.debug(f"Copied search index to: {search_dest}")
 
     # Copy run tracking files (run.json, index.json, run_manifest.json, metrics.json)
     # directly to run_output_dir (flat)
@@ -1667,7 +1676,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         required=True,
         help=(
             "Config file glob pattern, or multiple space-separated globs "
-            "(e.g. 'config/acceptance/summarization/*.yaml config/acceptance/gi/*.yaml')"
+            "(e.g. 'config/acceptance/full/*.yaml')"
         ),
     )
     parser.add_argument(

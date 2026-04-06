@@ -34,8 +34,7 @@ something works while you **run** the steps.
 
 Feeds match **GI/KG acceptance**: NPR Planet Money
 `https://feeds.npr.org/510289/podcast.xml` (same as
-`config/acceptance/gi/acceptance_planet_money_gi_*.yaml` and most
-`config/acceptance/kg/acceptance_planet_money_kg_*.yaml`).
+`config/acceptance/full/acceptance_planet_money_*.yaml`).
 
 **Index and file list:** `config/manual/README.md` (repository root).
 
@@ -71,23 +70,23 @@ and [CONFIGURATION.md — GIL evidence providers](../api/CONFIGURATION.md#ground
 For ML step **D**, set `whisper_device` / `summary_device` to **`cpu`** in the YAML if you are not
 on Apple Silicon or MPS is unavailable.
 
-### Acceptance configs (single-layer or CI-style smoke)
+### Acceptance configs (full pipeline, CI-style)
 
-Same NPR feed and naming as automation; useful for comparing with CI or running one layer
-only. See `config/acceptance/README.md` at the repository root.
+Same NPR / WSJ feeds and provider matrix as automation; each YAML runs **summaries + GI +
+KG + semantic index** (`summary_bullets` for GI and KG — not stub-only splits). See
+`config/acceptance/README.md` at the repository root.
 
 | Use case | Example config |
 | --- | --- |
-| GI only, OpenAI stack, **stub** insights (fast smoke — not for “quality” manual pass) | `config/acceptance/gi/acceptance_planet_money_gi_openai.yaml` |
-| GI, **summary_bullets**, local ML | `config/acceptance/gi/acceptance_planet_money_gi_ml_summary_bullets.yaml` |
-| KG only, OpenAI, **stub** graph | `config/acceptance/kg/acceptance_planet_money_kg_openai.yaml` |
-| KG, **`provider`**, Whisper + OpenAI summary (mixed stack) | `config/acceptance/kg/acceptance_planet_money_kg_openai_provider.yaml` |
-| KG, **summary_bullets**, local ML | `config/acceptance/kg/acceptance_planet_money_kg_ml_summary_bullets.yaml` |
-| Summaries only, OpenAI (different NPR id `510325` in that file) | `config/acceptance/summarization/acceptance_planet_money_openai.yaml` |
+| Full pipeline, OpenAI stack | `config/acceptance/full/acceptance_planet_money_openai.yaml` |
+| Full pipeline, local ML (dev / faster models) | `config/acceptance/full/acceptance_planet_money_ml_dev.yaml` |
+| Full pipeline, local ML (prod-style models) | `config/acceptance/full/acceptance_planet_money_ml_prod.yaml` |
+| Full pipeline, another cloud provider | `config/acceptance/full/acceptance_planet_money_<provider>.yaml` (e.g. `gemini`, `anthropic`) |
 
-For **The Journal** (not NPR; WSJ feed), mirror with
-`config/acceptance/gi/acceptance_the_journal_gi_openai.yaml` and related `the_journal_*`
-YAMLs under `config/acceptance/gi/` and `config/acceptance/kg/`.
+For **The Journal** (WSJ feed), mirror with `config/acceptance/full/acceptance_the_journal_*.yaml`.
+
+For **stub** GI, **`provider`**-mode KG, summaries-only, or other layer-specific presets,
+use **`config/manual/`** (see [Ready-made configs](#ready-made-configs-npr-feeds-and-openai-first)) or pytest E2E tests.
 
 **Runner reference:** `scripts/acceptance/README.md` (repository root).
 
@@ -125,7 +124,7 @@ flags. Mapping:
 **Gotchas (from guides):**
 
 - **`gi_insight_source: stub`** — placeholder insights; fine for CI-style smoke, not for
-  your “does GI make sense?” pass. Details: [Enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights). (Several **acceptance** GI YAMLs keep `stub` on purpose.)
+  your “does GI make sense?” pass. Details: [Enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights). Acceptance **`full/`** configs use **`summary_bullets`** for GI; use **`config/manual/`** or pytest E2E for stub or other modes.
 - **`kg_extraction_source: provider`** with **ML-only** summary provider — graph extraction
   is a no-op; pipeline falls back to **summary bullets** when available. Details:
   [KG guide extraction table](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg) and [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md).

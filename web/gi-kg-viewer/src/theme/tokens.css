@@ -1,8 +1,11 @@
 /**
- * UXS-001 semantic tokens (RFC-062). Dark baseline; light via prefers-color-scheme.
- * Tailwind maps these in tailwind.config.js (--ps-*).
+ * UXS-001 semantic tokens (RFC-062).
+ * Supports: data-theme="dark" | data-theme="light" | auto (OS preference).
  */
-:root {
+
+/* ── Dark palette ── */
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
   --ps-canvas: #111418;
   --ps-canvas-foreground: #e5e8eb;
@@ -17,7 +20,7 @@
   --ps-disabled: #5f6b7c;
   --ps-link: #6cb3f7;
   --ps-primary: #4c90f0;
-  --ps-primary-foreground: #111418;
+  --ps-primary-foreground: #ffffff;
   --ps-success: #32a467;
   --ps-warning: #ec9a3c;
   --ps-danger: #e76a6e;
@@ -25,18 +28,43 @@
   --ps-kg: #c4a8ff;
 }
 
+/* ── Light palette (explicit) ── */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --ps-canvas: #f6f7f9;
+  --ps-canvas-foreground: #1c2127;
+  --ps-surface: #ffffff;
+  --ps-surface-foreground: #1c2127;
+  --ps-elevated: #f0f1f4;
+  --ps-elevated-foreground: #252a31;
+  --ps-overlay: #e4e7eb;
+  --ps-overlay-foreground: #252a31;
+  --ps-border: #c5ccd6;
+  --ps-muted: #5f6b7c;
+  --ps-disabled: #abb3bf;
+  --ps-link: #1a6fc4;
+  --ps-primary: #2d72d2;
+  --ps-primary-foreground: #ffffff;
+  --ps-success: #238551;
+  --ps-warning: #c87619;
+  --ps-danger: #cd4246;
+  --ps-gi: #1e7a4a;
+  --ps-kg: #5c4d8a;
+}
+
+/* ── Auto: follow OS preference ── */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme]) {
     color-scheme: light;
     --ps-canvas: #f6f7f9;
     --ps-canvas-foreground: #1c2127;
     --ps-surface: #ffffff;
     --ps-surface-foreground: #1c2127;
-    --ps-elevated: #f6f7f9;
+    --ps-elevated: #f0f1f4;
     --ps-elevated-foreground: #252a31;
-    --ps-overlay: #edeff2;
+    --ps-overlay: #e4e7eb;
     --ps-overlay-foreground: #252a31;
-    --ps-border: #d3d8de;
+    --ps-border: #c5ccd6;
     --ps-muted: #5f6b7c;
     --ps-disabled: #abb3bf;
     --ps-link: #1a6fc4;

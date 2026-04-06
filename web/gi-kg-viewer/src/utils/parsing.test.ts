@@ -115,20 +115,37 @@ describe('ensureEpisodeToInsightEdges', () => {
 // ── nodeLabel ──
 
 describe('nodeLabel', () => {
-  it('returns truncated text for Insight', () => {
-    expect(nodeLabel({ type: 'Insight', properties: { text: 'A'.repeat(50) } })).toHaveLength(36)
+  it('truncates long text to max graph label length', () => {
+    const label = nodeLabel({ type: 'Insight', properties: { text: 'A'.repeat(50) } })
+    expect(label.length).toBeLessThanOrEqual(40)
   })
 
-  it('returns label for Topic', () => {
+  it('returns short label for Topic', () => {
     expect(nodeLabel({ type: 'Topic', properties: { label: 'climate' } })).toBe('climate')
+  })
+
+  it('shortens long Topic label at natural break', () => {
+    const label = nodeLabel({
+      type: 'Topic',
+      properties: { label: 'Cuba faces a severe crisis, leading to blackouts and food shortages' },
+    })
+    expect(label).toBe('Cuba faces a severe crisis')
   })
 
   it('returns title for Episode', () => {
     expect(nodeLabel({ type: 'Episode', properties: { title: 'Ep 1' } })).toBe('Ep 1')
   })
 
+  it('prefers name over label', () => {
+    expect(nodeLabel({ type: 'Entity', properties: { name: 'Cuba', label: 'cuba-label' } })).toBe('Cuba')
+  })
+
   it('falls back to type: id', () => {
     expect(nodeLabel({ id: 'x', type: 'Custom' })).toBe('Custom: x')
+  })
+
+  it('works for any unknown node type with properties', () => {
+    expect(nodeLabel({ type: 'Foo', properties: { name: 'Bar' } })).toBe('Bar')
   })
 })
 

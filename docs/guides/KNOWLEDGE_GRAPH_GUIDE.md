@@ -127,12 +127,11 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
   CI runs the same enforce pass as GIL on `tests/fixtures/gil_kg_ci_enforce` via
   `make quality-metrics-ci`.
 - **Fixture:** `tests/fixtures/kg/minimal.kg.json` for smoke checks.
-- **Acceptance (E2E configs):** `config/acceptance/kg/*.yaml` — mirrors
-  `config/acceptance/gi/` (Planet Money + The Journal; ML, OpenAI, Ollama, Anthropic,
-  Gemini, Mistral, DeepSeek, Grok). Stub-style configs use `kg_extraction_source: stub`
-  (like GI default `gi_insight_source: stub`); bullet-driven configs use
-  `acceptance_*_kg_ml_summary_bullets.yaml`. Run:
-  `make test-acceptance CONFIGS="config/acceptance/kg/*.yaml"`.
+- **Acceptance (E2E configs):** `config/acceptance/full/*.yaml` — full pipeline
+  (summaries + GI + KG + semantic index) for Planet Money and The Journal across ML,
+  OpenAI, Ollama, Anthropic, Gemini, Mistral, DeepSeek, and Grok. KG uses
+  `kg_extraction_source: summary_bullets` (no stub-only acceptance split). Run:
+  `make test-acceptance CONFIGS="config/acceptance/full/*.yaml"`.
 
 Run metrics export (`metrics.json`) includes KG rollups: `kg_topic_nodes_total`,
 `kg_entity_nodes_total`, `kg_extractions_stub` / `kg_extractions_summary_bullets` /

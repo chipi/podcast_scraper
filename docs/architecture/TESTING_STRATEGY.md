@@ -903,7 +903,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
 - [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
 - [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
-- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/kg/*.yaml` (including `acceptance_planet_money_kg_grok.yaml` for Grok + provider KG).
+- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/full/*.yaml` (including `acceptance_planet_money_grok.yaml` for Grok in the full pipeline).
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
 - [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)

@@ -22,7 +22,7 @@ function toggleQuotes(insightId: string): void {
   }
 }
 
-function focusInsight(id: string): void {
+function focusNode(id: string): void {
   const trimmed = id.trim()
   if (!trimmed) return
   nav.requestFocusNode(trimmed)
@@ -257,7 +257,8 @@ function focusInsight(id: string): void {
               <tr
                 v-for="(row, i) in ex.leaderboardRows"
                 :key="`${row.topic_id}-${i}`"
-                class="border-b border-border/60"
+                class="cursor-pointer border-b border-border/60 transition-colors hover:bg-overlay"
+                @click="focusNode(row.topic_id)"
               >
                 <td class="py-1 pr-2">
                   {{ row.label }}
@@ -294,7 +295,8 @@ function focusInsight(id: string): void {
         <article
           v-for="ins in ex.insightRows"
           :key="ins.insight_id"
-          class="rounded border border-border bg-surface p-2"
+          class="cursor-pointer rounded border border-border bg-surface p-2 transition-colors hover:border-primary/50 hover:bg-overlay"
+          @click="focusNode(ins.insight_id)"
         >
           <div class="mb-1 flex flex-wrap items-center gap-2">
             <span class="font-mono text-[10px] text-primary">{{ ins.insight_id }}</span>
@@ -310,13 +312,19 @@ function focusInsight(id: string): void {
               v-else-if="ins.grounded === false"
               class="rounded bg-yellow-600/20 px-1 py-0.5 text-[10px] font-medium text-yellow-400"
             >ungrounded</span>
-            <button
-              type="button"
-              class="ml-auto rounded border border-border px-2 py-0.5 text-[10px] font-medium hover:bg-overlay"
-              @click="focusInsight(ins.insight_id)"
+            <svg
+              class="ml-auto h-3 w-3 shrink-0 text-primary/60"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
             >
-              Show on graph
-            </button>
+              <circle cx="12" cy="12" r="3" />
+              <circle cx="12" cy="12" r="9" stroke-dasharray="4 3" />
+            </svg>
           </div>
           <p class="leading-snug text-surface-foreground">
             {{ truncate(ins.text, 280) }}
@@ -334,6 +342,7 @@ function focusInsight(id: string): void {
           <div
             v-if="ins.supporting_quotes?.length"
             class="mt-1.5"
+            @click.stop
           >
             <button
               type="button"

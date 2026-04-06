@@ -9,7 +9,7 @@ import type {
   RawGraphEdge,
   RawGraphNode,
 } from '../types/artifact'
-import { humanizeSlug, truncate } from './formatting'
+import { humanizeSlug, shortPhrase, truncate } from './formatting'
 import { visualGroupForNode } from './visualGroup'
 
 export { visualGroupForNode, visualNodeTypeCounts } from './visualGroup'
@@ -145,50 +145,37 @@ export function entityDisplayNameFromId(idStr: string): string {
   return humanizeSlug(m[1])
 }
 
+const MAX_GRAPH_LABEL = 40
+
+/**
+ * Produce a short label suitable for graph display.  Works for any node type
+ * by checking common property names in priority order, then falling back to
+ * humanising the node id.  All results are capped at ~40 chars via
+ * `shortPhrase` (prefers natural break points like commas).
+ */
 export function nodeLabel(n: RawGraphNode): string {
-  const tRaw = n.type != null ? String(n.type) : '?'
-  const tLower = tRaw.toLowerCase()
   const p = n.properties || {}
+  const typeStr = n.type != null ? String(n.type) : '?'
+
+  const raw =
+    str(p.name) ||
+    str(p.title) ||
+    str(p.label) ||
+    str(p.text) ||
+    entityDisplayNameFromId(String(n.id ?? '')) ||
+    ''
+
+  if (raw) return shortPhrase(raw, MAX_GRAPH_LABEL)
+
   let idShort = n.id != null ? String(n.id) : ''
-  if (idShort.length > 24) {
-    idShort = `${idShort.slice(0, 22)}…`
-  }
-  if (tLower === 'insight' && p.text) {
-    return truncate(String(p.text), 36)
-  }
-  if (tLower === 'quote' && p.text) {
-    return truncate(String(p.text), 36)
-  }
-  if (tLower === 'topic' && p.label) {
-    return truncate(String(p.label), 80)
-  }
-  if (tLower === 'entity') {
-    const fromLabel = p.label != null ? String(p.label).trim() : ''
-    const fromName = p.name != null ? String(p.name).trim() : ''
-    const nm =
-      fromLabel ||
-      fromName ||
-      entityDisplayNameFromId(String(n.id ?? '')) ||
-      ''
-    if (nm) {
-      let out = truncate(nm, 52)
-      const role = p.role != null ? String(p.role).trim() : ''
-      if (role !== '' && role !== 'mentioned') {
-        out = truncate(`${out} (${role})`, 58)
-      }
-      return out
-    }
-  }
-  if (
-    tLower === 'speaker' &&
-    ((p.name && String(p.name).trim()) || (p.label && String(p.label).trim()))
-  ) {
-    return truncate(String(p.name || p.label).trim(), 48)
-  }
-  if (tLower === 'episode' && p.title) {
-    return truncate(String(p.title), 40)
-  }
-  return tRaw + (idShort ? `: ${idShort}` : '')
+  if (idShort.length > 24) idShort = `${idShort.slice(0, 22)}…`
+  return typeStr + (idShort ? `: ${idShort}` : '')
+}
+
+function str(v: unknown): string {
+  if (v == null) return ''
+  const s = String(v).trim()
+  return s.length > 0 ? s : ''
 }
 
 export function buildNodeTitle(n: RawGraphNode): string {
