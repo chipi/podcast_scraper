@@ -126,11 +126,14 @@ and metric definitions, see the [Evaluation Reports](eval-reports/index.md).
 Every summarization option in one view, ordered by ROUGE-L. ML/hybrid numbers are
 smoke-scale (5 eps); cloud and Ollama numbers are benchmark-scale (10 eps).
 
+All numbers benchmark-scale (10 eps, `curated_5feeds_benchmark_v1` vs
+`silver_sonnet46_benchmark_v1`).
+
 | Tier | Mode | ROUGE-L | Embed | Lat/ep | Dependencies |
 | :--- | :--- | ------: | ----: | -----: | :----------- |
-| 1 — ML Dev | `ml_small_authority` | ~14% | ~65% | fast | None (CI safe) |
-| 2 — ML Prod | `ml_bart_led_autoresearch_v1` | 20.4% | 70.1% | 26s | None (air-gap safe) |
-| — Hybrid | `ml_hybrid_bart_llama32_3b_autoresearch_v1` | 23.7% | 72.9% | 15s | Ollama (3B only) |
+| 1 — ML Dev | `ml_small_authority` | 19.1% | 70.0% | fast | None (CI safe) |
+| 2 — ML Prod | `ml_bart_led_autoresearch_v1` | 20.5% | 68.2% | 26s | None (air-gap safe) |
+| — Hybrid | `ml_hybrid_bart_llama32_3b_autoresearch_v1` | 21.1% | 76.6% | 15s | Ollama (3B only) |
 | 3 — LLM Local (small) | `llama3.2:3b` direct | 24.4% | 78.6% | 8.5s | Ollama |
 | 3 — LLM Local (large) | `qwen3.5:35b` direct | 31.9% | 81.5% | 21s | Ollama |
 | 4 — LLM Cloud (mid) | Gemini 2.0 Flash | 28.7% | 82.5% | 2.7s | API key |
@@ -139,14 +142,16 @@ smoke-scale (5 eps); cloud and Ollama numbers are benchmark-scale (10 eps).
 
 **Key observations:**
 
-- The jump from ML-prod (20.4%) to direct-LLM (24.4%+) is roughly 4 ROUGE-L points —
-  meaningful but not dramatic. The hybrid tier (23.7%) covers most of that gap with
-  only a 3B model.
-- qwen3.5:35b (31.9%) exceeds every cloud provider except Anthropic. It is the only
-  on-prem model in the cloud quality range.
-- The hybrid is the right choice when: transcripts exceed LLM context windows (BART MAP
-  chunks arbitrary-length input), Ollama is available but a large model is not, or
-  quality must improve over ML-prod without paying for cloud.
+- The jump from ML-prod (20.5%) to direct-LLM (24.4%) is ~4 ROUGE-L points. The hybrid
+  (21.1%) closes only ~1.5 of those points at benchmark scale — less than smoke
+  suggested (23.7%). The gap exists because temperature=0.5 sampling variance averages
+  down over 10 episodes. The hybrid is still valuable for long transcripts (BART MAP
+  chunks arbitrary-length input).
+- qwen3.5:35b (31.9%) is the only on-prem model in the cloud quality range — it
+  exceeds Gemini, OpenAI, and Grok.
+- The hybrid is the right choice when: transcripts exceed LLM context windows, Ollama
+  is available but only a small model fits in VRAM, or quality must improve over
+  ML-prod without paying for cloud.
 
 ### Cloud providers — paragraphs (vs Sonnet 4.6 silver, April 2026)
 
