@@ -14,6 +14,7 @@ from podcast_scraper.gi.explore import (
     run_uc5_insight_explorer,
     scan_artifact_paths,
 )
+from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ExploreApiResponse
 
 router = APIRouter(tags=["explore"])
@@ -26,10 +27,7 @@ _NO_PATTERN_HINT = (
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None:
     if path is not None and str(path).strip():
-        root = Path(path).expanduser().resolve()
-        if not root.is_dir():
-            raise HTTPException(status_code=400, detail=f"Not a directory: {root}")
-        return root
+        return resolve_corpus_path_param(path, fallback)
     return fallback
 
 

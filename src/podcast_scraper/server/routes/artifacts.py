@@ -6,19 +6,13 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
 
 router = APIRouter(tags=["artifacts"])
-
-
-def _resolve_corpus_dir(path: str) -> Path:
-    root = Path(path).expanduser().resolve()
-    if not root.is_dir():
-        raise HTTPException(status_code=400, detail=f"Not a directory: {root}")
-    return root
 
 
 def _is_under(parent: Path, child: Path) -> bool:
@@ -39,10 +33,12 @@ def _kind_for_suffix(name: str) -> Literal["gi", "kg"] | None:
 
 @router.get("/artifacts", response_model=ArtifactListResponse)
 async def list_artifacts(
-    path: str = Query(..., description="Corpus output directory to scan.")
+    request: Request,
+    path: str = Query(..., description="Corpus output directory to scan."),
 ) -> ArtifactListResponse:
     """List ``*.gi.json`` and ``*.kg.json`` files under the given directory (recursive)."""
-    base = _resolve_corpus_dir(path)
+    anchor = getattr(request.app.state, "output_dir", None)
+    base = resolve_corpus_path_param(path, anchor)
     items: list[ArtifactItem] = []
     seen: set[Path] = set()
     for pattern in ("**/*.gi.json", "**/*.kg.json"):
@@ -75,11 +71,13 @@ async def list_artifacts(
 
 @router.get("/artifacts/{artifact_path:path}")
 async def get_artifact(
+    request: Request,
     artifact_path: str,
     path: str = Query(..., description="Corpus output directory (root for relative path)."),
 ) -> JSONResponse:
     """Load and return a parsed artifact JSON by path relative to the corpus root."""
-    base = _resolve_corpus_dir(path)
+    anchor = getattr(request.app.state, "output_dir", None)
+    base = resolve_corpus_path_param(path, anchor)
     rel = Path(artifact_path)
     if rel.is_absolute() or any(part == ".." for part in rel.parts):
         raise HTTPException(status_code=400, detail="Invalid artifact path.")

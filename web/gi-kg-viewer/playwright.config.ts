@@ -24,10 +24,12 @@ export default defineConfig({
   },
   projects: [{ name: 'firefox', use: {} }],
   webServer: {
-    command: 'npx vite --port 5174 --strictPort',
+    // npm exec: avoid npx install prompts on CI; --host 127.0.0.1 matches baseURL (IPv4)
+    command:
+      'npm exec vite -- --port 5174 --strictPort --host 127.0.0.1',
     cwd: __dirname,
     url: 'http://127.0.0.1:5174',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: process.env.CI ? 180_000 : 120_000,
   },
 })

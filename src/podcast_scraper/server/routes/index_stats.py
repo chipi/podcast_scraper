@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Query, Request
 
+from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import IndexStatsBody, IndexStatsEnvelope
 
 logger = logging.getLogger(__name__)
@@ -16,10 +17,7 @@ router = APIRouter(tags=["index"])
 
 def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path | None:
     if path is not None and str(path).strip():
-        root = Path(path).expanduser().resolve()
-        if not root.is_dir():
-            raise HTTPException(status_code=400, detail=f"Not a directory: {root}")
-        return root
+        return resolve_corpus_path_param(path, fallback)
     return fallback
 
 

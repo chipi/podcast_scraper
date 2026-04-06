@@ -66,6 +66,11 @@ then **List files**, select artifacts, and **Load selected into graph**.
 `create_app` stores `output_dir` on `app.state` so route handlers can
 fall back to it when the caller omits the `?path=` query parameter.
 
+When `output_dir` is set, any `?path=` value must resolve to that directory
+or a subdirectory (see `server/pathutil.py`). Overrides are rejected if the
+server has no default corpus root, so callers cannot aim the API at arbitrary
+paths on disk.
+
 [app-py]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/app.py
 
 ### Route groups

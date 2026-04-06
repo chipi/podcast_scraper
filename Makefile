@@ -253,6 +253,8 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" \
 	--ignore "data/eval/runs/**" \
+	--ignore "web/gi-kg-viewer/playwright-report/**" \
+	--ignore "web/gi-kg-viewer/test-results/**" \
 	--config .markdownlint.json
 
 lint-markdown:

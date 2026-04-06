@@ -1,10 +1,11 @@
 # This workflow will install Python dependencies, run tests and quality checks with a single version of Python
 # Dependency flow:
-# 1. lint, build, preload-ml-models run in parallel (no deps)
-# 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models only)
-# 4. coverage-unified gates: security-quality + all test jobs (including test-unit)
-# 5. docs gates coverage-unified (very last step, final validation)
+# 1. lint, build, detect-changes, preload-ml-models run in parallel (no cross-deps at start)
+# 2. After lint+build: security-quality, test-unit, and viewer-unit run in parallel
+# 3. test-integration / test-e2e / test-e2e-fast gate on preload-ml-models (and detect-changes)
+# 4. viewer-e2e runs after lint+build and both Python E2E jobs (Playwright after pytest E2E)
+# 5. coverage-unified gates: security-quality + all Python test jobs (not viewer jobs)
+# 6. docs gates coverage-unified + viewer-unit + viewer-e2e (final validation)
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
 name: Python application
@@ -68,14 +69,17 @@ jobs:
             - 'web/gi-kg-viewer/**'
 
   # GI/KG viewer v2 — Vitest unit tests for TypeScript utils (fast, no browser)
+  # Gates same as test-unit: after lint + build, in parallel with Python unit tests
   viewer-unit:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    needs: [lint, build]
     steps:
     - uses: actions/checkout@v6
     - uses: actions/setup-node@v6
       with:
-        node-version: "20"
+        # Vite 8 requires ^20.19 || >=22.12; bare "20" on the runner can be older and breaks Vite
+        node-version: "22"
         cache: "npm"
         cache-dependency-path: web/gi-kg-viewer/package-lock.json
     - name: Install dependencies
@@ -88,14 +92,22 @@ jobs:
         npm run test:unit
 
   # GI/KG viewer v2 — Playwright E2E (RFC-062 M7)
+  # After Python pytest E2E (both fast + full) to avoid two heavy E2E stacks at once
   viewer-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: [lint, build, test-e2e, test-e2e-fast]
+    if: |
+      always() &&
+      needs.lint.result == 'success' &&
+      needs.build.result == 'success' &&
+      needs.test-e2e.result == 'success' &&
+      needs.test-e2e-fast.result == 'success'
     steps:
     - uses: actions/checkout@v6
     - uses: actions/setup-node@v6
       with:
-        node-version: "20"
+        node-version: "22"
         cache: "npm"
         cache-dependency-path: web/gi-kg-viewer/package-lock.json
     - name: Install dependencies and browsers
