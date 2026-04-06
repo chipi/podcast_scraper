@@ -82,6 +82,24 @@ def test_explore_natural_language_mocked(tmp_path: Path, monkeypatch: pytest.Mon
     assert body["explanation"] == "matched"
 
 
+def test_explore_nl_no_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.explore.scan_artifact_paths",
+        lambda _p: [],
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/explore",
+        params={"path": str(tmp_path), "q": "What insights about tea?"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["kind"] == "natural_language"
+    assert body["error"] == "no_artifacts"
+
+
 def test_explore_nl_no_pattern(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "podcast_scraper.server.routes.explore.scan_artifact_paths",

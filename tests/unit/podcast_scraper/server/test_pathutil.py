@@ -28,6 +28,13 @@ def test_accepts_subdirectory_of_anchor(tmp_path: Path) -> None:
     assert out == sub.resolve()
 
 
+def test_rejects_empty_path_param(tmp_path: Path) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_corpus_path_param("   ", tmp_path)
+    assert exc_info.value.status_code == 400
+    assert "non-empty" in (exc_info.value.detail or "")
+
+
 def test_rejects_path_outside_anchor(tmp_path: Path) -> None:
     anchor = tmp_path / "allowed"
     anchor.mkdir()

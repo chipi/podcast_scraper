@@ -23,6 +23,21 @@ def _is_under(parent: Path, child: Path) -> bool:
         return False
 
 
+def _safe_artifact_target(base: Path, artifact_relpath: str) -> Path:
+    """Join ``artifact_relpath`` under ``base`` with ``..`` / absolute segments rejected."""
+    rel = artifact_relpath.strip().replace("\\", "/")
+    if not rel or rel.startswith("/"):
+        raise HTTPException(status_code=400, detail="Invalid artifact path.")
+    segments = [p for p in rel.split("/") if p and p != "."]
+    if any(p == ".." for p in segments):
+        raise HTTPException(status_code=400, detail="Invalid artifact path.")
+    # lgtm[py/path-injection] -- basename-only segments; ``base`` is anchor-sanitized.
+    target = base.joinpath(*segments).resolve()
+    if not _is_under(base, target):
+        raise HTTPException(status_code=400, detail="Path escapes corpus root.")
+    return target
+
+
 def _kind_for_suffix(name: str) -> Literal["gi", "kg"] | None:
     if name.endswith(".gi.json"):
         return "gi"
@@ -78,17 +93,13 @@ async def get_artifact(
     """Load and return a parsed artifact JSON by path relative to the corpus root."""
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
-    rel = Path(artifact_path)
-    if rel.is_absolute() or any(part == ".." for part in rel.parts):
-        raise HTTPException(status_code=400, detail="Invalid artifact path.")
-    target = (base / rel).resolve()
-    if not _is_under(base, target):
-        raise HTTPException(status_code=400, detail="Path escapes corpus root.")
+    target = _safe_artifact_target(base, artifact_path)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="Artifact not found.")
     if _kind_for_suffix(target.name) is None:
         raise HTTPException(status_code=400, detail="Not a .gi.json or .kg.json file.")
     try:
+        # lgtm[py/path-injection] -- ``target`` built only under anchor-sanitized ``base``.
         text = target.read_text(encoding="utf-8")
     except OSError as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read file: {exc}") from exc

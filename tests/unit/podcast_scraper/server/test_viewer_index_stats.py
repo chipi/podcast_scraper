@@ -54,6 +54,24 @@ def test_index_stats_rejects_bad_path(tmp_path: Path) -> None:
     assert response.status_code == 400
 
 
+def test_index_stats_load_failed_on_corrupt_vectors(tmp_path: Path) -> None:
+    pytest.importorskip("faiss")
+
+    from podcast_scraper.search.faiss_store import VECTORS_FILE
+
+    index_dir = tmp_path / "search"
+    index_dir.mkdir(parents=True)
+    (index_dir / VECTORS_FILE).write_bytes(b"not-a-faiss-index")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get("/api/index/stats", params={"path": str(tmp_path)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is False
+    assert body["reason"] == "load_failed"
+
+
 def test_index_stats_available_with_minimal_faiss_index(tmp_path: Path) -> None:
     pytest.importorskip("faiss")
     pytest.importorskip("numpy")

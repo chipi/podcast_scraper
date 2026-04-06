@@ -28,6 +28,8 @@ def resolve_corpus_path_param(
     if not raw:
         raise HTTPException(status_code=400, detail="path must be non-empty.")
 
+    # lgtm[py/path-injection] -- Resolved path is restricted to ``anchor`` (below) before any
+    # filesystem reads in route handlers; local viewer binds to loopback by default.
     candidate = Path(raw).expanduser().resolve()
 
     if anchor is None:

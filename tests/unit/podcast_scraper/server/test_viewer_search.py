@@ -96,3 +96,25 @@ def test_search_type_query_params(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     )
     assert response.status_code == 200
     assert captured.get("doc_types") == ["insight", "quote", "summary"]
+
+
+def test_search_maps_outcome_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(error="no_index", detail="/tmp/x")
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.search.run_corpus_search",
+        fake_run,
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/search",
+        params={"q": "hello", "path": str(tmp_path)},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["error"] == "no_index"
+    assert body["detail"] == "/tmp/x"
+    assert body["results"] == []

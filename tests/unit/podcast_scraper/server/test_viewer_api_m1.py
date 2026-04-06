@@ -78,3 +78,32 @@ def test_get_artifact_404(tmp_path: Path) -> None:
         params={"path": str(tmp_path)},
     )
     assert response.status_code == 404
+
+
+def test_get_artifact_rejects_invalid_json(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "bad.gi.json").write_text("{not json", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/artifacts/metadata/bad.gi.json",
+        params={"path": str(tmp_path)},
+    )
+    assert response.status_code == 400
+    assert "Invalid JSON" in response.json()["detail"]
+
+
+def test_get_artifact_rejects_non_gi_kg_suffix(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "readme.txt").write_text("x", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/artifacts/metadata/readme.txt",
+        params={"path": str(tmp_path)},
+    )
+    assert response.status_code == 400
