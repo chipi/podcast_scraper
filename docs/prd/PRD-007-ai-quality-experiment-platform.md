@@ -2,7 +2,12 @@
 
 - **Status**: 📋 Draft
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: RFC-015 (Runner), RFC-016 (Modularization), RFC-041 (Benchmarking), RFC-043 (Alerts)
+- **Related RFCs**:
+  - [RFC-015](../rfc/RFC-015-ai-experiment-pipeline.md) — AI experiment pipeline (**open**; CI integration pending)
+  - [RFC-016](../rfc/RFC-016-modularization-for-ai-experiments.md) — modularization for AI experiments (**complete**)
+  - [RFC-041](../rfc/RFC-041-podcast-ml-benchmarking-framework.md) — ML benchmarking framework (**open**; CI integration pending)
+  - [RFC-043](../rfc/RFC-043-automated-metrics-alerts.md) — automated metrics alerts (**open**)
+  - [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) — AutoResearch optimization loop (**complete**; closed per [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md))
 
 ## Summary
 
@@ -135,10 +140,10 @@ This prevents the "Invalid Comparison" anti-pattern (e.g., comparing The Indicat
 
 ## Success Criteria
 
-- ✅ **Management Visibility**: 100% of AI models and prompts are managed as versioned configurations, not code.
-- ✅ **Goal-Driven Development**: Every model update or swap is justified by a benchmarking report showing the impact on key metrics.
-- ✅ **Zero Silent Regressions**: All critical failure modes are caught and alerted on automatically in CI.
-- ✅ **Operational Rigor**: New experiments or benchmarks can be configured and executed in < 10 minutes.
+- **Management Visibility**: 100% of AI models and prompts are managed as versioned configurations, not code.
+- **Goal-Driven Development**: Every model update or swap is justified by a benchmarking report showing the impact on key metrics.
+- **Zero Silent Regressions**: All critical failure modes are caught and alerted on automatically in CI.
+- **Operational Rigor**: New experiments or benchmarks can be configured and executed in < 10 minutes.
 
 ## Future Vision
 

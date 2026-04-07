@@ -35,7 +35,7 @@ Requirements:
 
 ## Constraints & Assumptions
 
-- **Prerequisite**: Modularization refactoring (RFC-021) must be completed first (✅ **Completed**)
+- **Prerequisite**: Modularization refactoring (RFC-021) must be completed first (**Completed**)
 - **Backward Compatibility**: Default providers (transformers/local) must remain unchanged
 - **API Key Security**: API keys must never be in source code or committed files
 - **Environment Support**: Must work in both development and production environments
@@ -75,10 +75,10 @@ Requirements:
 
 **Benefits:**
 
-- ✅ Consistent preprocessing regardless of provider
-- ✅ More efficient (do once, not per provider)
-- ✅ Easier to maintain (single implementation)
-- ✅ Providers receive clean, standardized input
+- Consistent preprocessing regardless of provider
+- More efficient (do once, not per provider)
+- Easier to maintain (single implementation)
+- Providers receive clean, standardized input
 
 **After Modularization:**
 
@@ -282,12 +282,12 @@ load_dotenv(env_file, override=False)
 
 ```text
 
-- ✅ **Load at startup** - `.env` loaded automatically when config module imports
-- ✅ **Don't override existing vars** - `override=False` respects system environment variables
-- ✅ **Never log API keys** - Sanitize logs, never print full keys
-- ✅ **Validate key format** - Check that key starts with `sk-` if provided
-- ✅ **Separate keys per environment** - Use different keys for dev/staging/prod
-- ✅ **Rotate keys periodically** - Update keys regularly for security
+- **Load at startup** - `.env` loaded automatically when config module imports
+- **Don't override existing vars** - `override=False` respects system environment variables
+- **Never log API keys** - Sanitize logs, never print full keys
+- **Validate key format** - Check that key starts with `sk-` if provided
+- **Separate keys per environment** - Use different keys for dev/staging/prod
+- **Rotate keys periodically** - Update keys regularly for security
 
 **Dependencies:**
 
@@ -726,9 +726,9 @@ user_prompt = render_prompt(
 
 ```yaml
 
-- ✅ **Reproducibility**: SHA256 hashes track exact prompt versions
-- ✅ **Provider Autonomy**: Each provider handles prompts internally
-- ✅ **Protocol Compliance**: Prompts don't affect protocol interfaces
+- **Reproducibility**: SHA256 hashes track exact prompt versions
+- **Provider Autonomy**: Each provider handles prompts internally
+- **Protocol Compliance**: Prompts don't affect protocol interfaces
 
 See RFC-017 for complete prompt management design.
 
@@ -867,14 +867,14 @@ openai = [
 ````
 
 ```bash
+# OpenAI SDK is a core dependency — editable install is enough
+pip install -e .
 
-# For OpenAI support
-
-pip install -e ".[openai]"
-
-# Or with all ML dependencies
-
+# Optional: other API SDKs (Gemini, Anthropic, Mistral, httpx for Ollama) live under [llm]
+pip install -e ".[llm]"
 ```
+
+**Note:** Older drafts used a `[openai]` extra; the SDK is now always installed with the base package (see current `pyproject.toml` `[project.dependencies]`).
 
 ## 8.2 Integration Tests
 
@@ -1001,7 +1001,7 @@ class CustomSpeakerDetector:
 
 # Type checker will verify protocol compliance
 
-detector: SpeakerDetector = CustomSpeakerDetector()  # ✅ Type-safe
+detector: SpeakerDetector = CustomSpeakerDetector()  #  Type-safe
 
 ```text
 ```python
@@ -1225,9 +1225,9 @@ class TestNERSpeakerDetector:
 
 ```
 
-- ✅ External implementations should follow same testing standards
-- ✅ Mock providers for testing workflow without real providers
-- ✅ Integration tests with real providers (optional, requires API keys)
+- External implementations should follow same testing standards
+- Mock providers for testing workflow without real providers
+- Integration tests with real providers (optional, requires API keys)
 
 ## Documentation & Examples
 
@@ -1400,10 +1400,10 @@ def test_custom_provider_protocol():
 
 ## Open Questions
 
-1. **Rate Limiting**: ~~What are OpenAI API rate limits? Should we make rate limiter configurable?~~ ✅ **RESOLVED** - See Appendix B
+1. **Rate Limiting**: ~~What are OpenAI API rate limits? Should we make rate limiter configurable?~~  **RESOLVED** - See Appendix B
 2. **Cost Tracking**: Should we add cost tracking/monitoring?
 3. **Fallback**: Should we support fallback (try OpenAI, fallback to local)?
-4. **Model Selection**: ~~Should model selection be more granular (different models for different tasks)?~~ ✅ **RESOLVED** - See PRD-006 and Appendix A
+4. **Model Selection**: ~~Should model selection be more granular (different models for different tasks)?~~  **RESOLVED** - See PRD-006 and Appendix A
 5. **Plugin System**: Should we support external packages registering providers via entry points?
 
 ## Alternatives Considered
@@ -1419,13 +1419,13 @@ def test_custom_provider_protocol():
 
 ## Success Criteria
 
-- ✅ OpenAI providers implement same interfaces as local providers
-- ✅ Users can select OpenAI providers via configuration
-- ✅ API keys managed securely via environment variables
-- ✅ Parallelism works correctly with API providers
-- ✅ Error handling is clear and actionable
-- ✅ Default behavior (local providers) unchanged
-- ✅ Documentation complete and clear
+- OpenAI providers implement same interfaces as local providers
+- Users can select OpenAI providers via configuration
+- API keys managed securely via environment variables
+- Parallelism works correctly with API providers
+- Error handling is clear and actionable
+- Default behavior (local providers) unchanged
+- Documentation complete and clear
 
 ---
 
@@ -1683,8 +1683,8 @@ LOG_LEVEL=INFO
 
 # Naming in planning documents before standardization:
 
-speaker_detector_type: Literal["ner", "openai"]          # ✅ Technology-based
-transcription_provider: Literal["whisper", "openai"]     # ✅ Technology-based
+speaker_detector_type: Literal["ner", "openai"]          #  Technology-based
+transcription_provider: Literal["whisper", "openai"]     #  Technology-based
 summary_provider: Literal["local", "openai"]             # ❌ Location-based (ambiguous)
 
 ```text

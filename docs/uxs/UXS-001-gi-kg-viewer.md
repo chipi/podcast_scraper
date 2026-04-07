@@ -1,11 +1,12 @@
 # UXS-001: GI / KG viewer
 
-- **Status**: Draft
+- **Status**: Active
 - **Authors**: Podcast Scraper Team
 - **Related PRDs**:
   - [PRD-003: User Interfaces & Configuration](../prd/PRD-003-user-interface-config.md)
   - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md)
   - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
+  - [PRD-021: Semantic Corpus Search](../prd/PRD-021-semantic-corpus-search.md) (search panel in viewer)
 - **Related RFCs**:
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Related UX specs**: (none yet)
@@ -242,7 +243,7 @@ When an open parameter is finalized after experimentation, update its status to
 
 ## Visual references
 
-No wireframes yet. When v2 implementation begins, attach annotated screenshots or Figma
+No wireframes checked in yet. As the v2 UI stabilizes, add annotated screenshots or Figma
 frames here to lock layout expectations for the main panels, graph canvas, and search
 overlay.
 
@@ -273,3 +274,5 @@ overlay.
 |            | JetBrains Mono, chart series tokens, design-reference citations     |
 | 2026-04-03 | Added Tunable parameters section (frozen vs open knobs); RFC-062    |
 |            | and PRD cross-references updated to document theme preset system    |
+| 2026-04-06 | Status **Active** — viewer v2 implements this contract per RFC-062; |
+|            | PRD-021 linked for search UI scope                                  |

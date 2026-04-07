@@ -1,9 +1,10 @@
 # PRD-010: Mistral Provider Integration
 
-- **Status**: ✅ Implemented (v2.5.0)
+- **Status**: Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
-- **Related RFCs**: RFC-033 (Revised)
+- **Related RFCs**:
+  - [RFC-033](../rfc/RFC-033-mistral-provider-implementation.md) — Mistral provider (**complete**) (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-009 (Anthropic)
 
 ## Summary
@@ -176,7 +177,7 @@ Assuming ~10,000 words per episode transcript (~13,000 tokens):
 
 | Component | Local | OpenAI (GPT-5) | Anthropic (Sonnet) | Mistral (Large) |
 | ----------- | ------- | ---------------- | ------------------- | ----------------- |
-| **Transcription** | Free | $36.00 | ❌ N/A | ~$60.00 |
+| **Transcription** | Free | $36.00 | No — N/A | ~$60.00 |
 | **Speaker Detection** | Free | $1.60 | $4.00 | $4.00 |
 | **Summarization** | Free | $4.00 | $20.00 | $5.00 |
 | **Total** | $0 | **$41.60** | **$24.00** (no transcription) | **$69.00** |
@@ -364,17 +365,17 @@ For organizations requiring EU data residency, Mistral is the only cloud provide
 
 ## Success Criteria
 
-- ✅ Users can select Mistral provider for transcription, speaker detection, and summarization via unified provider
-- ✅ Mistral is a complete OpenAI alternative (all three capabilities)
-- ✅ Default behavior (local providers) remains unchanged
-- ✅ API keys are managed securely via `MISTRAL_API_KEY` environment variable
-- ✅ Environment-based model defaults (test vs production)
-- ✅ Both Config-based and experiment-based factory modes supported
-- ✅ Mistral providers implement same interfaces as other providers
-- ✅ No changes required to workflow.py or end-user code
-- ✅ Error handling is clear and actionable
-- ✅ E2E tests pass with Mistral mock endpoints
-- ✅ Follows OpenAI provider pattern exactly for consistency
+- Users can select Mistral provider for transcription, speaker detection, and summarization via unified provider
+- Mistral is a complete OpenAI alternative (all three capabilities)
+- Default behavior (local providers) remains unchanged
+- API keys are managed securely via `MISTRAL_API_KEY` environment variable
+- Environment-based model defaults (test vs production)
+- Both Config-based and experiment-based factory modes supported
+- Mistral providers implement same interfaces as other providers
+- No changes required to workflow.py or end-user code
+- Error handling is clear and actionable
+- E2E tests pass with Mistral mock endpoints
+- Follows OpenAI provider pattern exactly for consistency
 
 ## Out of Scope
 
@@ -387,9 +388,9 @@ For organizations requiring EU data residency, Mistral is the only cloud provide
 
 ## Dependencies
 
-- **Prerequisite**: Modularization refactoring (RFC-021) ✅ Completed
-- **Prerequisite**: OpenAI provider implementation (PRD-006, RFC-013) ✅ Completed
-- **Prerequisite**: Anthropic provider implementation (PRD-009, RFC-032) ✅ Completed
+- **Prerequisite**: Modularization refactoring (RFC-021) Completed
+- **Prerequisite**: OpenAI provider implementation (PRD-006, RFC-013) Completed
+- **Prerequisite**: Anthropic provider implementation (PRD-009, RFC-032) Completed
 - **External**: Mistral API access and API key
 - **Internal**: Provider abstraction interfaces (from refactoring)
 
@@ -410,9 +411,9 @@ For organizations requiring EU data residency, Mistral is the only cloud provide
 
 | Capability | Local | OpenAI | Anthropic | Mistral |
 | ---------- | ----- | ------ | --------- | ------- |
-| **Transcription** | ✅ Whisper | ✅ Whisper API | ❌ Not supported | ✅ Voxtral |
-| **Speaker Detection** | ✅ spaCy NER | ✅ GPT API | ✅ Claude API | ✅ Mistral API |
-| **Summarization** | ✅ Transformers | ✅ GPT API | ✅ Claude API | ✅ Mistral API |
+| **Transcription** | Yes — Whisper | Yes Whisper API | No — Not supported | Yes — Voxtral |
+| **Speaker Detection** | Yes — spaCy NER | Yes GPT API | Yes — Claude API | Yes Mistral API |
+| **Summarization** | Yes — Transformers | Yes GPT API | Yes — Claude API | Yes Mistral API |
 
 ## Future Considerations
 

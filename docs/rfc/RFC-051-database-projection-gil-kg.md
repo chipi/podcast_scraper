@@ -737,13 +737,13 @@ Export should be controlled via `Config` model (exact field names TBD in impleme
 
 **Success Criteria:**
 
-1. ✅ Episode + GIL data (insights, quotes) can be exported to Postgres
-2. ✅ Episode + KG data (nodes, edges) can be exported when KG artifacts exist
-3. ✅ UC1–UC5 queries (including Insight Explorer) run faster via DB than file scan
-4. ✅ Grounding relationships are queryable via `insight_support` table
-5. ✅ Data store can be rebuilt from disk with no data loss
-6. ✅ All database rows are traceable to source `gi.json` and/or KG artifact files
-7. ✅ Notebook workflows can query insights + quotes successfully; KG examples documented when shipped
+1. Episode + GIL data (insights, quotes) can be exported to Postgres
+2. Episode + KG data (nodes, edges) can be exported when KG artifacts exist
+3. UC1–UC5 queries (including Insight Explorer) run faster via DB than file scan
+4. Grounding relationships are queryable via `insight_support` table
+5. Data store can be rebuilt from disk with no data loss
+6. All database rows are traceable to source `gi.json` and/or KG artifact files
+7. Notebook workflows can query insights + quotes successfully; KG examples documented when shipped
 
 ## Relationship to Other RFCs
 

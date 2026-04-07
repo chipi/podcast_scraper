@@ -89,7 +89,7 @@ class AnthropicProvider:
         if Anthropic is None:
             raise ImportError(
                 "anthropic package required for Anthropic provider. "
-                "Install with: pip install 'podcast-scraper[anthropic]'"
+                "Install with: pip install -e '.[llm]' (anthropic is in the llm extra)"
             )
 
         if not cfg.anthropic_api_key:

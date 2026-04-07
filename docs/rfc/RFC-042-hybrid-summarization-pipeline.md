@@ -2,7 +2,7 @@
 
 ## Status
 
-🟢 **Completed** - Implemented in v2.5
+**Completed** — Implemented in v2.5
 
 **Execution Timing:** **Phase 2 of 3** — Implement after
 RFC-044 (Model Registry), before RFC-049 (GIL). This RFC
@@ -157,24 +157,24 @@ Classic summarizers default to safe extraction when faced with such input.
 
 We want a local ML platform that:
 
-1. ✅ Produces **genuinely abstractive summaries**
+1. Produces **genuinely abstractive summaries**
    (not extractive stitching)
-2. ✅ Reliably **ignores non-content**
+2. Reliably **ignores non-content**
    (ads, promos, intros, outros)
-3. ✅ **Deduplicates repeated ideas** across chunks
-4. ✅ Outputs a **clean, predictable structure**:
+3. **Deduplicates repeated ideas** across chunks
+4. Outputs a **clean, predictable structure**:
    - Key takeaways (6–10 bullets)
    - Topic outline (6–12 bullets)
    - Action items (if any)
-5. ✅ Runs **locally** with reasonable performance and cost
-6. ✅ Works well on **Mac laptops** (Apple Silicon) initially
-7. ✅ Exists as an **optional provider** alongside current ML
+5. Runs **locally** with reasonable performance and cost
+6. Works well on **Mac laptops** (Apple Silicon) initially
+7. Exists as an **optional provider** alongside current ML
    provider
-8. ✅ Provides **FLAN-T5** as a lightweight instruction-tuned
+8. Provides **FLAN-T5** as a lightweight instruction-tuned
    model that runs via PyTorch (no llama.cpp required)
-9. ✅ Adds **sentence-transformer embeddings** for semantic
+9. Adds **sentence-transformer embeddings** for semantic
    similarity, topic clustering, and grounding validation
-10. ✅ Supports **structured extraction** (JSON output) beyond
+10. Supports **structured extraction** (JSON output) beyond
     prose summarization — foundation for RFC-049 GIL
 
 ---
@@ -245,10 +245,10 @@ Use classic summarizers as **compression engines**, not final writers.
 
 Classic summarizers:
 
-- ✅ Are **efficient at compressing long inputs**
-- ✅ Are **widely available in PyTorch** (`transformers`)
-- ✅ Perform **adequately as "note generators"**
-- ✅ Can run on CPU if needed (though GPU is faster)
+- Are **efficient at compressing long inputs**
+- Are **widely available in PyTorch** (`transformers`)
+- Perform **adequately as "note generators"**
+- Can run on CPU if needed (though GPU is faster)
 
 ---
 
@@ -300,11 +300,11 @@ pure-ML path where Tier 2 LLMs offer the premium path.
 
 These models:
 
-- ✅ Are **trained to distinguish instructions from content**
-- ✅ **Follow formatting constraints reliably**
-- ✅ **Do not echo scaffolding text**
-- ✅ Are **far more robust on conversational transcripts**
-- ✅ Support **zero-shot task specification** via prompts
+- Are **trained to distinguish instructions from content**
+- **Follow formatting constraints reliably**
+- **Do not echo scaffolding text**
+- Are **far more robust on conversational transcripts**
+- Support **zero-shot task specification** via prompts
 
 ### Minimal REDUCE Prompt Contract
 
@@ -353,9 +353,9 @@ Input notes:
 
 Post-processing becomes **simpler and more reliable**:
 
-- ✅ Minimal cleanup (whitespace, bullet normalization)
-- ✅ Optional section validation (bullet counts)
-- ✅ Optional lightweight QA checks
+- Minimal cleanup (whitespace, bullet normalization)
+- Optional section validation (bullet counts)
+- Optional lightweight QA checks
 
 Unlike the current system, **structure enforcement does not rely on fragile input hacks**.
 
@@ -393,12 +393,12 @@ For Mac laptops (primary target):
 
 By adopting this hybrid approach, we expect:
 
-1. ✅ **Significant improvement in summary quality**
-2. ✅ **Elimination of schema/scaffold leakage**
-3. ✅ **Better abstraction and deduplication**
-4. ✅ **Clear separation of responsibilities** in the codebase
-5. ✅ **Easier future upgrades** (swap MAP or REDUCE models independently)
-6. ✅ **Better user experience** (higher-quality, more actionable summaries)
+1. **Significant improvement in summary quality**
+2. **Elimination of schema/scaffold leakage**
+3. **Better abstraction and deduplication**
+4. **Clear separation of responsibilities** in the codebase
+5. **Easier future upgrades** (swap MAP or REDUCE models independently)
+6. **Better user experience** (higher-quality, more actionable summaries)
 
 ---
 
@@ -578,12 +578,12 @@ FLAN-T5 occupies a unique position in the model landscape:
 
 | Property | FLAN-T5 | Classic (BART/LED) | LLMs (Qwen/LLaMA) |
 | --- | --- | --- | --- |
-| Instruction-following | ✅ Yes | ❌ No | ✅ Yes |
-| Runs via `transformers` | ✅ Native | ✅ Native | ❌ Needs llama.cpp |
-| Structured output (JSON) | ⚠️ Decent | ❌ No | ✅ Good |
+| Instruction-following | Yes — Yes | No — No | Yes — Yes |
+| Runs via `transformers` | Yes — Native | Yes Native | No — Needs llama.cpp |
+| Structured output (JSON) | ⚠️ Decent | No — No | Yes — Good |
 | Memory (base) | ~1 GB | ~0.5-2 GB | ~4-8 GB (4-bit) |
 | External dependencies | None | None | llama.cpp or Ollama |
-| Zero-shot capability | ✅ Good | ❌ No | ✅ Excellent |
+| Zero-shot capability | Yes — Good | No — No | Yes — Excellent |
 
 FLAN-T5 is the **lowest-friction instruction-following model**:
 no llama.cpp compilation, no Ollama daemon, runs on CPU or MPS
@@ -1111,11 +1111,11 @@ def create_summarization_provider(config: Config) -> SummarizationProvider:
 
 ### 13.2 Backwards Compatibility
 
-- ✅ Existing configs with `summarization_provider: transformers`
+- Existing configs with `summarization_provider: transformers`
   continue to work
-- ✅ No breaking changes to existing code
-- ✅ New provider is **opt-in via configuration**
-- ✅ Extended models (embedding, QA, NLI) are loaded lazily —
+- No breaking changes to existing code
+- New provider is **opt-in via configuration**
+- Extended models (embedding, QA, NLI) are loaded lazily —
   only when a feature requires them
 
 ---
@@ -1245,9 +1245,9 @@ infrastructure that this RFC depends on.
 
 **Pros:**
 
-- ✅ Simple architecture
-- ✅ Fully local, PyTorch-native
-- ✅ Lower operational complexity
+- Simple architecture
+- Fully local, PyTorch-native
+- Lower operational complexity
 
 **Cons (Observed):**
 
@@ -1266,8 +1266,8 @@ infrastructure that this RFC depends on.
 
 **Pros:**
 
-- ✅ Best abstraction and instruction-following
-- ✅ Clean structured output
+- Best abstraction and instruction-following
+- Clean structured output
 
 **Cons:**
 
@@ -1285,7 +1285,7 @@ infrastructure that this RFC depends on.
 
 **Pros:**
 
-- ✅ Potentially better domain adaptation
+- Potentially better domain adaptation
 
 **Cons:**
 
@@ -1303,8 +1303,8 @@ infrastructure that this RFC depends on.
 
 **Pros:**
 
-- ✅ Best instruction-following quality
-- ✅ No local infrastructure needed
+- Best instruction-following quality
+- No local infrastructure needed
 
 **Cons:**
 
@@ -1366,11 +1366,11 @@ Run both providers (classic vs hybrid) on **3 representative podcast episodes** 
 
 The hybrid provider is considered successful if:
 
-- ✅ Summaries are **more abstractive** than classic-only approach
-- ✅ **No scaffold/schema leakage** in output
-- ✅ **Consistent structure** (3 sections: takeaways, outline, actions)
-- ✅ **Better content filtering** (no ads/intros in summary)
-- ✅ **Runs locally** on Mac laptop with acceptable performance (< 10 min per episode)
+- Summaries are **more abstractive** than classic-only approach
+- **No scaffold/schema leakage** in output
+- **Consistent structure** (3 sections: takeaways, outline, actions)
+- **Better content filtering** (no ads/intros in summary)
+- **Runs locally** on Mac laptop with acceptable performance (< 10 min per episode)
 
 ### 17.3 Out of Scope (Phase 1)
 
@@ -1413,9 +1413,9 @@ recorded here for traceability.
 
 4. **How to handle llama.cpp installation/
    dependencies?**
-   **Optional dependency.** Package `llama-cpp-python`
-   as an optional install group:
-   `pip install podcast-scraper[llama]`. If not
+   **Bundled under `[ml]`.** Install `llama-cpp-python`
+   via the same extra as local torch/transformers:
+   `pip install podcast-scraper[ml]`. If not
    installed, Tier 2 LLMs fall back to Ollama backend
    (RFC-052). Users with Ollama installed need no
    llama.cpp at all.
@@ -1459,8 +1459,8 @@ recorded here for traceability.
 
 9. **Should `sentence-transformers` be a required or
    optional dependency?**
-   **Optional dependency.** Package in a separate
-   install group: `pip install podcast-scraper[gil]`
+   **Optional dependency.** Ship with the **`[ml]`**
+   extra: `pip install podcast-scraper[ml]`
    (includes sentence-transformers, extractive QA, NLI
    models). Basic summarization works without it.
    Import guarded with `try/except ImportError` and
@@ -1490,48 +1490,48 @@ The hybrid ML platform is ready for v2.5 when:
 
 ### Functional Requirements
 
-- ✅ Hybrid provider available via
+- Hybrid provider available via
   `summarization_provider: hybrid_ml`
-- ✅ FLAN-T5 works as REDUCE model (Tier 1, PyTorch)
-- ✅ Tier 2 LLMs work via llama.cpp backend
-- ✅ Produces structured summaries (takeaways, outline,
+- FLAN-T5 works as REDUCE model (Tier 1, PyTorch)
+- Tier 2 LLMs work via llama.cpp backend
+- Produces structured summaries (takeaways, outline,
   actions)
-- ✅ Existing classic provider continues to work
+- Existing classic provider continues to work
 
 ### Extended Model Requirements
 
-- ✅ Sentence-transformer embeddings load and produce
+- Sentence-transformer embeddings load and produce
   vectors
-- ✅ Extractive QA pipeline returns verbatim spans with
+- Extractive QA pipeline returns verbatim spans with
   character offsets
-- ✅ NLI cross-encoder classifies entailment/neutral/
+- NLI cross-encoder classifies entailment/neutral/
   contradiction
-- ✅ Structured extraction protocol implemented and tested
-- ✅ Model registry contains all model families
+- Structured extraction protocol implemented and tested
+- Model registry contains all model families
 
 ### Quality Requirements
 
-- ✅ Summaries more abstractive than classic-only approach
-- ✅ No scaffold/schema text leaks into output
-- ✅ FLAN-T5 produces valid structured JSON output
+- Summaries more abstractive than classic-only approach
+- No scaffold/schema text leaks into output
+- FLAN-T5 produces valid structured JSON output
   ≥80% of the time
-- ✅ Extractive QA returns correct spans (validates
+- Extractive QA returns correct spans (validates
   against transcript source)
 
 ### Performance Requirements
 
-- ✅ Full summarization pipeline < 10 min per episode
-- ✅ Full model suite memory < 16 GB on Mac laptop
-- ✅ Extended models (embedding, QA, NLI) load in < 30s
+- Full summarization pipeline < 10 min per episode
+- Full model suite memory < 16 GB on Mac laptop
+- Extended models (embedding, QA, NLI) load in < 30s
   each
 
 ### Documentation Requirements
 
-- ✅ Configuration guide for hybrid provider
-- ✅ Model selection recommendations (Tier 1 vs Tier 2)
-- ✅ Hardware requirements documented
-- ✅ Extended model usage guide
-- ✅ GIL readiness checklist (what RFC-049 needs)
+- Configuration guide for hybrid provider
+- Model selection recommendations (Tier 1 vs Tier 2)
+- Hardware requirements documented
+- Extended model usage guide
+- GIL readiness checklist (what RFC-049 needs)
 
 ---
 

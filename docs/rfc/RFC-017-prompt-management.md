@@ -510,10 +510,10 @@ class TransformersSummarizationProvider:
 
 ```python
 
-- ✅ **Protocol Compliance**: All providers implement the same protocol, regardless of prompt usage
-- ✅ **Provider Autonomy**: Each provider decides how to use (or not use) prompts
-- ✅ **No Core Dependencies**: The workflow/factory code doesn't import `prompt_store`
-- ✅ **Backward Compatible**: Existing providers (transformers, Whisper) continue working without prompts
+- **Protocol Compliance**: All providers implement the same protocol, regardless of prompt usage
+- **Provider Autonomy**: Each provider decides how to use (or not use) prompts
+- **No Core Dependencies**: The workflow/factory code doesn't import `prompt_store`
+- **Backward Compatible**: Existing providers (transformers, Whisper) continue working without prompts
 
 ## 5. Integration with Experiment Pipeline
 

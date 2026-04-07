@@ -649,10 +649,10 @@ Use `gi show-insight --id <insight_id> ...` to see full evidence for any insight
 
 If your UI feels:
 
-- ✅ Slightly boring
-- ✅ Very explicit
-- ✅ Developer-oriented
-- ✅ Shows grounding status clearly
+- Slightly boring
+- Very explicit
+- Developer-oriented
+- Shows grounding status clearly
 
 **You're doing it right.**
 
@@ -961,14 +961,14 @@ def explore_topic(topic_label: str, output_dir: Path) -> dict:
 
 The GIL implementation is considered end-to-end successful when:
 
-- ✅ All v1 use cases (UC1–UC5) can be executed using GIL data
-- ✅ Outputs include insights with supporting quotes (not just claims)
-- ✅ Grounding status is explicit for every insight
-- ✅ Quote text matches transcript verbatim (verifiable)
-- ✅ GIL data integrates cleanly with existing scraper artifacts
-- ✅ The Insight Explorer query (UC5) works end-to-end
-- ✅ Generated `gi.json` files conform to schema
-- ✅ Query patterns are documented and reproducible
+- All v1 use cases (UC1–UC5) can be executed using GIL data
+- Outputs include insights with supporting quotes (not just claims)
+- Grounding status is explicit for every insight
+- Quote text matches transcript verbatim (verifiable)
+- GIL data integrates cleanly with existing scraper artifacts
+- The Insight Explorer query (UC5) works end-to-end
+- Generated `gi.json` files conform to schema
+- Query patterns are documented and reproducible
 
 ### 7. Failure Modes & Fallbacks
 
@@ -1067,13 +1067,13 @@ The GIL implementation is considered end-to-end successful when:
 
 **Success Criteria:**
 
-1. ✅ All v1 use cases (UC1–UC5) can be executed end-to-end
-2. ✅ Output contracts include insights with supporting_quotes
-3. ✅ Grounding status is explicit for every insight
-4. ✅ Quote evidence resolution works correctly (verbatim match)
-5. ✅ Insight Explorer (UC5) demonstrates full cross-stack value
-6. ✅ Integration with existing outputs verified
-7. ✅ Query patterns documented with examples
+1. All v1 use cases (UC1–UC5) can be executed end-to-end
+2. Output contracts include insights with supporting_quotes
+3. Grounding status is explicit for every insight
+4. Quote evidence resolution works correctly (verbatim match)
+5. Insight Explorer (UC5) demonstrates full cross-stack value
+6. Integration with existing outputs verified
+7. Query patterns documented with examples
 
 ## Relationship to Other RFCs
 

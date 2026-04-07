@@ -371,11 +371,11 @@ When using isolated venvs, ensure your tooling doesn't assume a single venv path
 
 | Item | Requirement | Status |
 | ------ | ------------- | -------- |
-| `.venv/` in `.gitignore` | Must be ignored | ✅ Already configured |
-| Cursor Python path | Use `${workspaceFolder}/.venv/bin/python` | ✅ Documented below |
-| `pre-commit` hooks | Runs in current venv (works correctly) | ✅ No changes needed |
-| `.python-version` | Shared across worktrees (tracked in git) | ✅ Works correctly |
-| `pyproject.toml` / lock files | Shared across worktrees (tracked in git) | ✅ Works correctly |
+| `.venv/` in `.gitignore` | Must be ignored | Yes — Already configured |
+| Cursor Python path | Use `${workspaceFolder}/.venv/bin/python` | Yes — Documented below |
+| `pre-commit` hooks | Runs in current venv (works correctly) | Yes — No changes needed |
+| `.python-version` | Shared across worktrees (tracked in git) | Yes — Works correctly |
+| `pyproject.toml` / lock files | Shared across worktrees (tracked in git) | Yes — Works correctly |
 | IDE run configs | May need per-worktree adjustment | ⚠️ Check if issues |
 
 **Key principle:** Configuration files (tracked in git) are shared. Runtime artifacts
@@ -484,8 +484,8 @@ Your original folder (`~/Projects/podcast_scraper`) is now your "base":
 
 | Folder | Purpose | Open in Cursor? |
 | -------- | --------- | ----------------- |
-| `podcast_scraper/` (base) | Reference, git log, viewing | ❌ No (read-only) |
-| `podcast_scraper-169-*/` | Active development | ✅ Yes |
+| `podcast_scraper/` (base) | Reference, git log, viewing | No — No (read-only) |
+| `podcast_scraper-169-*/` | Active development | Yes — Yes |
 
 **Never edit code in the base folder.** Use it only for:
 
@@ -685,9 +685,9 @@ The key insight: **fast checks run on both push AND PR**, while **full checks on
 
 | Event | Fast Checks | Full Checks | Total Time |
 | ------- | ------------- | ------------- | ------------ |
-| Push to feature branch | ✅ Runs | ❌ Skipped | ~2 min |
-| Open/update PR to main | ✅ Runs | ✅ Runs | ~10 min |
-| Push directly to main | ❌ Blocked | ❌ Blocked | N/A |
+| Push to feature branch | Yes — Runs | No — Skipped | ~2 min |
+| Open/update PR to main | Yes — Runs | Yes Runs | ~10 min |
+| Push directly to main | No — Blocked | ❌ Blocked | N/A |
 
 **Rationale:** PRs need ALL checks (fast + full) before merging. The stratification benefit
 is that during active development (push), you only wait for fast checks.
@@ -752,10 +752,10 @@ For `main` branch:
 
 | Rule | Setting |
 | ------ | --------- |
-| Require PR | ✅ Enabled |
-| Require CI checks | ✅ `fast-checks`, `full-checks` |
-| Require approval | ✅ 1 reviewer (or self-approve for solo) |
-| Block force-push | ✅ Enabled |
+| Require PR | Yes — Enabled |
+| Require CI checks | Yes — `fast-checks`, `full-checks` |
+| Require approval | Yes — 1 reviewer (or self-approve for solo) |
+| Block force-push | Yes — Enabled |
 | Require up-to-date | ⚠️ Optional (triggers rebases) |
 
 ---
@@ -854,7 +854,7 @@ wt-setup:
  . .venv/bin/activate && \
  pip install -e ".[dev]" && \
  echo "" && \
- echo "✅ Worktree ready: $$folder" && \
+ echo " Worktree ready: $$folder" && \
  echo "   Branch: $$branch" && \
  echo "   Run: cd $$folder && source .venv/bin/activate && cursor ."
 
@@ -866,7 +866,7 @@ wt-list:
  @echo ""
  @echo "=== Worktree Details ==="
  @for wt in $$(git worktree list --porcelain | grep "^worktree" | cut -d' ' -f2); do \
-  if [ -d "$$wt/.venv" ]; then venv="✅ venv"; else venv="❌ no venv"; fi; \
+  if [ -d "$$wt/.venv" ]; then venv=" venv"; else venv="❌ no venv"; fi; \
   branch=$$(git -C "$$wt" branch --show-current 2>/dev/null || echo "detached"); \
   echo "  $$wt ($$branch) [$$venv]"; \
  done
@@ -884,7 +884,7 @@ wt-remove:
  if [ "$$delbranch" = "y" ] && [ -n "$$branch" ]; then \
   git branch -d "$$branch" 2>/dev/null || git branch -D "$$branch"; \
  fi && \
- echo "✅ Removed: $$path"
+ echo " Removed: $$path"
 
 ## Prune stale worktree references
 
@@ -892,7 +892,7 @@ wt-prune:
  @echo "=== Pruning Worktrees ==="
  git worktree prune -v
  git fetch --prune
- @echo "✅ Cleanup complete"
+ @echo " Cleanup complete"
 ```yaml
 
 ### 6.3 Input Sanitization
@@ -904,7 +904,7 @@ The targets above sanitize user input to prevent path issues:
 | `my feature` | `my-feature` | Spaces → dashes |
 | `api/v2` | `api-v2` | Slashes → dashes |
 | `fix@bug!` | `fixbug` | Special chars removed |
-| `  ` | ❌ Error | Empty after sanitization |
+| `  ` | No — Error | Empty after sanitization |
 
 If the sanitized name differs from input, a warning is shown before proceeding.
 
@@ -1143,7 +1143,7 @@ We use git worktrees for parallel development:
 
 **Phase 1 (Week 1):** Documentation and setup
 
-- Create this RFC ✅
+- Create this RFC 
 - Add Makefile helpers
 - Update `.ai-coding-guidelines.md`
 - Configure branch protection rules
@@ -1203,13 +1203,13 @@ git worktree add ../podcast_scraper-next-2.5 release/2.5
 
 ## Success Criteria
 
-1. ✅ Zero accidental commits to wrong branch
-2. ✅ CI feedback within 2 minutes of push
-3. ✅ Clean `main` history (linear, squash-merged)
-4. ✅ Cursor context matches active branch
-5. ✅ No stash usage required
-6. ✅ Each worktree has isolated venv
-7. ✅ Issues linked to branches and PRs
+1. Zero accidental commits to wrong branch
+2. CI feedback within 2 minutes of push
+3. Clean `main` history (linear, squash-merged)
+4. Cursor context matches active branch
+5. No stash usage required
+6. Each worktree has isolated venv
+7. Issues linked to branches and PRs
 
 ## Quick Reference Cheat Sheet
 

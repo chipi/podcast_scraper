@@ -667,18 +667,15 @@ and summarization.
 **ML Dependencies** (optional, install via
 `pip install -e .[ml]`): `openai-whisper`, `spacy`,
 `torch`, `transformers`, `sentencepiece`,
-`accelerate`, `protobuf`
+`sentence-transformers`, `faiss-cpu`, `accelerate`, `protobuf`,
+`llama-cpp-python` (GGUF / hybrid REDUCE, RFC-042)
 
-**API Provider Dependencies** (optional):
+**API Provider Dependencies:**
 
-- `openai` — OpenAI, DeepSeek, Grok (OpenAI-compat)
-- `google-genai` — Google Gemini (migrated from google-generativeai in Issue #415)
-- `anthropic` — Anthropic Claude
-- `mistralai` — Mistral AI
-- `ollama` — Ollama (local LLMs)
+- **Core**: `openai` (OpenAI, DeepSeek, Grok OpenAI-compat)
+- **Optional `[llm]` extra**: `google-genai`, `google-api-core`, `anthropic`, `mistralai`, `httpx` (Ollama health checks; Ollama itself is a separate local server)
 
-**Additional ML Dependencies** (RFC-042):
-`sentence-transformers`, `llama-cpp-python` (optional)
+**Other optional extras:** `[compare]` (Streamlit run comparison, RFC-047), `[server]` (FastAPI viewer API, RFC-062), `[dev]` (tooling)
 
 For detailed dependency information including
 rationale, alternatives considered, version

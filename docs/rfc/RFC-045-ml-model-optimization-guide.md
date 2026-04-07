@@ -157,9 +157,9 @@ Preprocessing isn't a single stage in one pipeline—it's a **horizontal concern
 
 | Flow | Where Preprocessing Happens | Profile Used | Configurable? |
 |------|----------------------------|--------------|---------------|
-| Production Pipeline | Inside `summarize_long_text()` at runtime | `cleaning_v3` (via apply_profile) | ✅ Yes |
-| Eval Pipeline | Inside provider's `summarize()` at runtime | From experiment config | ✅ Yes |
-| Offline Cleaning | `clean_for_summarization()` for `.cleaned.txt` | `cleaning_v3` equivalent | ❌ No |
+| Production Pipeline | Inside `summarize_long_text()` at runtime | `cleaning_v3` (via apply_profile) | Yes — Yes |
+| Eval Pipeline | Inside provider's `summarize()` at runtime | From experiment config | Yes — Yes |
+| Offline Cleaning | `clean_for_summarization()` for `.cleaned.txt` | `cleaning_v3` equivalent | No — No |
 
 ### Three Layers of Processing
 
@@ -805,10 +805,10 @@ make experiment-run CONFIG=data/eval/configs/baseline_bart_v7_cleaning_v4.yaml
 
 **Success Criteria:**
 
-1. ✅ Speaker leak rate reduced to <10%
-2. ✅ "Too short" warnings reduced to <20%
-3. ✅ No regression in latency (within 20%)
-4. ✅ At least one v4-based config outperforms v3 baseline
+1. Speaker leak rate reduced to <10%
+2. "Too short" warnings reduced to <20%
+3. No regression in latency (within 20%)
+4. At least one v4-based config outperforms v3 baseline
 
 ## Relationship to Other RFCs
 

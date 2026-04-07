@@ -70,7 +70,7 @@ The same finding held for Qwen 2.5:7b (temperature=0.5: +4.23% vs baseline).
 | Param Group | Param | Candidate | ROUGE-L | Delta | Decision |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | ollama_reduce | temperature | 0.1 | 17.1% | -9.5% | ✗ |
-| ollama_reduce | **temperature** | **0.5** | **20.8%** | **+10.0%** | **✓** |
+| ollama_reduce | **temperature** | **0.5** | **20.8%** | **+10.0%** | Yes |
 | ollama_reduce | top_p | 0.7 | 20.7% | -0.5% | ✗ |
 | ollama_reduce | top_p | 0.95 | 20.5% | -1.4% | ✗ |
 | ollama_reduce | top_p | 1.0 | 20.4% | -1.9% | ✗ |
@@ -85,8 +85,8 @@ Base: `hybrid_ml_bart_llama32_3b_smoke_paragraph_v1` (ROUGE-L 20.66%, post BART 
 | Param Group | Param | Candidate | ROUGE-L | Delta | Decision |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | ollama_reduce | top_p | 0.7 | 20.65% | -0.05% | ✗ |
-| ollama_reduce | **top_p** | **0.95** | **22.71%** | **+9.91%** | **✓** |
-| ollama_reduce | **top_p** | **1.0** | **23.12%** | **+1.84%** | **✓** |
+| ollama_reduce | **top_p** | **0.95** | **22.71%** | **+9.91%** | Yes |
+| ollama_reduce | **top_p** | **1.0** | **23.12%** | **+1.84%** | Yes |
 | ollama_reduce | frequency_penalty | 0.3 | 19.55% | -15.44% | ✗ |
 | ollama_reduce | frequency_penalty | 0.6 | 22.66% | -1.99% | ✗ |
 | ollama_reduce | frequency_penalty | 1.0 | 20.04% | -13.35% | ✗ |

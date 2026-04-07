@@ -106,7 +106,7 @@ class OpenAIProvider:
 
         Raises:
             ValueError: If OpenAI API key is not provided
-            ImportError: If openai package is not installed (install with [llm] extra)
+            ImportError: If openai package is not installed (core dependency)
         """
         # Lazy import to allow unit tests without openai installed (Issue #405)
         try:
@@ -114,7 +114,7 @@ class OpenAIProvider:
         except ImportError as exc:
             raise ImportError(
                 "openai package is required for OpenAI provider. "
-                "Install it with: pip install podcast-scraper[llm]"
+                "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             ) from exc
 
         if not cfg.openai_api_key:

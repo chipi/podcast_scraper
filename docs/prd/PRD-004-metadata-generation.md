@@ -1,7 +1,9 @@
 # PRD-004: Per-Episode Metadata Document Generation
 
-- **Status**: ✅ Implemented (v2.2.0)
-- **Related RFCs**: RFC-011, RFC-012
+- **Status**: Implemented (v2.2.0)
+- **Related RFCs**:
+  - [RFC-011](../rfc/RFC-011-metadata-generation.md) — metadata generation (**complete**)
+  - [RFC-012](../rfc/RFC-012-episode-summarization.md) — episode summarization (**complete**)
 
 ## Summary
 

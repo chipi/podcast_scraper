@@ -1,6 +1,6 @@
 # RFC-015: AI Experiment Pipeline
 
-- **Status**: 🟢 **Phase 1-3 Complete** - Experiment runner, evaluation metrics, and storage/comparison implemented. CI integration pending.
+- **Status**: **Phase 1–3 complete** — Experiment runner, evaluation metrics, and storage/comparison implemented. CI integration pending.
 - **Authors**:
 - **Stakeholders**: Maintainers, researchers tuning AI models/prompts, developers evaluating model performance
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`, `docs/prd/PRD-007-ai-quality-experiment-platform.md`
@@ -10,8 +10,8 @@
 - **Related RFCs**:
   - `docs/rfc/RFC-012-episode-summarization.md`
   - `docs/rfc/RFC-013-openai-provider-implementation.md`
-  - **`docs/rfc/RFC-016-modularization-for-ai-experiments.md`** (prerequisite - ✅ Complete)
-  - **`docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`** (complementary - ✅ Phase 0-1 Complete)
+  - **`docs/rfc/RFC-016-modularization-for-ai-experiments.md`** (prerequisite -  Complete)
+  - **`docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md`** (complementary -  Phase 0-1 Complete)
   - `docs/rfc/RFC-017-prompt-management.md`
 - **Related Issues**: [#304](https://github.com/chipi/podcast_scraper/issues/304) (RFC-015 Implementation)
 - **Updated**: 2026-01-16
@@ -20,37 +20,37 @@
 
 ## 📊 Implementation Status (Phase 1-3 Complete)
 
-### ✅ Completed Phases
+### Completed Phases
 
-**Phase 1: Experiment Runner** ✅ (Complete)
+**Phase 1: Experiment Runner**  (Complete)
 
-- ✅ Experiment config schema (`src/podcast_scraper/evaluation/config.py`)
-- ✅ Experiment runner (`scripts/eval/run_experiment.py`) using RFC-016 providers
-- ✅ Dataset JSON support (reads from `data/eval/datasets/` or `benchmarks/datasets/`)
-- ✅ `make experiment-run` command with baseline/reference support
-- ✅ Comprehensive fingerprinting (run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime)
-- ✅ Predictions stored as `predictions.jsonl` with structured format
+- Experiment config schema (`src/podcast_scraper/evaluation/config.py`)
+- Experiment runner (`scripts/eval/run_experiment.py`) using RFC-016 providers
+- Dataset JSON support (reads from `data/eval/datasets/` or `benchmarks/datasets/`)
+- `make experiment-run` command with baseline/reference support
+- Comprehensive fingerprinting (run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime)
+- Predictions stored as `predictions.jsonl` with structured format
 
-**Phase 2: Evaluation Metrics** ✅ (Complete)
+**Phase 2: Evaluation Metrics**  (Complete)
 
-- ✅ Evaluation infrastructure (`src/podcast_scraper/evaluation/scorer.py`, `comparator.py`)
-- ✅ Intrinsic metrics computation (gates, length, performance, cost)
-- ✅ Extrinsic metrics computation (ROUGE, embedding similarity) vs references
-- ✅ Structured `metrics.json` format (intrinsic + vs_reference sections)
-- ✅ Comparison deltas (`comparisons/vs_{baseline_id}.json`)
-- ✅ Reference validation (episode ID matching, immutability)
+- Evaluation infrastructure (`src/podcast_scraper/evaluation/scorer.py`, `comparator.py`)
+- Intrinsic metrics computation (gates, length, performance, cost)
+- Extrinsic metrics computation (ROUGE, embedding similarity) vs references
+- Structured `metrics.json` format (intrinsic + vs_reference sections)
+- Comparison deltas (`comparisons/vs_{baseline_id}.json`)
+- Reference validation (episode ID matching, immutability)
 
-**Phase 3: Storage & Comparison** ✅ (Complete)
+**Phase 3: Storage & Comparison**  (Complete)
 
-- ✅ Experiment results storage in `data/eval/runs/`
-- ✅ Baseline storage in `data/eval/baselines/`
-- ✅ Reference storage:
+- Experiment results storage in `data/eval/runs/`
+- Baseline storage in `data/eval/baselines/`
+- Reference storage:
   - Silver: `data/eval/references/silver/{reference_id}/`
   - Gold: `data/eval/references/gold/{task_type}/{reference_id}/`
-- ✅ Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
-- ✅ Historical tracking via immutable baselines/references
-- ✅ Comparison tools (baseline deltas, reference metrics)
-- ✅ README governance layer for all artifact types
+- Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
+- Historical tracking via immutable baselines/references
+- Comparison tools (baseline deltas, reference metrics)
+- README governance layer for all artifact types
 
 ### 🟡 Remaining Work
 
@@ -968,8 +968,8 @@ def run_experiment(cfg: ExperimentConfig) -> None:
 
 ```
 ```
-- ✅ **Protocol Compliance**: All providers implement same interface
-- ✅ **No Code Duplication**: Reuse production provider implementations
+- **Protocol Compliance**: All providers implement same interface
+- **No Code Duplication**: Reuse production provider implementations
 
 ## 3.4 Evolution Path: Integrated Evaluation
 
@@ -1851,10 +1851,10 @@ def main():
 
 ```python
 
-- ✅ **Backward Compatible**: CLI still works as before
-- ✅ **Reusable**: Can be imported by experiment pipeline
-- ✅ **Testable**: Core logic separated from CLI parsing
-- ✅ **Extensible**: Easy to add new metrics
+- **Backward Compatible**: CLI still works as before
+- **Reusable**: Can be imported by experiment pipeline
+- **Testable**: Core logic separated from CLI parsing
+- **Extensible**: Easy to add new metrics
 
 ## 5.3 Phase 3: Integrated Evaluation in Runner
 
@@ -2511,11 +2511,11 @@ summarization_openai_gpt4_mini_promptB   0.152     37.5×   <-- best
 
 **Solution**: Maintain a single Excel workbook (`results/experiment_results.xlsx`) with one tab per evaluation type. This provides:
 
-- ✅ **Centralized Tracking**: All experiment results in one place
-- ✅ **Easy Comparison**: Side-by-side comparison across experiments
-- ✅ **Visual Analysis**: Excel charts and pivot tables for trend analysis
-- ✅ **Version Control Friendly**: Can track changes over time
-- ✅ **Human Readable**: Easy to review and share with stakeholders
+- **Centralized Tracking**: All experiment results in one place
+- **Easy Comparison**: Side-by-side comparison across experiments
+- **Visual Analysis**: Excel charts and pivot tables for trend analysis
+- **Version Control Friendly**: Can track changes over time
+- **Human Readable**: Easy to review and share with stakeholders
 
 **Excel Structure:**
 
@@ -2708,12 +2708,12 @@ python scripts/update_experiment_results.py \
 
 **Note**: For product success criteria, see `docs/prd/PRD-007-ai-experiment-pipeline.md`. This section focuses on technical success criteria.
 
-- ✅ Experiment pipeline reuses production providers (no code duplication)
-- ✅ Production workflow continues to work unchanged
-- ✅ Provider interfaces are well-defined and testable
-- ✅ Evaluation scripts work with both experiment and production outputs
-- ✅ Clear separation between experiment and production pipelines
-- ✅ Easy to add new providers or experiment types
+- Experiment pipeline reuses production providers (no code duplication)
+- Production workflow continues to work unchanged
+- Provider interfaces are well-defined and testable
+- Evaluation scripts work with both experiment and production outputs
+- Clear separation between experiment and production pipelines
+- Easy to add new providers or experiment types
 
 ## Implementation Plan
 
@@ -2745,9 +2745,9 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 
 **Success Criteria:**
 
-- ✅ Gold data normalized under `data/eval/episodes/*`
-- ✅ Baseline experiment documented and config file created
-- ✅ Current state documented
+- Gold data normalized under `data/eval/episodes/*`
+- Baseline experiment documented and config file created
+- Current state documented
 
 ### Phase 2: Generic Runner
 
@@ -2781,11 +2781,11 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 
 **Success Criteria:**
 
-- ✅ Generic runner takes config and produces predictions + metrics
-- ✅ Can run experiments with existing HF baseline
-- ✅ Generates predictions.jsonl
-- ✅ Can evaluate predictions using existing eval logic
-- ✅ Prompt metadata tracked in results
+- Generic runner takes config and produces predictions + metrics
+- Can run experiments with existing HF baseline
+- Generates predictions.jsonl
+- Can evaluate predictions using existing eval logic
+- Prompt metadata tracked in results
 
 ### Phase 3: CI Smoke Tests (Layer A)
 
@@ -2813,9 +2813,9 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 
 **Success Criteria:**
 
-- ✅ Smoke tests run on every push/PR
-- ✅ Asserts quality thresholds
-- ✅ Catches breakages quickly
+- Smoke tests run on every push/PR
+- Asserts quality thresholds
+- Catches breakages quickly
 
 ### Phase 4: Full Eval Pipeline (Layer B)
 
@@ -2843,10 +2843,10 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 
 **Success Criteria:**
 
-- ✅ Full eval script runs all experiments
-- ✅ Generates summary report with metrics table
-- ✅ Can compare experiments and detect regressions
-- ✅ Works in CI/CD (nightly/on-demand)
+- Full eval script runs all experiments
+- Generates summary report with metrics table
+- Can compare experiments and detect regressions
+- Works in CI/CD (nightly/on-demand)
 
 ### Phase 5: Comparison Tooling
 
@@ -2869,9 +2869,9 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 
 **Success Criteria:**
 
-- ✅ Comparison tool creates Excel workbook
-- ✅ All experiments and key metrics visible
-- ✅ Easy to compare and make data-driven decisions
+- Comparison tool creates Excel workbook
+- All experiments and key metrics visible
+- Easy to compare and make data-driven decisions
 
 ### Phase 6: Extend to New Providers
 
@@ -2897,10 +2897,10 @@ The implementation follows a phased approach that wraps existing pieces (gold da
 
 **Success Criteria:**
 
-- ✅ Runner uses provider system
-- ✅ Supports multiple backends (OpenAI, HF local)
-- ✅ Supports multiple tasks (summarization, NER)
-- ✅ Eval scripts refactored and reusable
+- Runner uses provider system
+- Supports multiple backends (OpenAI, HF local)
+- Supports multiple tasks (summarization, NER)
+- Eval scripts refactored and reusable
 
 **Note**: Once structure is in place (Phases 1-5), adding new providers is just "add config + small backend class" (if needed).
 
@@ -3232,7 +3232,7 @@ def create_golden_dataset(config: GoldenConfig):
         print(pred[:500] + "...")
 
     # Manual approval
-    response = input("\n✅ Approve these outputs as golden reference? (yes/no): ")
+    response = input("\n Approve these outputs as golden reference? (yes/no): ")
     if response.lower() != "yes":
         logger.info("Golden creation cancelled")
         return
@@ -3256,7 +3256,7 @@ def create_golden_dataset(config: GoldenConfig):
     }
     (golden_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
-    logger.info(f"✅ Golden dataset created at {golden_dir}")
+    logger.info(f" Golden dataset created at {golden_dir}")
     logger.info("⚠️  Commit this to git to make it official")
 ```
 
@@ -3358,7 +3358,7 @@ Based on these improvements, the recommended implementation order is:
 - Generate predictions + metadata
 - Add failure-mode metrics (boilerplate, repetition, truncation, etc.)
 
-### 3. **RFC-041 Phase 0** (1 week) 🟢 **MEDIUM PRIORITY**
+### 3. **RFC-041 Phase 0** (1 week) **MEDIUM PRIORITY**
 
 - Freeze datasets (indicator_v1, journal_v1)
 - Create initial baseline artifacts

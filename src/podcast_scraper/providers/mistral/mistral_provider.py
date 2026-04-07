@@ -109,7 +109,7 @@ class MistralProvider:
         if Mistral is None:
             raise ImportError(
                 "mistralai package required for Mistral provider. "
-                "Install with: pip install 'podcast-scraper[mistral]'"
+                "Install with: pip install -e '.[llm]' (mistralai is in the llm extra)"
             )
 
         if not cfg.mistral_api_key:

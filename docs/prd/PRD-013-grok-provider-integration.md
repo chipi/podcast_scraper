@@ -1,10 +1,11 @@
 # PRD-013: Grok Provider Integration (xAI)
 
-- **Status**: ✅ Implemented (v2.5.0)
+- **Status**: Implemented (v2.5.0)
 - **Revision**: 3
 - **Date**: 2026-02-05
 - **Implementation**: Issue #1095
-- **Related RFCs**: RFC-036 (Updated)
+- **Related RFCs**:
+  - [RFC-036](../rfc/RFC-036-grok-provider-implementation.md) — Grok provider (**complete**) (Updated)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-011 (DeepSeek)
 
 ## Summary
@@ -161,7 +162,7 @@ grok_summary_user_prompt: str = Field(
 
 | Component | OpenAI (gpt-4o-mini) | DeepSeek (chat) | Grok (verify) |
 | --------- | -------------------- | --------------- | ------------- |
-| **Transcription** | $0.60 | ❌ N/A | ❌ N/A |
+| **Transcription** | $0.60 | No — N/A | No — N/A |
 | **Speaker Detection** | $0.14 | $0.004 | Verify pricing |
 | **Summarization** | $0.41 | $0.012 | Verify pricing |
 | **Total Text** | **$0.55** | **$0.016** | **Verify pricing** |
@@ -250,24 +251,24 @@ grok_summary_user_prompt: str = Field(
 
 ## Success Criteria
 
-- ✅ Users can select Grok provider for speaker detection and summarization via unified provider
-- ✅ Clear error when attempting transcription with Grok
-- ✅ API integration works (OpenAI-compatible API at <https://api.x.ai/v1>)
-- ✅ Real-time information access via X/Twitter integration
-- ✅ Environment-based model defaults (test vs production)
-- ✅ Both Config-based and experiment-based factory modes supported
-- ✅ No new SDK dependency (uses OpenAI SDK)
-- ✅ E2E tests pass
-- ✅ Follows OpenAI provider pattern exactly for consistency
+- Users can select Grok provider for speaker detection and summarization via unified provider
+- Clear error when attempting transcription with Grok
+- API integration works (OpenAI-compatible API at <https://api.x.ai/v1>)
+- Real-time information access via X/Twitter integration
+- Environment-based model defaults (test vs production)
+- Both Config-based and experiment-based factory modes supported
+- No new SDK dependency (uses OpenAI SDK)
+- E2E tests pass
+- Follows OpenAI provider pattern exactly for consistency
 
 ## Provider Capability Matrix (Updated)
 
 | Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok |
 | ---------- | ----- | ------ | --------- | ------- | -------- | ------ | ---- |
-| **Transcription** | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ |
-| **Speaker Detection** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Summarization** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Real-time Info** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (via X/Twitter) |
+| **Transcription** | Yes | Yes | No | Yes | No | Yes | No |
+| **Speaker Detection** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Summarization** | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Real-time Info** | No | No | No | No | No | No | Yes — (via X/Twitter) |
 
 ## Future Considerations
 

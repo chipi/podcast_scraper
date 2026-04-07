@@ -356,7 +356,7 @@ test-acceptance:
 | Basic Usage | 60-75 | `test_readme_basic_usage.py` | ⏳ Planned |
 | Key Features | 10-21 | `test_readme_key_features.py` | ⏳ Planned |
 | Requirements | 25-33 | Installation tests | ⏳ Planned |
-| Documentation | 77-98 | Not tested (links only) | ❌ Out of scope |
+| Documentation | 77-98 | Not tested (links only) | No — Out of scope |
 
 **Total Test Count Estimate:**
 
@@ -367,16 +367,16 @@ test-acceptance:
 
 ## Success Criteria
 
-1. ✅ All README installation examples are tested
-2. ✅ All README CLI usage examples are tested
-3. ✅ All key features mentioned in README are validated
-4. ✅ Acceptance tests run as final CI step
-5. ✅ Acceptance tests use `@pytest.mark.acceptance` marker
-6. ✅ Acceptance tests are in `tests/acceptance/` directory
-7. ✅ CI/CD pipeline includes acceptance test job
-8. ✅ Acceptance tests fail fast with clear error messages
-9. ✅ Documentation explains acceptance test category
-10. ✅ All acceptance tests pass before releases
+1. All README installation examples are tested
+2. All README CLI usage examples are tested
+3. All key features mentioned in README are validated
+4. Acceptance tests run as final CI step
+5. Acceptance tests use `@pytest.mark.acceptance` marker
+6. Acceptance tests are in `tests/acceptance/` directory
+7. CI/CD pipeline includes acceptance test job
+8. Acceptance tests fail fast with clear error messages
+9. Documentation explains acceptance test category
+10. All acceptance tests pass before releases
 
 ## Risks & Mitigations
 

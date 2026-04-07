@@ -249,13 +249,13 @@ Fingerprints must include:
 
 You are ready to ship when:
 
-- ✅ Eval and app use identical code path
-- ✅ All parameters are explicit in config
-- ✅ Preprocessing profile is in fingerprint
-- ✅ Dynamic safeguards are logged
-- ✅ Scorers are read-only
-- ✅ All required artifacts are generated
-- ✅ Fingerprints are complete and deterministic
+- Eval and app use identical code path
+- All parameters are explicit in config
+- Preprocessing profile is in fingerprint
+- Dynamic safeguards are logged
+- Scorers are read-only
+- All required artifacts are generated
+- Fingerprints are complete and deterministic
 
 ## Deferred Work (Next Chapter)
 

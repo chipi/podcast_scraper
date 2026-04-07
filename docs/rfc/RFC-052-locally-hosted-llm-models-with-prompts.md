@@ -393,17 +393,17 @@ def _get_prompt_path(model_name: str, task: str, prompt_version: str) -> str:
 
 **Success Criteria:**
 
-1. ✅ All 5 models implemented with model-specific
+1. All 5 models implemented with model-specific
    prompts
-2. ✅ Qwen2.5 7B + Llama 3.1 8B have full prompt
+2. Qwen2.5 7B + Llama 3.1 8B have full prompt
    coverage (NER + summarization + GIL extraction)
-3. ✅ Quality acceptable for production use (validated
+3. Quality acceptable for production use (validated
    via manual review)
-4. ✅ Performance acceptable (< 5 min per episode on
+4. Performance acceptable (< 5 min per episode on
    target hardware)
-5. ✅ Documentation complete (model selection guide,
+5. Documentation complete (model selection guide,
    prompt development guide)
-6. ✅ Integration tests passing for all models
+6. Integration tests passing for all models
 
 ## Integration with RFC-042 and RFC-049
 

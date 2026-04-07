@@ -1,6 +1,6 @@
 # RFC-061: Semantic Corpus Search
 
-- **Status**: Draft
+- **Status**: Completed (Phase 1 implemented; Qdrant Phase 2 pending)
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, GIL/KG consumers, downstream API/digest users
 - **Related PRDs**:

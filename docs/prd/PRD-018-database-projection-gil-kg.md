@@ -3,13 +3,13 @@
 - **Status**: 📋 Draft
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
-  - RFC-044 (Model Registry — prerequisite)
-  - RFC-042 (Hybrid ML Platform — prerequisite)
-  - RFC-049 (Core GIL Concepts — GIL dependency)
-  - RFC-050 (Use Cases & Insight Explorer — GIL)
-  - RFC-051 (Database Projection — technical design for GIL and KG)
-  - RFC-055 (Knowledge Graph — artifact model for KG projection)
-  - RFC-056 (Knowledge Graph — use cases and consumption patterns for KG queries)
+  - [RFC-044](../rfc/RFC-044-model-registry.md) — model registry (**complete**; prerequisite)
+  - [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md) — hybrid summarization pipeline (**complete**; prerequisite)
+  - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core concepts (**complete**)
+  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases and Insight Explorer (**open**)
+  - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection design (**open**)
+  - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core concepts (**complete**)
+  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**open**)
 - **Related Issues**: #31, #40, #50
 - **Related PRDs** (in scope):
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) — source `gi.json` and GIL semantics

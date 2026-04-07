@@ -1,7 +1,12 @@
 # PRD-002: Whisper Fallback Transcription
 
-- **Status**: ✅ Implemented (v2.0.0)
-- **Related RFCs**: RFC-004, RFC-005, RFC-006, RFC-008, RFC-010
+- **Status**: Implemented (v2.0.0)
+- **Related RFCs**:
+  - [RFC-004](../rfc/RFC-004-filesystem-layout.md) — filesystem layout (**complete**)
+  - [RFC-005](../rfc/RFC-005-whisper-integration.md) — Whisper integration (**complete**)
+  - [RFC-006](../rfc/RFC-006-screenplay-formatting.md) — screenplay formatting (**complete**)
+  - [RFC-008](../rfc/RFC-008-config-model.md) — configuration model (**complete**)
+  - [RFC-010](../rfc/RFC-010-speaker-name-detection.md) — speaker name detection (**complete**)
 
 ## Summary
 

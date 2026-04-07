@@ -81,10 +81,10 @@ Minimum cleanup that is always safe, even for strong LLMs:
 
 | Cleanup                 | Description                       | Safe for LLMs?        |
 | ----------------------- | --------------------------------- | --------------------- |
-| Remove junk lines       | `////`, `=-`, `___`, etc.         | ✅ Yes                |
-| Normalize whitespace    | Collapse blank lines              | ✅ Yes                |
-| Remove stage directions | `[music]`, `(pause)`              | ✅ Yes (configurable) |
-| Strip headers           | Episode titles, `Host:`, `Guest:` | ✅ Yes                |
+| Remove junk lines       | `////`, `=-`, `___`, etc.         | Yes — Yes                |
+| Normalize whitespace    | Collapse blank lines              | Yes — Yes                |
+| Remove stage directions | `[music]`, `(pause)`              | Yes — Yes (configurable) |
+| Strip headers           | Episode titles, `Host:`, `Guest:` | Yes — Yes                |
 
 This becomes the **canonical materialization**: "what summarization input means in our system."
 
@@ -340,9 +340,9 @@ This answers: "What output do we ship per provider?"
 
 **Success Criteria:**
 
-1. ✅ All new experiment configs use materialization_id
-2. ✅ Baseline runs are reproducible via materialization
-3. ✅ No accidental apples-to-oranges comparisons
+1. All new experiment configs use materialization_id
+2. Baseline runs are reproducible via materialization
+3. No accidental apples-to-oranges comparisons
 
 ## Relationship to Other RFCs
 

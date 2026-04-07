@@ -1505,10 +1505,10 @@ data/eval/
 
 ## Visual run comparison (RFC-047)
 
-To compare experiment or baseline runs side by side (artifact status, KPI tiles, deltas vs a chosen baseline, token/latency charts, optional map/reduce diagnostics, and per-episode diffs), use the Streamlit tool described in the [run_compare README in the repository](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md).
+To compare experiment or baseline runs side by side (artifact status, KPI tiles, deltas vs a chosen baseline, token/latency charts, optional map/reduce diagnostics, and per-episode diffs), use the Streamlit tool described in the [compare tool README in the repository](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md).
 
 ```bash
-pip install -e '.[run_compare]'
+pip install -e '.[compare]'
 make run-compare
 ```
 

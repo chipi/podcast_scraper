@@ -282,7 +282,7 @@ class OllamaReduceBackend:
 
 
 class LlamaCppReduceBackend:
-    """Tier 2 REDUCE via llama.cpp (GGUF). Optional: pip install podcast-scraper[llama]."""
+    """Tier 2 REDUCE via llama.cpp (GGUF). Requires ``pip install podcast-scraper[ml]``."""
 
     def __init__(
         self,
@@ -302,7 +302,7 @@ class LlamaCppReduceBackend:
         except ImportError as e:
             raise ImportError(
                 "llama-cpp-python is required for hybrid_reduce_backend='llama_cpp'. "
-                "Install with: pip install podcast-scraper[llama]"
+                "Install with: pip install podcast-scraper[ml]"
             ) from e
 
         self._llm = Llama(

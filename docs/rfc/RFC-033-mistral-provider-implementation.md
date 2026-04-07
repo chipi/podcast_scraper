@@ -1,6 +1,6 @@
 # RFC-033: Mistral Provider Implementation (Revised)
 
-- **Status**: ✅ Completed (v2.5.0)
+- **Status**: Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -43,8 +43,8 @@ Requirements:
 
 **Constraints:**
 
-- **Prerequisite**: Modularization refactoring (RFC-021) ✅ Completed
-- **Prerequisite**: OpenAI provider implementation (RFC-013) ✅ Completed
+- **Prerequisite**: Modularization refactoring (RFC-021) Completed
+- **Prerequisite**: OpenAI provider implementation (RFC-013) Completed
 - **Backward Compatibility**: Default providers (local) must remain unchanged
 - **API Key Security**: API keys must never be in source code or committed files
 - **Rate Limits**: Must respect Mistral API rate limits and implement retry logic
@@ -351,7 +351,7 @@ class MistralProvider:
         if Mistral is None:
             raise ImportError(
                 "mistralai package required for Mistral provider. "
-                "Install with: pip install 'podcast-scraper[mistral]'"
+                "Install with: pip install -e '.[llm]' (mistralai is in the llm extra)"
             )
 
         if not cfg.mistral_api_key:
@@ -988,19 +988,19 @@ Same pattern as OpenAI provider:
 
 ## Success Criteria
 
-1. ✅ Mistral supports transcription, speaker detection, and summarization via unified provider
-2. ✅ Mistral is a complete OpenAI alternative (all three capabilities)
-3. ✅ Free tier works for development (Small model)
-4. ✅ E2E tests pass
-5. ✅ Experiment mode supported from start
-6. ✅ Environment-based model defaults (test vs prod)
-7. ✅ Follows OpenAI provider pattern exactly
+1. Mistral supports transcription, speaker detection, and summarization via unified provider
+2. Mistral is a complete OpenAI alternative (all three capabilities)
+3. Free tier works for development (Small model)
+4. E2E tests pass
+5. Experiment mode supported from start
+6. Environment-based model defaults (test vs prod)
+7. Follows OpenAI provider pattern exactly
 
 ## Migration Notes
 
 - **Breaking Changes**: None (new provider, backward compatible)
 - **Configuration**: Add `MISTRAL_API_KEY` to `.env` file
-- **Dependencies**: Install with `pip install 'podcast-scraper[mistral]'`
+- **Dependencies**: Install with `pip install -e ".[llm]"` (mistralai is in the `llm` extra)
 
 ## References
 

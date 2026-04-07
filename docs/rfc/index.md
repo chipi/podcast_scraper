@@ -32,12 +32,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling; routes summarization, GIL (RFC-049), and KG (RFC-055) strategies |
 | [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
 | [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Knowledge Graph Layer — Use Cases & End-to-End Consumption | PRD-019 | KG query patterns, export, `kg` CLI expectations, optional DB consumption |
-| [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | - | Agent-driven ratchet loop; immutable eval harness; aligns with RFC-017 prompts and `evaluation/` |
 | [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio integration for neural speaker diarization, replacing gap-based rotation |
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
-| [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | Vector index over GIL/KG/summary/transcript content; FAISS (Phase 1) + Qdrant (Phase 2); `podcast search` CLI |
-| [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-021 | Vue 3 + Cytoscape.js + FastAPI rebuild of viewer; semantic search panel, index dashboard, explore/QA integration |
 
 ## Completed RFCs
 
@@ -88,6 +85,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | v2.6.0 | Core ontology, grounding contract, storage format for GIL |
 | [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | v2.5.0 | Ollama provider and optimized prompt templates |
 | [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | v2.6.0 | KG ontology, artifacts, and separation from GIL |
+| [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | PRD-007 | v2.6.0 | Closed per [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md); Tracks A/B complete; silver refs + 72-config eval matrix |
+| [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | v2.6.0 | FAISS Phase 1, `podcast search`, indexer, semantic `gi explore` when index present ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); Qdrant Phase 2 pending |
+| [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-017, PRD-019, PRD-021 | v2.6.0 | FastAPI `podcast serve`, Vue 3 + Vite + Cytoscape SPA, Playwright UI E2E ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)); platform routes remain v2.7 per ADR-064 |
 
 ## Quick Links
 

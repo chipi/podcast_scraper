@@ -539,12 +539,12 @@ it guarantees verbatim spans (grounding contract).
 
 **Success Criteria:**
 
-1. ✅ All v1 node types can be extracted from transcripts (Insight, Quote, Topic)
-2. ✅ All v1 edge types can be constructed (HAS_INSIGHT, SUPPORTED_BY, SPOKEN_BY, ABOUT)
-3. ✅ Grounding contract is enforced (every insight has grounded status)
-4. ✅ Generated `gi.json` files conform to schema
-5. ✅ Extraction completes within reasonable time bounds
-6. ✅ Integration with existing workflow verified
+1. All v1 node types can be extracted from transcripts (Insight, Quote, Topic)
+2. All v1 edge types can be constructed (HAS_INSIGHT, SUPPORTED_BY, SPOKEN_BY, ABOUT)
+3. Grounding contract is enforced (every insight has grounded status)
+4. Generated `gi.json` files conform to schema
+5. Extraction completes within reasonable time bounds
+6. Integration with existing workflow verified
 
 ## Relationship to Other RFCs
 

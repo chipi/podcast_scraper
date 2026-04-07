@@ -1,7 +1,8 @@
 # PRD-008: Automatic Speaker Name Detection
 
-- **Status**: ✅ Implemented (v2.1.0)
-- **Related RFCs**: RFC-010
+- **Status**: Implemented (v2.1.0)
+- **Related RFCs**:
+  - [RFC-010](../rfc/RFC-010-speaker-name-detection.md) — automatic speaker name detection (**complete**)
 
 ## Summary
 
@@ -91,12 +92,12 @@ Users want transcripts that automatically use real speaker names without requiri
 
 ## Success Criteria
 
-- ✅ Host names correctly detected from RSS author metadata
-- ✅ Guest names correctly extracted from episode titles/descriptions
-- ✅ Detected names appear in Whisper screenplay output
-- ✅ Manual `--speaker-names` works as fallback when detection fails
-- ✅ No regression in transcript quality when names aren't detected
-- ✅ Performance impact < 100ms per episode for NER processing
+- Host names correctly detected from RSS author metadata
+- Guest names correctly extracted from episode titles/descriptions
+- Detected names appear in Whisper screenplay output
+- Manual `--speaker-names` works as fallback when detection fails
+- No regression in transcript quality when names aren't detected
+- Performance impact < 100ms per episode for NER processing
 
 ## Dependencies
 

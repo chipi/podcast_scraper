@@ -90,9 +90,11 @@ Choose the installation method based on your use case:
 
 | Use Case | Installation Command | What You Get | Disk Space |
 | -------- | --------------------- | ----------- | --------- |
-| **LLM-only** (recommended) | `pip install -e .` | Core package + LLM SDKs (OpenAI, Gemini, etc.) | ~50MB |
-| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper + spaCy + Transformers | ~1-3GB |
-| **Both options** | `pip install -e ".[ml]"` | Everything (LLM + local ML) | ~1-3GB |
+| **LLM-only** (recommended) | `pip install -e .` | Core + OpenAI SDK (other API providers → add **`[llm]`**) | ~50MB |
+| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, FAISS, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
+| **Both options** | `pip install -e ".[ml,llm]"` | Local ML + extra LLM API SDKs (Gemini, Anthropic, Mistral, httpx/Ollama) | ~1-3GB |
+| **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
+| **GI/KG viewer API** | `pip install -e ".[server]"` | FastAPI + uvicorn for `podcast serve` | small |
 
 **Quick decision guide:**
 

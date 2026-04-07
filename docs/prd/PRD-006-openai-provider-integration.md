@@ -1,7 +1,12 @@
 # PRD-006: OpenAI Provider Integration
 
-- **Status**: ✅ Implemented (v2.4.0)
-- **Related RFCs**: RFC-013, RFC-017, RFC-021, RFC-022, RFC-029
+- **Status**: Implemented (v2.4.0)
+- **Related RFCs**:
+  - [RFC-013](../rfc/RFC-013-openai-provider-implementation.md) — OpenAI provider (**complete**)
+  - [RFC-017](../rfc/RFC-017-prompt-management.md) — prompt management (**complete**)
+  - [RFC-021](../rfc/RFC-021-modularization-refactoring-plan.md) — modularization plan (**complete**)
+  - [RFC-022](../rfc/RFC-022-environment-variable-candidates-analysis.md) — environment variables (**complete**)
+  - [RFC-029](../rfc/RFC-029-provider-refactoring-consolidation.md) — provider consolidation (**complete**)
 
 ## Summary
 
@@ -343,14 +348,14 @@ Cost: ~$0.38/episode
 
 ## Success Criteria
 
-- ✅ Users can select OpenAI provider for any capability via configuration
-- ✅ Default behavior (local providers) remains unchanged
-- ✅ API keys are managed securely via environment variables and `.env` files (using `python-dotenv`)
-- ✅ OpenAI providers implement same interfaces as local providers
-- ✅ No changes required to workflow.py or end-user code
-- ✅ Parallelism works correctly with API providers
-- ✅ Error handling is clear and actionable
-- ✅ Documentation explains provider selection and API key setup (including `.env` file usage)
+- Users can select OpenAI provider for any capability via configuration
+- Default behavior (local providers) remains unchanged
+- API keys are managed securely via environment variables and `.env` files (using `python-dotenv`)
+- OpenAI providers implement same interfaces as local providers
+- No changes required to workflow.py or end-user code
+- Parallelism works correctly with API providers
+- Error handling is clear and actionable
+- Documentation explains provider selection and API key setup (including `.env` file usage)
 
 ## Out of Scope
 
@@ -363,7 +368,7 @@ Cost: ~$0.38/episode
 
 ## Dependencies
 
-- **Prerequisite**: Modularization refactoring must be completed (RFC-021) (✅ **Completed**)
+- **Prerequisite**: Modularization refactoring must be completed (RFC-021) (**Completed**)
 - **External**: OpenAI API access and API key
 - **Internal**: Provider abstraction interfaces (from refactoring)
 

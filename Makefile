@@ -190,7 +190,7 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
-	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[run_compare]')"
+	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[compare]')"
 	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make ml-param-sweep      RFC-057 Track B: ML hyperparameter ratchet (no API keys needed)"
 	@echo "                            Usage: make ml-param-sweep MODEL=bart_led [MAX_FAILS=3] [MIN_GAIN=0.01] [DRY_RUN=1]"

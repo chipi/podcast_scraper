@@ -30,10 +30,10 @@ dependencies = [
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
 #   dev       — tests, lint, typecheck, eval metrics tooling
-#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS, etc.
+#   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS,
+#               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
-#   llama     — optional GGUF hybrid REDUCE (RFC-042)
-#   run_compare — Streamlit compare UI (RFC-047)
+#   compare   — Streamlit compare UI (RFC-047)
 #   server    — GI/KG viewer HTTP API: FastAPI + uvicorn (RFC-062 / #489)
 # Heavy ML dependencies - only install when needed
 ml = [
@@ -58,13 +58,11 @@ ml = [
   "faiss-cpu>=1.9.0,<2.0.0",
   "accelerate>=0.20.0,<2.0.0",
   "protobuf>=3.20.0,!=6.33.4,<8.0.0",  # Exclude 6.33.4 due to CVE-2026-0994 (fixed in 6.33.5+)
-]
-# llama.cpp for hybrid REDUCE (RFC-042, Issue #352) - optional GGUF inference
-llama = [
+  # GGUF in-process inference for hybrid_ml Tier 2 REDUCE (RFC-042, Issue #352); Ollama needs no extra
   "llama-cpp-python>=0.2.0,<0.4.0",
 ]
 # Streamlit run comparison UI (RFC-047, Issue #373)
-run_compare = [
+compare = [
   "streamlit>=1.41.0,<2.0.0",
   "plotly>=5.18.0,<6.0.0",
   "pandas>=2.0.0,<3.0.0",

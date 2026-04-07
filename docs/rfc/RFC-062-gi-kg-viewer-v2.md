@@ -1,6 +1,6 @@
 # RFC-062: GI/KG Viewer v2 — Semantic Search UI & Web Application Architecture
 
-- **Status**: Implemented
+- **Status**: Completed
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, GIL/KG consumers, viewer users
 - **Related PRDs**:
@@ -755,35 +755,35 @@ See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
 
 **Rollout Plan:**
 
-- **M1 — Scaffold + Server Shell** ✅ (done): Vite + Vue + Tailwind + Pinia project
+- **M1 — Scaffold + Server Shell** (done): Vite + Vue + Tailwind + Pinia project
   in `web/gi-kg-viewer/`. Token-based theming layer in `src/theme/` — `tokens.css`
   (UXS-001 semantic tokens as CSS custom properties), `theme.ts` runtime helper,
   default preset, Tailwind config wired to tokens. FastAPI server skeleton in
   `src/podcast_scraper/server/` with `/api/health` and `/api/artifacts` endpoints.
   `podcast serve` CLI command. `make serve` target. Verify Vite dev proxy works.
   Platform route placeholder stubs (empty files, not mounted).
-- **M2 — Graph Port** ✅ (done): `GraphCanvas.vue` wrapping Cytoscape.js with all v1
+- **M2 — Graph Port** (done): `GraphCanvas.vue` wrapping Cytoscape.js with all v1
   capabilities: load artifacts, render nodes/edges, filter by type, grounded-only
   toggle, legend with click-to-solo, 1-hop ego focus on double-click, node detail panel.
   Parsing logic ported from `shared.js` to typed TypeScript (`parsing.ts`, `colors.ts`).
   Merge logic (same-layer, GI+KG cross-layer) ported to `artifacts` store.
-- **M3 — Metrics + Dashboard** ✅ (done): `MetricsPanel.vue` (key-value display),
+- **M3 — Metrics + Dashboard** (done): `MetricsPanel.vue` (key-value display),
   `IndexStats.vue` (vector counts, model info, freshness), distribution chart
   (Chart.js bar). File-picker fallback for no-backend mode. `DashboardView` with
   corpus overview.
-- **M4 — Search Panel + Backend** ✅ (done): `SearchBar`, `SearchResults`,
+- **M4 — Search Panel + Backend** (done): `SearchBar`, `SearchResults`,
   `SearchFilters`, `ResultCard`. `/api/search` wrapping `VectorStore.search()`.
   Click result → graph focus. Search filters (type, feed, date, speaker, grounded-only,
   top-k). Depends on RFC-061 `VectorStore` being available.
-- **M5 — Explore/QA Integration** ✅ (done): `/api/explore` endpoint wrapping
+- **M5 — Explore/QA Integration** (done): `/api/explore` endpoint wrapping
   `run_uc5_insight_explorer` and `run_uc4_semantic_qa`. Topic explorer and QA view in
   frontend. Semantic matching when vector index available, substring fallback when not.
-- **M6 — Polish** ✅ (done): Dark mode (Tailwind, driven by `tokens.css`
+- **M6 — Polish** (done): Dark mode (Tailwind, driven by `tokens.css`
   `prefers-color-scheme`), finalize open tunable parameters in UXS-001 (typography,
   radii, spacing), keyboard shortcuts (/ for search, Escape to clear focus), graph
   export (PNG/SVG via Cytoscape), responsive layout, loading states, error handling,
   documentation update.
-- **M7 — E2E Test Layer** ✅ (done): Playwright setup and configuration. Test
+- **M7 — E2E Test Layer** (done): Playwright setup and configuration. Test
   fixtures (sample artifacts, pre-built small FAISS index). Core E2E scenarios: graph
   load, search, search-to-graph focus, filters, dashboard, offline fallback, dark mode.
   `make test-ui-e2e` target. CI integration.
@@ -950,13 +950,13 @@ CRUD routes, job management, and Postgres integration — all on the same
 
 ## Migration Path
 
-1. **Phase 1 — Build v2** ✅: New `web/gi-kg-viewer/` directory and
+1. **Phase 1 — Build v2** : New `web/gi-kg-viewer/` directory and
    `src/podcast_scraper/server/` module.
-2. **Phase 2 — Validate parity** ✅: v1 capabilities work in v2. Playwright
+2. **Phase 2 — Validate parity** : v1 capabilities work in v2. Playwright
    E2E tests green.
-3. **Phase 3 — Switch default** ✅: `make serve` points to v2. `podcast serve` is the
+3. **Phase 3 — Switch default** : `make serve` points to v2. `podcast serve` is the
    canonical server command.
-4. **Phase 4 — Remove v1** ✅: `web/gi-kg-viz/` and `scripts/gi_kg_viz_server.py`
+4. **Phase 4 — Remove v1** : `web/gi-kg-viz/` and `scripts/gi_kg_viz_server.py`
    deleted. v2 is the sole viewer.
 5. **Phase 5 — Platform extension** (v2.7): Add platform routes, views, and stores to
    the same server and frontend. No structural migration needed.

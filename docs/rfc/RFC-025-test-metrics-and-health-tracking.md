@@ -1,6 +1,6 @@
 # RFC-025: Test Metrics and Health Tracking
 
-- **Status**: ✅ Completed
+- **Status**: Completed
 - **Related ADRs**:
   - [ADR-022: Flaky Test Defense](../adr/ADR-022-flaky-test-defense.md)
 - **Authors**:
@@ -98,11 +98,11 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 ### Success Criteria
 
-- ✅ Metrics automatically collected in CI (no manual work)
-- ✅ Historical trends visible (runtime, coverage, flakiness)
-- ✅ Slowest tests identified and tracked
-- ✅ Flaky tests automatically detected and reported
-- ✅ GitHub Actions job summaries display key metrics
+- Metrics automatically collected in CI (no manual work)
+- Historical trends visible (runtime, coverage, flakiness)
+- Slowest tests identified and tracked
+- Flaky tests automatically detected and reported
+- GitHub Actions job summaries display key metrics
 
 ## Test Metrics & Monitoring
 
@@ -373,7 +373,7 @@ This explicit definition enables automation and clear identification of unstable
 - Basic metrics (JUnit XML, coverage)
 - Job summaries
 
-**Current Status:** ✅ Implemented
+**Current Status:** Implemented
 
 ### Layer 2: Main Branch (Full Validation)
 
@@ -385,7 +385,7 @@ This explicit definition enables automation and clear identification of unstable
 - Artifact uploads
 - Job summaries
 
-**Current Status:** ✅ Implemented
+**Current Status:** Implemented
 
 ### Layer 3: Nightly Builds (Comprehensive Analysis)
 
@@ -520,17 +520,17 @@ This explicit definition enables automation and clear identification of unstable
 
 ### Codebase Health
 
-- ✅ **Visibility**: Key metrics tracked on every run
-- ✅ **Trends**: Historical data enables improvement tracking
-- ✅ **Regression detection**: Identify slow tests and performance issues
-- ✅ **Data-driven decisions**: Metrics guide optimization efforts
+- **Visibility**: Key metrics tracked on every run
+- **Trends**: Historical data enables improvement tracking
+- **Regression detection**: Identify slow tests and performance issues
+- **Data-driven decisions**: Metrics guide optimization efforts
 
 ### CI/CD Integration
 
-- ✅ **Automated metrics**: No manual work required
-- ✅ **Artifact preservation**: Historical data available
-- ✅ **Job summaries**: Always-visible health snapshots
-- ✅ **Trend analysis**: Track progress over time
+- **Automated metrics**: No manual work required
+- **Artifact preservation**: Historical data available
+- **Job summaries**: Always-visible health snapshots
+- **Trend analysis**: Track progress over time
 
 ## Related Files
 
@@ -541,13 +541,13 @@ This explicit definition enables automation and clear identification of unstable
 
 ## Current Implementation Status
 
-### ✅ Layer 1 (PRs) - Implemented
+### Layer 1 (PRs) - Implemented
 
 - Fast feedback jobs (`test-fast` and `test`)
 - Basic test execution
 - Parallel execution for speed
 
-### ✅ Layer 2 (Main Branch) - Implemented
+### Layer 2 (Main Branch) - Implemented
 
 - All test jobs (test-unit, test-integration, test-e2e)
 - Complete validation

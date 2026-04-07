@@ -81,7 +81,7 @@ class DeepSeekProvider:
         if OpenAI is None:
             raise ImportError(
                 "openai package required for DeepSeek provider. "
-                "Install with: pip install 'podcast-scraper[openai]'"
+                "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             )
 
         if not cfg.deepseek_api_key:

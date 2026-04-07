@@ -1,9 +1,10 @@
 # PRD-012: Google Gemini Provider Integration
 
-- **Status**: ✅ Implemented (v2.5.0)
+- **Status**: Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
-- **Related RFCs**: RFC-035 (Revised)
+- **Related RFCs**:
+  - [RFC-035](../rfc/RFC-035-gemini-provider-implementation.md) — Gemini provider (**complete**) (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-010 (Mistral)
 
 ## Summary
@@ -150,7 +151,7 @@ Google offers a generous free tier:
 
 | Component | OpenAI (gpt-4o-mini) | Mistral (small) | DeepSeek (chat) | Gemini (flash) |
 | --------- | -------------------- | --------------- | --------------- | -------------- |
-| **Transcription** | $0.60 | TBD | ❌ N/A | **$0.90** |
+| **Transcription** | $0.60 | TBD | No — N/A | **$0.90** |
 | **Speaker Detection** | $0.14 | $0.03 | $0.004 | **$0.01** |
 | **Summarization** | $0.41 | $0.08 | $0.012 | **$0.04** |
 | **Total** | **$1.15** | **$0.11+** | **$0.016** | **$0.95** |
@@ -244,7 +245,7 @@ Google offers a generous free tier:
 
 - **TR2.1**: Add `google-genai` Python package as optional dependency (migrated from `google-generativeai` in Issue #415)
 - **TR2.2**: Lazy import when provider is selected (ImportError with helpful message if not installed)
-- **TR2.3**: Add to `pyproject.toml` optional dependencies: `gemini = ["google-genai>=0.1.0,<1.0.0"]`
+- **TR2.3**: Ship `google-genai` under the shared **`[llm]`** optional extra in `pyproject.toml` (no separate `[gemini]` extra)
 
 ### TR3: Testing
 
@@ -260,22 +261,22 @@ Google offers a generous free tier:
 
 ## Success Criteria
 
-- ✅ Users can select Gemini for all three capabilities via unified provider
-- ✅ Native audio transcription works via Gemini (file upload and inline data)
-- ✅ Default behavior unchanged (local providers remain default)
-- ✅ API keys managed securely via `GEMINI_API_KEY` environment variable
-- ✅ Environment-based model defaults (test vs production)
-- ✅ Both Config-based and experiment-based factory modes supported
-- ✅ E2E tests pass with mock server support
-- ✅ Follows OpenAI provider pattern exactly for consistency
+- Users can select Gemini for all three capabilities via unified provider
+- Native audio transcription works via Gemini (file upload and inline data)
+- Default behavior unchanged (local providers remain default)
+- API keys managed securely via `GEMINI_API_KEY` environment variable
+- Environment-based model defaults (test vs production)
+- Both Config-based and experiment-based factory modes supported
+- E2E tests pass with mock server support
+- Follows OpenAI provider pattern exactly for consistency
 
 ## Provider Capability Matrix (Updated)
 
 | Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ---------- | ----- | ------ | --------- | ------- | -------- | ------ |
-| **Transcription** | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ |
-| **Speaker Detection** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Summarization** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Transcription** | Yes | Yes | No | Yes | No | Yes |
+| **Speaker Detection** | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Summarization** | Yes | Yes | Yes | Yes | Yes | Yes |
 | **Max Context** | N/A | 128k | 200k | 256k | 64k | **2M** |
 
 ## Future Considerations

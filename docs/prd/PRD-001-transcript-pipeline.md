@@ -1,7 +1,13 @@
 # PRD-001: Transcript Acquisition Pipeline
 
-- **Status**: ✅ Implemented (v2.0.0)
-- **Related RFCs**: RFC-001, RFC-002, RFC-003, RFC-004, RFC-008, RFC-009
+- **Status**: Implemented (v2.0.0)
+- **Related RFCs**:
+  - [RFC-001](../rfc/RFC-001-workflow-orchestration.md) — workflow orchestration (**complete**)
+  - [RFC-002](../rfc/RFC-002-rss-parsing.md) — RSS parsing (**complete**)
+  - [RFC-003](../rfc/RFC-003-transcript-downloads.md) — transcript downloads (**complete**)
+  - [RFC-004](../rfc/RFC-004-filesystem-layout.md) — filesystem layout (**complete**)
+  - [RFC-008](../rfc/RFC-008-config-model.md) — configuration model (**complete**)
+  - [RFC-009](../rfc/RFC-009-progress-integration.md) — progress reporting (**complete**)
 
 ## Summary
 

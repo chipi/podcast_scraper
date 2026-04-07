@@ -1,6 +1,6 @@
 # RFC-028: ML Model Preloading and Caching
 
-- **Status**: ✅ Completed
+- **Status**: Completed
 - **Created**: 2025-12-30
 - **Related Issues**: #131
 
@@ -36,12 +36,12 @@ This RFC addresses the problem of ML models (Whisper, spaCy, Transformers) downl
    - Test default: `tiny.en` (smallest, fastest)
    - Production default: `base.en` (better quality, matches app config)
    - Cache: `~/.cache/whisper/`
-   - Status: ✅ Preloaded in Dockerfile (`base.en`), ✅ Preloaded locally (both)
+   - Status:  Preloaded in Dockerfile (`base.en`),  Preloaded locally (both)
 
 2. **spaCy Models** (Speaker Detection)
    - Default: `en_core_web_sm` (same for tests and production)
    - Cache: `~/.local/share/spacy/` or site-packages
-   - Status: ✅ Preloaded locally
+   - Status:  Preloaded locally
 
 3. **Transformers Models** (Summarization)
    - Test default (MAP): `facebook/bart-base` (small, ~500MB, fast)
@@ -49,7 +49,7 @@ This RFC addresses the problem of ML models (Whisper, spaCy, Transformers) downl
    - REDUCE default: `allenai/led-base-16384` (long-context, ~1GB, used in both)
    - Additional: `sshleifer/distilbart-cnn-12-6` (fast option)
    - Cache: `~/.cache/huggingface/hub/`
-   - Status: ✅ Preloaded locally (all 4 models)
+   - Status:  Preloaded locally (all 4 models)
 
 ## Goals
 
@@ -154,7 +154,7 @@ make preload-ml-models
 
 **Current State:**
 
-- ✅ Whisper models preloaded in Dockerfile
+- Whisper models preloaded in Dockerfile
 - ❌ spaCy models NOT preloaded (future enhancement)
 - ❌ Transformers models NOT preloaded (future enhancement)
 

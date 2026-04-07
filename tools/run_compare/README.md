@@ -2,12 +2,14 @@
 
 Lightweight Streamlit UI for comparing ML evaluation runs from `data/eval/` artifacts (`metrics.json`, `predictions.jsonl`, optional `diagnostics.jsonl`).
 
+The pip extra is **`[compare]`**. Older instructions may reference `run_compare`; that extra name is retired.
+
 ## Setup
 
 Install optional dependencies (from repo root):
 
 ```bash
-pip install -e '.[run_compare]'
+pip install -e '.[compare]'
 ```
 
 ## Usage

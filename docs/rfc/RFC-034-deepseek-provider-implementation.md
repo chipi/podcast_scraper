@@ -1,6 +1,6 @@
 # RFC-034: DeepSeek Provider Implementation (Revised)
 
-- **Status**: ✅ Completed (v2.5.0)
+- **Status**: Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -46,7 +46,7 @@ Requirements:
 
 **Constraints:**
 
-- **Prerequisite**: OpenAI provider implementation (RFC-013) ✅ Completed
+- **Prerequisite**: OpenAI provider implementation (RFC-013) Completed
 - **Backward Compatibility**: Default providers must remain unchanged
 - **API Key Security**: API keys never in source code
 - **Capability Gap**: DeepSeek does not support audio transcription
@@ -69,7 +69,7 @@ DeepSeek provides an OpenAI-compatible API:
 | ------- | ------ | -------- |
 | **Base URL** | `https://api.openai.com/v1` | `https://api.deepseek.com` |
 | **Chat Endpoint** | `/v1/chat/completions` | `/v1/chat/completions` |
-| **Audio API** | ✅ Whisper | ❌ Not available |
+| **Audio API** | Yes — Whisper | No — Not available |
 | **Context Window** | 128k tokens | 64k tokens |
 | **SDK** | `openai` | `openai` (with custom base_url) |
 | **Provider Pattern** | Unified (`OpenAIProvider`) | Unified (`DeepSeekProvider`) |
@@ -351,7 +351,7 @@ class DeepSeekProvider:
         except ImportError:
             raise ImportError(
                 "openai package required for DeepSeek provider. "
-                "Install with: pip install 'podcast-scraper[openai]'"
+                "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             )
 
         if not cfg.deepseek_api_key:
@@ -897,13 +897,13 @@ Same pattern as OpenAI provider:
 
 ## Success Criteria
 
-1. ✅ DeepSeek supports speaker detection and summarization via unified provider
-2. ✅ Clear error when attempting transcription with DeepSeek
-3. ✅ No new SDK dependency (uses OpenAI SDK)
-4. ✅ E2E tests pass
-5. ✅ Experiment mode supported from start
-6. ✅ Environment-based model defaults (test vs prod)
-7. ✅ Follows OpenAI provider pattern exactly
+1. DeepSeek supports speaker detection and summarization via unified provider
+2. Clear error when attempting transcription with DeepSeek
+3. No new SDK dependency (uses OpenAI SDK)
+4. E2E tests pass
+5. Experiment mode supported from start
+6. Environment-based model defaults (test vs prod)
+7. Follows OpenAI provider pattern exactly
 
 ## Migration Notes
 

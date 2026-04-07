@@ -483,6 +483,7 @@ semantic search, and explore.
 - **Location:** `web/gi-kg-viewer/`
 - **Python extra:** `[server]` (FastAPI + uvicorn) — not part of the default `make init`
   line (`.[dev,ml,llm]`); add `server` when you work on or run the viewer API.
+  See [Dependencies Guide — Canonical optional extras](DEPENDENCIES_GUIDE.md#canonical-optional-extras) for the full list (`dev`, `ml`, `compare`, `llm`, `server`).
 - **End-user flow:** Build `dist/` once (`npm install && npm run build` in
   `web/gi-kg-viewer`), then `python -m podcast_scraper.cli serve --output-dir <run>`;
   open **<http://127.0.0.1:8000>** and set **Corpus root** to that same directory.
