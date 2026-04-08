@@ -537,6 +537,18 @@ class TestOutputControlValidation(unittest.TestCase):
         self.assertIn("clean_output", str(context.exception))
         self.assertIn("reuse_media", str(context.exception))
 
+    def test_clean_output_and_append_conflict(self):
+        """Test that clean_output and append are mutually exclusive (GitHub #444)."""
+        with self.assertRaises(ValidationError) as context:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                clean_output=True,
+                append=True,
+            )
+        self.assertIn("mutually exclusive", str(context.exception))
+        self.assertIn("clean_output", str(context.exception))
+        self.assertIn("append", str(context.exception))
+
     def test_skip_existing_and_reuse_media_compatible(self):
         """Test that skip_existing and reuse_media can be used together."""
         cfg = Config(
@@ -985,6 +997,54 @@ class TestPathTraversalAndTokenValidators(unittest.TestCase):
                 rss_url="https://example.com/feed.xml",
                 openai_max_tokens=0,
             )
+
+
+class TestMultiFeedConfig440(unittest.TestCase):
+    """GitHub #440: rss_urls / feeds and corpus parent validation."""
+
+    def tearDown(self):
+        if "OUTPUT_DIR" in os.environ:
+            del os.environ["OUTPUT_DIR"]
+
+    def test_rss_urls_two_without_output_dir_rejected(self):
+        with self.assertRaises(ValidationError) as ctx:
+            Config(rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"])
+        self.assertIn("output_dir", str(ctx.exception).lower())
+
+    def test_feeds_alias_two_with_output_dir_ok(self):
+        cfg = Config.model_validate(
+            {
+                "feeds": ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                "output_dir": "/tmp/corpus_parent",
+            }
+        )
+        self.assertEqual(len(cfg.rss_urls or []), 2)
+
+    @patch.dict(os.environ, {"OUTPUT_DIR": "/tmp/corpus_from_env"}, clear=False)
+    def test_rss_urls_two_ok_when_output_dir_from_env(self):
+        cfg = Config(
+            rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"],
+        )
+        self.assertTrue(cfg.output_dir)
+
+    def test_rss_field_as_list_requires_output_dir(self):
+        """YAML-style rss: [url, url] promotes to rss_urls (GitHub #440)."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config.model_validate(
+                {
+                    "rss": ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                }
+            )
+        self.assertIn("output_dir", str(ctx.exception).lower())
+
+    def test_rss_field_as_list_with_output_dir_ok(self):
+        cfg = Config.model_validate(
+            {
+                "rss": ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                "output_dir": "/tmp/corpus_multi",
+            }
+        )
+        self.assertEqual(len(cfg.rss_urls or []), 2)
 
 
 if __name__ == "__main__":

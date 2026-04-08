@@ -17,8 +17,14 @@ from podcast_scraper import config
 from podcast_scraper.providers.ml import embedding_loader
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.chunker import chunk_transcript
+from podcast_scraper.search.corpus_scope import (
+    discover_metadata_files,
+    episode_root_from_metadata_path,
+    index_fingerprint_scope_key,
+    normalize_feed_id,
+    vector_doc_scope_tag,
+)
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
-from podcast_scraper.utils import filesystem
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path, _determine_kg_path
 
 logger = logging.getLogger(__name__)
@@ -70,34 +76,34 @@ def _load_metadata_file(path: Path) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _gi_path(output_dir: Path, metadata_path: Path, doc: Dict[str, Any]) -> Path:
+def _gi_path(episode_root: Path, metadata_path: Path, doc: Dict[str, Any]) -> Path:
     gi = doc.get("grounded_insights")
     if isinstance(gi, dict):
         rel = gi.get("artifact_path")
         if isinstance(rel, str) and rel.strip():
-            p = (output_dir / rel.strip()).resolve()
+            p = (episode_root / rel.strip()).resolve()
             if p.is_file():
                 return p
     return Path(_determine_gi_path(str(metadata_path))).resolve()
 
 
-def _kg_path(output_dir: Path, metadata_path: Path, doc: Dict[str, Any]) -> Path:
+def _kg_path(episode_root: Path, metadata_path: Path, doc: Dict[str, Any]) -> Path:
     kg = doc.get("knowledge_graph")
     if isinstance(kg, dict):
         rel = kg.get("artifact_path")
         if isinstance(rel, str) and rel.strip():
-            p = (output_dir / rel.strip()).resolve()
+            p = (episode_root / rel.strip()).resolve()
             if p.is_file():
                 return p
     return Path(_determine_kg_path(str(metadata_path))).resolve()
 
 
-def _transcript_path(output_dir: Path, doc: Dict[str, Any]) -> Optional[Path]:
+def _transcript_path(episode_root: Path, doc: Dict[str, Any]) -> Optional[Path]:
     content = doc.get("content") or {}
     rel = content.get("transcript_file_path")
     if not isinstance(rel, str) or not rel.strip():
         return None
-    p = (output_dir / rel.strip()).resolve()
+    p = (episode_root / rel.strip()).resolve()
     return p if p.is_file() else None
 
 
@@ -187,6 +193,7 @@ def _kg_embed_text_entity(props: Dict[str, Any]) -> Optional[str]:
 
 def _kg_vector_rows_from_path(
     kg_disk: Path,
+    scope_tag: str,
     episode_id: str,
     feed_id: Any,
     published: Any,
@@ -212,7 +219,7 @@ def _kg_vector_rows_from_path(
             if ktext:
                 rows.append(
                     (
-                        f"kg_topic:{episode_id}:{nid}",
+                        f"kg_topic:{scope_tag}:{nid}",
                         ktext,
                         {
                             "doc_type": "kg_topic",
@@ -229,7 +236,7 @@ def _kg_vector_rows_from_path(
                 ek = props.get("entity_kind")
                 rows.append(
                     (
-                        f"kg_entity:{episode_id}:{nid}",
+                        f"kg_entity:{scope_tag}:{nid}",
                         ktext,
                         {
                             "doc_type": "kg_entity",
@@ -276,7 +283,7 @@ def _emit_vector_index_jsonl(
 
 
 def _collect_docs_for_episode(
-    output_dir: Path,
+    episode_root: Path,
     metadata_path: Path,
     doc: Dict[str, Any],
     *,
@@ -287,12 +294,14 @@ def _collect_docs_for_episode(
     ep = doc.get("episode") or {}
     feed = doc.get("feed") or {}
     episode_id = ep.get("episode_id")
-    feed_id = feed.get("feed_id")
+    raw_feed_id = feed.get("feed_id")
+    feed_norm = normalize_feed_id(raw_feed_id)
     published = ep.get("published_date")
     if not isinstance(episode_id, str) or not episode_id:
         return _rows_with_text_metadata(rows)
 
-    gi_path = _gi_path(output_dir, metadata_path, doc)
+    scope_tag = vector_doc_scope_tag(feed_norm, episode_id)
+    gi_path = _gi_path(episode_root, metadata_path, doc)
     artifact: Optional[Dict[str, Any]] = None
     if gi_path.is_file():
         try:
@@ -312,12 +321,12 @@ def _collect_docs_for_episode(
                 if isinstance(text, str) and text.strip():
                     rows.append(
                         (
-                            f"insight:{episode_id}:{nid}",
+                            f"insight:{scope_tag}:{nid}",
                             text.strip(),
                             {
                                 "doc_type": "insight",
                                 "episode_id": episode_id,
-                                "feed_id": feed_id,
+                                "feed_id": raw_feed_id,
                                 "publish_date": published,
                                 "source_id": nid,
                                 "grounded": bool(props.get("grounded")),
@@ -329,12 +338,12 @@ def _collect_docs_for_episode(
                 if isinstance(text, str) and text.strip():
                     rows.append(
                         (
-                            f"quote:{episode_id}:{nid}",
+                            f"quote:{scope_tag}:{nid}",
                             text.strip(),
                             {
                                 "doc_type": "quote",
                                 "episode_id": episode_id,
-                                "feed_id": feed_id,
+                                "feed_id": raw_feed_id,
                                 "publish_date": published,
                                 "source_id": nid,
                                 "speaker_id": props.get("speaker_id"),
@@ -346,9 +355,11 @@ def _collect_docs_for_episode(
                         )
                     )
 
-    kg_disk = _kg_path(output_dir, metadata_path, doc)
+    kg_disk = _kg_path(episode_root, metadata_path, doc)
     if kg_disk.is_file():
-        rows.extend(_kg_vector_rows_from_path(kg_disk, episode_id, feed_id, published))
+        rows.extend(
+            _kg_vector_rows_from_path(kg_disk, scope_tag, episode_id, raw_feed_id, published)
+        )
 
     summary = doc.get("summary")
     chunk_ts: Optional[List[Dict[str, Any]]] = None
@@ -362,19 +373,19 @@ def _collect_docs_for_episode(
                 if isinstance(b, str) and b.strip():
                     rows.append(
                         (
-                            f"bullet:{episode_id}:{i}",
+                            f"bullet:{scope_tag}:{i}",
                             b.strip(),
                             {
                                 "doc_type": "summary",
                                 "episode_id": episode_id,
-                                "feed_id": feed_id,
+                                "feed_id": raw_feed_id,
                                 "publish_date": published,
                                 "source_id": str(i),
                             },
                         )
                     )
 
-    tpath = _transcript_path(output_dir, doc)
+    tpath = _transcript_path(episode_root, doc)
     if tpath is not None:
         try:
             ttext = tpath.read_text(encoding="utf-8", errors="replace")
@@ -390,12 +401,12 @@ def _collect_docs_for_episode(
             ):
                 rows.append(
                     (
-                        f"chunk:{episode_id}:{ch.chunk_index}",
+                        f"chunk:{scope_tag}:{ch.chunk_index}",
                         ch.text,
                         {
                             "doc_type": "transcript",
                             "episode_id": episode_id,
-                            "feed_id": feed_id,
+                            "feed_id": raw_feed_id,
                             "publish_date": published,
                             "source_id": str(ch.chunk_index),
                             "char_start": ch.char_start,
@@ -469,13 +480,17 @@ def index_corpus(
     *,
     rebuild: bool = False,
 ) -> IndexRunStats:
-    """Scan ``metadata/*`` under output_dir, embed documents, and update the FAISS index.
+    """Scan episode metadata under *output_dir*, embed documents, and update FAISS.
 
-    Indexes GIL insights/quotes (when ``gi.json`` exists), summary bullets, and chunked
-    transcripts. Uses per-episode content fingerprints to skip unchanged episodes.
+    When *output_dir* contains a ``feeds/`` directory (multi-feed corpus parent),
+    discovers ``**/metadata/*.metadata.{json,yaml}`` recursively. Otherwise scans
+    ``<output_dir>/metadata/`` only. Artifact paths in metadata are resolved relative
+    to each file's episode root (parent of ``metadata/``). Fingerprint keys and
+    vector row ids are scoped by ``(feed_id, episode_id)`` when ``feed_id`` is set
+    (GitHub #505).
 
     Args:
-        output_dir: Pipeline output root (contains ``metadata/``).
+        output_dir: Single-feed output root or multi-feed corpus parent.
         cfg: Config with ``vector_*`` fields and embedding model id.
         rebuild: If True, delete the index directory and rebuild from scratch.
 
@@ -516,8 +531,8 @@ def index_corpus(
         set(cfg.vector_index_types) if cfg.vector_index_types else None
     )
 
-    meta_dir = out / filesystem.METADATA_SUBDIR
-    if not meta_dir.is_dir():
+    meta_files = discover_metadata_files(out)
+    if not meta_files:
         store.maybe_upgrade_approximate_index(cfg.vector_faiss_index_mode)
         store.persist()
         fp_path.write_text(
@@ -526,11 +541,6 @@ def index_corpus(
         )
         _emit_vector_index_jsonl(cfg, out, started, store, stats)
         return stats
-
-    meta_files: List[Path] = []
-    for pat in ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml"):
-        meta_files.extend(meta_dir.glob(pat))
-    meta_files = sorted(set(meta_files))
 
     for meta_path in meta_files:
         stats.episodes_scanned += 1
@@ -542,11 +552,16 @@ def index_corpus(
             stats.errors.append(f"missing episode_id: {meta_path}")
             continue
 
-        gi_file = _gi_path(out, meta_path, doc)
+        episode_root = episode_root_from_metadata_path(meta_path)
+        feed_block = doc.get("feed") or {}
+        fid_norm = normalize_feed_id(feed_block.get("feed_id"))
+        fp_key = index_fingerprint_scope_key(fid_norm, episode_id)
+
+        gi_file = _gi_path(episode_root, meta_path, doc)
         gi_for_fp = gi_file if gi_file.is_file() else None
-        kg_file = _kg_path(out, meta_path, doc)
+        kg_file = _kg_path(episode_root, meta_path, doc)
         kg_for_fp = kg_file if kg_file.is_file() else None
-        tx_path = _transcript_path(out, doc)
+        tx_path = _transcript_path(episode_root, doc)
 
         try:
             fp = _episode_index_fingerprint(meta_path, gi_for_fp, kg_for_fp, tx_path, cfg)
@@ -554,13 +569,13 @@ def index_corpus(
             stats.errors.append(f"fingerprint {meta_path}: {exc}")
             continue
 
-        if not rebuild and fingerprints.get(episode_id) == fp:
+        if not rebuild and fingerprints.get(fp_key) == fp:
             stats.episodes_skipped_unchanged += 1
             continue
 
         rows = _filter_rows_by_doc_types(
             _collect_docs_for_episode(
-                out,
+                episode_root,
                 meta_path,
                 doc,
                 target_tokens=cfg.vector_chunk_size_tokens,
@@ -596,14 +611,14 @@ def index_corpus(
                 stats.errors.append(f"encode {episode_id}: length mismatch")
                 continue
 
-        to_drop = store.doc_ids_for_episode(episode_id)
+        to_drop = store.doc_ids_for_reindex_scope(episode_id, fid_norm)
         if to_drop:
             store.delete(to_drop)
         if rows and embeddings is not None:
             store.batch_upsert(ids, embeddings, metas)
             stats.vectors_upserted += len(ids)
 
-        fingerprints[episode_id] = fp
+        fingerprints[fp_key] = fp
         stats.episodes_reindexed += 1
 
     store.maybe_upgrade_approximate_index(cfg.vector_faiss_index_mode)
@@ -618,6 +633,8 @@ def index_corpus(
 
 def maybe_index_corpus(output_dir: str, cfg: config.Config) -> None:
     """Run ``index_corpus`` when ``vector_search`` is enabled; log failures only."""
+    if getattr(cfg, "skip_auto_vector_index", False) is True:
+        return
     if getattr(cfg, "vector_search", False) is not True:
         return
     if getattr(cfg, "vector_backend", "faiss") != "faiss":

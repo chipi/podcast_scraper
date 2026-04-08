@@ -240,6 +240,7 @@ nav:
       - Core API: api/CORE.md
       - Configuration: api/CONFIGURATION.md
       - Service API: api/SERVICE.md
+      - Multi-feed corpus artifacts: api/CORPUS_MULTI_FEED_ARTIFACTS.md
       - CLI Interface: api/CLI.md
       - Models: api/MODELS.md
       - API Boundaries: api/BOUNDARIES.md

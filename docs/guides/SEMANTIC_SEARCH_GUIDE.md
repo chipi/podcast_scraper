@@ -34,6 +34,20 @@ vector_search: true
 `vector_search: true` runs the embed-and-index step after pipeline finalize (when
 metadata and content are available). Default index directory is **`output_dir/search`**.
 
+### Multi-feed corpus parent (GitHub #505)
+
+When **`output_dir`** is a corpus parent with a **`feeds/`** directory (two or more feeds in
+one run), the indexer discovers episode metadata under each
+**`feeds/<stable_id>/…/metadata/`** tree (including nested `run_*` folders). Artifact paths
+in metadata are resolved relative to each episode’s workspace (the directory that contains
+that feed’s `metadata/`). Vector row ids and fingerprint keys use a composite
+**`(feed_id, episode_id)`** scope when `feed_id` is present in metadata, so GUID collisions
+across feeds cannot clobber FAISS rows.
+
+Per-feed pipeline runs set **`skip_auto_vector_index: true`** internally when
+`vector_search` and FAISS are enabled; after all feeds complete, the CLI or service builds
+**one** index at **`<corpus_parent>/search`**.
+
 ### Manual index / rebuild
 
 ```bash
@@ -41,6 +55,23 @@ python -m podcast_scraper.cli index --output-dir /path/to/run
 python -m podcast_scraper.cli index --output-dir /path/to/run --rebuild
 python -m podcast_scraper.cli index --output-dir /path/to/run --stats
 ```
+
+For a multi-feed tree, **`--output-dir`** should be the **corpus parent** (the directory that
+contains **`feeds/`**), not an individual feed subdirectory.
+
+### Index upgrade / stale rows (multi-feed)
+
+If you **change embedding model**, **chunking settings**, or **composite fingerprint scope** (feed +
+episode keys — GitHub #505), existing FAISS rows may no longer match metadata on disk. Rebuild the
+parent index with:
+
+```bash
+python -m podcast_scraper.cli index --output-dir /path/to/corpus_parent --rebuild
+```
+
+Until you rebuild, search may return hits that no longer map cleanly to current files, or miss new
+episodes. See [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) for manifest /
+summary contracts.
 
 ## Query
 

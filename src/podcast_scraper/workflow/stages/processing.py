@@ -666,6 +666,27 @@ def prepare_episode_download_args(
 
                 update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
             continue
+        if getattr(cfg, "append", False):
+            from ..append_resume import episode_complete_for_append_resume
+            from ..helpers import get_episode_id_from_episode
+
+            feed_url = cfg.rss_url or ""
+            if episode_complete_for_append_resume(
+                cfg, episode, feed_url, effective_output_dir, run_suffix
+            ):
+                logger.info(
+                    "[%s] Append: skipping episode already complete on disk (episode_id resume)",
+                    episode.idx,
+                )
+                if pipeline_metrics is not None:
+                    episode_id, episode_number = get_episode_id_from_episode(episode, feed_url)
+                    pipeline_metrics.record_episode_status(
+                        episode_id=episode_id,
+                        episode_number=episode_number or episode.idx,
+                        status="ok",
+                        stage="append_skipped_complete",
+                    )
+                continue
         detected_speaker_names = _detect_speakers_for_episode(
             episode,
             cfg,

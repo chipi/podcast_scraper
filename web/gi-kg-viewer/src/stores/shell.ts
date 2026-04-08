@@ -15,6 +15,8 @@ export const useShellStore = defineStore('shell', () => {
   >([])
   /** Server-resolved absolute corpus path (returned by /api/artifacts). */
   const resolvedCorpusPath = ref<string | null>(null)
+  /** Server hints (e.g. multi-feed corpus root for unified search index). */
+  const corpusHints = ref<string[]>([])
 
   const hasCorpusPath = computed(() => corpusPath.value.trim().length > 0)
 
@@ -38,6 +40,7 @@ export const useShellStore = defineStore('shell', () => {
     artifactCount.value = null
     artifactList.value = []
     resolvedCorpusPath.value = null
+    corpusHints.value = []
     if (!hasCorpusPath.value) {
       artifactsError.value = 'Set a corpus directory path (local output folder).'
       return
@@ -52,6 +55,7 @@ export const useShellStore = defineStore('shell', () => {
       }
       const body = (await res.json()) as {
         path?: string
+        hints?: string[]
         artifacts?: {
           name: string
           relative_path: string
@@ -65,6 +69,7 @@ export const useShellStore = defineStore('shell', () => {
       if (typeof body.path === 'string' && body.path.trim()) {
         resolvedCorpusPath.value = body.path.trim()
       }
+      corpusHints.value = Array.isArray(body.hints) ? body.hints.filter((h) => h.trim()) : []
     } catch (e) {
       artifactsError.value = e instanceof Error ? e.message : String(e)
     } finally {
@@ -81,6 +86,7 @@ export const useShellStore = defineStore('shell', () => {
     artifactCount,
     artifactList,
     resolvedCorpusPath,
+    corpusHints,
     hasCorpusPath,
     fetchHealth,
     fetchArtifactList,

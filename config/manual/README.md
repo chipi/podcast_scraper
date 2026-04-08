@@ -3,13 +3,15 @@
 YAML files here are for **human manual testing** (see
 [`docs/wip/manual-test-plan-gi-kg.md`](../../docs/wip/manual-test-plan-gi-kg.md)), not CI.
 
-They use the same **NPR Planet Money** RSS as most GI/KG acceptance configs:
-`https://feeds.npr.org/510289/podcast.xml`.
+Most presets use the same **NPR Planet Money** RSS as most GI/KG acceptance configs:
+`https://feeds.npr.org/510289/podcast.xml`. **Multi-feed** presets add **The Journal** (WSJ) in one corpus; see the table below.
 
 ## Files
 
 | File | Stack | GI / KG | Notes |
 | --- | --- | --- | --- |
+| `manual_multi_feed_planet_money_journal_openai.yaml` | OpenAI | On (`summary_bullets`) | **Multi-feed (GitHub #440):** Planet Money + The Journal under one `output_dir` (`feeds/rss_*/*` per feed). With `vector_search`, parent **`search/`** + **`corpus_manifest.json`** / **`corpus_run_summary.json`** (#505/#506). Requires `OPENAI_API_KEY`; use **`corpus-status`** for offline inspection. |
+| `manual_multi_feed_planet_money_journal_openai_append.yaml` | OpenAI | On (`summary_bullets`) | Same feeds as above with **`append: true`** (GitHub #444): stable `run_append_*` per feed; re-run the same CLI to skip complete episodes. Header includes **handoff text** for OpenAI / LLM ops channels. |
 | `manual_planet_money_openai_summaries_only.yaml` | OpenAI (transcribe + speaker + summary) | Off | Baseline summaries/metadata only. |
 | `manual_planet_money_openai_gi_kg_summary_bullets.yaml` | OpenAI | On; `summary_bullets` from summaries | **Start here** for cheap, coherent GI+KG (no extra LLM insight/graph calls). With default **`gil_evidence_match_summary_provider: true`**, GIL grounding uses **OpenAI** (not local HF) — no **`.[ml]`** for GIL on this preset. |
 | `manual_planet_money_openai_gi_kg_provider.yaml` | OpenAI | On; `provider` extraction | Stress-tests `generate_insights` + `extract_kg_graph`. |

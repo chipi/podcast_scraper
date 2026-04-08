@@ -102,6 +102,38 @@ The testing strategy follows a three-tier pyramid:
 - **Error handling in pipeline** → Integration Test (if focused) or E2E Test (if complete workflow)
 - **HTTP client behavior** → Integration Test (if isolated) or E2E Test (if in workflow)
 
+### Multi-feed corpus, unified index, and corpus artifacts (#440 / #505 / #506)
+
+- **Layout:** Two or more feeds under `<corpus_parent>/feeds/<stable_id>/…`; optional hybrid
+  `<corpus_parent>/metadata/` alongside `feeds/` (indexed with per-feed metadata).
+- **Unit tests (primary):**
+  - `tests/unit/podcast_scraper/search/test_corpus_scope.py` — `discover_metadata_files` hybrid merge.
+  - `tests/unit/podcast_scraper/search/test_indexer.py` — nested `feeds/…/metadata` and **hybrid**
+    parent + feeds indexing; composite fingerprint keys (`index_fingerprint_scope_key`).
+  - `tests/unit/podcast_scraper/workflow/test_corpus_operations.py` — manifest/summary JSON,
+    `finished_at`, `finalize_multi_feed_batch` return value.
+  - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success and
+    partial failure).
+  - `tests/unit/podcast_scraper/test_cli.py` — `corpus-status` parse/smoke; multi-feed CLI with
+    injected `run_pipeline_fn`; **`gi inspect` / `kg inspect`** multi-feed **`--feed-id`** and
+    ambiguous **`episode_id`** error paths (`TestGiSubcommand`, `TestKgSubcommandMultiFeed`).
+  - `tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py` — metadata-driven GI/KG paths,
+    **YAML** metadata, **rglob** fallback without `.metadata.*`, **`corpus_search_parent_hint`**.
+  - `tests/unit/podcast_scraper/utils/test_corpus_lock.py` — advisory **`.podcast_scraper.lock`**
+    (`PODCAST_SCRAPER_CORPUS_LOCK`).
+  - `tests/unit/podcast_scraper/gi/test_load.py` / `tests/unit/podcast_scraper/kg/test_kg_load.py` —
+    **`find_*_by_episode_id`** across **`feeds/`** with **`feed_id`** disambiguation.
+  - `web/gi-kg-viewer/src/stores/shell.hints.test.ts` (Vitest) — **`GET /api/artifacts`** `hints`;
+    `web/gi-kg-viewer/e2e/corpus-hints.spec.ts` (Playwright; requires **`playwright install`**).
+- **Integration tests:** `tests/integration/test_workflow_integration.py` — multi-feed CLI and
+  `service.run` happy path (manifest + `corpus_run_summary.json` on disk); **partial feed failure**
+  still writes both artifacts with `overall_ok: false` (CLI + service).
+- **E2E:** `tests/e2e/test_service_api_e2e.py` — YAML `feeds:` + `multi_feed_summary`;
+  `tests/e2e/test_basic_e2e.py` / `test_cli_subprocess_e2e.py` — multi-feed smoke where marked #440.
+- **Docs:** [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md), RFC-063 §5–§7,
+  [CONFIGURATION.md](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440),
+  [SEMANTIC_SEARCH_GUIDE.md](../guides/SEMANTIC_SEARCH_GUIDE.md).
+
 ### Unit Tests
 
 - **Purpose**: Test individual functions/modules in isolation
@@ -728,6 +760,9 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 
 #### 3. Nightly Comprehensive (Deep Analysis)
 
+- **nightly-viewer-unit** / **nightly-viewer-e2e**: GI/KG viewer Vitest (parallel with unit) and
+  Playwright after pytest E2E — same layout as `python-app.yml`; run on every scheduled/manual
+  nightly (no path filters).
 - **nightly-only-tests**: Full validation (Tier 3) using production-quality ML models (Whisper base, BART-large, LED-large).
 - **Data Quality (Tier 2)**: Volume validation with multiple episodes.
 - **Module Dependency Analysis**: Automated graph generation and coupling analysis.

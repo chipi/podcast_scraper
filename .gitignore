@@ -69,8 +69,10 @@ coverage.json
 config/examples/config.my.*
 examples.txt
 
-# Acceptance configs (local / personal)
-config/acceptance/
+# Acceptance: track index + fast stem list; keep full/*.yaml local (not committed)
+config/acceptance/*
+!config/acceptance/README.md
+!config/acceptance/FAST_CONFIGS.txt
 
 # Experiments (local / ad-hoc configs)
 config/playground/

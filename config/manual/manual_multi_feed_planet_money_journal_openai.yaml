@@ -1,0 +1,43 @@
+# Manual validation: multi-feed corpus (Planet Money + The Journal), OpenAI stack (GitHub #440).
+# For append / resume on the same feeds, use config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml.
+# For human checks and team handoff; not CI. See docs/wip/manual-test-plan-gi-kg.md.
+#
+# Run (writes to output_dir below):
+#   python -m podcast_scraper.cli --config config/manual/manual_multi_feed_planet_money_journal_openai.yaml
+#
+# Acceptance runner (session under .test_outputs/acceptance/ unless OUTPUT_DIR=...):
+#   make test-acceptance CONFIGS="config/manual/manual_multi_feed_planet_money_journal_openai.yaml"
+#
+# Requires: OPENAI_API_KEY
+#
+# Layout: .test_outputs/manual/multi_feed_pm_journal_openai/feeds/<stable_name>/run_*/...
+# After the run: corpus_manifest.json + corpus_run_summary.json at output_dir; unified search/ if vector_search.
+# Status: python -m podcast_scraper.cli corpus-status --output-dir <output_dir>
+
+feeds:
+  - https://feeds.npr.org/510289/podcast.xml
+  - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+
+output_dir: .test_outputs/manual/multi_feed_pm_journal_openai
+max_episodes: 10
+
+transcription_provider: openai
+speaker_detector_provider: openai
+summary_provider: openai
+
+openai_transcription_model: whisper-1
+openai_speaker_model: gpt-4o-mini
+openai_summary_model: gpt-4o-mini
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

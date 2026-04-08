@@ -22,7 +22,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, cast, Dict, List, Literal, Optional, Set, Tuple
 
-from podcast_scraper.utils import filesystem
+from podcast_scraper.search.corpus_scope import (
+    discover_metadata_files,
+    episode_root_from_metadata_path,
+    gi_map_lookup_key_from_vector_meta,
+    index_fingerprint_scope_key,
+    normalize_feed_id,
+)
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path
 
@@ -141,31 +147,34 @@ def _load_metadata_doc_quick(path: Path) -> Optional[Dict[str, Any]]:
         return None
 
 
-def _episode_id_to_gi_path_from_metadata(output_dir: Path) -> Dict[str, Path]:
-    """Map ``episode_id`` → resolved ``gi.json`` path from ``metadata/*`` (no gi load)."""
-    meta_dir = output_dir / filesystem.METADATA_SUBDIR
+def _scoped_gi_paths_from_metadata(output_dir: Path) -> Dict[str, Path]:
+    """Map scoped episode key → ``gi.json`` path (recursive metadata; GitHub #505)."""
     out: Dict[str, Path] = {}
-    if not meta_dir.is_dir():
-        return out
-    for pattern in ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml"):
-        for meta_path in sorted(meta_dir.glob(pattern)):
-            doc = _load_metadata_doc_quick(meta_path)
-            if not doc:
-                continue
-            ep = (doc.get("episode") or {}).get("episode_id")
-            if not isinstance(ep, str) or not ep or ep in out:
-                continue
-            gi = doc.get("grounded_insights")
-            if isinstance(gi, dict):
-                rel = gi.get("artifact_path")
-                if isinstance(rel, str) and rel.strip():
-                    gp = (output_dir / rel.strip()).resolve()
-                    if gp.is_file():
-                        out[ep] = gp
-                        continue
+    root = Path(output_dir)
+    for meta_path in discover_metadata_files(root):
+        doc = _load_metadata_doc_quick(meta_path)
+        if not doc:
+            continue
+        ep = (doc.get("episode") or {}).get("episode_id")
+        if not isinstance(ep, str) or not ep:
+            continue
+        feed = doc.get("feed") or {}
+        scope_key = index_fingerprint_scope_key(normalize_feed_id(feed.get("feed_id")), ep)
+        if scope_key in out:
+            continue
+        eroot = episode_root_from_metadata_path(meta_path)
+        gi = doc.get("grounded_insights")
+        gp: Optional[Path] = None
+        if isinstance(gi, dict):
+            rel = gi.get("artifact_path")
+            if isinstance(rel, str) and rel.strip():
+                cand = (eroot / rel.strip()).resolve()
+                if cand.is_file():
+                    gp = cand
+        if gp is None:
             gp = Path(_determine_gi_path(str(meta_path))).resolve()
-            if gp.is_file():
-                out[ep] = gp
+        if gp.is_file():
+            out[scope_key] = gp
     return out
 
 
@@ -176,7 +185,7 @@ def _merge_episode_gi_paths(
     """Prefer on-disk metadata index; fill gaps from pre-loaded ``(path, artifact)`` pairs."""
     merged: Dict[str, Path] = {}
     if output_dir is not None:
-        merged.update(_episode_id_to_gi_path_from_metadata(output_dir))
+        merged.update(_scoped_gi_paths_from_metadata(output_dir))
     for path, art in artifacts_with_paths:
         eid = art.get("episode_id")
         if isinstance(eid, str) and eid not in merged and path.is_file():
@@ -184,19 +193,19 @@ def _merge_episode_gi_paths(
     return merged
 
 
-def _load_gi_artifacts_for_episode_ids(
-    output_dir: Path,
-    episode_ids: Set[str],
+def _load_gi_artifacts_from_paths(
+    paths_in_order: List[Path],
     *,
     strict: bool,
 ) -> List[Tuple[Path, Dict[str, Any]]]:
-    """Load only ``gi.json`` files for the given episode ids (semantic explore fast path)."""
-    mp = _merge_episode_gi_paths(output_dir, [])
+    """Load ``gi.json`` artifacts for an explicit path list (semantic fast path)."""
+    seen: Set[Path] = set()
     loaded: List[Tuple[Path, Dict[str, Any]]] = []
-    for eid in episode_ids:
-        p = mp.get(eid)
-        if not p:
+    for raw in paths_in_order:
+        p = raw.resolve()
+        if p in seen:
             continue
+        seen.add(p)
         try:
             art = read_artifact(p, validate=strict, strict=strict)
             loaded.append((p, art))
@@ -252,12 +261,12 @@ def explore_resolve_insights_and_loaded(
                 "Semantic topic match unavailable (%s); using substring/topic-label match",
                 format_exception_for_log(exc),
             )
-            sem = []
-        if sem:
-            ep_ids = {i.episode_id for i in sem}
-            loaded = _load_gi_artifacts_for_episode_ids(output_dir, ep_ids, strict=strict)
-            n_ep = len(ep_ids)
-            return sem, True, loaded, n_ep
+            sem = ([], [])
+        if sem[0]:
+            insights_sem, gi_paths = sem
+            loaded = _load_gi_artifacts_from_paths(gi_paths, strict=strict)
+            n_ep = len({p.resolve() for p in gi_paths})
+            return insights_sem, True, loaded, n_ep
 
     loaded = load_artifacts(paths, validate=strict, strict=strict)
     insights, ranked = collect_insights(
@@ -296,17 +305,22 @@ def _collect_insights_semantic(
     limit: Optional[int],
     index_dir: Path,
     strict: bool = False,
-) -> List[InsightSummary]:
-    """Rank insights by vector similarity; resolve ``gi.json`` via metadata map or pre-loaded."""
+) -> Tuple[List[InsightSummary], List[Path]]:
+    """Rank insights by vector similarity; resolve ``gi.json`` via metadata map or pre-loaded.
+
+    Returns:
+        (insights, gi_paths) — ``gi_paths`` lists each ``gi.json`` used, in hit order
+        (deduped later by the caller when counting episodes).
+    """
     from podcast_scraper.providers.ml import embedding_loader
     from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 
     if not (index_dir / VECTORS_FILE).is_file():
-        return []
+        return [], []
 
     store = FaissVectorStore.load(index_dir)
     if store.ntotal == 0:
-        return []
+        return [], []
 
     model_id = store.stats().embedding_model
     qvec = embedding_loader.encode(
@@ -331,6 +345,7 @@ def _collect_insights_semantic(
     by_ep_path = _merge_episode_gi_paths(output_dir, artifacts_with_paths)
 
     collected: List[InsightSummary] = []
+    gi_paths: List[Path] = []
     seen: Set[Tuple[str, str]] = set()
     for h in hits:
         meta = h.metadata
@@ -338,11 +353,14 @@ def _collect_insights_semantic(
         iid = meta.get("source_id")
         if not isinstance(ep, str) or not isinstance(iid, str):
             continue
-        key = (ep, iid)
-        if key in seen:
-            continue
-        gpath = by_ep_path.get(ep)
+        gkey = gi_map_lookup_key_from_vector_meta(cast(Dict[str, Any], meta))
+        gpath = by_ep_path.get(gkey) if gkey else None
+        if gpath is None:
+            gpath = by_ep_path.get(ep)
         if not gpath:
+            continue
+        key = (str(gpath.resolve()), iid)
+        if key in seen:
             continue
         try:
             artifact = read_artifact(gpath, validate=strict, strict=strict)
@@ -371,9 +389,10 @@ def _collect_insights_semantic(
             continue
         seen.add(key)
         collected.append(ins)
+        gi_paths.append(gpath)
         if limit is not None and len(collected) >= limit:
             break
-    return collected
+    return collected, gi_paths
 
 
 def _insight_matches_speaker(ins: InsightSummary, speaker_substring: Optional[str]) -> bool:
@@ -448,7 +467,7 @@ def collect_insights(
     t = topic.strip() if isinstance(topic, str) else ""
     if t and semantic_index_dir is not None:
         try:
-            sem = _collect_insights_semantic(
+            sem, _paths = _collect_insights_semantic(
                 output_dir,
                 artifacts_with_paths,
                 topic=t,

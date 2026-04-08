@@ -83,6 +83,13 @@ and search-focus mapping. No browser or DOM required — runs in ~150 ms.
 for Playwright, and runs `npm run test:e2e`. Playwright’s **`webServer`** starts **Vite** on
 **127.0.0.1:5174** so it does not collide with `npm run dev` on **5173**.
 
+**What CI proves vs full stack:** That setup exercises the **Vue UI** in a real browser with
+**Vite**; many specs **mock** `fetch` or rely on **offline** fixtures so the job stays fast.
+It does **not** prove **`python -m podcast_scraper.cli serve`** (FastAPI + mounted **`dist/`** +
+live **`/api/*`** on corpus files). Use **`serve`** / **`make serve`** for manual smoke of the
+combined server, and **`tests/integration/test_server_api.py`** for pytest coverage of a wired
+`create_app` and temp corpus.
+
 For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (see
 [viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)).
 
@@ -91,11 +98,19 @@ For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (se
 GitHub Actions jobs:
 
 - **`viewer-unit`** — runs `npm run test:unit` (Vitest, fast).
-- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox).
+- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox) after the pytest E2E job
+  that applies to the event (**`test-e2e-fast`** on PRs, **`test-e2e`** on push to
+  `main` / `release/*`). **`coverage-unified`** waits on **`viewer-e2e`** so the merge report
+  runs only after browser E2E has passed.
 
-Both are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a PR should
-include green runs for both (see
+Both viewer jobs are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a
+PR should include green runs for both (see
 [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)).
+
+**Nightly** (`.github/workflows/nightly.yml`): **`nightly-viewer-unit`** and
+**`nightly-viewer-e2e`** run the same Vitest / Playwright commands on every scheduled or
+`workflow_dispatch` run (no path filters). Vitest sits in the post–lint+build segment with
+**`nightly-test-unit`**; Playwright runs after **`nightly-test-e2e`** completes successfully.
 
 #### Writing and extending tests
 
@@ -354,12 +369,21 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 
 ### Setting up acceptance configs
 
-The project expects your acceptance configs to live in a **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
+Put optional full-pipeline YAML presets under **`config/acceptance/full/`** (not committed). The repo tracks **`config/acceptance/README.md`** and **`config/acceptance/FAST_CONFIGS.txt`**; everything else under `config/acceptance/` stays ignored so local or feed-specific YAMLs stay out of git.
 
 1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
 2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:
    `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
 3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
+
+**Multi-feed in one YAML (GitHub #440):** Use a **`feeds:`** or **`rss_urls:`** list and a required **`output_dir`** (corpus parent). The checked-in example
+`config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` exercises two feeds in one run (you can copy it under `config/acceptance/full/` if you keep acceptance configs there). With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
+
+**Append / resume (GitHub #444):** `config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml` is the same two-feed OpenAI full-pipeline preset with **`append: true`**. Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+
+**Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py`** (YAML metadata, rglob fallback, parent search hint), **`tests/unit/podcast_scraper/utils/test_corpus_lock.py`**, **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI).
+
+**Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` runs every stem in `config/acceptance/FAST_CONFIGS.txt` or, if that tree is missing, **`config/ci/acceptance_fast_stems.txt`**, resolving each to `config/acceptance/full/<stem>.yaml` or `config/examples/<stem>.yaml`. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, and defaults to a **900s** per-config timeout (`TIMEOUT=...` to override). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
 
 Optional: use **`config/playground/`** (also gitignored) for ad-hoc or one-off configs; run them with e.g. `make test-acceptance CONFIGS="config/playground/config.my.*.yaml"`.
 

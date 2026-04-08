@@ -15,6 +15,7 @@ This directory contains comprehensive API documentation for `podcast_scraper`, i
 | [CLI Interface](CLI.md) | Command-line interface documentation |
 | [Configuration API](CONFIGURATION.md) | Configuration model, environment variables, and file formats |
 | [Data Models](MODELS.md) | Core data structures (`Episode`, `RssFeed`, `TranscriptionJob`) |
+| [Multi-feed corpus artifacts](CORPUS_MULTI_FEED_ARTIFACTS.md) | `corpus_manifest.json` / `corpus_run_summary.json` contracts (#506); links to RFC-063 |
 
 ### API Reference & Guides
 

@@ -319,6 +319,11 @@ make test-ui-e2e
 This target installs npm dependencies, installs the Firefox browser, and
 runs `npm run test:e2e` inside `web/gi-kg-viewer/`.
 
+**CI vs `serve`:** Playwright in CI runs the SPA on **Vite** with **mocked or spec-level `/api/*`**
+handling — fast and deterministic. It is **not** a substitute for smoke-testing **`cli serve`**
+(or **`make serve`**), where FastAPI serves **built `dist/`** and **real** viewer APIs against a
+corpus. See [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2).
+
 See the [E2E Testing Guide](E2E_TESTING_GUIDE.md) and
 [Testing Guide](TESTING_GUIDE.md) for more detail.
 

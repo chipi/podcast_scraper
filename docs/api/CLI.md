@@ -49,6 +49,16 @@ python -m podcast_scraper.cli --config config.yaml
 - `--max-episodes N` - Maximum episodes to process
 - `--workers N` - Number of concurrent download workers
 
+<a id="rss-and-multi-feed"></a>
+
+### RSS and multi-feed (GitHub #440)
+
+- **`--rss URL`** — Repeatable. Each occurrence adds another feed URL (merged with config `feeds` / `rss_urls` and optional `--rss-file`).
+- **`--rss-file PATH`** — Text file with one RSS URL per line (comments and blank lines allowed); URLs are merged with other sources.
+- **Multi-feed** — When **two or more** distinct feed URLs are in effect, **`--output-dir` is required** (corpus parent). Outputs are written under `<output_dir>/feeds/<stable_feed_id>/` per feed. Single-feed runs do not add the `feeds/` segment.
+
+Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Examples: `config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai.yaml`. For **append / resume** on the same two-feed OpenAI preset, see `config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml` and [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
+
 ### Provider Selection (v2.4.0+)
 
 - `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`)
@@ -190,6 +200,7 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 
 - `--dry-run` - Preview without writing files (includes LLM cost projection when API providers are configured)
 - `--skip-existing` - Skip episodes with existing output
+- `--append` - Resume into a **stable** `run_append_*` directory and skip episodes whose on-disk metadata already matches the RSS `episode_id` and required artifacts (GitHub #444). Incompatible with `--clean-output`. Unlike `--skip-existing` (path/exists heuristics in metadata generation), append skips **before** download using validated metadata + transcript (and optional summary / GI / KG files when those features are enabled).
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
 - `--max-failures N` - Stop after N episode failures (Issue #379)
@@ -420,6 +431,7 @@ python -m podcast_scraper.cli gi export --output-dir ./output --format merged --
 # One episode: stats, optional full text and quotes (--show)
 python -m podcast_scraper.cli gi inspect --episode-path ./output/metadata/ep1.gi.json
 python -m podcast_scraper.cli gi inspect --output-dir ./output --episode-id 'sha256:...'
+python -m podcast_scraper.cli gi inspect --output-dir ./mycorpus --episode-id 'sha256:...' --feed-id 'rss_example.com_abc123'
 
 # One insight by id (with evidence spans)
 python -m podcast_scraper.cli gi show-insight --id 'insight:<id-from-gi.json>' --episode-path ./output/metadata/ep1.gi.json
@@ -451,6 +463,18 @@ python -m podcast_scraper.cli index --output-dir ./output --rebuild
 python -m podcast_scraper.cli index --output-dir ./output --stats
 ```
 
+## Corpus status (`corpus-status`)
+
+Offline summary for a **corpus parent** (multi-feed: directory containing `feeds/`): whether
+**`corpus_manifest.json`** is present, per-feed **`metadata/`** file counts, a sample of
+**`index.json`** failures when available, and whether **`<corpus_parent>/search`** holds a
+FAISS index plus embedding model id from **`index_meta.json`** (GitHub #506 / RFC-063 §7).
+
+```bash
+python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent
+python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent --format json
+```
+
 **PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
 
 ```bash
@@ -476,6 +500,7 @@ python -m podcast_scraper.cli kg validate ./output/metadata --strict
 # Inspect one episode (by file or by episode id under output dir)
 python -m podcast_scraper.cli kg inspect --episode-path ./output/metadata/1_ep.kg.json
 python -m podcast_scraper.cli kg inspect --output-dir ./output --episode-id 'sha256:...'
+python -m podcast_scraper.cli kg inspect --output-dir ./mycorpus --episode-id 'sha256:...' --feed-id 'rss_example.com_abc123'
 
 # Export corpus: NDJSON (one artifact per line) or single merged JSON bundle
 python -m podcast_scraper.cli kg export --output-dir ./output --format ndjson --out kg.ndjson

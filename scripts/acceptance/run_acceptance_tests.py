@@ -170,30 +170,74 @@ def find_config_files(pattern: str) -> List[Path]:
     return merged
 
 
-def load_fast_config_stems() -> set[str]:
-    """Load set of config stems considered 'fast' for --fast-only (e.g. for CI).
+def _load_stems_from_file(path: Path) -> set[str]:
+    stems: set[str] = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if line:
+                stems.add(line)
+    return stems
 
-    Reads config/acceptance/FAST_CONFIGS.txt: one stem per line, # comments and blank
-    lines ignored. Stem = filename without extension (e.g. acceptance_planet_money_ml).
+
+def load_fast_config_stems() -> set[str]:
+    """Load set of config stems considered 'fast' for --fast-only / --from-fast-stems.
+
+    Reads ``config/acceptance/FAST_CONFIGS.txt`` when present (local checkout with
+    acceptance tree). Otherwise reads tracked ``config/ci/acceptance_fast_stems.txt``
+    so CI and fresh clones still get a defined fast matrix.
+
+    One stem per line; ``#`` comments and blank lines ignored. Stem = filename without
+    extension (e.g. ``acceptance_planet_money_ml_dev``).
 
     Returns:
-        Set of stem strings. Empty if file does not exist or is unreadable.
+        Set of stem strings. Empty if no file exists or is unreadable.
     """
     project_root = Path(__file__).parent.parent.parent
-    path = project_root / "config" / "acceptance" / "FAST_CONFIGS.txt"
-    if not path.exists():
-        return set()
-    stems: set[str] = set()
-    try:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.split("#", 1)[0].strip()
-                if line:
-                    stems.add(line)
-    except OSError as e:
-        logger.warning("Could not read FAST_CONFIGS.txt: %s", e)
-        return set()
-    return stems
+    local_path = project_root / "config" / "acceptance" / "FAST_CONFIGS.txt"
+    ci_path = project_root / "config" / "ci" / "acceptance_fast_stems.txt"
+    for path in (local_path, ci_path):
+        if not path.exists():
+            continue
+        try:
+            stems = _load_stems_from_file(path)
+            if stems:
+                logger.info("Loaded %d fast config stems from %s", len(stems), path)
+            return stems
+        except OSError as e:
+            logger.warning("Could not read %s: %s", path, e)
+    return set()
+
+
+def resolve_yaml_paths_from_stems(stems: set[str]) -> List[Path]:
+    """Map each stem to an existing YAML path (acceptance full dir, then examples).
+
+    Used for CI / clones without ``config/acceptance/full/``: multi-feed preset may
+    live only under ``config/examples/``.
+
+    Args:
+        stems: Config file stems (no ``.yaml``).
+
+    Returns:
+        Sorted list of paths that exist. Stems with no file log a warning and are skipped.
+    """
+    project_root = Path(__file__).parent.parent.parent
+    full_dir = project_root / "config" / "acceptance" / "full"
+    examples_dir = project_root / "config" / "examples"
+    out: List[Path] = []
+    for stem in sorted(stems):
+        for base in (full_dir, examples_dir):
+            candidate = base / f"{stem}.yaml"
+            if candidate.is_file():
+                out.append(candidate)
+                break
+        else:
+            logger.warning(
+                "Fast stem %r: no %s.yaml under config/acceptance/full or config/examples",
+                stem,
+                stem,
+            )
+    return out
 
 
 def filter_fast_configs(config_files: List[Path], fast_stems: set[str]) -> List[Path]:
@@ -277,14 +321,44 @@ def modify_config_for_fixtures(
     config_dict["output_dir"] = str(run_output_dir)
 
     if use_fixtures and e2e_server:
-        # Replace RSS URL with E2E server feed URL
-        # Use podcast1_multi_episode as default (5 short episodes)
-        original_rss = config_dict.get("rss", "")
-        if original_rss and not original_rss.startswith("http://127.0.0.1"):
-            # Replace with E2E server feed
-            # Default to podcast1_multi_episode for bulk tests
-            config_dict["rss"] = e2e_server.urls.feed("podcast1_multi_episode")
-            logger.debug(f"Replaced RSS URL: {original_rss} -> {config_dict['rss']}")
+        # Multi-feed: replace external URLs with distinct local fixture feeds (hash isolation).
+        fixture_feed_urls = [
+            e2e_server.urls.feed("podcast1_with_transcript"),
+            e2e_server.urls.feed("podcast1_multi_episode"),
+        ]
+
+        def _replace_external_feed_urls(urls: list) -> list:
+            out: list = []
+            for i, raw in enumerate(urls):
+                u = str(raw).strip() if raw is not None else ""
+                if u and not u.startswith("http://127.0.0.1"):
+                    out.append(fixture_feed_urls[i % len(fixture_feed_urls)])
+                else:
+                    out.append(raw)
+            return out
+
+        feeds_like = config_dict.get("feeds")
+        rss_urls_like = config_dict.get("rss_urls")
+        rss_val = config_dict.get("rss")
+        if isinstance(feeds_like, list) and feeds_like:
+            config_dict["feeds"] = _replace_external_feed_urls(feeds_like)
+            logger.debug("Replaced feeds with E2E fixture URLs: %s", config_dict["feeds"])
+        elif isinstance(rss_urls_like, list) and rss_urls_like:
+            config_dict["rss_urls"] = _replace_external_feed_urls(rss_urls_like)
+            logger.debug("Replaced rss_urls with E2E fixture URLs: %s", config_dict["rss_urls"])
+        elif isinstance(rss_val, list) and rss_val:
+            config_dict["rss"] = _replace_external_feed_urls(rss_val)
+            logger.debug("Replaced rss list with E2E fixture URLs: %s", config_dict["rss"])
+        else:
+            # Single-string rss (legacy / single-feed acceptance)
+            original_rss = config_dict.get("rss", "")
+            if (
+                isinstance(original_rss, str)
+                and original_rss
+                and not original_rss.startswith("http://127.0.0.1")
+            ):
+                config_dict["rss"] = e2e_server.urls.feed("podcast1_multi_episode")
+                logger.debug("Replaced RSS URL: %s -> %s", original_rss, config_dict["rss"])
 
         # Set API base URLs to E2E server for all providers
         # This ensures we use mock APIs, not real ones
@@ -310,8 +384,15 @@ def modify_config_for_fixtures(
         if "ANTHROPIC_API_KEY" not in os.environ:
             os.environ["ANTHROPIC_API_KEY"] = "test-dummy-key-for-bulk-tests"
 
-    # Effective RSS for this run (fixture replacement or YAML); session-wide mode is in main().
-    logger.info("  rss (this config): %s", config_dict.get("rss", "not set"))
+    # Effective feed URLs: fixture replacement or YAML (session-wide mode is in main()).
+    feed_list = config_dict.get("feeds") or config_dict.get("rss_urls")
+    rss_val = config_dict.get("rss")
+    if isinstance(feed_list, list) and feed_list:
+        logger.info("  feeds (this config, %d urls): %s", len(feed_list), feed_list)
+    elif isinstance(rss_val, list) and rss_val:
+        logger.info("  rss list (this config, %d urls): %s", len(rss_val), rss_val)
+    else:
+        logger.info("  rss (this config): %s", config_dict.get("rss", "not set"))
 
     # Save modified config in the run directory
     # This is needed for the service to run and also serves as a record of what was used
@@ -1673,10 +1754,10 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
     parser.add_argument(
         "--configs",
         type=str,
-        required=True,
+        default=None,
         help=(
             "Config file glob pattern, or multiple space-separated globs "
-            "(e.g. 'config/acceptance/full/*.yaml')"
+            "(e.g. 'config/acceptance/full/*.yaml'). Not required with --from-fast-stems."
         ),
     )
     parser.add_argument(
@@ -1769,7 +1850,21 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         "--fast-only",
         action="store_true",
         default=False,
-        help="Run only configs listed in config/acceptance/FAST_CONFIGS.txt (fast subset for CI).",
+        help=(
+            "After resolving --configs globs, keep only stems listed in "
+            "config/acceptance/FAST_CONFIGS.txt or config/ci/acceptance_fast_stems.txt."
+        ),
+    )
+    parser.add_argument(
+        "--from-fast-stems",
+        action="store_true",
+        default=False,
+        help=(
+            "Ignore --configs; run YAMLs for each fast stem, resolving "
+            "config/acceptance/full/<stem>.yaml or config/examples/<stem>.yaml. "
+            "Uses FAST_CONFIGS.txt when present, else config/ci/acceptance_fast_stems.txt. "
+            "Intended for CI / fixture smoke (pair with --use-fixtures)."
+        ),
     )
 
     args = parser.parse_args()
@@ -1797,30 +1892,56 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         e2e_server.start()
 
     # Find config files
-    config_files = find_config_files(args.configs)
-    if not config_files:
-        logger.error("No config files found")
-        sys.exit(1)
-
-    # Optionally restrict to fast subset (for CI: run fast configs on PR, full suite nightly)
-    if args.fast_only:
+    if args.from_fast_stems:
+        if args.configs:
+            logger.info("--from-fast-stems set; ignoring --configs %r", args.configs)
         fast_stems = load_fast_config_stems()
         if not fast_stems:
-            logger.warning(
-                "FAST_CONFIGS.txt not found or empty; --fast-only has no effect. "
-                "See config/acceptance/FAST_CONFIGS.txt."
+            logger.error(
+                "No fast stems: add config/acceptance/FAST_CONFIGS.txt or ensure "
+                "config/ci/acceptance_fast_stems.txt exists in the repo."
             )
-        else:
-            before = len(config_files)
-            config_files = filter_fast_configs(config_files, fast_stems)
-            logger.info(
-                "--fast-only: running %d of %d configs (from FAST_CONFIGS.txt)",
-                len(config_files),
-                before,
+            sys.exit(1)
+        config_files = resolve_yaml_paths_from_stems(fast_stems)
+        if not config_files:
+            logger.error(
+                "No YAML files resolved for fast stems (see warnings above). "
+                "Expected files under config/acceptance/full/ or config/examples/."
             )
-            if not config_files:
-                logger.error("No configs matched FAST_CONFIGS.txt")
-                sys.exit(1)
+            sys.exit(1)
+        logger.info(
+            "--from-fast-stems: running %d config(s) from %d stem(s)",
+            len(config_files),
+            len(fast_stems),
+        )
+    else:
+        if not args.configs:
+            logger.error("No --configs given (or use --from-fast-stems)")
+            sys.exit(1)
+        config_files = find_config_files(args.configs)
+        if not config_files:
+            logger.error("No config files found")
+            sys.exit(1)
+
+        # Optionally restrict to fast subset (for CI: run fast configs on PR, full suite nightly)
+        if args.fast_only:
+            fast_stems = load_fast_config_stems()
+            if not fast_stems:
+                logger.warning(
+                    "Fast stem list not found or empty; --fast-only has no effect. "
+                    "See config/acceptance/FAST_CONFIGS.txt or config/ci/acceptance_fast_stems.txt."
+                )
+            else:
+                before = len(config_files)
+                config_files = filter_fast_configs(config_files, fast_stems)
+                logger.info(
+                    "--fast-only: running %d of %d configs (from fast stem list)",
+                    len(config_files),
+                    before,
+                )
+                if not config_files:
+                    logger.error("No configs matched the fast stem list")
+                    sys.exit(1)
 
     # Setup output directory (resolve to absolute so run dirs are deterministic)
     output_dir = Path(args.output_dir).resolve()

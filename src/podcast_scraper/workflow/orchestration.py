@@ -1153,6 +1153,7 @@ def _finalize_run_index(
             effective_output_dir=effective_output_dir,
             episode_statuses=episode_statuses,
             run_suffix=run_suffix,
+            pipeline_append=getattr(cfg, "append", False),
         )
         index_path = os.path.join(effective_output_dir, "index.json")
         run_index.save_to_file(index_path)

@@ -121,7 +121,9 @@ help:
 	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
-	@echo "                            Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
+	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
+	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (tracked fast matrix + path resolve)"
+	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
@@ -695,13 +697,15 @@ test-reruns:
 
 test-acceptance:
 	@# Run E2E acceptance tests (multiple configs sequentially)
-	@# Usage: make test-acceptance CONFIGS="config/examples/config.example.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
-	@if [ -z "$(CONFIGS)" ]; then \
-		echo "❌ Error: CONFIGS is required"; \
+	@# Usage: make test-acceptance CONFIGS="…" OR make test-acceptance FROM_FAST_STEMS=1 [USE_FIXTURES=1] …
+	@if [ -z "$(CONFIGS)" ] && [ -z "$(FROM_FAST_STEMS)" ]; then \
+		echo "❌ Error: CONFIGS is required unless FROM_FAST_STEMS=1"; \
 		echo "Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
+		echo "   Or: make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1"; \
 		echo ""; \
 		echo "Options:"; \
-		echo "  CONFIGS=pattern         Config file pattern (required, e.g., 'config/acceptance/full/*.yaml')"; \
+		echo "  CONFIGS=pattern         Config glob(s), space-separated (required unless FROM_FAST_STEMS=1)"; \
+		echo "  FROM_FAST_STEMS=1      Resolve YAMLs from fast stem list (FAST_CONFIGS.txt or config/ci/acceptance_fast_stems.txt)"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -709,7 +713,7 @@ test-acceptance:
 		echo "  ANALYZE_MODE=mode       Analysis mode: basic or comprehensive (default: basic)"; \
 		echo "  COMPARE_BASELINE=id     Baseline ID to compare against"; \
 		echo "  SAVE_AS_BASELINE=id     Save current runs as baseline"; \
-		echo "  FAST_ONLY=1             Run only configs in config/acceptance/FAST_CONFIGS.txt"; \
+		echo "  FAST_ONLY=1             Run only configs matching fast stems (after CONFIGS glob)"; \
 		echo "  TIMEOUT=seconds         Per-run timeout (kill and fail if exceeded)"; \
 		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
 		echo ""; \
@@ -717,10 +721,11 @@ test-acceptance:
 		echo "  make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
 		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1"; \
 		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
+		echo "  make test-acceptance-fixtures-fast"; \
 		exit 1; \
 	fi
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
-		--configs "$(CONFIGS)" \
+		$(if $(FROM_FAST_STEMS),--from-fast-stems,--configs "$(CONFIGS)") \
 		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
 		$(if $(USE_FIXTURES),--use-fixtures) \
 		$(if $(NO_SHOW_LOGS),--no-show-logs) \
@@ -731,6 +736,18 @@ test-acceptance:
 		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
 		$(if $(FAST_ONLY),--fast-only) \
 		$(if $(TIMEOUT),--timeout $(TIMEOUT)) \
+		--log-level INFO
+
+# Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
+# Resolves each stem to config/acceptance/full/<stem>.yaml or config/examples/<stem>.yaml.
+test-acceptance-fixtures-fast:
+	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
+		--from-fast-stems \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
+		--use-fixtures \
+		--no-auto-analyze \
+		--no-auto-benchmark \
+		--timeout "$(or $(TIMEOUT),900)" \
 		--log-level INFO
 	@echo ""
 	@echo "✓ Acceptance tests completed"

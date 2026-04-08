@@ -143,6 +143,181 @@ class TestIntegrationMain(unittest.TestCase):
                 with open(expected_path, "r", encoding="utf-8") as fh:
                     self.assertEqual(fh.read().strip(), transcript_text)
 
+    def test_integration_main_multi_feed_corpus_layout_440(self):
+        """GitHub #440: two feeds under corpus_parent/feeds/<stable>/ (mocked HTTP)."""
+        rss_a = "https://alpha.example/feed.xml"
+        rss_b = "https://beta.example/feed.xml"
+        tr_a = "https://alpha.example/ep1.txt"
+        tr_b = "https://beta.example/ep1.txt"
+        rss_xml_a = build_rss_xml_with_transcript("Feed A", tr_a)
+        rss_xml_b = build_rss_xml_with_transcript("Feed B", tr_b)
+        responses = {
+            downloader.normalize_url(rss_a): create_rss_response(rss_xml_a, rss_a),
+            downloader.normalize_url(tr_a): create_transcript_response("Alpha transcript", tr_a),
+            downloader.normalize_url(rss_b): create_rss_response(rss_xml_b, rss_b),
+            downloader.normalize_url(tr_b): create_transcript_response("Beta transcript", tr_b),
+        }
+
+        http_mock = self._mock_http_map(responses)
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
+            with tempfile.TemporaryDirectory() as corpus:
+                exit_code = cli.main(
+                    [
+                        rss_a,
+                        "--rss",
+                        rss_b,
+                        "--output-dir",
+                        corpus,
+                        "--no-auto-speakers",
+                        "--max-episodes",
+                        "1",
+                    ]
+                )
+                self.assertEqual(exit_code, 0)
+                feeds_root = os.path.join(corpus, "feeds")
+                self.assertTrue(os.path.isdir(feeds_root), f"missing {feeds_root}")
+                subdirs = [
+                    d for d in os.listdir(feeds_root) if os.path.isdir(os.path.join(feeds_root, d))
+                ]
+                self.assertEqual(
+                    len(subdirs),
+                    2,
+                    f"expected two feed workspace dirs under feeds/, got {subdirs!r}",
+                )
+                self.assertTrue(
+                    os.path.isfile(os.path.join(corpus, "corpus_manifest.json")),
+                    "multi-feed finalize should write corpus_manifest.json (#506)",
+                )
+                self.assertTrue(
+                    os.path.isfile(os.path.join(corpus, "corpus_run_summary.json")),
+                    "multi-feed finalize should write corpus_run_summary.json (#506)",
+                )
+
+    @pytest.mark.critical_path
+    def test_integration_main_multi_feed_partial_failure_still_writes_corpus_artifacts_506(self):
+        """One failing feed still runs finalize: manifest, summary, overall_ok false (#506)."""
+        rss_a = "https://alpha.example/feed.xml"
+        rss_b = "https://beta.example/feed.xml"
+
+        def fake_run(cfg):
+            if cfg.rss_url and "beta.example" in cfg.rss_url:
+                raise ValueError("simulated feed B failure")
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            exit_code = cli.main(
+                [
+                    rss_a,
+                    "--rss",
+                    rss_b,
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                ],
+                run_pipeline_fn=fake_run,
+            )
+            self.assertEqual(exit_code, 1)
+            summary_path = os.path.join(corpus, "corpus_run_summary.json")
+            self.assertTrue(os.path.isfile(summary_path))
+            self.assertTrue(os.path.isfile(os.path.join(corpus, "corpus_manifest.json")))
+            with open(summary_path, encoding="utf-8") as fh:
+                blob = json.load(fh)
+            self.assertEqual(blob.get("schema_version"), "1.0.0")
+            self.assertIs(blob.get("overall_ok"), False)
+            feeds = blob.get("feeds") or []
+            self.assertEqual(len(feeds), 2)
+            by_url = {row["feed_url"]: row for row in feeds}
+            self.assertTrue(by_url[rss_a].get("ok"))
+            self.assertFalse(by_url[rss_b].get("ok"))
+
+    def test_integration_service_run_multi_feed_corpus_layout_440(self):
+        """GitHub #440: ``service.run`` with ``rss_urls`` matches CLI corpus layout (mocked HTTP)."""
+        from podcast_scraper import service
+
+        rss_a = "https://alpha.example/feed.xml"
+        rss_b = "https://beta.example/feed.xml"
+        tr_a = "https://alpha.example/ep1.txt"
+        tr_b = "https://beta.example/ep1.txt"
+        rss_xml_a = build_rss_xml_with_transcript("Feed A", tr_a)
+        rss_xml_b = build_rss_xml_with_transcript("Feed B", tr_b)
+        responses = {
+            downloader.normalize_url(rss_a): create_rss_response(rss_xml_a, rss_a),
+            downloader.normalize_url(tr_a): create_transcript_response("Alpha transcript", tr_a),
+            downloader.normalize_url(rss_b): create_rss_response(rss_xml_b, rss_b),
+            downloader.normalize_url(tr_b): create_transcript_response("Beta transcript", tr_b),
+        }
+
+        http_mock = self._mock_http_map(responses)
+        with (
+            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
+            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
+        ):
+            with tempfile.TemporaryDirectory() as corpus:
+                cfg = config.Config(
+                    rss_urls=[rss_a, rss_b],
+                    output_dir=corpus,
+                    max_episodes=1,
+                    auto_speakers=False,
+                    user_agent="test",
+                    timeout=30,
+                )
+                result = service.run(cfg)
+                self.assertTrue(result.success, result.error)
+                self.assertGreaterEqual(result.episodes_processed, 2)
+                feeds_root = os.path.join(corpus, "feeds")
+                self.assertTrue(os.path.isdir(feeds_root))
+                subdirs = [
+                    d for d in os.listdir(feeds_root) if os.path.isdir(os.path.join(feeds_root, d))
+                ]
+                self.assertEqual(len(subdirs), 2)
+                self.assertTrue(
+                    os.path.isfile(os.path.join(corpus, "corpus_manifest.json")),
+                    "service multi-feed should write corpus_manifest.json (#506)",
+                )
+                self.assertTrue(
+                    os.path.isfile(os.path.join(corpus, "corpus_run_summary.json")),
+                    "service multi-feed should write corpus_run_summary.json (#506)",
+                )
+
+    @pytest.mark.critical_path
+    def test_integration_service_multi_feed_partial_failure_writes_artifacts_506(self):
+        """``service.run`` multi-feed: one failing feed still finalizes corpus JSON (#506)."""
+        from podcast_scraper import service
+
+        rss_a = "https://alpha.example/feed.xml"
+        rss_b = "https://beta.example/feed.xml"
+
+        def _side_effect(cfg):
+            if cfg.rss_url and "beta.example" in cfg.rss_url:
+                raise ValueError("simulated feed B failure")
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            with patch("podcast_scraper.service.workflow.run_pipeline", side_effect=_side_effect):
+                cfg = config.Config(
+                    rss_urls=[rss_a, rss_b],
+                    output_dir=corpus,
+                    max_episodes=1,
+                    auto_speakers=False,
+                    user_agent="test",
+                    timeout=30,
+                )
+                result = service.run(cfg)
+
+            self.assertFalse(result.success)
+            self.assertIsNotNone(result.multi_feed_summary)
+            self.assertFalse(result.multi_feed_summary.get("overall_ok"))
+            summary_path = os.path.join(corpus, "corpus_run_summary.json")
+            self.assertTrue(os.path.isfile(summary_path))
+            self.assertTrue(os.path.isfile(os.path.join(corpus, "corpus_manifest.json")))
+            with open(summary_path, encoding="utf-8") as fh:
+                blob = json.load(fh)
+            self.assertIs(blob.get("overall_ok"), False)
+
     def test_integration_main_whisper_fallback(self):
         rss_url = "https://example.com/feed.xml"
         media_url = "https://example.com/ep1.mp3"

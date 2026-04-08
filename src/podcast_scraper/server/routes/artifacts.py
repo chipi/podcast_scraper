@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
+from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
 
 router = APIRouter(tags=["artifacts"])
 
@@ -81,7 +82,8 @@ async def list_artifacts(
                 )
             )
     items.sort(key=lambda x: (x.relative_path, x.kind))
-    return ArtifactListResponse(path=str(base), artifacts=items)
+    hints = corpus_search_parent_hint(base)
+    return ArtifactListResponse(path=str(base), artifacts=items, hints=hints)
 
 
 @router.get("/artifacts/{artifact_path:path}")

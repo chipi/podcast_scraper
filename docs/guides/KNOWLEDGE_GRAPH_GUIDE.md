@@ -96,7 +96,7 @@ Run as `python -m podcast_scraper.cli kg <subcommand> ...` (same entrypoint as `
 | Subcommand | Purpose |
 | --- | --- |
 | **`kg validate`** | Validate one or more paths (files or directories) against `kg.schema.json`. Use **`--strict`** for full JSON Schema. **`-q`** / **`--quiet`**: only failures. |
-| **`kg inspect`** | Summarize one episode artifact: **`--episode-path`** to `.kg.json`, or **`--output-dir`** + **`--episode-id`**. **`--format json`** for machine output. |
+| **`kg inspect`** | Summarize one episode artifact: **`--episode-path`** to `.kg.json`, or **`--output-dir`** + **`--episode-id`** (multi-feed **corpus parent** OK). Use **`--feed-id`** (`feed.feed_id`) when the same `episode_id` appears in multiple feeds ([CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). **`--format json`** for machine output. |
 | **`kg export`** | Scan **`--output-dir`** for all `*.kg.json`. **`--format ndjson`** (default) or **`merged`**. **`--out PATH`** or stdout. **`--strict`** to require schema-valid artifacts. |
 | **`kg entities`** | Cross-episode **entity roll-up** (counts, episodes, mentions). **`--min-episodes N`**, **`--format json`**. |
 | **`kg topics`** | **Topic pair co-occurrence** within the same episode. **`--min-support N`**, **`--format json`**. |

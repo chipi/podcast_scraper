@@ -1,0 +1,44 @@
+# Tracked copy: multi-feed acceptance preset (Planet Money + The Journal, full pipeline, OpenAI).
+# GitHub #440. Corpus layout: <output_dir>/feeds/rss_<host>_<hash>/ per feed.
+#
+# Same content can live under config/acceptance/full/ (not committed; see .gitignore).
+#
+# Run (real RSS + OPENAI_API_KEY):
+#   make test-acceptance CONFIGS="config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml" USE_FIXTURES=0
+#
+# Run with E2E fixtures (feeds rewritten to local test feeds by the runner):
+#   make test-acceptance CONFIGS="config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml" USE_FIXTURES=1
+#
+# After a successful multi-feed batch: corpus_parent gets corpus_manifest.json, corpus_run_summary.json,
+# and (with vector_search + faiss) a unified <output_dir>/search index (GitHub #505/#506).
+# Inspect: python -m podcast_scraper.cli corpus-status --output-dir <output_dir>
+#
+# Requires: OPENAI_API_KEY (and API access) when USE_FIXTURES=0. Higher cost than single-feed acceptance.
+
+feeds:
+  - https://feeds.npr.org/510289/podcast.xml
+  - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+
+output_dir: .test_outputs/acceptance/full/multi_feed_planet_money_journal_openai
+max_episodes: 2
+
+transcription_provider: openai
+speaker_detector_provider: openai
+summary_provider: openai
+
+openai_transcription_model: whisper-1
+openai_speaker_model: gpt-4o-mini
+openai_summary_model: gpt-4o-mini
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

@@ -288,10 +288,25 @@ watch(
               <p v-if="shell.artifactsLoading" class="mt-1 text-[10px] text-muted">
                 Loading…
               </p>
-              <div
-                v-else-if="shell.artifactList.length"
-                class="mt-1.5 space-y-1"
-              >
+              <template v-else>
+                <div
+                  v-if="shell.corpusHints.length"
+                  class="mt-1.5 rounded border border-warning/40 bg-warning/10 px-2 py-1.5 text-[10px] text-surface-foreground"
+                  role="status"
+                >
+                  <p class="font-medium text-warning">
+                    Corpus path hint
+                  </p>
+                  <ul class="mt-0.5 list-inside list-disc text-muted">
+                    <li v-for="(h, i) in shell.corpusHints" :key="i">
+                      {{ h }}
+                    </li>
+                  </ul>
+                </div>
+                <div
+                  v-if="shell.artifactList.length"
+                  class="mt-1.5 space-y-1"
+                >
                 <div class="flex gap-1">
                   <button
                     type="button"
@@ -326,10 +341,14 @@ watch(
                     </span>
                   </label>
                 </div>
-              </div>
-              <p v-else-if="shell.artifactCount !== null && shell.artifactCount === 0" class="mt-1 text-[10px] text-muted">
-                No artifacts found.
-              </p>
+                </div>
+                <p
+                  v-else-if="shell.artifactCount !== null && shell.artifactCount === 0"
+                  class="mt-1 text-[10px] text-muted"
+                >
+                  No artifacts found.
+                </p>
+              </template>
               <p v-if="shell.artifactsError" class="mt-1 text-[10px] text-danger">
                 {{ shell.artifactsError }}
               </p>

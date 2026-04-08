@@ -123,3 +123,25 @@ class TestGILLoad:
     def test_find_artifact_by_episode_id_no_metadata_dir_returns_none(self, tmp_path):
         """find_artifact_by_episode_id returns None when metadata dir does not exist."""
         assert find_artifact_by_episode_id(tmp_path, "ep:1") is None
+
+    def test_find_artifact_by_episode_id_multi_feed_requires_feed_id(self, tmp_path):
+        """Same episode_id under two feeds is ambiguous without feed_id."""
+        import json as json_mod
+
+        corpus = tmp_path / "corpus"
+        for fid, slug in (("feed_a", "rss_a"), ("feed_b", "rss_b")):
+            mdir = corpus / "feeds" / slug / "run" / "metadata"
+            mdir.mkdir(parents=True, exist_ok=True)
+            meta_doc = {"feed": {"feed_id": fid}, "episode": {"episode_id": "dup"}}
+            (mdir / "ep.metadata.json").write_text(
+                json_mod.dumps(meta_doc),
+                encoding="utf-8",
+            )
+            payload = build_artifact("dup", "t", prompt_version="v1")
+            with open(mdir / "ep.gi.json", "w", encoding="utf-8") as handle:
+                json_mod.dump(payload, handle)
+
+        assert find_artifact_by_episode_id(corpus, "dup") is None
+        one = find_artifact_by_episode_id(corpus, "dup", feed_id="feed_a")
+        assert one is not None
+        assert "rss_a" in str(one)

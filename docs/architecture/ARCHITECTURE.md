@@ -80,8 +80,8 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 | Mode | Use case | Config source | Entry / deployment |
 | ---- | --------- | ------------- | ------------------- |
-| **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, `python -m podcast_scraper.cli`. Subcommands: `doctor`, `cache`. |
-| **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
+| **CLI** | Interactive runs, ad-hoc flags, progress bars | CLI args + optional `--config` file | `podcast-scraper <rss_url>`, repeatable `--rss`, `python -m podcast_scraper.cli`. Multi-feed: `--output-dir` required when ≥2 feeds ([CLI.md](../api/CLI.md#rss-and-multi-feed)). Subcommands: `doctor`, `cache`, `corpus-status` (#506). |
+| **Service** | Daemons, automation, process managers | Config file only (no CLI args) | `python -m podcast_scraper.service --config config.yaml`. YAML `feeds` / `rss_urls` list runs one pipeline per feed when len ≥ 2. Returns `ServiceResult`; exit code 0/1. For supervisor, systemd, etc. |
 | **Docker** | Service-oriented deployment | Config file (default `/app/config.yaml` or `PODCAST_SCRAPER_CONFIG`) | Container runs **service mode**: no CLI arguments, config from file and env. See [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md). |
 | **Server (viewer)** | GI/KG visualization, semantic search, explore | `--output-dir` (corpus path) | `podcast serve --output-dir <path>`. FastAPI + Vue SPA. See [Server Guide](../guides/SERVER_GUIDE.md). |
 
@@ -132,13 +132,17 @@ The following architectural principles govern this system. For the full history 
 ## Pipeline and Workflow
 
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
-2. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup.
-3. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
-4. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
-5. **Audio Preprocessing** (RFC-040): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to 16 kHz, silence removed via VAD, loudness normalized, and compressed with Opus codec. This reduces file size (typically 10-25× smaller) and ensures API compatibility (e.g., OpenAI 25 MB limit). Preprocessing happens at the pipeline level in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio. All providers benefit from optimized audio.
-6. **Transcription**: When Whisper fallback is enabled, `workflow.episode_processor.download_media_for_transcription` downloads media to a temp area and `workflow.episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
-7. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-8. **Summarization** (PRD-005/RFC-012): When enabled,
+2. **Multi-feed outer loop (GitHub #440)**: When `Config.rss_urls` contains **two or more** feeds, `cli.main` and `service.run` iterate feeds sequentially: for each URL they derive a child `output_dir` under `<corpus_parent>/feeds/<stable_feed_id>/` and invoke the same inner pipeline with a single-feed sub-config. With **`vector_search`** and FAISS, inner runs set **`skip_auto_vector_index`** so **one** parent **`index_corpus`** pass builds **`<corpus_parent>/search`** (#505). The batch writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured logs (#506). See [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md) and [CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440).
+
+   **Append / resume (GitHub #444)**: When `Config.append` is true, filesystem setup under each feed root chooses a **stable** `run_append_*` workspace (instead of a new `run_*` suffix each invocation). The inner pipeline skips episodes whose on-disk metadata matches RSS `episode_id` and that already satisfy transcript plus optional summary / GI / KG requirements. Run index files use `index.json` schema `1.1.0` with optional `pipeline_append`. Mutually exclusive with `clean_output`. See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+
+3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup.
+4. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
+5. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
+6. **Audio Preprocessing** (RFC-040): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to 16 kHz, silence removed via VAD, loudness normalized, and compressed with Opus codec. This reduces file size (typically 10-25× smaller) and ensures API compatibility (e.g., OpenAI 25 MB limit). Preprocessing happens at the pipeline level in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio. All providers benefit from optimized audio.
+7. **Transcription**: When Whisper fallback is enabled, `workflow.episode_processor.download_media_for_transcription` downloads media to a temp area and `workflow.episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
+8. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
+9. **Summarization** (PRD-005/RFC-012): When enabled,
    episode transcripts are summarized using the
    configured provider — local transformer models
    (BART, PEGASUS, LED) via `MLProvider`; the
@@ -149,23 +153,23 @@ The following architectural principles govern this system. For the full history 
    templates. See
    [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md)
    for ML architecture details.
-9. **Run Tracking** (Issue #379): Run manifests
+10. **Run Tracking** (Issue #379): Run manifests
    capture system state at pipeline start. Per-episode
    stage timings track processing duration. Run
    summaries combine manifest and metrics. Episode
    index files list all processed episodes with
    status.
-10. **Progress/UI**: All long-running operations
+11. **Progress/UI**: All long-running operations
     report progress through the pluggable factory in
     `utils.progress`, defaulting to `rich` in the CLI.
-11. **GIL Extraction** (PRD-017): When enabled,
+12. **GIL Extraction** (PRD-017): When enabled,
     the Grounded Insight Layer extracts structured
     insights and verbatim quotes from transcripts,
     links them via grounding relationships, and
     writes a `gi.json` file per episode. This step
     runs after summarization and uses the same
     multi-provider architecture. See `gi/` module.
-12. **KG Extraction**: When enabled, Knowledge Graph
+13. **KG Extraction**: When enabled, Knowledge Graph
     extraction produces structured topic graphs from
     transcripts and summaries, writing `kg.json` per
     episode. See `kg/` module.
@@ -223,8 +227,8 @@ flowchart TD
     style ExtractKG fill:#d5f5e3
 ```
 
-- `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`. Optimized for interactive command-line use.
-- `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
+- `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting; when `rss_urls` has one feed, calls `run_pipeline` once; when it has two or more (GitHub #440), runs `run_pipeline` per feed under `<output_dir>/feeds/<stable_feed_id>/`. Optimized for interactive command-line use.
+- `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects; **multi-feed** uses the same outer loop as the CLI. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
 - `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
 - `workflow.orchestration`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
 - `rss.parser`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](../adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.

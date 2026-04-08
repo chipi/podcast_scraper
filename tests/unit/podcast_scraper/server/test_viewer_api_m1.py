@@ -12,6 +12,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.server.app import create_app
 
 
@@ -39,6 +40,26 @@ def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:
     assert names == {"ep1.gi.json", "ep1.kg.json"}
     kinds = {item["kind"] for item in body["artifacts"]}
     assert kinds == {"gi", "kg"}
+    assert body.get("hints") == []
+
+
+def test_list_artifacts_hints_when_index_at_corpus_parent(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    (corpus / "search").mkdir(parents=True)
+    (corpus / "search" / VECTORS_FILE).write_bytes(b"")
+    feed_meta = corpus / "feeds" / "rss_x" / "metadata"
+    feed_meta.mkdir(parents=True)
+    (feed_meta / "ep1.gi.json").write_text("{}", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get("/api/artifacts", params={"path": str(feed_meta)})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["artifacts"]
+    hints = body.get("hints") or []
+    assert len(hints) == 1
+    assert str(corpus.resolve()) in hints[0]
 
 
 def test_get_artifact_returns_json(tmp_path: Path) -> None:

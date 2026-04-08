@@ -1211,6 +1211,93 @@ else:
     print("API key is not set")
 ```
 
+## RSS and multi-feed corpus (GitHub #440)
+
+You can target **one** feed with `rss` (string) or **multiple** feeds with **`feeds`** or **`rss_urls`** (YAML list of URL strings). Both list keys normalize to the same internal field (`rss_urls`).
+
+**Rules:**
+
+- **Two or more feeds** require an explicit **`output_dir`** (corpus parent). The CLI and service run **one full pipeline per feed**; each feed’s artifacts live under:
+
+  ```text
+  <output_dir>/feeds/rss_<host>_<hash>/
+  ```
+
+  (stable per-feed workspace name derived from the feed URL.)
+
+- **Single feed** keeps the existing behavior: `output_dir` can default from env; the pipeline root is typically `output_dir` itself (no `feeds/` segment for the lone feed).
+
+**Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`** and FAISS, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`**, **`gi explore --topic`**, and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
+
+**GI / KG inspect by episode:** **`gi inspect`** and **`kg inspect`** accept **`--output-dir`** as the corpus parent; if the same **`episode_id`** exists in multiple feeds, pass **`--feed-id`** (same value as metadata **`feed.feed_id`**).
+
+**YAML examples:**
+
+```yaml
+# Single feed (unchanged)
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+```
+
+```yaml
+# Multi-feed corpus (Planet Money + The Journal pattern)
+feeds:
+  - https://feeds.npr.org/510289/podcast.xml
+  - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+output_dir: ./my_corpus  # required when len(feeds) >= 2
+```
+
+**Programmatic:**
+
+```python
+from podcast_scraper import Config
+
+cfg = Config(
+    rss_urls=[
+        "https://feeds.npr.org/510289/podcast.xml",
+        "https://video-api.wsj.com/podcast/rss/wsj/the-journal",
+    ],
+    output_dir="./my_corpus",
+)
+```
+
+See [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
+
+- `config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` (tracked; same preset may exist under `config/acceptance/full/` locally)
+- `config/manual/manual_multi_feed_planet_money_journal_openai.yaml`
+
+<a id="append-resume-github-444"></a>
+
+## Append / resume (GitHub #444)
+
+Set **`append: true`** in YAML (or CLI **`--append`**) to reuse a **stable** `run_append_*` directory per feed and **skip** episodes that already have valid on-disk metadata (`episode_id` aligned with RSS) plus transcript and any enabled downstream artifacts (summary, GI, KG when those flags are on). Mutually exclusive with **`clean_output`**. `index.json` uses schema **`1.1.0`** and may include **`pipeline_append: true`**. See [PIPELINE_AND_WORKFLOW.md — Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429).
+
+**YAML (single-feed or multi-feed):**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+append: true
+```
+
+```yaml
+feeds:
+  - https://feeds.npr.org/510289/podcast.xml
+  - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+output_dir: ./my_corpus
+append: true
+```
+
+**Checked-in presets (Planet Money + The Journal + OpenAI, full pipeline):**
+
+- `config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml` (tracked)
+- `config/acceptance/full/acceptance_multi_feed_planet_money_journal_openai_append.yaml` (same content; use with `make test-acceptance`)
+- `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` (manual validation + team handoff notes in file header)
+
+Re-run the **same** command twice to validate resume: the second run should skip complete episodes under each feed’s `run_append_*` tree.
+
+If the process exits before **finalize** (e.g. crash), **`index.json`** may lag behind what is already on disk; append/resume still prefers **filesystem + metadata** (`episode_id` and artifact checks) over the run index alone.
+
 ## Configuration Files
 
 ### JSON Example
@@ -1256,7 +1343,9 @@ preprocessing_sample_rate: 16000  # Target sample rate
 
 The configuration system handles various aliases for backward compatibility:
 
-- `rss_url` or `rss` → `rss_url`
+- `rss_url` or `rss` (string) → `rss_url` (single-feed)
+- **`feeds` or `rss_urls` (list)** → `rss_urls` (multi-feed; GitHub #440)
+- **`append`** → `append` (boolean; stable `run_append_*` workspace and skip-complete semantics; GitHub #444)
 - `output_dir` or `output_directory` → `output_dir`
 - `screenplay_gap` or `screenplay_gap_s` → `screenplay_gap_s`
 

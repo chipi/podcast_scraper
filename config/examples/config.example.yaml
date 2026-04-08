@@ -6,6 +6,15 @@
 # See config/examples/.env.example for environment variable options
 
 rss: https://example.com/feed.xml
+# Multi-feed corpus (GitHub #440): use a list under `feeds` or `rss_urls` instead of a single `rss` string.
+# When two or more URLs are in effect, `output_dir` is required (corpus parent). Each feed is written under:
+#   <output_dir>/feeds/rss_<host>_<hash>/
+# Example (uncomment and remove or comment `rss` above to try):
+# feeds:
+#   - https://feeds.npr.org/510289/podcast.xml
+#   - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+# output_dir: output_multi_feed_example
+# Full-pipeline OpenAI preset (also used for acceptance): see acceptance_multi_feed_planet_money_journal_openai.yaml in this folder.
 output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
 
@@ -68,8 +77,12 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # vector_faiss_index_mode: auto  # auto | flat | ivf_flat | ivfpq (#484 corpus-size thresholds when auto)
 # vector_chunk_size_tokens: 300  # Transcript chunk target (must be > vector_chunk_overlap_tokens)
 # vector_chunk_overlap_tokens: 50  # Overlap between consecutive transcript chunks
+# skip_auto_vector_index: false  # Advanced: when true, pipeline skips auto index even if vector_search
+#   is on (multi-feed runs set this per-feed and build one parent index after the batch — GitHub #505).
 # After a run: `python -m podcast_scraper.cli index --output-dir <out>` to rebuild; `... search ...`
 # for queries. With an index, `gi explore --topic` uses vectors first. Guide: docs/guides/SEMANTIC_SEARCH_GUIDE.md
+# Multi-feed corpus parent: point `index` / `search` / `gi explore` / `serve` at the same parent that
+# contains `feeds/`; discovery is recursive under each feed tree (GitHub #505).
 
 # OpenAI configuration (required if using any OpenAI providers)
 # Note: OPENAI_API_KEY should be set in .env file (see config/examples/.env.example)

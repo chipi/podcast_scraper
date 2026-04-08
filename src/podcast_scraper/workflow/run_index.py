@@ -41,6 +41,7 @@ class RunIndex:
     episodes_processed: int = 0
     episodes_failed: int = 0
     episodes_skipped: int = 0
+    pipeline_append: bool = False
     episodes: List[EpisodeIndexEntry] = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -50,7 +51,7 @@ class RunIndex:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert index to dictionary."""
-        return {
+        out: Dict[str, Any] = {
             "schema_version": self.schema_version,
             "run_id": self.run_id,
             "feed_url": self.feed_url,
@@ -60,6 +61,9 @@ class RunIndex:
             "episodes_skipped": self.episodes_skipped,
             "episodes": [asdict(ep) for ep in self.episodes],
         }
+        if self.pipeline_append:
+            out["pipeline_append"] = True
+        return out
 
     def to_json(self) -> str:
         """Convert index to JSON string."""
@@ -219,6 +223,34 @@ def _find_metadata_file(
     return None
 
 
+def find_episode_metadata_relative_path(
+    episode: Any,
+    effective_output_dir: str,
+    run_suffix: Optional[str],
+) -> Optional[str]:
+    """Locate an episode metadata file under *effective_output_dir* if present.
+
+    Uses the same naming rules as :func:`create_run_index` (run suffix and title truncation).
+
+    Args:
+        episode: Episode model instance
+        effective_output_dir: Run output root (contains ``metadata/``)
+        run_suffix: Whisper/metadata filename suffix for this run, if any
+
+    Returns:
+        Path relative to *effective_output_dir*, or ``None`` if not found.
+    """
+    from ..utils import filesystem
+
+    metadata_dir = os.path.join(effective_output_dir, filesystem.METADATA_SUBDIR)
+    title_for_paths = filesystem.truncate_whisper_title(
+        getattr(episode, "title_safe", episode.title), for_log=False
+    )
+    return _find_metadata_file(
+        episode, title_for_paths, metadata_dir, effective_output_dir, run_suffix
+    )
+
+
 def _determine_episode_status(
     metadata_path: Optional[str],
     transcript_path: Optional[str],
@@ -300,6 +332,7 @@ def create_run_index(
     effective_output_dir: str,
     episode_statuses: Optional[List[Any]] = None,
     run_suffix: Optional[str] = None,
+    pipeline_append: bool = False,
 ) -> RunIndex:
     """Create a run index from processed episodes.
 
@@ -309,6 +342,8 @@ def create_run_index(
         episodes: List of episodes that were processed
         effective_output_dir: Output directory path
         episode_statuses: Optional list of episode status objects (from metrics)
+        run_suffix: Optional run suffix used in transcript/metadata filenames
+        pipeline_append: When True, mark index as produced under append/resume (GitHub #444)
 
     Returns:
         RunIndex object
@@ -395,13 +430,14 @@ def create_run_index(
 
     # Create run index
     run_index = RunIndex(
-        schema_version="1.0.0",
+        schema_version="1.1.0" if pipeline_append else "1.0.0",
         run_id=run_id,
         feed_url=feed_url,
         created_at=created_at,
         episodes_processed=episodes_processed,
         episodes_failed=episodes_failed,
         episodes_skipped=episodes_skipped,
+        pipeline_append=pipeline_append,
         episodes=index_entries,
     )
 

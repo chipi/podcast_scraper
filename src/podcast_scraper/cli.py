@@ -6,6 +6,7 @@ Low MI (radon): see docs/ci/CODE_QUALITY_TRENDS.md § Low-MI modules.
 from __future__ import annotations
 
 import argparse
+import copy
 import logging
 import os
 import sys
@@ -209,6 +210,57 @@ def _rich_progress(total: Optional[int], description: str) -> Iterator[Union[_Ri
                 _shared_progress_lock.release()
 
 
+def _load_rss_urls_from_file(path: str) -> List[str]:
+    """Read non-empty, non-comment lines from ``--rss-file`` (GitHub #440)."""
+    p = Path(path)
+    if not p.is_file():
+        raise ValueError(f"--rss-file is not a readable file: {path}")
+    text = p.read_text(encoding="utf-8", errors="replace")
+    urls: List[str] = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        urls.append(s)
+    return urls
+
+
+_FILE_URLS_ELIDE = object()
+
+
+def collect_feed_urls(
+    args: argparse.Namespace,
+    *,
+    preloaded_file_urls: object = _FILE_URLS_ELIDE,
+) -> List[str]:
+    """Collect RSS URLs from positional rss, ``--rss``, ``--rss-file``, and config ``rss_urls``."""
+    seen: set[str] = set()
+    ordered: List[str] = []
+
+    def add(url: str) -> None:
+        s = url.strip()
+        if not s or s in seen:
+            return
+        seen.add(s)
+        ordered.append(s)
+
+    if getattr(args, "rss", None):
+        add(str(args.rss))
+    for u in getattr(args, "rss_extra", None) or []:
+        add(str(u))
+    for u in getattr(args, "rss_urls", None) or []:
+        add(str(u))
+
+    if preloaded_file_urls is _FILE_URLS_ELIDE:
+        rss_file = getattr(args, "rss_file", None)
+        file_lines: List[str] = _load_rss_urls_from_file(str(rss_file)) if rss_file else []
+    else:
+        file_lines = list(cast(List[str], preloaded_file_urls or []))
+    for u in file_lines:
+        add(str(u))
+    return ordered
+
+
 def _validate_rss_url(rss_value: str, errors: List[str]) -> None:
     """Validate RSS URL format.
 
@@ -285,9 +337,26 @@ def validate_args(args: argparse.Namespace) -> None:
     """Validate parsed CLI arguments and raise ValueError when invalid."""
     errors: List[str] = []
 
-    # Validate RSS URL
-    rss_value = (args.rss or "").strip()
-    _validate_rss_url(rss_value, errors)
+    preloaded_file: object = _FILE_URLS_ELIDE
+    rss_file = getattr(args, "rss_file", None)
+    if rss_file:
+        try:
+            preloaded_file = _load_rss_urls_from_file(str(rss_file))
+        except ValueError as exc:
+            errors.append(str(exc))
+            preloaded_file = []
+
+    feed_urls = collect_feed_urls(args, preloaded_file_urls=preloaded_file)
+    if not feed_urls:
+        errors.append("At least one RSS URL is required (positional, --rss, --rss-file, or config)")
+    else:
+        for u in feed_urls:
+            _validate_rss_url(u, errors)
+        if len(feed_urls) >= 2 and not (getattr(args, "output_dir", None) or "").strip():
+            errors.append(
+                "Multi-feed mode (GitHub #440): --output-dir is required as the corpus parent "
+                "(each feed is written under <output-dir>/feeds/<stable_name>/)"
+            )
 
     # Validate numeric arguments
     if args.max_episodes is not None and args.max_episodes <= 0:
@@ -310,6 +379,12 @@ def validate_args(args: argparse.Namespace) -> None:
             filesystem.validate_and_normalize_output_dir(args.output_dir)
         except ValueError as exc:
             errors.append(str(exc))
+
+    if getattr(args, "clean_output", False) and getattr(args, "append", False):
+        errors.append(
+            "--clean-output and --append are mutually exclusive (GitHub #444: "
+            "append requires a durable workspace)"
+        )
 
     if errors:
         raise ValueError("Invalid input parameters:\n  " + "\n  ".join(errors))
@@ -348,7 +423,26 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", default=None, help="Path to configuration file (JSON or YAML)")
     parser.add_argument("rss", nargs="?", default=None, help="Podcast RSS feed URL")
     parser.add_argument(
-        "--output-dir", default=None, help="Output directory (default: output/rss_<host>_<hash>)"
+        "--rss",
+        action="append",
+        default=[],
+        dest="rss_extra",
+        metavar="URL",
+        help="Additional RSS feed URL (repeatable; multi-feed corpus — GitHub #440)",
+    )
+    parser.add_argument(
+        "--rss-file",
+        default=None,
+        metavar="PATH",
+        help="File with one RSS URL per line (# and blank lines ignored; GitHub #440)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help=(
+            "Output directory: single-feed default output/rss_<host>_<hash>; "
+            "multi-feed required as corpus parent (GitHub #440)"
+        ),
     )
     parser.add_argument(
         "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"
@@ -379,6 +473,14 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
+    )
+    parser.add_argument(
+        "--append",
+        action="store_true",
+        help=(
+            "Resume into a stable run directory and skip episodes with valid on-disk metadata "
+            "(episode_id + artifacts; GitHub #444). Incompatible with --clean-output."
+        ),
     )
     parser.add_argument(
         "--reuse-media",
@@ -1444,8 +1546,11 @@ def _load_and_merge_config(
 
     parser.set_defaults(**defaults_updates)
     args = parser.parse_args(argv)
-    if not args.rss:
-        raise ValueError("RSS URL is required (provide in config as 'rss' or via CLI)")
+    if not collect_feed_urls(args):
+        raise ValueError(
+            "RSS URL is required (positional rss, repeatable --rss, --rss-file, "
+            "or config rss / rss_urls / feeds)"
+        )
     return args
 
 
@@ -1473,6 +1578,32 @@ def _parse_doctor_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespa
         help="Try loading default Whisper and summarizer models once (slow, optional)",
     )
     args = parser.parse_args(argv)
+    return args
+
+
+def _parse_corpus_status_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse ``corpus-status`` (GitHub #506)."""
+    parser = argparse.ArgumentParser(
+        description=(
+            "Show corpus parent status: manifest, per-feed metadata counts, "
+            "index.json errors sample, unified search index (RFC-063 §7)."
+        ),
+        prog="podcast_scraper corpus-status",
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Corpus parent directory (multi-feed: contains feeds/).",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        dest="corpus_status_format",
+        help="Output format (default: text).",
+    )
+    args = parser.parse_args(argv or [])
+    args.command = "corpus-status"
     return args
 
 
@@ -1819,7 +1950,8 @@ def _resolve_artifact_path_gi(args: argparse.Namespace) -> Optional[Path]:
     if output_dir and episode_id:
         from .gi import find_artifact_by_episode_id
 
-        return find_artifact_by_episode_id(Path(output_dir), episode_id)
+        fid = getattr(args, "feed_id", None)
+        return find_artifact_by_episode_id(Path(output_dir), episode_id, feed_id=fid)
     return None
 
 
@@ -1836,6 +1968,24 @@ def _run_gi_inspect(args: argparse.Namespace, logger: logging.Logger) -> int:
             logger.error("Provide --episode-id with --output-dir, or --episode-path")
         elif output_dir and not episode_id:
             logger.error("Provide --episode-id when using --output-dir")
+        elif output_dir and episode_id:
+            from podcast_scraper.utils.corpus_episode_paths import list_artifact_paths_for_episode
+
+            matches = list_artifact_paths_for_episode(
+                Path(output_dir),
+                episode_id,
+                feed_id=None,
+                kind="gi",
+            )
+            if len(matches) > 1 and not getattr(args, "feed_id", None):
+                logger.error(
+                    "Multiple GI artifacts for episode_id=%s (%d matches); use --feed-id "
+                    "(metadata feed.feed_id) to choose one.",
+                    episode_id,
+                    len(matches),
+                )
+            else:
+                logger.error("Artifact not found for the given episode")
         else:
             logger.error("Artifact not found for the given episode")
         return 1
@@ -2227,6 +2377,12 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         help="Episode ID (artifact episode_id field); required if not using --episode-path",
     )
     inspect_parser.add_argument(
+        "--feed-id",
+        type=str,
+        default=None,
+        help="Feed scope (metadata feed.feed_id) when multiple feeds share an episode id",
+    )
+    inspect_parser.add_argument(
         "--episode-path",
         type=str,
         default=None,
@@ -2480,6 +2636,12 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
         help="Episode ID (artifact episode_id field); required if not using --episode-path",
     )
     ins.add_argument(
+        "--feed-id",
+        type=str,
+        default=None,
+        help="Feed scope (metadata feed.feed_id) when multiple feeds share an episode id",
+    )
+    ins.add_argument(
         "--episode-path",
         type=str,
         default=None,
@@ -2637,6 +2799,10 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         args.command = "doctor"  # Mark as doctor command
         return args
 
+    if argv and len(argv) > 0 and argv[0] == "corpus-status":
+        cs_argv = list(argv[1:]) if len(argv) > 1 else []
+        return _parse_corpus_status_args(cs_argv)
+
     if argv and len(argv) > 0 and argv[0] == "pricing-assumptions":
         pa_argv = list(argv[1:]) if len(argv) > 1 else []
         args = _parse_pricing_assumptions_args(pa_argv)
@@ -2679,6 +2845,16 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     return args
 
 
+def _build_config_for_feed(
+    args: argparse.Namespace, *, rss_url: str, output_dir_override: Optional[str]
+) -> config.Config:
+    """Build :class:`~podcast_scraper.config.Config` for one feed (GitHub #440)."""
+    clone = copy.copy(args)
+    clone.rss = rss_url
+    clone.output_dir = output_dir_override
+    return _build_config(clone)
+
+
 def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
@@ -2707,6 +2883,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "fail_fast": getattr(args, "fail_fast", False),
         "max_failures": getattr(args, "max_failures", None),
         "skip_existing": args.skip_existing,
+        "append": getattr(args, "append", False),
         "reuse_media": args.reuse_media,
         "clean_output": args.clean_output,
         "dry_run": args.dry_run,
@@ -3011,6 +3188,8 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
     flag_parts = []
     if cfg.skip_existing:
         flag_parts.append("skip_existing")
+    if getattr(cfg, "append", False):
+        flag_parts.append("append")
     if cfg.reuse_media:
         flag_parts.append("reuse_media")
     if cfg.clean_output:
@@ -3267,8 +3446,10 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
             d("  KG extraction model override: %s", km)
 
     d(
-        "Processing Options: skip_existing=%s reuse_media=%s clean_output=%s dry_run=%s",
+        "Processing Options: skip_existing=%s append=%s reuse_media=%s "
+        "clean_output=%s dry_run=%s",
         cfg.skip_existing,
+        getattr(cfg, "append", False),
         cfg.reuse_media,
         cfg.clean_output,
         cfg.dry_run,
@@ -3338,6 +3519,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
         and argv[0]
         in (
             "cache",
+            "corpus-status",
             "doctor",
             "gi",
             "index",
@@ -3376,6 +3558,22 @@ def main(  # noqa: C901 - main function handles multiple command paths
             check_network=getattr(args, "check_network", False),
             check_models=getattr(args, "check_models", False),
         )
+
+    if hasattr(args, "command") and args.command == "corpus-status":
+        import json as _json
+
+        from .workflow.corpus_operations import collect_corpus_status, format_corpus_status_text
+
+        try:
+            st = collect_corpus_status(str(getattr(args, "output_dir", "") or ""))
+        except ValueError as exc:
+            log.error("Invalid corpus path: %s", exc)
+            return 1
+        if getattr(args, "corpus_status_format", "text") == "json":
+            print(_json.dumps(st, indent=2, sort_keys=True))
+        else:
+            print(format_corpus_status_text(st), end="")
+        return 0
 
     if hasattr(args, "command") and args.command == "pricing-assumptions":
         return _run_pricing_assumptions(args)
@@ -3558,6 +3756,112 @@ def main(  # noqa: C901 - main function handles multiple command paths
             return 1
         except Exception as exc:
             log.error(f"Cache operation failed: {exc}")
+            return 1
+
+    feed_urls = collect_feed_urls(args)
+
+    if len(feed_urls) >= 2:
+        corpus_raw = (getattr(args, "output_dir", None) or "").strip()
+        try:
+            corpus_parent = filesystem.validate_and_normalize_output_dir(corpus_raw)
+        except ValueError as exc:
+            log.error("Invalid corpus output directory: %s", exc)
+            return 1
+
+        apply_log_level_fn(args.log_level, args.log_file, getattr(args, "json_logs", False))
+        log.info(
+            "Starting multi-feed podcast scrape (GitHub #440): corpus_parent=%s feeds=%d",
+            corpus_parent,
+            len(feed_urls),
+        )
+
+        from .utils.corpus_lock import corpus_parent_lock
+        from .workflow.corpus_operations import (
+            finalize_multi_feed_batch,
+            MultiFeedFeedResult,
+            utc_iso_now,
+        )
+
+        try:
+            with corpus_parent_lock(corpus_parent, logger=log):
+                any_failed = False
+                batch_results: List[MultiFeedFeedResult] = []
+                for url in feed_urls:
+                    sub = filesystem.feed_workspace_dirname(url)
+                    try:
+                        out_path = filesystem.corpus_feed_output_dir(corpus_parent, url)
+                    except ValueError as exc:
+                        log.error("Invalid feed output path for %s: %s", url, exc)
+                        any_failed = True
+                        batch_results.append(
+                            MultiFeedFeedResult(
+                                url,
+                                False,
+                                format_exception_for_log(exc),
+                                0,
+                                finished_at=utc_iso_now(),
+                            )
+                        )
+                        continue
+                    log.info("Feed start: rss=%s -> feeds/%s", url, sub)
+                    try:
+                        cfg = _build_config_for_feed(
+                            args, rss_url=url, output_dir_override=out_path
+                        )
+                    except ValidationError as exc:
+                        log.error("Invalid configuration for feed %s: %s", url, exc)
+                        any_failed = True
+                        batch_results.append(
+                            MultiFeedFeedResult(url, False, str(exc), 0, finished_at=utc_iso_now())
+                        )
+                        continue
+                    if (
+                        cfg.vector_search is True
+                        and getattr(cfg, "vector_backend", "faiss") == "faiss"
+                    ):
+                        cfg = cfg.model_copy(update={"skip_auto_vector_index": True})
+                    _log_configuration(cfg, log)
+                    try:
+                        count, summary = run_pipeline_fn(cfg)
+                    except Exception as exc:  # pragma: no cover - defensive
+                        log.error(
+                            "Feed failed: rss=%s detail=%s",
+                            url,
+                            format_exception_for_log(exc),
+                        )
+                        any_failed = True
+                        batch_results.append(
+                            MultiFeedFeedResult(
+                                url,
+                                False,
+                                format_exception_for_log(exc),
+                                0,
+                                finished_at=utc_iso_now(),
+                            )
+                        )
+                        continue
+                    log.info("Feed done: rss=%s | %s", url, summary)
+                    batch_results.append(
+                        MultiFeedFeedResult(url, True, None, int(count), finished_at=utc_iso_now())
+                    )
+
+                try:
+                    base_cfg = _build_config_for_feed(
+                        args, rss_url=feed_urls[0], output_dir_override=corpus_parent
+                    )
+                except ValidationError as exc:
+                    log.error("Invalid configuration for corpus parent finalize: %s", exc)
+                    if any_failed:
+                        return 1
+                    return 0
+                finalize_multi_feed_batch(corpus_parent, base_cfg, batch_results)
+
+                if any_failed:
+                    log.error("Multi-feed run finished with one or more feed failures")
+                    return 1
+                return 0
+        except RuntimeError as exc:
+            log.error("%s", exc)
             return 1
 
     try:

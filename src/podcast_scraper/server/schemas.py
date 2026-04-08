@@ -21,6 +21,10 @@ class ArtifactListResponse(BaseModel):
 
     path: str = Field(description="Resolved absolute corpus root path.")
     artifacts: list[ArtifactItem] = Field(default_factory=list)
+    hints: list[str] = Field(
+        default_factory=list,
+        description="UX hints (e.g. multi-feed corpus root vs feed subtree for search).",
+    )
 
 
 class HealthResponse(BaseModel):

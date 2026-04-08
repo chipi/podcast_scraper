@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper.config import Config
+from podcast_scraper.search.corpus_scope import index_fingerprint_scope_key
 from podcast_scraper.search.indexer import (
     EPISODE_FINGERPRINTS_FILE,
     index_corpus,
@@ -111,7 +112,7 @@ def test_index_corpus_indexes_gi_summary_transcript(mock_encode, tmp_path: Path)
     fp_path = idx_dir / EPISODE_FINGERPRINTS_FILE
     assert fp_path.is_file()
     fps = json.loads(fp_path.read_text(encoding="utf-8"))
-    assert "ep:index-1" in fps
+    assert index_fingerprint_scope_key("feed:f1", "ep:index-1") in fps
 
     stats2 = index_corpus(str(out), cfg, rebuild=False)
     assert stats2.episodes_skipped_unchanged == 1
@@ -157,6 +158,22 @@ def test_maybe_index_corpus_invokes_index_when_faiss_and_enabled(
     )
     maybe_index_corpus(str(tmp_path), cfg)
     mock_ic.assert_called_once_with(str(tmp_path), cfg)
+
+
+@pytest.mark.unit
+@patch("podcast_scraper.search.indexer.index_corpus")
+def test_maybe_index_corpus_skips_when_skip_auto_vector_index(
+    mock_ic: MagicMock, tmp_path: Path
+) -> None:
+    cfg = Config(
+        rss="https://example.com/feed.xml",
+        vector_search=True,
+        vector_backend="faiss",
+        vector_embedding_model="minilm-l6",
+        skip_auto_vector_index=True,
+    )
+    maybe_index_corpus(str(tmp_path), cfg)
+    mock_ic.assert_not_called()
 
 
 @pytest.mark.unit
@@ -333,3 +350,183 @@ def test_index_corpus_indexes_kg_topic_and_entity(mock_encode, tmp_path: Path) -
     md = json.loads((out / "search" / METADATA_FILE).read_text(encoding="utf-8"))
     types = {m.get("doc_type") for m in md.values()}
     assert types == {"kg_topic", "kg_entity"}
+
+
+@pytest.mark.unit
+@patch("podcast_scraper.search.indexer.embedding_loader.encode")
+def test_index_corpus_discovers_nested_feeds_metadata(mock_encode, tmp_path: Path) -> None:
+    """Corpus parent with feeds/<id>/metadata indexes both (#505)."""
+    mock_encode.side_effect = lambda texts, *a, **k: _fake_embeddings(list(texts))
+
+    corpus = tmp_path / "corpus"
+    for fid, eid in (("feedA", "ep:a1"), ("feedB", "ep:b1")):
+        out = corpus / "feeds" / fid
+        meta_dir = out / "metadata"
+        meta_dir.mkdir(parents=True)
+        trx_dir = out / "transcripts"
+        trx_dir.mkdir(parents=True)
+        (trx_dir / f"{eid}.txt").write_text(
+            "Hello world transcript sample. Second sentence. Third sentence.",
+            encoding="utf-8",
+        )
+        gi = {
+            "schema_version": "1.0",
+            "model_version": "stub",
+            "prompt_version": "v1",
+            "episode_id": eid,
+            "nodes": [
+                {
+                    "id": "insight:1",
+                    "type": "Insight",
+                    "properties": {"text": "Insight text.", "episode_id": eid, "grounded": True},
+                },
+            ],
+            "edges": [],
+        }
+        (meta_dir / f"{eid}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+        doc = {
+            "feed": {"title": "F", "url": "https://e.com/f", "feed_id": fid},
+            "episode": {"title": "T", "episode_id": eid},
+            "content": {"transcript_file_path": f"transcripts/{eid}.txt"},
+            "processing": {
+                "processing_timestamp": "2020-01-01T00:00:00",
+                "output_directory": str(out),
+                "config_snapshot": {},
+            },
+            "summary": {"generated_at": "2020-01-01T00:00:00", "bullets": ["B."]},
+            "grounded_insights": {
+                "artifact_path": f"metadata/{eid}.gi.json",
+                "insight_count": 1,
+                "generated_at": "2020-01-01T00:00:00",
+            },
+        }
+        (meta_dir / f"{eid}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+
+    cfg = Config(
+        rss="https://example.com/feed.xml",
+        vector_search=True,
+        vector_index_path=str(corpus / "search"),
+        vector_chunk_size_tokens=20,
+        vector_chunk_overlap_tokens=8,
+        vector_embedding_model="minilm-l6",
+    )
+    stats = index_corpus(str(corpus), cfg, rebuild=True)
+    assert stats.episodes_scanned == 2
+    assert stats.episodes_reindexed == 2
+    assert stats.vectors_upserted >= 2
+
+
+@pytest.mark.unit
+@patch("podcast_scraper.search.indexer.embedding_loader.encode")
+def test_index_corpus_discovers_hybrid_parent_and_feeds_metadata(
+    mock_encode, tmp_path: Path
+) -> None:
+    """Corpus with ``feeds/<id>/metadata`` plus parent ``metadata/`` indexes both (#505 hybrid)."""
+    mock_encode.side_effect = lambda texts, *a, **k: _fake_embeddings(list(texts))
+
+    corpus = tmp_path / "corpus"
+    # Per-feed subtree (one episode)
+    out = corpus / "feeds" / "f1"
+    meta_dir = out / "metadata"
+    meta_dir.mkdir(parents=True)
+    trx_dir = out / "transcripts"
+    trx_dir.mkdir(parents=True)
+    eid_feed = "ep:index-hybrid-feed"
+    (trx_dir / f"{eid_feed}.txt").write_text(
+        "Alpha transcript sample. Second sentence. Third sentence here.",
+        encoding="utf-8",
+    )
+    gi_feed = {
+        "schema_version": "1.0",
+        "model_version": "stub",
+        "prompt_version": "v1",
+        "episode_id": eid_feed,
+        "nodes": [
+            {
+                "id": "insight:f",
+                "type": "Insight",
+                "properties": {"text": "Feed insight.", "episode_id": eid_feed, "grounded": True},
+            },
+        ],
+        "edges": [],
+    }
+    (meta_dir / f"{eid_feed}.gi.json").write_text(json.dumps(gi_feed), encoding="utf-8")
+    doc_feed = {
+        "feed": {"title": "F1", "url": "https://e.com/f1", "feed_id": "feed:f1"},
+        "episode": {"title": "T1", "episode_id": eid_feed},
+        "content": {"transcript_file_path": f"transcripts/{eid_feed}.txt"},
+        "processing": {
+            "processing_timestamp": "2020-01-01T00:00:00",
+            "output_directory": str(out),
+            "config_snapshot": {},
+        },
+        "summary": {"generated_at": "2020-01-01T00:00:00", "bullets": ["B1."]},
+        "grounded_insights": {
+            "artifact_path": f"metadata/{eid_feed}.gi.json",
+            "insight_count": 1,
+            "generated_at": "2020-01-01T00:00:00",
+        },
+    }
+    (meta_dir / f"{eid_feed}.metadata.json").write_text(json.dumps(doc_feed), encoding="utf-8")
+
+    # Parent-level metadata (legacy / auxiliary)
+    root_meta = corpus / "metadata"
+    root_trx = corpus / "transcripts"
+    root_meta.mkdir(parents=True)
+    root_trx.mkdir(parents=True)
+    eid_root = "ep:index-hybrid-root"
+    (root_trx / f"{eid_root}.txt").write_text(
+        "Root transcript sample. Second sentence. Third sentence here.",
+        encoding="utf-8",
+    )
+    gi_root = {
+        "schema_version": "1.0",
+        "model_version": "stub",
+        "prompt_version": "v1",
+        "episode_id": eid_root,
+        "nodes": [
+            {
+                "id": "insight:r",
+                "type": "Insight",
+                "properties": {"text": "Root insight.", "episode_id": eid_root, "grounded": True},
+            },
+        ],
+        "edges": [],
+    }
+    (root_meta / f"{eid_root}.gi.json").write_text(json.dumps(gi_root), encoding="utf-8")
+    doc_root = {
+        "feed": {"title": "Root", "url": "https://e.com/root", "feed_id": "feed:root"},
+        "episode": {"title": "Root ep", "episode_id": eid_root},
+        "content": {"transcript_file_path": f"transcripts/{eid_root}.txt"},
+        "processing": {
+            "processing_timestamp": "2020-01-01T00:00:00",
+            "output_directory": str(corpus),
+            "config_snapshot": {},
+        },
+        "summary": {"generated_at": "2020-01-01T00:00:00", "bullets": ["B0."]},
+        "grounded_insights": {
+            "artifact_path": f"metadata/{eid_root}.gi.json",
+            "insight_count": 1,
+            "generated_at": "2020-01-01T00:00:00",
+        },
+    }
+    (root_meta / f"{eid_root}.metadata.json").write_text(json.dumps(doc_root), encoding="utf-8")
+
+    cfg = Config(
+        rss="https://example.com/feed.xml",
+        vector_search=True,
+        vector_index_path=str(corpus / "search"),
+        vector_chunk_size_tokens=20,
+        vector_chunk_overlap_tokens=8,
+        vector_embedding_model="minilm-l6",
+    )
+    stats = index_corpus(str(corpus), cfg, rebuild=True)
+    assert stats.episodes_scanned == 2
+    assert stats.episodes_reindexed == 2
+    assert stats.vectors_upserted >= 2
+    assert not stats.errors
+
+    fp_path = corpus / "search" / EPISODE_FINGERPRINTS_FILE
+    fps = json.loads(fp_path.read_text(encoding="utf-8"))
+    assert index_fingerprint_scope_key("feed:f1", eid_feed) in fps
+    assert index_fingerprint_scope_key("feed:root", eid_root) in fps

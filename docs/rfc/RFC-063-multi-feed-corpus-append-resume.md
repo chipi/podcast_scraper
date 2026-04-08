@@ -25,9 +25,11 @@
   - [GitHub #444](https://github.com/chipi/podcast_scraper/issues/444) — append / incremental resume
   - [GitHub #505](https://github.com/chipi/podcast_scraper/issues/505) — unified corpus parent indexing (recursive metadata, composite keys, search/explore)
   - [GitHub #506](https://github.com/chipi/podcast_scraper/issues/506) — corpus manifest, status CLI, machine-readable multi-feed summary
-  - [WIP design notes](../wip/issues-440-444-multi-feed-append-resume.md) — detailed iteration log (supersedes for RFC narrative once accepted)
-  - `docs/architecture/ARCHITECTURE.md` — update when implementation lands
+  - [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) — normative `corpus_manifest.json` / `corpus_run_summary.json` (#506)
+  - `docs/architecture/ARCHITECTURE.md` — multi-feed outer loop documented (GitHub #440)
   - `docs/architecture/TESTING_STRATEGY.md` — new test tiers as needed
+  - `config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` — tracked full-pipeline acceptance preset (Planet Money + The Journal, OpenAI); `USE_FIXTURES=1` rewrites `feeds:` to local E2E fixture URLs (may be copied to `config/acceptance/full/` locally)
+  - `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` — manual validation preset (same feeds, `max_episodes: 1`)
 
 ## Abstract
 
@@ -158,7 +160,8 @@ segment when only one feed and no multi-feed mode, **or** always use `feeds/<id>
 ### 5. Unified semantic index (RFC-061 integration)
 
 - **Discovery**: Under corpus parent, glob `**/metadata/*.metadata.json` (and yaml variants), respecting
-  existing `run_*` nesting if still present.
+  existing `run_*` nesting if still present. If **`feeds/`** exists **and** the parent has a top-level
+  **`metadata/`** directory, **both** are included (hybrid layout; GitHub #505 follow-up).
 - **Path resolution**: For each metadata file, `episode_root = metadata_path.parent.parent`; join
   `grounded_insights.artifact_path`, `knowledge_graph.artifact_path`, and transcript rel paths against
   `episode_root`, not the corpus parent alone.
@@ -178,15 +181,25 @@ segment when only one feed and no multi-feed mode, **or** always use `feeds/<id>
 
 ### 7. Supplementary artifacts (holistic operations)
 
-These are **small, optional** additions that pair well with multi-feed corpora:
+These are **small, optional** additions that pair well with multi-feed corpora. **Normative field
+tables** and operational notes live in
+[`docs/api/CORPUS_MULTI_FEED_ARTIFACTS.md`](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) (published under
+**API → Multi-feed corpus artifacts**).
 
-1. **`corpus_manifest.json`** (at `<corpus_parent>/`): schema version, list of feed URLs / ids, last run
-   timestamps per feed, tool version — for debugging, future UI, and scripts.
-2. **Corpus status command** (new subcommand or `doctor` extension): print per-feed episode counts, last
-   errors from `index.json`, whether `<corpus_parent>/search` exists and model id — minimal implementation,
-   high operational value.
-3. **Machine-readable batch summary**: JSON (or structured final log line) with per-feed `{ok, error,
-   episodes_processed}` for automation.
+1. **`corpus_manifest.json`** (at `<corpus_parent>/`): `schema_version`, `tool_version`,
+   `corpus_parent`, `updated_at`, and `feeds[]` with `feed_url`, `stable_feed_dir`,
+   `last_run_finished_at` (per-feed completion time from the runner), `ok`, `error`,
+   `episodes_processed`.
+2. **Corpus status command** (`corpus-status` / `podcast corpus-status`): print per-feed metadata counts,
+   sample `index.json` errors, and whether `<corpus_parent>/search` exists — GitHub #506.
+3. **`corpus_run_summary.json`**: batch summary with `finished_at`, `overall_ok`, and `feeds[]`
+   (`feed_url`, `ok`, `error`, `episodes_processed`, optional `finished_at` per row). A structured log
+   line `corpus_multi_feed_summary` echoes the same payload. **`service.run`** returns this document on
+   **`ServiceResult.multi_feed_summary`** for multi-feed runs.
+
+**Partial batches:** Manifest and summary are written even when some feeds fail (`overall_ok: false`).
+With `vector_search` + FAISS, **parent `index_corpus` still runs** after finalize so successful feeds are
+searchable; failed feeds add no metadata until a later successful run.
 
 ## Key Decisions
 
@@ -205,7 +218,9 @@ These are **small, optional** additions that pair well with multi-feed corpora:
    not run — `index.json` may lag; reconcile from disk.
 3. **`episode.idx` in filenames vs GUID `episode_id`**: Feed reordering changes paths; resume must not rely on
    paths alone.
-4. **Double process / no lock**: Document single writer; optional `.podcast_scraper.lock` follow-up.
+4. **Double process / no lock**: Advisory exclusive lock **`.podcast_scraper.lock`** at the corpus
+   parent during multi-feed **CLI** and **service** batches (`filelock`). Override with
+   **`PODCAST_SCRAPER_CORPUS_LOCK=0`** when a second process must read-only the tree or for tests.
 5. **Resource use**: N sequential `run_pipeline` calls may reload ML models N times; optional shared provider
    session later.
 6. **Docs**: Update README, viewer README, semantic search guide, and `ARCHITECTURE.md` when behavior ships.
@@ -235,7 +250,10 @@ These are **small, optional** additions that pair well with multi-feed corpora:
 2. **Phase 2**: Append/stable dir + `index.json` extensions + filesystem reconciliation.
 3. **Phase 3**: Unified `index_corpus` / `search` / `gi explore` / docs + composite keys + batch vector index
    policy.
-4. **Phase 4 (optional)**: `corpus_manifest.json`, corpus status CLI, machine-readable batch summary.
+4. **Phase 4**: `corpus_manifest.json`, **`corpus-status`** CLI, machine-readable batch summary
+   (GitHub #506 — manifest + `corpus_run_summary.json` + structured log line; **`ServiceResult.multi_feed_summary`**
+   mirrors the summary JSON; per-feed `finished_at` / `last_run_finished_at`; normative contract
+   **`docs/api/CORPUS_MULTI_FEED_ARTIFACTS.md`**; hybrid parent `metadata/` + `feeds/` discovery in #505).
 
 ## Relationship to Other RFCs
 
@@ -269,8 +287,7 @@ These are **small, optional** additions that pair well with multi-feed corpora:
 - `src/podcast_scraper/server/routes/artifacts.py` — recursive GI/KG listing
 - `web/gi-kg-viewer/README.md` — corpus root instructions
 
-## WIP lineage
+## Lineage
 
-Detailed iteration, tables, and changelog lived in
-[docs/wip/issues-440-444-multi-feed-append-resume.md](../wip/issues-440-444-multi-feed-append-resume.md).
-This RFC is the **canonical** design doc; the WIP may stay as scratch or be trimmed after implementation.
+Informal WIP notes for #440 / #444 were retired (2026-04) in favor of this RFC and
+[CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) for operational JSON contracts.
