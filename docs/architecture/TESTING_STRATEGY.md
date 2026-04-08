@@ -159,7 +159,8 @@ The testing strategy follows a three-tier pyramid:
 - **Provider E2E tests**: Dedicated E2E test files
   exist for each of the 9 providers:
   `test_ml_models_e2e.py`,
-  `test_hybrid_ml_provider_e2e.py`,
+  `test_hybrid_ml_provider_e2e.py` (includes Tier 1 MAP+REDUCE smoke and
+  **layered cleaning** / `pattern` + `cleaning_hybrid_after_pattern`, Issue #419),
   `test_openai_provider_e2e.py`,
   `test_gemini_provider_e2e.py`,
   `test_anthropic_provider_e2e.py`,
@@ -196,11 +197,37 @@ directory).
 | **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`); required for docs publish path on main | `test-e2e`, `test-e2e-fast`, etc. |
 
 **Python API for the viewer** (`GET /api/search`, `/api/explore`, etc.) is validated at two pytest
-layers (both skipped when FastAPI / `[server]` extras are missing):
+layers:
 
-- **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — mocked route internals.
+- **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — FastAPI `TestClient` and
+  targeted mocks (e.g. vector store boundaries). **CI** installs **`.[dev,server]`** for the unit
+  job so these run; with **`.[dev]`** only locally, modules that call
+  **`pytest.importorskip("fastapi")`** **skip** those tests instead of erroring at collection.
 - **Integration:** `tests/integration/test_server_api.py` — wired `create_app` with real
   filesystem artifacts (no mocking of route internals).
+
+### Unit tests and optional extras (`pyproject`) {#unit-tests-and-optional-extras-pyproject}
+
+**Contract for `tests/unit/`:**
+
+1. **Never require `[ml]`, `[llm]`, `[compare]`, or ad-hoc non-`dev` packages.** Real FAISS,
+   Whisper, spaCy, cloud SDKs, etc. belong in **integration** or **E2E** tests (with the workflow
+   installing the right extras). Use **mocks**, **`sys.modules` stubs**, or **lazy imports** in
+   unit tests.
+2. **`[dev]`** is the **logical baseline** for “what unit tests are allowed to assume” from
+   `pyproject.toml` (pytest, linters, and other entries under the **`dev`** extra, including their
+   transitive dependencies).
+3. **`[server]`** is a **CI + full-dev-environment** addition for the **viewer HTTP unit** slice
+   only: **PR and nightly `test-unit` jobs** use **`pip install -e .[dev,server]`** so FastAPI tests
+   execute. Do not use that as an excuse to pull **ML** into unit tests — keep **FAISS / torch /
+   spacy** out of `tests/unit/` except via mocks.
+
+**Verification:** `scripts/tools/check_unit_test_imports.py` (run before unit tests in CI) ensures
+key **library** modules import without the heavy **ML** stack; it does not install **`[server]`**.
+Authors still follow the rules above so the full **`pytest tests/unit/`** run stays meaningful under
+**`.[dev,server]`** on CI.
+
+**Detail:** [Unit Testing Guide — Pyproject extras](../guides/UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on).
 
 Use **Playwright** when the risk is **client rendering or interaction**, not when a pure JSON
 contract change is enough.
@@ -334,7 +361,7 @@ The decision questions above provide a quick way to determine test type. For cri
 | Provider | Unit Tests | Integration | E2E |
 | --- | --- | --- | --- |
 | MLProvider | `test_ml_provider.py`, `_lifecycle.py` | `test_provider_real_models.py` | `test_ml_models_e2e.py` |
-| HybridMLProvider | `test_hybrid_ml_provider.py`, `_lifecycle.py` | `test_hybrid_ml_providers.py` | `test_hybrid_ml_provider_e2e.py` |
+| HybridMLProvider | `test_hybrid_ml_provider.py`, `_lifecycle.py` | `test_hybrid_ml_providers.py` | `test_hybrid_ml_provider_e2e.py` (layered `pattern` path, Issue #419) |
 | OpenAIProvider | `test_openai_provider.py`, `_factory.py`, `_lifecycle.py` | `test_openai_providers.py` | `test_openai_provider_e2e.py` |
 | GeminiProvider | `test_gemini_provider.py`, `_factory.py`, `_lifecycle.py` | `test_gemini_providers.py` | `test_gemini_provider_e2e.py` |
 | AnthropicProvider | `test_anthropic_provider.py`, `_factory.py`, `_lifecycle.py` | `test_anthropic_providers.py` | `test_anthropic_provider_e2e.py` |
@@ -728,9 +755,10 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - **HTTP**: Mock `requests.Session` and responses (unit/integration tests), use E2E server for E2E tests
 - **Whisper**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), use real models (integration/E2E tests)
 - **ML Dependencies (spacy, torch, transformers)**:
-  - **Unit Tests**: Mock in `sys.modules` before importing dependent modules
+  - **Unit Tests**: Must **not** require the **`[ml]`** extra — mock or stub (`sys.modules`) before
+    importing dependent modules; see [Unit tests and optional extras](#unit-tests-and-optional-extras-pyproject).
   - **Integration Tests**: Real ML dependencies required
-  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure modules can import without ML deps
+  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure listed library modules import without ML deps at import time (does not install `[server]`)
 - **File System**: Use `tempfile` for isolated test environments
 - **API Providers** (OpenAI, Gemini, Anthropic,
   Mistral, DeepSeek, Grok, Ollama):

@@ -113,11 +113,22 @@ def test_sanitize():
     pass
 ```
 
+### Unit tests and `pyproject` extras (mandatory for authors)
+
+- **`tests/unit/`** must **not** require **`[ml]`**, **`[llm]`**, or **`[compare]`** — mock, stub
+  `sys.modules`, or move to **`tests/integration/`**.
+- **`[dev]`** is the baseline (see `pyproject.toml`); **`check_unit_test_imports.py`** guards ML
+  import-time issues (it does not install **`[server]`**).
+- **Viewer / FastAPI:** CI **`test-unit`** jobs use **`pip install -e .[dev,server]`**. Module-level
+  **`pytest.importorskip("fastapi")`** is OK so collection works on **`.[dev]`**-only installs;
+  avoid pulling real FAISS / torch / spacy into unit tests — use patches (see
+  `docs/guides/UNIT_TESTING_GUIDE.md` § *Pyproject extras*).
+
 ### Test Organization
 
 ```text
 tests/
-├── unit/              # Pure unit tests (no external deps)
+├── unit/              # Fast, isolated tests; no [ml]/[llm] extras (see § Unit tests and pyproject)
 │   ├── test_config.py
 │   ├── test_downloader.py
 │   └── test_filesystem.py

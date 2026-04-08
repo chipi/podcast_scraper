@@ -53,7 +53,7 @@ python -m podcast_scraper.cli --config config.yaml
 
 - `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`)
 - `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
-- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
+- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `hybrid_ml`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
 
 ### Transcription Options
 
@@ -77,6 +77,15 @@ python -m podcast_scraper.cli --config config.yaml
 - `--preprocessing-target-loudness LOUDNESS` - Target loudness in LUFS for normalization (default: `-16`)
 
 **Note**: Preprocessing requires `ffmpeg` to be installed. If `ffmpeg` is not available, preprocessing is automatically disabled with a warning.
+
+<a id="transcript-cleaning-hybrid-ml-preprocessing-issue-419"></a>
+
+### Transcript cleaning and hybrid ML preprocessing (Issue #419)
+
+- `--transcript-cleaning-strategy {pattern,llm,hybrid}` - How transcripts are cleaned before summarization (`pattern` = regex/rules; `llm` = LLM-only; `hybrid` = pattern then conditional LLM when using LLM-oriented cleaners). Applies to **LLM summarization providers** and **`hybrid_ml`** (same `cleaning_processor` wiring as API providers).
+- `--hybrid-internal-preprocessing-after-pattern PROFILE_ID` - When `--summary-provider hybrid_ml` and `--transcript-cleaning-strategy pattern`, selects the **registered preprocessing profile** applied inside `HybridMLProvider.summarize` after workflow pattern cleaning (default in config: `cleaning_hybrid_after_pattern`). Omit to use the Config default; YAML/config file field: `hybrid_internal_preprocessing_after_pattern`.
+
+See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419), [CONFIGURATION.md](CONFIGURATION.md#transcript-cleaning-configuration-issue-418), and [Preprocessing Profiles Guide](../guides/PREPROCESSING_PROFILES_GUIDE.md).
 
 ### OpenAI Provider Options
 
@@ -164,8 +173,13 @@ python -m podcast_scraper.cli --config config.yaml
 - `--generate-metadata` - Generate metadata documents
 - `--metadata-format FORMAT` - Format (json or yaml)
 - `--generate-summaries` - Generate episode summaries
-- `--summary-model MODEL` - Summary model to use (MAP-phase)
-- `--summary-reduce-model MODEL` - Summary reduce model to use (REDUCE-phase)
+- `--summary-model MODEL` - Summary model to use (MAP-phase, `transformers` provider)
+- `--summary-reduce-model MODEL` - Summary reduce model to use (REDUCE-phase, `transformers` provider)
+- `--hybrid-map-model MODEL` - Hybrid MAP model when `--summary-provider hybrid_ml` (e.g. `longt5-base`)
+- `--hybrid-reduce-model MODEL` - Hybrid REDUCE model (HF id, Ollama tag, or GGUF path for `llama_cpp`)
+- `--hybrid-reduce-backend {transformers,ollama,llama_cpp}` - Hybrid REDUCE backend
+- `--hybrid-map-device` / `--hybrid-reduce-device` - Devices for hybrid MAP/REDUCE (`cuda`, `mps`, `cpu`, `auto`)
+- `--save-cleaned-transcript` / `--no-save-cleaned-transcript` - Persist `.cleaned` transcript alongside source (default: save)
 
 ### Cache Management (v2.4.0+)
 

@@ -503,6 +503,12 @@ a `ModelCapabilities` dataclass.
   **llama_cpp** (GGUF). See
   [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml)
   and [Ollama Provider Guide](../guides/OLLAMA_PROVIDER_GUIDE.md) (Ollama as REDUCE backend).
+- **Layered transcript cleaning (Issue #419):** Workflow
+  `transcript_cleaning_strategy` / `cleaning_processor` runs before
+  `HybridMLProvider.summarize`; internal preprocessing defaults to
+  `cleaning_v4`, with `cleaning_hybrid_after_pattern` when strategy is
+  `pattern` (field `hybrid_internal_preprocessing_after_pattern`). See
+  [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
 
 **New modules (present):**
 

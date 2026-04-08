@@ -20,6 +20,25 @@ This guide covers unit test implementation details: what to mock, isolation patt
 | **Filesystem** | Blocked except tempfile (enforced by pytest plugin) |
 | **ML Models** | Not loaded (mocked before import) |
 
+## Pyproject extras: what unit tests may depend on
+
+**Rule:** Tests under `tests/unit/` must **not** require optional extras **`[ml]`**, **`[llm]`**, or **`[compare]`** (or any install path beyond what CI expects for the unit job). Use **`unittest.mock.patch`**, **`patch.dict(sys.modules, …)`** for fake modules, or **move** the scenario to **`tests/integration/`** (with the right markers and workflow deps).
+
+**Baseline extra:** **`[dev]`** — this is what `check_unit_test_imports.py` and “no ML at import time” checks target. Treat anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (and its transitive wheels) as **allowed** for unit tests. Do **not** assume **`[ml]`** is installed.
+
+**Viewer / FastAPI (`[server]`):**
+
+- **CI:** The **`test-unit`** jobs in **`python-app.yml`** and **`nightly.yml`** install **`pip install -e .[dev,server]`**, so FastAPI-backed unit tests **run** there.
+- **Local minimal env:** If you only install **`.[dev]`**, modules that call **`pytest.importorskip("fastapi")`** at the top **skip** viewer HTTP tests instead of failing collection — that is intentional.
+- **Authoring:** Prefer **thin HTTP boundaries** (domain exceptions, lazy imports, patching **`FaissVectorStore.load`**, etc.) so **most** server-related unit tests do not need a real FAISS build or other ML stacks. Reserve **`TestClient` + `create_app`** for route/contract checks; put **real** index I/O and ML in **integration** tests.
+
+**Anti-patterns for unit tests:**
+
+- **`pytest.importorskip("faiss")`**, **`torch`**, **`spacy`**, etc. — use mocks or integration tests.
+- Top-level imports of modules that **require** `[ml]` / `[llm]` before mocks are applied.
+
+**See also:** [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject) for CI alignment and rationale.
+
 ## What to Mock
 
 ### Always Mock

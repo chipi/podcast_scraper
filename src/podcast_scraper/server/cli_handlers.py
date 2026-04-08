@@ -7,7 +7,14 @@ import logging
 import os
 from argparse import Namespace
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Callable, cast, Sequence
+
+
+def _load_create_app() -> Callable[..., Any]:
+    """Return the app factory lazily (unit tests patch this; avoids importing FastAPI early)."""
+    from podcast_scraper.server.app import create_app
+
+    return create_app
 
 
 def parse_serve_argv(argv: Sequence[str]) -> Namespace:
@@ -75,8 +82,8 @@ def run_serve(args: Namespace, log: logging.Logger) -> int:
         )
         return 0
 
-    from podcast_scraper.server.app import create_app
-
+    create_app = _load_create_app()
     app = create_app(out, static_dir=static_kw)
-    uvicorn.run(app, host=args.host, port=args.port, reload=False)
+    # _load_create_app is typed as Callable[..., Any]; uvicorn expects an ASGI callable.
+    uvicorn.run(cast(Any, app), host=args.host, port=args.port, reload=False)
     return 0

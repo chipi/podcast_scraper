@@ -35,6 +35,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio integration for neural speaker diarization, replacing gap-based rotation |
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
+| [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) | Multi-Feed Corpus, Append/Resume, and Unified Discovery | #440, #444, #505, #506 | N feeds, layout A, opt-in append (FS + `index.json`); #505 unified index; #506 manifest/status/summary; extends RFC-004 |
 
 ## Completed RFCs
 

@@ -232,6 +232,7 @@ nav:
       - RFC-060 Multi-Signal Commercial Detection & Cleaning: rfc/RFC-060-diarization-aware-commercial-cleaning.md
       - RFC-061 Semantic Corpus Search: rfc/RFC-061-semantic-corpus-search.md
       - RFC-062 GI/KG Viewer v2: rfc/RFC-062-gi-kg-viewer-v2.md
+      - RFC-063 Multi-Feed Corpus & Append/Resume: rfc/RFC-063-multi-feed-corpus-append-resume.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

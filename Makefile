@@ -450,7 +450,7 @@ test-unit: cleanup-processes
 
 test-unit-no-ml: cleanup-processes
 	# Unit tests without ML dependencies (matches CI setup - Issue #403)
-	# This target verifies that unit tests can run without optional dependencies installed
+	# PR + nightly unit workflows use ``.[dev,server]``; path/CLI tests avoid FastAPI at import time.
 	# First verify imports work without ML dependencies (same check as CI)
 	@echo "Verifying unit tests can import modules without ML dependencies..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py

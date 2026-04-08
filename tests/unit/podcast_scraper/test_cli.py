@@ -474,6 +474,24 @@ class TestBuildConfig(unittest.TestCase):
         self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.41)
         self.assertEqual(cfg.gi_embedding_model, "minilm-l6")
 
+    def test_build_config_hybrid_internal_preprocessing_after_pattern(self):
+        """Issue #419: CLI flag maps into Config.hybrid_internal_preprocessing_after_pattern."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--summary-provider",
+                "hybrid_ml",
+                "--transcript-cleaning-strategy",
+                "pattern",
+                "--hybrid-internal-preprocessing-after-pattern",
+                "cleaning_none",
+            ]
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.summary_provider, "hybrid_ml")
+        self.assertEqual(cfg.transcript_cleaning_strategy, "pattern")
+        self.assertEqual(cfg.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
+
     def test_build_config_with_defaults(self):
         """Test that Config uses defaults when args are not provided."""
         args = Namespace(
@@ -1269,6 +1287,23 @@ class TestParseArgs(unittest.TestCase):
         """Test that --openai-api-base defaults to None."""
         args = cli.parse_args(["https://example.com/feed.xml"])
         self.assertIsNone(args.openai_api_base)
+
+    def test_parse_args_hybrid_internal_preprocessing_after_pattern(self):
+        """Issue #419: --hybrid-internal-preprocessing-after-pattern is parsed."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--summary-provider",
+                "hybrid_ml",
+                "--transcript-cleaning-strategy",
+                "pattern",
+                "--hybrid-internal-preprocessing-after-pattern",
+                "cleaning_none",
+            ]
+        )
+        self.assertEqual(args.summary_provider, "hybrid_ml")
+        self.assertEqual(args.transcript_cleaning_strategy, "pattern")
+        self.assertEqual(args.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
 
     def test_parse_args_with_openai_transcription_model(self):
         """Test parsing --openai-transcription-model argument."""

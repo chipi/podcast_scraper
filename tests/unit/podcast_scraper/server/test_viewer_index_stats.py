@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -10,6 +11,7 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from podcast_scraper.search.protocol import IndexStats
 from podcast_scraper.server.app import create_app
 
 
@@ -54,50 +56,51 @@ def test_index_stats_rejects_bad_path(tmp_path: Path) -> None:
     assert response.status_code == 400
 
 
-def test_index_stats_load_failed_on_corrupt_vectors(tmp_path: Path) -> None:
-    pytest.importorskip("faiss")
-
-    from podcast_scraper.search.faiss_store import VECTORS_FILE
-
+def test_index_stats_load_failed_when_faiss_store_load_raises(tmp_path: Path) -> None:
+    """Route maps ``FaissVectorStore.load`` failures to ``reason=load_failed`` (no real FAISS)."""
     index_dir = tmp_path / "search"
     index_dir.mkdir(parents=True)
-    (index_dir / VECTORS_FILE).write_bytes(b"not-a-faiss-index")
+    # Filename must match ``VECTORS_FILE`` in ``faiss_store`` (``vectors.faiss``).
+    (index_dir / "vectors.faiss").write_bytes(b"not-a-faiss-index")
 
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    response = client.get("/api/index/stats", params={"path": str(tmp_path)})
+    with patch(
+        "podcast_scraper.search.faiss_store.FaissVectorStore.load",
+        side_effect=ValueError("corrupt or unreadable index"),
+    ):
+        response = client.get("/api/index/stats", params={"path": str(tmp_path)})
     assert response.status_code == 200
     body = response.json()
     assert body["available"] is False
     assert body["reason"] == "load_failed"
 
 
-def test_index_stats_available_with_minimal_faiss_index(tmp_path: Path) -> None:
-    pytest.importorskip("faiss")
-    pytest.importorskip("numpy")
-
-    from podcast_scraper.search.faiss_store import (
-        FaissVectorStore,
-        METADATA_FILE,
-        VECTORS_FILE,
-    )
-
+def test_index_stats_available_with_mocked_vector_store(tmp_path: Path) -> None:
+    """Happy path uses ``FaissVectorStore.load`` + ``stats()``; mock store — no FAISS build."""
     index_dir = tmp_path / "search"
     index_dir.mkdir(parents=True)
-    store = FaissVectorStore(384, embedding_model="test-model", index_dir=index_dir)
-    store.batch_upsert(
-        ["a"],
-        [[0.1] * 384],
-        [{"doc_type": "insight", "feed_id": "f1", "text": "x"}],
-    )
-    store.persist(index_dir)
+    (index_dir / "vectors.faiss").touch()
 
-    assert (index_dir / VECTORS_FILE).is_file()
-    assert (index_dir / METADATA_FILE).is_file()
+    fake_stats = IndexStats(
+        total_vectors=1,
+        doc_type_counts={"insight": 1},
+        feeds_indexed=["f1"],
+        embedding_model="test-model",
+        embedding_dim=384,
+        last_updated="2024-01-01T00:00:00Z",
+        index_size_bytes=100,
+    )
+    fake_store = MagicMock()
+    fake_store.stats.return_value = fake_stats
 
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
-    response = client.get("/api/index/stats", params={"path": str(tmp_path)})
+    with patch(
+        "podcast_scraper.search.faiss_store.FaissVectorStore.load",
+        return_value=fake_store,
+    ):
+        response = client.get("/api/index/stats", params={"path": str(tmp_path)})
     assert response.status_code == 200
     body = response.json()
     assert body["available"] is True

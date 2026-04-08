@@ -301,6 +301,43 @@ def _cleaning_v3(text: str) -> str:
     return cleaned.strip()
 
 
+def _cleaning_hybrid_after_pattern(text: str) -> str:
+    """Apply cleaning_v4 steps not already covered by PatternBasedCleaner.
+
+    :func:`podcast_scraper.cleaning.pattern_based.PatternBasedCleaner` uses
+    :func:`podcast_scraper.preprocessing.core.clean_for_summarization` (credits,
+    garbage, ``clean_transcript``, sponsor/outro blocks, summarization artifacts).
+    That overlaps heavily with ``cleaning_v4`` but omits episode-header stripping,
+    junk-line filtering, speaker anonymization, and ``artifact_scrub_v1``.
+
+    For the hybrid ML pipeline (Issue #419), the workflow runs the configured
+    ``transcript_cleaning_strategy`` first; when strategy is ``pattern``, the
+    provider should use this profile inside ``HybridMLProvider.summarize`` instead
+    of full ``cleaning_v4`` to avoid redundant sponsor/outro passes while keeping
+    v4-only normalization quality before MAP.
+
+    Args:
+        text: Transcript already passed through pattern-based cleaning.
+
+    Returns:
+        Text with v4-only steps applied.
+    """
+    cleaned = preprocessing.strip_episode_header(text)
+    cleaned = preprocessing.strip_garbage_lines(cleaned)
+    lines = cleaned.splitlines()
+    cleaned = "\n".join(line for line in lines if not preprocessing.is_junk_line(line))
+    cleaned = preprocessing.anonymize_speakers(cleaned)
+    cleaned = preprocessing.clean_transcript(
+        cleaned,
+        remove_timestamps=True,
+        normalize_speakers=True,
+        collapse_blank_lines=True,
+        remove_fillers=False,
+    )
+    cleaned = preprocessing.artifact_scrub_v1(cleaned)
+    return cleaned.strip()
+
+
 def _cleaning_v4(text: str) -> str:
     """Cleaning profile v4: Enhanced cleaning with speaker anonymization and artifact scrubbing.
 
@@ -371,6 +408,7 @@ register_profile("cleaning_v1", _cleaning_v1)
 register_profile("cleaning_v2", _cleaning_v2)
 register_profile("cleaning_v3", _cleaning_v3)
 register_profile("cleaning_v4", _cleaning_v4)
+register_profile("cleaning_hybrid_after_pattern", _cleaning_hybrid_after_pattern)
 register_profile("cleaning_none", _cleaning_none)
 
 # Default profile (matches current production behavior)

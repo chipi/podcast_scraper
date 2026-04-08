@@ -1,6 +1,6 @@
 # WIP: Multi-feed CLI (#440) and append / resume (#444)
 
-**Status:** Draft — iterate here before RFC/PRD.  
+**Status:** Draft — scratch / iteration; **canonical design:** [RFC-063: Multi-Feed Corpus, Append/Resume, and Unified Discovery](../rfc/RFC-063-multi-feed-corpus-append-resume.md).  
 **GitHub:** [#440 Support multiple rss feeds](https://github.com/chipi/podcast_scraper/issues/440), [#444 redo append mode / incremental](https://github.com/chipi/podcast_scraper/issues/444).  
 **Last updated:** 2026-04-06
 
@@ -96,7 +96,7 @@ they need:
 
 Run the CLI with **many feeds** (e.g. 10) in **one config**, reuse **existing intra-pipeline parallelism** (`workers`, etc.) unchanged. Let a long run finish overnight; if something fails, fix code or environment, **rerun with append**, and **only process what was not already completed** (per feed, per episode).
 
-**Downstream:** Operate **one unified corpus** for **KG, GI, and semantic search** across every feed and episode (see [Unified corpus](#unified-corpus-goal-kg--gi--semantic-search) and implementation phasing there).
+**Downstream:** Operate **one unified corpus** for **KG, GI, and semantic search** across every feed and episode (see **Unified corpus goal** above and [RFC-063 § Design](../rfc/RFC-063-multi-feed-corpus-append-resume.md#5-unified-semantic-index-rfc-061-integration)).
 
 ## Failure isolation (default behavior)
 

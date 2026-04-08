@@ -5,13 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fastapi import HTTPException
 
-from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.server.pathutil import CorpusPathRequestError, resolve_corpus_path_param
 
 
 def test_rejects_override_when_no_anchor(tmp_path: Path) -> None:
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(CorpusPathRequestError) as exc_info:
         resolve_corpus_path_param(str(tmp_path), None)
     assert exc_info.value.status_code == 400
 
@@ -29,7 +28,7 @@ def test_accepts_subdirectory_of_anchor(tmp_path: Path) -> None:
 
 
 def test_rejects_empty_path_param(tmp_path: Path) -> None:
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(CorpusPathRequestError) as exc_info:
         resolve_corpus_path_param("   ", tmp_path)
     assert exc_info.value.status_code == 400
     assert "non-empty" in (exc_info.value.detail or "")
@@ -40,6 +39,6 @@ def test_rejects_path_outside_anchor(tmp_path: Path) -> None:
     anchor.mkdir()
     outside = tmp_path / "outside"
     outside.mkdir()
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(CorpusPathRequestError) as exc_info:
         resolve_corpus_path_param(str(outside), anchor)
     assert exc_info.value.status_code == 400

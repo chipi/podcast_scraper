@@ -237,7 +237,7 @@ When using **hybrid MAP-REDUCE** summarization (`summary_provider: hybrid_ml`), 
 - **No template file**: The reduce instruction is sent to Ollama as an inline prompt; no `custom.j2` or other template file is required.
 - **Acceptance tests**: Example full-pipeline configs under `config/acceptance/full/` use Ollama for summarization (e.g. `acceptance_planet_money_ollama_llama3_1_8b.yaml` with `llama3.1:8b`). Ensure the model is available (`ollama pull llama3.1:8b` or equivalent).
 
-See [ML Provider Reference](ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) for full hybrid_ml configuration.
+See [ML Provider Reference](ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) for full hybrid_ml configuration. For **transcript cleaning + internal MAP preprocessing** (`transcript_cleaning_strategy`, `hybrid_internal_preprocessing_after_pattern`, CLI flags), see [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419) and [CLI API](../api/CLI.md#transcript-cleaning-hybrid-ml-preprocessing-issue-419).
 
 ### Environment Variables
 

@@ -5,11 +5,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from podcast_scraper import __version__
+from podcast_scraper.server.pathutil import CorpusPathRequestError
 from podcast_scraper.server.routes import artifacts, explore, health, index_stats, search
 
 
@@ -37,6 +39,13 @@ def create_app(
             a no-op — stubs exist but no routers are implemented yet.
     """
     app = FastAPI(title="podcast_scraper", version=__version__)
+
+    @app.exception_handler(CorpusPathRequestError)
+    async def _corpus_path_errors(
+        _request: Request,
+        exc: CorpusPathRequestError,
+    ) -> JSONResponse:
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
     app.add_middleware(
         CORSMiddleware,

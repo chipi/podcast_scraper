@@ -504,10 +504,14 @@ When `summary_provider: hybrid_ml`, summarization uses a local MAP model (e.g. L
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
 | `hybrid_map_model` | `--hybrid-map-model` | `longt5-base` | HuggingFace model for MAP phase (chunk summarization). |
+| `hybrid_map_device` | `--hybrid-map-device` | (auto) | Device for MAP (e.g. `mps`, `cuda`, `cpu`, `auto`). |
 | `hybrid_reduce_model` | `--hybrid-reduce-model` | `google/flan-t5-base` | REDUCE model: HuggingFace ID (transformers), Ollama tag (e.g. `llama3.1:8b`) for ollama, or path to GGUF file for llama_cpp. |
 | `hybrid_reduce_backend` | `--hybrid-reduce-backend` | `transformers` | REDUCE backend: `transformers`, `ollama`, or `llama_cpp`. |
 | `hybrid_reduce_device` | `--hybrid-reduce-device` | (auto) | Device for REDUCE when backend is transformers (e.g. `mps`, `cuda`, `cpu`). |
 | `hybrid_reduce_n_ctx` | N/A | (optional) | Context size for llama_cpp REDUCE (default 4096). Config file only. |
+| `hybrid_internal_preprocessing_after_pattern` | `--hybrid-internal-preprocessing-after-pattern` | `cleaning_hybrid_after_pattern` | When `transcript_cleaning_strategy` is `pattern`, preprocessing profile applied **inside** `HybridMLProvider.summarize` after workflow pattern cleaning (avoids repeating full `cleaning_v4` sponsor/outro work). Registered profile id from `preprocessing.profiles`. |
+
+**Layered cleaning (Issue #419):** The pipeline runs `transcript_cleaning_strategy` (and `HybridMLProvider.cleaning_processor`) **before** `summarize()`. For `pattern` + `hybrid_ml`, the workflow injects `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` so MAP sees v4-only delta steps without duplicate sponsor passes. For `llm` / `hybrid` strategies, internal preprocessing stays **`cleaning_v4`**. Details: [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
 
 **Example** (Hybrid ML with Ollama REDUCE):
 
@@ -526,6 +530,17 @@ hybrid_map_model: longt5-base
 hybrid_reduce_backend: transformers
 hybrid_reduce_model: google/flan-t5-base
 hybrid_reduce_device: mps
+```
+
+**Example** (Hybrid ML + pattern strategy + layered internal profile, Issue #419):
+
+```yaml
+summary_provider: hybrid_ml
+transcript_cleaning_strategy: pattern
+hybrid_internal_preprocessing_after_pattern: cleaning_hybrid_after_pattern
+hybrid_map_model: longt5-base
+hybrid_reduce_backend: transformers
+hybrid_reduce_model: google/flan-t5-base
 ```
 
 See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) and [Ollama Provider Guide](../guides/OLLAMA_PROVIDER_GUIDE.md) for details.
@@ -713,7 +728,8 @@ Transcript cleaning removes unwanted content (sponsor blocks, ads, timestamps) f
 **Default Behavior**:
 
 - **LLM Providers** (OpenAI, Gemini, Anthropic, etc.): `hybrid` (pattern + conditional LLM)
-- **ML Providers** (transformers): `pattern` (pattern-based only)
+- **ML Providers** (`transformers`): typically `pattern` (pattern-based only; Config default is still `hybrid`, but hybrid LLM cleaning is not used the same way without an API cleaner)
+- **Hybrid ML** (`hybrid_ml`): same `transcript_cleaning_strategy` / `cleaning_processor` behavior as API providers; combine with `hybrid_internal_preprocessing_after_pattern` when using `pattern` to layer internal MAP preprocessing (see Hybrid ML table above and RFC-042)
 
 **Hybrid Strategy Details**:
 
@@ -728,7 +744,7 @@ This reduces LLM API calls by 70-90% while maintaining high quality.
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` (LLM) / `pattern` (ML) | Cleaning strategy: `pattern`, `llm`, or `hybrid` |
+| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` | Cleaning strategy: `pattern`, `llm`, or `hybrid` (applies to LLM + `hybrid_ml` summarization providers). Pair with `hybrid_internal_preprocessing_after_pattern` under [Hybrid ML](#hybrid-ml-map-reduce-configuration) when using **`hybrid_ml`** + **`pattern`**. |
 | `openai_cleaning_model` | `--openai-cleaning-model` | `gpt-4o-mini` | OpenAI model for cleaning (cheaper than summary model) |
 | `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
 | `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |
@@ -805,7 +821,7 @@ summary_provider: transformers
 transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support LLM cleaning)
 ```
 
-**Note**: LLM-based cleaning is only available when using LLM providers for summarization. ML providers (transformers) always use pattern-based cleaning.
+**Note**: LLM-based cleaning runs when the selected `cleaning_processor` uses LLM calls (`llm` or `hybrid` strategy with an LLM provider). **`transformers`** summarization uses pattern-oriented cleaning in typical setups. **`hybrid_ml`** uses the same strategy-driven cleaners as API providers; internal MAP preprocessing defaults to **`cleaning_v4`** except for the layered **`pattern`** path (Issue #419).
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
 

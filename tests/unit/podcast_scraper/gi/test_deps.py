@@ -1,7 +1,9 @@
 """Tests for GIL optional dependency validation."""
 
 import builtins
-from unittest.mock import MagicMock
+import sys
+import types
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -65,14 +67,15 @@ def test_validate_raises_when_local_entailment_and_st_missing(monkeypatch):
     assert "sentence" in err and "transform" in err.replace("_", "-")
 
 
-def test_validate_ok_when_sentence_transformers_present():
-    """No error when package is importable."""
+def test_validate_ok_when_sentence_transformers_importable():
+    """No error when ``import sentence_transformers`` succeeds (``sys.modules`` stub)."""
     cfg = MagicMock()
     cfg.generate_gi = True
     cfg.gi_require_grounding = True
     cfg.entailment_provider = "transformers"
-    pytest.importorskip("sentence_transformers")
-    validate_gil_grounding_dependencies(cfg)
+    stub = types.ModuleType("sentence_transformers")
+    with patch.dict(sys.modules, {"sentence_transformers": stub}):
+        validate_gil_grounding_dependencies(cfg)
 
 
 def test_create_gil_evidence_providers_one_factory_call_when_quote_entail_match_summary(

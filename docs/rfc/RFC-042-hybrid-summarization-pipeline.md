@@ -63,7 +63,8 @@ Phase 4: RFC-053 (Adaptive Routing)         ~4-6 wk
 
 ## Related Issues
 
-- TBD (to be created)
+- [#419](https://github.com/chipi/podcast_scraper/issues/419) — Layered cleaning in the hybrid
+  pipeline (transcript cleaning + internal preprocessing + REDUCE filtering)
 
 ---
 
@@ -211,7 +212,7 @@ REDUCE Phase (Instruction-Tuned LLM)
   ↓
 Post-processing (minimal)
   └─ Whitespace cleanup, bullet normalization
-```yaml
+```
 
 ### Key Principle
 
@@ -219,6 +220,53 @@ Post-processing (minimal)
 
 - **MAP** = Compression engine (use classic summarizers)
 - **REDUCE** = Reasoning + structuring engine (use instruction-tuned LLMs)
+
+<a id="layered-transcript-cleaning-issue-419"></a>
+
+### Layered transcript cleaning (Issue #419)
+
+Transcript hygiene is applied in **layers** so classic MAP models see normalized text,
+instruction-tuned REDUCE models see compact notes, and we avoid redundant work:
+
+```text
+Raw transcript
+  → Workflow cleaning (transcript_cleaning_strategy: pattern / llm / hybrid)
+       PatternBasedCleaner uses clean_for_summarization (credits, garbage, timestamps,
+       sponsor/outro blocks, summarization artifacts).
+  → HybridMLProvider.summarize()
+       Applies a registered preprocessing profile before chunking (default cleaning_v4).
+       When strategy is pattern, the workflow passes preprocessing_profile
+       cleaning_hybrid_after_pattern so internal prep adds only cleaning_v4 steps that
+       pattern cleaning does not already cover (episode header strip, junk-line filter,
+       speaker anonymization, artifact_scrub_v1) instead of re-running full cleaning_v4.
+  → MAP (chunk compression)
+  → REDUCE (instruction prompt also asks to drop ads, intros, outros, meta-text)
+  → Final summary
+```
+
+**Configuration:**
+
+- **`transcript_cleaning_strategy`** — Selects the workflow cleaner (same as API ML providers;
+  `HybridMLProvider` now exposes `cleaning_processor` from this strategy).
+- **`hybrid_internal_preprocessing_after_pattern`** — Profile ID used inside
+  `HybridMLProvider.summarize` when strategy is `pattern` (default
+  `cleaning_hybrid_after_pattern`). For `llm` or `hybrid` strategy, the workflow keeps
+  the provider default internal profile `cleaning_v4` because upstream output is not
+  guaranteed to match `clean_for_summarization`.
+- **CLI** — `--transcript-cleaning-strategy` and
+  `--hybrid-internal-preprocessing-after-pattern PROFILE_ID` on the main `podcast` command;
+  YAML/config file uses the same field names. DEBUG config logging prints transcript
+  cleaning and the hybrid internal profile when `summary_provider` is `hybrid_ml`.
+
+**Trade-offs (qualitative here; quantitative under RFC-041):**
+
+- **More preprocessing before MAP** — Fewer tokens into MAP/REDUCE and less junk for classic
+  models; costs CPU and must stay idempotent-safe where layered.
+- **REDUCE-only filtering** — Possible in theory for obvious ads, but MAP would still waste
+  capacity on noise; pattern + targeted internal profile is the default balance.
+- **Comparing full vs minimal preprocessing** — Use the benchmarking framework in
+  [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) for ROUGE/BERTScore-style runs;
+  keep variable isolation (profile IDs + strategy) in run metadata.
 
 ---
 
@@ -1376,6 +1424,10 @@ The hybrid provider is considered successful if:
 
 - ❌ Quantitative metrics (ROUGE, BLEU, BERTScore) - defer to RFC-041
 - ❌ Cost/performance benchmarks - defer to RFC-041
+- ❌ **Full vs layered preprocessing A/B** (e.g. internal `cleaning_v4` vs
+  `cleaning_hybrid_after_pattern` after pattern workflow cleaning) — defer to RFC-041;
+  fingerprint `transcript_cleaning_strategy`, internal preprocessing profile, and mode ID in
+  experiment metadata
 - ❌ User studies - defer to future work
 
 **Rationale:** Keep Phase 1 focused on qualitative validation. Quantitative benchmarking can leverage RFC-041 infrastructure once implemented.

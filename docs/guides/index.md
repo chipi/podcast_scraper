@@ -51,7 +51,7 @@ Practical guides for using and developing Podcast Scraper.
 | [Semantic Search](SEMANTIC_SEARCH_GUIDE.md) | RFC-061 corpus vector index: config (`vector_search`), `search` / `index` CLIs, semantic `gi explore --topic` |
 | [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | Grounded insights (insights + evidence quotes), enabling GIL, gi.json, CLI, schema; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG (entities, topics, relationships): PRD-019 / RFC-055–056, artifacts, `kg` CLI; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) for `kg.json` |
-| [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Understanding and using preprocessing profiles for transcript cleaning |
+| [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a service-oriented Docker container |
 | [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) | LLM-only vs ML-enabled Docker image variants |
 

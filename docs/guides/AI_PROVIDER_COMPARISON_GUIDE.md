@@ -34,7 +34,10 @@ All providers below are **implemented and acceptance-tested** (v2.4.0+).
 
 For hybrid_ml (MAP-REDUCE) configuration and REDUCE backends (Ollama, llama_cpp,
 transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
-[Configuration API](../api/CONFIGURATION.md).
+[Configuration API](../api/CONFIGURATION.md). **Transcript cleaning:** `hybrid_ml` honors
+`transcript_cleaning_strategy` like API providers; with **`pattern`**, use
+`hybrid_internal_preprocessing_after_pattern` (CLI: `--hybrid-internal-preprocessing-after-pattern`)
+to control internal MAP preprocessing after workflow cleaning ([RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419)).
 
 ---
 

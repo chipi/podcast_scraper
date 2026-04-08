@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Check that unit tests can import modules without optional dependencies.
+"""Check that key library modules import without the heavy ML optional stack.
 
-This script verifies that all modules imported by unit tests can be imported
-without optional dependencies (ML: spacy, torch, transformers; LLM: openai, etc.) installed.
-This ensures that unit tests can run in CI without heavy optional dependencies.
+Verifies a fixed list of ``podcast_scraper.*`` modules (see ``MODULES_TO_TEST``) can be
+imported when ML-related packages (spacy, torch, transformers, etc.) are not loaded.
+This catches top-level imports that would force ``[ml]`` just to import the package.
+
+It does **not** install ``[server]`` (FastAPI). Full ``pytest tests/unit/`` on CI uses
+``pip install -e .[dev,server]`` so viewer tests run; see ``docs/guides/UNIT_TESTING_GUIDE.md``
+(*Pyproject extras*) for the unit-test dependency policy.
 
 Usage:
     python scripts/tools/check_unit_test_imports.py
 
 Exit codes:
-    0: All imports succeed without optional dependencies
-    1: One or more imports failed (optional dependencies required at import time)
+    0: All listed modules import without the stripped ML modules
+    1: One or more imports failed (ML pulled in at import time)
 """
 
 import sys

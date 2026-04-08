@@ -1800,6 +1800,18 @@ class Config(BaseModel):
             "'paragraph' = silver-style 4-6 paragraphs, no headings. Used for tuning toward silver."
         ),
     )
+    hybrid_internal_preprocessing_after_pattern: str = Field(
+        default="cleaning_hybrid_after_pattern",
+        alias="hybrid_internal_preprocessing_after_pattern",
+        description=(
+            "Registered preprocessing profile applied inside HybridMLProvider.summarize() when "
+            "summary_provider is hybrid_ml and transcript_cleaning_strategy is 'pattern', after "
+            "the workflow has already run PatternBasedCleaner (Issue #419). Avoids redundant "
+            "sponsor/outro passes versus full cleaning_v4 while keeping v4-only steps "
+            "(header strip, junk filter, anonymization, artifact_scrub_v1). "
+            "Must be a profile ID from preprocessing.profiles."
+        ),
+    )
     summary_2nd_pass_distill: bool = Field(
         default=False,
         alias="summary_2nd_pass_distill",

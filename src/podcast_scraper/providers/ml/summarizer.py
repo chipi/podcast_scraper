@@ -527,9 +527,10 @@ def remove_sponsor_blocks(text: str) -> str:
     """Remove common sponsor block phrases from text.
 
     Duplicate of preprocessing.core.remove_sponsor_blocks — this copy is
-    called by cleaning_v4 profile in summarize_long_text. The ML path may
-    run sponsor removal twice (once via PatternBasedCleaner, once here).
-    RFC-060 Phase 1 will consolidate into a single CommercialDetector.
+    called by cleaning_v4 profile in summarize_long_text. Hybrid ML with
+    pattern workflow cleaning uses cleaning_hybrid_after_pattern to avoid
+    duplicate sponsor passes (Issue #419). RFC-060 Phase 1 will consolidate
+    into a single CommercialDetector where duplication remains.
 
     Args:
         text: Raw transcript or summary text.

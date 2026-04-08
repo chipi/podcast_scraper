@@ -1115,7 +1115,18 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
         "'pattern': uses regex-based cleaning (default). "
         "'llm': uses LLM-based semantic cleaning. "
         "'hybrid': uses pattern-based, then conditionally LLM-based if needed (default: hybrid). "
-        "Only applies when using LLM providers for summarization.",
+        "Applies to LLM summarization providers and hybrid_ml (Issue #419).",
+    )
+    parser.add_argument(
+        "--hybrid-internal-preprocessing-after-pattern",
+        default=None,
+        metavar="PROFILE_ID",
+        help=(
+            "When summary_provider is hybrid_ml and transcript_cleaning_strategy is pattern, "
+            "preprocessing profile applied inside HybridMLProvider.summarize after workflow "
+            "pattern cleaning (default: cleaning_hybrid_after_pattern). "
+            "Must be a registered profile ID from preprocessing.profiles."
+        ),
     )
 
 
@@ -2928,6 +2939,13 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         and args.transcript_cleaning_strategy is not None
     ):
         payload["transcript_cleaning_strategy"] = args.transcript_cleaning_strategy
+    if (
+        hasattr(args, "hybrid_internal_preprocessing_after_pattern")
+        and args.hybrid_internal_preprocessing_after_pattern is not None
+    ):
+        payload["hybrid_internal_preprocessing_after_pattern"] = (
+            args.hybrid_internal_preprocessing_after_pattern
+        )
     # GIL / evidence tuning from config file: _load_and_merge_config puts these on args via
     # set_defaults(model_dump); they must be copied here or CLI runs ignore YAML (Issue: gi_qa
     # thresholds appeared to "do nothing").
@@ -3167,6 +3185,13 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
             d(
                 f"  Hybrid devices: MAP={getattr(cfg, 'hybrid_map_device', None) or 'default'}, "
                 f"REDUCE={getattr(cfg, 'hybrid_reduce_device', None) or 'default'}"
+            )
+            _hybrid_after_pat = getattr(
+                cfg, "hybrid_internal_preprocessing_after_pattern", "cleaning_hybrid_after_pattern"
+            )
+            d(
+                f"  Transcript cleaning: {getattr(cfg, 'transcript_cleaning_strategy', 'hybrid')}; "
+                f"hybrid internal after-pattern profile: {_hybrid_after_pat}"
             )
             if cfg.summary_chunk_size:
                 d(f"  Summary Chunk Size: {cfg.summary_chunk_size} tokens")

@@ -23,6 +23,8 @@ class TestPreprocessingProfiles(unittest.TestCase):
         self.assertIn("cleaning_v1", profiles)
         self.assertIn("cleaning_v2", profiles)
         self.assertIn("cleaning_v3", profiles)
+        self.assertIn("cleaning_v4", profiles)
+        self.assertIn("cleaning_hybrid_after_pattern", profiles)
         self.assertIn("cleaning_none", profiles)
 
     def test_get_profile(self):
@@ -57,3 +59,10 @@ class TestPreprocessingProfiles(unittest.TestCase):
     def test_default_profile(self):
         """Test default profile constant."""
         self.assertEqual(DEFAULT_PROFILE, "cleaning_v4")
+
+    def test_cleaning_hybrid_after_pattern_registered(self):
+        """Hybrid layered-cleaning profile is registered (Issue #419)."""
+        fn = get_profile("cleaning_hybrid_after_pattern")
+        self.assertTrue(callable(fn))
+        out = fn("Hello world.\n")
+        self.assertIn("Hello", out)
