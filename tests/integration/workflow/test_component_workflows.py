@@ -34,7 +34,7 @@ from podcast_scraper.rss import downloader, parser as rss_parser
 from podcast_scraper.workflow import metadata_generation as metadata
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
@@ -59,7 +59,7 @@ create_test_feed = parent_conftest.create_test_feed
 create_transcript_response = parent_conftest.create_transcript_response
 
 # Import ML model cache helpers
-integration_dir = Path(__file__).parent
+integration_dir = Path(__file__).parent.parent
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
@@ -411,7 +411,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         # Use real audio file from fixtures (short file for fast testing)
         fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
+            Path(__file__).parent.parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
         )
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
@@ -580,7 +580,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         # Use real audio file from fixtures (short file for fast testing)
         fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
+            Path(__file__).parent.parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
         )
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
@@ -727,7 +727,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         # Use real audio file from fixtures (short file for fast testing)
         fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
+            Path(__file__).parent.parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
         )
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()
@@ -947,7 +947,7 @@ class TestRSSToMetadataWorkflow(unittest.TestCase):
 
         # Use real audio file from fixtures (short file for fast testing)
         fixture_audio_path = (
-            Path(__file__).parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
+            Path(__file__).parent.parent.parent / "fixtures" / "audio" / "p01_e01_fast.mp3"
         )
         with open(fixture_audio_path, "rb") as f:
             audio_bytes = f.read()

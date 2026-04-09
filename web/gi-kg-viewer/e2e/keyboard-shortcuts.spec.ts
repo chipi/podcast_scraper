@@ -12,7 +12,8 @@ test.describe('Keyboard shortcuts', () => {
     })
 
     await page.goto('/')
-    await page.getByText('/api/health', { exact: false }).waitFor({ timeout: 30_000 })
+    await page.locator('#search-q').waitFor({ state: 'visible', timeout: 30_000 })
+    await expect(page.locator('#search-q')).toBeEnabled({ timeout: 10_000 })
 
     await page.locator('body').click({ position: { x: 5, y: 5 } })
     await page.keyboard.press('/')

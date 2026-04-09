@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /**
- * RFC-062 M7: browser E2E against Vite dev server (no Python API required for offline tests).
+ * RFC-062: browser E2E against Vite dev server (no Python API required for offline tests).
  */
 export default defineConfig({
   testDir: './e2e',

@@ -60,6 +60,29 @@ coverage.json
 # IDE
 .vscode/
 
+# GI/KG viewer (Vite / Node / Playwright, RFC-062) — was web/gi-kg-viewer/.gitignore; rules live here
+web/gi-kg-viewer/node_modules/
+web/gi-kg-viewer/dist/
+web/gi-kg-viewer/dist-ssr/
+web/gi-kg-viewer/logs/
+web/gi-kg-viewer/**/*.log
+web/gi-kg-viewer/npm-debug.log*
+web/gi-kg-viewer/yarn-debug.log*
+web/gi-kg-viewer/yarn-error.log*
+web/gi-kg-viewer/pnpm-debug.log*
+web/gi-kg-viewer/lerna-debug.log*
+web/gi-kg-viewer/*.local
+web/gi-kg-viewer/.idea/
+web/gi-kg-viewer/*.suo
+web/gi-kg-viewer/*.ntvs*
+web/gi-kg-viewer/*.njsproj
+web/gi-kg-viewer/*.sln
+web/gi-kg-viewer/*.sw?
+web/gi-kg-viewer/test-results/
+web/gi-kg-viewer/playwright-report/
+web/gi-kg-viewer/blob-report/
+web/gi-kg-viewer/playwright/.cache/
+
 # AI rule adherence metrics (per-session tracking)
 .cursor/metrics/
 .cursor/metrics/rule-adherence.jsonl

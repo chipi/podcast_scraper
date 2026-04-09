@@ -216,18 +216,6 @@ class TestEncodeMocked:
         assert len(loads) == 3
 
 
-try:
-    import sentence_transformers  # noqa: F401
-
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-
-@pytest.mark.skipif(
-    not SENTENCE_TRANSFORMERS_AVAILABLE,
-    reason="sentence_transformers required for load path test",
-)
 class TestEffectiveCacheFolder:
     """Tests for default HF hub folder alignment with preload."""
 

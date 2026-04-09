@@ -26,7 +26,7 @@ from podcast_scraper.cache import (
     get_whisper_cache_dir,
 )
 
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 

@@ -2,6 +2,10 @@
 
 Vue 3 + Vite + TypeScript + Tailwind + Pinia SPA for [RFC-062](https://github.com/chipi/podcast_scraper/blob/main/docs/rfc/RFC-062-gi-kg-viewer-v2.md). Replaced the legacy `web/gi-kg-viz/` prototype (now removed).
 
+**Repo context:** This folder is the **Node** side of a **Python + web** monorepo. For how that
+fits with the root `Makefile`, `.env` files, and CI, see
+[Polyglot repository guide](../../docs/guides/POLYGLOT_REPO_GUIDE.md).
+
 ## End users: run API + UI together
 
 Use this when you want **list files**, **semantic search**, **explore**, and **dashboard** (everything that talks to `/api/*`).

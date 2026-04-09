@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -470,16 +470,11 @@ class TestComputeVsReferenceOptionalMetricsBranches:
         assert "Error computing WER" in caplog.text
 
     def test_embedding_model_load_failure_returns_none(self, caplog) -> None:
-        if scorer_mod._SentenceTransformer is None:
-            pytest.skip("sentence-transformers not installed")
         caplog.set_level(logging.ERROR)
         preds = [{"episode_id": "e1", "output": {"summary_final": "a"}}]
         refs = [{"episode_id": "e1", "output": {"summary_final": "b"}}]
-        with patch.object(
-            scorer_mod,
-            "_SentenceTransformer",
-            side_effect=RuntimeError("cannot load model"),
-        ):
+        fake_st = MagicMock(side_effect=RuntimeError("cannot load model"))
+        with patch.object(scorer_mod, "_SentenceTransformer", fake_st):
             out = compute_embedding_similarity(preds, refs)
         assert out is None
         assert "Failed to load sentence-transformer" in caplog.text

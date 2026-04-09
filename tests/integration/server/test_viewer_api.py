@@ -1,4 +1,7 @@
-"""M1 viewer API: health + artifacts (RFC-062). Skipped when ``fastapi`` is not installed."""
+"""Viewer API: health + artifacts (RFC-062).
+
+Requires ``fastapi`` (``pip install -e '.[server]'``).
+"""
 
 from __future__ import annotations
 
@@ -14,6 +17,8 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.server.app import create_app
+
+pytestmark = [pytest.mark.integration]
 
 
 def test_health_ok(tmp_path: Path) -> None:

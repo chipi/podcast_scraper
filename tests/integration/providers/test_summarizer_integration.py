@@ -27,7 +27,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
@@ -40,7 +40,7 @@ from pathlib import Path
 pytestmark = [pytest.mark.integration, pytest.mark.module_summarization]
 
 # Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
@@ -53,7 +53,7 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-integration_dir = Path(__file__).parent
+integration_dir = Path(__file__).parent.parent
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402

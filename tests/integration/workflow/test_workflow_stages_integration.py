@@ -38,7 +38,7 @@ from podcast_scraper.workflow.stages import (
 from podcast_scraper.workflow.types import FeedMetadata
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 

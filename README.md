@@ -37,6 +37,15 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
 - **GI / KG Viewer (v2)** — Optional browser UI for `.gi.json` / `.kg.json`, dashboard metrics, semantic search, and explore/query against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
 
+## Repository layout (Python + web)
+
+The **Python** package (CLI, pipeline, FastAPI) lives at the **repo root** (`pyproject.toml`,
+`Makefile`, `tests/`). The **GI/KG viewer** is a **Node** app under **`web/gi-kg-viewer/`**
+(`package.json`, Vite, Vitest, Playwright). They share one repository but use **separate**
+install steps and **different** `.env.example` files (root vs `web/gi-kg-viewer/`) by design.
+
+**Onboarding in one place:** [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md).
+
 ---
 
 ## GI / KG Viewer (optional)

@@ -1,4 +1,7 @@
-"""M3 viewer API: GET /api/index/stats (RFC-062). Skipped when ``fastapi`` is missing."""
+"""Viewer API: GET /api/index/stats (RFC-062).
+
+Requires ``fastapi`` (``pip install -e '.[server]'``).
+"""
 
 from __future__ import annotations
 
@@ -13,6 +16,8 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.search.protocol import IndexStats
 from podcast_scraper.server.app import create_app
+
+pytestmark = [pytest.mark.integration]
 
 
 def test_index_stats_no_corpus_when_no_path_and_no_state(tmp_path: Path) -> None:
@@ -60,7 +65,6 @@ def test_index_stats_load_failed_when_faiss_store_load_raises(tmp_path: Path) ->
     """Route maps ``FaissVectorStore.load`` failures to ``reason=load_failed`` (no real FAISS)."""
     index_dir = tmp_path / "search"
     index_dir.mkdir(parents=True)
-    # Filename must match ``VECTORS_FILE`` in ``faiss_store`` (``vectors.faiss``).
     (index_dir / "vectors.faiss").write_bytes(b"not-a-faiss-index")
 
     app = create_app(tmp_path, static_dir=False)

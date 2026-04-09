@@ -25,7 +25,7 @@ from pathlib import Path
 
 from podcast_scraper.workflow.orchestration import _both_providers_use_mps
 
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 

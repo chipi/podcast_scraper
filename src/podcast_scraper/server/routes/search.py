@@ -1,4 +1,4 @@
-"""GET /api/search — semantic corpus search (RFC-062 M4)."""
+"""GET /api/search — semantic corpus search (RFC-062)."""
 
 from __future__ import annotations
 

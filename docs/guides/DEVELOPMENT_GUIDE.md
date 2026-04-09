@@ -8,6 +8,14 @@
 This guide provides detailed implementation instructions for developing the podcast scraper.
 For high-level architectural decisions and design principles, see [Architecture](../architecture/ARCHITECTURE.md).
 
+## Polyglot repository (Python + web viewer)
+
+The **Python** toolchain (`Makefile`, `pytest`, `pip install -e …`) is anchored at the **repo
+root**. The **GI/KG viewer** is a **Node** project in **`web/gi-kg-viewer/`** (Vite, Vitest,
+Playwright). Environment templates differ on purpose (**`config/examples/.env.example`** vs
+**`web/gi-kg-viewer/.env.example`**). For a single onboarding story and command cheat sheet, see
+the **[Polyglot repository guide](POLYGLOT_REPO_GUIDE.md)**.
+
 ## Testing
 
 For comprehensive testing information, see the dedicated testing documentation:
@@ -477,6 +485,8 @@ embed-and-index after finalize when enabled; you can also run **`podcast index`*
 
 **v2 (Vue + FastAPI, RFC-062)** is the supported viewer for graph, dashboard,
 semantic search, and explore.
+
+**Layout and env files (root vs `web/gi-kg-viewer/`):** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
 ### Viewer v2 (RFC-062 / `#489`)
 

@@ -62,6 +62,10 @@ documented as an **additive** layer on the test pyramid — see
 [Testing Strategy — Browser UI E2E (Playwright)](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright)
 and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 
+**Where this lives in the repo:** npm commands and `package.json` are under `web/gi-kg-viewer/`;
+`make test-ui` / `make test-ui-e2e` run from the root. See
+[Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
+
 #### How it fits next to pytest
 
 | Concern | Tool | Location |
@@ -539,15 +543,31 @@ Reports are generated in both Markdown and JSON formats for easy review and prog
 
 ## Test Organization
 
+**Unit tests** mirror the source tree (find the test for any source file mechanically).
+**Integration tests** are organized by domain subsystem (providers, workflow, GI/KG, etc.).
+**E2E tests** are flat by user scenario.
+
 ```text
 tests/
 ├── unit/                    # Unit tests (fast, isolated)
 │   ├── conftest.py          # Network/filesystem isolation
-│   └── podcast_scraper/     # Per-module tests (incl. server/test_viewer_*.py)
-├── integration/             # Integration tests
+│   └── podcast_scraper/     # Per-module tests — mirrors src/ tree
+├── integration/             # Integration tests — by domain subsystem
 │   ├── conftest.py          # Shared fixtures
-│   └── test_*.py            # Component interaction tests
-├── e2e/                     # E2E tests
+│   ├── providers/           # Provider factories, protocols, per-provider
+│   │   ├── llm/            # LLM provider integration
+│   │   ├── ml/             # ML model loading, embedding, QA, NLI
+│   │   └── ollama/         # Ollama model-specific tests
+│   ├── workflow/            # Orchestration, stages, metadata, resume
+│   ├── gi/                  # GI/KG artifacts, evidence stack
+│   ├── server/              # FastAPI app, viewer API
+│   ├── search/              # FAISS indexing, corpus search
+│   ├── rss/                 # RSS parsing, HTTP fetching
+│   ├── eval/                # Evaluation framework
+│   ├── infrastructure/      # Fixture mapping, infra
+│   ├── tools/               # CLI tools
+│   └── test_*.py            # Cross-cutting (filesystem, retry, cache)
+├── e2e/                     # E2E tests — by user scenario
 │   ├── fixtures/            # E2E server, HTTP server
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
@@ -558,6 +578,9 @@ web/gi-kg-viewer/            # Browser UI E2E (Playwright — not pytest)
 ├── playwright.config.ts     # webServer (Vite :5174), Firefox
 └── package.json             # test:e2e and other frontend scripts
 ```
+
+See [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md#directory-organization) for
+the domain-based layout rationale and per-folder contents.
 
 ## Coverage Thresholds
 

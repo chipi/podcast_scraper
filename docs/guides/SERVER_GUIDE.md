@@ -11,6 +11,10 @@ The server exposes corpus artifacts, semantic search, and GI explore
 through a JSON API consumed by the Vue 3 SPA
 ([`web/gi-kg-viewer/`][viewer-readme]).
 
+**Repo layout:** Python at the root, Node UI in `web/gi-kg-viewer/`. See
+[Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env files and Makefile targets (`make serve`,
+`make test-ui`, etc.).
+
 The server was introduced by
 [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
 [`src/podcast_scraper/server/`][server-pkg].

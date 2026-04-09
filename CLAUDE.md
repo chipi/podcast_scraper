@@ -103,6 +103,8 @@
 
 **Additional Reference Files:**
 
+- **`docs/guides/POLYGLOT_REPO_GUIDE.md`** - Python + Node monorepo layout, env files, viewer
+  Makefile targets (`make test-ui`, `make serve`, …)
 - **`docs/architecture/TESTING_STRATEGY.md`** - Comprehensive testing approach
 - **`docs/architecture/ARCHITECTURE.md`** - Architecture design and module responsibilities
 

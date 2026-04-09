@@ -1,4 +1,7 @@
-"""M5 viewer API: GET /api/explore (RFC-062). Skipped when ``fastapi`` is missing."""
+"""Viewer API: GET /api/explore (RFC-062).
+
+Requires ``fastapi`` (``pip install -e '.[server]'``).
+"""
 
 from __future__ import annotations
 
@@ -13,6 +16,8 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.gi.explore import build_explore_output
 from podcast_scraper.server.app import create_app
+
+pytestmark = [pytest.mark.integration]
 
 
 def test_explore_no_corpus_path() -> None:

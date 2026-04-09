@@ -36,14 +36,14 @@ if PACKAGE_ROOT not in sys.path:
 from podcast_scraper.rss import downloader
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
 # Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
 import importlib.util
 
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 

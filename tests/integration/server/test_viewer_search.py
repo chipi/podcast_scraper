@@ -1,4 +1,7 @@
-"""M4 viewer API: GET /api/search (RFC-062). Skipped when ``fastapi`` is missing."""
+"""Viewer API: GET /api/search (RFC-062).
+
+Requires ``fastapi`` (``pip install -e '.[server]'``).
+"""
 
 from __future__ import annotations
 
@@ -13,6 +16,8 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.search.corpus_search import CorpusSearchOutcome
 from podcast_scraper.server.app import create_app
+
+pytestmark = [pytest.mark.integration]
 
 
 def test_search_no_corpus_path() -> None:

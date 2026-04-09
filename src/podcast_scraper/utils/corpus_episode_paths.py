@@ -12,10 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
-from podcast_scraper.utils.path_validation import (
-    normpath_if_under_root,
-    safe_resolve_directory,
-)
+from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 ArtifactKind = Literal["gi", "kg"]
 
@@ -177,17 +174,24 @@ def corpus_search_parent_hint(listed_root: Path) -> List[str]:
     root = safe_resolve_directory(listed_root)
     if root is None:
         return []
-    root_str = os.path.normpath(str(root))
+    # CodeQL py/path-injection sanitiser: normpath then startswith(os.sep).
+    root_normed = os.path.normpath(str(root))
+    if not root_normed.startswith(os.sep):
+        return []
 
-    vec_path = normpath_if_under_root(str(root / "search" / VECTORS_FILE), root_str)
-    if vec_path is not None and Path(vec_path).is_file():
+    vec_str = os.path.normpath(os.path.join(root_normed, "search", VECTORS_FILE))
+    if vec_str.startswith(os.sep) and os.path.isfile(vec_str):
         return []
 
     hints: List[str] = []
     for anc in root.parents:
-        anc_str = os.path.normpath(str(anc))
-        idx_normed = normpath_if_under_root(str(anc / "search" / VECTORS_FILE), anc_str)
-        if idx_normed is None or not Path(idx_normed).is_file():
+        anc_normed = os.path.normpath(str(anc))
+        if not anc_normed.startswith(os.sep):
+            continue
+        idx_str = os.path.normpath(os.path.join(anc_normed, "search", VECTORS_FILE))
+        if not idx_str.startswith(os.sep):
+            continue
+        if not os.path.isfile(idx_str):
             continue
         try:
             root.relative_to(anc)

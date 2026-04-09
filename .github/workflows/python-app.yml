@@ -74,7 +74,7 @@ jobs:
             - '.github/workflows/**'
             - 'web/gi-kg-viewer/**'
 
-  # GI/KG viewer v2 — Playwright E2E (RFC-062 M7)
+  # GI/KG viewer v2 — Playwright E2E (RFC-062)
   # After whichever pytest E2E ran: PR uses test-e2e-fast only; push to main/release uses
   # test-e2e only. The sibling job is skipped — require success on ran job(s), not both.
   viewer-e2e:

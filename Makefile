@@ -6,6 +6,9 @@ PYTHON ?= .venv/bin/python
 endif
 PACKAGE = podcast_scraper
 
+# GI/KG viewer (Vue + Vite + Playwright, RFC-062). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
+WEB_VIEWER_DIR ?= web/gi-kg-viewer
+
 # Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm/server).
 # Override path: ``make venv-dev-init VENVDEV=.venv-ci-unit``
 VENVDEV ?= .venv-dev
@@ -84,8 +87,8 @@ help:
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
-	@echo "  make test-ui             Vitest unit tests for TypeScript utils in web/gi-kg-viewer (fast, no browser)"
-	@echo "  make test-ui-e2e         Playwright E2E for web/gi-kg-viewer (RFC-062 M7; needs npm install in that dir)"
+	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
+	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (RFC-062; needs npm install in that dir)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -275,8 +278,8 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" \
 	--ignore "data/eval/runs/**" \
-	--ignore "web/gi-kg-viewer/playwright-report/**" \
-	--ignore "web/gi-kg-viewer/test-results/**" \
+	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
+	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
 	--config .markdownlint.json
 
 lint-markdown:
@@ -403,7 +406,7 @@ validate-kg-schema:
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
 
-# GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd web/gi-kg-viewer && npm install
+# GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui
 SERVE_OUTPUT_DIR ?= ./output
 serve:
@@ -414,17 +417,17 @@ serve-api:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
-	@cd web/gi-kg-viewer && npm run dev
+	@cd $(WEB_VIEWER_DIR) && npm run dev
 
 # RFC-062: Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
 	@echo "Vitest unit tests (gi-kg-viewer)..."
-	@cd web/gi-kg-viewer && npm install && npm run test:unit
+	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:unit
 
-# RFC-062 M7: Playwright browser E2E (install browsers once: cd web/gi-kg-viewer && npx playwright install firefox)
+# RFC-062: Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
-	@cd web/gi-kg-viewer && npm install && npx playwright install firefox && npm run test:e2e
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
 
 gil-quality-metrics:
 	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
@@ -1157,7 +1160,7 @@ ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src');
 	all_cached = whisper_ok and transformers_ok and spacy_ok; \
 	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test test-ui test-ui-e2e coverage-enforce docs build
 	# Conditional preload: Only runs preload-ml-models if models are not cached
 	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
 	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
@@ -1165,8 +1168,8 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast docs build
-	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast test-ui docs build
+	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright) because fast suite
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
 

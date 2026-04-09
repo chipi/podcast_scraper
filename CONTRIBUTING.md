@@ -16,11 +16,20 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | 4 | [Quick Reference](docs/guides/QUICK_REFERENCE.md) | 5 min | Common commands |
 | 5 | [Testing Guide](docs/guides/TESTING_GUIDE.md) | 5 min | How to run tests |
 | 6 | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) | 10 min | Code patterns |
-| 7 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
+| 7 | [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md) | 5 min | Python vs Node, env files, `make test-ui` / viewer paths |
+| 8 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
 
 ---
 
 ## Setup
+
+### Polyglot layout (Python + web viewer)
+
+The repo is **Python-first** at the root; the GI/KG UI is **`web/gi-kg-viewer/`** (npm). Use
+**`config/examples/.env.example` → `.env` at the repo root** for the Python app, and
+**`web/gi-kg-viewer/.env.example` → `.env` inside that folder** for Vite-only variables. Makefile
+targets such as **`make test-ui`** and **`make test-ui-e2e`** run npm under `web/gi-kg-viewer` for
+you. Full table and commands: [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md).
 
 ### Prerequisites
 

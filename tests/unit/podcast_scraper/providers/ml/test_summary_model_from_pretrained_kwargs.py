@@ -1,7 +1,8 @@
 """Exercise SummaryModel._load_model branches that unpack kwargs via cast(Any, ...) (mypy).
 
 Installs a stub ``transformers`` module so ``@patch("transformers.X.from_pretrained")``
-resolves without the real package.
+resolves without the real package.  ``_detect_device`` is patched to avoid the hard
+``import torch`` that the real method performs.
 """
 
 from __future__ import annotations
@@ -12,8 +13,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-# Ensure ``transformers`` is importable (needed by @patch decorators at collection
-# time and by runtime ``from transformers import …`` inside SummaryModel._load_model).
 if "transformers" not in sys.modules:
     _fake_tf = ModuleType("transformers")
     for _cls_name in (
@@ -37,18 +36,21 @@ def _invoke_retry(fn, *_a, **_kw):
     return fn()
 
 
-@pytest.mark.unit
-@patch(
+_DETECT = "podcast_scraper.providers.ml.summarizer.SummaryModel._detect_device"
+_MOVE = (
     "podcast_scraper.providers.ml.summarizer.SummaryModel._load_model_move_to_device_and_pipeline"
 )
-@patch(
-    "podcast_scraper.providers.ml.summarizer._load_with_retry_summarizer",
-    side_effect=_invoke_retry,
-)
+_RETRY = "podcast_scraper.providers.ml.summarizer._load_with_retry_summarizer"
+
+
+@pytest.mark.unit
+@patch(_DETECT, return_value="cpu")
+@patch(_MOVE)
+@patch(_RETRY, side_effect=_invoke_retry)
 @patch("transformers.BartForConditionalGeneration.from_pretrained")
 @patch("transformers.AutoTokenizer.from_pretrained")
 def test_summary_model_bart_branch_unpacks_model_kwargs(
-    mock_tok, mock_bart, mock_retry, mock_move_pipe, tmp_path
+    mock_tok, mock_bart, mock_retry, mock_move_pipe, _mock_dev, tmp_path
 ) -> None:
     mock_tok.return_value = MagicMock()
     mock_bart.return_value = MagicMock()
@@ -68,17 +70,13 @@ def test_summary_model_bart_branch_unpacks_model_kwargs(
 
 
 @pytest.mark.unit
-@patch(
-    "podcast_scraper.providers.ml.summarizer.SummaryModel._load_model_move_to_device_and_pipeline"
-)
-@patch(
-    "podcast_scraper.providers.ml.summarizer._load_with_retry_summarizer",
-    side_effect=_invoke_retry,
-)
+@patch(_DETECT, return_value="cpu")
+@patch(_MOVE)
+@patch(_RETRY, side_effect=_invoke_retry)
 @patch("transformers.LEDForConditionalGeneration.from_pretrained")
 @patch("transformers.AutoTokenizer.from_pretrained")
 def test_summary_model_led_branch_unpacks_led_model_kwargs(
-    mock_tok, mock_led, mock_retry, mock_move_pipe, tmp_path
+    mock_tok, mock_led, mock_retry, mock_move_pipe, _mock_dev, tmp_path
 ) -> None:
     mock_tok.return_value = MagicMock()
     mock_led.return_value = MagicMock()
@@ -97,17 +95,13 @@ def test_summary_model_led_branch_unpacks_led_model_kwargs(
 
 
 @pytest.mark.unit
-@patch(
-    "podcast_scraper.providers.ml.summarizer.SummaryModel._load_model_move_to_device_and_pipeline"
-)
-@patch(
-    "podcast_scraper.providers.ml.summarizer._load_with_retry_summarizer",
-    side_effect=_invoke_retry,
-)
+@patch(_DETECT, return_value="cpu")
+@patch(_MOVE)
+@patch(_RETRY, side_effect=_invoke_retry)
 @patch("transformers.AutoModelForSeq2SeqLM.from_pretrained")
 @patch("transformers.AutoTokenizer.from_pretrained")
 def test_summary_model_auto_branch_unpacks_model_kwargs(
-    mock_tok, mock_auto, mock_retry, mock_move_pipe, tmp_path
+    mock_tok, mock_auto, mock_retry, mock_move_pipe, _mock_dev, tmp_path
 ) -> None:
     mock_tok.return_value = MagicMock()
     mock_auto.return_value = MagicMock()

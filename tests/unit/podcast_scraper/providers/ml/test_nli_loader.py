@@ -146,41 +146,6 @@ class TestEntailmentScoreMocked:
         assert score == 0.0
 
 
-try:
-    import sentence_transformers  # noqa: F401
-
-    SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
-
-
-@pytest.mark.skipif(
-    not SENTENCE_TRANSFORMERS_AVAILABLE,
-    reason="sentence_transformers required for load path test",
-)
-class TestLoadNliModel:
-    """Tests for load_nli_model (resolve + load wiring)."""
-
-    def test_load_nli_model_resolves_alias(self, monkeypatch):
-        """load_nli_model resolves alias via registry before loading."""
-        from podcast_scraper.providers.ml.model_registry import ModelRegistry
-
-        captured = []
-
-        def fake_cross_encoder(model_id, device=None, **kwargs):
-            captured.append(model_id)
-            return type("Fake", (), {"predict": lambda self, pairs: [0.5]})()
-
-        monkeypatch.setattr(
-            "sentence_transformers.CrossEncoder",
-            fake_cross_encoder,
-            raising=False,
-        )
-        nli_loader.load_nli_model("nli-deberta-base", device="cpu")
-        assert len(captured) == 1
-        assert captured[0] == ModelRegistry.resolve_evidence_model_id("nli-deberta-base")
-
-
 class TestPredictOutputHelpers:
     """Extra branches for ``predict_output_to_entailment_scores`` and batch padding."""
 

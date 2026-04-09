@@ -6,15 +6,13 @@ collisions when multiple feeds share a corpus parent.
 
 from __future__ import annotations
 
+import glob as _glob
 import os
 from pathlib import Path
 from typing import Any, List, Optional
 
 from podcast_scraper.utils import filesystem
-from podcast_scraper.utils.path_validation import (
-    normpath_if_under_root,
-    safe_resolve_directory,
-)
+from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 
 def normalize_feed_id(feed_id: Any) -> Optional[str]:
@@ -63,30 +61,41 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
     if corpus_root is None:
         return []
 
-    root_str = os.path.normpath(str(corpus_root))
+    # CodeQL py/path-injection sanitiser: normpath then startswith on every
+    # tainted value before it reaches a filesystem sink.  ``os.sep`` is used
+    # as the non-tainted anchor (ensures the path is absolute).
+    root_normed = os.path.normpath(str(corpus_root))
+    if not root_normed.startswith(os.sep):
+        return []
+
+    safe_prefix = root_normed + os.sep
     patterns = ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml")
     found: List[Path] = []
 
-    def _extend_from_meta_dir(meta_dir: Path) -> None:
-        normed = normpath_if_under_root(str(meta_dir), root_str)
-        if normed is None:
+    def _collect(meta_dir_str: str) -> None:
+        md = os.path.normpath(meta_dir_str)
+        if not md.startswith(safe_prefix) and md != root_normed:
             return
-        safe_dir = Path(normed)
-        if not safe_dir.is_dir():
+        if not os.path.isdir(md):
             return
         for pat in patterns:
-            for hit in safe_dir.glob(pat):
-                hit_normed = normpath_if_under_root(str(hit), root_str)
-                if hit_normed is not None and Path(hit_normed).is_file():
-                    found.append(Path(hit_normed))
+            for hit_str in _glob.glob(os.path.join(md, pat)):
+                h = os.path.normpath(hit_str)
+                if not h.startswith(safe_prefix) and h != root_normed:
+                    continue
+                if os.path.isfile(h):
+                    found.append(Path(h))
 
-    feeds_normed = normpath_if_under_root(str(corpus_root / "feeds"), root_str)
-    if feeds_normed is not None and Path(feeds_normed).is_dir():
-        for meta_dir in corpus_root.rglob("metadata"):
-            if meta_dir.is_dir():
-                _extend_from_meta_dir(meta_dir)
-        _extend_from_meta_dir(corpus_root / filesystem.METADATA_SUBDIR)
+    feeds_str = os.path.normpath(os.path.join(root_normed, "feeds"))
+    if feeds_str.startswith(safe_prefix) and os.path.isdir(feeds_str):
+        for dirpath, _dirnames, _filenames in os.walk(root_normed):
+            dp = os.path.normpath(dirpath)
+            if not dp.startswith(safe_prefix) and dp != root_normed:
+                continue
+            if os.path.basename(dp) == filesystem.METADATA_SUBDIR:
+                _collect(dp)
+        _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
     else:
-        _extend_from_meta_dir(corpus_root / filesystem.METADATA_SUBDIR)
+        _collect(os.path.join(root_normed, filesystem.METADATA_SUBDIR))
 
     return sorted(set(found))

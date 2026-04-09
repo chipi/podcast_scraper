@@ -1,4 +1,4 @@
-"""GET /api/explore — GI cross-episode explore + UC4 natural-language query (RFC-062 M5)."""
+"""GET /api/explore — GI cross-episode explore + UC4 natural-language query (RFC-062)."""
 
 from __future__ import annotations
 

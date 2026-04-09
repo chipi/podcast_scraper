@@ -31,7 +31,7 @@ if PACKAGE_ROOT not in sys.path:
 from podcast_scraper import config, models
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
@@ -42,7 +42,7 @@ import importlib.util
 import sys
 from pathlib import Path
 
-tests_dir = Path(__file__).parent.parent
+tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
@@ -55,7 +55,7 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-integration_dir = Path(__file__).parent
+integration_dir = Path(__file__).parent.parent
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
@@ -556,7 +556,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
                 )
 
         # Get transcript from fixtures
-        fixture_root = Path(__file__).parent.parent / "fixtures"
+        fixture_root = Path(__file__).parent.parent.parent / "fixtures"
         transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
@@ -787,7 +787,7 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
         from podcast_scraper.workflow import metadata_generation as metadata
 
         # Get transcript from fixtures
-        fixture_root = Path(__file__).parent.parent / "fixtures"
+        fixture_root = Path(__file__).parent.parent.parent / "fixtures"
         transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
 
         if not transcript_file.exists():

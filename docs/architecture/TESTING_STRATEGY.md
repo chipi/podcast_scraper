@@ -263,7 +263,8 @@ The same **`[dev]`**-only assumption applies to the full **`pytest tests/unit/`*
 Use **Playwright** when the risk is **client rendering or interaction**, not when a pure JSON
 contract change is enough.
 
-**References:** [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+**References:** [Polyglot repository guide](../guides/POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
+[Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
 [E2E Testing Guide — Playwright](../guides/E2E_TESTING_GUIDE.md#browser-e2e-playwright),
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
 [viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
@@ -646,13 +647,14 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 
 ### Test Organization
 
-The test suite is organized into three main **pytest** categories, plus the **frontend** tree:
+The test suite is organized into three main **pytest** categories, plus the **frontend** tree.
+Each layer uses a different organizational axis:
 
-- **`tests/unit/`** - Unit tests per module (fast, isolated, fully mocked)
-- **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
-- **`tests/e2e/`** - E2E tests (complete workflows, real HTTP client, real ML models)
-- **`web/gi-kg-viewer/src/utils/*.test.ts`** - Vitest unit tests for TS utility logic (`make test-ui`)
-- **`web/gi-kg-viewer/e2e/`** - Playwright specs (`*.spec.ts`); **`web/gi-kg-viewer/playwright.config.ts`** — browser UI E2E (not collected by pytest)
+- **`tests/unit/`** — Mirrors the `src/` tree 1:1 (find the test for any source file mechanically)
+- **`tests/integration/`** — Organized by **domain subsystem** (providers, workflow, GI/KG, server, search, rss, etc.); cross-cutting tests stay in root. See [Integration Testing Guide — Directory Organization](../guides/INTEGRATION_TESTING_GUIDE.md#directory-organization)
+- **`tests/e2e/`** — Flat by user scenario (CLI commands, service API, provider pipelines)
+- **`web/gi-kg-viewer/src/utils/*.test.ts`** — Vitest unit tests for TS utility logic (`make test-ui`)
+- **`web/gi-kg-viewer/e2e/`** — Playwright specs (`*.spec.ts`); **`web/gi-kg-viewer/playwright.config.ts`** — browser UI E2E (not collected by pytest)
 
 ### Test Markers
 
