@@ -195,11 +195,11 @@ make fix-md        # Auto-fix markdown
 - Auto-load `.mdc` files for detailed guidance (Rule 16)
 - NEVER commit secrets
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
-- **`.cursor/metrics/rule-adherence.jsonl` — write often (do not skip)**:
+- **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
 
   - Append **a new JSON line** whenever a **meaningful chunk of work finishes** (e.g. tests pass for a change, a feature slice is done, docs/lint fixed, CI unblocked) — **not only** at session end. **Multiple lines per session are normal** (often **~2–10**; more is OK for long sessions).
   - Also append **before commit/push**, when the user says "done"/"wrap up", or at **natural session end** if nothing was logged recently.
-  - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.cursor/metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`.
+  - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`.
   - **Do not ask** permission; **do not** wait for the user to remind you. Announcement optional (silent OK).
 
 - **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion** (in addition to incremental logs above):

@@ -989,12 +989,12 @@ class SummaryModel:
         Returns:
             Device string
         """
-        # Lazy import: Only import torch when this method is called
-        # This allows the module to be imported without ML dependencies installed
-        import torch  # noqa: F401
-
+        # Explicit device: no torch import (unit tests and minimal [dev] envs).
         if device:
             return device
+
+        # Auto-detect only: lazy import so the module loads without torch installed.
+        import torch  # noqa: F401
 
         # Check for Apple Silicon MPS backend first (M4 Pro)
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():

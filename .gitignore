@@ -83,9 +83,10 @@ web/gi-kg-viewer/playwright-report/
 web/gi-kg-viewer/blob-report/
 web/gi-kg-viewer/playwright/.cache/
 
-# AI rule adherence metrics (per-session tracking)
+# AI rule-adherence log (local JSONL only; docs live in .metrics/)
+.metrics/rule-adherence.jsonl
+# Legacy path (if present locally)
 .cursor/metrics/
-.cursor/metrics/rule-adherence.jsonl
 
 # Cursor prompts (user-level templates live in ~/.cursor/prompts/)
 .cursor/prompts/
