@@ -616,6 +616,26 @@ class TestCorpusStatus506(unittest.TestCase):
         self.assertEqual(args.command, "corpus-status")
         self.assertEqual(args.corpus_status_format, "json")
 
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_corpus_status_json_prints_payload(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        import json
+        from io import StringIO
+
+        with tempfile.TemporaryDirectory() as corpus:
+            feeds = os.path.join(corpus, "feeds", "f1", "metadata")
+            os.makedirs(feeds)
+            with patch("sys.stdout", new=StringIO()) as buf:
+                code = cli.main(
+                    ["corpus-status", "--output-dir", corpus, "--format", "json"],
+                )
+            self.assertEqual(code, 0)
+            payload = json.loads(buf.getvalue())
+            self.assertIn("corpus_parent", payload)
+            self.assertIn("feeds_subdirs", payload)
+
 
 class TestBuildConfig(unittest.TestCase):
     """Test _build_config function."""

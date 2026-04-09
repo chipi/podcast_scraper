@@ -121,6 +121,12 @@ class TestSafeResolveDirectory:
         """Null byte in path is rejected."""
         assert safe_resolve_directory(Path("/tmp/\x00evil")) is None
 
+    def test_tilde_slash_resolves_under_home(self, tmp_path, monkeypatch):
+        """Leading ``~/`` joins under ``Path.home()`` (``HOME`` env on POSIX)."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        got = safe_resolve_directory(Path("~/corpus/sub"))
+        assert got == (tmp_path / "corpus" / "sub").resolve()
+
 
 @pytest.mark.unit
 class TestIsResolvedPathUnderRoot:
@@ -140,3 +146,12 @@ class TestIsResolvedPathUnderRoot:
             root = Path(a).resolve()
             other = Path(b).resolve()
             assert is_resolved_path_under_root(other, root) is False
+
+    def test_false_when_resolve_raises_oserror(self, monkeypatch):
+        """``OSError`` from ``Path.resolve`` yields False."""
+
+        def boom(self):
+            raise OSError("boom")
+
+        monkeypatch.setattr(Path, "resolve", boom)
+        assert is_resolved_path_under_root(Path("/tmp/x"), Path("/tmp")) is False

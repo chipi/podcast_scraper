@@ -1263,8 +1263,9 @@ cfg = Config(
 
 See [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
 
-- `config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` (tracked; same preset may exist under `config/acceptance/full/` locally)
-- `config/manual/manual_multi_feed_planet_money_journal_openai.yaml`
+- `config/examples/config.example.multi-feed.yaml` / `config/examples/config.example.multi-feed.json` (generic placeholder feeds; same provider mix as `config.example.*`)
+- `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
+- `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
 
 <a id="append-resume-github-444"></a>
 
@@ -1288,11 +1289,10 @@ output_dir: ./my_corpus
 append: true
 ```
 
-**Checked-in presets (Planet Money + The Journal + OpenAI, full pipeline):**
+**Checked-in presets (Planet Money + The Journal, full pipeline):**
 
-- `config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml` (tracked)
-- `config/acceptance/full/acceptance_multi_feed_planet_money_journal_openai_append.yaml` (same content; use with `make test-acceptance`)
-- `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` (manual validation + team handoff notes in file header)
+- **OpenAI:** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` (use with `make test-acceptance` / CLI)
+- **DeepSeek (Whisper + DeepSeek LLM):** `config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_deepseek_append.yaml`
 
 Re-run the **same** command twice to validate resume: the second run should skip complete episodes under each feed’s `run_append_*` tree.
 

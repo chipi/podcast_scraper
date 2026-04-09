@@ -34,7 +34,7 @@ something works while you **run** the steps.
 
 Feeds match **GI/KG acceptance**: NPR Planet Money
 `https://feeds.npr.org/510289/podcast.xml` (same as
-`config/acceptance/full/acceptance_planet_money_*.yaml`).
+`config/acceptance/acceptance_planet_money_*.yaml`).
 
 **Index and file list:** `config/manual/README.md` (repository root).
 
@@ -82,19 +82,19 @@ KG + semantic index** (`summary_bullets` for GI and KG — not stub-only splits)
 
 | Use case | Example config |
 | --- | --- |
-| Full pipeline, OpenAI stack | `config/acceptance/full/acceptance_planet_money_openai.yaml` |
-| Full pipeline, local ML (dev / faster models) | `config/acceptance/full/acceptance_planet_money_ml_dev.yaml` |
-| Full pipeline, local ML (prod-style models) | `config/acceptance/full/acceptance_planet_money_ml_prod.yaml` |
-| Full pipeline, another cloud provider | `config/acceptance/full/acceptance_planet_money_<provider>.yaml` (e.g. `gemini`, `anthropic`) |
+| Full pipeline, OpenAI stack | `config/acceptance/acceptance_planet_money_openai.yaml` |
+| Full pipeline, local ML (dev / faster models) | `config/acceptance/acceptance_planet_money_ml_dev.yaml` |
+| Full pipeline, local ML (prod-style models) | `config/acceptance/acceptance_planet_money_ml_prod.yaml` |
+| Full pipeline, another cloud provider | `config/acceptance/acceptance_planet_money_<provider>.yaml` (e.g. `gemini`, `anthropic`) |
 
-For **The Journal** (WSJ feed), mirror with `config/acceptance/full/acceptance_the_journal_*.yaml`.
+For **The Journal** (WSJ feed), mirror with `config/acceptance/acceptance_the_journal_*.yaml`.
 
 For **both feeds in one acceptance run** (multi-feed corpus, OpenAI), use
-`config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` (tracked; see `scripts/acceptance/README.md`).
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local preset; see `scripts/acceptance/README.md`).
 
 For **multi-feed + append / resume** (GitHub #444), use
-`config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml` or
-`config/acceptance/full/acceptance_multi_feed_planet_money_journal_openai_append.yaml` with `make test-acceptance`.
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` or
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` with `make test-acceptance`.
 
 For **stub** GI, **`provider`**-mode KG, summaries-only, or other layer-specific presets,
 use **`config/manual/`** (see [Ready-made configs](#ready-made-configs-npr-feeds-and-openai-first)) or pytest E2E tests.

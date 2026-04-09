@@ -7,6 +7,7 @@ import os
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -301,6 +302,213 @@ class TestEpisodeCompleteForAppendResume(unittest.TestCase):
             auto_speakers=False,
         )
         ep = _episode("g-badjson")
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    @patch(
+        "podcast_scraper.workflow.append_resume.find_episode_metadata_relative_path",
+        return_value="",
+    )
+    def test_false_when_metadata_relative_path_unresolved(self, _mock: object) -> None:
+        """``find_episode_metadata_relative_path`` empty → skip (line 77–78)."""
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        ep = _episode("g-nometa")
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_complete_when_summary_is_raw_text_only(self) -> None:
+        """``_summary_looks_present`` accepts non-empty ``raw_text`` (lines 42–43)."""
+        trel = self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-rawsum")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        self._write_metadata(
+            eid,
+            trel,
+            summary={"raw_text": " summary body ", "generated_at": "2026-01-01T00:00:00"},
+        )
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertTrue(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_content_missing_or_not_dict(self) -> None:
+        self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-nocontent")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        meta_name = f"0001 - ep_{self.run_suffix}.metadata.json"
+        with open(os.path.join(self.metadata, meta_name), "w", encoding="utf-8") as handle:
+            json.dump({"episode": {"episode_id": eid}}, handle)
+
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_transcript_rel_not_string(self) -> None:
+        self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-treltype")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        meta_name = f"0001 - ep_{self.run_suffix}.metadata.json"
+        with open(os.path.join(self.metadata, meta_name), "w", encoding="utf-8") as handle:
+            json.dump(
+                {"episode": {"episode_id": eid}, "content": {"transcript_file_path": 123}},
+                handle,
+            )
+
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_transcript_file_missing_on_disk(self) -> None:
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-notfile")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        self._write_metadata(eid, "transcripts/does-not-exist.txt")
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_gi_block_not_dict(self) -> None:
+        trel = self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-gitype")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        self._write_metadata(eid, trel, grounded_insights="not-a-dict")
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            generate_gi=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_gi_path_blank(self) -> None:
+        trel = self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-giblank")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        self._write_metadata(eid, trel, grounded_insights={"artifact_path": "  "})
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            generate_gi=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_kg_block_not_dict(self) -> None:
+        trel = self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-kgtype")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        self._write_metadata(eid, trel, knowledge_graph=["x"])
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            generate_kg=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_kg_path_blank(self) -> None:
+        trel = self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-kgblank")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        self._write_metadata(eid, trel, knowledge_graph={"artifact_path": ""})
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            generate_kg=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_false_when_yaml_metadata_not_mapping(self) -> None:
+        meta_name = f"0001 - ep_{self.run_suffix}.metadata.yaml"
+        with open(os.path.join(self.metadata, meta_name), "w", encoding="utf-8") as handle:
+            handle.write("- not\n- a\n- mapping\n")
+
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            metadata_format="yaml",
+            generate_summaries=False,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        ep = _episode("g-yamllist")
         self.assertFalse(
             episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
         )

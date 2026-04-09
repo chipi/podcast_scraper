@@ -13,6 +13,7 @@ from podcast_scraper.workflow.corpus_operations import (
     CORPUS_MANIFEST_FILE,
     CORPUS_RUN_SUMMARY_FILE,
     finalize_multi_feed_batch,
+    format_corpus_status_text,
     MultiFeedFeedResult,
     utc_iso_now,
     write_corpus_manifest,
@@ -95,3 +96,88 @@ def test_finalize_multi_feed_batch_skips_index_without_vector_search(tmp_path: P
     assert doc.get("schema_version") == "1.0.0"
     assert len(doc.get("feeds") or []) == 1
     assert not (Path(parent) / "search" / "vectors.faiss").is_file()
+
+
+@pytest.mark.unit
+def test_collect_corpus_status_invalid_manifest_ignored(tmp_path: Path) -> None:
+    corpus = tmp_path / "c"
+    corpus.mkdir()
+    (corpus / CORPUS_MANIFEST_FILE).write_text("{ not json", encoding="utf-8")
+    st = collect_corpus_status(str(corpus))
+    assert st["manifest_present"] is False
+
+
+@pytest.mark.unit
+def test_collect_corpus_status_search_meta_and_failed_index(tmp_path: Path) -> None:
+    corpus = tmp_path / "c"
+    (corpus / "search").mkdir(parents=True)
+    (corpus / "search" / "vectors.faiss").write_bytes(b"")
+    (corpus / "search" / "index_meta.json").write_text(
+        json.dumps({"embedding_model": "m", "index_kind": "flat"}),
+        encoding="utf-8",
+    )
+    feeds = corpus / "feeds" / "rss_x"
+    (feeds / "metadata").mkdir(parents=True)
+    (feeds / "index.json").write_text(
+        json.dumps(
+            {
+                "episodes": [
+                    {"status": "failed", "error_message": "transient boom"},
+                ],
+            },
+        ),
+        encoding="utf-8",
+    )
+    st = collect_corpus_status(str(corpus))
+    assert st["search_index_present"] is True
+    assert st["search_embedding_model"] == "m"
+    assert st["search_index_kind"] == "flat"
+    rows = st["feeds_subdirs"]
+    assert len(rows) == 1
+    assert rows[0]["index_failed_episodes"] == 1
+    assert "boom" in (rows[0].get("sample_index_error") or "")
+
+
+@pytest.mark.unit
+def test_format_corpus_status_text_includes_optional_lines(tmp_path: Path) -> None:
+    corpus = str(tmp_path / "c")
+    Path(corpus).mkdir()
+    st = collect_corpus_status(corpus)
+    text = format_corpus_status_text(st)
+    assert "Corpus parent:" in text
+    assert "Per-feed directories:" in text
+
+
+@pytest.mark.unit
+def test_finalize_skips_index_when_vector_backend_not_faiss(tmp_path: Path) -> None:
+    parent = str(tmp_path / "c")
+    Path(parent).mkdir()
+    cfg = cfg_mod.Config(
+        rss="https://a/feed.xml",
+        output_dir=parent,
+        user_agent="t",
+        timeout=30,
+        vector_search=True,
+        vector_backend="qdrant",
+    )
+    doc = finalize_multi_feed_batch(
+        parent,
+        cfg,
+        [MultiFeedFeedResult("https://a/feed.xml", True, None, 1)],
+    )
+    assert doc.get("overall_ok") is True
+
+
+@pytest.mark.unit
+def test_finalize_returns_summary_when_feed_results_empty(tmp_path: Path) -> None:
+    parent = str(tmp_path / "c")
+    Path(parent).mkdir()
+    cfg = cfg_mod.Config(
+        rss="https://a/feed.xml",
+        output_dir=parent,
+        user_agent="t",
+        timeout=30,
+        vector_search=True,
+    )
+    doc = finalize_multi_feed_batch(parent, cfg, [])
+    assert doc.get("feeds") == []

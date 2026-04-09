@@ -6,15 +6,8 @@
 # See config/examples/.env.example for environment variable options
 
 rss: https://example.com/feed.xml
-# Multi-feed corpus (GitHub #440): use a list under `feeds` or `rss_urls` instead of a single `rss` string.
-# When two or more URLs are in effect, `output_dir` is required (corpus parent). Each feed is written under:
-#   <output_dir>/feeds/rss_<host>_<hash>/
-# Example (uncomment and remove or comment `rss` above to try):
-# feeds:
-#   - https://feeds.npr.org/510289/podcast.xml
-#   - https://video-api.wsj.com/podcast/rss/wsj/the-journal
-# output_dir: output_multi_feed_example
-# Full-pipeline OpenAI preset (also used for acceptance): see acceptance_multi_feed_planet_money_journal_openai.yaml in this folder.
+# Multi-feed corpus (GitHub #440): use `feeds` / `rss_urls` instead of `rss`. See
+# config.example.multi-feed.yaml and config.example.multi-feed.json in this folder.
 output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
 

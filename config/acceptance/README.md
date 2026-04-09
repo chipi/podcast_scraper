@@ -9,16 +9,67 @@ see **`scripts/acceptance/README.md`**.
 
 ## Layout
 
-| Folder | Purpose |
-| ------ | ------- |
-| **full/** | Full-pipeline configs: every run produces summaries, grounded insights (GI), knowledge graph (KG), and a FAISS vector index. Mostly **one feed per YAML** (Planet Money or The Journal) × every supported provider; plus **multi-feed** YAMLs that list both feeds in one corpus (GitHub #440). |
+**Preset YAMLs** live in this directory next to **`README.md`** and **`FAST_CONFIGS.txt`**.
+Most `*.yaml` files here are **gitignored** (local-only, often with real RSS URLs you do not
+want in Git). Exceptions: this **`README.md`**, **`FAST_CONFIGS.txt`**, and the tracked
+**`sample_acceptance_e2e_fixture_*.yaml`** files (placeholders + E2E mock feeds — see below),
+including variants that mirror **`acceptance_planet_money_*`** (and multi-feed OpenAI /
+DeepSeek journal presets where applicable): OpenAI, DeepSeek, Anthropic, Mistral
+(`mistral-small-latest`), and Ollama **`qwen3.5:35b`**.
 
-All configs use the naming pattern
-`acceptance_<feed>_<provider_or_detail>.yaml`.
+Each preset runs the **full pipeline**: summaries, grounded insights (GI), knowledge graph
+(KG), and a FAISS vector index. Mostly **one feed per YAML** × provider; plus **multi-feed**
+YAMLs (GitHub #440).
+
+Local presets use the naming pattern `acceptance_<feed>_<provider_or_detail>.yaml`.
+
+### Sample configs (E2E mock RSS, safe to commit)
+
+These files use **non-localhost placeholder URLs** on purpose. They are **not** real feeds.
+
+| File | Feeds / providers |
+| ---- | ----------------- |
+| **`sample_acceptance_e2e_fixture_single.yaml`** | Single `rss:` — local ML (no API keys) |
+| **`sample_acceptance_e2e_fixture_single_openai.yaml`** | Single `rss:` — OpenAI (Whisper + gpt-4o-mini); needs `OPENAI_API_KEY` |
+| **`sample_acceptance_e2e_fixture_single_deepseek.yaml`** | Single `rss:` — Whisper + DeepSeek; needs `DEEPSEEK_API_KEY` |
+| **`sample_acceptance_e2e_fixture_single_anthropic.yaml`** | Single `rss:` — Whisper + Anthropic (claude-haiku-4-5); needs `ANTHROPIC_API_KEY` |
+| **`sample_acceptance_e2e_fixture_single_mistral.yaml`** | Single `rss:` — Mistral (voxtral + mistral-small-latest); needs `MISTRAL_API_KEY` |
+| **`sample_acceptance_e2e_fixture_single_ollama_qwen3_5_35b.yaml`** | Single `rss:` — Whisper + Ollama `qwen3.5:35b`; needs local Ollama |
+| **`sample_acceptance_e2e_fixture_multi_ml.yaml`** | Five `feeds:` → `podcast1`..`podcast5`; **local ML** (Whisper + spaCy + transformers); `max_episodes: 2` per feed |
+| **`sample_acceptance_e2e_fixture_multi_openai.yaml`** | Same five placeholders — OpenAI; needs `OPENAI_API_KEY` |
+| **`sample_acceptance_e2e_fixture_multi_deepseek.yaml`** | Same five placeholders — OpenAI Whisper + DeepSeek; needs both keys |
+| **`sample_acceptance_e2e_fixture_multi_anthropic.yaml`** | Same five placeholders — Anthropic; needs `ANTHROPIC_API_KEY` |
+| **`sample_acceptance_e2e_fixture_multi_mistral.yaml`** | Same five placeholders — Mistral; needs `MISTRAL_API_KEY` |
+| **`sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml`** | Same five placeholders — Ollama `qwen3.5:35b`; needs local Ollama |
+
+**You must run them with `make test-acceptance` and `USE_FIXTURES=1`.** The acceptance
+runner starts the E2E HTTP server and **rewrites** those URLs to in-repo mock RSS feeds
+(and points provider APIs at the mock). Without **`USE_FIXTURES=1`**, the run would try to
+fetch the placeholder hosts and fail.
+
+**Your private presets** with **real** `https://…` RSS URLs should be run **without**
+`USE_FIXTURES=1` (or `USE_FIXTURES=0`): the runner then uses your YAML as-is and hits the
+real network (and real APIs if configured).
+
+```bash
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml" USE_FIXTURES=1
+# API / Ollama samples (export keys or start Ollama as needed):
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single_openai.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single_deepseek.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single_anthropic.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single_mistral.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single_ollama_qwen3_5_35b.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_openai.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_deepseek.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_anthropic.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_mistral.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml" USE_FIXTURES=1
+```
 
 ### What each config produces
 
-Every `full/` config sets:
+Every preset YAML sets:
 
 - `generate_summaries: true`
 - `generate_gi: true` with `gi_insight_source: summary_bullets`
@@ -52,24 +103,31 @@ Ollama variants: `llama3.1:8b` (default), `gemma2:9b`, `mistral:7b`,
 | ---- | --- | ------- |
 | **Planet Money** | `https://feeds.npr.org/510289/podcast.xml` | 18 single-feed configs |
 | **The Journal** | `https://video-api.wsj.com/podcast/rss/wsj/the-journal` | 18 single-feed configs |
-| **Planet Money + The Journal (one corpus)** | Both URLs in YAML `feeds:` | Tracked: `config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml`; optional local copy under `full/` |
-| **Same two feeds + OpenAI + append / resume (#444)** | Same as above with `append: true` | Tracked: `config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml`; optional `config/acceptance/full/acceptance_multi_feed_planet_money_journal_openai_append.yaml` |
+| **Planet Money + The Journal (one corpus)** | Both URLs in YAML `feeds:` | Presets: `acceptance_multi_feed_planet_money_journal_openai.yaml`, `acceptance_multi_feed_planet_money_journal_deepseek.yaml` under `config/acceptance/` (local); generic shape: `config/examples/config.example.multi-feed.yaml` |
+| **Same two feeds + OpenAI + append / resume (#444)** | Same as above with `append: true` | Preset: `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` |
+| **Same two feeds + DeepSeek + append / resume (#444)** | Same with `append: true` | Preset: `config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml` |
 
 Single-feed rows have identical provider coverage across the two shows. **Multi-feed** configs use `feeds:` (alias of `rss_urls`); corpus layout is `<output_dir>/feeds/rss_<host>_<hash>/` per feed. With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a **distinct local E2E fixture feed** so multi-feed runs stay offline.
 
 **Example — multi-feed acceptance (fixtures or real RSS):**
 
 ```bash
-make test-acceptance CONFIGS="config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml" USE_FIXTURES=1
 ```
 
 **Example — multi-feed + append (second identical run should skip complete episodes):**
 
 ```bash
-make test-acceptance CONFIGS="config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml" USE_FIXTURES=1
 ```
 
-For real NPR + WSJ + OpenAI, set **`USE_FIXTURES=0`** and export **`OPENAI_API_KEY`**. If you maintain configs under `config/acceptance/full/`, use the same filename there instead.
+**Example — multi-feed + DeepSeek + append:**
+
+```bash
+make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml" USE_FIXTURES=1
+```
+
+For real NPR + WSJ + OpenAI, set **`USE_FIXTURES=0`** and export **`OPENAI_API_KEY`**. For DeepSeek multi-feed (append or not), also export **`DEEPSEEK_API_KEY`** (Whisper still uses **`OPENAI_API_KEY`**).
 
 ### Fast configs (for CI)
 
@@ -77,9 +135,9 @@ For real NPR + WSJ + OpenAI, set **`USE_FIXTURES=0`** and export **`OPENAI_API_K
 one stem per line (filename without `.yaml`). Use **`FAST_ONLY=1`** together
 with a **`CONFIGS`** glob so the runner filters to those stems only.
 
-**`FAST_CONFIGS.txt`** is committed next to this README. If it is missing, the
-runner falls back to **`config/ci/acceptance_fast_stems.txt`** (keep them in
-sync when you change the fast matrix).
+**`FAST_CONFIGS.txt`** is committed next to this README. If it is missing or empty, the
+runner may read optional local **`config/ci/acceptance_fast_stems.txt`** (gitignored;
+see **`config/ci/README.md`**). Keep any local CI copy aligned when you change the fast matrix.
 
 **Full fast matrix + E2E fixtures** (offline RSS and mock APIs for every fast
 preset, including multi-feed — see **`scripts/acceptance/README.md`**):
@@ -103,41 +161,41 @@ On **main / release** branches, CI runs `make test-acceptance-fixtures-fast`
 Run all configs:
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/*.yaml"
+make test-acceptance CONFIGS="config/acceptance/*.yaml"
 ```
 
 Run only Planet Money:
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/acceptance_planet_money_*.yaml"
+make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_*.yaml"
 ```
 
 Run only The Journal:
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/acceptance_the_journal_*.yaml"
+make test-acceptance CONFIGS="config/acceptance/acceptance_the_journal_*.yaml"
 ```
 
 Run a single config:
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/acceptance_planet_money_ml_dev.yaml"
+make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_ml_dev.yaml"
 ```
 
 Run only ML configs (no API keys needed):
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/acceptance_*_ml_*.yaml"
+make test-acceptance CONFIGS="config/acceptance/acceptance_*_ml_*.yaml"
 ```
 
 Run only Ollama configs:
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/acceptance_*_ollama*.yaml"
+make test-acceptance CONFIGS="config/acceptance/acceptance_*_ollama*.yaml"
 ```
 
 Run fast subset after expanding a glob (filter to stems in `FAST_CONFIGS.txt`):
 
 ```bash
-make test-acceptance CONFIGS="config/acceptance/full/*.yaml" USE_FIXTURES=1 FAST_ONLY=1
+make test-acceptance CONFIGS="config/acceptance/*.yaml" USE_FIXTURES=1 FAST_ONLY=1
 ```

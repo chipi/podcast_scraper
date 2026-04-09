@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -125,3 +126,36 @@ def test_list_gi_paths_fallback_rglob_without_metadata_file(tmp_path: Path) -> N
     )
     paths = list_artifact_paths_for_episode(tmp_path, "orphan-ep", kind="gi")
     assert paths == [gi.resolve()]
+
+
+@pytest.mark.unit
+def test_pick_single_empty_and_multi() -> None:
+    assert pick_single_artifact_path([]) is None
+    a, b = Path("/a"), Path("/b")
+    assert pick_single_artifact_path([a, b]) is None
+
+
+@pytest.mark.unit
+def test_list_gi_metadata_without_sibling_artifact_uses_rglob_fallback(tmp_path: Path) -> None:
+    """Sibling ``.gi.json`` missing next to metadata → ``**/*.gi.json`` fallback."""
+    meta = tmp_path / "metadata"
+    _write_meta(meta, "ghost", feed_id="f", episode_id="ghost-ep")
+    deep = tmp_path / "feeds" / "x" / "metadata"
+    deep.mkdir(parents=True)
+    gi = deep / "ghost.gi.json"
+    gi.write_text(
+        json.dumps({"episode_id": "ghost-ep", "nodes": [], "edges": []}),
+        encoding="utf-8",
+    )
+    paths = list_artifact_paths_for_episode(tmp_path, "ghost-ep", kind="gi")
+    assert paths == [gi.resolve()]
+
+
+@pytest.mark.unit
+def test_corpus_search_parent_hint_invalid_root_returns_empty(tmp_path: Path) -> None:
+    """``safe_resolve_directory`` failure yields no hints (Import path still loads)."""
+    with patch(
+        "podcast_scraper.utils.corpus_episode_paths.safe_resolve_directory",
+        return_value=None,
+    ):
+        assert corpus_search_parent_hint(tmp_path / "nope" / ".." / "x") == []

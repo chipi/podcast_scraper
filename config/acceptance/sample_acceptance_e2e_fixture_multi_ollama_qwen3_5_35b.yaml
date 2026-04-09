@@ -1,0 +1,39 @@
+# Sample acceptance: multi-feed (5 feeds), Ollama qwen3.5:35b (E2E mock RSS).
+# Feed URLs are placeholders — not fetched. USE_FIXTURES=1 maps slots to podcast1..podcast5 (p01..p05).
+# Same provider block as acceptance_planet_money_ollama_qwen3_5_35b.yaml.
+# No max_episodes — all RSS items per feed (p01–p05 fixtures).
+#
+# Run:
+#   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml" USE_FIXTURES=1
+#
+# Prereq: ollama pull qwen3.5:35b (local Ollama daemon)
+
+feeds:
+  - https://example.invalid/e2e-placeholder-feed-p01.xml
+  - https://example.invalid/e2e-placeholder-feed-p02.xml
+  - https://example.invalid/e2e-placeholder-feed-p03.xml
+  - https://example.invalid/e2e-placeholder-feed-p04.xml
+  - https://example.invalid/e2e-placeholder-feed-p05.xml
+
+output_dir: .test_outputs/acceptance/sample_e2e_multi_ollama_qwen3_5_35b
+
+transcription_provider: whisper
+speaker_detector_provider: ollama
+summary_provider: ollama
+
+whisper_model: base.en
+whisper_device: cpu
+ollama_speaker_model: qwen3.5:35b
+ollama_summary_model: qwen3.5:35b
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

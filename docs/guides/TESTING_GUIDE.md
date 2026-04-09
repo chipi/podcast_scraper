@@ -373,21 +373,21 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 
 ### Setting up acceptance configs
 
-Put optional full-pipeline YAML presets under **`config/acceptance/full/`** (not committed). The repo tracks **`config/acceptance/README.md`** and **`config/acceptance/FAST_CONFIGS.txt`**; everything else under `config/acceptance/` stays ignored so local or feed-specific YAMLs stay out of git.
+Put optional full-pipeline YAML presets under **`config/acceptance/`** (not committed). The repo tracks **`config/acceptance/README.md`** and **`config/acceptance/FAST_CONFIGS.txt`**; everything else under `config/acceptance/` stays ignored so local or feed-specific YAMLs stay out of git.
 
 1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
 2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:
    `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
 3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
 
-**Multi-feed in one YAML (GitHub #440):** Use a **`feeds:`** or **`rss_urls:`** list and a required **`output_dir`** (corpus parent). The checked-in example
-`config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` exercises two feeds in one run (you can copy it under `config/acceptance/full/` if you keep acceptance configs there). With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
+**Multi-feed in one YAML (GitHub #440):** Use a **`feeds:`** or **`rss_urls:`** list and a required **`output_dir`** (corpus parent). Example preset
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local under `config/acceptance/`) exercises two feeds in one run. With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
 
-**Append / resume (GitHub #444):** `config/examples/acceptance_multi_feed_planet_money_journal_openai_append.yaml` is the same two-feed OpenAI full-pipeline preset with **`append: true`**. Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+**Append / resume (GitHub #444):** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` is the same two-feed OpenAI full-pipeline preset with **`append: true`**. Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
 
 **Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py`** (YAML metadata, rglob fallback, parent search hint), **`tests/unit/podcast_scraper/utils/test_corpus_lock.py`**, **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI).
 
-**Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` runs every stem in `config/acceptance/FAST_CONFIGS.txt` or, if that tree is missing, **`config/ci/acceptance_fast_stems.txt`**, resolving each to `config/acceptance/full/<stem>.yaml` or `config/examples/<stem>.yaml`. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, and defaults to a **900s** per-config timeout (`TIMEOUT=...` to override). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
+**Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` runs every stem in the tracked **`config/acceptance/FAST_CONFIGS.txt`** (or optional local **`config/ci/acceptance_fast_stems.txt`** if that file is absent—see **`config/ci/README.md`**), resolving each to `config/acceptance/<stem>.yaml` or `config/examples/<stem>.yaml`. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, and defaults to a **900s** per-config timeout (`TIMEOUT=...` to override). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
 
 Optional: use **`config/playground/`** (also gitignored) for ad-hoc or one-off configs; run them with e.g. `make test-acceptance CONFIGS="config/playground/config.my.*.yaml"`.
 

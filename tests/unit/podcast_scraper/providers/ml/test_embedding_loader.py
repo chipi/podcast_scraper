@@ -1,10 +1,55 @@
 """Unit tests for embedding loader (Issue #435)."""
 
+import builtins
+import sys
+from unittest.mock import MagicMock
+
 import pytest
 
 from podcast_scraper.providers.ml import embedding_loader
 
 pytestmark = [pytest.mark.unit]
+
+
+class TestSentenceTransformerLoadName:
+    """``_sentence_transformer_load_name`` strips org prefix."""
+
+    def test_strips_sentence_transformers_prefix(self):
+        assert (
+            embedding_loader._sentence_transformer_load_name(
+                "sentence-transformers/all-MiniLM-L6-v2"
+            )
+            == "all-MiniLM-L6-v2"
+        )
+
+    def test_passes_through_other_ids(self):
+        assert embedding_loader._sentence_transformer_load_name("all-MiniLM-L6-v2") == (
+            "all-MiniLM-L6-v2"
+        )
+
+
+class TestGetDevice:
+    """``_get_device`` respects explicit value and torch when present."""
+
+    def test_explicit_device(self):
+        assert embedding_loader._get_device("CPU") == "cpu"
+
+    def test_auto_prefers_cuda_when_available(self, monkeypatch):
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = True
+        monkeypatch.setitem(sys.modules, "torch", mock_torch)
+        assert embedding_loader._get_device(None) == "cuda"
+
+    def test_auto_cpu_when_torch_import_fails(self, monkeypatch):
+        real_import = builtins.__import__
+
+        def fake_import(name, globals_arg=None, locals_arg=None, fromlist=(), level=0):
+            if name == "torch":
+                raise ImportError("unavailable")
+            return real_import(name, globals_arg, locals_arg, fromlist, level)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        assert embedding_loader._get_device(None) == "cpu"
 
 
 class TestCosineSimilarity:
@@ -117,6 +162,21 @@ class TestEncodeMocked:
         out = embedding_loader.encode(["a", "b"], model_id="minilm-l6", return_numpy=True)
         assert hasattr(out, "shape")
         assert out.shape == (2, 2)
+
+    def test_encode_single_coerces_sequence_without_tolist(self, monkeypatch):
+        """``to_list`` falls back to ``list()`` when embedding row has no ``tolist``."""
+
+        class FakeModel:
+            def encode(self, texts, normalize_embeddings=True, batch_size=64):
+                return [(0.25, 0.75)]
+
+        monkeypatch.setattr(
+            embedding_loader,
+            "get_embedding_model",
+            lambda *args, **kwargs: FakeModel(),
+        )
+        out = embedding_loader.encode("only", model_id="minilm-l6")
+        assert out == [0.25, 0.75]
 
     def test_get_embedding_model_keyed_by_model_id(self, monkeypatch):
         """Different model_id values load separate cached instances."""

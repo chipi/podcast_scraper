@@ -47,6 +47,12 @@ class TestExploreScan:
         found = scan_artifact_paths(tmp_path)
         assert p in found
 
+    def test_scan_artifact_paths_not_directory_returns_empty(self, tmp_path):
+        """Non-directory path (e.g. file) yields no scan results."""
+        f = tmp_path / "not_a_dir.txt"
+        f.write_text("x", encoding="utf-8")
+        assert scan_artifact_paths(f) == []
+
     def test_load_artifacts_skips_invalid(self, tmp_path):
         """Invalid artifact is skipped with warning."""
         (tmp_path / "metadata").mkdir()

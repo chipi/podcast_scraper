@@ -71,10 +71,30 @@ coverage.json
 config/examples/config.my.*
 examples.txt
 
-# Acceptance: track index + fast stem list; keep full/*.yaml local (not committed)
+# Acceptance: track README + FAST_CONFIGS + sample_* E2E fixture YAMLs; other *.yaml local
 config/acceptance/*
 !config/acceptance/README.md
 !config/acceptance/FAST_CONFIGS.txt
+!config/acceptance/sample_acceptance_e2e_fixture_single.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_single_anthropic.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_single_deepseek.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_single_mistral.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_single_ollama_qwen3_5_35b.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_single_openai.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_anthropic.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_deepseek.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_mistral.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_openai.yaml
+
+# Manual: track README only; keep *.yaml local (not committed)
+config/manual/*
+!config/manual/README.md
+
+# CI-related local files under config/ci (optional stem lists, etc.); not committed
+config/ci/*
+!config/ci/README.md
 
 # Experiments (local / ad-hoc configs)
 config/playground/

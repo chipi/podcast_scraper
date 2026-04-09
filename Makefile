@@ -733,7 +733,7 @@ test-acceptance:
 		echo ""; \
 		echo "Options:"; \
 		echo "  CONFIGS=pattern         Config glob(s), space-separated (required unless FROM_FAST_STEMS=1)"; \
-		echo "  FROM_FAST_STEMS=1      Resolve YAMLs from fast stem list (FAST_CONFIGS.txt or config/ci/acceptance_fast_stems.txt)"; \
+		echo "  FROM_FAST_STEMS=1      Resolve YAMLs from fast stem list (FAST_CONFIGS.txt; optional config/ci/acceptance_fast_stems.txt)"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -747,8 +747,8 @@ test-acceptance:
 		echo ""; \
 		echo "Examples:"; \
 		echo "  make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
-		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1"; \
-		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/*.yaml\" USE_FIXTURES=1"; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
 		echo "  make test-acceptance-fixtures-fast"; \
 		exit 1; \
 	fi
@@ -767,7 +767,7 @@ test-acceptance:
 		--log-level INFO
 
 # Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
-# Resolves each stem to config/acceptance/full/<stem>.yaml or config/examples/<stem>.yaml.
+# Resolves each stem to config/acceptance/<stem>.yaml or config/examples/<stem>.yaml.
 test-acceptance-fixtures-fast:
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
 		--from-fast-stems \

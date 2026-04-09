@@ -125,8 +125,20 @@ def safe_resolve_directory(path: Path) -> Optional[Path]:
 
     Used as a CodeQL anchor before joining or globbing under a user-provided root.
     """
+    if "\x00" in str(path):
+        return None
+    if any(part == ".." for part in path.parts):
+        return None
     try:
-        candidate = path.expanduser()
+        parts = path.parts
+        if parts and parts[0] == "~":
+            # Under current user home only — avoids tainted ``expanduser`` for the common case.
+            candidate = Path.home().joinpath(*parts[1:])
+        elif parts and parts[0].startswith("~"):
+            # lgtm[py/path-injection] -- ``..``/NUL rejected; ``~name`` requires passwd expansion.
+            candidate = path.expanduser()
+        else:
+            candidate = path
     except (OSError, RuntimeError):
         return None
     if "\x00" in str(candidate):

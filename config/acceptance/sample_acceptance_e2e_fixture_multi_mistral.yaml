@@ -1,0 +1,39 @@
+# Sample acceptance: multi-feed (5 feeds), Mistral (E2E mock RSS).
+# Feed URLs are placeholders — not fetched. USE_FIXTURES=1 maps slots to podcast1..podcast5 (p01..p05).
+# Same provider block as acceptance_planet_money_mistral.yaml (voxtral + mistral-small-latest).
+# No max_episodes — all RSS items per feed (p01–p05 fixtures).
+#
+# Run:
+#   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_mistral.yaml" USE_FIXTURES=1
+#
+# Requires: MISTRAL_API_KEY
+
+feeds:
+  - https://example.invalid/e2e-placeholder-feed-p01.xml
+  - https://example.invalid/e2e-placeholder-feed-p02.xml
+  - https://example.invalid/e2e-placeholder-feed-p03.xml
+  - https://example.invalid/e2e-placeholder-feed-p04.xml
+  - https://example.invalid/e2e-placeholder-feed-p05.xml
+
+output_dir: .test_outputs/acceptance/sample_e2e_multi_mistral
+
+transcription_provider: mistral
+speaker_detector_provider: mistral
+summary_provider: mistral
+
+mistral_transcription_model: voxtral-mini-latest
+mistral_speaker_model: mistral-small-latest
+mistral_summary_model: mistral-small-latest
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

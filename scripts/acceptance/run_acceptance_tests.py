@@ -229,7 +229,7 @@ def find_config_files(pattern: str) -> List[Path]:
 
     Args:
         pattern: Single glob, or multiple globs separated by whitespace (e.g.
-            "config/acceptance/full/*.yaml")
+            "config/acceptance/*.yaml")
 
     Returns:
         Sorted list of unique matching config file paths
@@ -264,9 +264,9 @@ def _load_stems_from_file(path: Path) -> set[str]:
 def load_fast_config_stems() -> set[str]:
     """Load set of config stems considered 'fast' for --fast-only / --from-fast-stems.
 
-    Reads ``config/acceptance/FAST_CONFIGS.txt`` when present (local checkout with
-    acceptance tree). Otherwise reads tracked ``config/ci/acceptance_fast_stems.txt``
-    so CI and fresh clones still get a defined fast matrix.
+    Reads ``config/acceptance/FAST_CONFIGS.txt`` when present (tracked in Git).
+    If that file is missing or empty, reads optional local
+    ``config/ci/acceptance_fast_stems.txt`` (gitignored; see ``config/ci/README.md``).
 
     One stem per line; ``#`` comments and blank lines ignored. Stem = filename without
     extension (e.g. ``acceptance_planet_money_ml_dev``).
@@ -291,10 +291,10 @@ def load_fast_config_stems() -> set[str]:
 
 
 def resolve_yaml_paths_from_stems(stems: set[str]) -> List[Path]:
-    """Map each stem to an existing YAML path (acceptance full dir, then examples).
+    """Map each stem to an existing YAML path (acceptance dir, then examples).
 
-    Used for CI / clones without ``config/acceptance/full/``: multi-feed preset may
-    live only under ``config/examples/``.
+    Prefer ``config/acceptance/<stem>.yaml``; ``config/examples/`` is a legacy
+    fallback for stems that still ship a second copy there.
 
     Args:
         stems: Config file stems (no ``.yaml``).
@@ -303,18 +303,18 @@ def resolve_yaml_paths_from_stems(stems: set[str]) -> List[Path]:
         Sorted list of paths that exist. Stems with no file log a warning and are skipped.
     """
     project_root = Path(__file__).parent.parent.parent
-    full_dir = project_root / "config" / "acceptance" / "full"
+    acceptance_dir = project_root / "config" / "acceptance"
     examples_dir = project_root / "config" / "examples"
     out: List[Path] = []
     for stem in sorted(stems):
-        for base in (full_dir, examples_dir):
+        for base in (acceptance_dir, examples_dir):
             candidate = base / f"{stem}.yaml"
             if candidate.is_file():
                 out.append(candidate)
                 break
         else:
             logger.warning(
-                "Fast stem %r: no %s.yaml under config/acceptance/full or config/examples",
+                "Fast stem %r: no %s.yaml under config/acceptance or config/examples",
                 stem,
                 stem,
             )
@@ -403,9 +403,14 @@ def modify_config_for_fixtures(
 
     if use_fixtures and e2e_server:
         # Multi-feed: replace external URLs with distinct local fixture feeds (hash isolation).
+        # podcast1..podcast5 map to E2E RSS fixtures p01..p05
+        # (see tests/e2e/fixtures/e2e_http_server.py).
         fixture_feed_urls = [
-            e2e_server.urls.feed("podcast1_with_transcript"),
-            e2e_server.urls.feed("podcast1_multi_episode"),
+            e2e_server.urls.feed("podcast1"),
+            e2e_server.urls.feed("podcast2"),
+            e2e_server.urls.feed("podcast3"),
+            e2e_server.urls.feed("podcast4"),
+            e2e_server.urls.feed("podcast5"),
         ]
 
         def _replace_external_feed_urls(urls: list) -> list:
@@ -1882,7 +1887,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         default=None,
         help=(
             "Config file glob pattern, or multiple space-separated globs "
-            "(e.g. 'config/acceptance/full/*.yaml'). Not required with --from-fast-stems."
+            "(e.g. 'config/acceptance/*.yaml'). Not required with --from-fast-stems."
         ),
     )
     parser.add_argument(
@@ -1977,7 +1982,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         default=False,
         help=(
             "After resolving --configs globs, keep only stems listed in "
-            "config/acceptance/FAST_CONFIGS.txt or config/ci/acceptance_fast_stems.txt."
+            "config/acceptance/FAST_CONFIGS.txt (or optional local "
+            "config/ci/acceptance_fast_stems.txt)."
         ),
     )
     parser.add_argument(
@@ -1986,8 +1992,9 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         default=False,
         help=(
             "Ignore --configs; run YAMLs for each fast stem, resolving "
-            "config/acceptance/full/<stem>.yaml or config/examples/<stem>.yaml. "
-            "Uses FAST_CONFIGS.txt when present, else config/ci/acceptance_fast_stems.txt. "
+            "config/acceptance/<stem>.yaml or config/examples/<stem>.yaml. "
+            "Uses FAST_CONFIGS.txt when present, else optional local "
+            "config/ci/acceptance_fast_stems.txt. "
             "Intended for CI / fixture smoke (pair with --use-fixtures)."
         ),
     )
@@ -2032,15 +2039,16 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         fast_stems = load_fast_config_stems()
         if not fast_stems:
             logger.error(
-                "No fast stems: add config/acceptance/FAST_CONFIGS.txt or ensure "
-                "config/ci/acceptance_fast_stems.txt exists in the repo."
+                "No fast stems: add or restore config/acceptance/FAST_CONFIGS.txt "
+                "(tracked), or create optional local config/ci/acceptance_fast_stems.txt "
+                "(see config/ci/README.md)."
             )
             sys.exit(1)
         config_files = resolve_yaml_paths_from_stems(fast_stems)
         if not config_files:
             logger.error(
                 "No YAML files resolved for fast stems (see warnings above). "
-                "Expected files under config/acceptance/full/ or config/examples/."
+                "Expected files under config/acceptance/ or config/examples/."
             )
             sys.exit(1)
         logger.info(
@@ -2063,7 +2071,8 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             if not fast_stems:
                 logger.warning(
                     "Fast stem list not found or empty; --fast-only has no effect. "
-                    "See config/acceptance/FAST_CONFIGS.txt or config/ci/acceptance_fast_stems.txt."
+                    "See config/acceptance/FAST_CONFIGS.txt or optional "
+                    "config/ci/acceptance_fast_stems.txt."
                 )
             else:
                 before = len(config_files)

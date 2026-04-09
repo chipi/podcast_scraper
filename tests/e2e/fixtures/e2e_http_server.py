@@ -931,7 +931,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "llama3.1:latest"},
                     {"name": "llama3.1:8b"},
                     {"name": "llama3:latest"},
-                    # Ollama models for full acceptance configs (config/acceptance/full/, *ollama*)
+                    # Ollama models for full acceptance configs (config/acceptance/, *ollama*)
                     {"name": "mistral:7b"},
                     {"name": "mistral-nemo:12b"},
                     {"name": "mistral-small3.2:latest"},

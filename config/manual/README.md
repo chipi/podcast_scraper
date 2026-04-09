@@ -3,6 +3,9 @@
 YAML files here are for **human manual testing** (see
 [`docs/wip/manual-test-plan-gi-kg.md`](../../docs/wip/manual-test-plan-gi-kg.md)), not CI.
 
+**Git:** `*.yaml` under this folder is **gitignored** (like `config/acceptance/`). Only this
+`README.md` is versioned—keep your own copies or backups of presets you rely on.
+
 Most presets use the same **NPR Planet Money** RSS as most GI/KG acceptance configs:
 `https://feeds.npr.org/510289/podcast.xml`. **Multi-feed** presets add **The Journal** (WSJ) in one corpus; see the table below.
 
@@ -59,6 +62,6 @@ Provider keys: `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEE
 ## Related acceptance configs
 
 For provider matrices and CI-style runs, see [`config/acceptance/README.md`](../acceptance/README.md).
-Examples: `config/acceptance/full/acceptance_planet_money_openai.yaml` (full pipeline: summaries,
+Examples: `config/acceptance/acceptance_planet_money_openai.yaml` (full pipeline: summaries,
 GI, KG from summary bullets, semantic index). For mixed stacks or `provider`-mode GI/KG, use
 presets under `config/manual/` (see table above).

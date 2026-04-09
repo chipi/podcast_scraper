@@ -714,6 +714,35 @@ class TestValidationEdgeCases(unittest.TestCase):
         self.assertEqual(cfg.vector_faiss_index_mode, "flat")
         self.assertIn("MiniLM", cfg.vector_embedding_model)
 
+    def test_skip_auto_vector_index_defaults_false(self):
+        cfg = Config(rss_url="https://example.com/feed.xml")
+        self.assertFalse(cfg.skip_auto_vector_index)
+
+    def test_skip_auto_vector_index_can_enable(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            skip_auto_vector_index=True,
+        )
+        self.assertTrue(cfg.skip_auto_vector_index)
+
+    def test_vector_index_path_optional_relative(self):
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            vector_index_path="indexes/semantic",
+        )
+        self.assertEqual(cfg.vector_index_path, "indexes/semantic")
+
+    def test_append_with_skip_existing_allowed(self):
+        """Append/resume stack may combine with skip_existing (GitHub #444)."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            append=True,
+            skip_existing=True,
+            clean_output=False,
+        )
+        self.assertTrue(cfg.append)
+        self.assertTrue(cfg.skip_existing)
+
     def test_evidence_stack_fields_defaults(self):
         """Test that GIL evidence stack config fields exist with defaults (Issue #435)."""
         cfg = Config(rss_url="https://example.com/feed.xml")

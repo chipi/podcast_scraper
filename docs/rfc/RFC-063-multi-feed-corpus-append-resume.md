@@ -28,7 +28,7 @@
   - [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) — normative `corpus_manifest.json` / `corpus_run_summary.json` (#506)
   - `docs/architecture/ARCHITECTURE.md` — multi-feed outer loop documented (GitHub #440)
   - `docs/architecture/TESTING_STRATEGY.md` — new test tiers as needed
-  - `config/examples/acceptance_multi_feed_planet_money_journal_openai.yaml` — tracked full-pipeline acceptance preset (Planet Money + The Journal, OpenAI); `USE_FIXTURES=1` rewrites `feeds:` to local E2E fixture URLs (may be copied to `config/acceptance/full/` locally)
+  - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` — full-pipeline acceptance preset (Planet Money + The Journal, OpenAI; local under `config/acceptance/`); `USE_FIXTURES=1` rewrites `feeds:` to local E2E fixture URLs
   - `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` — manual validation preset (same feeds, `max_episodes: 1`)
 
 ## Abstract

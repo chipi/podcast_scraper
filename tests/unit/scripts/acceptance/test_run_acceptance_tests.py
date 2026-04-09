@@ -115,9 +115,9 @@ class TestFilterFastConfigs:
         """Only configs whose stem is in fast_stems are kept."""
         fast_stems = {"acceptance_planet_money_ml_prod", "acceptance_planet_money_ml_dev"}
         configs = [
-            Path("config/acceptance/full/acceptance_planet_money_ml_prod.yaml"),
-            Path("config/acceptance/full/acceptance_planet_money_openai.yaml"),
-            Path("config/acceptance/full/acceptance_planet_money_ml_dev.yaml"),
+            Path("config/acceptance/acceptance_planet_money_ml_prod.yaml"),
+            Path("config/acceptance/acceptance_planet_money_openai.yaml"),
+            Path("config/acceptance/acceptance_planet_money_ml_dev.yaml"),
         ]
         out = filter_fast_configs(configs, fast_stems)
         assert len(out) == 2
