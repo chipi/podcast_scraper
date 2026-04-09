@@ -1068,9 +1068,9 @@ class SummaryModel:
 
     def _load_model_pegasus_sanity_and_clear_config(self) -> None:
         """Run Pegasus sanity check and clear max_new_tokens from generation config."""
-        import torch
-
         if "pegasus" in self.model_name.lower() and hasattr(self, "_pegasus_health_checks"):
+            import torch
+
             try:
                 test_summary = self.summarize(
                     "This is a test sentence for model verification.",

@@ -1,8 +1,11 @@
 """Exercise SummaryModel._load_model branches that unpack kwargs via cast(Any, ...) (mypy).
 
 Installs a stub ``transformers`` module so ``@patch("transformers.X.from_pretrained")``
-resolves without the real package.  ``_detect_device`` is patched to avoid the hard
-``import torch`` that the real method performs.
+resolves without the real package. ``_detect_device`` and
+``_load_model_move_to_device_and_pipeline`` are patched so CI (no ``torch``) never runs
+auto-detect or pipeline creation; production
+code avoids eager ``import torch`` on non-Pegasus paths after ``_load_model`` (see
+``_load_model_pegasus_sanity_and_clear_config``).
 """
 
 from __future__ import annotations
