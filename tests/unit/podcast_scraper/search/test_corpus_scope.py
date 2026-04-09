@@ -23,3 +23,9 @@ def test_discover_metadata_files_merges_parent_metadata_when_feeds_present(tmp_p
     found = discover_metadata_files(root)
     names = sorted(p.name for p in found)
     assert names == ["ep1.metadata.json", "legacy.metadata.json"]
+
+
+@pytest.mark.unit
+def test_discover_metadata_files_rejects_traversal_in_root(tmp_path: Path) -> None:
+    """User roots with ``..`` segments yield no metadata (path hardening)."""
+    assert discover_metadata_files(tmp_path / "x" / ".." / "y") == []

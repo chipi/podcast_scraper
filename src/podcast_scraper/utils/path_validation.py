@@ -118,3 +118,36 @@ def validate_path_is_safe(
         return True
 
     return False
+
+
+def safe_resolve_directory(path: Path) -> Optional[Path]:
+    """Resolve a directory path for local corpus use; reject traversal and null bytes.
+
+    Used as a CodeQL anchor before joining or globbing under a user-provided root.
+    """
+    try:
+        candidate = path.expanduser()
+    except (OSError, RuntimeError):
+        return None
+    if "\x00" in str(candidate):
+        return None
+    if any(part == ".." for part in candidate.parts):
+        return None
+    try:
+        return candidate.resolve()
+    except (OSError, RuntimeError):
+        return None
+
+
+def is_resolved_path_under_root(candidate: Path, root: Path) -> bool:
+    """Return True if ``candidate.resolve()`` lies under ``root.resolve()`` (or equals it)."""
+    try:
+        resolved_candidate = candidate.resolve()
+        resolved_root = root.resolve()
+    except (OSError, RuntimeError):
+        return False
+    try:
+        resolved_candidate.relative_to(resolved_root)
+        return True
+    except ValueError:
+        return False

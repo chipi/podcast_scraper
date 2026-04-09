@@ -21,6 +21,7 @@ import unittest
 import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -2625,7 +2626,7 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
 
     def test_attach_llm_cleaning_models_openai_hybrid(self):
         """_attach_llm_cleaning_models_to_summarization_info writes openai_cleaning_model."""
-        info: dict = {"provider": "openai"}
+        info: dict[str, Any] = {"provider": "openai"}
         cfg = SimpleNamespace(
             transcript_cleaning_strategy="hybrid",
             summary_provider="openai",

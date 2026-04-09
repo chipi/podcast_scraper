@@ -161,7 +161,8 @@ warn_unused_configs = true
 # Ignore attr-defined errors for Episode, RssFeed, TranscriptionJob dataclass attributes
 # These are false positives - attributes exist at runtime but mypy doesn't recognize them
 # when imported via TYPE_CHECKING pattern
-disable_error_code = ["attr-defined"]
+# annotation-unchecked: bare ``dict`` / untyped bodies in tests; CI treats notes as errors.
+disable_error_code = ["attr-defined", "annotation-unchecked"]
 exclude = [
     "^scripts/.*",  # Scripts use sys.path manipulation, exclude from mypy
     "^tools/.*",  # Standalone Streamlit tools (not part of src package)

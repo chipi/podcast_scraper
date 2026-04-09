@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional
 
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
+from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 ArtifactKind = Literal["gi", "kg"]
 
@@ -170,7 +171,9 @@ def corpus_search_parent_hint(listed_root: Path) -> List[str]:
     except ImportError:
         return []
 
-    root = listed_root.expanduser().resolve()
+    root = safe_resolve_directory(listed_root)
+    if root is None:
+        return []
     if (root / "search" / VECTORS_FILE).is_file():
         return []
 

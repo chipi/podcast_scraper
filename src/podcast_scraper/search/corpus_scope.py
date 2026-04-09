@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Any, List, Optional
 
 from podcast_scraper.utils import filesystem
+from podcast_scraper.utils.path_validation import (
+    is_resolved_path_under_root,
+    safe_resolve_directory,
+)
 
 
 def normalize_feed_id(feed_id: Any) -> Optional[str]:
@@ -54,22 +58,31 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
     Hybrid layout: if ``feeds/`` exists **and** top-level ``metadata/`` exists, both are
     included (GitHub #505 follow-up).
     """
+    corpus_root = safe_resolve_directory(output_root)
+    if corpus_root is None:
+        return []
+
     patterns = ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml")
     found: List[Path] = []
 
     def _extend_from_meta_dir(meta_dir: Path) -> None:
+        if not is_resolved_path_under_root(meta_dir, corpus_root):
+            return
         if not meta_dir.is_dir():
             return
         for pat in patterns:
-            found.extend(meta_dir.glob(pat))
+            for hit in meta_dir.glob(pat):
+                if hit.is_file() and is_resolved_path_under_root(hit, corpus_root):
+                    found.append(hit)
 
-    if (output_root / "feeds").is_dir():
-        for meta_dir in output_root.rglob("metadata"):
+    feeds_dir = corpus_root / "feeds"
+    if feeds_dir.is_dir():
+        for meta_dir in corpus_root.rglob("metadata"):
             if meta_dir.is_dir():
                 _extend_from_meta_dir(meta_dir)
         # Corpus parent may also hold legacy or auxiliary metadata beside feeds/
-        _extend_from_meta_dir(output_root / filesystem.METADATA_SUBDIR)
+        _extend_from_meta_dir(corpus_root / filesystem.METADATA_SUBDIR)
     else:
-        _extend_from_meta_dir(output_root / filesystem.METADATA_SUBDIR)
+        _extend_from_meta_dir(corpus_root / filesystem.METADATA_SUBDIR)
 
     return sorted({p.resolve() for p in found})
