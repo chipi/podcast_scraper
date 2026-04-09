@@ -130,6 +130,36 @@ class TestCLISubprocessE2E:
         assert len(transcript_files) > 0, "Transcript files should be created"
 
     @pytest.mark.critical_path
+    def test_cli_multi_feed_via_subprocess_440(self, e2e_server, tmp_path, project_root):
+        """Subprocess entrypoint: two Path-1 feeds, corpus under ``feeds/`` (GitHub #440)."""
+        u1 = e2e_server.urls.feed("podcast1_with_transcript")
+        u2 = e2e_server.urls.feed("podcast9_solo")
+        corpus = tmp_path / "corpus_subprocess_440"
+        result = run_cli_subprocess(
+            [
+                u1,
+                "--rss",
+                u2,
+                "--output-dir",
+                str(corpus),
+                "--max-episodes",
+                "1",
+                "--no-auto-speakers",
+            ],
+            cwd=project_root,
+        )
+        assert result.returncode == 0, (
+            f"multi-feed subprocess failed rc={result.returncode} "
+            f"stderr={result.stderr!r} stdout={result.stdout!r}"
+        )
+        feeds = corpus / "feeds"
+        assert feeds.is_dir(), f"expected {feeds}"
+        subdirs = [p for p in feeds.iterdir() if p.is_dir()]
+        assert len(subdirs) == 2, f"expected two feed dirs, got {[p.name for p in subdirs]}"
+        txt_files = list(corpus.rglob("*.txt"))
+        assert len(txt_files) >= 2, "each feed should write at least one transcript"
+
+    @pytest.mark.critical_path
     def test_cli_full_features_path1_via_subprocess(self, e2e_server, tmp_path, project_root):
         """Test Path 1 (transcript exists) with all features via CLI subprocess.
 

@@ -1,7 +1,10 @@
 # PRD-020: Audio-Based Speaker Diarization & Commercial Content Cleaning
 
 - **Status**: Draft
-- **Related RFCs**: RFC-058, RFC-059, RFC-060
+- **Related RFCs**:
+  - [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) — audio-based speaker diarization (**open**)
+  - [RFC-059](../rfc/RFC-059-speaker-detection-refactor-test-audio.md) — speaker detection refactor & test audio (**open**)
+  - [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) — multi-signal commercial detection & cleaning (**open**; Phase 2 diarization tie-in pending)
 - **Supersedes non-goals in**: PRD-008
 
 ## Summary

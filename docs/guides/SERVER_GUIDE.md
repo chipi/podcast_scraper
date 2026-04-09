@@ -11,6 +11,10 @@ The server exposes corpus artifacts, semantic search, and GI explore
 through a JSON API consumed by the Vue 3 SPA
 ([`web/gi-kg-viewer/`][viewer-readme]).
 
+**Repo layout:** Python at the root, Node UI in `web/gi-kg-viewer/`. See
+[Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env files and Makefile targets (`make serve`,
+`make test-ui`, etc.).
+
 The server was introduced by
 [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
 [`src/podcast_scraper/server/`][server-pkg].
@@ -277,9 +281,10 @@ All test files guard on `pytest.importorskip("fastapi")` so they are
 skipped when the `[server]` extra is not installed.
 Tests use `FastAPI`'s synchronous `TestClient` and `tmp_path` fixtures.
 
-Run them with:
+Run them with (requires **`[server]`** so tests are not skipped):
 
 ```bash
+pip install -e '.[dev,server]'   # if needed
 make test-unit -k server
 ```
 
@@ -318,6 +323,11 @@ make test-ui-e2e
 
 This target installs npm dependencies, installs the Firefox browser, and
 runs `npm run test:e2e` inside `web/gi-kg-viewer/`.
+
+**CI vs `serve`:** Playwright in CI runs the SPA on **Vite** with **mocked or spec-level `/api/*`**
+handling — fast and deterministic. It is **not** a substitute for smoke-testing **`cli serve`**
+(or **`make serve`**), where FastAPI serves **built `dist/`** and **real** viewer APIs against a
+corpus. See [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2).
 
 See the [E2E Testing Guide](E2E_TESTING_GUIDE.md) and
 [Testing Guide](TESTING_GUIDE.md) for more detail.

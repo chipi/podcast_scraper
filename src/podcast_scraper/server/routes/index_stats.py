@@ -1,4 +1,4 @@
-"""GET /api/index/stats — FAISS vector index metrics (RFC-062 M3)."""
+"""GET /api/index/stats — FAISS vector index metrics (RFC-062)."""
 
 from __future__ import annotations
 

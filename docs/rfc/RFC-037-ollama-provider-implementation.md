@@ -1,6 +1,6 @@
 # RFC-037: Ollama Provider Implementation (Revised)
 
-- **Status**: ✅ Completed (v2.5.0)
+- **Status**: Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -79,7 +79,7 @@ Ollama provides an OpenAI-compatible API:
 | **Base URL** | `https://api.openai.com/v1` | `http://localhost:11434/v1` |
 | **API Key** | Required | Not required (local) |
 | **SDK** | `openai` | `openai` (with custom base_url) |
-| **Audio API** | ✅ Whisper | ❌ Not available |
+| **Audio API** | Yes — Whisper | No — Not available |
 | **Pricing** | Per token | **Free** |
 | **Rate Limits** | Yes | **No** |
 | **Provider Pattern** | Unified (`OpenAIProvider`) | Unified (`OllamaProvider`) |
@@ -363,13 +363,13 @@ class OllamaProvider:
         except ImportError:
             raise ImportError(
                 "openai package required for Ollama provider. "
-                "Install with: pip install 'podcast-scraper[openai]'"
+                "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             )
 
         if httpx is None:
             raise ImportError(
                 "httpx package required for Ollama provider (for health checks). "
-                "Install with: pip install 'podcast-scraper[ollama]'"
+                "Install with: pip install -e '.[llm]' (httpx is in the llm extra)"
             )
 
         self.cfg = cfg
@@ -947,22 +947,22 @@ Same pattern as OpenAI provider:
 
 ## Success Criteria
 
-1. ✅ Ollama supports speaker detection and summarization via unified provider
-2. ✅ Clear error when attempting transcription with Ollama
-3. ✅ Clear error when Ollama server is not running
-4. ✅ Clear error when model is not installed
-5. ✅ Works completely offline
-6. ✅ Zero API costs
-7. ✅ E2E tests pass
-8. ✅ Experiment mode supported from start
-9. ✅ Environment-based model defaults (test vs prod)
-10. ✅ Follows OpenAI provider pattern exactly
+1. Ollama supports speaker detection and summarization via unified provider
+2. Clear error when attempting transcription with Ollama
+3. Clear error when Ollama server is not running
+4. Clear error when model is not installed
+5. Works completely offline
+6. Zero API costs
+7. E2E tests pass
+8. Experiment mode supported from start
+9. Environment-based model defaults (test vs prod)
+10. Follows OpenAI provider pattern exactly
 
 ## Migration Notes
 
 - **Breaking Changes**: None (new provider, backward compatible)
 - **Configuration**: Set `OLLAMA_API_BASE` environment variable if using remote Ollama server
-- **Dependencies**: Install with `pip install 'podcast-scraper[ollama]'` (adds httpx)
+- **Dependencies**: Install with `pip install -e ".[llm]"` (adds httpx for health checks; OpenAI SDK is core)
 - **Prerequisites**: Ollama must be installed and running locally
 
 ## References

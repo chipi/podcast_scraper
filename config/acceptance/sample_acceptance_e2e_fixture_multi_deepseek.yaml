@@ -1,0 +1,40 @@
+# Sample acceptance: multi-feed (5 feeds), DeepSeek LLM + OpenAI Whisper (E2E mock RSS).
+# Feed URLs are placeholders — not fetched. USE_FIXTURES=1 maps slots to podcast1..podcast5 (p01..p05).
+# Peer to acceptance_multi_feed_planet_money_journal_deepseek.yaml; same provider block.
+# max_episodes: 5 per feed — safe default if copied to real RSS (fixtures have 3 items each).
+#
+# Run:
+#   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_deepseek.yaml" USE_FIXTURES=1
+#
+# Requires: OPENAI_API_KEY (Whisper), DEEPSEEK_API_KEY
+
+feeds:
+  - https://example.invalid/e2e-placeholder-feed-p01.xml
+  - https://example.invalid/e2e-placeholder-feed-p02.xml
+  - https://example.invalid/e2e-placeholder-feed-p03.xml
+  - https://example.invalid/e2e-placeholder-feed-p04.xml
+  - https://example.invalid/e2e-placeholder-feed-p05.xml
+
+output_dir: .test_outputs/acceptance/sample_e2e_multi_deepseek
+max_episodes: 5
+
+transcription_provider: openai
+speaker_detector_provider: deepseek
+summary_provider: deepseek
+
+openai_transcription_model: whisper-1
+deepseek_speaker_model: deepseek-chat
+deepseek_summary_model: deepseek-chat
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

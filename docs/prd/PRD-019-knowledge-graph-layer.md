@@ -1,10 +1,11 @@
 # PRD-019: Knowledge Graph Layer (KG)
 
-- **Status**: 📋 Draft
+- **Status**: Partially implemented (v2.6.0)
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**:
-  - RFC-055 (Knowledge Graph — Core Concepts & Data Model)
-  - RFC-056 (Knowledge Graph — Use Cases & End-to-End Consumption)
+- **Related RFCs** (RFCs whose **Related PRD** is PRD-019 in [RFC index](../rfc/index.md); they specify or ship this feature):
+  - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core & artifacts (**complete**)
+  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — Use cases & consumption (**open**)
+  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer (KG graph/search surfaces) (**complete**)
 - **Related PRDs** (reference only; separate features):
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) (GI / GIL — evidence-first insights and quotes)
   - [PRD-018: Database Projection](PRD-018-database-projection-gil-kg.md) (Postgres projection for **GIL and KG** — RFC-051)
@@ -23,6 +24,16 @@ The **Knowledge Graph Layer (KG)** is a **separate product feature** from the **
 **KG** answers: *“What entities and relationships can we extract or infer from this corpus?”*
 
 Both features may consume the same upstream artifacts (transcripts, metadata, speaker signals) but **must remain independently toggleable** and **must not share the same primary artifact contract** (`gi.json` is reserved for GIL; KG defines its own storage and schema per RFC-055).
+
+**Implementation status (v2.6.0 — partial):** Shared ML prerequisites
+[RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md),
+[RFC-044](../rfc/RFC-044-model-registry.md), and
+[RFC-052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md) are **done**. KG **core**
+[RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) is **done** (artifacts, frozen ontology/schema,
+`kg` CLI, guides). **Not done** for full PRD closure:
+[RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) (full consumption and use-case spec)
+and [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) / [PRD-018](PRD-018-database-projection-gil-kg.md)
+(relational projection).
 
 ## Background & Context
 

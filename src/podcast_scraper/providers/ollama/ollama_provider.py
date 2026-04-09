@@ -148,13 +148,13 @@ class OllamaProvider:
         if OpenAI is None:
             raise ImportError(
                 "openai package required for Ollama provider. "
-                "Install with: pip install 'podcast-scraper[openai]'"
+                "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             )
 
         if httpx is None:
             raise ImportError(
                 "httpx package required for Ollama provider (for health checks). "
-                "Install with: pip install 'podcast-scraper[ollama]'"
+                "Install with: pip install -e '.[llm]' (httpx is in the llm extra)"
             )
 
         self.cfg = cfg

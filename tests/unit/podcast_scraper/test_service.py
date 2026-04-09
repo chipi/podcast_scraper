@@ -8,6 +8,7 @@ HTTP mocking or E2E server - they're pure unit tests.
 
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -67,6 +68,7 @@ class TestServiceResult(unittest.TestCase):
         self.assertEqual(result.summary, "")
         self.assertTrue(result.success)  # Default is True
         self.assertIsNone(result.error)  # Default is None
+        self.assertIsNone(result.multi_feed_summary)
 
     def test_service_result_equality(self):
         """ServiceResult should support equality comparison."""
@@ -197,6 +199,72 @@ class TestServiceRun(unittest.TestCase):
         # However, Config might have defaults, so we just verify the run succeeded
         # and that apply_log_level was called or not based on actual config values
         # This test verifies the function works correctly regardless
+
+
+class TestServiceRunMultiFeed440(unittest.TestCase):
+    """service.run with rss_urls / feeds (GitHub #440)."""
+
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_multi_feed_calls_pipeline_per_url(self, mock_apply_log, mock_run_pipeline):
+        from podcast_scraper import config as cfg_mod
+
+        mock_run_pipeline.return_value = (1, "ok")
+        with tempfile.TemporaryDirectory() as corpus:
+            cfg = cfg_mod.Config(
+                rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                output_dir=corpus,
+                max_episodes=1,
+                user_agent="test",
+                timeout=30,
+            )
+            result = service_module.run(cfg)
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.episodes_processed, 2)
+        self.assertEqual(mock_run_pipeline.call_count, 2)
+        called_cfgs = [c.args[0] for c in mock_run_pipeline.call_args_list]
+        for sub in called_cfgs:
+            self.assertIsNone(sub.rss_urls)
+            self.assertIn(f"{os.sep}feeds{os.sep}", sub.output_dir or "")
+        urls_called = {c.rss_url for c in called_cfgs}
+        self.assertEqual(
+            urls_called,
+            {"https://a.example/feed.xml", "https://b.example/feed.xml"},
+        )
+        self.assertIsNotNone(result.multi_feed_summary)
+        self.assertEqual(result.multi_feed_summary.get("schema_version"), "1.0.0")
+        self.assertTrue(result.multi_feed_summary.get("overall_ok"))
+        self.assertEqual(len(result.multi_feed_summary.get("feeds") or []), 2)
+        mock_apply_log.assert_called_once()
+
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_multi_feed_partial_failure_returns_error(self, mock_apply_log, mock_run_pipeline):
+        from podcast_scraper import config as cfg_mod
+
+        def _side_effect(cfg):
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise ValueError("feed b failed")
+            return (1, "ok")
+
+        mock_run_pipeline.side_effect = _side_effect
+        with tempfile.TemporaryDirectory() as corpus:
+            cfg = cfg_mod.Config(
+                rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                output_dir=corpus,
+                max_episodes=1,
+                user_agent="test",
+                timeout=30,
+            )
+            result = service_module.run(cfg)
+
+        self.assertFalse(result.success)
+        self.assertEqual(result.episodes_processed, 1)
+        self.assertIsNotNone(result.error)
+        self.assertIn("feed b failed", result.error)
+        self.assertIsNotNone(result.multi_feed_summary)
+        self.assertFalse(result.multi_feed_summary.get("overall_ok"))
 
 
 class TestServiceRunFromConfigFile(unittest.TestCase):

@@ -1,9 +1,10 @@
 # PRD-014: Ollama Provider Integration
 
-- **Status**: ✅ Implemented (v2.5.0)
+- **Status**: Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
-- **Related RFCs**: RFC-037 (Revised)
+- **Related RFCs**:
+  - [RFC-037](../rfc/RFC-037-ollama-provider-implementation.md) — Ollama provider (**complete**) (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-013 (Grok)
 
 ## Summary
@@ -128,7 +129,7 @@ ollama_summary_user_prompt: str = Field(
 
 | Component | OpenAI (gpt-4o-mini) | DeepSeek | Grok | **Ollama** |
 | --------- | -------------------- | -------- | ---- | ---------- |
-| **Transcription** | $6.00 | ❌ N/A | ❌ N/A | ❌ N/A |
+| **Transcription** | $6.00 | No — N/A | No — N/A | No — N/A |
 | **Speaker Detection** | $1.40 | $0.04 | $0.06 | **$0.00** |
 | **Summarization** | $4.10 | $0.12 | $0.20 | **$0.00** |
 | **Total** | **$11.50** | **$0.16** | **$0.26** | **$0.00** |
@@ -246,25 +247,25 @@ For optimal Ollama performance:
 
 ## Success Criteria
 
-- ✅ Users can select Ollama provider for speaker detection and summarization via unified provider
-- ✅ Clear error when Ollama server is not running (with helpful instructions)
-- ✅ Clear error when model is not installed (with `ollama pull` command)
-- ✅ Works completely offline
-- ✅ Zero API costs
-- ✅ Environment-based model defaults (test vs production)
-- ✅ Both Config-based and experiment-based factory modes supported
-- ✅ E2E tests pass (with mock or real Ollama)
-- ✅ Follows OpenAI provider pattern exactly for consistency
+- Users can select Ollama provider for speaker detection and summarization via unified provider
+- Clear error when Ollama server is not running (with helpful instructions)
+- Clear error when model is not installed (with `ollama pull` command)
+- Works completely offline
+- Zero API costs
+- Environment-based model defaults (test vs production)
+- Both Config-based and experiment-based factory modes supported
+- E2E tests pass (with mock or real Ollama)
+- Follows OpenAI provider pattern exactly for consistency
 
 ## Provider Capability Matrix (Final)
 
 | Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ---------- | ----- | ------ | --------- | ------- | -------- | ------ | ---- | ------ |
-| **Transcription** | ✅ | ✅ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| **Speaker Detection** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Summarization** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Offline** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Zero Cost** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| **Transcription** | Yes | Yes | No | Yes | No | Yes | No | No |
+| **Speaker Detection** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Summarization** | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| **Offline** | Yes | No | No | No | No | No | No | Yes |
+| **Zero Cost** | Yes | No | No | No | No | No | No | Yes |
 
 ## Prerequisites
 

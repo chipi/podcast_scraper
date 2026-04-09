@@ -1,6 +1,6 @@
 # RFC-036: Grok Provider Implementation (xAI)
 
-- **Status**: ✅ Completed (v2.5.0)
+- **Status**: Completed (v2.5.0)
 - **Revision**: 3
 - **Date**: 2026-02-05
 - **Implementation**: Issue #1095
@@ -75,11 +75,11 @@ Requirements:
 | ------- | ------ | --------- |
 | **Base URL** | `https://api.openai.com/v1` | `https://api.x.ai/v1` (OpenAI-compatible) |
 | **SDK** | `openai` | `openai` (with custom base_url) |
-| **Audio API** | ✅ Whisper | ❌ Not available |
+| **Audio API** | Yes — Whisper | No — Not available |
 | **Speed** | ~100 tokens/sec | Verify with API testing |
 | **Models** | Proprietary | Grok models (`grok-beta`, `grok-2` - verify with your API) |
 | **Provider Pattern** | Unified (`OpenAIProvider`) | Unified (`GrokProvider`) |
-| **Real-time Info** | ❌ | ✅ (via X/Twitter integration) |
+| **Real-time Info** | No | Yes — (via X/Twitter integration) |
 
 ### 1. Architecture Overview
 
@@ -370,7 +370,7 @@ class GrokProvider:
         except ImportError:
             raise ImportError(
                 "openai package required for Grok provider. "
-                "Install with: pip install 'podcast-scraper[openai]'"
+                "Install the project (OpenAI SDK is a core dependency), e.g. pip install -e ."
             )
 
         if not cfg.grok_api_key:
@@ -921,15 +921,15 @@ Same pattern as OpenAI provider:
 
 ## Success Criteria
 
-1. ✅ Grok supports speaker detection and summarization via unified provider
-2. ✅ Clear error when attempting transcription with Grok
-3. ✅ API integration works (OpenAI-compatible or xAI SDK)
-4. ✅ Free tier works for development (if available)
-5. ✅ Minimal new dependencies
-6. ✅ E2E tests pass
-7. ✅ Experiment mode supported from start
-8. ✅ Environment-based model defaults (test vs prod)
-9. ✅ Follows OpenAI provider pattern exactly
+1. Grok supports speaker detection and summarization via unified provider
+2. Clear error when attempting transcription with Grok
+3. API integration works (OpenAI-compatible or xAI SDK)
+4. Free tier works for development (if available)
+5. Minimal new dependencies
+6. E2E tests pass
+7. Experiment mode supported from start
+8. Environment-based model defaults (test vs prod)
+9. Follows OpenAI provider pattern exactly
 
 ## Migration Notes
 
@@ -941,15 +941,15 @@ Same pattern as OpenAI provider:
 
 Before implementation, verify the following with your xAI API access:
 
-1. ✅ **API Availability**: Grok API is publicly available (you have access)
-2. ✅ **Base URL**: `https://api.x.ai/v1` (OpenAI-compatible endpoint)
-3. ✅ **API Compatibility**: OpenAI-compatible (uses OpenAI SDK with custom base_url)
+1. **API Availability**: Grok API is publicly available (you have access)
+2. **Base URL**: `https://api.x.ai/v1` (OpenAI-compatible endpoint)
+3. **API Compatibility**: OpenAI-compatible (uses OpenAI SDK with custom base_url)
 4. ⚠️ **Model Names**: Verify actual model names with your API (likely `grok-beta`, `grok-2`)
 5. ⚠️ **Pricing**: Verify pricing at <https://console.x.ai> or <https://docs.x.ai>
 6. ⚠️ **Free Tier**: Check your xAI account dashboard for free tier availability and limits
 7. ⚠️ **Rate Limits**: Check your xAI account dashboard for rate limits
 8. ⚠️ **Context Window**: Verify context window size (likely 128k, but confirm)
-9. ✅ **SDK**: Uses OpenAI SDK (no xAI-specific SDK needed)
+9. **SDK**: Uses OpenAI SDK (no xAI-specific SDK needed)
 
 ## References
 

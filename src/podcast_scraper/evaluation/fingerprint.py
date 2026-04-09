@@ -203,7 +203,8 @@ def _get_device_name(device: Optional[str]) -> Optional[str]:
             import torch
 
             if torch.cuda.is_available():
-                return torch.cuda.get_device_name(0)
+                # torch stubs use ``Any`` for get_device_name; coerce for no-any-return.
+                return str(torch.cuda.get_device_name(0))
         except ImportError:
             pass
         return "CUDA (unknown device)"

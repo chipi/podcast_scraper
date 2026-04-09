@@ -34,11 +34,17 @@ import logging
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 from . import __version__, config
+from .utils import filesystem
 from .utils.log_redaction import redact_for_log
 from .workflow import orchestration as workflow
+from .workflow.corpus_operations import (
+    finalize_multi_feed_batch,
+    MultiFeedFeedResult,
+    utc_iso_now,
+)
 from .workflow.stages import setup
 
 logger = logging.getLogger(__name__)
@@ -53,12 +59,94 @@ class ServiceResult:
         summary: Human-readable summary message
         success: Whether the run completed successfully
         error: Error message if success is False, None otherwise
+        multi_feed_summary: When ``run`` used multi-feed mode (two or more ``rss_urls``),
+            the same JSON-shaped dict as ``corpus_run_summary.json`` at the corpus parent
+            (GitHub #506). ``None`` for single-feed runs and for top-level failures before
+            multi-feed finalize.
     """
 
     episodes_processed: int
     summary: str
     success: bool = True
     error: Optional[str] = None
+    multi_feed_summary: Optional[Dict[str, Any]] = None
+
+
+def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
+    """Run one pipeline per feed under ``output_dir/feeds/…`` (GitHub #440).
+
+    Per-feed failures are isolated: other feeds still run; ``success`` is False if any fail.
+    After the batch, writes manifest/summary (#506) and builds a parent vector index when
+    ``vector_search`` and FAISS are enabled (#505).
+    """
+    from podcast_scraper.utils.corpus_lock import corpus_parent_lock
+
+    total = 0
+    ok_parts: List[str] = []
+    err_parts: List[str] = []
+    parent = cfg.output_dir or ""
+    batch: List[MultiFeedFeedResult] = []
+    skip_auto = cfg.vector_search is True and getattr(cfg, "vector_backend", "faiss") == "faiss"
+
+    try:
+        with corpus_parent_lock(Path(parent), logger=logger):
+            for url in feed_urls:
+                child_dir = filesystem.corpus_feed_output_dir(parent, url)
+                sub_cfg = cfg.model_copy(
+                    update={
+                        "rss_url": url,
+                        "output_dir": child_dir,
+                        "rss_urls": None,
+                        "skip_auto_vector_index": skip_auto,
+                    },
+                )
+                try:
+                    count, summary = workflow.run_pipeline(sub_cfg)
+                    total += count
+                    ok_parts.append(f"{url}: {summary}")
+                    batch.append(
+                        MultiFeedFeedResult(url, True, None, int(count), finished_at=utc_iso_now())
+                    )
+                except Exception as exc:
+                    msg = redact_for_log(str(exc))
+                    logger.error("Multi-feed: feed failed url=%s err=%s", url, msg, exc_info=True)
+                    err_parts.append(f"{url}: {msg}")
+                    batch.append(MultiFeedFeedResult(url, False, msg, 0, finished_at=utc_iso_now()))
+
+            template = cfg.model_copy(
+                update={
+                    "output_dir": parent,
+                    "rss_url": feed_urls[0],
+                    "rss_urls": None,
+                    "skip_auto_vector_index": False,
+                }
+            )
+            summary_doc = finalize_multi_feed_batch(parent, template, batch)
+    except RuntimeError as exc:
+        return ServiceResult(
+            episodes_processed=0,
+            summary=str(exc),
+            success=False,
+            error=str(exc),
+            multi_feed_summary=None,
+        )
+
+    if err_parts:
+        summary_text = "\n".join(ok_parts + ["", "Failures:", *err_parts])
+        return ServiceResult(
+            episodes_processed=total,
+            summary=summary_text,
+            success=False,
+            error="; ".join(err_parts),
+            multi_feed_summary=summary_doc,
+        )
+    return ServiceResult(
+        episodes_processed=total,
+        summary="\n".join(ok_parts),
+        success=True,
+        error=None,
+        multi_feed_summary=summary_doc,
+    )
 
 
 def run(cfg: config.Config) -> ServiceResult:
@@ -66,6 +154,10 @@ def run(cfg: config.Config) -> ServiceResult:
 
     This is the main entry point for programmatic use. It executes the full pipeline
     and returns a structured result suitable for service/daemon use.
+
+    When ``cfg.rss_urls`` contains two or more URLs (e.g. from YAML ``feeds:``), runs one
+    pipeline per feed under ``output_dir/feeds/<stable_name>/`` (GitHub #440), same layout as
+    the multi-feed CLI.
 
     Args:
         cfg: Configuration object (can be created from Config() or Config(**load_config_file()))
@@ -90,7 +182,10 @@ def run(cfg: config.Config) -> ServiceResult:
                 log_file=cfg.log_file,
             )
 
-        # Run the pipeline
+        multi_urls = list(cfg.rss_urls or [])
+        if len(multi_urls) >= 2:
+            return _run_multi_feed(cfg, multi_urls)
+
         count, summary = workflow.run_pipeline(cfg)
 
         return ServiceResult(

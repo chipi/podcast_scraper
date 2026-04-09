@@ -41,8 +41,8 @@ Requirements:
 
 **Constraints:**
 
-- **Prerequisite**: Modularization refactoring (RFC-021) ✅ Completed
-- **Prerequisite**: OpenAI provider implementation (RFC-013) ✅ Completed
+- **Prerequisite**: Modularization refactoring (RFC-021) Completed
+- **Prerequisite**: OpenAI provider implementation (RFC-013) Completed
 - **Backward Compatibility**: Default providers (local) must remain unchanged
 - **API Key Security**: API keys must never be in source code or committed files
 - **Capability Gap**: Anthropic does not support audio transcription
@@ -65,7 +65,7 @@ Anthropic's API differs from OpenAI in several ways:
 | Feature | OpenAI | Anthropic |
 | ------- | ------ | --------- |
 | **Chat Endpoint** | `/v1/chat/completions` | `/v1/messages` |
-| **Audio API** | ✅ Whisper API | ❌ Not available |
+| **Audio API** | Yes — Whisper API | No — Not available |
 | **Context Window** | 128k tokens | 200k tokens |
 | **Temperature Range** | 0.0 - 2.0 | 0.0 - 1.0 |
 | **System Message** | In messages array | Separate `system` parameter |
@@ -346,7 +346,7 @@ class AnthropicProvider:
         if Anthropic is None:
             raise ImportError(
                 "anthropic package required for Anthropic provider. "
-                "Install with: pip install 'podcast-scraper[anthropic]'"
+                "Install with: pip install -e '.[llm]' (anthropic is in the llm extra)"
             )
 
         if not cfg.anthropic_api_key:
@@ -871,19 +871,19 @@ Same pattern as OpenAI provider:
 
 ## Success Criteria
 
-1. ✅ Anthropic supports speaker detection and summarization via unified provider
-2. ✅ Clear error when attempting transcription with Anthropic
-3. ✅ Free tier works for development (Haiku model)
-4. ✅ E2E tests pass
-5. ✅ Experiment mode supported from start
-6. ✅ Environment-based model defaults (test vs prod)
-7. ✅ Follows OpenAI provider pattern exactly
+1. Anthropic supports speaker detection and summarization via unified provider
+2. Clear error when attempting transcription with Anthropic
+3. Free tier works for development (Haiku model)
+4. E2E tests pass
+5. Experiment mode supported from start
+6. Environment-based model defaults (test vs prod)
+7. Follows OpenAI provider pattern exactly
 
 ## Migration Notes
 
 - **Breaking Changes**: None (new provider, backward compatible)
 - **Configuration**: Add `ANTHROPIC_API_KEY` to `.env` file
-- **Dependencies**: Install with `pip install 'podcast-scraper[anthropic]'`
+- **Dependencies**: Install with `pip install -e ".[llm]"` (anthropic SDK is in the `llm` extra)
 
 ## References
 

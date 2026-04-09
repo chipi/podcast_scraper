@@ -329,6 +329,9 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Mapping: podcast name -> RSS filename
     PODCAST_RSS_MAP = {
         "podcast1": "p01_mtb.xml",
+        # Same RSS as podcast1; use this slug when fast-fixture mode must not swap p01 → p01_fast
+        # (e.g. acceptance runner multi-feed slot 0 — end-user samples stay generic 5 placeholders).
+        "podcast1_mtb": "p01_mtb.xml",
         "podcast2": "p02_software.xml",
         "podcast3": "p03_scuba.xml",
         "podcast4": "p04_photo.xml",
@@ -347,6 +350,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     PODCAST_RSS_MAP_FAST = {
         # Fast version with 1-minute episode (Path 2: Transcription)
         "podcast1": "p01_fast.xml",
+        # Full p01 (3 items) while fast mode on; acceptance multi-feed matches p02–p05 depth
+        "podcast1_mtb": "p01_mtb.xml",
         # Fast version with transcript URL (Path 1: Download)
         "podcast1_with_transcript": "p01_fast_with_transcript.xml",
         # Multi-episode test feed (also available in fast mode)
@@ -931,7 +936,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     {"name": "llama3.1:latest"},
                     {"name": "llama3.1:8b"},
                     {"name": "llama3:latest"},
-                    # Ollama models for full acceptance configs (config/acceptance/full/, *ollama*)
+                    # Ollama models for full acceptance configs (config/acceptance/, *ollama*)
                     {"name": "mistral:7b"},
                     {"name": "mistral-nemo:12b"},
                     {"name": "mistral-small3.2:latest"},

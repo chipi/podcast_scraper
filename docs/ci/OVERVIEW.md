@@ -443,7 +443,7 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Lint job runs without ML dependencies for fast feedback (2-3 min)
    - Unit test job runs without ML dependencies for fast feedback (2-3 min)
    - Integration test job includes full ML stack for complete validation
-   - Separate dependency groups in `pyproject.toml`: `[dev]`, `[ml]`, `[docs]`
+   - Optional extras in `pyproject.toml`: `[dev]`, `[ml]`, `[compare]`, `[llm]`, `[server]`; docs builds also use `docs/requirements.txt` and `.[ml]` when mkdocstrings needs ML imports
 
 4. **ML Dependency Import Verification** ⭐ NEW
    - Automatic check that unit tests can import modules without ML dependencies

@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 
 from podcast_scraper.utils.path_validation import (
+    is_resolved_path_under_root,
+    safe_resolve_directory,
     sanitize_model_name,
     validate_cache_path,
     validate_path_is_safe,
@@ -99,3 +101,58 @@ class TestValidatePathIsSafe:
         """Path not under any trusted root and allow_absolute False returns False."""
         result = validate_path_is_safe("/tmp/somewhere", [], allow_absolute=False)
         assert result is False
+
+
+@pytest.mark.unit
+class TestSafeResolveDirectory:
+    """Tests for safe_resolve_directory."""
+
+    def test_resolves_existing_dir(self):
+        """Existing directory resolves."""
+        with tempfile.TemporaryDirectory() as tmp:
+            got = safe_resolve_directory(Path(tmp))
+            assert got == Path(tmp).resolve()
+
+    def test_rejects_parent_segments(self):
+        """Paths with ``..`` segments are rejected."""
+        assert safe_resolve_directory(Path("foo/../etc")) is None
+
+    def test_rejects_null_byte(self):
+        """Null byte in path is rejected."""
+        assert safe_resolve_directory(Path("/tmp/\x00evil")) is None
+
+    def test_tilde_slash_resolves_under_home(self, tmp_path, monkeypatch):
+        """Leading ``~/`` joins under ``Path.home()`` (``HOME`` env on POSIX)."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        got = safe_resolve_directory(Path("~/corpus/sub"))
+        assert got == (tmp_path / "corpus" / "sub").resolve()
+
+
+@pytest.mark.unit
+class TestIsResolvedPathUnderRoot:
+    """Tests for is_resolved_path_under_root."""
+
+    def test_child_under_root(self):
+        """Nested path is under root."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            child = root / "a" / "b"
+            child.mkdir(parents=True)
+            assert is_resolved_path_under_root(child, root) is True
+
+    def test_outside_root(self):
+        """Sibling path is not under root."""
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            root = Path(a).resolve()
+            other = Path(b).resolve()
+            assert is_resolved_path_under_root(other, root) is False
+
+    def test_false_when_normpath_raises_oserror(self, monkeypatch):
+        """``OSError`` from ``os.path.normpath`` yields False."""
+        import os as _os
+
+        def boom(p):
+            raise OSError("boom")
+
+        monkeypatch.setattr(_os.path, "normpath", boom)
+        assert is_resolved_path_under_root(Path("/tmp/x"), Path("/tmp")) is False

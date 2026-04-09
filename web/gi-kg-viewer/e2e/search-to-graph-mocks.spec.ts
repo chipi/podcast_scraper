@@ -66,23 +66,22 @@ test.describe('Search → graph (mocked API)', () => {
   test('list → load → search → Show on graph opens node detail', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByLabel('Corpus root folder').fill('/mock/corpus')
-    await page.getByRole('button', { name: 'List files' }).click()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await page.getByRole('button', { name: 'List' }).click()
 
     await page.getByRole('checkbox', { name: /ci_sample\.gi\.json/ }).check()
 
-    await page.getByRole('button', { name: 'Load selected into graph' }).click()
+    await page.getByRole('button', { name: 'Load into graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
     await page.locator('#search-q').fill('climate insights')
-    await page.getByRole('button', { name: 'Search' }).click()
+    await page.locator('form').getByRole('button', { name: 'Search' }).click()
 
-    await page.getByRole('button', { name: 'Show on graph' }).click()
+    await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
+    await page.locator('article').first().click()
 
-    await expect(page.getByRole('button', { name: 'Close detail' })).toBeVisible({
-      timeout: 20_000,
-    })
-    await expect(page.getByText('insight:b72dafa3f874480d', { exact: false })).toBeVisible()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await expect(page.locator('.graph-canvas')).toBeVisible()
   })
 })

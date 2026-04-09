@@ -17,6 +17,8 @@ As the evaluation framework matures with frequent experiments across different m
 
 **Architecture Alignment:** This tool operates entirely on existing evaluation artifacts (`metrics.json`, `predictions.jsonl`, `fingerprint.json`, and optionally `run_summary.json`, `diagnostics.jsonl`) and requires no backend services or infrastructure changes. It is explicitly *not* a full dashboard, but a focused diagnostic tool (~150-300 LOC).
 
+**Install (Python):** `pip install -e ".[compare]"` from the repository root (optional extra: Streamlit, plotly, pandas). Run with `make run-compare` or `streamlit run tools/run_compare/app.py` (see `tools/run_compare/README.md`).
+
 ## Problem Statement
 
 As the ML evaluation framework matures, we now run frequent experiments across:
@@ -96,7 +98,7 @@ The tool provides a focused, single-page "what changed?" view that answers key q
 
 For each run, display compact tiles with:
 
-- ✅ **Success rate** (episodes processed / total episodes)
+- **Success rate** (episodes processed / total episodes)
 - ⛔ **Failed episodes count**
 - 📏 **Avg output tokens**
 - ⏱ **Avg latency per episode** (seconds)
@@ -433,10 +435,10 @@ baseline = os.environ.get("BASELINE")
 
 **Success Criteria:**
 
-1. ✅ A regression can be diagnosed in < 1 minute
-2. ✅ Baseline promotion decisions are faster and more confident
-3. ✅ Map vs reduce issues are visually obvious
-4. ✅ The tool remains small and maintainable (< 500 LOC)
+1. A regression can be diagnosed in < 1 minute
+2. Baseline promotion decisions are faster and more confident
+3. Map vs reduce issues are visually obvious
+4. The tool remains small and maintainable (< 500 LOC)
 
 ## Relationship to Other RFCs
 

@@ -312,10 +312,30 @@ class FaissVectorStore:
         return out
 
     def doc_ids_for_episode(self, episode_id: str) -> List[str]:
-        """Return all indexed doc ids whose metadata ``episode_id`` matches."""
+        """Return all indexed doc ids whose metadata ``episode_id`` matches (any feed)."""
+        return self.doc_ids_for_reindex_scope(episode_id, None)
+
+    def doc_ids_for_reindex_scope(
+        self,
+        episode_id: str,
+        feed_id: Optional[str],
+    ) -> List[str]:
+        """Return doc ids to drop before re-embedding a scoped episode (GitHub #505).
+
+        Matches rows for ``episode_id`` where stored ``feed_id`` matches the target
+        scope, or legacy rows with no ``feed_id`` when replacing with a feed-qualified
+        episode.
+        """
+        fn = feed_id.strip() if isinstance(feed_id, str) and feed_id.strip() else None
         out: List[str] = []
         for doc_id, meta in self._metadata.items():
-            if meta.get("episode_id") == episode_id:
+            if meta.get("episode_id") != episode_id:
+                continue
+            mf = meta.get("feed_id")
+            mfn = mf.strip() if isinstance(mf, str) and mf.strip() else None
+            if mfn == fn:
+                out.append(doc_id)
+            elif fn is not None and mfn is None:
                 out.append(doc_id)
         return out
 

@@ -1,13 +1,15 @@
 # PRD-021: Semantic Corpus Search
 
-- **Status**: Draft
+- **Status**: Implemented (v2.6.0)
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
-  - RFC-061 (Semantic Corpus Search — technical design)
-  - RFC-049 (GIL Core — prerequisite, provides indexable artifacts)
-  - RFC-050 (GIL Use Cases — prerequisite, defines UC4/UC5 that this feature unlocks)
-  - RFC-051 (Database Projection — complementary serving layer)
-  - RFC-055/056 (KG Core / Use Cases — KG artifacts are also indexable)
+  - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search (**partial**; Phase 1 FAISS + CLI **complete**; Phase 2 Qdrant **open**)
+  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer v2 (**complete**)
+  - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core (**complete**; prerequisite, indexable artifacts)
+  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases (**open**; UC4/UC5 semantics)
+  - [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) — database projection (**open**; complementary SQL serving)
+  - [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md) — KG core (**complete**; indexable KG artifacts)
+  - [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) — KG use cases (**open**)
 - **Related PRDs**:
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md) (GIL artifacts are the primary search corpus)
   - [PRD-019: Knowledge Graph Layer](PRD-019-knowledge-graph-layer.md) (KG topics/entities benefit from semantic matching)
@@ -25,6 +27,11 @@ quotes, summaries, and transcript chunks — using sentence embeddings and a vec
 Users query in natural language and get ranked results with full GIL provenance (supporting
 quotes, timestamps, grounding status). This transforms GIL and KG from "write-heavy,
 read-weak" artifact stores into a navigable, question-driven knowledge layer.
+
+**Shipped in v2.6.0:** FAISS-backed indexing, `podcast search` / `podcast index`, semantic
+upgrade for `gi explore` when an index exists ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)),
+and local viewer + `podcast serve` search surfaces ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)).
+**Not yet shipped:** Qdrant-backed backend and platform-scale serving (RFC-061 Phase 2).
 
 ## Background & Context
 
@@ -69,7 +76,8 @@ because it:
 ## Non-Goals
 
 - Full-text keyword search (BM25) or hybrid keyword+vector search (defer to later)
-- Web UI or REST API for search (platform mode, not this PRD)
+- Multi-tenant / hosted SaaS search API (platform product; out of scope). **In scope and
+  shipped:** local FastAPI + Vue viewer search ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)).
 - RAG-style answer generation (results are existing artifacts, not generated text)
 - Entity resolution or disambiguation (separate concern; embeddings help but don't solve)
 - Real-time / streaming index updates (batch after pipeline run)
@@ -288,17 +296,21 @@ Results (top 5):
 
 ## Release Checklist
 
-**Tracking:** [#485](https://github.com/chipi/podcast_scraper/issues/485) (foundation prerequisites), [#484](https://github.com/chipi/podcast_scraper/issues/484) (Phase 1 implementation), epic [#466](https://github.com/chipi/podcast_scraper/issues/466)
+**Tracking:** [#485](https://github.com/chipi/podcast_scraper/issues/485) (foundation prerequisites), [#484](https://github.com/chipi/podcast_scraper/issues/484) (Phase 1 implementation), [#489](https://github.com/chipi/podcast_scraper/issues/489) (viewer v2 / RFC-062), epic [#466](https://github.com/chipi/podcast_scraper/issues/466)
 
-- [ ] PRD-021 reviewed and approved
-- [ ] RFC-061 created with technical design
-- [ ] `VectorStore` protocol + `FaissVectorStore` implemented
-- [ ] Transcript chunker implemented
-- [ ] Embed-and-index pipeline stage implemented
-- [ ] `podcast search` CLI command implemented
-- [ ] `podcast index` CLI command implemented
-- [ ] `gi explore` semantic upgrade implemented
-- [ ] Config fields added (`vector_search`, `vector_backend`, etc.)
-- [ ] Unit + integration tests cover search round-trip
-- [ ] Documentation updated (README, config examples, guides)
-- [ ] `make ci-fast` passes with search enabled and disabled
+Phase 1 + local viewer (v2.6.0) — satisfied:
+
+- [x] PRD-021 reviewed (this document reflects shipped scope)
+- [x] RFC-061 created with technical design
+- [x] `VectorStore` protocol + `FaissVectorStore` implemented
+- [x] Transcript chunker implemented
+- [x] Embed-and-index pipeline stage implemented
+- [x] `podcast search` CLI command implemented
+- [x] `podcast index` CLI command implemented
+- [x] `gi explore` semantic upgrade implemented
+- [x] Config fields added (`vector_search`, `vector_backend`, etc.)
+- [x] Unit + integration tests cover search round-trip
+- [x] Documentation updated (README, config examples, guides)
+- [x] `make ci-fast` passes with search enabled and disabled
+
+**Future:** RFC-061 Phase 2 (Qdrant), optional BM25/hybrid search — not required to keep this PRD in **Implemented** status for v2.6.0.

@@ -20,6 +20,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 ## Features
 
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
+- **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, repeatable `--rss` / `--rss-file` on the CLI; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search` + FAISS, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
 - **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
 - **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
@@ -35,6 +36,15 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
 - **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
 - **GI / KG Viewer (v2)** — Optional browser UI for `.gi.json` / `.kg.json`, dashboard metrics, semantic search, and explore/query against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
+
+## Repository layout (Python + web)
+
+The **Python** package (CLI, pipeline, FastAPI) lives at the **repo root** (`pyproject.toml`,
+`Makefile`, `tests/`). The **GI/KG viewer** is a **Node** app under **`web/gi-kg-viewer/`**
+(`package.json`, Vite, Vitest, Playwright). They share one repository but use **separate**
+install steps and **different** `.env.example` files (root vs `web/gi-kg-viewer/`) by design.
+
+**Onboarding in one place:** [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md).
 
 ---
 
@@ -90,9 +100,11 @@ Choose the installation method based on your use case:
 
 | Use Case | Installation Command | What You Get | Disk Space |
 | -------- | --------------------- | ----------- | --------- |
-| **LLM-only** (recommended) | `pip install -e .` | Core package + LLM SDKs (OpenAI, Gemini, etc.) | ~50MB |
-| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper + spaCy + Transformers | ~1-3GB |
-| **Both options** | `pip install -e ".[ml]"` | Everything (LLM + local ML) | ~1-3GB |
+| **LLM-only** (recommended) | `pip install -e .` | Core + OpenAI SDK (other API providers → add **`[llm]`**) | ~50MB |
+| **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, FAISS, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
+| **Both options** | `pip install -e ".[ml,llm]"` | Local ML + extra LLM API SDKs (Gemini, Anthropic, Mistral, httpx/Ollama) | ~1-3GB |
+| **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
+| **GI/KG viewer API** | `pip install -e ".[server]"` | FastAPI + uvicorn for `podcast serve` | small |
 
 **Quick decision guide:**
 
@@ -101,6 +113,10 @@ Choose the installation method based on your use case:
 - Want both options? → Install with ML (`pip install -e ".[ml]"`)
 
 **Note:** LLM provider SDKs (like `openai`) are included in core dependencies. For other LLM providers (Gemini, Anthropic, Mistral, Ollama), install with `pip install -e ".[llm]"`. For development with all LLM providers, use `pip install -e ".[dev,ml,llm]"`.
+
+### FAISS / `vector_search` and embedding cache
+
+Corpus indexing (`vector_search` with the default FAISS backend) calls the embedder with **`allow_download=False`**, so sentence-transformers weights must **already** be on disk in the Hugging Face hub cache. Before offline or sandbox runs, run **`make preload-ml-models`** and **omit `SKIP_GIL=1`** so evidence embeddings (including the model named by **`vector_embedding_model`**) are pre-cached; GIL’s **`gi_embedding_model`** is checked separately when GIL uses transformers. If you set **`HF_HUB_CACHE`**, use the same value when preloading and when running the pipeline. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md).
 
 ### Install
 

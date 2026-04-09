@@ -11,6 +11,12 @@ import pytest
 from podcast_scraper.kg.load import episode_node, find_kg_artifact_by_episode_id
 
 
+def _write_episode_metadata(meta_dir: Path, base: str, *, feed_id: str, episode_id: str) -> None:
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    doc = {"feed": {"feed_id": feed_id}, "episode": {"episode_id": episode_id}}
+    (meta_dir / f"{base}.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+
+
 @pytest.fixture
 def minimal_kg_path() -> Path:
     return Path(__file__).resolve().parents[3] / "fixtures" / "kg" / "minimal.kg.json"
@@ -44,6 +50,23 @@ class TestFindKgArtifactByEpisodeId:
         shutil.copy(minimal_kg_path, meta / "good.kg.json")
         found = find_kg_artifact_by_episode_id(tmp_path, "fixture:minimal-kg")
         assert found == meta / "good.kg.json"
+
+    def test_multi_feed_parent_resolves_with_feed_id(
+        self, tmp_path: Path, minimal_kg_path: Path
+    ) -> None:
+        corpus = tmp_path / "corpus"
+        for fid, slug in (("feed_a", "rss_a"), ("feed_b", "rss_b")):
+            mdir = corpus / "feeds" / slug / "run" / "metadata"
+            _write_episode_metadata(mdir, "x", feed_id=fid, episode_id="dup")
+            shutil.copy(minimal_kg_path, mdir / "x.kg.json")
+            data = json.loads((mdir / "x.kg.json").read_text(encoding="utf-8"))
+            data["episode_id"] = "dup"
+            (mdir / "x.kg.json").write_text(json.dumps(data), encoding="utf-8")
+
+        assert find_kg_artifact_by_episode_id(corpus, "dup") is None
+        got = find_kg_artifact_by_episode_id(corpus, "dup", feed_id="feed_a")
+        assert got is not None
+        assert "rss_a" in str(got)
 
 
 @pytest.mark.unit

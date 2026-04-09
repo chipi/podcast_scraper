@@ -12,6 +12,9 @@ test.describe('UXS theme tokens', () => {
 
   test('light scheme switches canvas token', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
+    await page.addInitScript(() => {
+      localStorage.setItem('gi-kg-viewer-theme', 'light')
+    })
     await page.goto('/')
     const canvas = await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--ps-canvas').trim().toLowerCase(),

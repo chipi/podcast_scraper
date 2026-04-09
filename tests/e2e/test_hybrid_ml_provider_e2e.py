@@ -148,6 +148,56 @@ class TestHybridMLProviderE2E:
 
         provider.cleanup()
 
+    def test_hybrid_ml_layered_cleaning_pattern_strategy_e2e(self, e2e_server):
+        """Issue #419: workflow-style pattern clean + cleaning_hybrid_after_pattern in summarize."""
+        require_transformers_model_cached("longt5-base")
+        require_transformers_model_cached("google/flan-t5-base")
+
+        from podcast_scraper.workflow.metadata_generation import (
+            _hybrid_ml_layered_summarize_params,
+        )
+
+        fixture_root = Path(__file__).parent.parent / "fixtures"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+        if not transcript_file.exists():
+            pytest.skip(f"Transcript fixture not found: {transcript_file}")
+
+        transcript_text = transcript_file.read_text(encoding="utf-8")
+
+        cfg = Config(
+            rss="",
+            generate_metadata=True,
+            generate_summaries=True,
+            summary_provider="hybrid_ml",
+            transcript_cleaning_strategy="pattern",
+            hybrid_internal_preprocessing_after_pattern="cleaning_hybrid_after_pattern",
+            hybrid_map_model="longt5-base",
+            hybrid_reduce_model="google/flan-t5-base",
+            hybrid_reduce_backend="transformers",
+            language="en",
+        )
+
+        provider = create_summarization_provider(cfg)
+        provider.initialize()
+
+        layered_params = _hybrid_ml_layered_summarize_params(cfg, provider)
+        assert layered_params == {"preprocessing_profile": "cleaning_hybrid_after_pattern"}
+
+        cleaned_text = provider.cleaning_processor.clean(transcript_text)
+        result = provider.summarize(
+            text=cleaned_text,
+            episode_title="Layered cleaning E2E",
+            params=layered_params,
+        )
+
+        assert result.get("metadata", {}).get("preprocessing_profile") == (
+            "cleaning_hybrid_after_pattern"
+        )
+        assert isinstance(result.get("summary"), str)
+        assert len((result.get("summary") or "").strip()) > 0
+
+        provider.cleanup()
+
     def test_hybrid_ml_provider_extract_kg_graph_returns_none(self, e2e_server):
         """extract_kg_graph() returns None (not implemented for hybrid)."""
         require_transformers_model_cached("longt5-base")

@@ -1,7 +1,10 @@
 # PRD-003: User Interfaces & Configuration
 
-- **Status**: ✅ Implemented (v2.0.0)
-- **Related RFCs**: RFC-007, RFC-008, RFC-009
+- **Status**: Implemented (v2.0.0)
+- **Related RFCs**:
+  - [RFC-007](../rfc/RFC-007-cli-interface.md) — CLI interface (**complete**)
+  - [RFC-008](../rfc/RFC-008-config-model.md) — configuration model (**complete**)
+  - [RFC-009](../rfc/RFC-009-progress-integration.md) — progress reporting (**complete**)
 - **Related UX specs**:
   - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) (local visualization served with the tool)
 

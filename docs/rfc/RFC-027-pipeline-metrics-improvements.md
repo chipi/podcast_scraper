@@ -149,13 +149,13 @@ This RFC defines improvements to the **pipeline metrics system** that tracks app
 
 ### Success Criteria
 
-- ✅ No duplicate metric output in logs
-- ✅ Detailed metrics available at DEBUG level
-- ✅ Summary metrics at INFO level
-- ✅ All recommended metrics tracked
-- ✅ Consistent formatting across all outputs
-- ✅ JSON/CSV export available
-- ✅ Metrics can be integrated into monitoring systems
+- No duplicate metric output in logs
+- Detailed metrics available at DEBUG level
+- Summary metrics at INFO level
+- All recommended metrics tracked
+- Consistent formatting across all outputs
+- JSON/CSV export available
+- Metrics can be integrated into monitoring systems
 
 ## Solution: Two-Tier Output with Export
 
@@ -171,11 +171,11 @@ This RFC defines improvements to the **pipeline metrics system** that tracks app
 
 **Benefits:**
 
-- ✅ Provides flexibility without cluttering normal logs
-- ✅ Detailed metrics available when needed (DEBUG level)
-- ✅ Summary metrics always visible (INFO level)
-- ✅ No breaking changes to existing behavior
-- ✅ Enables export for analysis
+- Provides flexibility without cluttering normal logs
+- Detailed metrics available when needed (DEBUG level)
+- Summary metrics always visible (INFO level)
+- No breaking changes to existing behavior
+- Enables export for analysis
 
 ### Implementation Plan
 
@@ -343,23 +343,23 @@ def export_csv(self, filepath: str) -> None:
 
 ### Developer Experience
 
-- ✅ Cleaner logs (no duplicate metrics)
-- ✅ Detailed metrics available when needed (DEBUG level)
-- ✅ Summary metrics always visible (INFO level)
-- ✅ Consistent formatting makes logs easier to read
+- Cleaner logs (no duplicate metrics)
+- Detailed metrics available when needed (DEBUG level)
+- Summary metrics always visible (INFO level)
+- Consistent formatting makes logs easier to read
 
 ### Analysis Capabilities
 
-- ✅ Export to JSON/CSV for programmatic analysis
-- ✅ Additional metrics provide better visibility
-- ✅ Can track performance trends over time
-- ✅ Can identify bottlenecks (model loading, cache efficiency)
+- Export to JSON/CSV for programmatic analysis
+- Additional metrics provide better visibility
+- Can track performance trends over time
+- Can identify bottlenecks (model loading, cache efficiency)
 
 ### Monitoring Integration
 
-- ✅ JSON export enables integration with monitoring systems
-- ✅ Future Prometheus integration possible
-- ✅ Metrics can be tracked in dashboards
+- JSON export enables integration with monitoring systems
+- Future Prometheus integration possible
+- Metrics can be tracked in dashboards
 
 ## Related Files
 

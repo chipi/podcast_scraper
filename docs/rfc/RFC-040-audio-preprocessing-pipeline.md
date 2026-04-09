@@ -48,25 +48,25 @@ Different transcription providers impose various file size constraints:
 
 | Provider | API Endpoint | Max File Size | Max Duration | Documentation | Status |
 |----------|-------------|---------------|--------------|---------------|--------|
-| **OpenAI Whisper** | Audio API | **25 MB** | N/A | [Official Docs](https://platform.openai.com/docs/guides/speech-to-text/whisper) | ✅ Supported |
+| **OpenAI Whisper** | Audio API | **25 MB** | N/A | [Official Docs](https://platform.openai.com/docs/guides/speech-to-text/whisper) | Yes — Supported |
 | **Mistral Voxtral** | Audio API | **TBD** (likely similar to OpenAI) | TBD | [API Docs](https://docs.mistral.ai/) | 🔄 Planned (PRD-010) |
 | **Google Gemini** | Multimodal API | **TBD** (native audio) | TBD | [AI Studio](https://ai.google.dev/) | 🔄 Planned (PRD-012) |
-| **Grok** | N/A | ❌ No transcription | N/A | [API Docs](https://docs.x.ai) | ✅ Implemented (PRD-013, LLMs only) |
-| **Google Cloud (sync)** | Speech-to-Text | **10 MB** | ~1 minute | [Quotas](https://cloud.google.com/speech-to-text/quotas) | ❌ Not planned |
-| **Azure Speech** | Fast/Batch | **300 MB - 1 GB** | 120-240 min | [Service Limits](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits) | ❌ Not planned |
+| **Grok** | N/A | No — No transcription | N/A | [API Docs](https://docs.x.ai) | Implemented (PRD-013, LLMs only) |
+| **Google Cloud (sync)** | Speech-to-Text | **10 MB** | ~1 minute | [Quotas](https://cloud.google.com/speech-to-text/quotas) | No — Not planned |
+| **Azure Speech** | Fast/Batch | **300 MB - 1 GB** | 120-240 min | [Service Limits](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits) | No — Not planned |
 
 **Transcription Provider Support Matrix** (from PRDs):
 
 | Provider | Transcription | Speaker Detection | Summarization | Notes |
 |----------|---------------|-------------------|---------------|-------|
-| **Local (Whisper)** | ✅ | ✅ (spaCy) | ✅ (Transformers) | No size limits |
-| **OpenAI** | ✅ (25 MB limit) | ✅ | ✅ | Currently supported |
-| **Mistral** | ✅ Voxtral (limit TBD) | ✅ | ✅ | Planned (PRD-010) |
-| **Gemini** | ✅ Native audio (limit TBD) | ✅ | ✅ | Planned (PRD-012) |
-| **Anthropic** | ❌ | ✅ | ✅ | No audio API (PRD-009) |
-| **DeepSeek** | ❌ | ✅ | ✅ | No audio API (PRD-011) |
-| **Grok** | ❌ | ✅ | ✅ | LLMs only (PRD-013) |
-| **Ollama** | ❌ | ✅ | ✅ | Local LLMs (PRD-014) |
+| **Local (Whisper)** | Yes | Yes — (spaCy) | Yes (Transformers) | No size limits |
+| **OpenAI** | Yes — (25 MB limit) | Yes | Yes | Currently supported |
+| **Mistral** | Yes — Voxtral (limit TBD) | Yes | Yes | Planned (PRD-010) |
+| **Gemini** | Yes — Native audio (limit TBD) | Yes | Yes | Planned (PRD-012) |
+| **Anthropic** | No | Yes | Yes | No audio API (PRD-009) |
+| **DeepSeek** | No | Yes | Yes | No audio API (PRD-011) |
+| **Grok** | No | Yes | Yes | LLMs only (PRD-013) |
+| **Ollama** | No | Yes | Yes | Local LLMs (PRD-014) |
 
 **Critical Constraints**:
 
@@ -643,11 +643,11 @@ def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
 
 **Success Criteria:**
 
-1. ✅ Preprocessing reduces transcription time by ≥30% on average
-2. ✅ Preprocessing reduces OpenAI API costs by ≥30% on average
-3. ✅ Preprocessing maintains or improves transcription quality (manual review)
-4. ✅ Cache hit rate ≥80% in development/testing scenarios
-5. ✅ Zero breaking changes to existing workflows
+1. Preprocessing reduces transcription time by ≥30% on average
+2. Preprocessing reduces OpenAI API costs by ≥30% on average
+3. Preprocessing maintains or improves transcription quality (manual review)
+4. Cache hit rate ≥80% in development/testing scenarios
+5. Zero breaking changes to existing workflows
 
 ## Expected Impact
 

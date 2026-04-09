@@ -84,8 +84,12 @@ def test_run_serve_starts_uvicorn_non_reload(tmp_path: Path) -> None:
     uv = ModuleType("uvicorn")
     uv.run = MagicMock()
     fake_app = object()
+    mock_factory = MagicMock(return_value=fake_app)
     with patch.dict(sys.modules, {"uvicorn": uv}):
-        with patch("podcast_scraper.server.app.create_app", return_value=fake_app) as cap:
+        with patch(
+            "podcast_scraper.server.cli_handlers._load_create_app",
+            return_value=mock_factory,
+        ) as cap:
             assert cli_handlers.run_serve(args, _LOG) == 0
     cap.assert_called_once()
     uv.run.assert_called_once()

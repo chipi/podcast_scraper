@@ -26,6 +26,10 @@ make restore-cache           # Restore cache from backup (interactive)
 make backup-cache-list       # List available backups
 ```
 
+**Polyglot repo:** Python and `Makefile` at the root; GI/KG viewer UI under `web/gi-kg-viewer/`
+(npm). See [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env file locations and viewer
+commands.
+
 ---
 
 ## Diagnostic Commands (Issue #379)

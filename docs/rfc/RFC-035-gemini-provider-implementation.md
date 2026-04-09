@@ -1,6 +1,6 @@
 # RFC-035: Google Gemini Provider Implementation (Revised)
 
-- **Status**: ✅ Completed (v2.5.0)
+- **Status**: Completed (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
 - **Authors**:
@@ -1004,14 +1004,14 @@ Same pattern as OpenAI provider:
 
 ## Success Criteria
 
-1. ✅ Gemini supports all three capabilities via unified provider
-2. ✅ Native audio transcription works (file upload and inline data)
-3. ✅ 2M context window is available for summarization
-4. ✅ Free tier works for development
-5. ✅ E2E tests pass
-6. ✅ Experiment mode supported from start
-7. ✅ Environment-based model defaults (test vs prod)
-8. ✅ Follows OpenAI provider pattern exactly
+1. Gemini supports all three capabilities via unified provider
+2. Native audio transcription works (file upload and inline data)
+3. 2M context window is available for summarization
+4. Free tier works for development
+5. E2E tests pass
+6. Experiment mode supported from start
+7. Environment-based model defaults (test vs prod)
+8. Follows OpenAI provider pattern exactly
 
 ## Migration Notes
 

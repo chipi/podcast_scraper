@@ -3,7 +3,8 @@
 - **Status**: Implemented
 - **Revision**: 3
 - **Date**: 2026-02-04
-- **Related RFCs**: RFC-032 (Revised)
+- **Related RFCs**:
+  - [RFC-032](../rfc/RFC-032-anthropic-provider-implementation.md) — Anthropic provider (**complete**) (Revised)
 - **Related PRDs**: PRD-006 (OpenAI Provider Integration)
 
 ## Summary
@@ -287,17 +288,17 @@ anthropic_summary_user_prompt: str = Field(
 
 ## Success Criteria
 
-- ✅ Users can select Anthropic provider for speaker detection and summarization via unified provider
-- ✅ Clear error when attempting to use Anthropic for transcription
-- ✅ Default behavior (local providers) remains unchanged
-- ✅ API keys are managed securely via `ANTHROPIC_API_KEY` environment variable
-- ✅ Environment-based model defaults (test vs production)
-- ✅ Both Config-based and experiment-based factory modes supported
-- ✅ Anthropic providers implement same interfaces as local/OpenAI providers
-- ✅ No changes required to workflow.py or end-user code
-- ✅ Error handling is clear and actionable
-- ✅ E2E tests pass with Anthropic mock endpoints
-- ✅ Follows OpenAI provider pattern exactly for consistency
+- Users can select Anthropic provider for speaker detection and summarization via unified provider
+- Clear error when attempting to use Anthropic for transcription
+- Default behavior (local providers) remains unchanged
+- API keys are managed securely via `ANTHROPIC_API_KEY` environment variable
+- Environment-based model defaults (test vs production)
+- Both Config-based and experiment-based factory modes supported
+- Anthropic providers implement same interfaces as local/OpenAI providers
+- No changes required to workflow.py or end-user code
+- Error handling is clear and actionable
+- E2E tests pass with Anthropic mock endpoints
+- Follows OpenAI provider pattern exactly for consistency
 
 ## Out of Scope
 
@@ -310,8 +311,8 @@ anthropic_summary_user_prompt: str = Field(
 
 ## Dependencies
 
-- **Prerequisite**: Modularization refactoring (RFC-021) ✅ Completed
-- **Prerequisite**: OpenAI provider implementation (PRD-006, RFC-013) ✅ Completed
+- **Prerequisite**: Modularization refactoring (RFC-021) Completed
+- **Prerequisite**: OpenAI provider implementation (PRD-006, RFC-013) Completed
 - **External**: Anthropic API access and API key
 - **Internal**: Provider abstraction interfaces (from refactoring)
 
@@ -330,9 +331,9 @@ anthropic_summary_user_prompt: str = Field(
 
 | Capability | Local | OpenAI | Anthropic | Gemini | Mistral | DeepSeek | Grok | Ollama |
 | ---------- | ----- | ------ | --------- | ------ | ------- | -------- | ---- | ------ |
-| **Transcription** | ✅ Whisper | ✅ Whisper API | ❌ Not supported | ✅ Gemini API | ✅ Voxtral API | ❌ Not supported | ❌ Not supported | ❌ Not supported |
-| **Speaker Detection** | ✅ spaCy NER | ✅ GPT API | ✅ Claude API | ✅ Gemini API | ✅ Mistral API | ✅ DeepSeek API | ✅ Grok API | ✅ Ollama API |
-| **Summarization** | ✅ Transformers | ✅ GPT API | ✅ Claude API | ✅ Gemini API | ✅ Mistral API | ✅ DeepSeek API | ✅ Grok API | ✅ Ollama API |
+| **Transcription** | Yes — Whisper | Yes — Whisper API | No — Not supported | Yes — Gemini API | Yes — Voxtral API | No — Not supported | No — Not supported | No — Not supported |
+| **Speaker Detection** | Yes — spaCy NER | Yes GPT API | Yes — Claude API | Yes Gemini API | Yes — Mistral API | Yes DeepSeek API | Yes — Grok API | Yes Ollama API |
+| **Summarization** | Yes — Transformers | Yes GPT API | Yes — Claude API | Yes Gemini API | Yes — Mistral API | Yes DeepSeek API | Yes — Grok API | Yes Ollama API |
 
 ## Future Considerations
 

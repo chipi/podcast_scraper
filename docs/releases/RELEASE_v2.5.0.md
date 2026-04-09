@@ -47,16 +47,11 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 **Installation:**
 
 ```bash
-# Install all LLM providers
+# Optional API SDKs (Gemini, Anthropic, Mistral, httpx for Ollama checks) — one grouped extra
 pip install -e ".[llm]"
-
-# Or install individual providers
-pip install -e ".[anthropic]"
-pip install -e ".[mistral]"
-pip install -e ".[deepseek]"
-pip install -e ".[grok]"
-pip install -e ".[ollama]"
 ```
+
+(OpenAI’s SDK is part of **core** dependencies; there are no per-provider extras like `[ollama]` or `[gemini]`.)
 
 **Benefits:**
 
@@ -407,13 +402,7 @@ If you want to use new LLM providers (Anthropic, Mistral, DeepSeek, Grok, Ollama
 pip install -e ".[llm]"
 ```
 
-Or install individual providers:
-
-```bash
-pip install -e ".[anthropic]"
-pip install -e ".[mistral]"
-# etc.
-```
+(There are no per-provider extras; DeepSeek and Grok use the **OpenAI** SDK from **core** dependencies.)
 
 **MPS Exclusive Mode:**
 

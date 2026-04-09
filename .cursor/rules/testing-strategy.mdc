@@ -113,22 +113,44 @@ def test_sanitize():
     pass
 ```
 
+### Unit tests and `pyproject` extras (mandatory for authors)
+
+- **`tests/unit/`** must **not** require **`[ml]`**, **`[llm]`**, or **`[compare]`** — mock, stub
+  `sys.modules`, or move to **`tests/integration/`**.
+- **`[dev]`** is the baseline (see `pyproject.toml`); **`check_unit_test_imports.py`** guards ML
+  import-time issues (it does not install **`[server]`**).
+- **Viewer / FastAPI:** CI **`test-unit`** installs **`pip install -e .[dev]`** only. Module-level
+  **`pytest.importorskip("fastapi")`** skips viewer HTTP tests without **`[server]`**; install
+  **`.[server]`** locally to run them. Avoid real FAISS / torch / spacy in unit tests — use patches
+  (see `docs/guides/UNIT_TESTING_GUIDE.md` § *Pyproject extras*).
+- **Local CI parity:** **`make venv-dev-init`** + **`make test-unit-dev-venv`** uses a separate
+  **`.venv-dev`** (`.[dev]` only) so you do not strip extras from the main **`.venv`**.
+
 ### Test Organization
+
+**Unit** mirrors the source tree. **Integration** is organized by domain subsystem.
+**E2E** is flat by user scenario.
 
 ```text
 tests/
-├── unit/              # Pure unit tests (no external deps)
-│   ├── test_config.py
-│   ├── test_downloader.py
-│   └── test_filesystem.py
-├── integration/       # Multi-module integration tests
-│   ├── test_whisper_integration.py
-│   ├── test_summarizer.py
-│   └── test_speaker_detection.py
+├── unit/              # Mirrors src/ tree; no [ml]/[llm] extras
+│   └── podcast_scraper/
+│       ├── providers/ml/test_nli_loader.py
+│       └── ...
+├── integration/       # By domain subsystem (not source module)
+│   ├── providers/     # factories, protocols, llm/, ml/, ollama/
+│   ├── workflow/      # orchestration, stages, metadata, resume
+│   ├── gi/            # GI/KG artifacts, evidence stack
+│   ├── server/        # FastAPI app, viewer API
+│   ├── search/        # FAISS indexing
+│   ├── rss/           # RSS parsing, HTTP fetching
+│   └── test_*.py      # cross-cutting (filesystem, retry, cache)
 └── e2e/              # End-to-end workflow tests
     ├── test_workflow_basic.py
     └── test_workflow_full.py
 ```
+
+See `docs/guides/INTEGRATION_TESTING_GUIDE.md` § Directory Organization for details.
 
 ## Mocking Requirements
 

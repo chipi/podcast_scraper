@@ -1317,18 +1317,19 @@ This maximizes parallelism and reduces total CI time.
 
 ```text
 ├── Lint Job (1-2 min)
-├── test-unit (2-5 min) - All unit tests
+├── Build Job (1-2 min)
+├── security-quality | test-unit | viewer-unit — one parallel segment after lint+build
 ├── test-integration-fast (5-8 min) - Critical path only
 ├── test-e2e-fast (8-12 min) - Critical path only
-├── Docs Job (2-3 min)
-└── Build Job (1-2 min)
+└── (later: viewer-e2e, coverage-unified, docs — see python-app.yml)
 ```
 
 **Within Python Application Workflow - Push to Main:**
 
 ```text
 ├── Lint Job (1-2 min)
-├── test-unit Job (2-5 min) - No ML deps, fast
+├── Build Job (1-2 min)
+├── security-quality | test-unit | viewer-unit — same parallel segment as on PRs
 ├── preload-ml-models (2-5 min) - Preloads ML models for full suite
 ├── test-integration (5-10 min) - Full suite, includes re-runs, ML deps, needs preload-ml-models
 ├── test-e2e (20-30 min) - Full suite, includes re-runs, ML deps, network guard, needs preload-ml-models
@@ -1518,7 +1519,7 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Lint job runs without ML dependencies for fast feedback (2-3 min)
    - Unit test job runs without ML dependencies for fast feedback (2-3 min)
    - Integration test job includes full ML stack for complete validation
-   - Separate dependency groups in `pyproject.toml`: `[dev]`, `[ml]`, `[docs]`
+   - Optional extras in `pyproject.toml`: `[dev]`, `[ml]`, `[compare]`, `[llm]`, `[server]`; docs builds also use `docs/requirements.txt` and `.[ml]` when mkdocstrings needs ML imports
 
 4. **ML Dependency Import Verification** ⭐ NEW
    - Automatic check that unit tests can import modules without ML dependencies
@@ -1589,6 +1590,9 @@ As of issue #248, the nightly workflow also runs on **push to release branches**
 The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Unlike the main branch jobs which focus on fast validation, the nightly workflow:
 
 - Runs **all tests** (unit + integration + e2e, including slow/ml_models)
+- Runs **GI/KG viewer** checks on every scheduled/manual run: **`nightly-viewer-unit`** (Vitest, same
+  parallel segment as `nightly-test-unit` / `nightly-security-quality`) and **`nightly-viewer-e2e`**
+  (Playwright after **`nightly-test-e2e`**), matching `.github/workflows/python-app.yml` layout
 - Collects **comprehensive metrics** (JUnit XML, coverage reports, JSON reports)
 - Tracks **historical trends** (metrics history file)
 - Publishes **metrics to GitHub Pages** (accessible via public URL)
@@ -1705,15 +1709,17 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 | `nightly-lint` | 3:00 | Runs in parallel |
 | `nightly-docs` | 2:40 | Runs in parallel |
 | `nightly-test-unit` | 1:40 | No ML deps, runs in parallel |
+| `nightly-viewer-unit` | ~1–2 | Vitest; same segment as unit + security-quality |
 | `nightly-test-integration` | 6:30 | After preload |
 | `nightly-test-e2e` | 11:30 | After preload |
+| `nightly-viewer-e2e` | ~3–20 | Playwright after pytest E2E |
 | `nightly-only-tests` | **64:00** | **77% of total time** |
 | **Total wall time** | **~80 min** | Critical path limited |
 
 **Critical Path:**
 
 ```text
-preload (3:30) → e2e (11:30) → nightly-only (64:00) → metrics
+preload (3:30) → e2e (11:30) → viewer-e2e (~3–20) → nightly-only (64:00) → metrics
                                                     ≈ 80 min total
 ```
 

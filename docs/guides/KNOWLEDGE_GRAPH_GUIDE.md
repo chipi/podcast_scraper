@@ -96,7 +96,7 @@ Run as `python -m podcast_scraper.cli kg <subcommand> ...` (same entrypoint as `
 | Subcommand | Purpose |
 | --- | --- |
 | **`kg validate`** | Validate one or more paths (files or directories) against `kg.schema.json`. Use **`--strict`** for full JSON Schema. **`-q`** / **`--quiet`**: only failures. |
-| **`kg inspect`** | Summarize one episode artifact: **`--episode-path`** to `.kg.json`, or **`--output-dir`** + **`--episode-id`**. **`--format json`** for machine output. |
+| **`kg inspect`** | Summarize one episode artifact: **`--episode-path`** to `.kg.json`, or **`--output-dir`** + **`--episode-id`** (multi-feed **corpus parent** OK). Use **`--feed-id`** (`feed.feed_id`) when the same `episode_id` appears in multiple feeds ([CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). **`--format json`** for machine output. |
 | **`kg export`** | Scan **`--output-dir`** for all `*.kg.json`. **`--format ndjson`** (default) or **`merged`**. **`--out PATH`** or stdout. **`--strict`** to require schema-valid artifacts. |
 | **`kg entities`** | Cross-episode **entity roll-up** (counts, episodes, mentions). **`--min-episodes N`**, **`--format json`**. |
 | **`kg topics`** | **Topic pair co-occurrence** within the same episode. **`--min-support N`**, **`--format json`**. |
@@ -127,11 +127,11 @@ See [CLI reference](../api/CLI.md#knowledge-graph-kg-subcommands) for examples.
   CI runs the same enforce pass as GIL on `tests/fixtures/gil_kg_ci_enforce` via
   `make quality-metrics-ci`.
 - **Fixture:** `tests/fixtures/kg/minimal.kg.json` for smoke checks.
-- **Acceptance (E2E configs):** `config/acceptance/full/*.yaml` — full pipeline
+- **Acceptance (E2E configs):** `config/acceptance/*.yaml` — full pipeline
   (summaries + GI + KG + semantic index) for Planet Money and The Journal across ML,
   OpenAI, Ollama, Anthropic, Gemini, Mistral, DeepSeek, and Grok. KG uses
   `kg_extraction_source: summary_bullets` (no stub-only acceptance split). Run:
-  `make test-acceptance CONFIGS="config/acceptance/full/*.yaml"`.
+  `make test-acceptance CONFIGS="config/acceptance/*.yaml"`.
 
 Run metrics export (`metrics.json`) includes KG rollups: `kg_topic_nodes_total`,
 `kg_entity_nodes_total`, `kg_extractions_stub` / `kg_extractions_summary_bullets` /

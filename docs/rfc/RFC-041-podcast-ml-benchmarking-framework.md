@@ -2,7 +2,7 @@
 
 ## Status
 
-🟢 Phase 0-1 Complete - Dataset materialization, baseline creation, and metrics structure implemented. CI integration pending.
+**Phase 0–1 complete** — Dataset materialization, baseline creation, and metrics structure implemented. CI integration pending.
 
 ## RFC Number
 
@@ -418,10 +418,10 @@ Golden Signals:
 Metric               Current    Baseline   Delta      Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ASR WER              3.2%       3.1%       +0.1%      ⚠️  WARN
-ASR latency          0.42s/min  0.40s/min  +5%        ✅  PASS
+ASR latency          0.42s/min  0.40s/min  +5%          PASS
 Tokens/episode       2,450      2,400      +2.1%      ⚠️  WARN
-Avg chunk size       512 tok    510 tok    +0.4%      ✅  PASS
-Summary latency      1.8s       1.9s       -5.3%      ✅  PASS
+Avg chunk size       512 tok    510 tok    +0.4%        PASS
+Summary latency      1.8s       1.9s       -5.3%        PASS
 Total cost/episode   $0.35      $0.33      +6%        ⚠️  WARN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -910,25 +910,25 @@ regression_rules:
 
 ## Implementation Status
 
-### ✅ Phase 0: Dataset Freezing + Baseline Artifacts (Complete)
+### Phase 0: Dataset Freezing + Baseline Artifacts (Complete)
 
-1. ✅ Dataset JSON format implemented (`data/eval/datasets/` and `benchmarks/datasets/`)
-2. ✅ Dataset creation scripts (`scripts/eval/create_dataset_json.py`)
-3. ✅ Dataset materialization (`scripts/eval/materialize_dataset.py`) with hash validation
-4. ✅ Source data inventory (`scripts/eval/generate_source_index.py`, `scripts/eval/generate_episode_metadata.py`)
-5. ✅ Baseline creation (`scripts/eval/materialize_baseline.py`) with comprehensive fingerprinting
-6. ✅ Baseline storage structure (`data/eval/baselines/`) with `predictions.jsonl`, `metrics.json`, `fingerprint.json`, `baseline.json`
-7. ✅ Metrics structure (`metrics.json`) with intrinsic and vs_reference sections
-8. ✅ README governance layer for all artifact types
+1. Dataset JSON format implemented (`data/eval/datasets/` and `benchmarks/datasets/`)
+2. Dataset creation scripts (`scripts/eval/create_dataset_json.py`)
+3. Dataset materialization (`scripts/eval/materialize_dataset.py`) with hash validation
+4. Source data inventory (`scripts/eval/generate_source_index.py`, `scripts/eval/generate_episode_metadata.py`)
+5. Baseline creation (`scripts/eval/materialize_baseline.py`) with comprehensive fingerprinting
+6. Baseline storage structure (`data/eval/baselines/`) with `predictions.jsonl`, `metrics.json`, `fingerprint.json`, `baseline.json`
+7. Metrics structure (`metrics.json`) with intrinsic and vs_reference sections
+8. README governance layer for all artifact types
 
-### ✅ Phase 1: Integration with RFC-015 (Complete)
+### Phase 1: Integration with RFC-015 (Complete)
 
-1. ✅ Experiment runner reads dataset JSONs (`scripts/eval/run_experiment.py` supports `dataset_id`)
-2. ✅ Experiment runner references baseline_id and optional reference_ids
-3. ✅ Quality gates evaluated automatically (intrinsic metrics: gates, length, performance, cost)
-4. ✅ Regression detection via comparison deltas (`comparisons/vs_{baseline_id}.json`)
-5. ✅ Reference model implemented (baseline, silver, gold references)
-6. ✅ Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
+1. Experiment runner reads dataset JSONs (`scripts/eval/run_experiment.py` supports `dataset_id`)
+2. Experiment runner references baseline_id and optional reference_ids
+3. Quality gates evaluated automatically (intrinsic metrics: gates, length, performance, cost)
+4. Regression detection via comparison deltas (`comparisons/vs_{baseline_id}.json`)
+5. Reference model implemented (baseline, silver, gold references)
+6. Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
 
 ### 🟡 Phase 2: CI Integration (Pending)
 
@@ -951,8 +951,8 @@ complexity, we can iterate quickly while maintaining confidence in our changes.
 
 **Current Status:**
 
-1. ✅ Phase 0-1 complete (dataset materialization, baseline creation, metrics structure, promotion workflow)
-2. ✅ Integration with RFC-015 complete (experiment runner uses dataset JSONs, baseline/reference support)
+1. Phase 0-1 complete (dataset materialization, baseline creation, metrics structure, promotion workflow)
+2. Integration with RFC-015 complete (experiment runner uses dataset JSONs, baseline/reference support)
 3. ⏳ Phase 2 pending (CI integration - depends on RFC-015 Phase 4)
 
 **Next Steps:**

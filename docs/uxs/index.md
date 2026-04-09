@@ -58,11 +58,17 @@ move into the RFC.
 - **Length:** Keep specs short (about two to four printed pages). Split or move narrative
   to an RFC if a doc grows too large; keep UXS as the token table and principles.
 
-## Active and draft UX specs
+## Active UX specifications
 
-| UXS | Title | Status | Related PRDs / RFCs | Description |
-| --- | ----- | ------ | ------------------- | ----------- |
-| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | Draft | PRD-003, PRD-017, PRD-019; RFC-062 | Visual and token contract for the local GI/KG visualization surface |
+Authoritative specs; current implementations should conform (see [status lifecycle](#status-lifecycle)).
+
+| UXS | Title | Related PRDs / RFCs | Description |
+| --- | ----- | ------------------- | ----------- |
+| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | PRD-003, PRD-017, PRD-019, PRD-021; [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | Visual and token contract for the GI/KG viewer (Vue v2 + Tailwind); implemented per RFC-062 |
+
+## Draft UX specifications
+
+None. Add new specs here while status is **Draft**; move rows to **Active** when the spec is frozen and implementation has landed (or is in progress against a locked token set).
 
 ## Templates
 

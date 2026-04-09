@@ -1780,6 +1780,12 @@ def _append_hybrid_ml_summary_metadata(provider_info: Dict[str, Any], cfg: confi
         provider_info["reduce_model"] = str(reduce_model)
     reduce_backend = getattr(cfg, "hybrid_reduce_backend", "transformers")
     provider_info["reduce_backend"] = str(reduce_backend)
+    provider_info["transcript_cleaning_strategy"] = str(
+        getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+    )
+    provider_info["hybrid_internal_preprocessing_after_pattern"] = str(
+        getattr(cfg, "hybrid_internal_preprocessing_after_pattern", "cleaning_hybrid_after_pattern")
+    )
     device = getattr(cfg, "hybrid_map_device", None) or getattr(cfg, "summary_device", None)
     if device:
         provider_info["device"] = device
@@ -1996,6 +2002,34 @@ def _build_processing_metadata(
     )
 
 
+def _hybrid_ml_layered_summarize_params(
+    cfg: config.Config, summary_provider: Any
+) -> Dict[str, Any]:
+    """Extra ``summarize()`` params for hybrid_ml layered cleaning (Issue #419).
+
+    When ``transcript_cleaning_strategy`` is ``pattern``, the workflow has already run
+    pattern-based cleaning (``clean_for_summarization``). The hybrid ML provider should
+    then use ``hybrid_internal_preprocessing_after_pattern`` instead of default
+    ``cleaning_v4`` to avoid redundant sponsor/outro removal while retaining v4-only steps.
+
+    For ``llm`` or ``hybrid`` cleaning strategies, upstream output is not guaranteed to
+    match the pattern cleaner; keep the provider default ``cleaning_v4``.
+    """
+    from ..providers.ml.hybrid_ml_provider import HybridMLProvider
+
+    if not isinstance(summary_provider, HybridMLProvider):
+        return {}
+    strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+    if strategy != "pattern":
+        return {}
+    profile = getattr(
+        cfg,
+        "hybrid_internal_preprocessing_after_pattern",
+        "cleaning_hybrid_after_pattern",
+    )
+    return {"preprocessing_profile": profile}
+
+
 def _generate_episode_summary(  # noqa: C901
     transcript_file_path: str,
     output_dir: str,
@@ -2154,6 +2188,8 @@ def _generate_episode_summary(  # noqa: C901
                 params["chunk_parallelism"] = cfg.summary_chunk_parallelism
             if cfg.summary_prompt:
                 params["prompt"] = str(cfg.summary_prompt)
+
+            params.update(_hybrid_ml_layered_summarize_params(cfg, summary_provider))
 
             # All providers must support call_metrics (no backward compatibility)
             result = summary_provider.summarize(

@@ -93,10 +93,30 @@ def _log_session_estimated_llm_cost(runs_data: List[Dict[str, Any]]) -> None:
         )
 
 
+def _estimate_llm_cost_usd_from_stdout_log(stdout_path: Path) -> Optional[float]:
+    """Sum ``Total estimated cost: $X`` lines from service stdout (multi-feed fallback)."""
+    if not stdout_path.is_file():
+        return None
+    pat = re.compile(r"Total estimated cost:\s*\$([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
+    total = 0.0
+    found = False
+    try:
+        text = stdout_path.read_text(encoding="utf-8", errors="ignore")
+        for m in pat.finditer(text):
+            total += float(m.group(1))
+            found = True
+    except OSError as exc:
+        logger.debug("Could not read stdout for cost fallback %s: %s", stdout_path, exc)
+        return None
+    return round(total, 6) if found else None
+
+
 def _estimate_llm_cost_usd_for_run_dir(run_output_dir: Path) -> Optional[float]:
     """Estimate billable LLM cost for one run (same formula as pipeline summary).
 
-    Reads ``metrics.json`` and ``config.original.yaml`` under the run directory.
+    Sums all ``metrics.json`` files under the run directory (single-feed flat layout and
+    multi-feed ``feeds/.../metrics.json``). Falls back to parsing ``stdout.log`` for
+    ``Total estimated cost: $...`` lines when metrics yield no billable total.
 
     Args:
         run_output_dir: Directory containing run artifacts.
@@ -104,19 +124,80 @@ def _estimate_llm_cost_usd_for_run_dir(run_output_dir: Path) -> Optional[float]:
     Returns:
         Estimated USD total, or ``None`` if missing files or no billable LLM usage.
     """
-    metrics_path = run_output_dir / "metrics.json"
     cfg_path = run_output_dir / "config.original.yaml"
-    if not metrics_path.is_file() or not cfg_path.is_file():
+    if not cfg_path.is_file():
         return None
     try:
-        with open(metrics_path, encoding="utf-8") as f:
-            metrics_dict = json.load(f)
         cfg_dict = config.load_config_file(str(cfg_path))
         cfg_model = config.Config.model_validate(cfg_dict)
-        return estimated_llm_cost_usd_from_metrics_dict(cfg_model, metrics_dict)
     except Exception as exc:
-        logger.debug("Could not estimate LLM cost for %s: %s", run_output_dir, exc)
+        logger.debug("Could not load config for cost estimate %s: %s", run_output_dir, exc)
         return None
+
+    metrics_files = sorted(
+        {p.resolve() for p in run_output_dir.rglob("metrics.json") if ".git" not in p.parts}
+    )
+    total = 0.0
+    found_positive = False
+    for metrics_path in metrics_files:
+        try:
+            with open(metrics_path, encoding="utf-8") as f:
+                metrics_dict = json.load(f)
+            part = estimated_llm_cost_usd_from_metrics_dict(cfg_model, metrics_dict)
+            if part is not None and part > 0:
+                total += float(part)
+                found_positive = True
+        except Exception as exc:
+            logger.debug("Skip metrics %s for cost: %s", metrics_path, exc)
+            continue
+
+    if found_positive:
+        return round(total, 6)
+
+    return _estimate_llm_cost_usd_from_stdout_log(run_output_dir / "stdout.log")
+
+
+def _assess_vector_index_run(
+    run_output_dir: Path,
+    cfg_model: config.Config,
+    episodes_processed: int,
+    is_dry_run: bool,
+) -> tuple[bool, str]:
+    """Return (ok, note) for FAISS output when vector_search is enabled."""
+    if is_dry_run:
+        return True, "dry_run"
+    if getattr(cfg_model, "vector_search", False) is not True:
+        return True, "vector_search_off"
+    if getattr(cfg_model, "vector_backend", "faiss") != "faiss":
+        return True, "not_faiss_backend"
+    if episodes_processed <= 0:
+        return True, "no_episodes"
+
+    meta_path = run_output_dir / "search" / "metadata.json"
+    if not meta_path.is_file():
+        return False, "missing_search_metadata_json"
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False, "invalid_search_metadata_json"
+    if isinstance(data, dict) and len(data) > 0:
+        return True, "indexed"
+
+    id_map_path = run_output_dir / "search" / "id_map.json"
+    if id_map_path.is_file():
+        try:
+            idm = json.loads(id_map_path.read_text(encoding="utf-8"))
+            if isinstance(idm, dict) and len(idm) > 0:
+                return True, "id_map_nonempty"
+        except json.JSONDecodeError:
+            pass
+    return False, "empty_vector_index"
+
+
+def _strict_vector_index_requested() -> bool:
+    """True if CLI or env requests failing runs when FAISS produced no rows."""
+    val = os.environ.get("STRICT_VECTOR_INDEX", "").strip().lower()
+    return val in ("1", "true", "yes", "on")
 
 
 def _find_config_files_one(pattern: str) -> List[Path]:
@@ -148,7 +229,7 @@ def find_config_files(pattern: str) -> List[Path]:
 
     Args:
         pattern: Single glob, or multiple globs separated by whitespace (e.g.
-            "config/acceptance/full/*.yaml")
+            "config/acceptance/*.yaml")
 
     Returns:
         Sorted list of unique matching config file paths
@@ -170,30 +251,74 @@ def find_config_files(pattern: str) -> List[Path]:
     return merged
 
 
-def load_fast_config_stems() -> set[str]:
-    """Load set of config stems considered 'fast' for --fast-only (e.g. for CI).
+def _load_stems_from_file(path: Path) -> set[str]:
+    stems: set[str] = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if line:
+                stems.add(line)
+    return stems
 
-    Reads config/acceptance/FAST_CONFIGS.txt: one stem per line, # comments and blank
-    lines ignored. Stem = filename without extension (e.g. acceptance_planet_money_ml).
+
+def load_fast_config_stems() -> set[str]:
+    """Load set of config stems considered 'fast' for --fast-only / --from-fast-stems.
+
+    Reads ``config/acceptance/FAST_CONFIGS.txt`` when present (tracked in Git).
+    If that file is missing or empty, reads optional local
+    ``config/ci/acceptance_fast_stems.txt`` (gitignored; see ``config/ci/README.md``).
+
+    One stem per line; ``#`` comments and blank lines ignored. Stem = filename without
+    extension (e.g. ``acceptance_planet_money_ml_dev``).
 
     Returns:
-        Set of stem strings. Empty if file does not exist or is unreadable.
+        Set of stem strings. Empty if no file exists or is unreadable.
     """
     project_root = Path(__file__).parent.parent.parent
-    path = project_root / "config" / "acceptance" / "FAST_CONFIGS.txt"
-    if not path.exists():
-        return set()
-    stems: set[str] = set()
-    try:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.split("#", 1)[0].strip()
-                if line:
-                    stems.add(line)
-    except OSError as e:
-        logger.warning("Could not read FAST_CONFIGS.txt: %s", e)
-        return set()
-    return stems
+    local_path = project_root / "config" / "acceptance" / "FAST_CONFIGS.txt"
+    ci_path = project_root / "config" / "ci" / "acceptance_fast_stems.txt"
+    for path in (local_path, ci_path):
+        if not path.exists():
+            continue
+        try:
+            stems = _load_stems_from_file(path)
+            if stems:
+                logger.info("Loaded %d fast config stems from %s", len(stems), path)
+            return stems
+        except OSError as e:
+            logger.warning("Could not read %s: %s", path, e)
+    return set()
+
+
+def resolve_yaml_paths_from_stems(stems: set[str]) -> List[Path]:
+    """Map each stem to an existing YAML path (acceptance dir, then examples).
+
+    Prefer ``config/acceptance/<stem>.yaml``; ``config/examples/`` is a legacy
+    fallback for stems that still ship a second copy there.
+
+    Args:
+        stems: Config file stems (no ``.yaml``).
+
+    Returns:
+        Sorted list of paths that exist. Stems with no file log a warning and are skipped.
+    """
+    project_root = Path(__file__).parent.parent.parent
+    acceptance_dir = project_root / "config" / "acceptance"
+    examples_dir = project_root / "config" / "examples"
+    out: List[Path] = []
+    for stem in sorted(stems):
+        for base in (acceptance_dir, examples_dir):
+            candidate = base / f"{stem}.yaml"
+            if candidate.is_file():
+                out.append(candidate)
+                break
+        else:
+            logger.warning(
+                "Fast stem %r: no %s.yaml under config/acceptance or config/examples",
+                stem,
+                stem,
+            )
+    return out
 
 
 def filter_fast_configs(config_files: List[Path], fast_stems: set[str]) -> List[Path]:
@@ -277,14 +402,50 @@ def modify_config_for_fixtures(
     config_dict["output_dir"] = str(run_output_dir)
 
     if use_fixtures and e2e_server:
-        # Replace RSS URL with E2E server feed URL
-        # Use podcast1_multi_episode as default (5 short episodes)
-        original_rss = config_dict.get("rss", "")
-        if original_rss and not original_rss.startswith("http://127.0.0.1"):
-            # Replace with E2E server feed
-            # Default to podcast1_multi_episode for bulk tests
-            config_dict["rss"] = e2e_server.urls.feed("podcast1_multi_episode")
-            logger.debug(f"Replaced RSS URL: {original_rss} -> {config_dict['rss']}")
+        # Multi-feed: replace external URLs with distinct local fixture feeds (hash isolation).
+        # Slot 0: podcast1_mtb → p01_mtb even when fast E2E mode is on (not p01_fast).
+        # Slots 1–4: podcast2..5 → p02..p05. Samples keep five generic placeholders for copying.
+        # (see tests/e2e/fixtures/e2e_http_server.py).
+        fixture_feed_urls = [
+            e2e_server.urls.feed("podcast1_mtb"),
+            e2e_server.urls.feed("podcast2"),
+            e2e_server.urls.feed("podcast3"),
+            e2e_server.urls.feed("podcast4"),
+            e2e_server.urls.feed("podcast5"),
+        ]
+
+        def _replace_external_feed_urls(urls: list) -> list:
+            out: list = []
+            for i, raw in enumerate(urls):
+                u = str(raw).strip() if raw is not None else ""
+                if u and not u.startswith("http://127.0.0.1"):
+                    out.append(fixture_feed_urls[i % len(fixture_feed_urls)])
+                else:
+                    out.append(raw)
+            return out
+
+        feeds_like = config_dict.get("feeds")
+        rss_urls_like = config_dict.get("rss_urls")
+        rss_val = config_dict.get("rss")
+        if isinstance(feeds_like, list) and feeds_like:
+            config_dict["feeds"] = _replace_external_feed_urls(feeds_like)
+            logger.debug("Replaced feeds with E2E fixture URLs: %s", config_dict["feeds"])
+        elif isinstance(rss_urls_like, list) and rss_urls_like:
+            config_dict["rss_urls"] = _replace_external_feed_urls(rss_urls_like)
+            logger.debug("Replaced rss_urls with E2E fixture URLs: %s", config_dict["rss_urls"])
+        elif isinstance(rss_val, list) and rss_val:
+            config_dict["rss"] = _replace_external_feed_urls(rss_val)
+            logger.debug("Replaced rss list with E2E fixture URLs: %s", config_dict["rss"])
+        else:
+            # Single-string rss (legacy / single-feed acceptance)
+            original_rss = config_dict.get("rss", "")
+            if (
+                isinstance(original_rss, str)
+                and original_rss
+                and not original_rss.startswith("http://127.0.0.1")
+            ):
+                config_dict["rss"] = e2e_server.urls.feed("podcast1_multi_episode")
+                logger.debug("Replaced RSS URL: %s -> %s", original_rss, config_dict["rss"])
 
         # Set API base URLs to E2E server for all providers
         # This ensures we use mock APIs, not real ones
@@ -310,8 +471,15 @@ def modify_config_for_fixtures(
         if "ANTHROPIC_API_KEY" not in os.environ:
             os.environ["ANTHROPIC_API_KEY"] = "test-dummy-key-for-bulk-tests"
 
-    # Effective RSS for this run (fixture replacement or YAML); session-wide mode is in main().
-    logger.info("  rss (this config): %s", config_dict.get("rss", "not set"))
+    # Effective feed URLs: fixture replacement or YAML (session-wide mode is in main()).
+    feed_list = config_dict.get("feeds") or config_dict.get("rss_urls")
+    rss_val = config_dict.get("rss")
+    if isinstance(feed_list, list) and feed_list:
+        logger.info("  feeds (this config, %d urls): %s", len(feed_list), feed_list)
+    elif isinstance(rss_val, list) and rss_val:
+        logger.info("  rss list (this config, %d urls): %s", len(rss_val), rss_val)
+    else:
+        logger.info("  rss (this config): %s", config_dict.get("rss", "not set"))
 
     # Save modified config in the run directory
     # This is needed for the service to run and also serves as a record of what was used
@@ -631,11 +799,14 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
         output_dir: Output directory for the run
 
     Returns:
-        Dict with log analysis (errors, warnings, info count)
+        Dict with log analysis: ``errors`` / ``warnings`` (distinct, capped), ``*_lines_total``
+        (raw line counts), ``*_count_distinct``, and ``info_count``.
     """
     errors = []
     warnings = []
     info_count = 0
+    error_lines_total = 0
+    warning_lines_total = 0
 
     # Track seen error/warning lines to avoid duplicates (same error in stdout and stderr)
     seen_errors = set()
@@ -698,8 +869,8 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
         "ignore_warning",
     ]
 
-    # Look for log files in output directory
-    log_files = list(output_dir.glob("*.log")) + list(output_dir.rglob("*.log"))
+    # Look for log files (dedupe: root glob is a subset of rglob)
+    log_files = sorted({p.resolve() for p in output_dir.rglob("*.log")})
 
     for log_file in log_files:
         try:
@@ -733,6 +904,7 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
                     # Deduplicate by normalizing the line (remove timestamps, etc.) to avoid
                     # counting the same error from both stdout.log and stderr.log
                     if is_error:
+                        error_lines_total += 1
                         normalized = _normalize_log_line(line_stripped)
                         # Only add if we haven't seen this exact error before
                         if normalized and normalized not in seen_errors:
@@ -740,6 +912,7 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
                             errors.append(line_stripped[:200])  # Limit length
                         continue
                     elif is_warning:
+                        warning_lines_total += 1
                         normalized = _normalize_log_line(line_stripped)
                         # Only add if we haven't seen this exact warning before
                         if normalized and normalized not in seen_warnings:
@@ -782,8 +955,12 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
     key_error_messages = list(dict.fromkeys(key_error_messages))  # Preserves order
 
     return {
-        "errors": errors[:50],  # Limit to 50 errors
-        "warnings": warnings[:50],  # Limit to 50 warnings
+        "errors": errors[:50],  # Limit to 50 errors (distinct normalized messages)
+        "warnings": warnings[:50],  # Limit to 50 warnings (distinct)
+        "error_count_distinct": len(errors),
+        "warning_count_distinct": len(warnings),
+        "error_lines_total": error_lines_total,
+        "warning_lines_total": warning_lines_total,
         "info_count": info_count,
         "key_error_messages": key_error_messages[:10],  # Top 10 key error messages
     }
@@ -823,32 +1000,35 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
 
     logger.debug(f"Copying service outputs from: {source_dir} to {run_output_dir}")
 
+    def _copytree_if_distinct(src: Path, dst: Path, label: str) -> None:
+        """Copy directory unless src and dst are the same path (avoid rmtree deleting source)."""
+        if not src.exists():
+            return
+        try:
+            if src.resolve() == dst.resolve():
+                logger.debug("Skip %s copy: already at run root (%s)", label, dst)
+                return
+        except OSError:
+            pass
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+        logger.debug("Copied %s to: %s", label, dst)
+
     # Copy metadata files directly to run_output_dir/metadata/ (keep folder structure)
     metadata_source = source_dir / "metadata"
-    if metadata_source.exists():
-        metadata_dest = run_output_dir / "metadata"
-        if metadata_dest.exists():
-            shutil.rmtree(metadata_dest)
-        shutil.copytree(metadata_source, metadata_dest)
-        logger.debug(f"Copied metadata files to: {metadata_dest}")
+    metadata_dest = run_output_dir / "metadata"
+    _copytree_if_distinct(metadata_source, metadata_dest, "metadata files")
 
     # Copy transcript files directly to run_output_dir/transcripts/ (keep folder structure)
     transcripts_source = source_dir / "transcripts"
-    if transcripts_source.exists():
-        transcripts_dest = run_output_dir / "transcripts"
-        if transcripts_dest.exists():
-            shutil.rmtree(transcripts_dest)
-        shutil.copytree(transcripts_source, transcripts_dest)
-        logger.debug(f"Copied transcript files to: {transcripts_dest}")
+    transcripts_dest = run_output_dir / "transcripts"
+    _copytree_if_distinct(transcripts_source, transcripts_dest, "transcript files")
 
     # Copy search/FAISS index directory (vector_search output)
     search_source = source_dir / "search"
-    if search_source.exists():
-        search_dest = run_output_dir / "search"
-        if search_dest.exists():
-            shutil.rmtree(search_dest)
-        shutil.copytree(search_source, search_dest)
-        logger.debug(f"Copied search index to: {search_dest}")
+    search_dest = run_output_dir / "search"
+    _copytree_if_distinct(search_source, search_dest, "search index")
 
     # Copy run tracking files (run.json, index.json, run_manifest.json, metrics.json)
     # directly to run_output_dir (flat)
@@ -887,53 +1067,38 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
 def collect_outputs(output_dir: Path) -> Dict[str, Any]:
     """Collect output file information.
 
+    For multi-feed runs the files live under ``feeds/rss_…/run_…/``.
+    We use **full path** dedup (not filename-only) so identically-named
+    files in different feed directories are counted separately.
+
     Args:
         output_dir: Output directory for the run
 
     Returns:
         Dict with output counts (transcripts, metadata, summaries)
     """
-    # Search directly in run_output_dir (flattened structure)
-    # Metadata and transcripts are in subfolders, but run.json, etc. are flat
     search_dirs = [output_dir]
 
     transcripts = 0
     metadata = 0
     summaries = 0
 
-    # Track unique transcript files by their normalized name to avoid double-counting
-    # (deduplication by filename ensures we count each unique transcript once)
-    unique_txt_files = set()  # normalized_name (filename only)
-    unique_srt_files = set()  # normalized_name (filename only)
+    # Dedup by *full resolved path* so multi-feed files are not collapsed.
+    unique_txt_paths: set[Path] = set()
+    unique_srt_paths: set[Path] = set()
+    unique_metadata: dict[Path, Path] = {}  # resolved → original
 
-    # Track unique metadata files by their normalized name to avoid double-counting
-    # (in case files exist in multiple locations)
-    unique_metadata_files = {}  # normalized_name -> Path (we'll use the first one we find)
-
-    # First pass: collect all unique transcript and metadata files across all search directories
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
-        # Collect transcript files, excluding .cleaned.txt variants
-        # Note: .cleaned.txt files are for quality tooling later to measure the effect of cleaning.
-        # They should NOT be part of any stats or counting - only the primary .txt files count.
-        txt_files = [
-            p
-            for p in search_dir.rglob("*.txt")
-            if not p.name.endswith(
-                ".cleaned.txt"
-            )  # Exclude cleaned variants (quality tooling only)
-        ]
+        txt_files = [p for p in search_dir.rglob("*.txt") if not p.name.endswith(".cleaned.txt")]
         srt_files = list(search_dir.rglob("*.srt"))
 
-        # Track unique transcript files by filename (not path) to avoid double-counting
-        # (deduplication ensures we count each unique transcript once)
         for txt_file in txt_files:
-            unique_txt_files.add(txt_file.name)  # Use filename only for deduplication
+            unique_txt_paths.add(txt_file.resolve())
         for srt_file in srt_files:
-            unique_srt_files.add(srt_file.name)  # Use filename only for deduplication
+            unique_srt_paths.add(srt_file.resolve())
 
-        # Collect metadata files (not run_data.json, run.json, etc.)
         metadata_files = [
             p
             for p in search_dir.rglob("*.json")
@@ -946,24 +1111,15 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
             or (p.parent.name == "metadata" and p.suffix in [".json", ".yaml"])
         ]
 
-        # Track unique metadata files by normalized filename
-        # Use normalized filename to identify duplicates across directories
-        # (e.g., "0001 - Episode Title.metadata.json" is the same file regardless of path)
-        for metadata_file in metadata_files:
-            normalized_name = metadata_file.name
-            if normalized_name not in unique_metadata_files:
-                unique_metadata_files[normalized_name] = metadata_file
+        for mf in metadata_files:
+            resolved = mf.resolve()
+            if resolved not in unique_metadata:
+                unique_metadata[resolved] = mf
 
-    # Count unique transcript files (deduplicated by filename)
-    transcripts = len(unique_txt_files) + len(unique_srt_files)
+    transcripts = len(unique_txt_paths) + len(unique_srt_paths)
+    metadata = len(unique_metadata)
 
-    # Count unique metadata files
-    metadata = len(unique_metadata_files)
-
-    # Count summaries: check if unique metadata files contain summaries
-    # Summaries are stored inside metadata JSON/YAML files, not as separate files
-    # Only process each unique metadata file once to avoid double-counting summaries
-    for normalized_name, metadata_file in unique_metadata_files.items():
+    for _resolved, metadata_file in unique_metadata.items():
         try:
             with open(metadata_file, "r", encoding="utf-8") as f:
                 if metadata_file.suffix == ".yaml":
@@ -972,9 +1128,7 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
                     content = yaml.safe_load(f)
                 else:
                     content = json.load(f)
-                # Check if this metadata file has a summary field
                 if content and isinstance(content, dict):
-                    # Summary can be at top level or nested in content/summary
                     if content.get("summary") or (
                         content.get("content")
                         and isinstance(content.get("content"), dict)
@@ -982,7 +1136,6 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
                     ):
                         summaries += 1
         except Exception:
-            # If we can't read the file, skip it
             pass
 
     # Also count separate markdown summary files (if any exist)
@@ -1107,6 +1260,38 @@ def _extract_episodes_from_dry_run(stdout_content: str) -> int:
                 continue
     logger.debug("Could not extract transcripts_planned from dry-run output, defaulting to 0")
     return 0
+
+
+def _extract_episodes_from_corpus_summary(output_dir: Path) -> int:
+    """Sum episodes_processed across feeds from corpus_run_summary.json.
+
+    Multi-feed runs write this file at the corpus root with per-feed
+    episode counts.  Using it avoids the fallback heuristics that
+    under-count when ``run.json`` only exists inside each feed subdir.
+
+    Returns:
+        Total episodes across all feeds, or 0 if file missing/invalid.
+    """
+    summary_path = output_dir / "corpus_run_summary.json"
+    if not summary_path.exists():
+        return 0
+    try:
+        with open(summary_path, "r") as f:
+            data = json.load(f)
+        feeds = data.get("feeds", [])
+        if not isinstance(feeds, list):
+            return 0
+        total = sum(int(fd.get("episodes_processed", 0)) for fd in feeds if isinstance(fd, dict))
+        if total > 0:
+            logger.debug(
+                "Episode count from corpus_run_summary.json: %d " "(%d feeds)",
+                total,
+                len(feeds),
+            )
+        return total
+    except Exception as exc:
+        logger.debug("Failed to read corpus_run_summary.json: %s", exc)
+        return 0
 
 
 def _extract_episodes_from_run_json(run_json_path: Path) -> int:
@@ -1421,6 +1606,8 @@ def run_config(
     hide_debug_console: bool = True,
     run_index: Optional[int] = None,
     run_total: Optional[int] = None,
+    *,
+    strict_vector_index: bool = False,
 ) -> Dict[str, Any]:
     """Run a single config and collect data.
 
@@ -1435,6 +1622,8 @@ def run_config(
         hide_debug_console: When streaming, omit DEBUG lines from the console (files unchanged).
         run_index: 1-based index when running multiple configs (optional).
         run_total: Total configs in session when running multiple (optional).
+        strict_vector_index: When True, set ``exit_code`` to 1 if ``vector_search`` is enabled
+            but ``search/metadata.json`` has no vector rows after episodes ran.
 
     Returns:
         Dict with run data
@@ -1559,20 +1748,26 @@ def run_config(
     if is_dry_run:
         episodes_processed = _extract_episodes_from_dry_run(stdout_content)
     else:
-        # Try to read from run.json first (most reliable)
-        run_json_path = run_output_dir / "run.json"
-        episodes_processed = _extract_episodes_from_run_json(run_json_path)
+        # Multi-feed: prefer corpus_run_summary.json (authoritative per-feed counts)
+        episodes_processed = _extract_episodes_from_corpus_summary(run_output_dir)
+
+        # Single-feed: try run.json at corpus root
+        if episodes_processed == 0:
+            run_json_path = run_output_dir / "run.json"
+            episodes_processed = _extract_episodes_from_run_json(run_json_path)
 
         # Fallback: try index.json
         if episodes_processed == 0:
             index_json_path = run_output_dir / "index.json"
             episodes_processed = _extract_episodes_from_index_json(index_json_path)
 
-        # Final fallback: count transcript files (less accurate, may include duplicates)
-        # Note: This already excludes .cleaned.txt files in collect_outputs()
+        # Final fallback: count transcript files
         if episodes_processed == 0:
             episodes_processed = outputs.get("transcripts", 0)
-            logger.debug(f"Using transcript file count as fallback: {episodes_processed}")
+            logger.debug(
+                "Using transcript file count as fallback: %d",
+                episodes_processed,
+            )
 
     # Log dry-run detection result for debugging
     if is_dry_run:
@@ -1585,6 +1780,29 @@ def run_config(
 
     timed_out = exit_code == EXIT_TIMEOUT
 
+    cfg_for_vectors: Optional[config.Config] = None
+    try:
+        cfg_dict_v = config.load_config_file(str(original_config_copy))
+        cfg_for_vectors = config.Config.model_validate(cfg_dict_v)
+    except Exception as exc:
+        logger.debug("Could not load config for vector index check: %s", exc)
+
+    vector_index_ok = True
+    vector_index_notes = "not_evaluated"
+    if cfg_for_vectors is not None:
+        vector_index_ok, vector_index_notes = _assess_vector_index_run(
+            run_output_dir, cfg_for_vectors, episodes_processed, is_dry_run
+        )
+
+    effective_exit = exit_code
+    if strict_vector_index and not vector_index_ok and effective_exit == 0:
+        effective_exit = 1
+        logger.error(
+            "Strict vector index: failing run %s (notes=%s)",
+            config_name,
+            vector_index_notes,
+        )
+
     # Build run data (store absolute output_dir so run artifacts are findable regardless of cwd)
     run_data = {
         "run_id": run_id,
@@ -1594,7 +1812,8 @@ def run_config(
         "start_time": start_timestamp,
         "end_time": end_timestamp,
         "duration_seconds": round(duration_seconds, 2),
-        "exit_code": exit_code,
+        "exit_code": effective_exit,
+        "service_exit_code": exit_code,
         "timeout": timed_out,  # True if run was killed by --timeout
         "episodes_processed": episodes_processed,
         "is_dry_run": is_dry_run,  # Flag indicating dry-run mode
@@ -1604,6 +1823,9 @@ def run_config(
         "resource_usage": resource_usage,
         "provider_info": provider_info,  # Provider/model information for benchmarking
         "estimated_cost_usd": _estimate_llm_cost_usd_for_run_dir(run_output_dir),
+        "vector_index_ok": vector_index_ok,
+        "vector_index_notes": vector_index_notes,
+        "strict_vector_index": strict_vector_index,
     }
 
     # Save run data
@@ -1612,9 +1834,10 @@ def run_config(
         json.dump(run_data, f, indent=2)
 
     logger.info(
-        f"Completed {config_name}: exit_code={exit_code}, "
+        f"Completed {config_name}: exit_code={effective_exit}, "
         f"duration={duration_seconds:.1f}s, episodes={episodes_processed}"
         + (" (timed out)" if timed_out else "")
+        + (f", vector_index={vector_index_notes}" if not is_dry_run else "")
     )
 
     return run_data
@@ -1673,10 +1896,10 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
     parser.add_argument(
         "--configs",
         type=str,
-        required=True,
+        default=None,
         help=(
             "Config file glob pattern, or multiple space-separated globs "
-            "(e.g. 'config/acceptance/full/*.yaml')"
+            "(e.g. 'config/acceptance/*.yaml'). Not required with --from-fast-stems."
         ),
     )
     parser.add_argument(
@@ -1769,7 +1992,32 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         "--fast-only",
         action="store_true",
         default=False,
-        help="Run only configs listed in config/acceptance/FAST_CONFIGS.txt (fast subset for CI).",
+        help=(
+            "After resolving --configs globs, keep only stems listed in "
+            "config/acceptance/FAST_CONFIGS.txt (or optional local "
+            "config/ci/acceptance_fast_stems.txt)."
+        ),
+    )
+    parser.add_argument(
+        "--from-fast-stems",
+        action="store_true",
+        default=False,
+        help=(
+            "Ignore --configs; run YAMLs for each fast stem, resolving "
+            "config/acceptance/<stem>.yaml or config/examples/<stem>.yaml. "
+            "Uses FAST_CONFIGS.txt when present, else optional local "
+            "config/ci/acceptance_fast_stems.txt. "
+            "Intended for CI / fixture smoke (pair with --use-fixtures)."
+        ),
+    )
+    parser.add_argument(
+        "--strict-vector-index",
+        action="store_true",
+        default=False,
+        help=(
+            "Treat empty FAISS output (vector_search on, episodes processed, but no rows in "
+            "search/metadata.json) as a failed run (exit_code 1). Same as STRICT_VECTOR_INDEX=1."
+        ),
     )
 
     args = parser.parse_args()
@@ -1797,30 +2045,58 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
         e2e_server.start()
 
     # Find config files
-    config_files = find_config_files(args.configs)
-    if not config_files:
-        logger.error("No config files found")
-        sys.exit(1)
-
-    # Optionally restrict to fast subset (for CI: run fast configs on PR, full suite nightly)
-    if args.fast_only:
+    if args.from_fast_stems:
+        if args.configs:
+            logger.info("--from-fast-stems set; ignoring --configs %r", args.configs)
         fast_stems = load_fast_config_stems()
         if not fast_stems:
-            logger.warning(
-                "FAST_CONFIGS.txt not found or empty; --fast-only has no effect. "
-                "See config/acceptance/FAST_CONFIGS.txt."
+            logger.error(
+                "No fast stems: add or restore config/acceptance/FAST_CONFIGS.txt "
+                "(tracked), or create optional local config/ci/acceptance_fast_stems.txt "
+                "(see config/ci/README.md)."
             )
-        else:
-            before = len(config_files)
-            config_files = filter_fast_configs(config_files, fast_stems)
-            logger.info(
-                "--fast-only: running %d of %d configs (from FAST_CONFIGS.txt)",
-                len(config_files),
-                before,
+            sys.exit(1)
+        config_files = resolve_yaml_paths_from_stems(fast_stems)
+        if not config_files:
+            logger.error(
+                "No YAML files resolved for fast stems (see warnings above). "
+                "Expected files under config/acceptance/ or config/examples/."
             )
-            if not config_files:
-                logger.error("No configs matched FAST_CONFIGS.txt")
-                sys.exit(1)
+            sys.exit(1)
+        logger.info(
+            "--from-fast-stems: running %d config(s) from %d stem(s)",
+            len(config_files),
+            len(fast_stems),
+        )
+    else:
+        if not args.configs:
+            logger.error("No --configs given (or use --from-fast-stems)")
+            sys.exit(1)
+        config_files = find_config_files(args.configs)
+        if not config_files:
+            logger.error("No config files found")
+            sys.exit(1)
+
+        # Optionally restrict to fast subset (for CI: run fast configs on PR, full suite nightly)
+        if args.fast_only:
+            fast_stems = load_fast_config_stems()
+            if not fast_stems:
+                logger.warning(
+                    "Fast stem list not found or empty; --fast-only has no effect. "
+                    "See config/acceptance/FAST_CONFIGS.txt or optional "
+                    "config/ci/acceptance_fast_stems.txt."
+                )
+            else:
+                before = len(config_files)
+                config_files = filter_fast_configs(config_files, fast_stems)
+                logger.info(
+                    "--fast-only: running %d of %d configs (from fast stem list)",
+                    len(config_files),
+                    before,
+                )
+                if not config_files:
+                    logger.error("No configs matched the fast stem list")
+                    sys.exit(1)
 
     # Setup output directory (resolve to absolute so run dirs are deterministic)
     output_dir = Path(args.output_dir).resolve()
@@ -1882,6 +2158,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
 
         total_cfgs = len(config_files)
         hide_debug = not args.stream_debug
+        strict_vec = bool(args.strict_vector_index) or _strict_vector_index_requested()
         for i, config_file in enumerate(config_files, 1):
             if total_cfgs > 1:
                 logger.info("")
@@ -1898,6 +2175,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 hide_debug_console=hide_debug,
                 run_index=i if total_cfgs > 1 else None,
                 run_total=total_cfgs if total_cfgs > 1 else None,
+                strict_vector_index=strict_vec,
             )
             runs_data.append(run_data)
             # Persist after each config so analysis works if run is interrupted
@@ -2022,6 +2300,14 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             )
         logger.info(f"  - Baselines: {(output_dir / 'baselines').absolute()}")
         logger.info("=" * 70)
+
+        failed_count = sum(1 for r in runs_data if r.get("exit_code", 0) != 0)
+        if failed_count:
+            logger.error(
+                "%d acceptance run(s) failed (see session.json exit_code / vector_index fields).",
+                failed_count,
+            )
+            sys.exit(1)
 
     finally:
         # Stop E2E server (if it was started)

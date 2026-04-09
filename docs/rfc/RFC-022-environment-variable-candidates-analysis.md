@@ -19,8 +19,8 @@
 
 Currently supported environment variables:
 
-- ✅ `OPENAI_API_KEY` - API key (security-sensitive)
-- ✅ `LOG_LEVEL` - Runtime logging control
+- `OPENAI_API_KEY` - API key (security-sensitive)
+- `LOG_LEVEL` - Runtime logging control
 
 ## Analysis Framework
 
@@ -44,7 +44,7 @@ We evaluate candidates based on:
   - CI/CD pipelines need flexible output locations
 - **Use Case**: `OUTPUT_DIR=/data/transcripts python3 -m podcast_scraper ...`
 - **Priority**: HIGH
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 #### 2. **`CACHE_DIR`** / `SUMMARY_CACHE_DIR`
 
@@ -54,7 +54,7 @@ We evaluate candidates based on:
   - Different users/devices have different cache locations
 - **Use Case**: `SUMMARY_CACHE_DIR=/cache/models python3 -m podcast_scraper ...`
 - **Priority**: HIGH
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 #### 3. **`LOG_FILE`**
 
@@ -64,7 +64,7 @@ We evaluate candidates based on:
   - Similar to LOG_LEVEL (already supported)
 - **Use Case**: `LOG_FILE=/var/log/podcast_scraper.log python3 -m podcast_scraper ...`
 - **Priority**: HIGH
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 ### 🟡 Medium Priority Candidates
 
@@ -76,7 +76,7 @@ We evaluate candidates based on:
   - CI/CD might want fewer workers
 - **Use Case**: `WORKERS=4 python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD** (useful for deployment flexibility)
+- **Recommendation**:  **ADD** (useful for deployment flexibility)
 
 #### 5. **`TRANSCRIPTION_PARALLELISM`**
 
@@ -85,7 +85,7 @@ We evaluate candidates based on:
   - OpenAI API rate limits might require adjustment
 - **Use Case**: `TRANSCRIPTION_PARALLELISM=3 python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD** (useful for OpenAI provider tuning)
+- **Recommendation**:  **ADD** (useful for OpenAI provider tuning)
 
 #### 6. **`PROCESSING_PARALLELISM`**
 
@@ -94,7 +94,7 @@ We evaluate candidates based on:
   - Memory constraints might require adjustment
 - **Use Case**: `PROCESSING_PARALLELISM=4 python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 #### 7. **`SUMMARY_BATCH_SIZE`**
 
@@ -103,7 +103,7 @@ We evaluate candidates based on:
   - Memory constraints per environment
 - **Use Case**: `SUMMARY_BATCH_SIZE=2 python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 #### 8. **`SUMMARY_CHUNK_PARALLELISM`**
 
@@ -112,7 +112,7 @@ We evaluate candidates based on:
   - Varies by hardware
 - **Use Case**: `SUMMARY_CHUNK_PARALLELISM=2 python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 #### 9. **`TIMEOUT`**
 
@@ -121,7 +121,7 @@ We evaluate candidates based on:
   - CI/CD might need longer timeouts
 - **Use Case**: `TIMEOUT=60 python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD**
+- **Recommendation**:  **ADD**
 
 #### 10. **`SUMMARY_DEVICE`**
 
@@ -131,9 +131,9 @@ We evaluate candidates based on:
   - CI/CD runs on CPU
 - **Use Case**: `SUMMARY_DEVICE=cpu python3 -m podcast_scraper ...`
 - **Priority**: MEDIUM
-- **Recommendation**: ✅ **ADD** (useful for deployment flexibility)
+- **Recommendation**:  **ADD** (useful for deployment flexibility)
 
-### 🟢 Low Priority / Maybe Candidates
+### Low priority / maybe candidates
 
 #### 11. **`DRY_RUN`**
 
@@ -216,21 +216,21 @@ We evaluate candidates based on:
 
 **All recommended environment variables (Phase 1 and Phase 2) have been implemented.**
 
-### Phase 1: High Priority (Deployment Essentials) - ✅ COMPLETED
+### Phase 1: High Priority (Deployment Essentials) -  COMPLETED
 
-1. ✅ `OUTPUT_DIR` - Critical for Docker/CI/CD - **IMPLEMENTED**
-2. ✅ `CACHE_DIR` / `SUMMARY_CACHE_DIR` - Critical for Docker/CI/CD - **IMPLEMENTED**
-3. ✅ `LOG_FILE` - Common deployment need - **IMPLEMENTED**
+1. `OUTPUT_DIR` - Critical for Docker/CI/CD - **IMPLEMENTED**
+2. `CACHE_DIR` / `SUMMARY_CACHE_DIR` - Critical for Docker/CI/CD - **IMPLEMENTED**
+3. `LOG_FILE` - Common deployment need - **IMPLEMENTED**
 
-### Phase 2: Medium Priority (Performance Tuning) - ✅ COMPLETED
+### Phase 2: Medium Priority (Performance Tuning) -  COMPLETED
 
-1. ✅ `WORKERS` - Performance tuning - **IMPLEMENTED**
-2. ✅ `TRANSCRIPTION_PARALLELISM` - OpenAI provider tuning - **IMPLEMENTED**
-3. ✅ `PROCESSING_PARALLELISM` - Performance tuning - **IMPLEMENTED**
-4. ✅ `SUMMARY_BATCH_SIZE` - Memory management - **IMPLEMENTED**
-5. ✅ `SUMMARY_CHUNK_PARALLELISM` - CPU tuning - **IMPLEMENTED**
-6. ✅ `TIMEOUT` - Network flexibility - **IMPLEMENTED**
-7. ✅ `SUMMARY_DEVICE` - Hardware flexibility - **IMPLEMENTED**
+1. `WORKERS` - Performance tuning - **IMPLEMENTED**
+2. `TRANSCRIPTION_PARALLELISM` - OpenAI provider tuning - **IMPLEMENTED**
+3. `PROCESSING_PARALLELISM` - Performance tuning - **IMPLEMENTED**
+4. `SUMMARY_BATCH_SIZE` - Memory management - **IMPLEMENTED**
+5. `SUMMARY_CHUNK_PARALLELISM` - CPU tuning - **IMPLEMENTED**
+6. `TIMEOUT` - Network flexibility - **IMPLEMENTED**
+7. `SUMMARY_DEVICE` - Hardware flexibility - **IMPLEMENTED**
 
 ### Phase 3: Low Priority (Convenience) - ⚠️ NOT IMPLEMENTED (As Recommended)
 
@@ -267,7 +267,7 @@ We evaluate candidates based on:
 
 ## Summary
 
-**Implementation Status**: ✅ **COMPLETED**
+**Implementation Status**:  **COMPLETED**
 
 - **Implemented**: 10 fields (3 high priority, 7 medium priority) - **ALL COMPLETED**
 - **Not implemented**: 3 fields (low priority, convenience) - **As recommended** (marked as "maybe")
@@ -275,9 +275,9 @@ We evaluate candidates based on:
 
 The implemented fields focus on:
 
-- **Deployment flexibility** (paths, cache locations) - ✅ All implemented
-- **Performance tuning** (parallelism, workers, timeouts) - ✅ All implemented
-- **Hardware adaptation** (device selection) - ✅ All implemented
+- **Deployment flexibility** (paths, cache locations) -  All implemented
+- **Performance tuning** (parallelism, workers, timeouts) -  All implemented
+- **Hardware adaptation** (device selection) -  All implemented
 
 These align with common use cases in Docker, CI/CD, and multi-environment deployments.
 

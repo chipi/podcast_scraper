@@ -21,6 +21,7 @@ import unittest
 import xml.etree.ElementTree as ET  # nosec B405
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -2354,7 +2355,13 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
             summary_provider="transformers",
             summary_model="allenai/led-base-16384",
         )
-        result = metadata._build_summarization_provider_info(cfg)
+        fake_torch = MagicMock(__version__="2.0.0")
+        fake_transformers = MagicMock(__version__="4.30.0")
+        with patch.dict(
+            "sys.modules",
+            {"torch": fake_torch, "transformers": fake_transformers},
+        ):
+            result = metadata._build_summarization_provider_info(cfg)
         self.assertIsNotNone(result)
         self.assertEqual(result["provider"], "transformers")
         self.assertIn("model_revision", result)
@@ -2374,6 +2381,23 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
         self.assertEqual(result["map_model"], "longt5-base")
         self.assertEqual(result["reduce_model"], "google/flan-t5-base")
         self.assertEqual(result["reduce_backend"], "transformers")
+        self.assertEqual(result["transcript_cleaning_strategy"], "hybrid")
+        self.assertEqual(
+            result["hybrid_internal_preprocessing_after_pattern"],
+            "cleaning_hybrid_after_pattern",
+        )
+
+    def test_hybrid_ml_layered_cleaning_fields_respect_config(self):
+        """Issue #419: snapshot records strategy and internal-after-pattern profile."""
+        cfg = create_test_config(
+            summary_provider="hybrid_ml",
+            hybrid_map_model="longt5-base",
+            transcript_cleaning_strategy="pattern",
+            hybrid_internal_preprocessing_after_pattern="cleaning_none",
+        )
+        result = metadata._build_summarization_provider_info(cfg)
+        self.assertEqual(result["transcript_cleaning_strategy"], "pattern")
+        self.assertEqual(result["hybrid_internal_preprocessing_after_pattern"], "cleaning_none")
 
     @patch("podcast_scraper.workflow.run_manifest._revision_for_summary_model")
     def test_hybrid_ml_provider_includes_model_revision_when_available(self, mock_revision):
@@ -2608,7 +2632,7 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
 
     def test_attach_llm_cleaning_models_openai_hybrid(self):
         """_attach_llm_cleaning_models_to_summarization_info writes openai_cleaning_model."""
-        info: dict = {"provider": "openai"}
+        info: dict[str, Any] = {"provider": "openai"}
         cfg = SimpleNamespace(
             transcript_cleaning_strategy="hybrid",
             summary_provider="openai",
@@ -2640,6 +2664,41 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
         )
         metadata._attach_llm_cleaning_models_to_summarization_info(info, cfg)
         self.assertEqual(info["deepseek_cleaning_model"], "ds-clean-attach")
+
+
+@pytest.mark.unit
+class TestHybridMlLayeredSummarizeParams(unittest.TestCase):
+    """Tests for _hybrid_ml_layered_summarize_params (Issue #419)."""
+
+    def test_non_hybrid_provider_returns_empty(self):
+        mock_provider = MagicMock()
+        cfg = create_test_config(transcript_cleaning_strategy="pattern")
+        self.assertEqual(metadata._hybrid_ml_layered_summarize_params(cfg, mock_provider), {})
+
+    def test_hybrid_pattern_strategy_injects_preprocessing_profile(self):
+        from podcast_scraper.providers.ml.hybrid_ml_provider import HybridMLProvider
+
+        cfg = create_test_config(
+            summary_provider="hybrid_ml",
+            transcript_cleaning_strategy="pattern",
+            hybrid_internal_preprocessing_after_pattern="cleaning_hybrid_after_pattern",
+        )
+        provider = HybridMLProvider(cfg)
+        out = metadata._hybrid_ml_layered_summarize_params(cfg, provider)
+        self.assertEqual(
+            out,
+            {"preprocessing_profile": "cleaning_hybrid_after_pattern"},
+        )
+
+    def test_hybrid_default_strategy_does_not_inject_profile(self):
+        from podcast_scraper.providers.ml.hybrid_ml_provider import HybridMLProvider
+
+        cfg = create_test_config(
+            summary_provider="hybrid_ml",
+            transcript_cleaning_strategy="hybrid",
+        )
+        provider = HybridMLProvider(cfg)
+        self.assertEqual(metadata._hybrid_ml_layered_summarize_params(cfg, provider), {})
 
 
 @pytest.mark.unit

@@ -492,11 +492,11 @@ routing_entity_density_threshold: float = 10.0
 
 **Success Criteria:**
 
-1. ✅ Profiling completes in < 1s per episode
-2. ✅ Routing decisions are deterministic and reproducible
-3. ✅ Quality improves for at least 3 episode profiles
-4. ✅ No regressions for default (non-routed) behavior
-5. ✅ Documentation complete (routing guide, threshold tuning)
+1. Profiling completes in < 1s per episode
+2. Routing decisions are deterministic and reproducible
+3. Quality improves for at least 3 episode profiles
+4. No regressions for default (non-routed) behavior
+5. Documentation complete (routing guide, threshold tuning)
 
 ## Integration with GIL (RFC-049)
 

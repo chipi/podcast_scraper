@@ -1,6 +1,6 @@
 # RFC-029: Provider Refactoring Consolidation
 
-- **Status**: ✅ Completed
+- **Status**: Completed
 - **Authors**: Maintainers
 - **Stakeholders**: Developers working on provider system, test maintainers
 - **Related PRDs**: `docs/prd/PRD-006-openai-provider-integration.md`
@@ -114,7 +114,7 @@ provider = create_summarization_provider(cfg)  # Returns MLProvider or OpenAIPro
 
 ## Integration Status
 
-### ✅ Completed Integration
+### Completed Integration
 
 #### Configuration (`src/podcast_scraper/config.py`)
 - Provider fields validated: `transcription_provider`, `speaker_detector_provider`, `summary_provider`
@@ -385,9 +385,9 @@ self.assertTrue(hasattr(provider, "cleanup"))  # Protocol method
 
 | Capability | Provider Options | Current Choice | Rationale |
 | ------------ | ------------------ | ---------------- | ----------- |
-| **Transcription** | `whisper`, `openai` | `whisper` | ✅ Specific library name |
+| **Transcription** | `whisper`, `openai` | `whisper` | Yes — Specific library name |
 | **Speaker Detection** | `ner`, `openai` | `ner` | ⚠️ Technique name (uses spaCy) |
-| **Summarization** | `local`, `openai` | `local` | ❌ Generic term (uses Transformers/PyTorch) |
+| **Summarization** | `local`, `openai` | `local` | No — Generic term (uses Transformers/PyTorch) |
 
 ### Problem
 
@@ -416,9 +416,9 @@ The naming is inconsistent:
 
 **Pros:**
 
-- ✅ Specific library name (consistent with `whisper`)
-- ✅ Clear what technology is used
-- ✅ Matches original RFC-013 design
+- Specific library name (consistent with `whisper`)
+- Clear what technology is used
+- Matches original RFC-013 design
 
 **Cons:**
 - ❌ Breaking change (requires migration)
@@ -555,13 +555,13 @@ The naming is inconsistent:
 
 ## Success Criteria
 
-1. ✅ All test files use factories instead of direct imports
-2. ✅ All test assertions check protocol compliance, not class names
-3. ✅ All factory documentation reflects unified providers
-4. ✅ All workflow comments reference protocols/unified providers
-5. ✅ Protocol compliance test suite exists and passes
-6. ✅ Error messages are standardized across providers
-7. ✅ No references to old separate provider classes in codebase (except deprecation warnings if applicable)
+1. All test files use factories instead of direct imports
+2. All test assertions check protocol compliance, not class names
+3. All factory documentation reflects unified providers
+4. All workflow comments reference protocols/unified providers
+5. Protocol compliance test suite exists and passes
+6. Error messages are standardized across providers
+7. No references to old separate provider classes in codebase (except deprecation warnings if applicable)
 
 ## Benefits
 
@@ -710,7 +710,7 @@ Strengthen the modular architecture with clear separation of concerns, well-defi
 
 **Goal**: Workflow and core code should only depend on protocols, not concrete implementations.
 
-**Current Status**: ✅ Fixed workflow.py line 2070 - Removed direct `TransformersSummarizationProvider` import
+**Current Status**:  Fixed workflow.py line 2070 - Removed direct `TransformersSummarizationProvider` import
 - **Solution**: Added `_requires_separate_instances` attribute to providers
 - **Implementation**: Workflow now uses `getattr(summary_provider, "_requires_separate_instances", False)` instead of `isinstance()` check
 - **Benefits**: Workflow no longer depends on concrete provider classes, maintains modularity
@@ -771,13 +771,13 @@ def test_workflow_uses_provider():
 
 ### Modularity Success Criteria
 
-1. ✅ No direct provider class imports in workflow or core code
-2. ✅ All providers implement protocols correctly
-3. ✅ Tests mock protocols, not implementations
-4. ✅ Each provider has isolated, independent test suite
-5. ✅ Factories are the only place that create providers
-6. ✅ Clear documentation of all interfaces
-7. ✅ Providers are completely independent (no shared state)
+1. No direct provider class imports in workflow or core code
+2. All providers implement protocols correctly
+3. Tests mock protocols, not implementations
+4. Each provider has isolated, independent test suite
+5. Factories are the only place that create providers
+6. Clear documentation of all interfaces
+7. Providers are completely independent (no shared state)
 
 ### Modularity Benefits
 
@@ -791,7 +791,7 @@ def test_workflow_uses_provider():
 
 ### Current Status Summary
 
-#### ✅ Recently Completed
+#### Recently Completed
 
 1. **Provider Naming Consistency**
    - Changed `"ner"` → `"spacy"` for speaker detection
@@ -879,7 +879,7 @@ grep -r "WhisperTranscriptionProvider\|NERSpeakerDetector\|TransformersSummariza
 - Update assertions to check protocol compliance
 - Use `hasattr()` or protocol checks instead of `isinstance()`
 
-## 4. 🟢 **Documentation Cleanup** (Low Priority)
+## 4. Documentation cleanup (low priority)
 
 **Goal**: Ensure all documentation reflects current state
 
@@ -911,12 +911,12 @@ Before considering this work complete, verify:
 
 This work is complete when:
 
-1. ✅ All tests pass with new provider names
-2. ✅ Deprecated names still work (with warnings)
-3. ✅ No direct imports of old provider classes in tests
-4. ✅ All documentation reflects current state
-5. ✅ Old provider files are marked as deprecated
-6. ✅ Codebase is ready for future deprecation removal
+1. All tests pass with new provider names
+2. Deprecated names still work (with warnings)
+3. No direct imports of old provider classes in tests
+4. All documentation reflects current state
+5. Old provider files are marked as deprecated
+6. Codebase is ready for future deprecation removal
 
 ### Notes
 

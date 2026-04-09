@@ -527,9 +527,10 @@ def remove_sponsor_blocks(text: str) -> str:
     """Remove common sponsor block phrases from text.
 
     Duplicate of preprocessing.core.remove_sponsor_blocks — this copy is
-    called by cleaning_v4 profile in summarize_long_text. The ML path may
-    run sponsor removal twice (once via PatternBasedCleaner, once here).
-    RFC-060 Phase 1 will consolidate into a single CommercialDetector.
+    called by cleaning_v4 profile in summarize_long_text. Hybrid ML with
+    pattern workflow cleaning uses cleaning_hybrid_after_pattern to avoid
+    duplicate sponsor passes (Issue #419). RFC-060 Phase 1 will consolidate
+    into a single CommercialDetector where duplication remains.
 
     Args:
         text: Raw transcript or summary text.
@@ -988,12 +989,12 @@ class SummaryModel:
         Returns:
             Device string
         """
-        # Lazy import: Only import torch when this method is called
-        # This allows the module to be imported without ML dependencies installed
-        import torch  # noqa: F401
-
+        # Explicit device: no torch import (unit tests and minimal [dev] envs).
         if device:
             return device
+
+        # Auto-detect only: lazy import so the module loads without torch installed.
+        import torch  # noqa: F401
 
         # Check for Apple Silicon MPS backend first (M4 Pro)
         if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -1067,9 +1068,9 @@ class SummaryModel:
 
     def _load_model_pegasus_sanity_and_clear_config(self) -> None:
         """Run Pegasus sanity check and clear max_new_tokens from generation config."""
-        import torch
-
         if "pegasus" in self.model_name.lower() and hasattr(self, "_pegasus_health_checks"):
+            import torch
+
             try:
                 test_summary = self.summarize(
                     "This is a test sentence for model verification.",

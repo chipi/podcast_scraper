@@ -504,10 +504,14 @@ When `summary_provider: hybrid_ml`, summarization uses a local MAP model (e.g. L
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
 | `hybrid_map_model` | `--hybrid-map-model` | `longt5-base` | HuggingFace model for MAP phase (chunk summarization). |
+| `hybrid_map_device` | `--hybrid-map-device` | (auto) | Device for MAP (e.g. `mps`, `cuda`, `cpu`, `auto`). |
 | `hybrid_reduce_model` | `--hybrid-reduce-model` | `google/flan-t5-base` | REDUCE model: HuggingFace ID (transformers), Ollama tag (e.g. `llama3.1:8b`) for ollama, or path to GGUF file for llama_cpp. |
 | `hybrid_reduce_backend` | `--hybrid-reduce-backend` | `transformers` | REDUCE backend: `transformers`, `ollama`, or `llama_cpp`. |
 | `hybrid_reduce_device` | `--hybrid-reduce-device` | (auto) | Device for REDUCE when backend is transformers (e.g. `mps`, `cuda`, `cpu`). |
 | `hybrid_reduce_n_ctx` | N/A | (optional) | Context size for llama_cpp REDUCE (default 4096). Config file only. |
+| `hybrid_internal_preprocessing_after_pattern` | `--hybrid-internal-preprocessing-after-pattern` | `cleaning_hybrid_after_pattern` | When `transcript_cleaning_strategy` is `pattern`, preprocessing profile applied **inside** `HybridMLProvider.summarize` after workflow pattern cleaning (avoids repeating full `cleaning_v4` sponsor/outro work). Registered profile id from `preprocessing.profiles`. |
+
+**Layered cleaning (Issue #419):** The pipeline runs `transcript_cleaning_strategy` (and `HybridMLProvider.cleaning_processor`) **before** `summarize()`. For `pattern` + `hybrid_ml`, the workflow injects `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` so MAP sees v4-only delta steps without duplicate sponsor passes. For `llm` / `hybrid` strategies, internal preprocessing stays **`cleaning_v4`**. Details: [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
 
 **Example** (Hybrid ML with Ollama REDUCE):
 
@@ -526,6 +530,17 @@ hybrid_map_model: longt5-base
 hybrid_reduce_backend: transformers
 hybrid_reduce_model: google/flan-t5-base
 hybrid_reduce_device: mps
+```
+
+**Example** (Hybrid ML + pattern strategy + layered internal profile, Issue #419):
+
+```yaml
+summary_provider: hybrid_ml
+transcript_cleaning_strategy: pattern
+hybrid_internal_preprocessing_after_pattern: cleaning_hybrid_after_pattern
+hybrid_map_model: longt5-base
+hybrid_reduce_backend: transformers
+hybrid_reduce_model: google/flan-t5-base
 ```
 
 See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md#hybrid-ml-provider-summary_provider-hybrid_ml) and [Ollama Provider Guide](../guides/OLLAMA_PROVIDER_GUIDE.md) for details.
@@ -713,7 +728,8 @@ Transcript cleaning removes unwanted content (sponsor blocks, ads, timestamps) f
 **Default Behavior**:
 
 - **LLM Providers** (OpenAI, Gemini, Anthropic, etc.): `hybrid` (pattern + conditional LLM)
-- **ML Providers** (transformers): `pattern` (pattern-based only)
+- **ML Providers** (`transformers`): typically `pattern` (pattern-based only; Config default is still `hybrid`, but hybrid LLM cleaning is not used the same way without an API cleaner)
+- **Hybrid ML** (`hybrid_ml`): same `transcript_cleaning_strategy` / `cleaning_processor` behavior as API providers; combine with `hybrid_internal_preprocessing_after_pattern` when using `pattern` to layer internal MAP preprocessing (see Hybrid ML table above and RFC-042)
 
 **Hybrid Strategy Details**:
 
@@ -728,7 +744,7 @@ This reduces LLM API calls by 70-90% while maintaining high quality.
 
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
-| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` (LLM) / `pattern` (ML) | Cleaning strategy: `pattern`, `llm`, or `hybrid` |
+| `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` | Cleaning strategy: `pattern`, `llm`, or `hybrid` (applies to LLM + `hybrid_ml` summarization providers). Pair with `hybrid_internal_preprocessing_after_pattern` under [Hybrid ML](#hybrid-ml-map-reduce-configuration) when using **`hybrid_ml`** + **`pattern`**. |
 | `openai_cleaning_model` | `--openai-cleaning-model` | `gpt-4o-mini` | OpenAI model for cleaning (cheaper than summary model) |
 | `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
 | `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |
@@ -805,7 +821,7 @@ summary_provider: transformers
 transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support LLM cleaning)
 ```
 
-**Note**: LLM-based cleaning is only available when using LLM providers for summarization. ML providers (transformers) always use pattern-based cleaning.
+**Note**: LLM-based cleaning runs when the selected `cleaning_processor` uses LLM calls (`llm` or `hybrid` strategy with an LLM provider). **`transformers`** summarization uses pattern-oriented cleaning in typical setups. **`hybrid_ml`** uses the same strategy-driven cleaners as API providers; internal MAP preprocessing defaults to **`cleaning_v4`** except for the layered **`pattern`** path (Issue #419).
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
 
@@ -1195,6 +1211,93 @@ else:
     print("API key is not set")
 ```
 
+## RSS and multi-feed corpus (GitHub #440)
+
+You can target **one** feed with `rss` (string) or **multiple** feeds with **`feeds`** or **`rss_urls`** (YAML list of URL strings). Both list keys normalize to the same internal field (`rss_urls`).
+
+**Rules:**
+
+- **Two or more feeds** require an explicit **`output_dir`** (corpus parent). The CLI and service run **one full pipeline per feed**; each feed’s artifacts live under:
+
+  ```text
+  <output_dir>/feeds/rss_<host>_<hash>/
+  ```
+
+  (stable per-feed workspace name derived from the feed URL.)
+
+- **Single feed** keeps the existing behavior: `output_dir` can default from env; the pipeline root is typically `output_dir` itself (no `feeds/` segment for the lone feed).
+
+**Unified discovery and batch metadata (GitHub #505 / #506):** With **`vector_search: true`** and FAISS, per-feed runs skip automatic indexing and a **single** vector index is built under **`<output_dir>/search`** after the batch. Semantic **`index`**, **`search`**, **`gi explore --topic`**, and the viewer should use the **same corpus parent** path. The batch also writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and a structured log line; inspect with **`corpus-status`**. Advanced: **`skip_auto_vector_index`** (default `false`) suppresses finalize-time indexing when you need to call **`index_corpus`** yourself.
+
+**GI / KG inspect by episode:** **`gi inspect`** and **`kg inspect`** accept **`--output-dir`** as the corpus parent; if the same **`episode_id`** exists in multiple feeds, pass **`--feed-id`** (same value as metadata **`feed.feed_id`**).
+
+**YAML examples:**
+
+```yaml
+# Single feed (unchanged)
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+```
+
+```yaml
+# Multi-feed corpus (Planet Money + The Journal pattern)
+feeds:
+  - https://feeds.npr.org/510289/podcast.xml
+  - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+output_dir: ./my_corpus  # required when len(feeds) >= 2
+```
+
+**Programmatic:**
+
+```python
+from podcast_scraper import Config
+
+cfg = Config(
+    rss_urls=[
+        "https://feeds.npr.org/510289/podcast.xml",
+        "https://video-api.wsj.com/podcast/rss/wsj/the-journal",
+    ],
+    output_dir="./my_corpus",
+)
+```
+
+See [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
+
+- `config/examples/config.example.multi-feed.yaml` / `config/examples/config.example.multi-feed.json` (generic placeholder feeds; same provider mix as `config.example.*`)
+- `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
+- `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
+
+<a id="append-resume-github-444"></a>
+
+## Append / resume (GitHub #444)
+
+Set **`append: true`** in YAML (or CLI **`--append`**) to reuse a **stable** `run_append_*` directory per feed and **skip** episodes that already have valid on-disk metadata (`episode_id` aligned with RSS) plus transcript and any enabled downstream artifacts (summary, GI, KG when those flags are on). Mutually exclusive with **`clean_output`**. `index.json` uses schema **`1.1.0`** and may include **`pipeline_append: true`**. See [PIPELINE_AND_WORKFLOW.md — Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429).
+
+**YAML (single-feed or multi-feed):**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+append: true
+```
+
+```yaml
+feeds:
+  - https://feeds.npr.org/510289/podcast.xml
+  - https://video-api.wsj.com/podcast/rss/wsj/the-journal
+output_dir: ./my_corpus
+append: true
+```
+
+**Checked-in presets (Planet Money + The Journal, full pipeline):**
+
+- **OpenAI:** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` (use with `make test-acceptance` / CLI)
+- **DeepSeek (Whisper + DeepSeek LLM):** `config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_deepseek_append.yaml`
+
+Re-run the **same** command twice to validate resume: the second run should skip complete episodes under each feed’s `run_append_*` tree.
+
+If the process exits before **finalize** (e.g. crash), **`index.json`** may lag behind what is already on disk; append/resume still prefers **filesystem + metadata** (`episode_id` and artifact checks) over the run index alone.
+
 ## Configuration Files
 
 ### JSON Example
@@ -1240,7 +1343,9 @@ preprocessing_sample_rate: 16000  # Target sample rate
 
 The configuration system handles various aliases for backward compatibility:
 
-- `rss_url` or `rss` → `rss_url`
+- `rss_url` or `rss` (string) → `rss_url` (single-feed)
+- **`feeds` or `rss_urls` (list)** → `rss_urls` (multi-feed; GitHub #440)
+- **`append`** → `append` (boolean; stable `run_append_*` workspace and skip-complete semantics; GitHub #444)
 - `output_dir` or `output_directory` → `output_dir`
 - `screenplay_gap` or `screenplay_gap_s` → `screenplay_gap_s`
 

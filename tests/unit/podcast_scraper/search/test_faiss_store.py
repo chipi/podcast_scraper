@@ -31,6 +31,18 @@ def test_doc_ids_for_episode_filters_metadata() -> None:
 
 
 @pytest.mark.unit
+def test_doc_ids_for_reindex_scope_distinguishes_feeds() -> None:
+    store = FaissVectorStore(2)
+    store.upsert("a", _unit(1, 0), {"episode_id": "ep:x", "feed_id": "f1", "doc_type": "insight"})
+    store.upsert("b", _unit(0, 1), {"episode_id": "ep:x", "feed_id": "f2", "doc_type": "insight"})
+    store.upsert("c", _unit(1, 1), {"episode_id": "ep:x", "doc_type": "insight"})
+    # Legacy rows without feed_id are removed when replacing with a feed-scoped episode.
+    assert set(store.doc_ids_for_reindex_scope("ep:x", "f1")) == {"a", "c"}
+    assert set(store.doc_ids_for_reindex_scope("ep:x", "f2")) == {"b", "c"}
+    assert set(store.doc_ids_for_reindex_scope("ep:x", None)) == {"c"}
+
+
+@pytest.mark.unit
 def test_faiss_vector_store_is_vector_store_protocol() -> None:
     """FaissVectorStore satisfies VectorStore at runtime (structural typing)."""
     store = FaissVectorStore(4)

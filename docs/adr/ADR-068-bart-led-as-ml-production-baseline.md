@@ -36,9 +36,9 @@ Base config: `baseline_ml_dev_authority` (BART-base MAP, num_beams=4; LED REDUCE
 | Param | Candidate | ROUGE-L | Delta | Decision |
 | :--- | :---: | :---: | :---: | :---: |
 | reduce `max_new_tokens` | 450 | — | rejected | ✗ |
-| reduce `max_new_tokens` | **550** | **18.54%** | **+2.89%** | **✓ accepted** |
+| reduce `max_new_tokens` | **550** | **18.54%** | **+2.89%** | Accepted |
 | reduce `max_new_tokens` | 750 | — | rejected | ✗ |
-| reduce `num_beams` | **6** | **18.82%** | **+1.15%** | **✓ accepted** |
+| reduce `num_beams` | **6** | **18.82%** | **+1.15%** | Accepted |
 | reduce `num_beams` | 8 | — | rejected | ✗ |
 | reduce `length_penalty` | 1.2 | — | rejected | ✗ |
 | reduce `length_penalty` | 1.5 | — | rejected | ✗ |

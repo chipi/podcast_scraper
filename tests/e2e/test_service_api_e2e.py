@@ -107,6 +107,42 @@ class TestServiceAPIConfigFile:
             output_files = list(Path(tmpdir).rglob("*.txt"))
             assert len(output_files) == 0, "Dry-run should not create files"
 
+    def test_service_run_from_config_file_multi_feed_yaml_440(self, e2e_server):
+        """YAML ``feeds:`` + corpus parent runs both feeds via service (GitHub #440)."""
+        try:
+            import yaml
+        except ImportError:
+            pytest.skip("PyYAML not available")
+
+        # Default E2E mode allows podcast1_with_transcript + podcast1_multi_episode (not
+        # podcast9_solo — that feed is fast/critical_path only).
+        u1 = e2e_server.urls.feed("podcast1_with_transcript")
+        u2 = e2e_server.urls.feed("podcast1_multi_episode")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            config_path = os.path.join(tmpdir, "multi_feed.yaml")
+            config_data = {
+                "feeds": [u1, u2],
+                "output_dir": tmpdir,
+                "max_episodes": 1,
+                "auto_speakers": False,
+            }
+            with open(config_path, "w", encoding="utf-8") as f:
+                yaml.dump(config_data, f)
+
+            result = service.run_from_config_file(config_path)
+
+            assert result.success is True, f"service multi-feed failed: {result.error!r}"
+            assert result.multi_feed_summary is not None
+            assert result.multi_feed_summary.get("schema_version") == "1.0.0"
+            assert len(result.multi_feed_summary.get("feeds") or []) == 2
+            feeds = Path(tmpdir) / "feeds"
+            assert feeds.is_dir(), f"expected {feeds}"
+            subdirs = [p for p in feeds.iterdir() if p.is_dir()]
+            assert len(subdirs) == 2, f"expected two workspaces, got {[p.name for p in subdirs]}"
+            txt_files = list(Path(tmpdir).rglob("*.txt"))
+            assert len(txt_files) >= 2, "each feed should produce a transcript"
+
     def test_service_run_from_config_file_not_found(self):
         """Test service.run_from_config_file() with missing config file."""
         result = service.run_from_config_file("/nonexistent/config.json")
@@ -188,6 +224,9 @@ class TestServiceAPIReturnValues:
             assert hasattr(result, "summary"), "ServiceResult should have summary"
             assert hasattr(result, "success"), "ServiceResult should have success"
             assert hasattr(result, "error"), "ServiceResult should have error"
+            assert hasattr(
+                result, "multi_feed_summary"
+            ), "ServiceResult should have multi_feed_summary"
 
             # Verify types
             assert isinstance(result.episodes_processed, int), "episodes_processed should be int"

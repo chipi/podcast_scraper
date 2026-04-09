@@ -49,11 +49,21 @@ python -m podcast_scraper.cli --config config.yaml
 - `--max-episodes N` - Maximum episodes to process
 - `--workers N` - Number of concurrent download workers
 
+<a id="rss-and-multi-feed"></a>
+
+### RSS and multi-feed (GitHub #440)
+
+- **`--rss URL`** — Repeatable. Each occurrence adds another feed URL (merged with config `feeds` / `rss_urls` and optional `--rss-file`).
+- **`--rss-file PATH`** — Text file with one RSS URL per line (comments and blank lines allowed); URLs are merged with other sources.
+- **Multi-feed** — When **two or more** distinct feed URLs are in effect, **`--output-dir` is required** (corpus parent). Outputs are written under `<output_dir>/feeds/<stable_feed_id>/` per feed. Single-feed runs do not add the `feeds/` segment.
+
+Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Generic shape: `config/examples/config.example.multi-feed.yaml` / `config.example.multi-feed.json`. Full-pipeline presets: `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (and `config/manual/manual_multi_feed_planet_money_journal_*.yaml`). For **append / resume**, see `acceptance_multi_feed_planet_money_journal_openai_append.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek_append.yaml` under `config/acceptance/` and [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
+
 ### Provider Selection (v2.4.0+)
 
 - `--transcription-provider PROVIDER` - Provider for transcription (`whisper`, `openai`, `gemini`, `mistral`)
 - `--speaker-detector-provider PROVIDER` - Provider for speaker detection (`spacy`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
-- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
+- `--summary-provider PROVIDER` - Provider for summarization (`transformers`, `hybrid_ml`, `openai`, `gemini`, `anthropic`, `mistral`, `deepseek`, `grok`, `ollama`)
 
 ### Transcription Options
 
@@ -77,6 +87,15 @@ python -m podcast_scraper.cli --config config.yaml
 - `--preprocessing-target-loudness LOUDNESS` - Target loudness in LUFS for normalization (default: `-16`)
 
 **Note**: Preprocessing requires `ffmpeg` to be installed. If `ffmpeg` is not available, preprocessing is automatically disabled with a warning.
+
+<a id="transcript-cleaning-hybrid-ml-preprocessing-issue-419"></a>
+
+### Transcript cleaning and hybrid ML preprocessing (Issue #419)
+
+- `--transcript-cleaning-strategy {pattern,llm,hybrid}` - How transcripts are cleaned before summarization (`pattern` = regex/rules; `llm` = LLM-only; `hybrid` = pattern then conditional LLM when using LLM-oriented cleaners). Applies to **LLM summarization providers** and **`hybrid_ml`** (same `cleaning_processor` wiring as API providers).
+- `--hybrid-internal-preprocessing-after-pattern PROFILE_ID` - When `--summary-provider hybrid_ml` and `--transcript-cleaning-strategy pattern`, selects the **registered preprocessing profile** applied inside `HybridMLProvider.summarize` after workflow pattern cleaning (default in config: `cleaning_hybrid_after_pattern`). Omit to use the Config default; YAML/config file field: `hybrid_internal_preprocessing_after_pattern`.
+
+See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419), [CONFIGURATION.md](CONFIGURATION.md#transcript-cleaning-configuration-issue-418), and [Preprocessing Profiles Guide](../guides/PREPROCESSING_PROFILES_GUIDE.md).
 
 ### OpenAI Provider Options
 
@@ -164,8 +183,13 @@ python -m podcast_scraper.cli --config config.yaml
 - `--generate-metadata` - Generate metadata documents
 - `--metadata-format FORMAT` - Format (json or yaml)
 - `--generate-summaries` - Generate episode summaries
-- `--summary-model MODEL` - Summary model to use (MAP-phase)
-- `--summary-reduce-model MODEL` - Summary reduce model to use (REDUCE-phase)
+- `--summary-model MODEL` - Summary model to use (MAP-phase, `transformers` provider)
+- `--summary-reduce-model MODEL` - Summary reduce model to use (REDUCE-phase, `transformers` provider)
+- `--hybrid-map-model MODEL` - Hybrid MAP model when `--summary-provider hybrid_ml` (e.g. `longt5-base`)
+- `--hybrid-reduce-model MODEL` - Hybrid REDUCE model (HF id, Ollama tag, or GGUF path for `llama_cpp`)
+- `--hybrid-reduce-backend {transformers,ollama,llama_cpp}` - Hybrid REDUCE backend
+- `--hybrid-map-device` / `--hybrid-reduce-device` - Devices for hybrid MAP/REDUCE (`cuda`, `mps`, `cpu`, `auto`)
+- `--save-cleaned-transcript` / `--no-save-cleaned-transcript` - Persist `.cleaned` transcript alongside source (default: save)
 
 ### Cache Management (v2.4.0+)
 
@@ -176,6 +200,7 @@ python -m podcast_scraper.cli --config config.yaml
 
 - `--dry-run` - Preview without writing files (includes LLM cost projection when API providers are configured)
 - `--skip-existing` - Skip episodes with existing output
+- `--append` - Resume into a **stable** `run_append_*` directory and skip episodes whose on-disk metadata already matches the RSS `episode_id` and required artifacts (GitHub #444). Incompatible with `--clean-output`. Unlike `--skip-existing` (path/exists heuristics in metadata generation), append skips **before** download using validated metadata + transcript (and optional summary / GI / KG files when those features are enabled).
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
 - `--max-failures N` - Stop after N episode failures (Issue #379)
@@ -406,6 +431,7 @@ python -m podcast_scraper.cli gi export --output-dir ./output --format merged --
 # One episode: stats, optional full text and quotes (--show)
 python -m podcast_scraper.cli gi inspect --episode-path ./output/metadata/ep1.gi.json
 python -m podcast_scraper.cli gi inspect --output-dir ./output --episode-id 'sha256:...'
+python -m podcast_scraper.cli gi inspect --output-dir ./mycorpus --episode-id 'sha256:...' --feed-id 'rss_example.com_abc123'
 
 # One insight by id (with evidence spans)
 python -m podcast_scraper.cli gi show-insight --id 'insight:<id-from-gi.json>' --episode-path ./output/metadata/ep1.gi.json
@@ -437,6 +463,18 @@ python -m podcast_scraper.cli index --output-dir ./output --rebuild
 python -m podcast_scraper.cli index --output-dir ./output --stats
 ```
 
+## Corpus status (`corpus-status`)
+
+Offline summary for a **corpus parent** (multi-feed: directory containing `feeds/`): whether
+**`corpus_manifest.json`** is present, per-feed **`metadata/`** file counts, a sample of
+**`index.json`** failures when available, and whether **`<corpus_parent>/search`** holds a
+FAISS index plus embedding model id from **`index_meta.json`** (GitHub #506 / RFC-063 §7).
+
+```bash
+python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent
+python -m podcast_scraper.cli corpus-status --output-dir ./corpus_parent --format json
+```
+
 **PRD-017 quality metrics** (grounding rate, quote validity, density) over a run directory:
 
 ```bash
@@ -462,6 +500,7 @@ python -m podcast_scraper.cli kg validate ./output/metadata --strict
 # Inspect one episode (by file or by episode id under output dir)
 python -m podcast_scraper.cli kg inspect --episode-path ./output/metadata/1_ep.kg.json
 python -m podcast_scraper.cli kg inspect --output-dir ./output --episode-id 'sha256:...'
+python -m podcast_scraper.cli kg inspect --output-dir ./mycorpus --episode-id 'sha256:...' --feed-id 'rss_example.com_abc123'
 
 # Export corpus: NDJSON (one artifact per line) or single merged JSON bundle
 python -m podcast_scraper.cli kg export --output-dir ./output --format ndjson --out kg.ndjson

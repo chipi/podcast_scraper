@@ -13,6 +13,22 @@ The project uses a **layered dependency approach**: core dependencies (always re
 provide essential functionality, while ML dependencies (optional) enable advanced features
 like transcription and summarization.
 
+## Canonical optional extras
+
+These are declared in `pyproject.toml` under `[project.optional-dependencies]`.
+Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas, e.g.
+`pip install -e ".[dev,ml,llm]"`.
+
+| Extra | Purpose |
+| --- | --- |
+| **`dev`** | Tests, lint, typecheck, security, and **text** eval helpers (ROUGE, BLEU, WER: rouge-score, jiwer, nltk). **Embedding cosine** in `evaluation/scorer.py` needs **`[ml]`** (sentence-transformers). |
+| **`ml`** | Local ML stack: Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS, **llama-cpp-python** (GGUF hybrid REDUCE, RFC-042), etc. |
+| **`compare`** | Streamlit run comparison UI (RFC-047; `make run-compare`). |
+| **`llm`** | API client SDKs bundled for CI/dev: Gemini (`google-genai`), Anthropic, Mistral, **httpx** (Ollama health checks). The **OpenAI** SDK ships with **core** dependencies. |
+| **`server`** | FastAPI + uvicorn for `podcast serve` / GI–KG viewer API (RFC-062). |
+
+**Not defined as extras:** there is no **`[llama]`** (GGUF is under **`[ml]`**), no **`[ollama]`** (use **`[llm]`** for httpx), no **`[gemini]`**, and no **`[docs]`** group — MkDocs builds install `docs/requirements.txt` and, where needed, `pip install -e ".[ml]"` for ML-aware docstrings.
+
 ## Core Dependencies (Always Required)
 
 ### `requests` (>=2.31.0)
@@ -221,6 +237,19 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
 
 - **Why chosen**: Transitive dependency for certain model formats. Pinned to avoid version conflicts.
 
+### `llama-cpp-python`
+
+- **Version**: Declared under `[ml]` in `pyproject.toml` as `>=0.2.0,<0.4.0` (same line as other ML deps).
+
+- **Purpose**: In-process **GGUF** inference (llama.cpp bindings) for **hybrid_ml** Tier 2 REDUCE when
+  `hybrid_reduce_backend` selects llama.cpp (see RFC-042).
+
+- **Why under `[ml]`**: Same install surface as local **torch** / **transformers** — offline model weights on disk,
+  not HTTP API clients (those live under `[llm]`, e.g. Ollama health checks via **httpx**).
+
+- **Fallback**: If you use **Ollama** for REDUCE instead, you do not need **llama-cpp-python**; install **`[llm]`**
+  for Ollama and keep **`[ml]`** only if you also need Whisper, GIL evidence models, FAISS, etc.
+
 ### `openai` (>=1.0.0)
 
 - **Purpose**: OpenAI Python SDK for API-based providers (transcription, speaker detection, summarization)
@@ -258,6 +287,12 @@ pip cache (for example some CI jobs) can still re-download the large `.whl` file
 
 5. **Platform compatibility**: All dependencies support Linux, macOS, and Windows.
    Platform-specific optimizations (MPS, CUDA) are detected at runtime.
+
+## Run comparison UI (optional, `compare` extra)
+
+- **Purpose**: Streamlit tool to compare evaluation runs side by side (RFC-047, `tools/run_compare/`).
+- **Install**: `pip install -e ".[compare]"` (Streamlit, plotly, pandas, rouge-score).
+- **Run**: `make run-compare` or `python -m streamlit run tools/run_compare/app.py` (see `tools/run_compare/README.md`).
 
 ## Development Dependencies (Optional, Install via `pip install -e .[dev]`)
 

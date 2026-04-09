@@ -1,9 +1,10 @@
 # PRD-011: DeepSeek Provider Integration
 
-- **Status**: ✅ Implemented (v2.5.0)
+- **Status**: Implemented (v2.5.0)
 - **Revision**: 2
 - **Date**: 2026-02-04
-- **Related RFCs**: RFC-034 (Revised)
+- **Related RFCs**:
+  - [RFC-034](../rfc/RFC-034-deepseek-provider-implementation.md) — DeepSeek provider (**complete**) (Revised)
 - **Related PRDs**: PRD-006 (OpenAI), PRD-009 (Anthropic), PRD-010 (Mistral)
 
 ## Summary
@@ -149,7 +150,7 @@ deepseek_summary_user_prompt: str = Field(
 
 | Component | OpenAI (gpt-4o-mini) | Anthropic (haiku) | Mistral (small) | DeepSeek (chat) |
 | --------- | -------------------- | ----------------- | --------------- | --------------- |
-| **Transcription** | $0.60 | ❌ N/A | TBD | ❌ N/A |
+| **Transcription** | $0.60 | No — N/A | TBD | No — N/A |
 | **Speaker Detection** | $0.14 | $0.10 | $0.03 | **$0.004** |
 | **Summarization** | $0.41 | $0.30 | $0.08 | **$0.012** |
 | **Total Text Processing** | **$0.55** | **$0.40** | **$0.11** | **$0.016** |
@@ -297,17 +298,17 @@ deepseek_summary_user_prompt: str = Field(
 
 ## Success Criteria
 
-- ✅ Users can select DeepSeek provider for speaker detection and summarization via unified provider
-- ✅ Clear error when attempting transcription with DeepSeek
-- ✅ Default behavior (local providers) unchanged
-- ✅ API keys managed securely via `DEEPSEEK_API_KEY` environment variable
-- ✅ Environment-based model defaults (test vs production)
-- ✅ Both Config-based and experiment-based factory modes supported
-- ✅ DeepSeek providers implement same interfaces as other providers
-- ✅ Uses existing OpenAI SDK (no new dependency)
-- ✅ Error handling is clear and actionable
-- ✅ E2E tests pass with DeepSeek mock endpoints
-- ✅ Follows OpenAI provider pattern exactly for consistency
+- Users can select DeepSeek provider for speaker detection and summarization via unified provider
+- Clear error when attempting transcription with DeepSeek
+- Default behavior (local providers) unchanged
+- API keys managed securely via `DEEPSEEK_API_KEY` environment variable
+- Environment-based model defaults (test vs production)
+- Both Config-based and experiment-based factory modes supported
+- DeepSeek providers implement same interfaces as other providers
+- Uses existing OpenAI SDK (no new dependency)
+- Error handling is clear and actionable
+- E2E tests pass with DeepSeek mock endpoints
+- Follows OpenAI provider pattern exactly for consistency
 
 ## Out of Scope
 
@@ -318,8 +319,8 @@ deepseek_summary_user_prompt: str = Field(
 
 ## Dependencies
 
-- **Prerequisite**: Modularization refactoring (RFC-021) ✅ Completed
-- **Prerequisite**: OpenAI provider implementation (RFC-013) ✅ Completed
+- **Prerequisite**: Modularization refactoring (RFC-021) Completed
+- **Prerequisite**: OpenAI provider implementation (RFC-013) Completed
 - **External**: DeepSeek API access and API key
 - **Internal**: OpenAI Python SDK (already a dependency)
 
@@ -336,9 +337,9 @@ deepseek_summary_user_prompt: str = Field(
 
 | Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek |
 | ---------- | ----- | ------ | --------- | ------- | -------- |
-| **Transcription** | ✅ Whisper | ✅ Whisper API | ❌ | ✅ Voxtral | ❌ |
-| **Speaker Detection** | ✅ spaCy | ✅ GPT | ✅ Claude | ✅ Mistral | ✅ DeepSeek |
-| **Summarization** | ✅ Transformers | ✅ GPT | ✅ Claude | ✅ Mistral | ✅ DeepSeek |
+| **Transcription** | Yes — Whisper | Yes Whisper API | No | Yes — Voxtral | No |
+| **Speaker Detection** | Yes — spaCy | Yes GPT | Yes — Claude | Yes Mistral | Yes — DeepSeek |
+| **Summarization** | Yes — Transformers | Yes GPT | Yes — Claude | Yes Mistral | Yes — DeepSeek |
 
 ## Future Considerations
 

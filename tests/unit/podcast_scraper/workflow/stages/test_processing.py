@@ -3,9 +3,14 @@
 Tests for processing stage helper functions.
 """
 
+import json
 import os
+import queue
+import shutil
 import sys
+import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -24,9 +29,10 @@ if str(parent_tests_dir) not in sys.path:
 
 import pytest
 
-from podcast_scraper import models
+from podcast_scraper import Config, models
+from podcast_scraper.workflow import metrics as workflow_metrics
 from podcast_scraper.workflow.stages import processing
-from podcast_scraper.workflow.types import HostDetectionResult
+from podcast_scraper.workflow.types import HostDetectionResult, TranscriptionResources
 
 # Import directly from tests.conftest (works with pytest-xdist)
 from tests.conftest import create_test_config, create_test_episode  # noqa: E402
@@ -525,6 +531,115 @@ class TestSetupProcessingResources(unittest.TestCase):
 
         # Should have lock even with workers=1 if parallelism > 1
         self.assertIsNotNone(result.processing_jobs_lock)
+
+
+@pytest.mark.unit
+class TestPrepareEpisodeDownloadArgsAppendResume(unittest.TestCase):
+    """Append mode filtering in prepare_episode_download_args (GitHub #444)."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.mkdtemp()
+        self.feed_url = "https://example.com/podcast.xml"
+        self.run_suffix = "append_abc12345"
+        self.transcripts = os.path.join(self.tmp, "transcripts")
+        self.metadata = os.path.join(self.tmp, "metadata")
+        os.makedirs(self.transcripts, exist_ok=True)
+        os.makedirs(self.metadata, exist_ok=True)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _episode(self, idx: int, guid: str, title_safe: str) -> models.Episode:
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = f"Title{idx}"
+        ET.SubElement(item, "guid").text = guid
+        return models.Episode(
+            idx=idx,
+            title=f"Title{idx}",
+            title_safe=title_safe,
+            item=item,
+            transcript_urls=[],
+        )
+
+    def _write_complete_artifact(self, idx: int, title_safe: str, episode_id: str) -> None:
+        trel = f"transcripts/{idx:04d} - {title_safe}_{self.run_suffix}.txt"
+        os.makedirs(os.path.dirname(os.path.join(self.tmp, trel)), exist_ok=True)
+        with open(os.path.join(self.tmp, trel), "w", encoding="utf-8") as handle:
+            handle.write("body")
+        meta_name = f"{idx:04d} - {title_safe}_{self.run_suffix}.metadata.json"
+        doc = {
+            "episode": {"episode_id": episode_id},
+            "content": {"transcript_file_path": trel},
+        }
+        with open(os.path.join(self.metadata, meta_name), "w", encoding="utf-8") as handle:
+            json.dump(doc, handle)
+
+    def _call_prepare(
+        self,
+        episodes: list,
+        *,
+        append: bool,
+        pipeline_metrics: workflow_metrics.Metrics,
+    ) -> list:
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            append=append,
+            generate_metadata=True,
+            generate_summaries=False,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        tres = TranscriptionResources(
+            transcription_provider=None,
+            temp_dir=self.tmp,
+            transcription_jobs=queue.Queue(),
+            transcription_jobs_lock=None,
+            saved_counter_lock=None,
+        )
+        host = HostDetectionResult(set(), None, None)
+        return processing.prepare_episode_download_args(
+            episodes,
+            cfg,
+            self.tmp,
+            self.run_suffix,
+            tres,
+            host,
+            pipeline_metrics,
+        )
+
+    def test_append_skips_complete_episode_and_keeps_incomplete(self) -> None:
+        """Complete on-disk episode is omitted from download args; incomplete is kept."""
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep1 = self._episode(1, "g1", "ep")
+        ep2 = self._episode(2, "g2", "ep2")
+        eid1, _ = get_episode_id_from_episode(ep1, self.feed_url)
+        self._write_complete_artifact(1, "ep", eid1)
+
+        m = workflow_metrics.Metrics()
+        args_list = self._call_prepare([ep1, ep2], append=True, pipeline_metrics=m)
+
+        self.assertEqual(len(args_list), 1)
+        self.assertEqual(args_list[0][0].idx, 2)
+        append_stages = [s for s in m.episode_statuses if s.stage == "append_skipped_complete"]
+        self.assertEqual(len(append_stages), 1)
+        self.assertEqual(append_stages[0].episode_id, eid1)
+
+    def test_append_false_includes_all_episodes(self) -> None:
+        """Without append, both episodes are prepared even if artifacts exist."""
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep1 = self._episode(1, "g1", "ep")
+        ep2 = self._episode(2, "g2", "ep2")
+        eid1, _ = get_episode_id_from_episode(ep1, self.feed_url)
+        self._write_complete_artifact(1, "ep", eid1)
+
+        m = workflow_metrics.Metrics()
+        args_list = self._call_prepare([ep1, ep2], append=False, pipeline_metrics=m)
+
+        self.assertEqual(len(args_list), 2)
+        self.assertEqual({args_list[0][0].idx, args_list[1][0].idx}, {1, 2})
 
 
 @pytest.mark.unit

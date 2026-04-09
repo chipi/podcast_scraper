@@ -23,10 +23,10 @@ This RFC defines automated alerting for test metrics, extracted from RFC-026 Pha
 
 RFC-026 originally included 4 phases:
 
-- ✅ Phase 0: Core Goals (completed)
-- ✅ Phase 1: Job Summaries (completed)
-- ✅ Phase 2: GitHub Pages JSON API (completed)
-- ✅ Phase 3: Visual Dashboards (completed)
+- Phase 0: Core Goals (completed)
+- Phase 1: Job Summaries (completed)
+- Phase 2: GitHub Pages JSON API (completed)
+- Phase 3: Visual Dashboards (completed)
 - ⏸️ Phase 4: Automated Alerts (NOT started - extracted to this RFC)
 
 **Rationale for extraction:**
@@ -42,13 +42,13 @@ Already implemented from RFC-026:
 
 | Component | Status |
 | ----------- | -------- |
-| Job summaries (PR + nightly) | ✅ Extensive coverage |
-| `metrics/latest.json` on GitHub Pages | ✅ Working |
-| `metrics/history.jsonl` tracking | ✅ Working |
-| Unified dashboard with data source selector | ✅ Working |
-| `scripts/dashboard/generate_metrics.py` | ✅ Created |
-| `scripts/dashboard/generate_dashboard.py` | ✅ Created |
-| Metric alerts in nightly summary | ✅ Working |
+| Job summaries (PR + nightly) | Yes — Extensive coverage |
+| `metrics/latest.json` on GitHub Pages | Yes — Working |
+| `metrics/history.jsonl` tracking | Yes — Working |
+| Unified dashboard with data source selector | Yes — Working |
+| `scripts/dashboard/generate_metrics.py` | Yes — Created |
+| `scripts/dashboard/generate_dashboard.py` | Yes — Created |
+| Metric alerts in nightly summary | Yes — Working |
 
 **What's missing (this RFC):**
 

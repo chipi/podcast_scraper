@@ -72,7 +72,7 @@ We adopt a **Centralized Model Registry** to store model architecture limits and
 - **Defaults**: Conservative defaults for unknown models (e.g., 512 tokens)
 - **Extensibility**: Runtime registration via `register_model()` function
 - **Model-Agnostic**: Handles both test and production models identically
-- **Status**: 🟢 Implemented — `model_registry.py` with `ModelRegistry` and `ModelCapabilities`
+- **Status**: Implemented — `model_registry.py` with `ModelRegistry` and `ModelCapabilities`
 
 ## References
 

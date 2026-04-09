@@ -53,7 +53,8 @@ def resolve_kg_artifact_path(args: Namespace) -> Optional[Path]:
         return None
 
     if output_dir and episode_id:
-        return find_kg_artifact_by_episode_id(Path(output_dir), episode_id)
+        fid = getattr(args, "feed_id", None)
+        return find_kg_artifact_by_episode_id(Path(output_dir), episode_id, feed_id=fid)
     return None
 
 
@@ -102,6 +103,24 @@ def run_kg_inspect(args: Namespace, logger: logging.Logger) -> int:
             logger.error("Provide --episode-id with --output-dir, or --episode-path")
         elif output_dir and not episode_id:
             logger.error("Provide --episode-id when using --output-dir")
+        elif output_dir and episode_id:
+            from podcast_scraper.utils.corpus_episode_paths import list_artifact_paths_for_episode
+
+            matches = list_artifact_paths_for_episode(
+                Path(output_dir),
+                episode_id,
+                feed_id=None,
+                kind="kg",
+            )
+            if len(matches) > 1 and not getattr(args, "feed_id", None):
+                logger.error(
+                    "Multiple KG artifacts for episode_id=%s (%d matches); use --feed-id "
+                    "(metadata feed.feed_id) to choose one.",
+                    episode_id,
+                    len(matches),
+                )
+            else:
+                logger.error("KG artifact not found for the given episode")
         else:
             logger.error("KG artifact not found for the given episode")
         return 1

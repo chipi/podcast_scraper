@@ -1,0 +1,33 @@
+# Sample acceptance: single feed, full pipeline, Mistral (E2E mock RSS).
+# RSS below is a placeholder — not fetched. Run with USE_FIXTURES=1 (see config/acceptance/README.md).
+# Mirrors acceptance_planet_money_mistral.yaml (voxtral + mistral-small-latest).
+#
+# Run:
+#   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single_mistral.yaml" USE_FIXTURES=1
+#
+# Requires: MISTRAL_API_KEY
+
+rss: https://example.invalid/e2e-placeholder-single-feed.xml
+output_dir: .test_outputs/acceptance/sample_e2e_single_mistral
+max_episodes: 2
+
+transcription_provider: mistral
+speaker_detector_provider: mistral
+summary_provider: mistral
+
+mistral_transcription_model: voxtral-mini-latest
+mistral_speaker_model: mistral-small-latest
+mistral_summary_model: mistral-small-latest
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

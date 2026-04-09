@@ -9,12 +9,14 @@
 #
 # Structure mirrors python-app.yml with separate jobs for isolation:
 # Dependency flow:
-# 1. lint, build, preload-ml-models-nightly run in parallel (no deps)
-# 2. security-quality and test-unit run in parallel (both gate: lint, build)
-# 3. test-integration and test-e2e run in parallel (both gate: preload-ml-models-nightly only)
-# 4. nightly-only-tests gates: test-unit, test-integration, test-e2e
-# 5. nightly-metrics gates: security-quality, nightly-only-tests
-# 6. nightly-docs gates nightly-metrics (very last step, final validation)
+# 1. nightly-lint, nightly-build, preload-ml-models-nightly start in parallel (preload has no lint dep)
+# 2. After lint+build: one parallel segment — nightly-security-quality, nightly-test-unit,
+#    nightly-viewer-unit (Vitest; always runs, no path filters)
+# 3. nightly-test-integration and nightly-test-e2e run in parallel (both gate: preload only)
+# 4. nightly-viewer-e2e (Playwright) after pytest E2E succeeds — always runs when workflow runs
+# 5. nightly-only-tests gates: unit, integration, e2e, nightly-viewer-unit, nightly-viewer-e2e
+# 6. nightly-metrics gates: lint, security-quality, build, all test jobs + both viewer jobs, nightly-only
+# 7. nightly-docs gates nightly-metrics (very last step, final validation)
 #
 # Jobs:
 # - preload-ml-models-nightly: Preload and validate ML models
@@ -23,8 +25,10 @@
 # - nightly-docs: Documentation build
 # - nightly-build: Package build
 # - nightly-test-unit: Unit tests
+# - nightly-viewer-unit: Vitest for web/gi-kg-viewer (same segment as security-quality + test-unit)
 # - nightly-test-integration: Integration tests
 # - nightly-test-e2e: E2E tests (multi_episode mode - same as regular CI)
+# - nightly-viewer-e2e: Playwright + Firefox (after nightly-test-e2e)
 # - nightly-only-tests: Nightly-specific tests with production models
 # - nightly-metrics: Collect metrics and generate dashboard
 
@@ -212,7 +216,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        python -m pip install -e .[dev]
 
     - name: Install markdownlint
       run: npm install -g markdownlint-cli
@@ -243,7 +247,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        python -m pip install -e .[dev]
 
     - name: Run security checks
       run: |
@@ -345,11 +349,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Install dev dependencies (no ML)
+    - name: Install dev dependencies (no ML; no server — viewer unit tests skip without FastAPI)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
-        pip install pytest-json-report
+        python -m pip install -e .[dev]
+        python -m pip install pytest-json-report
 
     - name: Install ffmpeg (required for audio preprocessing unit tests)
       run: |
@@ -400,6 +404,27 @@ jobs:
         path: reports/
         retention-days: 30
 
+  # GI/KG viewer v2 — Vitest (same parallel segment as nightly-security-quality + nightly-test-unit)
+  nightly-viewer-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [nightly-lint, nightly-build]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+    - name: Install dependencies
+      run: |
+        cd web/gi-kg-viewer
+        npm ci
+    - name: Run Vitest unit tests
+      run: |
+        cd web/gi-kg-viewer
+        npm run test:unit
+
   # ===========================================================================
   # Integration tests - isolated job
   # ===========================================================================
@@ -438,7 +463,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -521,7 +546,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -568,14 +593,46 @@ jobs:
         path: reports/
         retention-days: 30
 
+  # GI/KG viewer v2 — Playwright after pytest E2E (matches python-app viewer-e2e placement)
+  nightly-viewer-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [nightly-lint, nightly-build, nightly-test-e2e]
+    if: |
+      always() &&
+      needs.nightly-lint.result == 'success' &&
+      needs.nightly-build.result == 'success' &&
+      needs.nightly-test-e2e.result == 'success'
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: "22"
+        cache: "npm"
+        cache-dependency-path: web/gi-kg-viewer/package-lock.json
+    - name: Install dependencies and browsers
+      run: |
+        cd web/gi-kg-viewer
+        npm ci
+        npx playwright install --with-deps firefox
+    - name: Run Playwright E2E
+      run: |
+        cd web/gi-kg-viewer
+        npm run test:e2e
+
   # ===========================================================================
   # Nightly-only tests - production models, full podcast suite
-  # Only runs after unit, integration and E2E tests pass (expensive, run as final stage)
+  # Only runs after unit, integration, E2E, and viewer tests pass (expensive, run as final stage)
   # ===========================================================================
   nightly-only-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 120  # ~75 min typical sequential run + buffer
-    needs: [nightly-test-unit, nightly-test-integration, nightly-test-e2e]
+    needs:
+      - nightly-test-unit
+      - nightly-test-integration
+      - nightly-test-e2e
+      - nightly-viewer-unit
+      - nightly-viewer-e2e
     env:
       HF_HOME: /home/runner/.cache/huggingface
       HF_HUB_CACHE: /home/runner/.cache/huggingface/hub
@@ -609,7 +666,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,ml,llm]
+        pip install -e .[dev,ml,llm,server]
         pip install pytest-socket pytest-json-report
 
     - name: Install ffmpeg
@@ -665,7 +722,16 @@ jobs:
   nightly-metrics:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [nightly-lint, nightly-security-quality, nightly-build, nightly-test-unit, nightly-test-integration, nightly-test-e2e, nightly-only-tests]  # Wait for all jobs to complete before generating summary (docs runs after metrics)
+    needs:
+      - nightly-lint
+      - nightly-security-quality
+      - nightly-build
+      - nightly-test-unit
+      - nightly-viewer-unit
+      - nightly-test-integration
+      - nightly-test-e2e
+      - nightly-viewer-e2e
+      - nightly-only-tests
     if: always()
     steps:
     - uses: actions/checkout@v6

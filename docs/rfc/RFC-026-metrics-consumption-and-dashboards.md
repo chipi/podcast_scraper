@@ -1,6 +1,6 @@
 # RFC-026: Metrics Consumption and Dashboards
 
-- **Status**: ✅ **Completed** (Phases 0-3 complete, Phase 4 extracted to RFC-040)
+- **Status**: **Completed** (Phases 0-3 complete, Phase 4 extracted to RFC-040)
 - **Related ADRs**:
   - [ADR-023: Public Operational Metrics](../adr/ADR-023-public-operational-metrics.md)
 - **Authors**:
@@ -106,12 +106,12 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 ### Success Criteria
 
-- ✅ Metrics accessible via public URL (< 10 seconds to view)
-- ✅ JSON API for automation (< 5 seconds to query)
-- ✅ Deviation detection in < 60 seconds
-- ✅ Visual dashboards with trend charts
-- ✅ Automatic alerts for regressions
-- ✅ Historical data available for analysis
+- Metrics accessible via public URL (< 10 seconds to view)
+- JSON API for automation (< 5 seconds to query)
+- Deviation detection in < 60 seconds
+- Visual dashboards with trend charts
+- Automatic alerts for regressions
+- Historical data available for analysis
 
 ## Solution: GitHub Pages Unified Metrics Dashboard
 
@@ -119,14 +119,14 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 **Benefits:**
 
-- ✅ **Always accessible**: Public URL (e.g., `https://chipi.github.io/podcast_scraper/metrics/`)
-- ✅ **No authentication**: Anyone can view metrics
-- ✅ **Auto-updated**: Metrics published after each CI run and nightly schedule
-- ✅ **Unified interface**: Single dashboard with data source selector (CI or Nightly)
-- ✅ **Quick consumption**: View dashboard in browser (< 10 seconds)
-- ✅ **Machine-readable**: JSON API for automation (separate files for CI and Nightly)
-- ✅ **Historical trends**: Visual charts showing deviations (last 30 runs per source)
-- ✅ **Zero infrastructure**: Uses GitHub Pages (free, no setup)
+- **Always accessible**: Public URL (e.g., `https://chipi.github.io/podcast_scraper/metrics/`)
+- **No authentication**: Anyone can view metrics
+- **Auto-updated**: Metrics published after each CI run and nightly schedule
+- **Unified interface**: Single dashboard with data source selector (CI or Nightly)
+- **Quick consumption**: View dashboard in browser (< 10 seconds)
+- **Machine-readable**: JSON API for automation (separate files for CI and Nightly)
+- **Historical trends**: Visual charts showing deviations (last 30 runs per source)
+- **Zero infrastructure**: Uses GitHub Pages (free, no setup)
 
 **Dashboard Features:**
 
@@ -145,8 +145,8 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 **Deliverables:**
 
-- ✅ **GitHub Actions job summaries** - Display key metrics in PR checks (0 seconds to view)
-- ✅ **`metrics/latest.json` published** - Machine-readable metrics available via GitHub Pages
+- **GitHub Actions job summaries** - Display key metrics in PR checks (0 seconds to view)
+- **`metrics/latest.json` published** - Machine-readable metrics available via GitHub Pages
 - ❌ **No charts** - Visual dashboards are not required in this phase
 - ❌ **No history UI** - Historical visualization is not required in this phase
 
@@ -158,10 +158,10 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 **Success Criteria:**
 
-- ✅ Job summaries show key metrics (runtime, coverage, pass rate) in every PR
-- ✅ `metrics/latest-ci.json` and `metrics/latest-nightly.json` are accessible via public URL
-- ✅ Metrics can be consumed via `curl` + `jq` in < 5 seconds
-- ✅ No visual dashboard required
+- Job summaries show key metrics (runtime, coverage, pass rate) in every PR
+- `metrics/latest-ci.json` and `metrics/latest-nightly.json` are accessible via public URL
+- Metrics can be consumed via `curl` + `jq` in < 5 seconds
+- No visual dashboard required
 
 **Status:** 🚧 To Be Implemented (prerequisite for all other phases)
 
@@ -255,7 +255,7 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest-nightly.json | jq
 
 **Visual Elements:**
 
-- ✅ Green: Metrics within normal range
+- Green: Metrics within normal range
 - ⚠️ Yellow: Minor deviation (< 10%)
 - 🔴 Red: Significant deviation (> 10%)
 - 📊 Charts: Line graphs for trends
@@ -554,24 +554,24 @@ Phase 4 (automated alerts) has been extracted to a separate RFC to enable:
 
 ### Developer Experience
 
-- ✅ **Quick access**: View metrics in < 10 seconds
-- ✅ **Visual insights**: Charts show trends at a glance
-- ✅ **Automatic alerts**: Regressions highlighted automatically
-- ✅ **Multiple methods**: Browser, API, or PR checks
+- **Quick access**: View metrics in < 10 seconds
+- **Visual insights**: Charts show trends at a glance
+- **Automatic alerts**: Regressions highlighted automatically
+- **Multiple methods**: Browser, API, or PR checks
 
 ### Automation
 
-- ✅ **JSON API**: Easy integration with other tools
-- ✅ **Webhooks**: Can trigger alerts on deviations
-- ✅ **CI integration**: Metrics published automatically
-- ✅ **Historical data**: Available for custom analysis
+- **JSON API**: Easy integration with other tools
+- **Webhooks**: Can trigger alerts on deviations
+- **CI integration**: Metrics published automatically
+- **Historical data**: Available for custom analysis
 
 ### Maintenance
 
-- ✅ **Zero infrastructure**: Uses GitHub Pages
-- ✅ **Auto-updates**: Metrics published after each CI run
-- ✅ **Version-controlled**: History stored in git
-- ✅ **Low maintenance**: Minimal ongoing work
+- **Zero infrastructure**: Uses GitHub Pages
+- **Auto-updates**: Metrics published after each CI run
+- **Version-controlled**: History stored in git
+- **Low maintenance**: Minimal ongoing work
 
 ## Related Files
 

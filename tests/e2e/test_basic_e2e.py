@@ -126,6 +126,34 @@ class TestBasicCLIE2E:
             ).exists(), "run_manifest.json should exist"
 
     @pytest.mark.critical_path
+    def test_cli_multi_feed_two_transcript_feeds_corpus_layout_440(self, e2e_server):
+        """GitHub #440: two Path-1 feeds share a corpus parent; outputs under feeds/."""
+        u1 = e2e_server.urls.feed("podcast1_with_transcript")
+        u2 = e2e_server.urls.feed("podcast9_solo")
+        with tempfile.TemporaryDirectory() as corpus:
+            exit_code = cli.main(
+                [
+                    u1,
+                    "--rss",
+                    u2,
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                    "--no-auto-speakers",
+                ]
+            )
+            assert exit_code == 0, f"multi-feed CLI failed: exit={exit_code}"
+            feeds = Path(corpus) / "feeds"
+            assert feeds.is_dir(), f"expected {feeds} directory"
+            subdirs = [p for p in feeds.iterdir() if p.is_dir()]
+            assert (
+                len(subdirs) == 2
+            ), f"expected two feed workspaces, got {[p.name for p in subdirs]}"
+            txt_files = list(Path(corpus).rglob("*.txt"))
+            assert len(txt_files) >= 2, "each feed should produce at least one transcript"
+
+    @pytest.mark.critical_path
     def test_cli_basic_transcript_download_path2(self, e2e_server):
         """Test complete CLI critical path (Path 2: when transcript URL missing).
 

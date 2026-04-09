@@ -18,6 +18,27 @@ logger = logging.getLogger(__name__)
 _embedding_models: Dict[Tuple[str, str, str, bool], object] = {}
 
 
+def _effective_cache_folder(cache_dir: Optional[str]) -> str:
+    """Resolve hub cache dir for SentenceTransformer (same rules as preload).
+
+    If *cache_dir* is omitted, use ``get_transformers_cache_dir()`` so loads hit the project
+    ``.cache/huggingface/hub`` tree when present. ``cache_folder=None`` on SentenceTransformer
+    would otherwise use the global HF default and miss repo-local preloads.
+    """
+    if isinstance(cache_dir, str) and cache_dir.strip():
+        return cache_dir.strip()
+    from podcast_scraper.cache.directories import get_transformers_cache_dir
+
+    return str(get_transformers_cache_dir())
+
+
+def _sentence_transformer_load_name(resolved_model_id: str) -> str:
+    """Map registry/HF id to the name SentenceTransformer expects (avoids duplicate prefix)."""
+    if resolved_model_id.startswith("sentence-transformers/"):
+        return resolved_model_id.split("/", 1)[1]
+    return resolved_model_id
+
+
 def _get_device(device: Optional[str]) -> str:
     """Resolve device string; None means auto (prefer MPS/CUDA if available)."""
     if device is not None and device.strip():
@@ -42,7 +63,7 @@ def _cache_key(
 ) -> Tuple[str, str, str, bool]:
     resolved = ModelRegistry.resolve_evidence_model_id(model_id)
     dev = _get_device(device)
-    cd = (cache_dir or "").strip()
+    cd = _effective_cache_folder(cache_dir)
     return (resolved, dev, cd, allow_download)
 
 
@@ -68,12 +89,31 @@ def load_embedding_model(
     from sentence_transformers import SentenceTransformer
 
     resolved = ModelRegistry.resolve_evidence_model_id(model_id)
+    load_name = _sentence_transformer_load_name(resolved)
     dev = _get_device(device)
-    logger.info("Loading embedding model %s on %s", resolved, dev)
+    cache_folder = _effective_cache_folder(cache_dir)
+    logger.info(
+        "Loading embedding model %s on %s (cache_folder=%s)",
+        load_name,
+        dev,
+        cache_folder,
+    )
     st_kw: dict[str, Any] = {}
     if not allow_download:
         st_kw["local_files_only"] = True
-    model = SentenceTransformer(resolved, device=dev, cache_folder=cache_dir, **st_kw)
+    # Reduce spam from sentence_transformers (e.g. redundant model-name warnings per batch).
+    _st_loggers = [
+        logging.getLogger("sentence_transformers"),
+        logging.getLogger("sentence_transformers.SentenceTransformer"),
+    ]
+    _prev_levels = [lg.level for lg in _st_loggers]
+    for lg in _st_loggers:
+        lg.setLevel(logging.ERROR)
+    try:
+        model = SentenceTransformer(load_name, device=dev, cache_folder=cache_folder, **st_kw)
+    finally:
+        for lg, prev in zip(_st_loggers, _prev_levels):
+            lg.setLevel(prev)
     return model
 
 

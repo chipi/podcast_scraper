@@ -1,0 +1,40 @@
+# Sample acceptance: multi-feed (5 feeds), Anthropic (E2E mock RSS).
+# Feed URLs are placeholders — not fetched. USE_FIXTURES=1 maps slots to podcast1..podcast5 (p01..p05).
+# Same provider block as acceptance_planet_money_anthropic.yaml; no tracked multi-feed anthropic preset.
+# max_episodes: 5 per feed — safe default if copied to real RSS (fixtures have 3 items each).
+#
+# Run:
+#   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_anthropic.yaml" USE_FIXTURES=1
+#
+# Requires: ANTHROPIC_API_KEY
+
+feeds:
+  - https://example.invalid/e2e-placeholder-feed-p01.xml
+  - https://example.invalid/e2e-placeholder-feed-p02.xml
+  - https://example.invalid/e2e-placeholder-feed-p03.xml
+  - https://example.invalid/e2e-placeholder-feed-p04.xml
+  - https://example.invalid/e2e-placeholder-feed-p05.xml
+
+output_dir: .test_outputs/acceptance/sample_e2e_multi_anthropic
+max_episodes: 5
+
+transcription_provider: whisper
+speaker_detector_provider: anthropic
+summary_provider: anthropic
+
+whisper_model: base.en
+whisper_device: cpu
+anthropic_speaker_model: claude-haiku-4-5
+anthropic_summary_model: claude-haiku-4-5
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

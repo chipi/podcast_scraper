@@ -75,6 +75,7 @@ class TestFixtureMapping:
         # Verify mapping in E2EHTTPRequestHandler
         expected_mapping = {
             "podcast1": "p01_mtb.xml",
+            "podcast1_mtb": "p01_mtb.xml",
             "podcast2": "p02_software.xml",
             "podcast3": "p03_scuba.xml",
             "podcast4": "p04_photo.xml",

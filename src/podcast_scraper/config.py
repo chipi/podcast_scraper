@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 import yaml
 from dotenv import load_dotenv
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from . import config_constants
 
@@ -644,6 +644,14 @@ class Config(BaseModel):
     """
 
     rss_url: Optional[str] = Field(default=None, alias="rss")
+    rss_urls: Optional[List[str]] = Field(
+        default=None,
+        validation_alias=AliasChoices("rss_urls", "feeds"),
+        description=(
+            "Multiple RSS feed URLs (GitHub #440). When two or more are set, output_dir must "
+            "be the corpus parent; each feed is written under output_dir/feeds/<stable_name>/."
+        ),
+    )
     output_dir: Optional[str] = Field(
         default=None,
         alias="output_dir",
@@ -712,6 +720,15 @@ class Config(BaseModel):
         description="Stop after N episode failures (Issue #379). None = no limit.",
     )
     skip_existing: bool = Field(default=False, alias="skip_existing")
+    append: bool = Field(
+        default=False,
+        alias="append",
+        description=(
+            "Resume into a stable run directory and skip episodes that already have valid "
+            "artifacts (GitHub #444). Uses episode_id + on-disk metadata validation; "
+            "incompatible with clean_output."
+        ),
+    )
     clean_output: bool = Field(default=False, alias="clean_output")
     reuse_media: bool = Field(
         default=False,
@@ -1555,6 +1572,15 @@ class Config(BaseModel):
             "generate_gi."
         ),
     )
+    skip_auto_vector_index: bool = Field(
+        default=False,
+        alias="skip_auto_vector_index",
+        description=(
+            "When True, pipeline finalize skips automatic ``index_corpus`` even if "
+            "vector_search is on (GitHub #505). Multi-feed runs set this on per-feed "
+            "children and build one parent index after all feeds complete."
+        ),
+    )
     vector_index_path: Optional[str] = Field(
         default=None,
         alias="vector_index_path",
@@ -1798,6 +1824,18 @@ class Config(BaseModel):
         description=(
             "REDUCE instruction style: 'structured' = Takeaways/Outline/Actions (default); "
             "'paragraph' = silver-style 4-6 paragraphs, no headings. Used for tuning toward silver."
+        ),
+    )
+    hybrid_internal_preprocessing_after_pattern: str = Field(
+        default="cleaning_hybrid_after_pattern",
+        alias="hybrid_internal_preprocessing_after_pattern",
+        description=(
+            "Registered preprocessing profile applied inside HybridMLProvider.summarize() when "
+            "summary_provider is hybrid_ml and transcript_cleaning_strategy is 'pattern', after "
+            "the workflow has already run PatternBasedCleaner (Issue #419). Avoids redundant "
+            "sponsor/outro passes versus full cleaning_v4 while keeping v4-only steps "
+            "(header strip, junk filter, anonymization, artifact_scrub_v1). "
+            "Must be a profile ID from preprocessing.profiles."
         ),
     )
     summary_2nd_pass_distill: bool = Field(
@@ -2052,6 +2090,72 @@ class Config(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
+    def _normalize_multi_rss_input(cls, data: Any) -> Any:
+        """Promote ``rss`` list or merge ``rss`` + ``feeds``/``rss_urls`` (GitHub #440)."""
+        if not isinstance(data, dict):
+            return data
+        d = dict(data)
+        rss_raw = d.get("rss")
+        rss_urls_key = d.get("rss_urls")
+        feeds_key = d.get("feeds")
+        feeds_val = rss_urls_key if rss_urls_key is not None else feeds_key
+
+        if isinstance(rss_raw, list):
+            urls: List[str] = []
+            for u in rss_raw:
+                if u is not None and str(u).strip():
+                    t = str(u).strip()
+                    if t not in urls:
+                        urls.append(t)
+            if isinstance(feeds_val, list):
+                for u in feeds_val:
+                    if u is not None and str(u).strip():
+                        t = str(u).strip()
+                        if t not in urls:
+                            urls.append(t)
+            d.pop("rss", None)
+            d.pop("feeds", None)
+            d.pop("rss_urls", None)
+            d["rss_urls"] = urls
+            return d
+
+        if isinstance(rss_raw, str) and rss_raw.strip() and isinstance(feeds_val, list):
+            urls = [rss_raw.strip()]
+            for u in feeds_val:
+                if u is not None and str(u).strip():
+                    t = str(u).strip()
+                    if t not in urls:
+                        urls.append(t)
+            if len(urls) >= 2:
+                d.pop("rss", None)
+                d.pop("feeds", None)
+                d.pop("rss_urls", None)
+                d["rss_urls"] = urls
+            else:
+                d.pop("feeds", None)
+                if rss_urls_key is not None:
+                    d.pop("rss_urls", None)
+            return d
+
+        only_list: Optional[List[Any]] = None
+        if isinstance(feeds_key, list):
+            only_list = feeds_key
+        elif isinstance(rss_urls_key, list):
+            only_list = rss_urls_key
+        if (
+            only_list is not None
+            and len(only_list) == 1
+            and not (isinstance(rss_raw, str) and rss_raw.strip())
+        ):
+            one = str(only_list[0]).strip()
+            if one:
+                d["rss"] = one
+                d.pop("feeds", None)
+                d.pop("rss_urls", None)
+        return d
+
+    @model_validator(mode="before")
+    @classmethod
     def _handle_deprecated_fields(cls, data: Any) -> Any:
         """Handle deprecated field names for backward compatibility."""
         if isinstance(data, dict):
@@ -2129,6 +2233,29 @@ class Config(BaseModel):
             raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {value}")
         if not parsed.netloc:
             raise ValueError(f"RSS URL must include a valid hostname: {value}")
+        return value
+
+    @field_validator("rss_urls", mode="before")
+    @classmethod
+    def _coerce_rss_urls_list(cls, value: Any) -> Optional[List[str]]:
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            raise TypeError("rss_urls must be a list of URL strings")
+        out = [str(u).strip() for u in value if u is not None and str(u).strip()]
+        return out or None
+
+    @field_validator("rss_urls", mode="after")
+    @classmethod
+    def _validate_rss_urls_entries(cls, value: Optional[List[str]]) -> Optional[List[str]]:
+        if not value:
+            return value
+        for u in value:
+            parsed = urlparse(u)
+            if parsed.scheme not in ("http", "https"):
+                raise ValueError(f"RSS URL must use http or https (got {parsed.scheme!r}): {u}")
+            if not parsed.netloc:
+                raise ValueError(f"RSS URL must include a valid hostname: {u}")
         return value
 
     @field_validator("output_dir", mode="before")
@@ -3092,6 +3219,19 @@ class Config(BaseModel):
         return v
 
     @model_validator(mode="after")
+    def _multi_feed_requires_output_dir(self) -> "Config":
+        """Corpus parent is mandatory when two or more feeds are configured (GitHub #440)."""
+        urls = self.rss_urls or []
+        if len(urls) < 2:
+            return self
+        if not self.output_dir or not str(self.output_dir).strip():
+            raise ValueError(
+                "When rss_urls has two or more feeds (GitHub #440), output_dir is required "
+                "as the corpus parent directory (set output_dir or OUTPUT_DIR)."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _validate_openai_provider_requirements(self) -> "Config":
         """Validate that OpenAI API key is provided when OpenAI providers are selected."""
         openai_providers_used = []
@@ -3582,6 +3722,13 @@ class Config(BaseModel):
             raise ValueError(
                 "clean_output and skip_existing are mutually exclusive "
                 "(clean_output removes all existing files, making skip_existing meaningless)"
+            )
+
+        # 7b. clean_output and append are mutually exclusive (GitHub #444)
+        if self.clean_output and self.append:
+            raise ValueError(
+                "clean_output and append are mutually exclusive "
+                "(append requires a durable workspace; clean_output deletes it)"
             )
 
         # 8. clean_output and reuse_media are mutually exclusive

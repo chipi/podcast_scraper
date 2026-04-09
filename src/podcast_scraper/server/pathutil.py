@@ -9,7 +9,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import HTTPException
+
+class CorpusPathRequestError(Exception):
+    """Invalid or disallowed corpus path (HTTP layer maps this to 400 responses)."""
+
+    __slots__ = ("detail", "status_code")
+
+    def __init__(self, status_code: int, detail: str) -> None:
+        self.status_code = status_code
+        self.detail = detail
+        super().__init__(detail)
 
 
 def resolve_corpus_path_param(
@@ -21,14 +30,14 @@ def resolve_corpus_path_param(
     """Resolve a user-supplied corpus directory against a trusted anchor.
 
     Raises:
-        HTTPException 400: path is empty, escapes anchor, or is not a directory.
+        CorpusPathRequestError: path is empty, escapes anchor, or is not a directory.
     """
     raw = str(path_param).strip()
     if not raw:
-        raise HTTPException(status_code=400, detail="path must be non-empty.")
+        raise CorpusPathRequestError(status_code=400, detail="path must be non-empty.")
 
     if anchor is None:
-        raise HTTPException(
+        raise CorpusPathRequestError(
             status_code=400,
             detail=(
                 "Corpus path override is not allowed without a configured server "
@@ -44,13 +53,13 @@ def resolve_corpus_path_param(
         normed = os.path.normpath(os.path.join(anchor_str, normed))
 
     if normed != anchor_str and not normed.startswith(safe_prefix):
-        raise HTTPException(
+        raise CorpusPathRequestError(
             status_code=400,
             detail="path must be the configured corpus root or a subdirectory of it.",
         )
 
     candidate = Path(normed)
     if must_be_dir and not candidate.is_dir():
-        raise HTTPException(status_code=400, detail=f"Not a directory: {candidate}")
+        raise CorpusPathRequestError(status_code=400, detail=f"Not a directory: {candidate}")
 
     return candidate

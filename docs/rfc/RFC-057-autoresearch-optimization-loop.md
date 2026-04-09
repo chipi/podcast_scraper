@@ -1,9 +1,11 @@
 # RFC-057: AutoResearch Optimization Loop — Prompt & ML Parameter Tuning
 
-- **Status**: Draft
+- **Status**: Completed
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team
-- **Related PRDs**: *(none yet — candidate for PRD-020)*
+- **Related PRDs**:
+  - `docs/prd/PRD-007-ai-quality-experiment-platform.md` (eval, autoresearch, benchmarking)
+- **Closure**: [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md) — final state and decision record
 - **Related RFCs** (reference — analogous patterns):
   - `docs/rfc/RFC-017-prompt-management.md` — Jinja prompt store, shared vs per-provider overrides (**mutable prompt targets must align with this**)
   - `docs/rfc/RFC-015-ai-experiment-pipeline.md` — experiment configs, `data/eval/` runs layout

@@ -1,7 +1,9 @@
 # PRD-005: Episode Summarization
 
-- **Status**: ✅ Implemented (v2.3.0)
-- **Related RFCs**: RFC-012
+- **Status**: Implemented (v2.3.0)
+- **Related RFCs**:
+  - [RFC-012](../rfc/RFC-012-episode-summarization.md) — local summarization (**complete**)
+  - [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) — adaptive summarization routing (**open**)
 
 ## Summary
 
@@ -285,7 +287,7 @@ summary:
 ## Release Checklist
 
 - [ ] PRD reviewed and approved
-- [ ] RFC-012 created with technical design (✅ Complete)
+- [ ] RFC-012 created with technical design (Complete)
 - [ ] Implementation completed
 - [ ] Tests cover summary generation, error handling, long transcripts
 - [ ] Documentation updated (README, config examples)

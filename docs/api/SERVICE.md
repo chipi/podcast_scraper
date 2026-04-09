@@ -33,6 +33,12 @@ else:
 result = service.run_from_config_file("config.yaml")
 ```
 
+**Multi-feed (GitHub #440):** If the loaded config has **two or more** URLs in `rss_urls` (from YAML `feeds` / `rss_urls` or a promoted `rss` list), `service.run` / `run_from_config_file` runs **one pipeline per feed** under `<output_dir>/feeds/<stable_feed_id>/`, matching the CLI. `output_dir` must be set in that case. After the batch, **#506** writes **`corpus_manifest.json`** and **`corpus_run_summary.json`** at the corpus parent; with **`vector_search`** and FAISS, **#505** builds one **`<output_dir>/search`** index. The return value’s **`multi_feed_summary`** field holds the same JSON-shaped dict as **`corpus_run_summary.json`** (or `None` on single-feed runs). Field tables: [CORPUS_MULTI_FEED_ARTIFACTS.md](CORPUS_MULTI_FEED_ARTIFACTS.md). See also [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440).
+
+**Append / resume (GitHub #444):** If `Config.append` is true, each inner run uses a stable `run_append_*` directory and skips episodes that are already complete on disk (metadata `episode_id` + required artifacts). Incompatible with `clean_output`. See [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
+
+**Corpus lock (multi-feed):** While two or more feeds are processed, `service.run` acquires an **advisory** exclusive lock file **`.podcast_scraper.lock`** under the corpus parent (`output_dir`) using `filelock`. If another process already holds the lock, the call returns immediately with **`success=False`**, **`episodes_processed=0`**, and **`error`** describing the lock conflict. Disable locking with environment variable **`PODCAST_SCRAPER_CORPUS_LOCK=0`** (tests, advanced workflows). Single-feed `service.run` does not use this lock.
+
 ## API Reference
 
 ::: podcast_scraper.service.run

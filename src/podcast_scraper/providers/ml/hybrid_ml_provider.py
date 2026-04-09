@@ -18,6 +18,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, cast, Dict, List, Optional, Protocol
 
+from ...cleaning import HybridCleaner, LLMBasedCleaner, PatternBasedCleaner
+from ...cleaning.base import TranscriptCleaningProcessor
 from ...preprocessing.profiles import apply_profile_with_stats
 from ...summarization.base import SummarizationProvider
 from ...utils.log_redaction import format_exception_for_log
@@ -282,7 +284,7 @@ class OllamaReduceBackend:
 
 
 class LlamaCppReduceBackend:
-    """Tier 2 REDUCE via llama.cpp (GGUF). Optional: pip install podcast-scraper[llama]."""
+    """Tier 2 REDUCE via llama.cpp (GGUF). Requires ``pip install podcast-scraper[ml]``."""
 
     def __init__(
         self,
@@ -302,7 +304,7 @@ class LlamaCppReduceBackend:
         except ImportError as e:
             raise ImportError(
                 "llama-cpp-python is required for hybrid_reduce_backend='llama_cpp'. "
-                "Install with: pip install podcast-scraper[llama]"
+                "Install with: pip install podcast-scraper[ml]"
             ) from e
 
         self._llm = Llama(
@@ -346,6 +348,8 @@ class LlamaCppReduceBackend:
 class HybridMLProvider:
     """Hybrid MAP-REDUCE summarization provider (RFC-042)."""
 
+    cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
+
     def __init__(self, cfg: Any) -> None:
         self.cfg = cfg
         self._initialized = False
@@ -353,6 +357,15 @@ class HybridMLProvider:
         self._reduce_backend: Optional[InferenceBackend] = None
         # Issue #387: same attribute as MLProvider so metadata reconciliation reuses NER
         self._spacy_nlp: Optional[Any] = None
+
+        cleaning_strategy = getattr(cfg, "transcript_cleaning_strategy", "hybrid")
+        if cleaning_strategy == "pattern":
+            self.cleaning_processor = PatternBasedCleaner()  # type: ignore[assignment]
+        elif cleaning_strategy == "llm":
+            self.cleaning_processor = LLMBasedCleaner()  # type: ignore[assignment]
+        else:
+            self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
+
         verify_protocol_compliance(self, SummarizationProvider, "SummarizationProvider")
 
     def initialize(self) -> None:
@@ -419,13 +432,21 @@ class HybridMLProvider:
         pipeline_metrics: Any = None,
         call_metrics: Any = None,
     ) -> Dict[str, Any]:
-        """Chunk and summarize transcript (MAP), then instruction-tuned REDUCE to final summary."""
+        """Chunk and summarize transcript (MAP), then instruction-tuned REDUCE to final summary.
+
+        ``params["preprocessing_profile"]`` selects the registered preprocessing profile
+        applied inside this method (default ``cleaning_v4``). The workflow passes
+        ``cleaning_hybrid_after_pattern`` when ``transcript_cleaning_strategy`` is
+        ``pattern`` so sponsor/outro work is not duplicated (Issue #419).
+        """
         if not self._initialized or self._map_model is None or self._reduce_backend is None:
             raise RuntimeError("HybridMLProvider not initialized. Call initialize() first.")
 
         params = params or {}
 
-        preprocessing_profile = params.get("preprocessing_profile") or "cleaning_v4"
+        preprocessing_profile = params.get("preprocessing_profile")
+        if not preprocessing_profile:
+            preprocessing_profile = "cleaning_v4"
         cleaned_text, _stats = apply_profile_with_stats(text, preprocessing_profile)
 
         # MAP: classic compression (chunk summaries)
@@ -651,7 +672,8 @@ class HybridMLProvider:
             + "- No preamble.\n"
             + "- Do not mention that you were given notes.\n"
             + "- Do not include any other headings.\n"
-            + "- Keep bullets concise.\n\n"
+            + "- Keep bullets concise.\n"
+            + "- Omit sponsorships, ads, housekeeping, and generic intros/outros.\n\n"
             + "NOTES:\n{{ transcript }}"
         )
 

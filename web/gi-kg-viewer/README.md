@@ -2,6 +2,10 @@
 
 Vue 3 + Vite + TypeScript + Tailwind + Pinia SPA for [RFC-062](https://github.com/chipi/podcast_scraper/blob/main/docs/rfc/RFC-062-gi-kg-viewer-v2.md). Replaced the legacy `web/gi-kg-viz/` prototype (now removed).
 
+**Repo context:** This folder is the **Node** side of a **Python + web** monorepo. For how that
+fits with the root `Makefile`, `.env` files, and CI, see
+[Polyglot repository guide](../../docs/guides/POLYGLOT_REPO_GUIDE.md).
+
 ## End users: run API + UI together
 
 Use this when you want **list files**, **semantic search**, **explore**, and **dashboard** (everything that talks to `/api/*`).
@@ -58,6 +62,14 @@ make serve SERVE_OUTPUT_DIR=/path/to/output
 
 Use the **pipeline output directory** — the folder that contains `metadata/*.gi.json` and `metadata/*.kg.json` (same idea as `podcast … --output-dir ./my-run`). Paste that **folder** into the UI, click **List files**, then tick the artifacts you want and **Load selected into graph**. You do not paste paths to individual JSON files into the corpus field.
 
+### Multi-feed corpora (unified `search/`)
+
+When you scraped **several feeds into one corpus** (CLI multiple `--rss` / `feeds:` in YAML), the corpus
+root is the **parent directory that contains `feeds/`** — not `feeds/<stable_id>/`. Per-feed transcripts
+and metadata live under `feeds/<stable_id>/…`; **semantic search** and **Dashboard → vector index** use the
+single unified index at **`<corpus_parent>/search/`** (GitHub #505). The viewer’s **Corpus root** field
+should still point at that parent so list/search/explore see the whole corpus.
+
 ## Optional env
 
 Copy `.env.example` to `.env` and set `VITE_DEFAULT_CORPUS_PATH` to pre-fill that folder in the UI.
@@ -79,6 +91,8 @@ After loading one or more `.gi.json` / `.kg.json` files, the **Cytoscape** graph
 Use the **Dashboard** tab for artifact metrics (v1-style key/value rows), a **Chart.js** bar chart of node counts by visual type, and **vector index** stats from `GET /api/index/stats` (FAISS under `<corpus>/search/`). If `/api/health` fails, use **Choose .gi.json / .kg.json files** under API to load graphs offline (index stats stay disabled without the server).
 
 ## Semantic search (M4)
+
+**List artifacts** (`GET /api/artifacts`) may return **`hints`** when the path you entered is under `feeds/` but the unified FAISS index lives at the corpus parent; the Corpus panel shows those hints above the file list.
 
 The sidebar **Semantic search** panel calls `GET /api/search` (same pipeline as `podcast search`): natural-language query, optional doc-type / feed / date / speaker / grounded filters, and `top_k`. Results include **Show on graph** when the hit maps to a graph node (`source_id` for insights, quotes, KG topics/entities). That switches to the **Graph** tab, selects the node, opens the detail panel, and centers the view. Requires a built vector index under `<corpus>/search/` and the embedding model available to the server process.
 
@@ -105,15 +119,15 @@ npm run test:unit           # single run
 npm run test:unit:watch     # watch mode
 ```
 
-From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`. Config: `vite.config.ts`
-`test` block. CI job: **`viewer-unit`**.
+From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`, `src/stores/*.test.ts`. Config:
+`vite.config.ts` `test` block. CI job: **`viewer-unit`**.
 
 ## Browser E2E (M7)
 
 - **Runner:** Playwright, **browser:** Firefox (see `playwright.config.ts`). Install once: `cd web/gi-kg-viewer && npx playwright install firefox` (CI uses `playwright install --with-deps firefox`).
 - **Commands:** `npm run test:e2e` (starts Vite on **port 5174** so it does not clash with `npm run dev` on 5173). From repo root: `make test-ui-e2e` (runs `npm install`, browser install, then tests).
 - **Fixtures:** `e2e/fixtures/ci_sample.gi.json` mirrors the pytest GIL CI sample; offline tests abort `/api/health` so the file-picker path is deterministic even if something listens on `:8000`.
-- **Scenarios:** offline graph + toolbar, Dashboard tab, theme tokens (dark/light), `/` shortcut with mocked health, `Esc` on graph, PNG export download, mocked API list/load/search → **Show on graph**.
+- **Scenarios:** offline graph + toolbar, Dashboard tab, theme tokens (dark/light), `/` shortcut with mocked health, `Esc` on graph, PNG export download, mocked API list/load/search → **Show on graph**, **Corpus path hint** when `GET /api/artifacts` returns `hints` (`e2e/corpus-hints.spec.ts`).
 
 ## Polish (M6)
 

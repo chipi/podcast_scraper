@@ -173,39 +173,108 @@ def test_with_real_models(self):
     # Test with real models...
 ```
 
-## Test Files
+## Directory Organization
 
-| Purpose | Test File |
-| --------- | ----------- |
-| Component workflows | `test_component_workflows.py` |
-| Full pipeline | `test_full_pipeline.py` |
-| HTTP integration | `test_http_integration.py` |
-| Provider integration | `test_provider_integration.py` |
-| Real ML models | `test_provider_real_models.py` |
-| Protocol compliance | `test_protocol_compliance.py` |
-| OpenAI providers | `test_openai_provider_integration.py` |
-| Parallel summarization | `test_parallel_summarization.py` |
-| Fallback behavior | `test_fallback_behavior.py` |
+Integration tests are organized by **domain subsystem** — the area of functionality
+being exercised — not by source module. This differs from unit tests, which mirror
+the `src/` tree 1:1.
+
+**Why domain-based?** An integration test for "provider factory creates Ollama
+provider, initializes, and summarizes" spans `config.py`, `summarization/factory.py`,
+`providers/ollama/`, and `prompts/store.py`. No single source module owns it. The
+right grouping is the subsystem under test.
+
+```text
+tests/integration/
+├── providers/               # Provider factories, protocols, error handling
+│   ├── llm/                # LLM provider integration (Anthropic, OpenAI, …)
+│   ├── ml/                 # ML model loading, embedding, QA, NLI, summarizer
+│   └── ollama/             # Ollama model-specific tests
+├── workflow/                # Orchestration, stages, resume, parallelism, metadata
+├── gi/                      # GI artifacts, KG artifacts, evidence stack
+├── server/                  # FastAPI app, viewer API
+├── search/                  # FAISS indexing, corpus search
+├── rss/                     # RSS parsing, HTTP fetching
+├── eval/                    # Evaluation framework
+├── infrastructure/          # Fixture mapping, infra concerns
+├── tools/                   # CLI tools
+└── (root)                   # Cross-cutting: filesystem, retry, cache, audio
+```
+
+**Rules of thumb:**
+
+- A domain folder is created when **3+ test files** share a subsystem.
+- Truly cross-cutting tests (filesystem helpers, retry, transcript cache,
+  audio preprocessing) stay in root — they span multiple subsystems.
+- Each folder has an `__init__.py` (empty) for pytest collection.
+
+### Comparison with unit test layout
+
+| Aspect | Unit tests | Integration tests |
+| ------ | ---------- | ----------------- |
+| **Axis** | Source module (mirrors `src/`) | Domain subsystem |
+| **Depth** | Deep (matches package nesting) | Shallow (1–2 levels) |
+| **Finding tests** | "Where's the test for this file?" | "Where are tests for this subsystem?" |
+| **Duplication** | 1:1 with source files | One folder may cover many source files |
+
+## Test Files by Domain
+
+### providers/
+
+| Subfolder | Purpose | Example files |
+| --------- | ------- | ------------- |
+| `llm/` | LLM provider integration | `test_anthropic_providers.py`, `test_openai_providers.py` |
+| `ml/` | ML model loading, embedding, QA, NLI, summarizer | `test_embedding_loader_integration.py`, `test_summarizer_integration.py` |
+| `ollama/` | Ollama model-specific tests | `test_gemma2_9b_summary.py`, `test_llama3_1_8b_speaker.py` |
+| (root) | Cross-provider: factories, protocols, capabilities | `test_capabilities_integration.py`, `test_fallback_behavior.py` |
+
+### workflow/
+
+| Purpose | Example files |
+| ------- | ------------- |
+| Orchestration and stages | `test_workflow_integration.py`, `test_workflow_stages_integration.py` |
+| Metadata generation | `test_metadata_integration.py`, `test_kg_metadata_integration.py` |
+| Resume and parallelism | `test_resume_behavior.py`, `test_parallel_summarization.py` |
+| Queue and MPS | `test_bounded_queue_integration.py`, `test_mps_exclusive_integration.py` |
+
+### gi/
+
+| Purpose | Example files |
+| ------- | ------------- |
+| GI artifacts | `test_gi_integration.py` |
+| KG artifacts | `test_kg_integration.py` |
+| Evidence stack | `test_evidence_stack_integration.py` |
+
+### Root (cross-cutting)
+
+| Purpose | File |
+| ------- | ---- |
+| Filesystem helpers | `test_filesystem_integration.py` |
+| Retry with metrics | `test_retry_integration.py` |
+| Transcript cache | `test_transcript_cache_integration.py` |
+| Audio preprocessing | `test_audio_preprocessing_integration.py` |
+| Summary schema | `test_summary_schema_integration.py` |
+| Protocol verification | `test_protocol_verification_integration.py` |
 
 ## Running Integration Tests
 
 ```bash
-
 # All integration tests
-
 make test-integration
 
 # Fast (excludes ml_models)
-
 make test-integration-fast
 
 # Sequential (for debugging)
-
 pytest tests/integration/ -n 0
 
-# Specific test file
+# Specific domain
+pytest tests/integration/providers/ -v
+pytest tests/integration/workflow/ -v
+pytest tests/integration/gi/ -v
 
-pytest tests/integration/test_component_workflows.py -v -m integration
+# Specific test file
+pytest tests/integration/workflow/test_component_workflows.py -v
 ```
 
 ## Test Markers

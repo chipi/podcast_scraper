@@ -12,6 +12,7 @@ nav:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
@@ -161,6 +162,13 @@ nav:
       - ADR-064 Canonical Server Layer with Feature-Flagged Route Groups: adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md
       - ADR-065 Vue 3 + Vite + Cytoscape.js Frontend Stack: adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md
       - ADR-066 Playwright for UI End-to-End Testing: adr/ADR-066-playwright-for-ui-e2e-testing.md
+      - ADR-067 Pegasus/LED Retirement (Podcast Content): adr/ADR-067-pegasus-led-retirement-podcast-content.md
+      - ADR-068 BART+LED as ML Production Baseline: adr/ADR-068-bart-led-as-ml-production-baseline.md
+      - ADR-069 Hybrid ML Pipeline as Production Direction: adr/ADR-069-hybrid-ml-pipeline-as-production-direction.md
+      - ADR-070 BART-base as Hybrid MAP Stage: adr/ADR-070-bart-base-as-hybrid-map-stage.md
+      - ADR-071 Four-Tier Summarization Strategy: adr/ADR-071-four-tier-summarization-strategy.md
+      - ADR-072 Llama 3.2:3b as Tier 3 Local LLM: adr/ADR-072-llama32-3b-as-tier3-local-llm.md
+      - ADR-073 RFC-057 Autoresearch Closure: adr/ADR-073-rfc057-autoresearch-closure.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -220,6 +228,12 @@ nav:
       - RFC-055 Knowledge Graph Layer – Core: rfc/RFC-055-knowledge-graph-layer-core.md
       - RFC-056 Knowledge Graph Layer – Use Cases: rfc/RFC-056-knowledge-graph-layer-use-cases.md
       - RFC-057 AutoResearch Optimization Loop: rfc/RFC-057-autoresearch-optimization-loop.md
+      - RFC-058 Audio-Based Speaker Diarization: rfc/RFC-058-audio-speaker-diarization.md
+      - RFC-059 Speaker Detection Refactor & Test Audio: rfc/RFC-059-speaker-detection-refactor-test-audio.md
+      - RFC-060 Multi-Signal Commercial Detection & Cleaning: rfc/RFC-060-diarization-aware-commercial-cleaning.md
+      - RFC-061 Semantic Corpus Search: rfc/RFC-061-semantic-corpus-search.md
+      - RFC-062 GI/KG Viewer v2: rfc/RFC-062-gi-kg-viewer-v2.md
+      - RFC-063 Multi-Feed Corpus & Append/Resume: rfc/RFC-063-multi-feed-corpus-append-resume.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -227,6 +241,7 @@ nav:
       - Core API: api/CORE.md
       - Configuration: api/CONFIGURATION.md
       - Service API: api/SERVICE.md
+      - Multi-feed corpus artifacts: api/CORPUS_MULTI_FEED_ARTIFACTS.md
       - CLI Interface: api/CLI.md
       - Models: api/MODELS.md
       - API Boundaries: api/BOUNDARIES.md

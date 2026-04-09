@@ -18,6 +18,8 @@
 | **E2E** | < 60s | Complete workflow | No mocking (real everything) |
 | **Browser UI E2E** | ~1–3 min (suite) | Vue viewer in Firefox (Playwright) | Vite + route/API mocks in specs |
 
+**Unit tests and `pyproject` extras:** `tests/unit/` must **not** depend on **`[ml]`**, **`[llm]`**, **`[compare]`**, or **`[server]`** — mock or use integration tests instead. **`[dev]`** is the **CI baseline** for `test-unit`. **Viewer HTTP** tests that need FastAPI use **`importorskip("fastapi")`** and **skip** when only **`.[dev]`** is installed (install **`.[server]`** locally to run them). See [Unit Testing Guide — Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
+
 **Decision Tree:**
 
 1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? → **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy — Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
@@ -34,6 +36,10 @@
 # Unit tests (parallel, network isolated)
 
 make test-unit
+
+# Same dependency set as CI test-unit (.[dev] only) — separate venv, leaves .venv unchanged
+
+make venv-dev-init && make test-unit-dev-venv
 
 # Integration tests (parallel, with reruns)
 
@@ -55,6 +61,10 @@ specs are not collected by `pytest`, and **`make test` does not run them**. Stra
 documented as an **additive** layer on the test pyramid — see
 [Testing Strategy — Browser UI E2E (Playwright)](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright)
 and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
+
+**Where this lives in the repo:** npm commands and `package.json` are under `web/gi-kg-viewer/`;
+`make test-ui` / `make test-ui-e2e` run from the root. See
+[Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
 #### How it fits next to pytest
 
@@ -81,6 +91,13 @@ and search-focus mapping. No browser or DOM required — runs in ~150 ms.
 for Playwright, and runs `npm run test:e2e`. Playwright’s **`webServer`** starts **Vite** on
 **127.0.0.1:5174** so it does not collide with `npm run dev` on **5173**.
 
+**What CI proves vs full stack:** That setup exercises the **Vue UI** in a real browser with
+**Vite**; many specs **mock** `fetch` or rely on **offline** fixtures so the job stays fast.
+It does **not** prove **`python -m podcast_scraper.cli serve`** (FastAPI + mounted **`dist/`** +
+live **`/api/*`** on corpus files). Use **`serve`** / **`make serve`** for manual smoke of the
+combined server, and **`tests/integration/test_server_api.py`** for pytest coverage of a wired
+`create_app` and temp corpus.
+
 For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (see
 [viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)).
 
@@ -89,11 +106,19 @@ For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (se
 GitHub Actions jobs:
 
 - **`viewer-unit`** — runs `npm run test:unit` (Vitest, fast).
-- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox).
+- **`viewer-e2e`** — runs `npm run test:e2e` (Playwright + Firefox) after the pytest E2E job
+  that applies to the event (**`test-e2e-fast`** on PRs, **`test-e2e`** on push to
+  `main` / `release/*`). **`coverage-unified`** waits on **`viewer-e2e`** so the merge report
+  runs only after browser E2E has passed.
 
-Both are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a PR should
-include green runs for both (see
+Both viewer jobs are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a
+PR should include green runs for both (see
 [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)).
+
+**Nightly** (`.github/workflows/nightly.yml`): **`nightly-viewer-unit`** and
+**`nightly-viewer-e2e`** run the same Vitest / Playwright commands on every scheduled or
+`workflow_dispatch` run (no path filters). Vitest sits in the post–lint+build segment with
+**`nightly-test-unit`**; Playwright runs after **`nightly-test-e2e`** completes successfully.
 
 #### Writing and extending tests
 
@@ -352,12 +377,21 @@ Acceptance tests allow you to run multiple configuration files sequentially, col
 
 ### Setting up acceptance configs
 
-The project expects your acceptance configs to live in a **`config/acceptance/`**. That folder is gitignored so you can keep local, feed-specific configs out of the repo.
+Put optional full-pipeline YAML presets under **`config/acceptance/`** (not committed). The repo tracks **`config/acceptance/README.md`** and **`config/acceptance/FAST_CONFIGS.txt`**; everything else under `config/acceptance/` stays ignored so local or feed-specific YAMLs stay out of git.
 
 1. **Create the folder:** `mkdir -p config/acceptance` (at project root).
 2. **Copy example configs:** Use `config/examples/config.example.yaml` (or any example) as a template:
    `cp config/examples/config.example.yaml config/acceptance/config.my.myshow.yaml` (or a name that fits your feeds).
 3. **Adjust for your definition of acceptance:** Edit the copied file(s)—RSS feed URLs, providers, model names, output paths, etc.—so they match what you consider “acceptance” for your use case. You can add multiple configs (e.g. one per show or per provider) and run them all with a pattern like `config/acceptance/*.yaml`.
+
+**Multi-feed in one YAML (GitHub #440):** Use a **`feeds:`** or **`rss_urls:`** list and a required **`output_dir`** (corpus parent). Example preset
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local under `config/acceptance/`) exercises two feeds in one run. With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
+
+**Append / resume (GitHub #444):** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` is the same two-feed OpenAI full-pipeline preset with **`append: true`**. Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+
+**Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py`** (YAML metadata, rglob fallback, parent search hint), **`tests/unit/podcast_scraper/utils/test_corpus_lock.py`**, **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI).
+
+**Full fast matrix with fixtures (smoke all acceptance presets offline):** `make test-acceptance-fixtures-fast` runs every stem in the tracked **`config/acceptance/FAST_CONFIGS.txt`** (or optional local **`config/ci/acceptance_fast_stems.txt`** if that file is absent—see **`config/ci/README.md`**), resolving each to `config/acceptance/<stem>.yaml` or `config/examples/<stem>.yaml`. Uses **`USE_FIXTURES=1`**, disables auto analyze/benchmark, and defaults to a **900s** per-config timeout (`TIMEOUT=...` to override). Same target runs on **main / release** pushes in CI (`test-acceptance-fixtures` job in `python-app.yml`).
 
 Optional: use **`config/playground/`** (also gitignored) for ad-hoc or one-off configs; run them with e.g. `make test-acceptance CONFIGS="config/playground/config.my.*.yaml"`.
 
@@ -509,15 +543,31 @@ Reports are generated in both Markdown and JSON formats for easy review and prog
 
 ## Test Organization
 
+**Unit tests** mirror the source tree (find the test for any source file mechanically).
+**Integration tests** are organized by domain subsystem (providers, workflow, GI/KG, etc.).
+**E2E tests** are flat by user scenario.
+
 ```text
 tests/
 ├── unit/                    # Unit tests (fast, isolated)
 │   ├── conftest.py          # Network/filesystem isolation
-│   └── podcast_scraper/     # Per-module tests (incl. server/test_viewer_*.py)
-├── integration/             # Integration tests
+│   └── podcast_scraper/     # Per-module tests — mirrors src/ tree
+├── integration/             # Integration tests — by domain subsystem
 │   ├── conftest.py          # Shared fixtures
-│   └── test_*.py            # Component interaction tests
-├── e2e/                     # E2E tests
+│   ├── providers/           # Provider factories, protocols, per-provider
+│   │   ├── llm/            # LLM provider integration
+│   │   ├── ml/             # ML model loading, embedding, QA, NLI
+│   │   └── ollama/         # Ollama model-specific tests
+│   ├── workflow/            # Orchestration, stages, metadata, resume
+│   ├── gi/                  # GI/KG artifacts, evidence stack
+│   ├── server/              # FastAPI app, viewer API
+│   ├── search/              # FAISS indexing, corpus search
+│   ├── rss/                 # RSS parsing, HTTP fetching
+│   ├── eval/                # Evaluation framework
+│   ├── infrastructure/      # Fixture mapping, infra
+│   ├── tools/               # CLI tools
+│   └── test_*.py            # Cross-cutting (filesystem, retry, cache)
+├── e2e/                     # E2E tests — by user scenario
 │   ├── fixtures/            # E2E server, HTTP server
 │   └── test_*.py            # Complete workflow tests
 └── conftest.py              # Shared fixtures, ML cleanup
@@ -528,6 +578,9 @@ web/gi-kg-viewer/            # Browser UI E2E (Playwright — not pytest)
 ├── playwright.config.ts     # webServer (Vite :5174), Firefox
 └── package.json             # test:e2e and other frontend scripts
 ```
+
+See [Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md#directory-organization) for
+the domain-based layout rationale and per-folder contents.
 
 ## Coverage Thresholds
 

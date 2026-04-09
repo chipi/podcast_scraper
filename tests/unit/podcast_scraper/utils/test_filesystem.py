@@ -159,6 +159,25 @@ class TestDeriveOutputDir(unittest.TestCase):
         self.assertIn(TEST_CUSTOM_OUTPUT_DIR, result)
 
 
+class TestFeedWorkspaceDirname(unittest.TestCase):
+    """Tests for multi-feed corpus directory naming (GitHub #440)."""
+
+    def test_suffix_matches_derive_output_dir(self):
+        """``feed_workspace_dirname`` matches the leaf of ``derive_output_dir``."""
+        rss_url = TEST_FEED_URL
+        derived = filesystem.derive_output_dir(rss_url, None)
+        tail = filesystem.feed_workspace_dirname(rss_url)
+        self.assertEqual(derived, f"output/{tail}")
+
+    def test_corpus_feed_output_dir_contains_feeds_segment(self):
+        """Corpus layout places each feed under ``feeds/``."""
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = os.path.join(tmp, "corpus")
+            p = filesystem.corpus_feed_output_dir(corpus, TEST_FEED_URL)
+            norm = p.replace("\\", "/")
+            self.assertIn("/feeds/rss_", norm)
+
+
 class TestDeriveMediaExtension(unittest.TestCase):
     """Tests for derive_media_extension function."""
 
@@ -265,6 +284,65 @@ class TestSetupOutputDirectory(unittest.TestCase):
         self.assertIn(TEST_RUN_ID, run_suffix or "")
         # No ML features in this test, so no full_config_string
         self.assertIsNone(full_config_string)
+
+    def test_append_mode_reuses_same_run_directory(self):
+        """Append mode uses a stable run_* path across calls (GitHub #444)."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=None,
+            skip_existing=False,
+            clean_output=False,
+            append=True,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        output_dir1, run_suffix1, _ = filesystem.setup_output_directory(cfg)
+        output_dir2, run_suffix2, _ = filesystem.setup_output_directory(cfg)
+        self.assertEqual(output_dir1, output_dir2)
+        self.assertEqual(run_suffix1, run_suffix2)
+        self.assertIsNotNone(run_suffix1)
+        self.assertTrue(str(run_suffix1).startswith("append_"))
+
+    def test_append_mode_no_ml_uses_literal_append_suffix(self):
+        """Append without provider fingerprint uses stable suffix ``append`` (GitHub #444)."""
+        cfg = podcast_scraper.Config(
+            rss_url=TEST_FEED_URL,
+            output_dir=self.temp_dir,
+            max_episodes=None,
+            user_agent="test",
+            timeout=30,
+            delay_ms=0,
+            prefer_types=[],
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            screenplay=False,
+            screenplay_gap_s=2.0,
+            screenplay_num_speakers=2,
+            screenplay_speaker_names=[],
+            run_id=None,
+            skip_existing=False,
+            clean_output=False,
+            append=True,
+            auto_speakers=False,
+            generate_summaries=False,
+        )
+        d1, s1, _ = filesystem.setup_output_directory(cfg)
+        d2, s2, _ = filesystem.setup_output_directory(cfg)
+        self.assertEqual(d1, d2)
+        self.assertEqual(s1, "append")
+        self.assertEqual(s2, "append")
 
     @patch("podcast_scraper.utils.filesystem.time.strftime")
     def test_with_duplicate_directory_counter(self, mock_strftime):

@@ -1,0 +1,20 @@
+# Config stems to run when using --fast-only (e.g. CI on PRs).
+# One stem per line; stem = filename without .yaml.
+# Comment lines start with #. Use full suite (no --fast-only) for nightly or pre-release.
+
+# ML dev baseline (local, no API keys, fastest)
+acceptance_planet_money_ml_dev
+acceptance_the_journal_ml_dev
+
+# ML prod baseline (local, no API keys)
+acceptance_planet_money_ml_prod
+
+# One LLM provider (fixtures make these fast)
+acceptance_planet_money_openai
+acceptance_the_journal_openai
+
+# One Ollama model (local, no API keys)
+acceptance_planet_money_ollama
+
+# Multi-feed (GitHub #440); USE_FIXTURES=1 rewrites feeds to E2E fixture URLs
+acceptance_multi_feed_planet_money_journal_openai

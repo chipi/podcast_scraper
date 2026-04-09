@@ -102,6 +102,38 @@ The testing strategy follows a three-tier pyramid:
 - **Error handling in pipeline** → Integration Test (if focused) or E2E Test (if complete workflow)
 - **HTTP client behavior** → Integration Test (if isolated) or E2E Test (if in workflow)
 
+### Multi-feed corpus, unified index, and corpus artifacts (#440 / #505 / #506)
+
+- **Layout:** Two or more feeds under `<corpus_parent>/feeds/<stable_id>/…`; optional hybrid
+  `<corpus_parent>/metadata/` alongside `feeds/` (indexed with per-feed metadata).
+- **Unit tests (primary):**
+  - `tests/unit/podcast_scraper/search/test_corpus_scope.py` — `discover_metadata_files` hybrid merge.
+  - `tests/unit/podcast_scraper/search/test_indexer.py` — nested `feeds/…/metadata` and **hybrid**
+    parent + feeds indexing; composite fingerprint keys (`index_fingerprint_scope_key`).
+  - `tests/unit/podcast_scraper/workflow/test_corpus_operations.py` — manifest/summary JSON,
+    `finished_at`, `finalize_multi_feed_batch` return value.
+  - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success and
+    partial failure).
+  - `tests/unit/podcast_scraper/test_cli.py` — `corpus-status` parse/smoke; multi-feed CLI with
+    injected `run_pipeline_fn`; **`gi inspect` / `kg inspect`** multi-feed **`--feed-id`** and
+    ambiguous **`episode_id`** error paths (`TestGiSubcommand`, `TestKgSubcommandMultiFeed`).
+  - `tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py` — metadata-driven GI/KG paths,
+    **YAML** metadata, **rglob** fallback without `.metadata.*`, **`corpus_search_parent_hint`**.
+  - `tests/unit/podcast_scraper/utils/test_corpus_lock.py` — advisory **`.podcast_scraper.lock`**
+    (`PODCAST_SCRAPER_CORPUS_LOCK`).
+  - `tests/unit/podcast_scraper/gi/test_load.py` / `tests/unit/podcast_scraper/kg/test_kg_load.py` —
+    **`find_*_by_episode_id`** across **`feeds/`** with **`feed_id`** disambiguation.
+  - `web/gi-kg-viewer/src/stores/shell.hints.test.ts` (Vitest) — **`GET /api/artifacts`** `hints`;
+    `web/gi-kg-viewer/e2e/corpus-hints.spec.ts` (Playwright; requires **`playwright install`**).
+- **Integration tests:** `tests/integration/test_workflow_integration.py` — multi-feed CLI and
+  `service.run` happy path (manifest + `corpus_run_summary.json` on disk); **partial feed failure**
+  still writes both artifacts with `overall_ok: false` (CLI + service).
+- **E2E:** `tests/e2e/test_service_api_e2e.py` — YAML `feeds:` + `multi_feed_summary`;
+  `tests/e2e/test_basic_e2e.py` / `test_cli_subprocess_e2e.py` — multi-feed smoke where marked #440.
+- **Docs:** [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md), RFC-063 §5–§7,
+  [CONFIGURATION.md](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440),
+  [SEMANTIC_SEARCH_GUIDE.md](../guides/SEMANTIC_SEARCH_GUIDE.md).
+
 ### Unit Tests
 
 - **Purpose**: Test individual functions/modules in isolation
@@ -159,7 +191,8 @@ The testing strategy follows a three-tier pyramid:
 - **Provider E2E tests**: Dedicated E2E test files
   exist for each of the 9 providers:
   `test_ml_models_e2e.py`,
-  `test_hybrid_ml_provider_e2e.py`,
+  `test_hybrid_ml_provider_e2e.py` (includes Tier 1 MAP+REDUCE smoke and
+  **layered cleaning** / `pattern` + `cleaning_hybrid_after_pattern`, Issue #419),
   `test_openai_provider_e2e.py`,
   `test_gemini_provider_e2e.py`,
   `test_anthropic_provider_e2e.py`,
@@ -196,16 +229,42 @@ directory).
 | **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`); required for docs publish path on main | `test-e2e`, `test-e2e-fast`, etc. |
 
 **Python API for the viewer** (`GET /api/search`, `/api/explore`, etc.) is validated at two pytest
-layers (both skipped when FastAPI / `[server]` extras are missing):
+layers:
 
-- **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — mocked route internals.
+- **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — FastAPI `TestClient` and
+  targeted mocks (e.g. vector store boundaries). **CI `test-unit`** installs **`.[dev]`** only, so
+  modules that call **`pytest.importorskip("fastapi")`** **skip** there; install **`.[server]`**
+  locally to run them. **Integration** (`test_server_api`) still exercises the API with full deps.
 - **Integration:** `tests/integration/test_server_api.py` — wired `create_app` with real
   filesystem artifacts (no mocking of route internals).
+
+### Unit tests and optional extras (`pyproject`) {#unit-tests-and-optional-extras-pyproject}
+
+**Contract for `tests/unit/`:**
+
+1. **Never require `[ml]`, `[llm]`, `[compare]`, or ad-hoc non-`dev` packages.** Real FAISS,
+   Whisper, spaCy, cloud SDKs, etc. belong in **integration** or **E2E** tests (with the workflow
+   installing the right extras). Use **mocks**, **`sys.modules` stubs**, or **lazy imports** in
+   unit tests.
+2. **`[dev]`** is the **logical baseline** for “what unit tests are allowed to assume” from
+   `pyproject.toml` (pytest, linters, and other entries under the **`dev`** extra, including their
+   transitive dependencies).
+3. **`[server]`** is **optional** for unit tests: **PR and nightly `test-unit`** use
+   **`pip install -e .[dev]`** only. FastAPI-backed tests **skip** without **`[server]`** via
+   **`importorskip`**. Install **`.[server]`** locally when developing viewer routes. Do not pull
+   **ML** into unit tests — keep **FAISS / torch / spacy** out of `tests/unit/` except via mocks.
+
+**Verification:** `scripts/tools/check_unit_test_imports.py` (run before unit tests in CI) ensures
+key **library** modules import without the heavy **ML** stack; it does not install **`[server]`**.
+The same **`[dev]`**-only assumption applies to the full **`pytest tests/unit/`** job on CI.
+
+**Detail:** [Unit Testing Guide — Pyproject extras](../guides/UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on).
 
 Use **Playwright** when the risk is **client rendering or interaction**, not when a pure JSON
 contract change is enough.
 
-**References:** [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+**References:** [Polyglot repository guide](../guides/POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
+[Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
 [E2E Testing Guide — Playwright](../guides/E2E_TESTING_GUIDE.md#browser-e2e-playwright),
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
 [viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
@@ -334,7 +393,7 @@ The decision questions above provide a quick way to determine test type. For cri
 | Provider | Unit Tests | Integration | E2E |
 | --- | --- | --- | --- |
 | MLProvider | `test_ml_provider.py`, `_lifecycle.py` | `test_provider_real_models.py` | `test_ml_models_e2e.py` |
-| HybridMLProvider | `test_hybrid_ml_provider.py`, `_lifecycle.py` | `test_hybrid_ml_providers.py` | `test_hybrid_ml_provider_e2e.py` |
+| HybridMLProvider | `test_hybrid_ml_provider.py`, `_lifecycle.py` | `test_hybrid_ml_providers.py` | `test_hybrid_ml_provider_e2e.py` (layered `pattern` path, Issue #419) |
 | OpenAIProvider | `test_openai_provider.py`, `_factory.py`, `_lifecycle.py` | `test_openai_providers.py` | `test_openai_provider_e2e.py` |
 | GeminiProvider | `test_gemini_provider.py`, `_factory.py`, `_lifecycle.py` | `test_gemini_providers.py` | `test_gemini_provider_e2e.py` |
 | AnthropicProvider | `test_anthropic_provider.py`, `_factory.py`, `_lifecycle.py` | `test_anthropic_providers.py` | `test_anthropic_provider_e2e.py` |
@@ -588,13 +647,14 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 
 ### Test Organization
 
-The test suite is organized into three main **pytest** categories, plus the **frontend** tree:
+The test suite is organized into three main **pytest** categories, plus the **frontend** tree.
+Each layer uses a different organizational axis:
 
-- **`tests/unit/`** - Unit tests per module (fast, isolated, fully mocked)
-- **`tests/integration/`** - Integration tests (component interactions, real internal implementations, mocked external services)
-- **`tests/e2e/`** - E2E tests (complete workflows, real HTTP client, real ML models)
-- **`web/gi-kg-viewer/src/utils/*.test.ts`** - Vitest unit tests for TS utility logic (`make test-ui`)
-- **`web/gi-kg-viewer/e2e/`** - Playwright specs (`*.spec.ts`); **`web/gi-kg-viewer/playwright.config.ts`** — browser UI E2E (not collected by pytest)
+- **`tests/unit/`** — Mirrors the `src/` tree 1:1 (find the test for any source file mechanically)
+- **`tests/integration/`** — Organized by **domain subsystem** (providers, workflow, GI/KG, server, search, rss, etc.); cross-cutting tests stay in root. See [Integration Testing Guide — Directory Organization](../guides/INTEGRATION_TESTING_GUIDE.md#directory-organization)
+- **`tests/e2e/`** — Flat by user scenario (CLI commands, service API, provider pipelines)
+- **`web/gi-kg-viewer/src/utils/*.test.ts`** — Vitest unit tests for TS utility logic (`make test-ui`)
+- **`web/gi-kg-viewer/e2e/`** — Playwright specs (`*.spec.ts`); **`web/gi-kg-viewer/playwright.config.ts`** — browser UI E2E (not collected by pytest)
 
 ### Test Markers
 
@@ -701,6 +761,9 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 
 #### 3. Nightly Comprehensive (Deep Analysis)
 
+- **nightly-viewer-unit** / **nightly-viewer-e2e**: GI/KG viewer Vitest (parallel with unit) and
+  Playwright after pytest E2E — same layout as `python-app.yml`; run on every scheduled/manual
+  nightly (no path filters).
 - **nightly-only-tests**: Full validation (Tier 3) using production-quality ML models (Whisper base, BART-large, LED-large).
 - **Data Quality (Tier 2)**: Volume validation with multiple episodes.
 - **Module Dependency Analysis**: Automated graph generation and coupling analysis.
@@ -728,9 +791,10 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - **HTTP**: Mock `requests.Session` and responses (unit/integration tests), use E2E server for E2E tests
 - **Whisper**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), use real models (integration/E2E tests)
 - **ML Dependencies (spacy, torch, transformers)**:
-  - **Unit Tests**: Mock in `sys.modules` before importing dependent modules
+  - **Unit Tests**: Must **not** require the **`[ml]`** extra — mock or stub (`sys.modules`) before
+    importing dependent modules; see [Unit tests and optional extras](#unit-tests-and-optional-extras-pyproject).
   - **Integration Tests**: Real ML dependencies required
-  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure modules can import without ML deps
+  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure listed library modules import without ML deps at import time (does not install `[server]`)
 - **File System**: Use `tempfile` for isolated test environments
 - **API Providers** (OpenAI, Gemini, Anthropic,
   Mistral, DeepSeek, Grok, Ollama):
@@ -903,7 +967,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
 - [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
 - [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
-- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/full/*.yaml` (including `acceptance_planet_money_grok.yaml` for Grok in the full pipeline).
+- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/*.yaml` (including `acceptance_planet_money_grok.yaml` for Grok in the full pipeline).
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
 - [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)

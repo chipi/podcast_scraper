@@ -6,6 +6,14 @@ PYTHON ?= .venv/bin/python
 endif
 PACKAGE = podcast_scraper
 
+# GI/KG viewer (Vue + Vite + Playwright, RFC-062). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
+WEB_VIEWER_DIR ?= web/gi-kg-viewer
+
+# Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm/server).
+# Override path: ``make venv-dev-init VENVDEV=.venv-ci-unit``
+VENVDEV ?= .venv-dev
+VENVDEV_PY = $(VENVDEV)/bin/python
+
 # Pip cache directory (can be overridden via environment variable)
 # Defaults to standard pip cache location, but can be set explicitly for consistency
 PIP_CACHE_DIR ?= $(HOME)/.cache/pip
@@ -33,11 +41,13 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
 	@echo "  make init            Install development dependencies (uses wheels/spacy if *.whl present)"
+	@echo "  make venv-dev-init   Create $(VENVDEV) with pip install -e .[dev] only (CI test-unit parity)"
+	@echo "  make init-no-ml      Alias for venv-dev-init (does not modify your main .venv)"
 	@echo "  make format          Apply formatting with black + isort"
 	@echo "  make format-check    Check formatting without modifying files"
 	@echo "  make lint            Run flake8 linting"
@@ -77,8 +87,8 @@ help:
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
-	@echo "  make test-ui             Vitest unit tests for TypeScript utils in web/gi-kg-viewer (fast, no browser)"
-	@echo "  make test-ui-e2e         Playwright E2E for web/gi-kg-viewer (RFC-062 M7; needs npm install in that dir)"
+	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
+	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (RFC-062; needs npm install in that dir)"
 	@echo ""
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
@@ -87,9 +97,10 @@ help:
 	@echo "  make cleanup-processes  Clean up leftover Python/test processes from previous runs"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
+	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
-	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
+	@echo "  make test-unit-dev-venv   Unit tests inside $(VENVDEV) (run venv-dev-init first; true CI parity)"
+	@echo "  make test-unit-no-ml      check-unit-imports + unit tests using Makefile PYTHON (often full .venv)"
 	@echo "  make test-integration            Run all integration tests (full suite, parallel)"
 	@echo "  make test-integration-sequential Run all integration tests sequentially (for debugging)"
 	@echo "  make test-integration-fast       Run fast integration tests (critical path only)"
@@ -121,11 +132,15 @@ help:
 	@echo "                            NOTE: Only runs test_openai_all_providers_in_pipeline to minimize costs"
 	@echo "  make test-reruns     Run tests with reruns for flaky tests (2 retries, 1s delay)"
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
-	@echo "                            Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\" [USE_FIXTURES=1] [NO_SHOW_LOGS=1] [NO_AUTO_ANALYZE=1] [ANALYZE_MODE=basic|comprehensive] [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...]"
+	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
+	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (tracked fast matrix + path resolve)"
+	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so FAISS indexing has cached embeddings offline."
+	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
 	@echo "                                     ANALYZE_MODE=comprehensive uses comprehensive analysis mode (default: basic)"
+	@echo "                                     STRICT_VECTOR_INDEX=1 fails run if vector_search builds empty FAISS (exit 1 if any run fails)"
 	@echo "  make analyze-acceptance  Analyze acceptance test results"
 	@echo "                                 Usage: make analyze-acceptance SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
@@ -160,8 +175,9 @@ help:
 	@echo "                            Usage: make clean-model-cache MODEL_NAME=google/pegasus-cnn_dailymail [FORCE=yes]"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 	@echo "  make download-spacy-wheels  Download spaCy en_core_web_* wheels into wheels/spacy (use with PIP_FIND_LINKS)"
-	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally (test models)"
-	@echo "  make preload-ml-models-production  Pre-download and cache production ML models (for nightly tests)"
+	@echo "  make preload-ml-models  Pre-download/cache ML models (Whisper, spaCy, Transformers, GIL evidence: embedding+QA+NLI)"
+	@echo "                            Omit SKIP_GIL=1 when you need sentence-transformers cached for vector_search/FAISS (indexing uses allow_download=False)."
+	@echo "  make preload-ml-models-production  Same idea for nightly-sized model set (Whisper base, BART/LED/Pegasus, hybrid, en_core_web_sm)"
 	@echo "  make backup-cache    Backup .cache directory (ML models)"
 	@echo "  make backup-cache-dry-run  Dry run: Check what would be backed up"
 	@echo "  make backup-cache-list     List existing cache backups"
@@ -190,7 +206,7 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
-	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[run_compare]')"
+	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[compare]')"
 	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make ml-param-sweep      RFC-057 Track B: ML hyperparameter ratchet (no API keys needed)"
 	@echo "                            Usage: make ml-param-sweep MODEL=bart_led [MAX_FAILS=3] [MIN_GAIN=0.01] [DRY_RUN=1]"
@@ -221,6 +237,15 @@ init:
 	# Current groups: dev, ml (local ML stack), llm (API providers incl. Gemini via google-genai)
 	$(PYTHON) -m pip install --upgrade -e .[dev,ml,llm]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install --upgrade -r docs/requirements.txt; fi
+
+# CI ``test-unit`` installs ``.[dev]`` only. This creates a separate venv so you do not strip [ml] from .venv.
+venv-dev-init:
+	@test -d "$(VENVDEV)" || python3 -m venv "$(VENVDEV)"
+	$(VENVDEV_PY) -m pip install --upgrade pip setuptools wheel
+	$(VENVDEV_PY) -m pip install -e .[dev]
+	@echo "✅ $(VENVDEV): editable install with .[dev] only. Run: make test-unit-dev-venv"
+
+init-no-ml: venv-dev-init
 
 # Download spaCy model wheels (matches pyproject.toml [ml] pins). When wheels/spacy/*.whl exists,
 # make sets PIP_FIND_LINKS for recipes (e.g. make init) unless you already exported it.
@@ -253,8 +278,8 @@ MARKDOWNLINT_CLI_ARGS = "**/*.md" \
 	--ignore "docs/wip/**" \
 	--ignore "tests/fixtures/**" \
 	--ignore "data/eval/runs/**" \
-	--ignore "web/gi-kg-viewer/playwright-report/**" \
-	--ignore "web/gi-kg-viewer/test-results/**" \
+	--ignore "$(WEB_VIEWER_DIR)/playwright-report/**" \
+	--ignore "$(WEB_VIEWER_DIR)/test-results/**" \
 	--config .markdownlint.json
 
 lint-markdown:
@@ -277,7 +302,7 @@ type:
 security: security-bandit security-audit
 
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev --skip B113,B108,B110,B310 --severity-level medium
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
@@ -329,10 +354,13 @@ quality: complexity deadcode docstrings spelling
 	# Ignore CVE-2026-4539: pip-audit/OSV currently flags all pygments versions until a fixed release is published; we pin
 	#   pygments<2.19.0 in pyproject.toml (NVD/GHSA: vulnerable code in 2.19.0–2.19.2). Revisit when 2.19.3+ exists or OSV range fixes.
 	# TODO(CVE-2026-4539): Remove --ignore-vuln when upstream fix + pip-audit range allow; sync pyproject pygments cap.
+	# Ignore CVE-2026-1839: transformers Trainer loads rng_state via torch.load without weights_only; fixed in 5.0.0rc3+.
+	#   We pin transformers<5.0.0 (extractive QA / pipeline — see pyproject [ml]). Revisit when stable 5.x is adopted.
+	# TODO(CVE-2026-1839): Remove --ignore-vuln after bumping transformers to a fixed 5.x release.
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
@@ -378,7 +406,7 @@ validate-kg-schema:
 		export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/validate_kg_schema.py tests/fixtures; \
 	fi
 
-# GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd web/gi-kg-viewer && npm install
+# GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
 .PHONY: serve serve-api serve-ui
 SERVE_OUTPUT_DIR ?= ./output
 serve:
@@ -389,17 +417,17 @@ serve-api:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli serve --output-dir "$(SERVE_OUTPUT_DIR)" $(SERVE_ARGS)
 
 serve-ui:
-	@cd web/gi-kg-viewer && npm run dev
+	@cd $(WEB_VIEWER_DIR) && npm run dev
 
 # RFC-062: Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
 	@echo "Vitest unit tests (gi-kg-viewer)..."
-	@cd web/gi-kg-viewer && npm install && npm run test:unit
+	@cd $(WEB_VIEWER_DIR) && npm install && npm run test:unit
 
-# RFC-062 M7: Playwright browser E2E (install browsers once: cd web/gi-kg-viewer && npx playwright install firefox)
+# RFC-062: Playwright browser E2E (install browsers once: cd $(WEB_VIEWER_DIR) && npx playwright install firefox)
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
-	@cd web/gi-kg-viewer && npm install && npx playwright install firefox && npm run test:e2e
+	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
 
 gil-quality-metrics:
 	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).
@@ -449,14 +477,19 @@ test-unit: cleanup-processes
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-no-ml: cleanup-processes
-	# Unit tests without ML dependencies (matches CI setup - Issue #403)
-	# This target verifies that unit tests can run without optional dependencies installed
-	# First verify imports work without ML dependencies (same check as CI)
+	# Runs import guard + unit tests with *current* $(PYTHON) (.venv if present).
+	# For the same environment as GitHub test-unit, use: make venv-dev-init && make test-unit-dev-venv
 	@echo "Verifying unit tests can import modules without ML dependencies..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
-	# Then run unit tests (same as test-unit but with explicit verification)
-	@echo "Running unit tests without ML dependencies..."
+	@echo "Running unit tests..."
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-unit-dev-venv: cleanup-processes
+	@test -x "$(VENVDEV_PY)" || { echo "Missing $(VENVDEV_PY). Run: make venv-dev-init [VENVDEV=$(VENVDEV)]"; exit 1; }
+	@echo "Verifying imports (CI-style, .[dev] only)..."
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(VENVDEV_PY) scripts/tools/check_unit_test_imports.py
+	@echo "Running unit tests in $(VENVDEV)..."
+	$(VENVDEV_PY) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(VENVDEV_PY) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)
@@ -695,13 +728,15 @@ test-reruns:
 
 test-acceptance:
 	@# Run E2E acceptance tests (multiple configs sequentially)
-	@# Usage: make test-acceptance CONFIGS="config/examples/config.example.yaml" [COMPARE_BASELINE=...] [SAVE_AS_BASELINE=...] [OUTPUT_DIR=...]
-	@if [ -z "$(CONFIGS)" ]; then \
-		echo "❌ Error: CONFIGS is required"; \
+	@# Usage: make test-acceptance CONFIGS="…" OR make test-acceptance FROM_FAST_STEMS=1 [USE_FIXTURES=1] …
+	@if [ -z "$(CONFIGS)" ] && [ -z "$(FROM_FAST_STEMS)" ]; then \
+		echo "❌ Error: CONFIGS is required unless FROM_FAST_STEMS=1"; \
 		echo "Usage: make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
+		echo "   Or: make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1"; \
 		echo ""; \
 		echo "Options:"; \
-		echo "  CONFIGS=pattern         Config file pattern (required, e.g., 'config/acceptance/full/*.yaml')"; \
+		echo "  CONFIGS=pattern         Config glob(s), space-separated (required unless FROM_FAST_STEMS=1)"; \
+		echo "  FROM_FAST_STEMS=1      Resolve YAMLs from fast stem list (FAST_CONFIGS.txt; optional config/ci/acceptance_fast_stems.txt)"; \
 		echo "  USE_FIXTURES=1          Use E2E server fixtures (test feeds and mock APIs)"; \
 		echo "  NO_SHOW_LOGS=1          Disable streaming logs to console"; \
 		echo "  NO_AUTO_ANALYZE=1       Disable automatic analysis after session"; \
@@ -709,18 +744,19 @@ test-acceptance:
 		echo "  ANALYZE_MODE=mode       Analysis mode: basic or comprehensive (default: basic)"; \
 		echo "  COMPARE_BASELINE=id     Baseline ID to compare against"; \
 		echo "  SAVE_AS_BASELINE=id     Save current runs as baseline"; \
-		echo "  FAST_ONLY=1             Run only configs in config/acceptance/FAST_CONFIGS.txt"; \
+		echo "  FAST_ONLY=1             Run only configs matching fast stems (after CONFIGS glob)"; \
 		echo "  TIMEOUT=seconds         Per-run timeout (kill and fail if exceeded)"; \
 		echo "  OUTPUT_DIR=path          Output directory (default: .test_outputs/acceptance)"; \
 		echo ""; \
 		echo "Examples:"; \
 		echo "  make test-acceptance CONFIGS=\"config/examples/config.example.yaml\""; \
-		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1"; \
-		echo "  make test-acceptance CONFIGS=\"config/acceptance/full/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/*.yaml\" USE_FIXTURES=1"; \
+		echo "  make test-acceptance CONFIGS=\"config/acceptance/*.yaml\" USE_FIXTURES=1 FAST_ONLY=1"; \
+		echo "  make test-acceptance-fixtures-fast"; \
 		exit 1; \
 	fi
 	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
-		--configs "$(CONFIGS)" \
+		$(if $(FROM_FAST_STEMS),--from-fast-stems,--configs "$(CONFIGS)") \
 		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
 		$(if $(USE_FIXTURES),--use-fixtures) \
 		$(if $(NO_SHOW_LOGS),--no-show-logs) \
@@ -731,6 +767,18 @@ test-acceptance:
 		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
 		$(if $(FAST_ONLY),--fast-only) \
 		$(if $(TIMEOUT),--timeout $(TIMEOUT)) \
+		--log-level INFO
+
+# Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
+# Resolves each stem to config/acceptance/<stem>.yaml or config/examples/<stem>.yaml.
+test-acceptance-fixtures-fast:
+	@$(PYTHON) scripts/acceptance/run_acceptance_tests.py \
+		--from-fast-stems \
+		--output-dir "$(or $(OUTPUT_DIR),.test_outputs/acceptance)" \
+		--use-fixtures \
+		--no-auto-analyze \
+		--no-auto-benchmark \
+		--timeout "$(or $(TIMEOUT),900)" \
 		--log-level INFO
 	@echo ""
 	@echo "✓ Acceptance tests completed"
@@ -1112,7 +1160,7 @@ ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src');
 	all_cached = whisper_ok and transformers_ok and spacy_ok; \
 	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test coverage-enforce docs build
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test test-ui test-ui-e2e coverage-enforce docs build
 	# Conditional preload: Only runs preload-ml-models if models are not cached
 	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
 	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
@@ -1120,8 +1168,8 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast docs build
-	# Note: ci-fast skips coverage-enforce because fast tests have partial coverage
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast test-ui docs build
+	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright) because fast suite
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
 

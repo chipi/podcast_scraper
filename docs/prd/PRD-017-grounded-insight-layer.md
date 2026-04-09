@@ -1,14 +1,11 @@
 # PRD-017: Grounded Insight Layer (GIL)
 
-- **Status**: 📋 Draft
+- **Status**: Partially implemented (v2.6.0)
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**:
-  - RFC-044 (Model Registry — prerequisite)
-  - RFC-042 (Hybrid ML Platform — prerequisite)
-  - RFC-052 (Local LLM Prompts — prerequisite)
-  - RFC-049 (Core Concepts & Data Model)
-  - RFC-050 (Use Cases & Insight Explorer)
-  - RFC-051 (Database Projection)
+- **Related RFCs** (RFCs whose **Related PRD** is PRD-017 in [RFC index](../rfc/index.md); they specify or ship this feature):
+  - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core & artifacts (**complete**)
+  - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — Use cases & Insight Explorer (**open**)
+  - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer (GIL surfaces: explore, search, evidence UI) (**complete**)
 - **Related PRDs** (separate feature — not GIL):
   - [PRD-019: Knowledge Graph Layer (KG)](PRD-019-knowledge-graph-layer.md) (entities/linking; `kg` vs `gi`)
 - **Related Documents**:
@@ -22,6 +19,16 @@
 The **Grounded Insight Layer (GIL)** transforms podcast content into a structured, evidence-backed system that extracts **insights** (key takeaways) and **quotes** (verbatim evidence) with full attribution and timestamps. The user-facing value is **trust and navigation**: users can retrieve insights and immediately see the exact evidence supporting them.
 
 The internal graph structure enables semantic organization, but the primary deliverable is reliable insight retrieval with grounded evidence. Every insight links to supporting quotes, and every quote links to its exact transcript span and timestamp. This evidence-first approach distinguishes GIL from traditional summarization and enables trustworthy downstream applications (RAG, analytics, AI agents).
+
+**Implementation status (v2.6.0 — partial):** Prerequisites
+[RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md),
+[RFC-044](../rfc/RFC-044-model-registry.md), and
+[RFC-052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md) are **done**. GIL **core**
+[RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) is **done** (`gi.json`, grounding contract,
+schema, `gi` CLI). **Not done** for full PRD closure:
+[RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) (full use-case and Insight Explorer
+spec) and [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) / [PRD-018](PRD-018-database-projection-gil-kg.md)
+(relational projection).
 
 ## Background & Context
 

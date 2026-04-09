@@ -37,13 +37,31 @@ function focusNode(id: string): void {
         Explore &amp; query
       </h2>
       <HelpTip>
-        <p class="font-medium text-surface-foreground">Explore modes</p>
-        <ul class="mt-1 list-disc space-y-1 pl-4 text-muted">
-          <li><strong>Topic / speaker explore</strong> — substring filters on topic and speaker; uses your vector index for semantic topic routing when available.</li>
-          <li><strong>Natural language</strong> — pattern-matched questions (RFC-050 UC4): "What insights about …?", "What did … say?", "Top topics".</li>
-        </ul>
+        <p class="font-medium text-surface-foreground">
+          What this panel is for
+        </p>
+        <p class="mt-1 text-muted">
+          Browse and filter <strong class="text-surface-foreground">Grounded Insights</strong> across
+          episodes in your corpus (insight text, linked quotes, topic/speaker rollups). Data comes from
+          <code class="rounded bg-canvas px-0.5 text-[10px]">.gi.json</code> only — not the knowledge
+          graph and not full transcript/summary search.
+        </p>
+        <p class="mt-2 text-muted">
+          Use <strong class="text-surface-foreground">Topic / speaker</strong> for manual filters, or
+          <strong class="text-surface-foreground">Quick questions</strong> for preset phrases — each
+          has its own <span class="text-surface-foreground">?</span> with details.
+        </p>
+        <p class="mt-2 text-muted">
+          For free-form, whole-corpus semantic search (summaries, chunks, KG, …), use
+          <strong class="text-surface-foreground">Semantic search</strong>.
+        </p>
       </HelpTip>
     </div>
+    <p class="mb-2 text-xs text-muted">
+      <span class="text-surface-foreground">GI only</span>
+      — see <span class="text-surface-foreground">?</span> above for scope; subsection
+      <span class="text-surface-foreground">?</span> tips explain filters and phrases.
+    </p>
     <p
       v-if="!shell.healthStatus"
       class="mb-2 text-xs text-muted"
@@ -53,9 +71,43 @@ function focusNode(id: string): void {
 
     <div class="space-y-4">
       <div>
-        <h3 class="mb-1 text-xs font-semibold text-muted">
-          Topic / speaker
-        </h3>
+        <div class="mb-1 flex items-center gap-1.5">
+          <h3 class="text-xs font-semibold text-muted">
+            Topic / speaker
+          </h3>
+          <HelpTip>
+            <p class="font-medium text-surface-foreground">
+              Topic / speaker filters
+            </p>
+            <ul class="mt-1 list-disc space-y-1 pl-4 text-muted">
+              <li>
+                <span class="font-medium text-surface-foreground">Topic contains</span> — substring
+                on insight topic labels. If
+                <code class="rounded bg-canvas px-0.5 text-[10px]">&lt;corpus&gt;/search/vectors.faiss</code>
+                exists, this field can use the vector index to pick relevant episodes first
+                (routing), then GI files load from disk. That is <em>not</em> the same as
+                <strong class="text-surface-foreground">Semantic search</strong>, which ranks all
+                indexed types (summaries, transcript chunks, KG, …).
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Speaker contains</span> — substring
+                on speaker attribution for quotes linked to insights.
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Grounded only</span> — keep insights
+                that pass grounding checks.
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Strict schema</span> — stricter
+                validation when reading artifacts.
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Limit / Sort / Min confidence</span> —
+                cap rows, order by model confidence or time, optional confidence floor.
+              </li>
+            </ul>
+          </HelpTip>
+        </div>
         <div class="space-y-2">
           <label class="block text-xs text-muted">
             Topic contains
@@ -145,9 +197,36 @@ function focusNode(id: string): void {
       </div>
 
       <div class="border-t border-border pt-3">
-        <h3 class="mb-1 text-xs font-semibold text-muted">
-          Natural language
-        </h3>
+        <div class="mb-1 flex items-center gap-1.5">
+          <h3 class="text-xs font-semibold text-muted">
+            Quick questions
+          </h3>
+          <HelpTip>
+            <p class="font-medium text-surface-foreground">
+              Supported phrases (case-insensitive)
+            </p>
+            <ul class="mt-1 list-disc space-y-1 pl-4 text-muted">
+              <li>
+                <span class="font-medium text-surface-foreground">Topic:</span>
+                “What insights about …”, “What insights are there about …”, “Insights about …”,
+                “Show me insights about …”, “Tell me about insights on …”, “What are insights about …”
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Speaker:</span>
+                “What did … say?”
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Speaker + topic:</span>
+                “What did … say about …?”
+              </li>
+              <li>
+                <span class="font-medium text-surface-foreground">Rank topics:</span>
+                “Top topics”, “Which topics have the most insights?”, “What topics have the most insights?”,
+                “Rank topics by insights”, “What are the top topics”, “Show topic rankings”
+              </li>
+            </ul>
+          </HelpTip>
+        </div>
         <textarea
           v-model="ex.nlQuestion"
           rows="2"
@@ -161,7 +240,7 @@ function focusNode(id: string): void {
           :disabled="!shell.healthStatus || ex.loading"
           @click="ex.runNaturalLanguage(shell.corpusPath)"
         >
-          Run query
+          Run quick question
         </button>
       </div>
 

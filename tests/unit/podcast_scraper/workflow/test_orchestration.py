@@ -1075,6 +1075,45 @@ class TestFinalizePipeline(unittest.TestCase):
 
         mock_create_index.assert_called_once()
         mock_index.save_to_file.assert_called_once()
+        self.assertFalse(mock_create_index.call_args.kwargs.get("pipeline_append"))
+
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
+    @patch("podcast_scraper.workflow.orchestration.wf_helpers.cleanup_pipeline")
+    @patch("podcast_scraper.workflow.orchestration._log_episode_results")
+    @patch("podcast_scraper.workflow.orchestration.logger")
+    @patch("podcast_scraper.workflow.run_index.create_run_index")
+    def test_finalize_pipeline_run_index_sets_pipeline_append_when_cfg_append(
+        self, mock_create_index, mock_logger, mock_log_results, mock_cleanup, mock_generate_summary
+    ):
+        """GitHub #444: create_run_index receives pipeline_append when cfg.append is True."""
+        mock_index = Mock()
+        mock_index.save_to_file = Mock()
+        mock_create_index.return_value = mock_index
+        mock_generate_summary.return_value = (5, "Summary")
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            dry_run=False,
+            run_id="test-run",
+            append=True,
+        )
+
+        orchestration._finalize_pipeline(
+            cfg,
+            5,
+            self.transcription_resources,
+            self.output_dir,
+            self.run_suffix,
+            self.pipeline_metrics,
+            self.episodes,
+            None,
+            None,
+            None,
+            None,
+        )
+
+        mock_create_index.assert_called_once()
+        self.assertTrue(mock_create_index.call_args.kwargs.get("pipeline_append"))
 
     @patch("podcast_scraper.workflow.orchestration.wf_helpers.generate_pipeline_summary")
     @patch("podcast_scraper.workflow.orchestration.wf_helpers.cleanup_pipeline")

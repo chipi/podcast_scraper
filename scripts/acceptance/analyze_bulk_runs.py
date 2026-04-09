@@ -93,6 +93,22 @@ def load_baseline(baseline_id: str, output_dir: Path) -> Dict[str, Any]:
         return json.load(f)
 
 
+def _log_distinct_error_count(logs: Dict[str, Any]) -> int:
+    return int(logs.get("error_count_distinct", len(logs.get("errors", []))))
+
+
+def _log_distinct_warning_count(logs: Dict[str, Any]) -> int:
+    return int(logs.get("warning_count_distinct", len(logs.get("warnings", []))))
+
+
+def _log_error_lines_total(logs: Dict[str, Any], distinct_fallback: int) -> int:
+    return int(logs.get("error_lines_total", distinct_fallback))
+
+
+def _log_warning_lines_total(logs: Dict[str, Any], distinct_fallback: int) -> int:
+    return int(logs.get("warning_lines_total", distinct_fallback))
+
+
 def analyze_logs_basic(run_data: Dict[str, Any]) -> Dict[str, Any]:
     """Basic log analysis.
 
@@ -103,9 +119,13 @@ def analyze_logs_basic(run_data: Dict[str, Any]) -> Dict[str, Any]:
         Basic log analysis
     """
     logs = run_data.get("logs", {})
+    err_distinct = logs.get("error_count_distinct", len(logs.get("errors", [])))
+    warn_distinct = logs.get("warning_count_distinct", len(logs.get("warnings", [])))
     return {
-        "error_count": len(logs.get("errors", [])),
-        "warning_count": len(logs.get("warnings", [])),
+        "error_count": err_distinct,
+        "warning_count": warn_distinct,
+        "error_lines_total": logs.get("error_lines_total", err_distinct),
+        "warning_lines_total": logs.get("warning_lines_total", warn_distinct),
         "info_count": logs.get("info_count", 0),
     }
 
@@ -151,9 +171,13 @@ def analyze_logs_comprehensive(run_data: Dict[str, Any]) -> Dict[str, Any]:
         else:
             warning_categories["other_warnings"] += 1
 
+    err_distinct = logs.get("error_count_distinct", len(errors))
+    warn_distinct = logs.get("warning_count_distinct", len(warnings))
     return {
-        "error_count": len(errors),
-        "warning_count": len(warnings),
+        "error_count": err_distinct,
+        "warning_count": warn_distinct,
+        "error_lines_total": logs.get("error_lines_total", err_distinct),
+        "warning_lines_total": logs.get("warning_lines_total", warn_distinct),
         "info_count": logs.get("info_count", 0),
         "error_categories": dict(error_categories),
         "warning_categories": dict(warning_categories),
@@ -637,6 +661,17 @@ def _basic_report_errors_section(
     if not all_errors and not all_warnings:
         return
     report.append("### Error and Warning Details")
+    err_vol = sum(
+        _log_error_lines_total(r.get("logs", {}), _log_distinct_error_count(r.get("logs", {})))
+        for r in runs
+    )
+    warn_vol = sum(
+        _log_warning_lines_total(r.get("logs", {}), _log_distinct_warning_count(r.get("logs", {})))
+        for r in runs
+    )
+    report.append(
+        f"_Raw log lines (including repeats): **{err_vol}** error, **{warn_vol}** warning._"
+    )
     report.append("")
     if all_errors:
         report.append(f"#### Errors ({len(all_errors)})")
@@ -731,8 +766,8 @@ def _basic_report_table(
         "Status",
         "Duration",
         "Episodes",
-        "Errors",
-        "Warnings",
+        "Err d/t",
+        "Warn d/t",
         "Memory (MB)",
         "Throughput",
     ]
@@ -750,8 +785,10 @@ def _basic_report_table(
         duration = run.get("duration_seconds", 0)
         episodes = run.get("episodes_processed", 0)
         logs = run.get("logs", {})
-        real_errors = [e for e in logs.get("errors", []) if _is_real_error(e)]
-        real_warnings = [w for w in logs.get("warnings", []) if _is_real_warning(w)]
+        err_dist = _log_distinct_error_count(logs)
+        warn_dist = _log_distinct_warning_count(logs)
+        err_lines = _log_error_lines_total(logs, err_dist)
+        warn_lines = _log_warning_lines_total(logs, warn_dist)
         memory = run.get("resource_usage", {}).get("peak_memory_mb")
         memory_str = f"{memory:.0f}" if memory is not None and memory > 0 else "N/A"
         throughput = episodes / max(0.1, duration) if duration > 0 else 0
@@ -764,8 +801,8 @@ def _basic_report_table(
                 status,
                 f"{duration:.1f}s",
                 str(episodes),
-                str(len(real_errors)),
-                str(len(real_warnings)),
+                f"{err_dist}/{err_lines}",
+                f"{warn_dist}/{warn_lines}",
                 memory_str,
                 throughput_str,
             ]
@@ -990,8 +1027,16 @@ def _comprehensive_error_warning_section(
     total_warnings = sum(warning_counts)
     report.append("### Error & Warning Analysis")
     report.append("")
-    report.append(f"- **Total Errors:** {total_errors}")
-    report.append(f"- **Total Warnings:** {total_warnings}")
+    report.append(f"- **Total Errors (distinct):** {total_errors}")
+    report.append(f"- **Total Warnings (distinct):** {total_warnings}")
+    err_line_sum = sum(
+        _log_error_lines_total(r.get("logs", {}), ec) for r, ec in zip(runs, error_counts)
+    )
+    warn_line_sum = sum(
+        _log_warning_lines_total(r.get("logs", {}), wc) for r, wc in zip(runs, warning_counts)
+    )
+    report.append(f"- **Error log lines (all occurrences):** {err_line_sum}")
+    report.append(f"- **Warning log lines (all occurrences):** {warn_line_sum}")
     if error_counts:
         error_stats = calculate_statistics(error_counts)
         report.append(f"- **Mean Errors per Run:** {error_stats['mean']:.1f}")
@@ -1236,13 +1281,17 @@ def _comprehensive_detailed_per_run_section(
                 report.append(f"- **Average CPU Percent:** {resource_usage['cpu_percent']:.1f}%")
             report.append("")
         logs = run.get("logs", {})
-        error_count = len(logs.get("errors", []))
-        warning_count = len(logs.get("warnings", []))
+        error_count = _log_distinct_error_count(logs)
+        warning_count = _log_distinct_warning_count(logs)
+        err_lines = _log_error_lines_total(logs, error_count)
+        warn_lines = _log_warning_lines_total(logs, warning_count)
         info_count = logs.get("info_count", 0)
         report.append("#### Log Analysis")
         report.append("")
-        report.append(f"- **Errors:** {error_count}")
-        report.append(f"- **Warnings:** {warning_count}")
+        report.append(f"- **Errors (distinct):** {error_count}")
+        report.append(f"- **Warnings (distinct):** {warning_count}")
+        report.append(f"- **Error log lines (all occurrences):** {err_lines}")
+        report.append(f"- **Warning log lines (all occurrences):** {warn_lines}")
         report.append(f"- **Info Messages:** {info_count}")
         if error_count > 0:
             errors = logs.get("errors", [])
@@ -1349,8 +1398,8 @@ def generate_comprehensive_report(
     _comprehensive_episodes_section(report, runs, episodes, session_data)
     _comprehensive_memory_cpu_sections(report, runs)
 
-    error_counts = [len(r.get("logs", {}).get("errors", [])) for r in runs]
-    warning_counts = [len(r.get("logs", {}).get("warnings", [])) for r in runs]
+    error_counts = [_log_distinct_error_count(r.get("logs", {})) for r in runs]
+    warning_counts = [_log_distinct_warning_count(r.get("logs", {})) for r in runs]
     _comprehensive_error_warning_section(report, runs, error_counts, warning_counts, total_runs)
     _comprehensive_error_categories(report, runs)
 
@@ -1484,8 +1533,15 @@ def main() -> None:
             for r in runs
             if r.get("resource_usage", {}).get("peak_memory_mb") is not None
         ]
-        error_counts = [len(r.get("logs", {}).get("errors", [])) for r in runs]
-        warning_counts = [len(r.get("logs", {}).get("warnings", [])) for r in runs]
+        error_counts = [_log_distinct_error_count(r.get("logs", {})) for r in runs]
+        warning_counts = [_log_distinct_warning_count(r.get("logs", {})) for r in runs]
+        error_line_counts = [
+            _log_error_lines_total(r.get("logs", {}), error_counts[i]) for i, r in enumerate(runs)
+        ]
+        warning_line_counts = [
+            _log_warning_lines_total(r.get("logs", {}), warning_counts[i])
+            for i, r in enumerate(runs)
+        ]
 
         json_report = {
             "session_id": session_id,
@@ -1504,6 +1560,12 @@ def main() -> None:
                 "memory": calculate_statistics(memory_values) if memory_values else None,
                 "errors": calculate_statistics(error_counts) if error_counts else None,
                 "warnings": calculate_statistics(warning_counts) if warning_counts else None,
+                "error_log_lines": (
+                    calculate_statistics(error_line_counts) if error_line_counts else None
+                ),
+                "warning_log_lines": (
+                    calculate_statistics(warning_line_counts) if warning_line_counts else None
+                ),
             },
             "analysis_results": analysis_results,
             "baseline_comparison": baseline_comparison,

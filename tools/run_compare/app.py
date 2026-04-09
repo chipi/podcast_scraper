@@ -19,7 +19,7 @@ try:
     import streamlit as st
 except ImportError as _import_err:
     raise SystemExit(
-        "Missing dependencies for run_compare. Install with: pip install -e '.[run_compare]'"
+        "Missing dependencies for compare UI. Install with: pip install -e '.[compare]'"
     ) from _import_err
 
 from tools.run_compare.data import (

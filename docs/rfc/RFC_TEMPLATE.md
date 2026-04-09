@@ -154,9 +154,9 @@ component/
 - [What success looks like]
 
 **Success Criteria:**
-1. ✅ [Criterion 1]
-2. ✅ [Criterion 2]
-3. ✅ [Criterion 3]
+1. [Criterion 1]
+2. [Criterion 2]
+3. [Criterion 3]
 
 ## Relationship to Other RFCs
 

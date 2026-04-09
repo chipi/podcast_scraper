@@ -108,9 +108,9 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 **Network Guard Requirements (NON-NEGOTIABLE):**
 
 - ❌ **NO external HTTP requests** should be made during E2E tests
-- ✅ **Block outbound network** in tests (except localhost/127.0.0.1)
-- ✅ **All RSS and audio** must be served from the local mock server
-- ✅ **Fail hard** if a real URL is hit (immediate test failure with clear error message)
+- **Block outbound network** in tests (except localhost/127.0.0.1)
+- **All RSS and audio** must be served from the local mock server
+- **Fail hard** if a real URL is hit (immediate test failure with clear error message)
 
 **Implementation:**
 
@@ -178,9 +178,9 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 For any episode:
 
-- ✅ RSS `<guid>` == transcript filename == audio filename (e.g., `p01_e01`)
-- ✅ RSS `<enclosure>` URL points to `/audio/pXX_eYY.mp3` (flat URL, matches existing structure)
-- ✅ RSS `<podcast:transcript>` URL points to `/transcripts/pXX_eYY.txt` (flat URL, matches existing structure)
+- RSS `<guid>` == transcript filename == audio filename (e.g., `p01_e01`)
+- RSS `<enclosure>` URL points to `/audio/pXX_eYY.mp3` (flat URL, matches existing structure)
+- RSS `<podcast:transcript>` URL points to `/transcripts/pXX_eYY.txt` (flat URL, matches existing structure)
 
 **Current Fixture Structure (Keep As-Is):**
 
@@ -210,10 +210,10 @@ tests/fixtures/
 
 **Benefits:**
 
-- ✅ No file reorganization needed - keep your existing flat structure
-- ✅ No script changes - generation scripts continue to work
-- ✅ RSS linkage already works - GUID `p01_e01` matches filename `p01_e01.mp3`
-- ✅ Flexible routing - server maps any URL pattern to flat files
+- No file reorganization needed - keep your existing flat structure
+- No script changes - generation scripts continue to work
+- RSS linkage already works - GUID `p01_e01` matches filename `p01_e01.mp3`
+- Flexible routing - server maps any URL pattern to flat files
 
 **Implementation:**
 
@@ -548,13 +548,13 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
 **Success Criteria:**
 
-1. ✅ All major CLI commands have at least one E2E test
-2. ✅ All public API endpoints have at least one E2E test
-3. ✅ All E2E tests use real HTTP client (no mocking)
-4. ✅ All E2E tests use real data files (RSS feeds, transcripts, audio)
-5. ✅ Network guard prevents external network calls
-6. ✅ All E2E tests pass in CI/CD
-7. ✅ Documentation is complete and up-to-date
+1. All major CLI commands have at least one E2E test
+2. All public API endpoints have at least one E2E test
+3. All E2E tests use real HTTP client (no mocking)
+4. All E2E tests use real data files (RSS feeds, transcripts, audio)
+5. Network guard prevents external network calls
+6. All E2E tests pass in CI/CD
+7. Documentation is complete and up-to-date
 
 ## Relationship to Other Test RFCs
 
@@ -571,9 +571,9 @@ This RFC (RFC-019) is part of a comprehensive testing strategy that includes:
 
 Together, these three RFCs provide:
 
-- Clear test structure and boundaries (RFC-018) ✅ **Completed**
-- Comprehensive component interaction testing (RFC-020) ✅ **Completed**
-- Comprehensive user workflow testing (RFC-019) ✅ **Completed**
+- Clear test structure and boundaries (RFC-018)  **Completed**
+- Comprehensive component interaction testing (RFC-020)  **Completed**
+- Comprehensive user workflow testing (RFC-019)  **Completed**
 
 ## References
 

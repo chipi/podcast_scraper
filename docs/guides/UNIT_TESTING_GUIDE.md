@@ -20,6 +20,26 @@ This guide covers unit test implementation details: what to mock, isolation patt
 | **Filesystem** | Blocked except tempfile (enforced by pytest plugin) |
 | **ML Models** | Not loaded (mocked before import) |
 
+## Pyproject extras: what unit tests may depend on
+
+**Rule:** Tests under `tests/unit/` must **not** require optional extras **`[ml]`**, **`[llm]`**, or **`[compare]`** (or any install path beyond what CI expects for the unit job). Use **`unittest.mock.patch`**, **`patch.dict(sys.modules, …)`** for fake modules, or **move** the scenario to **`tests/integration/`** (with the right markers and workflow deps).
+
+**Baseline extra:** **`[dev]`** — this is what `check_unit_test_imports.py` and “no ML at import time” checks target. Treat anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (and its transitive wheels) as **allowed** for unit tests. Do **not** assume **`[ml]`** is installed.
+
+**Viewer / FastAPI (`[server]`):**
+
+- **CI:** **`test-unit`** installs **`pip install -e .[dev]`** only. Modules that call **`pytest.importorskip("fastapi")`** **skip** viewer HTTP tests there — that is intentional (unit jobs stay aligned with **`[dev]`** only).
+- **Local / full check:** Install **`.[server]`** (e.g. **`pip install -e '.[dev,server]'`**) to run FastAPI **`TestClient`** unit tests on your machine.
+- **CI parity without touching `.venv`:** **`make venv-dev-init`** creates **`.venv-dev`** with **`pip install -e .[dev]`** only (same extras as GitHub **`test-unit`**). Then **`make test-unit-dev-venv`** runs **`check_unit_test_imports`** + **`pytest tests/unit/`** inside that env. Override path: **`make venv-dev-init VENVDEV=.venv-ci-unit`**. Install **ffmpeg** locally if audio-related unit tests fail (CI installs it in the unit job).
+- **Authoring:** Prefer **thin HTTP boundaries** (domain exceptions, lazy imports, patching **`FaissVectorStore.load`**, etc.) so **most** server-related unit tests do not need a real FAISS build or other ML stacks. Reserve **`TestClient` + `create_app`** for route/contract checks; put **real** index I/O and ML in **integration** tests (integration CI installs **`[server]`** where needed).
+
+**Anti-patterns for unit tests:**
+
+- **`pytest.importorskip("faiss")`**, **`torch`**, **`spacy`**, etc. — use mocks or integration tests.
+- Top-level imports of modules that **require** `[ml]` / `[llm]` before mocks are applied.
+
+**See also:** [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject) for CI alignment and rationale.
+
 ## What to Mock
 
 ### Always Mock

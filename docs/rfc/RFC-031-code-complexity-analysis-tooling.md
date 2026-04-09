@@ -1,6 +1,6 @@
 # RFC-031: Code Complexity Analysis Tooling
 
-- **Status**: ✅ Completed
+- **Status**: Completed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers, CI/CD pipeline maintainers
 - **Related PRDs**: None
@@ -33,13 +33,13 @@ The project already has a solid foundation of static analysis:
 
 | Tool | Purpose | Status |
 | ------ | --------- | -------- |
-| **black** | Code formatting | ✅ In CI |
-| **isort** | Import sorting | ✅ In CI |
-| **flake8** | Linting + basic complexity | ✅ In CI |
-| **mypy** | Type checking | ✅ In CI |
-| **bandit** | Security scanning | ✅ In CI |
-| **pip-audit** | Dependency vulnerability | ✅ In CI |
-| **markdownlint** | Markdown linting | ✅ In CI |
+| **black** | Code formatting | Yes — In CI |
+| **isort** | Import sorting | Yes — In CI |
+| **flake8** | Linting + basic complexity | Yes — In CI |
+| **mypy** | Type checking | Yes — In CI |
+| **bandit** | Security scanning | Yes — In CI |
+| **pip-audit** | Dependency vulnerability | Yes — In CI |
+| **markdownlint** | Markdown linting | Yes — In CI |
 
 ### Flake8 Complexity (Current)
 
@@ -111,11 +111,11 @@ per-file-ignores =
 
 ### Success Criteria
 
-- ✅ Complexity metrics visible in CI job summary
-- ✅ Dead code detection runs in CI (informational initially)
-- ✅ Docstring coverage tracked with threshold
-- ✅ Spell checking catches common typos
-- ✅ No false positives blocking CI (thresholds tuned)
+- Complexity metrics visible in CI job summary
+- Dead code detection runs in CI (informational initially)
+- Docstring coverage tracked with threshold
+- Spell checking catches common typos
+- No false positives blocking CI (thresholds tuned)
 
 ## Proposed Tools
 
@@ -298,7 +298,7 @@ verbose = 1
 
 | Level | Coverage | Action |
 | ------- | ---------- | -------- |
-| 🟢 Good | ≥ 80% | Target |
+| Good | ≥ 80% | Target |
 | 🟡 Warning | 60-80% | Improve gradually |
 | 🔴 Fail | < 60% | Needs attention |
 
@@ -555,24 +555,24 @@ The current `.flake8` exempts these files from C901 (complexity):
 
 ### Developer Experience
 
-- ✅ Clear visibility into code quality metrics
-- ✅ Automated detection of common issues
-- ✅ Guidance on what to improve
-- ✅ Consistent standards across team
+- Clear visibility into code quality metrics
+- Automated detection of common issues
+- Guidance on what to improve
+- Consistent standards across team
 
 ### Code Quality
 
-- ✅ Identify complexity hotspots before they grow
-- ✅ Enforce documentation standards
-- ✅ Remove unused code
-- ✅ Catch typos automatically
+- Identify complexity hotspots before they grow
+- Enforce documentation standards
+- Remove unused code
+- Catch typos automatically
 
 ### Maintainability
 
-- ✅ Easier onboarding (better docs)
-- ✅ Lower bug risk (simpler code)
-- ✅ Smaller codebase (no dead code)
-- ✅ Professional appearance (no typos)
+- Easier onboarding (better docs)
+- Lower bug risk (simpler code)
+- Smaller codebase (no dead code)
+- Professional appearance (no typos)
 
 ## Risks and Mitigations
 

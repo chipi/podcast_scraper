@@ -889,11 +889,11 @@ registry-promote:
 
 **Success Criteria:**
 
-1. ✅ All hardcoded model limits removed from `summarizer.py`
-2. ✅ Registry contains all models in `DEFAULT_SUMMARY_MODELS`
-3. ✅ All tests pass (unit + integration)
-4. ✅ No performance regression
-5. ✅ Documentation updated
+1. All hardcoded model limits removed from `summarizer.py`
+2. Registry contains all models in `DEFAULT_SUMMARY_MODELS`
+3. All tests pass (unit + integration)
+4. No performance regression
+5. Documentation updated
 
 ## Relationship to Other RFCs
 

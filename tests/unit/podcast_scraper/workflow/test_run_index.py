@@ -745,6 +745,75 @@ class TestCreateRunIndex(unittest.TestCase):
         self.assertEqual(run_idx.episodes[0].status, "skipped")
         self.assertEqual(run_idx.episodes_skipped, 1)
 
+    def test_create_run_index_pipeline_append_schema(self):
+        """Append runs bump index schema and set pipeline_append (GitHub #444)."""
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "Episode 1"
+        ET.SubElement(item, "guid").text = "ep1"
+
+        episode = models.Episode(
+            idx=1,
+            title="Episode 1",
+            title_safe="episode-1",
+            item=item,
+            transcript_urls=[],
+        )
+
+        transcript_path = os.path.join(self.transcripts_dir, "0001 - episode-1.txt")
+        with open(transcript_path, "w") as f:
+            f.write("Transcript")
+
+        run_idx = run_index.create_run_index(
+            run_id="test-run",
+            feed_url="https://example.com/feed.xml",
+            episodes=[episode],
+            effective_output_dir=self.temp_dir,
+            episode_statuses=None,
+            run_suffix=None,
+            pipeline_append=True,
+        )
+
+        self.assertEqual(run_idx.schema_version, "1.1.0")
+        self.assertTrue(run_idx.pipeline_append)
+        dumped = run_idx.to_dict()
+        self.assertEqual(dumped["schema_version"], "1.1.0")
+        self.assertTrue(dumped.get("pipeline_append"))
+
+
+@pytest.mark.unit
+class TestFindEpisodeMetadataRelativePath(unittest.TestCase):
+    """Tests for find_episode_metadata_relative_path (GitHub #444 / run index helpers)."""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+        self.metadata_dir = os.path.join(self.temp_dir, "metadata")
+        os.makedirs(self.metadata_dir, exist_ok=True)
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_finds_metadata_with_run_suffix(self):
+        item = ET.Element("item")
+        ET.SubElement(item, "title").text = "Episode 1"
+        ET.SubElement(item, "guid").text = "ep1"
+
+        episode = models.Episode(
+            idx=1,
+            title="Episode 1",
+            title_safe="episode-1",
+            item=item,
+            transcript_urls=[],
+        )
+        suffix = "append_ab12cd34"
+        meta_name = f"0001 - episode-1_{suffix}.metadata.json"
+        with open(os.path.join(self.metadata_dir, meta_name), "w") as f:
+            f.write("{}")
+
+        rel = run_index.find_episode_metadata_relative_path(episode, self.temp_dir, suffix)
+        self.assertEqual(rel, os.path.join("metadata", meta_name))
+
 
 @pytest.mark.unit
 class TestRunIndexDataclass(unittest.TestCase):

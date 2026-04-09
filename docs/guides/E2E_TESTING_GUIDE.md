@@ -28,7 +28,8 @@ file remains **pytest** E2E.
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
 | **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
-**Further reading:** [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
+**Further reading:** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
+[Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),
 [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md),
 [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md).
 

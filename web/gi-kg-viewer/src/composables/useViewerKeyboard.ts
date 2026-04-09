@@ -15,7 +15,7 @@ function targetIsEditable(target: EventTarget | null): boolean {
 }
 
 /**
- * RFC-062 M6: / focuses search (when not typing in a field); Escape clears graph
+ * RFC-062: / focuses search (when not typing in a field); Escape clears graph
  * interaction on the Graph tab (when focus is not in an editable control).
  */
 export function useViewerKeyboard(opts: {

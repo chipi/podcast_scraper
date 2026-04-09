@@ -259,6 +259,10 @@ The following issues are architectural limits of BART/LED, not bugs:
 
 The **Hybrid ML** provider performs MAP-REDUCE summarization with a local MAP phase (e.g. LongT5-base) and a configurable REDUCE phase. Use `summary_provider: hybrid_ml` in config.
 
+### Layered transcript cleaning (Issue #419)
+
+Before MAP, transcripts are cleaned twice in concept: (1) the **workflow** runs `cleaning_processor` from `transcript_cleaning_strategy` (same classes as OpenAI/Gemini/… providers: `PatternBasedCleaner`, `LLMBasedCleaner`, or `HybridCleaner`). (2) **`HybridMLProvider.summarize`** applies a **registered preprocessing profile** (default `cleaning_v4`). When strategy is **`pattern`**, the workflow passes `preprocessing_profile: hybrid_internal_preprocessing_after_pattern` (default `cleaning_hybrid_after_pattern`) so sponsor/outro work is not duplicated while v4-only steps (header strip, junk filter, anonymization, artifact scrub) still run before chunking. For **`llm`** / **`hybrid`** strategies, internal preprocessing stays **`cleaning_v4`**. CLI: `--transcript-cleaning-strategy`, `--hybrid-internal-preprocessing-after-pattern`. See [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
+
 ### Flow
 
 1. **MAP phase**: Transcript is chunked and each chunk is summarized using the MAP model (e.g. `longt5-base`), producing structured notes.
@@ -274,8 +278,11 @@ The **Hybrid ML** provider performs MAP-REDUCE summarization with a local MAP ph
 | `hybrid_map_model` | `longt5-base` | HuggingFace model for MAP (chunk summarization). |
 | `hybrid_reduce_model` | `google/flan-t5-base` | Model for REDUCE: HuggingFace ID (transformers), Ollama tag (ollama), or path to GGUF (llama_cpp). |
 | `hybrid_reduce_backend` | `transformers` | One of: `transformers`, `ollama`, `llama_cpp`. |
+| `hybrid_map_device` | (auto) | Device for MAP (e.g. `mps`, `cuda`, `cpu`). |
 | `hybrid_reduce_device` | (auto) | Device for REDUCE when using `transformers` (e.g. `mps`, `cuda`, `cpu`). |
 | `hybrid_reduce_n_ctx` | (optional) | Context size for `llama_cpp` (default 4096). |
+| `transcript_cleaning_strategy` | `hybrid` | Same as API summarization providers; selects workflow `cleaning_processor`. |
+| `hybrid_internal_preprocessing_after_pattern` | `cleaning_hybrid_after_pattern` | Internal MAP preprocessing profile when strategy is `pattern` (see layered cleaning above). |
 
 Transcription and speaker detection are not provided by `HybridMLProvider`; use `whisper` and `spacy` (or other providers) for those. See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) for using Ollama as the REDUCE backend and acceptance test configs.
 

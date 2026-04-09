@@ -628,15 +628,15 @@ jobs:
 
 ## Success Criteria
 
-1. ✅ All tests organized into unit/integration/e2e
-2. ✅ Unit tests mirror src structure
-3. ✅ Pytest markers correctly applied
-4. ✅ Default test run executes only unit tests (fast)
-5. ✅ CI enforces unit tests don't hit network or perform filesystem I/O
-6. ✅ Parallel execution works (Stage 6)
-7. ✅ Flaky test reruns work (Stage 6)
-8. ✅ All existing tests pass after reorganization
-9. ✅ Documentation updated
+1. All tests organized into unit/integration/e2e
+2. Unit tests mirror src structure
+3. Pytest markers correctly applied
+4. Default test run executes only unit tests (fast)
+5. CI enforces unit tests don't hit network or perform filesystem I/O
+6. Parallel execution works (Stage 6)
+7. Flaky test reruns work (Stage 6)
+8. All existing tests pass after reorganization
+9. Documentation updated
 
 ## Open Questions
 
@@ -654,8 +654,8 @@ This RFC (RFC-018) establishes the **foundation** for the test suite structure. 
 
 Together, these three RFCs form a complete testing strategy:
 
-- **RFC-018**: Establishes test structure and boundaries ✅ **Completed**
-- **RFC-020**: Comprehensive integration test improvements ✅ **Completed**
+- **RFC-018**: Establishes test structure and boundaries  **Completed**
+- **RFC-020**: Comprehensive integration test improvements  **Completed**
 - **RFC-019**: Comprehensive E2E test improvements 📋 **Planned**
 
 ## References

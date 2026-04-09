@@ -34,7 +34,7 @@ something works while you **run** the steps.
 
 Feeds match **GI/KG acceptance**: NPR Planet Money
 `https://feeds.npr.org/510289/podcast.xml` (same as
-`config/acceptance/full/acceptance_planet_money_*.yaml`).
+`config/acceptance/acceptance_planet_money_*.yaml`).
 
 **Index and file list:** `config/manual/README.md` (repository root).
 
@@ -44,6 +44,10 @@ Feeds match **GI/KG acceptance**: NPR Planet Money
 | **B (recommended)** | OpenAI stack; **GI + KG from summary bullets** (fewer LLM calls than `provider`) | `config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml` | `.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets` |
 | **C** | OpenAI stack; **GI + KG via `provider`** (`generate_insights`, `extract_kg_graph`) | `config/manual/manual_planet_money_openai_gi_kg_provider.yaml` | `.test_outputs/manual/planet_money_openai_gi_kg_provider` |
 | **D (optional)** | **Local ML** summaries; GI+KG bullets (no API keys) | `config/manual/manual_planet_money_ml_gi_kg_summary_bullets.yaml` | `.test_outputs/manual/planet_money_ml_gi_kg_summary_bullets` |
+| **E (multi-feed)** | OpenAI stack; **two feeds in one corpus** (Planet Money + The Journal); GI+KG bullets | `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai` |
+| **F (multi-feed + append)** | Same as **E** with **`append: true`**; stable `run_append_*` per feed; re-run CLI to skip complete episodes | `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai_append` |
+
+**Multi-feed ergonomics (E/F):** Treat the YAML **`output_dir`** as the **corpus parent** (folder that contains **`feeds/`**). Offline batch summary: **`python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`**. **`gi inspect`** / **`kg inspect`** with **`--output-dir`** pointing at that parent accept **`--feed-id`** (metadata **`feed.feed_id`**) when the same **`episode_id`** could match more than one feed — see [CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440). **Viewer / `serve`:** use the **same corpus parent** as **`--output-dir`** so **`/api/search`** finds **`<corpus>/search/`**; if you list artifacts from a path under **`feeds/...`** only, the UI may show a **Corpus path hint** pointing at the parent.
 
 **Run (direct CLI — output goes to the YAML `output_dir`):**
 
@@ -78,17 +82,53 @@ KG + semantic index** (`summary_bullets` for GI and KG — not stub-only splits)
 
 | Use case | Example config |
 | --- | --- |
-| Full pipeline, OpenAI stack | `config/acceptance/full/acceptance_planet_money_openai.yaml` |
-| Full pipeline, local ML (dev / faster models) | `config/acceptance/full/acceptance_planet_money_ml_dev.yaml` |
-| Full pipeline, local ML (prod-style models) | `config/acceptance/full/acceptance_planet_money_ml_prod.yaml` |
-| Full pipeline, another cloud provider | `config/acceptance/full/acceptance_planet_money_<provider>.yaml` (e.g. `gemini`, `anthropic`) |
+| Full pipeline, OpenAI stack | `config/acceptance/acceptance_planet_money_openai.yaml` |
+| Full pipeline, local ML (dev / faster models) | `config/acceptance/acceptance_planet_money_ml_dev.yaml` |
+| Full pipeline, local ML (prod-style models) | `config/acceptance/acceptance_planet_money_ml_prod.yaml` |
+| Full pipeline, another cloud provider | `config/acceptance/acceptance_planet_money_<provider>.yaml` (e.g. `gemini`, `anthropic`) |
 
-For **The Journal** (WSJ feed), mirror with `config/acceptance/full/acceptance_the_journal_*.yaml`.
+For **The Journal** (WSJ feed), mirror with `config/acceptance/acceptance_the_journal_*.yaml`.
+
+For **both feeds in one acceptance run** (multi-feed corpus, OpenAI), use
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local preset; see `scripts/acceptance/README.md`).
+
+For **multi-feed + append / resume** (GitHub #444), use
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` or
+`config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` with `make test-acceptance`.
 
 For **stub** GI, **`provider`**-mode KG, summaries-only, or other layer-specific presets,
 use **`config/manual/`** (see [Ready-made configs](#ready-made-configs-npr-feeds-and-openai-first)) or pytest E2E tests.
 
 **Runner reference:** `scripts/acceptance/README.md` (repository root).
+
+### Handoff message (paste into team / intelligence channel)
+
+Use this when you assign or report a **manual multi-feed** validation (step **E** above). Replace placeholders in angle brackets.
+
+```text
+Manual validation — multi-feed GI/KG (Planet Money + The Journal, OpenAI)
+
+Command:
+  python -m podcast_scraper.cli --config config/manual/manual_multi_feed_planet_money_journal_openai.yaml
+
+Prereqs: OPENAI_API_KEY set (see config/examples/.env.example).
+
+Output root (from YAML): .test_outputs/manual/multi_feed_pm_journal_openai
+Layout: <output_dir>/feeds/rss_<host>_<hash>/ per feed (transcripts, metadata, *.gi.json, *.kg.json).
+
+Optional acceptance-style session:
+  make test-acceptance CONFIGS="config/manual/manual_multi_feed_planet_money_journal_openai.yaml"
+
+Docs: docs/wip/manual-test-plan-gi-kg.md (step E), docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440
+
+<What to verify: e.g. both feeds completed, GI quotes plausible, KG topics sane, viewer lists artifacts under corpus root.>
+```
+
+**Append / resume (step F):** paste the same structure but point at
+`config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml`, output root
+`.test_outputs/manual/multi_feed_pm_journal_openai_append`, and note that a **second**
+identical run should skip work under each feed’s `run_append_*` directory. Docs:
+[CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
 
 ---
 

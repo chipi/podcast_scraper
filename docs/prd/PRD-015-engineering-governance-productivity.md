@@ -2,7 +2,15 @@
 
 - **Status**: 📋 Draft
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: RFC-031 (Complexity), RFC-038 (Review), RFC-039 (Workflow), RFC-018/019/020/024/030 (Testing)
+- **Related RFCs**:
+  - [RFC-031](../rfc/RFC-031-code-complexity-analysis-tooling.md) — complexity and quality tooling (**complete**)
+  - [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) — continuous review tooling (**open**)
+  - [RFC-039](../rfc/RFC-039-development-workflow-worktrees-ci.md) — development workflow (worktrees, CI) (**complete**)
+  - [RFC-018](../rfc/RFC-018-test-structure-reorganization.md) — test structure (**complete**)
+  - [RFC-019](../rfc/RFC-019-e2e-test-improvements.md) — E2E test improvements (**complete**)
+  - [RFC-020](../rfc/RFC-020-integration-test-improvements.md) — integration test improvements (**complete**)
+  - [RFC-024](../rfc/RFC-024-test-execution-optimization.md) — test execution optimization (**complete**)
+  - [RFC-030](../rfc/RFC-030-python-test-coverage-improvements.md) — Python test coverage (**complete**)
 
 ## Summary
 
@@ -83,7 +91,7 @@ As the project grows in complexity, we face three primary "friction" challenges:
 
 ## Success Criteria
 
-- ✅ **Developer Onboarding**: A new developer can set up a clean, isolated feature environment in < 2 minutes.
-- ✅ **Review Efficiency**: 80% of trivial style or complexity issues are caught and fixed by the author before human review.
-- ✅ **Maintainability Stability**: No new "Large Files" (> 1000 lines) are introduced without an explicit architectural override.
-- ✅ **Feedback Latency**: Primary "Confidence" signal (Unit Tests) delivered in < 60 seconds on all PRs.
+- **Developer Onboarding**: A new developer can set up a clean, isolated feature environment in < 2 minutes.
+- **Review Efficiency**: 80% of trivial style or complexity issues are caught and fixed by the author before human review.
+- **Maintainability Stability**: No new "Large Files" (> 1000 lines) are introduced without an explicit architectural override.
+- **Feedback Latency**: Primary "Confidence" signal (Unit Tests) delivered in < 60 seconds on all PRs.

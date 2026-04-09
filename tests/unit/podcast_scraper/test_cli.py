@@ -10,6 +10,7 @@ import copy
 import logging
 import os
 import sys
+import tempfile
 import unittest
 from argparse import Namespace
 from unittest.mock import patch
@@ -290,7 +291,7 @@ class TestValidateArgs(unittest.TestCase):
         error_msg = str(cm.exception)
         self.assertIn("Invalid input parameters", error_msg)
         # Should contain multiple errors
-        self.assertIn("RSS URL is required", error_msg)
+        self.assertIn("At least one RSS URL is required", error_msg)
         self.assertIn("--max-episodes must be positive", error_msg)
         self.assertIn("--timeout must be positive", error_msg)
         self.assertIn("--delay-ms must be non-negative", error_msg)
@@ -378,6 +379,262 @@ class TestValidateArgs(unittest.TestCase):
         )
         # Should not raise
         cli.validate_args(args)
+
+    def test_multi_feed_requires_output_dir(self):
+        """Two or more feeds require --output-dir as corpus parent (GitHub #440)."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            rss_extra=["https://other.example/feed.xml"],
+            rss_file=None,
+            rss_urls=None,
+            max_episodes=10,
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=4,
+            output_dir=None,
+        )
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("Multi-feed mode", str(cm.exception))
+
+    def test_multi_feed_ok_with_output_dir(self):
+        """Two feeds with output_dir pass validation."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            rss_extra=["https://other.example/feed.xml"],
+            rss_file=None,
+            rss_urls=None,
+            max_episodes=10,
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=4,
+            output_dir="./corpus_out",
+        )
+        cli.validate_args(args)
+
+
+class TestCollectFeedUrls(unittest.TestCase):
+    """Tests for collect_feed_urls (GitHub #440)."""
+
+    def test_dedupes_urls(self):
+        """Duplicate URLs are merged preserving order."""
+        args = Namespace(
+            rss="https://example.com/a.xml",
+            rss_extra=["https://example.com/b.xml", "https://example.com/a.xml"],
+            rss_urls=None,
+            rss_file=None,
+        )
+        got = cli.collect_feed_urls(args)
+        self.assertEqual(
+            got,
+            ["https://example.com/a.xml", "https://example.com/b.xml"],
+        )
+
+    def test_merges_rss_urls_from_config_defaults(self):
+        """Config merge can supply rss_urls; collect merges with CLI positional."""
+        args = Namespace(
+            rss="https://example.com/a.xml",
+            rss_extra=[],
+            rss_urls=["https://example.com/b.xml"],
+            rss_file=None,
+        )
+        got = cli.collect_feed_urls(args)
+        self.assertEqual(
+            got,
+            ["https://example.com/a.xml", "https://example.com/b.xml"],
+        )
+
+
+class TestLoadRssUrlsFromFile(unittest.TestCase):
+    """Tests for _load_rss_urls_from_file (GitHub #440)."""
+
+    def test_skips_comments_and_blank_lines(self):
+        """Blank lines and # comments are ignored."""
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as fh:
+            fh.write("# first line comment\n\nhttps://a.example/feed.xml\n")
+            path = fh.name
+        try:
+            got = cli._load_rss_urls_from_file(path)
+            self.assertEqual(got, ["https://a.example/feed.xml"])
+        finally:
+            os.unlink(path)
+
+    def test_missing_file_raises_value_error(self):
+        with self.assertRaises(ValueError) as ctx:
+            cli._load_rss_urls_from_file("/nonexistent/rss_file_440.txt")
+        self.assertIn("not a readable file", str(ctx.exception).lower())
+
+
+class TestParseArgsMultiFeed440(unittest.TestCase):
+    """parse_args + validation for multi-feed CLI (GitHub #440)."""
+
+    def test_parse_args_collects_two_flags_and_requires_output_dir(self):
+        with tempfile.TemporaryDirectory() as corpus:
+            args = cli.parse_args(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                    "--output-dir",
+                    corpus,
+                ]
+            )
+            urls = cli.collect_feed_urls(args)
+            self.assertEqual(len(urls), 2)
+
+    def test_parse_args_rejects_two_feeds_without_output_dir(self):
+        with self.assertRaises(ValueError) as ctx:
+            cli.parse_args(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                ]
+            )
+        self.assertIn("Multi-feed mode", str(ctx.exception))
+
+    def test_parse_args_rss_file_merges_with_positional(self):
+        """``--rss-file`` lines merge with positional URL (GitHub #440)."""
+        with tempfile.TemporaryDirectory() as corpus:
+            with tempfile.NamedTemporaryFile(
+                "w", suffix=".txt", delete=False, encoding="utf-8"
+            ) as fh:
+                fh.write("# comment\n\nhttps://b.example/feed.xml\n")
+                fpath = fh.name
+            try:
+                args = cli.parse_args(
+                    [
+                        "https://a.example/feed.xml",
+                        "--rss-file",
+                        fpath,
+                        "--output-dir",
+                        corpus,
+                    ]
+                )
+                urls = cli.collect_feed_urls(args)
+                self.assertEqual(
+                    urls,
+                    ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                )
+            finally:
+                os.unlink(fpath)
+
+
+class TestMainMultiFeed440(unittest.TestCase):
+    """cli.main multi-feed orchestration with injected pipeline (GitHub #440)."""
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_invokes_pipeline_once_per_feed_distinct_output_dirs(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        recorded: list[tuple[str, str]] = []
+
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            assert cfg.rss_url is not None
+            assert cfg.output_dir is not None
+            recorded.append((cfg.rss_url, cfg.output_dir))
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            code = cli.main(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                ],
+                run_pipeline_fn=fake_run,
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(len(recorded), 2)
+        urls = {r[0] for r in recorded}
+        self.assertEqual(
+            urls,
+            {"https://a.example/feed.xml", "https://b.example/feed.xml"},
+        )
+        for _url, out in recorded:
+            self.assertIn(f"{os.sep}feeds{os.sep}", out)
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_multi_feed_returns_1_when_one_feed_pipeline_raises(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            if "b.example" in (cfg.rss_url or ""):
+                raise RuntimeError("simulated feed failure")
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            code = cli.main(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                ],
+                run_pipeline_fn=fake_run,
+            )
+        self.assertEqual(code, 1)
+
+
+class TestCorpusStatus506(unittest.TestCase):
+    """corpus-status subcommand (GitHub #506)."""
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_corpus_status_text(self, _mock_py: object, _mock_ff: object) -> None:
+        with tempfile.TemporaryDirectory() as corpus:
+            feeds = os.path.join(corpus, "feeds", "f1", "metadata")
+            os.makedirs(feeds)
+            with open(os.path.join(feeds, "x.metadata.json"), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+            code = cli.main(["corpus-status", "--output-dir", corpus])
+        self.assertEqual(code, 0)
+
+    def test_parse_corpus_status_json_format(self) -> None:
+        args = cli.parse_args(["corpus-status", "--output-dir", "/tmp/corpus", "--format", "json"])
+        self.assertEqual(args.command, "corpus-status")
+        self.assertEqual(args.corpus_status_format, "json")
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_corpus_status_json_prints_payload(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        import json
+        from io import StringIO
+
+        with tempfile.TemporaryDirectory() as corpus:
+            feeds = os.path.join(corpus, "feeds", "f1", "metadata")
+            os.makedirs(feeds)
+            with patch("sys.stdout", new=StringIO()) as buf:
+                code = cli.main(
+                    ["corpus-status", "--output-dir", corpus, "--format", "json"],
+                )
+            self.assertEqual(code, 0)
+            payload = json.loads(buf.getvalue())
+            self.assertIn("corpus_parent", payload)
+            self.assertIn("feeds_subdirs", payload)
 
 
 class TestBuildConfig(unittest.TestCase):
@@ -474,6 +731,24 @@ class TestBuildConfig(unittest.TestCase):
         self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.41)
         self.assertEqual(cfg.gi_embedding_model, "minilm-l6")
 
+    def test_build_config_hybrid_internal_preprocessing_after_pattern(self):
+        """Issue #419: CLI flag maps into Config.hybrid_internal_preprocessing_after_pattern."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--summary-provider",
+                "hybrid_ml",
+                "--transcript-cleaning-strategy",
+                "pattern",
+                "--hybrid-internal-preprocessing-after-pattern",
+                "cleaning_none",
+            ]
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.summary_provider, "hybrid_ml")
+        self.assertEqual(cfg.transcript_cleaning_strategy, "pattern")
+        self.assertEqual(cfg.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
+
     def test_build_config_with_defaults(self):
         """Test that Config uses defaults when args are not provided."""
         args = Namespace(
@@ -534,6 +809,60 @@ class TestBuildConfig(unittest.TestCase):
         # GIL tuning keys omitted from Namespace → Config field defaults
         self.assertAlmostEqual(cfg.gi_qa_score_min, 0.3)
         self.assertAlmostEqual(cfg.gi_nli_entailment_min, 0.5)
+        self.assertFalse(cfg.append)
+
+    def test_build_config_append_true_when_flag_set(self):
+        """CLI --append maps to Config.append (GitHub #444)."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            output_dir=None,
+            max_episodes=None,
+            user_agent=None,
+            timeout=30,
+            delay_ms=0,
+            prefer_type=[],
+            transcribe_missing=False,
+            transcription_provider="whisper",
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            screenplay_gap=2.0,
+            num_speakers=2,
+            speaker_names=None,
+            run_id=None,
+            skip_existing=False,
+            append=True,
+            reuse_media=False,
+            clean_output=False,
+            dry_run=False,
+            generate_metadata=False,
+            metadata_format="json",
+            metadata_subdirectory=None,
+            generate_summaries=False,
+            metrics_output=None,
+            summary_provider=None,
+            summary_model=None,
+            summary_reduce_model=None,
+            summary_device=None,
+            summary_chunk_size=None,
+            summary_prompt=None,
+            save_cleaned_transcript=False,
+            log_level=None,
+            log_file=None,
+            language=None,
+            ner_model=None,
+            speaker_detector_provider="spacy",
+            auto_speakers=False,
+            cache_detected_hosts=False,
+            workers=1,
+            openai_api_base=None,
+            openai_transcription_model=None,
+            openai_speaker_model=None,
+            openai_summary_model=None,
+            openai_temperature=None,
+        )
+        cfg = cli._build_config(args)
+        self.assertTrue(cfg.append)
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"})
     def test_build_config_with_transcription_provider(self):
@@ -1270,6 +1599,23 @@ class TestParseArgs(unittest.TestCase):
         args = cli.parse_args(["https://example.com/feed.xml"])
         self.assertIsNone(args.openai_api_base)
 
+    def test_parse_args_hybrid_internal_preprocessing_after_pattern(self):
+        """Issue #419: --hybrid-internal-preprocessing-after-pattern is parsed."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--summary-provider",
+                "hybrid_ml",
+                "--transcript-cleaning-strategy",
+                "pattern",
+                "--hybrid-internal-preprocessing-after-pattern",
+                "cleaning_none",
+            ]
+        )
+        self.assertEqual(args.summary_provider, "hybrid_ml")
+        self.assertEqual(args.transcript_cleaning_strategy, "pattern")
+        self.assertEqual(args.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
+
     def test_parse_args_with_openai_transcription_model(self):
         """Test parsing --openai-transcription-model argument."""
         args = cli.parse_args(
@@ -1827,6 +2173,22 @@ class TestGiSubcommand(unittest.TestCase):
         self.assertEqual(args.episode_path, "x.gi.json")
         self.assertTrue(args.stats)
 
+    def test_parse_gi_args_inspect_feed_id(self):
+        """inspect accepts --feed-id for multi-feed corpus parents."""
+        args = cli._parse_gi_args(
+            [
+                "inspect",
+                "--output-dir",
+                "/corpus",
+                "--episode-id",
+                "ep:x",
+                "--feed-id",
+                "feed_a",
+            ]
+        )
+        self.assertEqual(args.gi_subcommand, "inspect")
+        self.assertEqual(args.feed_id, "feed_a")
+
     def test_parse_gi_inspect_strict_and_no_stats(self):
         """inspect accepts --strict and --no-stats."""
         args = cli.parse_args(
@@ -2130,6 +2492,61 @@ class TestGiSubcommand(unittest.TestCase):
         )
         self.assertEqual(exit_code, 1)
 
+    def test_main_gi_inspect_multi_feed_with_feed_id_returns_0(self):
+        """gi inspect resolves duplicate episode_id across feeds when --feed-id is set."""
+        import json
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        corpus = Path(self.get_tmp_dir()) / "corpus"
+        for fid, slug in (("feed_a", "rss_a"), ("feed_b", "rss_b")):
+            mdir = corpus / "feeds" / slug / "run" / "metadata"
+            mdir.mkdir(parents=True)
+            meta_doc = {"feed": {"feed_id": fid}, "episode": {"episode_id": "dup"}}
+            (mdir / "ep.metadata.json").write_text(json.dumps(meta_doc), encoding="utf-8")
+            art = build_artifact("dup", "Transcript.", prompt_version="v1")
+            write_artifact(mdir / "ep.gi.json", art, validate=True)
+        exit_code = cli.main(
+            [
+                "gi",
+                "inspect",
+                "--output-dir",
+                str(corpus),
+                "--episode-id",
+                "dup",
+                "--feed-id",
+                "feed_a",
+                "--format",
+                "json",
+            ]
+        )
+        self.assertEqual(exit_code, 0)
+
+    def test_main_gi_inspect_multi_feed_ambiguous_returns_1(self):
+        """Same episode_id in two feeds without --feed-id logs error and exits 1."""
+        import json
+        from pathlib import Path
+
+        from podcast_scraper.gi import build_artifact, write_artifact
+
+        corpus = Path(self.get_tmp_dir()) / "corpus"
+        for fid, slug in (("feed_a", "rss_a"), ("feed_b", "rss_b")):
+            mdir = corpus / "feeds" / slug / "run" / "metadata"
+            mdir.mkdir(parents=True)
+            meta_doc = {"feed": {"feed_id": fid}, "episode": {"episode_id": "dup"}}
+            (mdir / "ep.metadata.json").write_text(json.dumps(meta_doc), encoding="utf-8")
+            art = build_artifact("dup", "Transcript.", prompt_version="v1")
+            write_artifact(mdir / "ep.gi.json", art, validate=True)
+        with self.assertLogs("podcast_scraper.cli", level="ERROR") as cm:
+            exit_code = cli.main(
+                ["gi", "inspect", "--output-dir", str(corpus), "--episode-id", "dup"]
+            )
+        self.assertEqual(exit_code, 1)
+        joined = "\n".join(cm.output)
+        self.assertIn("Multiple GI artifacts", joined)
+        self.assertIn("--feed-id", joined)
+
     def test_main_gi_explore_output_dir_is_file_returns_3(self):
         """Test main() with gi explore when --output-dir is a file (not dir) returns 3."""
         import tempfile
@@ -2148,6 +2565,96 @@ class TestGiSubcommand(unittest.TestCase):
         """Test main() with 'gi' and no subcommand exits with 2 (argparse)."""
         exit_code = cli.main(["gi"])
         self.assertEqual(exit_code, 2)
+
+
+class TestKgSubcommandMultiFeed(unittest.TestCase):
+    """``kg inspect`` + ``--feed-id`` for multi-feed corpus.
+
+    Class name avoids clashing with ``tests/.../kg/test_kg_cli.py`` under xdist.
+    """
+
+    def get_tmp_dir(self) -> str:
+        import tempfile
+
+        return tempfile.mkdtemp()
+
+    def test_parse_kg_args_inspect_feed_id(self):
+        args = cli._parse_kg_args(
+            [
+                "inspect",
+                "--output-dir",
+                "/corpus",
+                "--episode-id",
+                "ep:x",
+                "--feed-id",
+                "feed_a",
+            ]
+        )
+        self.assertEqual(args.kg_subcommand, "inspect")
+        self.assertEqual(args.feed_id, "feed_a")
+
+    def test_main_kg_inspect_multi_feed_with_feed_id_returns_0(self):
+        import json
+        import shutil
+        from pathlib import Path
+
+        corpus = Path(self.get_tmp_dir()) / "corpus"
+        minimal = (
+            Path(__file__).resolve().parent.parent.parent / "fixtures" / "kg" / "minimal.kg.json"
+        )
+        for fid, slug in (("feed_a", "rss_a"), ("feed_b", "rss_b")):
+            mdir = corpus / "feeds" / slug / "run" / "metadata"
+            mdir.mkdir(parents=True)
+            meta_doc = {"feed": {"feed_id": fid}, "episode": {"episode_id": "dup"}}
+            (mdir / "x.metadata.json").write_text(json.dumps(meta_doc), encoding="utf-8")
+            dest = mdir / "x.kg.json"
+            shutil.copy(minimal, dest)
+            payload = json.loads(dest.read_text(encoding="utf-8"))
+            payload["episode_id"] = "dup"
+            dest.write_text(json.dumps(payload), encoding="utf-8")
+        exit_code = cli.main(
+            [
+                "kg",
+                "inspect",
+                "--output-dir",
+                str(corpus),
+                "--episode-id",
+                "dup",
+                "--feed-id",
+                "feed_a",
+                "--format",
+                "json",
+            ]
+        )
+        self.assertEqual(exit_code, 0)
+
+    def test_main_kg_inspect_multi_feed_ambiguous_returns_1(self):
+        import json
+        import shutil
+        from pathlib import Path
+
+        corpus = Path(self.get_tmp_dir()) / "corpus"
+        minimal = (
+            Path(__file__).resolve().parent.parent.parent / "fixtures" / "kg" / "minimal.kg.json"
+        )
+        for fid, slug in (("feed_a", "rss_a"), ("feed_b", "rss_b")):
+            mdir = corpus / "feeds" / slug / "run" / "metadata"
+            mdir.mkdir(parents=True)
+            meta_doc = {"feed": {"feed_id": fid}, "episode": {"episode_id": "dup"}}
+            (mdir / "x.metadata.json").write_text(json.dumps(meta_doc), encoding="utf-8")
+            dest = mdir / "x.kg.json"
+            shutil.copy(minimal, dest)
+            payload = json.loads(dest.read_text(encoding="utf-8"))
+            payload["episode_id"] = "dup"
+            dest.write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertLogs("podcast_scraper.cli", level="ERROR") as cm:
+            exit_code = cli.main(
+                ["kg", "inspect", "--output-dir", str(corpus), "--episode-id", "dup"]
+            )
+        self.assertEqual(exit_code, 1)
+        joined = "\n".join(cm.output)
+        self.assertIn("Multiple KG artifacts", joined)
+        self.assertIn("--feed-id", joined)
 
 
 class TestLoadAndMergeConfig(unittest.TestCase):
@@ -2225,6 +2732,35 @@ class TestLoadAndMergeConfig(unittest.TestCase):
 
 class TestCLIErrorHandling(unittest.TestCase):
     """Test error handling in CLI functions."""
+
+    def test_validate_args_append_and_clean_output_conflict(self):
+        """--append and --clean-output are rejected together (GitHub #444)."""
+        out = tempfile.mkdtemp()
+        try:
+            args = argparse.Namespace(
+                rss="https://example.com/feed.xml",
+                rss_extra=[],
+                rss_file=None,
+                timeout=30,
+                delay_ms=0,
+                transcribe_missing=False,
+                auto_speakers=False,
+                screenplay=False,
+                num_speakers=2,
+                speaker_names=None,
+                workers=1,
+                output_dir=out,
+                max_episodes=None,
+                whisper_model="base.en",
+                clean_output=True,
+                append=True,
+            )
+
+            with self.assertRaises(ValueError) as cm:
+                cli.validate_args(args)
+            self.assertIn("append", str(cm.exception).lower())
+        finally:
+            os.rmdir(out)
 
     def test_validate_args_timeout_negative(self):
         """Test that negative timeout raises error."""

@@ -2,7 +2,10 @@
 
 - **Status**: 📋 Draft
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: RFC-025 (Health), RFC-026 (Dashboards), RFC-027 (Metrics)
+- **Related RFCs**:
+  - [RFC-025](../rfc/RFC-025-test-metrics-and-health-tracking.md) — test metrics and health tracking (**complete**)
+  - [RFC-026](../rfc/RFC-026-metrics-consumption-and-dashboards.md) — metrics consumption and dashboards (**complete**)
+  - [RFC-027](../rfc/RFC-027-pipeline-metrics-improvements.md) — pipeline metrics improvements (**open**)
 
 ## Summary
 
@@ -83,7 +86,7 @@ As the project scales toward a production-grade service, we face three primary "
 
 ## Success Criteria
 
-- ✅ **Operational Awareness**: 100% of pipeline stages are instrumented and visible on the dashboard (including the GIL stage when GIL is enabled).
-- ✅ **Flakiness Reduction**: 0 "Unknown" flaky tests; all flakiness is identified and tracked by the system.
-- ✅ **Stability Gating**: Ability to drive a release based on "Historical Stability" rather than just a single passing run.
-- ✅ **Management Efficiency**: Identifying the root cause of a CI slowdown takes < 5 minutes of analysis.
+- **Operational Awareness**: 100% of pipeline stages are instrumented and visible on the dashboard (including the GIL stage when GIL is enabled).
+- **Flakiness Reduction**: 0 "Unknown" flaky tests; all flakiness is identified and tracked by the system.
+- **Stability Gating**: Ability to drive a release based on "Historical Stability" rather than just a single passing run.
+- **Management Efficiency**: Identifying the root cause of a CI slowdown takes < 5 minutes of analysis.

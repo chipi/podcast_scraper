@@ -1,0 +1,33 @@
+# Sample acceptance preset: single feed, full pipeline, local ML only (no API keys).
+# RSS URL below is a placeholder — it is NOT fetched. You must run via the acceptance runner with
+# USE_FIXTURES=1 so feeds are rewritten to the E2E mock RSS (see config/acceptance/README.md).
+#
+# Run:
+#   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_single.yaml" USE_FIXTURES=1
+
+rss: https://example.invalid/e2e-placeholder-single-feed.xml
+output_dir: .test_outputs/acceptance/sample_e2e_single
+max_episodes: 2
+
+transcription_provider: whisper
+speaker_detector_provider: spacy
+summary_provider: transformers
+
+whisper_model: base.en
+whisper_device: cpu
+summary_model: bart-small
+summary_reduce_model: long-fast
+summary_device: cpu
+ner_model: en_core_web_sm
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

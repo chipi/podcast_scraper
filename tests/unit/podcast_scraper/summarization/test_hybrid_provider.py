@@ -62,7 +62,7 @@ class TestLlamaCppReduceBackend(unittest.TestCase):
         with self.assertRaises(ImportError) as ctx:
             backend.initialize()
         self.assertIn("llama-cpp-python", str(ctx.exception))
-        self.assertIn("podcast-scraper[llama]", str(ctx.exception))
+        self.assertIn("podcast-scraper[ml]", str(ctx.exception))
 
     def test_reduce_returns_result_when_llm_mocked(self):
         """reduce() returns HybridReduceResult with text from llm output."""

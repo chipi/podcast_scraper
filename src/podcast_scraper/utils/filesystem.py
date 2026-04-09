@@ -130,6 +130,27 @@ def validate_and_normalize_output_dir(path: str) -> str:
     return str(resolved)
 
 
+def feed_workspace_dirname(rss_url: str) -> str:
+    """Stable directory name for one feed under ``<corpus>/feeds/`` (GitHub #440).
+
+    Uses the same host + URL-hash pattern as :func:`derive_output_dir`, without the
+    ``output/`` prefix, so corpus layout is ``<parent>/feeds/rss_<host>_<hash>/``.
+    """
+    trimmed = (rss_url or "").strip()
+    parsed = urlparse(trimmed)
+    base = parsed.netloc or "feed"
+    safe_base = sanitize_filename(base)
+    digest = hashlib.sha1(trimmed.encode("utf-8"), usedforsecurity=False).hexdigest()
+    return f"rss_{safe_base}_{digest[:URL_HASH_LENGTH]}"
+
+
+def corpus_feed_output_dir(corpus_parent: str, rss_url: str) -> str:
+    """Resolve ``<corpus_parent>/feeds/<feed_workspace_dirname>/`` (validated path)."""
+    parent = validate_and_normalize_output_dir(corpus_parent)
+    leaf = os.path.join(parent, "feeds", feed_workspace_dirname(rss_url))
+    return validate_and_normalize_output_dir(leaf)
+
+
 def derive_output_dir(rss_url: str, override: Optional[str]) -> str:
     """Compute the default output directory for an RSS feed."""
     if override:
@@ -252,6 +273,10 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str], Opti
     If a directory with the same name already exists and clean_output is False,
     a counter is appended to make it unique (e.g., run_<suffix>_1, run_<suffix>_2).
 
+    With ``append=True`` (GitHub #444), the suffix is **stable** (no timestamp) so
+    repeated invocations reuse the same ``run_*`` directory for the same provider/model
+    fingerprint. An existing directory is reused instead of allocating ``_1``, ``_2``.
+
     Returns:
         Tuple of (effective_output_dir, run_suffix, full_config_string)
         - effective_output_dir: Full path to output directory
@@ -263,27 +288,39 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str], Opti
     # Build full provider/model config string
     full_config_string = _build_provider_model_suffix(cfg)
 
-    # Generate short hash-based suffix (Issue #380)
+    # Generate short hash-based suffix (Issue #380) or stable append suffix (#444)
     run_suffix: Optional[str] = None
-    timestamp = time.strftime(TIMESTAMP_FORMAT)
+    append_mode = getattr(cfg, "append", False)
 
-    if full_config_string:
-        # Generate 8-character hash from full config string
-        config_hash = hashlib.sha256(full_config_string.encode("utf-8")).hexdigest()[:8]
-        run_suffix = f"{timestamp}_{config_hash}"
-    else:
-        # No ML features, use timestamp only
-        run_suffix = timestamp
-
-    # Prepend run_id if provided
-    if cfg.run_id:
-        if cfg.run_id.lower() == "auto":
-            # run_id="auto" already handled by timestamp above
-            pass
+    if append_mode:
+        if full_config_string:
+            config_hash = hashlib.sha256(full_config_string.encode("utf-8")).hexdigest()[:8]
+            run_suffix = f"append_{config_hash}"
         else:
-            # Prepend user-provided run_id to the hash-based suffix
+            run_suffix = "append"
+        if cfg.run_id and cfg.run_id.lower() != "auto":
             run_id_safe = sanitize_filename(cfg.run_id)
             run_suffix = f"{run_id_safe}_{run_suffix}"
+    else:
+        timestamp = time.strftime(TIMESTAMP_FORMAT)
+
+        if full_config_string:
+            # Generate 8-character hash from full config string
+            config_hash = hashlib.sha256(full_config_string.encode("utf-8")).hexdigest()[:8]
+            run_suffix = f"{timestamp}_{config_hash}"
+        else:
+            # No ML features, use timestamp only
+            run_suffix = timestamp
+
+        # Prepend run_id if provided
+        if cfg.run_id:
+            if cfg.run_id.lower() == "auto":
+                # run_id="auto" already handled by timestamp above
+                pass
+            else:
+                # Prepend user-provided run_id to the hash-based suffix
+                run_id_safe = sanitize_filename(cfg.run_id)
+                run_suffix = f"{run_id_safe}_{run_suffix}"
 
     output_dir = cfg.output_dir
     if output_dir is None:
@@ -296,7 +333,9 @@ def setup_output_directory(cfg: config.Config) -> Tuple[str, Optional[str], Opti
 
     # If clean_output is False and directory exists, append counter to make it unique
     effective_output_dir = base_effective_output_dir
-    if not cfg.clean_output and run_suffix and os.path.exists(base_effective_output_dir):
+    if append_mode and run_suffix and os.path.isdir(base_effective_output_dir):
+        effective_output_dir = base_effective_output_dir
+    elif not cfg.clean_output and run_suffix and os.path.exists(base_effective_output_dir):
         counter = 1
         while True:
             effective_output_dir = f"{base_effective_output_dir}_{counter}"
@@ -364,7 +403,9 @@ __all__ = [
     "sanitize_filename",
     "write_file",
     "validate_and_normalize_output_dir",
+    "corpus_feed_output_dir",
     "derive_output_dir",
+    "feed_workspace_dirname",
     "setup_output_directory",
     "truncate_whisper_title",
     "build_whisper_output_name",

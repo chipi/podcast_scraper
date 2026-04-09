@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from podcast_scraper import Config
+from podcast_scraper.cleaning import HybridCleaner, LLMBasedCleaner, PatternBasedCleaner
 from podcast_scraper.providers.ml.hybrid_ml_provider import (
     HybridMLProvider,
     HybridReduceResult,
@@ -92,6 +93,7 @@ class TestHybridMLProviderHelpers(unittest.TestCase):
         text = HybridMLProvider._build_reduce_instruction("My Podcast", None)
         self.assertIn("My Podcast", text)
         self.assertIn("## Takeaways", text)
+        self.assertIn("sponsorships", text.lower())
 
     def test_build_reduce_instruction_paragraph_style(self) -> None:
         text = HybridMLProvider._build_reduce_instruction_paragraph("T", None)
@@ -106,6 +108,27 @@ class TestHybridMLProviderHelpers(unittest.TestCase):
 
 
 class TestHybridMLProviderBehavior(unittest.TestCase):
+    def test_cleaning_processor_follows_transcript_cleaning_strategy(self) -> None:
+        """Issue #419: hybrid_ml wires transcript_cleaning_strategy like API providers."""
+        cfg_pat = Config(
+            rss="https://example.com/f.xml",
+            summary_provider="hybrid_ml",
+            transcript_cleaning_strategy="pattern",
+        )
+        self.assertIsInstance(HybridMLProvider(cfg_pat).cleaning_processor, PatternBasedCleaner)
+        cfg_llm = Config(
+            rss="https://example.com/f.xml",
+            summary_provider="hybrid_ml",
+            transcript_cleaning_strategy="llm",
+        )
+        self.assertIsInstance(HybridMLProvider(cfg_llm).cleaning_processor, LLMBasedCleaner)
+        cfg_hyb = Config(
+            rss="https://example.com/f.xml",
+            summary_provider="hybrid_ml",
+            transcript_cleaning_strategy="hybrid",
+        )
+        self.assertIsInstance(HybridMLProvider(cfg_hyb).cleaning_processor, HybridCleaner)
+
     def test_generate_insights_returns_empty(self) -> None:
         cfg = Config(rss="https://example.com/f.xml", summary_provider="hybrid_ml")
         p = HybridMLProvider(cfg)
@@ -169,9 +192,57 @@ class TestHybridMLProviderBehavior(unittest.TestCase):
         self.assertIn("Takeaways", out["summary"])
         self.assertEqual(out["metadata"]["provider"], "hybrid_ml")
         self.assertEqual(out["metadata"]["map_chunks"], 1)
+        mock_profile.assert_called_once()
+        self.assertEqual(mock_profile.call_args[0][1], "cleaning_v4")
         backend.reduce.assert_called_once()
         instr = backend.reduce.call_args.kwargs["instruction"]
         self.assertIn("Ep1", instr)
+
+    @patch(
+        "podcast_scraper.providers.ml.hybrid_ml_provider.summarizer._join_summaries_with_structure"
+    )
+    @patch("podcast_scraper.providers.ml.hybrid_ml_provider.summarizer._summarize_chunks_map")
+    @patch("podcast_scraper.providers.ml.hybrid_ml_provider.summarizer._merge_tiny_chunks")
+    @patch("podcast_scraper.providers.ml.hybrid_ml_provider.summarizer._prepare_chunks")
+    @patch("podcast_scraper.providers.ml.hybrid_ml_provider.ModelRegistry.get_capabilities")
+    @patch("podcast_scraper.providers.ml.hybrid_ml_provider.apply_profile_with_stats")
+    def test_summarize_preprocessing_profile_param_overrides_default(
+        self,
+        mock_profile: MagicMock,
+        mock_caps: MagicMock,
+        mock_prepare: MagicMock,
+        mock_merge: MagicMock,
+        mock_map: MagicMock,
+        mock_join: MagicMock,
+    ) -> None:
+        mock_profile.return_value = ("cleaned body", {})
+        caps = MagicMock()
+        caps.max_input_tokens = 2048
+        mock_caps.return_value = caps
+        mock_prepare.return_value = (["c"], 512)
+        mock_merge.side_effect = lambda _m, chunks: chunks
+        mock_map.return_value = ["n"]
+        mock_join.return_value = "notes"
+
+        cfg = Config(rss="https://example.com/f.xml", summary_provider="hybrid_ml")
+        provider = HybridMLProvider(cfg)
+        provider._initialized = True
+        mm = MagicMock()
+        mm.model_name = "facebook/bart-base-cnn"
+        mm.model = MagicMock()
+        mm.tokenizer = MagicMock()
+        provider._map_model = mm
+        backend = MagicMock()
+        backend.reduce.return_value = HybridReduceResult(
+            text="ok", backend="transformers", model="flan"
+        )
+        provider._reduce_backend = backend
+
+        provider.summarize(
+            "t",
+            params={"preprocessing_profile": "cleaning_hybrid_after_pattern"},
+        )
+        self.assertEqual(mock_profile.call_args[0][1], "cleaning_hybrid_after_pattern")
 
     @patch("podcast_scraper.providers.ml.extractive_qa.answer")
     def test_extract_quotes_returns_quote_candidate(self, mock_answer: MagicMock) -> None:

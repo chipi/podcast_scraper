@@ -1,6 +1,6 @@
 # RFC-016: Modularization for AI Experiment Pipeline
 
-- **Status**: 🟢 **Complete** - All phases implemented, legacy cleanup optional
+- **Status**: **Complete** — All phases implemented, legacy cleanup optional
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
 - **Related ADRs**:
@@ -15,15 +15,15 @@
 
 ## 📊 Implementation Status (Complete)
 
-### ✅ Completed (All Phases)
+### Completed (All Phases)
 
-1. **Provider Protocols** ✅ (100% Complete)
+1. **Provider Protocols**  (100% Complete)
    - `src/podcast_scraper/summarization/base.py` → `SummarizationProvider` protocol
    - `src/podcast_scraper/transcription/base.py` → `TranscriptionProvider` protocol
    - `src/podcast_scraper/speaker_detectors/base.py` → `SpeakerDetector` protocol
    - All protocols have consistent interfaces and comprehensive docstrings
 
-2. **Unified Provider Implementations** ✅ (100% Complete)
+2. **Unified Provider Implementations**  (100% Complete)
    - `src/podcast_scraper/providers/ml/ml_provider.py` → `MLProvider` (implements all 3 protocols)
      - Whisper (transcription)
      - spaCy NER (speaker detection)
@@ -33,28 +33,28 @@
      - GPT API (speaker detection)
      - GPT API (summarization)
 
-3. **Factory Functions** ✅ (100% Complete)
+3. **Factory Functions**  (100% Complete)
    - `src/podcast_scraper/summarization/factory.py` → `create_summarization_provider()`
    - `src/podcast_scraper/transcription/factory.py` → `create_transcription_provider()`
    - `src/podcast_scraper/speaker_detectors/factory.py` → `create_speaker_detector()`
    - Factories accept experiment-style params via `ExperimentConfig`
 
-4. **Production Integration** ✅ (100% Complete)
+4. **Production Integration**  (100% Complete)
    - `src/podcast_scraper/workflow/orchestration.py` uses new provider factories
    - Clean separation between orchestration and implementation
    - Proper lifecycle management
 
-5. **Comprehensive Fingerprinting** ✅ (100% Complete)
+5. **Comprehensive Fingerprinting**  (100% Complete)
    - `src/podcast_scraper/providers/fingerprint.py` → `ProviderFingerprint` with full environment capture
    - Enhanced fingerprint structure: run context, provider, model, generation params, preprocessing, chunking, prompts, environment, runtime
    - Fingerprint validation via smoke tests (`scripts/eval/test_fingerprint_smoke.py`)
 
-6. **Preprocessing Profiles** ✅ (100% Complete)
+6. **Preprocessing Profiles**  (100% Complete)
    - `src/podcast_scraper/preprocessing/profiles.py` → Versioned preprocessing profiles
    - Profile tracking in fingerprints
    - Deterministic transformations with versioning
 
-7. **Evaluation Infrastructure** ✅ (100% Complete)
+7. **Evaluation Infrastructure**  (100% Complete)
    - `src/podcast_scraper/evaluation/scorer.py` → Intrinsic and extrinsic metrics computation
    - `src/podcast_scraper/evaluation/comparator.py` → Baseline comparison and delta computation
    - Structured metrics format (`metrics.json`)
@@ -351,7 +351,7 @@ class OpenAISummarizationProvider:
 
 ```
 
-- ✅ Same `prompt_store` used in both application and experiments
+- Same `prompt_store` used in both application and experiments
 
 See RFC-017 for complete prompt management design.
 
@@ -710,13 +710,13 @@ def map_experiment_to_config(experiment_config: Dict[str, Any]) -> config.Config
 
 **Note**: For product success criteria, see `docs/prd/PRD-007-ai-experiment-pipeline.md`. This section focuses on technical success criteria.
 
-- ✅ Experiment pipeline can run independently
-- ✅ Production workflow continues to work unchanged
-- ✅ No code duplication between experiment and production
-- ✅ Easy to add new providers
-- ✅ Evaluation scripts work with both experiment and production outputs
-- ✅ Clear separation of concerns
-- ✅ Provider interfaces are well-defined and testable
+- Experiment pipeline can run independently
+- Production workflow continues to work unchanged
+- No code duplication between experiment and production
+- Easy to add new providers
+- Evaluation scripts work with both experiment and production outputs
+- Clear separation of concerns
+- Provider interfaces are well-defined and testable
 
 ---
 
@@ -1104,11 +1104,11 @@ Based on these improvements, Phase 2 should deliver:
 
 ### Core Deliverables
 
-1. ✅ Typed `ProviderParams` models (Summarization, Transcription, SpeakerDetection)
-2. ✅ Factory functions accept typed params
-3. ✅ Provider fingerprinting (model versions, device, git commit, dependencies)
-4. ✅ Preprocessing profiles (versioned, registered, tracked)
-5. ✅ Baseline ID integration
+1. Typed `ProviderParams` models (Summarization, Transcription, SpeakerDetection)
+2. Factory functions accept typed params
+3. Provider fingerprinting (model versions, device, git commit, dependencies)
+4. Preprocessing profiles (versioned, registered, tracked)
+5. Baseline ID integration
 
 ### Code Changes
 
@@ -1120,10 +1120,10 @@ Based on these improvements, Phase 2 should deliver:
 ### Metadata Enhancements
 
 Every provider output includes:
-- ✅ Complete fingerprint (models, device, precision, git state)
-- ✅ Resolved params (actual values used)
-- ✅ Preprocessing profile used
-- ✅ Baseline ID reference (if applicable)
+- Complete fingerprint (models, device, precision, git state)
+- Resolved params (actual values used)
+- Preprocessing profile used
+- Baseline ID reference (if applicable)
 
 **Timeline:** 1 week (instead of 3-5 days) due to added rigor.
 

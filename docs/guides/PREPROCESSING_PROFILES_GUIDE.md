@@ -89,6 +89,22 @@ Transcript cleaning has **as much impact on summary quality as the model itself*
 
 **Use Case:** When you want to test models on completely raw transcripts (rare, mainly for debugging).
 
+### `cleaning_v4` - Production-style full clean (MAP input)
+
+**Version:** 4.0
+**Description:** Full pipeline used by default **inside** `HybridMLProvider.summarize` and classic ML summarization paths: episode header strip, credits, garbage/junk lines, speaker anonymization, standard transcript clean, sponsor/outro removal, artifact removal, `artifact_scrub_v1`.
+
+**Use Case:** Default internal preprocessing before MAP when the transcript has **not** already been through the same steps upstream.
+
+**Reference:** `src/podcast_scraper/preprocessing/profiles.py` (`_cleaning_v4`); see [RFC-045](../rfc/RFC-045-ml-model-optimization-guide.md) for tuning context.
+
+### `cleaning_hybrid_after_pattern` - Delta after workflow pattern clean (Issue #419)
+
+**Version:** 1.0 (logical)
+**Description:** Applies **only** the `cleaning_v4` steps that **PatternBasedCleaner** / `clean_for_summarization` does **not** already cover (header strip, junk-line filter, anonymization, `clean_transcript`, `artifact_scrub_v1`), avoiding a second sponsor/outro pass.
+
+**Use Case:** `summary_provider: hybrid_ml` with `transcript_cleaning_strategy: pattern` — the workflow injects this profile into `summarize()` via `hybrid_internal_preprocessing_after_pattern` (CLI `--hybrid-internal-preprocessing-after-pattern`). See [RFC-042 § Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419).
+
 ---
 
 ## Using Profiles in Experiments
