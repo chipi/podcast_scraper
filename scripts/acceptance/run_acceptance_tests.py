@@ -1067,53 +1067,38 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
 def collect_outputs(output_dir: Path) -> Dict[str, Any]:
     """Collect output file information.
 
+    For multi-feed runs the files live under ``feeds/rss_…/run_…/``.
+    We use **full path** dedup (not filename-only) so identically-named
+    files in different feed directories are counted separately.
+
     Args:
         output_dir: Output directory for the run
 
     Returns:
         Dict with output counts (transcripts, metadata, summaries)
     """
-    # Search directly in run_output_dir (flattened structure)
-    # Metadata and transcripts are in subfolders, but run.json, etc. are flat
     search_dirs = [output_dir]
 
     transcripts = 0
     metadata = 0
     summaries = 0
 
-    # Track unique transcript files by their normalized name to avoid double-counting
-    # (deduplication by filename ensures we count each unique transcript once)
-    unique_txt_files = set()  # normalized_name (filename only)
-    unique_srt_files = set()  # normalized_name (filename only)
+    # Dedup by *full resolved path* so multi-feed files are not collapsed.
+    unique_txt_paths: set[Path] = set()
+    unique_srt_paths: set[Path] = set()
+    unique_metadata: dict[Path, Path] = {}  # resolved → original
 
-    # Track unique metadata files by their normalized name to avoid double-counting
-    # (in case files exist in multiple locations)
-    unique_metadata_files = {}  # normalized_name -> Path (we'll use the first one we find)
-
-    # First pass: collect all unique transcript and metadata files across all search directories
     for search_dir in search_dirs:
         if not search_dir.exists():
             continue
-        # Collect transcript files, excluding .cleaned.txt variants
-        # Note: .cleaned.txt files are for quality tooling later to measure the effect of cleaning.
-        # They should NOT be part of any stats or counting - only the primary .txt files count.
-        txt_files = [
-            p
-            for p in search_dir.rglob("*.txt")
-            if not p.name.endswith(
-                ".cleaned.txt"
-            )  # Exclude cleaned variants (quality tooling only)
-        ]
+        txt_files = [p for p in search_dir.rglob("*.txt") if not p.name.endswith(".cleaned.txt")]
         srt_files = list(search_dir.rglob("*.srt"))
 
-        # Track unique transcript files by filename (not path) to avoid double-counting
-        # (deduplication ensures we count each unique transcript once)
         for txt_file in txt_files:
-            unique_txt_files.add(txt_file.name)  # Use filename only for deduplication
+            unique_txt_paths.add(txt_file.resolve())
         for srt_file in srt_files:
-            unique_srt_files.add(srt_file.name)  # Use filename only for deduplication
+            unique_srt_paths.add(srt_file.resolve())
 
-        # Collect metadata files (not run_data.json, run.json, etc.)
         metadata_files = [
             p
             for p in search_dir.rglob("*.json")
@@ -1126,24 +1111,15 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
             or (p.parent.name == "metadata" and p.suffix in [".json", ".yaml"])
         ]
 
-        # Track unique metadata files by normalized filename
-        # Use normalized filename to identify duplicates across directories
-        # (e.g., "0001 - Episode Title.metadata.json" is the same file regardless of path)
-        for metadata_file in metadata_files:
-            normalized_name = metadata_file.name
-            if normalized_name not in unique_metadata_files:
-                unique_metadata_files[normalized_name] = metadata_file
+        for mf in metadata_files:
+            resolved = mf.resolve()
+            if resolved not in unique_metadata:
+                unique_metadata[resolved] = mf
 
-    # Count unique transcript files (deduplicated by filename)
-    transcripts = len(unique_txt_files) + len(unique_srt_files)
+    transcripts = len(unique_txt_paths) + len(unique_srt_paths)
+    metadata = len(unique_metadata)
 
-    # Count unique metadata files
-    metadata = len(unique_metadata_files)
-
-    # Count summaries: check if unique metadata files contain summaries
-    # Summaries are stored inside metadata JSON/YAML files, not as separate files
-    # Only process each unique metadata file once to avoid double-counting summaries
-    for normalized_name, metadata_file in unique_metadata_files.items():
+    for _resolved, metadata_file in unique_metadata.items():
         try:
             with open(metadata_file, "r", encoding="utf-8") as f:
                 if metadata_file.suffix == ".yaml":
@@ -1152,9 +1128,7 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
                     content = yaml.safe_load(f)
                 else:
                     content = json.load(f)
-                # Check if this metadata file has a summary field
                 if content and isinstance(content, dict):
-                    # Summary can be at top level or nested in content/summary
                     if content.get("summary") or (
                         content.get("content")
                         and isinstance(content.get("content"), dict)
@@ -1162,7 +1136,6 @@ def collect_outputs(output_dir: Path) -> Dict[str, Any]:
                     ):
                         summaries += 1
         except Exception:
-            # If we can't read the file, skip it
             pass
 
     # Also count separate markdown summary files (if any exist)
@@ -1287,6 +1260,38 @@ def _extract_episodes_from_dry_run(stdout_content: str) -> int:
                 continue
     logger.debug("Could not extract transcripts_planned from dry-run output, defaulting to 0")
     return 0
+
+
+def _extract_episodes_from_corpus_summary(output_dir: Path) -> int:
+    """Sum episodes_processed across feeds from corpus_run_summary.json.
+
+    Multi-feed runs write this file at the corpus root with per-feed
+    episode counts.  Using it avoids the fallback heuristics that
+    under-count when ``run.json`` only exists inside each feed subdir.
+
+    Returns:
+        Total episodes across all feeds, or 0 if file missing/invalid.
+    """
+    summary_path = output_dir / "corpus_run_summary.json"
+    if not summary_path.exists():
+        return 0
+    try:
+        with open(summary_path, "r") as f:
+            data = json.load(f)
+        feeds = data.get("feeds", [])
+        if not isinstance(feeds, list):
+            return 0
+        total = sum(int(fd.get("episodes_processed", 0)) for fd in feeds if isinstance(fd, dict))
+        if total > 0:
+            logger.debug(
+                "Episode count from corpus_run_summary.json: %d " "(%d feeds)",
+                total,
+                len(feeds),
+            )
+        return total
+    except Exception as exc:
+        logger.debug("Failed to read corpus_run_summary.json: %s", exc)
+        return 0
 
 
 def _extract_episodes_from_run_json(run_json_path: Path) -> int:
@@ -1743,20 +1748,26 @@ def run_config(
     if is_dry_run:
         episodes_processed = _extract_episodes_from_dry_run(stdout_content)
     else:
-        # Try to read from run.json first (most reliable)
-        run_json_path = run_output_dir / "run.json"
-        episodes_processed = _extract_episodes_from_run_json(run_json_path)
+        # Multi-feed: prefer corpus_run_summary.json (authoritative per-feed counts)
+        episodes_processed = _extract_episodes_from_corpus_summary(run_output_dir)
+
+        # Single-feed: try run.json at corpus root
+        if episodes_processed == 0:
+            run_json_path = run_output_dir / "run.json"
+            episodes_processed = _extract_episodes_from_run_json(run_json_path)
 
         # Fallback: try index.json
         if episodes_processed == 0:
             index_json_path = run_output_dir / "index.json"
             episodes_processed = _extract_episodes_from_index_json(index_json_path)
 
-        # Final fallback: count transcript files (less accurate, may include duplicates)
-        # Note: This already excludes .cleaned.txt files in collect_outputs()
+        # Final fallback: count transcript files
         if episodes_processed == 0:
             episodes_processed = outputs.get("transcripts", 0)
-            logger.debug(f"Using transcript file count as fallback: {episodes_processed}")
+            logger.debug(
+                "Using transcript file count as fallback: %d",
+                episodes_processed,
+            )
 
     # Log dry-run detection result for debugging
     if is_dry_run:

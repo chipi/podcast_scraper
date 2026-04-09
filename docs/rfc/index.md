@@ -36,6 +36,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
 | [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) | Multi-Feed Corpus, Append/Resume, and Unified Discovery | #440, #444, #505, #506 | N feeds, layout A, opt-in append (FS + `index.json`); #505 unified index; #506 manifest/status/summary; extends RFC-004 |
+| [RFC-064](RFC-064-performance-profiling-release-freeze.md) | Performance Profiling and Release Freeze Framework | - | Frozen release profiles (`data/profiles/`), `psutil`-based resource capture, diff tool; resource cost sibling to RFC-041 |
+| [RFC-065](RFC-065-live-pipeline-monitor.md) | Live Pipeline Monitor (macOS Developer Tooling) | - | `--monitor` CLI flag with live `rich` dashboard, flamegraph capture; macOS-specific; split from RFC-064 |
+| [RFC-066](RFC-066-run-compare-performance-tab.md) | Run Comparison Tool — Performance Tab | - | Extends RFC-047 Streamlit tool with performance delta view joining quality and resource metrics; split from RFC-064 |
 
 ## Completed RFCs
 

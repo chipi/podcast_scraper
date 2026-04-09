@@ -629,9 +629,19 @@ logger = logging.getLogger(__name__)
 _preloaded_ml_provider: Optional[Any] = None
 _preloaded_ml_provider_lock = threading.Lock()
 
-# Generous timeout for thread joins (transcription / processing)
-# Long OpenAI+GI runs can exceed 5m per stage under parallel load (multi-feed).
-_THREAD_JOIN_TIMEOUT = 600  # seconds
+# Base timeout for thread joins (transcription / processing).
+# Scaled up for large episode counts — see _thread_join_timeout().
+_THREAD_JOIN_TIMEOUT_BASE = 600  # seconds
+_THREAD_JOIN_TIMEOUT_PER_EPISODE = 120  # additional seconds per episode
+
+
+def _thread_join_timeout(num_episodes: int) -> float:
+    """Compute a generous join timeout that scales with episode count.
+
+    With API transcription (OpenAI Whisper) each episode can take 60-90s+.
+    A fixed 600s cap is too short for 20-episode batches.
+    """
+    return _THREAD_JOIN_TIMEOUT_BASE + max(0, num_episodes) * _THREAD_JOIN_TIMEOUT_PER_EPISODE
 
 
 def _both_providers_use_mps(
@@ -1470,13 +1480,19 @@ def _process_episodes_with_threading(
     if cfg.transcribe_missing and not cfg.dry_run:
         # Track thread sync time for transcription (Issue #387)
         transcription_sync_start = time.time()
-        # Wait for transcription thread to finish processing remaining jobs
-        transcription_thread.join(timeout=_THREAD_JOIN_TIMEOUT)
+        # Wait for transcription thread to finish processing remaining jobs.
+        # Timeout scales with episode count so large batches aren't killed early.
+        join_timeout = _thread_join_timeout(len(episodes))
+        transcription_thread.join(timeout=join_timeout)
         if transcription_thread.is_alive():
             logger.warning(
-                "Transcription thread did not finish within %ss",
-                _THREAD_JOIN_TIMEOUT,
+                "Transcription thread did not finish within %ss "
+                "(%d episodes); will block until thread exits "
+                "to prevent cross-feed races",
+                join_timeout,
+                len(episodes),
             )
+            transcription_thread.join()
         transcription_sync_time = time.time() - transcription_sync_start
         if pipeline_metrics is not None:
             pipeline_metrics.record_thread_sync_time(transcription_sync_time)
@@ -1510,12 +1526,17 @@ def _process_episodes_with_threading(
         # Track thread sync time for processing (Issue #387, #391)
         processing_sync_start = time.time()
         # Wait for processing thread to finish
-        processing_thread.join(timeout=_THREAD_JOIN_TIMEOUT)
+        join_timeout_proc = _thread_join_timeout(len(episodes))
+        processing_thread.join(timeout=join_timeout_proc)
         if processing_thread.is_alive():
             logger.warning(
-                "Processing thread did not finish within %ss",
-                _THREAD_JOIN_TIMEOUT,
+                "Processing thread did not finish within %ss "
+                "(%d episodes); will block until thread exits "
+                "to prevent cross-feed races",
+                join_timeout_proc,
+                len(episodes),
             )
+            processing_thread.join()
         processing_sync_time = time.time() - processing_sync_start
         if pipeline_metrics is not None:
             pipeline_metrics.record_thread_sync_time(processing_sync_time)
