@@ -18,7 +18,7 @@
 | **E2E** | < 60s | Complete workflow | No mocking (real everything) |
 | **Browser UI E2E** | ~1–3 min (suite) | Vue viewer in Firefox (Playwright) | Vite + route/API mocks in specs |
 
-**Unit tests and `pyproject` extras:** `tests/unit/` must **not** depend on **`[ml]`**, **`[llm]`**, or **`[compare]`** — mock or use integration tests instead. **`[dev]`** is the baseline; **viewer HTTP** unit tests need **FastAPI**; **CI** installs **`.[dev,server]`** for `test-unit` so they run, while **`importorskip("fastapi")`** keeps collection safe on **`.[dev]`**-only machines. See [Unit Testing Guide — Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
+**Unit tests and `pyproject` extras:** `tests/unit/` must **not** depend on **`[ml]`**, **`[llm]`**, **`[compare]`**, or **`[server]`** — mock or use integration tests instead. **`[dev]`** is the **CI baseline** for `test-unit`. **Viewer HTTP** tests that need FastAPI use **`importorskip("fastapi")`** and **skip** when only **`.[dev]`** is installed (install **`.[server]`** locally to run them). See [Unit Testing Guide — Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
 
 **Decision Tree:**
 
@@ -36,6 +36,10 @@
 # Unit tests (parallel, network isolated)
 
 make test-unit
+
+# Same dependency set as CI test-unit (.[dev] only) — separate venv, leaves .venv unchanged
+
+make venv-dev-init && make test-unit-dev-venv
 
 # Integration tests (parallel, with reruns)
 

@@ -5,9 +5,9 @@ Verifies a fixed list of ``podcast_scraper.*`` modules (see ``MODULES_TO_TEST``)
 imported when ML-related packages (spacy, torch, transformers, etc.) are not loaded.
 This catches top-level imports that would force ``[ml]`` just to import the package.
 
-It does **not** install ``[server]`` (FastAPI). Full ``pytest tests/unit/`` on CI uses
-``pip install -e .[dev,server]`` so viewer tests run; see ``docs/guides/UNIT_TESTING_GUIDE.md``
-(*Pyproject extras*) for the unit-test dependency policy.
+It does **not** install ``[server]`` (FastAPI). PR and nightly **test-unit** jobs install
+``pip install -e .[dev]`` only; FastAPI-backed tests use ``pytest.importorskip("fastapi")`` and
+skip when ``.[server]`` is not installed. See ``docs/guides/UNIT_TESTING_GUIDE.md``.
 
 Usage:
     python scripts/tools/check_unit_test_imports.py

@@ -119,10 +119,12 @@ def test_sanitize():
   `sys.modules`, or move to **`tests/integration/`**.
 - **`[dev]`** is the baseline (see `pyproject.toml`); **`check_unit_test_imports.py`** guards ML
   import-time issues (it does not install **`[server]`**).
-- **Viewer / FastAPI:** CI **`test-unit`** jobs use **`pip install -e .[dev,server]`**. Module-level
-  **`pytest.importorskip("fastapi")`** is OK so collection works on **`.[dev]`**-only installs;
-  avoid pulling real FAISS / torch / spacy into unit tests — use patches (see
-  `docs/guides/UNIT_TESTING_GUIDE.md` § *Pyproject extras*).
+- **Viewer / FastAPI:** CI **`test-unit`** installs **`pip install -e .[dev]`** only. Module-level
+  **`pytest.importorskip("fastapi")`** skips viewer HTTP tests without **`[server]`**; install
+  **`.[server]`** locally to run them. Avoid real FAISS / torch / spacy in unit tests — use patches
+  (see `docs/guides/UNIT_TESTING_GUIDE.md` § *Pyproject extras*).
+- **Local CI parity:** **`make venv-dev-init`** + **`make test-unit-dev-venv`** uses a separate
+  **`.venv-dev`** (`.[dev]` only) so you do not strip extras from the main **`.venv`**.
 
 ### Test Organization
 

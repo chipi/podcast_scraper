@@ -190,6 +190,14 @@ def _collect_hybrid_ml_models_to_download(
     return out
 
 
+def _cfg_nonempty_embedding_id(cfg: config.Config, attr: str) -> Optional[str]:
+    """Return stripped embedding model id from *cfg* if it is a non-empty string."""
+    val = getattr(cfg, attr, None)
+    if isinstance(val, str) and val.strip():
+        return val.strip()
+    return None
+
+
 def _append_gil_evidence_downloads(cfg: config.Config, models_to_download: list) -> None:
     """Queue embedding and optionally QA/NLI for GIL transformers path or vector_search."""
     needs_gil_ml = cfg.generate_gi and (
@@ -202,10 +210,28 @@ def _append_gil_evidence_downloads(cfg: config.Config, models_to_download: list)
     from ... import config_constants
     from ...providers.ml.model_loader import is_evidence_model_cached
 
-    emb_model = getattr(cfg, "gi_embedding_model", None) or config_constants.DEFAULT_EMBEDDING_MODEL
-    if not is_evidence_model_cached(emb_model):
-        models_to_download.append(("evidence_embedding", emb_model))
-        logger.info("Embedding model %s not cached, will download", emb_model)
+    embedding_ids: list[str] = []
+    if needs_embedding_only:
+        vid = (
+            _cfg_nonempty_embedding_id(cfg, "vector_embedding_model")
+            or config_constants.DEFAULT_EMBEDDING_MODEL
+        )
+        embedding_ids.append(vid)
+    if needs_gil_ml:
+        gid = (
+            _cfg_nonempty_embedding_id(cfg, "gi_embedding_model")
+            or config_constants.DEFAULT_EMBEDDING_MODEL
+        )
+        embedding_ids.append(gid)
+
+    seen: set[str] = set()
+    for emb_model in embedding_ids:
+        if emb_model in seen:
+            continue
+        seen.add(emb_model)
+        if not is_evidence_model_cached(emb_model):
+            models_to_download.append(("evidence_embedding", emb_model))
+            logger.info("Embedding model %s not cached, will download", emb_model)
     if needs_gil_ml:
         qa_model = getattr(cfg, "gi_qa_model", None) or "roberta-squad2"
         nli_model = getattr(cfg, "gi_nli_model", None) or "nli-deberta-base"

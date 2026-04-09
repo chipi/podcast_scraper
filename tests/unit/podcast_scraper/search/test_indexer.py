@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -117,6 +118,82 @@ def test_index_corpus_indexes_gi_summary_transcript(mock_encode, tmp_path: Path)
     stats2 = index_corpus(str(out), cfg, rebuild=False)
     assert stats2.episodes_skipped_unchanged == 1
     assert stats2.vectors_upserted == 0
+
+
+@pytest.mark.unit
+@patch("podcast_scraper.search.indexer.embedding_loader.encode")
+def test_index_corpus_logs_error_when_zero_vectors_from_encode_failure(
+    mock_encode: MagicMock, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Regression: make preload / cache hint when scans succeed but embedding fails."""
+    mock_encode.side_effect = RuntimeError("model not in cache (offline)")
+
+    out = tmp_path / "run"
+    meta_dir = out / "metadata"
+    meta_dir.mkdir(parents=True)
+    trx_dir = out / "transcripts"
+    trx_dir.mkdir(parents=True)
+    (trx_dir / "ep.txt").write_text(
+        "Hello world transcript sample. Second sentence here. Third sentence too.",
+        encoding="utf-8",
+    )
+
+    gi = {
+        "schema_version": "1.0",
+        "model_version": "stub",
+        "prompt_version": "v1",
+        "episode_id": "ep:zvec-1",
+        "nodes": [
+            {
+                "id": "insight:1",
+                "type": "Insight",
+                "properties": {
+                    "text": "A key insight.",
+                    "episode_id": "ep:zvec-1",
+                    "grounded": True,
+                },
+            },
+        ],
+        "edges": [],
+    }
+    (meta_dir / "ep1.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+
+    doc = {
+        "feed": {"title": "F", "url": "https://e.com/f", "feed_id": "feed:f1"},
+        "episode": {"title": "T", "episode_id": "ep:zvec-1"},
+        "content": {"transcript_file_path": "transcripts/ep.txt"},
+        "processing": {
+            "processing_timestamp": "2020-01-01T00:00:00",
+            "output_directory": str(out),
+            "config_snapshot": {},
+        },
+        "summary": {
+            "generated_at": "2020-01-01T00:00:00",
+            "bullets": ["Summary bullet one."],
+        },
+        "grounded_insights": {
+            "artifact_path": "metadata/ep1.gi.json",
+            "insight_count": 1,
+            "generated_at": "2020-01-01T00:00:00",
+        },
+    }
+    (meta_dir / "ep1.metadata.json").write_text(json.dumps(doc), encoding="utf-8")
+
+    cfg = Config(
+        rss="https://example.com/feed.xml",
+        vector_search=True,
+        vector_index_path=str(out / "search"),
+        vector_chunk_size_tokens=20,
+        vector_chunk_overlap_tokens=8,
+        vector_embedding_model="minilm-l6",
+    )
+    caplog.set_level(logging.ERROR, logger="podcast_scraper.search.indexer")
+    stats = index_corpus(str(out), cfg, rebuild=True)
+    assert stats.episodes_scanned == 1
+    assert stats.vectors_upserted == 0
+    assert stats.errors
+    assert any("Vector index built 0 new vectors" in r.getMessage() for r in caplog.records)
+    assert any("preload-ml-models" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.unit

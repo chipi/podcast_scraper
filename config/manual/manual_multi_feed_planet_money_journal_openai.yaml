@@ -19,7 +19,7 @@ feeds:
   - https://video-api.wsj.com/podcast/rss/wsj/the-journal
 
 output_dir: .test_outputs/manual/multi_feed_pm_journal_openai
-max_episodes: 10
+max_episodes: 5
 
 transcription_provider: openai
 speaker_detector_provider: openai

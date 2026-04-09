@@ -474,6 +474,36 @@ def _open_or_rebuild_vector_store(
     return store
 
 
+def _warn_if_zero_vectors_built(stats: IndexRunStats) -> None:
+    """Log clearly when episodes were processed but no vectors were upserted."""
+    if stats.episodes_scanned == 0 or stats.vectors_upserted > 0:
+        return
+    if stats.episodes_skipped_unchanged == stats.episodes_scanned:
+        return
+    hint = (
+        "Indexing uses allow_download=False for embeddings; weights must be cached already. "
+        "Run `make preload-ml-models` without SKIP_GIL=1 (or ensure vector_embedding_model "
+        "matches a cached sentence-transformers checkpoint). Align HF_HUB_CACHE with preload "
+        "if you set it explicitly."
+    )
+    if stats.errors:
+        logger.error(
+            "Vector index built 0 new vectors (scanned %d episode(s), %d skipped unchanged). "
+            "%s First error: %s",
+            stats.episodes_scanned,
+            stats.episodes_skipped_unchanged,
+            hint,
+            stats.errors[0],
+        )
+    else:
+        logger.warning(
+            "Vector index built 0 new vectors (scanned %d episode(s)) with no error list entries; "
+            "check vector_index_types or empty extractable docs. %s",
+            stats.episodes_scanned,
+            hint,
+        )
+
+
 def index_corpus(
     output_dir: str,
     cfg: config.Config,
@@ -540,6 +570,7 @@ def index_corpus(
             encoding="utf-8",
         )
         _emit_vector_index_jsonl(cfg, out, started, store, stats)
+        _warn_if_zero_vectors_built(stats)
         return stats
 
     for meta_path in meta_files:
@@ -628,6 +659,7 @@ def index_corpus(
         encoding="utf-8",
     )
     _emit_vector_index_jsonl(cfg, out, started, store, stats)
+    _warn_if_zero_vectors_built(stats)
     return stats
 
 

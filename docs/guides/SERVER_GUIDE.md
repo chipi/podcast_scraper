@@ -277,9 +277,10 @@ All test files guard on `pytest.importorskip("fastapi")` so they are
 skipped when the `[server]` extra is not installed.
 Tests use `FastAPI`'s synchronous `TestClient` and `tmp_path` fixtures.
 
-Run them with:
+Run them with (requires **`[server]`** so tests are not skipped):
 
 ```bash
+pip install -e '.[dev,server]'   # if needed
 make test-unit -k server
 ```
 

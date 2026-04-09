@@ -105,6 +105,10 @@ Choose the installation method based on your use case:
 
 **Note:** LLM provider SDKs (like `openai`) are included in core dependencies. For other LLM providers (Gemini, Anthropic, Mistral, Ollama), install with `pip install -e ".[llm]"`. For development with all LLM providers, use `pip install -e ".[dev,ml,llm]"`.
 
+### FAISS / `vector_search` and embedding cache
+
+Corpus indexing (`vector_search` with the default FAISS backend) calls the embedder with **`allow_download=False`**, so sentence-transformers weights must **already** be on disk in the Hugging Face hub cache. Before offline or sandbox runs, run **`make preload-ml-models`** and **omit `SKIP_GIL=1`** so evidence embeddings (including the model named by **`vector_embedding_model`**) are pre-cached; GIL’s **`gi_embedding_model`** is checked separately when GIL uses transformers. If you set **`HF_HUB_CACHE`**, use the same value when preloading and when running the pipeline. See [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md).
+
 ### Install
 
 > **💡 Tip:** For end users who just want to run the tool, consider using [pipx](#method-2-pipx-recommended-for-end-users) or [uv](#method-3-uv-fast-installation) for easier installation. See the [Installation Guide](docs/guides/INSTALLATION_GUIDE.md) for all methods.

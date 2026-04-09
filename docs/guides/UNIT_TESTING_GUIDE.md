@@ -28,9 +28,10 @@ This guide covers unit test implementation details: what to mock, isolation patt
 
 **Viewer / FastAPI (`[server]`):**
 
-- **CI:** The **`test-unit`** jobs in **`python-app.yml`** and **`nightly.yml`** install **`pip install -e .[dev,server]`**, so FastAPI-backed unit tests **run** there.
-- **Local minimal env:** If you only install **`.[dev]`**, modules that call **`pytest.importorskip("fastapi")`** at the top **skip** viewer HTTP tests instead of failing collection — that is intentional.
-- **Authoring:** Prefer **thin HTTP boundaries** (domain exceptions, lazy imports, patching **`FaissVectorStore.load`**, etc.) so **most** server-related unit tests do not need a real FAISS build or other ML stacks. Reserve **`TestClient` + `create_app`** for route/contract checks; put **real** index I/O and ML in **integration** tests.
+- **CI:** **`test-unit`** installs **`pip install -e .[dev]`** only. Modules that call **`pytest.importorskip("fastapi")`** **skip** viewer HTTP tests there — that is intentional (unit jobs stay aligned with **`[dev]`** only).
+- **Local / full check:** Install **`.[server]`** (e.g. **`pip install -e '.[dev,server]'`**) to run FastAPI **`TestClient`** unit tests on your machine.
+- **CI parity without touching `.venv`:** **`make venv-dev-init`** creates **`.venv-dev`** with **`pip install -e .[dev]`** only (same extras as GitHub **`test-unit`**). Then **`make test-unit-dev-venv`** runs **`check_unit_test_imports`** + **`pytest tests/unit/`** inside that env. Override path: **`make venv-dev-init VENVDEV=.venv-ci-unit`**. Install **ffmpeg** locally if audio-related unit tests fail (CI installs it in the unit job).
+- **Authoring:** Prefer **thin HTTP boundaries** (domain exceptions, lazy imports, patching **`FaissVectorStore.load`**, etc.) so **most** server-related unit tests do not need a real FAISS build or other ML stacks. Reserve **`TestClient` + `create_app`** for route/contract checks; put **real** index I/O and ML in **integration** tests (integration CI installs **`[server]`** where needed).
 
 **Anti-patterns for unit tests:**
 

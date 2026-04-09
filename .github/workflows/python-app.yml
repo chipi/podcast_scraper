@@ -124,7 +124,7 @@ jobs:
     - name: Install lint dependencies (no ML packages)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        python -m pip install -e .[dev]
     - name: Check black version
       run: |
         python -m black --version
@@ -155,7 +155,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        python -m pip install -e .[dev]
     - name: Run security checks
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
@@ -198,7 +198,7 @@ jobs:
         # Spell checking
         echo "### Spell Checking" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No spelling errors found"
+        python -m codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No spelling errors found"
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -222,10 +222,10 @@ jobs:
         python-version: "3.11.8"
         cache: "pip"
         cache-dependency-path: pyproject.toml
-    - name: Install dev dependencies (no ML; server for FastAPI unit tests)
+    - name: Install dev dependencies (no ML; no server — viewer unit tests skip without FastAPI)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,server]
+        python -m pip install -e .[dev]
     - name: Install ffmpeg (required for audio preprocessing unit tests)
       run: |
         sudo apt-get update

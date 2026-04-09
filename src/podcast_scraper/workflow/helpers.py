@@ -108,6 +108,18 @@ def cleanup_pipeline(temp_dir: Optional[str]) -> None:
             logger.debug(f"Failed to remove temp directory {temp_dir}: {exc}")
 
 
+def _pipeline_return_episode_count(saved: int, pipeline_metrics: metrics.Metrics) -> int:
+    """Episodes to report to callers (CLI, service multi-feed corpus summary).
+
+    ``saved`` counts net-new transcript files written; cache-only or deduped runs can
+    have ``saved == 0`` while ``episode_statuses`` still records ok=N (multi-feed #506).
+    """
+    statuses = getattr(pipeline_metrics, "episode_statuses", None) or []
+    if statuses:
+        return sum(1 for s in statuses if getattr(s, "status", None) == "ok")
+    return saved
+
+
 def generate_pipeline_summary(  # noqa: C901
     cfg: config.Config,
     saved: int,
@@ -133,7 +145,8 @@ def generate_pipeline_summary(  # noqa: C901
 
     Returns:
         Tuple[int, str]: A tuple containing:
-            - count (int): Total episodes processed (saved + transcribed)
+            - count (int): Episodes completed successfully (``episode_statuses`` ok
+              count when present; otherwise ``saved`` transcript files)
             - summary (str): Multi-line summary message with statistics and metrics
     """
     if cfg.dry_run:
@@ -304,7 +317,7 @@ def generate_pipeline_summary(  # noqa: C901
         # Join all lines
         summary = "\n".join(summary_lines)
         # Don't log here - caller (cli.py) will log the summary
-        return saved, summary
+        return _pipeline_return_episode_count(saved, pipeline_metrics), summary
 
 
 def _transcription_estimated_cost_usd(

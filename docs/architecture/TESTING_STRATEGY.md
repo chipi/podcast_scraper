@@ -232,9 +232,9 @@ directory).
 layers:
 
 - **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — FastAPI `TestClient` and
-  targeted mocks (e.g. vector store boundaries). **CI** installs **`.[dev,server]`** for the unit
-  job so these run; with **`.[dev]`** only locally, modules that call
-  **`pytest.importorskip("fastapi")`** **skip** those tests instead of erroring at collection.
+  targeted mocks (e.g. vector store boundaries). **CI `test-unit`** installs **`.[dev]`** only, so
+  modules that call **`pytest.importorskip("fastapi")`** **skip** there; install **`.[server]`**
+  locally to run them. **Integration** (`test_server_api`) still exercises the API with full deps.
 - **Integration:** `tests/integration/test_server_api.py` — wired `create_app` with real
   filesystem artifacts (no mocking of route internals).
 
@@ -249,15 +249,14 @@ layers:
 2. **`[dev]`** is the **logical baseline** for “what unit tests are allowed to assume” from
    `pyproject.toml` (pytest, linters, and other entries under the **`dev`** extra, including their
    transitive dependencies).
-3. **`[server]`** is a **CI + full-dev-environment** addition for the **viewer HTTP unit** slice
-   only: **PR and nightly `test-unit` jobs** use **`pip install -e .[dev,server]`** so FastAPI tests
-   execute. Do not use that as an excuse to pull **ML** into unit tests — keep **FAISS / torch /
-   spacy** out of `tests/unit/` except via mocks.
+3. **`[server]`** is **optional** for unit tests: **PR and nightly `test-unit`** use
+   **`pip install -e .[dev]`** only. FastAPI-backed tests **skip** without **`[server]`** via
+   **`importorskip`**. Install **`.[server]`** locally when developing viewer routes. Do not pull
+   **ML** into unit tests — keep **FAISS / torch / spacy** out of `tests/unit/` except via mocks.
 
 **Verification:** `scripts/tools/check_unit_test_imports.py` (run before unit tests in CI) ensures
 key **library** modules import without the heavy **ML** stack; it does not install **`[server]`**.
-Authors still follow the rules above so the full **`pytest tests/unit/`** run stays meaningful under
-**`.[dev,server]`** on CI.
+The same **`[dev]`**-only assumption applies to the full **`pytest tests/unit/`** job on CI.
 
 **Detail:** [Unit Testing Guide — Pyproject extras](../guides/UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on).
 

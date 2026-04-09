@@ -18,6 +18,15 @@ def test_server_lazy_create_app() -> None:
 
 
 @pytest.mark.unit
+def test_server_lazy_app_submodule() -> None:
+    """``getattr(server, 'app')`` must work for ``patch('podcast_scraper.server.app.*')``."""
+    mod = importlib.import_module("podcast_scraper.server")
+    app_mod = getattr(mod, "app")
+    assert app_mod.__name__ == "podcast_scraper.server.app"
+    assert callable(getattr(app_mod, "create_app"))
+
+
+@pytest.mark.unit
 def test_server_getattr_unknown_raises() -> None:
     mod = importlib.import_module("podcast_scraper.server")
     with pytest.raises(AttributeError, match="nosuch"):

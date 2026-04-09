@@ -349,6 +349,39 @@ class TestGeneratePipelineSummary(unittest.TestCase):
         self.assertIn("Transcripts downloaded: 3", summary)
         self.assertIn("Episodes transcribed: 2", summary)
 
+    def test_generate_pipeline_summary_uses_ok_statuses_when_saved_zero(self):
+        """Multi-feed/cache paths: return ok episode count, not transcripts_saved only."""
+        from podcast_scraper.workflow import helpers
+        from podcast_scraper.workflow.metrics import EpisodeStatus, Metrics
+        from podcast_scraper.workflow.types import TranscriptionResources
+
+        cfg = create_test_config(rss_url="https://example.com/feed.xml")
+        transcription_resources = TranscriptionResources(
+            transcription_provider=None,
+            temp_dir=None,
+            transcription_jobs=queue.Queue(),
+            transcription_jobs_lock=None,
+            saved_counter_lock=None,
+        )
+        pipeline_metrics = Metrics()
+        pipeline_metrics.transcripts_transcribed = 5
+        pipeline_metrics.episode_statuses = [
+            EpisodeStatus(episode_id="a", episode_number=1, status="ok"),
+            EpisodeStatus(episode_id="b", episode_number=2, status="ok"),
+            EpisodeStatus(episode_id="c", episode_number=3, status="failed"),
+        ]
+
+        count, summary = helpers.generate_pipeline_summary(
+            cfg,
+            saved=0,
+            transcription_resources=transcription_resources,
+            effective_output_dir="/tmp/test",
+            pipeline_metrics=pipeline_metrics,
+        )
+
+        self.assertEqual(count, 2)
+        self.assertIn("Done. transcripts_saved=0", summary)
+
     def test_generate_pipeline_summary_kg_graph_nodes_not_file_wording(self):
         """KG summary uses graph/node counts, not 'artifacts generated' file wording."""
         from podcast_scraper.workflow import helpers

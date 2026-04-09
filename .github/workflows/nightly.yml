@@ -216,7 +216,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        python -m pip install -e .[dev]
 
     - name: Install markdownlint
       run: npm install -g markdownlint-cli
@@ -247,7 +247,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev]
+        python -m pip install -e .[dev]
 
     - name: Run security checks
       run: |
@@ -349,11 +349,11 @@ jobs:
         cache: "pip"
         cache-dependency-path: pyproject.toml
 
-    - name: Install dev dependencies (no ML; server for FastAPI unit tests)
+    - name: Install dev dependencies (no ML; no server — viewer unit tests skip without FastAPI)
       run: |
         python -m pip install --upgrade pip
-        pip install -e .[dev,server]
-        pip install pytest-json-report
+        python -m pip install -e .[dev]
+        python -m pip install pytest-json-report
 
     - name: Install ffmpeg (required for audio preprocessing unit tests)
       run: |

@@ -5,6 +5,8 @@ podcast_scraper.egg-info/
 
 # Virtual environment
 .venv/
+# Secondary env: ``make venv-dev-init`` (``.[dev]`` only, CI ``test-unit`` parity)
+.venv-dev/
 
 # Test outputs
 .test_outputs/

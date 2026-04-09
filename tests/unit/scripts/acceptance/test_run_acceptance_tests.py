@@ -18,9 +18,13 @@ if str(_SCRIPTS_ACCEPTANCE) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_ACCEPTANCE))
 
 from run_acceptance_tests import (  # noqa: E402
+    _assess_vector_index_run,
+    _estimate_llm_cost_usd_from_stdout_log,
     _extract_provider_info,
     _line_is_debug_for_console_filter,
+    _strict_vector_index_requested,
     apply_session_rss_cache_env,
+    collect_logs_from_output,
     filter_fast_configs,
 )
 
@@ -142,3 +146,85 @@ class TestApplySessionRssCacheEnv:
         assert rss_cache == expected
         assert rss_cache.is_dir()
         assert os.environ[ENV_RSS_CACHE_DIR] == str(rss_cache)
+
+
+@pytest.mark.unit
+class TestEstimateLlmCostAcceptance:
+    """Regression: multi-feed cost from stdout when metrics are nested."""
+
+    def test_stdout_log_sums_total_estimated_cost_lines(self, tmp_path):
+        """Parses every 'Total estimated cost: $X' line (e.g. per-feed summaries)."""
+        p = tmp_path / "stdout.log"
+        p.write_text(
+            "x\nTotal estimated cost: $0.01\ny\nTotal estimated cost: $0.02\n",
+            encoding="utf-8",
+        )
+        assert _estimate_llm_cost_usd_from_stdout_log(p) == pytest.approx(0.03)
+
+    def test_nested_metrics_summed_with_monkeypatch(self, tmp_path, monkeypatch):
+        """rglob metrics.json under run dir each contribute to the total."""
+        import run_acceptance_tests as rat
+
+        (tmp_path / "config.original.yaml").write_text(
+            "rss: https://example.com/feed.xml\noutput_dir: .\nmax_episodes: 1\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "feeds" / "a" / "run_x").mkdir(parents=True)
+        (tmp_path / "feeds" / "b" / "run_y").mkdir(parents=True)
+        (tmp_path / "feeds" / "a" / "run_x" / "metrics.json").write_text("{}", encoding="utf-8")
+        (tmp_path / "feeds" / "b" / "run_y" / "metrics.json").write_text("{}", encoding="utf-8")
+
+        def fake_est(_cfg, _d):
+            return 0.04
+
+        monkeypatch.setattr(rat, "estimated_llm_cost_usd_from_metrics_dict", fake_est)
+        total = rat._estimate_llm_cost_usd_for_run_dir(tmp_path)
+        assert total == pytest.approx(0.08)
+
+
+@pytest.mark.unit
+class TestAssessVectorIndexRun:
+    """FAISS health flags for acceptance run_data / strict mode."""
+
+    def test_empty_metadata_with_episodes_is_fail(self, tmp_path):
+        from podcast_scraper.config import Config
+
+        (tmp_path / "search").mkdir()
+        (tmp_path / "search" / "metadata.json").write_text("{}", encoding="utf-8")
+        cfg = Config(rss="https://example.com/f.xml", output_dir=str(tmp_path), max_episodes=1)
+        cfg = cfg.model_copy(update={"vector_search": True, "vector_backend": "faiss"})
+        ok, note = _assess_vector_index_run(tmp_path, cfg, episodes_processed=3, is_dry_run=False)
+        assert ok is False
+        assert "empty" in note
+
+    def test_vector_search_off_skips(self, tmp_path):
+        from podcast_scraper.config import Config
+
+        cfg = Config(rss="https://example.com/f.xml", output_dir=str(tmp_path), max_episodes=1)
+        cfg = cfg.model_copy(update={"vector_search": False})
+        ok, note = _assess_vector_index_run(tmp_path, cfg, episodes_processed=3, is_dry_run=False)
+        assert ok is True
+        assert note == "vector_search_off"
+
+
+@pytest.mark.unit
+class TestCollectLogsLineTotals:
+    """Repeated WARNING lines contribute to warning_lines_total once per line."""
+
+    def test_repeated_warnings_count_lines_and_distinct(self, tmp_path):
+        p = tmp_path / "stderr.log"
+        line = "2026-01-01 12:00:00,000 WARNING sentence_transformers.SentenceTransformer: spam\n"
+        p.write_text(line * 4, encoding="utf-8")
+        out = collect_logs_from_output(tmp_path)
+        assert out["warning_lines_total"] == 4
+        assert out["warning_count_distinct"] == 1
+        assert len(out["warnings"]) == 1
+
+
+@pytest.mark.unit
+class TestStrictVectorIndexEnv:
+    def test_strict_vector_index_env_truthy(self, monkeypatch):
+        monkeypatch.setenv("STRICT_VECTOR_INDEX", "1")
+        assert _strict_vector_index_requested() is True
+        monkeypatch.setenv("STRICT_VECTOR_INDEX", "0")
+        assert _strict_vector_index_requested() is False

@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Canonical extras (no separate [gemini] / [openai] extras):
-#   dev       — tests, lint, typecheck, eval metrics tooling
+#   dev       — tests, lint, typecheck, text eval metrics (ROUGE/BLEU/WER); no torch/transformers
 #   ml        — Whisper, spaCy (+models), torch, transformers, sentence-transformers, FAISS,
 #               llama-cpp-python (GGUF hybrid REDUCE, RFC-042), etc.
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
@@ -49,6 +49,7 @@ ml = [
   "torch>=2.0.0,<3.0.0",
   # sentence-transformers 5.x allows transformers 4.41–5.x; keep <5 until we vendor
   # extractive QA: transformers 5 removed the ``question-answering`` pipeline task (CI preload).
+  # CVE-2026-1839 (Trainer rng_state / torch.load): fixed in 5.0.0rc3+ only; pip-audit ignore in Makefile until 5.x stable.
   "transformers>=4.41.0,<5.0.0",
   "sentencepiece>=0.1.99,<1.0.0",
   # GIL evidence stack: SentenceTransformer + CrossEncoder (NLI); Docker .[ml] preload
@@ -102,7 +103,6 @@ dev = [
   "build",
   "rouge-score>=0.1.2,<1.0.0",  # Required for ROUGE computation in evaluation loop
   "jiwer>=3.0.0,<5.0.0",  # Required for WER (Word Error Rate) computation
-  "sentence-transformers>=3.0.0,<6.0.0",  # Semantic similarity + eval (aligned with [ml])
   "nltk>=3.8.0,<4.0.0",  # Required for BLEU computation
   "radon>=5.1.0,<6.1",  # Code complexity analysis (RFC-031); 5.1.x for wily compatibility (Issue #424)
   "wily>=1.25.0,<3.0.0",  # Code quality trends over git history (Issue #424)
@@ -134,6 +134,7 @@ exclude = '''
     | \.mypy_cache
     | \.pytest_cache
     | \.venv
+    | \.venv-dev
     | \.build
     | \.test_outputs
     | build
@@ -149,6 +150,8 @@ line_length = 100
 known_first_party = ["podcast_scraper"]
 combine_as_imports = true
 force_alphabetical_sort_within_sections = true
+# Match Black/flake8: secondary venv lives in-repo for CI-parity unit tests (.venv-dev).
+skip_glob = [".venv/**", ".venv-dev/**"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -162,6 +165,8 @@ disable_error_code = ["attr-defined"]
 exclude = [
     "^scripts/.*",  # Scripts use sys.path manipulation, exclude from mypy
     "^tools/.*",  # Standalone Streamlit tools (not part of src package)
+    "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
+    "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
 ]
 
 [[tool.mypy.overrides]]

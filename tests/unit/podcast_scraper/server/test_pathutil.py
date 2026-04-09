@@ -1,4 +1,8 @@
-"""Tests for server corpus path anchoring (CodeQL path-injection mitigation)."""
+"""Tests for server corpus path anchoring (CodeQL path-injection mitigation).
+
+Must not import FastAPI: unit jobs may run with only ``.[dev]`` for import checks,
+and pathutil is HTTP-framework agnostic (errors map to responses in route code).
+"""
 
 from __future__ import annotations
 

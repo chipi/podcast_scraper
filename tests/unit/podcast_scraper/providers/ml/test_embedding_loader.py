@@ -168,17 +168,39 @@ except ImportError:
     not SENTENCE_TRANSFORMERS_AVAILABLE,
     reason="sentence_transformers required for load path test",
 )
+class TestEffectiveCacheFolder:
+    """Tests for default HF hub folder alignment with preload."""
+
+    def test_uses_get_transformers_cache_dir_when_missing(self, monkeypatch):
+        """Omitted cache_dir resolves via get_transformers_cache_dir (project .cache, etc.)."""
+        from pathlib import Path
+
+        monkeypatch.setattr(
+            "podcast_scraper.cache.directories.get_transformers_cache_dir",
+            lambda: Path("/expected/huggingface/hub"),
+        )
+        assert embedding_loader._effective_cache_folder(None) == "/expected/huggingface/hub"
+        assert embedding_loader._effective_cache_folder("") == "/expected/huggingface/hub"
+        assert embedding_loader._effective_cache_folder("  /custom/cache  ") == "/custom/cache"
+
+
 class TestLoadEmbeddingModel:
     """Tests for load_embedding_model (resolve + load wiring)."""
 
     def test_load_embedding_model_resolves_alias(self, monkeypatch):
         """load_embedding_model resolves alias via registry before loading."""
+        from pathlib import Path
+
         from podcast_scraper.providers.ml.model_registry import ModelRegistry
 
+        monkeypatch.setattr(
+            "podcast_scraper.cache.directories.get_transformers_cache_dir",
+            lambda: Path("/expected/huggingface/hub"),
+        )
         captured = []
 
         def fake_st(model_id, device=None, cache_folder=None, **kwargs):
-            captured.append((model_id, kwargs.get("local_files_only")))
+            captured.append((model_id, kwargs.get("local_files_only"), cache_folder))
             return type("Fake", (), {"encode": lambda self, texts, normalize_embeddings: []})()
 
         monkeypatch.setattr(
@@ -188,11 +210,23 @@ class TestLoadEmbeddingModel:
         )
         embedding_loader.load_embedding_model("minilm-l6", device="cpu")
         assert len(captured) == 1
-        assert captured[0][0] == ModelRegistry.resolve_evidence_model_id("minilm-l6")
+        # SentenceTransformer expects the short repo id (no duplicate org prefix).
+        assert captured[0][0] == "all-MiniLM-L6-v2"
+        assert (
+            ModelRegistry.resolve_evidence_model_id("minilm-l6")
+            == "sentence-transformers/all-MiniLM-L6-v2"
+        )
         assert captured[0][1] is True
+        assert captured[0][2] == "/expected/huggingface/hub"
 
     def test_load_embedding_model_allow_download_omits_local_files_only(self, monkeypatch):
         """allow_download=True does not force local_files_only."""
+        from pathlib import Path
+
+        monkeypatch.setattr(
+            "podcast_scraper.cache.directories.get_transformers_cache_dir",
+            lambda: Path("/hub/default"),
+        )
         captured = []
 
         def fake_st(model_id, device=None, cache_folder=None, **kwargs):
@@ -206,3 +240,29 @@ class TestLoadEmbeddingModel:
         )
         embedding_loader.load_embedding_model("minilm-l6", device="cpu", allow_download=True)
         assert captured[0].get("local_files_only") is not True
+
+    def test_load_embedding_model_strips_sentence_transformers_prefix(self, monkeypatch):
+        """Full HF id sentence-transformers/X is passed to ST as X (avoids loader warning)."""
+        from pathlib import Path
+
+        monkeypatch.setattr(
+            "podcast_scraper.cache.directories.get_transformers_cache_dir",
+            lambda: Path("/hub/default"),
+        )
+        captured = []
+
+        def fake_st(model_id, device=None, cache_folder=None, **kwargs):
+            captured.append((model_id, cache_folder))
+            return type("Fake", (), {})()
+
+        monkeypatch.setattr(
+            "sentence_transformers.SentenceTransformer",
+            fake_st,
+            raising=False,
+        )
+        embedding_loader.load_embedding_model(
+            "sentence-transformers/all-MiniLM-L6-v2",
+            device="cpu",
+            allow_download=True,
+        )
+        assert captured == [("all-MiniLM-L6-v2", "/hub/default")]

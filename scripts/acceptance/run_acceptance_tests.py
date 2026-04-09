@@ -93,10 +93,30 @@ def _log_session_estimated_llm_cost(runs_data: List[Dict[str, Any]]) -> None:
         )
 
 
+def _estimate_llm_cost_usd_from_stdout_log(stdout_path: Path) -> Optional[float]:
+    """Sum ``Total estimated cost: $X`` lines from service stdout (multi-feed fallback)."""
+    if not stdout_path.is_file():
+        return None
+    pat = re.compile(r"Total estimated cost:\s*\$([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
+    total = 0.0
+    found = False
+    try:
+        text = stdout_path.read_text(encoding="utf-8", errors="ignore")
+        for m in pat.finditer(text):
+            total += float(m.group(1))
+            found = True
+    except OSError as exc:
+        logger.debug("Could not read stdout for cost fallback %s: %s", stdout_path, exc)
+        return None
+    return round(total, 6) if found else None
+
+
 def _estimate_llm_cost_usd_for_run_dir(run_output_dir: Path) -> Optional[float]:
     """Estimate billable LLM cost for one run (same formula as pipeline summary).
 
-    Reads ``metrics.json`` and ``config.original.yaml`` under the run directory.
+    Sums all ``metrics.json`` files under the run directory (single-feed flat layout and
+    multi-feed ``feeds/.../metrics.json``). Falls back to parsing ``stdout.log`` for
+    ``Total estimated cost: $...`` lines when metrics yield no billable total.
 
     Args:
         run_output_dir: Directory containing run artifacts.
@@ -104,19 +124,80 @@ def _estimate_llm_cost_usd_for_run_dir(run_output_dir: Path) -> Optional[float]:
     Returns:
         Estimated USD total, or ``None`` if missing files or no billable LLM usage.
     """
-    metrics_path = run_output_dir / "metrics.json"
     cfg_path = run_output_dir / "config.original.yaml"
-    if not metrics_path.is_file() or not cfg_path.is_file():
+    if not cfg_path.is_file():
         return None
     try:
-        with open(metrics_path, encoding="utf-8") as f:
-            metrics_dict = json.load(f)
         cfg_dict = config.load_config_file(str(cfg_path))
         cfg_model = config.Config.model_validate(cfg_dict)
-        return estimated_llm_cost_usd_from_metrics_dict(cfg_model, metrics_dict)
     except Exception as exc:
-        logger.debug("Could not estimate LLM cost for %s: %s", run_output_dir, exc)
+        logger.debug("Could not load config for cost estimate %s: %s", run_output_dir, exc)
         return None
+
+    metrics_files = sorted(
+        {p.resolve() for p in run_output_dir.rglob("metrics.json") if ".git" not in p.parts}
+    )
+    total = 0.0
+    found_positive = False
+    for metrics_path in metrics_files:
+        try:
+            with open(metrics_path, encoding="utf-8") as f:
+                metrics_dict = json.load(f)
+            part = estimated_llm_cost_usd_from_metrics_dict(cfg_model, metrics_dict)
+            if part is not None and part > 0:
+                total += float(part)
+                found_positive = True
+        except Exception as exc:
+            logger.debug("Skip metrics %s for cost: %s", metrics_path, exc)
+            continue
+
+    if found_positive:
+        return round(total, 6)
+
+    return _estimate_llm_cost_usd_from_stdout_log(run_output_dir / "stdout.log")
+
+
+def _assess_vector_index_run(
+    run_output_dir: Path,
+    cfg_model: config.Config,
+    episodes_processed: int,
+    is_dry_run: bool,
+) -> tuple[bool, str]:
+    """Return (ok, note) for FAISS output when vector_search is enabled."""
+    if is_dry_run:
+        return True, "dry_run"
+    if getattr(cfg_model, "vector_search", False) is not True:
+        return True, "vector_search_off"
+    if getattr(cfg_model, "vector_backend", "faiss") != "faiss":
+        return True, "not_faiss_backend"
+    if episodes_processed <= 0:
+        return True, "no_episodes"
+
+    meta_path = run_output_dir / "search" / "metadata.json"
+    if not meta_path.is_file():
+        return False, "missing_search_metadata_json"
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False, "invalid_search_metadata_json"
+    if isinstance(data, dict) and len(data) > 0:
+        return True, "indexed"
+
+    id_map_path = run_output_dir / "search" / "id_map.json"
+    if id_map_path.is_file():
+        try:
+            idm = json.loads(id_map_path.read_text(encoding="utf-8"))
+            if isinstance(idm, dict) and len(idm) > 0:
+                return True, "id_map_nonempty"
+        except json.JSONDecodeError:
+            pass
+    return False, "empty_vector_index"
+
+
+def _strict_vector_index_requested() -> bool:
+    """True if CLI or env requests failing runs when FAISS produced no rows."""
+    val = os.environ.get("STRICT_VECTOR_INDEX", "").strip().lower()
+    return val in ("1", "true", "yes", "on")
 
 
 def _find_config_files_one(pattern: str) -> List[Path]:
@@ -712,11 +793,14 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
         output_dir: Output directory for the run
 
     Returns:
-        Dict with log analysis (errors, warnings, info count)
+        Dict with log analysis: ``errors`` / ``warnings`` (distinct, capped), ``*_lines_total``
+        (raw line counts), ``*_count_distinct``, and ``info_count``.
     """
     errors = []
     warnings = []
     info_count = 0
+    error_lines_total = 0
+    warning_lines_total = 0
 
     # Track seen error/warning lines to avoid duplicates (same error in stdout and stderr)
     seen_errors = set()
@@ -779,8 +863,8 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
         "ignore_warning",
     ]
 
-    # Look for log files in output directory
-    log_files = list(output_dir.glob("*.log")) + list(output_dir.rglob("*.log"))
+    # Look for log files (dedupe: root glob is a subset of rglob)
+    log_files = sorted({p.resolve() for p in output_dir.rglob("*.log")})
 
     for log_file in log_files:
         try:
@@ -814,6 +898,7 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
                     # Deduplicate by normalizing the line (remove timestamps, etc.) to avoid
                     # counting the same error from both stdout.log and stderr.log
                     if is_error:
+                        error_lines_total += 1
                         normalized = _normalize_log_line(line_stripped)
                         # Only add if we haven't seen this exact error before
                         if normalized and normalized not in seen_errors:
@@ -821,6 +906,7 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
                             errors.append(line_stripped[:200])  # Limit length
                         continue
                     elif is_warning:
+                        warning_lines_total += 1
                         normalized = _normalize_log_line(line_stripped)
                         # Only add if we haven't seen this exact warning before
                         if normalized and normalized not in seen_warnings:
@@ -863,8 +949,12 @@ def collect_logs_from_output(output_dir: Path) -> Dict[str, Any]:
     key_error_messages = list(dict.fromkeys(key_error_messages))  # Preserves order
 
     return {
-        "errors": errors[:50],  # Limit to 50 errors
-        "warnings": warnings[:50],  # Limit to 50 warnings
+        "errors": errors[:50],  # Limit to 50 errors (distinct normalized messages)
+        "warnings": warnings[:50],  # Limit to 50 warnings (distinct)
+        "error_count_distinct": len(errors),
+        "warning_count_distinct": len(warnings),
+        "error_lines_total": error_lines_total,
+        "warning_lines_total": warning_lines_total,
         "info_count": info_count,
         "key_error_messages": key_error_messages[:10],  # Top 10 key error messages
     }
@@ -904,32 +994,35 @@ def copy_service_outputs(service_output_dir: Path, run_output_dir: Path) -> None
 
     logger.debug(f"Copying service outputs from: {source_dir} to {run_output_dir}")
 
+    def _copytree_if_distinct(src: Path, dst: Path, label: str) -> None:
+        """Copy directory unless src and dst are the same path (avoid rmtree deleting source)."""
+        if not src.exists():
+            return
+        try:
+            if src.resolve() == dst.resolve():
+                logger.debug("Skip %s copy: already at run root (%s)", label, dst)
+                return
+        except OSError:
+            pass
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(src, dst)
+        logger.debug("Copied %s to: %s", label, dst)
+
     # Copy metadata files directly to run_output_dir/metadata/ (keep folder structure)
     metadata_source = source_dir / "metadata"
-    if metadata_source.exists():
-        metadata_dest = run_output_dir / "metadata"
-        if metadata_dest.exists():
-            shutil.rmtree(metadata_dest)
-        shutil.copytree(metadata_source, metadata_dest)
-        logger.debug(f"Copied metadata files to: {metadata_dest}")
+    metadata_dest = run_output_dir / "metadata"
+    _copytree_if_distinct(metadata_source, metadata_dest, "metadata files")
 
     # Copy transcript files directly to run_output_dir/transcripts/ (keep folder structure)
     transcripts_source = source_dir / "transcripts"
-    if transcripts_source.exists():
-        transcripts_dest = run_output_dir / "transcripts"
-        if transcripts_dest.exists():
-            shutil.rmtree(transcripts_dest)
-        shutil.copytree(transcripts_source, transcripts_dest)
-        logger.debug(f"Copied transcript files to: {transcripts_dest}")
+    transcripts_dest = run_output_dir / "transcripts"
+    _copytree_if_distinct(transcripts_source, transcripts_dest, "transcript files")
 
     # Copy search/FAISS index directory (vector_search output)
     search_source = source_dir / "search"
-    if search_source.exists():
-        search_dest = run_output_dir / "search"
-        if search_dest.exists():
-            shutil.rmtree(search_dest)
-        shutil.copytree(search_source, search_dest)
-        logger.debug(f"Copied search index to: {search_dest}")
+    search_dest = run_output_dir / "search"
+    _copytree_if_distinct(search_source, search_dest, "search index")
 
     # Copy run tracking files (run.json, index.json, run_manifest.json, metrics.json)
     # directly to run_output_dir (flat)
@@ -1502,6 +1595,8 @@ def run_config(
     hide_debug_console: bool = True,
     run_index: Optional[int] = None,
     run_total: Optional[int] = None,
+    *,
+    strict_vector_index: bool = False,
 ) -> Dict[str, Any]:
     """Run a single config and collect data.
 
@@ -1516,6 +1611,8 @@ def run_config(
         hide_debug_console: When streaming, omit DEBUG lines from the console (files unchanged).
         run_index: 1-based index when running multiple configs (optional).
         run_total: Total configs in session when running multiple (optional).
+        strict_vector_index: When True, set ``exit_code`` to 1 if ``vector_search`` is enabled
+            but ``search/metadata.json`` has no vector rows after episodes ran.
 
     Returns:
         Dict with run data
@@ -1666,6 +1763,29 @@ def run_config(
 
     timed_out = exit_code == EXIT_TIMEOUT
 
+    cfg_for_vectors: Optional[config.Config] = None
+    try:
+        cfg_dict_v = config.load_config_file(str(original_config_copy))
+        cfg_for_vectors = config.Config.model_validate(cfg_dict_v)
+    except Exception as exc:
+        logger.debug("Could not load config for vector index check: %s", exc)
+
+    vector_index_ok = True
+    vector_index_notes = "not_evaluated"
+    if cfg_for_vectors is not None:
+        vector_index_ok, vector_index_notes = _assess_vector_index_run(
+            run_output_dir, cfg_for_vectors, episodes_processed, is_dry_run
+        )
+
+    effective_exit = exit_code
+    if strict_vector_index and not vector_index_ok and effective_exit == 0:
+        effective_exit = 1
+        logger.error(
+            "Strict vector index: failing run %s (notes=%s)",
+            config_name,
+            vector_index_notes,
+        )
+
     # Build run data (store absolute output_dir so run artifacts are findable regardless of cwd)
     run_data = {
         "run_id": run_id,
@@ -1675,7 +1795,8 @@ def run_config(
         "start_time": start_timestamp,
         "end_time": end_timestamp,
         "duration_seconds": round(duration_seconds, 2),
-        "exit_code": exit_code,
+        "exit_code": effective_exit,
+        "service_exit_code": exit_code,
         "timeout": timed_out,  # True if run was killed by --timeout
         "episodes_processed": episodes_processed,
         "is_dry_run": is_dry_run,  # Flag indicating dry-run mode
@@ -1685,6 +1806,9 @@ def run_config(
         "resource_usage": resource_usage,
         "provider_info": provider_info,  # Provider/model information for benchmarking
         "estimated_cost_usd": _estimate_llm_cost_usd_for_run_dir(run_output_dir),
+        "vector_index_ok": vector_index_ok,
+        "vector_index_notes": vector_index_notes,
+        "strict_vector_index": strict_vector_index,
     }
 
     # Save run data
@@ -1693,9 +1817,10 @@ def run_config(
         json.dump(run_data, f, indent=2)
 
     logger.info(
-        f"Completed {config_name}: exit_code={exit_code}, "
+        f"Completed {config_name}: exit_code={effective_exit}, "
         f"duration={duration_seconds:.1f}s, episodes={episodes_processed}"
         + (" (timed out)" if timed_out else "")
+        + (f", vector_index={vector_index_notes}" if not is_dry_run else "")
     )
 
     return run_data
@@ -1866,6 +1991,15 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             "Intended for CI / fixture smoke (pair with --use-fixtures)."
         ),
     )
+    parser.add_argument(
+        "--strict-vector-index",
+        action="store_true",
+        default=False,
+        help=(
+            "Treat empty FAISS output (vector_search on, episodes processed, but no rows in "
+            "search/metadata.json) as a failed run (exit_code 1). Same as STRICT_VECTOR_INDEX=1."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -2003,6 +2137,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
 
         total_cfgs = len(config_files)
         hide_debug = not args.stream_debug
+        strict_vec = bool(args.strict_vector_index) or _strict_vector_index_requested()
         for i, config_file in enumerate(config_files, 1):
             if total_cfgs > 1:
                 logger.info("")
@@ -2019,6 +2154,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 hide_debug_console=hide_debug,
                 run_index=i if total_cfgs > 1 else None,
                 run_total=total_cfgs if total_cfgs > 1 else None,
+                strict_vector_index=strict_vec,
             )
             runs_data.append(run_data)
             # Persist after each config so analysis works if run is interrupted
@@ -2143,6 +2279,14 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             )
         logger.info(f"  - Baselines: {(output_dir / 'baselines').absolute()}")
         logger.info("=" * 70)
+
+        failed_count = sum(1 for r in runs_data if r.get("exit_code", 0) != 0)
+        if failed_count:
+            logger.error(
+                "%d acceptance run(s) failed (see session.json exit_code / vector_index fields).",
+                failed_count,
+            )
+            sys.exit(1)
 
     finally:
         # Stop E2E server (if it was started)

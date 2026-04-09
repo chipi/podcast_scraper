@@ -6,6 +6,11 @@ PYTHON ?= .venv/bin/python
 endif
 PACKAGE = podcast_scraper
 
+# Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm/server).
+# Override path: ``make venv-dev-init VENVDEV=.venv-ci-unit``
+VENVDEV ?= .venv-dev
+VENVDEV_PY = $(VENVDEV)/bin/python
+
 # Pip cache directory (can be overridden via environment variable)
 # Defaults to standard pip cache location, but can be set explicitly for consistency
 PIP_CACHE_DIR ?= $(HOME)/.cache/pip
@@ -33,11 +38,13 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
 	@echo "  make init            Install development dependencies (uses wheels/spacy if *.whl present)"
+	@echo "  make venv-dev-init   Create $(VENVDEV) with pip install -e .[dev] only (CI test-unit parity)"
+	@echo "  make init-no-ml      Alias for venv-dev-init (does not modify your main .venv)"
 	@echo "  make format          Apply formatting with black + isort"
 	@echo "  make format-check    Check formatting without modifying files"
 	@echo "  make lint            Run flake8 linting"
@@ -87,9 +94,10 @@ help:
 	@echo "  make cleanup-processes  Clean up leftover Python/test processes from previous runs"
 	@echo ""
 	@echo "Test commands:"
-	@echo "  make test-unit            Run unit tests with coverage in parallel (default, matches CI)"
+	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
 	@echo "  make test-unit-sequential Run unit tests sequentially (for debugging, slower but clearer output)"
-	@echo "  make test-unit-no-ml Run unit tests without ML dependencies (matches CI)"
+	@echo "  make test-unit-dev-venv   Unit tests inside $(VENVDEV) (run venv-dev-init first; true CI parity)"
+	@echo "  make test-unit-no-ml      check-unit-imports + unit tests using Makefile PYTHON (often full .venv)"
 	@echo "  make test-integration            Run all integration tests (full suite, parallel)"
 	@echo "  make test-integration-sequential Run all integration tests sequentially (for debugging)"
 	@echo "  make test-integration-fast       Run fast integration tests (critical path only)"
@@ -123,11 +131,13 @@ help:
 	@echo "  make test-acceptance  Run E2E acceptance tests (multiple configs sequentially)"
 	@echo "                            Usage: make test-acceptance CONFIGS=\"…\" [USE_FIXTURES=1] …"
 	@echo "                            Or:     make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 (tracked fast matrix + path resolve)"
+	@echo "                            Configs with vector_search: run make preload-ml-models without SKIP_GIL=1 so FAISS indexing has cached embeddings offline."
 	@echo "  make test-acceptance-fixtures-fast  Same as FROM_FAST_STEMS=1 + USE_FIXTURES=1 + no auto analyze/benchmark; optional TIMEOUT=seconds (default 900)"
 	@echo "                            Options: USE_FIXTURES=1 uses test fixtures (default: uses real RSS/APIs)"
 	@echo "                                     NO_SHOW_LOGS=1 disables real-time log streaming (default: logs shown)"
 	@echo "                                     NO_AUTO_ANALYZE=1 disables automatic analysis (default: analysis runs automatically)"
 	@echo "                                     ANALYZE_MODE=comprehensive uses comprehensive analysis mode (default: basic)"
+	@echo "                                     STRICT_VECTOR_INDEX=1 fails run if vector_search builds empty FAISS (exit 1 if any run fails)"
 	@echo "  make analyze-acceptance  Analyze acceptance test results"
 	@echo "                                 Usage: make analyze-acceptance SESSION_ID=\"20260208_093757\" [MODE=basic|comprehensive] [COMPARE_BASELINE=...]"
 	@echo "  Tip: For debugging, use pytest directly with -n 0 for sequential execution"
@@ -162,8 +172,9 @@ help:
 	@echo "                            Usage: make clean-model-cache MODEL_NAME=google/pegasus-cnn_dailymail [FORCE=yes]"
 	@echo "  make clean-all       Remove both build artifacts and ML model caches"
 	@echo "  make download-spacy-wheels  Download spaCy en_core_web_* wheels into wheels/spacy (use with PIP_FIND_LINKS)"
-	@echo "  make preload-ml-models  Pre-download and cache all required ML models locally (test models)"
-	@echo "  make preload-ml-models-production  Pre-download and cache production ML models (for nightly tests)"
+	@echo "  make preload-ml-models  Pre-download/cache ML models (Whisper, spaCy, Transformers, GIL evidence: embedding+QA+NLI)"
+	@echo "                            Omit SKIP_GIL=1 when you need sentence-transformers cached for vector_search/FAISS (indexing uses allow_download=False)."
+	@echo "  make preload-ml-models-production  Same idea for nightly-sized model set (Whisper base, BART/LED/Pegasus, hybrid, en_core_web_sm)"
 	@echo "  make backup-cache    Backup .cache directory (ML models)"
 	@echo "  make backup-cache-dry-run  Dry run: Check what would be backed up"
 	@echo "  make backup-cache-list     List existing cache backups"
@@ -224,6 +235,15 @@ init:
 	$(PYTHON) -m pip install --upgrade -e .[dev,ml,llm]
 	@if [ -f docs/requirements.txt ]; then $(PYTHON) -m pip install --upgrade -r docs/requirements.txt; fi
 
+# CI ``test-unit`` installs ``.[dev]`` only. This creates a separate venv so you do not strip [ml] from .venv.
+venv-dev-init:
+	@test -d "$(VENVDEV)" || python3 -m venv "$(VENVDEV)"
+	$(VENVDEV_PY) -m pip install --upgrade pip setuptools wheel
+	$(VENVDEV_PY) -m pip install -e .[dev]
+	@echo "✅ $(VENVDEV): editable install with .[dev] only. Run: make test-unit-dev-venv"
+
+init-no-ml: venv-dev-init
+
 # Download spaCy model wheels (matches pyproject.toml [ml] pins). When wheels/spacy/*.whl exists,
 # make sets PIP_FIND_LINKS for recipes (e.g. make init) unless you already exported it.
 # See docs/guides/DEPENDENCIES_GUIDE.md.
@@ -279,7 +299,7 @@ type:
 security: security-bandit security-audit
 
 security-bandit:
-	$(PYTHON) -m bandit -r . --exclude ./.venv --skip B113,B108,B110,B310 --severity-level medium
+	$(PYTHON) -m bandit -r . --exclude ./.venv,./.venv-dev --skip B113,B108,B110,B310 --severity-level medium
 
 security-audit:
 	$(PYTHON) -m pip install --upgrade setuptools
@@ -331,10 +351,13 @@ quality: complexity deadcode docstrings spelling
 	# Ignore CVE-2026-4539: pip-audit/OSV currently flags all pygments versions until a fixed release is published; we pin
 	#   pygments<2.19.0 in pyproject.toml (NVD/GHSA: vulnerable code in 2.19.0–2.19.2). Revisit when 2.19.3+ exists or OSV range fixes.
 	# TODO(CVE-2026-4539): Remove --ignore-vuln when upstream fix + pip-audit range allow; sync pyproject pygments cap.
+	# Ignore CVE-2026-1839: transformers Trainer loads rng_state via torch.load without weights_only; fixed in 5.0.0rc3+.
+	#   We pin transformers<5.0.0 (extractive QA / pipeline — see pyproject [ml]). Revisit when stable 5.x is adopted.
+	# TODO(CVE-2026-1839): Remove --ignore-vuln after bumping transformers to a fixed 5.x release.
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
@@ -451,14 +474,19 @@ test-unit: cleanup-processes
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-unit-no-ml: cleanup-processes
-	# Unit tests without ML dependencies (matches CI setup - Issue #403)
-	# PR + nightly unit workflows use ``.[dev,server]``; path/CLI tests avoid FastAPI at import time.
-	# First verify imports work without ML dependencies (same check as CI)
+	# Runs import guard + unit tests with *current* $(PYTHON) (.venv if present).
+	# For the same environment as GitHub test-unit, use: make venv-dev-init && make test-unit-dev-venv
 	@echo "Verifying unit tests can import modules without ML dependencies..."
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
-	# Then run unit tests (same as test-unit but with explicit verification)
-	@echo "Running unit tests without ML dependencies..."
+	@echo "Running unit tests..."
 	$(PYTHON) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
+
+test-unit-dev-venv: cleanup-processes
+	@test -x "$(VENVDEV_PY)" || { echo "Missing $(VENVDEV_PY). Run: make venv-dev-init [VENVDEV=$(VENVDEV)]"; exit 1; }
+	@echo "Verifying imports (CI-style, .[dev] only)..."
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(VENVDEV_PY) scripts/tools/check_unit_test_imports.py
+	@echo "Running unit tests in $(VENVDEV)..."
+	$(VENVDEV_PY) -m pytest tests/unit/ --cov=$(PACKAGE) --cov-report=term-missing -m 'not integration and not e2e' -n $(shell $(VENVDEV_PY) scripts/tools/calculate_test_workers.py --test-type unit --max-workers 8 2>/dev/null || echo 4) --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-integration: cleanup-processes
 	# Integration tests: parallel execution (3.4x faster, significant benefit)

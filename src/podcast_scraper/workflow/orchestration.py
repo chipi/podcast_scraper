@@ -630,7 +630,8 @@ _preloaded_ml_provider: Optional[Any] = None
 _preloaded_ml_provider_lock = threading.Lock()
 
 # Generous timeout for thread joins (transcription / processing)
-_THREAD_JOIN_TIMEOUT = 300  # seconds
+# Long OpenAI+GI runs can exceed 5m per stage under parallel load (multi-feed).
+_THREAD_JOIN_TIMEOUT = 600  # seconds
 
 
 def _both_providers_use_mps(

@@ -646,8 +646,8 @@ def compute_embedding_similarity(
     """
     if _SentenceTransformer is None:
         raise ImportError(
-            "sentence-transformers library is required for embedding similarity computation. "
-            "Install with: pip install 'sentence-transformers>=3.0.0,<6.0.0'"
+            "sentence-transformers is required for embedding similarity (evaluation metric). "
+            'Install the ML stack: pip install -e ".[ml]"'
         )
 
     try:

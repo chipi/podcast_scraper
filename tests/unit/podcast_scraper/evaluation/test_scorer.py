@@ -489,7 +489,7 @@ class TestComputeVsReferenceOptionalMetricsBranches:
         preds = [{"episode_id": "e1", "output": {"summary_final": "a"}}]
         refs = [{"episode_id": "e1", "output": {"summary_final": "b"}}]
         with patch.object(scorer_mod, "_SentenceTransformer", None):
-            with pytest.raises(ImportError, match=r"sentence-transformers>=3"):
+            with pytest.raises(ImportError, match=r"pip install -e"):
                 compute_embedding_similarity(preds, refs)
 
 

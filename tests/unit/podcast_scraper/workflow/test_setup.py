@@ -205,18 +205,42 @@ class TestAppendGilEvidenceDownloads(unittest.TestCase):
 
     @patch("podcast_scraper.providers.ml.model_loader.is_evidence_model_cached")
     def test_vector_search_only_queues_embedding_not_qa_nli(self, mock_cached):
-        """vector_search without generate_gi still queues embedding model only."""
+        """vector_search without generate_gi queues vector_embedding_model (not QA/NLI)."""
         mock_cached.return_value = False
         cfg = Mock()
         cfg.generate_gi = False
         cfg.vector_search = True
-        cfg.gi_embedding_model = "minilm-l6"
+        cfg.vector_embedding_model = "minilm-l6"
+        cfg.gi_embedding_model = "other-embedding"
         models: list = []
         _append_gil_evidence_downloads(cfg, models)
         kinds = [m[0] for m in models]
         self.assertIn("evidence_embedding", kinds)
         self.assertNotIn("evidence_qa", kinds)
         self.assertNotIn("evidence_nli", kinds)
+        self.assertEqual(
+            [c.args[0] for c in mock_cached.call_args_list],
+            ["minilm-l6"],
+        )
+
+    @patch("podcast_scraper.providers.ml.model_loader.is_evidence_model_cached")
+    def test_vector_search_and_gil_ml_queue_distinct_embedding_models(self, mock_cached):
+        """When both vector_search and GIL transformers run, check both embedding ids."""
+        mock_cached.return_value = False
+        cfg = Mock()
+        cfg.generate_gi = True
+        cfg.vector_search = True
+        cfg.quote_extraction_provider = "transformers"
+        cfg.entailment_provider = "transformers"
+        cfg.vector_embedding_model = "mpnet-base"
+        cfg.gi_embedding_model = "minilm-l6"
+        cfg.gi_qa_model = "roberta-squad2"
+        cfg.gi_nli_model = "nli-deberta-base"
+        models: list = []
+        _append_gil_evidence_downloads(cfg, models)
+        emb = [m for m in models if m[0] == "evidence_embedding"]
+        self.assertEqual(len(emb), 2)
+        self.assertEqual({emb[0][1], emb[1][1]}, {"mpnet-base", "minilm-l6"})
 
     @patch("podcast_scraper.providers.ml.model_loader.is_evidence_model_cached")
     def test_generate_gil_transformers_queues_embedding_qa_nli(self, mock_cached):
