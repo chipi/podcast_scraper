@@ -403,10 +403,11 @@ def modify_config_for_fixtures(
 
     if use_fixtures and e2e_server:
         # Multi-feed: replace external URLs with distinct local fixture feeds (hash isolation).
-        # podcast1..podcast5 map to E2E RSS fixtures p01..p05
+        # Slot 0: podcast1_mtb → p01_mtb even when fast E2E mode is on (not p01_fast).
+        # Slots 1–4: podcast2..5 → p02..p05. Samples keep five generic placeholders for copying.
         # (see tests/e2e/fixtures/e2e_http_server.py).
         fixture_feed_urls = [
-            e2e_server.urls.feed("podcast1"),
+            e2e_server.urls.feed("podcast1_mtb"),
             e2e_server.urls.feed("podcast2"),
             e2e_server.urls.feed("podcast3"),
             e2e_server.urls.feed("podcast4"),

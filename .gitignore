@@ -85,6 +85,7 @@ config/acceptance/*
 !config/acceptance/sample_acceptance_e2e_fixture_multi_deepseek.yaml
 !config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml
 !config/acceptance/sample_acceptance_e2e_fixture_multi_mistral.yaml
+!config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_mistral_small3_2.yaml
 !config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml
 !config/acceptance/sample_acceptance_e2e_fixture_multi_openai.yaml
 

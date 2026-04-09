@@ -29,15 +29,13 @@ class TestAcceptanceRunnerDiscovery(unittest.TestCase):
         stems = mod.load_fast_config_stems()
         self.assertIn("acceptance_multi_feed_planet_money_journal_openai", stems)
 
-    def test_resolve_yaml_paths_multi_feed_finds_under_acceptance_dir(self):
+    def test_resolve_yaml_paths_finds_tracked_sample_under_acceptance_dir(self):
         mod = _load_run_acceptance_module()
-        paths = mod.resolve_yaml_paths_from_stems(
-            {"acceptance_multi_feed_planet_money_journal_openai"}
-        )
+        paths = mod.resolve_yaml_paths_from_stems({"sample_acceptance_e2e_fixture_single"})
         self.assertEqual(len(paths), 1)
         self.assertEqual(
             paths[0].name,
-            "acceptance_multi_feed_planet_money_journal_openai.yaml",
+            "sample_acceptance_e2e_fixture_single.yaml",
         )
         self.assertTrue(paths[0].is_file())
         self.assertEqual(paths[0].parent.name, "acceptance")

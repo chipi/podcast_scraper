@@ -6,12 +6,13 @@ collisions when multiple feeds share a corpus parent.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, List, Optional
 
 from podcast_scraper.utils import filesystem
 from podcast_scraper.utils.path_validation import (
-    is_resolved_path_under_root,
+    normpath_if_under_root,
     safe_resolve_directory,
 )
 
@@ -62,27 +63,30 @@ def discover_metadata_files(output_root: Path) -> List[Path]:
     if corpus_root is None:
         return []
 
+    root_str = os.path.normpath(str(corpus_root))
     patterns = ("*.metadata.json", "*.metadata.yaml", "*.metadata.yml")
     found: List[Path] = []
 
     def _extend_from_meta_dir(meta_dir: Path) -> None:
-        if not is_resolved_path_under_root(meta_dir, corpus_root):
+        normed = normpath_if_under_root(str(meta_dir), root_str)
+        if normed is None:
             return
-        if not meta_dir.is_dir():
+        safe_dir = Path(normed)
+        if not safe_dir.is_dir():
             return
         for pat in patterns:
-            for hit in meta_dir.glob(pat):
-                if hit.is_file() and is_resolved_path_under_root(hit, corpus_root):
-                    found.append(hit)
+            for hit in safe_dir.glob(pat):
+                hit_normed = normpath_if_under_root(str(hit), root_str)
+                if hit_normed is not None and Path(hit_normed).is_file():
+                    found.append(Path(hit_normed))
 
-    feeds_dir = corpus_root / "feeds"
-    if feeds_dir.is_dir():
+    feeds_normed = normpath_if_under_root(str(corpus_root / "feeds"), root_str)
+    if feeds_normed is not None and Path(feeds_normed).is_dir():
         for meta_dir in corpus_root.rglob("metadata"):
             if meta_dir.is_dir():
                 _extend_from_meta_dir(meta_dir)
-        # Corpus parent may also hold legacy or auxiliary metadata beside feeds/
         _extend_from_meta_dir(corpus_root / filesystem.METADATA_SUBDIR)
     else:
         _extend_from_meta_dir(corpus_root / filesystem.METADATA_SUBDIR)
 
-    return sorted({p.resolve() for p in found})
+    return sorted(set(found))

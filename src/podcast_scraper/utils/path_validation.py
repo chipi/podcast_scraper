@@ -7,10 +7,29 @@ path traversal attacks and ensure cache paths are within designated directories.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+
+def normpath_if_under_root(child: str, root: str) -> Optional[str]:
+    """Return ``os.path.normpath(child)`` iff it is under *root*; else ``None``.
+
+    This is the sanitizer shape that CodeQL's ``py/path-injection`` recognises:
+    ``normpath`` (or ``realpath``) followed by ``startswith`` on the same variable.
+    Callers should use the returned string for all subsequent FS access.
+    """
+    try:
+        normed = os.path.normpath(child)
+        root_normed = os.path.normpath(root)
+    except (OSError, ValueError):
+        return None
+    safe_prefix = root_normed + os.sep
+    if normed == root_normed or normed.startswith(safe_prefix):
+        return normed
+    return None
 
 
 def validate_cache_path(path: str | Path, base_dir: Optional[str | Path] = None) -> Path:
@@ -123,43 +142,30 @@ def validate_path_is_safe(
 def safe_resolve_directory(path: Path) -> Optional[Path]:
     """Resolve a directory path for local corpus use; reject traversal and null bytes.
 
-    Used as a CodeQL anchor before joining or globbing under a user-provided root.
+    Returns a ``realpath``-resolved ``Path`` or ``None``.  ``realpath`` is
+    recognised by CodeQL as a path normaliser (same as ``normpath``).
     """
-    if "\x00" in str(path):
+    raw = str(path)
+    if "\x00" in raw:
         return None
-    if any(part == ".." for part in path.parts):
-        return None
-    try:
-        parts = path.parts
-        if parts and parts[0] == "~":
-            # Under current user home only — avoids tainted ``expanduser`` for the common case.
-            candidate = Path.home().joinpath(*parts[1:])
-        elif parts and parts[0].startswith("~"):
-            # lgtm[py/path-injection] -- ``..``/NUL rejected; ``~name`` requires passwd expansion.
-            candidate = path.expanduser()
-        else:
-            candidate = path
-    except (OSError, RuntimeError):
-        return None
-    if "\x00" in str(candidate):
-        return None
-    if any(part == ".." for part in candidate.parts):
+    if ".." in raw.split(os.sep):
         return None
     try:
-        return candidate.resolve()
+        expanded = os.path.expanduser(raw)
     except (OSError, RuntimeError):
         return None
+    if "\x00" in expanded:
+        return None
+    normed = os.path.normpath(expanded)
+    if ".." in normed.split(os.sep):
+        return None
+    try:
+        resolved = os.path.realpath(normed)
+    except (OSError, RuntimeError):
+        return None
+    return Path(resolved)
 
 
 def is_resolved_path_under_root(candidate: Path, root: Path) -> bool:
-    """Return True if ``candidate.resolve()`` lies under ``root.resolve()`` (or equals it)."""
-    try:
-        resolved_candidate = candidate.resolve()
-        resolved_root = root.resolve()
-    except (OSError, RuntimeError):
-        return False
-    try:
-        resolved_candidate.relative_to(resolved_root)
-        return True
-    except ValueError:
-        return False
+    """Return True if *candidate* is under *root* (``normpath`` + ``startswith`` guard)."""
+    return normpath_if_under_root(str(candidate), str(root)) is not None

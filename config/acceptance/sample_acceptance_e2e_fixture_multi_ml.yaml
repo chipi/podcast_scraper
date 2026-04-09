@@ -2,7 +2,8 @@
 # Filename suffix _ml distinguishes this from API-backed samples (OpenAI, DeepSeek, etc.).
 # Feed URLs below are placeholders — they are NOT fetched. Run via the acceptance runner with
 # USE_FIXTURES=1: each slot maps to E2E mock RSS podcast1..podcast5 (fixtures p01..p05).
-# No max_episodes — every item in each fixture RSS is processed (typically 3 per feed).
+# max_episodes: 5 caps work per feed (safe if this YAML is copied to real RSS). E2E p01–p05
+# have three items each, so fixtures still process every episode.
 #
 # Run:
 #   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml" USE_FIXTURES=1
@@ -15,6 +16,7 @@ feeds:
   - https://example.invalid/e2e-placeholder-feed-p05.xml
 
 output_dir: .test_outputs/acceptance/sample_e2e_multi_ml
+max_episodes: 5
 
 transcription_provider: whisper
 speaker_detector_provider: spacy

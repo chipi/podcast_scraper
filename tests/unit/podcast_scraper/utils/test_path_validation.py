@@ -147,11 +147,12 @@ class TestIsResolvedPathUnderRoot:
             other = Path(b).resolve()
             assert is_resolved_path_under_root(other, root) is False
 
-    def test_false_when_resolve_raises_oserror(self, monkeypatch):
-        """``OSError`` from ``Path.resolve`` yields False."""
+    def test_false_when_normpath_raises_oserror(self, monkeypatch):
+        """``OSError`` from ``os.path.normpath`` yields False."""
+        import os as _os
 
-        def boom(self):
+        def boom(p):
             raise OSError("boom")
 
-        monkeypatch.setattr(Path, "resolve", boom)
+        monkeypatch.setattr(_os.path, "normpath", boom)
         assert is_resolved_path_under_root(Path("/tmp/x"), Path("/tmp")) is False

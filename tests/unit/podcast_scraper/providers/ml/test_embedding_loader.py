@@ -245,7 +245,27 @@ class TestEffectiveCacheFolder:
 
 
 class TestLoadEmbeddingModel:
-    """Tests for load_embedding_model (resolve + load wiring)."""
+    """Tests for load_embedding_model (resolve + load wiring).
+
+    Injects a fake ``sentence_transformers`` module into ``sys.modules`` so the
+    runtime ``from sentence_transformers import SentenceTransformer`` resolves
+    without the real package installed.
+    """
+
+    @staticmethod
+    def _inject_fake_st(monkeypatch, captured):
+        """Install a fake ``sentence_transformers`` module and return it."""
+        from types import ModuleType
+
+        fake_mod = ModuleType("sentence_transformers")
+
+        def fake_st(model_id, device=None, cache_folder=None, **kwargs):
+            captured.append({"model_id": model_id, "cache_folder": cache_folder, **kwargs})
+            return type("Fake", (), {"encode": lambda self, t, normalize_embeddings: []})()
+
+        fake_mod.SentenceTransformer = fake_st  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "sentence_transformers", fake_mod)
+        return fake_mod
 
     def test_load_embedding_model_resolves_alias(self, monkeypatch):
         """load_embedding_model resolves alias via registry before loading."""
@@ -257,27 +277,18 @@ class TestLoadEmbeddingModel:
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: Path("/expected/huggingface/hub"),
         )
-        captured = []
+        captured: list = []
+        self._inject_fake_st(monkeypatch, captured)
 
-        def fake_st(model_id, device=None, cache_folder=None, **kwargs):
-            captured.append((model_id, kwargs.get("local_files_only"), cache_folder))
-            return type("Fake", (), {"encode": lambda self, texts, normalize_embeddings: []})()
-
-        monkeypatch.setattr(
-            "sentence_transformers.SentenceTransformer",
-            fake_st,
-            raising=False,
-        )
         embedding_loader.load_embedding_model("minilm-l6", device="cpu")
         assert len(captured) == 1
-        # SentenceTransformer expects the short repo id (no duplicate org prefix).
-        assert captured[0][0] == "all-MiniLM-L6-v2"
+        assert captured[0]["model_id"] == "all-MiniLM-L6-v2"
         assert (
             ModelRegistry.resolve_evidence_model_id("minilm-l6")
             == "sentence-transformers/all-MiniLM-L6-v2"
         )
-        assert captured[0][1] is True
-        assert captured[0][2] == "/expected/huggingface/hub"
+        assert captured[0].get("local_files_only") is True
+        assert captured[0]["cache_folder"] == "/expected/huggingface/hub"
 
     def test_load_embedding_model_allow_download_omits_local_files_only(self, monkeypatch):
         """allow_download=True does not force local_files_only."""
@@ -287,42 +298,27 @@ class TestLoadEmbeddingModel:
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: Path("/hub/default"),
         )
-        captured = []
+        captured: list = []
+        self._inject_fake_st(monkeypatch, captured)
 
-        def fake_st(model_id, device=None, cache_folder=None, **kwargs):
-            captured.append(kwargs)
-            return type("Fake", (), {})()
-
-        monkeypatch.setattr(
-            "sentence_transformers.SentenceTransformer",
-            fake_st,
-            raising=False,
-        )
         embedding_loader.load_embedding_model("minilm-l6", device="cpu", allow_download=True)
         assert captured[0].get("local_files_only") is not True
 
     def test_load_embedding_model_strips_sentence_transformers_prefix(self, monkeypatch):
-        """Full HF id sentence-transformers/X is passed to ST as X (avoids loader warning)."""
+        """Full HF id sentence-transformers/X is passed to ST as X."""
         from pathlib import Path
 
         monkeypatch.setattr(
             "podcast_scraper.cache.directories.get_transformers_cache_dir",
             lambda: Path("/hub/default"),
         )
-        captured = []
+        captured: list = []
+        self._inject_fake_st(monkeypatch, captured)
 
-        def fake_st(model_id, device=None, cache_folder=None, **kwargs):
-            captured.append((model_id, cache_folder))
-            return type("Fake", (), {})()
-
-        monkeypatch.setattr(
-            "sentence_transformers.SentenceTransformer",
-            fake_st,
-            raising=False,
-        )
         embedding_loader.load_embedding_model(
             "sentence-transformers/all-MiniLM-L6-v2",
             device="cpu",
             allow_download=True,
         )
-        assert captured == [("all-MiniLM-L6-v2", "/hub/default")]
+        assert captured[0]["model_id"] == "all-MiniLM-L6-v2"
+        assert captured[0]["cache_folder"] == "/hub/default"

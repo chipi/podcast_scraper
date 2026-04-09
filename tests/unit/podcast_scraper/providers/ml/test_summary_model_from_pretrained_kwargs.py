@@ -1,12 +1,36 @@
-"""Exercise SummaryModel._load_model branches that unpack kwargs via cast(Any, ...) (mypy)."""
+"""Exercise SummaryModel._load_model branches that unpack kwargs via cast(Any, ...) (mypy).
+
+Installs a stub ``transformers`` module so ``@patch("transformers.X.from_pretrained")``
+resolves without the real package.
+"""
 
 from __future__ import annotations
 
+import sys
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from podcast_scraper.providers.ml.summarizer import SummaryModel
+# Ensure ``transformers`` is importable (needed by @patch decorators at collection
+# time and by runtime ``from transformers import …`` inside SummaryModel._load_model).
+if "transformers" not in sys.modules:
+    _fake_tf = ModuleType("transformers")
+    for _cls_name in (
+        "AutoTokenizer",
+        "AutoModelForSeq2SeqLM",
+        "BartForConditionalGeneration",
+        "LEDForConditionalGeneration",
+        "Pipeline",
+    ):
+        setattr(_fake_tf, _cls_name, MagicMock())
+    _fake_tf.utils = ModuleType("transformers.utils")  # type: ignore[attr-defined]
+    _fake_tf.utils.logging = MagicMock()  # type: ignore[attr-defined]
+    sys.modules["transformers"] = _fake_tf
+    sys.modules["transformers.utils"] = _fake_tf.utils  # type: ignore[attr-defined]
+    sys.modules["transformers.utils.logging"] = _fake_tf.utils.logging  # type: ignore[attr-defined]
+
+from podcast_scraper.providers.ml.summarizer import SummaryModel  # noqa: E402
 
 
 def _invoke_retry(fn, *_a, **_kw):

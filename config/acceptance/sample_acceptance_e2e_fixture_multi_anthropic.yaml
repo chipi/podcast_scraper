@@ -1,7 +1,7 @@
 # Sample acceptance: multi-feed (5 feeds), Anthropic (E2E mock RSS).
 # Feed URLs are placeholders — not fetched. USE_FIXTURES=1 maps slots to podcast1..podcast5 (p01..p05).
 # Same provider block as acceptance_planet_money_anthropic.yaml; no tracked multi-feed anthropic preset.
-# No max_episodes — all RSS items per feed (p01–p05 fixtures).
+# max_episodes: 5 per feed — safe default if copied to real RSS (fixtures have 3 items each).
 #
 # Run:
 #   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_anthropic.yaml" USE_FIXTURES=1
@@ -16,6 +16,7 @@ feeds:
   - https://example.invalid/e2e-placeholder-feed-p05.xml
 
 output_dir: .test_outputs/acceptance/sample_e2e_multi_anthropic
+max_episodes: 5
 
 transcription_provider: whisper
 speaker_detector_provider: anthropic

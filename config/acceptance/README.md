@@ -15,7 +15,7 @@ want in Git). Exceptions: this **`README.md`**, **`FAST_CONFIGS.txt`**, and the 
 **`sample_acceptance_e2e_fixture_*.yaml`** files (placeholders + E2E mock feeds — see below),
 including variants that mirror **`acceptance_planet_money_*`** (and multi-feed OpenAI /
 DeepSeek journal presets where applicable): OpenAI, DeepSeek, Anthropic, Mistral
-(`mistral-small-latest`), and Ollama **`qwen3.5:35b`**.
+(`mistral-small-latest`), and Ollama **`qwen3.5:35b`** / **`mistral-small3.2`**.
 
 Each preset runs the **full pipeline**: summaries, grounded insights (GI), knowledge graph
 (KG), and a FAISS vector index. Mostly **one feed per YAML** × provider; plus **multi-feed**
@@ -35,16 +35,20 @@ These files use **non-localhost placeholder URLs** on purpose. They are **not** 
 | **`sample_acceptance_e2e_fixture_single_anthropic.yaml`** | Single `rss:` — Whisper + Anthropic (claude-haiku-4-5); needs `ANTHROPIC_API_KEY` |
 | **`sample_acceptance_e2e_fixture_single_mistral.yaml`** | Single `rss:` — Mistral (voxtral + mistral-small-latest); needs `MISTRAL_API_KEY` |
 | **`sample_acceptance_e2e_fixture_single_ollama_qwen3_5_35b.yaml`** | Single `rss:` — Whisper + Ollama `qwen3.5:35b`; needs local Ollama |
-| **`sample_acceptance_e2e_fixture_multi_ml.yaml`** | Five `feeds:` → `podcast1`..`podcast5`; **local ML** (Whisper + spaCy + transformers); `max_episodes: 2` per feed |
-| **`sample_acceptance_e2e_fixture_multi_openai.yaml`** | Same five placeholders — OpenAI; needs `OPENAI_API_KEY` |
-| **`sample_acceptance_e2e_fixture_multi_deepseek.yaml`** | Same five placeholders — OpenAI Whisper + DeepSeek; needs both keys |
-| **`sample_acceptance_e2e_fixture_multi_anthropic.yaml`** | Same five placeholders — Anthropic; needs `ANTHROPIC_API_KEY` |
-| **`sample_acceptance_e2e_fixture_multi_mistral.yaml`** | Same five placeholders — Mistral; needs `MISTRAL_API_KEY` |
-| **`sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml`** | Same five placeholders — Ollama `qwen3.5:35b`; needs local Ollama |
+| **`sample_acceptance_e2e_fixture_multi_ml.yaml`** | Five `feeds:` → `podcast1`..`podcast5`; **local ML**; `max_episodes: 5` per feed (safe if copied to real RSS) |
+| **`sample_acceptance_e2e_fixture_multi_openai.yaml`** | Same five placeholders — OpenAI; needs `OPENAI_API_KEY`; `max_episodes: 5` per feed |
+| **`sample_acceptance_e2e_fixture_multi_deepseek.yaml`** | Same five placeholders — OpenAI Whisper + DeepSeek; both keys; `max_episodes: 5` per feed |
+| **`sample_acceptance_e2e_fixture_multi_anthropic.yaml`** | Same five placeholders — Anthropic; needs `ANTHROPIC_API_KEY`; `max_episodes: 5` per feed |
+| **`sample_acceptance_e2e_fixture_multi_mistral.yaml`** | Same five placeholders — Mistral; needs `MISTRAL_API_KEY`; `max_episodes: 5` per feed |
+| **`sample_acceptance_e2e_fixture_multi_ollama_mistral_small3_2.yaml`** | Same five placeholders — Ollama Mistral Small 3.2; local Ollama; `max_episodes: 5` per feed |
+| **`sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml`** | Same five placeholders — Ollama `qwen3.5:35b`; local Ollama; `max_episodes: 5` per feed |
 
 **You must run them with `make test-acceptance` and `USE_FIXTURES=1`.** The acceptance
 runner starts the E2E HTTP server and **rewrites** those URLs to in-repo mock RSS feeds
-(and points provider APIs at the mock). Without **`USE_FIXTURES=1`**, the run would try to
+(and points provider APIs at the mock). Multi-feed samples stay **five generic
+placeholders** you can copy: the runner maps them to full **p01–p05** fixtures (three
+episodes each), using an internal E2E alias for the first slot so default fast E2E mode
+still serves **p01_mtb**, not **p01_fast**. Without **`USE_FIXTURES=1`**, the run would try to
 fetch the placeholder hosts and fail.
 
 **Your private presets** with **real** `https://…` RSS URLs should be run **without**
@@ -64,6 +68,7 @@ make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_mu
 make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_deepseek.yaml" USE_FIXTURES=1
 make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_anthropic.yaml" USE_FIXTURES=1
 make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_mistral.yaml" USE_FIXTURES=1
+make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_mistral_small3_2.yaml" USE_FIXTURES=1
 make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml" USE_FIXTURES=1
 ```
 

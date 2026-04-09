@@ -2355,7 +2355,13 @@ class TestBuildSummarizationProviderInfo(unittest.TestCase):
             summary_provider="transformers",
             summary_model="allenai/led-base-16384",
         )
-        result = metadata._build_summarization_provider_info(cfg)
+        fake_torch = MagicMock(__version__="2.0.0")
+        fake_transformers = MagicMock(__version__="4.30.0")
+        with patch.dict(
+            "sys.modules",
+            {"torch": fake_torch, "transformers": fake_transformers},
+        ):
+            result = metadata._build_summarization_provider_info(cfg)
         self.assertIsNotNone(result)
         self.assertEqual(result["provider"], "transformers")
         self.assertIn("model_revision", result)
