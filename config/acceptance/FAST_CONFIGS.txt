@@ -1,20 +1,25 @@
-# Config stems to run when using --fast-only (e.g. CI on PRs).
-# One stem per line; stem = filename without .yaml.
-# Comment lines start with #. Use full suite (no --fast-only) for nightly or pre-release.
+# Config stems for --from-fast-stems / test-acceptance-fixtures-fast (CI).
+# One stem per line (filename without .yaml). Each must exist as
+# config/acceptance/<stem>.yaml (tracked in Git).
+#
+# Use sample_acceptance_e2e_fixture_* only: full Planet Money / Journal YAMLs are
+# optional/local; fixture presets work with USE_FIXTURES=1 + mock RSS/APIs.
+#
+# Ollama-based sample_* stems are omitted here so CI stays offline without a daemon;
+# run them locally: make test-acceptance CONFIGS=... USE_FIXTURES=1
 
-# ML dev baseline (local, no API keys, fastest)
-acceptance_planet_money_ml_dev
-acceptance_the_journal_ml_dev
+# Single-feed ML (local models)
+sample_acceptance_e2e_fixture_single
+sample_acceptance_e2e_fixture_multi_ml
 
-# ML prod baseline (local, no API keys)
-acceptance_planet_money_ml_prod
-
-# One LLM provider (fixtures make these fast)
-acceptance_planet_money_openai
-acceptance_the_journal_openai
-
-# One Ollama model (local, no API keys)
-acceptance_planet_money_ollama
-
-# Multi-feed (GitHub #440); USE_FIXTURES=1 rewrites feeds to E2E fixture URLs
-acceptance_multi_feed_planet_money_journal_openai
+# Multi-feed + LLM-shaped presets: under USE_FIXTURES=1 (e.g. make test-acceptance-fixtures-fast)
+# the runner rewrites feeds and points provider HTTP at the in-process E2E mock server — no
+# paid API calls and no API keys required on CI.
+sample_acceptance_e2e_fixture_single_openai
+sample_acceptance_e2e_fixture_multi_openai
+sample_acceptance_e2e_fixture_single_mistral
+sample_acceptance_e2e_fixture_multi_mistral
+sample_acceptance_e2e_fixture_single_anthropic
+sample_acceptance_e2e_fixture_multi_anthropic
+sample_acceptance_e2e_fixture_single_deepseek
+sample_acceptance_e2e_fixture_multi_deepseek

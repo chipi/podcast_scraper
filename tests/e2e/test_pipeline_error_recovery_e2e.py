@@ -104,18 +104,11 @@ class ErrorRecoveryHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
   </channel>
 </rss>"""
             self._send_response(200, rss_xml.encode("utf-8"), "application/xml")
-        # Malformed RSS feed
+        # Malformed RSS feed (not well-formed XML — parser must yield no items or fail)
         elif path == "/feed-malformed.xml":
-            malformed_xml = """<?xml version='1.0'?>
-<rss>
-  <channel>
-    <title>Malformed Feed</title>
-    <item>
-      <title>Episode 1</title>
-      <!-- Missing closing tags -->
-    </item>
-  </channel>
-</rss>"""
+            malformed_xml = """<?xml version='1.0' encoding='UTF-8'?>
+<rss><channel><title>Malformed Feed</title><item><title>Episode 1</title>
+"""
             self._send_response(200, malformed_xml.encode("utf-8"), "application/xml")
         # RSS feed with fallback scenario (no transcript URL, should use Whisper)
         elif path == "/feed-fallback.xml":
@@ -310,7 +303,11 @@ class TestPipelineErrorRecoveryE2E:
         assert len(transcript_files) == 0, "Should not create files for empty feed"
 
     def test_pipeline_handles_malformed_rss_feed(self):
-        """Test that pipeline handles malformed RSS feed gracefully."""
+        """Test that pipeline handles malformed RSS feed gracefully.
+
+        Feed body is not well-formed XML (unclosed tags). Parser returns no items or
+        the pipeline may raise when the feed is unusable.
+        """
         feed_url = self.http_server.url("/feed-malformed.xml")
 
         cfg = create_test_config(
@@ -319,15 +316,10 @@ class TestPipelineErrorRecoveryE2E:
             max_episodes=1,
         )
 
-        # Pipeline may raise ValueError when RSS parsing fails, or may handle it gracefully
-        # XML parser might be lenient, so we check that it either raises or
-        # completes with 0 episodes
         try:
             count, summary = workflow.run_pipeline(cfg)
-            # If it completes, should process 0 episodes (malformed feed)
             assert count == 0, "Should process 0 episodes from malformed feed"
         except ValueError:
-            # ValueError is also acceptable for malformed RSS
             pass
 
     def test_pipeline_fallback_to_whisper_when_no_transcript_url(self):

@@ -19,15 +19,15 @@ def _load_run_acceptance_module():
 class TestAcceptanceRunnerDiscovery(unittest.TestCase):
     """``--from-fast-stems`` helpers (CI fixture matrix)."""
 
-    def test_load_fast_config_stems_includes_ml_dev(self):
+    def test_load_fast_config_stems_includes_ml_fixture(self):
         mod = _load_run_acceptance_module()
         stems = mod.load_fast_config_stems()
-        self.assertIn("acceptance_planet_money_ml_dev", stems)
+        self.assertIn("sample_acceptance_e2e_fixture_multi_ml", stems)
 
-    def test_load_fast_config_stems_includes_multi_feed(self):
+    def test_load_fast_config_stems_includes_multi_feed_fixture(self):
         mod = _load_run_acceptance_module()
         stems = mod.load_fast_config_stems()
-        self.assertIn("acceptance_multi_feed_planet_money_journal_openai", stems)
+        self.assertIn("sample_acceptance_e2e_fixture_multi_openai", stems)
 
     def test_resolve_yaml_paths_finds_tracked_sample_under_acceptance_dir(self):
         mod = _load_run_acceptance_module()

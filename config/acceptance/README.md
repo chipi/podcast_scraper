@@ -140,9 +140,12 @@ For real NPR + WSJ + OpenAI, set **`USE_FIXTURES=0`** and export **`OPENAI_API_K
 one stem per line (filename without `.yaml`). Use **`FAST_ONLY=1`** together
 with a **`CONFIGS`** glob so the runner filters to those stems only.
 
-**`FAST_CONFIGS.txt`** is committed next to this README. If it is missing or empty, the
-runner may read optional local **`config/ci/acceptance_fast_stems.txt`** (gitignored;
-see **`config/ci/README.md`**). Keep any local CI copy aligned when you change the fast matrix.
+**`FAST_CONFIGS.txt`** is committed next to this README. Stems must match **tracked**
+`config/acceptance/<stem>.yaml` files (the repo ships **`sample_acceptance_e2e_fixture_*`** only;
+private `acceptance_*` presets are usually gitignored — see **Layout** above). If this file is
+missing or empty, the runner may read optional local **`config/ci/acceptance_fast_stems.txt`**
+(gitignored; see **`config/ci/README.md`**). Keep any local CI copy aligned when you change the
+fast matrix.
 
 **Full fast matrix + E2E fixtures** (offline RSS and mock APIs for every fast
 preset, including multi-feed — see **`scripts/acceptance/README.md`**):
@@ -159,7 +162,10 @@ make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 \
 ```
 
 On **main / release** branches, CI runs `make test-acceptance-fixtures-fast`
-(job `test-acceptance-fixtures` in `.github/workflows/python-app.yml`).
+(job `test-acceptance-fixtures` in `.github/workflows/python-app.yml`). Those runs use
+**`USE_FIXTURES=1`**: OpenAI / Anthropic / Mistral / DeepSeek (and similar) traffic goes to the
+**E2E fixture HTTP server** that simulates APIs — not to real billed endpoints, and CI does not
+need provider API keys for that job.
 
 ## Running acceptance tests
 
