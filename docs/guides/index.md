@@ -16,7 +16,7 @@ Practical guides for using and developing Podcast Scraper.
 | ------- | ------------- |
 | [Development Guide](DEVELOPMENT_GUIDE.md) | Development environment setup, workflow, and [GI/KG viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) — `make serve` / `serve-api` / `serve-ui`, `make test-ui-e2e` |
 | [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/`, env files, Makefile targets for the viewer |
-| [Server Guide](SERVER_GUIDE.md) | FastAPI server: architecture, REST API, routes, testing, platform evolution |
+| [Server Guide](SERVER_GUIDE.md) | FastAPI: `/api/*` (artifacts, search, explore, Corpus Library, index rebuild), OpenAPI `/docs`, static SPA, tests under `tests/integration/server/` |
 | [Pipeline and Workflow Guide](PIPELINE_AND_WORKFLOW.md) | Pipeline flow, module roles, quirks, run tracking |
 | [Git Worktree Guide](GIT_WORKTREE_GUIDE.md) | Git worktree-based development workflow |
 | [Dependencies Guide](DEPENDENCIES_GUIDE.md) | Third-party dependencies and rationale |
@@ -55,6 +55,17 @@ Practical guides for using and developing Podcast Scraper.
 | [Preprocessing Profiles](PREPROCESSING_PROFILES_GUIDE.md) | Preprocessing profiles (`cleaning_v4`, `cleaning_hybrid_after_pattern`, …) for transcript cleaning and hybrid_ml MAP input (RFC-042 / Issue #419) |
 | [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) | Running podcast_scraper as a service-oriented Docker container |
 | [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) | LLM-only vs ML-enabled Docker image variants |
+
+## Evaluation and baselines
+
+| Guide | Description |
+| ------- | ----------- |
+| [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, and quality evaluation (RFC-041) |
+| [Evaluation Reports](eval-reports/index.md) | Quality sweeps: ROUGE, embeddings, report library |
+| [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles: RSS, CPU%, wall time per stage (RFC-064) |
+| [Performance Reports](performance-reports/index.md) | Published profile snapshots (tables, caveats) |
+| [Experiment metrics (eval runs)](METRICS_GUIDE.md) | Metrics from eval runs and reporting |
+| [Promotion Workflow](PROMOTION_WORKFLOW.md) | Promotion and release workflow |
 
 ## AI Coding
 

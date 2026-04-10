@@ -1,26 +1,21 @@
 <script setup lang="ts">
-import {
-  BarController,
-  BarElement,
-  CategoryScale,
-  Chart,
-  Legend,
-  LinearScale,
-  Tooltip,
-} from 'chart.js'
+import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { graphNodeLegendLabel } from '../../utils/colors'
 import {
   chartExternalTooltipHandler,
   removeChartExternalTooltip,
 } from '../../utils/chartExternalTooltip'
-
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend)
+import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
   title: string
   /** Raw type keys (e.g. Episode, Insight) or visual groups. */
   counts: Record<string, number>
+  /** Map raw key → axis label (e.g. manifest `stable_feed_dir` → show title). */
+  labelMap?: Record<string, string>
+  /** One-line chart explanation under the title. */
+  helpText?: string
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -37,10 +32,15 @@ const chartHeightPx = computed(() =>
 )
 
 function labelFor(key: string): string {
+  const mapped = props.labelMap?.[key]?.trim()
+  if (mapped) {
+    return mapped.length > 56 ? `${mapped.slice(0, 55)}…` : mapped
+  }
   return graphNodeLegendLabel(key)
 }
 
 function buildChart(): void {
+  ensureChartJsRegistered()
   const el = canvasRef.value
   if (!el) return
   chart?.destroy()
@@ -79,8 +79,21 @@ function buildChart(): void {
           callbacks: {
             title: (items) => {
               const i = items[0]?.dataIndex
-              if (i == null) return ''
-              return entries[i]?.[0] ?? ''
+              if (i == null) {
+                return ''
+              }
+              const raw = entries[i]?.[0] ?? ''
+              return labelFor(raw)
+            },
+            label: (item) => {
+              const i = item.dataIndex
+              const raw = entries[i]?.[0] ?? ''
+              const v = item.parsed.x
+              const lines = [`Count: ${typeof v === 'number' ? v.toLocaleString() : String(v)}`]
+              if (props.labelMap?.[raw] && raw && props.labelMap[raw] !== raw) {
+                lines.push(`Feed id / dir: ${raw}`)
+              }
+              return lines
             },
           },
         },
@@ -105,7 +118,7 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.counts, props.title] as const,
+  () => [props.counts, props.title, props.labelMap, props.helpText] as const,
   () => {
     buildChart()
   },
@@ -123,9 +136,15 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="rounded border border-border bg-surface p-3 text-surface-foreground">
-    <h3 class="mb-2 text-sm font-semibold">
+    <h3 class="mb-1 text-sm font-semibold">
       {{ title }}
     </h3>
+    <p
+      v-if="helpText"
+      class="mb-2 text-[11px] leading-snug text-muted"
+    >
+      {{ helpText }}
+    </p>
     <p
       v-if="sortedEntries.length === 0"
       class="text-xs text-muted"

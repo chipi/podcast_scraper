@@ -203,6 +203,27 @@ export function findRawNodeInArtifact(
   return null
 }
 
+function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
+  const allowedEdgeTypes: Record<string, boolean> = {}
+  let rawNodes = Array.isArray(art.data.nodes) ? art.data.nodes.slice() : []
+  let rawEdges = Array.isArray(art.data.edges) ? art.data.edges.map((e) => ({ ...e })) : []
+  if (art.kind === 'gi' || art.kind === 'both') {
+    const aug = ensureEpisodeToInsightEdges(rawNodes, rawEdges)
+    rawNodes = aug.nodes
+    rawEdges = aug.edges
+  }
+  const seenE = new Set<string>()
+  for (const e of rawEdges) {
+    if (!e || typeof e !== 'object') continue
+    const k = e.type != null && String(e.type).trim() !== '' ? String(e.type) : '(unknown)'
+    if (!seenE.has(k)) {
+      seenE.add(k)
+      allowedEdgeTypes[k] = true
+    }
+  }
+  return allowedEdgeTypes
+}
+
 export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState | null {
   if (!art) return null
   const allowedTypes: Record<string, boolean> = {}
@@ -218,8 +239,8 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
   }
   return {
     allowedTypes,
+    allowedEdgeTypes: collectEdgeTypeKeys(art),
     hideUngroundedInsights: false,
-    legendSoloVisual: null,
     showGiLayer: true,
     showKgLayer: true,
   }
@@ -241,16 +262,18 @@ export function filtersActive(
     return true
   }
   if (
-    typeof state.legendSoloVisual === 'string' &&
-    state.legendSoloVisual.length > 0
-  ) {
-    return true
-  }
-  if (
     fullArt.kind === 'both' &&
     (state.showGiLayer === false || state.showKgLayer === false)
   ) {
     return true
+  }
+  const aet = state.allowedEdgeTypes
+  if (aet && typeof aet === 'object') {
+    for (const k of Object.keys(aet)) {
+      if (aet[k] === false) {
+        return true
+      }
+    }
   }
   return false
 }
@@ -294,16 +317,18 @@ export function applyGraphFilters(
     const t = n.type || '?'
     return allowedTypes[t] !== false
   })
-  const soloV = state.legendSoloVisual
-  if (typeof soloV === 'string' && soloV.length > 0) {
-    nodes = nodes.filter((n) => visualGroupForNode(n) === soloV)
-  }
   const ids = new Set<string>()
   for (const n of nodes) {
     if (n.id != null) ids.add(String(n.id))
   }
+  const aet = state.allowedEdgeTypes || {}
   const edges = (fullArt.data.edges || []).filter((e) => {
-    return ids.has(String(e.from)) && ids.has(String(e.to))
+    if (!e || !ids.has(String(e.from)) || !ids.has(String(e.to))) {
+      return false
+    }
+    const et =
+      e.type != null && String(e.type).trim() !== '' ? String(e.type) : '(unknown)'
+    return aet[et] !== false
   })
   const nodeTypes: Record<string, number> = {}
   for (const n of nodes) {
@@ -418,6 +443,7 @@ export function toCytoElements(art: ParsedArtifact): import('cytoscape').Element
         source: e.from,
         target: e.to,
         label: e.label,
+        edgeType: e.label || '(unknown)',
       },
     }))
   return [...nodes, ...edges]

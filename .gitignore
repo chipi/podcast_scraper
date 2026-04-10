@@ -10,6 +10,8 @@ podcast_scraper.egg-info/
 
 # Test outputs
 .test_outputs/
+# RFC-064 profile capture runs (metrics + artifacts; frozen YAML goes under data/profiles/)
+.tmp/
 # CI metrics bundles downloaded for local validation (see scripts/dashboard/fetch_ci_metrics_artifacts.sh)
 artifacts/ci-metrics-runs/
 artifacts/nightly-metrics-runs/

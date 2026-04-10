@@ -51,6 +51,16 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     }
   }
 
+  /**
+   * Load GI/KG artifacts by corpus-relative paths (e.g. from Corpus Library).
+   * Replaces current selection and fetches from the API.
+   */
+  async function loadRelativeArtifacts(relativePaths: string[]): Promise<void> {
+    const cleaned = relativePaths.map((p) => p.trim()).filter(Boolean)
+    selectedRelPaths.value = cleaned
+    await loadSelected()
+  }
+
   async function loadSelected(): Promise<void> {
     loadError.value = null
     parsedList.value = []
@@ -114,6 +124,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     kgArts,
     displayArtifact,
     loadSelected,
+    loadRelativeArtifacts,
     loadFromLocalFiles,
     setCorpusPath,
     toggleSelection,

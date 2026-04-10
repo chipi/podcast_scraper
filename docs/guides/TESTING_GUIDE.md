@@ -66,13 +66,21 @@ and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 `make test-ui` / `make test-ui-e2e` run from the root. See
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
+**E2E surface map:** [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) lists
+viewer surfaces, entry paths, and stable selectors. **Whenever you change viewer UX** (labels,
+layout, routes, tokens, a11y names, or E2E flows), update artifacts in this order: **(1)** the
+surface map, **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**,
+**(3)** [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) if the visual/experience contract changed.
+Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
+([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)).
+
 #### How it fits next to pytest
 
 | Concern | Tool | Location |
 | -------- | ---- | -------- |
 | Viewer **TS utility logic** (parsing, merge, metrics, formatting) | **Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` |
-| Viewer **HTTP API** (`/api/*`) — mocked internals | pytest **unit** tests (FastAPI `TestClient`) | `tests/unit/podcast_scraper/server/test_viewer_*.py` |
-| Viewer **HTTP API** — wired app + real files | pytest **integration** | `tests/integration/test_server_api.py` |
+| Viewer **HTTP API** (`/api/*`) — mocked internals | pytest **unit** tests (FastAPI `TestClient`) | `tests/unit/podcast_scraper/server/` (`test_viewer_*.py`, catalog/index helpers) |
+| Viewer **HTTP API** — wired app + real files | pytest **integration** | `tests/integration/server/` (`test_server_api.py`, `test_viewer_corpus_library.py`, `test_index_rebuild.py`, …) |
 | Viewer **UI** (render, click, keyboard, graph container) | **Playwright** | `web/gi-kg-viewer/e2e/*.spec.ts` |
 | Full **pipeline** / CLI / providers | pytest **E2E** | `tests/e2e/` |
 
@@ -95,8 +103,8 @@ for Playwright, and runs `npm run test:e2e`. Playwright’s **`webServer`** star
 **Vite**; many specs **mock** `fetch` or rely on **offline** fixtures so the job stays fast.
 It does **not** prove **`python -m podcast_scraper.cli serve`** (FastAPI + mounted **`dist/`** +
 live **`/api/*`** on corpus files). Use **`serve`** / **`make serve`** for manual smoke of the
-combined server, and **`tests/integration/test_server_api.py`** for pytest coverage of a wired
-`create_app` and temp corpus.
+combined server, and **`tests/integration/server/`** (e.g. **`test_server_api.py`**) for pytest
+coverage of a wired `create_app` and temp corpus.
 
 For interactive debugging: `cd web/gi-kg-viewer && npx playwright test --ui` (see
 [viewer README](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)).

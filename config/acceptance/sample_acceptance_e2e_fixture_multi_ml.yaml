@@ -22,7 +22,10 @@ transcription_provider: whisper
 speaker_detector_provider: spacy
 summary_provider: transformers
 
-whisper_model: base.en
+# tiny.en: faster local transcribe when fixtures miss transcript cache. On CI, wall time is
+# often dominated by BART/LED summarization + GIL + cross-feed FAISS (see main job logs), so
+# workflow uses TIMEOUT=1500 for this matrix step.
+whisper_model: tiny.en
 whisper_device: cpu
 summary_model: bart-small
 summary_reduce_model: long-fast

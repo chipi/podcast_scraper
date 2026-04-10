@@ -18,6 +18,7 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "cytoscape": "^3.33.1",
+    "cytoscape-navigator": "^2.0.2",
     "pinia": "^3.0.4",
     "vue": "^3.5.30"
   },

@@ -192,7 +192,7 @@ tests/integration/
 │   └── ollama/             # Ollama model-specific tests
 ├── workflow/                # Orchestration, stages, resume, parallelism, metadata
 ├── gi/                      # GI artifacts, KG artifacts, evidence stack
-├── server/                  # FastAPI app, viewer API
+├── server/                  # FastAPI viewer: wired app, corpus library, index rebuild/stats
 ├── search/                  # FAISS indexing, corpus search
 ├── rss/                     # RSS parsing, HTTP fetching
 ├── eval/                    # Evaluation framework

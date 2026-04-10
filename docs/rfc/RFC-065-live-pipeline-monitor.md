@@ -19,6 +19,7 @@ Podcast Scraper Team
 ## Related RFCs
 
 - `docs/rfc/RFC-064-performance-profiling-release-freeze.md` — Parent RFC; frozen profiles and release freeze framework
+- `docs/rfc/RFC-066-run-compare-performance-tab.md` — Sibling RFC; Streamlit performance tab consuming frozen profiles
 - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` — Quality benchmarking framework
 
 ## Related ADRs
@@ -31,7 +32,7 @@ Podcast Scraper Team
 
 This RFC proposes a **live pipeline monitoring dashboard** for `podcast_scraper` — a `--monitor` CLI flag that spawns a real-time resource dashboard alongside a running pipeline. The developer sees CPU%, RSS, active pipeline stage, and elapsed time updating in real time without opening a second terminal manually.
 
-This is macOS-specific developer tooling that complements the frozen profile system in RFC-064. Where RFC-064 captures a static snapshot at release time, this RFC provides a live view during development and debugging.
+This is developer tooling that complements the frozen profile system in RFC-064. Where RFC-064 captures a static snapshot at release time, this RFC provides a live view during development and debugging. The core dashboard (psutil + rich) is cross-platform; the terminal split UX (tmux pane split, Terminal.app via osascript) is macOS-focused.
 
 Split from RFC-064 to keep the release freeze framework focused on its core deliverable (frozen profiles + diff tool).
 
@@ -51,13 +52,13 @@ The following capabilities were outlined in the original RFC-064 draft and are t
 
 ### Dependencies
 
+`psutil` and `rich` are already project dependencies (core and dev). The only new packages are for optional flamegraph capture:
+
 ```toml
 [project.optional-dependencies]
 monitor = [
-    "psutil>=5.9.0",
-    "rich>=13.0.0",
-    "py-spy>=0.3.14",
-    "memray>=1.5.0",
+    "py-spy>=0.3.14",      # CPU flamegraphs (Rust binary, install separately)
+    "memray>=1.5.0",        # Memory flamegraphs (optional, deep-dive only)
 ]
 ```
 

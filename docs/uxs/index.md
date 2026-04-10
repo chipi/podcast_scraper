@@ -53,6 +53,14 @@ move into the RFC.
 
 ## Conventions
 
+- **Browser E2E + UXS (GI/KG viewer):** Anyone changing **viewer UX** (including AI agents) should
+  treat **docs + tests** as part of the same change, in order:
+  **(1)** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  (Playwright contract: `getByRole` strings, hooks, entry flows),
+  **(2)** `web/gi-kg-viewer/e2e/*.spec.ts` and helpers — run **`make test-ui-e2e`**,
+  **(3)** [UXS-001](UXS-001-gi-kg-viewer.md) when **tokens, layout density, or stated experience rules**
+  change (not only when tests fail). See [E2E Testing Guide — workflow](../guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
+  and [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509).
 - **IDs:** `UXS-NNN` with three digits (see table below for the next number).
 - **Files:** `docs/uxs/UXS-NNN-kebab-case-slug.md`
 - **Length:** Keep specs short (about two to four printed pages). Split or move narrative
@@ -64,7 +72,7 @@ Authoritative specs; current implementations should conform (see [status lifecyc
 
 | UXS | Title | Related PRDs / RFCs | Description |
 | --- | ----- | ------------------- | ----------- |
-| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | PRD-003, PRD-017, PRD-019, PRD-021; [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | Visual and token contract for the GI/KG viewer (Vue v2 + Tailwind); implemented per RFC-062 |
+| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | PRD-003, PRD-017, PRD-019, PRD-021, PRD-022, PRD-023; [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md), [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) | Tokens + **Library** + **Digest** tab (PRD-023 / RFC-068); digest discovery on **Digest** only |
 
 ## Draft UX specifications
 

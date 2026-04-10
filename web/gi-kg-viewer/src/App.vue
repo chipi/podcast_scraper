@@ -1,23 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
+import DashboardOverviewSection from './components/dashboard/DashboardOverviewSection.vue'
 import DashboardView from './components/dashboard/DashboardView.vue'
 import GraphCanvas from './components/graph/GraphCanvas.vue'
 import ExplorePanel from './components/explore/ExplorePanel.vue'
 import SearchPanel from './components/search/SearchPanel.vue'
-import GraphFilters from './components/graph/GraphFilters.vue'
-import GraphLegend from './components/graph/GraphLegend.vue'
 import HelpTip from './components/shared/HelpTip.vue'
-import CollapsibleSection from './components/shared/CollapsibleSection.vue'
+import DigestView from './components/digest/DigestView.vue'
+import LibraryView from './components/library/LibraryView.vue'
 import { useArtifactsStore } from './stores/artifacts'
+import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
 import { useThemeStore } from './stores/theme'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+const search = useSearchStore()
 const theme = useThemeStore()
 
-const mainTab = ref<'graph' | 'dashboard'>('graph')
+const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
 const localFileInput = ref<HTMLInputElement | null>(null)
 const searchPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{ clearInteractionState: () => void } | null>(null)
@@ -25,26 +27,8 @@ const isGraphTab = computed(() => mainTab.value === 'graph')
 
 const leftOpen = ref(true)
 const leftTab = ref<'corpus' | 'api'>('corpus')
-const topOpen = ref(true)
 const rightOpen = ref(true)
 const rightTab = ref<'search' | 'explore'>('search')
-
-const filtersRef = ref<InstanceType<typeof GraphFilters> | null>(null)
-const legendRef = ref<InstanceType<typeof GraphLegend> | null>(null)
-
-const topSummary = computed(() => {
-  const parts: string[] = []
-  if (filtersRef.value?.filterSummary) parts.push(filtersRef.value.filterSummary)
-  if (legendRef.value?.legendSummary) parts.push(legendRef.value.legendSummary)
-  return parts.join(' · ')
-})
-
-const leftSummary = computed(() => {
-  const parts: string[] = []
-  if (artifacts.displayArtifact) parts.push(`${artifacts.displayArtifact.nodes} nodes`)
-  parts.push(shell.healthStatus ? 'API ok' : 'API offline')
-  return parts.join(' · ')
-})
 
 useViewerKeyboard({
   focusSearch: () => {
@@ -62,10 +46,20 @@ function triggerLocalFilePick(): void {
   localFileInput.value?.click()
 }
 
-function onLocalFilesChange(ev: Event): void {
+async function onLocalFilesChange(ev: Event): Promise<void> {
   const el = ev.target as HTMLInputElement
-  void artifacts.loadFromLocalFiles(el.files)
+  await artifacts.loadFromLocalFiles(el.files)
   el.value = ''
+  if (artifacts.displayArtifact) {
+    mainTab.value = 'graph'
+  }
+}
+
+async function onLoadIntoGraphClick(): Promise<void> {
+  await artifacts.loadSelected()
+  if (artifacts.displayArtifact) {
+    mainTab.value = 'graph'
+  }
 }
 
 onMounted(() => {
@@ -79,6 +73,62 @@ watch(
   },
   { immediate: true },
 )
+
+/** Bumps when corpus path or health changes; stale async sync steps bail out. */
+let corpusGraphSyncGen = 0
+
+/**
+ * When the API is healthy and a corpus path is set, list GI/KG via ``GET /api/artifacts``
+ * and load all of them into the merged graph (same end state as **List** → **All** → **Load into graph**).
+ * Offline / failed health: skip so file-picker loads stay intact.
+ */
+async function syncMergedGraphFromCorpusApi(): Promise<void> {
+  const gen = ++corpusGraphSyncGen
+  artifacts.setCorpusPath(shell.corpusPath)
+  const root = shell.corpusPath.trim()
+  if (!root) {
+    artifacts.clearSelection()
+    return
+  }
+  if (!shell.healthStatus) {
+    return
+  }
+  await shell.fetchArtifactList()
+  if (gen !== corpusGraphSyncGen) {
+    return
+  }
+  const giKgRelPaths = shell.artifactList
+    .filter((a) => a.kind === 'gi' || a.kind === 'kg')
+    .map((a) => a.relative_path)
+  if (giKgRelPaths.length === 0) {
+    artifacts.clearSelection()
+    return
+  }
+  artifacts.selectAllListed(giKgRelPaths)
+  await artifacts.loadSelected()
+}
+
+watch(
+  () => [shell.corpusPath, shell.healthStatus] as const,
+  () => {
+    void syncMergedGraphFromCorpusApi()
+  },
+  { immediate: true },
+)
+
+function onLibraryFocusSearch(payload: { feed: string; query: string }): void {
+  rightOpen.value = true
+  rightTab.value = 'search'
+  search.applyLibrarySearchHandoff(payload.feed, payload.query)
+  void nextTick(() => {
+    searchPanelRef.value?.focusQuery()
+  })
+}
+
+function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
+  shell.setPendingLibraryEpisode(payload.metadata_relative_path)
+  mainTab.value = 'library'
+}
 </script>
 
 <template>
@@ -86,7 +136,7 @@ watch(
     <header class="shrink-0 border-b border-border bg-surface px-4 py-2 shadow-sm">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-lg font-semibold tracking-tight text-surface-foreground">
-          GI / KG Viewer
+          Podcast Intelligence Platform
           <span class="ml-1 text-xs font-normal text-muted">v2</span>
         </h1>
         <div class="flex items-center gap-3">
@@ -94,6 +144,30 @@ watch(
             class="flex gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
             aria-label="Main views"
           >
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'digest'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              @click="mainTab = 'digest'"
+            >
+              Digest
+            </button>
+            <button
+              type="button"
+              class="rounded px-3 py-1"
+              :class="
+                mainTab === 'library'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-elevated-foreground hover:bg-overlay'
+              "
+              @click="mainTab = 'library'"
+            >
+              Library
+            </button>
             <button
               type="button"
               class="rounded px-3 py-1"
@@ -218,7 +292,7 @@ watch(
             style="writing-mode: vertical-lr"
             @click="leftOpen = true; leftTab = 'api'"
           >
-            API
+            API+Data
           </button>
         </div>
         <div v-show="leftOpen" class="flex flex-col" style="max-height: calc(100vh - 6rem)">
@@ -248,7 +322,7 @@ watch(
               "
               @click="leftTab = 'api'"
             >
-              API
+              API · Data
             </button>
           </nav>
           <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
@@ -265,7 +339,11 @@ watch(
                   <code class="text-[10px]">metadata/</code>
                   with your
                   <code class="text-[10px]">.gi.json</code> /
-                  <code class="text-[10px]">.kg.json</code>).
+                  <code class="text-[10px]">.kg.json</code>). When the API is healthy, the viewer
+                  lists artifacts and loads <strong>all</strong> GI/KG files into the merged graph
+                  automatically (same as <strong>List</strong> → <strong>All</strong> →
+                  <strong>Load into graph</strong>), like Digest/Library catalog refresh. Large
+                  corpora may take a while.
                 </HelpTip>
               </div>
               <input
@@ -307,7 +385,7 @@ watch(
                   v-if="shell.artifactList.length"
                   class="mt-1.5 space-y-1"
                 >
-                <div class="flex gap-1">
+                <div class="flex flex-wrap items-center gap-1">
                   <button
                     type="button"
                     class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
@@ -321,6 +399,14 @@ watch(
                     @click="artifacts.deselectAllListed()"
                   >
                     None
+                  </button>
+                  <button
+                    type="button"
+                    class="rounded border border-border px-2 py-0.5 text-[10px] font-medium hover:bg-overlay disabled:opacity-40"
+                    :disabled="artifacts.selectedRelPaths.length === 0 || artifacts.loading"
+                    @click="onLoadIntoGraphClick()"
+                  >
+                    {{ artifacts.loading ? 'Loading…' : 'Load into graph' }}
                   </button>
                 </div>
                 <div class="overflow-y-auto rounded border border-border bg-elevated p-1 text-[11px]">
@@ -352,14 +438,6 @@ watch(
               <p v-if="shell.artifactsError" class="mt-1 text-[10px] text-danger">
                 {{ shell.artifactsError }}
               </p>
-              <button
-                type="button"
-                class="mt-1.5 w-full rounded border border-border px-2 py-1 text-[10px] font-medium hover:bg-overlay disabled:opacity-40"
-                :disabled="artifacts.selectedRelPaths.length === 0 || artifacts.loading"
-                @click="artifacts.loadSelected()"
-              >
-                {{ artifacts.loading ? 'Loading…' : 'Load into graph' }}
-              </button>
               <p v-if="artifacts.loadError" class="mt-1 text-[10px] text-danger">
                 {{ artifacts.loadError }}
               </p>
@@ -368,30 +446,159 @@ watch(
               </p>
             </section>
 
-            <!-- API tab -->
-            <section v-show="leftTab === 'api'">
-              <h2 class="mb-1.5 text-xs font-medium text-gi">
-                API health
+            <!-- API · Data tab -->
+            <section
+              v-show="leftTab === 'api'"
+              class="space-y-2"
+            >
+              <h2 class="text-xs font-medium text-surface-foreground">
+                API
               </h2>
-              <p v-if="shell.healthStatus" class="text-[10px] text-success">
-                {{ shell.healthStatus }}
+              <p class="text-[10px] leading-snug text-muted">
+                Capability flags from
+                <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/health</code>
+                (graph, search, index routes, catalog). FAISS availability is separate — see Data → Vector index.
               </p>
-              <p v-else-if="shell.healthError" class="text-[10px] text-danger">
-                {{ shell.healthError }}
-              </p>
-              <p v-else class="text-[10px] text-muted">
-                Checking…
-              </p>
-              <button
-                type="button"
-                class="mt-1 rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-                @click="shell.fetchHealth()"
-              >
-                Retry
-              </button>
+              <div class="rounded border border-border bg-elevated p-2 text-[10px]">
+                <dl class="space-y-1">
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Health
+                    </dt>
+                    <dd
+                      v-if="shell.healthStatus"
+                      class="font-medium text-success"
+                    >
+                      {{ shell.healthStatusDisplay }}
+                    </dd>
+                    <dd
+                      v-else-if="shell.healthError"
+                      class="font-medium text-danger"
+                    >
+                      {{ shell.healthError }}
+                    </dd>
+                    <dd
+                      v-else
+                      class="text-muted"
+                    >
+                      Checking…
+                    </dd>
+                  </div>
+                </dl>
+                <dl
+                  v-if="shell.healthStatus"
+                  class="mt-1.5 space-y-1 border-t border-border/60 pt-1.5"
+                >
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Artifacts (graph)
+                    </dt>
+                    <dd
+                      :class="
+                        shell.artifactsApiAvailable !== false ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ shell.artifactsApiAvailable !== false ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Semantic search
+                    </dt>
+                    <dd
+                      :class="shell.searchApiAvailable !== false ? 'text-success' : 'text-danger'"
+                    >
+                      {{ shell.searchApiAvailable !== false ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Graph explore
+                    </dt>
+                    <dd
+                      :class="shell.exploreApiAvailable !== false ? 'text-success' : 'text-danger'"
+                    >
+                      {{ shell.exploreApiAvailable !== false ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Index routes
+                    </dt>
+                    <dd
+                      :class="
+                        shell.indexRoutesApiAvailable !== false ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ shell.indexRoutesApiAvailable !== false ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Corpus metrics
+                    </dt>
+                    <dd
+                      :class="
+                        shell.corpusMetricsApiAvailable !== false ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ shell.corpusMetricsApiAvailable !== false ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Library API
+                    </dt>
+                    <dd
+                      :class="
+                        shell.corpusLibraryApiAvailable ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ shell.corpusLibraryApiAvailable ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Digest API
+                    </dt>
+                    <dd
+                      :class="
+                        shell.corpusDigestApiAvailable ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ shell.corpusDigestApiAvailable ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-muted">
+                      Binary (covers)
+                    </dt>
+                    <dd
+                      :class="
+                        shell.corpusBinaryApiAvailable !== false ? 'text-success' : 'text-danger'
+                      "
+                    >
+                      {{ shell.corpusBinaryApiAvailable !== false ? 'Yes' : 'No' }}
+                    </dd>
+                  </div>
+                </dl>
+                <p
+                  v-if="shell.healthStatus && !shell.corpusLibraryApiAvailable"
+                  class="mt-1.5 text-[10px] leading-snug text-danger"
+                >
+                  Corpus Library API not advertised — upgrade/restart the Python server (Library tab).
+                </p>
+                <button
+                  type="button"
+                  class="mt-1.5 rounded border border-border px-2 py-0.5 hover:bg-overlay"
+                  @click="shell.fetchHealth()"
+                >
+                  Retry health
+                </button>
+              </div>
               <div
                 v-if="shell.healthError"
-                class="mt-2 rounded border border-border bg-overlay p-1.5 text-[10px]"
+                class="rounded border border-border bg-overlay p-1.5 text-[10px]"
               >
                 <p class="mb-1 text-muted">
                   Load files directly (no API):
@@ -412,6 +619,7 @@ watch(
                   Choose files…
                 </button>
               </div>
+              <DashboardOverviewSection />
             </section>
           </div>
         </div>
@@ -419,47 +627,47 @@ watch(
 
       <!-- CENTER -->
       <div class="flex min-w-0 flex-1 flex-col">
-        <!-- TOP: Filters + Node types (collapsible) -->
-        <div
-          v-if="artifacts.displayArtifact && mainTab === 'graph'"
-          class="shrink-0 border-b border-border"
-        >
-          <CollapsibleSection
-            title="Filters & sources"
-            :summary="topSummary"
-            :default-open="true"
-          >
-            <div class="flex flex-wrap gap-4">
-              <div class="min-w-0 flex-1">
-                <GraphFilters ref="filtersRef" />
-              </div>
-              <div class="w-full max-w-[50%] shrink-0 border-l border-border pl-4 xl:w-auto">
-                <GraphLegend ref="legendRef" />
-              </div>
-            </div>
-          </CollapsibleSection>
-        </div>
-
         <!-- Graph / Dashboard -->
         <div class="min-h-0 flex-1">
-          <template v-if="mainTab === 'dashboard'">
-            <div class="overflow-y-auto p-3" style="max-height: calc(100vh - 5rem)">
-              <DashboardView />
-            </div>
-          </template>
-          <template v-else>
+          <DigestView
+            v-if="mainTab === 'digest'"
+            class="h-full"
+            @switch-main-tab="mainTab = $event"
+            @focus-search="onLibraryFocusSearch"
+            @open-library-episode="onDigestOpenLibraryEpisode"
+          />
+          <keep-alive>
+            <LibraryView
+              v-if="mainTab === 'library'"
+              class="h-full"
+              @switch-main-tab="mainTab = $event"
+              @focus-search="onLibraryFocusSearch"
+            />
+          </keep-alive>
+          <div
+            v-if="mainTab === 'dashboard'"
+            class="h-full overflow-y-auto p-3"
+            style="max-height: calc(100vh - 5rem)"
+          >
+            <DashboardView />
+          </div>
+          <keep-alive>
             <GraphCanvas
-              v-if="artifacts.displayArtifact"
+              v-if="mainTab === 'graph' && artifacts.displayArtifact"
               ref="graphCanvasRef"
               class="h-full"
             />
-            <div
-              v-else
-              class="flex h-full min-h-[280px] items-center justify-center rounded border border-dashed border-border bg-surface p-8 text-sm text-muted"
-            >
-              List artifacts, select files, then "Load into graph".
-            </div>
-          </template>
+          </keep-alive>
+          <div
+            v-if="mainTab === 'graph' && !artifacts.displayArtifact"
+            class="flex h-full min-h-[280px] items-center justify-center rounded border border-dashed border-border bg-surface p-8 text-sm text-muted"
+          >
+            <span class="max-w-md text-center">
+              With a healthy API, set <strong>Corpus path</strong> to auto-load all GI/KG; or use
+              <strong>List</strong> and <strong>Load into graph</strong>. Offline: <strong>Choose
+              files…</strong> on <strong>API · Data</strong>.
+            </span>
+          </div>
         </div>
       </div>
 
@@ -474,7 +682,7 @@ watch(
           :title="rightOpen ? 'Collapse right panel' : 'Expand right panel'"
           @click="rightOpen = !rightOpen"
         >
-          <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': rightOpen }" viewBox="0 0 12 12" fill="currentColor">
+          <svg class="h-3 w-3 transition-transform" :class="{ 'rotate-180': !rightOpen }" viewBox="0 0 12 12" fill="currentColor">
             <path d="M4 2l4 4-4 4z" />
           </svg>
         </button>

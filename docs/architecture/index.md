@@ -12,6 +12,8 @@ vision for where the system is heading.
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | Quality constraints — performance, security, reliability, observability, maintainability, scalability |
 | [Testing Strategy](TESTING_STRATEGY.md) | Test pyramid, patterns, decision criteria, CI integration |
 
+**HTTP / viewer:** Not a separate architecture doc — the FastAPI surface, `/api/*`, and OpenAPI **`/docs`** are specified in the [Server Guide](../guides/SERVER_GUIDE.md) (see also [Architecture — Ways to run](ARCHITECTURE.md#ways-to-run-and-deploy)).
+
 ## Target state
 
 | Document | Purpose |

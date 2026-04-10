@@ -1,0 +1,59 @@
+release: v2.6-wip-ollama-llama32
+date: '2026-04-10T09:28:54Z'
+dataset_id: e2e_podcast1_mtb_n2
+episodes_processed: 2
+environment:
+  hostname: Markos-MacBook-Pro.local
+  cpu: arm
+  cpu_cores_physical: 14
+  cpu_cores_logical: 14
+  ram_total_gb: 48.0
+  os: Darwin 24.6.0
+  python: 3.11.8
+  package_version: 2.4.0
+  git_sha: 39c4b70
+  git_dirty: true
+  device: cpu
+  precision: fp32
+  library_versions:
+    torch: 2.9.1
+    transformers: 4.57.6
+    whisper: '20250625'
+    spacy: 3.7.5
+    numpy: 1.26.4
+    accelerate: 1.12.0
+stages:
+  rss_feed_fetch:
+    wall_time_s: 0.01
+    peak_rss_mb: 370
+    avg_cpu_pct: 0.0
+  speaker_detection:
+    wall_time_s: 3.6
+    peak_rss_mb: 188
+    avg_cpu_pct: 29.1
+  transcript_cleaning:
+    wall_time_s: 10.66
+    peak_rss_mb: 607
+    avg_cpu_pct: 30.33
+  summarization:
+    wall_time_s: 21.64
+    peak_rss_mb: 258
+    avg_cpu_pct: 0.6
+  gi_generation:
+    wall_time_s: 58.44
+    peak_rss_mb: 259
+    avg_cpu_pct: 0.15
+  kg_extraction:
+    wall_time_s: 4.7
+    peak_rss_mb: 260
+    avg_cpu_pct: 0.87
+  vector_indexing:
+    wall_time_s: 0.5503
+    peak_rss_mb: 0
+    avg_cpu_pct: 0.0
+totals:
+  peak_rss_mb: 607
+  wall_time_s: 52.8729
+  avg_wall_time_per_episode_s: 26.4365
+  sampling_note: Per-stage RSS/CPU uses proportional wall-time windows from metrics.json;
+    parallel work can mis-attribute samples.

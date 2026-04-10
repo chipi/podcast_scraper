@@ -36,8 +36,9 @@ export interface ParsedArtifact {
 
 export interface GraphFilterState {
   allowedTypes: Record<string, boolean>
+  /** Edge `type` string from artifact; `(unknown)` when missing. */
+  allowedEdgeTypes: Record<string, boolean>
   hideUngroundedInsights: boolean
-  legendSoloVisual: string | null
   /** Merged GI+KG graphs (`g:` / `k:` id prefixes); both true by default. */
   showGiLayer: boolean
   showKgLayer: boolean

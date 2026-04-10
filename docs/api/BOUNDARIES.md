@@ -118,6 +118,10 @@ if not result.success:
     print(f"Failed: {result.error}")
 ```
 
+### HTTP viewer (`[server]` extra)
+
+The FastAPI app in `podcast_scraper.server` and the Vue SPA in `web/gi-kg-viewer/` are **product surfaces** shipped with the same version tag but **outside** the minimal `__init__.py` export list. Integrators should treat `/api/*` JSON shapes as documented in the [Server Guide](../guides/SERVER_GUIDE.md); new routes and fields may appear in **minor** releases without a major bump.
+
 ## Versioning Policy
 
 - **Major (X.y.z)**: Breaking API changes (e.g., signature changes, removal of classes).

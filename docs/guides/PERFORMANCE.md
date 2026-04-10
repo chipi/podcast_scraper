@@ -2,6 +2,8 @@
 
 This guide covers performance considerations, optimization opportunities, and performance-related troubleshooting for podcast_scraper.
 
+For **frozen release profiles** (YAML under `data/profiles/`, `make profile-freeze` / `make profile-diff`), see the **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** (RFC-064).
+
 ---
 
 ## Audio Preprocessing Performance (Issue #392)

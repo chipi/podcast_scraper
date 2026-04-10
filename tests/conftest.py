@@ -126,6 +126,9 @@ def create_test_config(**overrides):
         "workers": 1,
         "skip_existing": False,
         "clean_output": False,
+        # Keep metadata + artwork off unless a test opts in (production defaults are True).
+        "generate_metadata": False,
+        "download_podcast_artwork": False,
         # Summary models: use test defaults (small, fast) unless explicitly overridden
         # Tests that need to test production behavior can override with summary_model=None
         "summary_model": config.TEST_DEFAULT_SUMMARY_MODEL,  # Test default: bart-base

@@ -214,6 +214,8 @@ never modified after creation — new measurements get a new report file.
 
 ## Related documentation
 
+- [Performance reports](../performance-reports/index.md) — frozen **resource** profiles
+  (RFC-064); complementary to quality evaluation here
 - [Metrics Guide](../METRICS_GUIDE.md) — full metric catalog (intrinsic + vs-reference)
 - [Experiment Guide](../EXPERIMENT_GUIDE.md) — how to run experiments end-to-end
 - [AI Provider Comparison Guide](../AI_PROVIDER_COMPARISON_GUIDE.md) — decision guide

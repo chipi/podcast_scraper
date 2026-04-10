@@ -1278,7 +1278,19 @@ def _finalize_pipeline(
     )
     from podcast_scraper.search.indexer import maybe_index_corpus
 
+    _vidx_t0 = time.perf_counter()
     maybe_index_corpus(effective_output_dir, cfg)
+    pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
+    if metrics_path:
+        try:
+            pipeline_metrics.save_to_file(metrics_path)
+            metrics_written = os.path.abspath(metrics_path)
+        except Exception as e:
+            logger.warning(
+                "Failed to re-save metrics after vector indexing to %s: %s",
+                metrics_path,
+                format_exception_for_log(e),
+            )
     summary_written = _finalize_run_summary(
         cfg, run_manifest, pipeline_metrics, effective_output_dir
     )

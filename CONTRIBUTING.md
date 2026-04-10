@@ -19,6 +19,12 @@ Thanks for contributing! This guide gets you from zero to your first PR.
 | 7 | [Polyglot repository guide](docs/guides/POLYGLOT_REPO_GUIDE.md) | 5 min | Python vs Node, env files, `make test-ui` / viewer paths |
 | 8 | Pick an issue! | - | [Good first issues](https://github.com/chipi/podcast_scraper/labels/good%20first%20issue) |
 
+**Viewer or FastAPI:** If you touch **`src/podcast_scraper/server/`** or **`web/gi-kg-viewer/`**,
+read **[Server Guide](docs/guides/SERVER_GUIDE.md)** (`/api/*`, **`/docs`** OpenAPI) and
+**[API index — HTTP](docs/api/index.md#http-viewer-api-server-extra)**. For UI or Playwright
+selectors, follow **E2E surface map → specs → UXS-001** ([E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)).
+Install **`pip install -e ".[server]"`** so FastAPI unit tests are not skipped locally.
+
 ---
 
 ## Setup
@@ -310,6 +316,11 @@ make ci                 # Full suite before PR
 
 If your PR touches **`web/gi-kg-viewer/`**:
 
+- **UX / UI changes:** Update in order: **(1)**
+  [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  if Playwright-visible copy, flows, or selectors change; **(2)** `e2e/*.spec.ts` / helpers /
+  fixtures; **(3)** [UXS-001](docs/uxs/UXS-001-gi-kg-viewer.md) if the visual/token experience
+  contract changes. Full checklist: [E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 - **`make test-ui`** — Vitest unit tests for TS utility logic (fast, no browser).
 - **`make test-ui-e2e`** — Playwright browser E2E (Firefox; downloads browser binaries on first
   run).
@@ -350,6 +361,7 @@ Before submitting:
 
 - [ ] `make ci` passes locally
 - [ ] If `web/gi-kg-viewer/` changed: `make test-ui` and `make test-ui-e2e` pass
+- [ ] If viewer **UX** changed: `E2E_SURFACE_MAP.md` and Playwright specs/helpers updated; UXS-001 updated if the visual contract changed ([checklist](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow))
 - [ ] Tests added/updated for changes
 - [ ] Documentation updated if needed
 - [ ] Commit messages follow conventional format
@@ -403,6 +415,10 @@ If you're using Cursor, Claude, or Copilot, the project includes AI-specific gui
 - **Copilot:** `.github/copilot-instructions.md`
 
 **Key rules:** Never commit without approval. Always run `make ci` before pushing.
+
+**GI/KG viewer UX:** `.cursorrules` and `.ai-coding-guidelines.md` require updating
+`e2e/E2E_SURFACE_MAP.md` → Playwright → UXS-001 (when needed) in the same change set; see
+[E2E Testing Guide](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 
 ---
 

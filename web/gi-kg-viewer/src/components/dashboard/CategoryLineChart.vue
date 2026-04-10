@@ -1,0 +1,151 @@
+<script setup lang="ts">
+import { Chart } from 'chart.js'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  chartExternalTooltipHandler,
+  removeChartExternalTooltip,
+} from '../../utils/chartExternalTooltip'
+import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
+import { ensureChartJsRegistered } from '../../utils/chartRegister'
+
+const props = defineProps<{
+  /** Omit or leave empty to hide the card heading (parent supplies title). */
+  title?: string
+  labels: string[]
+  values: number[]
+  yLabel?: string
+  helpText?: string
+}>()
+
+const canvasRef = ref<HTMLCanvasElement | null>(null)
+let chart: Chart | null = null
+
+const chartHeightPx = 220
+
+function buildChart(): void {
+  ensureChartJsRegistered()
+  const el = canvasRef.value
+  if (!el) {
+    return
+  }
+  chart?.destroy()
+  const labels = props.labels
+  const values = props.values
+  if (labels.length === 0) {
+    chart = null
+    return
+  }
+  const ctx = el.getContext('2d')
+  if (!ctx) {
+    return
+  }
+  const line = rgbaFromToken('--ps-primary', 0.9)
+  const fill = rgbaFromToken('--ps-primary', 0.2)
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: props.yLabel ?? 'Count',
+          data: values,
+          borderColor: line,
+          backgroundColor: fill,
+          fill: true,
+          tension: 0.2,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: false,
+          external: chartExternalTooltipHandler,
+          callbacks: {
+            title: (items) => {
+              const i = items[0]?.dataIndex
+              if (i == null) {
+                return ''
+              }
+              return labels[i] ?? ''
+            },
+            label: (item) => {
+              const v = item.parsed.y
+              const name = props.yLabel ?? 'Value'
+              return `${name}: ${typeof v === 'number' ? v.toLocaleString() : String(v)}`
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } },
+          grid: { color: chartGridColor() },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { precision: 0, font: { size: 10 } },
+          grid: { color: chartGridColor() },
+        },
+      },
+    },
+  })
+}
+
+const hasData = computed(() => props.labels.length > 0 && props.values.length > 0)
+
+onMounted(() => {
+  buildChart()
+})
+
+watch(
+  () => [props.labels, props.values, props.title, props.yLabel, props.helpText] as const,
+  () => {
+    buildChart()
+  },
+  { deep: true },
+)
+
+onBeforeUnmount(() => {
+  if (chart) {
+    removeChartExternalTooltip(chart)
+    chart.destroy()
+  }
+  chart = null
+})
+</script>
+
+<template>
+  <div class="rounded border border-border bg-surface p-3 text-surface-foreground">
+    <h3
+      v-if="title"
+      class="mb-1 text-sm font-semibold"
+    >
+      {{ title }}
+    </h3>
+    <p
+      v-if="helpText"
+      class="mb-2 text-[11px] leading-snug text-muted"
+    >
+      {{ helpText }}
+    </p>
+    <p
+      v-if="!hasData"
+      class="text-xs text-muted"
+    >
+      No data to chart.
+    </p>
+    <div
+      v-else
+      class="relative w-full"
+      :style="{ height: `${chartHeightPx}px` }"
+    >
+      <canvas ref="canvasRef" />
+    </div>
+  </div>
+</template>

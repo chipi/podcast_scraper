@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
+import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -10,7 +11,11 @@ test.describe('Search → graph (mocked API)', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ status: 'ok' }),
+        body: JSON.stringify({
+          status: 'ok',
+          corpus_library_api: true,
+          corpus_digest_api: true,
+        }),
       })
     })
 
@@ -26,6 +31,7 @@ test.describe('Search → graph (mocked API)', () => {
               relative_path: 'metadata/ci_sample.gi.json',
               kind: 'gi',
               size_bytes: artifactJson.length,
+              mtime_utc: '2024-01-01T00:00:00Z',
             },
           ],
         }),
@@ -63,15 +69,14 @@ test.describe('Search → graph (mocked API)', () => {
     })
   })
 
-  test('list → load → search → Show on graph opens node detail', async ({ page }) => {
+  test('corpus path auto-loads graph → search → Show on graph opens node detail', async ({
+    page,
+  }) => {
     await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
-    await page.getByRole('button', { name: 'List' }).click()
-
-    await page.getByRole('checkbox', { name: /ci_sample\.gi\.json/ }).check()
-
-    await page.getByRole('button', { name: 'Load into graph' }).click()
+    await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 

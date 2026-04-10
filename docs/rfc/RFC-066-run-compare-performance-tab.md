@@ -19,6 +19,7 @@ Podcast Scraper Team
 ## Related RFCs
 
 - `docs/rfc/RFC-064-performance-profiling-release-freeze.md` — Frozen profiles and release freeze framework (provides the data)
+- `docs/rfc/RFC-065-live-pipeline-monitor.md` — Sibling RFC; live monitoring dashboard (also split from RFC-064)
 - `docs/rfc/RFC-047-run-comparison-visual-tool.md` — Existing Streamlit comparison tool (extended by this RFC)
 - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` — Quality benchmarking framework (quality side of the comparison)
 
@@ -49,13 +50,6 @@ Quality runs in `data/eval/runs/` and performance profiles in `data/profiles/` a
 - **Trend chart** — wall time and peak RSS per stage across all frozen releases, plotted as a line chart
 - **Combined quality + performance view** — a two-axis scatter where x = quality metric and y = resource cost, one dot per release
 
-### Open Design Questions
-
-1. Which quality metric goes on the x-axis of the combined scatter? (WER? ROUGE? Semantic similarity? User-selectable?)
-2. How should the tool handle profiles from different machines? (Filter by hostname? Show warning?)
-3. Should the performance tab show per-episode breakdowns or only stage aggregates?
-4. How should missing stages (disabled in some releases) be handled in trend charts?
-
 ---
 
 ## Dependencies
@@ -69,8 +63,12 @@ Quality runs in `data/eval/runs/` and performance profiles in `data/profiles/` a
 ## Open Questions
 
 1. Should this be a new tab in the existing `tools/run_compare/app.py` or a separate Streamlit app?
-2. What is the minimum number of frozen profiles needed before the trend chart is useful?
-3. Should the tool support comparing profiles across different datasets (e.g., `indicator_v1` vs `shortwave_v1`)?
+2. Which quality metric goes on the x-axis of the combined scatter? (WER? ROUGE? Semantic similarity? User-selectable?)
+3. How should the tool handle profiles from different machines? (Filter by hostname? Show warning?)
+4. Should the performance tab show per-episode breakdowns or only stage aggregates?
+5. How should missing stages (disabled in some releases) be handled in trend charts?
+6. What is the minimum number of frozen profiles needed before the trend chart is useful?
+7. Should the tool support comparing profiles across different datasets (e.g., `indicator_v1` vs `shortwave_v1`)?
 
 ---
 

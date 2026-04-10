@@ -88,7 +88,16 @@ class TestHealth:
     def test_returns_ok(self, client: TestClient) -> None:
         resp = client.get("/api/health")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "ok"
+        body = resp.json()
+        assert body["status"] == "ok"
+        assert body.get("artifacts_api") is True
+        assert body.get("search_api") is True
+        assert body.get("explore_api") is True
+        assert body.get("index_routes_api") is True
+        assert body.get("corpus_metrics_api") is True
+        assert body.get("corpus_library_api") is True
+        assert body.get("corpus_digest_api") is True
+        assert body.get("corpus_binary_api") is True
 
 
 # ---------------------------------------------------------------------------

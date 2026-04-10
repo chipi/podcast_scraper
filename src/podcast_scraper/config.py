@@ -1376,9 +1376,21 @@ class Config(BaseModel):
         alias="mistral_summary_user_prompt",
         description="Mistral user prompt for summarization. Uses prompt_store (RFC-017).",
     )
-    generate_metadata: bool = Field(default=False, alias="generate_metadata")
+    generate_metadata: bool = Field(
+        default=True,
+        alias="generate_metadata",
+        description="Write per-episode metadata documents when running the pipeline (PRD-004).",
+    )
     metadata_format: Literal["json", "yaml"] = Field(default="json", alias="metadata_format")
     metadata_subdirectory: Optional[str] = Field(default=None, alias="metadata_subdirectory")
+    download_podcast_artwork: bool = Field(
+        default=True,
+        alias="download_podcast_artwork",
+        description=(
+            "When True with generate_metadata, download feed/episode image_url targets into "
+            "<output>/.podcast_scraper/corpus-art/ and set image_local_relpath fields."
+        ),
+    )
     generate_summaries: bool = Field(default=False, alias="generate_summaries")
     # GIL evidence stack (Issue #435): loaded lazily when GIL or dependent feature enabled
     embedding_model: str = Field(

@@ -34,6 +34,12 @@ export function resolveCyNodeId(core: Core, rawId: string): string | null {
   if (!rawId) return null
   const candidates = [
     rawId,
+    `__unified_ep__:${rawId}`,
+    `episode:${rawId}`,
+    `g:episode:${rawId}`,
+    `g:ep:${rawId}`,
+    `k:episode:${rawId}`,
+    `k:kg:episode:${rawId}`,
     `g:${rawId}`,
     `k:${rawId}`,
     `k:kg:${rawId}`,

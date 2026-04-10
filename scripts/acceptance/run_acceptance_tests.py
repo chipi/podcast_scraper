@@ -469,7 +469,8 @@ def modify_config_for_fixtures(
         if "DEEPSEEK_API_KEY" not in os.environ:
             os.environ["DEEPSEEK_API_KEY"] = "test-dummy-key-for-bulk-tests"
         if "ANTHROPIC_API_KEY" not in os.environ:
-            os.environ["ANTHROPIC_API_KEY"] = "test-dummy-key-for-bulk-tests"
+            # Prefix must satisfy AnthropicProvider key-format check (sk-ant-…).
+            os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api03-acceptance-ci-dummy-key"
 
     # Effective feed URLs: fixture replacement or YAML (session-wide mode is in main()).
     feed_list = config_dict.get("feeds") or config_dict.get("rss_urls")

@@ -395,10 +395,10 @@ This RFC (RFC-059) is the companion to RFC-058 (Audio-Based Speaker Diarization)
 
 ## References
 
-- **Issue #269**: [Refactor `speaker_detection.py` into `speaker_detectors/` submodules](../../issues/269)
-- **Issue #111**: [Use unique voices for each speaker in generated mock podcast audio](../../issues/111)
-- **Issue #109**: [Add commercial segments to mock podcast transcripts](../../issues/109)
-- **Issue #414**: [Audio Pipeline Separation](../../issues/414)
+- **Issue #269**: [Refactor `speaker_detection.py` into `speaker_detectors/` submodules](https://github.com/chipi/podcast_scraper/issues/269)
+- **Issue #111**: [Use unique voices for each speaker in generated mock podcast audio](https://github.com/chipi/podcast_scraper/issues/111)
+- **Issue #109**: [Add commercial segments to mock podcast transcripts](https://github.com/chipi/podcast_scraper/issues/109)
+- **Issue #414**: [Audio Pipeline Separation](https://github.com/chipi/podcast_scraper/issues/414)
 - **Source Code**: `src/podcast_scraper/providers/ml/speaker_detection.py`
 - **Source Code**: `tests/fixtures/scripts/transcripts_to_mp3.py`
 - **Fixture Spec**: `tests/fixtures/FIXTURES_SPEC.md`

@@ -34,6 +34,7 @@ def create_test_config(**kwargs):
         "output_dir": tempfile.mkdtemp(),
         "max_episodes": 1,
         "generate_metadata": True,
+        "download_podcast_artwork": False,
         "auto_speakers": False,
     }
     defaults.update(kwargs)

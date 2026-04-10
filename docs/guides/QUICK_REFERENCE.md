@@ -111,7 +111,7 @@ make lint-markdown           # Check markdown style
 
 # Local preview
 
-mkdocs serve                 # http://localhost:8000
+mkdocs serve                 # http://localhost:8000 (docs site; same default port as `podcast serve` — use `-a 127.0.0.1:8001` for one of them if both run)
 ```
 
 ---
@@ -129,7 +129,8 @@ mkdocs serve                 # http://localhost:8000
 **Prerequisites:** `pip install -e ".[server]"`; once per clone, `cd web/gi-kg-viewer && npm install && npm run build` to serve the built SPA from `serve`.
 
 **Docs:**
-[web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
+[Server Guide](SERVER_GUIDE.md) (`/api/*`, **`/docs`**)
+· [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
 · [Development Guide](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
 
 ---

@@ -155,6 +155,10 @@ class FeedMetadata(BaseModel):
     language: Optional[str] = None
     authors: List[str] = Field(default_factory=list)
     image_url: Optional[str] = None
+    image_local_relpath: Optional[str] = Field(
+        default=None,
+        description="Corpus-relative path to downloaded feed artwork (POSIX).",
+    )
     last_updated: Optional[datetime] = None
 
     @field_serializer("last_updated")
@@ -174,6 +178,10 @@ class EpisodeMetadata(BaseModel):
     duration_seconds: Optional[int] = None
     episode_number: Optional[int] = None
     image_url: Optional[str] = None
+    image_local_relpath: Optional[str] = Field(
+        default=None,
+        description="Corpus-relative path to downloaded episode artwork (POSIX).",
+    )
     episode_id: str  # Stable unique identifier for database primary keys
 
     @field_serializer("published_date")
@@ -3067,6 +3075,29 @@ def generate_episode_metadata(  # noqa: C901
         detected_guests,
         pipeline_metrics,
     )
+
+    if cfg.download_podcast_artwork and not cfg.dry_run:
+        from podcast_scraper.utils.corpus_artwork import download_podcast_artwork
+
+        root = Path(output_dir).expanduser().resolve()
+        if feed_image_url and str(feed_image_url).strip():
+            rel = download_podcast_artwork(
+                str(feed_image_url).strip(),
+                root,
+                user_agent=cfg.user_agent,
+                timeout=int(cfg.timeout),
+            )
+            if rel:
+                feed_metadata = feed_metadata.model_copy(update={"image_local_relpath": rel})
+        if episode_image_url and str(episode_image_url).strip():
+            erel = download_podcast_artwork(
+                str(episode_image_url).strip(),
+                root,
+                user_agent=cfg.user_agent,
+                timeout=int(cfg.timeout),
+            )
+            if erel:
+                episode_metadata = episode_metadata.model_copy(update={"image_local_relpath": erel})
 
     # Get NLP model for entity reconciliation if needed
     nlp = _get_nlp_model_for_reconciliation(

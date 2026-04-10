@@ -8,7 +8,6 @@ import {
   filterArtifactEgoOneHop,
   filtersActive,
 } from '../utils/parsing'
-import { semanticTypeForLegendVisual } from '../utils/colors'
 
 export const useGraphFilterStore = defineStore('graphFilters', () => {
   const artifacts = useArtifactsStore()
@@ -63,6 +62,25 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     }
   }
 
+  function toggleAllowedEdgeType(edgeType: string): void {
+    if (!state.value) return
+    if (!(edgeType in state.value.allowedEdgeTypes)) return
+    const cur = state.value.allowedEdgeTypes[edgeType]
+    state.value.allowedEdgeTypes = {
+      ...state.value.allowedEdgeTypes,
+      [edgeType]: !cur,
+    }
+  }
+
+  function selectAllEdgeTypes(): void {
+    if (!state.value) return
+    const next: Record<string, boolean> = { ...state.value.allowedEdgeTypes }
+    for (const k of Object.keys(next)) {
+      next[k] = true
+    }
+    state.value.allowedEdgeTypes = next
+  }
+
   function selectAllTypes(): void {
     if (!state.value) return
     const next: Record<string, boolean> = { ...state.value.allowedTypes }
@@ -70,7 +88,6 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
       next[k] = true
     }
     state.value.allowedTypes = next
-    state.value.legendSoloVisual = null
   }
 
   function deselectAllTypes(): void {
@@ -80,36 +97,6 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
       next[k] = false
     }
     state.value.allowedTypes = next
-    state.value.legendSoloVisual = null
-  }
-
-  function resetLegendSolo(): void {
-    if (!state.value || !fullArtifact.value) return
-    const fresh = defaultFilterState(fullArtifact.value)
-    if (fresh) {
-      state.value.allowedTypes = { ...fresh.allowedTypes }
-      state.value.hideUngroundedInsights = fresh.hideUngroundedInsights
-      state.value.legendSoloVisual = null
-      state.value.showGiLayer = fresh.showGiLayer
-      state.value.showKgLayer = fresh.showKgLayer
-    }
-  }
-
-  /** Match v1 graph-legend + graph-cyto: solo one visual group or reset. */
-  function onLegendClick(visualKey: string): void {
-    if (!state.value || !fullArtifact.value) return
-    const st = state.value
-    if (visualKey === '__reset__' || st.legendSoloVisual === visualKey) {
-      resetLegendSolo()
-      return
-    }
-    const sem = semanticTypeForLegendVisual(visualKey)
-    if (!(sem in st.allowedTypes)) return
-    st.legendSoloVisual = visualKey
-    const keys = Object.keys(st.allowedTypes)
-    for (const t of keys) {
-      st.allowedTypes[t] = t === sem
-    }
   }
 
   return {
@@ -124,7 +111,7 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     toggleAllowedType,
     selectAllTypes,
     deselectAllTypes,
-    onLegendClick,
-    resetLegendSolo,
+    toggleAllowedEdgeType,
+    selectAllEdgeTypes,
   }
 })

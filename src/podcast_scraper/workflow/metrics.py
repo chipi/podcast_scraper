@@ -134,6 +134,8 @@ class Metrics:
     cleaning_time_by_episode: Dict[int, float] = field(default_factory=dict)
     gi_times: List[float] = field(default_factory=list)  # GIL artifact generation times per episode
     kg_times: List[float] = field(default_factory=list)  # KG artifact generation times per episode
+    # Wall time for maybe_index_corpus (RFC-064 frozen profiles); 0 if skipped or disabled
+    vector_index_seconds: float = 0.0
 
     # LLM API call tracking (for cost estimation)
     llm_transcription_calls: int = 0  # Number of transcription API calls
@@ -977,6 +979,7 @@ class Metrics:
             "cleaning_count": len(self.cleaning_time_by_episode),
             "gi_count": len(self.gi_times),
             "kg_count": len(self.kg_times),
+            "vector_index_seconds": round(self.vector_index_seconds, 4),
             # LLM API call tracking
             "llm_transcription_calls": self.llm_transcription_calls,
             "llm_transcription_audio_minutes": round(self.llm_transcription_audio_minutes, 2),
@@ -1057,6 +1060,22 @@ class Metrics:
                 else 0.0
             ),
             "preprocessing_audio_metadata": self.preprocessing_audio_metadata,
+            # Per-episode stage seconds (string keys for JSON); RFC-064 stage_truth snapshots
+            "download_media_time_by_episode": {
+                str(k): round(v, 4) for k, v in sorted(self.download_media_time_by_episode.items())
+            },
+            "transcribe_time_by_episode": {
+                str(k): round(v, 4) for k, v in sorted(self.transcribe_time_by_episode.items())
+            },
+            "extract_names_time_by_episode": {
+                str(k): round(v, 4) for k, v in sorted(self.extract_names_time_by_episode.items())
+            },
+            "summarize_time_by_episode": {
+                str(k): round(v, 4) for k, v in sorted(self.summarize_time_by_episode.items())
+            },
+            "cleaning_time_by_episode": {
+                str(k): round(v, 4) for k, v in sorted(self.cleaning_time_by_episode.items())
+            },
             # Episode statuses
             "episode_statuses": [asdict(status) for status in self.episode_statuses],
             # Device usage per stage (Issue #387)
@@ -1146,6 +1165,7 @@ class Metrics:
             "time_thread_sync_seconds",
             "time_queue_wait_seconds",
             "schema_version",
+            "vector_index_seconds",
         }
 
         missing_keys = required_keys - set(metrics_dict.keys())
@@ -1182,6 +1202,7 @@ class Metrics:
             "time_summarization_wait_seconds",
             "time_thread_sync_seconds",
             "time_queue_wait_seconds",
+            "vector_index_seconds",
         ]
         for field_name in numeric_fields:
             if metrics_dict.get(field_name) is None:

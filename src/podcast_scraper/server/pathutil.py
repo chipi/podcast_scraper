@@ -46,20 +46,38 @@ def resolve_corpus_path_param(
         )
 
     anchor_str = os.path.normpath(str(anchor.expanduser().resolve()))
-    safe_prefix = anchor_str + os.sep
 
     normed = os.path.normpath(os.path.expanduser(raw))
     if not os.path.isabs(normed):
         normed = os.path.normpath(os.path.join(anchor_str, normed))
 
+    # Inline sanitizer: normpath + startswith (CodeQL py/path-injection recognises this).
+    normed = os.path.normpath(normed)
+    safe_prefix = anchor_str + os.sep
     if normed != anchor_str and not normed.startswith(safe_prefix):
         raise CorpusPathRequestError(
             status_code=400,
             detail="path must be the configured corpus root or a subdirectory of it.",
         )
 
-    candidate = Path(normed)
-    if must_be_dir and not candidate.is_dir():
-        raise CorpusPathRequestError(status_code=400, detail=f"Not a directory: {candidate}")
+    if must_be_dir and not os.path.isdir(normed):
+        raise CorpusPathRequestError(status_code=400, detail=f"Not a directory: {normed}")
 
-    return candidate
+    return Path(normed)
+
+
+def resolved_corpus_root_str(root: Path, anchor: Path | None) -> str:
+    """Return a normalized corpus root string for filesystem access after resolution.
+
+    Inline ``normpath`` + ``startswith`` so CodeQL treats the result as sanitized.
+    """
+    norm_root = os.path.normpath(str(root.resolve()))
+    if anchor is None:
+        return norm_root
+    anchor_str = os.path.normpath(str(anchor.expanduser().resolve()))
+    # Inline sanitizer: normpath + startswith (CodeQL py/path-injection).
+    norm_root = os.path.normpath(norm_root)
+    safe_prefix = anchor_str + os.sep
+    if norm_root != anchor_str and not norm_root.startswith(safe_prefix):
+        return anchor_str
+    return norm_root

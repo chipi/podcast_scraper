@@ -1,18 +1,42 @@
 <script setup lang="ts">
 import type { MetricRow } from '../../utils/metrics'
 
-defineProps<{
-  title: string
-  rows: MetricRow[]
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    rows: MetricRow[]
+    /** Tighter typography for nested panels (e.g. left rail Data card). */
+    dense?: boolean
+    /** Omit outer border/surface — parent provides the card (e.g. left rail elevated panel). */
+    unframed?: boolean
+  }>(),
+  { dense: false, unframed: false },
+)
 </script>
 
 <template>
-  <div class="rounded border border-border bg-surface p-3 text-surface-foreground">
-    <h3 class="mb-2 text-sm font-semibold">
+  <div
+    class="text-surface-foreground"
+    :class="
+      unframed
+        ? dense
+          ? 'text-[10px]'
+          : 'text-xs'
+        : dense
+          ? 'rounded border border-border bg-surface p-2 text-[10px]'
+          : 'rounded border border-border bg-surface p-3 text-xs'
+    "
+  >
+    <h3
+      class="mb-2 font-semibold"
+      :class="dense ? 'text-xs' : 'text-sm'"
+    >
       {{ title }}
     </h3>
-    <dl class="space-y-1 text-xs">
+    <dl
+      class="space-y-1"
+      :class="dense ? 'text-[10px]' : 'text-xs'"
+    >
       <div
         v-for="(r, i) in rows"
         :key="`${r.k}-${i}`"
