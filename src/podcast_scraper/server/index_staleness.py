@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,7 @@ from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.corpus_scope import discover_metadata_files
 from podcast_scraper.search.index_source_mtime import newest_index_source_mtime_epoch
 from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
+from podcast_scraper.utils.path_validation import safe_fixed_file_under_root
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +50,12 @@ def _epoch_to_utc_iso(epoch: float) -> str:
 
 
 def _read_multi_feed_overall_ok(parent: Path) -> Optional[bool]:
-    summary = parent / "corpus_run_summary.json"
-    if not summary.is_file():
+    summary = safe_fixed_file_under_root(parent, "corpus_run_summary.json")
+    if not summary or not os.path.isfile(summary):
         return None
     try:
-        doc = json.loads(summary.read_text(encoding="utf-8"))
+        with open(summary, encoding="utf-8") as fh:
+            doc = json.load(fh)
     except json.JSONDecodeError:
         logger.debug("Unreadable corpus_run_summary.json at %s", parent)
         return None

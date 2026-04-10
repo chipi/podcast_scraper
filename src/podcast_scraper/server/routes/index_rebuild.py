@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import List, Optional
@@ -113,7 +114,7 @@ async def trigger_index_rebuild(
             detail="Corpus path is required (query or server default).",
         )
 
-    corpus_key = str(root.resolve())
+    corpus_key = os.path.normpath(os.path.realpath(str(root.resolve())))
     gate = gate_for_corpus(request.app, root)
     if not gate.try_begin():
         raise HTTPException(

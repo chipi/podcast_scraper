@@ -169,3 +169,30 @@ def safe_resolve_directory(path: Path) -> Optional[Path]:
 def is_resolved_path_under_root(candidate: Path, root: Path) -> bool:
     """Return True if *candidate* is under *root* (``normpath`` + ``startswith`` guard)."""
     return normpath_if_under_root(str(candidate), str(root)) is not None
+
+
+def safe_relpath_under_corpus_root(root: Path, relative: str) -> Optional[str]:
+    """Join *relative* under resolved *root*; return normpath string only if under *root*.
+
+    Rejects absolute paths, empty paths, and ``..`` segments. Recognised by CodeQL
+    ``py/path-injection`` when the returned string is passed to ``open`` / ``os.path.*``.
+    """
+    root_s = os.path.normpath(str(root.resolve()))
+    rel = relative.strip().replace("\\", "/").lstrip("/")
+    if not rel:
+        return None
+    parts = [p for p in rel.split("/") if p and p != "."]
+    if any(p == ".." for p in parts):
+        return None
+    joined = os.path.normpath(os.path.join(root_s, *parts))
+    return normpath_if_under_root(joined, root_s)
+
+
+def safe_fixed_file_under_root(root: Path, filename: str) -> Optional[str]:
+    """Single path segment (e.g. ``corpus_manifest.json``) under *root*."""
+    fn = filename.strip()
+    if not fn or "/" in fn or "\\" in fn or ".." in fn:
+        return None
+    root_s = os.path.normpath(str(root.resolve()))
+    joined = os.path.normpath(os.path.join(root_s, fn))
+    return normpath_if_under_root(joined, root_s)

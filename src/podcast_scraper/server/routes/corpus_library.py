@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -36,29 +37,19 @@ from podcast_scraper.server.schemas import (
     CorpusSimilarEpisodeItem,
     CorpusSimilarEpisodesResponse,
 )
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 router = APIRouter(tags=["corpus"])
 
 
-def _is_under(parent: Path, child: Path) -> bool:
-    try:
-        child.relative_to(parent)
-        return True
-    except ValueError:
-        return False
-
-
-def _safe_relative_under(base: Path, relpath: str) -> Path:
+def _safe_metadata_path_str(base: Path, relpath: str) -> str:
     rel = relpath.strip().replace("\\", "/")
     if not rel or rel.startswith("/"):
         raise HTTPException(status_code=400, detail="Invalid path.")
-    segments = [p for p in rel.split("/") if p and p != "."]
-    if any(p == ".." for p in segments):
+    safe = safe_relpath_under_corpus_root(base, rel)
+    if not safe:
         raise HTTPException(status_code=400, detail="Invalid path.")
-    target = base.joinpath(*segments).resolve()
-    if not _is_under(base, target):
-        raise HTTPException(status_code=400, detail="Path escapes corpus root.")
-    return target
+    return safe
 
 
 def _similar_items_to_response_models(
@@ -218,12 +209,15 @@ async def corpus_episode_detail(
     """Return full episode metadata and summary fields for one catalog row."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    target = _safe_relative_under(root, metadata_relpath)
-    if not target.is_file():
+    target = _safe_metadata_path_str(root, metadata_relpath)
+    if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="Metadata file not found.")
-    if not _metadata_suffix_ok(target.name):
+    if not _metadata_suffix_ok(os.path.basename(target)):
         raise HTTPException(status_code=400, detail="Not an episode metadata file.")
-    rel_posix = target.relative_to(root).as_posix()
+    root_s = os.path.normpath(str(root.resolve()))
+    rel_posix = os.path.relpath(target, root_s).replace("\\", "/")
+    if rel_posix.startswith(".."):
+        raise HTTPException(status_code=400, detail="Invalid path.")
     rows = build_catalog_rows(root)
     r = next((row for row in rows if row.metadata_relative_path == rel_posix), None)
     if r is None:
@@ -268,12 +262,15 @@ async def corpus_episodes_similar(
     """Semantic peers via FAISS (RFC-067 Phase 3); 200 with ``error`` when index missing."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    target = _safe_relative_under(root, metadata_relpath)
-    if not target.is_file():
+    target = _safe_metadata_path_str(root, metadata_relpath)
+    if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="Metadata file not found.")
-    if not _metadata_suffix_ok(target.name):
+    if not _metadata_suffix_ok(os.path.basename(target)):
         raise HTTPException(status_code=400, detail="Not an episode metadata file.")
-    rel_posix = target.relative_to(root).as_posix()
+    root_s = os.path.normpath(str(root.resolve()))
+    rel_posix = os.path.relpath(target, root_s).replace("\\", "/")
+    if rel_posix.startswith(".."):
+        raise HTTPException(status_code=400, detail="Invalid path.")
     r = catalog_row_for_metadata_path(root, rel_posix)
     if r is None:
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from pathlib import Path
 
@@ -9,6 +10,9 @@ import pytest
 
 from podcast_scraper.utils.path_validation import (
     is_resolved_path_under_root,
+    normpath_if_under_root,
+    safe_fixed_file_under_root,
+    safe_relpath_under_corpus_root,
     safe_resolve_directory,
     sanitize_model_name,
     validate_cache_path,
@@ -156,3 +160,60 @@ class TestIsResolvedPathUnderRoot:
 
         monkeypatch.setattr(_os.path, "normpath", boom)
         assert is_resolved_path_under_root(Path("/tmp/x"), Path("/tmp")) is False
+
+
+@pytest.mark.unit
+class TestNormpathIfUnderRoot:
+    """Tests for normpath_if_under_root."""
+
+    def test_child_path_ok(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.normpath(tmp)
+            child = os.path.normpath(os.path.join(root, "a", "b"))
+            assert normpath_if_under_root(child, root) == child
+
+    def test_escape_returns_none(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = os.path.normpath(tmp)
+            evil = os.path.normpath(os.path.join(root, "..", "etc"))
+            assert normpath_if_under_root(evil, root) is None
+
+
+@pytest.mark.unit
+class TestSafeRelpathUnderCorpusRoot:
+    """Tests for safe_relpath_under_corpus_root."""
+
+    def test_nested_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            sub = root / "metadata" / "x.metadata.json"
+            sub.parent.mkdir(parents=True)
+            sub.touch()
+            rel = "metadata/x.metadata.json"
+            got = safe_relpath_under_corpus_root(root, rel)
+            assert got is not None
+            assert os.path.isfile(got)
+
+    def test_dotdot_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            assert safe_relpath_under_corpus_root(root, "../etc/passwd") is None
+
+
+@pytest.mark.unit
+class TestSafeFixedFileUnderRoot:
+    """Tests for safe_fixed_file_under_root."""
+
+    def test_single_segment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            p = root / "corpus_manifest.json"
+            p.write_text("{}", encoding="utf-8")
+            got = safe_fixed_file_under_root(root, "corpus_manifest.json")
+            assert got is not None
+            assert os.path.isfile(got)
+
+    def test_slash_in_name_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            assert safe_fixed_file_under_root(root, "a/b") is None

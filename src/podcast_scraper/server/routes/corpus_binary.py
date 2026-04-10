@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import mimetypes
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -10,30 +11,20 @@ from fastapi.responses import FileResponse
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 router = APIRouter(tags=["corpus"])
 
 
-def _is_under(parent: Path, child: Path) -> bool:
-    try:
-        child.relative_to(parent)
-        return True
-    except ValueError:
-        return False
-
-
-def _safe_artwork_target(base: Path, relpath: str) -> Path:
+def _safe_artwork_target_str(base: Path, relpath: str) -> str:
     norm = relpath.strip().replace("\\", "/").lstrip("/")
     prefix = f"{CORPUS_ART_REL_PREFIX}/"
     if norm == CORPUS_ART_REL_PREFIX or not norm.startswith(prefix):
         raise HTTPException(status_code=400, detail="Path is not under corpus artwork store.")
-    segments = [p for p in norm.split("/") if p and p != "."]
-    if any(p == ".." for p in segments):
+    safe = safe_relpath_under_corpus_root(base, norm)
+    if not safe:
         raise HTTPException(status_code=400, detail="Invalid path.")
-    target = base.joinpath(*segments).resolve()
-    if not _is_under(base, target):
-        raise HTTPException(status_code=400, detail="Path escapes corpus root.")
-    return target
+    return safe
 
 
 @router.get("/corpus/binary")
@@ -63,12 +54,12 @@ async def corpus_binary(
             detail="path query parameter is required when the server has no default output_dir.",
         )
 
-    target = _safe_artwork_target(root, relpath)
-    if not target.is_file():
+    target = _safe_artwork_target_str(root, relpath)
+    if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="File not found.")
 
-    media_type, _ = mimetypes.guess_type(target.name)
+    media_type, _ = mimetypes.guess_type(os.path.basename(target))
     return FileResponse(
-        path=str(target),
+        path=target,
         media_type=media_type or "application/octet-stream",
     )

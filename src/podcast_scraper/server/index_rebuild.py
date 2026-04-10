@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import Dict, Tuple
@@ -51,7 +52,7 @@ def _gates_map(app: FastAPI) -> Dict[str, CorpusRebuildGate]:
 
 def gate_for_corpus(app: FastAPI, corpus_resolved: Path) -> CorpusRebuildGate:
     """Return the mutex gate for a corpus path, creating it on first use."""
-    key = str(corpus_resolved.resolve())
+    key = os.path.normpath(os.path.realpath(str(corpus_resolved)))
     gates = _gates_map(app)
     if key not in gates:
         gates[key] = CorpusRebuildGate()

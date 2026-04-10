@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping, Optional
 
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 
 def _feed_and_episode_ids(doc: Optional[dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
@@ -25,13 +26,15 @@ def _feed_and_episode_ids(doc: Optional[dict[str, Any]]) -> tuple[Optional[str],
     return normalize_feed_id(fid), eid.strip() if isinstance(eid, str) and eid.strip() else None
 
 
-def _load_metadata_doc(meta_path: Path) -> Optional[dict[str, Any]]:
+def _load_metadata_doc(meta_path: str | Path) -> Optional[dict[str, Any]]:
+    ps = str(meta_path)
     try:
-        text = meta_path.read_text(encoding="utf-8")
+        with open(ps, encoding="utf-8") as fh:
+            text = fh.read()
     except OSError:
         return None
     try:
-        lower = meta_path.name.lower()
+        lower = os.path.basename(ps).lower()
         if lower.endswith((".yaml", ".yml")):
             import yaml
 
@@ -151,12 +154,10 @@ def _verified_artwork_relpath(corpus_root: Path, rel: Optional[str]) -> Optional
     segments = [p for p in norm.split("/") if p]
     if ".." in segments:
         return None
-    target = (corpus_root / norm).resolve()
-    try:
-        target.relative_to(corpus_root.resolve())
-    except ValueError:
+    target_str = safe_relpath_under_corpus_root(corpus_root, norm)
+    if not target_str or not os.path.isfile(target_str):
         return None
-    return norm if target.is_file() else None
+    return norm
 
 
 def _visual_fields_from_doc(
@@ -266,7 +267,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
             rel = meta_path.relative_to(root).as_posix()
         except ValueError:
             continue
-        doc = _load_metadata_doc(meta_path)
+        doc = _load_metadata_doc(str(meta_path))
         if doc is None:
             continue
         fid_norm, eid = _feed_and_episode_ids(doc)
@@ -284,10 +285,10 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
-        gi_path = root / gi_rel
-        kg_path = root / kg_rel
-        has_gi = gi_path.is_file()
-        has_kg = kg_path.is_file()
+        gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
+        kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
+        has_gi = bool(gi_safe and os.path.isfile(gi_safe))
+        has_kg = bool(kg_safe and os.path.isfile(kg_safe))
         rows.append(
             CatalogEpisodeRow(
                 metadata_relative_path=rel,
@@ -322,14 +323,14 @@ def catalog_row_for_metadata_path(
 ) -> Optional[CatalogEpisodeRow]:
     """Build a single catalog row from a metadata relative path (no full corpus scan)."""
     root = corpus_root.resolve()
-    meta_path = root / metadata_relative_path
-    if not meta_path.is_file():
+    safe_meta = safe_relpath_under_corpus_root(root, metadata_relative_path)
+    if not safe_meta or not os.path.isfile(safe_meta):
         return None
-    try:
-        rel = meta_path.relative_to(root).as_posix()
-    except ValueError:
+    root_s = os.path.normpath(str(root))
+    rel = os.path.relpath(safe_meta, root_s).replace("\\", "/")
+    if rel.startswith(".."):
         return None
-    doc = _load_metadata_doc(meta_path)
+    doc = _load_metadata_doc(safe_meta)
     if doc is None:
         return None
     fid_norm, eid = _feed_and_episode_ids(doc)
@@ -347,8 +348,8 @@ def catalog_row_for_metadata_path(
     feed_url = _feed_rss_url(doc)
     feed_desc = _feed_description(doc)
     gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
-    gi_path = root / gi_rel
-    kg_path = root / kg_rel
+    gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
+    kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
     return CatalogEpisodeRow(
         metadata_relative_path=rel,
         feed_id=feed_id,
@@ -361,8 +362,8 @@ def catalog_row_for_metadata_path(
         summary_text=sbody,
         gi_relative_path=gi_rel,
         kg_relative_path=kg_rel,
-        has_gi=gi_path.is_file(),
-        has_kg=kg_path.is_file(),
+        has_gi=bool(gi_safe and os.path.isfile(gi_safe)),
+        has_kg=bool(kg_safe and os.path.isfile(kg_safe)),
         feed_image_url=f_img,
         episode_image_url=e_img,
         duration_seconds=dur_s,

@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
 from podcast_scraper.rss.downloader import http_get
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 logger = logging.getLogger(__name__)
 
@@ -84,19 +86,23 @@ def download_podcast_artwork(
     rel_dir = f"{CORPUS_ART_REL_PREFIX}/sha256/{digest[:2]}/{digest[2:4]}"
     fname = f"{digest}{ext}"
     rel_posix = f"{rel_dir}/{fname}".replace("\\", "/")
-    dest = corpus_root / rel_posix
+    dest_str = safe_relpath_under_corpus_root(corpus_root, rel_posix)
+    if not dest_str:
+        return None
+    dest_parent = os.path.dirname(dest_str)
     try:
-        dest.parent.mkdir(parents=True, exist_ok=True)
+        os.makedirs(dest_parent, exist_ok=True)
     except OSError as exc:
-        logger.warning("Could not create artwork dir %s: %s", dest.parent, exc)
+        logger.warning("Could not create artwork dir %s: %s", dest_parent, exc)
         return None
 
-    if dest.is_file() and dest.stat().st_size > 0:
+    if os.path.isfile(dest_str) and os.path.getsize(dest_str) > 0:
         return rel_posix
 
     try:
-        dest.write_bytes(body)
+        with open(dest_str, "wb") as fh:
+            fh.write(body)
     except OSError as exc:
-        logger.warning("Could not write artwork %s: %s", dest, exc)
+        logger.warning("Could not write artwork %s: %s", dest_str, exc)
         return None
     return rel_posix

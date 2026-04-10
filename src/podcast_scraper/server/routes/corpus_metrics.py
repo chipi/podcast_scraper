@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any
@@ -14,12 +15,14 @@ from fastapi.responses import JSONResponse
 from podcast_scraper.search.corpus_scope import normalize_feed_id
 from podcast_scraper.server.corpus_catalog import build_catalog_rows
 from podcast_scraper.server.corpus_digest import load_digest_topics
+from podcast_scraper.server.pathutil import resolved_corpus_root_str
 from podcast_scraper.server.routes.corpus_library import _resolve_corpus_root
 from podcast_scraper.server.schemas import (
     CorpusRunsSummaryResponse,
     CorpusRunSummaryItem,
     CorpusStatsResponse,
 )
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_fixed_file_under_root
 
 logger = logging.getLogger(__name__)
 
@@ -74,9 +77,10 @@ def _episode_outcomes(m: dict[str, Any]) -> dict[str, int]:
     return outcomes
 
 
-def _parse_run_json(path: Path, root: Path) -> CorpusRunSummaryItem | None:
+def _parse_run_json(path_str: str, root_safe: str) -> CorpusRunSummaryItem | None:
     try:
-        raw_any: Any = json.loads(path.read_text(encoding="utf-8"))
+        with open(path_str, encoding="utf-8") as fh:
+            raw_any: Any = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return None
     if not isinstance(raw_any, dict):
@@ -85,10 +89,9 @@ def _parse_run_json(path: Path, root: Path) -> CorpusRunSummaryItem | None:
     metrics_any = raw.get("metrics")
     m: dict[str, Any] = metrics_any if isinstance(metrics_any, dict) else {}
 
-    try:
-        rel = path.relative_to(root).as_posix()
-    except ValueError:
-        rel = path.name
+    rel = os.path.relpath(path_str, root_safe).replace("\\", "/")
+    if rel.startswith(".."):
+        rel = os.path.basename(path_str)
 
     rid = raw.get("run_id")
     cat = raw.get("created_at")
@@ -150,11 +153,13 @@ async def corpus_manifest_document(
     """Return ``corpus_manifest.json`` at corpus root if present."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    fp = root / "corpus_manifest.json"
-    if not fp.is_file():
+    root_safe = resolved_corpus_root_str(root, anchor)
+    fp = safe_fixed_file_under_root(Path(root_safe), "corpus_manifest.json")
+    if not fp or not os.path.isfile(fp):
         raise HTTPException(status_code=404, detail="corpus_manifest.json not found.")
     try:
-        data_any: Any = json.loads(fp.read_text(encoding="utf-8"))
+        with open(fp, encoding="utf-8") as fh:
+            data_any: Any = json.load(fh)
     except json.JSONDecodeError as exc:
         logger.warning("Invalid JSON at %s", fp)
         raise HTTPException(
@@ -177,11 +182,13 @@ async def corpus_run_summary_document(
     """Return ``corpus_run_summary.json`` at corpus root if present."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    fp = root / "corpus_run_summary.json"
-    if not fp.is_file():
+    root_safe = resolved_corpus_root_str(root, anchor)
+    fp = safe_fixed_file_under_root(Path(root_safe), "corpus_run_summary.json")
+    if not fp or not os.path.isfile(fp):
         raise HTTPException(status_code=404, detail="corpus_run_summary.json not found.")
     try:
-        data_any: Any = json.loads(fp.read_text(encoding="utf-8"))
+        with open(fp, encoding="utf-8") as fh:
+            data_any: Any = json.load(fh)
     except json.JSONDecodeError as exc:
         logger.warning("Invalid JSON at %s", fp)
         raise HTTPException(
@@ -204,12 +211,21 @@ async def corpus_runs_summary(
     """Discover ``run.json`` files (mtime order, capped) and return compact metrics."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
-    paths = [p for p in root.rglob("run.json") if p.is_file()]
-    paths.sort(key=lambda p: p.stat().st_mtime, reverse=True)
-    paths = paths[:_MAX_RUN_JSON_FILES]
+    root_safe = resolved_corpus_root_str(root, anchor)
+    discovered: list[str] = []
+    for dirpath, _, filenames in os.walk(root_safe):
+        if "run.json" not in filenames:
+            continue
+        candidate = os.path.normpath(os.path.join(dirpath, "run.json"))
+        if normpath_if_under_root(candidate, root_safe) is None:
+            continue
+        if os.path.isfile(candidate):
+            discovered.append(candidate)
+    discovered.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+    discovered = discovered[:_MAX_RUN_JSON_FILES]
     runs: list[CorpusRunSummaryItem] = []
-    for p in paths:
-        item = _parse_run_json(p, root)
+    for p in discovered:
+        item = _parse_run_json(p, root_safe)
         if item is not None:
             runs.append(item)
     runs.sort(key=lambda x: (x.created_at or "", x.relative_path), reverse=True)
