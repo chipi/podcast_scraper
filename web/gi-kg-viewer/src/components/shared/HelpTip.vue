@@ -1,5 +1,19 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted, ref, watch } from 'vue'
+import { nextTick, onUnmounted, ref, toRef, watch } from 'vue'
+
+const props = withDefaults(
+  defineProps<{
+    /** Popover max width hint (px); wider panels fit troubleshooting copy. */
+    prefWidth?: number
+    buttonAriaLabel?: string
+  }>(),
+  {
+    prefWidth: 256,
+    buttonAriaLabel: 'Help',
+  },
+)
+
+const prefWidthPx = toRef(props, 'prefWidth')
 
 const open = ref(false)
 const triggerRef = ref<HTMLButtonElement | null>(null)
@@ -13,7 +27,6 @@ const panelStyle = ref<Record<string, string>>({
 })
 
 const PAD = 8
-const PREF_W = 256
 
 function updatePosition(): void {
   const btn = triggerRef.value
@@ -23,7 +36,8 @@ function updatePosition(): void {
   const vw = window.innerWidth
   const vh = window.innerHeight
   const r = btn.getBoundingClientRect()
-  const maxW = Math.max(PAD * 2, Math.min(PREF_W, vw - 2 * PAD))
+  const pref = Math.max(160, prefWidthPx.value)
+  const maxW = Math.max(PAD * 2, Math.min(pref, vw - 2 * PAD))
   const maxH = Math.max(PAD * 2, Math.min(Math.floor(vh * 0.72), 384))
 
   panelStyle.value = {
@@ -111,7 +125,7 @@ onUnmounted(() => {
       ref="triggerRef"
       type="button"
       class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] font-bold leading-none text-muted hover:bg-overlay hover:text-surface-foreground"
-      aria-label="Help"
+      :aria-label="buttonAriaLabel"
       :aria-expanded="open"
       @click.stop="toggle"
     >

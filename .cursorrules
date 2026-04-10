@@ -169,6 +169,23 @@ Python tool for podcast transcript downloading/generation:
 - `workflow.py` → Orchestration only | `config.py` → Config model only
 - `downloader.py` → HTTP only | `rss_parser.py` → RSS parsing only
 
+### GI/KG viewer UX (`web/gi-kg-viewer`) — agents and humans
+
+Whenever you change **viewer UX** (visible copy, labels, routes, panels, layout, theme tokens,
+or accessible names used by tests):
+
+1. **`e2e/E2E_SURFACE_MAP.md`** — Update first when anything **E2E-visible** or **selector-related**
+   changes (Playwright `getByRole` strings, entry flows, `#search-q`, `.graph-canvas`, etc.).
+2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**.
+3. **`docs/uxs/UXS-001-gi-kg-viewer.md`** — Update when the **visual or experience contract**
+   (tokens, density, documented patterns) changes, not only when tests break.
+
+**FastAPI `/api/*` JSON** (new or changed routes): extend **`tests/unit/podcast_scraper/server/`** and
+**`tests/integration/server/`** (not a root-level `tests/integration/test_server_api.py`).
+
+Details: `docs/guides/E2E_TESTING_GUIDE.md` (Playwright), `docs/guides/DEVELOPMENT_GUIDE.md` (GI/KG viewer),
+`docs/guides/SERVER_GUIDE.md` (HTTP reference), `docs/uxs/index.md`.
+
 ## 🔧 ESSENTIAL COMMANDS
 
 ```bash

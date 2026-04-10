@@ -43,6 +43,32 @@ export function humanizeSlug(slug: string): string {
     .join(' ')
 }
 
+/**
+ * Pretty-print an ISO-8601 instant in UTC for the digest window header (no sub-second noise).
+ * Unparseable input is returned unchanged.
+ */
+export function formatUtcDateTimeForDisplay(iso: string): string {
+  const raw = String(iso ?? '').trim()
+  if (!raw) {
+    return ''
+  }
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) {
+    return raw
+  }
+  return (
+    new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'UTC',
+    }).format(d) + ' UTC'
+  )
+}
+
 /** Compact on-disk size for index bytes. */
 export function formatBytes(n: number): string {
   if (!Number.isFinite(n) || n < 0) return '—'

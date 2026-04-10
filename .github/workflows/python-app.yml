@@ -198,7 +198,7 @@ jobs:
         # Spell checking
         echo "### Spell Checking" >> $GITHUB_STEP_SUMMARY
         echo '```' >> $GITHUB_STEP_SUMMARY
-        python -m codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No spelling errors found"
+        codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" >> $GITHUB_STEP_SUMMARY 2>&1 || echo "No spelling errors found"
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -1229,7 +1229,8 @@ jobs:
     - name: Run acceptance fast matrix with E2E fixtures
       run: |
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-        make test-acceptance-fixtures-fast
+        # Local Whisper in multi-feed ML preset can approach 900s on slow CPU; keep margin.
+        TIMEOUT=1500 make test-acceptance-fixtures-fast
 
   # Documentation build - validates docs can be built correctly
   # Runs as very last step after all tests and coverage pass (final validation)

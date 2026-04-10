@@ -799,8 +799,22 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
     """
     parser.add_argument(
         "--generate-metadata",
-        action="store_true",
-        help="Generate metadata documents alongside transcripts",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Generate metadata documents alongside transcripts (default: on). "
+            "Use --no-generate-metadata to disable."
+        ),
+    )
+    parser.add_argument(
+        "--download-podcast-artwork",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "With metadata generation, download feed/episode cover art into "
+            ".podcast_scraper/corpus-art/ (default: on). Use --no-download-podcast-artwork "
+            "to disable."
+        ),
     )
     parser.add_argument(
         "--metadata-format",
@@ -2272,12 +2286,12 @@ def _run_gi_query(args: argparse.Namespace, logger: logging.Logger) -> int:
         print(json.dumps(result, indent=2))
     else:
         print(result.get("explanation", ""))
-        ans = result.get("answer")
-        if isinstance(ans, dict):
-            summ = ans.get("summary") or {}
+        answer_payload = result.get("answer")
+        if isinstance(answer_payload, dict):
+            summ = answer_payload.get("summary") or {}
             print(
                 f"Insights: {summ.get('insight_count', 0)}  "
-                f"Episodes searched: {ans.get('episodes_searched', 0)}"
+                f"Episodes searched: {answer_payload.get('episodes_searched', 0)}"
             )
     return EXIT_SUCCESS
 
@@ -3167,6 +3181,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
             payload["vector_index_types"] = _parsed if _parsed else None
         elif isinstance(_vit, list):
             payload["vector_index_types"] = _vit
+    if hasattr(args, "download_podcast_artwork"):
+        payload["download_podcast_artwork"] = args.download_podcast_artwork
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 

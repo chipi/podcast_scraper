@@ -6,7 +6,9 @@
 # Run:
 #   make test-acceptance CONFIGS="config/acceptance/sample_acceptance_e2e_fixture_multi_anthropic.yaml" USE_FIXTURES=1
 #
-# Requires: ANTHROPIC_API_KEY
+# Requires: ANTHROPIC_API_KEY (and OPENAI_API_KEY if not using USE_FIXTURES mock bases).
+# With USE_FIXTURES=1, transcription uses the E2E mock OpenAI /v1/audio/transcriptions
+# (fast); local Whisper for 5×3 episodes exceeded CI --timeout on ubuntu-latest CPU.
 
 feeds:
   - https://example.invalid/e2e-placeholder-feed-p01.xml
@@ -18,16 +20,16 @@ feeds:
 output_dir: .test_outputs/acceptance/sample_e2e_multi_anthropic
 max_episodes: 5
 
-transcription_provider: whisper
+transcription_provider: openai
 speaker_detector_provider: anthropic
 summary_provider: anthropic
 
-whisper_model: base.en
-whisper_device: cpu
+openai_transcription_model: whisper-1
 anthropic_speaker_model: claude-haiku-4-5
 anthropic_summary_model: claude-haiku-4-5
 
 transcribe_missing: true
+preprocessing_enabled: true
 generate_metadata: true
 generate_summaries: true
 generate_gi: true

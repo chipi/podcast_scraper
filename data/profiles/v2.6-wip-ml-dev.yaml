@@ -1,0 +1,47 @@
+release: v2.6-wip-ml-dev
+date: '2026-04-10T09:22:37Z'
+dataset_id: e2e_podcast1_mtb_n2
+episodes_processed: 2
+environment:
+  hostname: Markos-MacBook-Pro.local
+  cpu: arm
+  cpu_cores_physical: 14
+  cpu_cores_logical: 14
+  ram_total_gb: 48.0
+  os: Darwin 24.6.0
+  python: 3.11.8
+  package_version: 2.4.0
+  git_sha: 39c4b70
+  git_dirty: true
+  device: cpu
+  precision: fp32
+  library_versions:
+    torch: 2.9.1
+    transformers: 4.57.6
+    whisper: '20250625'
+    spacy: 3.7.5
+    numpy: 1.26.4
+    accelerate: 1.12.0
+stages:
+  speaker_detection:
+    wall_time_s: 0.02
+    peak_rss_mb: 469
+    avg_cpu_pct: 0.0
+  summarization:
+    wall_time_s: 185.46
+    peak_rss_mb: 3277
+    avg_cpu_pct: 217.72
+  gi_generation:
+    wall_time_s: 11.58
+    peak_rss_mb: 3282
+    avg_cpu_pct: 217.38
+  vector_indexing:
+    wall_time_s: 0.3176
+    peak_rss_mb: 0
+    avg_cpu_pct: 0.0
+totals:
+  peak_rss_mb: 3282
+  wall_time_s: 108.1212
+  avg_wall_time_per_episode_s: 54.0606
+  sampling_note: Per-stage RSS/CPU uses proportional wall-time windows from metrics.json;
+    parallel work can mis-attribute samples.

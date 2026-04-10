@@ -31,6 +31,8 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-018](PRD-018-database-projection-gil-kg.md) | Database Projection for GIL and KG | RFC-049, 050, 051, 055, 056 | Postgres projection of `gi.json` and KG artifacts (separate tables) |
 | [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-042, 044, 052, 055, 056, 051 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[055](../rfc/RFC-055-knowledge-graph-layer-core.md) done; [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md), [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) open |
 | [PRD-020](PRD-020-audio-speaker-diarization.md) | Audio-Based Speaker Diarization & Commercial Cleaning | RFC-058, RFC-059, RFC-060 | True speaker diarization via pyannote.audio; downstream commercial content cleaning |
+| [PRD-023](PRD-023-corpus-digest-recap.md) | Corpus Digest & Library Glance | RFC-068, RFC-067, RFC-061, RFC-062 | Digest tab + 24h Library glance: diverse recent episodes, global topic bands, GI/KG badges, search/graph handoffs |
+| [PRD-024](PRD-024-graph-exploration-toolkit.md) | GI/KG Graph Exploration Toolkit | RFC-069, RFC-062 | Graph tab: zoom 100%/%, Shift+drag box zoom, minimap v1, degree bucket filter, 4 built-in layouts, edge filters |
 
 ## Completed PRDs
 
@@ -50,6 +52,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-013](PRD-013-grok-provider-integration.md) | Grok Provider Integration (xAI) | v2.5.0 | RFC-036 | Grok - xAI's AI model with real-time information access |
 | [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | v2.5.0 | RFC-037 | Ollama - fully local/offline, zero cost |
 | [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | v2.6.0 | RFC-061, 062 | FAISS Phase 1, `podcast search` / `podcast index`, semantic `gi explore`, viewer v2 + `podcast serve`; Qdrant Phase 2 ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)) future |
+| [PRD-022](PRD-022-corpus-library-episode-browser.md) | Corpus Library & Episode Browser | v2.6.0 | RFC-067, 062, 061, 063 | Filesystem-first catalog in viewer: feeds/episodes, summaries, similar episodes, handoff to graph and semantic search ([RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) Phases 1–3) |
 
 ## Quick Links
 

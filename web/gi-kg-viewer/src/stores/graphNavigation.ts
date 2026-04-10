@@ -4,6 +4,8 @@ import { ref } from 'vue'
 /** Cross-panel graph focus (e.g. search result → Cytoscape). */
 export const useGraphNavigationStore = defineStore('graphNavigation', () => {
   const pendingFocusNodeId = ref<string | null>(null)
+  /** Raw episode / node ids (e.g. metadata ``episode_id``) → yellow ``search-hit`` ring on graph. */
+  const libraryHighlightSourceIds = ref<string[]>([])
 
   function requestFocusNode(nodeId: string): void {
     const id = nodeId.trim()
@@ -14,9 +16,20 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
     pendingFocusNodeId.value = null
   }
 
+  function setLibraryEpisodeHighlights(episodeIds: string[]): void {
+    libraryHighlightSourceIds.value = episodeIds.map((s) => s.trim()).filter(Boolean)
+  }
+
+  function clearLibraryEpisodeHighlights(): void {
+    libraryHighlightSourceIds.value = []
+  }
+
   return {
     pendingFocusNodeId,
+    libraryHighlightSourceIds,
     requestFocusNode,
     clearPendingFocus,
+    setLibraryEpisodeHighlights,
+    clearLibraryEpisodeHighlights,
   }
 })

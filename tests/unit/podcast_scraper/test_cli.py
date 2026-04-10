@@ -1866,6 +1866,7 @@ class TestAddArgumentGroups(unittest.TestCase):
         # Check that metadata arguments are present
         action_dests = [a.dest for a in parser._actions]
         self.assertIn("generate_metadata", action_dests)
+        self.assertIn("download_podcast_artwork", action_dests)
         self.assertIn("metadata_format", action_dests)
 
     def test_add_speaker_detection_arguments(self):

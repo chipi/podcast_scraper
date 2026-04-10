@@ -1,0 +1,12 @@
+# Global fixed digest topics (RFC-068). Passed to semantic search as natural-language queries.
+# Product-visible: review changes like other viewer defaults.
+topics:
+  - id: science
+    label: Science & research
+    query: scientific research discovery experiment
+  - id: technology
+    label: Technology
+    query: software artificial intelligence technology engineering
+  - id: business
+    label: Business & markets
+    query: business markets economics strategy

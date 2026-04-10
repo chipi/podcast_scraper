@@ -66,6 +66,6 @@ The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://gi
 
 - **Contributor setup:** [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)
 - **Daily dev patterns:** [Development Guide](DEVELOPMENT_GUIDE.md) — [GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype)
-- **FastAPI routes and `serve`:** [Server Guide](SERVER_GUIDE.md)
+- **FastAPI routes and `serve`:** [Server Guide](SERVER_GUIDE.md) — `/api/*` overview; OpenAPI UI at **`/docs`** when the API is up
 - **Vitest + Playwright:** [Testing Guide](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2)
 - **One-page commands:** [Quick Reference](QUICK_REFERENCE.md)

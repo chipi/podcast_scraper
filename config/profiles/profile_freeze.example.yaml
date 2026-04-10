@@ -1,0 +1,28 @@
+# Copy to e.g. profile_freeze.yaml (or keep multiple configs in config/profiles/).
+# Used by: make profile-freeze VERSION=vX.Y.Z PIPELINE_CONFIG=config/profiles/<your>.yaml
+# Standard podcast_scraper Config keys (YAML). Docs: src/podcast_scraper/config.py
+#
+# For E2E mock RSS (no real network feed), use the same placeholder as sample acceptance:
+#   rss: https://example.invalid/e2e-placeholder-single-feed.xml
+# freeze_profile then starts E2EHTTPServer and uses podcast1_mtb (or E2E_FEED=...).
+# See capture_e2e_*.yaml and config/profiles/README.md.
+#
+# rss_url: "https://feeds.npr.org/510289/podcast.xml"
+# output_dir: ".tmp/profile_freeze_run"
+# max_episodes: 20
+# log_level: "INFO"
+# transcribe_missing: true
+# whisper_model: "base"
+# generate_summaries: true
+# summary_provider: "transformers"
+# summary_model: "facebook/bart-large-cnn"
+# vector_search: false
+
+rss_url: "https://example.com/replace-with-your-feed.xml"
+output_dir: ".tmp/profile_freeze_run"
+max_episodes: 2
+log_level: "INFO"
+transcribe_missing: false
+generate_metadata: true
+generate_summaries: false
+auto_speakers: false

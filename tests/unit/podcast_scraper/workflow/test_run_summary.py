@@ -44,6 +44,22 @@ class TestCreateRunSummary:
         out = create_run_summary(None, metrics, "/tmp/out")
         assert out["metrics"]["run_duration_seconds"] == 10.0
 
+    def test_finish_episode_statuses_stay_json_serializable(self, tmp_path):
+        """episode_statuses from finish() must not be overwritten by raw dataclass list."""
+        metrics = MagicMock(spec=["finish"])
+        metrics.finish.return_value = {
+            "run_duration_seconds": 1.0,
+            "episode_statuses": [
+                {"episode_id": "e1", "episode_number": 1, "status": "ok"},
+            ],
+        }
+        summary = create_run_summary(None, metrics, str(tmp_path))
+        path = save_run_summary(summary, str(tmp_path), "run.json")
+        loaded = json.loads(Path(path).read_text(encoding="utf-8"))
+        rows = loaded["metrics"]["episode_statuses"]
+        assert rows == [{"episode_id": "e1", "episode_number": 1, "status": "ok"}]
+        assert isinstance(rows[0], dict)
+
     def test_with_metrics_attributes(self):
         """Includes metrics from pipeline_metrics attributes when no finish()."""
         metrics = MagicMock(spec=["run_duration_seconds", "episodes_scraped_total"])

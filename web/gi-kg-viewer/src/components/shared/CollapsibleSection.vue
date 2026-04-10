@@ -18,6 +18,7 @@ const open = ref(props.defaultOpen)
     <button
       type="button"
       class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-surface-foreground hover:bg-overlay/50"
+      :aria-expanded="open"
       @click="open = !open"
     >
       <svg
@@ -31,11 +32,17 @@ const open = ref(props.defaultOpen)
       <span>{{ title }}</span>
       <span
         v-if="!open && summary"
-        class="ml-auto truncate text-[10px] font-normal text-muted"
+        class="ml-auto max-w-[min(24rem,55vw)] truncate text-[10px] font-normal text-muted"
       >
         {{ summary }}
       </span>
     </button>
+    <div
+      v-if="$slots.subtitle"
+      class="border-t border-border px-3 py-1.5 text-xs leading-snug text-muted"
+    >
+      <slot name="subtitle" />
+    </div>
     <div
       v-show="open"
       class="border-t border-border px-3 pb-3 pt-2"

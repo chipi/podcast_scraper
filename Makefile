@@ -1,8 +1,10 @@
 # Auto-detect venv Python if .venv exists, otherwise use python3
 ifeq ($(wildcard .venv/bin/python),)
 PYTHON ?= python3
+CODESPELL ?= codespell
 else
 PYTHON ?= .venv/bin/python
+CODESPELL ?= .venv/bin/codespell
 endif
 PACKAGE = podcast_scraper
 
@@ -41,7 +43,7 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
@@ -59,7 +61,7 @@ help:
 	@echo "  make complexity-track Build wily baseline and show code quality trends over git history"
 	@echo "  make deadcode        Run vulture dead code detection"
 	@echo "  make docstrings      Run interrogate docstring coverage"
-	@echo "  make spelling        Run codespell spell checking"
+	@echo "  make spelling        Run codespell on src/ and docs/ (CLI from .[dev], e.g. .venv/bin/codespell)"
 	@echo "  make quality         Run all code quality checks (complexity, deadcode, docstrings, spelling)"
 	@echo ""
 	@echo "Verification commands:"
@@ -206,6 +208,8 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
+	@echo "  make profile-freeze      RFC-064: capture data/profiles/<VERSION>.yaml (needs PIPELINE_CONFIG=...)"
+	@echo "  make profile-diff        RFC-064: terminal diff of two profiles (FROM=v1 TO=v2)"
 	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[compare]')"
 	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make ml-param-sweep      RFC-057 Track B: ML hyperparameter ratchet (no API keys needed)"
@@ -331,15 +335,15 @@ deadcode:
 
 docstrings:
 	@echo "=== Docstring Coverage ==="
-	@$(PYTHON) -m interrogate src/podcast_scraper/ -v || true
+	@$(PYTHON) -m interrogate src/podcast_scraper/ -v
 
 spelling:
 	@echo "=== Spell Checking ==="
-	@$(PYTHON) -m codespell src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+	@$(CODESPELL) src/ docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl"
 
 spelling-docs:
 	@echo "=== Spell Checking (Docs only) ==="
-	@$(PYTHON) -m codespell docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl" || true
+	@$(CODESPELL) docs/ --skip="*.pyc,*.json,*.xml,*.lock,*.mp3,*.whl"
 
 quality: complexity deadcode docstrings spelling
 	@echo ""
@@ -1848,6 +1852,41 @@ experiment-run:
 	eval $$cmd
 	@echo ""
 	@echo "✓ Experiment completed. Check data/eval/runs/ directory for output."
+
+# RFC-064 / Issue #510: frozen release profiles (see data/profiles/README.md)
+profile-freeze:
+	@# Usage: make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/profile_freeze.yaml
+	@# Optional: DATASET_ID=... OUTPUT=... SKIP_WARMUP=1 E2E_FEED=podcast1_multi_episode
+	@# Optional: SAMPLE_INTERVAL=0.25 NO_STAGE_TRUTH=1
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Error: VERSION is required (e.g. VERSION=v2.6.0)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(PIPELINE_CONFIG)" ]; then \
+		echo "❌ Error: PIPELINE_CONFIG is required (YAML of podcast_scraper Config fields)"; \
+		echo "  Copy config/profiles/profile_freeze.example.yaml and edit (see config/profiles/README.md)."; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(PIPELINE_CONFIG)" ]; then \
+		echo "❌ Error: PIPELINE_CONFIG not found: $(PIPELINE_CONFIG)"; \
+		exit 1; \
+	fi
+	@cmd="$(PYTHON) scripts/eval/freeze_profile.py --version $(VERSION) --pipeline-config $(PIPELINE_CONFIG)"; \
+	if [ -n "$(DATASET_ID)" ]; then cmd="$$cmd --dataset-id $(DATASET_ID)"; fi; \
+	if [ -n "$(OUTPUT)" ]; then cmd="$$cmd --output $(OUTPUT)"; fi; \
+	if [ "$(SKIP_WARMUP)" = "1" ]; then cmd="$$cmd --skip-warmup"; fi; \
+	if [ -n "$(E2E_FEED)" ]; then cmd="$$cmd --e2e-feed $(E2E_FEED)"; fi; \
+	if [ -n "$(SAMPLE_INTERVAL)" ]; then cmd="$$cmd --sample-interval $(SAMPLE_INTERVAL)"; fi; \
+	if [ "$(NO_STAGE_TRUTH)" = "1" ]; then cmd="$$cmd --no-stage-truth-snapshot"; fi; \
+	eval $$cmd
+
+profile-diff:
+	@# Usage: make profile-diff FROM=v2.5.0 TO=v2.6.0  (paths: data/profiles/<tag>.yaml)
+	@if [ -z "$(FROM)" ] || [ -z "$(TO)" ]; then \
+		echo "❌ Error: FROM and TO are required (e.g. FROM=v2.5.0 TO=v2.6.0)"; \
+		exit 1; \
+	fi
+	@$(PYTHON) scripts/eval/diff_profiles.py "data/profiles/$(FROM).yaml" "data/profiles/$(TO).yaml"
 
 ml-param-sweep:
 	@# RFC-057 Track B: ML parameter autoresearch ratchet loop (no LLM judges needed).

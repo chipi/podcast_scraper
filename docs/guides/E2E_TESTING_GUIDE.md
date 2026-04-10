@@ -23,7 +23,24 @@ file remains **pytest** E2E.
 | **Run in package** | `cd web/gi-kg-viewer && npm run test:e2e` |
 | **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** |
 | **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
+| **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
+
+### When you change viewer UX (required workflow)
+
+Applies to **humans and AI agents** editing `web/gi-kg-viewer/` (Vue UI: copy, layout, routes,
+theme tokens, accessible names, or flows that Playwright exercises). Do **not** ship UI-only PRs
+without walking this list in order:
+
+1. **`e2e/E2E_SURFACE_MAP.md`** — Update if anything **E2E-visible** or **selector-related** changed
+   (including `getByRole` strings, `#search-q`, `.graph-canvas`, file-picker vs list flows).
+2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, and/or `fixtures.ts`; run **`make test-ui-e2e`**.
+3. **`docs/uxs/UXS-001-gi-kg-viewer.md`** — Update when the **visual or experience contract**
+   (tokens, density, documented patterns) changes, even if tests still pass.
+
+Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browser viewer*),
+[TESTING_GUIDE.md](TESTING_GUIDE.md) (*Browser E2E*), [UX specifications index](../uxs/index.md),
+`.cursorrules` (*GI/KG viewer UX*), and `.ai-coding-guidelines.md` (*GI/KG browser viewer*).
 | **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
 | **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
 | **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |

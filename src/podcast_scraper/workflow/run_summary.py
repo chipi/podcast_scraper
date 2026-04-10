@@ -103,9 +103,9 @@ def create_run_summary(
         if hasattr(pipeline_metrics, "initial_memory_mb"):
             metrics_summary["initial_memory_mb"] = pipeline_metrics.initial_memory_mb
 
-        # Episode statuses
-        if hasattr(pipeline_metrics, "episode_statuses"):
-            metrics_summary["episode_statuses"] = pipeline_metrics.episode_statuses
+        # Episode statuses: already included as JSON-safe dicts via ``finish()`` above.
+        # Do not assign ``pipeline_metrics.episode_statuses`` (dataclass instances) — that
+        # breaks ``json.dumps`` and dashboard parsing of ``run.json``.
 
         summary["metrics"] = metrics_summary
 

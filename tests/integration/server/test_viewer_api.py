@@ -26,7 +26,17 @@ def test_health_ok(tmp_path: Path) -> None:
     client = TestClient(app)
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "artifacts_api": True,
+        "search_api": True,
+        "explore_api": True,
+        "index_routes_api": True,
+        "corpus_metrics_api": True,
+        "corpus_library_api": True,
+        "corpus_digest_api": True,
+        "corpus_binary_api": True,
+    }
 
 
 def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:
@@ -45,6 +55,9 @@ def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:
     assert names == {"ep1.gi.json", "ep1.kg.json"}
     kinds = {item["kind"] for item in body["artifacts"]}
     assert kinds == {"gi", "kg"}
+    for item in body["artifacts"]:
+        assert "mtime_utc" in item
+        assert str(item["mtime_utc"]).endswith("Z")
     assert body.get("hints") == []
 
 

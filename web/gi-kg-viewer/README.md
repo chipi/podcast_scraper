@@ -90,6 +90,14 @@ After loading one or more `.gi.json` / `.kg.json` files, the **Cytoscape** graph
 
 Use the **Dashboard** tab for artifact metrics (v1-style key/value rows), a **Chart.js** bar chart of node counts by visual type, and **vector index** stats from `GET /api/index/stats` (FAISS under `<corpus>/search/`). If `/api/health` fails, use **Choose .gi.json / .kg.json files** under API to load graphs offline (index stats stay disabled without the server).
 
+## Corpus Library (RFC-067)
+
+The **Library** tab lists **feeds** and **episodes** from on-disk `*.metadata.json` / YAML under your corpus root (same discovery as the pipeline). Select an episode to see **summary bullets** and **Open in graph** (loads sibling `.gi.json` / `.kg.json` via `GET /api/artifacts/...`) or **Prefill semantic search** (opens Search with **Feed id (substring)** and query from **summary text** / title / bullets / episode title — then run **Search** against the vector index). Feeds that appear in the vector index show an **Indexed** chip: `GET /api/index/stats` returns **deduplicated, sorted, trimmed** `feeds_indexed` values aligned with catalog ids. **Find similar episodes** calls `GET /api/corpus/episodes/similar` (FAISS + deduped peers). Endpoints: `GET /api/corpus/feeds`, `GET /api/corpus/episodes`, `GET /api/corpus/episodes/detail`, `GET /api/corpus/episodes/similar`. Requires a healthy API and corpus path set in the left panel. `GET /api/health` includes `corpus_library_api: true` on current servers; a 404 on `/api/corpus/*` usually means an older API process is still running—restart `make serve-api` / `podcast serve` from this repo after `pip install -e ".[server]"`.
+
+## Corpus Digest (RFC-068)
+
+The **Digest** tab calls **`GET /api/corpus/digest`** (rolling **24h** / **7d** / **since** windows, UTC) for a **feed-diverse** list of recent episodes plus optional **topic** bands when a vector index exists. **Open in graph** / **Prefill semantic search** for an episode are used from the **Library** episode panel after opening a row from Digest. The **Library** tab does **not** embed a second digest strip — **Digest** is the discovery surface. **`corpus_digest_api`** on **`GET /api/health`** gates the **Digest** tab; older APIs show an upgrade notice there.
+
 ## Semantic search (M4)
 
 **List artifacts** (`GET /api/artifacts`) may return **`hints`** when the path you entered is under `feeds/` but the unified FAISS index lives at the corpus parent; the Corpus panel shows those hints above the file list.
@@ -119,7 +127,8 @@ npm run test:unit           # single run
 npm run test:unit:watch     # watch mode
 ```
 
-From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`, `src/stores/*.test.ts`. Config:
+From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`, `src/stores/*.test.ts`,
+`src/api/*.test.ts` (e.g. `corpusLibraryApi.test.ts`). Config:
 `vite.config.ts` `test` block. CI job: **`viewer-unit`**.
 
 ## Browser E2E (M7)
@@ -127,7 +136,8 @@ From repo root: **`make test-ui`**. Tests: `src/utils/*.test.ts`, `src/stores/*.
 - **Runner:** Playwright, **browser:** Firefox (see `playwright.config.ts`). Install once: `cd web/gi-kg-viewer && npx playwright install firefox` (CI uses `playwright install --with-deps firefox`).
 - **Commands:** `npm run test:e2e` (starts Vite on **port 5174** so it does not clash with `npm run dev` on 5173). From repo root: `make test-ui-e2e` (runs `npm install`, browser install, then tests).
 - **Fixtures:** `e2e/fixtures/ci_sample.gi.json` mirrors the pytest GIL CI sample; offline tests abort `/api/health` so the file-picker path is deterministic even if something listens on `:8000`.
-- **Scenarios:** offline graph + toolbar, Dashboard tab, theme tokens (dark/light), `/` shortcut with mocked health, `Esc` on graph, PNG export download, mocked API list/load/search → **Show on graph**, **Corpus path hint** when `GET /api/artifacts` returns `hints` (`e2e/corpus-hints.spec.ts`).
+- **Scenarios:** offline graph + toolbar, Dashboard tab, theme tokens (dark/light), `/` shortcut with mocked health, `Esc` on graph, PNG export download, mocked API list/load/search → **Show on graph**, **Corpus path hint** when `GET /api/artifacts` returns `hints` (`e2e/corpus-hints.spec.ts`), **Library** tab with corpus mocks + index/similar (`e2e/library.spec.ts`).
+- **Surface map:** [e2e/E2E_SURFACE_MAP.md](e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, and stable Playwright selectors. **UX change order:** map → Playwright specs/helpers → [UXS-001](../../docs/uxs/UXS-001-gi-kg-viewer.md) if the visual contract changes. Checklist: [E2E Testing Guide](../../docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow) ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)).
 
 ## Polish (M6)
 

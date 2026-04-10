@@ -12,7 +12,18 @@ from fastapi.staticfiles import StaticFiles
 
 from podcast_scraper import __version__
 from podcast_scraper.server.pathutil import CorpusPathRequestError
-from podcast_scraper.server.routes import artifacts, explore, health, index_stats, search
+from podcast_scraper.server.routes import (
+    artifacts,
+    corpus_binary,
+    corpus_digest,
+    corpus_library,
+    corpus_metrics,
+    explore,
+    health,
+    index_rebuild,
+    index_stats,
+    search,
+)
 
 
 def _default_static_dir() -> Path | None:
@@ -52,6 +63,8 @@ def create_app(
         allow_origins=[
             "http://127.0.0.1:5173",
             "http://localhost:5173",
+            "http://127.0.0.1:5174",
+            "http://localhost:5174",
         ],
         allow_credentials=True,
         allow_methods=["*"],
@@ -61,8 +74,13 @@ def create_app(
     app.include_router(health.router, prefix="/api")
     app.include_router(artifacts.router, prefix="/api")
     app.include_router(index_stats.router, prefix="/api")
+    app.include_router(index_rebuild.router, prefix="/api")
     app.include_router(search.router, prefix="/api")
     app.include_router(explore.router, prefix="/api")
+    app.include_router(corpus_library.router, prefix="/api")
+    app.include_router(corpus_binary.router, prefix="/api")
+    app.include_router(corpus_metrics.router, prefix="/api")
+    app.include_router(corpus_digest.router, prefix="/api")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None
     app.state.output_dir = resolved_output

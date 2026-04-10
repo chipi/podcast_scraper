@@ -4,6 +4,8 @@
 
 This guide explains how to run AI experiments using the podcast_scraper benchmarking framework. Experiments allow you to test different models, prompts, and parameters on canonical datasets and compare results against frozen baselines.
 
+For **frozen resource-cost profiles** (peak RSS, CPU%, wall time per pipeline stage) at release time, see the **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** (RFC-064). That track is separate from quality evaluation here.
+
 ---
 
 ## Getting Started

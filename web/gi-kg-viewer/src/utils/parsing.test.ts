@@ -200,7 +200,8 @@ describe('defaultFilterState', () => {
     expect(state.allowedTypes.Episode).toBe(true)
     expect(state.allowedTypes.Insight).toBe(true)
     expect(state.hideUngroundedInsights).toBe(false)
-    expect(state.legendSoloVisual).toBeNull()
+    expect(state.allowedEdgeTypes.supported_by).toBe(true)
+    expect(state.allowedEdgeTypes.HAS_INSIGHT).toBe(true)
   })
 
   it('returns null for null artifact', () => {
@@ -231,10 +232,12 @@ describe('filtersActive', () => {
     expect(filtersActive(art, state)).toBe(true)
   })
 
-  it('returns true when legendSoloVisual is set', () => {
+  it('returns true when an edge type is disabled', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
-    state.legendSoloVisual = 'Insight'
+    const firstKey = Object.keys(state.allowedEdgeTypes)[0]
+    expect(firstKey).toBeDefined()
+    state.allowedEdgeTypes[firstKey] = false
     expect(filtersActive(art, state)).toBe(true)
   })
 })
@@ -259,14 +262,6 @@ describe('applyGraphFilters', () => {
     expect(filtered.nodeTypes.Insight).toBe(1)
   })
 
-  it('solo visual keeps only matching group', () => {
-    const art = parsedGi()
-    const state = defaultFilterState(art)!
-    state.legendSoloVisual = 'Episode'
-    const filtered = applyGraphFilters(art, state)
-    expect(filtered.nodes).toBe(1)
-  })
-
   it('filters edges to remaining nodes', () => {
     const art = parsedGi()
     const state = defaultFilterState(art)!
@@ -277,6 +272,15 @@ describe('applyGraphFilters', () => {
       expect(ids.has(String(e.from))).toBe(true)
       expect(ids.has(String(e.to))).toBe(true)
     }
+  })
+
+  it('hides edges when edge type is disabled', () => {
+    const art = parsedGi()
+    const state = defaultFilterState(art)!
+    state.allowedEdgeTypes.supported_by = false
+    const filtered = applyGraphFilters(art, state)
+    const types = (filtered.data.edges ?? []).map((e) => String(e.type || ''))
+    expect(types).not.toContain('supported_by')
   })
 
   it('filters GI/KG layers for "both" kind', () => {
@@ -298,8 +302,8 @@ describe('applyGraphFilters', () => {
     }
     const state: GraphFilterState = {
       allowedTypes: { Insight: true, Topic: true, Episode: true },
+      allowedEdgeTypes: {},
       hideUngroundedInsights: false,
-      legendSoloVisual: null,
       showGiLayer: true,
       showKgLayer: false,
     }

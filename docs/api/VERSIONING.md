@@ -21,11 +21,11 @@ The API version is exposed via:
 ```python
 import podcast_scraper
 
-print(podcast_scraper.__version__)      # Package version (e.g., "2.4.0")
-print(podcast_scraper.__api_version__)  # API version (e.g., "2.4.0")
+print(podcast_scraper.__version__)      # Package version (e.g., "2.6.0")
+print(podcast_scraper.__api_version__)  # API version (e.g., "2.6.0")
 ```
 
-The public API consists of:
+The **Python** public API consists of:
 
 ### Core API (Stable)
 
@@ -42,6 +42,10 @@ The public API consists of:
 - `podcast_scraper.models.RssFeed`
 - `podcast_scraper.models.Episode`
 - `podcast_scraper.models.TranscriptionJob`
+
+### HTTP / viewer API (optional `[server]` extra)
+
+FastAPI routes under `/api/*` and the Vue SPA are **versioned with the same package tag** but are **not** part of the `from podcast_scraper import …` stability contract. They may gain new endpoints and response fields in minor releases. Reference: [Server Guide](../guides/SERVER_GUIDE.md); overview: [API index — HTTP / viewer](index.md#http-viewer-api-server-extra).
 
 ### Internal API (Unstable)
 

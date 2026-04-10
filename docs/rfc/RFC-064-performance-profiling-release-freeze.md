@@ -21,6 +21,7 @@ Podcast Scraper Team
 - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` — Quality benchmarking framework; this RFC is the resource cost sibling
 - `docs/rfc/RFC-047-run-comparison-visual-tool.md` — Run comparison tool; a future RFC will extend it with a performance tab
 - `docs/rfc/RFC-056-autoresearch-optimization-loop.md` — Autoresearch loop; benefits from per-stage resource visibility
+- `docs/rfc/RFC-063-multi-feed-corpus-append-resume.md` — Multi-feed corpus; profiling assumes single-feed in v1; multi-feed profiling is a future consideration
 
 ## Related ADRs
 
@@ -35,6 +36,8 @@ Podcast Scraper Team
 This RFC introduces a **performance profiling and release freeze framework** for `podcast_scraper` — the resource cost sibling to the quality benchmarking system established in RFC-041.
 
 Where RFC-041 answers "did output quality change?", this RFC answers "did resource cost change?" — specifically peak memory (RSS), wall time per stage, and CPU utilization. The framework builds on top of the project's existing per-episode timing infrastructure (`workflow.metrics.Metrics`, `EpisodeStageTimings`), the `ProviderFingerprint` environment capture, and the acceptance benchmark reporting (`generate_performance_benchmark.py`). It adds what those systems lack: a **frozen, versioned, cross-release profile artifact** that makes resource cost comparable across releases under identical conditions.
+
+**Operator documentation:** [Performance Profile Guide](../guides/PERFORMANCE_PROFILE_GUIDE.md) — capture workflow, methodology, E2E vs real RSS, troubleshooting.
 
 The framework has two components:
 
@@ -100,7 +103,7 @@ The project already has significant performance instrumentation. This RFC builds
 
 A **frozen profile** is a YAML snapshot of resource usage captured by running the fixed reference dataset (`indicator_v1` — same primary dataset used in RFC-041) through the full pipeline at a specific release. It is committed to the repo alongside the release tag and never modified after commit.
 
-The freeze is a single entry point: `make profile-freeze VERSION=v2.6.0`. It runs headless, captures metrics, and writes the artifact.
+The freeze is a single entry point: `make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/profile_freeze.yaml`. It runs headless, captures metrics, and writes the artifact.
 
 #### Directory Structure
 
@@ -262,7 +265,7 @@ The artifact is honest about its provenance — the environment fingerprint tell
 Single entry point for profile capture. Runs headless.
 
 ```bash
-make profile-freeze VERSION=v2.6.0
+make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/profile_freeze.yaml
 ```
 
 Equivalent to:
@@ -270,13 +273,23 @@ Equivalent to:
 ```bash
 .venv/bin/python3 scripts/eval/freeze_profile.py \
   --version v2.6.0 \
-  --dataset indicator_v1 \
+  --pipeline-config config/profiles/profile_freeze.yaml \
+  --dataset-id indicator_v1 \
   --output data/profiles/v2.6.0.yaml
 ```
 
+Pipeline YAML files live under **`config/profiles/`** (alongside **`data/profiles/`** outputs). That keeps capture configs separate from quality evaluation configs under `data/eval/` / `config/eval/` — profiling and eval are parallel tracks (see Relationship to RFC-041).
+
+For **repeatable, offline-friendly RSS**, use the same placeholder URL pattern as
+`config/acceptance/sample_acceptance_e2e_fixture_single.yaml` (`example.invalid` /
+`e2e-placeholder`): `freeze_profile.py` then starts **`E2EHTTPServer`** and points
+the config at fixture feed **`podcast1_mtb`** by default (override via `--e2e-feed`
+or `E2E_FEED=` in the Makefile). Cloud LLM API calls are still real unless you
+point provider bases at the mock server separately.
+
 **What the script does:**
 
-1. Loads the reference dataset config (same as RFC-041 benchmark runs)
+1. Loads a **`podcast_scraper` `Config`** from the pipeline YAML (copy from `config/profiles/profile_freeze.example.yaml`; you may keep multiple configs there for different machines or scenarios)
 2. Calls `generate_provider_fingerprint()` and collects machine-level metadata via `platform` and `psutil`
 3. Starts a `psutil` polling thread (1-second interval) that records RSS and CPU% for the process
 4. Runs a warm-up pass (see Measurement Methodology)
@@ -437,6 +450,11 @@ The two systems are **intentionally separate runs**. Profiling overhead (psutil 
 ## Directory Structure
 
 ```text
+config/profiles/
+  README.md
+  profile_freeze.example.yaml  # Copy to e.g. profile_freeze.yaml (not necessarily committed)
+  capture_e2e_*.yaml           # E2E mock RSS presets (aligned with sample acceptance fixtures)
+
 data/profiles/
   v2.3.0.yaml
   v2.4.0.yaml
@@ -505,6 +523,10 @@ This RFC assumes a release guide will be created that documents the full release
 - Release notes draft (`make release-docs-prep`)
 
 The release guide is a separate deliverable — not part of this RFC. This RFC defines the profiling artifact and tooling; the release guide defines when and how to use them.
+
+### Multi-Feed Profiling (RFC-063)
+
+The freeze script in v1 assumes single-feed pipeline execution (`run_pipeline()` called once with the reference dataset). When RFC-063 (Multi-Feed Corpus) ships, multi-feed runs will call `run_pipeline()` N times sequentially, with potential model reloads between feeds and different resource profiles per feed. Profiling multi-feed runs — per-feed profiles, aggregate corpus-level metrics, model reload overhead — is a natural extension but is out of scope for v1. The single-feed freeze provides the baseline; multi-feed profiling can build on the same artifact format with a `feed_id` dimension added later.
 
 ---
 

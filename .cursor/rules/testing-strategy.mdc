@@ -24,6 +24,22 @@ After any code session with new/modified code, MUST review related tests:
 
 If you're unsure which tests are affected, run the full test suite and fix failures.
 
+### GI/KG viewer UI (`web/gi-kg-viewer`) + Playwright
+
+pytest does **not** run browser E2E — use **`make test-ui-e2e`**.
+
+When **viewer UX** changes (labels, routes, layout, theme tokens, accessible names, E2E flows):
+
+1. Update **`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`** if selectors or E2E-visible behavior changed.
+2. Update **`e2e/*.spec.ts`** / **`helpers.ts`** / **`fixtures.ts`**; run **`make test-ui-e2e`**.
+3. Update **`docs/uxs/UXS-001-gi-kg-viewer.md`** when the **visual or experience contract** changes.
+
+**FastAPI JSON contracts** (new or changed `/api/*` routes): add or extend tests under
+**`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`** (not a root-level
+`tests/integration/test_server_api.py`). See **`docs/guides/TESTING_GUIDE.md`** (Browser E2E table).
+
+See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*) and **`.cursorrules`** (*GI/KG viewer UX*).
+
 ## 🚨 MANDATORY: Testing Before Commit
 
 **For which tests to run:** Use the **test-scope-decision-tree** skill.
@@ -141,7 +157,7 @@ tests/
 │   ├── providers/     # factories, protocols, llm/, ml/, ollama/
 │   ├── workflow/      # orchestration, stages, metadata, resume
 │   ├── gi/            # GI/KG artifacts, evidence stack
-│   ├── server/        # FastAPI app, viewer API
+│   ├── server/        # FastAPI viewer API (e.g. test_server_api, corpus_library, index_rebuild)
 │   ├── search/        # FAISS indexing
 │   ├── rss/           # RSS parsing, HTTP fetching
 │   └── test_*.py      # cross-cutting (filesystem, retry, cache)

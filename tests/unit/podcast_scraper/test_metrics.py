@@ -49,6 +49,7 @@ class TestMetricsInitialization(unittest.TestCase):
         self.assertEqual(m.extract_names_time_by_episode, {})
         self.assertEqual(m.summarize_time_by_episode, {})
         self.assertEqual(m.cleaning_time_by_episode, {})
+        self.assertEqual(m.vector_index_seconds, 0.0)
 
     def test_start_time_initialized(self):
         """Test that _start_time is initialized."""
@@ -281,6 +282,20 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["avg_summarize_seconds"], 4.5)  # (3+5+4+6)/4
         self.assertEqual(result["avg_cleaning_seconds"], 0.25)  # (0.1+0.2+0.3+0.4)/4
 
+    def test_finish_exports_per_episode_timing_dicts(self):
+        """finish() includes per-episode stage seconds (string keys) for RFC-064 snapshots."""
+        m = metrics.Metrics()
+        m.download_media_time_by_episode = {1: 1.5, 10: 2.25}
+        m.transcribe_time_by_episode = {1: 3.0}
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+        self.assertEqual(result["download_media_time_by_episode"], {"1": 1.5, "10": 2.25})
+        self.assertEqual(result["transcribe_time_by_episode"], {"1": 3.0})
+        self.assertEqual(result["extract_names_time_by_episode"], {})
+        self.assertEqual(result["summarize_time_by_episode"], {})
+        self.assertEqual(result["cleaning_time_by_episode"], {})
+
     def test_finish_handles_empty_lists(self):
         """Test that finish handles empty time lists."""
         m = metrics.Metrics()
@@ -379,6 +394,7 @@ class TestFinish(unittest.TestCase):
             "time_normalizing",
             "time_io_and_waiting",
             "time_writing_storage",
+            "vector_index_seconds",
             "avg_download_media_seconds",
             "avg_transcribe_seconds",
             "avg_extract_names_seconds",
@@ -487,6 +503,11 @@ class TestFinish(unittest.TestCase):
             "transcription_device",
             "summarization_device",
             "schema_version",
+            "download_media_time_by_episode",
+            "transcribe_time_by_episode",
+            "extract_names_time_by_episode",
+            "summarize_time_by_episode",
+            "cleaning_time_by_episode",
             "episode_statuses",
         }
         self.assertEqual(set(result.keys()), expected_keys)
@@ -959,6 +980,7 @@ class TestMetricsHygiene(unittest.TestCase):
             "time_summarization_wait_seconds": 0.0,
             "time_thread_sync_seconds": 0.0,
             "time_queue_wait_seconds": 0.0,
+            "vector_index_seconds": 0.0,
             "schema_version": "1.0",
         }
         # Create a metrics dict with a None value to test validation

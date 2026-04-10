@@ -72,7 +72,9 @@ python -m podcast_scraper.cli serve --output-dir /path/to/your/run
 
 Then open **<http://127.0.0.1:8000>** (default port). In the sidebar, set **Corpus root folder** to that **same** directory, click **List files**, select `.gi.json` / `.kg.json`, and **Load selected into graph**.
 
-**Development (API + hot-reload UI):** `make serve SERVE_OUTPUT_DIR=/path/to/your/run` runs the FastAPI app and the Vite dev server together (UI proxied to the API). See [web/gi-kg-viewer/README.md](web/gi-kg-viewer/README.md) and [Server Guide](docs/guides/SERVER_GUIDE.md).
+**FastAPI / HTTP API:** Full **`/api/*`** reference, architecture, and tests — [Server Guide](docs/guides/SERVER_GUIDE.md). With the server running, interactive OpenAPI (Swagger) is at **`/docs`** and **`/openapi.json`**.
+
+**Development (API + hot-reload UI):** `make serve SERVE_OUTPUT_DIR=/path/to/your/run` runs the FastAPI app and the Vite dev server together (UI proxied to the API). See [web/gi-kg-viewer/README.md](web/gi-kg-viewer/README.md) and the Server Guide above.
 
 **Testing the viewer:** `make test-ui` (Vitest unit tests, ~1s) and `make test-ui-e2e` (Playwright browser E2E, Firefox).
 
@@ -132,7 +134,7 @@ Use the latest released version for normal usage.
 # Clone the repository
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
-git checkout <latest-release-tag>   # e.g. v2.5.0
+git checkout <latest-release-tag>   # e.g. v2.6.0
 
 # Create and activate virtual environment
 python3 -m venv .venv

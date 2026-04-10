@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { escapeHtml, formatBytes, humanizeSlug, shortPhrase, truncate } from './formatting'
+import {
+  escapeHtml,
+  formatBytes,
+  formatUtcDateTimeForDisplay,
+  humanizeSlug,
+  shortPhrase,
+  truncate,
+} from './formatting'
 
 describe('escapeHtml', () => {
   it('escapes &, <, >, "', () => {
@@ -107,6 +114,29 @@ describe('humanizeSlug', () => {
 
   it('handles empty string', () => {
     expect(humanizeSlug('')).toBe('')
+  })
+})
+
+describe('formatUtcDateTimeForDisplay', () => {
+  it('formats UTC instant without fractional seconds in output', () => {
+    const out = formatUtcDateTimeForDisplay('2026-04-10T18:05:06.789Z')
+    expect(out).toBe('Apr 10, 2026, 6:05 PM UTC')
+    expect(out).not.toMatch(/\.\d/)
+  })
+
+  it('returns empty for blank', () => {
+    expect(formatUtcDateTimeForDisplay('')).toBe('')
+    expect(formatUtcDateTimeForDisplay('   ')).toBe('')
+  })
+
+  it('returns original when not parseable', () => {
+    expect(formatUtcDateTimeForDisplay('not-a-date')).toBe('not-a-date')
+  })
+
+  it('handles +00:00 style ISO', () => {
+    expect(formatUtcDateTimeForDisplay('2024-06-01T00:00:00.000+00:00')).toBe(
+      'Jun 1, 2024, 12:00 AM UTC',
+    )
   })
 })
 

@@ -214,8 +214,7 @@ web/gi-kg-viewer/
 │   │   └── useArtifacts.ts           # artifact loading + file-picker fallback
 │   ├── components/
 │   │   ├── graph/
-│   │   │   ├── GraphCanvas.vue       # cytoscape wrapper
-│   │   │   ├── GraphLegend.vue       # color legend with click-to-solo
+│   │   │   ├── GraphCanvas.vue       # cytoscape wrapper + on-card type/edge tools
 │   │   │   ├── GraphControls.vue     # fit, re-layout, export PNG/SVG
 │   │   │   └── NodeDetail.vue        # click-to-inspect detail panel
 │   │   ├── search/
@@ -740,8 +739,8 @@ See `web/gi-kg-viewer/playwright.config.ts` for the current configuration
 ### Test Organization
 
 - `web/gi-kg-viewer/e2e/` — browser E2E tests (Playwright)
-- `tests/unit/podcast_scraper/server/` — backend unit tests (pytest)
-- `tests/integration/test_server_api.py` — backend API integration (pytest)
+- `tests/unit/podcast_scraper/server/` — backend unit tests (pytest; `importorskip("fastapi")` when `[server]` not installed)
+- `tests/integration/server/` — backend API integration (pytest): `test_server_api.py`, Corpus Library, index rebuild, index stats, etc.
 
 ### Test Execution
 

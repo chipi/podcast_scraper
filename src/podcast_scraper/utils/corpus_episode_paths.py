@@ -184,22 +184,22 @@ def corpus_search_parent_hint(listed_root: Path) -> List[str]:
         return []
 
     hints: List[str] = []
-    for anc in root.parents:
-        anc_normed = os.path.normpath(str(anc))
-        if not anc_normed.startswith(os.sep):
+    for ancestor in root.parents:
+        ancestor_normed = os.path.normpath(str(ancestor))
+        if not ancestor_normed.startswith(os.sep):
             continue
-        idx_str = os.path.normpath(os.path.join(anc_normed, "search", VECTORS_FILE))
+        idx_str = os.path.normpath(os.path.join(ancestor_normed, "search", VECTORS_FILE))
         if not idx_str.startswith(os.sep):
             continue
         if not os.path.isfile(idx_str):
             continue
         try:
-            root.relative_to(anc)
+            root.relative_to(ancestor)
         except ValueError:
             break
-        if anc != root:
+        if ancestor != root:
             hints.append(
-                f"Unified semantic index is under {anc}. Set corpus root to that directory "
+                f"Unified semantic index is under {ancestor}. Set corpus root to that directory "
                 "for search and index stats (multi-feed layout)."
             )
         break

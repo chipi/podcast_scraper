@@ -34,7 +34,7 @@ function tooltipElementForChart(chart: Chart): HTMLDivElement {
       padding: '8px 12px',
       fontSize: '12px',
       lineHeight: '1.45',
-      maxWidth: 'min(280px, calc(100vw - 16px))',
+      maxWidth: 'min(340px, calc(100vw - 16px))',
       boxShadow: '0 10px 40px rgba(0,0,0,0.35)',
     })
     document.body.appendChild(el)
@@ -73,6 +73,14 @@ export function chartExternalTooltipHandler(context: {
       blocks.push(`<div style="white-space:pre-wrap">${escapeHtml(line)}</div>`)
     }
   }
+  const footers = tooltip.footer || []
+  for (const f of footers) {
+    if (f) {
+      blocks.push(
+        `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(148,163,184,0.35);font-size:11px;opacity:0.85;white-space:pre-wrap">${escapeHtml(f)}</div>`,
+      )
+    }
+  }
   el.innerHTML = blocks.join('') || '&nbsp;'
 
   const rect = chart.canvas.getBoundingClientRect()
@@ -82,7 +90,7 @@ export function chartExternalTooltipHandler(context: {
   const GAP = 12
 
   el.style.opacity = '1'
-  el.style.maxWidth = `min(280px, calc(100vw - ${String(2 * PAD)}px))`
+  el.style.maxWidth = `min(340px, calc(100vw - ${String(2 * PAD)}px))`
 
   // Prefer below/right of caret; measure then clamp / flip so nothing leaves the viewport
   let left = rect.left + tooltip.caretX + GAP

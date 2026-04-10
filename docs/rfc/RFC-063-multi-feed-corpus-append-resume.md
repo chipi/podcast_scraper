@@ -263,6 +263,7 @@ searchable; failed feeds add no metadata until a later successful run.
 | RFC-061 | This RFC **requires** corpus-parent indexing and recursive metadata; composite vector keys. |
 | RFC-062 | Viewer corpus root = parent; artifacts API already recursive; search needs parent index. |
 | RFC-001 | Orchestration gains an outer multi-feed loop; inner pipeline unchanged. |
+| RFC-064 | Performance profiling freeze script assumes single-feed execution; multi-feed profiling (per-feed profiles, aggregate metrics, N model reloads) is a future consideration once both RFCs ship. |
 
 ## Migration Path
 

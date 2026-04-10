@@ -7,7 +7,11 @@ test.describe('Keyboard shortcuts', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ status: 'ok' }),
+        body: JSON.stringify({
+          status: 'ok',
+          corpus_library_api: true,
+          corpus_digest_api: true,
+        }),
       })
     })
 

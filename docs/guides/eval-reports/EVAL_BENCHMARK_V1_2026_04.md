@@ -52,7 +52,7 @@ your hardware.
 1. **ML baselines (no LLM)** sit at 18–24% ROUGE-L and are the only fully air-gapped
    option. `ml_bart_led_autoresearch_v1` (20.4%, 26s/ep) is Tier 2 production default;
    `ml_hybrid_bart_llama32_3b_autoresearch_v1` (23.7%, 15s/ep) bridges ML and LLM tiers
-   but requires Ollama. See [ML & hybrid baselines](#ml--hybrid-baselines) below.
+   but requires Ollama. See [ML & hybrid baselines](#ml-hybrid-baselines) below.
 2. **Anthropic Haiku 4.5** leads cloud paragraphs (33.7% ROUGE-L, 86.2% embed) and
    cloud bullets (38.6% ROUGE-L). Rankings are stable vs. smoke.
 3. **DeepSeek** is the strongest non-Anthropic provider: 29.5% ROUGE-L (paragraphs) and
@@ -72,7 +72,7 @@ your hardware.
 
 ---
 
-## ML & hybrid baselines
+## ML & hybrid baselines {#ml-hybrid-baselines}
 
 ML and hybrid models run entirely on-device — no API key, no cloud dependency. They are
 the fallback when Ollama is unavailable or the deployment is air-gapped. Numbers below

@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
 import { searchCorpus, type SearchHit } from '../api/searchApi'
+import { useGraphNavigationStore } from './graphNavigation'
+import { normalizeFeedIdForViewer } from '../utils/feedId'
 
 export const useSearchStore = defineStore('search', () => {
   const query = ref('')
@@ -9,6 +11,8 @@ export const useSearchStore = defineStore('search', () => {
   const apiError = ref<string | null>(null)
   const results = ref<SearchHit[]>([])
   const lastSubmittedQuery = ref('')
+  /** Set when navigating from Library/Digest “Prefill semantic search”; cleared on Search / Clear. */
+  const libraryHandoffHint = ref<string | null>(null)
 
   const filters = reactive({
     topK: 10,
@@ -22,6 +26,16 @@ export const useSearchStore = defineStore('search', () => {
     embeddingModel: '',
   })
 
+  function applyLibrarySearchHandoff(feed: string, queryText: string): void {
+    results.value = []
+    apiError.value = null
+    error.value = null
+    filters.feed = normalizeFeedIdForViewer(feed)
+    query.value = queryText
+    libraryHandoffHint.value =
+      'From Library: query uses episode summary when present. Press Search to run.'
+  }
+
   async function runSearch(corpusPath: string): Promise<void> {
     const q = query.value.trim()
     error.value = null
@@ -30,6 +44,8 @@ export const useSearchStore = defineStore('search', () => {
       error.value = 'Enter a search query.'
       return
     }
+    libraryHandoffHint.value = null
+    useGraphNavigationStore().clearLibraryEpisodeHighlights()
     const root = corpusPath.trim()
     if (!root) {
       error.value = 'Set corpus root first (same folder as List files).'
@@ -69,6 +85,8 @@ export const useSearchStore = defineStore('search', () => {
     results.value = []
     apiError.value = null
     error.value = null
+    libraryHandoffHint.value = null
+    useGraphNavigationStore().clearLibraryEpisodeHighlights()
   }
 
   return {
@@ -78,7 +96,9 @@ export const useSearchStore = defineStore('search', () => {
     apiError,
     results,
     lastSubmittedQuery,
+    libraryHandoffHint,
     filters,
+    applyLibrarySearchHandoff,
     runSearch,
     clearResults,
   }

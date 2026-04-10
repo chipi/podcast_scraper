@@ -43,6 +43,18 @@ Write unit tests for the new provider
 Set up worktree for issue #200
 ```
 
+## GI/KG viewer UX (`web/gi-kg-viewer`)
+
+When the task changes **Vue viewer UI** (copy, layout, routes, tokens, accessible names), treat
+documentation and Playwright as part of the same PR:
+
+1. [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+2. `e2e/*.spec.ts`, `helpers.ts`, `fixtures.ts` — `make test-ui-e2e`
+3. [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) when the visual/experience contract changes
+
+Canonical checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
+Also in `.cursorrules` (*GI/KG viewer UX*) and `.ai-coding-guidelines.md`.
+
 ## Model Roles (Quick Guide)
 
 **Fast / Mechanical Tasks** (small, obvious changes):

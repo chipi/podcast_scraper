@@ -23,6 +23,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Testing philosophy, test pyramid, decision criteria
 - **[Testing Guide](TESTING_GUIDE.md)** - Quick reference, test execution commands
 - **[Experiment Guide](EXPERIMENT_GUIDE.md)** — Complete guide: datasets, baselines, experiments, and evaluation
+- **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** — Frozen release profiles (RSS, CPU%, wall time per stage; RFC-064)
 - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test guidelines
 - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models
@@ -35,6 +36,9 @@ For comprehensive testing information, see the dedicated testing documentation:
 | Unit | `tests/unit/` | < 100ms | All mocked |
 | Integration | `tests/integration/` | < 5s | External mocked |
 | E2E | `tests/e2e/` | < 60s | No mocks |
+
+**FastAPI viewer:** unit tests in **`tests/unit/podcast_scraper/server/`**; wired HTTP integration in
+**`tests/integration/server/`**. Playwright UI tests are separate — [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2).
 
 ### Running Tests
 
@@ -490,6 +494,10 @@ semantic search, and explore.
 
 ### Viewer v2 (RFC-062 / `#489`)
 
+**FastAPI (all `/api/*` routes, `create_app`, OpenAPI):** [Server Guide](SERVER_GUIDE.md)
+— endpoint table, Corpus Library, index rebuild, **`/docs`** and **`/openapi.json`**
+when `serve` is running. Platform routes under `routes/platform/` are **not** mounted yet (stubs only).
+
 - **Location:** `web/gi-kg-viewer/`
 - **Python extra:** `[server]` (FastAPI + uvicorn) — not part of the default `make init`
   line (`.[dev,ml,llm]`); add `server` when you work on or run the viewer API.
@@ -514,10 +522,16 @@ semantic search, and explore.
 
 **Contributor notes:**
 
+- **Viewer UX changes (order matters):** If you change **UI** that users or Playwright see
+  (copy, labels, layout, routes, theme tokens, accessible names, list/load flows), update **(1)**
+  [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md),
+  **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**, **(3)**
+  [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) when the **visual or experience spec** changes.
+  Checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 - UI E2E uses **Firefox** (see `web/gi-kg-viewer/playwright.config.ts`).
 - Pytest coverage for the same APIs lives under `tests/unit/podcast_scraper/server/`
-  (`test_viewer_*.py`) and `tests/integration/test_server_api.py` (wired app + real
-  filesystem).
+  and `tests/integration/server/` (e.g. `test_server_api.py` — wired app + real filesystem;
+  see Server Guide for other modules).
 - **Full server reference:** [Server Guide](SERVER_GUIDE.md) — architecture, all endpoints,
   adding routes, testing, platform evolution.
 

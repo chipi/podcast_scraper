@@ -92,4 +92,11 @@ describe('resolveCyNodeId', () => {
     const core = mockCore(['g:anything'])
     expect(resolveCyNodeId(core, '')).toBeNull()
   })
+
+  it('resolves __unified_ep__ for library episode focus', () => {
+    const core = mockCore(['__unified_ep__:226cc6d2-2178-11f1-bfcd-c76500e5b946'])
+    expect(
+      resolveCyNodeId(core, '226cc6d2-2178-11f1-bfcd-c76500e5b946'),
+    ).toBe('__unified_ep__:226cc6d2-2178-11f1-bfcd-c76500e5b946')
+  })
 })

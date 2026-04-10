@@ -228,15 +228,16 @@ directory).
 | **In `make test`?** | No | Yes |
 | **CI** | Job **`viewer-e2e`** (`.github/workflows/python-app.yml`); required for docs publish path on main | `test-e2e`, `test-e2e-fast`, etc. |
 
-**Python API for the viewer** (`GET /api/search`, `/api/explore`, etc.) is validated at two pytest
-layers:
+**Python API for the viewer** (`GET /api/search`, `/api/explore`, `/api/corpus/*`,
+`POST /api/index/rebuild`, etc.) is validated at two pytest layers:
 
-- **Unit:** `tests/unit/podcast_scraper/server/test_viewer_*.py` — FastAPI `TestClient` and
-  targeted mocks (e.g. vector store boundaries). **CI `test-unit`** installs **`.[dev]`** only, so
-  modules that call **`pytest.importorskip("fastapi")`** **skip** there; install **`.[server]`**
-  locally to run them. **Integration** (`test_server_api`) still exercises the API with full deps.
-- **Integration:** `tests/integration/test_server_api.py` — wired `create_app` with real
-  filesystem artifacts (no mocking of route internals).
+- **Unit:** `tests/unit/podcast_scraper/server/` — `test_viewer_*.py`, `test_corpus_catalog.py`,
+  `test_index_rebuild_gate.py`, `test_index_staleness.py`, …; FastAPI `TestClient` and targeted
+  mocks. **CI `test-unit`** installs **`.[dev]`** only, so modules using
+  **`pytest.importorskip("fastapi")`** **skip** there; install **`.[server]`** locally to run them.
+- **Integration:** `tests/integration/server/` — wired `create_app` with real filesystem layouts
+  and no mocking of route internals (e.g. `test_server_api.py`, `test_viewer_corpus_library.py`,
+  `test_index_rebuild.py`, `test_viewer_index_stats.py`).
 
 ### Unit tests and optional extras (`pyproject`) {#unit-tests-and-optional-extras-pyproject}
 

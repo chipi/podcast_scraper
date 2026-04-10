@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -37,6 +38,11 @@ def _safe_artifact_target(base: Path, artifact_relpath: str) -> Path:
     if not _is_under(base, target):
         raise HTTPException(status_code=400, detail="Path escapes corpus root.")
     return target
+
+
+def _mtime_utc_iso(st_mtime: float) -> str:
+    dt = datetime.fromtimestamp(st_mtime, tz=timezone.utc).replace(microsecond=0)
+    return dt.isoformat().replace("+00:00", "Z")
 
 
 def _kind_for_suffix(name: str) -> Literal["gi", "kg"] | None:
@@ -79,6 +85,7 @@ async def list_artifacts(
                     relative_path=rel.as_posix(),
                     kind=kind,
                     size_bytes=int(st.st_size),
+                    mtime_utc=_mtime_utc_iso(st.st_mtime),
                 )
             )
     items.sort(key=lambda x: (x.relative_path, x.kind))

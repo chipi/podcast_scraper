@@ -297,10 +297,10 @@ def anthropic_message_usage_tokens(response: Any) -> Tuple[Optional[int], Option
     if not hasattr(response, "usage") or not response.usage:
         return None, None
     usage = response.usage
-    it = getattr(usage, "input_tokens", None)
-    ot = getattr(usage, "output_tokens", None)
-    in_tok = int(it) if isinstance(it, (int, float)) else None
-    out_tok = int(ot) if isinstance(ot, (int, float)) else None
+    input_raw = getattr(usage, "input_tokens", None)
+    output_raw = getattr(usage, "output_tokens", None)
+    in_tok = int(input_raw) if isinstance(input_raw, (int, float)) else None
+    out_tok = int(output_raw) if isinstance(output_raw, (int, float)) else None
     return in_tok, out_tok
 
 

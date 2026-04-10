@@ -49,7 +49,10 @@ When working on documentation tasks:
      aligned with user-facing commands; sync [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md),
      [TESTING_GUIDE.md](TESTING_GUIDE.md), [QUICK_REFERENCE.md](QUICK_REFERENCE.md), and root
      [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md) when `make serve`,
-     `make test-ui-e2e`, or ports change
+     `make test-ui-e2e`, or ports change. When **viewer UX** changes, remind authors to update
+     [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+     → Playwright specs/helpers → [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) as needed
+     ([E2E Testing Guide — workflow](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)).
 
 3. **Follow documentation standards**:
    - Use markdown linting

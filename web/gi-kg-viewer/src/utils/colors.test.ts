@@ -4,7 +4,6 @@ import {
   graphNodeFill,
   graphNodeLegendLabel,
   graphNodeTypeStyles,
-  semanticTypeForLegendVisual,
 } from './colors'
 
 describe('graphNodeLegendLabel', () => {
@@ -19,20 +18,6 @@ describe('graphNodeLegendLabel', () => {
   it('passes through other keys', () => {
     expect(graphNodeLegendLabel('Topic')).toBe('Topic')
     expect(graphNodeLegendLabel('Episode')).toBe('Episode')
-  })
-})
-
-describe('semanticTypeForLegendVisual', () => {
-  it('maps Entity_person to Entity', () => {
-    expect(semanticTypeForLegendVisual('Entity_person')).toBe('Entity')
-  })
-
-  it('maps Entity_organization to Entity', () => {
-    expect(semanticTypeForLegendVisual('Entity_organization')).toBe('Entity')
-  })
-
-  it('passes through non-entity keys', () => {
-    expect(semanticTypeForLegendVisual('Insight')).toBe('Insight')
   })
 })
 

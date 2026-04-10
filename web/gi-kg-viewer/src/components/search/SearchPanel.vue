@@ -80,7 +80,16 @@ async function onSubmit(): Promise<void> {
           <li>
             Queries are embedded with the same model as the index (must be available locally).
           </li>
-          <li>Use filters to narrow by doc type, feed, date, speaker, or grounded status.</li>
+          <li>
+            Use filters to narrow by doc type, feed id substring (matches catalog
+            <code class="rounded bg-canvas px-0.5 text-[10px]">feed_id</code>), date, speaker, or
+            grounded status.
+          </li>
+          <li>
+            <strong>Library</strong> / <strong>Digest</strong> → <strong>Prefill semantic search</strong>
+            sets the feed filter and fills the query from summary text (or title / bullets); run
+            <strong>Search</strong> for vector hits.
+          </li>
           <li>"Show on graph" works when the hit maps to a node in your loaded artifacts.</li>
         </ul>
       </HelpTip>
@@ -95,6 +104,13 @@ async function onSubmit(): Promise<void> {
       class="space-y-2"
       @submit.prevent="onSubmit"
     >
+      <p
+        v-if="search.libraryHandoffHint"
+        class="rounded border border-border bg-elevated px-2 py-1.5 text-xs text-muted"
+        role="status"
+      >
+        {{ search.libraryHandoffHint }}
+      </p>
       <label class="block text-xs text-muted" for="search-q">Query</label>
       <textarea
         id="search-q"
@@ -129,12 +145,13 @@ async function onSubmit(): Promise<void> {
       </div>
       <div class="flex flex-wrap gap-2">
         <label class="text-xs text-muted">
-          Feed contains
+          Feed id (substring)
           <input
             v-model="search.filters.feed"
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
             :disabled="!shell.healthStatus"
+            autocomplete="off"
           >
         </label>
         <label class="text-xs text-muted">

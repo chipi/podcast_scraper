@@ -70,13 +70,6 @@ export function graphNodeLegendLabel(key: string): string {
   return key
 }
 
-export function semanticTypeForLegendVisual(visualKey: string): string {
-  if (visualKey === 'Entity_person' || visualKey === 'Entity_organization') {
-    return 'Entity'
-  }
-  return visualKey
-}
-
 export function graphNodeFill(type: string): string {
   const styles = graphNodeTypeStyles as Record<string, { background: string }>
   const s = styles[type] || (type === 'Entity' ? styles.Entity_person : undefined)

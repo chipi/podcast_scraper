@@ -2,7 +2,7 @@
 
 Complete reference documentation for the `podcast_scraper` public API.
 
-**API Version**: `2.3.0` (tied to module version)
+**API Version**: `2.6.0` (tied to package `__version__` / `__api_version__`)
 
 ## Table of Contents
 
@@ -128,7 +128,8 @@ class Config(BaseModel)
 
 #### Metadata Generation
 
-- `generate_metadata` (`bool`, default: `False`, alias: `"generate_metadata"`): Generate per-episode metadata documents.
+- `generate_metadata` (`bool`, default: `True`, alias: `"generate_metadata"`): Generate per-episode metadata documents. CLI: `--no-generate-metadata` to disable.
+- `download_podcast_artwork` (`bool`, default: `True`, alias: `"download_podcast_artwork"`): When metadata is generated, download feed/episode cover art into `.podcast_scraper/corpus-art/` and set `image_local_relpath` fields. CLI: `--no-download-podcast-artwork` to disable.
 - `metadata_format` (`Literal["json", "yaml"]`, default: `"json"`, alias: `"metadata_format"`): Metadata file format.
 - `metadata_subdirectory` (`Optional[str]`, default: `None`, alias: `"metadata_subdirectory"`): Subdirectory for metadata files. If `None`, stored alongside transcripts.
 
@@ -420,7 +421,7 @@ API version string following semantic versioning.
 ```python
 import podcast_scraper
 
-api_version = podcast_scraper.__api_version__  # "2.3.0"
+api_version = podcast_scraper.__api_version__  # e.g. "2.6.0"
 ```
 
 - **Major version (X.y.z)**: Breaking API changes (function signatures, return types, required parameters)

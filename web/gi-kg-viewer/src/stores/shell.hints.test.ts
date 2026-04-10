@@ -43,7 +43,15 @@ describe('useShellStore /api/artifacts hints', () => {
         ok: true,
         json: async () => ({
           path: '/x',
-          artifacts: [{ name: 'a.gi.json', relative_path: 'a.gi.json', kind: 'gi', size_bytes: 1 }],
+          artifacts: [
+            {
+              name: 'a.gi.json',
+              relative_path: 'a.gi.json',
+              kind: 'gi',
+              size_bytes: 1,
+              mtime_utc: '2024-01-01T00:00:00Z',
+            },
+          ],
         }),
       })) as unknown as typeof fetch,
     )
@@ -53,5 +61,52 @@ describe('useShellStore /api/artifacts hints', () => {
     await shell.fetchArtifactList()
 
     expect(shell.corpusHints).toEqual([])
+  })
+})
+
+describe('useShellStore fetchHealth / corpus_library_api', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('sets corpus flags when health includes library + digest', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'ok',
+          corpus_library_api: true,
+          corpus_digest_api: true,
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.healthStatus).toBe('ok')
+    expect(shell.corpusLibraryApiAvailable).toBe(true)
+    expect(shell.corpusDigestApiAvailable).toBe(true)
+  })
+
+  it('clears corpus flags when corpus_library_api is omitted (legacy server)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ status: 'ok' }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.healthStatus).toBe('ok')
+    expect(shell.corpusLibraryApiAvailable).toBe(false)
+    expect(shell.corpusDigestApiAvailable).toBe(false)
+    expect(shell.artifactsApiAvailable).toBe(true)
+    expect(shell.searchApiAvailable).toBe(true)
   })
 })

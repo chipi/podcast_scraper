@@ -57,8 +57,8 @@ Currently, `podcast_scraper` focuses on downloading transcripts but doesn't syst
 
 ### FR1: Metadata Generation Control
 
-- **FR1.1**: Add `generate_metadata` config field (default `false` for backwards compatibility)
-- **FR1.2**: Add `--generate-metadata` CLI flag
+- **FR1.1**: Add `generate_metadata` config field (default **`true`**; use **`--no-generate-metadata`** or YAML `generate_metadata: false` to disable)
+- **FR1.2**: CLI **`--generate-metadata` / `--no-generate-metadata`** (`BooleanOptionalAction`, default on)
 - **FR1.3**: Add `metadata_format` config field (`"json"` or `"yaml"`, default `"json"`)
 - **FR1.4**: Metadata generation respects `--dry-run` mode (logs planned metadata without writing files)
 

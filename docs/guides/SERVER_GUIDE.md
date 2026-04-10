@@ -7,7 +7,8 @@ The FastAPI server layer for the GI/KG viewer and future platform APIs.
 `podcast_scraper` follows a **"one pipeline core, multiple shells"** philosophy:
 the same Python library that powers the CLI, service API, and batch workflows
 also backs an HTTP server.
-The server exposes corpus artifacts, semantic search, and GI explore
+The server exposes corpus artifacts, **semantic search**, **GI explore**,
+**Corpus Library** catalog APIs, and **vector index** stats / rebuild controls
 through a JSON API consumed by the Vue 3 SPA
 ([`web/gi-kg-viewer/`][viewer-readme]).
 
@@ -18,7 +19,8 @@ through a JSON API consumed by the Vue 3 SPA
 The server was introduced by
 [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
 [`src/podcast_scraper/server/`][server-pkg].
-Route groups are additive: **viewer routes** ship today; **platform routes**
+Route groups are additive: **viewer routes** ship in **v2.6.0** (artifacts,
+search, explore, index stats/rebuild, corpus library); **platform routes**
 (feeds, episodes, jobs, status) will follow the same pattern
 ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)).
 
@@ -55,6 +57,7 @@ podcast serve --output-dir /path/to/corpus/output
 Navigate to <http://127.0.0.1:8000>.
 Set **Corpus root folder** in the UI to the same `--output-dir` path,
 then **List files**, select artifacts, and **Load selected into graph**.
+Use the **Library** tab to browse feeds and episodes (Corpus Library, RFC-067).
 
 ## Architecture
 
@@ -85,9 +88,12 @@ Routers are included with `prefix="/api"` and organized by domain:
 routes/
   health.py          # viewer — always available
   artifacts.py       # viewer — list / load GI & KG JSON
-  index_stats.py     # viewer — FAISS vector index metrics
+  index_stats.py     # viewer — FAISS vector index metrics + staleness
+  index_rebuild.py   # viewer — POST /index/rebuild (background job)
   search.py          # viewer — semantic corpus search
   explore.py         # viewer — GI explore + UC4 NL query
+  corpus_library.py  # viewer — /corpus/* catalog + similar episodes (RFC-067)
+  corpus_digest.py   # viewer — GET /corpus/digest (RFC-068)
   platform/          # placeholder stubs (feeds, episodes, jobs, status)
 ```
 
@@ -112,16 +118,32 @@ during development.
 
 ## API reference
 
-All endpoints live under the `/api` prefix.
+All endpoints live under the `/api` prefix. With the server running, OpenAPI is at **`/docs`** (Swagger UI) and **`/openapi.json`**.
+
+### Authentication
+
+Local **dev** server: no auth. Treat **production** deployments as out-of-scope for this guide unless you add your own reverse proxy or middleware.
 
 | Method | Path | Tag | Description | Key query params |
 | ------ | ---- | --- | ----------- | ---------------- |
-| GET | `/api/health` | health | Server health check. Returns `{"status": "ok"}`. | — |
-| GET | `/api/artifacts` | artifacts | List `*.gi.json` and `*.kg.json` files under a corpus directory (recursive). | `path` (required) — corpus output directory |
+| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api` (RFC-067/068). Omit digest flag on older builds → clients treat digest as unavailable. | — |
+| GET | `/api/artifacts` | artifacts | List `*.gi.json` and `*.kg.json` (recursive); each item includes `mtime_utc` (#507). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
-| GET | `/api/index/stats` | index | FAISS vector index aggregate statistics. | `path` (optional) — corpus dir; omit to use server default |
+| GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
+| POST | `/api/index/rebuild` | index | Queue background `index_corpus` (202); mutex per corpus. Poll `GET /api/index/stats`. | `path`, `rebuild`, `embedding_model`, `vector_index_path`, `vector_faiss_index_mode`, `vector_index_types` (comma-separated) |
 | GET | `/api/search` | search | Semantic corpus search via FAISS + sentence embeddings. | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model` |
 | GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
+| GET | `/api/corpus/feeds` | corpus | Aggregate feeds from episode metadata under the corpus root. | `path` (optional if server default set) |
+| GET | `/api/corpus/episodes` | corpus | Paginated episode list (newest-first scan); optional filters. | `path`, `feed_id`, `q` (title substring), `since` (`YYYY-MM-DD`), `limit` (1–200), `cursor` |
+| GET | `/api/corpus/episodes/detail` | corpus | Episode row + summary bullets + GI/KG relative paths. | `path`, `metadata_relpath` (required) |
+| GET | `/api/corpus/episodes/similar` | corpus | FAISS semantic peers for an episode; **200** with `error` when index missing. | `path`, `metadata_relpath` (required), `top_k` (1–25) |
+| GET | `/api/corpus/digest` | corpus | Feed-diverse **recent episodes** (metadata + GI/KG flags) and optional **semantic topic** bands (RFC-068). `compact=true` forces 24h, smaller cap, no topics (Library glance). | `path`, `window` (`24h` / `7d` / `since`), `since` (required if `window=since`), `compact`, `include_topics`, `max_rows` |
+| GET | `/api/corpus/stats` | corpus | **Publish-month** histogram (`YYYY-MM` → episode count) from one catalog scan; GI/KG Dashboard. | `path` |
+| GET | `/api/corpus/documents/manifest` | corpus | Return `corpus_manifest.json` at corpus root (**404** if missing). | `path` |
+| GET | `/api/corpus/documents/run-summary` | corpus | Return `corpus_run_summary.json` at corpus root (**404** if missing). | `path` |
+| GET | `/api/corpus/runs/summary` | corpus | Discover `run.json` under the tree (capped), compact metrics per file for Dashboard. | `path` |
+
+Design and response field semantics: [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 
 ### Response models
 
@@ -130,9 +152,15 @@ Pydantic response schemas are defined in
 
 - `HealthResponse`
 - `ArtifactListResponse` / `ArtifactItem`
-- `IndexStatsEnvelope` / `IndexStatsBody`
+- `IndexStatsEnvelope` / `IndexStatsBody` / `IndexRebuildAccepted`
 - `CorpusSearchApiResponse` / `SearchHitModel`
 - `ExploreApiResponse`
+- `CorpusFeedsResponse` / `CorpusFeedItem`
+- `CorpusEpisodesResponse` / `CorpusEpisodeListItem`
+- `CorpusEpisodeDetailResponse`
+- `CorpusSimilarEpisodesResponse` / `CorpusSimilarEpisodeItem`
+- `CorpusDigestResponse` / `CorpusDigestRow` / `CorpusDigestTopicBand` / `CorpusDigestTopicHit`
+- `CorpusStatsResponse` / `CorpusRunsSummaryResponse` / `CorpusRunSummaryItem`
 
 [schemas-py]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/schemas.py
 
@@ -148,7 +176,8 @@ Pydantic response schemas are defined in
    parameter resolve it against `request.app.state.output_dir` as a
    fallback.
    The private `_resolve_corpus_root(path, fallback)` pattern is repeated
-   in `index_stats.py`, `search.py`, and `explore.py`.
+   in `index_stats.py`, `index_rebuild.py`, `search.py`, `explore.py`,
+   `corpus_library.py`, `corpus_digest.py`, and `corpus_metrics.py`.
 5. **Platform routes** use a sub-package (`routes/platform/`) and will
    follow the same conventions when mounted.
 
@@ -276,6 +305,9 @@ Located in `tests/unit/podcast_scraper/server/`:
 | `test_viewer_index_stats.py` | Index stats with no corpus, no index, and mocked FAISS store. |
 | `test_viewer_search.py` | Search with no corpus, mocked `run_corpus_search` results. |
 | `test_viewer_explore.py` | Explore filter mode and UC4 natural-language mode with mocked GI functions. |
+| `test_corpus_catalog.py` | Catalog rows, filters, and pagination helpers for Corpus Library. |
+| `test_index_rebuild_gate.py` | Per-corpus rebuild mutex (`CorpusRebuildGate`). |
+| `test_index_staleness.py` | Index staleness helpers used by index stats. |
 
 All test files guard on `pytest.importorskip("fastapi")` so they are
 skipped when the `[server]` extra is not installed.
@@ -290,13 +322,20 @@ make test-unit -k server
 
 ### Integration tests
 
-`tests/integration/test_server_api.py` exercises the **wired** app with real filesystem
+`tests/integration/server/test_server_api.py` exercises the **wired** app with real filesystem
 artifacts (no mocking of route internals). Tests cover health, artifact listing/loading,
 path-traversal blocking, index stats, search (no-index graceful error), explore (filter +
 NL modes), and app factory edge cases. Marked `@pytest.mark.integration`.
 
+Additional integration modules under `tests/integration/server/` include
+`test_viewer_corpus_library.py` (Corpus Library routes),
+`test_viewer_corpus_digest.py` (`GET /api/corpus/digest`, RFC-068),
+`test_index_rebuild.py` (`POST /api/index/rebuild` gate and acceptance),
+`test_viewer_index_stats.py`, `test_viewer_api.py`, `test_server_app.py`, and
+`test_server_package_init.py`.
+
 ```bash
-pytest tests/integration/test_server_api.py -v
+pytest tests/integration/server/test_server_api.py -v
 ```
 
 ### Frontend unit tests (Vitest)
@@ -334,6 +373,11 @@ See the [E2E Testing Guide](E2E_TESTING_GUIDE.md) and
 
 ## Platform evolution
 
+**Mounted today:** only **viewer** routers (`health`, `artifacts`, `index_stats`,
+`index_rebuild`, `search`, `explore`, `corpus_library`). **No** `routes/platform/*`
+router is registered in `create_app` yet — the files are **stubs only** until
+ADR-064 platform work lands.
+
 The `routes/platform/` sub-package contains placeholder stubs for future
 platform routes:
 
@@ -360,6 +404,8 @@ viewer routes.
 | Document | Description |
 | -------- | ----------- |
 | [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | GI/KG viewer v2 design (milestones, success criteria). |
+| [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) | Corpus Library catalog API and viewer integration. |
+| [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) | Corpus Digest API & viewer (`GET /api/corpus/digest`, Digest tab, Library glance). |
 | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical server layer with feature-flagged route groups. |
 | [ADR-065](../adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md) | Vue 3 + Vite + Cytoscape.js frontend stack decision. |
 | [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) | Playwright for UI E2E testing. |
@@ -371,5 +417,6 @@ viewer routes.
 
 ---
 
-**Version:** 1.0
+**Version:** 1.1
 **Created:** 2026-04-04
+**Updated:** 2026-04-10 — v2.6.0 Corpus Library routes, integration test paths, RFC-067/068 links
