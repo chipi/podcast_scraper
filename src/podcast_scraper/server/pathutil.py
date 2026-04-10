@@ -9,8 +9,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from podcast_scraper.utils.path_validation import normpath_if_under_root
-
 
 class CorpusPathRequestError(Exception):
     """Invalid or disallowed corpus path (HTTP layer maps this to 400 responses)."""
@@ -53,28 +51,33 @@ def resolve_corpus_path_param(
     if not os.path.isabs(normed):
         normed = os.path.normpath(os.path.join(anchor_str, normed))
 
-    safe = normpath_if_under_root(normed, anchor_str)
-    if safe is None:
+    # Inline sanitizer: normpath + startswith (CodeQL py/path-injection recognises this).
+    normed = os.path.normpath(normed)
+    safe_prefix = anchor_str + os.sep
+    if normed != anchor_str and not normed.startswith(safe_prefix):
         raise CorpusPathRequestError(
             status_code=400,
             detail="path must be the configured corpus root or a subdirectory of it.",
         )
 
-    if must_be_dir and not os.path.isdir(safe):
-        raise CorpusPathRequestError(status_code=400, detail=f"Not a directory: {safe}")
+    if must_be_dir and not os.path.isdir(normed):
+        raise CorpusPathRequestError(status_code=400, detail=f"Not a directory: {normed}")
 
-    return Path(safe)
+    return Path(normed)
 
 
 def resolved_corpus_root_str(root: Path, anchor: Path | None) -> str:
     """Return a normalized corpus root string for filesystem access after resolution.
 
-    Re-applies ``normpath_if_under_root`` when an anchor exists so CodeQL can treat
-    the result as sanitized for path operations in route handlers.
+    Inline ``normpath`` + ``startswith`` so CodeQL treats the result as sanitized.
     """
     norm_root = os.path.normpath(str(root.resolve()))
     if anchor is None:
         return norm_root
     anchor_str = os.path.normpath(str(anchor.expanduser().resolve()))
-    safe = normpath_if_under_root(norm_root, anchor_str)
-    return safe if safe is not None else norm_root
+    # Inline sanitizer: normpath + startswith (CodeQL py/path-injection).
+    norm_root = os.path.normpath(norm_root)
+    safe_prefix = anchor_str + os.sep
+    if norm_root != anchor_str and not norm_root.startswith(safe_prefix):
+        return anchor_str
+    return norm_root

@@ -22,7 +22,7 @@ from podcast_scraper.server.schemas import (
     CorpusRunSummaryItem,
     CorpusStatsResponse,
 )
-from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_fixed_file_under_root
+from podcast_scraper.utils.path_validation import safe_fixed_file_under_root
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,7 @@ def _episode_outcomes(m: dict[str, Any]) -> dict[str, int]:
 
 def _parse_run_json(path_str: str, root_safe: str) -> CorpusRunSummaryItem | None:
     try:
+        # codeql[py/path-injection] -- path_str from normpath+startswith in os.walk guard.
         with open(path_str, encoding="utf-8") as fh:
             raw_any: Any = json.load(fh)
     except (OSError, json.JSONDecodeError):
@@ -155,9 +156,11 @@ async def corpus_manifest_document(
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
     fp = safe_fixed_file_under_root(Path(root_safe), "corpus_manifest.json")
+    # codeql[py/path-injection] -- fp from normpath+startswith in safe_fixed_file.
     if not fp or not os.path.isfile(fp):
         raise HTTPException(status_code=404, detail="corpus_manifest.json not found.")
     try:
+        # codeql[py/path-injection] -- fp sanitized above.
         with open(fp, encoding="utf-8") as fh:
             data_any: Any = json.load(fh)
     except json.JSONDecodeError as exc:
@@ -184,9 +187,11 @@ async def corpus_run_summary_document(
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
     fp = safe_fixed_file_under_root(Path(root_safe), "corpus_run_summary.json")
+    # codeql[py/path-injection] -- fp from normpath+startswith in safe_fixed_file.
     if not fp or not os.path.isfile(fp):
         raise HTTPException(status_code=404, detail="corpus_run_summary.json not found.")
     try:
+        # codeql[py/path-injection] -- fp sanitized above.
         with open(fp, encoding="utf-8") as fh:
             data_any: Any = json.load(fh)
     except json.JSONDecodeError as exc:
@@ -213,11 +218,12 @@ async def corpus_runs_summary(
     root = _resolve_corpus_root(path, anchor)
     root_safe = resolved_corpus_root_str(root, anchor)
     discovered: list[str] = []
+    safe_prefix = root_safe + os.sep
     for dirpath, _, filenames in os.walk(root_safe):
         if "run.json" not in filenames:
             continue
         candidate = os.path.normpath(os.path.join(dirpath, "run.json"))
-        if normpath_if_under_root(candidate, root_safe) is None:
+        if candidate != root_safe and not candidate.startswith(safe_prefix):
             continue
         if os.path.isfile(candidate):
             discovered.append(candidate)

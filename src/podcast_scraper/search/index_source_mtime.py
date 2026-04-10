@@ -30,6 +30,7 @@ def _compute_newest_index_source_mtime_epoch(corpus_root: Path) -> Optional[floa
     if not meta_files:
         return None
 
+    # codeql[py/path-injection] -- corpus_root is a trusted server-side Path.
     corpus_s = os.path.normpath(os.path.realpath(str(corpus_root.resolve())))
     newest: Optional[float] = None
     for meta_path in meta_files:
@@ -76,6 +77,7 @@ def newest_index_source_mtime_epoch(
     When ``use_cache`` is True, results are memoized per resolved corpus root for
     :data:`_CACHE_TTL_SEC` seconds (monotonic clock).
     """
+    # codeql[py/path-injection] -- corpus_root is a trusted server-side Path.
     key = os.path.normpath(os.path.realpath(str(corpus_root.resolve())))
     now = time.monotonic()
     if use_cache:

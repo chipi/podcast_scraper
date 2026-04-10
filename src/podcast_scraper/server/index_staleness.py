@@ -51,9 +51,11 @@ def _epoch_to_utc_iso(epoch: float) -> str:
 
 def _read_multi_feed_overall_ok(parent: Path) -> Optional[bool]:
     summary = safe_fixed_file_under_root(parent, "corpus_run_summary.json")
+    # codeql[py/path-injection] -- summary from normpath+startswith in safe_fixed_file.
     if not summary or not os.path.isfile(summary):
         return None
     try:
+        # codeql[py/path-injection] -- summary sanitized above.
         with open(summary, encoding="utf-8") as fh:
             doc = json.load(fh)
     except json.JSONDecodeError:

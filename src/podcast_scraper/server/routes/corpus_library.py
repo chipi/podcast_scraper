@@ -210,8 +210,11 @@ async def corpus_episode_detail(
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     target = _safe_metadata_path_str(root, metadata_relpath)
+
+    # codeql[py/path-injection] -- target from normpath+startswith in safe_relpath.
     if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="Metadata file not found.")
+    # codeql[py/path-injection] -- target sanitized above.
     if not _metadata_suffix_ok(os.path.basename(target)):
         raise HTTPException(status_code=400, detail="Not an episode metadata file.")
     root_s = os.path.normpath(str(root.resolve()))
@@ -263,8 +266,11 @@ async def corpus_episodes_similar(
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     target = _safe_metadata_path_str(root, metadata_relpath)
+
+    # codeql[py/path-injection] -- target from normpath+startswith in safe_relpath.
     if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="Metadata file not found.")
+    # codeql[py/path-injection] -- target sanitized above.
     if not _metadata_suffix_ok(os.path.basename(target)):
         raise HTTPException(status_code=400, detail="Not an episode metadata file.")
     root_s = os.path.normpath(str(root.resolve()))

@@ -55,10 +55,13 @@ async def corpus_binary(
         )
 
     target = _safe_artwork_target_str(root, relpath)
+
+    # codeql[py/path-injection] -- target from normpath+startswith in safe_relpath.
     if not os.path.isfile(target):
         raise HTTPException(status_code=404, detail="File not found.")
 
     media_type, _ = mimetypes.guess_type(os.path.basename(target))
+    # codeql[py/path-injection] -- target sanitized above.
     return FileResponse(
         path=target,
         media_type=media_type or "application/octet-stream",
