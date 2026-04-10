@@ -41,10 +41,10 @@ The framework has two components:
 1. **`data/profiles/` — frozen release profiles**: YAML snapshots of peak RSS, wall time, and CPU utilization per pipeline stage, committed at release time and versioned by release tag.
 2. **`scripts/eval/freeze_profile.py` — profile capture and diff tooling**: A headless script that runs the reference dataset, captures resource metrics via `psutil` alongside the existing `Metrics` collector, and writes the frozen profile. A companion diff script compares any two profiles.
 
-**Out of scope for this RFC** (deferred to future RFCs):
+**Out of scope for this RFC** (deferred to dedicated RFCs):
 
-- **Live monitoring dashboard** (`--monitor` CLI flag with tmux/Terminal.app split, interactive flamegraph capture) — macOS-specific developer tooling; separate RFC.
-- **RFC-047 performance tab** (Streamlit extension joining quality and resource metrics) — separate RFC to keep scope focused.
+- **RFC-065: Live Pipeline Monitor** — `--monitor` CLI flag with tmux/Terminal.app split, interactive flamegraph capture; macOS-focused developer tooling.
+- **RFC-066: Run Comparison Tool — Performance Tab** — Streamlit extension joining quality and resource metrics by release tag.
 
 ---
 
