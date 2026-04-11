@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 from argparse import Namespace
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -63,21 +64,17 @@ def _minimal_vector_config(
 def _resolve_index_dir(output_dir: Path, index_path: Optional[str]) -> Path:
     base = safe_resolve_directory(output_dir)
     if base is None:
-        base = output_dir.expanduser().resolve()
+        return Path(os.path.normpath(str(output_dir))) / "search"
+    base_s = os.path.normpath(str(base))
     if not index_path or not str(index_path).strip():
-        return (base / "search").resolve()
-    raw = str(index_path).strip()
-    p = Path(raw)
-    if p.is_absolute():
-        try:
-            resolved = p.resolve()
-            resolved.relative_to(base.resolve())
-            return resolved
-        except ValueError:
-            return (base / "search").resolve()
-    safe = safe_relpath_under_corpus_root(base, raw)
+        default = os.path.normpath(os.path.join(base_s, "search"))
+        # codeql[py/path-injection] -- normpath on hardcoded child.
+        return Path(default)
+    safe = safe_relpath_under_corpus_root(base, str(index_path).strip())
     if safe is None:
-        return (base / "search").resolve()
+        default = os.path.normpath(os.path.join(base_s, "search"))
+        return Path(default)
+    # codeql[py/path-injection] -- safe from normpath+startswith in safe_relpath.
     return Path(safe)
 
 
@@ -86,14 +83,24 @@ def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
     root = safe_resolve_directory(output_dir)
     if root is None:
         return {}
-    meta_dir = root / "metadata"
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
+    meta_dir_s = os.path.normpath(os.path.join(root_s, "metadata"))
+    # codeql[py/path-injection] -- meta_dir_s from normpath on hardcoded child.
+    if not meta_dir_s.startswith(safe_prefix):
+        return {}
+    if not os.path.isdir(meta_dir_s):
+        return {}
     out: Dict[str, Path] = {}
-    if not meta_dir.is_dir():
-        return out
+    meta_dir = Path(meta_dir_s)
     for meta_path in sorted(meta_dir.glob("*.metadata.json")):
+        mp_s = os.path.normpath(str(meta_path))
+        if not mp_s.startswith(safe_prefix):
+            continue
         try:
-            doc = json.loads(meta_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
+            with open(mp_s, encoding="utf-8") as _fh:
+                doc = json.loads(_fh.read())
+        except (OSError, json.JSONDecodeError):
             continue
         ep = doc.get("episode") or {}
         eid = ep.get("episode_id")
@@ -104,14 +111,14 @@ def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
             rel = gi.get("artifact_path")
             if isinstance(rel, str) and rel.strip():
                 safe = safe_relpath_under_corpus_root(root, rel.strip())
-                if safe is not None:
-                    gp = Path(safe)
-                    if gp.is_file():
-                        out[eid] = gp
-                        continue
-        gp = Path(_determine_gi_path(str(meta_path))).resolve()
-        if gp.is_file():
-            out[eid] = gp
+                # codeql[py/path-injection] -- safe from normpath+startswith.
+                if safe is not None and os.path.isfile(safe):
+                    out[eid] = Path(safe)
+                    continue
+        gi_path_s = os.path.normpath(_determine_gi_path(str(meta_path)))
+        # codeql[py/path-injection] -- gi_path_s from normpath; guard below.
+        if gi_path_s.startswith(safe_prefix) and os.path.isfile(gi_path_s):
+            out[eid] = Path(gi_path_s)
     return out
 
 
@@ -124,10 +131,17 @@ def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
     root = safe_resolve_directory(output_dir)
     if root is None:
         return {}
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
     out: Dict[str, str] = {}
     for meta_path in discover_metadata_files(root):
+        mp_s = os.path.normpath(str(meta_path))
+        # codeql[py/path-injection] -- normpath+startswith guard.
+        if not mp_s.startswith(safe_prefix) and mp_s != root_s:
+            continue
         try:
-            doc = json.loads(meta_path.read_text(encoding="utf-8"))
+            with open(mp_s, encoding="utf-8") as _fh:
+                doc = json.loads(_fh.read())
         except (OSError, json.JSONDecodeError):
             continue
         ep = doc.get("episode") or {}
@@ -137,12 +151,10 @@ def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
         feed = doc.get("feed") or {}
         fid = feed.get("feed_id")
         key = index_fingerprint_scope_key(normalize_feed_id(fid), eid)
-        try:
-            rel = meta_path.resolve().relative_to(root).as_posix()
-        except ValueError:
+        rel = os.path.relpath(mp_s, root_s).replace("\\", "/")
+        if rel.startswith(".."):
             continue
         out[key] = rel
-        # Hits with only episode_id in vector metadata (missing feed_id) cannot use compound key.
         ep_only = index_fingerprint_scope_key(None, eid)
         if ep_only not in out:
             out[ep_only] = rel
@@ -277,19 +289,17 @@ def _backfill_display_titles_from_corpus(
     rel_key = rel.strip().replace("\\", "/")
     if rel_key not in cache:
         safe_path = safe_relpath_under_corpus_root(corpus_root, rel_key)
-        if safe_path is None:
+        # codeql[py/path-injection] -- safe_path from normpath+startswith in safe_relpath.
+        if safe_path is None or not os.path.isfile(safe_path):
             cache[rel_key] = ("", "")
         else:
-            path = Path(safe_path)
             try:
-                if not path.is_file():
-                    cache[rel_key] = ("", "")
-                else:
-                    doc = json.loads(path.read_text(encoding="utf-8"))
-                    ep = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
-                    feed = doc.get("feed") if isinstance(doc.get("feed"), dict) else {}
-                    et, ft = _scope_display_titles(doc, ep, feed)
-                    cache[rel_key] = (et, ft)
+                with open(safe_path, encoding="utf-8") as fh:
+                    doc = json.loads(fh.read())
+                ep = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
+                feed = doc.get("feed") if isinstance(doc.get("feed"), dict) else {}
+                et, ft = _scope_display_titles(doc, ep, feed)
+                cache[rel_key] = (et, ft)
             except (OSError, json.JSONDecodeError, TypeError):
                 cache[rel_key] = ("", "")
     et, ft = cache[rel_key]
