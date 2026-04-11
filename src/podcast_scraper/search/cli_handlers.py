@@ -111,10 +111,11 @@ def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
             rel = gi.get("artifact_path")
             if isinstance(rel, str) and rel.strip():
                 safe = safe_relpath_under_corpus_root(root, rel.strip())
-                # codeql[py/path-injection] -- safe from normpath+startswith.
-                if safe is not None and os.path.isfile(safe):
-                    out[eid] = Path(safe)
-                    continue
+                if safe is not None:
+                    safe = os.path.normpath(safe)
+                    if safe.startswith(safe_prefix) and os.path.isfile(safe):
+                        out[eid] = Path(safe)
+                        continue
         gi_path_s = os.path.normpath(_determine_gi_path(str(meta_path)))
         # codeql[py/path-injection] -- gi_path_s from normpath; guard below.
         if gi_path_s.startswith(safe_prefix) and os.path.isfile(gi_path_s):
@@ -289,19 +290,23 @@ def _backfill_display_titles_from_corpus(
     rel_key = rel.strip().replace("\\", "/")
     if rel_key not in cache:
         safe_path = safe_relpath_under_corpus_root(corpus_root, rel_key)
-        # codeql[py/path-injection] -- safe_path from normpath+startswith in safe_relpath.
-        if safe_path is None or not os.path.isfile(safe_path):
+        if safe_path is None:
             cache[rel_key] = ("", "")
         else:
-            try:
-                with open(safe_path, encoding="utf-8") as fh:
-                    doc = json.loads(fh.read())
-                ep = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
-                feed = doc.get("feed") if isinstance(doc.get("feed"), dict) else {}
-                et, ft = _scope_display_titles(doc, ep, feed)
-                cache[rel_key] = (et, ft)
-            except (OSError, json.JSONDecodeError, TypeError):
+            safe_path = os.path.normpath(safe_path)
+            root_s = os.path.normpath(str(corpus_root))
+            if not safe_path.startswith(root_s + os.sep) or not os.path.isfile(safe_path):
                 cache[rel_key] = ("", "")
+            else:
+                try:
+                    with open(safe_path, encoding="utf-8") as fh:
+                        doc = json.loads(fh.read())
+                    ep = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
+                    feed = doc.get("feed") if isinstance(doc.get("feed"), dict) else {}
+                    et, ft = _scope_display_titles(doc, ep, feed)
+                    cache[rel_key] = (et, ft)
+                except (OSError, json.JSONDecodeError, TypeError):
+                    cache[rel_key] = ("", "")
     et, ft = cache[rel_key]
     if not meta.get("episode_title") and et:
         meta["episode_title"] = et
