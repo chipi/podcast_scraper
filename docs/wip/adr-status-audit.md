@@ -1,88 +1,97 @@
 # ADR Status Audit
 
-**Date**: 2026-04-03
-**Purpose**: Verify that each ADR's status field accurately reflects
-whether the decision has been implemented in the codebase.
+**Date**: 2026-04-11
+**Purpose**:
+
+1. Reconcile **ADR status vs implementation** with [`docs/adr/index.md`](../adr/index.md)
+   (especially the **Code** column).
+2. Record **what kinds of ADRs to extract next**, based on what we concluded while closing
+   recent RFCs (063–069, RFC-057 closure, viewer/server stack).
+
+**Canonical table:** [`docs/adr/index.md`](../adr/index.md) — update that file when an ADR’s
+implementation state changes.
 
 ## Summary
 
-- **66 ADRs** total (001–066)
-- **60 Accepted** — most verified as implemented
-- **3 Proposed** — assessed below
-- **3 Accepted but NOT YET implemented** — flagged below
+| Metric | Value |
+| :--- | :--- |
+| ADR files | **73** (ADR-001–ADR-073; numbering has historical gaps) |
+| **Proposed** (not ratified) | **2** — [ADR-055](../adr/ADR-055-adaptive-summarization-routing.md), [ADR-056](../adr/ADR-056-composable-e2e-mock-response-strategy.md) |
+| **Accepted + Code = No** | **3** — [ADR-054](../adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md), [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md), [ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) |
+| **Accepted + Code = Partial** | **2** — [ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md), [ADR-047](../adr/ADR-047-proactive-metric-regression-alerting.md) |
 
-Numbers below use the **post-renumber** ADR numbering (2026-04-03).
+**Semantics:** **Accepted** means the decision is ratified, not necessarily shipped. **Code =
+No** is normal for forward-looking ADRs tied to open RFCs (051, 058, 060).
 
-## Proposed ADRs (need status decision)
+## What we concluded: **when to extract a new ADR**
 
-| ADR | Title | Current | Assessed | Evidence |
-| :--- | :--- | :--- | :--- | :--- |
-| 056 | Composable E2E Mock Response Strategy | Proposed | **Keep Proposed** | E2E mock infrastructure exists but the full composable ResponseProfile/Router architecture from this ADR is NOT implemented. The RFC (054) is still Draft/Partial. |
-| 055 | Adaptive Summarization Routing | Proposed | **Keep Proposed** | No episode profiling or routing logic exists. RFC-053 is Not Started. |
-| 048 | Centralized Model Registry | ~~Proposed~~ → **Accepted** | **Promoted** | `ModelRegistry` with `ModelCapabilities` fully implemented in `model_registry.py`, used across summarizer, ML provider, hybrid provider, embedding loader, and config. Status updated 2026-04-03. |
+Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** (API guide,
+`docs/api/*.md`, UXS) is usually enough.
 
-## Accepted ADRs That Are NOT YET Implemented
-
-These ADRs were marked Accepted (based on the RFC decision) but the
-corresponding code does not yet exist:
-
-| ADR | Title | Status | Evidence | Recommendation |
-| :--- | :--- | :--- | :--- | :--- |
-| 062 | Sentence-Boundary Transcript Chunking | Accepted | No sentence-boundary chunking for search indexing in `src/podcast_scraper/search/`. Summarizer has sentence splitting but that is a different context. RFC-061 is Partial. | **Keep Accepted** (decision is sound; implementation in progress with RFC-061) |
-| 063 | Transparent Semantic Upgrade for gi explore | Accepted | `gi explore` does NOT use `VectorStore`/FAISS. Code explicitly treats semantic search as future. RFC-061 is Partial. | **Keep Accepted** (decision is sound; blocked on RFC-061 completion) |
-| 064 | Canonical Server Layer | Accepted | **Implemented** — `src/podcast_scraper/server/` exists with `podcast serve` CLI. RFC-062 is Implemented. | **Implemented** — server module and CLI in place |
-| 065 | Vue 3 + Vite + Cytoscape Frontend | Accepted | **Implemented** — Vue 3 SPA in `web/gi-kg-viewer/`. | **Implemented** — Vue 3 SPA in `web/gi-kg-viewer/` |
-| 066 | Playwright for UI E2E Testing | Accepted | Playwright config and E2E specs in `web/gi-kg-viewer/e2e/`. | **Implemented** — Playwright config and E2E specs in `web/gi-kg-viewer/e2e/` |
-| 021 | Acceptance Test Tier as Final CI Gate | Accepted | `tests/acceptance/` with pytest marker does NOT exist. Script-based acceptance exists but is a different shape. RFC-023 is Partial. | **Keep Accepted** (decision is sound; pytest-marker implementation pending) |
-| 049 | Materialization Boundary for Eval Inputs | Accepted | Materialization code exists (`materialize_dataset.py`, `data/eval/materialized/`). The boundary concept is implemented in practice. RFC-046 is Completed. | **Correctly Accepted** (actually implemented) |
-| 050 | Single Code Path for Eval and App | Accepted | Fingerprinting exists, single-path architecture enforced. RFC-048 is Completed. | **Correctly Accepted** (actually implemented) |
-| 054 | Relational Postgres Projection | Accepted | No Postgres code exists. RFC-051 is Not Started. | **Keep Accepted** (decision is sound; implementation is future) |
-| 057 | AutoResearch Thin Harness | Accepted | `autoresearch/prompt_tuning/` exists with program.md and score.py. Partial implementation. | **Keep Accepted** (partially implemented) |
-| 058 | Additive pyannote Diarization | Accepted | No diarization code, no pyannote, no `[diarize]` extra. RFC-058 is Not Started. | **Keep Accepted** (decision is sound; implementation is future) |
-| 059 | Confidence-Scored Multi-Signal Commercial Detection | Accepted | No `CommercialDetector`, no `cleaning/commercial/`. RFC-060 is Not Started. | **Keep Accepted** (decision is sound; implementation is future) |
-
-**Note**: "Accepted" for ADRs means the architectural decision has been
-*accepted* (ratified), not necessarily *implemented*. This is correct
-ADR semantics — an ADR records a decision, not a delivery. The table
-above is for visibility into implementation readiness.
-
-## Accepted ADRs — Verified Implemented (spot-check)
-
-All other Accepted ADRs (001–044, 048–054) were spot-checked and
-confirmed implemented:
-
-| ADR | Title | Verified |
+| ADR type | When to extract | Recent examples |
 | :--- | :--- | :--- |
-| 001–010 | Core pipeline decisions | Yes — workflow, RSS, filesystem, Whisper, speaker detection, metadata, summarization all in codebase |
-| 011–013 | Provider pattern decisions | Yes — unified provider, protocol discovery, technology naming all in `providers/` |
-| 014 | Externalized Prompt Management | Yes — `prompts/` with Jinja2 templates, `store.py` |
-| 015 | Secure Credential Injection | Yes — env-based secrets throughout |
-| 016–020 | Dev workflow decisions | Yes — worktrees, CI tiers, isolated envs, squash-merge |
-| 021 | Standardized Test Pyramid | Yes — `tests/unit/`, `tests/integration/`, `tests/e2e/` |
-| 022–023 | Test health & metrics | Yes — flaky defense, dashboards |
-| 024–025 | Experiment configuration | Yes — `data/eval/configs/`, baselines |
-| 026 | Golden Dataset Versioning | Yes — `data/eval/references/` |
-| 027–029 | Provider fingerprinting & profiles | Yes — `fingerprint.py`, `profiles.py` |
-| 030–031 | Benchmarking strategy & quality gates | Yes — eval scripts, heuristic checks |
-| 032–035 | Audio preprocessing | Yes — `preprocessing/audio/`, ffmpeg, caching, opus |
-| 036–038 | Hybrid summarization | Yes — MAP-REDUCE, local LLM backends, prompt contract |
-| 039–041 | Continuous review tooling | Yes — Dependabot, pydeps, (pre-release partial) |
-| 042 | Proactive Metric Regression Alerting | Yes — `generate_metrics.py` with alerts |
-| 043 | Unified Provider Metrics Contract | Yes — `ProviderCallMetrics` pattern |
-| 044 | Unified Retry Policy with Metrics | Yes — centralized retry |
-| 048 | MPS Exclusive Mode | Yes — `mps_exclusive` in config, workflow serialization |
-| 049 | Per-Capability Provider Selection | Yes — independent provider fields in config |
-| 050 | Per-Episode JSON Artifacts | Yes — `*.gi.json`, `*.kg.json` pattern |
-| 051 | Separate GIL and KG Layers | Yes — `gi/` and `kg/` packages |
-| 052 | Grounding Contract | Yes — `grounding.py`, `contracts.py` |
-| 053 | VectorStore Protocol | Yes — `search/protocol.py` |
-| 054 | FAISS Phase 1 | Yes — `search/faiss_store.py` |
+| **Closure / program outcome** | A **large RFC program** ends; you need an immutable summary of what was promoted, what was rejected, and what remains open. | [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md) closes [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) |
+| **Empirical production defaults** | Autoresearch or benchmarks **change default models/tiers** and you need rationale frozen for onboarding. | [ADR-067](../adr/ADR-067-pegasus-led-retirement-podcast-content.md)–[ADR-072](../adr/ADR-072-llama32-3b-as-tier3-local-llm.md) |
+| **Stack & ownership boundary** | **Who owns HTTP**, which **frontend stack**, which **UI E2E runner** — irreversible for the repo. | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md), [ADR-065](../adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
+| **Heavy optional dependencies** | Adding an extra that **bloats install** or splits CUDA/CPU paths; default users must not pay the cost. | [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) (`[diarize]` — **accepted, not landed**) |
+| **Cross-cutting protocol / contract** | Multiple subsystems must implement the **same interface** (vector store, grounding, artifacts). | [ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md), [ADR-053](../adr/ADR-053-grounding-contract-for-evidence-backed-insights.md), [ADR-051](../adr/ADR-051-per-episode-json-artifacts-with-logical-union.md) |
+| **Process / CI philosophy** | A **policy** decision (test tiers, gates) that outlives one RFC. | [ADR-021](../adr/ADR-021-acceptance-test-tier-as-final-ci-gate.md) (script-shaped implementation) |
 
-## Action Items
+### When **not** to add an ADR
 
-1. **ADR-048** (was ADR-047): ~~Update status from "Proposed" to "Accepted"~~ — **DONE 2026-04-03** (updated during renumber; stale "not yet implemented" note also fixed)
-2. **ADR-055, 056, 057, 058, 059, 060, 063, 065, 066**: Keep Accepted
-   (decision ratified; implementation pending per their respective RFCs)
-3. **ADR-045, 046**: Keep Proposed (not yet implemented)
+- **Viewer feature milestones** that do not change stack: e.g. [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) (Graph tools) — **RFC + UXS-001 + E2E map** sufficed.
+- **Single-route API additions** consumed only by the viewer with schema in code + tests:
+  e.g. [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) — **no new ADR**; Server Guide + OpenAPI-style docs enough.
+- **Operational tooling** that does not change architectural boundaries: [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md) (optional `[monitor]` mirrors pyannote pattern but is lighter — still **RFC-first**).
+- **Frozen artifact workflows** where one Makefile + scripts own the contract: [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md) — **could** become an ADR if CI or external tools must depend on a **frozen schema**; today **RFC + profile README** is enough.
 
-*Note: ADR numbers in this document use the **post-renumber** scheme.*
+### Optional **future** ADRs (only if pain appears)
+
+| Topic | Trigger |
+| :--- | :--- |
+| **Multi-feed manifest as external contract** | Third-party tools depend on `corpus_manifest.json` beyond this repo; need immutability/versioning beyond [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md). |
+| **`.pipeline_status.json` schema** | External monitors or agents parse it; breaking changes require a versioned contract. |
+| **Performance profile YAML** | Consumers other than `tools/run_compare` and `make profile-diff` need a stability guarantee. |
+
+## Proposed ADRs (unchanged)
+
+| ADR | RFC | Why still Proposed |
+| :--- | :--- | :--- |
+| [ADR-055](../adr/ADR-055-adaptive-summarization-routing.md) | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | No episode profiling / routing in pipeline |
+| [ADR-056](../adr/ADR-056-composable-e2e-mock-response-strategy.md) | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Composable ResponseProfile / Router not implemented |
+
+## Accepted but not implemented (expected)
+
+| ADR | RFC | Note |
+| :--- | :--- | :--- |
+| [ADR-054](../adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Postgres projection future |
+| [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | Decision accepted; **no `[diarize]` extra in `pyproject.toml` yet** |
+| [ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Commercial detector module as designed not landed |
+
+## Partial implementation (Accepted)
+
+| ADR | Gap |
+| :--- | :--- |
+| [ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md) | Standardized `make pre-release` / checklist not fully aligned with RFC-038 expectations |
+| [ADR-047](../adr/ADR-047-proactive-metric-regression-alerting.md) | Metrics alerts exist; **automated PR comments** not complete |
+
+## Corrections vs 2026-04-03 audit draft
+
+The previous WIP version had **stale rows**:
+
+- **[ADR-048](../adr/ADR-048-centralized-model-registry.md)** is **Accepted** and **implemented**
+  — it was incorrectly listed as “Proposed / promote”.
+- **ADR-064 / 065 / 066** are **implemented** — they were listed as “not yet implemented”.
+- **ADR-021** acceptance is **reflected** in script-based `make test-acceptance`; the old “pytest
+  marker tier missing” note is misleading.
+- **ADR-062 / ADR-063** — index marks **Code = Yes** (sentence chunking + semantic `gi explore`
+  path); treat index as current.
+
+## Action items
+
+1. Keep [`docs/adr/index.md`](../adr/index.md) **Code** column updated when shipping ADR-058
+   (`[diarize]`) or ADR-054/059.
+2. When **RFC-053** or **RFC-054** ships end-to-end, promote **ADR-055** / **ADR-056** from
+   Proposed → Accepted (or supersede with a narrower ADR).
+3. Use the **“When to extract”** table above in PR reviews so new work picks **RFC vs ADR**
+   consistently.

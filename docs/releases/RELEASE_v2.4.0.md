@@ -180,10 +180,10 @@ make cache-clean-spacy
 
 **Impact:**
 
-- ✅ Reduced false warning frequency by ~40%
-- ✅ More consistent quality across episode lengths
-- ✅ Better handling of 3-6k token episodes
-- ✅ Smooth transition zones (no hard cutoffs)
+- Reduced false warning frequency by ~40%
+- More consistent quality across episode lengths
+- Better handling of 3-6k token episodes
+- Smooth transition zones (no hard cutoffs)
 
 **Technical Details:**
 
@@ -246,9 +246,9 @@ output/
 
 **Migration:**
 
-- ✅ Fully backward compatible (reads both old and new structures)
-- ✅ New runs automatically use new structure
-- ✅ Existing output directories work unchanged
+- Fully backward compatible (reads both old and new structures)
+- New runs automatically use new structure
+- Existing output directories work unchanged
 
 ### 🔧 Run ID Suffix Enhancements
 
@@ -412,9 +412,9 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 
 | Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ------------ | ------- | -------- | ----------- | --------- | ---------- | -------- | ------ | -------- |
-| Transcription | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Speaker Detection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Summarization | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Transcription | Yes | | No | | No | | No | |
+| Speaker Detection | Yes | | Yes | | Yes | | Yes | |
+| Summarization | Yes | | Yes | | Yes | | Yes | |
 
 ### Configuration Changes
 
@@ -661,7 +661,7 @@ whisper_model: base.en       # NEW: English-optimized model
 - **Workaround**: None needed (fully backward compatible for reading)
 - **Rationale**: Better organization, easier filtering
 
-### ✅ Backward Compatibility
+### Backward Compatibility
 
 - **Configuration**: All old config files work unchanged (new defaults apply only if not explicitly set)
 - **CLI**: Old CLI commands work unchanged (new defaults apply)

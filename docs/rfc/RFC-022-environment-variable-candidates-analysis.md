@@ -180,7 +180,7 @@ We evaluate candidates based on:
 - **Priority**: LOW
 - **Recommendation**: ⚠️ **MAYBE** (rarely changes)
 
-### ❌ Not Recommended
+### Not Recommended
 
 #### Fields that should NOT be environment variables
 

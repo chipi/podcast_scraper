@@ -306,10 +306,10 @@ python -m black --version  # Should show latest in range (e.g., 26.1.0)
 
 **Common symptoms of stale venv:**
 
-- ✅ Local: `make format-check` passes
-- ❌ CI: `make format-check` fails with "would reformat"
-- ✅ Local: `make lint` passes
-- ❌ CI: `make lint` fails with different errors
+- Local: `make format-check` passes
+- CI: `make format-check` fails with "would reformat"
+- Local: `make lint` passes
+- CI: `make lint` fails with different errors
 - Tool versions differ: `python -m black --version` shows older version than CI logs
 
 **Prevention:**
@@ -364,11 +364,11 @@ use OpenAI providers or want to customize logging, paths, or performance setting
 
 **Security notes:**
 
-- ✅ `.env` is in `.gitignore` (never committed)
-- ✅ `config/examples/.env.example` is safe to commit (template only)
-- ✅ API keys are never logged or exposed
-- ✅ Environment variables take precedence over `.env` file
-- ✅ HuggingFace model loading uses `trust_remote_code=False`; only enable `trust_remote_code=True` if a model's documentation explicitly requires it and the source is trusted (Issue #429).
+- `.env` is in `.gitignore` (never committed)
+- `config/examples/.env.example` is safe to commit (template only)
+- API keys are never logged or exposed
+- Environment variables take precedence over `.env` file
+- HuggingFace model loading uses `trust_remote_code=False`; only enable `trust_remote_code=True` if a model's documentation explicitly requires it and the source is trusted (Issue #429).
 
 **Priority order** (for each configuration field):
 
@@ -539,6 +539,125 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
 [CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
+## Run Comparison Tool (RFC-047 / RFC-066)
+
+Streamlit UI for comparing ML evaluation runs and
+performance profiles. Lives in `tools/run_compare/`
+(outside `src/`).
+
+- **Extra:** `pip install -e ".[compare]"`
+- **Run:** `make run-compare`
+- **Pages:** Home (ROUGE charts), KPIs, Delta
+  (baseline vs candidates), Episodes (side-by-side
+  diffs), Performance (frozen profiles, resource
+  deltas, per-stage trends)
+- **Details:**
+  [tools/run_compare/README.md](https://github.com/chipi/podcast_scraper/blob/main/tools/run_compare/README.md),
+  [RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md),
+  [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md)
+
+## Evaluation artifacts (`data/eval/`)
+
+The `data/eval/` tree is the project's ML quality
+infrastructure. Contributors use it to validate new
+models, compare provider outputs, and gate regressions
+before merging.
+
+### Layout
+
+| Directory | Purpose | Mutable? |
+| --------- | ------- | -------- |
+| `sources/` | Immutable raw inputs (transcripts, RSS XML, metadata) | No |
+| `datasets/` | Versioned dataset definitions (JSON) | No (once published) |
+| `materialized/` | Regenerable copies of transcripts + metadata for a dataset | Yes (regenerate) |
+| `configs/` | Experiment input YAML (task, backend, dataset, prompts, params) | Yes |
+| `baselines/` | Frozen "known good" runs for regression comparison | No (once promoted) |
+| `references/` | Quality targets: **silver** (LLM-generated) and **gold** (human-verified) | No (once promoted) |
+| `runs/` | Disposable experiment outputs; promote to baseline/reference or delete | Yes |
+| `schemas/` | JSON schemas for metrics, episode metadata, NER gold | No |
+
+**Immutability rule:** `sources/`, `datasets/`,
+`baselines/`, and `references/` are immutable once
+published. `materialized/` and `runs/` can be
+regenerated or discarded.
+
+### Common workflows
+
+```bash
+# Run an experiment against a baseline
+make experiment-run \
+  CONFIG=data/eval/configs/my_config.yaml \
+  BASELINE=baseline_prod_authority_v1
+
+# Compare runs visually (Streamlit)
+make run-compare
+
+# Promote a successful run to baseline
+make run-promote RUN_ID=run_xxx \
+  --as baseline PROMOTED_ID=baseline_v2 \
+  REASON="New production baseline"
+
+# List baselines and runs
+make baselines-list
+make runs-list
+```
+
+**Full guide:**
+[Experiment Guide](EXPERIMENT_GUIDE.md) and
+`data/eval/README.md`.
+
+## Performance profiles (`data/profiles/`)
+
+RFC-064 frozen performance snapshots per
+provider/release. Each YAML captures per-stage
+wall time, peak RSS, CPU usage, and environment
+metadata for a specific provider configuration.
+
+### Workflow
+
+```bash
+# Capture a profile from a pipeline run
+make profile-freeze VERSION=v2.6-openai \
+  PIPELINE_CONFIG=config/profiles/capture_e2e_openai.yaml
+
+# Compare two profiles
+make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
+```
+
+Profiles live in `data/profiles/<version>.yaml`.
+Pipeline capture configs live in
+`config/profiles/capture_e2e_*.yaml`.
+
+**Full guide:**
+[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)
+and `data/profiles/README.md`.
+
+## Validation gates: `ci-fast` vs `ci`
+
+| Target | What it runs | When to use |
+| ------ | ------------ | ----------- |
+| `make ci-fast` | Format-check, lint, type, security, complexity, docstrings, spelling, quality-metrics-ci, `test-fast` (critical-path unit + integration + E2E), `test-ui` (Vitest), docs, build | **Default pre-commit gate.** ~6-10 min. Skips Playwright and coverage enforcement. |
+| `make ci` | Everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), coverage enforcement | Before PR merge or when touching viewer E2E / coverage-sensitive areas. ~10-15 min. |
+| `make test-fast` | Critical-path unit + integration + E2E tests only (no lint/format/type) | Quick test-only feedback. |
+
+The pre-commit hook runs staged checks (format,
+lint, mypy, markdownlint, JSON/YAML validation) —
+**not** `make ci-fast`. Run `make ci-fast` manually
+before pushing.
+
+## Optional pip extras reference
+
+| Extra | Purpose | When to install |
+| ----- | ------- | --------------- |
+| `[dev]` | Tooling (pytest, black, flake8, mypy, etc.) | Always for development |
+| `[ml]` | Local ML (Whisper, spaCy, torch, FAISS, etc.) | When using local models |
+| `[llm]` | LLM API SDKs (openai, google-genai, anthropic, mistralai, httpx) | When using cloud providers |
+| `[server]` | FastAPI + uvicorn | When running `serve` or working on viewer API |
+| `[compare]` | Streamlit | When using `make run-compare` |
+
+`make init` installs `[dev,ml,llm]`. Add `[server]`
+or `[compare]` manually when needed.
+
 ## Markdown Linting
 
 For detailed information about markdown linting, including automated fixing, table
@@ -574,11 +693,11 @@ This project includes comprehensive AI coding guidelines to ensure consistent co
 
 Different AI assistants load guidelines from different locations:
 
-| Tool               | Entry Point                       | Auto-Loaded            |
-| ------------------ | --------------------------------- | ---------------------- |
-| **Cursor**         | `.cursor/rules/ai-guidelines.mdc` | ✅ Yes (modern format) |
-| **Claude Desktop** | `CLAUDE.md` (root directory)      | ✅ Yes                 |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Yes                 |
+| Tool               | Entry Point                       | Auto-Loaded           |
+| ------------------ | --------------------------------- | --------------------- |
+| **Cursor**         | `.cursor/rules/ai-guidelines.mdc` | Yes (modern format)   |
+| **Claude Desktop** | `CLAUDE.md` (root directory)      | Yes                   |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Yes                   |
 
 **All entry points reference `.ai-coding-guidelines.md` as the primary source.**
 
@@ -596,9 +715,9 @@ git status
 
 **What to look for:**
 
-- ❌ If you see "Changes not staged for commit" → You have uncommitted changes
-- ❌ If you see "Untracked files" → You have new files
-- ✅ If you see "nothing to commit, working tree clean" → You're good to go!
+- If you see "Changes not staged for commit" → You have uncommitted changes
+- If you see "Untracked files" → You have new files
+- If you see "nothing to commit, working tree clean" → You're good to go!
 
 **Step 2: Handle Uncommitted Changes (if any)**
 
@@ -638,10 +757,10 @@ git status --porcelain
 
 **What happens if you don't follow this:**
 
-- ❌ Uncommitted changes from previous work get included in your new branch
-- ❌ Your commit will show more files than you actually changed
-- ❌ PR will show confusing diffs with unrelated changes
-- ❌ Harder to review and understand what actually changed
+- Uncommitted changes from previous work get included in your new branch
+- Your commit will show more files than you actually changed
+- PR will show confusing diffs with unrelated changes
+- Harder to review and understand what actually changed
 
 **Example: Clean Branch Creation**
 
@@ -652,7 +771,7 @@ git status --porcelain
 $ git status
 On branch main
 Your branch is up to date with 'origin/main'.
-nothing to commit, working tree clean  ✅
+nothing to commit, working tree clean
 
 # 2. Pull latest
 
@@ -668,7 +787,7 @@ Switched to a new branch 'issue-117-output-organization'
 
 $ git status
 On branch issue-117-output-organization
-nothing to commit, working tree clean  ✅
+nothing to commit, working tree clean
 ```
 
 **NEVER commit without:**
@@ -875,7 +994,7 @@ from podcast_scraper.models import Episode
 
 ## Every New Function Needs
 
-✅ **Unit test with mocks for external dependencies:**
+**Unit test with mocks for external dependencies:**
 
 ```python
 @patch("podcast_scraper.rss.downloader.requests.Session")
@@ -889,7 +1008,7 @@ def test_fetch_url_with_retry(self, mock_session):
     self.assertEqual(result, "Success")
 ```
 
-✅ **Descriptive test names:**
+**Descriptive test names:**
 
 ```python
 
@@ -1136,11 +1255,11 @@ Workflows are configured to skip when irrelevant files change:
 
 | Files Changed | Python App | Docs | CodeQL | Time Savings |
 | ------------- | ---------- | ---- | ------ | ------------ |
-| Only `docs/` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
-| Only `.py` | ✅ Run | ✅ Run | ✅ Run | - |
-| Only `README.md` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
-| `pyproject.toml` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
-| `Dockerfile` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+| Only `docs/` | Skip | Run | Skip | ~18 minutes |
+| Only `.py` | Run | Run | Run | - |
+| Only `README.md` | Skip | Run | Skip | ~18 minutes |
+| `pyproject.toml` | Run | Skip | Skip | ~5 minutes |
+| `Dockerfile` | Run | Skip | Skip | ~5 minutes |
 
 This optimization provides fast feedback for documentation updates while maintaining full validation for code changes.
 
@@ -1337,10 +1456,38 @@ So exit code 0 means "the run finished", not "every episode succeeded". Use the 
 
 ## CLI subcommands and startup (Issue #429)
 
-- **Subcommands:** The first argument can be `doctor` or `cache`. When you run `python -m podcast_scraper.cli doctor` (or `podcast-scraper doctor`), the rest of the arguments are passed to that subcommand. If you omit arguments, the CLI uses `sys.argv[1:]` so subcommands work when invoked from the shell.
-- **Startup validation:** Before the main pipeline runs, the CLI checks Python version (3.10+) and that `ffmpeg` is on PATH. These checks are **skipped** for `doctor` and `cache` so you can run doctor even if ffmpeg is missing.
-- **Doctor** (`podcast-scraper doctor`): Runs environment checks (Python, ffmpeg, write permissions, model cache, ML imports). Use `--check-network` to test connectivity and `--check-models` to load default Whisper and summarizer once (slow). See [Troubleshooting - Doctor command](TROUBLESHOOTING.md#doctor-command-issue-379-429).
-- **Cache** (`podcast-scraper cache --status` / `--clean`): Manages ML model caches. No Python/ffmpeg validation.
+- **Subcommands:** The first positional argument
+  selects a subcommand. When omitted, the CLI runs
+  the default pipeline. All invocations use
+  `python -m podcast_scraper.cli <subcommand>`.
+
+| Subcommand | Purpose |
+| ---------- | ------- |
+| *(default)* | Run the transcript pipeline for one or more RSS feeds |
+| `doctor` | Environment checks (Python, ffmpeg, permissions, models) |
+| `cache` | ML model cache management (`--status`, `--clean`) |
+| `serve` | Start the FastAPI viewer server (`--output-dir`) |
+| `search` | Semantic search over a corpus index |
+| `index` | Build or rebuild the FAISS vector index |
+| `gi` | GIL subcommands (`inspect`, `show-insight`, `explore`) |
+| `kg` | KG subcommands (`inspect`) |
+| `corpus-status` | Show multi-feed corpus status |
+| `pricing-assumptions` | Display pricing model assumptions |
+
+- **Startup validation:** Before the main pipeline
+  runs, the CLI checks Python version (3.10+) and
+  that `ffmpeg` is on PATH. These checks are
+  **skipped** for utility subcommands (`doctor`,
+  `cache`, `serve`, `search`, `index`, `gi`, `kg`,
+  `corpus-status`, `pricing-assumptions`).
+- **Full CLI reference:**
+  [CLI.md](../api/CLI.md).
+- **Live pipeline monitor (RFC-065):** On the default pipeline command, **`--monitor`**
+  spawns a subprocess with a live RSS/CPU/stage dashboard (or appends **`.monitor.log`** when
+  the monitor’s stderr is not a TTY) and writes **`.pipeline_status.json`** under the output
+  directory. Optional **`.[monitor]`**: **`--memray`** / **`memray:`** for heap captures; with
+  monitor + TTY, **`f`** in the parent triggers **py-spy** to **`debug/flamegraph_*.svg`**. See
+  [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md).
 
 ## Log Level Guidelines
 
@@ -1469,22 +1616,105 @@ def load_whisper():
 
 ## Module Responsibilities
 
-- **`cli.py`**: CLI only, no business logic
-- **`service.py`**: Service API, structured results for daemon use
-- **`workflow.orchestration`**: Orchestration only, no HTTP/IO details
-- **`config.py`**: Configuration models and validation
-- **`rss.downloader`**: HTTP operations only
-- **`utils.filesystem`**: File system utilities only
-- **`rss.parser`**: RSS parsing, episode creation
-- **`workflow.episode_processor`**: Episode-level processing logic
-- **`providers.ml.whisper_utils`**: Whisper transcription utilities
-- **`providers.ml.speaker_detection`**: NER-based speaker extraction
-- **`providers.ml.summarizer`**: Transcript summarization
-- **`workflow.metadata_generation`**: Metadata document generation
-- **`utils.progress`**: Progress reporting abstraction
-- **`models/`**: Shared data models (RssFeed, Episode, TranscriptionJob in `entities.py`)
+The full module map with dependency diagrams is in
+[Architecture](../architecture/ARCHITECTURE.md).
+Detailed boundaries are in
+`.cursor/rules/module-boundaries.mdc`. Below is a
+compact package-level overview.
 
-**Keep concerns separated** - don't mix HTTP calls in CLI, don't put business logic in config, etc.
+### Public API and entry points
+
+- **`cli.py`** — CLI only, no business logic
+- **`service.py`** — Service API, structured results
+  for daemon use
+- **`config.py`** — Configuration models and validation
+
+### Pipeline and workflow
+
+- **`workflow/orchestration.py`** — Orchestration only,
+  no HTTP/IO details
+- **`workflow/stages/`** — Stage modules (setup,
+  scraping, processing, transcription, metadata,
+  summarization)
+- **`workflow/episode_processor.py`** — Episode-level
+  processing logic
+- **`workflow/corpus_operations.py`** — Multi-feed
+  manifest and summary artifacts
+- **`workflow/append_resume.py`** — Append/resume logic
+- **`workflow/degradation.py`** — Graceful degradation
+  for non-critical stages
+- **`workflow/run_manifest.py`** /
+  **`workflow/run_summary.py`** — Run tracking
+- **`workflow/jsonl_emitter.py`** — Streaming metrics
+- **`workflow/metadata_generation.py`** — Metadata
+  document generation
+
+### RSS and downloads
+
+- **`rss/parser.py`** — RSS parsing, episode creation
+- **`rss/downloader.py`** — HTTP operations only
+- **`rss/feed_cache.py`** — Optional on-disk RSS cache
+
+### Providers (9 total)
+
+- **`providers/ml/`** — Local ML (`MLProvider`,
+  `HybridMLProvider`, Whisper, spaCy, summarizer,
+  model registry)
+- **`providers/{openai,gemini,anthropic,mistral,deepseek,grok,ollama}/`** — LLM provider packages
+- **`providers/capabilities.py`** — Capability flags
+- **`transcription/`**, **`speaker_detectors/`**,
+  **`summarization/`** — Protocol interfaces and
+  factory functions
+- **`prompts/store.py`** — Versioned Jinja2 prompt
+  templates
+
+### Knowledge extraction
+
+- **`gi/`** — Grounded Insight Layer (pipeline,
+  schema, grounding, explore, corpus, quality metrics)
+- **`kg/`** — Knowledge Graph (pipeline, schema,
+  LLM extraction, CLI handlers, quality metrics)
+
+### Search
+
+- **`search/`** — FAISS vector indexing, transcript
+  chunking, corpus search/similarity, protocols,
+  CLI handlers
+
+### Server (FastAPI viewer API)
+
+- **`server/app.py`** — App factory, CORS, static
+  mounting
+- **`server/routes/`** — 10 route modules (health,
+  artifacts, search, explore, index_stats,
+  index_rebuild, corpus_library, corpus_binary,
+  corpus_metrics, corpus_digest)
+- **`server/corpus_catalog.py`** — Filesystem-backed
+  episode catalog
+- **`server/corpus_digest.py`** — Digest selection
+- **`server/index_rebuild.py`** /
+  **`server/index_staleness.py`** — Background FAISS
+  rebuild and freshness
+- **`server/pathutil.py`** — Safe corpus path
+  resolution
+
+### Support
+
+- **`models/`** — Shared data models (RssFeed,
+  Episode, TranscriptionJob)
+- **`schemas/`** — Summary schema validation
+- **`cache/`** — Cache directories and management
+- **`cleaning/`** — Transcript cleaning (pattern,
+  LLM, hybrid)
+- **`evaluation/`** — Experiment config, scorers,
+  regression, fingerprinting
+- **`preprocessing/`** — Audio preprocessing (FFmpeg,
+  Opus, VAD)
+- **`utils/`** — Filesystem, progress, timeouts,
+  retries, redaction, corpus paths, provider metrics
+
+**Keep concerns separated** — don't mix HTTP calls in
+CLI, don't put business logic in config, etc.
 
 ## When to Create New Files
 
@@ -1514,6 +1744,19 @@ and summarization. When implementing new providers:
 7. **Write Tests**: Create unit, integration, and E2E tests
 
 **For complete implementation guide**, see [Provider Implementation Guide](PROVIDER_IMPLEMENTATION_GUIDE.md).
+
+**Choosing a provider:**
+[AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md)
+(decision-oriented: cost, quality, speed, privacy) and
+[Provider Deep Dives](PROVIDER_DEEP_DIVES.md)
+(per-provider reference cards, benchmarks, magic
+quadrant).
+
+**Validating provider quality:** Run experiments
+against `data/eval/` baselines and capture
+performance profiles in `data/profiles/`. See
+[Experiment Guide](EXPERIMENT_GUIDE.md) and
+[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md).
 
 ## Third-Party Dependencies
 

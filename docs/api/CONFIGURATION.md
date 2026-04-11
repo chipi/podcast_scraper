@@ -883,6 +883,16 @@ When `summary_provider` is an API but either evidence field remains `transformer
 
 If either is set to an LLM (e.g. openai, anthropic), the corresponding API key must be set. See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md) and RFC-049.
 
+<a id="live-pipeline-monitor-rfc-065-512"></a>
+
+#### Live pipeline monitor (RFC-065, #512)
+
+| Field | CLI Flag | Default | Description |
+| ----- | -------- | ------- | ----------- |
+| `monitor` | `--monitor` | `false` | Spawn a subprocess that shows live **RSS**, **CPU%**, and pipeline **stage** (reads/writes **`.pipeline_status.json`** under the effective output directory). Uses **psutil** + **rich** (core deps). See [Live Pipeline Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) and [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md). |
+| `memray` | `--memray` | `false` | Re-exec the CLI or service under **memray** for heap profiling (optional extra **`.[monitor]`**). Sets **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** in the child to avoid re-exec loops. |
+| `memray_output` | `--memray-output` | *(derived)* | Memray capture **`.bin`** path. Default: **`<output_dir>/debug/memray_<timestamp>.bin`**, or **`./debug/...`** when `output_dir` is unset (service: cwd-based default). |
+
 #### Logging & Operational Configuration (Issue #379)
 
 **`json_logs`**
@@ -1179,7 +1189,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 - **Rotate API keys regularly**
 - **Use separate keys for development/production**
 
-## ❌ DON'T
+## DON'T
 
 - **Never commit `.env` files** with real API keys
 - **Never hardcode API keys** in source code

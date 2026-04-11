@@ -136,11 +136,11 @@ identical run should skip work under each feed’s `run_append_*` directory. Doc
 
 Pick **one RSS URL** you have actually listened to (or can skim). You will judge:
 
-- Do **summary bullets** and **KG topics/entities** match what you remember?  
+- Do **summary bullets** and **KG topics/entities** match what you remember?
   → See [PRD-005](../prd/PRD-005-episode-summarization.md) and [how summaries relate to GI/KG](../guides/GROUNDED_INSIGHTS_GUIDE.md#summaries-kg-and-grounded-insights-how-they-fit-together).
-- Do **GI insights** read like real takeaways (not stub text)?  
+- Do **GI insights** read like real takeaways (not stub text)?
   → See [enabling grounded insights](../guides/GROUNDED_INSIGHTS_GUIDE.md#enabling-grounded-insights) and [`gi_insight_source`](../api/CONFIGURATION.md#grounded-insights-gil).
-- For **grounded** insights, do **quotes** appear in the transcript and support the claim?  
+- For **grounded** insights, do **quotes** appear in the transcript and support the claim?
   → See [grounding contract / ontology](../architecture/gi/ontology.md) and [provider-based evidence (QA + NLI)](../guides/GROUNDED_INSIGHTS_GUIDE.md#provider-based-evidence-qa-nli).
 
 Write down the episode titles or IDs you will use so you can find the right files under
@@ -168,7 +168,7 @@ flags. Mapping:
 - **`kg_extraction_source: provider`** with **ML-only** summary provider — graph extraction
   is a no-op; pipeline falls back to **summary bullets** when available. Details:
   [KG guide extraction table](../guides/KNOWLEDGE_GRAPH_GUIDE.md#enabling-kg) and [RFC-055](../rfc/RFC-055-knowledge-graph-layer-core.md).
-- **GIL** needs **`generate_metadata`** (and summaries if you use bullet-backed modes).  
+- **GIL** needs **`generate_metadata`** (and summaries if you use bullet-backed modes).
   Config reference: [Grounded Insights (GIL)](../api/CONFIGURATION.md#grounded-insights-gil).
 
 ---

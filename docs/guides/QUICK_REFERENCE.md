@@ -63,7 +63,8 @@ make quality                 # Code quality (complexity, docstrings, dead code, 
 
 # Before committing
 
-make ci                      # Run full CI suite locally
+make ci-fast                 # Fast CI gate (~6-10 min, default before push)
+make ci                      # Full CI suite (+ Playwright, coverage enforce)
 ```
 
 ---
@@ -135,6 +136,47 @@ mkdocs serve                 # http://localhost:8000 (docs site; same default po
 
 ---
 
+## Provider Selection
+
+| Need | Guide |
+| ---- | ----- |
+| Compare providers (cost, quality, speed, privacy) | [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) |
+| Per-provider specs, benchmarks, magic quadrant | [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) |
+| Implement a new provider | [Provider Implementation](PROVIDER_IMPLEMENTATION_GUIDE.md) |
+| Quick provider config | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) |
+| Ollama setup | [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) |
+
+---
+
+## Evaluation and Profiles
+
+```bash
+# Run an experiment against a baseline
+make experiment-run \
+  CONFIG=data/eval/configs/my_config.yaml \
+  BASELINE=baseline_prod_authority_v1
+
+# Promote a successful run to baseline
+make run-promote RUN_ID=run_xxx \
+  --as baseline PROMOTED_ID=baseline_v2 \
+  REASON="New production baseline"
+
+# Capture a performance profile
+make profile-freeze VERSION=v2.6-openai \
+  PIPELINE_CONFIG=config/profiles/capture_e2e_openai.yaml
+
+# Compare two profiles
+make profile-diff FROM=v2.6-wip-openai TO=v2.6-wip-gemini
+```
+
+**Docs:**
+[Experiment Guide](EXPERIMENT_GUIDE.md)
+· [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)
+· `data/eval/README.md`
+· `data/profiles/README.md`
+
+---
+
 ## CLI Usage
 
 ```bash
@@ -173,11 +215,11 @@ git checkout -b feature/my-feature
 
 # Make changes, then:
 
-make format && make ci       # Format and verify
+make format && make ci-fast  # Format and verify (ci-fast is the default gate)
 
 # Commit
 
-git add -A
+git add <specific-files>
 git commit -m "feat: add my feature"
 
 # Push and create PR
@@ -293,6 +335,10 @@ docker-compose -f docker-compose.llm-only.yml up -d  # LLM-only variant
 
 - [Development Guide](DEVELOPMENT_GUIDE.md) - Full development workflow
 - [Testing Guide](TESTING_GUIDE.md) - Detailed test information
+- [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) - Provider decision guide
+- [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) - Per-provider benchmarks
+- [Experiment Guide](EXPERIMENT_GUIDE.md) - Eval datasets and baselines
+- [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) - Release timing snapshots
 - [Docker Service Guide](DOCKER_SERVICE_GUIDE.md) - Docker usage and deployment
 - [Docker Variants Guide](DOCKER_VARIANTS_GUIDE.md) - LLM-only vs ML-enabled
 - [CLI Reference](../api/CLI.md) - All CLI options

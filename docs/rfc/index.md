@@ -32,15 +32,9 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling; routes summarization, GIL (RFC-049), and KG (RFC-055) strategies |
 | [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
 | [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Knowledge Graph Layer — Use Cases & End-to-End Consumption | PRD-019 | KG query patterns, export, `kg` CLI expectations, optional DB consumption |
-| [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio integration for neural speaker diarization, replacing gap-based rotation |
+| [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio design accepted ([ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md)); **implementation not landed** in `main` (no `[diarize]` extra yet) |
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
-| [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) | Multi-Feed Corpus, Append/Resume, and Unified Discovery | #440, #444, #505, #506 | N feeds, layout A, opt-in append (FS + `index.json`); #505 unified index; #506 manifest/status/summary; extends RFC-004 |
-| [RFC-064](RFC-064-performance-profiling-release-freeze.md) | Performance Profiling and Release Freeze Framework | - | Frozen release profiles (`data/profiles/`), `psutil`-based resource capture, diff tool; resource cost sibling to RFC-041; [operator guide](../guides/PERFORMANCE_PROFILE_GUIDE.md) |
-| [RFC-065](RFC-065-live-pipeline-monitor.md) | Live Pipeline Monitor (macOS Developer Tooling) | - | `--monitor` CLI flag with live `rich` dashboard, flamegraph capture; macOS-specific; split from RFC-064 |
-| [RFC-066](RFC-066-run-compare-performance-tab.md) | Run Comparison Tool — Performance Tab | - | Extends RFC-047 Streamlit tool with performance delta view joining quality and resource metrics; split from RFC-064 |
-| [RFC-068](RFC-068-corpus-digest-api-viewer.md) | Corpus Digest — API & Viewer | PRD-023 | `/api/corpus/digest`, Digest tab, Library 24h glance, feed diversity, semantic topic bands |
-| [RFC-069](RFC-069-graph-exploration-toolkit.md) | GI/KG Viewer — Graph Exploration Toolkit | PRD-024 | Zoom 100%/%, Shift+drag box zoom, minimap v1, degree bucket filter, built-in layouts only; extends RFC-062 |
 
 ## Completed RFCs
 
@@ -94,7 +88,13 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | PRD-007 | v2.6.0 | Closed per [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md); Tracks A/B complete; silver refs + 72-config eval matrix |
 | [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | v2.6.0 | FAISS Phase 1, `podcast search`, indexer, semantic `gi explore` when index present ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); Qdrant Phase 2 pending |
 | [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-017, PRD-019, PRD-021 | v2.6.0 | FastAPI `podcast serve`, Vue 3 + Vite + Cytoscape SPA, Playwright UI E2E ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)); platform routes remain v2.7 per ADR-064 |
+| [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) | Multi-Feed Corpus, Append/Resume, and Unified Discovery | #440+ | v2.6.0 | N feeds, layout A, opt-in append; unified index (#505); `corpus_manifest.json` / run summary (#506); extends RFC-004; see [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) |
+| [RFC-064](RFC-064-performance-profiling-release-freeze.md) | Performance Profiling and Release Freeze Framework | - | v2.6.0 | Frozen profiles under `data/profiles/`, `scripts/eval/freeze_profile.py`, `diff_profiles.py`, `make profile-freeze` / `profile-diff`; [guide](../guides/PERFORMANCE_PROFILE_GUIDE.md) |
+| [RFC-065](RFC-065-live-pipeline-monitor.md) | Live Pipeline Monitor (macOS Developer Tooling) | #512 | v2.6.0 | `--monitor`, `.pipeline_status.json`, `rich` or `.monitor.log`; optional **`[monitor]`** memray + py-spy; tmux split deferred; [guide](../guides/LIVE_PIPELINE_MONITOR.md) |
+| [RFC-066](RFC-066-run-compare-performance-tab.md) | Run Comparison Tool — Performance Tab | - | v2.6.0 | Streamlit **Performance** page (`?page=performance`) joining run metrics with frozen RFC-064 profiles |
 | [RFC-067](RFC-067-corpus-library-api-viewer.md) | Corpus Library — Catalog API & Viewer | PRD-022 | v2.6.0 | Filesystem-first `/api/corpus/*`, Library tab, episode detail, FAISS similar episodes, handoffs to graph and `/api/search` (Phases 1–3) |
+| [RFC-068](RFC-068-corpus-digest-api-viewer.md) | Corpus Digest — API & Viewer | PRD-023 | v2.6.0 | `GET /api/corpus/digest`, Digest tab, Library 24h glance, feed diversity, semantic topic bands; `corpus_digest_api` on `/api/health` |
+| [RFC-069](RFC-069-graph-exploration-toolkit.md) | GI/KG Viewer — Graph Exploration Toolkit | PRD-024 | v2.6.0 | Zoom controls, % readout, Shift+drag box zoom, minimap v1, degree-bucket filter, built-in layouts, edge filters; extends RFC-062 |
 
 ## Quick Links
 

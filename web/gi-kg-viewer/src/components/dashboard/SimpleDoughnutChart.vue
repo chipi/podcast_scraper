@@ -1,16 +1,18 @@
+<!--
+  Episode outcomes as a sorted horizontal bar chart (Tufte: avoid doughnut + legend).
+  Filename kept for stable imports from DashboardView.
+-->
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  chartExternalTooltipHandler,
-  removeChartExternalTooltip,
-} from '../../utils/chartExternalTooltip'
-import { chartSeriesColors } from '../../utils/chartTheme'
+import { barEndValuePlugin, setBarEndValueFormatter } from '../../utils/chartBarEndValuePlugin'
+import { chartGridColor, chartSeriesColors } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
   title: string
   segments: Record<string, number>
+  insightText?: string
   helpText?: string
 }>()
 
@@ -31,7 +33,11 @@ function buildChart(): void {
   if (!el) {
     return
   }
-  chart?.destroy()
+  if (chart) {
+    setBarEndValueFormatter(chart, null)
+    chart.destroy()
+    chart = null
+  }
   const list = entries.value
   if (list.length === 0) {
     chart = null
@@ -41,45 +47,60 @@ function buildChart(): void {
   if (!ctx) {
     return
   }
-  const colors = chartSeriesColors(list.length)
+  const labels = list.map(([k]) => k)
   const values = list.map(([, v]) => v)
   const total = values.reduce((a, b) => a + b, 0)
+  const colors = chartSeriesColors(list.length)
   chart = new Chart(ctx, {
-    type: 'doughnut',
+    type: 'bar',
+    plugins: [barEndValuePlugin],
     data: {
-      labels: list.map(([k]) => k),
+      labels,
       datasets: [
         {
           data: values,
           backgroundColor: colors,
+          borderColor: colors,
           borderWidth: 1,
         },
       ],
     },
     options: {
+      indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          display: true,
-          position: 'right',
-          labels: { boxWidth: 10, font: { size: 10 } },
-        },
+        legend: { display: false },
         tooltip: {
-          enabled: false,
-          external: chartExternalTooltipHandler,
           callbacks: {
             title: (items) => items[0]?.label ?? '',
             label: (item) => {
-              const raw = item.parsed
+              const raw = item.parsed.x
               const n = typeof raw === 'number' ? raw : Number(raw)
-              const pct = total > 0 && Number.isFinite(n) ? ((n / total) * 100).toFixed(1) : '0.0'
-              return `Episodes: ${Number.isFinite(n) ? n.toLocaleString() : '—'} (${pct}% of this run)`
+              const pct =
+                total > 0 && Number.isFinite(n) ? ((n / total) * 100).toFixed(1) : '0.0'
+              return `Count: ${Number.isFinite(n) ? n.toLocaleString() : '—'} (${pct}% of this run)`
             },
           },
         },
       },
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { precision: 0, font: { size: 10 } },
+          grid: { color: chartGridColor() },
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { size: 10 } },
+        },
+      },
     },
+  })
+  setBarEndValueFormatter(chart, (v) => {
+    const pct = total > 0 && Number.isFinite(v) ? ((v / total) * 100).toFixed(1) : '0.0'
+    return `${Number.isFinite(v) ? v.toLocaleString() : '—'} (${pct}%)`
   })
 }
 
@@ -88,7 +109,7 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.segments, props.title, props.helpText] as const,
+  () => [props.segments, props.title, props.helpText, props.insightText] as const,
   () => {
     buildChart()
   },
@@ -97,7 +118,7 @@ watch(
 
 onBeforeUnmount(() => {
   if (chart) {
-    removeChartExternalTooltip(chart)
+    setBarEndValueFormatter(chart, null)
     chart.destroy()
   }
   chart = null
@@ -109,6 +130,12 @@ onBeforeUnmount(() => {
     <h3 class="mb-1 text-sm font-semibold">
       {{ title }}
     </h3>
+    <p
+      v-if="insightText"
+      class="mb-1.5 text-[11px] font-medium leading-snug text-surface-foreground"
+    >
+      {{ insightText }}
+    </p>
     <p
       v-if="helpText"
       class="mb-2 text-[11px] leading-snug text-muted"

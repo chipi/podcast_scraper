@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  chartExternalTooltipHandler,
-  removeChartExternalTooltip,
-} from '../../utils/chartExternalTooltip'
+import { barEndValuePlugin, setBarEndValueFormatter } from '../../utils/chartBarEndValuePlugin'
 import { chartGridColor, chartSeriesColors } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
@@ -12,6 +9,7 @@ const props = defineProps<{
   title: string
   /** Stage label + wall seconds (non-negative). */
   stages: { label: string; seconds: number }[]
+  insightText?: string
   helpText?: string
 }>()
 
@@ -26,7 +24,11 @@ function buildChart(): void {
   if (!el) {
     return
   }
-  chart?.destroy()
+  if (chart) {
+    setBarEndValueFormatter(chart, null)
+    chart.destroy()
+    chart = null
+  }
   const stages = props.stages.filter((s) => s.seconds > 0)
   if (stages.length === 0) {
     chart = null
@@ -36,59 +38,62 @@ function buildChart(): void {
   if (!ctx) {
     return
   }
+  const labels = stages.map((s) => s.label)
+  const values = stages.map((s) => s.seconds)
   const colors = chartSeriesColors(stages.length)
   chart = new Chart(ctx, {
     type: 'bar',
+    plugins: [barEndValuePlugin],
     data: {
-      labels: ['Pipeline time'],
-      datasets: stages.map((s, i) => ({
-        label: s.label,
-        data: [s.seconds],
-        stack: 'stages',
-        backgroundColor: colors[i],
-        borderColor: colors[i],
-        borderWidth: 1,
-      })),
+      labels,
+      datasets: [
+        {
+          label: 'Wall time (s)',
+          data: values,
+          backgroundColor: colors,
+          borderColor: colors,
+          borderWidth: 1,
+        },
+      ],
     },
     options: {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: { boxWidth: 10, font: { size: 10 } },
-        },
+        legend: { display: false },
         tooltip: {
-          enabled: false,
-          external: chartExternalTooltipHandler,
           callbacks: {
-            title: () => 'Latest pipeline run',
+            title: (items) => {
+              const i = items[0]?.dataIndex
+              if (i == null) {
+                return ''
+              }
+              return labels[i] ?? ''
+            },
             label: (item) => {
-              const lab = item.dataset.label ?? 'Stage'
               const v = item.parsed.x
               const n = typeof v === 'number' ? v : Number(v)
-              return `${lab}: ${Number.isFinite(n) ? n.toFixed(2) : '—'} s wall time`
+              return `Wall time: ${Number.isFinite(n) ? n.toFixed(2) : '—'} s`
             },
           },
         },
       },
       scales: {
         x: {
-          stacked: true,
           beginAtZero: true,
           ticks: { font: { size: 10 } },
           grid: { color: chartGridColor() },
         },
         y: {
-          stacked: true,
           grid: { display: false },
           ticks: { font: { size: 10 } },
         },
       },
     },
   })
+  setBarEndValueFormatter(chart, (v) => `${Number.isFinite(v) ? v.toFixed(2) : '—'} s`)
 }
 
 const hasData = computed(() => props.stages.some((s) => s.seconds > 0))
@@ -98,7 +103,7 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.stages, props.title, props.helpText] as const,
+  () => [props.stages, props.title, props.helpText, props.insightText] as const,
   () => {
     buildChart()
   },
@@ -107,7 +112,7 @@ watch(
 
 onBeforeUnmount(() => {
   if (chart) {
-    removeChartExternalTooltip(chart)
+    setBarEndValueFormatter(chart, null)
     chart.destroy()
   }
   chart = null
@@ -119,6 +124,12 @@ onBeforeUnmount(() => {
     <h3 class="mb-1 text-sm font-semibold">
       {{ title }}
     </h3>
+    <p
+      v-if="insightText"
+      class="mb-1.5 text-[11px] font-medium leading-snug text-surface-foreground"
+    >
+      {{ insightText }}
+    </p>
     <p
       v-if="helpText"
       class="mb-2 text-[11px] leading-snug text-muted"

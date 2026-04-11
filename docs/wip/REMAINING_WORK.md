@@ -5,21 +5,21 @@
 
 ---
 
-## ✅ Completed (Phase 1-2)
+## Completed (Phase 1-2)
 
 ### RFC-015: AI Experiment Pipeline
-- ✅ Phase 1: Experiment Runner
-- ✅ Phase 2: Evaluation Metrics Integration
-- ✅ Phase 3: Storage & Comparison (visualization pending)
+- Phase 1: Experiment Runner
+- Phase 2: Evaluation Metrics Integration
+- Phase 3: Storage & Comparison (visualization pending)
 
 ### RFC-041: Podcast ML Benchmarking Framework
-- ✅ Phase 0: Dataset Freezing & Baselines
-- ✅ Phase 1: Integration with RFC-015
-- ✅ Phase 2: Benchmark Runner
+- Phase 0: Dataset Freezing & Baselines
+- Phase 1: Integration with RFC-015
+- Phase 2: Benchmark Runner
 
 ### RFC-016: Provider Modularization
-- ✅ Phase 2: Provider params & fingerprinting
-- ✅ Phase 3: Evaluation infrastructure (ROUGE, BLEU, WER, semantic similarity implemented)
+- Phase 2: Provider params & fingerprinting
+- Phase 3: Evaluation infrastructure (ROUGE, BLEU, WER, semantic similarity implemented)
 
 ---
 
@@ -248,11 +248,11 @@
 
 ## Current Status
 
-**Phase 1:** ✅ Complete (Foundation)
+**Phase 1:** Complete (Foundation)
 **Phase 2:** ⏳ In Progress (~70% complete)
-- ✅ Evaluation metrics
-- ✅ Storage & comparison
-- ✅ Benchmark runner
+- Evaluation metrics
+- Storage & comparison
+- Benchmark runner
 - ⏳ CI integration (next)
 - ⏳ Documentation
 

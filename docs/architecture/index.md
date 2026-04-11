@@ -12,7 +12,9 @@ vision for where the system is heading.
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | Quality constraints — performance, security, reliability, observability, maintainability, scalability |
 | [Testing Strategy](TESTING_STRATEGY.md) | Test pyramid, patterns, decision criteria, CI integration |
 
-**HTTP / viewer:** Not a separate architecture doc — the FastAPI surface, `/api/*`, and OpenAPI **`/docs`** are specified in the [Server Guide](../guides/SERVER_GUIDE.md) (see also [Architecture — Ways to run](ARCHITECTURE.md#ways-to-run-and-deploy)).
+**HTTP / viewer:** Not a separate architecture doc — the FastAPI surface, `/api/*` (including Corpus Library, Corpus Digest, semantic search, and index management endpoints), and OpenAPI **`/docs`** are specified in the [Server Guide](../guides/SERVER_GUIDE.md) (see also [Architecture — Ways to run](ARCHITECTURE.md#ways-to-run-and-deploy)).
+
+**Semantic search:** FAISS-based vector search over transcript chunks is documented in [Architecture — Phase 5a](ARCHITECTURE.md#phase-5a-semantic-corpus-search-rfc-061) and the [Server Guide](../guides/SERVER_GUIDE.md).
 
 ## Target state
 

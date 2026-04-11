@@ -687,7 +687,7 @@ The key insight: **fast checks run on both push AND PR**, while **full checks on
 | ------- | ------------- | ------------- | ------------ |
 | Push to feature branch | Yes — Runs | No — Skipped | ~2 min |
 | Open/update PR to main | Yes — Runs | Yes Runs | ~10 min |
-| Push directly to main | No — Blocked | ❌ Blocked | N/A |
+| Push directly to main | No — Blocked | Blocked | N/A |
 
 **Rationale:** PRs need ALL checks (fast + full) before merging. The stratification benefit
 is that during active development (push), you only wait for fast checks.
@@ -805,7 +805,7 @@ wt-new:
   echo "⚠️  Sanitized name: $$name → $$safename"; \
  fi; \
  if [ -z "$$safename" ]; then \
-  echo "❌ Error: name cannot be empty"; exit 1; \
+  echo "Error: name cannot be empty"; exit 1; \
  fi; \
  if [ -n "$$issue" ]; then \
   branch="$$type/$$issue-$$safename"; \
@@ -837,7 +837,7 @@ wt-setup:
   echo "⚠️  Sanitized name: $$name → $$safename"; \
  fi; \
  if [ -z "$$safename" ]; then \
-  echo "❌ Error: name cannot be empty"; exit 1; \
+  echo "Error: name cannot be empty"; exit 1; \
  fi; \
  if [ -n "$$issue" ]; then \
   branch="$$type/$$issue-$$safename"; \
@@ -866,7 +866,7 @@ wt-list:
  @echo ""
  @echo "=== Worktree Details ==="
  @for wt in $$(git worktree list --porcelain | grep "^worktree" | cut -d' ' -f2); do \
-  if [ -d "$$wt/.venv" ]; then venv=" venv"; else venv="❌ no venv"; fi; \
+  if [ -d "$$wt/.venv" ]; then venv=" venv"; else venv="no venv"; fi; \
   branch=$$(git -C "$$wt" branch --show-current 2>/dev/null || echo "detached"); \
   echo "  $$wt ($$branch) [$$venv]"; \
  done
@@ -1143,7 +1143,7 @@ We use git worktrees for parallel development:
 
 **Phase 1 (Week 1):** Documentation and setup
 
-- Create this RFC 
+- Create this RFC
 - Add Makefile helpers
 - Update `.ai-coding-guidelines.md`
 - Configure branch protection rules

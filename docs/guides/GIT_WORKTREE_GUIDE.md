@@ -216,12 +216,12 @@ If `podcast-scraper` is installed in editable mode (`pip install -e .`) in the g
 
 ```bash
 
-# ✅ CORRECT: Use venv Python
+# CORRECT: Use venv Python
 
 .venv/bin/python3 -m pytest tests/
 make test  # Makefile uses $(PYTHON) -m pytest automatically
 
-# ❌ WRONG: Using system pytest directly
+# WRONG: Using system pytest directly
 
 pytest tests/  # May use system Python with wrong worktree in path
 ```
@@ -246,11 +246,11 @@ ls -la .venv/bin/python3
 
 ```bash
 
-# ❌ WRONG: Installs in global Python, pollutes all worktrees
+# WRONG: Installs in global Python, pollutes all worktrees
 
 pip install -e .
 
-# ✅ CORRECT: Install only in worktree's venv
+# CORRECT: Install only in worktree's venv
 
 .venv/bin/pip install -e .
 
@@ -448,15 +448,15 @@ These files are tracked in Git and automatically available in each worktree:
 
 Rebase your branch when:
 
-- ✅ PR is ready for review (clean diff for reviewers)
-- ✅ CI is failing due to main changes (get latest fixes)
-- ✅ Merge conflicts expected (smaller conflicts)
-- ✅ Main has breaking changes you need
+- PR is ready for review (clean diff for reviewers)
+- CI is failing due to main changes (get latest fixes)
+- Merge conflicts expected (smaller conflicts)
+- Main has breaking changes you need
 
 Don't rebase when:
 
-- ❌ Just want latest changes for curiosity (adds noise)
-- ❌ Actively coding, no blockers (rebase when ready)
+- Just want latest changes for curiosity (adds noise)
+- Actively coding, no blockers (rebase when ready)
 
 ### Rebase Commands
 

@@ -6,8 +6,10 @@
 [![Snyk Security](https://snyk.io/test/github/chipi/podcast_scraper/badge.svg)](https://snyk.io/test/github/chipi/podcast_scraper)
 
 Download, transcribe, and summarize podcast episodes. Fetches transcripts from RSS feeds
-(Podcasting 2.0), generates them when missing, detects speakers, and creates summaries.
-Use local models (Whisper, BART) or OpenAI API — your choice.
+(Podcasting 2.0), generates them when missing, detects speakers, creates summaries,
+and optionally extracts structured insights (GIL) and knowledge graphs (KG).
+Use local models (Whisper, transformers) or cloud APIs (OpenAI, Gemini, Anthropic,
+Mistral, DeepSeek, Grok, Ollama) — your choice.
 
 🎓 **Learning Project:** This is a personal project where I'm exploring AI-assisted coding
 and hands-on work with edge and cloud AI/ML technologies.
@@ -24,7 +26,9 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
 - **Speaker Detection** — Identify speakers using spaCy NER, OpenAI, Google Gemini, Grok (real-time info), or other providers
-- **Summarization** — Episode summaries with BART/LED (local), OpenAI, Google Gemini, Grok (real-time info), or other providers
+- **Summarization** — Episode summaries via local transformers (BART/LED), hybrid MAP-REDUCE (`hybrid_ml`), or any of 7 LLM providers
+- **GIL Extraction** — Structured insights and verbatim quotes with evidence grounding (`gi.json` per episode, [PRD-017](docs/prd/PRD-017-grounded-insight-layer.md))
+- **KG Extraction** — Topic-entity knowledge graphs from transcripts (`kg.json` per episode, [RFC-055](docs/rfc/RFC-055-knowledge-graph-layer-core.md))
 - **Metadata Generation** — JSON/YAML metadata per episode
 - **Resumable** — Skip existing files, handle interruptions gracefully
 - **Provider System** — Swap between local and cloud providers via config
@@ -35,7 +39,8 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
 - **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
 - **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
-- **GI / KG Viewer (v2)** — Optional browser UI for `.gi.json` / `.kg.json`, dashboard metrics, semantic search, and explore/query against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
+- **Live pipeline monitor** — Optional **`--monitor`**: separate process + **`rich`** dashboard (or **`.monitor.log`** if stderr is not a TTY) and **`.pipeline_status.json`**. Optional **`pip install -e ".[monitor]"`**: **`--memray`** for heap profiling; with monitor + TTY, **`f`** runs **py-spy** to **`debug/flamegraph_*.svg`** ([RFC-065](docs/rfc/RFC-065-live-pipeline-monitor.md), [guide](docs/guides/LIVE_PIPELINE_MONITOR.md), #512)
+- **GI / KG Viewer (v2)** — Optional browser UI: graph visualization, dashboard, semantic search, explore, **Corpus Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), and **Corpus Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)) — all against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
 
 ## Repository layout (Python + web)
 
@@ -102,19 +107,21 @@ Choose the installation method based on your use case:
 
 | Use Case | Installation Command | What You Get | Disk Space |
 | -------- | --------------------- | ----------- | --------- |
-| **LLM-only** (recommended) | `pip install -e .` | Core + OpenAI SDK (other API providers → add **`[llm]`**) | ~50MB |
+| **OpenAI only** | `pip install -e ".[llm]"` | Core + OpenAI, Gemini, Anthropic, Mistral SDKs | ~50MB |
 | **Local ML only** | `pip install -e ".[ml]"` | Core + Whisper, spaCy, torch, transformers, FAISS, **llama-cpp-python** (GGUF), etc. | ~1-3GB |
-| **Both options** | `pip install -e ".[ml,llm]"` | Local ML + extra LLM API SDKs (Gemini, Anthropic, Mistral, httpx/Ollama) | ~1-3GB |
+| **Both** (recommended) | `pip install -e ".[ml,llm]"` | Local ML + all LLM API SDKs | ~1-3GB |
 | **Run comparison UI** (eval runs) | `pip install -e ".[compare]"` | Streamlit compare tool (RFC-047; `make run-compare`) | moderate |
-| **GI/KG viewer API** | `pip install -e ".[server]"` | FastAPI + uvicorn for `podcast serve` | small |
+| **GI/KG viewer API** | `pip install -e ".[server]"` | FastAPI + uvicorn for `python -m podcast_scraper.cli serve` | small |
+| **Monitor profiling extras** (optional) | `pip install -e ".[monitor]"` | `py-spy` + `memray` integrated with `--monitor` / `--memray` (RFC-065); **not** required for `--monitor` alone | small |
 
 **Quick decision guide:**
 
-- Using LLM APIs (OpenAI, etc.) for transcription/summarization? → Install core only (`pip install -e .`)
-- Want to run models locally (Whisper, spaCy, Transformers)? → Install with ML (`pip install -e ".[ml]"`)
-- Want both options? → Install with ML (`pip install -e ".[ml]"`)
+- Using LLM APIs (OpenAI, Gemini, etc.)? → `pip install -e ".[llm]"`
+- Want to run models locally (Whisper, spaCy, Transformers)? → `pip install -e ".[ml]"`
+- Want both? → `pip install -e ".[ml,llm]"` (recommended)
+- Contributing / developing? → `pip install -e ".[dev,ml,llm]"`
 
-**Note:** LLM provider SDKs (like `openai`) are included in core dependencies. For other LLM providers (Gemini, Anthropic, Mistral, Ollama), install with `pip install -e ".[llm]"`. For development with all LLM providers, use `pip install -e ".[dev,ml,llm]"`.
+**Note:** LLM provider SDKs (`openai`, `google-genai`, `anthropic`, `mistralai`, `httpx`) are **not** in core — they require the `[llm]` extra. Core (`pip install -e .`) gives you the pipeline framework only.
 
 ### FAISS / `vector_search` and embedding cache
 
@@ -128,7 +135,7 @@ Corpus indexing (`vector_search` with the default FAISS backend) calls the embed
 
 Use the latest released version for normal usage.
 
-**For LLM-only users (no ML dependencies needed):**
+**For LLM API users (OpenAI, Gemini, etc. — no local ML):**
 
 ```bash
 # Clone the repository
@@ -144,14 +151,9 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python --version  # Should show Python 3.10.x or higher
 
 # ⚠️ CRITICAL: Upgrade pip and setuptools before installing
-# This is required for editable installs with pyproject.toml
 pip install --upgrade pip setuptools wheel
 
-# Install core package only (includes LLM SDKs like OpenAI, no ML dependencies)
-# This is sufficient if you're using OpenAI providers for transcription, speaker detection, and summarization
-pip install -e .
-
-# For Gemini providers, install with llm extras:
+# Install with LLM provider SDKs (OpenAI, Gemini, Anthropic, Mistral, etc.)
 pip install -e ".[llm]"
 ```
 
@@ -163,7 +165,7 @@ pip install -e ".[llm]"
 pip install -e ".[ml]"
 ```
 
-**Note:** LLM provider SDKs (like `openai`) are included in core dependencies, so LLM-based providers work without installing `[ml]`.
+**Note:** LLM provider SDKs require the `[llm]` extra. For both local ML and LLM APIs: `pip install -e ".[ml,llm]"`.
 
 #### Method 2: pipx (Recommended for End Users)
 
@@ -176,13 +178,13 @@ For isolated installation without managing virtual environments:
 # macOS: brew install pipx
 # Linux: pip install --user pipx && pipx ensurepath
 
-# Clone and install (core package only, no ML dependencies)
+# Clone and install with LLM SDKs
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
-pipx install -e .
+pipx install -e ".[llm]"
 
 # Verify
-podcast_scraper --version
+python -m podcast_scraper.cli --help
 ```
 
 **For local ML users:**
@@ -198,19 +200,19 @@ See [Installation Guide](docs/guides/INSTALLATION_GUIDE.md#method-2-pipx-isolate
 
 For faster installation using `uv`:
 
-**For LLM-only users:**
+**For LLM API users:**
 
 ```bash
 # Install uv (if not already installed)
 # macOS/Linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 # macOS: brew install uv
 
-# Clone and install (core package only)
+# Clone and install with LLM SDKs
 git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 uv venv
 source .venv/bin/activate
-uv pip install -e .
+uv pip install -e ".[llm]"
 ```
 
 **For local ML users:**
@@ -289,7 +291,7 @@ pip install -e ".[ml]"
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify with `python --version` after activating the venv.
 - **Installation is required** — You must run `pip install -e .` (or `pip install -e ".[ml]"` for ML) before running CLI commands. Without it, you'll get `ModuleNotFoundError: No module named 'podcast_scraper'`.
-- **LLM-only users** — If you're using LLM-based providers (OpenAI, Gemini, etc.) only, install with `pip install -e .` for OpenAI or `pip install -e ".[llm]"` for all LLM providers including Gemini (no `[ml]` needed). LLM provider SDKs are included in core dependencies.
+- **LLM API users** — If you're using LLM-based providers (OpenAI, Gemini, Anthropic, etc.), install with `pip install -e ".[llm]"`. LLM provider SDKs are **not** in core — the `[llm]` extra is required.
 - **Local ML users** — If you want to use local Whisper, spaCy, or Transformers, install with `pip install -e ".[ml]"` to get ML dependencies.
 - **Upgrade pip/setuptools first** — If you see `"editable mode currently requires a setuptools-based build"` error, run `pip install --upgrade pip setuptools wheel` and try again.
 - **Always activate the venv** — Remember to activate your virtual environment (`source .venv/bin/activate`) before running any commands.
@@ -436,7 +438,11 @@ See the [Basic Usage with Example Config](#basic-usage-with-example-config-recom
 **Output:** Files are organized in `output/` with subdirectories:
 
 - `transcripts/` — Transcript files
-- `metadata/` — JSON/YAML metadata files
+- `metadata/` — JSON/YAML metadata, plus `gi.json` (GIL) and `kg.json` (KG) when enabled
+- `search/` — FAISS vector index (when `vector_search` is enabled)
+- `run.json`, `index.json`, `metrics.json` — Run tracking artifacts
+
+Multi-feed corpora add `feeds/<stable_id>/` per feed, plus `corpus_manifest.json` and `corpus_run_summary.json` at the corpus root.
 
 Use `--output-dir` to customize the location (default: `./output/`).
 
@@ -485,6 +491,12 @@ For more help, see [Troubleshooting Guide](docs/guides/TROUBLESHOOTING.md).
 | [Testing Strategy](docs/architecture/TESTING_STRATEGY.md) | Testing approach and test pyramid |
 | [CLI Reference](docs/api/CLI.md) | All command-line options |
 | [Configuration](docs/api/CONFIGURATION.md) | Config files and environment variables |
+| [Server Guide](docs/guides/SERVER_GUIDE.md) | FastAPI viewer API, endpoints, development |
+| [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) | FAISS indexing, search CLI, configuration |
+| [AI Provider Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all providers: cost, quality, speed, privacy |
+| [Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
+| [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md) | Eval datasets, baselines, experiments (`data/eval/`) |
+| [Performance Profiles](docs/guides/PERFORMANCE_PROFILE_GUIDE.md) | Per-release stage timing snapshots (`data/profiles/`) |
 | [Guides](docs/guides/) | Development, testing, and usage guides |
 | [Troubleshooting](docs/guides/TROUBLESHOOTING.md) | Common issues and solutions |
 | [Full Documentation](https://chipi.github.io/podcast_scraper/) | Complete docs site |

@@ -171,6 +171,22 @@ class TestServiceRun(unittest.TestCase):
 
     @patch("podcast_scraper.service.workflow.run_pipeline")
     @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_resolves_relative_log_file_under_output_dir(
+        self, mock_apply_log, mock_run_pipeline
+    ):
+        """Relative log_file is joined with output_dir before apply_log_level."""
+        with tempfile.TemporaryDirectory() as out:
+            cfg = self._create_config(log_file="pipeline.log", output_dir=out)
+            mock_run_pipeline.return_value = (5, "Processed 5 episodes")
+
+            result = service_module.run(cfg)
+
+            self.assertTrue(result.success)
+            expected = os.path.normpath(os.path.join(out, "pipeline.log"))
+            mock_apply_log.assert_called_once_with(level="INFO", log_file=expected)
+
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
     def test_run_handles_exception(self, mock_apply_log, mock_run_pipeline):
         """Test that exceptions are caught and returned as error."""
         cfg = self._create_config()
@@ -277,6 +293,8 @@ class TestServiceRunFromConfigFile(unittest.TestCase):
         """Test successful execution from config file."""
         mock_load.return_value = {"rss_url": "https://example.com/feed.xml"}
         mock_cfg = mock_config_class.return_value
+        mock_cfg.memray = False
+        mock_cfg.memray_output = None
         mock_run.return_value = ServiceResult(episodes_processed=5, summary="Success", success=True)
 
         result = service_module.run_from_config_file("config.yaml")
@@ -316,7 +334,9 @@ class TestServiceRunFromConfigFile(unittest.TestCase):
     def test_run_from_config_file_pipeline_error(self, mock_config_class, mock_load, mock_run):
         """Test that pipeline errors are propagated."""
         mock_load.return_value = {"rss_url": "https://example.com/feed.xml"}
-        mock_config_class.return_value
+        mock_cfg = mock_config_class.return_value
+        mock_cfg.memray = False
+        mock_cfg.memray_output = None
         mock_run.return_value = ServiceResult(
             episodes_processed=0, summary="", success=False, error="Pipeline error"
         )
@@ -454,6 +474,8 @@ class TestServiceRunFromConfigFileExtended(unittest.TestCase):
 
         mock_load.return_value = {"rss_url": "https://example.com/feed.xml"}
         mock_cfg = mock_config_class.return_value
+        mock_cfg.memray = False
+        mock_cfg.memray_output = None
         mock_run.return_value = ServiceResult(episodes_processed=3, summary="Done", success=True)
 
         result = service_module.run_from_config_file(Path("config.yaml"))

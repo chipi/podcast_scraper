@@ -4,6 +4,8 @@ This guide covers performance considerations, optimization opportunities, and pe
 
 For **frozen release profiles** (YAML under `data/profiles/`, `make profile-freeze` / `make profile-diff`), see the **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** (RFC-064).
 
+For a **live** view during a single dev run (stage + RSS + CPU on **stderr**, or **`.monitor.log`** when stderr is not a TTY), use **`--monitor`** — see **[Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md)** (RFC-065). Optional **`.[monitor]`**: **`--memray`** and **py-spy** via **`f`** with **`--monitor`**.
+
 ---
 
 ## Audio Preprocessing Performance (Issue #392)

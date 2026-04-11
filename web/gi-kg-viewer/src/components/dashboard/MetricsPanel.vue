@@ -9,8 +9,10 @@ withDefaults(
     dense?: boolean
     /** Omit outer border/surface — parent provides the card (e.g. left rail elevated panel). */
     unframed?: boolean
+    /** Parent supplies the section heading (e.g. card header row with actions). */
+    hideTitle?: boolean
   }>(),
-  { dense: false, unframed: false },
+  { dense: false, unframed: false, hideTitle: false },
 )
 </script>
 
@@ -28,6 +30,7 @@ withDefaults(
     "
   >
     <h3
+      v-if="!hideTitle"
       class="mb-2 font-semibold"
       :class="dense ? 'text-xs' : 'text-sm'"
     >

@@ -1,11 +1,14 @@
 # PRD-016: Operational Observability & Pipeline Intelligence
 
-- **Status**: 📋 Draft
+- **Status**: Partial (v2.6.0) — test/GitHub metrics stack and **local** release resource tooling shipped; full “100% stage visibility” + RFC-027 gaps remain
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-025](../rfc/RFC-025-test-metrics-and-health-tracking.md) — test metrics and health tracking (**complete**)
   - [RFC-026](../rfc/RFC-026-metrics-consumption-and-dashboards.md) — metrics consumption and dashboards (**complete**)
-  - [RFC-027](../rfc/RFC-027-pipeline-metrics-improvements.md) — pipeline metrics improvements (**open**)
+  - [RFC-027](../rfc/RFC-027-pipeline-metrics-improvements.md) — pipeline metrics improvements (**open** — e.g. CSV export)
+  - [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md) — frozen release profiles + diff tooling (**complete**)
+  - [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md) — live pipeline monitor (**complete**; tmux split deferred)
+  - [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md) — Streamlit compare **Performance** tab (**complete**)
 
 ## Summary
 

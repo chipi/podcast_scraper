@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  chartExternalTooltipHandler,
-  removeChartExternalTooltip,
-} from '../../utils/chartExternalTooltip'
 import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
@@ -12,6 +8,7 @@ const props = defineProps<{
   title: string
   labels: string[]
   values: number[]
+  insightText?: string
   helpText?: string
   yAxisLabel?: string
 }>()
@@ -27,7 +24,10 @@ function buildChart(): void {
   if (!el) {
     return
   }
-  chart?.destroy()
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
   const labels = props.labels
   const values = props.values
   if (labels.length === 0) {
@@ -57,11 +57,10 @@ function buildChart(): void {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          enabled: false,
-          external: chartExternalTooltipHandler,
           callbacks: {
             title: (items) => {
               const i = items[0]?.dataIndex
@@ -100,7 +99,8 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.labels, props.values, props.title, props.helpText, props.yAxisLabel] as const,
+  () =>
+    [props.labels, props.values, props.title, props.helpText, props.yAxisLabel, props.insightText] as const,
   () => {
     buildChart()
   },
@@ -109,7 +109,6 @@ watch(
 
 onBeforeUnmount(() => {
   if (chart) {
-    removeChartExternalTooltip(chart)
     chart.destroy()
   }
   chart = null
@@ -121,6 +120,12 @@ onBeforeUnmount(() => {
     <h3 class="mb-1 text-sm font-semibold">
       {{ title }}
     </h3>
+    <p
+      v-if="insightText"
+      class="mb-1.5 text-[11px] font-medium leading-snug text-surface-foreground"
+    >
+      {{ insightText }}
+    </p>
     <p
       v-if="helpText"
       class="mb-2 text-[11px] leading-snug text-muted"

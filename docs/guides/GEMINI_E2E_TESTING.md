@@ -71,11 +71,11 @@ monkeypatch.setattr("google.genai.GenerativeModel", FakeGenerativeModel)
 
 | Aspect | Python Mocking | Fake SDK Client |
 | --- | --- | --- |
-| **HTTP Testing** | ❌ No HTTP layer | ✅ Real HTTP requests |
-| **Network Testing** | ❌ Bypasses network | ✅ Tests full stack |
-| **Consistency** | ❌ Different from OpenAI | ✅ Same as OpenAI |
-| **Realism** | ❌ Only tests Python code | ✅ Tests HTTP + Python |
-| **Maintenance** | ❌ Complex mocks | ✅ Single mock server |
+| **HTTP Testing** | No HTTP layer | Real HTTP requests |
+| **Network Testing** | Bypasses network | Tests full stack |
+| **Consistency** | Different from OpenAI | Same as OpenAI |
+| **Realism** | Only tests Python code | Tests HTTP + Python |
+| **Maintenance** | Complex mocks | Single mock server |
 
 ## Example Test
 

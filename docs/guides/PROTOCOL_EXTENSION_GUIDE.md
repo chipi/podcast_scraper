@@ -57,9 +57,9 @@ def analyze_patterns(self, episodes, known_hosts):
 
 ### 1. Maintain Backward Compatibility
 
-- ✅ Make new parameters optional with defaults.
-- ✅ Don't change existing method names or signatures.
-- ✅ Use generic types (like `dict[str, object]`) for provider-specific metadata.
+- Make new parameters optional with defaults.
+- Don't change existing method names or signatures.
+- Use generic types (like `dict[str, object]`) for provider-specific metadata.
 
 ### 2. Update Documentation & Tests
 

@@ -24,6 +24,10 @@
   "workers": 4,
   "log_level": "INFO",
 
+  "monitor": false,
+  "memray": false,
+  "memray_output": null,
+
   "_comment_optional": "Optional settings (uncommented for reference): skip_existing, reuse_media, dry_run, log_file",
 
   "generate_metadata": true,

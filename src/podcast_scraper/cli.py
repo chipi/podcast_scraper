@@ -493,6 +493,27 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--dry-run", action="store_true", help="Show planned work without saving files"
     )
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        dest="monitor",
+        help="Live resource/stage monitor subprocess (RFC-065; writes .pipeline_status.json)",
+    )
+    parser.add_argument(
+        "--memray",
+        action="store_true",
+        dest="memray",
+        help=(
+            "Re-exec under memray for heap profiling (RFC-065 Phase 3; pip install -e '.[monitor]')"
+        ),
+    )
+    parser.add_argument(
+        "--memray-output",
+        default=None,
+        dest="memray_output",
+        metavar="PATH",
+        help="Memray capture .bin path (default: <output_dir>/debug/memray_<timestamp>.bin)",
+    )
     parser.add_argument("--version", action="store_true", help="Show program version and exit")
     parser.add_argument(
         "--log-file",
@@ -1495,6 +1516,32 @@ def _add_ollama_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _config_yaml_allowed_top_level_keys() -> set[str]:
+    """Keys allowed in JSON/Yaml before argparse merge.
+
+    Includes Python field names, serialization ``alias``, and ``validation_alias``
+    strings (e.g. ``feeds`` for ``rss_urls``).
+    """
+    allowed: set[str] = set()
+    for field_name, finfo in config.Config.model_fields.items():
+        allowed.add(field_name)
+        if finfo.alias:
+            allowed.add(finfo.alias)
+        ser_alias = getattr(finfo, "serialization_alias", None)
+        if isinstance(ser_alias, str):
+            allowed.add(ser_alias)
+        va = finfo.validation_alias
+        if va is None:
+            continue
+        if isinstance(va, str):
+            allowed.add(va)
+        else:
+            for choice in getattr(va, "choices", None) or ():
+                if isinstance(choice, str):
+                    allowed.add(choice)
+    return allowed
+
+
 def _load_and_merge_config(
     parser: argparse.ArgumentParser, config_path: str, argv: Optional[Sequence[str]]
 ) -> argparse.Namespace:
@@ -1526,11 +1573,7 @@ def _load_and_merge_config(
             "Config file grok_summary_model: %s", config_data["grok_summary_model"]
         )
     valid_dests = {action.dest for action in parser._actions if action.dest}
-    # Also check against Config model field aliases (some fields are config-only, not CLI args)
-    config_field_aliases = {
-        field.alias or field_name for field_name, field in config.Config.model_fields.items()
-    }
-    valid_keys = valid_dests | config_field_aliases
+    valid_keys = valid_dests | _config_yaml_allowed_top_level_keys()
     unknown_keys = [key for key in config_data.keys() if key not in valid_keys]
     if unknown_keys:
         raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
@@ -2901,6 +2944,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "reuse_media": args.reuse_media,
         "clean_output": args.clean_output,
         "dry_run": args.dry_run,
+        "monitor": getattr(args, "monitor", False),
+        "memray": getattr(args, "memray", False),
+        "memray_output": getattr(args, "memray_output", None),
         "language": args.language,
         "ner_model": args.ner_model,
         "speaker_detector_provider": args.speaker_detector_provider,
@@ -3776,6 +3822,10 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
     feed_urls = collect_feed_urls(args)
 
+    from .monitor.memray_util import maybe_reexec_memray_cli
+
+    maybe_reexec_memray_cli(args, argv, feed_urls)
+
     if len(feed_urls) >= 2:
         corpus_raw = (getattr(args, "output_dir", None) or "").strip()
         try:
@@ -3784,7 +3834,12 @@ def main(  # noqa: C901 - main function handles multiple command paths
             log.error("Invalid corpus output directory: %s", exc)
             return 1
 
-        apply_log_level_fn(args.log_level, args.log_file, getattr(args, "json_logs", False))
+        resolved_log = workflow.resolve_log_file_path(args.log_file, corpus_parent)
+        apply_log_level_fn(
+            args.log_level,
+            resolved_log,
+            getattr(args, "json_logs", False),
+        )
         log.info(
             "Starting multi-feed podcast scrape (GitHub #440): corpus_parent=%s feeds=%d",
             corpus_parent,
@@ -3886,7 +3941,8 @@ def main(  # noqa: C901 - main function handles multiple command paths
         log.error(f"Invalid configuration: {exc}")
         return 1
 
-    apply_log_level_fn(cfg.log_level, cfg.log_file, cfg.json_logs)
+    resolved_log = workflow.resolve_log_file_path(cfg.log_file, cfg.output_dir)
+    apply_log_level_fn(cfg.log_level, resolved_log, cfg.json_logs)
 
     log.info("Starting podcast transcript scrape")
     _log_configuration(cfg, log)

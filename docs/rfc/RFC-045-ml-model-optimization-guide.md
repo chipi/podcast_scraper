@@ -516,14 +516,14 @@ The Map stage summarizes individual chunks. Use tighter constraints:
 
 | Parameter | Current Baseline | Code Default | Recommended | Notes |
 |-----------|-----------------|--------------|-------------|-------|
-| `do_sample` | false | **false** | false | Already deterministic ✓ |
+| `do_sample` | false | **false** | false | Already deterministic [ok] |
 | `num_beams` | 4 | 4 | **4-6** | 6 if stable on MPS |
 | `no_repeat_ngram_size` | 3 | 3 | **4** | Stricter repetition blocking |
 | `repetition_penalty` | - | **1.3** (hardcoded) | 1.15-1.3 | Already set, consider exposing |
 | `length_penalty` | 1.0 | 1.0 | **1.0-1.1** | Slight preference for longer |
 | `max_new_tokens` | 200 | 150 | **150-200** | Per-chunk summary length |
 | `min_new_tokens` | 80 | - | **60-100** | Prevent ultra-short outputs |
-| `early_stopping` | true | **true** | true | Already enabled ✓ |
+| `early_stopping` | true | **true** | true | Already enabled [ok] |
 
 **Map Stage Config** (matching actual schema):
 
@@ -543,14 +543,14 @@ The Reduce stage combines Map summaries into final output. Allow longer output:
 
 | Parameter | Current Baseline | Code Default | Recommended | Notes |
 |-----------|-----------------|--------------|-------------|-------|
-| `do_sample` | false | **false** | false | Already deterministic ✓ |
+| `do_sample` | false | **false** | false | Already deterministic [ok] |
 | `num_beams` | 4 | 4 | **4** | Stable for longer context |
 | `no_repeat_ngram_size` | 3 | 3 | **4** | Stricter repetition blocking |
 | `repetition_penalty` | - | **1.3** (hardcoded) | 1.12-1.3 | Already set, consider exposing |
 | `length_penalty` | 1.0 | 1.0 | **1.0** | Neutral |
 | `max_new_tokens` | 650 | 300 | **600-900** | Final summary length |
 | `min_new_tokens` | 220 | - | **200-350** | Ensure substantial output |
-| `early_stopping` | true | **true** | true | Already enabled ✓ |
+| `early_stopping` | true | **true** | true | Already enabled [ok] |
 
 **Reduce Stage Config** (matching actual schema):
 
@@ -670,8 +670,8 @@ Parameter tuning experiments (v1-v6) have been completed. Results validate the p
 | **v1 baseline** | 0% | 80% | 0 | 445 | 37,179 |
 | v2 longer output | **20%** ⚠️ | 80% | 1 (p03_e01) | 607.4 | 52,943 |
 | v3 stronger ngram | **20%** ⚠️ | 80% | 1 (p05_e01) | 375.2 | 37,590 |
-| v4 smaller chunks | 0% ✓ | 80% | 0 | 445 | 36,585 |
-| v5 larger chunks | 0% ✓ | 80% | 0 | 477.4 | 38,430 |
+| v4 smaller chunks | 0% [ok] | 80% | 0 | 445 | 36,585 |
+| v5 larger chunks | 0% [ok] | 80% | 0 | 477.4 | 38,430 |
 | v6 combined | **20%** ⚠️ | 80% | 1 (p05_e01) | 438.2 | 45,214 |
 
 #### Key Findings

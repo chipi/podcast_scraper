@@ -52,8 +52,8 @@ Already implemented from RFC-026:
 
 **What's missing (this RFC):**
 
-- ❌ PR comments on metric changes
-- ❌ Webhook notifications
+- PR comments on metric changes
+- Webhook notifications
 
 ## Problem Statement
 

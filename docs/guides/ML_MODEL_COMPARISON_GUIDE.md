@@ -4,14 +4,14 @@
 
 **These are the active, validated choices for the system.** Everything else in this document is context and reference.
 
-### ✅ Dev ML Authority (Smoke / Fast Feedback)
+### Dev ML Authority (Smoke / Fast Feedback)
 
 - **MAP:** `facebook/bart-base`
 - **REDUCE:** `allenai/led-base-16384`
 - **Status:** Stable, fast, smoke-validated
 - **Use when:** local development, iteration, debugging
 
-### ✅ Prod ML Authority (Benchmark-validated)
+### Prod ML Authority (Benchmark-validated)
 
 - **MAP:** `google/pegasus-cnn_dailymail`
 - **REDUCE:** `allenai/led-base-16384`

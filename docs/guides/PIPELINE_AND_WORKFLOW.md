@@ -6,7 +6,7 @@ This guide describes how the podcast_scraper pipeline runs: entry points, flow, 
 
 1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
 2. **Multi-feed outer loop (GitHub #440)**: When `Config.rss_urls` contains **two or more** feeds, `cli.main` and `service.run` iterate feeds sequentially: for each URL they derive a child `output_dir` under `<corpus_parent>/feeds/<stable_feed_id>/` and invoke the same inner pipeline with a single-feed sub-config. Failures are logged per feed; the overall process exit code reflects whether any feed failed.
-3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup.
+3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup. When **`Config.monitor`** is true (**`--monitor`**), a child process samples the pipeline PID and renders a live **RSS/CPU/stage** view (or plain **`.monitor.log`** when stderr is not a TTY) while updating **`.pipeline_status.json`**; the parent may start a stdin listener for optional **py-spy** (**`f`**) when **`.[monitor]`** is installed (see [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md), RFC-065).
 4. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
 5. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
 6. **Audio Preprocessing** (RFC-040): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to 16 kHz, silence removed via VAD, loudness normalized, and compressed with Opus codec. This reduces file size (typically 10-25× smaller) and ensures API compatibility (e.g., OpenAI 25 MB limit). Preprocessing happens at the pipeline level in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio. All providers benefit from optimized audio.
@@ -76,7 +76,8 @@ flowchart TD
 - **cli.py**: Parse/validate CLI arguments, integrate config files, set up progress reporting, trigger `run_pipeline`. Optimized for interactive command-line use.
 - **service.py**: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
 - **config.py**: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
-- **workflow.orchestration**: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
+- **workflow.orchestration**: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup. Emits **`.pipeline_status.json`** stage updates when **`monitor`** is enabled.
+- **monitor/** (RFC-065): `start_monitor_subprocess()` (**`multiprocessing`** **`spawn`**), **`.pipeline_status.json`** helpers, cross-process **psutil** sampler, **`rich.Live`** on **stderr** or **`.monitor.log`**, **`memray_util`** / **`py_spy_listener`**. See [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md).
 - **rss.parser**: Safe RSS/XML parsing using `defusedxml` ([ADR-002](../adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
 - **rss.downloader**: HTTP session pooling with retry-enabled adapters, streaming downloads, and shared progress hooks.
 - **workflow.episode_processor**: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
@@ -86,15 +87,15 @@ flowchart TD
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
-  | `MLProvider` | ✅ Whisper | ✅ spaCy NER | ✅ Transformers | Local, no API cost |
-  | `HybridMLProvider` | ❌ | ❌ | ✅ MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
-  | `OpenAIProvider` | ✅ Whisper API | ✅ GPT API | ✅ GPT API | Cloud, prompt-managed |
-  | `GeminiProvider` | ✅ Gemini API | ✅ Gemini API | ✅ Gemini API | 2M context, native audio |
-  | `AnthropicProvider` | ❌ | ✅ Claude API | ✅ Claude API | High quality reasoning |
-  | `MistralProvider` | ❌ | ✅ Mistral API | ✅ Mistral API | OpenAI alternative |
-  | `DeepSeekProvider` | ❌ | ✅ DeepSeek API | ✅ DeepSeek API | Ultra low-cost |
-  | `GrokProvider` | ❌ | ✅ Grok API | ✅ Grok API | Real-time info (xAI) |
-  | `OllamaProvider` | ❌ | ✅ Ollama API | ✅ Ollama API | Local LLM, zero cost |
+  | `MLProvider` | Whisper | spaCy NER | Transformers | Local, no API cost |
+  | `HybridMLProvider` | No | | MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
+  | `OpenAIProvider` | Whisper API | GPT API | GPT API | Cloud, prompt-managed |
+  | `GeminiProvider` | Gemini API | Gemini API | Gemini API | 2M context, native audio |
+  | `AnthropicProvider` | No | Claude API | Claude API | High quality reasoning |
+  | `MistralProvider` | No | Mistral API | Mistral API | OpenAI alternative |
+  | `DeepSeekProvider` | No | DeepSeek API | DeepSeek API | Ultra low-cost |
+  | `GrokProvider` | No | Grok API | Grok API | Real-time info (xAI) |
+  | `OllamaProvider` | No | Ollama API | Ollama API | Local LLM, zero cost |
 
   - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
   - **Capabilities**: `providers/capabilities.py` defines `ProviderCapabilities` — a dataclass describing what each provider supports (JSON mode, tool calls, streaming, etc.). Used by factories and orchestration to select appropriate providers.

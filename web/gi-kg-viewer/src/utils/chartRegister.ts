@@ -3,12 +3,10 @@
  * Call `ensureChartJsRegistered()` before constructing any Chart instance.
  */
 import {
-  ArcElement,
   BarController,
   BarElement,
   CategoryScale,
   Chart,
-  DoughnutController,
   Filler,
   Legend,
   LinearScale,
@@ -25,7 +23,6 @@ export function ensureChartJsRegistered(): void {
     return
   }
   Chart.register(
-    ArcElement,
     BarController,
     BarElement,
     CategoryScale,
@@ -36,7 +33,6 @@ export function ensureChartJsRegistered(): void {
     Filler,
     Tooltip,
     Legend,
-    DoughnutController,
   )
   registered = true
 }

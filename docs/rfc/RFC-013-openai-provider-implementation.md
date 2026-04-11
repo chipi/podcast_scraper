@@ -1685,7 +1685,7 @@ LOG_LEVEL=INFO
 
 speaker_detector_type: Literal["ner", "openai"]          #  Technology-based
 transcription_provider: Literal["whisper", "openai"]     #  Technology-based
-summary_provider: Literal["local", "openai"]             # ❌ Location-based (ambiguous)
+summary_provider: Literal["local", "openai"]             # Location-based (ambiguous)
 
 ```text
 

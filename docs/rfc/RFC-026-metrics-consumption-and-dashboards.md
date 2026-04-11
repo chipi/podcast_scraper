@@ -147,8 +147,8 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 - **GitHub Actions job summaries** - Display key metrics in PR checks (0 seconds to view)
 - **`metrics/latest.json` published** - Machine-readable metrics available via GitHub Pages
-- ❌ **No charts** - Visual dashboards are not required in this phase
-- ❌ **No history UI** - Historical visualization is not required in this phase
+- **No charts** - Visual dashboards are not required in this phase
+- **No history UI** - Historical visualization is not required in this phase
 
 **Rationale:**
 

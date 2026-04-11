@@ -67,13 +67,13 @@ Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browse
 
 E2E tests use **real implementations throughout**:
 
-- ✅ Real HTTP client (with local server)
-- ✅ Real filesystem I/O
-- ✅ Real ML models (Whisper, spaCy, Transformers)
-- ✅ Real providers (MLProvider, OpenAIProvider)
-- ❌ No external network (blocked by network guard)
-- ❌ No Whisper mocks
-- ❌ No ML model mocks
+- Real HTTP client (with local server)
+- Real filesystem I/O
+- Real ML models (Whisper, spaCy, Transformers)
+- Real providers (MLProvider, OpenAIProvider)
+- No external network (blocked by network guard)
+- No Whisper mocks
+- No ML model mocks
 
 ## E2E Server
 

@@ -39,8 +39,7 @@
         metadata the indexer stores.
       </li>
       <li>
-        Show on graph only appears when the hit maps to a node id in your loaded
-        artifacts; load the matching
+        Result cards use <strong>G</strong> to focus a graph node when the hit maps to your loaded
         <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
           .gi.json
         </code>
@@ -48,7 +47,11 @@
         <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
           .kg.json
         </code>
-        first.
+        . <strong>L</strong> opens the episode in Library when the vector index stores
+        <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
+          source_metadata_relative_path
+        </code>
+        (run a fresh <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">podcast index</code>).
       </li>
     </ul>
   </aside>

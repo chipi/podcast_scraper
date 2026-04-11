@@ -1,6 +1,6 @@
 # PRD-023: Corpus Digest & Library Glance
 
-- **Status**: Open (exploration / MVP)
+- **Status**: Completed (v2.6.0) — shipped per [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) (`GET /api/corpus/digest`, Digest tab, Library 24h glance, `corpus_digest_api` on health)
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-068: Corpus Digest API & Viewer](../rfc/RFC-068-corpus-digest-api-viewer.md) — includes **optional visual metadata** on digest rows and topic hits (same catalog source as RFC-067)
@@ -226,8 +226,8 @@ APIs, ranking, topic configuration, and performance budgets.
 
 ## Release Checklist
 
-- [ ] PRD reviewed
-- [ ] RFC-068 accepted for implementation
+- [x] PRD reviewed
+- [x] RFC-068 accepted for implementation
 - [x] UXS-001 updated (Digest + glance + health discovery)
 - [x] Viewer implementation + tests per RFC-068 (unit, integration, Vitest, Playwright `digest.spec.ts`)
 - [x] E2E surface map updated for new tab/region

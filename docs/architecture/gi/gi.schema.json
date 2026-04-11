@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.com/schemas/gi.schema.json",
+  "$id": "https://podcast-scraper.dev/schemas/gi.schema.json",
   "title": "Grounded Insight Layer Episode Artifact (gi.json)",
   "description": "Schema for per-episode GIL data with Insights, Quotes, and grounding relationships",
   "type": "object",

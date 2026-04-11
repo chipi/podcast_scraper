@@ -103,6 +103,43 @@ def test_search_type_query_params(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
     assert captured.get("doc_types") == ["insight", "quote", "summary"]
 
 
+def test_search_dedupe_kg_surfaces_query_param(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    captured: Dict[str, Any] = {}
+
+    def fake_run(
+        output_dir: Path,
+        query: str,
+        *,
+        dedupe_kg_surfaces: bool = True,
+        **kwargs: Any,
+    ) -> CorpusSearchOutcome:
+        captured["dedupe_kg_surfaces"] = dedupe_kg_surfaces
+        return CorpusSearchOutcome(results=[])
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.search.run_corpus_search",
+        fake_run,
+    )
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r1 = client.get(
+        "/api/search",
+        params={"q": "q", "path": str(tmp_path)},
+    )
+    assert r1.status_code == 200
+    assert captured.get("dedupe_kg_surfaces") is True
+
+    r2 = client.get(
+        "/api/search",
+        params={"q": "q", "path": str(tmp_path), "dedupe_kg_surfaces": "false"},
+    )
+    assert r2.status_code == 200
+    assert captured.get("dedupe_kg_surfaces") is False
+
+
 def test_search_maps_outcome_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_run(*_a: Any, **_k: Any) -> CorpusSearchOutcome:
         return CorpusSearchOutcome(error="no_index", detail="/tmp/x")

@@ -3,6 +3,7 @@
 Tests for parallelism logging and configuration.
 """
 
+import os
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
@@ -1339,6 +1340,41 @@ class TestFinalizeEmitAndSave(unittest.TestCase):
         written = orchestration._finalize_emit_and_save(emitter, metrics, "/tmp/m.json")
         self.assertIsNotNone(written)
         mock_logger.warning.assert_called()
+
+
+@pytest.mark.unit
+class TestResolveLogFilePath(unittest.TestCase):
+    """resolve_log_file_path joins relative paths to output_dir."""
+
+    def test_none_log_file(self):
+        self.assertIsNone(orchestration.resolve_log_file_path(None, "/tmp/out"))
+
+    def test_empty_log_file(self):
+        self.assertEqual(orchestration.resolve_log_file_path("", "/tmp/out"), "")
+
+    def test_absolute_unchanged(self):
+        self.assertEqual(
+            orchestration.resolve_log_file_path("/var/log/p.log", "/tmp/out"),
+            "/var/log/p.log",
+        )
+
+    def test_relative_joins_output_dir(self):
+        self.assertEqual(
+            orchestration.resolve_log_file_path("pipeline.log", "/tmp/corpus"),
+            os.path.normpath("/tmp/corpus/pipeline.log"),
+        )
+
+    def test_no_output_dir_unchanged(self):
+        self.assertEqual(
+            orchestration.resolve_log_file_path("pipeline.log", None),
+            "pipeline.log",
+        )
+
+    def test_empty_output_dir_unchanged(self):
+        self.assertEqual(
+            orchestration.resolve_log_file_path("pipeline.log", "   "),
+            "pipeline.log",
+        )
 
 
 @pytest.mark.unit

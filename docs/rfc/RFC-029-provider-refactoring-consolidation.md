@@ -346,7 +346,7 @@ The test strategy follows a three-tier pyramid:
 
 ### Test Assertions: Protocol Compliance vs Class Names
 
-**❌ Old Pattern (Class Name Checks):**
+**Old Pattern (Class Name Checks):**
 
 ```python
 
@@ -421,8 +421,8 @@ The naming is inconsistent:
 - Matches original RFC-013 design
 
 **Cons:**
-- ❌ Breaking change (requires migration)
-- ❌ Less generic (ties to specific library)
+- Breaking change (requires migration)
+- Less generic (ties to specific library)
 
 ### Recommendation
 

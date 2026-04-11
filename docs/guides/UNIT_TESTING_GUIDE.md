@@ -298,14 +298,14 @@ Focus on testing **what** the code does, not **how** it does it:
 
 ```python
 
-# ✅ Good: Tests behavior/outcome
+# Good: Tests behavior/outcome
 
 def test_summarizer_returns_shortened_text(self):
     result = summarize(long_text)
     assert len(result) < len(long_text)
     assert "key point" in result
 
-# ❌ Bad: Tests implementation details
+# Bad: Tests implementation details
 
 def test_summarizer_calls_tokenizer_twice(self):
     summarize(long_text)
@@ -339,13 +339,13 @@ Test names should explain what is being tested:
 
 ```python
 
-# ✅ Good: Descriptive names
+# Good: Descriptive names
 
 def test_config_validation_rejects_negative_workers(self):
 def test_rss_parser_extracts_transcript_url_from_feed(self):
 def test_whisper_provider_falls_back_on_timeout(self):
 
-# ❌ Bad: Vague names
+# Bad: Vague names
 
 def test_config(self):
 def test_parse(self):

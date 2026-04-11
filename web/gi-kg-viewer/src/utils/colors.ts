@@ -4,6 +4,7 @@
 export const GRAPH_NODE_UNKNOWN_FILL = '#868e96'
 
 export const graphNodeTypeStyles = Object.freeze({
+  /** UI **E** chips use the same hex in ``searchResultActionStyles`` — keep in sync. */
   Episode: {
     background: '#4c6ef5',
     border: '#364fc7',
@@ -74,4 +75,22 @@ export function graphNodeFill(type: string): string {
   const styles = graphNodeTypeStyles as Record<string, { background: string }>
   const s = styles[type] || (type === 'Entity' ? styles.Entity_person : undefined)
   return s ? s.background : GRAPH_NODE_UNKNOWN_FILL
+}
+
+type NodeChrome = { background: string; border: string; labelColor: string }
+
+/** Fill / border / label colors aligned with Cytoscape node styling (``visualGroupForNode`` keys). */
+export function graphNodeTypeChrome(visualType: string): NodeChrome {
+  const styles = graphNodeTypeStyles as Record<string, NodeChrome>
+  let s = styles[visualType]
+  if (!s && visualType === 'Entity') {
+    s = styles.Entity_person
+  }
+  return (
+    s ?? {
+      background: GRAPH_NODE_UNKNOWN_FILL,
+      border: '#495057',
+      labelColor: '#ffffff',
+    }
+  )
 }

@@ -209,6 +209,13 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 
 - `--json-logs` - Output structured JSON logs for monitoring/alerting (Issue #379)
 
+### Live pipeline monitor (RFC-065, #512)
+
+- **`--monitor`** — After the output directory is known, spawn a **child process** that reads **`<output_dir>/.pipeline_status.json`**, samples **RSS** and **CPU%** for the main pipeline PID (**psutil**), and renders a **`rich.Live`** panel on **stderr** (or appends plain lines to **`.monitor.log`** when stderr is not a TTY) until the pipeline exits. Core deps only. With **`pip install -e ".[monitor]"`**: press **`f`** in the parent TTY to write **`debug/flamegraph_*.svg`** (**py-spy**).
+- **`--memray`** / **`--memray-output PATH`** — Re-exec the CLI under **memray** for heap captures (optional **`.[monitor]`**; see [Live Pipeline Monitor](../guides/LIVE_PIPELINE_MONITOR.md)).
+
+**Guide:** [Live Pipeline Monitor](../guides/LIVE_PIPELINE_MONITOR.md) · **RFC:** [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md)
+
 ## Cost Projection in Dry-Run Mode
 
 When using `--dry-run` with OpenAI providers configured, the pipeline displays a cost projection before execution. This helps you estimate API costs before running expensive operations.
@@ -316,21 +323,21 @@ python -m podcast_scraper.cli doctor
 **Example output:**
 
 ```text
-✓ Checking Python version...
-  ✓ Python 3.11.9 (required: 3.10+)
+[ok] Checking Python version...
+  [ok] Python 3.11.9 (required: 3.10+)
 
-✓ Checking ffmpeg...
-  ✓ ffmpeg version 6.0
+[ok] Checking ffmpeg...
+  [ok] ffmpeg version 6.0
 
-✓ Checking write permissions...
-  ✓ Output directory is writable
+[ok] Checking write permissions...
+  [ok] Output directory is writable
 
-✓ Checking ML model caches...
-  ✓ Whisper: 2 models cached (245 MB)
-  ✓ Transformers: 3 models cached (1.2 GB)
-  ✓ spaCy: 1 model cached (45 MB)
+[ok] Checking ML model caches...
+  [ok] Whisper: 2 models cached (245 MB)
+  [ok] Transformers: 3 models cached (1.2 GB)
+  [ok] spaCy: 1 model cached (45 MB)
 
-✓ All checks passed!
+[ok] All checks passed!
 ```
 
 **Exit codes:**

@@ -15,20 +15,35 @@
 - Run `make lint-markdown` immediately after any doc/markdown edit
 - Do NOT leave lint errors for follow-up; fix during the edit, not later
 
+## Documentation prose (project convention)
+
+**Applies to:** All markdown under `docs/` (including `docs/prd/`, `docs/rfc/`, `docs/adr/`,
+`docs/guides/`, `docs/api/`, `docs/wip/`, etc.).
+
+- **Do not** use green check / red X / clipboard emoji for status or tables: no **✅**, **❌**,
+  **📋**, or decorative **✓** as list markers or table cells.
+- **Use plain words instead:** Yes / No, Run / Skip, Done, Good / Bad, Allowed / Forbidden, or
+  normal bullets without emoji.
+- **Sample CLI output** in docs: use neutral markers (e.g. `[ok]`) instead of **✓** if you show
+  fictional terminal lines.
+- **RFC status lines** and PRD headers: use text only (e.g. `Completed`, `Draft`, `Partial`), not
+  emoji prefixes.
+
+This matches the maintainer decision to drop checkmark styling in published docs; agents must not
+reintroduce it in new or edited `docs/**` files.
+
 ## 📁 Document Location Rules
 
 ### 🚨 ABSOLUTE RULE
 
-- ✅ **ALL analysis/plans/reviews** → `docs/wip/` folder
-- ❌ **NEVER create `docs/analysis/`** — this folder MUST NOT EXIST
-- ❌ **NEVER create `docs/plan/`** — this folder MUST NOT EXIST
+- **ALL analysis/plans/reviews** → `docs/wip/` folder
+- **NEVER create `docs/analysis/`** — this folder MUST NOT EXIST
+- **NEVER create `docs/plan/`** — this folder MUST NOT EXIST
 
 **Examples:**
 
-- ✅ `docs/wip/implementation-plan.md`
-- ✅ `docs/wip/code-analysis.md`
-- ❌ `docs/analysis/anything.md` — FORBIDDEN
-- ❌ `docs/plan/anything.md` — FORBIDDEN
+- **Allowed:** `docs/wip/implementation-plan.md`, `docs/wip/code-analysis.md`
+- **Forbidden:** `docs/analysis/anything.md`, `docs/plan/anything.md`
 
 ## 📚 When to Create PRD/RFC
 
@@ -54,12 +69,14 @@
 ### Tables (MD060)
 
 ```markdown
-✅ Good:
+Good:
+
 | Header | Column2 |
 | ------ | ------- |
 | Value1 | Value2  |
 
-❌ Bad (no spaces around pipes):
+Bad (no spaces around pipes):
+
 |Header|Column2|
 |------|-------|
 |Value1|Value2|
@@ -68,7 +85,8 @@
 ### Lists (MD032)
 
 ```markdown
-✅ Good:
+Good:
+
 Paragraph text.
 
 - List item 1
@@ -76,7 +94,8 @@ Paragraph text.
 
 Another paragraph.
 
-❌ Bad (no blank lines):
+Bad (no blank lines):
+
 Paragraph text.
 - List item 1
 - List item 2
@@ -90,12 +109,14 @@ Always specify a language for code blocks.
 ### Blank Lines After Headings
 
 ```markdown
-✅ Good:
+Good:
+
 ## Heading
 
 Paragraph text.
 
-❌ Bad:
+Bad:
+
 ## Heading
 Paragraph text.
 ```
@@ -128,12 +149,12 @@ python scripts/fix_markdown.py --dry-run
 
 ### What `fix_markdown.py` Fixes
 
-- ✅ Table separator formatting (MD060)
-- ✅ Trailing spaces (MD009)
-- ✅ Blank lines around lists (MD032)
-- ✅ Code block language specifiers (MD040) — when detectable
-- ✅ Blank lines around code fences (MD031)
-- ✅ Multiple blank lines (MD012)
+- Table separator formatting (MD060)
+- Trailing spaces (MD009)
+- Blank lines around lists (MD032)
+- Code block language specifiers (MD040) — when detectable
+- Blank lines around code fences (MD031)
+- Multiple blank lines (MD012)
 
 ## Full Reference
 
@@ -147,6 +168,7 @@ See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for:
 
 ---
 
-**Version:** 1.0
+**Version:** 1.1
 **Created:** 2026-02-09
+**Updated:** 2026-04-12 — documentation prose: no checkmark emoji in `docs/`
 **Source:** Merged from `markdown-style.mdc` v2.0 + `.cursorrules` v1.0 documentation rules

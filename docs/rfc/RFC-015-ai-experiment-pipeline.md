@@ -1251,7 +1251,7 @@ def run_experiments(
 ```
                 try:
                     future.result()
-                    print(f"✓ Completed: {config_file}")
+                    print(f"[ok] Completed: {config_file}")
                 except Exception as e:
                     print(f"✗ Failed: {config_file} - {e}")
     else:
@@ -1268,7 +1268,7 @@ def run_experiments(
                     output_dir=output_dir,
                     force_regenerate=force_regenerate,
                 )
-                print(f"✓ Completed: {config_file}")
+                print(f"[ok] Completed: {config_file}")
             except Exception as e:
                 print(f"✗ Failed: {config_file} - {e}")
                 if not parallel:

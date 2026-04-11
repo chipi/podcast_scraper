@@ -6,11 +6,11 @@ Complete guide for using the Ollama provider with podcast_scraper, including ins
 
 Ollama is a **local, self-hosted LLM solution** that runs entirely on your machine. It provides:
 
-- ✅ **Zero API costs** - All processing happens locally
-- ✅ **Complete privacy** - Data never leaves your machine
-- ✅ **Offline operation** - No internet required after setup
-- ✅ **Unlimited usage** - No rate limits or quotas
-- ✅ **Full-stack** - Transcription, speaker detection, and summarization
+- **Zero API costs** - All processing happens locally
+- **Complete privacy** - Data never leaves your machine
+- **Offline operation** - No internet required after setup
+- **Unlimited usage** - No rate limits or quotas
+- **Full-stack** - Transcription, speaker detection, and summarization
 
 ## Installation
 

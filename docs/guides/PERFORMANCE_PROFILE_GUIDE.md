@@ -13,6 +13,9 @@ them, how to interpret them, and how that work relates to **quality evaluation**
   **output quality** (ROUGE, gates). Profiling is a **parallel** track, not a substitute.
 - **[Performance](PERFORMANCE.md)** — runtime tuning (preprocessing cache, transcription,
   etc.), not release YAML profiles.
+- **[Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md)** — optional **`--monitor`** live
+  dashboard (or **`.monitor.log`**) during a run; optional **`.[monitor]`** for **memray** / **py-spy**
+  (RFC-065). Complements frozen profiles but does not replace them.
 - **[Performance reports](performance-reports/index.md)** — published profile snapshots
   (tables, caveats), sibling to [Evaluation Reports](eval-reports/index.md).
 

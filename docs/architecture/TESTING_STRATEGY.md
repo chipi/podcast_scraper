@@ -149,12 +149,12 @@ The testing strategy follows a three-tier pyramid:
 - **Scope**: Multiple modules working together, real internal implementations
 - **Entry Point**: Component-level (functions, classes, not user-facing APIs)
 - **I/O Policy**:
-  - ✅ **Allowed**: Real filesystem I/O (temp directories), real component interactions
-  - ❌ **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
+  - **Allowed**: Real filesystem I/O (temp directories), real component interactions
+  - **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
   - ⚠️ **ML models**: Mocked by default for speed. Use real models with `@pytest.mark.ml_models`
     for ML workflow integration tests (excluded from fast suite, see
     [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md))
-  - ✅ **Optional**: Local HTTP server for HTTP client testing in isolation
+  - **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
 - **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
 - **Key Distinction**: Tests how components work together, not complete user workflows. Mock ML
@@ -172,20 +172,20 @@ The testing strategy follows a three-tier pyramid:
 - **Entry Point**: User-level (CLI commands,
   `run_pipeline()`, `service.run()`)
 - **I/O Policy**:
-  - ✅ **Allowed**: Real HTTP client with local HTTP
+  - **Allowed**: Real HTTP client with local HTTP
     server (no external network), real filesystem I/O,
     real data files
-  - ✅ **Real implementations**: Use actual HTTP
+  - **Real implementations**: Use actual HTTP
     clients (no mocking), real file operations, real
     model loading
-  - ✅ **Real ML models**: Use real Whisper, spaCy,
+  - **Real ML models**: Use real Whisper, spaCy,
     and Transformers models (NO mocks)
-  - ✅ **Real data files**: RSS feeds, transcripts,
+  - **Real data files**: RSS feeds, transcripts,
     audio files from `tests/fixtures/e2e_server/`
-  - ❌ **No external network**: All HTTP calls go to
+  - **No external network**: All HTTP calls go to
     local server (network guard prevents external
     calls)
-  - ❌ **No mocks**: E2E tests use real
+  - **No mocks**: E2E tests use real
     implementations throughout (no Whisper mocks,
     no ML model mocks)
 - **Provider E2E tests**: Dedicated E2E test files
@@ -978,6 +978,63 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
 - [ ] GIL extraction latency per tier — benchmarking planned
 
+### `search/` (Semantic Corpus Search — RFC-061)
+
+- [x] `search/chunker.py` — transcript chunking
+  (unit: `test_chunker.py`)
+- [x] `search/faiss_store.py` — FAISS vector store
+  operations (unit: `test_faiss_store.py`)
+- [x] `search/indexer.py` — corpus-wide index build,
+  nested feeds, hybrid indexing, composite fingerprint
+  keys (unit: `test_indexer.py`)
+- [x] `search/corpus_scope.py` — `discover_metadata_files`
+  hybrid merge, feed ID normalization
+  (unit: `test_corpus_scope.py`)
+- [x] `search/corpus_search.py` — shared search logic
+  for CLI and HTTP
+- [x] `search/corpus_similar.py` — episode-level
+  similarity (unit: `test_corpus_similar.py`)
+- [x] `search/cli_handlers.py` — CLI `podcast search`
+  subcommand
+
+### `server/` (Viewer API — RFC-062, RFC-067, RFC-068)
+
+- [x] `server/app.py` — app factory, CORS, static
+  mounting (unit: `test_viewer_*.py`)
+- [x] `server/corpus_catalog.py` — filesystem-backed
+  episode catalog (unit: `test_corpus_catalog.py`;
+  integration: `test_viewer_corpus_library.py`)
+- [x] `server/corpus_digest.py` — time-window digest
+  selection and topic config
+- [x] `server/index_rebuild.py` — background FAISS
+  rebuild coordination (unit:
+  `test_index_rebuild_gate.py`; integration:
+  `test_index_rebuild.py`)
+- [x] `server/index_staleness.py` — vector index
+  freshness heuristics (unit:
+  `test_index_staleness.py`)
+- [x] `server/pathutil.py` — safe corpus path
+  resolution and traversal prevention
+- [x] `server/routes/` — route modules validated via
+  FastAPI `TestClient` (unit) and wired `create_app`
+  (integration in `tests/integration/server/`)
+
+### `workflow/` Extensions (v2.5–v2.6)
+
+- [x] `workflow/stages/` — stage-specific modules
+  (setup, scraping, processing, transcription,
+  metadata, summarization)
+- [x] `workflow/corpus_operations.py` — multi-feed
+  manifest and summary JSON (unit:
+  `test_corpus_operations.py`)
+- [x] `workflow/degradation.py` — graceful degradation
+  policies for non-critical stage failures
+- [x] `workflow/jsonl_emitter.py` — streaming JSONL
+  metrics output
+- [x] `workflow/run_manifest.py` /
+  `workflow/run_summary.py` — run-level manifest
+  capture and summary generation
+
 ## Test Pyramid Status
 
 > **Note**: Test distribution numbers should be verified periodically by running test collection
@@ -990,9 +1047,9 @@ The test pyramid has reached a healthy shape that matches the ideal targets.
 
 **Current Distribution (~3,770 tests, verified Apr 2026):**
 
-- **Unit Tests**: ~3,000 (~80%) ✅ Target 70-80%
-- **Integration Tests**: ~530 (~14%) ✅ Target 15-20%
-- **E2E Tests**: ~230 (~6%) ✅ Target 5-10%
+- **Unit Tests**: ~3,000 (~80%) Target 70-80%
+- **Integration Tests**: ~530 (~14%) Target 15-20%
+- **E2E Tests**: ~230 (~6%) Target 5-10%
 
 **Visual Representation:**
 
@@ -1026,9 +1083,9 @@ The pyramid is now well-balanced. Historical issues (misclassified tests, missin
 
 **Target Distribution (achieved as of Apr 2026):**
 
-- **Unit Tests**: 70-80% (~3,000 tests) ✅
-- **Integration Tests**: 15-20% (~530 tests) ✅
-- **E2E Tests**: 5-10% (~230 tests) ✅
+- **Unit Tests**: 70-80% (~3,000 tests)
+- **Integration Tests**: 15-20% (~530 tests)
+- **E2E Tests**: 5-10% (~230 tests)
 
 **Success Metrics:**
 
@@ -1041,24 +1098,24 @@ The pyramid is now well-balanced. Historical issues (misclassified tests, missin
 
 All four phases have been executed. The pyramid now matches the target distribution.
 
-**Phase 1: Reclassify Misplaced Tests** ✅ Done
+**Phase 1: Reclassify Misplaced Tests** Done
 
 - Reclassified summarizer tests from E2E to unit.
 - Reviewed and reclassified E2E tests that violated testing strategy definitions.
 
-**Phase 2: Add Missing Unit Tests** ✅ Done
+**Phase 2: Add Missing Unit Tests** Done
 
 - Added unit tests for all core modules (`workflow.py`, `episode_processor.py`, `summarizer.py`, `speaker_detection.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`, `cli.py`, `service.py`).
 
-**Phase 3: Optimize Integration Layer** ✅ Done
+**Phase 3: Optimize Integration Layer** Done
 
 - Moved component interaction tests from E2E to integration.
 - Added integration tests for cross-module boundaries.
 
-**Phase 4: Reduce E2E to True E2E** ✅ Done
+**Phase 4: Reduce E2E to True E2E** Done
 
 - E2E layer now contains only true end-to-end user workflow tests.
-- **Final Result**: Unit: ~80%, Integration: ~14%, E2E: ~6% ✅
+- **Final Result**: Unit: ~80%, Integration: ~14%, E2E: ~6%
 
 ### Unit Test Coverage by Module
 
@@ -1066,15 +1123,15 @@ All previously-identified coverage gaps have been addressed. Key modules and the
 
 **Core Modules (covered):**
 
-- `summarizer.py`: Text cleaning, chunking, validation functions ✅
-- `workflow.py`: Pipeline orchestration helpers ✅
-- `episode_processor.py`: Episode processing logic ✅
+- `summarizer.py`: Text cleaning, chunking, validation functions
+- `workflow.py`: Pipeline orchestration helpers
+- `episode_processor.py`: Episode processing logic
 
 **Supporting Modules (covered):**
 
-- `speaker_detection.py`: Detection and scoring logic ✅
-- `cli.py` and `service.py`: Argument parsing and service logic ✅
-- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions ✅
+- `speaker_detection.py`: Detection and scoring logic
+- `cli.py` and `service.py`: Argument parsing and service logic
+- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions
 
 ## Future Testing Enhancements
 

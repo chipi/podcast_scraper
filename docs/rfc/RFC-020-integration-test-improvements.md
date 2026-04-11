@@ -399,7 +399,7 @@ This RFC documents the comprehensive improvements made to the integration test s
 | Some Tests Too Close to Unit Tests | Yes — **RESOLVED** | Import/protocol tests moved to unit tests, clear boundaries                               |
 | Missing End-to-End Component Flows | Yes — **RESOLVED** | `test_full_pipeline.py`, `test_pipeline_error_recovery.py`, `test_pipeline_concurrent.py` |
 
-**All Original Gaps: RESOLVED** 
+**All Original Gaps: RESOLVED**
 
 ### Additional Achievements Beyond Original Gaps
 
@@ -534,7 +534,7 @@ Together, these three RFCs provide:
 
 - Clear test structure and boundaries (RFC-018)  **Completed**
 - Comprehensive component interaction testing (RFC-020)  **Completed**
-- Comprehensive user workflow testing (RFC-019) 📋 **Planned**
+- Comprehensive user workflow testing (RFC-019) **Planned**
 
 ## References
 

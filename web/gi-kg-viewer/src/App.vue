@@ -9,15 +9,51 @@ import SearchPanel from './components/search/SearchPanel.vue'
 import HelpTip from './components/shared/HelpTip.vue'
 import DigestView from './components/digest/DigestView.vue'
 import LibraryView from './components/library/LibraryView.vue'
+import EpisodeDetailPanel from './components/episode/EpisodeDetailPanel.vue'
+import GraphConnectionsSection from './components/graph/GraphConnectionsSection.vue'
+import GraphNodeRailPanel from './components/graph/GraphNodeRailPanel.vue'
 import { useArtifactsStore } from './stores/artifacts'
+import { useEpisodeRailStore } from './stores/episodeRail'
+import { useGraphFilterStore } from './stores/graphFilters'
+import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
+import type { SearchHit } from './api/searchApi'
+import { logicalEpisodeIdsForLibraryGraphSync } from './utils/graphEpisodeMetadata'
+import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { useThemeStore } from './stores/theme'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
 const theme = useThemeStore()
+const episodeRail = useEpisodeRailStore()
+const graphFilters = useGraphFilterStore()
+const graphNav = useGraphNavigationStore()
+
+const episodeConnectionsViewArtifact = computed(() =>
+  graphFilters.viewWithEgo(graphNav.graphEgoFocusCyId),
+)
+
+/** Search / Explore is open and we can return to episode or graph node detail. */
+const railBackFromToolsEnabled = computed(
+  () =>
+    episodeRail.paneKind === 'tools' &&
+    Boolean(
+      episodeRail.metadataRelativePath?.trim() ||
+        episodeRail.graphNodeCyId?.trim(),
+    ),
+)
+
+const railBackFromToolsLabel = computed((): string => {
+  if (episodeRail.graphNodeCyId?.trim()) {
+    return 'Back to details'
+  }
+  if (episodeRail.metadataRelativePath?.trim()) {
+    return 'Back to episode'
+  }
+  return 'Back'
+})
 
 const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
 const localFileInput = ref<HTMLInputElement | null>(null)
@@ -28,12 +64,12 @@ const isGraphTab = computed(() => mainTab.value === 'graph')
 const leftOpen = ref(true)
 const leftTab = ref<'corpus' | 'api'>('corpus')
 const rightOpen = ref(true)
-const rightTab = ref<'search' | 'explore'>('search')
 
 useViewerKeyboard({
   focusSearch: () => {
+    episodeRail.showTools()
     rightOpen.value = true
-    rightTab.value = 'search'
+    episodeRail.toolsTab = 'search'
     searchPanelRef.value?.focusQuery()
   },
   clearGraphFocus: () => {
@@ -116,19 +152,96 @@ watch(
   { immediate: true },
 )
 
-function onLibraryFocusSearch(payload: { feed: string; query: string }): void {
+function onLibraryFocusSearch(payload: {
+  feed: string
+  query: string
+  since?: string
+  feedDisplayTitle?: string
+}): void {
+  episodeRail.showTools()
   rightOpen.value = true
-  rightTab.value = 'search'
-  search.applyLibrarySearchHandoff(payload.feed, payload.query)
+  episodeRail.toolsTab = 'search'
+  search.applyLibrarySearchHandoff(payload.feed, payload.query, {
+    since: payload.since,
+    feedDisplayTitle: payload.feedDisplayTitle,
+  })
   void nextTick(() => {
     searchPanelRef.value?.focusQuery()
   })
 }
 
-function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
+/** Digest row / topic hit: episode detail in the right rail; stay on Digest. */
+function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }): void {
+  episodeRail.openEpisodePanel(payload.metadata_relative_path)
+}
+
+/** Search hit "Open episode in Library" (L): Library tab + pending episode selection. */
+function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
   shell.setPendingLibraryEpisode(payload.metadata_relative_path)
   mainTab.value = 'library'
 }
+
+function onSearchOpenEpisodeSummary(hit: SearchHit): void {
+  const rel = sourceMetadataRelativePathFromSearchHit(hit)
+  if (rel) {
+    episodeRail.openEpisodePanel(rel)
+  }
+}
+
+/**
+ * Library / Digest episode rail + **Graph** tab: highlight the matching Episode node(s) and
+ * center/zoom (same pipeline as **Open in graph**).
+ */
+function syncGraphFocusFromOpenEpisodeRail(): void {
+  if (mainTab.value !== 'graph') return
+  if (episodeRail.paneKind !== 'episode') return
+  const meta = episodeRail.metadataRelativePath?.trim()
+  if (!meta) return
+  const ids = logicalEpisodeIdsForLibraryGraphSync(
+    graphFilters.filteredArtifact,
+    meta,
+    episodeRail.graphConnectionsCyId?.trim() ?? null,
+  )
+  if (ids.length === 0) return
+  graphNav.setLibraryEpisodeHighlights(ids)
+  graphNav.requestFocusNode(ids[0]!)
+}
+
+watch(
+  () =>
+    [
+      episodeRail.paneKind,
+      episodeRail.metadataRelativePath,
+      episodeRail.graphNodeCyId,
+    ] as const,
+  () => {
+    const ep = episodeRail.metadataRelativePath?.trim()
+    const gn = episodeRail.graphNodeCyId?.trim()
+    if (episodeRail.paneKind === 'episode' && ep) {
+      rightOpen.value = true
+    }
+    if (episodeRail.paneKind === 'graph-node' && gn) {
+      rightOpen.value = true
+    }
+  },
+)
+
+watch(mainTab, (t) => {
+  if (t !== 'graph' && episodeRail.paneKind === 'graph-node') {
+    episodeRail.showTools()
+  }
+  if (t === 'graph') {
+    void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
+  }
+})
+
+watch(
+  () => episodeRail.metadataRelativePath,
+  () => {
+    if (mainTab.value !== 'graph' || episodeRail.paneKind !== 'episode') return
+    void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
+  },
+)
 </script>
 
 <template>
@@ -626,7 +739,7 @@ function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string })
       </div>
 
       <!-- CENTER -->
-      <div class="flex min-w-0 flex-1 flex-col">
+      <div class="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <!-- Graph / Dashboard -->
         <div class="min-h-0 flex-1">
           <DigestView
@@ -634,7 +747,7 @@ function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string })
             class="h-full"
             @switch-main-tab="mainTab = $event"
             @focus-search="onLibraryFocusSearch"
-            @open-library-episode="onDigestOpenLibraryEpisode"
+            @open-library-episode="onDigestOpenEpisodeInRail"
           />
           <keep-alive>
             <LibraryView
@@ -646,7 +759,7 @@ function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string })
           </keep-alive>
           <div
             v-if="mainTab === 'dashboard'"
-            class="h-full overflow-y-auto p-3"
+            class="h-full max-w-full overflow-x-hidden overflow-y-auto p-3"
             style="max-height: calc(100vh - 5rem)"
           >
             <DashboardView />
@@ -695,7 +808,11 @@ function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string })
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="rightOpen = true; rightTab = 'search'"
+            @click="
+              rightOpen = true;
+              episodeRail.showTools();
+              episodeRail.toolsTab = 'search'
+            "
           >
             Search
           </button>
@@ -703,52 +820,141 @@ function onDigestOpenLibraryEpisode(payload: { metadata_relative_path: string })
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="rightOpen = true; rightTab = 'explore'"
+            @click="
+              rightOpen = true;
+              episodeRail.showTools();
+              episodeRail.toolsTab = 'explore'
+            "
           >
             Explore
           </button>
-        </div>
-        <div v-show="rightOpen" class="flex flex-col" style="max-height: calc(100vh - 6rem)">
-          <nav
-            class="mx-2 mt-1 flex gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
-            aria-label="Right panel tabs"
+          <button
+            v-if="railBackFromToolsEnabled"
+            type="button"
+            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
+            style="writing-mode: vertical-lr"
+            @click="
+              rightOpen = true;
+              episodeRail.resumeDetailPanel()
+            "
           >
-            <button
-              type="button"
-              class="flex-1 rounded px-2 py-1 text-center"
-              :class="
-                rightTab === 'search'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-elevated-foreground hover:bg-overlay'
-              "
-              @click="rightTab = 'search'"
+            {{ railBackFromToolsLabel }}
+          </button>
+          <button
+            v-if="
+              episodeRail.paneKind === 'graph-node' && episodeRail.graphNodeCyId
+            "
+            type="button"
+            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
+            style="writing-mode: vertical-lr"
+            @click="rightOpen = true"
+          >
+            Details
+          </button>
+        </div>
+        <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col" style="max-height: calc(100vh - 6rem)">
+          <template v-if="episodeRail.paneKind === 'graph-node'">
+            <GraphNodeRailPanel @go-graph="mainTab = 'graph'" />
+          </template>
+          <template v-else-if="episodeRail.paneKind === 'episode'">
+            <div
+              class="mx-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+              role="region"
+              aria-label="Episode"
+              data-testid="episode-detail-rail"
             >
-              Search
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded px-2 py-1 text-center"
-              :class="
-                rightTab === 'explore'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-elevated-foreground hover:bg-overlay'
-              "
-              @click="rightTab = 'explore'"
+              <div class="mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-border pb-2">
+                <h2 class="text-xs font-semibold text-surface-foreground">
+                  Episode
+                </h2>
+                <button
+                  type="button"
+                  class="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
+                  @click="episodeRail.showTools()"
+                >
+                  Search & Explore
+                </button>
+              </div>
+              <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <EpisodeDetailPanel
+                  class="min-h-0 min-w-0 flex-1"
+                  @focus-search="onLibraryFocusSearch"
+                  @switch-main-tab="mainTab = $event"
+                />
+                <!--
+                  Connections use the merged graph artifact + Cytoscape id — show only on **Graph**
+                  so Library/Digest context is not confused with stale ego view.
+                  Alternatives: always show (needs reliable artifact when off-graph), or a collapsible
+                  section remembered per session (more state).
+                -->
+                <GraphConnectionsSection
+                  v-if="
+                    episodeRail.graphConnectionsCyId && mainTab === 'graph'
+                  "
+                  :view-artifact="episodeConnectionsViewArtifact"
+                  :node-id="episodeRail.graphConnectionsCyId"
+                  @go-graph="mainTab = 'graph'"
+                />
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <div
+              v-if="railBackFromToolsEnabled"
+              class="mx-2 mt-1 flex shrink-0 justify-end border-b border-border pb-2"
             >
-              Explore
-            </button>
-          </nav>
-          <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
-            <SearchPanel
-              v-show="rightTab === 'search'"
-              ref="searchPanelRef"
-              @go-graph="mainTab = 'graph'"
-            />
-            <ExplorePanel
-              v-show="rightTab === 'explore'"
-              @go-graph="mainTab = 'graph'"
-            />
-          </div>
+              <button
+                type="button"
+                class="rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
+                :aria-label="railBackFromToolsLabel"
+                @click="episodeRail.resumeDetailPanel()"
+              >
+                {{ railBackFromToolsLabel }}
+              </button>
+            </div>
+            <nav
+              class="mx-2 mt-1 flex shrink-0 gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
+              aria-label="Right panel tabs"
+            >
+              <button
+                type="button"
+                class="flex-1 rounded px-2 py-1 text-center"
+                :class="
+                  episodeRail.toolsTab === 'search'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-elevated-foreground hover:bg-overlay'
+                "
+                @click="episodeRail.toolsTab = 'search'"
+              >
+                Search
+              </button>
+              <button
+                type="button"
+                class="flex-1 rounded px-2 py-1 text-center"
+                :class="
+                  episodeRail.toolsTab === 'explore'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-elevated-foreground hover:bg-overlay'
+                "
+                @click="episodeRail.toolsTab = 'explore'"
+              >
+                Explore
+              </button>
+            </nav>
+            <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
+              <SearchPanel
+                v-show="episodeRail.toolsTab === 'search'"
+                ref="searchPanelRef"
+                @go-graph="mainTab = 'graph'"
+                @open-library-episode="onSearchOpenLibraryEpisode"
+                @open-episode-summary="onSearchOpenEpisodeSummary"
+              />
+              <ExplorePanel
+                v-show="episodeRail.toolsTab === 'explore'"
+                @go-graph="mainTab = 'graph'"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </div>

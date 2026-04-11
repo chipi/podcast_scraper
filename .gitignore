@@ -82,8 +82,12 @@ web/gi-kg-viewer/*.sln
 web/gi-kg-viewer/*.sw?
 web/gi-kg-viewer/test-results/
 web/gi-kg-viewer/playwright-report/
+web/gi-kg-viewer/e2e-results.json
 web/gi-kg-viewer/blob-report/
 web/gi-kg-viewer/playwright/.cache/
+
+# Playwright MCP (Cursor / IDE): local snapshots and logs, not repo artifacts
+.playwright-mcp/
 
 # AI rule-adherence log (local JSONL only; docs live in .metrics/)
 .metrics/rule-adherence.jsonl

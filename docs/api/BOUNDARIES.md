@@ -67,7 +67,7 @@ The following modules are **internal implementation details** and should not be 
 
 ## API Creeps Assessment
 
-### ✅ Good: Clean Separation
+### Good: Clean Separation
 
 1. **`workflow.run_pipeline`** - Properly exposed as public API.
 2. **`config.Config`** - Public API for configuration.

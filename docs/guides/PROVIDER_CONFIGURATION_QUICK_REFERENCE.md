@@ -572,14 +572,14 @@ Invalid provider types will raise `ValueError`:
 
 ```python
 
-# ❌ Invalid - will raise ValueError
+# Invalid - will raise ValueError
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="invalid",  # Not "whisper", "openai", or "gemini"
 )
 
-# ✅ Valid
+# Valid
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
@@ -591,7 +591,7 @@ Missing API key when using API providers will raise `ValueError`:
 
 ```python
 
-# ❌ Invalid - will raise ValueError
+# Invalid - will raise ValueError
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
@@ -599,7 +599,7 @@ cfg = Config(
     # Missing openai_api_key
 )
 
-# ✅ Valid
+# Valid
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
@@ -607,7 +607,7 @@ cfg = Config(
     openai_api_key="sk-your-key-here",  # Required
 )
 
-# ❌ Invalid - will raise ValueError
+# Invalid - will raise ValueError
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",
@@ -615,7 +615,7 @@ cfg = Config(
     # Missing gemini_api_key
 )
 
-# ✅ Valid
+# Valid
 
 cfg = Config(
     rss_url="https://example.com/feed.xml",

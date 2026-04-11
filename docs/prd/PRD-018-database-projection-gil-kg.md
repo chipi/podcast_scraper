@@ -1,6 +1,6 @@
 # PRD-018: Database Projection for GIL and KG
 
-- **Status**: 📋 Draft
+- **Status**: Draft
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-044](../rfc/RFC-044-model-registry.md) — model registry (**complete**; prerequisite)

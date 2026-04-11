@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft**
+**Completed (v2.6.0)** — `data/profiles/*.yaml`, `scripts/eval/freeze_profile.py`, `scripts/eval/diff_profiles.py`, Makefile `profile-freeze` / `profile-diff`, and resource fields consumed by RFC-066 / `tools/run_compare/`. Ongoing profile refresh per release remains operational hygiene, not an open design gap.
 
 ## RFC Number
 
@@ -46,7 +46,7 @@ The framework has two components:
 
 **Out of scope for this RFC** (deferred to dedicated RFCs):
 
-- **RFC-065: Live Pipeline Monitor** — `--monitor` CLI flag with tmux/Terminal.app split, interactive flamegraph capture; macOS-focused developer tooling.
+- **RFC-065: Live Pipeline Monitor** — **`--monitor`**, **`rich`** or **`.monitor.log`**, optional **`.[monitor]`** (**py-spy** / **memray**); tmux/Terminal split still deferred. See [RFC-065](RFC-065-live-pipeline-monitor.md).
 - **RFC-066: Run Comparison Tool — Performance Tab** — Streamlit extension joining quality and resource metrics by release tag.
 
 ---
@@ -506,7 +506,7 @@ All artifacts are local YAML files committed to git. No backend services, no dat
 
 ### Future RFCs (out of scope)
 
-- **RFC-065: Live Pipeline Monitor** (`docs/rfc/RFC-065-live-pipeline-monitor.md`) — `--monitor` CLI flag with tmux/Terminal.app split, `rich` live dashboard, `py-spy`/`memray` flamegraph capture. macOS-specific developer tooling.
+- **RFC-065: Live Pipeline Monitor** (`docs/rfc/RFC-065-live-pipeline-monitor.md`) — **`--monitor`**, **`rich`** or **`.monitor.log`**, optional **py-spy** (**`f`**) and **memray** re-exec via **`.[monitor]`**; automatic terminal split deferred.
 - **RFC-066: Run Comparison Tool — Performance Tab** (`docs/rfc/RFC-066-run-compare-performance-tab.md`) — Streamlit extension joining quality and resource metrics by release tag, with trend charts and quality/cost scatter plots.
 
 ---

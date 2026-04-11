@@ -133,6 +133,7 @@ def run_similar_episodes(
         top_k=fetch_cap,
         index_path=index_path,
         embedding_model=embedding_model,
+        dedupe_kg_surfaces=False,
     )
     if outcome.error:
         return SimilarEpisodesOutcome(

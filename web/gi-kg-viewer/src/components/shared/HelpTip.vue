@@ -1,15 +1,26 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref, toRef, watch } from 'vue'
 
+const DEFAULT_BUTTON_CLASS =
+  'inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] font-bold leading-none text-muted hover:bg-overlay hover:text-surface-foreground'
+
 const props = withDefaults(
   defineProps<{
     /** Popover max width hint (px); wider panels fit troubleshooting copy. */
     prefWidth?: number
     buttonAriaLabel?: string
+    /** Trigger label (one character is typical: ``?`` help, ``E`` ids). */
+    buttonText?: string
+    /**
+     * Optional full Tailwind class string for the trigger button.
+     * When set (e.g. canvas chip next to **E**), replaces the default round **?** style.
+     */
+    buttonClass?: string
   }>(),
   {
     prefWidth: 256,
     buttonAriaLabel: 'Help',
+    buttonText: '?',
   },
 )
 
@@ -124,12 +135,12 @@ onUnmounted(() => {
     <button
       ref="triggerRef"
       type="button"
-      class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] font-bold leading-none text-muted hover:bg-overlay hover:text-surface-foreground"
+      :class="buttonClass ?? DEFAULT_BUTTON_CLASS"
       :aria-label="buttonAriaLabel"
       :aria-expanded="open"
       @click.stop="toggle"
     >
-      ?
+      {{ buttonText }}
     </button>
     <Teleport to="body">
       <div

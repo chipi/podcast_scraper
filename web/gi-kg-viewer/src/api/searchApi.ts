@@ -22,6 +22,8 @@ export interface SearchRequestOptions {
   groundedOnly?: boolean
   topK?: number
   embeddingModel?: string
+  /** Default true: collapse duplicate kg_entity/kg_topic surfaces server-side. */
+  dedupeKgSurfaces?: boolean
 }
 
 export async function searchCorpus(
@@ -41,6 +43,9 @@ export async function searchCorpus(
   }
   for (const t of options.types ?? []) {
     if (t.trim()) params.append('type', t.trim())
+  }
+  if (options.dedupeKgSurfaces === false) {
+    params.set('dedupe_kg_surfaces', 'false')
   }
   const res = await fetch(`/api/search?${params.toString()}`)
   if (!res.ok) {

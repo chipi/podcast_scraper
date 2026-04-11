@@ -31,6 +31,7 @@
   if the visual/token experience contract changes. See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and
   `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section).
 - ✅ **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
+- ✅ **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
 
 ## 📚 COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 

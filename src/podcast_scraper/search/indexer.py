@@ -251,6 +251,31 @@ def _kg_vector_rows_from_path(
     return rows
 
 
+def _scope_display_titles(
+    doc: Dict[str, Any], ep: Dict[str, Any], feed: Dict[str, Any]
+) -> tuple[str, str]:
+    """Episode and feed titles copied onto every vector row for search UI labels.
+
+    Prefers nested ``episode.title`` / ``feed.title`` (pipeline metadata). Falls back to
+    flat ``episode_title`` / ``feed_name`` (eval or legacy shapes).
+    """
+    et_raw = ep.get("title")
+    if isinstance(et_raw, str) and et_raw.strip():
+        episode_title = et_raw.strip()
+    else:
+        flat = doc.get("episode_title")
+        episode_title = flat.strip() if isinstance(flat, str) and flat.strip() else ""
+
+    ft_raw = feed.get("title")
+    if isinstance(ft_raw, str) and ft_raw.strip():
+        feed_title = ft_raw.strip()
+    else:
+        flat_f = doc.get("feed_name")
+        feed_title = flat_f.strip() if isinstance(flat_f, str) and flat_f.strip() else ""
+
+    return episode_title, feed_title
+
+
 def _emit_vector_index_jsonl(
     cfg: config.Config,
     output_dir: Path,
@@ -282,13 +307,14 @@ def _emit_vector_index_jsonl(
         logger.debug("vector_index JSONL append failed: %s", exc)
 
 
-def _collect_docs_for_episode(
+def _collect_docs_for_episode(  # noqa: C901
     episode_root: Path,
     metadata_path: Path,
     doc: Dict[str, Any],
     *,
     target_tokens: int,
     overlap_tokens: int,
+    metadata_relative_path: str,
 ) -> List[Tuple[str, str, Dict[str, Any]]]:
     rows: List[Tuple[str, str, Dict[str, Any]]] = []
     ep = doc.get("episode") or {}
@@ -417,6 +443,13 @@ def _collect_docs_for_episode(
                     )
                 )
 
+    episode_title, feed_title = _scope_display_titles(doc, ep, feed)
+    for _, _, meta in rows:
+        meta["source_metadata_relative_path"] = metadata_relative_path
+        if episode_title:
+            meta["episode_title"] = episode_title
+        if feed_title:
+            meta["feed_title"] = feed_title
     return _rows_with_text_metadata(rows)
 
 
@@ -604,6 +637,12 @@ def index_corpus(
             stats.episodes_skipped_unchanged += 1
             continue
 
+        try:
+            meta_rel = meta_path.resolve().relative_to(out.resolve()).as_posix()
+        except ValueError:
+            stats.errors.append(f"metadata path outside corpus root: {meta_path}")
+            continue
+
         rows = _filter_rows_by_doc_types(
             _collect_docs_for_episode(
                 episode_root,
@@ -611,6 +650,7 @@ def index_corpus(
                 doc,
                 target_tokens=cfg.vector_chunk_size_tokens,
                 overlap_tokens=cfg.vector_chunk_overlap_tokens,
+                metadata_relative_path=meta_rel,
             ),
             allowed_types,
         )

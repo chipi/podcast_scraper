@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  chartExternalTooltipHandler,
-  removeChartExternalTooltip,
-} from '../../utils/chartExternalTooltip'
+import { lineEndLabelsPlugin } from '../../utils/chartLineEndLabelsPlugin'
 import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
@@ -14,6 +11,7 @@ const props = defineProps<{
   labels: string[]
   values: number[]
   yLabel?: string
+  insightText?: string
   helpText?: string
 }>()
 
@@ -28,7 +26,10 @@ function buildChart(): void {
   if (!el) {
     return
   }
-  chart?.destroy()
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
   const labels = props.labels
   const values = props.values
   if (labels.length === 0) {
@@ -40,9 +41,9 @@ function buildChart(): void {
     return
   }
   const line = rgbaFromToken('--ps-primary', 0.9)
-  const fill = rgbaFromToken('--ps-primary', 0.2)
   chart = new Chart(ctx, {
     type: 'line',
+    plugins: [lineEndLabelsPlugin],
     data: {
       labels,
       datasets: [
@@ -50,9 +51,9 @@ function buildChart(): void {
           label: props.yLabel ?? 'Count',
           data: values,
           borderColor: line,
-          backgroundColor: fill,
-          fill: true,
-          tension: 0.2,
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.12,
           pointRadius: 2,
           pointHoverRadius: 4,
         },
@@ -61,11 +62,10 @@ function buildChart(): void {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          enabled: false,
-          external: chartExternalTooltipHandler,
           callbacks: {
             title: (items) => {
               const i = items[0]?.dataIndex
@@ -85,7 +85,7 @@ function buildChart(): void {
       scales: {
         x: {
           ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } },
-          grid: { color: chartGridColor() },
+          grid: { display: false },
         },
         y: {
           beginAtZero: true,
@@ -104,7 +104,8 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.labels, props.values, props.title, props.yLabel, props.helpText] as const,
+  () =>
+    [props.labels, props.values, props.title, props.yLabel, props.helpText, props.insightText] as const,
   () => {
     buildChart()
   },
@@ -113,7 +114,6 @@ watch(
 
 onBeforeUnmount(() => {
   if (chart) {
-    removeChartExternalTooltip(chart)
     chart.destroy()
   }
   chart = null
@@ -128,6 +128,12 @@ onBeforeUnmount(() => {
     >
       {{ title }}
     </h3>
+    <p
+      v-if="insightText"
+      class="mb-1.5 text-[11px] font-medium leading-snug text-surface-foreground"
+    >
+      {{ insightText }}
+    </p>
     <p
       v-if="helpText"
       class="mb-2 text-[11px] leading-snug text-muted"

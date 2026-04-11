@@ -34,8 +34,8 @@ Each principle scores **Pass / Warn / Fail**. At the end, give an overall verdic
 - Background fills, panel shading
 - Redundant axis labels (if units are in the title, drop them from ticks)
 
-**Pass:** Ink is nearly all data. Minimal or no decoration.  
-**Warn:** Some decorative elements present but not overwhelming.  
+**Pass:** Ink is nearly all data. Minimal or no decoration.
+**Warn:** Some decorative elements present but not overwhelming.
 **Fail:** Gridlines, borders, background, AND a legend all competing with the data.
 
 ---
@@ -50,8 +50,8 @@ Each principle scores **Pass / Warn / Fail**. At the end, give an overall verdic
 - Any chart with ≤5 series has no excuse for a legend
 - Color-only differentiation for colorblind users (add shape or position too)
 
-**Pass:** Every series labeled directly at its endpoint or nearest natural position.  
-**Warn:** Legend present but data is simple enough to label directly.  
+**Pass:** Every series labeled directly at its endpoint or nearest natural position.
+**Warn:** Legend present but data is simple enough to label directly.
 **Fail:** Legend box with 3+ colors and no direct labels anywhere.
 
 **Fix pattern (matplotlib):**
@@ -76,8 +76,8 @@ for line, label in zip(lines, labels):
 - Smoothed lines that erase meaningful spikes
 - Truncated Y-axis that exaggerates or minimizes variation
 
-**Pass:** Raw data visible, or aggregation is clearly justified and labeled.  
-**Warn:** Summarized but context/uncertainty shown.  
+**Pass:** Raw data visible, or aggregation is clearly justified and labeled.
+**Warn:** Summarized but context/uncertainty shown.
 **Fail:** Means-only bars, no variance, truncated axis with no callout.
 
 ---
@@ -92,8 +92,8 @@ for line, label in zip(lines, labels):
 - Are notable points annotated? (peaks, inflections, anomalies)
 - Is there a reference line for context? (target, average, prior year)
 
-**Pass:** Subtitle states the insight. Key data points annotated.  
-**Warn:** Title is neutral/descriptive but an annotation saves it.  
+**Pass:** Subtitle states the insight. Key data points annotated.
+**Warn:** Title is neutral/descriptive but an annotation saves it.
 **Fail:** Title is a variable name. No annotations. Reader must find the story themselves.
 
 **Fix pattern:**
@@ -120,8 +120,8 @@ ax.annotate('Peak: 37.1% (1983)', xy=(1983, 37.1),
 - Exploded pie slices
 - More than ~5 colors in a palette
 
-**Pass:** No decoration. Color serves only to distinguish categories.  
-**Warn:** Minor decoration (slight gradient, mild shadow) but data still readable.  
+**Pass:** No decoration. Color serves only to distinguish categories.
+**Warn:** Minor decoration (slight gradient, mild shadow) but data still readable.
 **Fail:** 3D bars, gradient fills, drop shadows, heavy gridlines — all at once.
 
 ---
@@ -137,8 +137,8 @@ ax.annotate('Peak: 37.1% (1983)', xy=(1983, 37.1),
 - Dual Y-axes with different scales implying false correlation
 - Chopped time axes that hide long-term context
 
-**Pass:** Visual magnitude proportional to data. Truncation clearly labeled if used.  
-**Warn:** Non-zero baseline on line chart (acceptable) but not called out.  
+**Pass:** Visual magnitude proportional to data. Truncation clearly labeled if used.
+**Warn:** Non-zero baseline on line chart (acceptable) but not called out.
 **Fail:** Bar chart from 95–100%, making a 1% difference look like 5×.
 
 **Lie Factor formula:** `(visual size change) / (data value change)` — should be ~1.0
@@ -155,8 +155,8 @@ ax.annotate('Peak: 37.1% (1983)', xy=(1983, 37.1),
 - Animated transitions between states that should be compared
 - Subgroup overlaps that would be clearer as separate panels
 
-**Pass:** Comparisons are spatial (side-by-side panels).  
-**Warn:** Single chart is fine but a small multiple would reveal more.  
+**Pass:** Comparisons are spatial (side-by-side panels).
+**Warn:** Single chart is fine but a small multiple would reveal more.
 **Fail:** "Click to switch between X and Y" when X and Y should be shown together.
 
 ---
@@ -170,12 +170,12 @@ When critiquing a chart, return this structure:
 
 | Principle           | Score | Notes                              |
 |---------------------|-------|------------------------------------|
-| Data-Ink Ratio      | ✅    | Clean, minimal spines              |
-| Direct Labeling     | ❌    | Legend box with 4 colors           |
+| Data-Ink Ratio      |    | Clean, minimal spines              |
+| Direct Labeling     |    | Legend box with 4 colors           |
 | Show the Data       | ⚠️    | Means shown, no variance           |
-| Annotate Insight    | ❌    | Title is "Revenue". No subtitle.   |
-| No Chartjunk        | ✅    | No decoration                      |
-| Lie Factor          | ✅    | Axis starts at 0                   |
+| Annotate Insight    |    | Title is "Revenue". No subtitle.   |
+| No Chartjunk        |    | No decoration                      |
+| Lie Factor          |    | Axis starts at 0                   |
 | Small Multiples     | ⚠️    | Could benefit from faceting        |
 
 **Verdict:** Structurally sound, but this chart doesn't communicate — it just displays.
@@ -194,7 +194,7 @@ When critiquing a chart, return this structure:
 
 ## Quick Reference Cheatsheet
 
-| ❌ Never | ✅ Instead |
+| Never | Instead |
 | -------- | ---------- |
 | Legend box | Direct end-labels |
 | 3D bars | Flat bars |

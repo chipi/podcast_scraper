@@ -22,15 +22,15 @@ All providers below are **implemented and acceptance-tested** (v2.4.0+).
 
 | Provider | Status | RFC | Notes |
 | ---------- | :------: | :---: | ------- |
-| **Local ML** | ✅ Implemented | - | Default provider (Whisper + spaCy + Transformers): transcription, speaker detection, summarization |
-| **Hybrid ML** | ✅ Implemented | RFC-042 | Summarization only: MAP (LongT5) + REDUCE (transformers / Ollama / llama_cpp) |
-| **OpenAI** | ✅ Implemented | RFC-013 | Transcription + summarization (Whisper API + GPT API) |
-| **Gemini** | ✅ Implemented | RFC-035 | Transcription + summarization (no speaker detection) |
-| **Mistral** | ✅ Implemented | RFC-033 | Summarization only (EU data residency) |
-| **Anthropic** | ✅ Implemented | RFC-032 | Summarization only (no transcription or speaker detection) |
-| **DeepSeek** | ✅ Implemented | RFC-034 | Summarization only; ultra low-cost |
-| **Grok** | ✅ Implemented | RFC-036 | Summarization only; real-time information access |
-| **Ollama** | ✅ Implemented | RFC-037 | Transcription, speaker detection, summarization; local self-hosted LLMs, zero cost, complete privacy |
+| **Local ML** | Implemented | - | Default provider (Whisper + spaCy + Transformers): transcription, speaker detection, summarization |
+| **Hybrid ML** | Implemented | RFC-042 | Summarization only: MAP (LongT5) + REDUCE (transformers / Ollama / llama_cpp) |
+| **OpenAI** | Implemented | RFC-013 | Transcription + summarization (Whisper API + GPT API) |
+| **Gemini** | Implemented | RFC-035 | Transcription + summarization (no speaker detection) |
+| **Mistral** | Implemented | RFC-033 | Summarization only (EU data residency) |
+| **Anthropic** | Implemented | RFC-032 | Summarization only (no transcription or speaker detection) |
+| **DeepSeek** | Implemented | RFC-034 | Summarization only; ultra low-cost |
+| **Grok** | Implemented | RFC-036 | Summarization only; real-time information access |
+| **Ollama** | Implemented | RFC-037 | Transcription, speaker detection, summarization; local self-hosted LLMs, zero cost, complete privacy |
 
 For hybrid_ml (MAP-REDUCE) configuration and REDUCE backends (Ollama, llama_cpp,
 transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
@@ -49,13 +49,13 @@ to control internal MAP preprocessing after workflow cleaning ([RFC-042](../rfc/
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  9 Summarization Options  │  (Hybrid = MAP+REDUCE)  │  3 Full-Stack Ready  │
 │  ════════════════════     │  ═══════════════════════ │  ═══════════════     │
-│  ✅ Local ML              │  ✅ Hybrid ML (RFC-042)  │  ✅ Local ML          │
-│  ✅ Hybrid ML             │  MAP + Ollama/llama_cpp │  ✅ OpenAI (tx+sum)  │
-│  ✅ OpenAI                │  or transformers REDUCE  │  ✅ Ollama            │
-│  ✅ Gemini                │                         │                      │
-│  ✅ Mistral               │                         │                      │
-│  ✅ Anthropic / DeepSeek  │                         │                      │
-│  ✅ Grok / Ollama         │                         │                      │
+│  Local ML              │  Hybrid ML (RFC-042)  │  Local ML          │
+│  Hybrid ML             │  MAP + Ollama/llama_cpp │  OpenAI (tx+sum)  │
+│  OpenAI                │  or transformers REDUCE  │  Ollama            │
+│  Gemini                │                         │                      │
+│  Mistral               │                         │                      │
+│  Anthropic / DeepSeek  │                         │                      │
+│  Grok / Ollama         │                         │                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                           COST SPECTRUM (per 100 episodes)                  │
 │                                                                             │

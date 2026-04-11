@@ -155,8 +155,8 @@ make preload-ml-models
 **Current State:**
 
 - Whisper models preloaded in Dockerfile
-- ❌ spaCy models NOT preloaded (future enhancement)
-- ❌ Transformers models NOT preloaded (future enhancement)
+- spaCy models NOT preloaded (future enhancement)
+- Transformers models NOT preloaded (future enhancement)
 
 **Docker Layer Caching:**
 

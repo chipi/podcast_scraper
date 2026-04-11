@@ -75,10 +75,10 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
 
 - Speaker detection is isolated in its own module
 - Functions are reasonably abstract (`detect_speaker_names()`)
-- ❌ Hardcoded to NER/spaCy implementation
-- ❌ Cannot easily swap to OpenAI API or other services
-- ❌ Config tied to NER model names
-- ❌ Large functions with multiple responsibilities
+- Hardcoded to NER/spaCy implementation
+- Cannot easily swap to OpenAI API or other services
+- Config tied to NER model names
+- Large functions with multiple responsibilities
 
 ### Target Architecture
 
@@ -262,10 +262,10 @@ class SpeakerDetectorFactory:
 
 - Transcription logic is isolated in `whisper_integration.py`
 - Functions are reasonably abstract (`transcribe_with_whisper()`)
-- ❌ Hardcoded to Whisper library
-- ❌ Cannot easily swap to OpenAI Whisper API or other services
-- ❌ Config tied to Whisper model names
-- ❌ Resource management assumes local model loading
+- Hardcoded to Whisper library
+- Cannot easily swap to OpenAI Whisper API or other services
+- Config tied to Whisper model names
+- Resource management assumes local model loading
 
 ### Target Architecture (Transcription)
 
@@ -465,11 +465,11 @@ class TranscriptionProviderFactory:
 **Current Modularity Score: 4/10**
 
 - Summarization logic is isolated in `summarizer.py`
-- ❌ Hardcoded to local HuggingFace models
-- ❌ Cannot easily swap to OpenAI API
-- ❌ Config tied to HuggingFace model names
-- ❌ Resource management assumes local model loading
-- ❌ Large `metadata.py` functions (`generate_episode_metadata()` ~200 lines)
+- Hardcoded to local HuggingFace models
+- Cannot easily swap to OpenAI API
+- Config tied to HuggingFace model names
+- Resource management assumes local model loading
+- Large `metadata.py` functions (`generate_episode_metadata()` ~200 lines)
 
 ### Target Architecture (Summarization)
 
