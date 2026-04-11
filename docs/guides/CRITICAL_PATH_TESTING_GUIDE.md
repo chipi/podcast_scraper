@@ -166,13 +166,13 @@ When deciding what to test, ask:
 
 1. **Is this part of the critical path?**
 
-   - ✅ RSS parsing → **Test it**
-   - ✅ Transcript download/transcription → **Test it**
-   - ✅ NER speaker detection → **Test it**
-   - ✅ Summarization → **Test it**
-   - ✅ Metadata generation → **Test it**
-   - ❌ Extended features → Lower priority
-   - ❌ Configuration edge cases → Lower priority
+   - RSS parsing → **Test it**
+   - Transcript download/transcription → **Test it**
+   - NER speaker detection → **Test it**
+   - Summarization → **Test it**
+   - Metadata generation → **Test it**
+   - Extended features → Lower priority
+   - Configuration edge cases → Lower priority
 
 2. **What test level should I use?**
 
@@ -193,10 +193,10 @@ When deciding what to test, ask:
 
 **These tests MUST exist and MUST pass:**
 
-- ✅ Full workflow integration test with NER and summarization
-- ✅ Integration tests for both paths (transcript download + transcription)
-- ✅ E2E tests for all three entry points (CLI, Library API, Service API)
-- ✅ Unit tests for all critical path functions
+- Full workflow integration test with NER and summarization
+- Integration tests for both paths (transcript download + transcription)
+- E2E tests for all three entry points (CLI, Library API, Service API)
+- Unit tests for all critical path functions
 
 **Execution**: Run in fast test suite (with mocks) for quick feedback
 
@@ -204,9 +204,9 @@ When deciding what to test, ask:
 
 **These tests validate critical path with real implementations:**
 
-- ✅ E2E tests with real Whisper transcription
-- ✅ E2E tests with real NER models
-- ✅ E2E tests with real summarization models
+- E2E tests with real Whisper transcription
+- E2E tests with real NER models
+- E2E tests with real summarization models
 
 **Execution**: Run in slow test suite (with real models) for comprehensive validation
 
@@ -225,16 +225,16 @@ When deciding what to test, ask:
 
 |Scenario|Unit Tests|Integration Tests|E2E Tests|
 |--------|----------|-----------------|---------|
-|RSS parsing|✅ Parse RSS feeds|✅ RSS → Episode|✅ Full workflow|
-|Transcript download|✅ Download logic|✅ Download → Metadata|✅ Full workflow|
-|Transcription|✅ Whisper integration|✅ Audio → Transcript|✅ Full workflow|
-|NER (Speaker Detection)|✅ NER extraction|✅ Transcript → Speakers|✅ Full workflow|
-|Summarization|✅ Summary generation|✅ Transcript → Summary|✅ Full workflow|
-|Metadata generation|✅ Metadata creation|✅ All data → Metadata|✅ Full workflow|
+|RSS parsing|Parse RSS feeds|RSS → Episode|Full workflow|
+|Transcript download|Download logic|Download → Metadata|Full workflow|
+|Transcription|Whisper integration|Audio → Transcript|Full workflow|
+|NER (Speaker Detection)|NER extraction|Transcript → Speakers|Full workflow|
+|Summarization|Summary generation|Transcript → Summary|Full workflow|
+|Metadata generation|Metadata creation|All data → Metadata|Full workflow|
 
 ## Current Critical Path Coverage
 
-### Integration-Fast Tests ✅
+### Integration-Fast Tests
 
 **6 tests covering critical path:**
 
@@ -274,7 +274,7 @@ When deciding what to test, ask:
 
 **Execution Time**: ~8-9 seconds
 
-### E2E-Fast Tests ✅
+### E2E-Fast Tests
 
 **3 tests covering critical path:**
 
@@ -301,9 +301,9 @@ All E2E tests use `transcribe_missing=True`, so they validate Path 2 (transcript
 
 | Scenario | Integration-Fast | E2E-Fast |
 | ---------- | ------------------ | ---------- |
-| Transcript URL exists → Download | ✅ `test_rss_to_metadata_generation` | ❌ (not needed, covered in integration) |
-| No transcript URL → Transcribe | ✅ `test_rss_to_transcription_workflow` | ✅ All 3 E2E tests |
-| Episode processor transcription | ✅ `test_episode_processor_audio_download_and_transcription` | ❌ (component-level, integration is sufficient) |
+| Transcript URL exists → Download | `test_rss_to_metadata_generation` | (not needed, covered in integration) |
+| No transcript URL → Transcribe | `test_rss_to_transcription_workflow` | All 3 E2E tests |
+| Episode processor transcription | `test_episode_processor_audio_download_and_transcription` | (component-level, integration is sufficient) |
 
 ## Using This Guide
 

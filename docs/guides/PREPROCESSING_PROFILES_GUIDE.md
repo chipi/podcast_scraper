@@ -1,6 +1,6 @@
 # Preprocessing Profiles Guide
 
-**Status:** ✅ Complete - Profiles are fully integrated into the experiment pipeline (Issue #369, RFC-045).
+**Status:** Complete - Profiles are fully integrated into the experiment pipeline (Issue #369, RFC-045).
 
 This guide explains preprocessing profiles: what they are, why they matter, how to use them in experiments, and how to create new profiles.
 
@@ -14,18 +14,18 @@ This guide explains preprocessing profiles: what they are, why they matter, how 
 
 Transcript cleaning has **as much impact on summary quality as the model itself**. However, without profiles:
 
-- ❌ Cleaning logic is "hidden" inside functions
-- ❌ Changes to regex patterns are untracked
-- ❌ You can't isolate whether quality improvements came from model changes or preprocessing changes
-- ❌ Reproducing results becomes impossible
+- Cleaning logic is "hidden" inside functions
+- Changes to regex patterns are untracked
+- You can't isolate whether quality improvements came from model changes or preprocessing changes
+- Reproducing results becomes impossible
 
 **With profiles:**
 
-- ✅ Every cleaning step is explicit and versioned
-- ✅ Profiles are recorded in experiment fingerprints
-- ✅ You can test Model A vs. Model B while keeping preprocessing identical
-- ✅ You can test Preprocessing Profile A vs. Profile B while keeping the model identical
-- ✅ Results are fully reproducible
+- Every cleaning step is explicit and versioned
+- Profiles are recorded in experiment fingerprints
+- You can test Model A vs. Model B while keeping preprocessing identical
+- You can test Preprocessing Profile A vs. Profile B while keeping the model identical
+- Results are fully reproducible
 
 ### The Core Principle
 
@@ -42,12 +42,12 @@ Transcript cleaning has **as much impact on summary quality as the model itself*
 
 **Steps:**
 
-- ✅ Remove timestamps
-- ✅ Normalize generic speaker labels (`Host:`, `Guest:` → `Speaker 1:`, `Speaker 2:`)
-- ✅ Collapse blank lines
-- ❌ Remove fillers (disabled)
-- ❌ Remove sponsor blocks (disabled)
-- ❌ Remove outro blocks (disabled)
+- Remove timestamps
+- Normalize generic speaker labels (`Host:`, `Guest:` → `Speaker 1:`, `Speaker 2:`)
+- Collapse blank lines
+- Remove fillers (disabled)
+- Remove sponsor blocks (disabled)
+- Remove outro blocks (disabled)
 
 **Use Case:** When you want minimal preprocessing, preserving most original transcript structure.
 
@@ -58,8 +58,8 @@ Transcript cleaning has **as much impact on summary quality as the model itself*
 
 **Steps:**
 
-- ✅ All `cleaning_v1` steps
-- ✅ Remove sponsor blocks
+- All `cleaning_v1` steps
+- Remove sponsor blocks
 
 **Use Case:** When you want to remove ads but preserve outros and other structure.
 
@@ -70,11 +70,11 @@ Transcript cleaning has **as much impact on summary quality as the model itself*
 
 **Steps:**
 
-- ✅ All `cleaning_v2` steps
-- ✅ Remove outro blocks
-- ✅ Remove garbage lines (punctuation artifacts, `////`, `====`)
-- ✅ Remove credit blocks
-- ✅ Remove summarization artifacts
+- All `cleaning_v2` steps
+- Remove outro blocks
+- Remove garbage lines (punctuation artifacts, `////`, `====`)
+- Remove credit blocks
+- Remove summarization artifacts
 
 **Use Case:** Standard preprocessing for most experiments. Use this unless you have a specific reason to use a different profile.
 
@@ -85,7 +85,7 @@ Transcript cleaning has **as much impact on summary quality as the model itself*
 
 **Steps:**
 
-- ❌ All cleaning disabled
+- All cleaning disabled
 
 **Use Case:** When you want to test models on completely raw transcripts (rare, mainly for debugging).
 
@@ -171,29 +171,29 @@ This ensures that:
 
 ### Use `cleaning_v3` (Default) When
 
-- ✅ Running standard experiments
-- ✅ Comparing models (keeps preprocessing constant)
-- ✅ Creating baselines
-- ✅ You're not sure which profile to use
+- Running standard experiments
+- Comparing models (keeps preprocessing constant)
+- Creating baselines
+- You're not sure which profile to use
 
 ### Use `cleaning_v1` or `cleaning_v2` When
 
-- ✅ You want to preserve more original transcript structure
-- ✅ You're testing preprocessing impact (comparing v1/v2/v3)
-- ✅ You have transcripts that don't need aggressive cleaning
+- You want to preserve more original transcript structure
+- You're testing preprocessing impact (comparing v1/v2/v3)
+- You have transcripts that don't need aggressive cleaning
 
 ### Use `cleaning_none` When
 
-- ✅ Debugging preprocessing issues
-- ✅ Testing models on completely raw input
-- ✅ You want to see exactly what the model receives
+- Debugging preprocessing issues
+- Testing models on completely raw input
+- You want to see exactly what the model receives
 
 ### Create `cleaning_v4` When
 
-- ✅ You need speaker anonymization (Maya: → A:)
-- ✅ You need episode header stripping
-- ✅ You're following RFC-045 optimization guide
-- ✅ You want to test preprocessing improvements
+- You need speaker anonymization (Maya: → A:)
+- You need episode header stripping
+- You're following RFC-045 optimization guide
+- You want to test preprocessing improvements
 
 ---
 
@@ -359,10 +359,10 @@ profile_func = get_profile("cleaning_v3")
 
 Profile functions must:
 
-- ✅ Take a single `str` argument (raw text)
-- ✅ Return a single `str` (cleaned text)
-- ✅ Be deterministic (same input → same output)
-- ✅ Be idempotent (applying twice should be safe)
+- Take a single `str` argument (raw text)
+- Return a single `str` (cleaned text)
+- Be deterministic (same input → same output)
+- Be idempotent (applying twice should be safe)
 
 ---
 

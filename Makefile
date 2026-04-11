@@ -43,7 +43,7 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
@@ -515,7 +515,7 @@ test-integration: cleanup-processes
 	pytest_exit=0; \
 	$(PYTHON) -m pytest tests/integration/ -m integration -v --tb=short -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) --cov=$(PACKAGE) --cov-report=term-missing --reruns 2 --reruns-delay 1 --allow-hosts=127.0.0.1,localhost --durations=20 || pytest_exit=$$?; \
 	echo "📊 Tests completed, combining coverage files..."; \
-	$(PYTHON) -m coverage combine 2>/dev/null || { echo "⚠️  Coverage combine failed (non-fatal)"; true; }; \
+	$(MAKE) merge-cov-fragments || { echo "⚠️  Coverage fragment merge failed (non-fatal)"; true; }; \
 	echo "✅ Integration tests finished at $$(date '+%Y-%m-%d %H:%M:%S')"; \
 	exit $$pytest_exit
 
@@ -695,7 +695,7 @@ test:
 	# Note: Same as integration - --disable-socket for network isolation, no --reruns with -n
 	@E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not nightly" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
 	@echo "Final coverage:"
-	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report (check for coverage errors above)"; exit 1)
 
 test-sequential:
@@ -723,7 +723,7 @@ test-fast:
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 	@echo "Combining coverage..."
-	@$(PYTHON) -m coverage combine 2>/dev/null || true
+	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
 
 test-reruns:
@@ -1115,6 +1115,14 @@ coverage-check-combined:
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
 	@E2E_TEST_MODE=multi_episode pytest tests/ --cov=$(PACKAGE) --cov-report=term-missing --cov-fail-under=$(COVERAGE_THRESHOLD_COMBINED) -m 'not nightly' -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default --max-workers 5 2>/dev/null || echo 3) --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1
 
+# Merge ``.coverage.*`` from pytest-xdist / subprocess coverage without clobbering ``.coverage``.
+# Plain ``coverage combine`` loads no existing DB and ``save()`` overwrites the full pytest dataset.
+merge-cov-fragments:
+	@if find . -maxdepth 1 -name '.coverage.*' -type f ! -name '*-journal' 2>/dev/null | grep -q .; then \
+		echo "Merging parallel/subprocess coverage fragments..."; \
+		$(PYTHON) -m coverage combine --append 2>/dev/null || true; \
+	fi
+
 coverage-report:
 	# Generate coverage report without running tests (uses existing .coverage file)
 	@$(PYTHON) -m coverage report --show-missing
@@ -1131,7 +1139,7 @@ coverage-enforce:
 	@echo "Checking combined coverage threshold ($(COVERAGE_THRESHOLD_COMBINED)%)..."
 	@if [ -f .coverage ] || find . -maxdepth 1 -name ".coverage*" -type f 2>/dev/null | grep -q .; then \
 		echo "Combining parallel coverage files (if any)..."; \
-		$(PYTHON) -m coverage combine 2>/dev/null || true; \
+		$(MAKE) merge-cov-fragments; \
 		$(PYTHON) -m coverage report --fail-under=$(COVERAGE_THRESHOLD_COMBINED) > /dev/null && \
 		echo "✅ Coverage meets $(COVERAGE_THRESHOLD_COMBINED)% threshold" || \
 		(echo "❌ Coverage below $(COVERAGE_THRESHOLD_COMBINED)% threshold" && exit 1); \

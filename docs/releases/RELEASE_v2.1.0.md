@@ -39,7 +39,7 @@ v2.1.0 introduces automatic speaker name detection using Named Entity Recognitio
 - Works seamlessly in dry-run mode
 - Pattern analysis from first few episodes improves accuracy
 
-### 📋 PRD-004 & RFC-011: Metadata Generation Design
+### PRD-004 & RFC-011: Metadata Generation Design
 
 **Comprehensive design documents for per-episode metadata generation:**
 

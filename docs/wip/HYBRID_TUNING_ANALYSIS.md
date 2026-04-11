@@ -95,8 +95,8 @@ Practical approach: **use smoke for relative tuning (hybrid vs prod, same 5 epis
 
 1. **Smoke config added:** `data/eval/configs/hybrid_ml_tier1_smoke_v1.yaml` (same as tier1, `dataset_id: curated_5feeds_smoke_v1`).
 2. **One-time: prod-on-smoke baseline.** Create a config that is prod with `dataset_id: curated_5feeds_smoke_v1`, run it, then freeze as `baseline_ml_prod_authority_smoke_v1` so smoke experiments can use `BASELINE=baseline_ml_prod_authority_smoke_v1`.
-3. **Run hybrid on smoke:**  
-   `make experiment-run CONFIG=data/eval/configs/hybrid_ml_tier1_smoke_v1.yaml BASELINE=baseline_ml_prod_authority_smoke_v1`  
+3. **Run hybrid on smoke:**
+   `make experiment-run CONFIG=data/eval/configs/hybrid_ml_tier1_smoke_v1.yaml BASELINE=baseline_ml_prod_authority_smoke_v1`
    (Prod baseline is on benchmark; for apples-to-apples smoke comparison we’d run a prod run on smoke too, or use a prod-smoke baseline if one exists. Dev baseline `baseline_ml_dev_authority_smoke_v1` is on smoke but different models. So: either create a **prod-on-smoke** baseline once, or run both prod and hybrid on smoke in the same way and compare runs.)
 4. **Iterate:** Edit `hybrid_ml_tier1_smoke_v1.yaml` (e.g. reduce `max_new_tokens` to 450), run again, compare. One lever at a time.
 5. **Promotion:** When hybrid on smoke is clearly better or on par with prod, copy winning params into `hybrid_ml_tier1_authority_v1.yaml` (or a new “v2” config with the chosen params) and compare vs `baseline_ml_prod_authority_v1` with silver reference.

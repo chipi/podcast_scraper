@@ -487,7 +487,7 @@ podcast-scraper plugins --transports
 # Validate a config file's wiring
 podcast-scraper plugins --validate config.yaml
 # Output:
-#   ✓ source[0]: transport=rss, content_type=podcast — OK
+#   [ok] source[0]: transport=rss, content_type=podcast — OK
 #   ✗ source[1]: transport=web_scrape — not installed (pip install news-ingest)
 ```
 

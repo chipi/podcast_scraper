@@ -439,11 +439,11 @@ For v1, UI is about **trust, inspection, and debugging**, not "delight". The goa
 
 **What v1 UI is NOT:**
 
-- ❌ Dashboards or charts
-- ❌ Timelines or visualizations
-- ❌ Fancy topic browsers
-- ❌ End-user search interfaces
-- ❌ Anything "product-y"
+- Dashboards or charts
+- Timelines or visualizations
+- Fancy topic browsers
+- End-user search interfaces
+- Anything "product-y"
 
 Building these now would:
 
@@ -658,9 +658,9 @@ If your UI feels:
 
 If it feels:
 
-- ❌ "Polished"
-- ❌ "Shareable"
-- ❌ "Product-ready"
+- "Polished"
+- "Shareable"
+- "Product-ready"
 
 **You're too early.**
 

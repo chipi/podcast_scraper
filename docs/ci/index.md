@@ -29,12 +29,12 @@ The CI/CD pipeline consists of **six main workflows**:
 
 ## Key Features
 
-- ✅ **Path-based optimization** - Workflows only run when relevant files change
-- ✅ **Parallel execution** - Jobs run simultaneously for faster feedback
-- ✅ **Two-tier testing** - Fast critical path tests on PRs, full suite on main
-- ✅ **Comprehensive security** - CodeQL, Snyk, Dependabot, and bandit scanning
-- ✅ **Unified metrics** - Single dashboard for CI and Nightly metrics
-- ✅ **Local validation** - `make ci` runs full CI suite locally
+- **Path-based optimization** - Workflows only run when relevant files change
+- **Parallel execution** - Jobs run simultaneously for faster feedback
+- **Two-tier testing** - Fast critical path tests on PRs, full suite on main
+- **Comprehensive security** - CodeQL, Snyk, Dependabot, and bandit scanning
+- **Unified metrics** - Single dashboard for CI and Nightly metrics
+- **Local validation** - `make ci` runs full CI suite locally
 
 ## Getting Started
 

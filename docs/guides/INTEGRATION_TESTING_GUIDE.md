@@ -49,8 +49,8 @@ implementations, mock external dependencies.
 
 | Testing | Mock? | Marker |
 | --------- | ------- | -------- |
-| Non-ML workflows (config → provider creation) | ✅ Mock | None |
-| ML workflow integration | ❌ Real | `@pytest.mark.ml_models` |
+| Non-ML workflows (config → provider creation) | Mock | None |
+| ML workflow integration | Real | `@pytest.mark.ml_models` |
 
 **Decision rule:** If test name contains "workflow" and involves ML → use real models.
 

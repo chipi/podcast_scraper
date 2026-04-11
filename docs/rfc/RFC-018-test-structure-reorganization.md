@@ -656,7 +656,7 @@ Together, these three RFCs form a complete testing strategy:
 
 - **RFC-018**: Establishes test structure and boundaries  **Completed**
 - **RFC-020**: Comprehensive integration test improvements  **Completed**
-- **RFC-019**: Comprehensive E2E test improvements 📋 **Planned**
+- **RFC-019**: Comprehensive E2E test improvements **Planned**
 
 ## References
 

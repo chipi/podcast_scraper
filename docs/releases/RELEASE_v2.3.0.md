@@ -428,11 +428,11 @@ reuse_media: false                         # Reuse existing media files
 
 ## 🔄 Backward Compatibility
 
-- ✅ Fully backward compatible
-- ✅ All existing functionality preserved
-- ✅ New features are opt-in (defaults to `false`)
-- ✅ No breaking API changes
-- ✅ Service API is additive (doesn't affect existing CLI)
+- Fully backward compatible
+- All existing functionality preserved
+- New features are opt-in (defaults to `false`)
+- No breaking API changes
+- Service API is additive (doesn't affect existing CLI)
 
 ### 📚 Related Documentation
 

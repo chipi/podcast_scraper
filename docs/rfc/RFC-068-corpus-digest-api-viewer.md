@@ -1,6 +1,6 @@
 # RFC-068: Corpus Digest — API & Viewer Integration
 
-- **Status**: Draft (implementation shipped in `main`: `GET /api/corpus/digest`, Digest tab, Library glance, `corpus_digest_api` on `/api/health`)
+- **Status**: Completed (v2.6.0) — `GET /api/corpus/digest`, Digest tab, Library 24h glance, `corpus_digest_api` on `GET /api/health`
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, viewer users, pipeline maintainers
 - **Related PRDs**:

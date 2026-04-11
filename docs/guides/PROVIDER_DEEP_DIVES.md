@@ -170,7 +170,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Fast                                              │
 │  🏆 Quality:  ██████████████████░░ Very Good                    │
 │  🔒 Privacy:  ████████████░░░░░░░░ Standard (Google)            │
-│  ✅ Transcription + summarization (no speaker detection)        │
+│  Transcription + summarization (no speaker detection)        │
 │                                                                 │
 │  Models:                                                        │
 │  ├── Gemini 2.0 Flash  $0.10/$0.40  │ ⭐ Dev/test              │
@@ -233,7 +233,7 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ⚡ Speed:    Slow-Medium (hardware dependent, ~30 tok/s)        │
 │  🏆 Quality:  ██████████████░░░░░░ Good (model dependent)       │
 │  🔒 Privacy:  ████████████████████ 100% Complete                │
-│  ✅ Full-stack: transcription, speaker detection, summarization │
+│  Full-stack: transcription, speaker detection, summarization │
 │                                                                 │
 │  Recommended Models (by Use Case):                             │
 │  ├── qwen2.5:7b        8 GB+ RAM  │ ⭐ Best JSON, GIL          │
@@ -504,19 +504,19 @@ DeepSeek    🔒🔒       │████████████████�
                     ├─────────────────────────────────────────────────┤
                     │  Provider      │ Status   │ 🎙️ Trans │ 👤 Speaker │ 📝 Summary │
                     ├────────────────┼──────────┼──────────┼────────────┼────────────┤
-                    │  Local ML      │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
-                    │  Hybrid ML     │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
-                    │  OpenAI        │ ✅ Impl  │    ✅    │     ❌     │     ✅     │
-                    │  Gemini        │ ✅ Impl  │    ✅    │     ❌     │     ✅     │
-                    │  Ollama        │ ✅ Impl  │    ✅    │     ✅     │     ✅     │
+                    │  Local ML      │ Impl  │       │         │         │
+                    │  Hybrid ML     │ Impl  │       │         │         │
+                    │  OpenAI        │ Impl  │       │         │         │
+                    │  Gemini        │ Impl  │       │         │         │
+                    │  Ollama        │ Impl  │       │         │         │
                     ├────────────────┼──────────┼──────────┼────────────┼────────────┤
-                    │  Anthropic     │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
-                    │  Mistral       │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
-                    │  DeepSeek      │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
-                    │  Grok          │ ✅ Impl  │    ❌    │     ❌     │     ✅     │
+                    │  Anthropic     │ Impl  │       │         │         │
+                    │  Mistral       │ Impl  │       │         │         │
+                    │  DeepSeek      │ Impl  │       │         │         │
+                    │  Grok          │ Impl  │       │         │         │
                     └─────────────────────────────────────────────────────────────────┘
 
-    ✅ Implemented (9): Local ML, Hybrid ML, OpenAI, Gemini, Ollama, Anthropic, Mistral, DeepSeek, Grok
+    Implemented (9): Local ML, Hybrid ML, OpenAI, Gemini, Ollama, Anthropic, Mistral, DeepSeek, Grok
 ```
 
 ---

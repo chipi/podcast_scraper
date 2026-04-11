@@ -92,23 +92,23 @@ Autoresearch is **not** a second product pipeline. It is a **thin control loop**
 
 **You do not strictly need a second “pair” of accounts.** What you need is **clear separation of spend and blast radius**. Practical stack (combine as needed):
 
-1. **Dedicated environment variables (required for v1 harness)**  
+1. **Dedicated environment variables (required for v1 harness)**
    `score.py` (and any judge helper it imports) should read **autoresearch-prefixed** vars for **every LLM call the harness makes** — at minimum the **judges** and any **cheap filter** model, e.g.:
    - `AUTORESEARCH_JUDGE_OPENAI_API_KEY`
-   - `AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY`  
+   - `AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY`
    Optional, if you want summarization-under-test billed separately from day-to-day CLI:
-   - `AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY` (or per-provider equivalents)  
+   - `AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY` (or per-provider equivalents)
    **Do not** read bare `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` in the harness **unless** an explicit opt-in exists, e.g. `AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1` for local dev only (default **off**). Document all vars in `config/examples/.env.example`.
 
-2. **Second API keys vs same account**  
-   - **Same org, new API key** (many providers allow multiple keys): point autoresearch vars at those keys — dashboards often aggregate by key or project.  
-   - **Stronger isolation**: separate **project / workspace** (OpenAI, Anthropic, etc.) with its own keys and **monthly budget / alerts** — still two keys, not necessarily two billing identities.  
+2. **Second API keys vs same account**
+   - **Same org, new API key** (many providers allow multiple keys): point autoresearch vars at those keys — dashboards often aggregate by key or project.
+   - **Stronger isolation**: separate **project / workspace** (OpenAI, Anthropic, etc.) with its own keys and **monthly budget / alerts** — still two keys, not necessarily two billing identities.
    - **Same key as production** only for quick hacks; you lose cost separation and risk accidental overlap with manual runs.
 
-3. **Provider-side controls**  
+3. **Provider-side controls**
    Set **budgets, alerts, and hard caps** in the cloud console for the project tied to autoresearch keys.
 
-4. **Harness-side controls** (already in this RFC)  
+4. **Harness-side controls** (already in this RFC)
    `AUTORESEARCH_EVAL_N`, experiment cap in `program.md`, two-stage judge filter, `--dry-run`, and optional **max judge calls / max USD per invocation** implemented once in `score.py` (fail closed).
 
 **Summary:** Prefer **autoresearch-dedicated env vars** + **keys tied to a small-budget cloud project**; a literal “second pair” of keys is the usual way to achieve that, not a separate requirement from (1) and (2).
@@ -177,8 +177,8 @@ The agent reads `program.md`, mutates only allowlisted targets, runs `score.py`,
 1. Load `data/eval/` episodes (raw audio + reference transcripts for Whisper; transcripts + reference summaries for BART/LED).
 2. Run inference with current params on MPS.
 3. Score: Word Error Rate (WER) for transcription; ROUGE-L + optional LLM judge for summarization.
-4. Combine into a **single scalar** using a **fixed formula** documented in `program.md` and implemented once in `score.py`, e.g.  
-   `score = w_wer * (1 - norm_wer) + w_rouge * norm_rouge + w_judge * norm_judge`  
+4. Combine into a **single scalar** using a **fixed formula** documented in `program.md` and implemented once in `score.py`, e.g.
+   `score = w_wer * (1 - norm_wer) + w_rouge * norm_rouge + w_judge * norm_judge`
    with weights summing to 1 and normalization chosen so each term is in [0, 1] (document `norm_wer` / baseline WER for division). **Constraint pass (recommended)**: reject any candidate that regresses WER vs. baseline by more than a small ε even if ROUGE improves — encode as hard filter or penalty term.
 5. Print score to stdout.
 

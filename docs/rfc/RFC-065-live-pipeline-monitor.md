@@ -2,6 +2,8 @@
 
 ## Status
 
+**Completed (v2.6.0)** — core scope delivered; **tmux / automatic terminal split** remains deferred (see below).
+
 **MVP + Phase 3 profiling implemented** (2026-04-11, GitHub #512):
 
 - **MVP:** `--monitor`, `monitor` in YAML, `.pipeline_status.json`,

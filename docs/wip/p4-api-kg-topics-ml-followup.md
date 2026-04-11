@@ -1,6 +1,6 @@
 # WIP: P4 — API / LLM KG for cleaner topics (ML follow-up)
 
-**Status:** idea backlog — not implemented as a single task  
+**Status:** idea backlog — not implemented as a single task
 **See also:** [Knowledge Graph Guide § Choosing a mode](../guides/KNOWLEDGE_GRAPH_GUIDE.md#choosing-a-mode-operations), [KG LLM provider vs summary provider](../guides/KNOWLEDGE_GRAPH_GUIDE.md#kg-llm-provider-vs-summary-provider)
 
 ---

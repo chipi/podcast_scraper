@@ -53,10 +53,10 @@ make format-check lint type security
 E2E_TEST_MODE=fast $(PYTHON) -m pytest -m 'not nightly and ((not integration and not e2e) or (integration and critical_path) or (e2e and critical_path))' -n 0 --cov=podcast_scraper --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
 ```
 
-**Can we delay shutdown so workers have time to finish?**  
+**Can we delay shutdown so workers have time to finish?**
 pytest-xdist does not expose a “grace period” or “wait N seconds before teardown”. The stall is inside xdist’s master–worker coordination; we can’t inject a delay from outside. So we cannot “delay by a few seconds” in xdist itself.
 
-**Does changing the scheduler (e.g. `--dist loadfile`) fix it?**  
+**Does changing the scheduler (e.g. `--dist loadfile`) fix it?**
 No. Using a different distribution (e.g. by file instead of by test) is not a fundamental solution. The run can still get stuck, often at a different point (e.g. later in the run). The only reliable workarounds are fewer workers (e.g. 2), no parallelism (`-n 0`), or a timeout cap.
 
 **Bounded run** – If you need parallelism and it still hangs, cap the run so it exits instead of hanging forever (Linux/macOS with `timeout` or `gtimeout`):

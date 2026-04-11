@@ -271,15 +271,15 @@ flowchart TD
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
-  | `MLProvider` | ✅ Whisper | ✅ spaCy NER | ✅ Transformers | Local, no API cost |
-  | `HybridMLProvider` | ❌ | ❌ | ✅ MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
-  | `OpenAIProvider` | ✅ Whisper API | ✅ GPT API | ✅ GPT API | Cloud, prompt-managed |
-  | `GeminiProvider` | ✅ Gemini API | ✅ Gemini API | ✅ Gemini API | 2M context, native audio |
-  | `AnthropicProvider` | ❌ | ✅ Claude API | ✅ Claude API | High quality reasoning |
-  | `MistralProvider` | ❌ | ✅ Mistral API | ✅ Mistral API | OpenAI alternative |
-  | `DeepSeekProvider` | ❌ | ✅ DeepSeek API | ✅ DeepSeek API | Ultra low-cost |
-  | `GrokProvider` | ❌ | ✅ Grok API | ✅ Grok API | Real-time info (xAI) |
-  | `OllamaProvider` | ❌ | ✅ Ollama API | ✅ Ollama API | Local LLM, zero cost |
+  | `MLProvider` | Whisper | spaCy NER | Transformers | Local, no API cost |
+  | `HybridMLProvider` | No | | MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
+  | `OpenAIProvider` | Whisper API | GPT API | GPT API | Cloud, prompt-managed |
+  | `GeminiProvider` | Gemini API | Gemini API | Gemini API | 2M context, native audio |
+  | `AnthropicProvider` | No | Claude API | Claude API | High quality reasoning |
+  | `MistralProvider` | No | Mistral API | Mistral API | OpenAI alternative |
+  | `DeepSeekProvider` | No | DeepSeek API | DeepSeek API | Ultra low-cost |
+  | `GrokProvider` | No | Grok API | Grok API | Real-time info (xAI) |
+  | `OllamaProvider` | No | Ollama API | Ollama API | Local LLM, zero cost |
 
   - **Factories**: Factory functions in
     `transcription/factory.py`,
@@ -852,18 +852,18 @@ RFC-062 `GraphCanvas.vue` component.
 ### Execution Order Summary
 
 ```text
-Phase 1: RFC-044 (Model Registry)       ✅ Implemented
-Phase 2: RFC-042 (Hybrid ML Platform)   ✅ Implemented (core + extensions)
-    2b:  RFC-052 (LLM Prompts)          ✅ Implemented
-Phase 3: RFC-049 (GIL Core)             ✅ Implemented
-    3a:  RFC-050 (Use Cases)            ✅ Implemented
+Phase 1: RFC-044 (Model Registry)       Implemented
+Phase 2: RFC-042 (Hybrid ML Platform)   Implemented (core + extensions)
+    2b:  RFC-052 (LLM Prompts)          Implemented
+Phase 3: RFC-049 (GIL Core)             Implemented
+    3a:  RFC-050 (Use Cases)            Implemented
     3b:  RFC-051 (DB Projection)        planned
-    3c:  KG Extraction (RFC-055)        ✅ Implemented
+    3c:  KG Extraction (RFC-055)        Implemented
 Phase 4: RFC-053 (Adaptive Routing)     planned
-Phase 5: RFC-062 (Server & Viewer)      ✅ Implemented
-    5a:  RFC-061 (Semantic Search)      ✅ Implemented (FAISS Phase 1)
-    5b:  RFC-067 (Corpus Library)       ✅ Implemented (Phases 1–3)
-    5c:  RFC-068 (Corpus Digest)        ✅ Implemented
+Phase 5: RFC-062 (Server & Viewer)      Implemented
+    5a:  RFC-061 (Semantic Search)      Implemented (FAISS Phase 1)
+    5b:  RFC-067 (Corpus Library)       Implemented (Phases 1–3)
+    5c:  RFC-068 (Corpus Digest)        Implemented
     5d:  RFC-069 (Graph Exploration)    in progress
 ```
 

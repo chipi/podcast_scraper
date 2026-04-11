@@ -155,6 +155,10 @@
 
   All files in `.cursor/rules/`.
 
+  **Documentation prose:** In `docs/**` (PRD/RFC/ADR/guides/api/wip, etc.), do **not** use
+  checkmark / cross / clipboard emoji (✅ ❌ 📋) or decorative ✓ for status, lists, or tables — use
+  plain words (Yes/No, Run/Skip, Good/Bad). Full rule in `.cursor/rules/documentation.mdc`.
+
 ## 📋 PROJECT CONTEXT
 
 Python tool for podcast transcript downloading/generation:

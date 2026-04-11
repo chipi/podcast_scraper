@@ -1189,7 +1189,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 - **Rotate API keys regularly**
 - **Use separate keys for development/production**
 
-## ❌ DON'T
+## DON'T
 
 - **Never commit `.env` files** with real API keys
 - **Never hardcode API keys** in source code

@@ -126,7 +126,7 @@ Entity reconciliation is enabled by default when using ML providers (transformer
 
 **Related Issue:** #380
 
-### 📋 Run Manifest (Reproducibility Tracking)
+### Run Manifest (Reproducibility Tracking)
 
 **Comprehensive run metadata for reproducibility:**
 
@@ -342,9 +342,9 @@ All providers now implement a unified `ProviderCallMetrics` contract:
 
 | Capability | Local | OpenAI | Anthropic | Mistral | DeepSeek | Gemini | Grok | Ollama |
 | ------------ | ------- | -------- | ----------- | --------- | ---------- | -------- | ------ | -------- |
-| Transcription | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Speaker Detection | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Summarization | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Transcription | Yes | | No | | No | | No | |
+| Speaker Detection | Yes | | Yes | | Yes | | Yes | |
+| Summarization | Yes | | Yes | | Yes | | Yes | |
 
 ### Run Manifest Schema
 
@@ -546,7 +546,7 @@ mistral_api_key: null                # Set via MISTRAL_API_KEY env var
 
 ## Breaking Changes
 
-### ✅ No Breaking Changes
+### No Breaking Changes
 
 This release maintains full backward compatibility with v2.4.0:
 

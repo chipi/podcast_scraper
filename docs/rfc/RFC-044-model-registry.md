@@ -760,7 +760,7 @@ registry-promote:
 		--baseline-id $(BASELINE_ID) \
 		--mode-id $(MODE_ID) \
 		--baseline-dir data/eval/baselines/$(BASELINE_ID)
-	@echo "✓ Promotion complete. Review changes to model_registry.py before committing."
+	@echo "[ok] Promotion complete. Review changes to model_registry.py before committing."
 ```
 
 ### 4. Migration Strategy

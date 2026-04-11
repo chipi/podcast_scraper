@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft**
+**Completed (v2.6.0)** — `data/profiles/*.yaml`, `scripts/eval/freeze_profile.py`, `scripts/eval/diff_profiles.py`, Makefile `profile-freeze` / `profile-diff`, and resource fields consumed by RFC-066 / `tools/run_compare/`. Ongoing profile refresh per release remains operational hygiene, not an open design gap.
 
 ## RFC Number
 

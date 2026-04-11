@@ -1,6 +1,6 @@
 # PRD-015: Engineering Governance & Productivity Platform
 
-- **Status**: 📋 Draft
+- **Status**: Draft
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-031](../rfc/RFC-031-code-complexity-analysis-tooling.md) — complexity and quality tooling (**complete**)

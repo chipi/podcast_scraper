@@ -347,7 +347,7 @@ The two modes feed into each other naturally:
 │  Agent updates e2e/*.spec.ts                    │
 │  → make test-ui-e2e (full suite, Firefox)       │
 │  → failures? fix + re-run                       │
-│  → green ✓                                      │
+│  → green [ok]                                      │
 └─────────────────────────────────────────────────┘
                     ↓
             Ready to commit
@@ -587,15 +587,57 @@ What CI provides today:
 | ---- | ------ |
 | `make test-ui-e2e` as PR gate | Done (`viewer-e2e` job) |
 | Playwright traces on first retry | Done (`trace: 'on-first-retry'` in config) |
-| Trace/report upload as CI artifacts | Not yet — see [WIP ideas](../wip/WIP-agent-browser-ci-ideas.md) |
+| Trace/report upload as CI artifacts | Not yet — see backlog §1 below |
 
 **Practical next step:** upload Playwright trace zips and the HTML report as CI
 artifacts on failure. When a CI-only failure is hard to reproduce locally, the agent
 can download the trace and inspect DOM snapshots, network calls, and console logs
 post-mortem — closing the loop between CI and the local agent workflow.
 
-For additional CI enhancement ideas (screenshot diffs, console error gate,
-accessibility audit), see [WIP: Agent-browser CI ideas](../wip/WIP-agent-browser-ci-ideas.md).
+### CI enhancement backlog (optional)
+
+Ideas not yet implemented in `.github/workflows/`; pick up when useful.
+
+| # | Idea | Effort | Value | Suggested order |
+| -: | ---- | ------ | ----- | --------------- |
+| 1 | Upload HTML report + `test-results/` (traces) as artifacts on failure | Low | High | **First** |
+| 2 | Global `page.on('console')` gate for unexpected `console.error` | Low | Medium | Second |
+| 3 | `toHaveScreenshot` visual regression on 4–6 key surfaces | Medium | Medium-high | Third |
+| 4 | axe-core scans on a few key states (`@axe-core/playwright`) | Medium | Medium | Fourth |
+
+**1 — Artifact upload (sketch)** — in the viewer E2E workflow, on `failure()`:
+
+```yaml
+- name: Upload Playwright report on failure
+  if: failure()
+  uses: actions/upload-artifact@v4
+  with:
+    name: playwright-report
+    path: web/gi-kg-viewer/playwright-report/
+    retention-days: 14
+
+- name: Upload Playwright traces on failure
+  if: failure()
+  uses: actions/upload-artifact@v4
+  with:
+    name: playwright-traces
+    path: web/gi-kg-viewer/test-results/
+    retention-days: 14
+```
+
+Local inspection: `npx playwright show-trace test-results/.../trace.zip`.
+
+**2 — Console error gate** — in shared fixtures, collect `console.error`, allowlist
+known benign noise, then annotate or fail in `afterEach`. Start with annotations
+before hard-failing; Vue dev warnings need filtering.
+
+**3 — Screenshot diffs** — `await expect(page).toHaveScreenshot('name.png', {
+maxDiffPixelRatio: 0.01, animations: 'disabled' })`; commit baselines from Linux CI;
+mock APIs for deterministic pixels (see existing mock specs).
+
+**4 — Accessibility audit** — `AxeBuilder` with `wcag2a` / `wcag2aa`; triage initial
+violations, allowlist minor issues, then enforce no new critical regressions on a
+small set of routes/states.
 
 ---
 

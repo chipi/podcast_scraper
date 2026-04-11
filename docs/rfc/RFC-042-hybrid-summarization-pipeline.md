@@ -131,10 +131,10 @@ The root cause is **model-pipeline mismatch**.
 
 Classic summarization models (BART, LED, PEGASUS):
 
-- ❌ Are **not instruction-following models**
-- ❌ Were trained primarily on **clean news-style prose** (CNN/DailyMail, XSum)
-- ❌ Treat **all input text as equally salient content**
-- ❌ Do not reliably distinguish between:
+- Are **not instruction-following models**
+- Were trained primarily on **clean news-style prose** (CNN/DailyMail, XSum)
+- Treat **all input text as equally salient content**
+- Do not reliably distinguish between:
   - content vs instructions
   - metadata vs source text
   - schema vs information
@@ -182,11 +182,11 @@ We want a local ML platform that:
 
 ## 4. Non-Goals
 
-- ❌ End-to-end training or fine-tuning of large models
-- ❌ Fully extractive summarization
-- ❌ Reliance on proprietary cloud-only APIs
-- ❌ Replacing the existing ML provider (this is additive)
-- ❌ Supporting all hardware configurations in v1 (focus on Mac)
+- End-to-end training or fine-tuning of large models
+- Fully extractive summarization
+- Reliance on proprietary cloud-only APIs
+- Replacing the existing ML provider (this is additive)
+- Supporting all hardware configurations in v1 (focus on Mac)
 
 ---
 
@@ -1299,12 +1299,12 @@ infrastructure that this RFC depends on.
 
 **Cons (Observed):**
 
-- ❌ Strong extractive bias on transcripts
-- ❌ Echoing of schema and scaffolding text
-- ❌ Poor adherence to output structure
-- ❌ Inability to reliably ignore ads, intros, or meta-text
+- Strong extractive bias on transcripts
+- Echoing of schema and scaffolding text
+- Poor adherence to output structure
+- Inability to reliably ignore ads, intros, or meta-text
 
-**Decision:** ❌ **Rejected** due to persistent quality failures despite extensive tuning.
+**Decision:** **Rejected** due to persistent quality failures despite extensive tuning.
 
 ---
 
@@ -1319,11 +1319,11 @@ infrastructure that this RFC depends on.
 
 **Cons:**
 
-- ❌ Long-context requirements are expensive (30-90 min = 40k+ tokens)
-- ❌ Higher memory and latency costs
-- ❌ Less efficient for iterative experimentation
+- Long-context requirements are expensive (30-90 min = 40k+ tokens)
+- Higher memory and latency costs
+- Less efficient for iterative experimentation
 
-**Decision:** ❌ **Rejected** for cost/performance reasons on long (30–90 min) transcripts.
+**Decision:** **Rejected** for cost/performance reasons on long (30–90 min) transcripts.
 
 ---
 
@@ -1337,11 +1337,11 @@ infrastructure that this RFC depends on.
 
 **Cons:**
 
-- ❌ Requires large curated dataset (hundreds of transcript-summary pairs)
-- ❌ High training cost (GPU time, expertise)
-- ❌ Still limited instruction-following ability
+- Requires large curated dataset (hundreds of transcript-summary pairs)
+- High training cost (GPU time, expertise)
+- Still limited instruction-following ability
 
-**Decision:** ❌ **Out of scope** for now (may revisit in future).
+**Decision:** **Out of scope** for now (may revisit in future).
 
 ---
 
@@ -1356,11 +1356,11 @@ infrastructure that this RFC depends on.
 
 **Cons:**
 
-- ❌ Not fully local (requires API calls)
-- ❌ Ongoing costs per episode
-- ❌ Privacy concerns for sensitive podcasts
+- Not fully local (requires API calls)
+- Ongoing costs per episode
+- Privacy concerns for sensitive podcasts
 
-**Decision:** ❌ **Rejected** for v2.5 (goal is fully local). May offer as alternative provider later.
+**Decision:** **Rejected** for v2.5 (goal is fully local). May offer as alternative provider later.
 
 ---
 
@@ -1422,13 +1422,13 @@ The hybrid provider is considered successful if:
 
 ### 17.3 Out of Scope (Phase 1)
 
-- ❌ Quantitative metrics (ROUGE, BLEU, BERTScore) - defer to RFC-041
-- ❌ Cost/performance benchmarks - defer to RFC-041
-- ❌ **Full vs layered preprocessing A/B** (e.g. internal `cleaning_v4` vs
+- Quantitative metrics (ROUGE, BLEU, BERTScore) - defer to RFC-041
+- Cost/performance benchmarks - defer to RFC-041
+- **Full vs layered preprocessing A/B** (e.g. internal `cleaning_v4` vs
   `cleaning_hybrid_after_pattern` after pattern workflow cleaning) — defer to RFC-041;
   fingerprint `transcript_cleaning_strategy`, internal preprocessing profile, and mode ID in
   experiment metadata
-- ❌ User studies - defer to future work
+- User studies - defer to future work
 
 **Rationale:** Keep Phase 1 focused on qualitative validation. Quantitative benchmarking can leverage RFC-041 infrastructure once implemented.
 

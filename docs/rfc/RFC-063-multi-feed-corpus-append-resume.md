@@ -1,6 +1,6 @@
 # RFC-063: Multi-Feed Corpus, Append/Resume, and Unified Discovery
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0)
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: Maintainer
 - **Related PRDs**:
@@ -227,13 +227,13 @@ searchable; failed feeds add no metadata until a later successful run.
 
 ## Alternatives Considered
 
-1. **Per-feed only (no parent index)**  
+1. **Per-feed only (no parent index)**
    **Pros**: No indexer changes. **Cons**: Conflicts with unified search/viewer goal; N manual index passes.
 
-2. **Flat global `metadata/` (no `feeds/`)**  
+2. **Flat global `metadata/` (no `feeds/`)**
    **Pros**: Simple glob. **Cons**: Collides with stable feed scoping, migration pain, harder per-feed deletes.
 
-3. **SQLite-first resume**  
+3. **SQLite-first resume**
    **Pros**: Strong consistency. **Cons**: Out of scope for v1; user chose filesystem + `index.json` first.
 
 ## Testing Strategy

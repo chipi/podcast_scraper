@@ -3,7 +3,7 @@
 **Audience:** Developers who want a **live** view of pipeline stage, elapsed time, RSS, and CPU%
 while a run is in progress.
 
-**Normative design:** [RFC-065: Live Pipeline Monitor](../rfc/RFC-065-live-pipeline-monitor.md)  
+**Normative design:** [RFC-065: Live Pipeline Monitor](../rfc/RFC-065-live-pipeline-monitor.md)
 **Tracking:** [GitHub #512](https://github.com/chipi/podcast_scraper/issues/512)
 
 ---

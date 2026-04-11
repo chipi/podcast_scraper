@@ -306,10 +306,10 @@ python -m black --version  # Should show latest in range (e.g., 26.1.0)
 
 **Common symptoms of stale venv:**
 
-- ✅ Local: `make format-check` passes
-- ❌ CI: `make format-check` fails with "would reformat"
-- ✅ Local: `make lint` passes
-- ❌ CI: `make lint` fails with different errors
+- Local: `make format-check` passes
+- CI: `make format-check` fails with "would reformat"
+- Local: `make lint` passes
+- CI: `make lint` fails with different errors
 - Tool versions differ: `python -m black --version` shows older version than CI logs
 
 **Prevention:**
@@ -364,11 +364,11 @@ use OpenAI providers or want to customize logging, paths, or performance setting
 
 **Security notes:**
 
-- ✅ `.env` is in `.gitignore` (never committed)
-- ✅ `config/examples/.env.example` is safe to commit (template only)
-- ✅ API keys are never logged or exposed
-- ✅ Environment variables take precedence over `.env` file
-- ✅ HuggingFace model loading uses `trust_remote_code=False`; only enable `trust_remote_code=True` if a model's documentation explicitly requires it and the source is trusted (Issue #429).
+- `.env` is in `.gitignore` (never committed)
+- `config/examples/.env.example` is safe to commit (template only)
+- API keys are never logged or exposed
+- Environment variables take precedence over `.env` file
+- HuggingFace model loading uses `trust_remote_code=False`; only enable `trust_remote_code=True` if a model's documentation explicitly requires it and the source is trusted (Issue #429).
 
 **Priority order** (for each configuration field):
 
@@ -693,11 +693,11 @@ This project includes comprehensive AI coding guidelines to ensure consistent co
 
 Different AI assistants load guidelines from different locations:
 
-| Tool               | Entry Point                       | Auto-Loaded            |
-| ------------------ | --------------------------------- | ---------------------- |
-| **Cursor**         | `.cursor/rules/ai-guidelines.mdc` | ✅ Yes (modern format) |
-| **Claude Desktop** | `CLAUDE.md` (root directory)      | ✅ Yes                 |
-| **GitHub Copilot** | `.github/copilot-instructions.md` | ✅ Yes                 |
+| Tool               | Entry Point                       | Auto-Loaded           |
+| ------------------ | --------------------------------- | --------------------- |
+| **Cursor**         | `.cursor/rules/ai-guidelines.mdc` | Yes (modern format)   |
+| **Claude Desktop** | `CLAUDE.md` (root directory)      | Yes                   |
+| **GitHub Copilot** | `.github/copilot-instructions.md` | Yes                   |
 
 **All entry points reference `.ai-coding-guidelines.md` as the primary source.**
 
@@ -715,9 +715,9 @@ git status
 
 **What to look for:**
 
-- ❌ If you see "Changes not staged for commit" → You have uncommitted changes
-- ❌ If you see "Untracked files" → You have new files
-- ✅ If you see "nothing to commit, working tree clean" → You're good to go!
+- If you see "Changes not staged for commit" → You have uncommitted changes
+- If you see "Untracked files" → You have new files
+- If you see "nothing to commit, working tree clean" → You're good to go!
 
 **Step 2: Handle Uncommitted Changes (if any)**
 
@@ -757,10 +757,10 @@ git status --porcelain
 
 **What happens if you don't follow this:**
 
-- ❌ Uncommitted changes from previous work get included in your new branch
-- ❌ Your commit will show more files than you actually changed
-- ❌ PR will show confusing diffs with unrelated changes
-- ❌ Harder to review and understand what actually changed
+- Uncommitted changes from previous work get included in your new branch
+- Your commit will show more files than you actually changed
+- PR will show confusing diffs with unrelated changes
+- Harder to review and understand what actually changed
 
 **Example: Clean Branch Creation**
 
@@ -771,7 +771,7 @@ git status --porcelain
 $ git status
 On branch main
 Your branch is up to date with 'origin/main'.
-nothing to commit, working tree clean  ✅
+nothing to commit, working tree clean
 
 # 2. Pull latest
 
@@ -787,7 +787,7 @@ Switched to a new branch 'issue-117-output-organization'
 
 $ git status
 On branch issue-117-output-organization
-nothing to commit, working tree clean  ✅
+nothing to commit, working tree clean
 ```
 
 **NEVER commit without:**
@@ -994,7 +994,7 @@ from podcast_scraper.models import Episode
 
 ## Every New Function Needs
 
-✅ **Unit test with mocks for external dependencies:**
+**Unit test with mocks for external dependencies:**
 
 ```python
 @patch("podcast_scraper.rss.downloader.requests.Session")
@@ -1008,7 +1008,7 @@ def test_fetch_url_with_retry(self, mock_session):
     self.assertEqual(result, "Success")
 ```
 
-✅ **Descriptive test names:**
+**Descriptive test names:**
 
 ```python
 
@@ -1255,11 +1255,11 @@ Workflows are configured to skip when irrelevant files change:
 
 | Files Changed | Python App | Docs | CodeQL | Time Savings |
 | ------------- | ---------- | ---- | ------ | ------------ |
-| Only `docs/` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
-| Only `.py` | ✅ Run | ✅ Run | ✅ Run | - |
-| Only `README.md` | ❌ Skip | ✅ Run | ❌ Skip | ~18 minutes |
-| `pyproject.toml` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
-| `Dockerfile` | ✅ Run | ❌ Skip | ❌ Skip | ~5 minutes |
+| Only `docs/` | Skip | Run | Skip | ~18 minutes |
+| Only `.py` | Run | Run | Run | - |
+| Only `README.md` | Skip | Run | Skip | ~18 minutes |
+| `pyproject.toml` | Run | Skip | Skip | ~5 minutes |
+| `Dockerfile` | Run | Skip | Skip | ~5 minutes |
 
 This optimization provides fast feedback for documentation updates while maintaining full validation for code changes.
 

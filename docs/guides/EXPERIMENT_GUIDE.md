@@ -56,17 +56,17 @@ A baseline represents **how the default app behaves** for a given task, dataset,
 
 **Key points:**
 
-- ✅ **Baseline params = default app params** - The configuration used in a baseline should match what users get by default
-- ✅ **Baseline pipeline = default app pipeline** - The processing steps should match the default workflow
-- ✅ **Baseline output = what users should expect today** - The results represent current production behavior
+- **Baseline params = default app params** - The configuration used in a baseline should match what users get by default
+- **Baseline pipeline = default app pipeline** - The processing steps should match the default workflow
+- **Baseline output = what users should expect today** - The results represent current production behavior
 
 **This is not just "ok" — this is the point of a baseline.**
 
 ### Critical Clarification: Baseline ≠ "Whatever the App Happens to Do"
 
-❌ **Wrong approach:** Baseline = "whatever the app happens to do right now"
+**Wrong approach:** Baseline = "whatever the app happens to do right now"
 
-✅ **Correct approach:** Baseline = explicitly frozen snapshot of default app behavior
+**Correct approach:** Baseline = explicitly frozen snapshot of default app behavior
 
 **Why this matters:**
 
@@ -96,24 +96,24 @@ baseline config  ──► app default behavior
 **Not:**
 
 ```text
-app default (mutable) ──► baseline (moving target) ❌
+app default (mutable) ──► baseline (moving target)
 ```
 
 ### Why This Distinction is Important
 
 **If you treat baseline as "whatever the app currently does":**
 
-- ❌ Regressions slip in unnoticed
-- ❌ Metrics history becomes meaningless
-- ❌ You can't explain why quality changed
-- ❌ Rollbacks become guesswork
+- Regressions slip in unnoticed
+- Metrics history becomes meaningless
+- You can't explain why quality changed
+- Rollbacks become guesswork
 
 **If you treat baseline as the authority:**
 
-- ✅ App behavior is intentional
-- ✅ Changes are deliberate
-- ✅ Comparisons are meaningful
-- ✅ Rollbacks are trivial
+- App behavior is intentional
+- Changes are deliberate
+- Comparisons are meaningful
+- Rollbacks are trivial
 
 ### How This Applies to Your Setup
 
@@ -142,9 +142,9 @@ If you can't answer that, the baseline isn't doing its job.
 
 Just to be clear:
 
-- ❌ Baselines are not "best possible quality"
-- ❌ Baselines are not "experiments"
-- ❌ Baselines are not "aspirational targets"
+- Baselines are not "best possible quality"
+- Baselines are not "experiments"
+- Baselines are not "aspirational targets"
 
 Those are:
 

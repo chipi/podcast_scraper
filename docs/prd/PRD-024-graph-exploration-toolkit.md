@@ -1,5 +1,7 @@
 # PRD-024: GI/KG Graph Exploration Toolkit (Viewer)
 
+- **Status**: Completed (v2.6.0) — [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) implemented in `web/gi-kg-viewer` (Graph tab: zoom UI, minimap, degree buckets, layouts, box zoom).
+
 ## Summary
 
 Expand the **Graph** tab in the GI/KG viewer (`web/gi-kg-viewer`) with a **single delivery pass** of graph-native controls: clearer zoom/pan affordances, **minimap (in v1)**, type/degree summaries (degree buckets **act as a filter** when clicked), edge visibility controls, **simple** built-in layouts only (cose, breadthfirst, circle, grid), **Shift+drag** box zoom, and zoom **%** readout. **Zoom reset = 100%** (`zoom(1)`); **Fit** remains fit-to-viewport. Goal is to make large merged corpora explorable without leaving the graph surface, while preserving existing behavior (filters, search highlights, ego neighborhood, export).

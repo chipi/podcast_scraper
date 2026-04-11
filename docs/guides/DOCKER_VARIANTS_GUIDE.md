@@ -352,19 +352,19 @@ jobs:
 
 **Choose LLM-only if:**
 
-- ✅ You only use OpenAI/API providers
-- ✅ You want smaller images and faster builds
-- ✅ You have reliable internet for API calls
-- ✅ You prefer API-based processing
+- You only use OpenAI/API providers
+- You want smaller images and faster builds
+- You have reliable internet for API calls
+- You prefer API-based processing
 
 **Choose ML-enabled if:**
 
-- ✅ You want local Whisper transcription
-- ✅ You want local spaCy speaker detection
-- ✅ You want local Transformers summarization
-- ✅ You need offline capability
-- ✅ You want to avoid API costs
-- ✅ You prioritize privacy (local processing)
+- You want local Whisper transcription
+- You want local spaCy speaker detection
+- You want local Transformers summarization
+- You need offline capability
+- You want to avoid API costs
+- You prioritize privacy (local processing)
 
 ## Related Documentation
 

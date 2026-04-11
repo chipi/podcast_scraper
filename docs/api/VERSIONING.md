@@ -73,27 +73,27 @@ When we need to make breaking changes:
 
 ### What We Guarantee
 
-✅ **Backward compatibility within major versions:**
+**Backward compatibility within major versions:**
 
 - Minor and patch releases are backward compatible.
 - Existing configuration files continue to work.
 - Deprecation warnings are provided at least one minor version before removal.
 
-✅ **Clear migration paths:**
+**Clear migration paths:**
 
 - Breaking changes are documented in the [Migration Guide](MIGRATION_GUIDE.md).
 
 ### What We Don't Guarantee
 
-❌ **Internal API stability:**
+**Internal API stability:**
 
 - Internal modules and private functions/classes may change.
 
-❌ **CLI output format:**
+**CLI output format:**
 
 - CLI output may change for better user experience. Use the **Service API** for programmatic parsing.
 
-❌ **Filesystem layout:**
+**Filesystem layout:**
 
 - The directory structure of the output may evolve (e.g., v2.4.0 introduction of `transcripts/` subfolder).
 

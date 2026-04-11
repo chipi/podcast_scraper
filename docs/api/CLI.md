@@ -323,21 +323,21 @@ python -m podcast_scraper.cli doctor
 **Example output:**
 
 ```text
-✓ Checking Python version...
-  ✓ Python 3.11.9 (required: 3.10+)
+[ok] Checking Python version...
+  [ok] Python 3.11.9 (required: 3.10+)
 
-✓ Checking ffmpeg...
-  ✓ ffmpeg version 6.0
+[ok] Checking ffmpeg...
+  [ok] ffmpeg version 6.0
 
-✓ Checking write permissions...
-  ✓ Output directory is writable
+[ok] Checking write permissions...
+  [ok] Output directory is writable
 
-✓ Checking ML model caches...
-  ✓ Whisper: 2 models cached (245 MB)
-  ✓ Transformers: 3 models cached (1.2 GB)
-  ✓ spaCy: 1 model cached (45 MB)
+[ok] Checking ML model caches...
+  [ok] Whisper: 2 models cached (245 MB)
+  [ok] Transformers: 3 models cached (1.2 GB)
+  [ok] spaCy: 1 model cached (45 MB)
 
-✓ All checks passed!
+[ok] All checks passed!
 ```
 
 **Exit codes:**

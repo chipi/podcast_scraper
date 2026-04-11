@@ -87,15 +87,15 @@ flowchart TD
 
   | Provider | Transcription | Speaker Detection | Summarization | Notes |
   | --- | --- | --- | --- | --- |
-  | `MLProvider` | ✅ Whisper | ✅ spaCy NER | ✅ Transformers | Local, no API cost |
-  | `HybridMLProvider` | ❌ | ❌ | ✅ MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
-  | `OpenAIProvider` | ✅ Whisper API | ✅ GPT API | ✅ GPT API | Cloud, prompt-managed |
-  | `GeminiProvider` | ✅ Gemini API | ✅ Gemini API | ✅ Gemini API | 2M context, native audio |
-  | `AnthropicProvider` | ❌ | ✅ Claude API | ✅ Claude API | High quality reasoning |
-  | `MistralProvider` | ❌ | ✅ Mistral API | ✅ Mistral API | OpenAI alternative |
-  | `DeepSeekProvider` | ❌ | ✅ DeepSeek API | ✅ DeepSeek API | Ultra low-cost |
-  | `GrokProvider` | ❌ | ✅ Grok API | ✅ Grok API | Real-time info (xAI) |
-  | `OllamaProvider` | ❌ | ✅ Ollama API | ✅ Ollama API | Local LLM, zero cost |
+  | `MLProvider` | Whisper | spaCy NER | Transformers | Local, no API cost |
+  | `HybridMLProvider` | No | | MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
+  | `OpenAIProvider` | Whisper API | GPT API | GPT API | Cloud, prompt-managed |
+  | `GeminiProvider` | Gemini API | Gemini API | Gemini API | 2M context, native audio |
+  | `AnthropicProvider` | No | Claude API | Claude API | High quality reasoning |
+  | `MistralProvider` | No | Mistral API | Mistral API | OpenAI alternative |
+  | `DeepSeekProvider` | No | DeepSeek API | DeepSeek API | Ultra low-cost |
+  | `GrokProvider` | No | Grok API | Grok API | Real-time info (xAI) |
+  | `OllamaProvider` | No | Ollama API | Ollama API | Local LLM, zero cost |
 
   - **Factories**: Factory functions in `transcription/factory.py`, `speaker_detectors/factory.py`, and `summarization/factory.py` create the appropriate unified provider based on configuration.
   - **Capabilities**: `providers/capabilities.py` defines `ProviderCapabilities` — a dataclass describing what each provider supports (JSON mode, tool calls, streaming, etc.). Used by factories and orchestration to select appropriate providers.

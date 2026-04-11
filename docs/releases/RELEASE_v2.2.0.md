@@ -9,7 +9,7 @@ v2.2.0 introduces comprehensive per-episode metadata document generation (PRD-00
 
 ## Key Features
 
-### 📋 PRD-004 & RFC-011: Per-Episode Metadata Document Generation (Implemented)
+### PRD-004 & RFC-011: Per-Episode Metadata Document Generation (Implemented)
 
 **Comprehensive structured metadata for every episode:**
 
@@ -83,12 +83,12 @@ metadata_subdirectory: "metadata"   # Optional: separate metadata directory
 
 **Benefits:**
 
-- ✅ Direct database ingestion without custom transformation code
-- ✅ Searchable episode metadata (guests, dates, topics)
-- ✅ Analytics-ready structured data
-- ✅ Complete archival context alongside transcripts
-- ✅ Integration-friendly format for other tools
-- ✅ Future-proof with schema versioning
+- Direct database ingestion without custom transformation code
+- Searchable episode metadata (guests, dates, topics)
+- Analytics-ready structured data
+- Complete archival context alongside transcripts
+- Integration-friendly format for other tools
+- Future-proof with schema versioning
 
 **Related Documentation:**
 

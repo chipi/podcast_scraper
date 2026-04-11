@@ -253,5 +253,5 @@ This section states what the NFR document and the project currently **do not** f
 
 ---
 
-**Last Updated**: 2026-04-11  
+**Last Updated**: 2026-04-11
 **Next Review**: When major NFR-related work ships (e.g. model registry, observability platform) or at least annually.

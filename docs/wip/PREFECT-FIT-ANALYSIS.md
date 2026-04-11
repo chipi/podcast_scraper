@@ -1,7 +1,7 @@
 # Prefect Fit Analysis for podcast_scraper Pipeline
 
-**Status:** Analysis  
-**Date:** 2026-02-10  
+**Status:** Analysis
+**Date:** 2026-02-10
 **Context:** Evaluate [Prefect](https://docs.prefect.io/) as a next step to make the pipeline better, more robust, and easier to manage.
 
 ## Primary usage: CLI and service (unchanged)
@@ -129,19 +129,19 @@ Prefect 3.x is open-source; you can self-host the server or use Prefect Cloud. L
 
 ### 3.1 Where Prefect Clearly Helps
 
-1. **Observability**  
+1. **Observability**
    Run manifests and logs are good; a Prefect UI gives run history, per-run logs, and a DAG of steps. Helpful for debugging long runs and for non-developers.
 
-2. **Scheduling and deployment**  
+2. **Scheduling and deployment**
    Prefect deployments + schedules (cron or interval) can replace cron/systemd for “run pipeline every night” with a single definition and visibility in the UI. Fits “run on schedule” use cases (e.g. nightly scrape).
 
-3. **Resumability**  
+3. **Resumability**
    Today: fail-fast or continue with degradation; no “resume from episode N” or “resume from last successful stage.” Prefect’s state and checkpointing could support “resume from last successful task” if you expose stages as tasks.
 
-4. **Future workflows (GIL, multi-feed)**  
+4. **Future workflows (GIL, multi-feed)**
    With GIL (RFC-049) and possibly multiple feeds or conditional branches, Prefect’s dynamic tasks and flow composition fit well (e.g. one flow per feed, or mapped tasks per episode).
 
-5. **Per-task retries and caching**  
+5. **Per-task retries and caching**
    You have provider-level retries; Prefect can add task-level retries and caching (e.g. “transcribe episode” cached by episode id), reducing rework on partial failures.
 
 ### 3.2 Overlap and Migration Cost
@@ -153,13 +153,13 @@ Prefect 3.x is open-source; you can self-host the server or use Prefect Cloud. L
 
 ### 3.3 Tensions and Risks
 
-1. **Execution model**  
+1. **Execution model**
    You use a single process with a thread pool for episode downloads and in-process queues for Whisper. Prefect’s parallelism is task-based (separate task runs). To map “one task per episode” you’d need to decide: one flow per run with many “process_episode” tasks (more Prefect-native) vs. one flow that calls your existing “process all episodes” (keeps current concurrency, less Prefect granularity).
 
-2. **Dependency and ops**  
+2. **Dependency and ops**
    Prefect adds a dependency and, for UI/scheduling, a server (self-hosted or Cloud). For “local Mac” and simple daemon use, running Prefect without a server is fine; you only get limited observability.
 
-3. **Complexity**  
+3. **Complexity**
    Your pipeline is already robust. Prefect is most justified if you want: better visibility, first-class scheduling, or resume/cache behavior you don’t have today. If you only need “run on cron,” current cron + service API may be enough.
 
 ---
@@ -168,46 +168,46 @@ Prefect 3.x is open-source; you can self-host the server or use Prefect Cloud. L
 
 **CLI and service remain the primary interfaces.** Prefect is optional.
 
-- **Short term (low risk):**  
-  - Add an optional Prefect **wrapper**: a single flow that receives `Config` (or config path), calls `run_pipeline(cfg)`, and optionally writes run id to Prefect metadata.  
-  - Use Prefect **deployments + schedule** for “nightly run” instead of (or in addition to) cron.  
-  - Run with a Prefect server (or Cloud) when you want the UI; otherwise run the same flow with ephemeral API.  
+- **Short term (low risk):**
+  - Add an optional Prefect **wrapper**: a single flow that receives `Config` (or config path), calls `run_pipeline(cfg)`, and optionally writes run id to Prefect metadata.
+  - Use Prefect **deployments + schedule** for “nightly run” instead of (or in addition to) cron.
+  - Run with a Prefect server (or Cloud) when you want the UI; otherwise run the same flow with ephemeral API.
   - This gives: scheduling as code, one place to see runs, and no refactor of existing orchestration.
 
-- **Medium term (if you want more):**  
-  - If you need “resume from last successful stage” or per-episode retries/caching, refactor stages into Prefect tasks and pass minimal state (e.g. output dir, episode list, job queue) between tasks.  
+- **Medium term (if you want more):**
+  - If you need “resume from last successful stage” or per-episode retries/caching, refactor stages into Prefect tasks and pass minimal state (e.g. output dir, episode list, job queue) between tasks.
   - Consider this when you introduce GIL or multi-feed flows, so the new design is Prefect-native from the start.
 
-- **What to keep regardless:**  
-  - Run manifests and reproducibility (seeds, config hash, env).  
-  - Degradation policy and `--fail-fast` / `--max-failures` (Prefect retries are complementary).  
+- **What to keep regardless:**
+  - Run manifests and reproducibility (seeds, config hash, env).
+  - Degradation policy and `--fail-fast` / `--max-failures` (Prefect retries are complementary).
   - Provider-level retries and timeouts; add Prefect task retries only where they add value (e.g. “fetch RSS” or “transcribe episode”).
 
 ---
 
 ## 5. Next Steps (If You Proceed)
 
-1. **Spike (1–2 days):**  
-   - Install Prefect in a dev environment.  
-   - Implement one flow that loads config and calls `run_pipeline(cfg)`.  
-   - Run it locally with ephemeral API; then with a local Prefect server and open the UI.  
+1. **Spike (1–2 days):**
+   - Install Prefect in a dev environment.
+   - Implement one flow that loads config and calls `run_pipeline(cfg)`.
+   - Run it locally with ephemeral API; then with a local Prefect server and open the UI.
    - Add a Prefect deployment with a simple schedule (e.g. daily); run it once.
 
-2. **Document:**  
-   - Add a short “Orchestrating with Prefect” section to the docs (optional path; CLI and service API remain the main interfaces).  
+2. **Document:**
+   - Add a short “Orchestrating with Prefect” section to the docs (optional path; CLI and service API remain the main interfaces).
    - Note in ARCHITECTURE.md that Prefect is an optional orchestration layer on top of `run_pipeline`.
 
-3. **Decide on server:**  
+3. **Decide on server:**
    - Self-hosted Prefect server vs. Prefect Cloud (auth, backups, upgrades). For a single team/solo, Cloud can reduce ops.
 
-4. **Revisit task-level adoption** when:  
-   - You implement GIL or multi-feed flows, or  
+4. **Revisit task-level adoption** when:
+   - You implement GIL or multi-feed flows, or
    - You need resume-from-failure or per-task caching and are willing to refactor orchestration.
 
 ---
 
 ## 6. References
 
-- [Prefect Introduction](https://docs.prefect.io/v3/get-started)  
-- Project: `docs/architecture/ARCHITECTURE.md`, `src/podcast_scraper/workflow/orchestration.py`, `src/podcast_scraper/service.py`, `src/podcast_scraper/workflow/degradation.py`  
+- [Prefect Introduction](https://docs.prefect.io/v3/get-started)
+- Project: `docs/architecture/ARCHITECTURE.md`, `src/podcast_scraper/workflow/orchestration.py`, `src/podcast_scraper/service.py`, `src/podcast_scraper/workflow/degradation.py`
 - RFCs: RFC-001 (workflow orchestration), RFC-049 (GIL), RFC-042 (hybrid summarization)

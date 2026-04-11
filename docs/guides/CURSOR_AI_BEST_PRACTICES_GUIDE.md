@@ -480,8 +480,8 @@ You: "@Rules testing-strategy
 **Example:**
 
 ```text
-❌ Bad: "Fix the CI failure" (no context)
-✅ Good: Select CI log output + paste into chat + "Analyze root cause of this CI failure"
+Bad: "Fix the CI failure" (no context)
+Good: Select CI log output + paste into chat + "Analyze root cause of this CI failure"
 ```
 
 **Words that push Auto upward:**
@@ -506,11 +506,11 @@ You: "@Rules testing-strategy
 **Project-specific examples:**
 
 ```text
-❌ "Fix the test failure"
-✅ "Analyze root cause of this test timeout and propose solutions with tradeoffs"
+"Fix the test failure"
+"Analyze root cause of this test timeout and propose solutions with tradeoffs"
 
-❌ "Update the workflow"
-✅ "Review this workflow change for architecture implications and potential risks"
+"Update the workflow"
+"Review this workflow change for architecture implications and potential risks"
 ```
 
 > "Give 2–3 viable approaches for implementing RFC-025 metrics collection, explain tradeoffs, recommend one."
@@ -565,16 +565,16 @@ You: "@Rules testing-strategy
 
 Cursor has **two different systems** for loading context:
 
-#### 1. `.cursorrules` (Root File) - AUTOMATIC ✅
+#### 1. `.cursorrules` (Root File) — automatic
 
 **Location:** `/.cursorrules` (project root)
 
 **How it works:**
 
-- ✅ **Loaded automatically** at session start
-- ✅ **Always active** for every AI interaction
-- ✅ **You do nothing** - Cursor reads it automatically
-- ✅ **Priority:** Highest - always in context
+- **Loaded automatically** at session start
+- **Always active** for every AI interaction
+- **You do nothing** - Cursor reads it automatically
+- **Priority:** Highest - always in context
 
 **What it contains (287 lines):**
 
@@ -586,16 +586,16 @@ Cursor has **two different systems** for loading context:
 
 **Think of it as:** Your project's "constitution" - always in effect.
 
-#### 2. `.cursor/rules/*.mdc` Files - MANUAL ON-DEMAND 📋
+#### 2. `.cursor/rules/*.mdc` Files — manual on-demand
 
 **Location:** `/.cursor/rules/` folder
 
 **How it works:**
 
-- ❌ **NOT loaded automatically** - Cursor ignores them by default
-- ✅ **Loaded manually** when you mention them with `@Rules`
-- ✅ **You control when** - Load specific context when needed
-- ✅ **Scope:** Current conversation only
+- **NOT loaded automatically** - Cursor ignores them by default
+- **Loaded manually** when you mention them with `@Rules`
+- **You control when** - Load specific context when needed
+- **Scope:** Current conversation only
 
 **How to load:**
 
@@ -633,16 +633,16 @@ AI now has: .cursorrules (always) + testing-strategy.mdc (just added)
 
 #### Use `.cursorrules` (Always Active)
 
-✅ Rules that apply to **every** interaction
-✅ Critical workflows (git, commits, pushes)
-✅ Code standards that never change
-✅ Architecture rules that must always be enforced
+Rules that apply to **every** interaction
+Critical workflows (git, commits, pushes)
+Code standards that never change
+Architecture rules that must always be enforced
 
 #### Use `@Rules *.mdc` (On-Demand)
 
-✅ **Specific workflows** you're about to perform
-✅ **Detailed guides** for complex tasks
-✅ **Context that's only sometimes relevant**
+**Specific workflows** you're about to perform
+**Detailed guides** for complex tasks
+**Context that's only sometimes relevant**
 
 **Examples:**
 
@@ -688,9 +688,9 @@ Refactor the workflow pipeline
 You: "Add a new function to rss/downloader.py"
 
 AI has access to:
-✅ .cursorrules (automatic)
-❌ testing-strategy.mdc (not loaded)
-❌ git-worktree.mdc (not loaded)
+.cursorrules (automatic)
+testing-strategy.mdc (not loaded)
+git-worktree.mdc (not loaded)
 
 AI uses .cursorrules to:
 - Follow module boundaries
@@ -705,8 +705,8 @@ You: "@Rules testing-strategy
      Help me write tests for the new downloader function"
 
 AI has access to:
-✅ .cursorrules (automatic)
-✅ testing-strategy.mdc (you just loaded it)
+.cursorrules (automatic)
+testing-strategy.mdc (you just loaded it)
 
 AI uses BOTH to:
 - Follow .cursorrules (always)
@@ -720,8 +720,8 @@ You: "@Rules git-worktree
      I need to create a new worktree for issue #200"
 
 AI has access to:
-✅ .cursorrules (automatic)
-✅ git-worktree.mdc (you just loaded it)
+.cursorrules (automatic)
+git-worktree.mdc (you just loaded it)
 
 AI provides:
 - Specific worktree commands
@@ -775,10 +775,10 @@ AI provides:
 
 ```text
 .cursor/prompts/
-├── debug-ci.txt          ✅ Created (Issue #95)
-├── design-rfc.md          ✅ Created (Issue #95)
-├── code-review.txt       ✅ Created (Issue #95)
-└── implementation-plan.txt ✅ Created (Issue #95)
+├── debug-ci.txt          Created (Issue #95)
+├── design-rfc.md          Created (Issue #95)
+├── code-review.txt       Created (Issue #95)
+└── implementation-plan.txt Created (Issue #95)
 ```
 
 **How to use:**
@@ -949,12 +949,12 @@ Optional later: **Docs check** (lint-markdown + docs), **PR prep** (status/diff 
 
 ```text
 
-❌ Bad: "Write tests for rss/downloader.py"
-✅ Good: "@Rules testing-strategy
+Bad: "Write tests for rss/downloader.py"
+Good: "@Rules testing-strategy
         Write tests for rss/downloader.py with appropriate pytest markers"
 
-❌ Bad: "Update README.md"
-✅ Good: "@Rules markdown-style
+Bad: "Update README.md"
+Good: "@Rules markdown-style
         Update README.md following project markdown standards"
 
 ```
@@ -963,11 +963,11 @@ Optional later: **Docs check** (lint-markdown + docs), **PR prep** (status/diff 
 
 **You don't need to mention these** - `.cursorrules` handles them:
 
-✅ Git workflow (never push to main)
-✅ Basic code standards (imports, type hints)
-✅ Testing requirement (`make ci-fast` before commit)
-✅ Module boundaries (high-level)
-✅ Documentation requirements
+Git workflow (never push to main)
+Basic code standards (imports, type hints)
+Testing requirement (`make ci-fast` before commit)
+Module boundaries (high-level)
+Documentation requirements
 
 **Example:**
 
@@ -1193,11 +1193,11 @@ This removes copy/paste entirely.
 
 ## Next Steps
 
-1. ✅ **Create prompt templates** in `.cursor/prompts/` (Completed - Issue #95):
-   - ✅ `debug-ci.txt`
-   - ✅ `design-rfc.md`
-   - ✅ `code-review.txt`
-   - ✅ `implementation-plan.txt`
+1. **Create prompt templates** in `.cursor/prompts/` (Completed - Issue #95):
+   - `debug-ci.txt`
+   - `design-rfc.md`
+   - `code-review.txt`
+   - `implementation-plan.txt`
 
 2. **Set up snippets** in Cursor/VS Code for quick access:
    - Convert prompts into VS Code snippets for instant access

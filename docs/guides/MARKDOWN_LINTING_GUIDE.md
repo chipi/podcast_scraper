@@ -36,6 +36,18 @@ For general development practices, see [Development Guide](DEVELOPMENT_GUIDE.md)
 - **Tables: avoid unless necessary** - Prefer lists when possible
 - **Table formatting** - Use spaces around pipes: `| Column |` (compact style)
 
+### Documentation prose (no checkmark emoji)
+
+In all markdown under `docs/` (including PRDs, RFCs, ADRs, guides, API docs, and `docs/wip/`):
+
+- **Do not** use ✅, ❌, 📋, or decorative ✓ as list bullets, table cells, or status prefixes.
+- **Prefer** plain words: Yes / No, Run / Skip, Done, Good / Bad, Allowed / Forbidden, or normal
+  bullets without emoji.
+- **Fictional CLI samples** in docs: use a neutral marker such as `[ok]` instead of ✓.
+
+Rationale: the project dropped checkmark styling in published docs; keep new edits consistent.
+Agents: see `.cursor/rules/documentation.mdc` (load when editing markdown per project rules).
+
 ### Links
 
 - **Descriptive link text** - Use `[Link Text](url)` not `[url](url)`
@@ -212,13 +224,13 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
 ## Table Formatting Rules
 
 1. **Compact style**: Tables need spaces around pipes
-   - ❌ Bad: `|Column1|Column2|`
-   - ✅ Good: `| Column1 | Column2 |`
+   - Bad: `|Column1|Column2|`
+   - Good: `| Column1 | Column2 |`
 
 2. **Aligned style**: ALL rows (header, separator, and data) must have pipes at the same column positions
-   - ❌ Bad: `| Header |` followed by `|-------|` (separator misaligned)
-   - ❌ Bad: `| Header |` followed by `| Value |` (data row pipes don't align)
-   - ✅ Good: All pipes align vertically:
+   - Bad: `| Header |` followed by `|-------|` (separator misaligned)
+   - Bad: `| Header |` followed by `| Value |` (data row pipes don't align)
+   - Good: All pipes align vertically:
 
      ```markdown
      | Header | Column2 |
@@ -229,9 +241,9 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
 3. **Compact style**: Consistent spacing throughout
    - Separator row: No spaces around pipes `|----------|`
    - Data rows: Minimal spacing `| Value |` (not `| Value  |` with extra spaces)
-   - ❌ Bad: `| Header |` followed by `| -------- |` (separator has spaces)
-   - ❌ Bad: `| Value  |` (extra spaces in data row)
-   - ✅ Good: `| Header |` followed by `|----------|` and `| Value |`
+   - Bad: `| Header |` followed by `| -------- |` (separator has spaces)
+   - Bad: `| Value  |` (extra spaces in data row)
+   - Good: `| Header |` followed by `|----------|` and `| Value |`
 
 ### Solution: Use Python to Generate Exact Alignment
 
@@ -266,7 +278,7 @@ d2_pipes = [i for i, c in enumerate(data2) if c == '|']
 assert h_pipes == d1_pipes == d2_pipes, "Pipes must align exactly!"
 assert len(header) == len(data1) == len(data2), "All rows must be same length!"
 
-print("✅ Alignment verified!")
+print("Alignment verified!")
 ```
 
 - **Column width** = distance between pipes (e.g., 11-0=11, 27-11=16)
@@ -286,7 +298,7 @@ print("✅ Alignment verified!")
 
 ## Pre-commit Hook
 
-**✅ Already Integrated!** The project includes a pre-commit hook (`.github/hooks/pre-commit`) that automatically checks markdown files before commits.
+**Already Integrated!** The project includes a pre-commit hook (`.github/hooks/pre-commit`) that automatically checks markdown files before commits.
 
 **Install the hook:**
 
@@ -302,10 +314,10 @@ cp .github/hooks/pre-commit .git/hooks/pre-commit
 chmod +x .git/hooks/pre-commit
 ```
 
-- ✅ Automatically checks staged markdown files before each commit
-- ✅ Uses same ignore patterns as `make lint-markdown`
-- ✅ Prevents commits with markdown linting errors
-- ✅ Auto-fix support (see below)
+- Automatically checks staged markdown files before each commit
+- Uses same ignore patterns as `make lint-markdown`
+- Prevents commits with markdown linting errors
+- Auto-fix support (see below)
 
 **Enable auto-fix in pre-commit hook:**
 
@@ -334,16 +346,16 @@ git commit --no-verify
 
 **Pre-commit Hook:**
 
-- ✅ Already installed and active
-- ✅ Checks only staged files (fast)
-- ✅ Uses same rules as CI/CD
-- ✅ Optional auto-fix with `MARKDOWNLINT_FIX=1`
+- Already installed and active
+- Checks only staged files (fast)
+- Uses same rules as CI/CD
+- Optional auto-fix with `MARKDOWNLINT_FIX=1`
 
 **CI/CD:**
 
-- ✅ Checks all markdown files
-- ✅ Fails build on any errors
-- ✅ Ensures consistency across all files
+- Checks all markdown files
+- Fails build on any errors
+- Ensures consistency across all files
 
 ## Lessons Learned from Large-Scale Cleanup
 

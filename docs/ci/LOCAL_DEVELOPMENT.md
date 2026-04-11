@@ -29,11 +29,11 @@ Install the git pre-commit hook to automatically check your code before every co
 make install-hooks
 ```
 
-- ✅ **Black** formatting check (staged `.py` files only)
-- ✅ **isort** import sorting check (staged `.py` files only)
-- ✅ **flake8** linting (staged `.py` files only)
-- ✅ **markdownlint** (if installed; staged `.md` files only)
-- ✅ **mypy** on the **entire** repo (`mypy .`), with `PYTHONPATH` including the repo root — same as CI `make type`. Any error fails the commit, not only errors in staged files.
+- **Black** formatting check (staged `.py` files only)
+- **isort** import sorting check (staged `.py` files only)
+- **flake8** linting (staged `.py` files only)
+- **markdownlint** (if installed; staged `.md` files only)
+- **mypy** on the **entire** repo (`mypy .`), with `PYTHONPATH` including the repo root — same as CI `make type`. Any error fails the commit, not only errors in staged files.
 
 **If any check fails, the commit is blocked** until you fix the issues.
 
@@ -148,37 +148,37 @@ graph TD
 
 ```text
 
-### ✅ Prevention
+### Prevention
 
 - **Pre-commit hooks:** Catch issues before they're committed
 - **Local CI validation:** `make ci` runs full suite before push
 - **Auto-fix formatting:** `make format` fixes issues automatically
 
-### ✅ Speed
+### Speed
 
 - **Parallel execution:** All independent jobs run simultaneously
 - **Caching:** Pip cache for faster dependency installation
 - **Early feedback:** Fast lint job without ML dependencies
 
-### ✅ Reliability
+### Reliability
 
 - **Reproducible:** Same checks run locally via `make ci`
 - **Isolated:** Jobs don't depend on each other (except docs deploy)
 - **Clean environment:** Each job starts fresh, post-cleanup prevents cache pollution
 
-### ✅ Security
+### Security
 
 - **Multi-layered:** CodeQL + bandit + safety
 - **Continuous:** Weekly scheduled scans
 - **Early detection:** Security checks on every PR
 
-### ✅ Documentation
+### Documentation
 
 - **Validated:** Docs build checked on every PR
 - **Automated:** Deployment on merge to main
 - **Complete:** Code + architecture + API reference
 
-### ✅ Developer Experience
+### Developer Experience
 
 - **Fast feedback:** Lint results in 2-3 minutes
 - **Local parity:** `make ci` runs same checks as GitHub

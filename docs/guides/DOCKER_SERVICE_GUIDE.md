@@ -451,13 +451,13 @@ These are optimal for containerized environments. Override only if you have spec
 **Never commit secrets to Docker images or config files:**
 
 ```bash
-# ❌ BAD: Hardcoded in config file
+# BAD: Hardcoded in config file
 openai_api_key: sk-abc123...
 
-# ✅ GOOD: Use environment variables
+# GOOD: Use environment variables
 docker run -e OPENAI_API_KEY=sk-abc123... podcast-scraper
 
-# ✅ GOOD: Use .env file (not committed)
+# GOOD: Use .env file (not committed)
 docker run --env-file .env podcast-scraper
 ```
 
@@ -543,7 +543,7 @@ snyk test --docker podcast-scraper:latest
 
 ### Best Practices Summary
 
-✅ **DO:**
+**DO:**
 
 - Use environment variables for secrets
 - Mount config files as read-only
@@ -552,7 +552,7 @@ snyk test --docker podcast-scraper:latest
 - Scan images regularly for vulnerabilities
 - Use non-root user (already configured)
 
-❌ **DON'T:**
+**DON'T:**
 
 - Commit API keys to config files
 - Use `:latest` tag in production

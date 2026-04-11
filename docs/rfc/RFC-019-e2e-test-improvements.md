@@ -107,7 +107,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 **Network Guard Requirements (NON-NEGOTIABLE):**
 
-- ❌ **NO external HTTP requests** should be made during E2E tests
+- **NO external HTTP requests** should be made during E2E tests
 - **Block outbound network** in tests (except localhost/127.0.0.1)
 - **All RSS and audio** must be served from the local mock server
 - **Fail hard** if a real URL is hit (immediate test failure with clear error message)

@@ -553,9 +553,9 @@ Non-critical path integration and E2E tests are excluded from PRs for faster fee
 
 This ensures:
 
-- ✅ Fast PR feedback (critical path tests only)
-- ✅ Full validation on main branch (all tests run)
-- ✅ Balance between speed and coverage
+- Fast PR feedback (critical path tests only)
+- Full validation on main branch (all tests run)
+- Balance between speed and coverage
 
 ### Jobs That DO NOT Run on PRs
 
@@ -593,7 +593,7 @@ This ensures:
 
 ```text
 
-│ ❌ Full suite jobs DO NOT run:                               │
+│ Full suite jobs DO NOT run:                               │
 │   - preload-ml-models                                        │
 │   - test-integration                                         │
 │   - test-e2e                                                 │
@@ -606,9 +606,9 @@ This ensures:
 ┌─────────────────────────────────────────────────────────────┐
 │ PHASE 2: After Merge (Push to Main)                         │
 ├─────────────────────────────────────────────────────────────┤
-│ ✅ All fast jobs run again (same as PR)                      │
+│ All fast jobs run again (same as PR)                      │
 │                                                              │
-│ ✅ Full suite jobs NOW run:                                  │
+│ Full suite jobs NOW run:                                  │
 │   - preload-ml-models (preloads ML models)                  │
 │   - test-integration (all integration tests)               │
 │   - test-e2e (all E2E tests)                                │
@@ -630,18 +630,18 @@ This ensures:
 
 | Job | During PR Review | After Merge (Push to Main) |
 | ----- | ------------------ | ---------------------------- |
-| `lint` | ✅ | ✅ |
-| `test-unit` | ✅ | ✅ |
-| `test-integration-fast` | ✅ (with exceptions) | ❌ **Does NOT run** |
-| `preload-ml-models` | ❌ **Does NOT run** | ✅ **Runs after merge** |
-| `test-integration` | ❌ **Does NOT run** | ✅ **Runs after merge** |
-| `test-e2e-fast` | ✅ (with exceptions) | ❌ **Does NOT run** |
-| `test-e2e` | ❌ **Does NOT run** | ✅ **Runs after merge** |
-| `docs` | ✅ | ✅ |
-| `build` | ✅ | ✅ |
-| `docker-build` | ✅ (if Dockerfile/.dockerignore change) | ✅ (all changes) |
-| `snyk-*` | ✅ (if files match) | ✅ (if files match) |
-| `analyze` | ✅ (if files match) | ✅ (if files match) |
+| `lint` | Yes | |
+| `test-unit` | Yes | |
+| `test-integration-fast` | (with exceptions) | **Does not run** |
+| `preload-ml-models` | **Does not run** | **Runs after merge** |
+| `test-integration` | **Does not run** | **Runs after merge** |
+| `test-e2e-fast` | (with exceptions) | **Does not run** |
+| `test-e2e` | **Does not run** | **Runs after merge** |
+| `docs` | Yes | |
+| `build` | Yes | |
+| `docker-build` | (if Dockerfile/.dockerignore change) | (all changes) |
+| `snyk-*` | (if files match) | (if files match) |
+| `analyze` | (if files match) | (if files match) |
 
 **Key Difference:**
 
@@ -678,13 +678,13 @@ All checks must pass for the PR to be mergeable (unless branch protection rules 
 
 **Required Checks (Always Run):**
 
-- ✅ `lint`
-- ✅ `test-unit`
-- ✅ `test-integration-fast` (PRs only, unless docs-only PR)
-- ✅ `test-e2e-fast` (PRs only, unless docs-only PR)
-- ✅ `docs`
-- ✅ `build`
-- ✅ `snyk-monitor`
+- `lint`
+- `test-unit`
+- `test-integration-fast` (PRs only, unless docs-only PR)
+- `test-e2e-fast` (PRs only, unless docs-only PR)
+- `docs`
+- `build`
+- `snyk-monitor`
 
 **Optional Checks (Run if files match):**
 
@@ -706,12 +706,12 @@ Some test jobs include automatic re-runs to handle flaky tests:
 
 **Which jobs use re-runs:**
 
-- ✅ `test-integration-fast` (PRs only): Critical path integration tests
-- ✅ `test-integration` (main branch): All integration tests
-- ✅ `test-e2e-fast` (PRs only): Critical path E2E tests
-- ✅ `test-e2e` (main branch): All E2E tests
-- ❌ `test-unit` (always): No re-runs (unit tests should be stable)
-- ❌ `preload-ml-models` (main branch): No re-runs (setup job)
+- `test-integration-fast` (PRs only): Critical path integration tests
+- `test-integration` (main branch): All integration tests
+- `test-e2e-fast` (PRs only): Critical path E2E tests
+- `test-e2e` (main branch): All E2E tests
+- `test-unit` (always): No re-runs (unit tests should be stable)
+- `preload-ml-models` (main branch): No re-runs (setup job)
 
 **How it works:**
 
@@ -1021,15 +1021,15 @@ Validates that Docker images can be built correctly and pass basic smoke tests. 
 
 **Docker Image Tests:**
 
-- ✅ Help command works
-- ✅ Version command works
-- ✅ Error handling works (no args shows error)
-- ✅ Multiple model preloading works
+- Help command works
+- Version command works
+- Error handling works (no args shows error)
+- Multiple model preloading works
 
 **Dockerfile Validation:**
 
-- ✅ Hadolint linting passes
-- ✅ Best practices enforced
+- Hadolint linting passes
+- Best practices enforced
 
 ---
 
@@ -1241,22 +1241,22 @@ Dependabot is configured to monitor three package ecosystems:
 
 **What to check:**
 
-- ✅ CI passes (all tests, linting, security scans)
-- ✅ No breaking changes (check changelog/release notes)
-- ✅ Compatibility with current codebase
-- ✅ For ML dependencies: Test with actual models if patch update
+- CI passes (all tests, linting, security scans)
+- No breaking changes (check changelog/release notes)
+- Compatibility with current codebase
+- For ML dependencies: Test with actual models if patch update
 
 **When to merge:**
 
-- ✅ CI passes
-- ✅ No obvious breaking changes
-- ✅ PR description looks safe
+- CI passes
+- No obvious breaking changes
+- PR description looks safe
 
 **When to close:**
 
-- ❌ Breaking changes that require code updates
-- ❌ Known compatibility issues
-- ❌ Update conflicts with other work
+- Breaking changes that require code updates
+- Known compatibility issues
+- Update conflicts with other work
 
 ### Integration with Security Tools
 
@@ -1311,7 +1311,7 @@ This maximizes parallelism and reduces total CI time.
 
 ### Parallel Execution Details
 
-#### ✅ Completely Parallel
+#### Completely Parallel
 
 **Within Python Application Workflow - Pull Requests:**
 
@@ -1345,7 +1345,7 @@ This maximizes parallelism and reduces total CI time.
 - All three workflows (Python app, docs, CodeQL) trigger independently
 - They run in parallel when triggered by the same event
 
-#### ❌ Sequential
+#### Sequential
 
 **Documentation Workflow:**
 
@@ -1399,9 +1399,9 @@ rm -rf ~/.cache/whisper
 
 | Workflow | Push to main | PR to main | Schedule | Manual | Doc Changes | Code Changes |
 | -------- | ------------ | ---------- | -------- | ------ | ----------- | ------------ |
-| **Python Application** | ✅ (code only) | ✅ (code only) | ❌ | ❌ | ❌ | ✅ |
-| **Documentation Deploy** | ✅ (deploy) | ✅ (build only) | ❌ | ✅ | ✅ | ✅ (API docs) |
-| **CodeQL Security** | ✅ (code only) | ✅ (code only) | ✅ Weekly | ❌ | ❌ | ✅ |
+| **Python Application** | (code only) | (code only) | No | | No | Yes |
+| **Documentation Deploy** | (deploy) | (build only) | No | Yes | | (API docs) |
+| **CodeQL Security** | (code only) | (code only) | Weekly | No | | Yes |
 
 ---
 
@@ -1417,13 +1417,13 @@ When you change files, here's what runs:
 
 | Files Changed | Python App | Docs Deploy | CodeQL | Reasoning |
 | ------------- | ---------- | ----------- | ------ | --------- |
-| **Only `docs/`** | ❌ Skip | ✅ Run | ❌ Skip | Docs changes don't require code validation |
-| **Only `.py` files** | ✅ Run | ✅ Run | ✅ Run | Code changes need full validation + API docs rebuild |
-| **Only `README.md`** | ❌ Skip | ✅ Run | ❌ Skip | README is included in docs site |
-| **`pyproject.toml`** | ✅ Run | ❌ Skip | ❌ Skip | Config changes affect dependencies/build |
-| **`Dockerfile`** | ✅ Run | ❌ Skip | ❌ Skip | Docker builds depend on package validation |
-| **`.github/workflows/`** | ✅ (if python-app.yml) | ✅ (if docs.yml) | ✅ Run | Workflow changes need validation |
-| **Mixed changes** | ✅ Run | ✅ Run | ✅ Run | Any match triggers the workflow |
+| **Only `docs/`** | Skip | Run | Skip | Docs changes don't require code validation |
+| **Only `.py` files** | Run | Run | Run | Code changes need full validation + API docs rebuild |
+| **Only `README.md`** | Skip | Run | Skip | README is included in docs site |
+| **`pyproject.toml`** | Run | Skip | Skip | Config changes affect dependencies/build |
+| **`Dockerfile`** | Run | Skip | Skip | Docker builds depend on package validation |
+| **`.github/workflows/`** | (if python-app.yml) | (if docs.yml) | Run | Workflow changes need validation |
+| **Mixed changes** | Run | Run | Run | Any match triggers the workflow |
 
 ### Benefits
 
@@ -1441,9 +1441,9 @@ When you change files, here's what runs:
 
 **Developer Experience:**
 
-- ✅ Faster feedback loop for documentation updates
-- ✅ Clear separation: code changes = full CI, docs changes = docs only
-- ✅ No wasted time waiting for unrelated checks
+- Faster feedback loop for documentation updates
+- Clear separation: code changes = full CI, docs changes = docs only
+- No wasted time waiting for unrelated checks
 
 ### Examples
 
@@ -1454,9 +1454,9 @@ When you change files, here's what runs:
 git commit -m "Update API documentation"
 ```
 
-- ✅ `docs.yml` runs (3-5 min)
-- ❌ `python-app.yml` skipped
-- ❌ `codeql.yml` skipped
+- `docs.yml` runs (3-5 min)
+- `python-app.yml` skipped
+- `codeql.yml` skipped
 
 **Total CI time:** ~3-5 minutes (vs. 20+ minutes before)
 
@@ -1467,9 +1467,9 @@ git commit -m "Update API documentation"
 git commit -m "Fix download retry logic"
 ```
 
-- ✅ `python-app.yml` runs (lint, test, docs, build)
-- ✅ `docs.yml` runs (API docs need rebuild)
-- ✅ `codeql.yml` runs (security scan on code)
+- `python-app.yml` runs (lint, test, docs, build)
+- `docs.yml` runs (API docs need rebuild)
+- `codeql.yml` runs (security scan on code)
 
 **Total CI time:** ~15-20 minutes (all workflows needed)
 
@@ -1480,23 +1480,23 @@ git commit -m "Fix download retry logic"
 git commit -m "Update docs and fix service"
 ```
 
-- ✅ All workflows run (code changed = full validation needed)
+- All workflows run (code changed = full validation needed)
 
 **Total CI time:** ~15-20 minutes (appropriate for code changes)
 
-## Minimal Docs CI/CD Validation ✅
+## Minimal Docs CI/CD Validation
 
 The system now passes the "minimal docs CI/CD" requirement:
 
 **When changing ONLY documentation files:**
 
-- ✅ Docs build and deploy (required)
-- ❌ NO Python linting
-- ❌ NO Python testing
-- ❌ NO security scanning
-- ❌ NO package building
+- Docs build and deploy (required)
+- NO Python linting
+- NO Python testing
+- NO security scanning
+- NO package building
 
-**Status:** ✅ **VALIDATED - Optimization complete**
+**Status:** **VALIDATED - Optimization complete**
 
 ---
 
@@ -1569,10 +1569,10 @@ As of issue #248, the nightly workflow also runs on **push to release branches**
 
 **Why Release Branch Testing?**
 
-- ✅ **Early detection:** Catch issues in release branches before they affect releases
-- ✅ **Metrics collection:** Track test health and coverage for release branches
-- ✅ **Release confidence:** Ensure stable branches maintain quality
-- ✅ **Immediate feedback:** No need to wait for scheduled run
+- **Early detection:** Catch issues in release branches before they affect releases
+- **Metrics collection:** Track test health and coverage for release branches
+- **Release confidence:** Ensure stable branches maintain quality
+- **Immediate feedback:** No need to wait for scheduled run
 
 **When It Runs:**
 
@@ -1611,13 +1611,13 @@ The nightly workflow implements **RFC-025 Layer 3** (Comprehensive Analysis). Un
 
 **What Gets Collected:**
 
-- ✅ **JUnit XML** (`reports/junit.xml`) - Test results and timing
-- ✅ **Coverage XML** (`reports/coverage.xml`) - Coverage data
-- ✅ **Coverage HTML** (`reports/coverage-html/`) - Human-readable coverage reports
-- ✅ **JSON Report** (`reports/pytest.json`) - Structured test metrics
-- ✅ **Slowest Tests** (`--durations=20`) - Identifies performance bottlenecks
-- ✅ **Metrics JSON** (`metrics/latest.json`) - Aggregated metrics for consumption
-- ✅ **History File** (`metrics/history.jsonl`) - Historical trend data
+- **JUnit XML** (`reports/junit.xml`) - Test results and timing
+- **Coverage XML** (`reports/coverage.xml`) - Coverage data
+- **Coverage HTML** (`reports/coverage-html/`) - Human-readable coverage reports
+- **JSON Report** (`reports/pytest.json`) - Structured test metrics
+- **Slowest Tests** (`--durations=20`) - Identifies performance bottlenecks
+- **Metrics JSON** (`metrics/latest.json`) - Aggregated metrics for consumption
+- **History File** (`metrics/history.jsonl`) - Historical trend data
 
 **Metrics Publishing:**
 
@@ -1800,17 +1800,17 @@ preload (3:30) → e2e (11:30) → viewer-e2e (~3–20) → nightly-only (64:00)
 
 **Main Branch Jobs (`python-app.yml`):**
 
-- ✅ Fast validation (pass/fail)
-- ❌ No metrics collection
-- ✅ Quick feedback (5-20 minutes)
+- Fast validation (pass/fail)
+- No metrics collection
+- Quick feedback (5-20 minutes)
 - **Purpose:** Validate code works
 
 **Nightly Workflow (`nightly.yml`):**
 
-- ✅ Comprehensive metrics collection
-- ✅ Historical trend tracking
-- ✅ Full test suite (including slow tests)
-- ✅ Metrics publishing to GitHub Pages
+- Comprehensive metrics collection
+- Historical trend tracking
+- Full test suite (including slow tests)
+- Metrics publishing to GitHub Pages
 - **Purpose:** Deep analysis and trend tracking
 
 **Why This Design?**

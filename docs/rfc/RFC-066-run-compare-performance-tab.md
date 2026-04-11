@@ -2,7 +2,7 @@
 
 ## Status
 
-**Draft** (split from RFC-064)
+**Completed (v2.6.0)** — Streamlit app `tools/run_compare/app.py` exposes **Performance** (`?page=performance`) joining run comparison data with frozen RFC-064 profiles (split from RFC-064)
 
 ## RFC Number
 

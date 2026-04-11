@@ -1,6 +1,6 @@
 # RFC-069: GI/KG Viewer — Graph Exploration Toolkit (Single Pass)
 
-- **Status**: Draft
+- **Status**: Completed (v2.6.0)
 - **Authors**: (TBD)
 - **Stakeholders**: Viewer maintainers, UX reviewer for [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
 - **Related PRDs**:
@@ -111,7 +111,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 ### 10. Documentation
 
 - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md): graph toolbar density, minimap overlay, keyboard modifiers for box zoom.
-- [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md): mark completed when shipped.
+- [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md): marked **complete** (v2.6.0).
 
 ## Resolved decisions (stakeholder input)
 

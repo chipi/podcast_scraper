@@ -1,6 +1,6 @@
 # PRD-007: AI Quality & Experimentation Platform
 
-- **Status**: 📋 Draft
+- **Status**: Draft
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-015](../rfc/RFC-015-ai-experiment-pipeline.md) — AI experiment pipeline (**open**; CI integration pending)

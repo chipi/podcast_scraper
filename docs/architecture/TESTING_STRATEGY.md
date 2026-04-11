@@ -149,12 +149,12 @@ The testing strategy follows a three-tier pyramid:
 - **Scope**: Multiple modules working together, real internal implementations
 - **Entry Point**: Component-level (functions, classes, not user-facing APIs)
 - **I/O Policy**:
-  - ✅ **Allowed**: Real filesystem I/O (temp directories), real component interactions
-  - ❌ **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
+  - **Allowed**: Real filesystem I/O (temp directories), real component interactions
+  - **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
   - ⚠️ **ML models**: Mocked by default for speed. Use real models with `@pytest.mark.ml_models`
     for ML workflow integration tests (excluded from fast suite, see
     [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md))
-  - ✅ **Optional**: Local HTTP server for HTTP client testing in isolation
+  - **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
 - **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
 - **Key Distinction**: Tests how components work together, not complete user workflows. Mock ML
@@ -172,20 +172,20 @@ The testing strategy follows a three-tier pyramid:
 - **Entry Point**: User-level (CLI commands,
   `run_pipeline()`, `service.run()`)
 - **I/O Policy**:
-  - ✅ **Allowed**: Real HTTP client with local HTTP
+  - **Allowed**: Real HTTP client with local HTTP
     server (no external network), real filesystem I/O,
     real data files
-  - ✅ **Real implementations**: Use actual HTTP
+  - **Real implementations**: Use actual HTTP
     clients (no mocking), real file operations, real
     model loading
-  - ✅ **Real ML models**: Use real Whisper, spaCy,
+  - **Real ML models**: Use real Whisper, spaCy,
     and Transformers models (NO mocks)
-  - ✅ **Real data files**: RSS feeds, transcripts,
+  - **Real data files**: RSS feeds, transcripts,
     audio files from `tests/fixtures/e2e_server/`
-  - ❌ **No external network**: All HTTP calls go to
+  - **No external network**: All HTTP calls go to
     local server (network guard prevents external
     calls)
-  - ❌ **No mocks**: E2E tests use real
+  - **No mocks**: E2E tests use real
     implementations throughout (no Whisper mocks,
     no ML model mocks)
 - **Provider E2E tests**: Dedicated E2E test files
@@ -1047,9 +1047,9 @@ The test pyramid has reached a healthy shape that matches the ideal targets.
 
 **Current Distribution (~3,770 tests, verified Apr 2026):**
 
-- **Unit Tests**: ~3,000 (~80%) ✅ Target 70-80%
-- **Integration Tests**: ~530 (~14%) ✅ Target 15-20%
-- **E2E Tests**: ~230 (~6%) ✅ Target 5-10%
+- **Unit Tests**: ~3,000 (~80%) Target 70-80%
+- **Integration Tests**: ~530 (~14%) Target 15-20%
+- **E2E Tests**: ~230 (~6%) Target 5-10%
 
 **Visual Representation:**
 
@@ -1083,9 +1083,9 @@ The pyramid is now well-balanced. Historical issues (misclassified tests, missin
 
 **Target Distribution (achieved as of Apr 2026):**
 
-- **Unit Tests**: 70-80% (~3,000 tests) ✅
-- **Integration Tests**: 15-20% (~530 tests) ✅
-- **E2E Tests**: 5-10% (~230 tests) ✅
+- **Unit Tests**: 70-80% (~3,000 tests)
+- **Integration Tests**: 15-20% (~530 tests)
+- **E2E Tests**: 5-10% (~230 tests)
 
 **Success Metrics:**
 
@@ -1098,24 +1098,24 @@ The pyramid is now well-balanced. Historical issues (misclassified tests, missin
 
 All four phases have been executed. The pyramid now matches the target distribution.
 
-**Phase 1: Reclassify Misplaced Tests** ✅ Done
+**Phase 1: Reclassify Misplaced Tests** Done
 
 - Reclassified summarizer tests from E2E to unit.
 - Reviewed and reclassified E2E tests that violated testing strategy definitions.
 
-**Phase 2: Add Missing Unit Tests** ✅ Done
+**Phase 2: Add Missing Unit Tests** Done
 
 - Added unit tests for all core modules (`workflow.py`, `episode_processor.py`, `summarizer.py`, `speaker_detection.py`, `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`, `cli.py`, `service.py`).
 
-**Phase 3: Optimize Integration Layer** ✅ Done
+**Phase 3: Optimize Integration Layer** Done
 
 - Moved component interaction tests from E2E to integration.
 - Added integration tests for cross-module boundaries.
 
-**Phase 4: Reduce E2E to True E2E** ✅ Done
+**Phase 4: Reduce E2E to True E2E** Done
 
 - E2E layer now contains only true end-to-end user workflow tests.
-- **Final Result**: Unit: ~80%, Integration: ~14%, E2E: ~6% ✅
+- **Final Result**: Unit: ~80%, Integration: ~14%, E2E: ~6%
 
 ### Unit Test Coverage by Module
 
@@ -1123,15 +1123,15 @@ All previously-identified coverage gaps have been addressed. Key modules and the
 
 **Core Modules (covered):**
 
-- `summarizer.py`: Text cleaning, chunking, validation functions ✅
-- `workflow.py`: Pipeline orchestration helpers ✅
-- `episode_processor.py`: Episode processing logic ✅
+- `summarizer.py`: Text cleaning, chunking, validation functions
+- `workflow.py`: Pipeline orchestration helpers
+- `episode_processor.py`: Episode processing logic
 
 **Supporting Modules (covered):**
 
-- `speaker_detection.py`: Detection and scoring logic ✅
-- `cli.py` and `service.py`: Argument parsing and service logic ✅
-- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions ✅
+- `speaker_detection.py`: Detection and scoring logic
+- `cli.py` and `service.py`: Argument parsing and service logic
+- `preprocessing.py`, `progress.py`, `metrics.py`, `filesystem.py`: Utility functions
 
 ## Future Testing Enhancements
 

@@ -139,7 +139,7 @@ graph LR
     A --> F[Docs Job]
     A --> G[Build Job]
 
-    B --> H[✓ All Complete]
+    B --> H[[ok] All Complete]
     C --> H
     D --> H
     E --> H
@@ -212,7 +212,7 @@ This maximizes parallelism and reduces total CI time.
 
 ### Parallel Execution Details
 
-#### ✅ Completely Parallel
+#### Completely Parallel
 
 **Within Python Application Workflow - Pull Requests:**
 
@@ -250,7 +250,7 @@ This maximizes parallelism and reduces total CI time.
 - All three workflows (Python app, docs, CodeQL) trigger independently
 - They run in parallel when triggered by the same event
 
-#### ❌ Sequential
+#### Sequential
 
 **Documentation Workflow:**
 
@@ -314,9 +314,9 @@ rm -rf ~/.cache/whisper
 
 | Workflow | Push to main | PR to main | Schedule | Manual | Doc Changes | Code Changes |
 | -------- | ------------ | ---------- | -------- | ------ | ----------- | ------------ |
-| **Python Application** | ✅ (code only) | ✅ (code only) | ❌ | ❌ | ❌ | ✅ |
-| **Documentation Deploy** | ✅ (deploy) | ✅ (build only) | ❌ | ✅ | ✅ | ✅ (API docs) |
-| **CodeQL Security** | ✅ (code only) | ✅ (code only) | ✅ Weekly | ❌ | ❌ | ✅ |
+| **Python Application** | (code only) | (code only) | No | | No | Yes |
+| **Documentation Deploy** | (deploy) | (build only) | No | Yes | | (API docs) |
+| **CodeQL Security** | (code only) | (code only) | Weekly | No | | Yes |
 
 ---
 
@@ -332,13 +332,13 @@ When you change files, here's what runs:
 
 | Files Changed | Python App | Docs Deploy | CodeQL | Reasoning |
 | ------------- | ---------- | ----------- | ------ | --------- |
-| **Only `docs/`** | ❌ Skip | ✅ Run | ❌ Skip | Docs changes don't require code validation |
-| **Only `.py` files** | ✅ Run | ✅ Run | ✅ Run | Code changes need full validation + API docs rebuild |
-| **Only `README.md`** | ❌ Skip | ✅ Run | ❌ Skip | README is included in docs site |
-| **`pyproject.toml`** | ✅ Run | ❌ Skip | ❌ Skip | Config changes affect dependencies/build |
-| **`Dockerfile`** | ✅ Run | ❌ Skip | ❌ Skip | Docker builds depend on package validation |
-| **`.github/workflows/`** | ✅ (if python-app.yml) | ✅ (if docs.yml) | ✅ Run | Workflow changes need validation |
-| **Mixed changes** | ✅ Run | ✅ Run | ✅ Run | Any match triggers the workflow |
+| **Only `docs/`** | Skip | Run | Skip | Docs changes don't require code validation |
+| **Only `.py` files** | Run | Run | Run | Code changes need full validation + API docs rebuild |
+| **Only `README.md`** | Skip | Run | Skip | README is included in docs site |
+| **`pyproject.toml`** | Run | Skip | Skip | Config changes affect dependencies/build |
+| **`Dockerfile`** | Run | Skip | Skip | Docker builds depend on package validation |
+| **`.github/workflows/`** | (if python-app.yml) | (if docs.yml) | Run | Workflow changes need validation |
+| **Mixed changes** | Run | Run | Run | Any match triggers the workflow |
 
 ### Benefits
 
@@ -356,9 +356,9 @@ When you change files, here's what runs:
 
 **Developer Experience:**
 
-- ✅ Faster feedback loop for documentation updates
-- ✅ Clear separation: code changes = full CI, docs changes = docs only
-- ✅ No wasted time waiting for unrelated checks
+- Faster feedback loop for documentation updates
+- Clear separation: code changes = full CI, docs changes = docs only
+- No wasted time waiting for unrelated checks
 
 ### Examples
 
@@ -372,9 +372,9 @@ git commit -m "Update API documentation"
 
 ```text
 
-- ✅ `docs.yml` runs (3-5 min)
-- ❌ `python-app.yml` skipped
-- ❌ `codeql.yml` skipped
+- `docs.yml` runs (3-5 min)
+- `python-app.yml` skipped
+- `codeql.yml` skipped
 
 **Total CI time:** ~3-5 minutes (vs. 20+ minutes before)
 
@@ -388,9 +388,9 @@ git commit -m "Fix download retry logic"
 
 ```text
 
-- ✅ `python-app.yml` runs (lint, test, docs, build)
-- ✅ `docs.yml` runs (API docs need rebuild)
-- ✅ `codeql.yml` runs (security scan on code)
+- `python-app.yml` runs (lint, test, docs, build)
+- `docs.yml` runs (API docs need rebuild)
+- `codeql.yml` runs (security scan on code)
 
 **Total CI time:** ~15-20 minutes (all workflows needed)
 
@@ -404,23 +404,23 @@ git commit -m "Update docs and fix service"
 
 ```text
 
-- ✅ All workflows run (code changed = full validation needed)
+- All workflows run (code changed = full validation needed)
 
 **Total CI time:** ~15-20 minutes (appropriate for code changes)
 
-## Minimal Docs CI/CD Validation ✅
+## Minimal Docs CI/CD Validation
 
 The system now passes the "minimal docs CI/CD" requirement:
 
 **When changing ONLY documentation files:**
 
-- ✅ Docs build and deploy (required)
-- ❌ NO Python linting
-- ❌ NO Python testing
-- ❌ NO security scanning
-- ❌ NO package building
+- Docs build and deploy (required)
+- NO Python linting
+- NO Python testing
+- NO security scanning
+- NO package building
 
-**Status:** ✅ **VALIDATED - Optimization complete**
+**Status:** **VALIDATED - Optimization complete**
 
 ---
 
