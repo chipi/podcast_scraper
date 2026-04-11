@@ -96,6 +96,7 @@ def _topic_band_for_query(
             query,
             since=since,
             top_k=DIGEST_TOPIC_SEARCH_TOP_K,
+            dedupe_kg_surfaces=False,
         )
 
     with ThreadPoolExecutor(max_workers=1) as ex:
@@ -250,6 +251,7 @@ async def corpus_digest(
             "digest",
             since=since_s,
             top_k=1,
+            dedupe_kg_surfaces=False,
         )
         if probe.error == "no_index":
             topics_reason = "no_index"

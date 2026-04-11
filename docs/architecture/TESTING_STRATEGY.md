@@ -978,6 +978,63 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
 - [ ] GIL extraction latency per tier — benchmarking planned
 
+### `search/` (Semantic Corpus Search — RFC-061)
+
+- [x] `search/chunker.py` — transcript chunking
+  (unit: `test_chunker.py`)
+- [x] `search/faiss_store.py` — FAISS vector store
+  operations (unit: `test_faiss_store.py`)
+- [x] `search/indexer.py` — corpus-wide index build,
+  nested feeds, hybrid indexing, composite fingerprint
+  keys (unit: `test_indexer.py`)
+- [x] `search/corpus_scope.py` — `discover_metadata_files`
+  hybrid merge, feed ID normalization
+  (unit: `test_corpus_scope.py`)
+- [x] `search/corpus_search.py` — shared search logic
+  for CLI and HTTP
+- [x] `search/corpus_similar.py` — episode-level
+  similarity (unit: `test_corpus_similar.py`)
+- [x] `search/cli_handlers.py` — CLI `podcast search`
+  subcommand
+
+### `server/` (Viewer API — RFC-062, RFC-067, RFC-068)
+
+- [x] `server/app.py` — app factory, CORS, static
+  mounting (unit: `test_viewer_*.py`)
+- [x] `server/corpus_catalog.py` — filesystem-backed
+  episode catalog (unit: `test_corpus_catalog.py`;
+  integration: `test_viewer_corpus_library.py`)
+- [x] `server/corpus_digest.py` — time-window digest
+  selection and topic config
+- [x] `server/index_rebuild.py` — background FAISS
+  rebuild coordination (unit:
+  `test_index_rebuild_gate.py`; integration:
+  `test_index_rebuild.py`)
+- [x] `server/index_staleness.py` — vector index
+  freshness heuristics (unit:
+  `test_index_staleness.py`)
+- [x] `server/pathutil.py` — safe corpus path
+  resolution and traversal prevention
+- [x] `server/routes/` — route modules validated via
+  FastAPI `TestClient` (unit) and wired `create_app`
+  (integration in `tests/integration/server/`)
+
+### `workflow/` Extensions (v2.5–v2.6)
+
+- [x] `workflow/stages/` — stage-specific modules
+  (setup, scraping, processing, transcription,
+  metadata, summarization)
+- [x] `workflow/corpus_operations.py` — multi-feed
+  manifest and summary JSON (unit:
+  `test_corpus_operations.py`)
+- [x] `workflow/degradation.py` — graceful degradation
+  policies for non-critical stage failures
+- [x] `workflow/jsonl_emitter.py` — streaming JSONL
+  metrics output
+- [x] `workflow/run_manifest.py` /
+  `workflow/run_summary.py` — run-level manifest
+  capture and summary generation
+
 ## Test Pyramid Status
 
 > **Note**: Test distribution numbers should be verified periodically by running test collection

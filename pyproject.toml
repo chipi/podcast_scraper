@@ -35,6 +35,7 @@ dependencies = [
 #   llm       — API SDKs: openai, google-genai (Gemini), anthropic, mistralai, httpx (Ollama checks)
 #   compare   — Streamlit compare UI (RFC-047)
 #   server    — GI/KG viewer HTTP API: FastAPI + uvicorn (RFC-062 / #489)
+#   monitor   — py-spy + memray optional profiling (RFC-065; `--monitor` needs no extra)
 # Heavy ML dependencies - only install when needed
 ml = [
   "openai-whisper>=20231117",
@@ -84,6 +85,11 @@ llm = [
 server = [
   "fastapi>=0.115.0,<1.0.0",
   "uvicorn[standard]>=0.32.0,<1.0.0",
+]
+# Live pipeline monitor profiling: py-spy + memray (RFC-065; core `--monitor` uses stdlib + psutil + rich)
+monitor = [
+  "py-spy>=0.3.14",
+  "memray>=1.5.0",
 ]
 # Development tools
 dev = [

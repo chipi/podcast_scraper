@@ -736,6 +736,30 @@ class Config(BaseModel):
         description="Reuse existing media files instead of re-downloading (for faster testing)",
     )
     dry_run: bool = Field(default=False, alias="dry_run")
+    monitor: bool = Field(
+        default=False,
+        alias="monitor",
+        description=(
+            "Spawn a subprocess with a live RSS/CPU/stage dashboard (RFC-065, GitHub #512). "
+            "Writes .pipeline_status.json under the output directory."
+        ),
+    )
+    memray: bool = Field(
+        default=False,
+        alias="memray",
+        description=(
+            "Re-exec the CLI or service under memray for heap profiling (RFC-065 Phase 3; "
+            "optional extra .[monitor]). Sets PODCAST_SCRAPER_MEMRAY_ACTIVE=1 in the child."
+        ),
+    )
+    memray_output: Optional[str] = Field(
+        default=None,
+        alias="memray_output",
+        description=(
+            "Destination .bin for memray run (default: <output_dir>/debug/memray_<timestamp>.bin "
+            "or cwd/debug when output_dir is unset)."
+        ),
+    )
     preload_models: bool = Field(
         default=True,
         alias="preload_models",

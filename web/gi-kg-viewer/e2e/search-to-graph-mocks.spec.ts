@@ -61,6 +61,7 @@ test.describe('Search → graph (mocked API)', () => {
                 doc_type: 'insight',
                 source_id: 'insight:b72dafa3f874480d',
                 episode_id: 'ci-fixture',
+                source_metadata_relative_path: 'metadata/ci_sample.metadata.json',
               },
             },
           ],
@@ -81,10 +82,21 @@ test.describe('Search → graph (mocked API)', () => {
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
     await page.locator('#search-q').fill('climate insights')
-    await page.locator('form').getByRole('button', { name: 'Search' }).click()
+    await page
+      .locator('section')
+      .filter({ has: page.getByRole('heading', { name: 'Semantic search' }) })
+      .getByRole('button', { name: 'Search', exact: true })
+      .click()
 
     await page.getByText('Summary insight (stub)', { exact: false }).waitFor({ timeout: 10_000 })
-    await page.locator('article').first().click()
+
+    await page.getByRole('button', { name: 'Search result insights' }).click()
+    const vizDialog = page.getByRole('dialog', { name: 'Search result insights' })
+    await expect(vizDialog.getByRole('region', { name: 'Doc types' })).toBeVisible()
+    await expect(vizDialog.getByRole('region', { name: 'Publish month' })).toBeVisible()
+    await vizDialog.getByRole('button', { name: 'Close' }).click()
+
+    await page.getByRole('button', { name: 'Show on graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('.graph-canvas')).toBeVisible()

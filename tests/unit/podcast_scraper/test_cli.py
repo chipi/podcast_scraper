@@ -2717,6 +2717,29 @@ class TestLoadAndMergeConfig(unittest.TestCase):
         self.assertIn("RSS URL is required", str(cm.exception))
 
     @patch("podcast_scraper.cli.config.load_config_file")
+    def test_load_and_merge_config_accepts_feeds_validation_alias(self, mock_load):
+        """YAML ``feeds`` (validation alias for rss_urls) is not an unknown key."""
+        mock_load.return_value = {
+            "feeds": [
+                "https://a.example/feed.xml",
+                "https://b.example/feed.xml",
+            ],
+            "output_dir": "/tmp/corpus_multi",
+            "max_episodes": 1,
+            "user_agent": "test",
+            "timeout": 30,
+        }
+        parser = argparse.ArgumentParser()
+        cli._add_common_arguments(parser)
+
+        args = cli._load_and_merge_config(parser, "config.yaml", [])
+        self.assertEqual(
+            args.rss_urls,
+            ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+        )
+        self.assertEqual(args.output_dir, "/tmp/corpus_multi")
+
+    @patch("podcast_scraper.cli.config.load_config_file")
     def test_load_and_merge_config_speaker_names_list(self, mock_load):
         """Test that _load_and_merge_config converts speaker_names list to comma-separated."""
         mock_load.return_value = {

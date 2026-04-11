@@ -172,6 +172,25 @@ export function nodeLabel(n: RawGraphNode): string {
   return typeStr + (idShort ? `: ${idShort}` : '')
 }
 
+/**
+ * Same primary text as ``nodeLabel`` but without the short-phrase cap — for tooltips and deduping body copy.
+ */
+export function fullPrimaryNodeLabel(n: RawGraphNode): string {
+  const p = n.properties || {}
+  const typeStr = n.type != null ? String(n.type) : '?'
+  const raw =
+    str(p.name) ||
+    str(p.title) ||
+    str(p.label) ||
+    str(p.text) ||
+    entityDisplayNameFromId(String(n.id ?? '')) ||
+    ''
+  if (raw) return raw
+  let idShort = n.id != null ? String(n.id) : ''
+  if (idShort.length > 24) idShort = `${idShort.slice(0, 22)}…`
+  return typeStr + (idShort ? `: ${idShort}` : '')
+}
+
 function str(v: unknown): string {
   if (v == null) return ''
   const s = String(v).trim()

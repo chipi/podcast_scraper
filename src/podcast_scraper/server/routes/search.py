@@ -43,6 +43,13 @@ async def search_corpus(
         default=None,
         description="Optional override; should match index model for reliable scores.",
     ),
+    dedupe_kg_surfaces: bool = Query(
+        default=True,
+        description=(
+            "When true, collapse duplicate kg_entity/kg_topic rows with the same embedded text "
+            "(best score kept; metadata lists merged episode ids)."
+        ),
+    ),
 ) -> CorpusSearchApiResponse:
     """Semantic search via FAISS + sentence embeddings."""
     fallback = getattr(request.app.state, "output_dir", None)
@@ -71,6 +78,7 @@ async def search_corpus(
         top_k=top_k,
         index_path=None,
         embedding_model=embedding_model,
+        dedupe_kg_surfaces=dedupe_kg_surfaces,
     )
 
     if outcome.error:

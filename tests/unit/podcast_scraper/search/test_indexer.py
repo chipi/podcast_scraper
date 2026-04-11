@@ -129,6 +129,15 @@ def test_index_corpus_indexes_gi_summary_transcript(mock_encode, tmp_path: Path)
     fps = json.loads(fp_path.read_text(encoding="utf-8"))
     assert index_fingerprint_scope_key("feed:f1", "ep:index-1") in fps
 
+    raw_meta = json.loads((idx_dir / "metadata.json").read_text(encoding="utf-8"))
+    rel_paths = {
+        m.get("source_metadata_relative_path") for m in raw_meta.values() if isinstance(m, dict)
+    }
+    assert "metadata/ep1.metadata.json" in rel_paths
+    sample = next(m for m in raw_meta.values() if isinstance(m, dict))
+    assert sample.get("episode_title") == "T"
+    assert sample.get("feed_title") == "F"
+
     stats2 = index_corpus(str(out), cfg, rebuild=False)
     assert stats2.episodes_skipped_unchanged == 1
     assert stats2.vectors_upserted == 0

@@ -36,6 +36,9 @@ run_id: experiment
 workers: 4
 log_level: INFO
 
+# Live pipeline monitor (RFC-065): monitor + optional memray / py-spy — see config.example.yaml
+# monitor: false
+
 generate_metadata: true
 generate_summaries: true
 metadata_format: json

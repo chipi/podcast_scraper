@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
 
 test.describe('Corpus Digest tab', () => {
   test.beforeEach(async ({ page }) => {
@@ -31,6 +31,92 @@ test.describe('Corpus Digest tab', () => {
         body: JSON.stringify({
           path: '/mock/corpus',
           feeds: [{ feed_id: 'f1', display_title: 'Mock Feed Show', episode_count: 1 }],
+        }),
+      })
+    })
+    await page.route('**/api/corpus/episodes/detail**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          metadata_relative_path: 'metadata/ep1.metadata.json',
+          feed_id: 'f1',
+          episode_id: 'e1',
+          episode_title: 'Digest Episode Alpha',
+          publish_date: '2024-06-05',
+          summary_title: 'Digest summary',
+          summary_bullets: ['First bullet'],
+          summary_text: null,
+          gi_relative_path: 'metadata/ep1.gi.json',
+          kg_relative_path: 'metadata/ep1.kg.json',
+          has_gi: true,
+          has_kg: false,
+        }),
+      })
+    })
+    await page.route(
+      (url) => {
+        const p = new URL(url).pathname.replace(/\/$/, '')
+        return p === '/api/corpus/episodes'
+      },
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            path: '/mock/corpus',
+            feed_id: null,
+            items: [
+              {
+                metadata_relative_path: 'metadata/ep1.metadata.json',
+                feed_id: 'f1',
+                feed_display_title: 'Mock Feed Show',
+                topics: ['First bullet'],
+                summary_title: 'Digest summary',
+                summary_bullets_preview: ['First bullet'],
+                summary_preview: 'Digest summary — First bullet',
+                episode_id: 'e1',
+                episode_title: 'Digest Episode Alpha',
+                publish_date: '2024-06-05',
+              },
+            ],
+            next_cursor: null,
+          }),
+        })
+      },
+    )
+    await page.route('**/api/index/stats**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          available: true,
+          reason: null,
+          stats: {
+            total_vectors: 1,
+            doc_type_counts: {},
+            feeds_indexed: ['f1'],
+            embedding_model: 'mock',
+            embedding_dim: 8,
+            last_updated: '2024-01-01T00:00:00Z',
+            index_size_bytes: 0,
+          },
+          reindex_recommended: false,
+        }),
+      })
+    })
+    await page.route('**/api/corpus/episodes/similar**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          source_metadata_relative_path: 'metadata/ep1.metadata.json',
+          query_used: 'Digest summary First bullet',
+          items: [],
+          error: null,
+          detail: null,
         }),
       })
     })
@@ -111,9 +197,12 @@ test.describe('Corpus Digest tab', () => {
     ).toBeVisible()
     await page.getByRole('button', { name: 'Search topic' }).first().click()
     await expect(page.locator('#search-q')).toHaveValue('climate science')
+    await expect(
+      page.getByRole('textbox', { name: 'Since (date)' }),
+    ).toHaveValue('2024-06-01')
   })
 
-  test('digest episode cards omit graph/search actions (Library detail has them)', async ({
+  test('digest episode cards omit graph/search actions (Episode rail has them)', async ({
     page,
   }) => {
     await page.goto('/')
@@ -135,30 +224,9 @@ test.describe('Corpus Digest tab', () => {
     await expect(page.getByTestId('library-root')).toBeVisible()
   })
 
-  test('click digest row header opens Library with that episode detail', async ({
+  test('click digest Recent row opens Episode rail; stays on Digest', async ({
     page,
   }) => {
-    await page.route('**/api/corpus/episodes/detail**', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          path: '/mock/corpus',
-          metadata_relative_path: 'metadata/ep1.metadata.json',
-          feed_id: 'f1',
-          episode_id: 'e1',
-          episode_title: 'Digest Episode Alpha',
-          publish_date: '2024-06-05',
-          summary_title: 'Digest summary',
-          summary_bullets: ['First bullet'],
-          summary_text: null,
-          gi_relative_path: 'metadata/ep1.gi.json',
-          kg_relative_path: 'metadata/ep1.kg.json',
-          has_gi: true,
-          has_kg: false,
-        }),
-      })
-    })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
@@ -169,9 +237,40 @@ test.describe('Corpus Digest tab', () => {
         exact: true,
       })
       .click()
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await expect(
+      page
+        .getByRole('region', { name: 'Episode', exact: true })
+        .getByRole('heading', { name: 'Digest Episode Alpha' }),
+    ).toBeVisible()
+  })
+
+  test('Digest ↔ Library keeps Episode rail when episode is in catalog', async ({
+    page,
+  }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await page
+      .getByRole('button', {
+        name: 'Digest Episode Alpha, Mock Feed Show',
+        exact: true,
+      })
+      .click()
+    const episodeRegion = page.getByRole('region', { name: 'Episode', exact: true })
+    await expect(
+      episodeRegion.getByRole('heading', { name: 'Digest Episode Alpha' }),
+    ).toBeVisible()
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expect(
-      page.getByRole('heading', { name: 'Digest Episode Alpha' }),
+      episodeRegion.getByRole('heading', { name: 'Digest Episode Alpha' }),
+    ).toBeVisible()
+    await mainViewsNav(page).getByRole('button', { name: 'Digest' }).click()
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await expect(
+      episodeRegion.getByRole('heading', { name: 'Digest Episode Alpha' }),
     ).toBeVisible()
   })
 

@@ -1,0 +1,581 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { fetchIndexStats, type IndexStatsEnvelope } from '../../api/indexStatsApi'
+import {
+  fetchCorpusEpisodeDetail,
+  fetchCorpusFeeds,
+  fetchCorpusSimilarEpisodes,
+  type CorpusEpisodeDetailResponse,
+  type CorpusFeedItem,
+  type CorpusSimilarEpisodeItem,
+} from '../../api/corpusLibraryApi'
+import HelpTip from '../shared/HelpTip.vue'
+import PodcastCover from '../shared/PodcastCover.vue'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useShellStore } from '../../stores/shell'
+import { buildLibrarySearchHandoffQuery } from '../../utils/corpusSearchHandoff'
+import { digestRowFeedLabelWithCatalog } from '../../utils/digestRowDisplay'
+import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
+import { formatDurationSeconds } from '../../utils/formatDuration'
+import { normalizeFeedIdForViewer } from '../../utils/feedId'
+import {
+  SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
+  SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
+} from '../../utils/searchResultActionStyles'
+
+const emit = defineEmits<{
+  'focus-search': [
+    payload: { feed: string; query: string; since?: string; feedDisplayTitle?: string },
+  ]
+  'switch-main-tab': [tab: 'graph' | 'dashboard']
+}>()
+
+const shell = useShellStore()
+const artifacts = useArtifactsStore()
+const graphNav = useGraphNavigationStore()
+const episodeRail = useEpisodeRailStore()
+const { metadataRelativePath } = storeToRefs(episodeRail)
+
+const feeds = ref<CorpusFeedItem[]>([])
+const indexStatsEnvelope = ref<IndexStatsEnvelope | null>(null)
+const detail = ref<CorpusEpisodeDetailResponse | null>(null)
+const detailError = ref<string | null>(null)
+const detailLoading = ref(false)
+const graphActionError = ref<string | null>(null)
+
+const similarItems = ref<CorpusSimilarEpisodeItem[]>([])
+const similarLoading = ref(false)
+const similarError = ref<string | null>(null)
+const similarQueryUsed = ref('')
+const similarRanOk = ref(false)
+
+const feedDisplayTitleById = computed(() => {
+  const m: Record<string, string> = {}
+  for (const f of feeds.value) {
+    const id = normalizeFeedIdForViewer(f.feed_id)
+    const t = f.display_title?.trim()
+    if (id && t) {
+      m[id] = t
+    }
+  }
+  return m
+})
+
+function feedHasVectorIndex(feedId: string): boolean {
+  const env = indexStatsEnvelope.value
+  if (!env?.available || !env.stats?.feeds_indexed?.length) {
+    return false
+  }
+  return new Set(
+    env.stats.feeds_indexed.map((s) => normalizeFeedIdForViewer(s)).filter(Boolean),
+  ).has(normalizeFeedIdForViewer(feedId))
+}
+
+const detailDiagnosticsEntries = computed(() => {
+  const d = detail.value
+  if (!d) {
+    return [] as { label: string; value: string }[]
+  }
+  const cat = feeds.value.find((f) => f.feed_id === d.feed_id)
+  const env = indexStatsEnvelope.value
+  const inIndex = d.feed_id ? feedHasVectorIndex(d.feed_id) : false
+  const rows: { label: string; value: string }[] = [
+    { label: 'Metadata path', value: d.metadata_relative_path || '—' },
+    { label: 'Feed ID', value: d.feed_id || '—' },
+    {
+      label: 'Feed title (feeds API)',
+      value: cat?.display_title?.trim() || '—',
+    },
+    {
+      label: 'GI artifact',
+      value: d.has_gi ? `yes · ${d.gi_relative_path}` : 'no',
+    },
+    {
+      label: 'KG artifact',
+      value: d.has_kg ? `yes · ${d.kg_relative_path}` : 'no',
+    },
+    {
+      label: 'Feed in vector index',
+      value: d.feed_id
+        ? inIndex
+          ? 'yes (feed_id listed in GET /api/index/stats feeds_indexed)'
+          : 'no'
+        : '—',
+    },
+  ]
+  if (env) {
+    rows.push({
+      label: 'Index API available',
+      value: env.available ? 'yes' : 'no',
+    })
+    if (!env.available && env.reason) {
+      rows.push({ label: 'Index reason', value: String(env.reason) })
+    }
+    const st = env.stats
+    if (st) {
+      rows.push({ label: 'Total vectors', value: String(st.total_vectors) })
+      rows.push({ label: 'Embedding model', value: st.embedding_model || '—' })
+      rows.push({ label: 'Embedding dim', value: String(st.embedding_dim) })
+      rows.push({ label: 'Index last updated', value: st.last_updated || '—' })
+    }
+  } else {
+    rows.push({
+      label: 'Index stats',
+      value: 'not loaded',
+    })
+  }
+  return rows
+})
+
+const episodeIdChipTooltip = computed((): string => {
+  const d = detail.value
+  const id = d?.episode_id
+  if (typeof id !== 'string' || !id.trim()) {
+    return ''
+  }
+  return (
+    `Episode id (corpus-stable, from metadata / vector index): ${id.trim()}. ` +
+    'Same episode across search chunks; opening Library uses the metadata file path.'
+  )
+})
+
+function detailFeedLine(): string {
+  const d = detail.value
+  if (!d?.feed_id?.trim()) {
+    return '(no feed id)'
+  }
+  return digestRowFeedLabelWithCatalog({ feed_id: d.feed_id }, feedDisplayTitleById.value)
+}
+
+function detailFeedHoverTitle(): string {
+  const d = detail.value
+  if (!d) {
+    return ''
+  }
+  return feedNameHoverWithCatalogLookup(
+    {
+      feed_id: d.feed_id,
+      feed_rss_url: d.feed_rss_url,
+      feed_description: d.feed_description,
+    },
+    feeds.value,
+    normalizeFeedIdForViewer,
+  )
+}
+
+async function loadFeedsAndIndex(): Promise<void> {
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) {
+    feeds.value = []
+    indexStatsEnvelope.value = null
+    return
+  }
+  try {
+    const body = await fetchCorpusFeeds(root)
+    feeds.value = body.feeds
+    try {
+      indexStatsEnvelope.value = await fetchIndexStats(root)
+    } catch {
+      indexStatsEnvelope.value = null
+    }
+  } catch {
+    feeds.value = []
+    indexStatsEnvelope.value = null
+  }
+}
+
+async function loadDetail(metaPath: string): Promise<void> {
+  detailError.value = null
+  detail.value = null
+  similarItems.value = []
+  similarError.value = null
+  similarQueryUsed.value = ''
+  similarRanOk.value = false
+  similarLoading.value = false
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) {
+    return
+  }
+  detailLoading.value = true
+  try {
+    await loadFeedsAndIndex()
+    detail.value = await fetchCorpusEpisodeDetail(root, metaPath)
+    void loadSimilarEpisodes()
+  } catch (e) {
+    detailError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+function mapSimilarError(code: string, detailMsg: string | null): string {
+  if (code === 'no_index') {
+    return 'No vector index for this corpus yet. Run indexing to find similar episodes.'
+  }
+  if (code === 'insufficient_text') {
+    return detailMsg || 'Add a longer summary or title to use similarity search.'
+  }
+  if (code === 'embed_failed') {
+    return 'Embedding failed (model missing or offline).'
+  }
+  return detailMsg || code
+}
+
+async function loadSimilarEpisodes(): Promise<void> {
+  similarError.value = null
+  similarItems.value = []
+  similarQueryUsed.value = ''
+  similarRanOk.value = false
+  if (!detail.value) {
+    return
+  }
+  const root = shell.corpusPath.trim()
+  if (!root) {
+    return
+  }
+  similarLoading.value = true
+  try {
+    const body = await fetchCorpusSimilarEpisodes(root, detail.value.metadata_relative_path)
+    similarQueryUsed.value = body.query_used || ''
+    if (body.error) {
+      similarError.value = mapSimilarError(body.error, body.detail)
+      return
+    }
+    similarItems.value = body.items
+    similarRanOk.value = true
+  } catch (e) {
+    similarError.value = e instanceof Error ? e.message : String(e)
+  } finally {
+    similarLoading.value = false
+  }
+}
+
+async function openInGraph(): Promise<void> {
+  graphActionError.value = null
+  if (!detail.value) {
+    return
+  }
+  const paths: string[] = []
+  if (detail.value.has_gi) {
+    paths.push(detail.value.gi_relative_path)
+  }
+  if (detail.value.has_kg) {
+    paths.push(detail.value.kg_relative_path)
+  }
+  if (paths.length === 0) {
+    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
+    return
+  }
+  await artifacts.loadRelativeArtifacts(paths)
+  graphNav.clearLibraryEpisodeHighlights()
+  const eid = detail.value.episode_id?.trim()
+  if (eid) {
+    graphNav.requestFocusNode(eid)
+    graphNav.setLibraryEpisodeHighlights([eid])
+  } else {
+    graphNav.clearPendingFocus()
+  }
+  emit('switch-main-tab', 'graph')
+}
+
+function openInSearch(): void {
+  if (!detail.value) {
+    return
+  }
+  episodeRail.showTools()
+  const fid = normalizeFeedIdForViewer(detail.value.feed_id)
+  const catalogTitle = fid ? feedDisplayTitleById.value[fid]?.trim() : ''
+  emit('focus-search', {
+    feed: fid,
+    query: buildLibrarySearchHandoffQuery(detail.value),
+    ...(catalogTitle ? { feedDisplayTitle: catalogTitle } : {}),
+  })
+}
+
+function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
+  const p = row.metadata_relative_path?.trim()
+  if (!p) {
+    return
+  }
+  episodeRail.openEpisodePanel(p)
+}
+
+watch(
+  () => [shell.corpusPath, shell.healthStatus] as const,
+  () => {
+    feeds.value = []
+    indexStatsEnvelope.value = null
+    detail.value = null
+    detailError.value = null
+    similarItems.value = []
+    similarError.value = null
+    similarQueryUsed.value = ''
+    similarRanOk.value = false
+  },
+)
+
+watch(
+  metadataRelativePath,
+  (p) => {
+    if (p?.trim()) {
+      void loadDetail(p.trim())
+    } else {
+      detail.value = null
+      detailError.value = null
+      detailLoading.value = false
+      similarItems.value = []
+      similarError.value = null
+      similarQueryUsed.value = ''
+      similarRanOk.value = false
+    }
+  },
+  { immediate: true },
+)
+</script>
+
+<template>
+  <div
+    class="min-h-0 flex-1 overflow-y-auto p-2 text-sm text-surface-foreground"
+    data-testid="episode-detail-rail-body"
+  >
+    <p v-if="detailLoading" class="text-xs text-muted">
+      Loading…
+    </p>
+    <p v-else-if="detailError" class="text-xs text-danger">
+      {{ detailError }}
+    </p>
+    <p v-else-if="!detail" class="text-xs text-muted">
+      No episode selected.
+    </p>
+    <template v-else>
+      <div class="flex gap-3">
+        <PodcastCover
+          :corpus-path="shell.corpusPath"
+          :episode-image-local-relpath="detail.episode_image_local_relpath"
+          :feed-image-local-relpath="detail.feed_image_local_relpath"
+          :episode-image-url="detail.episode_image_url"
+          :feed-image-url="detail.feed_image_url"
+          :alt="`Cover for ${detail.episode_title}`"
+          size-class="h-20 w-20 sm:h-24 sm:w-24"
+        />
+        <div class="min-w-0 flex-1">
+          <div class="flex items-start justify-between gap-1.5">
+            <h3 class="min-w-0 flex-1 text-base font-semibold text-surface-foreground">
+              {{ detail.episode_title }}
+            </h3>
+            <div class="flex shrink-0 items-start gap-0.5 pt-0.5">
+              <button
+                v-if="detail.episode_id?.trim()"
+                type="button"
+                :class="SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS"
+                :aria-label="episodeIdChipTooltip"
+                :title="episodeIdChipTooltip"
+                @click.stop.prevent
+              >
+                E
+              </button>
+              <HelpTip
+                :pref-width="300"
+                :button-class="SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS"
+                button-aria-label="Episode and feed diagnostics"
+              >
+              <p class="mb-2 font-sans text-[11px] font-semibold text-surface-foreground">
+                Troubleshooting
+              </p>
+              <p class="mb-2 font-sans text-[10px] text-muted">
+                Paths and ids for support — same data the viewer uses for search, similar episodes,
+                and graph loads.
+              </p>
+              <dl class="space-y-1.5 font-mono text-[10px] leading-snug">
+                <template v-for="(row, di) in detailDiagnosticsEntries" :key="di">
+                  <dt class="font-sans font-medium text-muted">
+                    {{ row.label }}
+                  </dt>
+                  <dd class="break-words text-elevated-foreground">
+                    {{ row.value }}
+                  </dd>
+                </template>
+              </dl>
+              </HelpTip>
+            </div>
+          </div>
+          <div
+            v-if="
+              detail.publish_date ||
+                detail.episode_number != null ||
+                formatDurationSeconds(detail.duration_seconds) ||
+                detail.feed_id
+            "
+            class="mt-0.5 text-xs text-muted"
+          >
+            <div class="flex min-w-0 flex-col items-start gap-1 text-left">
+              <span
+                class="w-full min-w-0 cursor-help break-words font-medium text-surface-foreground"
+                :title="detailFeedHoverTitle() || undefined"
+              >{{ detailFeedLine() }}</span>
+              <span
+                v-if="
+                  detail.publish_date ||
+                    detail.episode_number != null ||
+                    formatDurationSeconds(detail.duration_seconds)
+                "
+                class="inline-flex w-full min-w-0 flex-wrap items-baseline gap-x-1.5 text-left text-[10px] tabular-nums leading-tight text-muted"
+              >
+                <span v-if="detail.publish_date">{{ detail.publish_date }}</span>
+                <span v-if="detail.episode_number != null">E{{ detail.episode_number }}</span>
+                <span v-if="formatDurationSeconds(detail.duration_seconds)">{{
+                  formatDurationSeconds(detail.duration_seconds)
+                }}</span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p v-if="detail.summary_title" class="mt-2 text-xs font-medium text-surface-foreground">
+        {{ detail.summary_title }}
+      </p>
+      <p
+        v-if="detail.summary_text"
+        class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"
+      >
+        {{ detail.summary_text }}
+      </p>
+      <div
+        v-if="(detail.summary_bullets ?? []).length"
+        :class="
+          detail.summary_title || detail.summary_text
+            ? 'mt-3 border-t border-border pt-3'
+            : 'mt-2'
+        "
+      >
+        <h4
+          v-if="detail.summary_title || detail.summary_text"
+          class="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted"
+        >
+          Key points
+        </h4>
+        <ul class="list-inside list-disc space-y-0.5 text-xs leading-relaxed text-muted">
+          <li v-for="(b, i) in detail.summary_bullets ?? []" :key="i">
+            {{ b }}
+          </li>
+        </ul>
+      </div>
+      <p
+        v-if="!(detail.summary_bullets ?? []).length && !detail.summary_text"
+        class="mt-2 text-xs text-muted"
+      >
+        No summary text in metadata.
+      </p>
+      <div class="mt-3 flex items-stretch gap-2">
+        <button
+          type="button"
+          class="min-w-0 flex-1 rounded bg-gi px-2 py-1.5 text-center text-xs font-medium leading-snug text-gi-foreground disabled:opacity-40"
+          :disabled="!detail.has_gi && !detail.has_kg"
+          @click="openInGraph()"
+        >
+          Open in graph
+        </button>
+        <button
+          type="button"
+          class="min-w-0 flex-1 rounded bg-primary px-2 py-1.5 text-center text-xs font-medium leading-snug text-primary-foreground"
+          @click="openInSearch()"
+        >
+          Prefill semantic search
+        </button>
+        <HelpTip class="shrink-0 self-center">
+          Opens Search with this feed scoped and the same field order as
+          <strong class="font-medium text-surface-foreground/90">Similar episodes</strong>
+          (summary title + bullets, else episode title). Long titles or bullets are clipped so the
+          query stays short (~480 chars max). Run Search to query the vector index.
+        </HelpTip>
+      </div>
+      <div
+        class="mt-4 border-t border-border pt-2"
+        role="region"
+        aria-label="Similar episodes"
+        data-testid="library-similar"
+      >
+        <div class="flex items-center gap-1.5">
+          <h4 class="text-xs font-semibold text-surface-foreground">
+            Similar episodes
+          </h4>
+          <HelpTip
+            class="shrink-0"
+            :pref-width="320"
+            button-aria-label="About similar episodes"
+          >
+            <p class="mb-2 font-sans text-[11px] font-semibold text-surface-foreground">
+              How this works
+            </p>
+            <p class="mb-2 font-sans text-[10px] text-muted">
+              Peers come from the same
+              <strong class="font-medium text-surface-foreground/90">vector index</strong> as
+              semantic search. The server turns summary text from this episode into an embedding and
+              returns nearest neighbors (excluding this episode).
+            </p>
+            <p class="mb-1 font-sans text-[10px] font-medium text-muted">
+              Text embedded for this request
+            </p>
+            <p
+              v-if="similarQueryUsed"
+              class="whitespace-pre-wrap break-words font-mono text-[10px] leading-snug text-elevated-foreground"
+            >
+              {{ similarQueryUsed }}
+            </p>
+            <p v-else-if="similarLoading" class="font-sans text-[10px] text-muted">
+              Loading…
+            </p>
+            <p v-else class="font-sans text-[10px] text-muted">
+              Open this tip after results load to see the exact string the server embedded.
+            </p>
+          </HelpTip>
+        </div>
+        <p v-if="similarLoading" class="mt-1 text-xs text-muted" aria-live="polite">
+          Searching similar episodes…
+        </p>
+        <p v-if="similarError" class="mt-1 text-xs text-danger">
+          {{ similarError }}
+        </p>
+        <p
+          v-else-if="similarRanOk && !similarLoading && similarItems.length === 0"
+          class="mt-1 text-xs text-muted"
+          data-testid="library-similar-empty"
+        >
+          No similar episodes matched. Try another episode or rebuild the index.
+        </p>
+        <ul v-else-if="similarItems.length" class="mt-1 space-y-1 text-xs">
+          <li v-for="(s, si) in similarItems" :key="si">
+            <button
+              type="button"
+              class="flex w-full gap-2 rounded px-1 py-0.5 text-left hover:bg-overlay disabled:opacity-50"
+              :disabled="!s.metadata_relative_path"
+              @click="openSimilarEpisode(s)"
+            >
+              <PodcastCover
+                :corpus-path="shell.corpusPath"
+                :episode-image-local-relpath="s.episode_image_local_relpath"
+                :feed-image-local-relpath="s.feed_image_local_relpath"
+                :episode-image-url="s.episode_image_url"
+                :feed-image-url="s.feed_image_url"
+                :alt="`Cover for ${s.episode_title || 'episode'}`"
+                size-class="h-8 w-8"
+              />
+              <span class="min-w-0 flex-1">
+                <span class="font-medium text-surface-foreground">{{
+                  s.episode_title || (s.snippet ? s.snippet.slice(0, 48) : '') || '(episode)'
+                }}</span>
+                <span class="ml-1 text-[10px] text-muted">{{ s.score.toFixed(3) }}</span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+      <p v-if="graphActionError" class="mt-1 text-xs text-danger">
+        {{ graphActionError }}
+      </p>
+    </template>
+  </div>
+</template>

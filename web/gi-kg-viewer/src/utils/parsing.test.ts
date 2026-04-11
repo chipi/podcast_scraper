@@ -9,6 +9,7 @@ import {
   filterArtifactEgoOneHop,
   filtersActive,
   findRawNodeInArtifact,
+  fullPrimaryNodeLabel,
   nodeLabel,
   parseArtifact,
   toCytoElements,
@@ -146,6 +147,18 @@ describe('nodeLabel', () => {
 
   it('works for any unknown node type with properties', () => {
     expect(nodeLabel({ type: 'Foo', properties: { name: 'Bar' } })).toBe('Bar')
+  })
+})
+
+describe('fullPrimaryNodeLabel', () => {
+  it('returns uncapped text when nodeLabel would shorten', () => {
+    const long = 'A'.repeat(50)
+    expect(nodeLabel({ type: 'Insight', properties: { text: long } }).length).toBeLessThanOrEqual(40)
+    expect(fullPrimaryNodeLabel({ type: 'Insight', properties: { text: long } })).toBe(long)
+  })
+
+  it('matches nodeLabel for short strings', () => {
+    expect(fullPrimaryNodeLabel({ type: 'Topic', properties: { label: 'climate' } })).toBe('climate')
   })
 })
 

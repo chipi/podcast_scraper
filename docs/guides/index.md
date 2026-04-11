@@ -38,6 +38,7 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [AI Provider Comparison](AI_PROVIDER_COMPARISON_GUIDE.md) | Compare all 9 providers: cost, quality, speed, privacy |
+| [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) | Per-provider reference cards, benchmarks, and magic quadrant |
 | [ML Model Comparison](ML_MODEL_COMPARISON_GUIDE.md) | Compare ML models: Whisper, spaCy, Transformers (BART/LED) |
 | [Provider Configuration](PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) | Quick provider configuration reference |
 | [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md) | Ollama installation, setup, troubleshooting, and testing |
@@ -62,7 +63,9 @@ Practical guides for using and developing Podcast Scraper.
 | ------- | ----------- |
 | [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, and quality evaluation (RFC-041) |
 | [Evaluation Reports](eval-reports/index.md) | Quality sweeps: ROUGE, embeddings, report library |
+| [Performance Guide](PERFORMANCE.md) | Performance considerations, optimization, and troubleshooting |
 | [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles: RSS, CPU%, wall time per stage (RFC-064) |
+| [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | Dev tooling: `--monitor`, RSS/CPU/stage dashboard or `.monitor.log`, `.pipeline_status.json`; optional `.[monitor]` memray + py-spy (RFC-065, #512) |
 | [Performance Reports](performance-reports/index.md) | Published profile snapshots (tables, caveats) |
 | [Experiment metrics (eval runs)](METRICS_GUIDE.md) | Metrics from eval runs and reporting |
 | [Promotion Workflow](PROMOTION_WORKFLOW.md) | Promotion and release workflow |
@@ -72,4 +75,6 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [Cursor AI Best Practices](CURSOR_AI_BEST_PRACTICES_GUIDE.md) | AI-assisted development |
+| [Agent-Browser Closed Loop](AGENT_BROWSER_LOOP_GUIDE.md) | Browser loops: automated E2E (`make test-ui-e2e`) + live co-development (Chrome DevTools MCP) |
+| [Agent-Pipeline Feedback Loop](AGENT_PIPELINE_LOOP_GUIDE.md) | Python pipeline loops: CI diagnosis, acceptance testing, `--monitor` real-time feedback, `metrics.json` post-mortem |
 | [Documentation Agent Guide](DOCUMENTATION_AGENT_GUIDE.md) | Documentation workflows |

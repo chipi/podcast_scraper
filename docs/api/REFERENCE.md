@@ -150,6 +150,9 @@ class Config(BaseModel)
 
 - `workers` (`int`, default: `min(8, cpu_count())`, alias: `"workers"`): Number of parallel download workers.
 - `dry_run` (`bool`, default: `False`, alias: `"dry_run"`): Preview planned work without saving files.
+- `monitor` (`bool`, default: `False`, alias: `"monitor"`): Spawn live RSS/CPU/stage monitor subprocess (RFC-065). CLI: `--monitor`. See [Live Pipeline Monitor](../guides/LIVE_PIPELINE_MONITOR.md).
+- `memray` (`bool`, default: `False`, alias: `"memray"`): Re-exec CLI or **`run_from_config_file`** under **memray** (optional **`.[monitor]`**). CLI: `--memray`. Sets **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** in the child.
+- `memray_output` (`Optional[str]`, default: `None`, alias: `"memray_output"`): Memray capture **`.bin`** path. CLI: `--memray-output`. Default: **`debug/memray_<timestamp>.bin`** under the effective output directory (see [CONFIGURATION.md](CONFIGURATION.md#live-pipeline-monitor-rfc-065-512)).
 
 #### Logging
 

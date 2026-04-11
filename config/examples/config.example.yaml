@@ -35,6 +35,13 @@ run_id: experiment
 workers: 4  # Number of parallel download workers. Can also be set via WORKERS env var
 log_level: INFO  # Can also be set via LOG_LEVEL env var (DEBUG, INFO, WARNING, ERROR)
 
+# Live pipeline monitor (RFC-065): live RSS/CPU/stage child + .pipeline_status.json; use --log-file
+# for cleaner stderr. Non-TTY stderr → .monitor.log under output_dir (see LIVE_PIPELINE_MONITOR.md).
+# monitor: false
+# Optional heap/CPU profiling — pip install -e ".[monitor]"
+# memray: false
+# memray_output: null  # or e.g. ./debug/my_run.bin
+
 # Optional: Uncomment to enable
 # skip_existing: true  # Skip episodes with existing output (transcripts/metadata)
 # reuse_media: true  # Reuse existing media files instead of re-downloading (for faster testing)

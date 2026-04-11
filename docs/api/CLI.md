@@ -209,6 +209,13 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 
 - `--json-logs` - Output structured JSON logs for monitoring/alerting (Issue #379)
 
+### Live pipeline monitor (RFC-065, #512)
+
+- **`--monitor`** — After the output directory is known, spawn a **child process** that reads **`<output_dir>/.pipeline_status.json`**, samples **RSS** and **CPU%** for the main pipeline PID (**psutil**), and renders a **`rich.Live`** panel on **stderr** (or appends plain lines to **`.monitor.log`** when stderr is not a TTY) until the pipeline exits. Core deps only. With **`pip install -e ".[monitor]"`**: press **`f`** in the parent TTY to write **`debug/flamegraph_*.svg`** (**py-spy**).
+- **`--memray`** / **`--memray-output PATH`** — Re-exec the CLI under **memray** for heap captures (optional **`.[monitor]`**; see [Live Pipeline Monitor](../guides/LIVE_PIPELINE_MONITOR.md)).
+
+**Guide:** [Live Pipeline Monitor](../guides/LIVE_PIPELINE_MONITOR.md) · **RFC:** [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md)
+
 ## Cost Projection in Dry-Run Mode
 
 When using `--dry-run` with OpenAI providers configured, the pipeline displays a cost projection before execution. This helps you estimate API costs before running expensive operations.

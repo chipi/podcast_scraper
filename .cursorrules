@@ -180,6 +180,15 @@ or accessible names used by tests):
 3. **`docs/uxs/UXS-001-gi-kg-viewer.md`** — Update when the **visual or experience contract**
    (tokens, density, documented patterns) changes, not only when tests break.
 
+**Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
+**root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as
+**`SERVE_OUTPUT_DIR`** — run **`make serve SERVE_OUTPUT_DIR=<path>`** (or **`make serve-api …`**). Do
+**not** change the Makefile default **`SERVE_OUTPUT_DIR ?= ./output`** unless they **explicitly** ask to
+change the project default for everyone. Wording like “temporary”, “for now”, “just start”, “don’t change
+any files” → **only** the Make variable override + restart processes; **no** repo edits.
+**`VITE_DEFAULT_CORPUS_PATH`** (viewer `.env`) is **separate**: it pre-fills the shell corpus path in the
+browser; touch it only when they ask about that UI field, not as a substitute for **`SERVE_OUTPUT_DIR`**.
+
 **FastAPI `/api/*` JSON** (new or changed routes): extend **`tests/unit/podcast_scraper/server/`** and
 **`tests/integration/server/`** (not a root-level `tests/integration/test_server_api.py`).
 

@@ -53,11 +53,16 @@ coherent and easy to maintain.
   **Library** stays catalog-first (no embedded 24h digest strip) — see [Corpus digest (PRD-023)](#corpus-digest-prd-023)
 - Graph visualization chrome (legends, selection affordances) at the token level
 - Chart.js panels that summarize graph or artifact stats
-- **Dashboard** tab: **Chart.js** panels — **GI + KG artifact write-day** timeline (from artifact mtimes),
-  **publish-month** histogram (`/api/corpus/stats`), **manifest** feed throughput and **run.json**
-  duration trend + **latest-run** stage stack and **episode-outcome** doughnut when data exists;
-  plus node-type and indexed doc-type **bars**; corpus path, graph metrics, vector index,
-  **staleness / reindex** (#507), and rebuild actions live in **API · Data** → **Data** (elevated cards)
+- **Dashboard** tab: **Chart.js** panels grouped under **Pipeline** vs **Content intelligence** (in-dashboard tabs):
+  **Pipeline** — manifest throughput, **run.json** duration and cumulative growth, **latest-run** stage bars and
+  **episode-outcome** sorted horizontal bars when data exists; **Content intelligence** — top **`region`**
+  **Vector index and digest glance** (freshness copy, index status bullets, footprint **dl**, **feeds in index vs catalog**
+  horizontal bars, compact **digest** one-liner from `GET /api/corpus/digest?compact=true` when the digest API is on),
+  then **GI + KG artifact write-day** timeline, **publish-month** histogram (`/api/corpus/stats`) with a **catalog vs bar-sum**
+  insight when they differ, GI vs KG **cumulative-by-day**, graph **node-type** and indexed **doc-type** **bars** (optional
+  **count + % of vectors** at bar ends); multi-series lines use **end-of-line labels** instead of legends; optional **insight**
+  line under each chart when the data supports a clear takeaway; full vector index actions remain in **API · Data** → **Data**
+  (elevated cards)
 
 **Non-goals:**
 
@@ -74,13 +79,35 @@ in [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md). Digest-specific **beh
 [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md). See the
 [UXS vs RFC boundary](index.md#uxs-vs-rfc-boundary) guidance.
 
+## Semantic search panel (PRD-021)
+
+- **Primary flow:** Search query field (no separate label; placeholder + **Semantic search** heading), then **Since (date)** and **Top‑k** on one compact row; **Advanced search** link; optional read-only **Advanced filters** summary when any advanced control differs from defaults; **Search** / **Clear** last.
+- **Advanced search:** small underlined control opens a **modal dialog** with **Feed** (substring on catalog `feed_id` for the API; **Library → Prefill semantic search** shows the **feed title** from the feeds catalog when known, with hover/title for the id until edited),
+  **Grounded insights only**, **Speaker contains**, **Embedding model**, **Merge duplicate KG surfaces** (default on:
+  same behavior family as graph Entity/Topic dedupe for `kg_entity` / `kg_topic` vector rows), **Doc types** (empty = all).
+- **Search result insights:** after at least one hit, an underlined **Search result insights** control opens a **modal**
+  (same backdrop pattern as Advanced search) titled **Search result insights** — one scroll, no tabs: a short
+  **insight** line (dominant doc type); **Doc types** and **Publish month** in a **two-column** row (small multiples);
+  **Episodes** / **Feeds** with top rows (episode **title** / feed **title** from hit metadata, or loaded from
+  the episode’s `*.metadata.json` when the index row omitted them) plus **+N other …** tail counts; **Similarity** bars proportional to
+  score ÷ max(score) in the list (captioned); **Terms** with a top-token insight (word frequency; heuristic, not KG).
+- **Results:** a muted **N results** / **1 result** line only (the query stays in the textarea; it is not repeated here). Each hit can expose **G** (graph focus, GI token) and **L** (Library episode) as separate
+  controls; **L** requires a healthy API check + corpus path and **`source_metadata_relative_path`** on the hit
+  (vector indexer stamps it on rebuild). **`corpus_library_api`** in health can still be **No** while **L** shows;
+  the Library tab surfaces errors if catalog routes are unavailable. **E** (episode id chip) is informational.
+  When **Merge duplicate KG surfaces** merged a row (**`kg_surface_match_count`** ≥ 2), **G** only —
+  **L** and **E** are hidden so actions are not tied to a single representative episode.
+
 ## Dashboard tab (charts)
 
-- **Layout (top to bottom):** Timeline / corpus-shape charts (GI mtime line, publish-month vertical
-  bars, optional manifest + run-duration lines), then **latest run** pipeline (stacked stage bar +
-  outcomes doughnut), then graph **node-type** and **index doc-type** horizontal bars.
-- **Copy:** Short blurb points to **API · Data** for corpus path and index tooling; optional
-  “Loading corpus charts…” while dashboard fetches aggregate APIs.
+- **Layout:** Corpus **summary counts** strip (when API + path), then an in-dashboard **tablist**
+  (**Dashboard sections**): **Pipeline** (runs, manifest throughput, cumulative growth from
+  `run.json`, latest run stage times + episode outcomes) vs **Content intelligence** (**Vector index and digest glance**
+  region, then GI mtime line, publish-month catalog bars with gap insight, GI vs KG cumulative-by-write-day, graph **node-type**
+  and vector **index doc-type** bars).
+- **Copy:** Short blurb points to **API · Data** for corpus root, catalog snapshot, graph metrics, and index
+  tooling; a one-line hint under the tabs explains the active section; optional “Loading corpus charts…” while
+  dashboard fetches aggregate APIs.
 - **E2E contract:** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).
 
 ## API · Data (left panel)
@@ -90,17 +117,21 @@ in [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md). Digest-specific **beh
   **Graph explore**, **Index routes**, **Corpus metrics**, **Library API**, **Digest API**, **Binary (covers)** —
   from the same health JSON (omit a flag on older servers → treated as advertised except catalog flags).
   **Retry health**; when health fails, the offline **Choose files** affordance stays here.
-- **Data:** Neutral section title + blurb; **Corpus root:** / **Resolved:** lines sit as plain text
-  under the blurb (not inside a card). Then two sibling **elevated** cards — **Graph**
-  metrics and **Vector index** (`GET /api/index/stats` + rebuild actions) — same depth as the API
-  card, without an extra nested metrics frame inside each card.
+- **Data:** Neutral section title + blurb; then sibling **elevated** cards (same depth as the API card):
+  **Corpus root** (**Path** / **Resolved**); **Corpus catalog** (snapshot from `GET /api/corpus/stats` —
+  feeds, episodes, digest topic bands, publish-month histogram rollups, optional GI/KG list counts when the
+  artifact list is loaded) + **Refresh**; **Graph** (merged GI/KG node/edge metrics from the loaded graph) +
+  **Refresh** (re-list `GET /api/artifacts` and reload selected GI/KG JSON); **Vector index**
+  (`GET /api/index/stats` + rebuild actions). Metric tables use the shared **MetricsPanel** pattern inside
+  cards where a titled sub-block helps (e.g. **Index statistics** under Vector index).
 - **Density:** Same `surface` / `border` cards; sidebar uses slightly smaller type (`text-[10px]` /
   `text-xs`) so the panel stays scannable at `w-72`.
 - **Intent colors:** **Reindex recommended** uses **warning** panels; informational notes use **muted**
   framing; **Last rebuild error** uses **danger** text (consistent with shell errors).
-- **Actions:** **Update index** and **Full rebuild** sit next to **Refresh**; disabled while
+- **Actions:** **Corpus catalog** and **Graph** each have **Refresh** (independent of Vector index).
+  **Update index** and **Full rebuild** sit next to **Refresh** on **Vector index**; disabled while
   `rebuild_in_progress` or `faiss_unavailable`.
-- **E2E contract:** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — **API · Data** tab, **Data** heading, vector index buttons.
+- **E2E contract:** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — **API · Data** tab, **Data** heading, corpus + graph + vector index controls.
 
 ## Corpus path (left **Corpus** tab)
 
@@ -121,7 +152,7 @@ separate theme or product chrome.
 
 - **Entry:** A **main** tab labeled **Library**, placed after **Digest** and before
   **Graph** / **Dashboard**, with `aria-label` consistent with other main views.
-- **Layout (desktop):** Three logical regions on `canvas` / `surface`:
+- **Layout (desktop):** **Library** main column (`canvas` / `surface`) plus the **right shell rail**:
   1. **Episode filters** — one collapsible: on wide viewports, a **three-column** row —
      **published on or after** (compact presets + custom `YYYY-MM-DD`, aligned with Search
      **since**) on the **left** — **`label` Published on or after** and the **YYYY-MM-DD** input share the **first**
@@ -130,20 +161,22 @@ separate theme or product chrome.
      Feed rows use **display title** when present (**stable `feed_id`**, plus **RSS** and
      **description** in **`title` hover** when `GET /api/corpus/feeds` includes them), `border`
      dividers, and `overlay` for the selected feed row.
-  2. **Episode column** — scrollable list of episodes: **title row** is **episode title** (left) and **right**
-     column: **first** line **feed display name** (truncated, **left**) and **publish date** (**right**);
-     **second** line **E#** and **duration** when present; **native
-     `title` hover** on the feed name shows **RSS URL**, **feed id**, and **feed description** when
+  2. **Episode column** — scrollable list of episodes: **cursor pagination** from
+     `GET /api/corpus/episodes` (**`limit` ~20** per page + `next_cursor`); **Load more** at the bottom plus
+     **scroll-to-load** when the user nears the end of the list (same requests as **Load more**).
+     **Title row** is **episode title** (left) and **right** column on the **same** row: **feed display name**
+     (truncated, **left**) and **publish date**, **E#**, **duration** (inline, **right**, when each is present);
+     **native `title` hover** on the feed name shows **RSS URL**, **feed id**, and **feed description** when
      the API provides them (`feed_rss_url` / `feed_description` or feeds catalog). **Summary** line
      under the title — same recap rules as **Digest** / `digestRowSummaryPreview`, including
      **`topics`** fallback — then **topic pills**; recap **wraps fully** (no line clamp); selected
      row uses `overlay`.
-  3. **Episode panel** — `surface` card with heading **Episode**, episode title (heading scale); **first** meta line:
-     **feed** (**left**) and **publish date** (**right**, `muted`) with the **same native hover** on the feed as
-     episode list rows (RSS, id, description when available); **E#** / **duration** on a **second** line when present;
+  3. **Episode rail** (right shell sidebar) — **`role="region"`** **`aria-label="Episode"`** (use **`exact: true`** in automation so it does not match **Episodes**). Shown when the user selects a Library episode or opens one from **Digest**; **mutually exclusive** with **Search & Explore** in that rail (user returns via **Search & Explore** in the rail header). Same content as the former in-Library panel: `surface` card styling,      episode title (heading scale); **meta** block:
+     **feed** on the first line (**full width**, **wrap**), then **publish date**, **E#**, **duration** on the line below (**left**, `muted`, list-scale meta) when each is present — same **native hover** on the feed as episode list rows (RSS, id, description when available);
      optional **summary title** and **summary prose**; when bullets follow that recap, a **`border`**
      separator plus **`h4` “Key points”** (muted, small caps scale) precedes summary bullets as a
-     **semantic list** (`ul` / `li`), not wall-of-text paragraphs.
+     **semantic list** (`ul` / `li`), not wall-of-text paragraphs. A short note in the Library column can point users to this rail for full detail. From **Search & Explore**, **Back to episode** restores the **Episode** rail when a library episode path is stashed; **Back to details** restores **Graph node** rail when the user opened tools from a graph node (e.g. Topic) without clearing the stashed node id. Opening a graph node detail clears the episode path so the back target matches what the user was viewing.
+     **Graph:** double-tapping an **Episode** node opens this same **Episode** rail when a corpus **metadata** path resolves (node properties, loaded artifact path, or catalog **episode_id** lookup). With the **Episode** rail already open from Library or Digest, switching the main tab to **Graph** highlights that episode’s node and centers/zooms the canvas when the node is present in the merged graph (same mechanism as **Open in graph**). Below the scrollable episode body, a **Graph neighborhood and connections** strip (**only when the main tab is Graph**) shows a read-only **Local neighborhood** mini Cytoscape (1-hop ego around the node) then the **Connections** list with **`G`** per row (same as semantic search). Non-episode graph node detail shares the same strip. **Technical ids:** **`E`** uses the same **Episode** blue as the graph legend / Cytoscape (bold white glyph, strong border); **`?`** uses a separate neutral chip with a near-black glyph (inverted in dark mode). Native tooltip on **`E`** carries the graph id. **Insight** / **Quote** (and other non-**Episode**) detail omit redundant **`episode_id`** from the property list because **`E`** already signals linkage. Graph node **title** uses up to two lines (`line-clamp`) plus a **native `title`** with the uncapped primary label when longer than the graph short label; a body paragraph is omitted when it would only repeat that full title. **`entity_kind: episode`** is not shown as a subtitle under **Insight** (and similar) nodes — the rail header already gives the graph type. Graph node detail in-rail has no **✕**; type avatars reuse graph fill/border colors.
 - **Empty states:** Use the same **empty state** language as the rest of the viewer
   (`muted`, short instruction, e.g. set corpus path or confirm metadata exists).
 
@@ -151,19 +184,19 @@ separate theme or product chrome.
 
 - Reuse **surface**, **border**, **elevated**, **muted**, **primary** for lists, filters, and
   actions — no new palette for the library.
-- **GI / KG actions** in the episode panel use **domain tokens** (`gi`, `kg`) for buttons or
+- **GI / KG actions** in the **Episode** rail use **domain tokens** (`gi`, `kg`) for buttons or
   badges that refer to artifact type (consistent with **Domain tokens (GIL / KG identity)**
   under [Semantic color tokens](#semantic-color-tokens)).
 - **Search handoff** control uses **primary** (it is a navigation affordance to an existing
   panel, not a domain-colored insight).
 - **Vector index awareness (RFC-067 Phase 3):** Optional **Indexed** chip on feed rows when
   that `feed_id` appears in `GET /api/index/stats` → `feeds_indexed` (server-normalized ids);
-  episode panel exposes **Episode and feed diagnostics** (help control → tooltip) with paths, ids,
+  **Episode** rail exposes **Episode and feed diagnostics** (help control → tooltip) with paths, ids,
   **Feed in vector index**, and index stats when loaded — no always-on troubleshooting strip.
-  **Find similar episodes** runs
-  `GET /api/corpus/episodes/similar` and lists peer episodes (scores + open-in-library when paths
-  resolve); **empty** successful responses show a short **no peers** state. **Prefill semantic search**
-  opens Search with **feed id** + **summary-based query** (full summary text when available); user runs **Search** for vector hits.
+  **Similar episodes** loads automatically after episode detail succeeds (`GET /api/corpus/episodes/similar`)
+  and lists peer episodes (scores + open-in-library when paths
+  resolve); **empty** successful responses show a short **no peers** state; **loading** shows a short **Searching similar episodes…** line (`aria-live="polite"`). A **?** next to the heading opens a **tooltip** explaining vector similarity and showing **`query_used`** (the exact text the server embedded) when the API returns it. **Prefill semantic search**
+  opens Search with the **Feed** filter (catalog id substring) and the same field order as **Similar episodes** (summary **title** + **bullets**, else **episode title** — not full prose **summary_text**), with **length caps** so oversized title/bullets from metadata do not fill the query field; user runs **Search** for vector hits.
 
 ### Library accessibility targets
 
@@ -174,7 +207,7 @@ separate theme or product chrome.
   filter panel’s summary/topic input).
 - **Focus:** Selected list row and primary actions use the same **focus ring** convention
   as the rest of the viewer ([Key states](#key-states)).
-- **Episode panel bullets:** Summary bullets remain **plain text list items**; if any bullet is
+- **Episode rail bullets:** Summary bullets remain **plain text list items**; if any bullet is
   truncated, provide a visible or tooltip expansion only if it does not break contrast rules.
 
 ### Implementation and E2E contract
@@ -187,54 +220,52 @@ first for any **E2E-visible** strings, roles, or hooks, then align Playwright sp
 ## Corpus digest (PRD-023)
 
 The **Digest** tab is the **discovery** surface for rolling-window **recent episodes** and **semantic topic** bands.
-Row clicks send episodes to **Library** (episode panel) for **Graph** and **Prefill semantic search**; **topic bands**
-still expose a **topic title → Graph** shortcut (top hit only) and **Search topic**. **Library** no longer embeds a
+**Recent** and **topic band hit** rows open the **Episode** rail on the right **without** switching away from **Digest** (same detail as selecting an episode in **Library**), so **Graph** and **Prefill semantic search** stay one click away on that rail; **topic bands**
+still expose a **topic title → Graph** shortcut (top hit only) and **Search topic**. **Open Library** in the digest toolbar switches to **Library** for catalog browse. Switching **Digest** ↔ **Library** keeps the **Episode** rail selection when that episode is still in scope (Library catalog list for the current filters and loaded pages; digest **rows** + topic **hits** after each digest load). **Library** no longer embeds a
 **New (24h)** digest strip so the two tabs do not compete — users open **Digest** for “what’s new,” **Library** for
-catalog browse and episode detail. Same **surface** tokens; **orientation**, not a second theme.
+catalog browse. Same **surface** tokens; **orientation**, not a second theme.
 
 ### Digest information architecture
 
 - **Main nav order:** **Digest**, **Library**, **Graph**, **Dashboard** (left to right).
   **Default selected tab:** **Digest** on first load.
 - **Digest tab:** A **main** nav item labeled **Digest** (same control pattern as other
-  main views). Default time lens **7d** (behavioral default in RFC-068); user can switch
+  main views). **No** duplicate in-column heading — the nav label is the page title (same pattern as **Library**).
+  Default time lens **7d** (behavioral default in RFC-068); user can switch
   **24h** / **7d** / **`since`** per RFC.
-- **Toolbar:** **Open Library** switches to the **Library** tab without clearing corpus path.
+- **Toolbar:** One row — **rolling bounds** (**start → end · row count**, **left** when digest is loaded) and **Window** + **Open Library** (**right**); **Open Library** switches to the **Library** tab without clearing corpus path.
 
 ### Layout and density
 
 - **Digest tab:** Single-column **scroll** on `canvas`; sections:
-  1. **Window** — compact preset control row (`muted` labels, `surface` controls). A **muted** summary line shows
-     rolling bounds (**start → end · row count**) with readable date + time and an explicit **UTC** suffix (not raw ISO
-     with fractional seconds); `<time datetime="…">` keeps machine-readable instants.
-  2. **Topic bands** — responsive **grid row** (`sm:2` / `xl:3` columns): compact card padding; per-topic **hit row**
-     is one **clickable** control (same handoff as **Recent**): opens **Library** with that episode; **`summary_preview`**
+  1. **Window** — top **toolbar** row: **muted** rolling bounds (**start → end · row count**) **left** (readable date + time, explicit **UTC** suffix, not raw ISO with fractional seconds; `<time datetime="…">` for machine-readable instants) when digest data is loaded; **Window** controls + **Open Library** **right** (`muted` labels, `surface` controls). When the digest is loading or unavailable, controls stay **end-aligned** on that row (no duplicate summary line below).
+  2. **Topic bands** — outer **`region` `Topic bands`** with **`max-height`** (**`min(50vh, 24rem)`**) and **vertical scroll** for the whole grid (single scrollbar; per-topic lists do not scroll independently); inner responsive **grid** (`sm:2` / `xl:3` columns); compact card padding; per-topic **hit row**
+     is one **clickable** control (same handoff as **Recent**): opens the **Episode** rail while **Digest** stays selected; **`summary_preview`**
      under the title — **tight** gap (`mt-0.5`), **full wrap**, no clamp; **right** column **top → bottom**:
-     **publish date** (from API when present), **duration**, **feed** (truncated); **hover** on feed for RSS / id /
-     description (same as Library episode rows); **similarity score** as a small mono pill with **native tooltip**
-     explaining vector similarity (model-dependent). **No** per-hit **Graph** button — use the **topic title** control
-     for **top-hit Graph** or open **Library** and use **Open in graph** there. **Search topic** prefills semantic search.
-  3. **Recent (diverse)** — episode rows aligned with **Library** list: **cover** `h-9`, **title** +
-     row: **right** column **first** line **feed** + **publish date**; **E#** / **duration** **below** (**hover** on feed = RSS, id,
+     **similarity score** as a small mono pill with **native tooltip** explaining vector similarity (model-dependent)
+     when present; **publish date** + **duration** on **one** line when either is present; **feed** (truncated); **hover** on feed for RSS / id /
+     description (same as Library episode rows). **No** per-hit **Graph** button — use the **topic title** control
+     for **top-hit Graph** or **Open in graph** on the **Episode** rail after opening the row. **Search topic** prefills semantic search with the topic **`query`** and sets **Since (date)** to the digest **`window_start_utc`** calendar day (aligned with digest topic search’s **`since`** filter). **Selected** hit row uses **`bg-overlay`** when its path matches the **Episode** rail (same as **Recent** and **Library**).
+  3. **Recent (diverse)** — **`h3` Recent** subtitle + **`?`** tooltip (**About the Recent digest list**) explaining diversification vs **topic bands**; **`role="region"`** **`aria-label="Recent episodes"`**; episode rows aligned with **Library** list: **cover** `h-9`, **title** +
+     row: **right** column **feed** (**left**) and **publish date**, **E#**, **duration** inline (**right**) on the **same** row (**hover** on feed = RSS, id,
      description when available), **full-wrap** **`summary_preview`** / recap;
-     **card click** → **Library** episode panel (no **GI/KG** chips on the card — status lives on **Library**
-     episode panel). **Hover** may include **feed id** when it differs from the display title.
+     **card click** → **Episode** rail for that episode (**Digest** remains the main tab; no **GI/KG** chips on the card — status lives in the **Episode** rail). **Selected** row uses the same **`bg-overlay`** treatment as **Library** episode rows when that episode’s `metadata_relative_path` matches the **Episode** rail (including when the same episode appears in **topic bands** and **Recent** — both highlight). **Hover** may include **feed id** when it differs from the display title.
      **Accessible name** matches Library rows: **`episode_title`, `feed`**. **Feed** text prefers
      **`GET /api/corpus/feeds`** ``display_title`` (Library sidebar source), then digest row fields.
-     **Open in graph** and **Prefill semantic search** live on **Library** episode panel in one row
+     **Open in graph** and **Prefill semantic search** live on the **Episode** rail in one row
      (**equal-width** buttons); Prefill keeps a small **?** help tip beside them.
 
 ### Actions and tokens
 
-- **Digest — recent episode cards:** Only **Library** handoff (card click). **Open in graph** /
+- **Digest — recent episode cards:** **Episode** rail handoff (card click); **Digest** tab stays selected. **Open in graph** /
   **Prefill semantic search** follow [Corpus library module](#corpus-library-module-prd-022) on
-  **Library** episode panel, not on the Digest card.
-- **Open GI / Open KG / Prefill semantic search (Library):** Same **domain** and **primary** rules
+  the **Episode** rail, not on the Digest card.
+- **Open GI / Open KG / Prefill semantic search (Library / Episode rail):** Same **domain** and **primary** rules
   as [Corpus library module](#corpus-library-module-prd-022) (GI/KG use `gi`/`kg`; search handoff
   uses `primary`).
 - **Topic band:** **Search topic** uses `primary` (or `surface`+`border` per button hierarchy);
   opens the Search panel with the topic query prefilled per RFC-068. **Topic title** opens the **top** hit in **Graph**;
-  each **hit row** opens **Library** (same as **Recent** cards); **Open in graph** for a specific hit lives on **Library**.
+  each **hit row** opens the **Episode** rail (same as **Recent** cards); **Open in graph** for a specific hit lives on the **Episode** rail.
 
 ### Digest accessibility
 
@@ -411,17 +442,27 @@ duration) belongs in RFC-062.
 
 ### Graph exploration chrome (PRD-024 / RFC-069)
 
-- **Toolbar (primary row):** **Fit**, **Re-layout** (runs layout on visible elements only),
-  **Export PNG**, zoom **−** / **+** / **100%** (100% = `zoom(1)`, pan unchanged), and a short
-  hint for **Shift+dbl-click** (1-hop / neighborhood) and **Shift+drag** box zoom.
-- **Toolbar (chrome below zoom):** Optional **Sources** row first (merged **GI** / **KG**,
-  **Hide ungrounded**, **filters active** when relevant); then Layout **select** (cose,
-  breadthfirst, circle, grid), **Degree** buckets as **visibility filter**, **Minimap**,
-  **Clear degree filter**; then **Edges** and **Types** (per-type checkboxes + **all** /
-  **none**, swatches match node fills, counts). No separate panel above the graph.
+- **Toolbar (primary row):** A short hint for **Shift+dbl-click** (1-hop / neighborhood) and
+  **Shift+drag** box zoom (and search highlight chip when applicable).
+- **Canvas overlay (bottom-right):** **Fit** (primary), zoom **−** / **+** / **100%** (100% =
+  `zoom(1)`, pan unchanged), and **Export PNG** (rightmost, 2× full graph) in one `toolbar` with
+  `aria-label` **Graph fit, zoom, and export** (`role="toolbar"`); aria **Zoom out** / **Zoom in**
+  on **−** / **+**. Sits above the graph surface (`.graph-canvas`), not in the top chrome row.
+- **Canvas overlay (upper-right):** `role="region"` **`aria-label` Graph layout, re-layout, and
+  degree filter** (`.graph-layout-controls`) — **tight vertical column** (~**6.75rem** wide):
+  full-width **Re-layout**, **Layout** label stacked above **select** (cose, breadthfirst,
+  circle, grid; **Graph layout algorithm** combobox), **Degree** buckets in a **2-column**
+  grid, compact **Clear** (degree) with **`aria-label` Clear degree filter** when active.
+  (Node detail lives in the **App right rail**, not over the canvas.)
+- **Toolbar (chrome below primary):** Optional **Sources** row first (merged **GI** / **KG**,
+  **Hide ungrounded**, **filters active** when relevant); **Minimap** checkbox row; then
+  **Edges** and **Types** (per-type checkboxes + **all** / **none**, swatches match node fills,
+  counts). No separate panel above the graph.
 - **Density:** Use existing `text-[10px]` / `border-border` patterns so the extra row stays
-  compact and scannable; minimap is a small overlay in the **lower-left** of the graph viewport
-  (clipped with the canvas), not over the app’s right rail.
+  compact and scannable; minimap is a **fixed footprint** (~7.5rem tall × ~10.5rem wide,
+  capped vs. short viewports) in the **lower-left** of the **graph canvas host** (same
+  `overflow-hidden` region as the main Cytoscape surface), not a viewport-fixed tile and not
+  over the app’s right rail.
 - **E2E contract:** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — graph shell row.
 
 ## Accessibility
@@ -507,3 +548,5 @@ overlay.
 |            | RFC boundary note; E2E obligation                                   |
 | 2026-04-11 | Digest health `corpus_digest_api`; glance gate; **Search topic**    |
 |            | E2E `digest.spec.ts`                                                |
+| 2026-04-11 | Digest tab: **no** in-column title — main nav **Digest** only;      |
+|            | **Window** + **Open Library** toolbar row (Library parity)          |

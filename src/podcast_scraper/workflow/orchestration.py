@@ -12,7 +12,18 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, NamedTuple, Optional, Set, Tuple, TYPE_CHECKING
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    NamedTuple,
+    Optional,
+    Set,
+    Tuple,
+    TYPE_CHECKING,
+)
 
 from .. import (
     config,
@@ -48,6 +59,7 @@ def extract_episode_description(item):  # noqa: F811
     return _extract_episode_description_rss(item)
 
 
+from ..monitor.status import maybe_update_pipeline_status
 from ..speaker_detectors.factory import create_speaker_detector as _create_speaker_detector_factory
 from ..summarization.factory import (
     create_summarization_provider as _create_summarization_provider_factory,
@@ -1018,6 +1030,12 @@ def _setup_pipeline_resources(
     """
     # Step 5: Detect hosts and analyze patterns (if auto_speakers enabled)
     # This is part of normalizing stage
+    maybe_update_pipeline_status(
+        cfg,
+        effective_output_dir,
+        stage="speaker_detection",
+        episode_total=len(episodes),
+    )
     normalizing_start = time.time()
     host_detection_result = wf_stages.processing.detect_feed_hosts_and_patterns(
         cfg, feed, episodes, pipeline_metrics, speaker_detector=speaker_detector
@@ -1278,6 +1296,12 @@ def _finalize_pipeline(
     )
     from podcast_scraper.search.indexer import maybe_index_corpus
 
+    maybe_update_pipeline_status(
+        cfg,
+        effective_output_dir,
+        stage="vector_indexing",
+        episode_total=len(episodes),
+    )
     _vidx_t0 = time.perf_counter()
     maybe_index_corpus(effective_output_dir, cfg)
     pipeline_metrics.vector_index_seconds = round(time.perf_counter() - _vidx_t0, 4)
@@ -1396,6 +1420,13 @@ def _process_episodes_with_threading(
     downloads_complete_event = threading.Event()  # Signal when all downloads are complete
     transcription_saved = [0]  # Use list to allow modification from thread
 
+    maybe_update_pipeline_status(
+        cfg,
+        effective_output_dir,
+        stage="media_download",
+        episode_total=len(episodes),
+    )
+
     # Determine if we should serialize MPS work to prevent memory contention
     should_serialize_mps = False
     if cfg.mps_exclusive:
@@ -1411,6 +1442,12 @@ def _process_episodes_with_threading(
     # Start processing thread if metadata generation is enabled
     processing_thread = None
     if cfg.generate_metadata:
+        maybe_update_pipeline_status(
+            cfg,
+            effective_output_dir,
+            stage="transcript_cleaning",
+            episode_total=len(episodes),
+        )
         processing_thread = threading.Thread(
             target=wf_stages.processing.process_processing_jobs_concurrent,
             args=(
@@ -1436,6 +1473,12 @@ def _process_episodes_with_threading(
 
     # Start transcription processing concurrently if transcription is enabled
     if cfg.transcribe_missing and not cfg.dry_run:
+        maybe_update_pipeline_status(
+            cfg,
+            effective_output_dir,
+            stage="transcription",
+            episode_total=len(episodes),
+        )
         # Start transcription processing in background thread
         transcription_thread = threading.Thread(
             target=wf_stages.transcription.process_transcription_jobs_concurrent,
@@ -1483,6 +1526,13 @@ def _process_episodes_with_threading(
         pipeline_metrics.record_download_wait_time(download_wait_time)
         # Track wall-clock time for downloads (Issue #391)
         pipeline_metrics.record_io_waiting_wall_time(download_wait_time)
+
+    maybe_update_pipeline_status(
+        cfg,
+        effective_output_dir,
+        stage="audio_preprocessing",
+        episode_total=len(episodes),
+    )
 
     # Signal that downloads are complete (so transcription thread can exit when queue is empty)
     if cfg.transcribe_missing and not cfg.dry_run:
@@ -1590,6 +1640,12 @@ def _process_episodes_with_threading(
         # Only run parallel summarization if we have multiple episodes to process
         # It will skip episodes that already have summaries
         # Track summarization wait time (Issue #387)
+        maybe_update_pipeline_status(
+            cfg,
+            effective_output_dir,
+            stage="summarization",
+            episode_total=len(episodes),
+        )
         summarization_start = time.time()
         wf_stages.summarization.parallel_episode_summarization(
             episodes=episodes,
@@ -1610,6 +1666,25 @@ def _process_episodes_with_threading(
             pipeline_metrics.record_io_waiting_wall_time(summarization_wait_time)
 
     return saved
+
+
+def resolve_log_file_path(
+    log_file: Optional[str],
+    output_dir: Optional[str],
+) -> Optional[str]:
+    """Resolve a relative ``log_file`` under ``output_dir`` (absolute paths unchanged).
+
+    Keeps ``pipeline.log`` next to corpus output when ``output_dir`` is overridden
+    (e.g. acceptance sessions). Non-string or empty ``output_dir`` leaves ``log_file``
+    unchanged so tests using mocks are unaffected.
+    """
+    if not log_file:
+        return log_file
+    if os.path.isabs(log_file):
+        return log_file
+    if not isinstance(output_dir, str) or not output_dir.strip():
+        return log_file
+    return os.path.normpath(os.path.join(output_dir, log_file))
 
 
 def apply_log_level(level: str, log_file: Optional[str] = None, json_logs: bool = False) -> None:
@@ -1762,84 +1837,113 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         _setup_pipeline_environment(cfg)
     )
 
-    from ..gi.deps import validate_gil_grounding_dependencies
+    monitor_proc: Optional[Any] = None
+    py_spy_stop: Optional[Callable[[], None]] = None
+    if cfg.monitor:
+        from ..monitor.py_spy_listener import start_py_spy_stdin_listener
+        from ..monitor.runner import start_monitor_subprocess
 
-    validate_gil_grounding_dependencies(cfg)
-
-    # Initialize JSONL emitter if enabled
-    jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
-
-    # Step 1.5: Preload ML models if configured
-    wf_stages.setup.preload_ml_models_if_needed(cfg)
-
-    # Step 1.6: Create all providers once (singleton pattern per run)
-    # Providers are created here and passed to stages to avoid redundant initialization
-    transcription_provider, speaker_detector, summary_provider = _create_all_providers(cfg)
-
-    # Step 1.7-1.8: Setup logging and device tracking
-    _setup_logging_and_devices(
-        cfg, transcription_provider, speaker_detector, summary_provider, pipeline_metrics
-    )
-
-    # Step 1.5: Create run manifest
-    run_manifest = _create_run_manifest(cfg, effective_output_dir)
-
-    # Step 2-4: Fetch and prepare episodes
-    feed, rss_bytes, feed_metadata, episodes = _fetch_and_prepare_episodes(cfg, pipeline_metrics)
-
-    # Step 5-6.5: Setup pipeline resources
-    normalizing_start, host_detection_result, transcription_resources, processing_resources = (
-        _setup_pipeline_resources(
-            cfg,
-            feed,
-            episodes,
-            effective_output_dir,
-            transcription_provider,
-            speaker_detector,
-            pipeline_metrics,
+        monitor_proc = start_monitor_subprocess(
+            pipeline_pid=os.getpid(),
+            output_dir=effective_output_dir,
         )
-    )
+        py_spy_stop = start_py_spy_stdin_listener(
+            output_dir=effective_output_dir,
+            enabled=True,
+        )
 
-    # Wrap all processing in try-finally to ensure cleanup always happens
-    # This prevents memory leaks if exceptions occur during processing
     try:
-        saved = _process_episodes_with_threading(
+        from ..gi.deps import validate_gil_grounding_dependencies
+
+        validate_gil_grounding_dependencies(cfg)
+
+        # Initialize JSONL emitter if enabled
+        jsonl_emitter = _setup_jsonl_emitter(cfg, effective_output_dir, pipeline_metrics)
+
+        # Step 1.5: Preload ML models if configured
+        wf_stages.setup.preload_ml_models_if_needed(cfg)
+
+        # Step 1.6: Create all providers once (singleton pattern per run)
+        # Providers are created here and passed to stages to avoid redundant initialization
+        transcription_provider, speaker_detector, summary_provider = _create_all_providers(cfg)
+
+        # Step 1.7-1.8: Setup logging and device tracking
+        _setup_logging_and_devices(
+            cfg, transcription_provider, speaker_detector, summary_provider, pipeline_metrics
+        )
+
+        # Step 1.5: Create run manifest
+        run_manifest = _create_run_manifest(cfg, effective_output_dir)
+
+        # Step 2-4: Fetch and prepare episodes
+        maybe_update_pipeline_status(cfg, effective_output_dir, stage="rss_feed_fetch")
+        feed, rss_bytes, feed_metadata, episodes = _fetch_and_prepare_episodes(
+            cfg, pipeline_metrics
+        )
+
+        # Step 5-6.5: Setup pipeline resources
+        normalizing_start, host_detection_result, transcription_resources, processing_resources = (
+            _setup_pipeline_resources(
+                cfg,
+                feed,
+                episodes,
+                effective_output_dir,
+                transcription_provider,
+                speaker_detector,
+                pipeline_metrics,
+            )
+        )
+
+        # Wrap all processing in try-finally to ensure cleanup always happens
+        # This prevents memory leaks if exceptions occur during processing
+        try:
+            saved = _process_episodes_with_threading(
+                cfg=cfg,
+                episodes=episodes,
+                feed=feed,
+                effective_output_dir=effective_output_dir,
+                run_suffix=run_suffix,
+                feed_metadata=feed_metadata,
+                host_detection_result=host_detection_result,
+                transcription_resources=transcription_resources,
+                processing_resources=processing_resources,
+                pipeline_metrics=pipeline_metrics,
+                summary_provider=summary_provider,
+                transcription_provider=transcription_provider,
+                normalizing_start=normalizing_start,
+            )
+
+        finally:
+            # Step 9.5: Unload models to free memory
+            # This runs even if exceptions occur above, preventing memory leaks
+            _cleanup_providers(transcription_resources, summary_provider)
+            if jsonl_emitter is not None:
+                try:
+                    jsonl_emitter.__exit__(None, None, None)
+                except Exception:
+                    pass
+
+        # Step 10-15: Finalize pipeline (cleanup, save metrics, generate reports)
+        result = _finalize_pipeline(
             cfg=cfg,
-            episodes=episodes,
-            feed=feed,
+            saved=saved,
+            transcription_resources=transcription_resources,
             effective_output_dir=effective_output_dir,
             run_suffix=run_suffix,
-            feed_metadata=feed_metadata,
-            host_detection_result=host_detection_result,
-            transcription_resources=transcription_resources,
-            processing_resources=processing_resources,
             pipeline_metrics=pipeline_metrics,
+            episodes=episodes,
+            jsonl_emitter=jsonl_emitter,
+            run_manifest=run_manifest,
             summary_provider=summary_provider,
             transcription_provider=transcription_provider,
-            normalizing_start=normalizing_start,
         )
-
+        maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
+        return result
     finally:
-        # Step 9.5: Unload models to free memory
-        # This runs even if exceptions occur above, preventing memory leaks
-        _cleanup_providers(transcription_resources, summary_provider)
-        if jsonl_emitter is not None:
-            try:
-                jsonl_emitter.__exit__(None, None, None)
-            except Exception:
-                pass
-
-    # Step 10-15: Finalize pipeline (cleanup, save metrics, generate reports)
-    return _finalize_pipeline(
-        cfg=cfg,
-        saved=saved,
-        transcription_resources=transcription_resources,
-        effective_output_dir=effective_output_dir,
-        run_suffix=run_suffix,
-        pipeline_metrics=pipeline_metrics,
-        episodes=episodes,
-        jsonl_emitter=jsonl_emitter,
-        run_manifest=run_manifest,
-        summary_provider=summary_provider,
-        transcription_provider=transcription_provider,
-    )
+        if py_spy_stop is not None:
+            py_spy_stop()
+        if monitor_proc is not None:
+            monitor_proc.join(timeout=30)
+            if monitor_proc.is_alive():
+                monitor_proc.terminate()
+                monitor_proc.join(timeout=5)

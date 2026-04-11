@@ -107,10 +107,25 @@ cp config/examples/.env.example .env
 
 # Edit .env if you need OpenAI API keys or custom settings
 
-# Verify setup works
+# Verify setup works (ci-fast is faster; use make ci for full suite)
 
-make ci
+make ci-fast
 ```
+
+### Optional extras (viewer API, run comparison)
+
+`make init` installs `[dev,ml,llm]`. If you work on
+the viewer API or the Streamlit comparison tool, add
+extras manually:
+
+```bash
+pip install -e ".[server]"    # FastAPI viewer API (make serve)
+pip install -e ".[compare]"   # Streamlit run comparison (make run-compare)
+```
+
+For a lighter install without ML (docs-only or
+API-only work): `make init-no-ml` or
+`pip install -e ".[dev,llm]"`.
 
 ### Optional: spaCy model wheels (faster repeat `[ml]` installs)
 
@@ -311,7 +326,8 @@ make lint
 
 ```bash
 make test-unit          # Fast feedback (~30s)
-make ci                 # Full suite before PR
+make ci-fast            # Default pre-push gate (~6-10 min)
+make ci                 # Full suite before PR (~10-15 min)
 ```
 
 If your PR touches **`web/gi-kg-viewer/`**:
@@ -331,7 +347,7 @@ See [Testing Guide](docs/guides/TESTING_GUIDE.md) (*Browser E2E*). CI runs both 
 ### 4. Commit
 
 ```bash
-git add -A
+git add <specific-files>               # Prefer explicit staging
 git commit -m "feat: add my feature"   # Use conventional commits
 ```
 
@@ -359,7 +375,7 @@ Then open a PR on GitHub.
 
 Before submitting:
 
-- [ ] `make ci` passes locally
+- [ ] `make ci-fast` passes locally (`make ci` for full suite including Playwright)
 - [ ] If `web/gi-kg-viewer/` changed: `make test-ui` and `make test-ui-e2e` pass
 - [ ] If viewer **UX** changed: `E2E_SURFACE_MAP.md` and Playwright specs/helpers updated; UXS-001 updated if the visual contract changed ([checklist](docs/guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow))
 - [ ] Tests added/updated for changes
@@ -368,6 +384,74 @@ Before submitting:
 - [ ] PR description explains what and why
 
 ---
+
+## Module Boundaries
+
+The codebase has clear separation of concerns. Before
+adding code, check which package owns the
+responsibility:
+
+- **`cli.py`** — CLI only; **`service.py`** — daemon
+  API; **`workflow/`** — pipeline orchestration
+- **`server/`** — FastAPI viewer routes;
+  **`search/`** — FAISS indexing
+- **`gi/`** — GIL extraction; **`kg/`** — KG
+  extraction
+- **`providers/`** — All 9 provider implementations
+
+Full module map:
+[Architecture](docs/architecture/ARCHITECTURE.md#module-dependencies-diagram)
+and `.cursor/rules/module-boundaries.mdc`.
+
+## Contribution Areas
+
+| Area | Key paths | Guide |
+| ---- | --------- | ----- |
+| Pipeline (RSS, transcription, summarization) | `src/podcast_scraper/workflow/`, `rss/`, `providers/` | [Development Guide](docs/guides/DEVELOPMENT_GUIDE.md) |
+| GIL / KG extraction | `src/podcast_scraper/gi/`, `kg/` | [Grounded Insights Guide](docs/guides/GROUNDED_INSIGHTS_GUIDE.md), [KG Guide](docs/guides/KNOWLEDGE_GRAPH_GUIDE.md) |
+| Semantic search | `src/podcast_scraper/search/` | [Semantic Search Guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md) |
+| Viewer API (FastAPI) | `src/podcast_scraper/server/` | [Server Guide](docs/guides/SERVER_GUIDE.md) |
+| Viewer UI (Vue) | `web/gi-kg-viewer/` | [Polyglot Guide](docs/guides/POLYGLOT_REPO_GUIDE.md) |
+| New providers | `src/podcast_scraper/providers/` | [Provider Implementation](docs/guides/PROVIDER_IMPLEMENTATION_GUIDE.md), [Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md), [Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md) |
+| Run comparison | `tools/run_compare/` | [tools/run_compare/README.md](tools/run_compare/README.md) |
+| Acceptance tests | `scripts/acceptance/`, `config/acceptance/` | [Testing Guide](docs/guides/TESTING_GUIDE.md) |
+| Eval & model validation | `data/eval/`, `data/eval/configs/` | [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md) |
+| Performance profiles | `data/profiles/`, `config/profiles/` | [Performance Profile Guide](docs/guides/PERFORMANCE_PROFILE_GUIDE.md) |
+
+## Choosing and Validating Providers
+
+**Choosing a provider:** Start with the
+[AI Provider Comparison](docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md)
+for a decision-oriented overview (cost, quality,
+speed, privacy). For detailed per-provider specs,
+benchmarks, and the magic quadrant, see
+[Provider Deep Dives](docs/guides/PROVIDER_DEEP_DIVES.md).
+
+**Validating quality and performance:** When adding
+or tuning a provider/model, use the evaluation and
+profiling infrastructure to prove quality and
+performance before merging.
+
+**Quality validation (`data/eval/`):**
+
+1. Create or reuse a config in `data/eval/configs/`
+2. `make experiment-run CONFIG=data/eval/configs/your_config.yaml`
+3. Compare against a baseline:
+   `make experiment-run CONFIG=... BASELINE=baseline_prod_authority_v1`
+4. If quality is acceptable, promote:
+   `make run-promote RUN_ID=... --as baseline`
+
+**Performance validation (`data/profiles/`):**
+
+1. Run the pipeline with a capture config:
+   `make profile-freeze VERSION=v2.6-your-provider`
+2. Compare against an existing profile:
+   `make profile-diff FROM=v2.6-wip-openai TO=v2.6-your-provider`
+
+See [Experiment Guide](docs/guides/EXPERIMENT_GUIDE.md)
+and
+[Performance Profile Guide](docs/guides/PERFORMANCE_PROFILE_GUIDE.md)
+for full details.
 
 ## Exit Codes (Issue #379)
 
@@ -414,7 +498,7 @@ If you're using Cursor, Claude, or Copilot, the project includes AI-specific gui
 - **Claude:** `CLAUDE.md`
 - **Copilot:** `.github/copilot-instructions.md`
 
-**Key rules:** Never commit without approval. Always run `make ci` before pushing.
+**Key rules:** Never commit without approval. Always run `make ci-fast` before pushing (`make ci` for the full suite including Playwright).
 
 **GI/KG viewer UX:** `.cursorrules` and `.ai-coding-guidelines.md` require updating
 `e2e/E2E_SURFACE_MAP.md` → Playwright → UXS-001 (when needed) in the same change set; see

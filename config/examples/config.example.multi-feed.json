@@ -23,6 +23,10 @@
   "workers": 4,
   "log_level": "INFO",
 
+  "monitor": false,
+  "memray": false,
+  "memray_output": null,
+
   "generate_metadata": true,
   "generate_summaries": true,
   "metadata_format": "json"

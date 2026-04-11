@@ -26,18 +26,20 @@ export function chartGridColor(): string {
   return rgbaFromToken('--ps-border', 0.35)
 }
 
+/** Max distinct semantic hues before palette repeats (Tufte: avoid rainbow sprawl). */
+export const CHART_SEMANTIC_COLOR_SLOTS = 5
+
+const CHART_SEMANTIC_KEYS = [
+  '--ps-primary',
+  '--ps-gi',
+  '--ps-kg',
+  '--ps-warning',
+  '--ps-success',
+] as const satisfies readonly `--ps-${string}`[]
+
 /** Ordered palette for multi-series charts (semantic tokens). */
 export function chartSeriesColors(count: number): string[] {
-  const keys: `--ps-${string}`[] = [
-    '--ps-primary',
-    '--ps-gi',
-    '--ps-kg',
-    '--ps-warning',
-    '--ps-success',
-    '--ps-danger',
-    '--ps-link',
-    '--ps-muted',
-  ]
+  const keys = CHART_SEMANTIC_KEYS.slice(0, CHART_SEMANTIC_COLOR_SLOTS)
   const out: string[] = []
   for (let i = 0; i < count; i += 1) {
     out.push(rgbaFromToken(keys[i % keys.length]!, 0.75))

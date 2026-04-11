@@ -14,11 +14,13 @@ import {
   ref,
   watch,
 } from 'vue'
-import NodeDetail from './NodeDetail.vue'
+import { useArtifactsStore } from '../../stores/artifacts'
+import { useEpisodeRailStore } from '../../stores/episodeRail'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
+import { useShellStore } from '../../stores/shell'
 import { useThemeStore } from '../../stores/theme'
 import type { RawGraphNode } from '../../types/artifact'
 import { graphNodeFill, graphNodeLegendLabel } from '../../utils/colors'
@@ -27,7 +29,14 @@ import {
   degreeBucketFor,
   emptyDegreeCounts,
 } from '../../utils/graphDegreeBuckets'
-import { toCytoElements } from '../../utils/parsing'
+import {
+  logicalEpisodeIdFromGraphNodeId,
+  metadataPathFromEpisodeProperties,
+  resolveEpisodeMetadataFromLoadedArtifacts,
+  resolveEpisodeMetadataViaCorpusCatalog,
+} from '../../utils/graphEpisodeMetadata'
+import { buildGiKgCyStylesheet } from '../../utils/cyGraphStylesheet'
+import { findRawNodeInArtifact, toCytoElements } from '../../utils/parsing'
 import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
 import { visualNodeTypeCounts } from '../../utils/visualGroup'
 
@@ -37,8 +46,55 @@ const gf = useGraphFilterStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
+const episodeRail = useEpisodeRailStore()
+const artifacts = useArtifactsStore()
+const shell = useShellStore()
 const searchStore = useSearchStore()
 const themeStore = useThemeStore()
+
+/** Cancels stale async episode-metadata resolution when the user double-taps another node. */
+let graphEpisodeOpenGen = 0
+
+async function openGraphEpisodeOrNodeRail(
+  cyId: string,
+  rawNode: RawGraphNode | null,
+): Promise<void> {
+  const token = ++graphEpisodeOpenGen
+  if (rawNode?.type !== 'Episode') {
+    if (token !== graphEpisodeOpenGen) return
+    episodeRail.openGraphNodePanel(cyId)
+    return
+  }
+  let meta = metadataPathFromEpisodeProperties(rawNode)?.trim() || null
+  const eid =
+    logicalEpisodeIdFromGraphNodeId(cyId) ||
+    (typeof rawNode.properties?.episode_id === 'string'
+      ? rawNode.properties.episode_id.trim()
+      : null)
+  if (!meta && eid) {
+    meta = resolveEpisodeMetadataFromLoadedArtifacts(
+      eid,
+      artifacts.parsedList,
+      artifacts.selectedRelPaths,
+    )
+  }
+  if (!meta && eid && shell.corpusPath.trim() && shell.healthStatus) {
+    try {
+      meta = await resolveEpisodeMetadataViaCorpusCatalog(
+        shell.corpusPath.trim(),
+        eid,
+      )
+    } catch {
+      meta = null
+    }
+  }
+  if (token !== graphEpisodeOpenGen) return
+  if (meta) {
+    episodeRail.openEpisodePanel(meta, { graphConnectionsCyId: cyId })
+  } else {
+    episodeRail.openGraphNodePanel(cyId)
+  }
+}
 
 const container = ref<HTMLDivElement | null>(null)
 const canvasHost = ref<HTMLDivElement | null>(null)
@@ -48,7 +104,6 @@ const minimapHost = ref<HTMLDivElement | null>(null)
 
 const focusNodeId = ref<string | null>(null)
 const selectedNodeId = ref<string | null>(null)
-const detailPanelOpen = ref(false)
 const searchHighlightCount = ref(0)
 
 const zoomPercent = ref(100)
@@ -210,20 +265,45 @@ function destroyNavigator(): void {
   }
 }
 
+/** cytoscape-navigator sets img alt to "Graph navigator", which browsers show before src loads. */
+function clearMinimapThumbnailAlt(): void {
+  const host = minimapHost.value ?? document.getElementById('gi-kg-graph-minimap')
+  const img = host?.querySelector('img')
+  if (!img) {
+    return
+  }
+  img.alt = ''
+  img.setAttribute('aria-hidden', 'true')
+}
+
 function setupNavigator(core: Core): void {
   destroyNavigator()
   if (!minimapOpen.value || !minimapHost.value) {
     return
   }
   try {
+    // cytoscape-navigator only mounts into a user container when `container` is a
+    // non-empty string selector; a DOM element is ignored and a 400×400 fixed
+    // panel is appended to document.body instead.
     const api = (core as unknown as { navigator: (o: object) => { destroy: () => void } }).navigator(
       {
-        container: minimapHost.value,
+        container: '#gi-kg-graph-minimap',
+        removeCustomContainer: false,
         viewLiveFramerate: 0,
-        rerenderDelay: 100,
+        // Throttle full-graph PNG for minimap; too low hammers the main thread on pan/zoom.
+        rerenderDelay: 300,
       },
     )
     navInstance = api
+    clearMinimapThumbnailAlt()
+    // Thumbnail updates hook `cy.onRender`. We often attach the navigator after the
+    // graph has already drawn (deferred setup after first paint), so no `render` fires
+    // until the user interacts — force one draw so the minimap gets an initial PNG.
+    try {
+      core.forceRender()
+    } catch {
+      /* ignore */
+    }
   } catch {
     navInstance = null
   }
@@ -263,86 +343,8 @@ const hint = computed(() => {
   return parts.join(' ')
 })
 
-function nodeLabelColor(): string {
-  try {
-    const v = getComputedStyle(document.documentElement)
-      .getPropertyValue('--ps-canvas-foreground')
-      .trim()
-    if (v) return v
-  } catch {
-    /* ignore */
-  }
-  return '#e5e8eb'
-}
-
 function buildCyStyle() {
-  const types = [
-    'Episode',
-    'Insight',
-    'Quote',
-    'Speaker',
-    'Topic',
-    'Entity_person',
-    'Entity_organization',
-    'Podcast',
-  ]
-  const style: Record<string, unknown>[] = [
-    {
-      selector: 'node',
-      style: {
-        label: 'data(label)',
-        'font-size': '9px',
-        'text-wrap': 'wrap',
-        'text-max-width': '140px',
-        'background-color': '#868e96',
-        color: nodeLabelColor(),
-        width: 18,
-        height: 18,
-        'border-width': 0,
-      },
-    },
-    {
-      selector: 'node:selected',
-      style: {
-        'border-width': 3,
-        'border-color': '#228be6',
-        'border-opacity': 1,
-      },
-    },
-    {
-      selector: 'edge',
-      style: {
-        width: 1.5,
-        'curve-style': 'bezier',
-        'target-arrow-shape': 'triangle',
-        'target-arrow-color': '#adb5bd',
-        'line-color': '#adb5bd',
-        label: 'data(label)',
-        'font-size': '8px',
-        color: '#495057',
-      },
-    },
-  ]
-  for (const t of types) {
-    style.push({
-      selector: `node[type = "${t}"]`,
-      style: {
-        'background-color': graphNodeFill(t),
-      },
-    })
-  }
-  style.push({
-    selector: 'node.search-hit',
-    style: {
-      'border-width': 4,
-      'border-color': '#fab005',
-      'border-opacity': 0.9,
-      width: 24,
-      height: 24,
-      'z-index': 10,
-    },
-  })
-  return style as never
+  return buildGiKgCyStylesheet({ includeSearchHit: true }) as never
 }
 
 function layoutOptionsFor(name: string): Record<string, unknown> {
@@ -477,14 +479,33 @@ function attachZoomRecenter(core: Core): void {
   })
 }
 
-function releaseGraphPaintAfterLayout(): void {
+/**
+ * Minimap uses cytoscape-navigator, which calls `cy.png({ full: true })` on a throttled
+ * `onRender` hook — expensive on large graphs. Schedule it only after the main graph is
+ * visible so first paint is not blocked behind that export.
+ */
+function scheduleMinimapSetup(core: Core): void {
+  if (!minimapOpen.value) {
+    return
+  }
+  void nextTick(() => {
+    if (!minimapOpen.value || !cy || cy !== core) {
+      return
+    }
+    setupNavigator(core)
+  })
+}
+
+function releaseGraphPaintAfterLayout(core: Core): void {
   if (!graphContentHiddenUntilLayout.value) {
+    scheduleMinimapSetup(core)
     return
   }
   void nextTick(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         graphContentHiddenUntilLayout.value = false
+        scheduleMinimapSetup(core)
       })
     })
   })
@@ -504,8 +525,7 @@ function finishLayoutPass(core: Core): void {
   attachZoomRecenter(core)
   tryApplyPendingFocus(core)
   applySearchHighlights(core)
-  void nextTick(() => setupNavigator(core))
-  releaseGraphPaintAfterLayout()
+  releaseGraphPaintAfterLayout(core)
 }
 
 function destroyCy(): void {
@@ -548,7 +568,9 @@ function tryApplyPendingFocus(core: Core): void {
   core.nodes().unselect()
   n.select()
   selectedNodeId.value = cyId
-  detailPanelOpen.value = true
+  const viewArt = gf.viewWithEgo(nav.graphEgoFocusCyId)
+  const rawNode = findRawNodeInArtifact(viewArt, cyId)
+  void openGraphEpisodeOrNodeRail(cyId, rawNode)
   suspendSelectedNodeZoomAnchorCorrection += 1
   try {
     const targetZoom = Math.max(core.zoom(), 1.6)
@@ -664,7 +686,7 @@ function clearInteractionState(): void {
   }
   focusNodeId.value = null
   selectedNodeId.value = null
-  detailPanelOpen.value = false
+  episodeRail.showTools()
   const c = cy
   if (c) {
     try {
@@ -981,7 +1003,7 @@ function redraw(): void {
     const n = core.$id(sid)
     if (n.empty()) {
       selectedNodeId.value = null
-      detailPanelOpen.value = false
+      episodeRail.showTools()
       clearSelectedNodeZoomAnchor()
     } else {
       core.nodes().unselect()
@@ -996,7 +1018,7 @@ function redraw(): void {
     if (t === core) {
       core.nodes().unselect()
       selectedNodeId.value = null
-      detailPanelOpen.value = false
+      episodeRail.showTools()
       clearSelectedNodeZoomAnchor()
       return
     }
@@ -1004,12 +1026,11 @@ function redraw(): void {
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = t.id()
-      detailPanelOpen.value = false
       refreshSelectedNodeZoomAnchor(core)
       return
     }
     selectedNodeId.value = null
-    detailPanelOpen.value = false
+    episodeRail.showTools()
     clearSelectedNodeZoomAnchor()
   })
 
@@ -1042,7 +1063,9 @@ function redraw(): void {
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = id
-      detailPanelOpen.value = true
+      const viewArt = gf.viewWithEgo(nav.graphEgoFocusCyId)
+      const rawNode = findRawNodeInArtifact(viewArt, id)
+      void openGraphEpisodeOrNodeRail(id, rawNode)
       refreshSelectedNodeZoomAnchor(core)
       return
     }
@@ -1114,12 +1137,20 @@ watch(
 )
 
 watch(
+  focusNodeId,
+  (v) => {
+    nav.setGraphEgoFocusCyId(v)
+  },
+  { immediate: true },
+)
+
+watch(
   () => gf.filteredArtifact,
   () => {
     ge.resetForNewArtifact()
     focusNodeId.value = null
     selectedNodeId.value = null
-    detailPanelOpen.value = false
+    episodeRail.showTools()
     nav.clearLibraryEpisodeHighlights()
     pendingViewportPreserve = null
     egoPriorFullGraphViewportPreserve = null
@@ -1219,56 +1250,6 @@ defineExpose({
     class="flex min-h-[280px] flex-1 flex-col rounded border border-border bg-canvas sm:min-h-[420px]"
   >
     <div class="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
-      <button
-        type="button"
-        class="rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
-        @click="fitAnimated"
-      >
-        Fit
-      </button>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
-        @click="runRelayout"
-      >
-        Re-layout
-      </button>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
-        title="Full graph as PNG (2× scale)"
-        @click="exportGraphPng"
-      >
-        Export PNG
-      </button>
-      <span class="text-[10px] text-muted" aria-hidden="true">|</span>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
-        aria-label="Zoom out"
-        @click="zoomOut"
-      >
-        −
-      </button>
-      <span class="min-w-[2.5rem] text-center text-[10px] font-medium text-muted" title="Zoom level">
-        {{ zoomPercent }}%
-      </span>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
-        aria-label="Zoom in"
-        @click="zoomIn"
-      >
-        +
-      </button>
-      <button
-        type="button"
-        class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
-        title="Reset zoom to 100% (does not change pan)"
-        @click="zoomReset100"
-      >
-        100%
-      </button>
       <span
         v-if="searchHighlightCount > 0"
         class="rounded-full bg-yellow-500/20 px-2 py-0.5 text-[10px] font-medium text-yellow-600"
@@ -1328,47 +1309,6 @@ defineExpose({
         </span>
       </div>
       <div class="flex flex-wrap items-center gap-2">
-        <label class="flex items-center gap-1 text-[10px] text-muted">
-          <span class="font-semibold uppercase tracking-wide">Layout</span>
-          <select
-            v-model="preferredLayout"
-            class="rounded border border-border bg-elevated px-1 py-0.5 text-xs text-surface-foreground"
-            aria-label="Graph layout algorithm"
-            @change="onLayoutSelectChange"
-          >
-            <option value="cose">
-              COSE
-            </option>
-            <option value="breadthfirst">
-              Breadthfirst
-            </option>
-            <option value="circle">
-              Circle
-            </option>
-            <option value="grid">
-              Grid
-            </option>
-          </select>
-        </label>
-        <div class="flex flex-wrap items-center gap-1">
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-muted">Degree</span>
-          <button
-            v-for="bid in DEGREE_BUCKET_ORDER"
-            :key="bid"
-            type="button"
-            class="rounded border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-            :class="
-              activeDegreeBucket === bid
-                ? 'border-primary bg-primary/15 font-medium'
-                : 'border-border'
-            "
-            :aria-pressed="activeDegreeBucket === bid"
-            @click="ge.toggleDegreeBucket(bid)"
-          >
-            {{ bid }}
-            <span class="text-muted">({{ degreeHistogramCounts[bid] ?? 0 }})</span>
-          </button>
-        </div>
         <label class="flex cursor-pointer items-center gap-1 text-xs">
           <input
             v-model="minimapOpen"
@@ -1377,14 +1317,6 @@ defineExpose({
           >
           <span class="text-[10px] text-muted">Minimap</span>
         </label>
-        <button
-          v-if="activeDegreeBucket"
-          type="button"
-          class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
-          @click="ge.clearDegreeBucket()"
-        >
-          Clear degree filter
-        </button>
       </div>
       <div v-if="edgeTypeKeys.length" class="flex flex-wrap items-start gap-x-3 gap-y-1">
         <span class="text-[10px] font-semibold uppercase tracking-wide text-muted">Edges</span>
@@ -1474,19 +1406,144 @@ defineExpose({
           }"
         />
         <div
+          v-if="gf.state"
+          class="graph-layout-controls pointer-events-auto absolute right-2 top-2 z-[22] flex w-[6.75rem] max-w-[min(6.75rem,calc(100%-1rem))] flex-col gap-0.5 rounded border border-border bg-surface/95 p-1 shadow-md backdrop-blur-sm"
+          role="region"
+          aria-label="Graph layout, re-layout, and degree filter"
+        >
+          <button
+            type="button"
+            class="w-full rounded border border-border px-1 py-px text-[10px] font-medium leading-tight hover:bg-overlay"
+            @click="runRelayout"
+          >
+            Re-layout
+          </button>
+          <div class="flex flex-col gap-0">
+            <span class="text-[9px] font-semibold uppercase leading-none tracking-wide text-muted">Layout</span>
+            <select
+              v-model="preferredLayout"
+              class="mt-0.5 w-full rounded border border-border bg-elevated py-0.5 pl-0.5 pr-0 text-[10px] leading-tight text-surface-foreground"
+              aria-label="Graph layout algorithm"
+              @change="onLayoutSelectChange"
+            >
+              <option value="cose">
+                COSE
+              </option>
+              <option value="breadthfirst">
+                Breadthfirst
+              </option>
+              <option value="circle">
+                Circle
+              </option>
+              <option value="grid">
+                Grid
+              </option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-0.5 border-t border-border/80 pt-0.5">
+            <span class="text-[9px] font-semibold uppercase leading-none tracking-wide text-muted">Degree</span>
+            <div class="grid grid-cols-2 gap-0.5">
+              <button
+                v-for="bid in DEGREE_BUCKET_ORDER"
+                :key="bid"
+                type="button"
+                class="rounded border px-0.5 py-px text-[10px] leading-tight hover:bg-overlay"
+                :class="
+                  activeDegreeBucket === bid
+                    ? 'border-primary bg-primary/15 font-medium'
+                    : 'border-border'
+                "
+                :aria-pressed="activeDegreeBucket === bid"
+                @click="ge.toggleDegreeBucket(bid)"
+              >
+                {{ bid }}
+                <span class="text-muted">({{ degreeHistogramCounts[bid] ?? 0 }})</span>
+              </button>
+            </div>
+          </div>
+          <button
+            v-if="activeDegreeBucket"
+            type="button"
+            class="w-full rounded border border-border px-0.5 py-px text-[10px] leading-tight hover:bg-overlay"
+            aria-label="Clear degree filter"
+            @click="ge.clearDegreeBucket()"
+          >
+            Clear
+          </button>
+        </div>
+        <div
+          id="gi-kg-graph-minimap"
           v-show="minimapOpen"
           ref="minimapHost"
-          class="pointer-events-auto absolute bottom-2 left-2 z-10 h-18 w-[6.5rem] max-h-[40%] max-w-[calc(100%-1rem)] overflow-hidden rounded border border-border bg-surface shadow-md"
+          class="pointer-events-auto absolute bottom-2 left-2 z-10 h-[7.5rem] w-[10.5rem] max-h-[min(13.5rem,35%)] max-w-[min(10.5rem,calc(100%-1rem))] overflow-hidden rounded border border-border bg-surface shadow-md"
           aria-label="Graph minimap"
         />
-        <NodeDetail
-          v-if="selectedNodeId && detailPanelOpen"
-          class="absolute right-0 top-0 z-30 max-h-full max-w-xs overflow-y-auto border-l border-border bg-canvas shadow-sm"
-          :view-artifact="gf.viewWithEgo(focusNodeId)"
-          :node-id="selectedNodeId"
-          @close="detailPanelOpen = false"
-        />
+        <div
+          class="graph-zoom-controls pointer-events-auto absolute bottom-2 right-2 z-[12] flex items-center gap-1 rounded border border-border bg-surface/95 px-1 py-0.5 shadow-md backdrop-blur-sm"
+          role="toolbar"
+          aria-label="Graph fit, zoom, and export"
+        >
+          <button
+            type="button"
+            class="rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+            @click="fitAnimated"
+          >
+            Fit
+          </button>
+          <span class="text-[10px] text-muted opacity-60" aria-hidden="true">|</span>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+            aria-label="Zoom out"
+            @click="zoomOut"
+          >
+            −
+          </button>
+          <span
+            class="min-w-[2.5rem] text-center text-[10px] font-medium text-muted"
+            title="Zoom level"
+          >
+            {{ zoomPercent }}%
+          </span>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+            aria-label="Zoom in"
+            @click="zoomIn"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+            title="Reset zoom to 100% (does not change pan)"
+            @click="zoomReset100"
+          >
+            100%
+          </button>
+          <span class="text-[10px] text-muted opacity-60" aria-hidden="true">|</span>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+            title="Full graph as PNG (2× scale)"
+            @click="exportGraphPng"
+          >
+            Export PNG
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/*
+ * With `container: '#…'`, the host never gets `.cytoscape-navigator`, so the
+ * package CSS for `> img` / `> canvas` does not apply; keep the thumbnail
+ * clipped to the inset panel.
+ */
+#gi-kg-graph-minimap :deep(img) {
+  max-width: 100%;
+  max-height: 100%;
+}
+</style>

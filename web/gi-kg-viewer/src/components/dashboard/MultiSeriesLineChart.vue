@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import {
-  chartExternalTooltipHandler,
-  removeChartExternalTooltip,
-} from '../../utils/chartExternalTooltip'
+import { lineEndLabelsPlugin } from '../../utils/chartLineEndLabelsPlugin'
 import { chartGridColor, rgbaFromToken } from '../../utils/chartTheme'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
@@ -20,6 +17,8 @@ const props = defineProps<{
   labels: string[]
   series: LineSeriesSpec[]
   yLabel?: string
+  /** One-line takeaway (Tufte: state the insight). */
+  insightText?: string
   /** Short explanation under the title (chart semantics). */
   helpText?: string
 }>()
@@ -35,7 +34,10 @@ function buildChart(): void {
   if (!el) {
     return
   }
-  chart?.destroy()
+  if (chart) {
+    chart.destroy()
+    chart = null
+  }
   const labels = props.labels
   const series = props.series.filter((s) => s.values.length === labels.length)
   if (labels.length === 0 || series.length === 0) {
@@ -56,14 +58,13 @@ function buildChart(): void {
   const datasets = series.map((s, i) => {
     const token = (s.colorToken ?? fallbackTokens[i % fallbackTokens.length]!) as `--ps-${string}`
     const line = rgbaFromToken(token, 0.9)
-    const fill = rgbaFromToken(token, 0.14)
     return {
       label: s.label,
       data: s.values,
       borderColor: line,
-      backgroundColor: fill,
-      fill: true,
-      tension: 0.2,
+      backgroundColor: 'transparent',
+      fill: false,
+      tension: 0.12,
       pointRadius: 2,
       pointHoverRadius: 4,
       borderWidth: 2,
@@ -72,20 +73,15 @@ function buildChart(): void {
 
   chart = new Chart(ctx, {
     type: 'line',
+    plugins: [lineEndLabelsPlugin],
     data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: {
-          display: true,
-          position: 'bottom',
-          labels: { boxWidth: 10, font: { size: 10 } },
-        },
+        legend: { display: false },
         tooltip: {
-          enabled: false,
-          external: chartExternalTooltipHandler,
           callbacks: {
             title: (items) => {
               const idx = items[0]?.dataIndex
@@ -105,7 +101,7 @@ function buildChart(): void {
       scales: {
         x: {
           ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } },
-          grid: { color: chartGridColor() },
+          grid: { display: false },
         },
         y: {
           beginAtZero: true,
@@ -133,7 +129,8 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.labels, props.series, props.title, props.yLabel, props.helpText] as const,
+  () =>
+    [props.labels, props.series, props.title, props.yLabel, props.helpText, props.insightText] as const,
   () => {
     buildChart()
   },
@@ -142,7 +139,6 @@ watch(
 
 onBeforeUnmount(() => {
   if (chart) {
-    removeChartExternalTooltip(chart)
     chart.destroy()
   }
   chart = null
@@ -154,6 +150,12 @@ onBeforeUnmount(() => {
     <h3 class="mb-1 text-sm font-semibold">
       {{ title }}
     </h3>
+    <p
+      v-if="insightText"
+      class="mb-1.5 text-[11px] font-medium leading-snug text-surface-foreground"
+    >
+      {{ insightText }}
+    </p>
     <p
       v-if="helpText"
       class="mb-2 text-[11px] leading-snug text-muted"

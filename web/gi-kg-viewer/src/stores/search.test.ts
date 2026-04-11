@@ -7,18 +7,44 @@ describe('useSearchStore', () => {
     setActivePinia(createPinia())
   })
 
-  it('applyLibrarySearchHandoff normalizes feed and sets hint', () => {
+  it('applyLibrarySearchHandoff normalizes feed and query', () => {
     const s = useSearchStore()
     s.applyLibrarySearchHandoff('  f1  ', 'alpha bravo')
     expect(s.filters.feed).toBe('f1')
     expect(s.query).toBe('alpha bravo')
-    expect(s.libraryHandoffHint).toContain('Library')
+    expect(s.feedFilterDisplayLabel).toBeNull()
+    expect(s.feedFilterHandoffPristine).toBe(false)
   })
 
-  it('clearResults clears library handoff hint', () => {
+  it('applyLibrarySearchHandoff pairs catalog title with feed id for UI', () => {
     const s = useSearchStore()
-    s.applyLibrarySearchHandoff('f1', 'q')
+    s.applyLibrarySearchHandoff('f1', 'q', { feedDisplayTitle: 'Mock Show' })
+    expect(s.filters.feed).toBe('f1')
+    expect(s.feedFilterDisplayLabel).toBe('Mock Show')
+    expect(s.feedFilterHandoffPristine).toBe(true)
+  })
+
+  it('commitFeedFilterUiInput clears handoff title pairing', () => {
+    const s = useSearchStore()
+    s.applyLibrarySearchHandoff('f1', 'q', { feedDisplayTitle: 'Mock Show' })
+    s.commitFeedFilterUiInput('x')
+    expect(s.feedFilterHandoffPristine).toBe(false)
+    expect(s.feedFilterDisplayLabel).toBeNull()
+    expect(s.filters.feed).toBe('x')
+  })
+
+  it('applyLibrarySearchHandoff sets since from Digest ISO option', () => {
+    const s = useSearchStore()
+    s.filters.since = '1999-01-01'
+    s.applyLibrarySearchHandoff('', 'topic q', { since: '2024-06-01T00:00:00Z' })
+    expect(s.filters.since).toBe('2024-06-01')
+  })
+
+  it('clearResults clears validation error', async () => {
+    const s = useSearchStore()
+    await s.runSearch('/mock/corpus')
+    expect(s.error).toBe('Enter a search query.')
     s.clearResults()
-    expect(s.libraryHandoffHint).toBeNull()
+    expect(s.error).toBeNull()
   })
 })

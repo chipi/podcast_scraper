@@ -2,10 +2,8 @@
 import { Chart } from 'chart.js'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { graphNodeLegendLabel } from '../../utils/colors'
-import {
-  chartExternalTooltipHandler,
-  removeChartExternalTooltip,
-} from '../../utils/chartExternalTooltip'
+import { chartGridColor } from '../../utils/chartTheme'
+import { barEndValuePlugin, setBarEndValueFormatter } from '../../utils/chartBarEndValuePlugin'
 import { ensureChartJsRegistered } from '../../utils/chartRegister'
 
 const props = defineProps<{
@@ -16,6 +14,12 @@ const props = defineProps<{
   labelMap?: Record<string, string>
   /** One-line chart explanation under the title. */
   helpText?: string
+  insightText?: string
+  /**
+   * When > 0, draws `count` and `count/total` % at bar ends (horizontal bars only).
+   * Avoids passing unstable formatter closures through Vue props.
+   */
+  barEndPercentTotal?: number
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -43,7 +47,11 @@ function buildChart(): void {
   ensureChartJsRegistered()
   const el = canvasRef.value
   if (!el) return
-  chart?.destroy()
+  if (chart) {
+    setBarEndValueFormatter(chart, null)
+    chart.destroy()
+    chart = null
+  }
   const entries = sortedEntries.value
   if (entries.length === 0) {
     chart = null
@@ -53,8 +61,12 @@ function buildChart(): void {
   const values = entries.map(([, v]) => v)
   const ctx = el.getContext('2d')
   if (!ctx) return
+  const total = props.barEndPercentTotal ?? 0
+  const useBarEnd = total > 0
+  const extraPlugins = useBarEnd ? [barEndValuePlugin] : []
   chart = new Chart(ctx, {
     type: 'bar',
+    plugins: extraPlugins,
     data: {
       labels,
       datasets: [
@@ -71,11 +83,10 @@ function buildChart(): void {
       indexAxis: 'y',
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
         tooltip: {
-          enabled: false,
-          external: chartExternalTooltipHandler,
           callbacks: {
             title: (items) => {
               const i = items[0]?.dataIndex
@@ -102,7 +113,7 @@ function buildChart(): void {
         x: {
           beginAtZero: true,
           ticks: { precision: 0 },
-          grid: { color: 'rgba(128, 128, 128, 0.2)' },
+          grid: { color: chartGridColor() },
         },
         y: {
           grid: { display: false },
@@ -111,6 +122,12 @@ function buildChart(): void {
       },
     },
   })
+  if (useBarEnd && chart) {
+    setBarEndValueFormatter(chart, (v) => {
+      const pct = (v / total) * 100
+      return `${v.toLocaleString()} (${pct.toFixed(1)}%)`
+    })
+  }
 }
 
 onMounted(() => {
@@ -118,7 +135,15 @@ onMounted(() => {
 })
 
 watch(
-  () => [props.counts, props.title, props.labelMap, props.helpText] as const,
+  () =>
+    [
+      props.counts,
+      props.title,
+      props.labelMap,
+      props.helpText,
+      props.insightText,
+      props.barEndPercentTotal,
+    ] as const,
   () => {
     buildChart()
   },
@@ -127,7 +152,7 @@ watch(
 
 onBeforeUnmount(() => {
   if (chart) {
-    removeChartExternalTooltip(chart)
+    setBarEndValueFormatter(chart, null)
     chart.destroy()
   }
   chart = null
@@ -139,6 +164,12 @@ onBeforeUnmount(() => {
     <h3 class="mb-1 text-sm font-semibold">
       {{ title }}
     </h3>
+    <p
+      v-if="insightText"
+      class="mb-1.5 text-[11px] font-medium leading-snug text-surface-foreground"
+    >
+      {{ insightText }}
+    </p>
     <p
       v-if="helpText"
       class="mb-2 text-[11px] leading-snug text-muted"

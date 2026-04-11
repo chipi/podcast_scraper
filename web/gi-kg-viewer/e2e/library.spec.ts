@@ -123,6 +123,30 @@ test.describe('Corpus Library tab', () => {
     })
   })
 
+  test('Episode rail: Search & Explore then Back to episode', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    await expandLibraryEpisodeFilters(page)
+    await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await expect(
+      page
+        .getByRole('region', { name: 'Episode', exact: true })
+        .getByRole('heading', { name: 'Mock Episode Title' }),
+    ).toBeVisible()
+    await page.getByRole('button', { name: 'Search & Explore' }).click()
+    await expect(page.getByRole('button', { name: 'Back to episode' })).toBeVisible()
+    await expect(page.locator('#search-q')).toBeVisible()
+    await page.getByRole('button', { name: 'Back to episode' }).click()
+    await expect(
+      page
+        .getByRole('region', { name: 'Episode', exact: true })
+        .getByRole('heading', { name: 'Mock Episode Title' }),
+    ).toBeVisible()
+  })
+
   test('lists mocked feeds and episodes; search handoff fills query and feed filter', async ({
     page,
   }) => {
@@ -161,13 +185,15 @@ test.describe('Corpus Library tab', () => {
         .filter({ hasText: /^Point one$/ }),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Prefill semantic search' }).click()
-    await expect(page.locator('#search-q')).toHaveValue('Short prose summary for tests.')
-    await expect(
-      page.getByText(/From Library: query uses episode summary/i),
-    ).toBeVisible()
-    await expect(
-      page.locator('label').filter({ hasText: 'Feed id (substring)' }).locator('input'),
-    ).toHaveValue('f1')
+    // Same field order as Similar episodes / server build_similarity_query (title + bullets), not prose summary_text.
+    await expect(page.locator('#search-q')).toHaveValue('Summary head Point one Point two')
+    const advancedSummary = page.getByRole('region', { name: 'Active advanced filters' })
+    await expect(advancedSummary).toBeVisible()
+    await expect(advancedSummary).toContainText('Feed: Mock Show')
+    await page.getByRole('button', { name: 'Advanced search' }).click()
+    const advancedDialog = page.getByRole('dialog', { name: 'Advanced search' })
+    await expect(advancedDialog).toBeVisible()
+    await expect(advancedDialog.locator('#search-advanced-feed')).toHaveValue('Mock Show')
   })
 
   test('shows indexed badge, similar empty state when API returns no peers', async ({ page }) => {
@@ -180,7 +206,12 @@ test.describe('Corpus Library tab', () => {
     await expect(
       page.getByTestId('library-root').getByText('Indexed', { exact: true }),
     ).toBeVisible()
+    const similarResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/corpus/episodes/similar') && r.status() === 200,
+    )
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
+    await similarResponse
     await expect(
       page
         .getByRole('region', { name: 'Episode', exact: true })
@@ -189,7 +220,6 @@ test.describe('Corpus Library tab', () => {
     await page.getByRole('button', { name: 'Episode and feed diagnostics' }).click()
     await expect(page.getByRole('tooltip')).toContainText('Feed in vector index')
     await expect(page.getByTestId('library-similar')).toBeVisible()
-    await page.getByRole('button', { name: 'Find similar episodes' }).click()
     await expect(page.getByTestId('library-similar-empty')).toBeVisible()
   })
 
@@ -236,8 +266,12 @@ test.describe('Corpus Library tab', () => {
     await expect(
       page.getByTestId('library-root').getByText('Indexed', { exact: true }),
     ).toHaveCount(0)
+    const similarResponse = page.waitForResponse(
+      (r) =>
+        r.url().includes('/api/corpus/episodes/similar') && r.status() === 200,
+    )
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await page.getByRole('button', { name: 'Find similar episodes' }).click()
+    await similarResponse
     await expect(
       page.getByText('No vector index for this corpus yet', { exact: false }),
     ).toBeVisible()

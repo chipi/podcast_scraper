@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional, Sequence
+from typing import Any, cast, Dict, List, Optional, Sequence, Set
 
 from podcast_scraper.providers.ml import embedding_loader
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
@@ -14,6 +15,7 @@ from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
     _episode_to_gi_path,
     _hit_passes_cli_filters,
+    _metadata_relpath_by_scope_from_corpus,
     _parse_since,
     _resolve_index_dir,
 )
@@ -22,6 +24,66 @@ from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
+
+_DEDUPE_KG_DOC_TYPES = frozenset({"kg_entity", "kg_topic"})
+_KG_SURFACE_MAX_EPISODE_IDS = 48
+
+
+def _normalize_kg_surface_text(text: str) -> str:
+    """Lowercase, trim, collapse whitespace (aligns with graph Entity/Topic name dedupe idea)."""
+    raw = (text or "").lower().strip()
+    return re.sub(r"\s+", " ", raw)
+
+
+def dedupe_kg_surface_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge duplicate ``kg_entity`` / ``kg_topic`` hits that share the same embedded surface text.
+
+    Keeps the highest-scoring row first in list order; adds ``kg_surface_match_count`` and
+    ``kg_surface_episode_ids`` when more than one episode contributed.
+    """
+    out: List[Dict[str, Any]] = []
+    kg_winners: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict):
+            meta = {}
+        dt = meta.get("doc_type")
+        if dt not in _DEDUPE_KG_DOC_TYPES:
+            out.append(row)
+            continue
+        text = str(row.get("text") or "")
+        sk = f"{dt}\0{_normalize_kg_surface_text(text)}"
+        if sk not in kg_winners:
+            kg_winners[sk] = row
+            out.append(row)
+            continue
+        winner = kg_winners[sk]
+        wmeta = winner.get("metadata")
+        if not isinstance(wmeta, dict):
+            wmeta = {}
+            winner["metadata"] = wmeta
+        ep = meta.get("episode_id")
+        new_id = ep.strip() if isinstance(ep, str) and ep.strip() else None
+
+        collected: List[str] = []
+        seen: Set[str] = set()
+        raw_prev = wmeta.get("kg_surface_episode_ids")
+        if isinstance(raw_prev, list):
+            for x in raw_prev:
+                if isinstance(x, str) and x.strip() and x.strip() not in seen:
+                    seen.add(x.strip())
+                    collected.append(x.strip())
+        else:
+            w_ep = wmeta.get("episode_id")
+            if isinstance(w_ep, str) and w_ep.strip() and w_ep.strip() not in seen:
+                seen.add(w_ep.strip())
+                collected.append(w_ep.strip())
+        if new_id and new_id not in seen:
+            seen.add(new_id)
+            collected.append(new_id)
+        wmeta["kg_surface_episode_ids"] = collected[:_KG_SURFACE_MAX_EPISODE_IDS]
+        wmeta["kg_surface_match_count"] = len(collected)
+    return out
 
 
 @dataclass
@@ -47,6 +109,7 @@ def run_corpus_search(
     top_k: int = 10,
     index_path: Optional[str] = None,
     embedding_model: Optional[str] = None,
+    dedupe_kg_surfaces: bool = True,
 ) -> CorpusSearchOutcome:
     """Embed ``query``, search FAISS, apply metadata filters, return enriched rows."""
     q = query.strip()
@@ -125,7 +188,9 @@ def run_corpus_search(
 
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
     gi_cache = _episode_to_gi_path(output_dir)
+    rel_by_scope = _metadata_relpath_by_scope_from_corpus(output_dir)
     filtered: List[SearchResult] = []
+    collect_cap = fetch_k if dedupe_kg_surfaces else top_k
     for h in hits:
         dt = h.metadata.get("doc_type")
         if types_norm and len(types_norm) > 1:
@@ -144,8 +209,21 @@ def run_corpus_search(
             gi_by_episode=gi_cache,
         ):
             filtered.append(h)
-        if len(filtered) >= top_k:
+        if len(filtered) >= collect_cap:
             break
 
-    enriched = [_enrich_hit(h, gi_cache) for h in filtered]
+    title_cache: Dict[str, tuple[str, str]] = {}
+    enriched = [
+        _enrich_hit(
+            h,
+            gi_cache,
+            metadata_relpath_by_scope=rel_by_scope,
+            corpus_root=output_dir,
+            title_cache=title_cache,
+        )
+        for h in filtered
+    ]
+    if dedupe_kg_surfaces:
+        enriched = dedupe_kg_surface_rows(enriched)
+    enriched = enriched[:top_k]
     return CorpusSearchOutcome(results=enriched)

@@ -274,6 +274,7 @@ where other routes return embedded errors, follow **`/api/search`** style only i
 ### State & API
 
 - New `src/api/corpusLibraryApi.ts` — `fetchFeeds`, `fetchEpisodes`, `fetchEpisodeDetail`.
+  **Viewer:** `LibraryView` sends **`limit=20`** per page (named constant in the component; server query default may differ when the param is omitted).
 - Optional Pinia store `stores/corpusLibrary.ts` or local state inside `LibraryView` for
   MVP; **must** read `corpusPath` and health from
   `shell` store (`web/gi-kg-viewer/src/stores/shell.ts`).
@@ -349,13 +350,13 @@ and internal storage change.
   via `index_rows_by_feed_episode`. Returns **200** with `items` or a soft `error`
   (`no_index`, `insufficient_text`, `embed_failed`, …) like `/api/search`.
 - **Library UI** — Loads `GET /api/index/stats` when feeds load; shows an **Indexed** chip
-  on feeds present in `feeds_indexed` and **Find similar episodes** in the detail column
-  (uses the similar endpoint; lists peers with scores when the index is available).
+  on feeds present in `feeds_indexed` and **Similar episodes** in the detail column
+  (auto-calls the similar endpoint after episode detail loads; lists peers with scores when the index is available).
 - **`GET /api/index/stats` → `feeds_indexed`** — Response list is **deduplicated, sorted, and
   `normalize_feed_id`-trimmed** so Library chips match catalog `feed_id` strings.
 - **Search handoff** — **Search in corpus** opens the Search panel with the same **summary-derived
-  query** as similarity search (not title-only) and a short **From Library** hint; feed filter
-  label **Feed id (substring)** matches `GET /api/search` semantics.
+  query** as similarity search (not title-only); **Feed** filter (substring on catalog feed id) matches
+  `GET /api/search` semantics.
 - **Code:** `corpus_similar.py` in `src/podcast_scraper/search/`, route in
   `routes/corpus_library.py`, schemas `CorpusSimilarEpisodesResponse` / `CorpusSimilarEpisodeItem`.
 

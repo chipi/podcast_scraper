@@ -44,6 +44,8 @@ nav:
       - Dependencies: guides/DEPENDENCIES_GUIDE.md
       - Markdown Style and Linting: guides/MARKDOWN_LINTING_GUIDE.md
       - Cursor AI Best Practices: guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md
+      - Agent-Browser Closed Loop: guides/AGENT_BROWSER_LOOP_GUIDE.md
+      - Agent-Pipeline Feedback Loop: guides/AGENT_PIPELINE_LOOP_GUIDE.md
       - Documentation Agent Guide: guides/DOCUMENTATION_AGENT_GUIDE.md
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
@@ -52,6 +54,7 @@ nav:
       - Promotion Workflow: guides/PROMOTION_WORKFLOW.md
       - Performance: guides/PERFORMANCE.md
       - Performance Profile Guide: guides/PERFORMANCE_PROFILE_GUIDE.md
+      - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Glossary: guides/GLOSSARY.md
   - Architecture:
       - architecture/index.md

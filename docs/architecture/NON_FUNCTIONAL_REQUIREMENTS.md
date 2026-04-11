@@ -66,6 +66,8 @@ The pipeline and its components must complete within bounded time and resource l
 | **Model registry** | Registry lookups O(1); no noticeable overhead. | Plan | [RFC-044](../rfc/RFC-044-model-registry.md) |
 | **Local inference** | Acceptable latency for local LLMs (e.g. &lt; 5 min per episode where specified). | Met | [RFC-052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md), [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md) |
 | **CI speed** | Fast feedback on push/PR; full CI and nightly runs documented and monitored. | Met | [ADR-033](../adr/ADR-033-stratified-ci-execution.md), [CI](../ci/index.md) |
+| **Server API latency** | Viewer API endpoints (`/api/*`) respond within 500 ms for typical corpus sizes (≤ 500 episodes). Semantic search queries return within 2 s including embedding. | Met | [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) |
+| **Vector index build** | FAISS index build completes within 5 min for a 500-episode corpus on target hardware. Background rebuild does not block API reads. | Met | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md), `server/index_rebuild.py` |
 | **Disk and storage** | Output and cache writes use operator-controlled paths; write failures (e.g. disk full) are reported clearly and do not corrupt existing data. Cache and output growth are operator-managed (no unbounded automatic growth). | Part | [ARCHITECTURE](ARCHITECTURE.md); cache cleanup and size guidance in operations docs to be strengthened (see [Gaps and limitations](#gaps-and-limitations)) |
 
 ### 1.3 Out of Scope (Performance)
@@ -116,6 +118,8 @@ The pipeline must degrade gracefully under transient failures, respect operator 
 | **Reproducibility** | Seed-based reproducibility for `torch`, `numpy`, `transformers`; run manifests capture system state (Python, OS, GPU, models, git SHA, config hash). | Met | [ARCHITECTURE](ARCHITECTURE.md), Issue #379 |
 | **MPS / GPU** | On Apple Silicon, MPS exclusive mode (default) serializes GPU work to prevent memory contention; configurable. | Met | [ADR-046](../adr/ADR-046-mps-exclusive-mode-apple-silicon.md) |
 | **Flakiness** | Flaky tests are tracked and reduced; automated retries and health reporting in CI. | Part | [ADR-022](../adr/ADR-022-flaky-test-defense.md), [PRD-016](../prd/PRD-016-operational-observability-pipeline-intelligence.md) |
+| **Index rebuild resilience** | Background FAISS index rebuild is coordinated via locking; concurrent rebuild requests are rejected gracefully. A failed rebuild does not corrupt the existing index. | Met | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md), `server/index_rebuild.py` |
+| **Corpus path safety** | Server API validates and sanitizes corpus paths to prevent directory traversal; invalid paths return HTTP 400. | Met | `server/pathutil.py`, [ARCHITECTURE](ARCHITECTURE.md) |
 
 ---
 
@@ -171,6 +175,8 @@ The system must scale to typical single-feed and multi-episode use cases without
 | **Single-feed, many episodes** | Pipeline handles many episodes per feed within resource limits (timeouts, memory); sequential ML per ADR-001. | Met | [ADR-001](../adr/ADR-001-hybrid-concurrency-strategy.md), [ARCHITECTURE](ARCHITECTURE.md) |
 | **Concurrency** | IO-bound work (downloads) uses threading; ML work is sequential to avoid GPU OOM and contention. | Met | [ADR-001](../adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-046](../adr/ADR-046-mps-exclusive-mode-apple-silicon.md) |
 | **GIL / KG query scale** | File-based GIL and KG artifacts scale to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md), [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) |
+| **Vector search scale** | FAISS flat index supports corpora up to ~10 K episodes with sub-second query latency. Beyond that, IVF or Qdrant migration (RFC-061 Phase 2) provides the scaling path. | Met | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md), [PRD-021](../prd/PRD-021-semantic-corpus-search.md) |
+| **Corpus Library scale** | Filesystem-backed catalog scans scale to moderate corpus sizes (≤ 1 K episodes per feed); pagination and caching mitigate larger corpora. | Met | [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) |
 
 ### 6.3 Out of Scope (Scalability)
 
@@ -247,5 +253,5 @@ This section states what the NFR document and the project currently **do not** f
 
 ---
 
-**Last Updated**: 2026-02-10  
+**Last Updated**: 2026-04-11  
 **Next Review**: When major NFR-related work ships (e.g. model registry, observability platform) or at least annually.

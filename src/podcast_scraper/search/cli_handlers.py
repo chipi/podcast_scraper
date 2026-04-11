@@ -8,11 +8,17 @@ import logging
 from argparse import Namespace
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, cast, Dict, List, Optional, Sequence
+from typing import Any, cast, Dict, List, Optional, Sequence, Tuple
 
 from podcast_scraper import config
+from podcast_scraper.search.corpus_scope import (
+    discover_metadata_files,
+    gi_map_lookup_key_from_vector_meta,
+    index_fingerprint_scope_key,
+    normalize_feed_id,
+)
 from podcast_scraper.search.faiss_store import FaissVectorStore
-from podcast_scraper.search.indexer import index_corpus
+from podcast_scraper.search.indexer import _scope_display_titles, index_corpus
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path
@@ -85,6 +91,38 @@ def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
         gp = Path(_determine_gi_path(str(meta_path))).resolve()
         if gp.is_file():
             out[eid] = gp
+    return out
+
+
+def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
+    """Map fingerprint scope key -> corpus-relative ``*.metadata.json`` path (POSIX).
+
+    Backfills ``source_metadata_relative_path`` on search hits when FAISS rows predate
+    that field (incremental index without re-embed, or older indexer builds).
+    """
+    root = output_dir.resolve()
+    out: Dict[str, str] = {}
+    for meta_path in discover_metadata_files(root):
+        try:
+            doc = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        ep = doc.get("episode") or {}
+        eid = ep.get("episode_id")
+        if not isinstance(eid, str) or not eid:
+            continue
+        feed = doc.get("feed") or {}
+        fid = feed.get("feed_id")
+        key = index_fingerprint_scope_key(normalize_feed_id(fid), eid)
+        try:
+            rel = meta_path.resolve().relative_to(root).as_posix()
+        except ValueError:
+            continue
+        out[key] = rel
+        # Hits with only episode_id in vector metadata (missing feed_id) cannot use compound key.
+        ep_only = index_fingerprint_scope_key(None, eid)
+        if ep_only not in out:
+            out[ep_only] = rel
     return out
 
 
@@ -198,8 +236,78 @@ def _hit_passes_cli_filters(
     return True
 
 
-def _enrich_hit(hit: SearchResult, gi_by_episode: Dict[str, Path]) -> Dict[str, Any]:
+def _backfill_display_titles_from_corpus(
+    meta: Dict[str, Any],
+    corpus_root: Path,
+    cache: Dict[str, Tuple[str, str]],
+) -> None:
+    """Set ``episode_title`` / ``feed_title`` from ``*.metadata.json`` when missing on the hit.
+
+    Uses the same title resolution as the vector indexer so older FAISS rows (indexed before
+    titles were stamped) still get human labels in the viewer without a full rebuild.
+    """
+    if meta.get("episode_title") and meta.get("feed_title"):
+        return
+    rel = meta.get("source_metadata_relative_path")
+    if not isinstance(rel, str) or not rel.strip():
+        return
+    rel_key = rel.strip().replace("\\", "/")
+    if rel_key not in cache:
+        path = (corpus_root / rel_key).resolve()
+        try:
+            corpus_root_res = corpus_root.resolve()
+            path.relative_to(corpus_root_res)
+        except ValueError:
+            cache[rel_key] = ("", "")
+        else:
+            try:
+                if not path.is_file():
+                    cache[rel_key] = ("", "")
+                else:
+                    doc = json.loads(path.read_text(encoding="utf-8"))
+                    ep = doc.get("episode") if isinstance(doc.get("episode"), dict) else {}
+                    feed = doc.get("feed") if isinstance(doc.get("feed"), dict) else {}
+                    et, ft = _scope_display_titles(doc, ep, feed)
+                    cache[rel_key] = (et, ft)
+            except (OSError, json.JSONDecodeError, TypeError):
+                cache[rel_key] = ("", "")
+    et, ft = cache[rel_key]
+    if not meta.get("episode_title") and et:
+        meta["episode_title"] = et
+    if not meta.get("feed_title") and ft:
+        meta["feed_title"] = ft
+
+
+def _enrich_hit(
+    hit: SearchResult,
+    gi_by_episode: Dict[str, Path],
+    *,
+    metadata_relpath_by_scope: Optional[Dict[str, str]] = None,
+    corpus_root: Optional[Path] = None,
+    title_cache: Optional[Dict[str, Tuple[str, str]]] = None,
+) -> Dict[str, Any]:
     meta = dict(hit.metadata)
+    if metadata_relpath_by_scope:
+        smp = meta.get("source_metadata_relative_path")
+        if not (isinstance(smp, str) and smp.strip()):
+            scope_k = gi_map_lookup_key_from_vector_meta(meta)
+            rel: Optional[str] = None
+            if scope_k:
+                rel = metadata_relpath_by_scope.get(scope_k)
+            if not rel:
+                ep = meta.get("episode_id")
+                if isinstance(ep, str) and ep.strip():
+                    rel = metadata_relpath_by_scope.get(
+                        index_fingerprint_scope_key(None, ep.strip())
+                    )
+                elif isinstance(ep, (int, float)):
+                    rel = metadata_relpath_by_scope.get(
+                        index_fingerprint_scope_key(None, str(ep).strip())
+                    )
+            if isinstance(rel, str) and rel.strip():
+                meta["source_metadata_relative_path"] = rel.strip()
+    if corpus_root is not None and title_cache is not None:
+        _backfill_display_titles_from_corpus(meta, corpus_root, title_cache)
     text = str(meta.pop("text", "") or "")
     row: Dict[str, Any] = {
         "doc_id": hit.doc_id,
@@ -255,6 +363,7 @@ def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
         top_k=max(1, int(getattr(args, "top_k", 10) or 10)),
         index_path=getattr(args, "index_path", None),
         embedding_model=getattr(args, "embedding_model", None),
+        dedupe_kg_surfaces=not bool(getattr(args, "no_dedupe_kg_surfaces", False)),
     )
 
     if outcome.error == "empty_query":
@@ -433,6 +542,14 @@ def parse_search_argv(argv: Sequence[str]) -> Namespace:
         "--embedding-model",
         default=None,
         help="Override embedding model id (default: model stored in index)",
+    )
+    parser.add_argument(
+        "--no-dedupe-kg-surfaces",
+        action="store_true",
+        help=(
+            "Keep separate kg_entity/kg_topic rows when embedded text matches "
+            "(default: merge duplicates)"
+        ),
     )
     ns = cast(Namespace, parser.parse_args(list(argv)))
     ns.command = "search"

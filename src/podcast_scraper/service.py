@@ -177,9 +177,10 @@ def run(cfg: config.Config) -> ServiceResult:
     try:
         # Apply logging configuration if specified
         if cfg.log_file or cfg.log_level:
+            resolved_log = workflow.resolve_log_file_path(cfg.log_file, cfg.output_dir)
             workflow.apply_log_level(
                 level=cfg.log_level or "INFO",
-                log_file=cfg.log_file,
+                log_file=resolved_log,
             )
 
         multi_urls = list(cfg.rss_urls or [])
@@ -248,6 +249,21 @@ def run_from_config_file(config_path: str | Path) -> ServiceResult:
             summary="",
             success=False,
             error=error_safe,
+        )
+
+    from .monitor.memray_util import maybe_reexec_memray_service
+
+    memray_err = maybe_reexec_memray_service(
+        memray=bool(cfg.memray),
+        output_dir=cfg.output_dir,
+        memray_output=cfg.memray_output,
+    )
+    if memray_err:
+        return ServiceResult(
+            episodes_processed=0,
+            summary="",
+            success=False,
+            error=memray_err,
         )
 
     return run(cfg)
