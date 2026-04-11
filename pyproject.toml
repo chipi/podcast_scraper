@@ -25,6 +25,7 @@ dependencies = [
   # CVE-2026-4539 (ReDoS in AdlLexer, NVD/GHSA: 2.19.0–2.19.2): stay on 2.18.x until 2.19.3+; pip-audit still needs --ignore-vuln until OSV range matches
   # TODO(CVE-2026-4539): After pygments ships a fixed release and pip-audit/OSV match NVD ranges, bump the cap and drop Makefile ignore.
   "pygments>=2.14.0,<2.21.0",
+  "psutil>=5.9.0,<8.0.0",  # RFC-065 monitor / sampler (imported with orchestration); Docker base image
 ]
 
 [project.optional-dependencies]
@@ -118,7 +119,6 @@ dev = [
   "pydeps>=1.12.0,<4.0.0",  # Module dependency visualization (RFC-038, #170)
   "pyan3==2.4.0",  # Call graph generation (Issue #425); 1.2.0 has CallGraphVisitor root bug
   "code2flow>=2.5.0,<3.0.0",  # Flowcharts from code (Issue #425)
-  "psutil>=5.9.0,<8.0.0",  # System resource monitoring for test worker calculation and memory analysis
 ]
 # Documentation - see docs/requirements.txt
 

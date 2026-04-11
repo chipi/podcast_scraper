@@ -21,6 +21,10 @@ from podcast_scraper.search.faiss_store import FaissVectorStore
 from podcast_scraper.search.indexer import _scope_display_titles, index_corpus
 from podcast_scraper.search.protocol import SearchResult
 from podcast_scraper.utils.log_redaction import format_exception_for_log
+from podcast_scraper.utils.path_validation import (
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 from podcast_scraper.workflow.metadata_generation import _determine_gi_path
 
 # Align with gi.explore exit codes
@@ -57,17 +61,32 @@ def _minimal_vector_config(
 
 
 def _resolve_index_dir(output_dir: Path, index_path: Optional[str]) -> Path:
-    if index_path:
-        p = Path(index_path)
-        if not p.is_absolute():
-            p = output_dir / p
-        return p.resolve()
-    return (output_dir / "search").resolve()
+    base = safe_resolve_directory(output_dir)
+    if base is None:
+        base = output_dir.expanduser().resolve()
+    if not index_path or not str(index_path).strip():
+        return (base / "search").resolve()
+    raw = str(index_path).strip()
+    p = Path(raw)
+    if p.is_absolute():
+        try:
+            resolved = p.resolve()
+            resolved.relative_to(base.resolve())
+            return resolved
+        except ValueError:
+            return (base / "search").resolve()
+    safe = safe_relpath_under_corpus_root(base, raw)
+    if safe is None:
+        return (base / "search").resolve()
+    return Path(safe)
 
 
 def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
     """Map episode_id -> resolved gi.json path."""
-    meta_dir = output_dir / "metadata"
+    root = safe_resolve_directory(output_dir)
+    if root is None:
+        return {}
+    meta_dir = root / "metadata"
     out: Dict[str, Path] = {}
     if not meta_dir.is_dir():
         return out
@@ -84,10 +103,12 @@ def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
         if isinstance(gi, dict):
             rel = gi.get("artifact_path")
             if isinstance(rel, str) and rel.strip():
-                gp = (output_dir / rel.strip()).resolve()
-                if gp.is_file():
-                    out[eid] = gp
-                    continue
+                safe = safe_relpath_under_corpus_root(root, rel.strip())
+                if safe is not None:
+                    gp = Path(safe)
+                    if gp.is_file():
+                        out[eid] = gp
+                        continue
         gp = Path(_determine_gi_path(str(meta_path))).resolve()
         if gp.is_file():
             out[eid] = gp
@@ -100,7 +121,9 @@ def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
     Backfills ``source_metadata_relative_path`` on search hits when FAISS rows predate
     that field (incremental index without re-embed, or older indexer builds).
     """
-    root = output_dir.resolve()
+    root = safe_resolve_directory(output_dir)
+    if root is None:
+        return {}
     out: Dict[str, str] = {}
     for meta_path in discover_metadata_files(root):
         try:
@@ -253,13 +276,11 @@ def _backfill_display_titles_from_corpus(
         return
     rel_key = rel.strip().replace("\\", "/")
     if rel_key not in cache:
-        path = (corpus_root / rel_key).resolve()
-        try:
-            corpus_root_res = corpus_root.resolve()
-            path.relative_to(corpus_root_res)
-        except ValueError:
+        safe_path = safe_relpath_under_corpus_root(corpus_root, rel_key)
+        if safe_path is None:
             cache[rel_key] = ("", "")
         else:
+            path = Path(safe_path)
             try:
                 if not path.is_file():
                     cache[rel_key] = ("", "")
