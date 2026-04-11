@@ -183,6 +183,11 @@ ignore_missing_imports = true
 [tool.coverage.run]
 branch = true
 source = ["podcast_scraper"]
+# pytest-cov 7+ / coverage.py: measure code run inside ``subprocess.run([python, -m, ...])``.
+# Many E2E tests invoke ``python -m podcast_scraper.cli`` in a child process; without this
+# patch those runs do not contribute hits while all ``podcast_scraper`` lines still count
+# toward the denominator, which drags E2E layer coverage below CI thresholds.
+patch = ["subprocess"]
 # Suppress "Couldn't parse ... MagicMock/join()/..." warning (fake paths from mocks/pytest-xdist)
 disable_warnings = ["couldnt-parse"]
 
@@ -197,8 +202,8 @@ ignore_errors = true
 # - Integration tests: ~40-60% (component interactions, lower coverage)
 # - E2E tests: ~30-50% (happy paths only)
 # Per-test-type thresholds are enforced via --cov-fail-under in Makefile and CI:
-# - Integration: 50% (COVERAGE_THRESHOLD_INTEGRATION)
-# - E2E: 50% (COVERAGE_THRESHOLD_E2E)
+# - Integration: 40% (COVERAGE_THRESHOLD_INTEGRATION)
+# - E2E: 40% (COVERAGE_THRESHOLD_E2E)
 # - Combined: 70% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce
 # See .github/workflows/python-app.yml for CI enforcement.
 
