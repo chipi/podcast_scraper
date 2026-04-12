@@ -1,4 +1,4 @@
-# ADR-041: Periodic Module Coupling Analysis
+# ADR-030: Periodic Module Coupling Analysis
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

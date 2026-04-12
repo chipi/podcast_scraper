@@ -384,7 +384,7 @@ This allows config files for project defaults and environment variables for depl
 
 **See also:**
 
-- `docs/api/CONFIGURATION.md` - Configuration API reference (includes environment variables)
+- `docs/api/CONFIGURATION.md` - Configuration API reference (includes environment variables and [Twelve-factor app alignment (config)](../api/CONFIGURATION.md#twelve-factor-app-alignment-config))
 - `docs/rfc/RFC-013-openai-provider-implementation.md` - API key management details
 - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
 

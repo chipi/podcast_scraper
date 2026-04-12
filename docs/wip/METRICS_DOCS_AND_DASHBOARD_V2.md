@@ -21,7 +21,7 @@ They already cross-link; the redesign keeps **two separate pages** (or more if w
 
 | Page | Role |
 | ---- | ---- |
-| [guides/METRICS_GUIDE.md](../guides/METRICS_GUIDE.md) | **Experiment / eval** metrics (`run_experiment`, `metrics.json`, scorer) — not the CI dashboard |
+| [guides/EXPERIMENT_GUIDE.md](../guides/EXPERIMENT_GUIDE.md) | **Experiment / eval** metrics (`run_experiment`, `metrics.json`, scorer) -- merged into Experiment Guide Step 4 |
 
 **Problem this WIP still solves:** The **dashboard** depends on **four files** and **strict JSONL**; local copies often break that contract. That is independent of how many MkDocs pages we have.
 

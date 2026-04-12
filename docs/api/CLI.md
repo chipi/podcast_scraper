@@ -212,6 +212,26 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
 - `--max-failures N` - Stop after N episode failures (Issue #379)
+- `--http-retry-total N` - Max urllib3 retries per media/transcript HTTP request (0-20)
+- `--http-backoff-factor F` - Exponential backoff factor for those retries (0.0-10.0)
+- `--rss-retry-total N` - Max urllib3 retries per RSS feed fetch (0-20)
+- `--rss-backoff-factor F` - Backoff factor for RSS retries (0.0-10.0)
+- `--episode-retry-max N` - Application-level retries per episode after urllib3 exhaustion (0-10; `0` disables)
+- `--episode-retry-delay-sec SEC` - Initial seconds between episode-level retries (0.0-120.0)
+- `--host-request-interval-ms MS` - Minimum milliseconds between requests to the same host (0-600000; `0` = off; Issue #522)
+- `--host-max-concurrent N` - Max concurrent downloads per host (0-64; `0` = unlimited; Issue #522)
+- `--circuit-breaker` / `--no-circuit-breaker` - Enable or disable HTTP circuit breaker (Issue #522; mutually exclusive)
+- `--circuit-breaker-failure-threshold N` - Failures in rolling window before open (1-100)
+- `--circuit-breaker-window-seconds SEC` - Rolling window (1-86400)
+- `--circuit-breaker-cooldown-seconds SEC` - Cooldown while open (1-86400)
+- `--circuit-breaker-scope {feed,host}` - Breaker key: RSS URL vs request host
+- `--rss-conditional-get` / `--no-rss-conditional-get` - Enable or disable RSS conditional GET (Issue #522; mutually exclusive)
+- `--rss-cache-dir DIR` - Directory for RSS conditional validators/body cache
+
+Defaults, semantics, recommended presets, and full config/CLI parity:
+[CONFIGURATION.md — Download resilience](CONFIGURATION.md#download-resilience).
+Examples: `config/examples/config.example.download-resilience.yaml`,
+`config/examples/config.example.download-resilience.polite.yaml`.
 
 ### Logging Options
 

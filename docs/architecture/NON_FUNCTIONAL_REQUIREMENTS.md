@@ -109,7 +109,7 @@ The pipeline must degrade gracefully under transient failures, respect operator 
 
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
-| **Retries** | Transient errors (network, model loading) use exponential backoff retry with configurable counts/delays; HTTP uses retry adapters. | Met | [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md), [ARCHITECTURE](ARCHITECTURE.md) |
+| **Retries** | RSS/media HTTP uses urllib3 retry adapters plus optional application-level episode retry (`http_*`, `rss_*`, `episode_*` on `Config`). Model loading uses exponential backoff. LLM/API calls use unified provider retry (`retry_with_metrics`). | Met | [CONFIGURATION — Download resilience](../api/CONFIGURATION.md#download-resilience), [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md) (LLM/API only), [ARCHITECTURE](ARCHITECTURE.md) |
 | **Rate limiting** | External API calls respect provider rate limits; on throttling (e.g. HTTP 429) the system backs off and retries (exponential backoff). No unbounded retry storms. | Met | [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md), provider PRDs (e.g. [PRD-010](../prd/PRD-010-mistral-provider-integration.md), [PRD-011](../prd/PRD-011-deepseek-provider-integration.md)) |
 | **Timeouts** | Configurable timeouts for transcription and summarization; no indefinite hangs. | Met | [ARCHITECTURE](ARCHITECTURE.md), [TROUBLESHOOTING](../guides/TROUBLESHOOTING.md) |
 | **Failure handling** | Operators can set `--fail-fast` and `--max-failures`; episode-level failures are tracked in metrics without masking exit codes. | Met | [ARCHITECTURE](ARCHITECTURE.md) |

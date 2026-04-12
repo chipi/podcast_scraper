@@ -30,6 +30,9 @@ make backup-cache-list       # List available backups
 (npm). See [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env file locations and viewer
 commands.
 
+**Twelve-factor style config:** Prefer **environment variables** for secrets and deploy-specific
+values; use **YAML/JSON** for shared defaults. See [Configuration API — Twelve-factor alignment](../api/CONFIGURATION.md#twelve-factor-app-alignment-config).
+
 ---
 
 ## Diagnostic Commands (Issue #379)

@@ -15,6 +15,8 @@ nav:
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
+      - RSS and feed ingestion: guides/RSS_GUIDE.md
+      - Metrics Guide: guides/METRICS_GUIDE.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md
@@ -50,10 +52,9 @@ nav:
       - Troubleshooting: guides/TROUBLESHOOTING.md
       - Segfault Mitigation: guides/SEGFAULT_MITIGATION.md
       - Experiment Guide: guides/EXPERIMENT_GUIDE.md
-      - "Experiment metrics (eval runs)": guides/METRICS_GUIDE.md
-      - Promotion Workflow: guides/PROMOTION_WORKFLOW.md
       - Performance: guides/PERFORMANCE.md
       - Performance Profile Guide: guides/PERFORMANCE_PROFILE_GUIDE.md
+      - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
       - Glossary: guides/GLOSSARY.md
   - Architecture:
@@ -300,6 +301,7 @@ nav:
       - wip/WIP_README.md
       - Metrics Gap Analysis: wip/METRICS_GAP_ANALYSIS.md
       - Metrics docs & dashboard v2 (design): wip/METRICS_DOCS_AND_DASHBOARD_V2.md
+      - "WIP: Concurrent pipelines + HTTP retry metrics": wip/wip-concurrent-pipeline-http-retry-metrics.md
       - Remaining Work: wip/REMAINING_WORK.md
       - Type Hints Analysis: wip/TYPE_HINTS_ANALYSIS.md
       - Prefect Fit Analysis: wip/PREFECT-FIT-ANALYSIS.md

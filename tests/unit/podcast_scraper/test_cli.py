@@ -445,6 +445,54 @@ class TestValidateArgs(unittest.TestCase):
         )
         cli.validate_args(args)
 
+    def test_validate_args_download_resilience_flags_out_of_range(self):
+        """CLI download-resilience flags must stay within Config bounds."""
+        base = dict(
+            rss="https://example.com/feed.xml",
+            max_episodes=10,
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=4,
+            output_dir=None,
+        )
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, http_retry_total=21))
+        self.assertIn("--http-retry-total must be between 0 and 20", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, http_backoff_factor=10.01))
+        self.assertIn("--http-backoff-factor must be between 0.0 and 10.0", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, episode_retry_max=11))
+        self.assertIn("--episode-retry-max must be between 0 and 10", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, episode_retry_delay_sec=121.0))
+        self.assertIn("--episode-retry-delay-sec must be between 0.0 and 120.0", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, rss_retry_total=21))
+        self.assertIn("--rss-retry-total must be between 0 and 20", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, rss_backoff_factor=10.01))
+        self.assertIn("--rss-backoff-factor must be between 0.0 and 10.0", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, host_request_interval_ms=600_001))
+        self.assertIn("--host-request-interval-ms must be between 0 and 600000", str(cm.exception))
+
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(Namespace(**base, circuit_breaker_scope="podcast"))
+        self.assertIn("--circuit-breaker-scope must be feed or host", str(cm.exception))
+
 
 class TestCollectFeedUrls(unittest.TestCase):
     """Tests for collect_feed_urls (GitHub #440)."""
@@ -769,6 +817,95 @@ class TestBuildConfig(unittest.TestCase):
         self.assertEqual(cfg.summary_provider, "hybrid_ml")
         self.assertEqual(cfg.transcript_cleaning_strategy, "pattern")
         self.assertEqual(cfg.hybrid_internal_preprocessing_after_pattern, "cleaning_none")
+
+    def test_build_config_download_resilience_cli_overrides(self):
+        """Six download-resilience CLI flags map into Config when set."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--http-retry-total",
+                "5",
+                "--http-backoff-factor",
+                "1.25",
+                "--rss-retry-total",
+                "6",
+                "--rss-backoff-factor",
+                "0.5",
+                "--episode-retry-max",
+                "2",
+                "--episode-retry-delay-sec",
+                "7.5",
+            ]
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.http_retry_total, 5)
+        self.assertAlmostEqual(cfg.http_backoff_factor, 1.25)
+        self.assertEqual(cfg.rss_retry_total, 6)
+        self.assertAlmostEqual(cfg.rss_backoff_factor, 0.5)
+        self.assertEqual(cfg.episode_retry_max, 2)
+        self.assertAlmostEqual(cfg.episode_retry_delay_sec, 7.5)
+
+    def test_build_config_issue522_cli_overrides(self) -> None:
+        """Issue #522: fair HTTP flags map into Config."""
+        args = cli.parse_args(
+            [
+                "https://example.com/feed.xml",
+                "--host-request-interval-ms",
+                "50",
+                "--host-max-concurrent",
+                "3",
+                "--circuit-breaker",
+                "--circuit-breaker-failure-threshold",
+                "4",
+                "--circuit-breaker-scope",
+                "host",
+                "--rss-conditional-get",
+                "--rss-cache-dir",
+                "/tmp/rss_cond_test",
+            ]
+        )
+        cfg = cli._build_config(args)
+        self.assertEqual(cfg.host_request_interval_ms, 50)
+        self.assertEqual(cfg.host_max_concurrent, 3)
+        self.assertTrue(cfg.circuit_breaker_enabled)
+        self.assertEqual(cfg.circuit_breaker_failure_threshold, 4)
+        self.assertEqual(cfg.circuit_breaker_scope, "host")
+        self.assertTrue(cfg.rss_conditional_get)
+        self.assertEqual(cfg.rss_cache_dir, "/tmp/rss_cond_test")
+
+    def test_build_config_no_circuit_breaker_flag(self) -> None:
+        """--no-circuit-breaker forces circuit_breaker_enabled False."""
+        args = cli.parse_args(["https://example.com/feed.xml", "--no-circuit-breaker"])
+        cfg = cli._build_config(args)
+        self.assertFalse(cfg.circuit_breaker_enabled)
+
+    def test_build_config_no_rss_conditional_flag(self) -> None:
+        """--no-rss-conditional-get forces rss_conditional_get False."""
+        args = cli.parse_args(["https://example.com/feed.xml", "--no-rss-conditional-get"])
+        cfg = cli._build_config(args)
+        self.assertFalse(cfg.rss_conditional_get)
+
+    def test_parse_args_circuit_breaker_mutex(self) -> None:
+        """--circuit-breaker and --no-circuit-breaker are mutually exclusive."""
+        with self.assertRaises(SystemExit):
+            cli.parse_args(
+                [
+                    "https://example.com/feed.xml",
+                    "--circuit-breaker",
+                    "--no-circuit-breaker",
+                ]
+            )
+
+    def test_parse_args_rss_conditional_mutex(self) -> None:
+        """--rss-conditional-get and --no-rss-conditional-get are mutually exclusive."""
+        with self.assertRaises(SystemExit):
+            cli.parse_args(
+                [
+                    "https://example.com/feed.xml",
+                    "--rss-conditional-get",
+                    "--no-rss-conditional-get",
+                ]
+            )
 
     def test_build_config_with_defaults(self):
         """Test that Config uses defaults when args are not provided."""

@@ -1,4 +1,4 @@
-# ADR-065: Additive pyannote Diarization with Separate `[diarize]` Extra
+# ADR-058: Additive pyannote Diarization with Separate `[diarize]` Extra
 
 - **Status**: Accepted
 - **Date**: 2026-04-03

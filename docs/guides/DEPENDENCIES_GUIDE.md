@@ -40,7 +40,10 @@ Use `pip install -e ".[<extra>]"` from the repo root. Combine extras with commas
 
   all network operations.
 
-- **Key features utilized**: Session pooling with custom retry adapters (`LoggingRetry`),
+- **Key features utilized**: Session pooling with custom retry adapters (`LoggingRetry`)
+  whose retry counts and backoff factors are configurable via `Config` fields
+  (`http_retry_total`, `rss_retry_total`, etc.; see
+  [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience)),
   streaming downloads for large media files, configurable timeouts and headers
 
 - **Alternatives considered**: `urllib3` (too low-level), `httpx` (less mature at project start)

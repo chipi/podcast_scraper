@@ -1,4 +1,4 @@
-# ADR-032: Typed Provider Parameter Models
+# ADR-016: Typed Provider Parameter Models
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

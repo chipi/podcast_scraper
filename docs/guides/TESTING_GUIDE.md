@@ -6,6 +6,7 @@
 > - **This document** - Quick reference, test execution commands
 > - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
+> - **[RSS and feed ingestion](RSS_GUIDE.md)** - How RSS is fetched and parsed (helps when testing scraping vs transcript download)
 > - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes; **browser E2E** for the GI/KG Vue viewer (`make test-ui-e2e`)
 > - **[Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
@@ -341,7 +342,7 @@ The following categories are now **stable** and don't need flaky markers:
 - **Episode selection (GitHub #521)** - `tests/e2e/test_episode_selection_e2e.py` (mock feed `podcast1_episode_selection`, Path 1 transcripts; one test is `critical_path` for fast E2E)
 - **Transformers/spaCy model loading** - Uses offline mode (`HF_HUB_OFFLINE=1`)
 - **ML model tests** - Explicit `summary_reduce_model` prevents cache misses
-- **HTTP integration tests** - Explicit server waits prevent timing issues
+- **HTTP integration tests** (`tests/integration/rss/test_http_integration.py`, marker `integration_http`) — Local `http.server` only; autouse fixture resets `configure_http_policy` / `configure_downloader` and closes downloader sessions so urllib3 retry defaults do not stall 5xx tests. See [Integration Testing Guide — Real HTTP client integration](INTEGRATION_TESTING_GUIDE.md#real-http-client-integration-local-server).
 - **Parallel execution** - Global state cleanup prevents race conditions
 
 ### Reducing Flakiness

@@ -383,6 +383,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     _error_behaviors: Dict[str, Dict[str, Any]] = {}
     _error_behaviors_lock = threading.Lock()
 
+    # Transient error registry: fail N times then succeed.
+    # Format: {url_path: {"status": int, "fail_count": int, "hits": int}}
+    _transient_errors: Dict[str, Dict[str, Any]] = {}
+    _transient_errors_lock = threading.Lock()
+
     @classmethod
     def set_error_behavior(cls, url_path: str, status: int, delay: float = 0.0):
         """Set error behavior for a specific URL path.
@@ -396,6 +401,22 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             cls._error_behaviors[url_path] = {"status": status, "delay": delay}
 
     @classmethod
+    def set_transient_error(cls, url_path: str, status: int, fail_count: int):
+        """Make a URL fail ``fail_count`` times, then serve normally.
+
+        Args:
+            url_path: URL path (e.g., "/feeds/podcast1/transcripts/ep1.txt")
+            status: HTTP status code to return during failures (e.g., 429, 503)
+            fail_count: Number of requests that should fail before succeeding
+        """
+        with cls._transient_errors_lock:
+            cls._transient_errors[url_path] = {
+                "status": status,
+                "fail_count": fail_count,
+                "hits": 0,
+            }
+
+    @classmethod
     def clear_error_behavior(cls, url_path: str):
         """Clear error behavior for a specific URL path.
 
@@ -407,9 +428,11 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     @classmethod
     def clear_all_error_behaviors(cls):
-        """Clear all error behaviors."""
+        """Clear all error behaviors (permanent and transient)."""
         with cls._error_behaviors_lock:
             cls._error_behaviors.clear()
+        with cls._transient_errors_lock:
+            cls._transient_errors.clear()
 
     @classmethod
     def set_allowed_podcasts(cls, podcasts: Optional[set[str]]):
@@ -480,7 +503,29 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def _dispatch_http_get(self, path: str, head_only: bool) -> None:
         """Handle GET or HEAD for RSS, static fixtures, and Ollama discovery routes."""
-        # Check for error behavior first
+        # Check transient errors first (fail N times, then fall through)
+        with self._transient_errors_lock:
+            transient = self._transient_errors.get(path)
+            if transient is not None:
+                transient["hits"] += 1
+                if transient["hits"] <= transient["fail_count"]:
+                    status = transient["status"]
+                    logger.debug(
+                        "Transient error %d for %s (hit %d/%d)",
+                        status,
+                        path,
+                        transient["hits"],
+                        transient["fail_count"],
+                    )
+                    self.send_error(
+                        status,
+                        f"Transient {status} (hit "
+                        f"{transient['hits']}/{transient['fail_count']})",
+                    )
+                    return
+                # Past fail_count: fall through to normal serving
+
+        # Check for permanent error behavior
         with self._error_behaviors_lock:
             error_behavior = self._error_behaviors.get(path)
         if error_behavior:
@@ -488,7 +533,10 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             if error_behavior.get("delay", 0) > 0:
                 time.sleep(error_behavior["delay"])
             # Return error status
-            self.send_error(error_behavior["status"], f"Simulated {error_behavior['status']} error")
+            self.send_error(
+                error_behavior["status"],
+                f"Simulated {error_behavior['status']} error",
+            )
             return
 
         # Route 1: RSS feeds

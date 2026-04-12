@@ -1,4 +1,4 @@
-# ADR-033: Grouped Dependency Automation
+# ADR-029: Grouped Dependency Automation
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

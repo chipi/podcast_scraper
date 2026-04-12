@@ -1,4 +1,4 @@
-# ADR-018: Codified Comparison Baselines
+# ADR-014: Codified Comparison Baselines
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

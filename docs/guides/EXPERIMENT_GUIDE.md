@@ -1,28 +1,40 @@
 # Experiment Guide
 
-**Status:** 🚧 Work in Progress - This guide will evolve as the experiment system matures.
+This guide explains how to run AI experiments using the podcast_scraper
+benchmarking framework. Experiments allow you to test different models,
+prompts, and parameters on canonical datasets and compare results
+against frozen baselines.
 
-This guide explains how to run AI experiments using the podcast_scraper benchmarking framework. Experiments allow you to test different models, prompts, and parameters on canonical datasets and compare results against frozen baselines.
-
-For **frozen resource-cost profiles** (peak RSS, CPU%, wall time per pipeline stage) at release time, see the **[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** (RFC-064). That track is separate from quality evaluation here.
+For **frozen resource-cost profiles** (peak RSS, CPU%, wall time per
+pipeline stage) at release time, see the
+**[Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)** (RFC-064).
+That track is separate from quality evaluation here.
 
 ---
 
 ## Getting Started
 
-**Workflow Order:** You must follow these steps in order:
+**Workflow order:**
 
-1. **Prepare Source Data** (Step 0) - Generate metadata and source indexes from RSS XML files
-2. **Create a Dataset** (Step 1) - Create a canonical dataset from your eval data
-3. **Materialize Dataset** (Step 1a) - Validate and materialize the dataset (optional but recommended)
-4. **Create a Baseline** (Step 2) - Create a baseline using that dataset
-5. **Run Experiments** (Step 3) - Run experiments that compare against the baseline
+1. **Prepare Source Data** (Step 0) -- Generate metadata and source
+   indexes from RSS XML files
+2. **Create a Dataset** (Step 1) -- Create a canonical dataset from
+   your eval data
+3. **Materialize Dataset** (Step 1a) -- Validate and materialize the
+   dataset (optional but recommended)
+4. **Create a Baseline** (Step 2) -- Create a baseline using that
+   dataset
+5. **Run Experiments** (Step 3) -- Run experiments that compare against
+   the baseline
+6. **Promote** (Step 5) -- Promote a run to baseline or reference when
+   it earns that role
 
 **Why this order?**
 
 - Datasets require source data with transcripts
 - Baselines require a dataset to know which episodes to process
-- Experiments require both a dataset (for input) and a baseline (for comparison)
+- Experiments require both a dataset (for input) and a baseline (for
+  comparison)
 - Materialization validates dataset integrity before use
 
 ---
@@ -31,176 +43,119 @@ For **frozen resource-cost profiles** (peak RSS, CPU%, wall time per pipeline st
 
 The experiment system consists of several components:
 
-1. **Source Data** - Raw RSS XML files, transcripts, and metadata in `data/eval/sources/`
-2. **Datasets** - Canonical, frozen sets of episodes with transcripts and golden references
-3. **Materialized Datasets** - Validated, copied datasets in `data/eval/materialized/`
-4. **Baselines** - Frozen reference results from a known system state
-5. **Experiments** - Runs that test new configurations against datasets and compare to baselines
+1. **Source Data** -- Raw RSS XML files, transcripts, and metadata in
+   `data/eval/sources/`
+2. **Datasets** -- Canonical, frozen sets of episodes with transcripts
+   and golden references
+3. **Materialized Datasets** -- Validated, copied datasets in
+   `data/eval/materialized/`
+4. **Runs** -- Execution results in `data/eval/runs/` (temporary,
+   disposable)
+5. **Baselines** -- Promoted runs that serve as comparison points in
+   `data/eval/baselines/`
+6. **References** -- Promoted runs that serve as "truth" for evaluation
+   metrics in `data/eval/references/`
 
 ### Key Concepts
 
-- **Source ID**: Identifier for a source directory (e.g., `curated_5feeds_raw_v1`)
-- **Dataset ID**: Identifier for a canonical dataset (e.g., `curated_5feeds_smoke_v1`)
-- **Baseline ID**: Identifier for a frozen baseline (e.g., `bart_led_baseline_v1`)
-- **Experiment ID**: Unique identifier for an experiment run (e.g., `summarization_openai_long_v2`)
+- **Source ID**: Identifier for a source directory
+  (e.g. `curated_5feeds_raw_v1`)
+- **Dataset ID**: Identifier for a canonical dataset
+  (e.g. `curated_5feeds_smoke_v1`)
+- **Run ID**: Identifier for an execution result
+  (e.g. `run_2026-01-16_11-52-03`)
+- **Baseline ID**: Identifier for a promoted baseline
+  (e.g. `baseline_ml_prod_authority_v1`)
+- **Reference ID**: Identifier for a promoted reference
+  (e.g. `silver_sonnet46_smoke_v1`)
 
 ---
 
-## Understanding Baselines, Experiments, and App Defaults
+## Runs, baselines, and references
 
-This section explains the correct way to think about baselines, experiments, and how they relate to your application's default behavior.
+**Core principle: execution is neutral. Meaning is assigned afterward.**
 
-### What is a Baseline?
+Every baseline, reference, and experiment is produced by the same
+runner -- same code, same provider abstraction, same fingerprinting,
+same artifacts (`predictions.jsonl`, `metrics.json`,
+`fingerprint.json`). The distinction is **post-run promotion**, not
+execution.
 
-A baseline represents **how the default app behaves** for a given task, dataset, and provider.
+### Run (execution only)
 
-**Key points:**
+A **run** is the result of executing the experiment runner. It lives in
+`data/eval/runs/` and has no special meaning yet.
 
-- **Baseline params = default app params** - The configuration used in a baseline should match what users get by default
-- **Baseline pipeline = default app pipeline** - The processing steps should match the default workflow
-- **Baseline output = what users should expect today** - The results represent current production behavior
+- Temporary (can be deleted)
+- No governance rules
+- Just execution results
 
-**This is not just "ok" — this is the point of a baseline.**
+### Baseline (promoted run)
 
-### Critical Clarification: Baseline ≠ "Whatever the App Happens to Do"
+A **baseline** is a run promoted to serve as a **comparison point**.
 
-**Wrong approach:** Baseline = "whatever the app happens to do right now"
+- Required for experiments (experiments must specify a baseline)
+- Can block CI (regressions against this baseline can fail CI)
+- Immutable (cannot be overwritten)
+- Used as comparison point (not as "truth")
+- **A baseline is the contract for default app behavior -- frozen,
+  explicit, and intentional**
 
-**Correct approach:** Baseline = explicitly frozen snapshot of default app behavior
+Storage: `data/eval/baselines/{baseline_id}/`
 
-**Why this matters:**
+### Reference (promoted run)
 
-Your app may evolve, but your baseline must not drift silently. The rule is:
+A **reference** is a run promoted to serve as "truth" for evaluation
+metrics (e.g. ROUGE, embedding similarity).
 
-> **The app defaults should always be derived from a baseline, not the other way around.**
+- Not required for experiments (experiments can run without references)
+- Cannot block CI (references are informational)
+- Rarely updated (only when truth changes)
+- Immutable (cannot be overwritten)
 
-### The Correct Relationship Between App and Baseline
+Storage:
 
-**Ideal flow (what you should aim for):**
+- Silver: `data/eval/references/silver/{reference_id}/`
+- Gold NER: `data/eval/references/gold/ner_entities/{reference_id}/`
+- Gold summarization:
+  `data/eval/references/gold/summarization/{reference_id}/`
 
-1. You define a config (like a YAML experiment config)
-2. You run it through the evaluation system
-3. You promote that run to a baseline
-4. That baseline config becomes the app default
-5. Future app changes are compared against that baseline
+Reference quality:
 
-**Visually:**
+- **Silver** -- machine-generated by a strong model
+  (e.g. Claude Sonnet 4.6)
+- **Gold** -- human-verified summaries or entity annotations
 
-```text
-baseline config  ──► app default behavior
-       ▲
-       │
- experiments / changes
-```
+### Baselines vs references vs experiments
 
-**Not:**
+| Role | Purpose | Immutable | CI gating |
+| :--- | :--- | :---: | :---: |
+| Run | Execution result | No | No |
+| Baseline | Comparison point (default app behavior) | Yes | Yes |
+| Silver reference | Approximate "truth" for metrics | Yes | No |
+| Gold reference | Exact "truth" for metrics | Yes | Yes |
+| Experiment | Test new approaches | No | No |
 
-```text
-app default (mutable) ──► baseline (moving target)
-```
-
-### Why This Distinction is Important
-
-**If you treat baseline as "whatever the app currently does":**
-
-- Regressions slip in unnoticed
-- Metrics history becomes meaningless
-- You can't explain why quality changed
-- Rollbacks become guesswork
-
-**If you treat baseline as the authority:**
-
-- App behavior is intentional
-- Changes are deliberate
-- Comparisons are meaningful
-- Rollbacks are trivial
-
-### How This Applies to Your Setup
-
-For your case:
-
-- `baseline_bart_small_led_long_fast` → default summarization behavior in dev
-
-Later you'll likely have:
-
-- `baseline_prod_authority_benchmark_v1` → default summarization behavior in prod
-
-Those baselines should correspond 1:1 with:
-
-- The model IDs
-- Generation params
-- Preprocessing logic
-- Chunking strategy (once added)
-
-### Practical Guideline
-
-**If a user asks "what does the app do by default?", you should be able to answer: "it runs baseline X."**
-
-If you can't answer that, the baseline isn't doing its job.
-
-### What Baselines Should NOT Be Used For
-
-Just to be clear:
-
-- Baselines are not "best possible quality"
-- Baselines are not "experiments"
-- Baselines are not "aspirational targets"
-
-Those are:
-
-- **Capability baselines** - for exploring what's possible
-- **Silver/gold references** - for quality targets
-- **Experiments** - for testing new approaches
-
-Different roles, different purposes.
-
-### How This Ties Back to Configuration
-
-Your instinct was right:
-
-- Putting `max_length: 150` in the baseline config would literally mean: "the app default produces very short summaries"
-
-That's why fixing the baseline params is so important.
-
-**Once you fix and promote the baseline:**
-
-- Those params become your app default
-- Everything else is compared against them
-
-### One-Sentence Rule to Remember
-
-> **A baseline is the contract for default app behavior — frozen, explicit, and intentional.**
-
-### From Baseline to App Default
+### From baseline to app default
 
 The workflow for promoting a baseline to app default:
 
-1. **Create baseline** - Run evaluation with your intended default config
-2. **Validate baseline** - Ensure metrics meet acceptance criteria
-3. **Promote baseline** - Mark it as the authoritative default
-4. **Promote baseline into the Model Registry (RFC-044)** - Create a named mode in code
-5. **Update app defaults** - Use the promoted `summary_mode_id` (mode) as the default
-6. **Verify alignment** - Confirm app behavior matches baseline
+1. Run evaluation with your intended default config
+2. Validate metrics meet acceptance criteria
+3. Promote the run to a baseline (`make run-promote`)
+4. Promote the baseline into the Model Registry (RFC-044):
+   `make registry-promote`
+5. Set `summary_mode_id` in config to the promoted mode
+6. Verify app behavior matches baseline
 
-**Future changes:**
-
-- Run experiments against the baseline
-- Compare metrics and quality
-- If better, create new baseline and update app defaults
-- If worse, reject the change
-
-This ensures all app behavior is intentional and traceable.
-
-#### Registry Promotion (RFC-044)
-
-The app runtime never imports `data/eval/`. Instead, proven baseline configs are
+The app runtime never imports `data/eval/`. Proven baseline configs are
 promoted into the code registry as **modes**:
 
 ```bash
-make registry-promote BASELINE_ID=baseline_ml_prod_authority_v1 MODE_ID=ml_prod_authority_v1
+make registry-promote \
+  BASELINE_ID=baseline_ml_prod_authority_v1 \
+  MODE_ID=ml_prod_authority_v1
 ```
-
-Then, set `summary_mode_id: ml_prod_authority_v1` in config (or rely on the production default).
 
 ---
 
@@ -778,10 +733,17 @@ Each line in `predictions.jsonl` contains:
 
 ## Step 4: Evaluate Results
 
-Evaluation is handled automatically by the experiment runner. When you run an experiment with `--baseline` and/or `--reference` flags, the system automatically:
+> **Not the CI dashboard:** for pytest / coverage / GitHub Pages test
+> metrics, see [Test dashboard (GitHub Pages)](../ci/METRICS.md). This
+> section covers **experiment / eval** metrics only.
+
+Evaluation is handled automatically by the experiment runner. When you
+run an experiment with `--baseline` and/or `--reference` flags, the
+system automatically:
 
 1. Computes intrinsic metrics (gates, length, performance, cost)
-2. Computes vs_reference metrics (ROUGE, embedding similarity) if references are provided
+2. Computes vs_reference metrics (ROUGE, embedding similarity) if
+   references are provided
 3. Computes deltas vs baseline if baseline is provided
 
 ### Metrics Calculation Flow
@@ -1183,7 +1145,36 @@ This keeps the system flexible.
 - **Metrics** = absolute facts about this run (+ vs reference scores)
 - **Comparisons** = deltas between two runs
 
-This separation allows recomputing comparisons later without re-running inference.
+This separation allows recomputing comparisons later without
+re-running inference.
+
+### Pipeline run metrics (download resilience)
+
+The **main podcast pipeline** (CLI `run_pipeline`, service mode) writes
+a different `metrics.json` under each run directory (see
+[Pipeline and Workflow](PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429)).
+For download hardening observability it includes:
+
+| Field | Meaning |
+| :--- | :--- |
+| `http_urllib3_retry_events` | Count of urllib3 retry scheduling events (transient connection/read/status errors) since the downloader was last configured (pipeline start); process-wide |
+| `episode_download_retries` | Number of application-level episode download retries (after urllib3 exhausted), when `episode_retry_max` > 0 |
+| `episode_download_retry_sleep_seconds` | Sum of configured backoff sleeps before those episode-level retries |
+| `host_throttle_wait_seconds` | Time spent in per-host throttle or `Retry-After` alignment waits (Issue #522) |
+| `host_throttle_events` | Count of those wait episodes |
+| `retry_after_events` | Count of `Retry-After`-driven sleeps recorded in policy metrics |
+| `retry_after_total_sleep_seconds` | Sum of those sleeps |
+| `circuit_breaker_trips` | Times a circuit opened |
+| `circuit_breaker_open_feeds` | Scope keys that opened (feed URL or host label) |
+| `rss_conditional_hit` | RSS responses served from cache after HTTP 304 |
+| `rss_conditional_miss` | RSS full-body 200 responses under conditional GET |
+
+**Semantics:** `http_urllib3_retry_events` is shared across all threads in the process. A normal single `run_pipeline` is fine. Do not run two full pipelines **concurrently** in one process if you need that field to represent one run only (use separate processes). See [CONFIGURATION.md -- Download resilience](../api/CONFIGURATION.md#download-resilience) (threading and metrics) and [WIP: concurrent pipelines and HTTP retry metrics](../wip/wip-concurrent-pipeline-http-retry-metrics.md).
+
+Configuration:
+[CONFIGURATION.md -- Download resilience](../api/CONFIGURATION.md#download-resilience).
+**ADR-028** documents **LLM/API provider** retry metrics, not these
+HTTP download counters.
 
 ---
 
@@ -1217,16 +1208,18 @@ make experiment-run CONFIG=data/eval/configs/my_experiment.yaml
 make experiment-run \
   CONFIG=experiments/my_experiment.yaml \
   BASELINE=bart_led_baseline_v1 \
-  REFERENCE=silver_gpt52_v1
+  REFERENCE=silver_sonnet46_smoke_v1
 
 # Results are automatically computed:
-# - results/{experiment_id}/metrics.json (intrinsic + vs_reference)
-# - results/{experiment_id}/comparisons/vs_{baseline_id}.json (deltas)
+# - data/eval/runs/<run_id>/metrics.json (intrinsic + vs_reference)
+# - data/eval/runs/<run_id>/comparisons/vs_<baseline_id>.json (deltas)
 
-# Review results:
-cat results/summarization_openai_long_v2/metrics.json | jq '.intrinsic'
-cat results/summarization_openai_long_v2/metrics.json | jq '.vs_reference'
-cat results/summarization_openai_long_v2/comparisons/vs_bart_led_baseline_v1.json
+# Step 5: Promote if results are good
+make run-promote \
+  RUN_ID=run_2026-04-12_14-30-00 \
+  AS=baseline \
+  PROMOTED_ID=baseline_prod_authority_v2 \
+  REASON="Improved preprocessing, all gates pass"
 ```
 
 ---
@@ -1261,14 +1254,31 @@ cat results/summarization_openai_long_v2/comparisons/vs_bart_led_baseline_v1.jso
 - **Validate contracts**: Ensure dataset_id matches between experiment and baseline
 - **Track golden references**: Use `golden_required: true` when evaluation is needed
 
+### Download resilience (when the pipeline fetches RSS or transcripts)
+
+Eval workflows often use **materialized** or **local** inputs so HTTP is out of the path. When an experiment or acceptance run **does** hit the network (real RSS, transcript URLs), align retry policy with the job:
+
+- **Long batch / production-like ingestion**: Rely on defaults or raise `http_retry_total`, `rss_retry_total`, and `episode_retry_max` if feeds are flaky. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience), `config/examples/config.example.download-resilience.yaml`, and [recommended presets](../api/CONFIGURATION.md#recommended-presets-download-resilience).
+- **Polite HTTP toward CDNs** (high parallelism, same host for RSS and media): Consider merging `config/examples/config.example.download-resilience.polite.yaml`.
+- **Fast CI or smoke**: Lower retries (`episode_retry_max: 0`, small `http_retry_total`) so failures fail quickly; see the commented "fast-fail" block in `config.example.download-resilience.yaml`.
+- **Triage**: Use `failure_summary` in `run.json` and `http_urllib3_retry_events` / `episode_download_retries` in `metrics.json` after the run (see [Pipeline run metrics](#pipeline-run-metrics-download-resilience) above).
+
+CLI overrides: [CLI.md — Control Options](../api/CLI.md#control-options) (`--http-retry-total`, `--episode-retry-max`, etc.).
+
 ### Workflow
 
-1. **Prepare source data** → `make metadata-generate` → `make source-index`
-2. **Create dataset** → `make dataset-smoke` / `make dataset-benchmark` / `make dataset-raw`
-3. **Materialize dataset** → `make dataset-materialize DATASET_ID=...` (recommended)
-4. **Create baseline** → `make baseline-create BASELINE_ID=... DATASET_ID=...`
-5. **Run experiment** → `make experiment-run CONFIG=...`
-6. **Run experiment with evaluation** → `make experiment-run CONFIG=... BASELINE=... REFERENCE=...` (evaluation is automatic)
+1. **Prepare source data** -- `make metadata-generate` then
+   `make source-index`
+2. **Create dataset** -- `make dataset-smoke` / `make dataset-benchmark`
+   / `make dataset-raw`
+3. **Materialize dataset** -- `make dataset-materialize DATASET_ID=...`
+   (recommended)
+4. **Create baseline** -- `make baseline-create BASELINE_ID=...
+   DATASET_ID=...`
+5. **Run experiment** -- `make experiment-run CONFIG=... BASELINE=...
+   REFERENCE=...`
+6. **Promote** -- `make run-promote RUN_ID=... AS=baseline
+   PROMOTED_ID=... REASON="..."`
 
 ---
 
@@ -1497,11 +1507,112 @@ data/eval/
 
 ### Key Principles
 
-1. **Always archive before delete** - You may need to reference old configs
-2. **Freeze before major changes** - Enables quantitative comparison
-3. **Keep promoted baselines forever** - They're your quality contracts
-4. **Delete aggressively otherwise** - Clutter obscures signal
-5. **Document frozen runs** - The `NOTE.md` explains why they matter
+1. **Always archive before delete** -- you may need to reference old
+   configs
+2. **Freeze before major changes** -- enables quantitative comparison
+3. **Keep promoted baselines forever** -- they are your quality
+   contracts
+4. **Delete aggressively otherwise** -- clutter obscures signal
+5. **Document frozen runs** -- the `NOTE.md` explains why they matter
+
+---
+
+## Step 5: Promote a run
+
+Promotion moves a run from `data/eval/runs/` into `baselines/` or
+`references/` and stamps it with governance metadata. A run's role is
+determined by **where it lives and how it is referenced**, not by how
+it was executed.
+
+### Promote to baseline
+
+```bash
+make run-promote \
+  RUN_ID=run_2026-01-16_11-52-03 \
+  AS=baseline \
+  PROMOTED_ID=baseline_prod_authority_v2 \
+  REASON="New production baseline with improved preprocessing"
+```
+
+This:
+
+1. Moves artifacts from `runs/` to `baselines/`
+2. Assigns a stable ID (`baseline_prod_authority_v2`)
+3. Marks as immutable (cannot overwrite)
+4. Creates `README.md` explaining purpose
+5. Updates `baseline.json` with promotion metadata
+6. Removes the source run (promotion is one-way)
+
+### Promote to reference
+
+```bash
+make run-promote \
+  RUN_ID=run_2026-01-16_14-30-00 \
+  AS=reference \
+  PROMOTED_ID=silver_sonnet46_smoke_v1 \
+  REASON="Silver reference using Sonnet 4.6 for smoke dataset" \
+  REFERENCE_QUALITY=silver
+```
+
+This:
+
+1. Auto-detects task type from the run's `metrics.json` or
+   `predictions.jsonl`
+2. Moves artifacts to the appropriate location
+   (`references/silver/`, `references/gold/{task_type}/`)
+3. Assigns a stable ID and marks as immutable
+4. Creates `README.md` and updates `baseline.json` with promotion
+   metadata
+5. Removes the source run
+
+### Promotion metadata
+
+When a run is promoted, `baseline.json` is updated:
+
+```json
+{
+  "baseline_id": "baseline_prod_authority_v2",
+  "dataset_id": "curated_5feeds_smoke_v1",
+  "created_at": "2026-01-16T11:52:03Z",
+  "promoted_from": "run_2026-01-16_11-52-03",
+  "promoted_at": "2026-01-16T12:00:00Z",
+  "promoted_as": "baseline",
+  "promoted_id": "baseline_prod_authority_v2",
+  "fingerprint_ref": "fingerprint.json"
+}
+```
+
+For references, it also includes `"reference_quality": "silver"` (or
+`"gold"`).
+
+### Promotion rules
+
+| Rule | Baseline | Reference |
+| :--- | :--- | :--- |
+| Required for experiments | Yes | No |
+| Can block CI | Yes | No |
+| Updated often | Sometimes | Rarely |
+| Replaced silently | No | No |
+| Used as "truth" | No | Yes (approximate or exact) |
+
+### Legacy support
+
+`make baseline-create` still works for backward compatibility -- it
+creates a run and auto-promotes it to a baseline in one step. For new
+workflows, prefer the explicit create-then-promote path.
+
+### Promotion best practices
+
+1. **Always review before promoting** -- do not auto-promote without
+   checking results
+2. **Use descriptive IDs** -- `baseline_prod_authority_v2` is better
+   than `baseline_v2`
+3. **Document the reason** -- the `REASON` parameter is important for
+   future reference
+4. **Do not promote experiments** -- only promote runs that serve a
+   clear purpose
+5. **Keep runs clean** -- delete runs that are not useful (they are
+   temporary)
 
 ---
 
@@ -1559,23 +1670,14 @@ Optional `BASELINE` picks the default row in the **Baseline (for deltas)** dropd
 
 ---
 
-## Next Steps
-
-This guide will evolve as the experiment system matures. Planned additions:
-
-- [ ] Automated evaluation integration
-- [x] Comparison tools (experiment vs baseline) — see `make runs-compare`, `make report-multi-run`, and `make run-compare` (RFC-047)
-- [ ] Regression detection
-- [ ] CI/CD integration
-- [ ] Cost tracking
-- [x] Visualization tools — `make run-compare` (Streamlit, RFC-047)
-
----
-
 ## References
 
-- **RFC-015**: AI Experiment Pipeline
-- **RFC-041**: Benchmarking Framework
-- **Implementation Plan**: `docs/wip/ai-quality-implementation-plan-sync.md`
-- **Dataset Format**: `data/eval/datasets/curated_5feeds_smoke_v1.json` (example)
-- **Baseline Format**: `benchmarks/baselines/` (examples)
+| Doc | Role |
+| :--- | :--- |
+| [RFC-015](../rfc/RFC-015-ai-experiment-pipeline.md) | AI experiment pipeline design |
+| [RFC-041](../rfc/RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarking framework |
+| [RFC-044](../rfc/RFC-044-model-registry.md) | Model registry and mode promotion |
+| [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Resource-cost profiles (RSS, CPU%, wall time) |
+| [Optimization Workflow](OPTIMIZATION_WORKFLOW_GUIDE.md) | End-to-end optimization workflow |
+| [`data/eval/README.md`](https://github.com/chipi/podcast_scraper/blob/main/data/eval/README.md) | Eval directory contract |
+| [`data/eval/references/silver/README.md`](https://github.com/chipi/podcast_scraper/blob/main/data/eval/references/silver/README.md) | Active silver references |

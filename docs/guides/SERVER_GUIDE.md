@@ -412,6 +412,7 @@ viewer routes.
 | [Testing Guide](TESTING_GUIDE.md) | Commands, markers, and browser E2E section. |
 | [E2E Testing Guide](E2E_TESTING_GUIDE.md) | Playwright browser E2E details. |
 | [Development Guide](DEVELOPMENT_GUIDE.md) | Dev environment, `make serve` / `serve-api` / `serve-ui`. |
+| [Configuration API](../api/CONFIGURATION.md) | Env vs YAML, [twelve-factor alignment (config)](../api/CONFIGURATION.md#twelve-factor-app-alignment-config). |
 | [Viewer README][viewer-readme] | Frontend SPA setup, dev workflow, build instructions. |
 | [`src/podcast_scraper/server/`][server-pkg] | Server source code. |
 

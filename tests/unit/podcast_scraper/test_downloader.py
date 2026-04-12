@@ -272,6 +272,14 @@ class TestCloseAllSessions(unittest.TestCase):
         with downloader._SESSION_REGISTRY_LOCK:
             self.assertEqual(len(downloader._SESSION_REGISTRY), 0)
 
+    def test_reset_http_sessions_closes_registry(self):
+        """Public alias closes sessions like _close_all_sessions."""
+        mock_session = Mock(spec=requests.Session)
+        with downloader._SESSION_REGISTRY_LOCK:
+            downloader._SESSION_REGISTRY.append(mock_session)
+        downloader.reset_http_sessions()
+        mock_session.close.assert_called_once()
+
 
 class TestOpenHTTPRequest(unittest.TestCase):
     """Tests for _open_http_request function."""
@@ -368,6 +376,8 @@ class TestOpenHTTPRequest(unittest.TestCase):
             15,
             stream=False,
             session=mock_sess,
+            extra_headers=None,
+            accept_not_modified=False,
         )
 
 

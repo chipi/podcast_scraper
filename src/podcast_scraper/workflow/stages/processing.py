@@ -92,6 +92,82 @@ def _warn_if_jobs_large(jobs: List) -> None:
         )
 
 
+_EPISODE_RETRYABLE_EXCEPTIONS = (
+    ConnectionError,
+    TimeoutError,
+    OSError,
+)
+
+
+def _is_episode_retryable(exc: Exception) -> bool:
+    """Return True if the exception warrants an episode-level retry."""
+    if isinstance(exc, _EPISODE_RETRYABLE_EXCEPTIONS):
+        return True
+    try:
+        import requests
+
+        if isinstance(exc, requests.RequestException):
+            return True
+    except ImportError:
+        pass
+    msg = str(exc).lower()
+    return any(tok in msg for tok in ("timeout", "connection", "reset", "429", "503"))
+
+
+_EpisodeResult = Tuple[bool, Optional[str], Optional[str], int]
+
+
+def _process_episode_with_retry(
+    process_fn: Any,
+    args: Tuple,
+    cfg: "config.Config",
+    pipeline_metrics: "metrics.Metrics",
+) -> _EpisodeResult:
+    """Wrap a single episode download call with app-level retries.
+
+    When ``cfg.episode_retry_max > 0`` and the download raises a
+    transient network error, the entire episode operation is retried
+    up to ``episode_retry_max`` times with exponential backoff starting
+    at ``episode_retry_delay_sec``.
+
+    Returns the same 4-tuple as ``process_episode_download``.
+    """
+    max_retries = getattr(cfg, "episode_retry_max", 0)
+    if max_retries <= 0:
+        result: _EpisodeResult = process_fn(*args, pipeline_metrics=pipeline_metrics)
+        return result
+
+    delay = getattr(cfg, "episode_retry_delay_sec", 5.0)
+    episode = args[0]
+    last_exc: Optional[Exception] = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            result = process_fn(*args, pipeline_metrics=pipeline_metrics)
+            return result
+        except Exception as exc:
+            last_exc = exc
+            if attempt < max_retries and _is_episode_retryable(exc):
+                logger.warning(
+                    "[%s] episode download attempt %d/%d failed: " "%s — retrying in %.1fs",
+                    episode.idx,
+                    attempt + 1,
+                    max_retries + 1,
+                    exc,
+                    delay,
+                )
+                pipeline_metrics.record_episode_download_retry(delay)
+                time.sleep(delay)
+                delay = min(delay * 2, 120.0)
+            else:
+                raise
+
+    # Should not reach here, but satisfy type checker
+    if last_exc:
+        raise last_exc
+    return False, None, None, 0
+
+
 def _flatten_speaker_name_entries(value: Any) -> List[str]:
     """Normalize speaker-detector output to flat, non-empty strings.
 
@@ -825,28 +901,15 @@ def _process_episodes_sequential(
     """
     saved = 0
     for args in download_args:
-        (
-            episode,
-            cfg_arg,
-            temp_dir_arg,
-            output_dir_arg,
-            run_suffix_arg,
-            jobs_arg,
-            lock_arg,
-            detected_names,
-        ) = args
+        episode = args[0]
+        detected_names = args[7]
         try:
             success, transcript_path, transcript_source, bytes_downloaded = (
-                process_episode_download(
-                    episode,
-                    cfg_arg,
-                    temp_dir_arg,
-                    output_dir_arg,
-                    run_suffix_arg,
-                    jobs_arg,
-                    lock_arg,
-                    detected_names,
-                    pipeline_metrics=pipeline_metrics,
+                _process_episode_with_retry(
+                    process_episode_download,
+                    args,
+                    cfg,
+                    pipeline_metrics,
                 )
             )
             saved += _handle_episode_download_result(
@@ -865,7 +928,9 @@ def _process_episodes_sequential(
 
             update_metric_safely(pipeline_metrics, "errors_total", 1)
             logger.error(
-                f"[{episode.idx}] episode processing raised an unexpected error: {exc}",
+                "[%s] episode processing raised an unexpected " "error: %s",
+                episode.idx,
+                exc,
                 exc_info=True,
             )
     return saved
@@ -903,16 +968,11 @@ def _process_episodes_concurrent(
     with ThreadPoolExecutor(max_workers=cfg.workers) as executor:
         future_map = {
             executor.submit(
+                _process_episode_with_retry,
                 process_episode_download,
-                args[0],
-                args[1],
-                args[2],
-                args[3],
-                args[4],
-                args[5],
-                args[6],
-                args[7],
-                pipeline_metrics=pipeline_metrics,
+                args,
+                cfg,
+                pipeline_metrics,
             ): args[0].idx
             for args in download_args
         }

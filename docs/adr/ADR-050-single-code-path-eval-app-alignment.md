@@ -1,4 +1,4 @@
-# ADR-051: Single Code Path for Evaluation and Application
+# ADR-050: Single Code Path for Evaluation and Application
 
 - **Status**: Accepted
 - **Date**: 2026-04-03

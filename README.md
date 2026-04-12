@@ -35,11 +35,11 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Provider System** — Swap between local and cloud providers via config
 - **MPS Exclusive Mode** — Serialize GPU work on Apple Silicon to prevent memory contention and improve reliability (enabled by default)
 - **Reproducibility** — Deterministic runs with seed control, pinned model revisions, and comprehensive run manifests (Issue #379)
-- **Operational Hardening** — Retry policies with exponential backoff, timeout enforcement, failure handling flags, and structured JSON logging (Issue #379)
+- **Operational Hardening** — Configurable HTTP retries (media vs RSS), application-level episode retries on transient errors, timeout enforcement, `--fail-fast` / `--max-failures`, structured JSON logging, and `failure_summary` in `run.json` when episodes fail ([CONFIGURATION.md — Download resilience](docs/api/CONFIGURATION.md#download-resilience), Issue #379)
 - **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
 - **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
-- **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
+- **Run Tracking** — Per-episode stage timings, run summaries, episode index files, and `metrics.json` fields for download retries (`http_urllib3_retry_events`, `episode_download_retries`) (Issue #379)
 - **Live pipeline monitor** — Optional **`--monitor`**: separate process + **`rich`** dashboard (or **`.monitor.log`** if stderr is not a TTY) and **`.pipeline_status.json`**. Optional **`pip install -e ".[monitor]"`**: **`--memray`** for heap profiling; with monitor + TTY, **`f`** runs **py-spy** to **`debug/flamegraph_*.svg`** ([RFC-065](docs/rfc/RFC-065-live-pipeline-monitor.md), [guide](docs/guides/LIVE_PIPELINE_MONITOR.md), #512)
 - **GI / KG Viewer (v2)** — Optional browser UI: graph visualization, dashboard, semantic search, explore, **Corpus Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), and **Corpus Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)) — all against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
 

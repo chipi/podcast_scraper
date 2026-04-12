@@ -126,6 +126,12 @@ class Metrics:
     # Per-episode operation timing (key = episode.idx, 1-based; safe under parallel workers)
     download_media_time_by_episode: Dict[int, float] = field(default_factory=dict)
     download_media_attempts: int = 0  # Total media download attempts (including reused/cached)
+    # App-level episode download retries (after urllib3 retries; see Config episode_retry_*)
+    episode_download_retries: int = 0
+    episode_download_retry_sleep_seconds: float = 0.0
+    _episode_download_retry_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )
     transcribe_time_by_episode: Dict[int, float] = field(
         default_factory=dict
     )  # Actual transcription only; omitted when transcript cache hit (no API transcribe)
@@ -324,6 +330,12 @@ class Metrics:
     def record_download_media_attempt(self) -> None:
         """Record a media download attempt (called regardless of cache/reuse)."""
         self.download_media_attempts += 1
+
+    def record_episode_download_retry(self, sleep_sec: float) -> None:
+        """Record one application-level episode download retry and planned backoff sleep."""
+        with self._episode_download_retry_lock:
+            self.episode_download_retries += 1
+            self.episode_download_retry_sleep_seconds += max(0.0, sleep_sec)
 
     def record_download_media_time(self, duration: float, episode_idx: int) -> None:
         """Record time spent downloading media for an episode (by episode.idx).
@@ -793,10 +805,21 @@ class Metrics:
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.
 
+        ``http_urllib3_retry_events`` comes from the process-wide downloader counter
+        (reset when ``configure_downloader`` runs at pipeline start). It is not
+        safe to interpret for a single run if multiple pipelines execute
+        concurrently in one process.
+
         Returns:
             Dictionary of all metrics with final values
         """
         self.run_duration_seconds = time.time() - self._start_time
+
+        from ..rss.downloader import get_http_retry_event_count
+        from ..rss.http_policy import get_http_policy_metrics_snapshot
+
+        http_urllib3_retry_events = get_http_retry_event_count()
+        http_policy_metrics = get_http_policy_metrics_snapshot()
 
         def _avg_episode_dict(d: Dict[int, float]) -> float:
             return round(sum(d.values()) / len(d), 2) if d else 0.0
@@ -888,13 +911,18 @@ class Metrics:
                 (em.completion_tokens or 0) for em in self.episode_metrics
             )
 
-        return {
+        out: Dict[str, Any] = {
             "schema_version": "1.0.0",  # Versioned schema for metrics (Issue #379)
             "run_duration_seconds": round(self.run_duration_seconds, 2),
             "episodes_scraped_total": self.episodes_scraped_total,
             "episodes_skipped_total": self.episodes_skipped_total,
             "errors_total": self.errors_total,
             "bytes_downloaded_total": self.bytes_downloaded_total,
+            "http_urllib3_retry_events": http_urllib3_retry_events,
+            "episode_download_retries": self.episode_download_retries,
+            "episode_download_retry_sleep_seconds": round(
+                self.episode_download_retry_sleep_seconds, 3
+            ),
             "transcripts_downloaded": self.transcripts_downloaded,
             "transcripts_transcribed": self.transcripts_transcribed,
             "episodes_summarized": self.episodes_summarized,
@@ -1160,6 +1188,8 @@ class Metrics:
             "transcription_device": self.transcription_device,
             "summarization_device": self.summarization_device,
         }
+        out.update(http_policy_metrics)
+        return out
 
     def to_json(self) -> str:
         """Convert metrics to JSON string.

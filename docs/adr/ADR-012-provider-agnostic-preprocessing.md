@@ -1,4 +1,4 @@
-# ADR-020: Provider-Agnostic Preprocessing
+# ADR-012: Provider-Agnostic Preprocessing
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

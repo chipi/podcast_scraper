@@ -1,4 +1,4 @@
-# ADR-020: Acceptance Test Tier as Final CI Gate
+# ADR-021: Acceptance Test Tier as Final CI Gate
 
 - **Status**: Accepted
 - **Date**: 2026-04-03

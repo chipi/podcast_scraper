@@ -27,6 +27,9 @@ transcribe_missing: true  # Enable automatic transcription of missing transcript
 whisper_model: base.en  # Whisper model to use (tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v1, large-v2, large-v3)
 
 delay_ms: 250
+# Download resilience (HTTP urllib3 retries, optional Issue #522 fair HTTP): defaults are
+# tuned for batch runs. Examples: config.example.download-resilience.yaml,
+# config.example.download-resilience.polite.yaml — docs/api/CONFIGURATION.md#download-resilience
 language: en
 auto_speakers: true
 cache_detected_hosts: true

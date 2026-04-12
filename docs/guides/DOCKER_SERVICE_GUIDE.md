@@ -49,6 +49,11 @@ docker run -v /host/config.yaml:/app/config.yaml \
 
 ## Environment Variables
 
+Service images are easiest to operate in a [twelve-factor](https://12factor.net/config) way:
+inject **secrets and per-deploy settings** with `-e` / Compose `environment`, keep a **mounted YAML**
+for stable defaults, and pass paths like `PODCAST_SCRAPER_CONFIG` when the file is not at the
+default location. See [CONFIGURATION.md — Twelve-factor app alignment (config)](../api/CONFIGURATION.md#twelve-factor-app-alignment-config).
+
 | Variable | Default | Description |
 | :------- | :------ | :---------- |
 | `PODCAST_SCRAPER_CONFIG` | `/app/config.yaml` | Path to configuration file |

@@ -805,6 +805,29 @@ def _setup_pipeline_environment(
     # Set reproducibility seeds if configured (Issue #429)
     wf_stages.setup.set_reproducibility_seeds(cfg)
 
+    # Apply configurable HTTP retry policy from Config
+    from ..rss.downloader import configure_downloader
+    from ..rss.http_policy import configure_http_policy
+
+    configure_downloader(
+        http_retry_total=cfg.http_retry_total,
+        http_backoff_factor=cfg.http_backoff_factor,
+        rss_retry_total=cfg.rss_retry_total,
+        rss_backoff_factor=cfg.rss_backoff_factor,
+    )
+    configure_http_policy(
+        rss_url=cfg.rss_url or "",
+        host_request_interval_ms=cfg.host_request_interval_ms,
+        host_max_concurrent=cfg.host_max_concurrent,
+        circuit_breaker_enabled=cfg.circuit_breaker_enabled,
+        circuit_breaker_failure_threshold=cfg.circuit_breaker_failure_threshold,
+        circuit_breaker_window_seconds=cfg.circuit_breaker_window_seconds,
+        circuit_breaker_cooldown_seconds=cfg.circuit_breaker_cooldown_seconds,
+        circuit_breaker_scope=cfg.circuit_breaker_scope,
+        rss_conditional_get=cfg.rss_conditional_get,
+        rss_cache_dir=cfg.rss_cache_dir,
+    )
+
     # Initialize metrics collector
     from . import metrics
 
@@ -1159,16 +1182,17 @@ def _finalize_run_index(
     episodes: List[Episode],  # type: ignore[valid-type]
     effective_output_dir: str,
     run_suffix: Optional[str],
-) -> Optional[str]:
+) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """Generate and save run index if not dry_run.
 
     Returns:
-        Absolute path to index.json if written successfully, else None.
+        Tuple of (absolute path to index.json or None,
+        failure_summary dict or None).
     """
     if cfg.dry_run:
-        return None
+        return None, None
     try:
-        from .run_index import create_run_index
+        from .run_index import build_failure_summary, create_run_index
 
         episode_statuses = (
             getattr(pipeline_metrics, "episode_statuses", None)
@@ -1186,10 +1210,22 @@ def _finalize_run_index(
         )
         index_path = os.path.join(effective_output_dir, "index.json")
         run_index.save_to_file(index_path)
-        return os.path.abspath(index_path)
+
+        failure_summary = build_failure_summary(run_index)
+        if failure_summary["total_failed"] > 0:
+            logger.info(
+                "Failure summary: %d episodes failed — %s",
+                failure_summary["total_failed"],
+                ", ".join(f"{t}: {n}" for t, n in failure_summary["by_error_type"].items()),
+            )
+
+        return os.path.abspath(index_path), failure_summary
     except Exception as e:
-        logger.warning("Failed to generate run index: %s", format_exception_for_log(e))
-        return None
+        logger.warning(
+            "Failed to generate run index: %s",
+            format_exception_for_log(e),
+        )
+        return None, None
 
 
 def _finalize_run_summary(
@@ -1197,6 +1233,7 @@ def _finalize_run_summary(
     run_manifest: Optional[Any],
     pipeline_metrics: Any,
     effective_output_dir: str,
+    failure_summary: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Generate and save run summary if not dry_run.
 
@@ -1213,11 +1250,15 @@ def _finalize_run_summary(
             pipeline_metrics=pipeline_metrics,
             output_dir=effective_output_dir,
             run_id=cfg.run_id,
+            failure_summary=failure_summary,
         )
         path = save_run_summary(run_summary, effective_output_dir)
         return os.path.abspath(path)
     except Exception as e:
-        logger.warning("Failed to generate run summary: %s", format_exception_for_log(e))
+        logger.warning(
+            "Failed to generate run summary: %s",
+            format_exception_for_log(e),
+        )
         return None
 
 
@@ -1291,7 +1332,7 @@ def _finalize_pipeline(
     _log_episode_results(pipeline_metrics, episodes)
     metrics_path = _finalize_metrics_path(cfg, effective_output_dir)
     metrics_written = _finalize_emit_and_save(jsonl_emitter, pipeline_metrics, metrics_path)
-    index_written = _finalize_run_index(
+    index_written, failure_summary = _finalize_run_index(
         cfg, pipeline_metrics, episodes, effective_output_dir, run_suffix
     )
     from podcast_scraper.search.indexer import maybe_index_corpus
@@ -1316,7 +1357,11 @@ def _finalize_pipeline(
                 format_exception_for_log(e),
             )
     summary_written = _finalize_run_summary(
-        cfg, run_manifest, pipeline_metrics, effective_output_dir
+        cfg,
+        run_manifest,
+        pipeline_metrics,
+        effective_output_dir,
+        failure_summary=failure_summary,
     )
     artifact_paths = [p for p in (metrics_written, index_written, summary_written) if p]
     if artifact_paths:
@@ -1780,6 +1825,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
 
     Args:
         cfg: Configuration object with all pipeline settings. See `Config` for available options.
+            Download resilience (HTTP/RSS urllib3 retries, optional episode-level retries,
+            and optional Issue #522 fair-HTTP fields) is controlled via ``http_retry_*``,
+            ``rss_retry_*``, ``episode_retry_*``, ``host_*``, ``circuit_breaker_*``,
+            ``rss_conditional_get``, and ``rss_cache_dir`` (defaults and CLI flags are
+            documented in CONFIGURATION.md / CLI.md).
 
     Returns:
         Tuple[int, str]: A tuple containing:

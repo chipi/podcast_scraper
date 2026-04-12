@@ -296,6 +296,19 @@ class TestFinish(unittest.TestCase):
         self.assertEqual(result["summarize_time_by_episode"], {})
         self.assertEqual(result["cleaning_time_by_episode"], {})
 
+    @patch("podcast_scraper.rss.downloader.get_http_retry_event_count", return_value=7)
+    def test_finish_includes_download_resilience_counters(self, _mock_http_retries):
+        """finish() exports urllib3 retry events and app-level episode retry aggregates."""
+        m = metrics.Metrics()
+        m.record_episode_download_retry(2.5)
+        m.record_episode_download_retry(0.5)
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+        self.assertEqual(result["http_urllib3_retry_events"], 7)
+        self.assertEqual(result["episode_download_retries"], 2)
+        self.assertEqual(result["episode_download_retry_sleep_seconds"], 3.0)
+
     def test_finish_handles_empty_lists(self):
         """Test that finish handles empty time lists."""
         m = metrics.Metrics()
@@ -385,6 +398,17 @@ class TestFinish(unittest.TestCase):
             "episodes_skipped_total",
             "errors_total",
             "bytes_downloaded_total",
+            "http_urllib3_retry_events",
+            "host_throttle_wait_seconds",
+            "host_throttle_events",
+            "retry_after_events",
+            "retry_after_total_sleep_seconds",
+            "circuit_breaker_trips",
+            "circuit_breaker_open_feeds",
+            "rss_conditional_hit",
+            "rss_conditional_miss",
+            "episode_download_retries",
+            "episode_download_retry_sleep_seconds",
             "transcripts_downloaded",
             "transcripts_transcribed",
             "episodes_summarized",

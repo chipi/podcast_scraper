@@ -325,6 +325,32 @@ def _extract_episode_metadata_for_id(
     return episode_guid, episode_link, episode_published_date, episode_number
 
 
+def build_failure_summary(index: RunIndex) -> Dict[str, Any]:
+    """Aggregate failed episodes by error type for end-of-run reporting.
+
+    Args:
+        index: Completed RunIndex with episode entries.
+
+    Returns:
+        Dictionary with failure counts grouped by error_type,
+        plus a flat list of failed episode IDs.
+    """
+    by_error: Dict[str, int] = {}
+    failed_ids: List[str] = []
+    for ep in index.episodes:
+        if ep.status != "failed":
+            continue
+        failed_ids.append(ep.episode_id)
+        key = ep.error_type or "unknown"
+        by_error[key] = by_error.get(key, 0) + 1
+
+    return {
+        "total_failed": len(failed_ids),
+        "by_error_type": dict(sorted(by_error.items(), key=lambda kv: kv[1], reverse=True)),
+        "failed_episode_ids": failed_ids,
+    }
+
+
 def create_run_index(
     run_id: str,
     feed_url: Optional[str],

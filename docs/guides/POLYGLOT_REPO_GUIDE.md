@@ -25,7 +25,7 @@ Treat them as two toolchains that share one git tree, not one unified `npm` work
 
 | File | Purpose |
 | ---- | ------- |
-| **`config/examples/.env.example`** | Copy to **repo root** `.env` for **Python**: API keys, `CACHE_DIR`, logging, etc. ([CONFIGURATION.md](../api/CONFIGURATION.md)). |
+| **`config/examples/.env.example`** | Copy to **repo root** `.env` for **Python**: API keys, `CACHE_DIR`, logging, optional `PODCAST_SCRAPER_*`, etc. ([CONFIGURATION.md](../api/CONFIGURATION.md); [twelve-factor config](../api/CONFIGURATION.md#twelve-factor-app-alignment-config)). |
 | **`web/gi-kg-viewer/.env.example`** | Copy to **`web/gi-kg-viewer/.env`** for **Vite** only (e.g. `VITE_DEFAULT_CORPUS_PATH`). Vite loads `.env*` next to the app by default. |
 
 Root `.gitignore` already ignores `.env`, `.env.local`, and similar patterns so secrets are not

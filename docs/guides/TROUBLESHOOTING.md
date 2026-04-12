@@ -22,7 +22,7 @@ Common issues and solutions for podcast_scraper development and usage.
 | Need structured logs | Default logging format | Use `--json-logs` flag |
 | Want to stop on first failure | Default continues on errors | Use `--fail-fast` flag |
 | Want to limit failures | Default has no limit | Use `--max-failures N` flag |
-| `make test-fast` or `make ci-fast` hangs at ~87% | pytest-xdist stall near end of run | `TEST_FAST_WORKERS=2 make test-fast` (or `make ci-fast`) |
+| E2E phase of `test-fast` / `ci-fast` sits at high % a long time | Often Whisper / ML tests (not frozen); was xdist tail on one worker | See [E2E Testing Guide — E2E progress](E2E_TESTING_GUIDE.md#make-test-fast--make-ci-fast-and-e2e-progress); Makefile runs `ml_models` E2E sequentially |
 | Unsure if environment is ready | Python, ffmpeg, cache, or models missing | Run `podcast-scraper doctor` (see below) |
 | Viewer shows no **Choose .gi.json** button but API is down | Something answered `/api/health` on port 8000 (proxy “healthy”) | Stop the other process or use offline flow from a clean profile; E2E tests abort `/api/health` for determinism |
 | `make test-ui-e2e` / Playwright “Executable doesn't exist” | Playwright browsers not installed | `cd web/gi-kg-viewer && npx playwright install firefox` |
@@ -30,20 +30,18 @@ Common issues and solutions for podcast_scraper development and usage.
 
 ---
 
-## test-fast / ci-fast hangs at ~87%
+## test-fast / ci-fast E2E progress near the end
 
-**Symptom:** `make test-fast` or `make ci-fast` sometimes hangs around 80–90% and never finishes (or takes a very long time). Other times the same run completes.
+**Symptom:** During the E2E step, pytest’s progress bar stays around 70–90% for a long time.
 
-**Cause:** Known pytest-xdist behavior: with parallel workers, the run can stall near completion (worker coordination at end of suite). More likely with higher worker counts.
+**Common cause:** Critical-path E2E includes **`@pytest.mark.ml_models`** tests (Whisper, spaCy, Transformers). With pytest-xdist, those often finish last on one worker, so most dots complete early and the bar barely moves while that worker runs (minutes on CPU). That is usually not a deadlock.
 
-**Workaround:** Run with fewer workers so the stall is less likely:
+**What the Makefile does:** `make test-fast` / `make ci-fast` run E2E in two passes: **non-`ml_models`** in parallel, then **`ml_models`** with **`-n 1`**, so the second pass advances one test at a time. Details: [E2E Testing Guide — E2E progress](E2E_TESTING_GUIDE.md#make-test-fast--make-ci-fast-and-e2e-progress).
+
+**If it still feels stuck:** Ensure models are cached (`make preload-ml-models`) so tests fail fast instead of downloading. Run the ML E2E slice alone with `-v` to see the current test:
 
 ```bash
-# Use 2 workers for the fast test suite (slower but avoids hang)
-TEST_FAST_WORKERS=2 make test-fast
-
-# Same for full fast CI
-TEST_FAST_WORKERS=2 make ci-fast
+E2E_TEST_MODE=fast .venv/bin/python -m pytest tests/e2e/ -m 'e2e and critical_path and ml_models' -n 1 -v --allow-hosts=127.0.0.1,localhost
 ```
 
 **Alternative:** Run the test phase without parallelism (slow but reliable):

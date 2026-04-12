@@ -567,6 +567,21 @@ class Config(BaseModel):
         user_agent: HTTP User-Agent header for requests.
         timeout: Request timeout in seconds (minimum: 1).
         delay_ms: Delay between requests in milliseconds.
+        http_retry_total: Max urllib3 retries for media/transcript downloads (default 8).
+        http_backoff_factor: Backoff factor for HTTP retries (default 1.0).
+        rss_retry_total: Max urllib3 retries for RSS feed fetches (default 10).
+        rss_backoff_factor: Backoff factor for RSS retries (default 2.0).
+        episode_retry_max: App-level retries per episode after urllib3 exhaustion (default 1).
+        episode_retry_delay_sec: Initial delay between episode retries (default 10.0).
+        host_request_interval_ms: Min ms between requests to same host (0=off; Issue #522).
+        host_max_concurrent: Max concurrent downloads per host (0=unlimited; Issue #522).
+        circuit_breaker_enabled: Enable HTTP circuit breaker (Issue #522).
+        circuit_breaker_failure_threshold: Failures in window before open.
+        circuit_breaker_window_seconds: Rolling window for breaker counts.
+        circuit_breaker_cooldown_seconds: Cooldown while circuit is open.
+        circuit_breaker_scope: ``feed`` (RSS URL) or ``host`` (netloc).
+        rss_conditional_get: RSS If-None-Match / If-Modified-Since (Issue #522).
+        rss_cache_dir: Directory for RSS conditional cache (optional).
         prefer_types: Preferred transcript types or extensions (e.g., ["text/vtt", ".srt"]).
         transcribe_missing: Enable Whisper transcription for episodes without transcripts
             (default: True). Set to False to only download existing transcripts.
@@ -716,6 +731,128 @@ class Config(BaseModel):
         ),
     )
     delay_ms: int = Field(default=0, alias="delay_ms")
+    http_retry_total: int = Field(
+        default=8,
+        alias="http_retry_total",
+        ge=0,
+        le=20,
+        description=(
+            "Max urllib3 retries for media/transcript downloads "
+            "(default 8). RSS feeds use rss_retry_total."
+        ),
+    )
+    http_backoff_factor: float = Field(
+        default=1.0,
+        alias="http_backoff_factor",
+        ge=0.0,
+        le=10.0,
+        description=(
+            "Exponential backoff factor for HTTP retries "
+            "(default 1.0). Delay = factor * 2^(attempt-1)."
+        ),
+    )
+    rss_retry_total: int = Field(
+        default=10,
+        alias="rss_retry_total",
+        ge=0,
+        le=20,
+        description=(
+            "Max urllib3 retries for RSS feed fetches "
+            "(default 10, more than media to handle flaky feeds)."
+        ),
+    )
+    rss_backoff_factor: float = Field(
+        default=2.0,
+        alias="rss_backoff_factor",
+        ge=0.0,
+        le=10.0,
+        description=(
+            "Exponential backoff factor for RSS feed retries " "(default 2.0, gentler than media)."
+        ),
+    )
+    episode_retry_max: int = Field(
+        default=1,
+        alias="episode_retry_max",
+        ge=0,
+        le=10,
+        description=(
+            "Application-level retries per episode after all "
+            "urllib3 retries are exhausted (default 1). Only "
+            "retries on transient network errors. Set to 0 to "
+            "disable."
+        ),
+    )
+    episode_retry_delay_sec: float = Field(
+        default=10.0,
+        alias="episode_retry_delay_sec",
+        ge=0.0,
+        le=120.0,
+        description=(
+            "Initial delay in seconds between episode-level "
+            "retries (default 10.0). Uses exponential backoff."
+        ),
+    )
+    host_request_interval_ms: int = Field(
+        default=0,
+        alias="host_request_interval_ms",
+        ge=0,
+        le=600_000,
+        description=(
+            "Minimum milliseconds between HTTP requests to the same host (0=off). "
+            "Issue #522 fair usage."
+        ),
+    )
+    host_max_concurrent: int = Field(
+        default=0,
+        alias="host_max_concurrent",
+        ge=0,
+        le=64,
+        description="Maximum concurrent downloads per host (0=unlimited). Issue #522.",
+    )
+    circuit_breaker_enabled: bool = Field(
+        default=False,
+        alias="circuit_breaker_enabled",
+        description="Enable per-feed or per-host circuit breaker for HTTP (Issue #522).",
+    )
+    circuit_breaker_failure_threshold: int = Field(
+        default=5,
+        alias="circuit_breaker_failure_threshold",
+        ge=1,
+        le=100,
+        description="Failures in the rolling window before the circuit opens.",
+    )
+    circuit_breaker_window_seconds: int = Field(
+        default=60,
+        alias="circuit_breaker_window_seconds",
+        ge=1,
+        le=86400,
+        description="Rolling window (seconds) for circuit breaker failure counts.",
+    )
+    circuit_breaker_cooldown_seconds: int = Field(
+        default=120,
+        alias="circuit_breaker_cooldown_seconds",
+        ge=1,
+        le=86400,
+        description="Cooldown (seconds) while the circuit stays open before a probe.",
+    )
+    circuit_breaker_scope: Literal["feed", "host"] = Field(
+        default="feed",
+        alias="circuit_breaker_scope",
+        description="Scope key: rss_url (feed) or request host (host).",
+    )
+    rss_conditional_get: bool = Field(
+        default=False,
+        alias="rss_conditional_get",
+        description="Use If-None-Match / If-Modified-Since on RSS GET (Issue #522).",
+    )
+    rss_cache_dir: Optional[str] = Field(
+        default=None,
+        alias="rss_cache_dir",
+        description=(
+            "Directory for RSS conditional validators/body cache. "
+            "Default: PODCAST_SCRAPER_RSS_CACHE_DIR or ~/.cache/podcast_scraper/rss."
+        ),
+    )
     prefer_types: List[str] = Field(default_factory=list, alias="prefer_type")
     transcribe_missing: bool = Field(default=True, alias="transcribe_missing")
     whisper_model: str = Field(default="base.en", alias="whisper_model")
@@ -2427,7 +2564,11 @@ class Config(BaseModel):
 
     @staticmethod
     def _load_int_env_var(
-        data: Dict[str, Any], field_name: str, env_var_name: str, min_value: int = 1
+        data: Dict[str, Any],
+        field_name: str,
+        env_var_name: str,
+        min_value: int = 1,
+        max_value: Optional[int] = None,
     ) -> None:
         """Load an integer environment variable into config data if field is missing.
 
@@ -2436,14 +2577,18 @@ class Config(BaseModel):
             field_name: Name of the field in config
             env_var_name: Name of the environment variable
             min_value: Minimum valid value (default: 1)
+            max_value: Optional inclusive maximum (invalid env values are ignored)
         """
         if field_name not in data or data.get(field_name) is None:
             env_value = os.getenv(env_var_name)
             if env_value:
                 try:
                     int_value = int(env_value)
-                    if int_value >= min_value:
-                        data[field_name] = int_value
+                    if int_value < min_value:
+                        return
+                    if max_value is not None and int_value > max_value:
+                        return
+                    data[field_name] = int_value
                 except (ValueError, TypeError):
                     pass  # Invalid value, skip
 
@@ -2592,6 +2737,81 @@ class Config(BaseModel):
         cls._load_int_env_var(data, "summary_chunk_parallelism", "SUMMARY_CHUNK_PARALLELISM")
         cls._load_int_env_var(data, "timeout", "TIMEOUT")
         cls._load_int_env_var(data, "seed", "SEED")
+
+        # Download resilience (optional; prefixed env vars — config file / kwargs win if set)
+        cls._load_int_env_var(
+            data, "http_retry_total", "PODCAST_SCRAPER_HTTP_RETRY_TOTAL", min_value=0, max_value=20
+        )
+        cls._load_float_env_var(
+            data, "http_backoff_factor", "PODCAST_SCRAPER_HTTP_BACKOFF_FACTOR", 0.0, 10.0
+        )
+        cls._load_int_env_var(
+            data, "rss_retry_total", "PODCAST_SCRAPER_RSS_RETRY_TOTAL", min_value=0, max_value=20
+        )
+        cls._load_float_env_var(
+            data, "rss_backoff_factor", "PODCAST_SCRAPER_RSS_BACKOFF_FACTOR", 0.0, 10.0
+        )
+        cls._load_int_env_var(
+            data,
+            "episode_retry_max",
+            "PODCAST_SCRAPER_EPISODE_RETRY_MAX",
+            min_value=0,
+            max_value=10,
+        )
+        cls._load_float_env_var(
+            data,
+            "episode_retry_delay_sec",
+            "PODCAST_SCRAPER_EPISODE_RETRY_DELAY_SEC",
+            0.0,
+            120.0,
+        )
+        cls._load_int_env_var(
+            data,
+            "host_request_interval_ms",
+            "PODCAST_SCRAPER_HOST_REQUEST_INTERVAL_MS",
+            min_value=0,
+            max_value=600_000,
+        )
+        cls._load_int_env_var(
+            data,
+            "host_max_concurrent",
+            "PODCAST_SCRAPER_HOST_MAX_CONCURRENT",
+            min_value=0,
+            max_value=64,
+        )
+        cls._load_bool_env_var(
+            data, "circuit_breaker_enabled", "PODCAST_SCRAPER_CIRCUIT_BREAKER_ENABLED"
+        )
+        cls._load_int_env_var(
+            data,
+            "circuit_breaker_failure_threshold",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_FAILURE_THRESHOLD",
+            min_value=1,
+            max_value=100,
+        )
+        cls._load_int_env_var(
+            data,
+            "circuit_breaker_window_seconds",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_WINDOW_SECONDS",
+            min_value=1,
+            max_value=86_400,
+        )
+        cls._load_int_env_var(
+            data,
+            "circuit_breaker_cooldown_seconds",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_COOLDOWN_SECONDS",
+            min_value=1,
+            max_value=86_400,
+        )
+        _raw_cb_scope = os.getenv("PODCAST_SCRAPER_CIRCUIT_BREAKER_SCOPE")
+        if _raw_cb_scope and (
+            "circuit_breaker_scope" not in data or data.get("circuit_breaker_scope") is None
+        ):
+            _s = str(_raw_cb_scope).strip().lower()
+            if _s in ("feed", "host"):
+                data["circuit_breaker_scope"] = _s
+        cls._load_bool_env_var(data, "rss_conditional_get", "PODCAST_SCRAPER_RSS_CONDITIONAL_GET")
+        cls._load_string_env_var(data, "rss_cache_dir", "PODCAST_SCRAPER_RSS_CACHE_DIR")
 
         # Load float environment variables
         cls._load_float_env_var(data, "openai_temperature", "OPENAI_TEMPERATURE", 0.0, 2.0)

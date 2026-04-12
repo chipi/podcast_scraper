@@ -175,11 +175,13 @@ Pytest configuration file containing fixtures and hooks. Can exist at multiple l
 
 ### RSS Feed
 
-XML feed that lists podcast episodes with metadata and media URLs.
+XML feed that lists podcast episodes with metadata and media URLs. Ingestion in this repo:
+[RSS and feed ingestion guide](RSS_GUIDE.md).
 
 ### Podcast 2.0 Transcript Tag
 
-RSS extension that provides transcript URLs directly in the feed XML.
+RSS extension that provides transcript URLs directly in the feed XML. Discovery is described in
+[RSS_GUIDE](RSS_GUIDE.md) and download behavior in [RFC-003: Transcript downloads](../rfc/RFC-003-transcript-downloads.md).
 
 ### Output Directory
 

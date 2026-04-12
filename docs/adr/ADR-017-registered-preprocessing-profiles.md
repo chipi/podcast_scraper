@@ -1,4 +1,4 @@
-# ADR-033: Registered Preprocessing Profiles
+# ADR-017: Registered Preprocessing Profiles
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

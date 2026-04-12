@@ -256,6 +256,22 @@ tests/integration/
 | Summary schema | `test_summary_schema_integration.py` |
 | Protocol verification | `test_protocol_verification_integration.py` |
 
+## Real HTTP client integration (local server)
+
+`tests/integration/rss/test_http_integration.py` exercises `podcast_scraper.rss.downloader`
+against a **local** `http.server` on `127.0.0.1` (marker `integration_http`). There is no
+external network; pytest allows localhost sockets for this suite.
+
+**Global downloader state:** The module uses thread-local `requests.Session` objects with
+urllib3 `Retry` adapters. Production defaults retry many times on 5xx with exponential
+backoff, which can make a test that hits a handler returning only 500 look hung. This
+file uses an autouse fixture that calls `configure_http_policy()`, caps retries with
+`configure_downloader(...)`, and `downloader.reset_http_sessions()` so each test builds
+sessions with bounded retries. Teardown clears downloader overrides.
+
+If you add integration tests that call `fetch_url` / `fetch_rss_feed_url` for real HTTP,
+reuse the same pattern (or mock HTTP). See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (threading and metrics) for how configuration applies to sessions.
+
 ## Running Integration Tests
 
 ```bash

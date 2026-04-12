@@ -4,6 +4,7 @@
 >
 > - [Testing Strategy](../architecture/TESTING_STRATEGY.md) - High-level testing philosophy and test pyramid
 > - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
+> - [RSS and feed ingestion](RSS_GUIDE.md) - Production RSS path (HTTP, parsing, episode selection); contrasts with local `e2e_server` fixture feeds below
 
 This guide covers **pytest** E2E test implementation: real HTTP client, E2E server, ML model
 usage, and OpenAI mock endpoints.
@@ -107,9 +108,13 @@ def test_basic_workflow(e2e_server):
 | `e2e_server.urls.ollama_api_base()` | Ollama mock API base (`/v1`) |
 | `e2e_server.urls.anthropic_api_base()` | Anthropic mock API base (base URL, no `/v1`) |
 
+### Download resilience E2E
+
+`tests/e2e/test_download_resilience_e2e.py` covers transient HTTP responses (fail-then-succeed), configurable retry totals, multi-feed isolation when one feed returns errors, and `failure_summary` in `run.json`. The handler supports `E2EHTTPRequestHandler.set_transient_error(path, status=..., fail_count=...)` in addition to permanent `set_error_behavior`. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience).
+
 ### E2E Feeds (RSS)
 
-Feed names and RSS file mapping. Which feed name you can use depends on **test mode** (see [Test Modes](#test-modes)).
+Feed names and RSS file mapping. Which feed name you can use depends on **test mode** (see [Test Modes](#test-modes)). For how the real pipeline fetches and parses RSS (retries, conditional GET, circuit breaker, multi-feed), see [RSS and feed ingestion](RSS_GUIDE.md).
 
 **Full fixtures** (used in `data_quality` and `nightly`; mapping from `PODCAST_RSS_MAP`):
 
@@ -363,6 +368,12 @@ E2E_TEST_MODE=multi_episode make test-e2e
 make test-e2e-fast
 ```
 
+### `make test-fast` / `make ci-fast` and E2E progress {#make-test-fast--make-ci-fast-and-e2e-progress}
+
+The Makefile runs **two** pytest passes for critical-path E2E: tests **without** `@pytest.mark.ml_models` use parallel workers (`-n`); tests **with** `ml_models` run **sequentially** (`-n 1`). That avoids pytest-xdist showing a long flat progress bar while a single worker runs Whisper, spaCy, or Transformers (it looked like a hang around 70–80% even though work was still running). The ML phase can still take many minutes on CPU; ensure the Whisper test model is cached (`make preload-ml-models` or CI cache) so runs fail fast instead of downloading.
+
+`make test-e2e-fast` uses the same split (`not ml_models` then `ml_models`).
+
 ## Test Files
 
 | Purpose | Test File |
@@ -390,7 +401,7 @@ make test-e2e-fast
 
 make test-e2e
 
-# Fast (excludes ml_models)
+# Fast critical path (parallel non-ML, then sequential ML; see Test Modes above)
 
 make test-e2e-fast
 

@@ -556,9 +556,17 @@ test-ci-fast:
 	echo "Running critical path integration (test-ci-fast)..."; \
 	$(PYTHON) -m pytest tests/integration/ -m 'not nightly and integration and critical_path' \
 		-n $$WI --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
-	echo "Running critical path E2E (test-ci-fast)..."; \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path' \
-		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
+	echo "Running critical path E2E (test-ci-fast, non-ML, parallel)..."; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and not ml_models' \
+		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	echo "Running critical path E2E (test-ci-fast, ML models, sequential)..."; \
+	set +e; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and ml_models' \
+		-n 1 --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	ec=$$?; \
+	set -e; \
+	if [ $$ec -eq 5 ]; then ec=0; fi; \
+	exit $$ec
 
 test-e2e: cleanup-processes
 	# E2E tests: parallel execution for speed
@@ -578,7 +586,7 @@ test-e2e-sequential:
 	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
-	# Fast E2E tests: parallel execution for speed
+	# Fast E2E tests: parallel non-ML, then sequential ML (avoids xdist "stuck at ~80%" when one worker runs Whisper)
 	# Uses E2E-specific worker calculation (memory-aware, caps at 4 to prevent system freezes)
 	# Critical path tests only (includes ML tests if models are cached)
 	# Excludes analysis/diagnostic tests (p07/p08 threshold analysis) - these are slow and not critical path
@@ -588,7 +596,14 @@ test-e2e-fast:
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	@WE=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2); \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and not ml_models" -n $$WE --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 && \
+	set +e; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and ml_models" -n 1 --cov=$(PACKAGE) --cov-append --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20; \
+	ec=$$?; \
+	set -e; \
+	if [ $$ec -eq 5 ]; then ec=0; fi; \
+	exit $$ec
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
@@ -711,6 +726,7 @@ test-sequential:
 # Avoids one large xdist session (which can hang at shutdown). Each layer uses its own worker count.
 test-fast:
 	# Fast tests: unit + critical path integration + critical path e2e (separate runs, then combine coverage)
+	# E2E: non-ml_models parallel, then ml_models with -n 1 (avoids xdist tail / progress stuck around ~80%)
 	# Uses fast feed for E2E (1 episode) via E2E_TEST_MODE=fast. Excludes nightly.
 	@echo "Running unit tests (fast) with coverage..."
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
@@ -720,10 +736,19 @@ test-fast:
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
-	@echo "Running critical path E2E tests with coverage (appending)..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly' \
+	@echo "Running critical path E2E tests (non-ML, parallel) with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and not ml_models' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@echo "Running critical path E2E tests (ML models, sequential) with coverage (appending)..."
+	@set +e; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and ml_models' \
+		-n 1 \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20; \
+	ec=$$?; \
+	set -e; \
+	if [ $$ec -eq 5 ]; then ec=0; fi; \
+	exit $$ec
 	@echo "Combining coverage..."
 	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)

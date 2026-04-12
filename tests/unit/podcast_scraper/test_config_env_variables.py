@@ -42,6 +42,22 @@ class TestEnvironmentVariables(unittest.TestCase):
             "TIMEOUT",
             "SUMMARY_DEVICE",
             "MPS_EXCLUSIVE",
+            "PODCAST_SCRAPER_HTTP_RETRY_TOTAL",
+            "PODCAST_SCRAPER_HTTP_BACKOFF_FACTOR",
+            "PODCAST_SCRAPER_RSS_RETRY_TOTAL",
+            "PODCAST_SCRAPER_RSS_BACKOFF_FACTOR",
+            "PODCAST_SCRAPER_EPISODE_RETRY_MAX",
+            "PODCAST_SCRAPER_EPISODE_RETRY_DELAY_SEC",
+            "PODCAST_SCRAPER_HOST_REQUEST_INTERVAL_MS",
+            "PODCAST_SCRAPER_HOST_MAX_CONCURRENT",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_ENABLED",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_FAILURE_THRESHOLD",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_WINDOW_SECONDS",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_COOLDOWN_SECONDS",
+            "PODCAST_SCRAPER_CIRCUIT_BREAKER_SCOPE",
+            "PODCAST_SCRAPER_RSS_CONDITIONAL_GET",
+            "PODCAST_SCRAPER_RSS_CACHE_DIR",
+            "PODCAST_SCRAPER_RSS_SKIP_CONDITIONAL",
         ]
         for var in self.env_vars_to_clear:
             os.environ.pop(var, None)
@@ -262,3 +278,31 @@ class TestEnvironmentVariables(unittest.TestCase):
         os.environ["MPS_EXCLUSIVE"] = "0"
         cfg = config.Config(rss_url="https://test.com", mps_exclusive=True)
         self.assertTrue(cfg.mps_exclusive)  # Config takes precedence
+
+    def test_download_resilience_env_http_retry(self):
+        """PODCAST_SCRAPER_HTTP_RETRY_TOTAL maps into Config when unset in kwargs."""
+        os.environ["PODCAST_SCRAPER_HTTP_RETRY_TOTAL"] = "3"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertEqual(cfg.http_retry_total, 3)
+
+    def test_download_resilience_env_config_overrides(self):
+        """Explicit Config kwargs win over PODCAST_SCRAPER_* env vars."""
+        os.environ["PODCAST_SCRAPER_HTTP_RETRY_TOTAL"] = "9"
+        cfg = config.Config(rss_url="https://test.com", http_retry_total=2)
+        self.assertEqual(cfg.http_retry_total, 2)
+
+    def test_download_resilience_env_invalid_int_ignored(self):
+        """Out-of-range PODCAST_SCRAPER_HTTP_RETRY_TOTAL is ignored."""
+        os.environ["PODCAST_SCRAPER_HTTP_RETRY_TOTAL"] = "99"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertEqual(cfg.http_retry_total, 8)
+
+    def test_download_resilience_env_circuit_breaker_bool(self):
+        os.environ["PODCAST_SCRAPER_CIRCUIT_BREAKER_ENABLED"] = "true"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertTrue(cfg.circuit_breaker_enabled)
+
+    def test_download_resilience_env_circuit_scope_normalized(self):
+        os.environ["PODCAST_SCRAPER_CIRCUIT_BREAKER_SCOPE"] = "HOST"
+        cfg = config.Config(rss_url="https://test.com")
+        self.assertEqual(cfg.circuit_breaker_scope, "host")

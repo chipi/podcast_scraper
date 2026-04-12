@@ -1,4 +1,4 @@
-# ADR-024: Deep Provider Fingerprinting
+# ADR-015: Deep Provider Fingerprinting
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

@@ -1,4 +1,4 @@
-# ADR-025: Standalone Experiment Configuration
+# ADR-013: Standalone Experiment Configuration
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

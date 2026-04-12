@@ -1,4 +1,4 @@
-# ADR-066: Confidence-Scored Multi-Signal Commercial Detection
+# ADR-059: Confidence-Scored Multi-Signal Commercial Detection
 
 - **Status**: Accepted
 - **Date**: 2026-04-03
