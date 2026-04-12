@@ -3657,7 +3657,7 @@ def _combine_summaries_extractive(
 
     Args:
         model: Summary model instance
-        selected_summaries: List of pre-selected chunk summaries (representative set)
+        selected_summaries: List of preselected chunk summaries (representative set)
         max_length: Max summary length
         min_length: Min summary length
         prompt: Optional prompt
