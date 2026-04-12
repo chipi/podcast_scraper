@@ -1,0 +1,55 @@
+release: issue477-staged-gpt4o
+date: '2026-04-12T10:43:31Z'
+dataset_id: e2e_podcast1_mtb_n2
+episodes_processed: 2
+environment:
+  hostname: Markos-MacBook-Pro.local
+  cpu: arm
+  cpu_cores_physical: 14
+  cpu_cores_logical: 14
+  ram_total_gb: 48.0
+  os: Darwin 24.6.0
+  python: 3.11.8
+  package_version: 2.4.0
+  git_sha: 96f74c2
+  git_dirty: true
+  device: null
+  precision: null
+  library_versions:
+    torch: 2.9.1
+    transformers: 4.57.6
+    whisper: '20250625'
+    spacy: 3.7.5
+    numpy: 1.26.4
+    accelerate: 1.12.0
+stages:
+  speaker_detection:
+    wall_time_s: 2.68
+    peak_rss_mb: 623
+    avg_cpu_pct: 2.27
+  transcript_cleaning:
+    wall_time_s: 42.08
+    peak_rss_mb: 630
+    avg_cpu_pct: 0.37
+  summarization:
+    wall_time_s: 45.9
+    peak_rss_mb: 630
+    avg_cpu_pct: 0.46
+  gi_generation:
+    wall_time_s: 11.68
+    peak_rss_mb: 630
+    avg_cpu_pct: 0.97
+  kg_extraction:
+    wall_time_s: 1.5
+    peak_rss_mb: 630
+    avg_cpu_pct: 0.0
+  vector_indexing:
+    wall_time_s: 0.1907
+    peak_rss_mb: 645
+    avg_cpu_pct: 37.2
+totals:
+  peak_rss_mb: 645
+  wall_time_s: 40.3144
+  avg_wall_time_per_episode_s: 20.1572
+  sampling_note: Per-stage RSS/CPU uses proportional wall-time windows from metrics.json;
+    parallel work can mis-attribute samples.

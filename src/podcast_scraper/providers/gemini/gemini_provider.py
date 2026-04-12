@@ -1051,11 +1051,11 @@ class GeminiProvider:
         max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
         tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
         system_prompt = render_prompt(
-            "shared/summarization/bundled_clean_summary_system_v1",
+            "gemini/summarization/bundled_clean_summary_system_v1",
             **tmpl_kwargs,
         )
         user_prompt = render_prompt(
-            "shared/summarization/bundled_clean_summary_user_v1",
+            "gemini/summarization/bundled_clean_summary_user_v1",
             transcript=text,
             title=episode_title or "",
             **tmpl_kwargs,
@@ -1104,10 +1104,10 @@ class GeminiProvider:
 
         if not isinstance(data, dict):
             raise ValueError("Bundled JSON must be an object")
-        cleaned = data.get("cleaned_text")
+        summary_prose = data.get("summary")
         bullets = data.get("bullets")
-        if not isinstance(cleaned, str) or not cleaned.strip():
-            raise ValueError("Bundled JSON missing non-empty cleaned_text string")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
 
@@ -1146,11 +1146,11 @@ class GeminiProvider:
 
         prompt_metadata = {
             "system": get_prompt_metadata(
-                "shared/summarization/bundled_clean_summary_system_v1",
+                "gemini/summarization/bundled_clean_summary_system_v1",
                 params=tmpl_kwargs,
             ),
             "user": get_prompt_metadata(
-                "shared/summarization/bundled_clean_summary_user_v1",
+                "gemini/summarization/bundled_clean_summary_user_v1",
                 params={
                     **tmpl_kwargs,
                     "transcript": text[:100] + "..." if len(text) > 100 else text,
@@ -1161,7 +1161,6 @@ class GeminiProvider:
         return {
             "summary": raw,
             "summary_short": None,
-            "bundled_cleaned_transcript": cleaned.strip(),
             "metadata": {
                 "model": self.summary_model,
                 "provider": "gemini",

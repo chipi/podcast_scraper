@@ -11,9 +11,8 @@ model (currently Claude Sonnet 4.6) used as the measuring stick for all other pr
 | `silver_sonnet46_smoke_bullets_v1` | Claude Sonnet 4.6 | smoke | 5 | JSON bullets | **Active — bullets smoke** |
 | `silver_sonnet46_benchmark_v1` | Claude Sonnet 4.6 | benchmark | 10 | prose paragraphs | **Active — paragraph benchmark** |
 | `silver_sonnet46_benchmark_bullets_v1` | Claude Sonnet 4.6 | benchmark | 10 | JSON bullets | **Active — bullets benchmark** |
-| `silver_gpt4o_smoke_v1` | GPT-4o | smoke | 5 | prose paragraphs | Archived (superseded by sonnet46) |
-| `silver_gpt4o_smoke_bullets_v1` | GPT-4o | smoke | 5 | JSON bullets | Archived (superseded by sonnet46) |
-| `silver_gpt4o_benchmark_v1` | GPT-4o | benchmark | 10 | prose paragraphs | Archived (superseded by sonnet46) |
+
+Archived GPT-4o references have been moved to `_archive/` (see `_archive/README.md`).
 
 **Rule:** Always use `silver_sonnet46_*` for new experiments and comparisons. The `silver_gpt4o_*`
 references are retained for historical traceability only — do not use them for new runs.

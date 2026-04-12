@@ -1318,3 +1318,120 @@ class TestAnthropicProviderErrorHandling(unittest.TestCase):
         self.assertEqual(speakers, speaker_detection.DEFAULT_SPEAKER_NAMES)
         # Should not call API when auto_speakers is disabled
         mock_client.messages.create.assert_not_called()
+
+
+@pytest.mark.unit
+class TestAnthropicSummarizeBundled(unittest.TestCase):
+    """Unit tests for summarize_bundled() (Issue #477)."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            speaker_detector_provider="anthropic",
+            summary_provider="anthropic",
+            anthropic_api_key="test-api-key-123",
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+            llm_pipeline_mode="bundled",
+        )
+        self.valid_json = (
+            '{"title": "Test Title", '
+            '"summary": "A detailed prose summary.", '
+            '"bullets": ["Point one.", "Point two."]}'
+        )
+
+    @patch("podcast_scraper.providers.anthropic.anthropic_provider.Anthropic")
+    def _make_provider(self, mock_anthropic_cls):
+        mock_client = Mock()
+        mock_anthropic_cls.return_value = mock_client
+        provider = AnthropicProvider(self.cfg)
+        provider._summarization_initialized = True
+        return provider, mock_client
+
+    def _mock_response(self, content, inp=100, out=50):
+        resp = Mock()
+        block = Mock()
+        block.text = content
+        block.type = "text"
+        resp.content = [block]
+        resp.usage = Mock(input_tokens=inp, output_tokens=out)
+        return resp
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_success_returns_expected_shape(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider, client = self._make_provider()
+        client.messages.create.return_value = self._mock_response(self.valid_json)
+
+        result = provider.summarize_bundled("transcript text")
+
+        self.assertIn("summary", result)
+        self.assertIn("metadata", result)
+        self.assertTrue(result["metadata"]["bundled"])
+        self.assertNotIn("bundled_cleaned_transcript", result)
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_json_contains_title_summary_bullets(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider, client = self._make_provider()
+        client.messages.create.return_value = self._mock_response(self.valid_json)
+
+        result = provider.summarize_bundled("transcript text")
+        parsed = json.loads(result["summary"])
+        self.assertEqual(parsed["title"], "Test Title")
+        self.assertEqual(parsed["summary"], "A detailed prose summary.")
+        self.assertEqual(len(parsed["bullets"]), 2)
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_missing_summary_field(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider, client = self._make_provider()
+        bad_json = '{"title": "T", "bullets": ["b"]}'
+        client.messages.create.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("summary", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_missing_bullets(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider, client = self._make_provider()
+        bad_json = '{"title": "T", "summary": "s"}'
+        client.messages.create.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("bullets", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_invalid_json(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider, client = self._make_provider()
+        client.messages.create.return_value = self._mock_response("not json")
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("JSON", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_uses_provider_prefixed_prompt_names(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider, client = self._make_provider()
+        client.messages.create.return_value = self._mock_response(self.valid_json)
+
+        provider.summarize_bundled("text")
+
+        calls = [c[0][0] for c in mock_render.call_args_list]
+        self.assertTrue(
+            any("anthropic/summarization/bundled" in c for c in calls),
+            f"Expected anthropic-prefixed prompt name, got: {calls}",
+        )

@@ -2158,12 +2158,7 @@ def _generate_episode_summary(  # noqa: C901
                         pipeline_metrics=pipeline_metrics,
                         call_metrics=call_metrics,
                     )
-                    bundled_cleaned = result.get("bundled_cleaned_transcript")
-                    cleaned_for_file = (
-                        bundled_cleaned.strip()
-                        if isinstance(bundled_cleaned, str) and bundled_cleaned.strip()
-                        else pattern_cleaned
-                    )
+                    cleaned_for_file = pattern_cleaned
                     if cfg.save_cleaned_transcript:
                         try:
                             transcript_path_obj = Path(full_transcript_path)

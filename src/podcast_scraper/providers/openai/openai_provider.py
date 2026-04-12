@@ -1218,8 +1218,8 @@ class OpenAIProvider:
     ) -> Dict[str, Any]:
         """One completion: semantic transcript clean + JSON title/bullets (Issue #477).
 
-        Returns the same ``summary`` shape as :meth:`summarize` (JSON string) plus
-        ``bundled_cleaned_transcript`` for optional persistence.
+        Returns the same ``summary`` shape as :meth:`summarize` (JSON string
+        with ``title``, ``summary``, and ``bullets``).
         """
         if not self._summarization_initialized:
             raise RuntimeError(
@@ -1243,11 +1243,11 @@ class OpenAIProvider:
 
         tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
         system_prompt = render_prompt(
-            "shared/summarization/bundled_clean_summary_system_v1",
+            "openai/summarization/bundled_clean_summary_system_v1",
             **tmpl_kwargs,
         )
         user_prompt = render_prompt(
-            "shared/summarization/bundled_clean_summary_user_v1",
+            "openai/summarization/bundled_clean_summary_user_v1",
             transcript=text,
             title=episode_title or "",
             **tmpl_kwargs,
@@ -1301,10 +1301,10 @@ class OpenAIProvider:
 
         if not isinstance(data, dict):
             raise ValueError("Bundled JSON must be an object")
-        cleaned = data.get("cleaned_text")
+        summary_prose = data.get("summary")
         bullets = data.get("bullets")
-        if not isinstance(cleaned, str) or not cleaned.strip():
-            raise ValueError("Bundled JSON missing non-empty cleaned_text string")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
         if not isinstance(bullets, list) or not bullets:
             raise ValueError("Bundled JSON missing non-empty bullets list")
 
@@ -1336,11 +1336,11 @@ class OpenAIProvider:
 
         prompt_metadata = {
             "system": get_prompt_metadata(
-                "shared/summarization/bundled_clean_summary_system_v1",
+                "openai/summarization/bundled_clean_summary_system_v1",
                 params=tmpl_kwargs,
             ),
             "user": get_prompt_metadata(
-                "shared/summarization/bundled_clean_summary_user_v1",
+                "openai/summarization/bundled_clean_summary_user_v1",
                 params={
                     **tmpl_kwargs,
                     "transcript": text[:100] + "..." if len(text) > 100 else text,
@@ -1351,7 +1351,6 @@ class OpenAIProvider:
         return {
             "summary": raw,
             "summary_short": None,
-            "bundled_cleaned_transcript": cleaned.strip(),
             "metadata": {
                 "model": self.summary_model,
                 "provider": "openai",
