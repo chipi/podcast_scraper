@@ -23,6 +23,22 @@ from .status import read_pipeline_status
 SampleSeg = Tuple[float, float, float, float]  # wall_mono, peak_mb, avg_cpu, count
 
 
+MONITOR_FILE_LOG_ENV = "PODCAST_SCRAPER_MONITOR_FILE_LOG"
+
+
+def monitor_use_rich_live_on_stderr() -> bool:
+    """Return True if the monitor should use ``rich.Live`` on stderr.
+
+    When ``PODCAST_SCRAPER_MONITOR_FILE_LOG`` is set to a truthy value, the monitor
+    always appends to ``.monitor.log`` instead (used by ``freeze_profile`` so ticks
+    are archived even when the parent terminal has a TTY).
+    """
+    force = os.environ.get(MONITOR_FILE_LOG_ENV, "").strip().lower()
+    if force in ("1", "true", "yes"):
+        return False
+    return sys.stderr.isatty()
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         return bool(psutil.Process(pid).is_running())
@@ -239,7 +255,7 @@ def monitor_main(
     out = Path(output_dir)
     sampler = CrossProcessSampler(pipeline_pid, interval_s=poll_interval_s)
     sampler.start()
-    use_tty = sys.stderr.isatty()
+    use_tty = monitor_use_rich_live_on_stderr()
     memray_active = os.environ.get(MEMRAY_ACTIVE_ENV) == "1"
     console = Console(stderr=True)
     log_file: Optional[TextIO] = None

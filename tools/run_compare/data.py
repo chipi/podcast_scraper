@@ -229,6 +229,59 @@ class ProfileEntry:
     environment: Dict[str, Any]
     episodes_processed: int
     sort_ts: float
+    # RFC-065 companions next to ``<stem>.yaml`` (optional; see PERFORMANCE_PROFILE_GUIDE.md).
+    monitor_log_path: Optional[Path] = None
+    monitor_trace_lines: Optional[int] = None
+    monitor_trace_bytes: Optional[int] = None
+    rfc065_monitor: Optional[Dict[str, Any]] = None
+
+
+def _load_profile_rfc065_companion(
+    yaml_path: Path,
+) -> Tuple[Optional[Path], Optional[int], Optional[int], Optional[Dict[str, Any]]]:
+    """Load sibling ``.stage_truth.json`` / ``.monitor.log`` metadata for a profile YAML."""
+    parent = yaml_path.parent
+    stem = yaml_path.stem
+    log_path = parent / f"{stem}.monitor.log"
+    st_path = parent / f"{stem}.stage_truth.json"
+    meta: Optional[Dict[str, Any]] = None
+    if st_path.is_file():
+        try:
+            data = json.loads(st_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            data = None
+        if isinstance(data, dict):
+            raw = data.get("rfc065_monitor")
+            if isinstance(raw, dict):
+                meta = dict(raw)
+    lines: Optional[int] = None
+    nbytes: Optional[int] = None
+    resolved: Optional[Path] = None
+    if log_path.is_file():
+        resolved = log_path.resolve()
+        try:
+            nbytes = int(log_path.stat().st_size)
+        except OSError:
+            nbytes = None
+        if meta is not None:
+            if isinstance(meta.get("lines"), int):
+                lines = int(meta["lines"])
+            if isinstance(meta.get("bytes"), int):
+                nbytes = int(meta["bytes"])
+    elif meta is not None and meta.get("enabled"):
+        if isinstance(meta.get("lines"), int):
+            lines = int(meta["lines"])
+        if isinstance(meta.get("bytes"), int):
+            nbytes = int(meta["bytes"])
+    return (resolved, lines, nbytes, meta)
+
+
+def profile_has_rfc065_trace(entry: ProfileEntry) -> bool:
+    """True if a monitor companion log or ``stage_truth`` RFC-065 block is present."""
+    if entry.monitor_log_path is not None:
+        return True
+    m = entry.rfc065_monitor
+    return bool(m and m.get("enabled"))
 
 
 @dataclass(frozen=True)
@@ -309,6 +362,9 @@ def _parse_profile_date_ts(date_str: str) -> float:
 def discover_profiles(profiles_root: Optional[Path] = None) -> List[ProfileEntry]:
     """Load all ``*.yaml`` profiles under ``data/profiles`` (excluding rules files).
 
+    Each entry may include RFC-065 companion metadata from sibling ``<stem>.monitor.log`` and
+    ``<stem>.stage_truth.json`` (``rfc065_monitor``), used by the Run Compare Performance page.
+
     Args:
         profiles_root: Base directory (default: repo ``data/profiles``).
 
@@ -377,6 +433,7 @@ def load_profile(path: Path) -> ProfileEntry:
     ep = raw.get("episodes_processed")
     episodes_processed = int(ep) if isinstance(ep, int) else 0
     sort_ts = _parse_profile_date_ts(date_s)
+    mlog, mlines, mbytes, rfc_m = _load_profile_rfc065_companion(path)
     return ProfileEntry(
         release=release,
         date=date_s,
@@ -388,6 +445,10 @@ def load_profile(path: Path) -> ProfileEntry:
         environment=dict(env),
         episodes_processed=episodes_processed,
         sort_ts=sort_ts,
+        monitor_log_path=mlog,
+        monitor_trace_lines=mlines,
+        monitor_trace_bytes=mbytes,
+        rfc065_monitor=rfc_m,
     )
 
 

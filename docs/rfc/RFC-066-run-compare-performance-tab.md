@@ -250,6 +250,16 @@ New functions:
 
 No changes to existing quality data loading functions.
 
+### Extension: RFC-065 monitor companions
+
+``ProfileEntry`` may include optional fields from sibling **``<stem>.monitor.log``** and
+**``rfc065_monitor``** inside **``<stem>.stage_truth.json``** (same directory as the frozen YAML).
+``load_profile`` attaches: ``monitor_log_path``, ``monitor_trace_lines``, ``monitor_trace_bytes``,
+``rfc065_monitor``. Helper **``profile_has_rfc065_trace``** tests whether the UI should surface a
+trace. The Performance page adds a **Monitor traces** section (table + download expander) and
+includes **Monitor traces** in the Jump row when any selected profile has a trace. See
+[Performance Profile Guide](../guides/PERFORMANCE_PROFILE_GUIDE.md) (live monitor during freeze).
+
 ---
 
 ## UI Layer Changes (`tools/run_compare/app.py`)
@@ -307,8 +317,8 @@ source.
 
 ## Testing Strategy
 
-- **Unit tests** (`tests/unit/tools/test_run_compare_data.py`): test
-  `discover_profiles`, `load_profile`, `join_releases`, delta/trend row
+- **Unit tests** (`tests/unit/tools/test_run_compare_profiles.py`): test
+  `discover_profiles`, `load_profile`, RFC-065 companions, `join_releases`, delta/trend row
   helpers with fixture YAML files.
 - **Manual QA**: run `make run-compare` with 2+ frozen profiles in
   `data/profiles/` and verify all four sections render correctly.

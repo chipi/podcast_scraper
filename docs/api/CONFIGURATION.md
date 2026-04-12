@@ -86,7 +86,89 @@ WORKERS=4
 - **Default**: Unset (no caching; each pipeline run fetches the feed over HTTP).
 - **Example**: `export PODCAST_SCRAPER_RSS_CACHE_DIR=/tmp/podcast_rss_cache`
 - **Note**: Does not cache episode media; use `reuse_media` in config for that. The acceptance test runner sets this variable per session (`sessions/session_*/rss_cache`).
-- **HTTP retries**: Feed downloads use `fetch_rss_feed_url` in code, which applies urllib3 retries with exponential backoff (stronger defaults than transcript/media `fetch_url`). Not separately configurable via environment variables.
+- **HTTP retries**: Feed downloads use `fetch_rss_feed_url` in code, which applies urllib3 retries with exponential backoff (stronger defaults than transcript/media `fetch_url`). Retry parameters are configurable via YAML/JSON config fields (see [Download Resilience](#download-resilience) below). Not separately configurable via environment variables.
+
+#### Download Resilience
+
+The pipeline ships with resilient defaults for downloading thousands of episodes across feeds without manual intervention. All retry parameters are configurable via config file fields or CLI flags ([CLI.md — Control Options](CLI.md#control-options): `--http-retry-total`, `--http-backoff-factor`, `--rss-retry-total`, `--rss-backoff-factor`, `--episode-retry-max`, `--episode-retry-delay-sec`). Checked-in example: `config/examples/config.example.download-resilience.yaml`. These defaults are active even if you set nothing.
+
+**Note:** [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md) covers **LLM/API provider** retries and call metrics (`retry_with_metrics`, etc.), not RSS/media **HTTP** retries. Download-layer retries are the `http_*`, `rss_*`, and `episode_*` fields in this section; `metrics.json` also records `http_urllib3_retry_events` and episode-level retry counters ([METRICS_GUIDE -- Pipeline run metrics (download resilience)](../guides/METRICS_GUIDE.md#pipeline-run-metrics-download-resilience); same fields in [EXPERIMENT_GUIDE](../guides/EXPERIMENT_GUIDE.md#pipeline-run-metrics-download-resilience); run layout in [PIPELINE_AND_WORKFLOW -- Run tracking](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429)).
+
+**HTTP-level retry (urllib3 adapters)**
+
+| Field | Type | Default | Range | Description |
+| ----- | ---- | ------- | ----- | ----------- |
+| `http_retry_total` | int | `8` | 0--20 | Max urllib3 retries for media/transcript downloads. RSS feeds use `rss_retry_total`. |
+| `http_backoff_factor` | float | `1.0` | 0.0--10.0 | Exponential backoff factor. Delay = factor x 2^(attempt-1) (1 s, 2 s, 4 s, 8 s ...). |
+| `rss_retry_total` | int | `10` | 0--20 | Max urllib3 retries for RSS feed fetches (more patient than media, since the feed is critical). |
+| `rss_backoff_factor` | float | `2.0` | 0.0--10.0 | Backoff factor for RSS retries (gentler than media to avoid hammering rate-limited feed hosts). |
+
+**Application-level episode retry**
+
+After all urllib3 retries are exhausted for a single HTTP request, the pipeline can retry the entire episode processing flow (download + save) on transient network errors (connection resets, timeouts, HTTP 429/5xx).
+
+| Field | Type | Default | Range | Description |
+| ----- | ---- | ------- | ----- | ----------- |
+| `episode_retry_max` | int | `1` | 0--10 | Application-level retries per episode. Set to `0` to disable. Only retries on transient network errors. |
+| `episode_retry_delay_sec` | float | `10.0` | 0.0--120.0 | Initial delay in seconds between episode-level retries. Uses exponential backoff. |
+
+**Failure summary in run.json**
+
+When episodes fail, `run.json` includes a `failure_summary` section aggregating failures by error type, with counts and the list of failed episode IDs. This makes it easy to triage partial failures after large batch runs.
+
+**Threading, sessions, and metrics**
+
+- **`configure_downloader`** runs once at the start of each CLI / `run_pipeline` / `service.run` invocation. It updates the retry policy for **new** `requests.Session` instances on each thread. Sessions that already exist on a worker thread **keep** their previous adapter until that thread builds a fresh session (documented in `configure_downloader` in code). Typical pipeline use configures before workers download, so workers pick up the intended policy.
+- **`http_urllib3_retry_events` in `metrics.json`** is a **process-wide** counter, reset at the start of each run when the downloader is configured. Do **not** run two **`run_pipeline()`** calls **at the same time** in one process if you need that field to belong to a single logical run; use **separate processes** instead. Episode-level retry counters on the same `Metrics` instance are scoped to one pipeline run but would still be misleading if two pipelines shared one collector (not how `run_pipeline` is used).
+
+**Example (resilient defaults, no config needed)**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+max_episodes: 500
+```
+
+The defaults above give each HTTP request up to 8 retries with exponential backoff, plus one full episode-level retry on transient errors. For most feeds this is sufficient.
+
+**Example (aggressive retry for very flaky networks)**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+http_retry_total: 12
+http_backoff_factor: 2.0
+rss_retry_total: 15
+rss_backoff_factor: 3.0
+episode_retry_max: 3
+episode_retry_delay_sec: 30.0
+```
+
+**Example (minimal retry for fast CI runs)**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+http_retry_total: 1
+http_backoff_factor: 0.0
+rss_retry_total: 1
+rss_backoff_factor: 0.0
+episode_retry_max: 0
+```
+
+**Programmatic**
+
+```python
+from podcast_scraper import Config
+
+cfg = Config(
+    rss_url="https://feeds.example.com/podcast.xml",
+    output_dir="./my_corpus",
+    http_retry_total=12,
+    episode_retry_max=2,
+    episode_retry_delay_sec=15.0,
+)
+```
 
 #### LLM cost estimate assumptions (optional YAML)
 
@@ -892,6 +974,7 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 | Field | CLI Flag | Default | Description |
 | ----- | -------- | ------- | ----------- |
 | `monitor` | `--monitor` | `false` | Spawn a subprocess that shows live **RSS**, **CPU%**, and pipeline **stage** (reads/writes **`.pipeline_status.json`** under the effective output directory). Uses **psutil** + **rich** (core deps). See [Live Pipeline Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) and [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md). |
+| *(environment)* | — | — | **`PODCAST_SCRAPER_MONITOR_FILE_LOG`**: when set to a truthy value (`1`, `true`, `yes`), the monitor subprocess **always** appends ticks to **`.monitor.log`** instead of using **`rich.Live`** on stderr, even when stderr is a TTY. **`freeze_profile.py`** sets this for the measured run when the monitor is enabled so **`.monitor.log`** can be archived next to frozen profiles. |
 | `memray` | `--memray` | `false` | Re-exec the CLI or service under **memray** for heap profiling (optional extra **`.[monitor]`**). Sets **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** in the child to avoid re-exec loops. |
 | `memray_output` | `--memray-output` | *(derived)* | Memray capture **`.bin`** path. Default: **`<output_dir>/debug/memray_<timestamp>.bin`**, or **`./debug/...`** when `output_dir` is unset (service: cwd-based default). |
 
@@ -1381,7 +1464,11 @@ If the process exits before **finalize** (e.g. crash), **`index.json`** may lag 
   "summary_chunk_parallelism": 1,
   "preload_models": true,
   "preprocessing_enabled": true,
-  "preprocessing_sample_rate": 16000
+  "preprocessing_sample_rate": 16000,
+  "http_retry_total": 8,
+  "http_backoff_factor": 1.0,
+  "episode_retry_max": 1,
+  "episode_retry_delay_sec": 10.0
 }
 ```
 
@@ -1404,6 +1491,13 @@ summary_batch_size: 1  # Episode-level parallelism
 summary_chunk_parallelism: 1  # Chunk-level parallelism
 preprocessing_enabled: true  # Enable audio preprocessing
 preprocessing_sample_rate: 16000  # Target sample rate
+# Download resilience (defaults shown; omit to use these values)
+# http_retry_total: 8
+# http_backoff_factor: 1.0
+# rss_retry_total: 10
+# rss_backoff_factor: 2.0
+# episode_retry_max: 1
+# episode_retry_delay_sec: 10.0
 ```
 
 ## Aliases and Normalization

@@ -51,6 +51,12 @@ See also: [CLI.md](../api/CLI.md), [CONFIGURATION.md](../api/CONFIGURATION.md#li
 | `<output_dir>/debug/flamegraph_<timestamp>.svg` | Optional **py-spy** CPU flamegraph (press **`f`** in the parent TTY when **`py-spy`** is installed; requires **`--monitor`**). |
 | `<output_dir>/debug/memray_<timestamp>.bin` | Optional **memray** heap capture when **`--memray`** / `memray: true`. |
 
+**`PODCAST_SCRAPER_MONITOR_FILE_LOG`:** when set to **`1`** / **`true`** / **`yes`**, the monitor
+always writes ticks to **`.monitor.log`** (same fields as the TTY dashboard), even if stderr is a
+TTY. **`scripts/eval/freeze_profile.py`** sets this for the **measured** run when the monitor is on
+so **`make profile-freeze … MONITOR=1`** can archive **`<VERSION>.monitor.log`** next to the
+frozen YAML (see [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md)).
+
 ---
 
 ## Stage strings

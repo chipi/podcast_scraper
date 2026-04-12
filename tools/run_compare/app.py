@@ -51,6 +51,7 @@ from tools.run_compare.data import (
     merge_run_summary,
     pick_shared_reference_id,
     predictions_to_chart_rows,
+    profile_has_rfc065_trace,
     profile_stage_delta_rows,
     profile_trend_long_rows,
     ProfileEntry,
@@ -206,7 +207,9 @@ def _performance_intro_markdown() -> str:
     return (
         "**Performance** joins **frozen profiles** (`data/profiles/*.yaml`, RFC-064) with "
         "eval runs when the **release** join key matches (see README). Use the filters below "
-        "to narrow hosts and datasets, then compare KPIs, deltas, and trends.\n\n"
+        "to narrow hosts and datasets, then compare KPIs, deltas, and trends. When a profile "
+        "has a sibling **`.monitor.log`** (or **`rfc065_monitor`** in **`stage_truth.json`**), "
+        "the **Monitor traces** section lists it and offers downloads.\n\n"
         f"[RFC-066]({_DOCS_BASE}/docs/rfc/RFC-066-run-compare-performance-tab.md) · "
         f"[Performance profile guide]({_DOCS_BASE}/docs/guides/PERFORMANCE_PROFILE_GUIDE.md) "
         f"· [Experiment guide]({_DOCS_BASE}/docs/guides/EXPERIMENT_GUIDE.md)."
@@ -332,6 +335,8 @@ def _joined_release_tooltip_row(j: JoinedRelease) -> str:
     pe = j.profile_entry
     if pe is not None:
         bits.append(f"profile: {pe.path.name} · {pe.hostname} · {pe.dataset_id}")
+        if profile_has_rfc065_trace(pe):
+            bits.append("RFC-065 monitor trace")
     return " · ".join(bits)
 
 
@@ -1297,6 +1302,75 @@ def _bar_colors_lower_is_better(values: Sequence[float]) -> List[str]:
     return out
 
 
+def _any_profile_monitor_trace(prof_selected: List[JoinedRelease]) -> bool:
+    return any(
+        j.profile_entry is not None and profile_has_rfc065_trace(j.profile_entry)
+        for j in prof_selected
+    )
+
+
+def _render_perf_monitor_traces(prof_selected: List[JoinedRelease]) -> None:
+    """List RFC-065 ``.monitor.log`` companions and optional ``stage_truth`` metadata."""
+    ordered = sorted(
+        prof_selected,
+        key=lambda j: (j.profile_entry.sort_ts if j.profile_entry else 0.0, j.release),
+    )
+    rows: List[Dict[str, Any]] = []
+    downloadable: List[Tuple[str, Path]] = []
+    for j in ordered:
+        p = j.profile_entry
+        assert p is not None
+        if not profile_has_rfc065_trace(p):
+            continue
+        log_name = p.monitor_log_path.name if p.monitor_log_path else "—"
+        archived = ""
+        if p.rfc065_monitor and isinstance(p.rfc065_monitor.get("archived_log"), str):
+            archived = p.rfc065_monitor["archived_log"]
+        note = ""
+        if p.rfc065_monitor and p.rfc065_monitor.get("note"):
+            note = str(p.rfc065_monitor["note"])
+        ln = p.monitor_trace_lines
+        bb = p.monitor_trace_bytes
+        rows.append(
+            {
+                "release": j.release,
+                "log_file": log_name,
+                "lines": str(ln) if ln is not None else "—",
+                "bytes": str(bb) if bb is not None else "—",
+                "archived_rel": archived or "—",
+                "note": note or "—",
+            }
+        )
+        if p.monitor_log_path is not None and p.monitor_log_path.is_file():
+            downloadable.append((j.release, p.monitor_log_path))
+    if not rows:
+        return
+    _section_anchor("rc-p-monitor")
+    st.subheader("RFC-065 monitor traces")
+    st.caption(
+        "From capture with ``MONITOR=1``, ``freeze_profile.py --monitor``, or ``monitor: true`` "
+        "in the pipeline YAML. See the Performance profile guide (live monitor during freeze)."
+    )
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+    if not downloadable:
+        return
+    with st.expander("Download .monitor.log files", expanded=False):
+        for rel, lpath in downloadable:
+            try:
+                raw = lpath.read_bytes()
+            except OSError as exc:
+                st.caption(f"{rel}: could not read {lpath.name} ({exc})")
+                continue
+            key_h = hashlib.sha256(str(lpath).encode("utf-8")).hexdigest()[:24]
+            st.download_button(
+                label=f"Download {rel} — {lpath.name}",
+                data=raw,
+                file_name=lpath.name,
+                mime="text/plain",
+                key=f"rc_mon_dl_{key_h}",
+            )
+
+
 def _render_perf_env_warnings(prof_selected: List[JoinedRelease]) -> None:
     hosts = {j.profile_entry.hostname for j in prof_selected if j.profile_entry}
     if len(hosts) > 1:
@@ -1620,17 +1694,21 @@ def _render_performance_main(
         st.info("None of the selected releases have a frozen profile YAML.")
         return
 
-    _page_jump_nav(
+    jump_links: List[Tuple[str, str]] = [("rc-p-kpis", "Resource KPIs")]
+    if _any_profile_monitor_trace(prof_selected):
+        jump_links.append(("rc-p-monitor", "Monitor traces"))
+    jump_links.extend(
         [
-            ("rc-p-kpis", "Resource KPIs"),
             ("rc-p-delta", "Resource delta"),
             ("rc-p-trends", "Trends"),
             ("rc-p-scatter", "Quality vs cost"),
             ("rc-p-coverage", "Coverage"),
         ]
     )
+    _page_jump_nav(jump_links)
     _render_perf_env_warnings(prof_selected)
     _render_perf_kpis(prof_selected)
+    _render_perf_monitor_traces(prof_selected)
     _render_perf_delta(prof_selected, baseline_release)
     _render_perf_trends(prof_selected)
     _render_perf_scatter(prof_selected)

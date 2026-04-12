@@ -30,6 +30,8 @@ build_profile_document = _fp.build_profile_document
 build_stage_truth_document = _fp.build_stage_truth_document
 _rss_is_e2e_placeholder = _fp._rss_is_e2e_placeholder
 _find_metrics_json_path = _fp._find_metrics_json_path
+_find_monitor_log_path = _fp._find_monitor_log_path
+_repo_relative = _fp._repo_relative
 
 pytestmark = [pytest.mark.unit]
 
@@ -109,6 +111,24 @@ def test_build_stage_truth_document_shape() -> None:
     assert doc["parallelism_hint_ratio"] == pytest.approx(1.2)
     assert "metrics_excerpt" in doc
     assert doc["metrics_excerpt"]["schema_version"] == 2
+    assert "rfc065_monitor" not in doc
+
+
+def test_build_stage_truth_document_includes_rfc065_monitor() -> None:
+    doc = build_stage_truth_document(
+        release="v1.0.0",
+        dataset_id="ds1",
+        source_metrics_path="/tmp/m.json",
+        sample_interval_s=0.5,
+        run_wall_s=1.0,
+        wall_by_stage={"a": 1.0},
+        resource_by_stage={},
+        global_peak_rss_mb_sampled=10.0,
+        metrics={"schema_version": 2},
+        rfc065_monitor={"enabled": True, "archived_log": "data/profiles/x.monitor.log"},
+    )
+    assert doc["rfc065_monitor"]["enabled"] is True
+    assert doc["rfc065_monitor"]["archived_log"] == "data/profiles/x.monitor.log"
 
 
 def test_rss_is_e2e_placeholder_detects_sample_urls() -> None:
@@ -159,6 +179,30 @@ def test_find_metrics_json_path_explicit_metrics_output(tmp_path: Path) -> None:
         },
     )
     assert _find_metrics_json_path(cfg, str(tmp_path)) == str(target.resolve())
+
+
+def test_find_monitor_log_path_prefers_newest_under_tree(tmp_path: Path) -> None:
+    old_run = tmp_path / "run_old"
+    new_run = tmp_path / "run_new"
+    old_run.mkdir()
+    new_run.mkdir()
+    (old_run / ".monitor.log").write_text("old\n", encoding="utf-8")
+    time.sleep(0.02)
+    (new_run / ".monitor.log").write_text("new\n", encoding="utf-8")
+
+    cfg = ps_config.Config.model_validate(
+        {"rss": "https://example.com/f.xml", "output_dir": str(tmp_path)},
+    )
+    found = _find_monitor_log_path(cfg, str(tmp_path))
+    assert found == str((new_run / ".monitor.log").resolve())
+
+
+def test_repo_relative_under_root(tmp_path: Path) -> None:
+    sub = tmp_path / "a" / "b.txt"
+    sub.parent.mkdir(parents=True)
+    sub.write_text("x", encoding="utf-8")
+    rel = _repo_relative(sub, tmp_path)
+    assert rel.replace("\\", "/") == "a/b.txt"
 
 
 def test_find_metrics_json_path_disabled_returns_none(tmp_path: Path) -> None:
