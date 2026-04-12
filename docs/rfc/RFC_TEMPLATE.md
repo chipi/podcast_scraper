@@ -1,6 +1,6 @@
 # RFC-NNN: [Feature Name]
 
-- **Status**: Draft | Accepted | Completed
+- **Status**: Draft | Completed (use **Completed** when shipped; partial delivery can stay **Draft** or **Completed** with caveats in the body — do not use **Accepted**, which is reserved for ADRs)
 - **Authors**: [Author names]
 - **Stakeholders**: [Who needs to review/approve this]
 - **Related PRDs**:

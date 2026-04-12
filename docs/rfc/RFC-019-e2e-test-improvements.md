@@ -1,6 +1,6 @@
 # RFC-019: E2E Test Infrastructure and Coverage Improvements
 
-- **Status**: Complete
+- **Status**: Completed
 - **Authors**:
 - **Stakeholders**: Maintainers, developers writing E2E tests, CI/CD pipeline maintainers, QA engineers
 - **Related PRDs**:

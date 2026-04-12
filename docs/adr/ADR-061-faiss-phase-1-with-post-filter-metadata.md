@@ -3,7 +3,8 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
+- **Related RFCs**: [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) (FAISS shipped),
+  [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) (native filtering — Draft)
 - **Related PRDs**: [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
 
 ## Context & Problem Statement
@@ -35,8 +36,9 @@ We adopt **FAISS with post-filter metadata** for Phase 1:
   Docker, no external database for the default path.
 - **Sufficient at CLI scale**: Post-filtering on ~1K candidates is sub-millisecond.
   The over-fetch ratio (3x) handles typical filter selectivity.
-- **Known upgrade path**: Qdrant Phase 2 replaces post-filter with native payload
-  filtering. The `VectorStore` protocol (ADR-060) makes the switch transparent.
+- **Known upgrade path**: [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) (Qdrant,
+  Draft) replaces post-filter with native payload filtering. The `VectorStore` protocol (ADR-060)
+  makes the switch transparent.
 - **Simplicity**: Post-filter is ~15 lines of Python. No custom FAISS index or
   external filtering library.
 

@@ -1,6 +1,6 @@
 # RFC-043: Automated Metrics Alerts
 
-- **Status**: 📝 Draft
+- **Status**: Draft
 - **Related ADRs**:
   - [ADR-047: Proactive Metric Regression Alerting](../adr/ADR-047-proactive-metric-regression-alerting.md)
 - **Authors**:

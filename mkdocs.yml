@@ -103,6 +103,7 @@ nav:
       - PRD-022 Corpus Library & Episode Browser: prd/PRD-022-corpus-library-episode-browser.md
       - PRD-023 Corpus Digest & Library Glance: prd/PRD-023-corpus-digest-recap.md
       - PRD-024 GI/KG Graph Exploration Toolkit: prd/PRD-024-graph-exploration-toolkit.md
+      - PRD-025 Corpus Intelligence Dashboard Viewer: prd/PRD-025-corpus-intelligence-dashboard-viewer.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
@@ -183,6 +184,9 @@ nav:
       - ADR-071 Four-Tier Summarization Strategy: adr/ADR-071-four-tier-summarization-strategy.md
       - ADR-072 Llama 3.2:3b as Tier 3 Local LLM: adr/ADR-072-llama32-3b-as-tier3-local-llm.md
       - ADR-073 RFC-057 Autoresearch Closure: adr/ADR-073-rfc057-autoresearch-closure.md
+      - ADR-074 Multi-Feed Corpus Parent Layout and Manifest: adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md
+      - ADR-075 Frozen YAML Performance Profiles for Release Baselines: adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md
+      - ADR-076 Streamlit for Operator Run Comparison and Performance Views: adr/ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md
       - ADR Template: adr/ADR_TEMPLATE.md
   - RFCs:
       - rfc/index.md
@@ -254,6 +258,8 @@ nav:
       - RFC-067 Corpus Library API & Viewer: rfc/RFC-067-corpus-library-api-viewer.md
       - RFC-068 Corpus Digest API & Viewer: rfc/RFC-068-corpus-digest-api-viewer.md
       - RFC-069 Graph Exploration Toolkit: rfc/RFC-069-graph-exploration-toolkit.md
+      - RFC-070 Semantic Corpus Search Platform Future: rfc/RFC-070-semantic-corpus-search-platform-future.md
+      - RFC-071 Corpus Intelligence Dashboard Viewer: rfc/RFC-071-corpus-intelligence-dashboard-viewer.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

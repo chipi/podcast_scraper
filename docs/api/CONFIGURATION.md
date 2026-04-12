@@ -745,6 +745,8 @@ This reduces LLM API calls by 70-90% while maintaining high quality.
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
 | `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` | Cleaning strategy: `pattern`, `llm`, or `hybrid` (applies to LLM + `hybrid_ml` summarization providers). Pair with `hybrid_internal_preprocessing_after_pattern` under [Hybrid ML](#hybrid-ml-map-reduce-configuration) when using **`hybrid_ml`** + **`pattern`**. |
+| `llm_pipeline_mode` | N/A | `staged` | Issue #477: `staged` = separate semantic clean + summarize; `bundled` = one structured completion when the provider implements `summarize_bundled` (OpenAI, Anthropic, Gemini), with automatic fallback to staged on failure. Config file only unless wired via CLI later. |
+| `llm_bundled_max_output_tokens` | N/A | `16384` | Max completion tokens for bundled clean+summary+bullets (large default because JSON includes full `cleaned_text`). Config file only. |
 | `openai_cleaning_model` | `--openai-cleaning-model` | `gpt-4o-mini` | OpenAI model for cleaning (cheaper than summary model) |
 | `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
 | `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |

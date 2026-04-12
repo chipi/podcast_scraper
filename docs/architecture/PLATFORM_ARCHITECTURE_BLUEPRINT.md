@@ -255,7 +255,7 @@ User/UI → API (RFC-062 server) → Postgres (catalog, subscriptions, entitleme
                     ↓
 Worker(s) → run_pipeline(cfg) → canonical files (+ optional object store)
                     ↓                       ↓
-              projection → Postgres    vector index → FAISS/Qdrant (RFC-061)
+              projection → Postgres    vector index → FAISS (RFC-061) / Qdrant (RFC-070 Draft)
                     ↓                       ↓
 User/UI → API → read Postgres       → semantic search API
               (+ signed URLs to blobs if needed)
@@ -2374,7 +2374,8 @@ Aligned with the unified graduation table in D.7.
 - [RFC-058: Audio speaker diarization](../rfc/RFC-058-audio-speaker-diarization.md)
 - [RFC-059: Speaker detection refactor](../rfc/RFC-059-speaker-detection-refactor-test-audio.md)
 - [RFC-060: Diarization-aware commercial cleaning](../rfc/RFC-060-diarization-aware-commercial-cleaning.md)
-- [RFC-061: Semantic corpus search](../rfc/RFC-061-semantic-corpus-search.md)
+- [RFC-061: Semantic corpus search (FAISS)](../rfc/RFC-061-semantic-corpus-search.md)
+- [RFC-070: Semantic corpus search — platform & future](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - [RFC-062: GI/KG Viewer v2 & server architecture](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - [RFC-039: Development workflow with git worktrees and CI](../rfc/RFC-039-development-workflow-worktrees-ci.md)
 - [RFC-043: Automated metrics alerts](../rfc/RFC-043-automated-metrics-alerts.md)

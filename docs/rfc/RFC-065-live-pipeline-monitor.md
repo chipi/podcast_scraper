@@ -1,80 +1,64 @@
-# RFC-065: Live Pipeline Monitor (macOS Developer Tooling)
+# RFC-065: Live Pipeline Monitor (Developer Tooling)
 
-## Status
-
-**Completed (v2.6.0)** — core scope delivered; **tmux / automatic terminal split** remains deferred (see below).
-
-**MVP + Phase 3 profiling implemented** (2026-04-11, GitHub #512):
-
-- **MVP:** `--monitor`, `monitor` in YAML, `.pipeline_status.json`,
-  `src/podcast_scraper/monitor/` (status, sampler, dashboard, runner subprocess), orchestration
-  hooks for RFC-064 stage names (except distinct **gi_generation** / **kg_extraction** signals —
-  those run inside the processing thread; the monitor stays on **transcript_cleaning** until
-  **summarization** / **vector_indexing**).
-- **Non-TTY fallback:** When the monitor subprocess’s **stderr** is not a TTY, plain-text lines
-  append to **`<output_dir>/.monitor.log`** (same data as the live dashboard ticks).
-- **Phase 3 (optional `.[monitor]` extra):** **`--memray`** / **`memray:`** + **`memray_output`**
-  re-exec the CLI or service under **`memray run`** (env **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`**
-  prevents loops). Parent-process **TTY stdin** **`f`** triggers **`py-spy record`** (~5 s) to
-  **`debug/flamegraph_<timestamp>.svg`** when **`--monitor`** is on (Unix-like; see guide).
-- **Still deferred:** **tmux** / **Terminal.app** automatic split (**`terminal_split`**) — optional
-  future UX; developers can use an external split terminal today.
-
-**Documentation:** [Live Pipeline Monitor guide](../guides/LIVE_PIPELINE_MONITOR.md)
-(quickstart, artifacts, multi-feed, stderr vs logs, memray/py-spy). API tables:
-[CLI.md](../api/CLI.md), [CONFIGURATION.md](../api/CONFIGURATION.md#live-pipeline-monitor-rfc-065-512).
-
-## RFC Number
-
-065
-
-## Authors
-
-Podcast Scraper Team
-
-## Date
-
-2026-04-09 (stub) · 2026-04-10 (expanded)
-
-## Related RFCs
-
-- `docs/rfc/RFC-064-performance-profiling-release-freeze.md` — Parent RFC;
-  frozen profiles and release freeze framework
-- `docs/rfc/RFC-066-run-compare-performance-tab.md` — Sibling RFC; Streamlit
-  performance tab consuming frozen profiles
-- `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` — Quality
-  benchmarking framework
-
-## Related ADRs
-
-- ADR-027: Deep Provider Fingerprinting
-
-## Related Issues
-
-- [#512](https://github.com/chipi/podcast_scraper/issues/512) — Tracking issue
-- [#510](https://github.com/chipi/podcast_scraper/issues/510) — RFC-064 epic
-
----
+- **Status**: Completed (v2.6.0)
+- **Authors**: Podcast Scraper Team
+- **Stakeholders**: Developers and operators debugging long pipeline runs
+- **Related PRDs**:
+  - [PRD-016: Operational Observability & Pipeline Intelligence](../prd/PRD-016-operational-observability-pipeline-intelligence.md) —
+    live visibility into runs (with RFC-027 / RFC-064 family)
+- **Related ADRs**:
+  - [ADR-075: Frozen YAML performance profiles](../adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md) — sibling to this **live** view ([RFC-064](RFC-064-performance-profiling-release-freeze.md))
+  - [ADR-014: Codified Comparison Baselines](../adr/ADR-014-codified-comparison-baselines.md)
+  - [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
+  - [ADR-040: Explicit Golden Dataset Versioning](../adr/ADR-040-explicit-golden-dataset-versioning.md)
+- **Related RFCs**:
+  - [RFC-064: Performance profiling and release freeze](RFC-064-performance-profiling-release-freeze.md) —
+    parent split; frozen profiles vs this live view
+  - [RFC-066: Run compare — Performance tab](RFC-066-run-compare-performance-tab.md) — consumes frozen
+    profiles alongside quality runs
+  - [RFC-041: Podcast ML benchmarking framework](RFC-041-podcast-ml-benchmarking-framework.md) — quality
+    benchmarking context
+- **Related Documents**:
+  - [Live Pipeline Monitor guide](../guides/LIVE_PIPELINE_MONITOR.md) — operator quickstart, artifacts,
+    multi-feed, stderr vs log, optional **memray** / **py-spy**
+  - [CLI.md](../api/CLI.md), [CONFIGURATION.md](../api/CONFIGURATION.md#live-pipeline-monitor-rfc-065-512)
+  - [GitHub #512](https://github.com/chipi/podcast_scraper/issues/512) — tracking
+  - [GitHub #510](https://github.com/chipi/podcast_scraper/issues/510) — RFC-064 epic (profiles)
+- **Updated**: 2026-04-09 (stub), 2026-04-10 (expanded), 2026-04-12 (delivered-scope + style alignment),
+  2026-04-11 (terminal-split deferred + implementation record + lifecycle accuracy)
 
 ## Abstract
 
-A **live pipeline monitoring dashboard** for `podcast_scraper` — a `--monitor`
-CLI flag that spawns a real-time resource dashboard alongside a running
-pipeline. The developer sees CPU%, RSS, active pipeline stage, and elapsed time
-updating in real time without opening a second terminal manually.
+A **live pipeline monitoring dashboard** for `podcast_scraper`: when **`monitor`** is enabled
+(`--monitor` or `monitor: true` in YAML), a **child process** polls **`.pipeline_status.json`** and
+**`psutil.Process(pipeline_pid)`**, then renders a **`rich.Live`** panel on **stderr** (or appends
+plain lines to **`.monitor.log`** when stderr is not a TTY). On exit it prints a **per-stage
+summary** table. Core stack uses only **`psutil`**, **`rich`**, and stdlib (**no extra install**).
 
-This is developer tooling that complements the frozen profile system in
-RFC-064. Where RFC-064 captures a static snapshot at release time, this RFC
-provides a live view during development and debugging. The core dashboard
-(`psutil` + `rich`) is cross-platform; the terminal split UX (tmux pane split,
-`Terminal.app` via `osascript`) is macOS-focused.
+**Optional** **`pip install -e ".[monitor]"`**: **`memray`** re-exec (**`--memray`** / YAML **`memray:`**,
+**`memray_output`**) and parent-TTY **`f`** → **`py-spy record`** flamegraph under **`debug/`** (see
+guide for SIP / **`sudo`** notes on macOS).
 
-Split from RFC-064 to keep the release freeze framework focused on its core
-deliverable (frozen profiles + diff tool).
+This complements **RFC-064** (frozen release profiles): RFC-064 is a **static** capture; this RFC is
+a **live** view during development. **Not shipped:** automatic **tmux** / **Terminal.app** split
+(**`terminal_split.py`** was designed but is **not in the tree** — use an external split terminal or
+**`tail -f .monitor.log`**).
 
----
+## Delivered scope (v2.6.0)
 
-## Motivation
+| Area | Shipped |
+| ---- | ------- |
+| **CLI + config** | **`--monitor`**, **`monitor:`** in YAML; **`--memray`**, **`--memray-output`**, **`memray:`**, **`memray_output`** |
+| **Service** | **`monitor: true`** / **`memray:`** via config; **`run_from_config_file`** re-execs under **memray** or returns **`ServiceResult`** error if **memray** missing |
+| **Process model** | Child monitor (**`multiprocessing` `spawn`**), parent pipeline; **`join`** in **`finally`** with terminate fallback |
+| **Status file** | **`<output_dir>/.pipeline_status.json`** — atomic writes on stage transitions (**`monitor/status.py`**) |
+| **Dashboard** | **`rich.Live`** on stderr when TTY; else **`.monitor.log`** one line per tick (**same fields**) |
+| **Profiling (optional)** | **`memray_util.py`**: **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** guard; **`py_spy_listener`**: stdin **`f`** in **parent** (orchestration), **`debug/flamegraph_*.svg`** |
+| **Orchestration hooks** | **`maybe_update_pipeline_status()`** at RFC-064-aligned stage names; **no-op** when **`monitor`** is false |
+| **Tests** | **`tests/unit/podcast_scraper/monitor/`** (status, sampler, dashboard pieces, memray, py-spy listener); integration coverage as in guide |
+| **Deferred** | **`terminal_split.py`** (tmux / **osascript** auto-window) — **not implemented**; finer-grained **GI** / **KG** stage lines in status file (work largely inside concurrent metadata path — monitor may show **`transcript_cleaning`** through **`summarization`** / **`vector_indexing`**; see [LIVE_PIPELINE_MONITOR.md](../guides/LIVE_PIPELINE_MONITOR.md)) |
+
+## Problem Statement
 
 During pipeline development and debugging, the developer currently has no
 real-time visibility into resource usage per stage. The workflow is:
@@ -141,8 +125,8 @@ polls this file (same interval as `psutil` sampling, default 0.5s).
   (metrics file written by pipeline, read by profiler).
 
 **Pipeline integration points** — the following locations in
-`src/podcast_scraper/workflow/orchestration.py` get a
-`_write_pipeline_status(output_dir, stage, ...)` call:
+`src/podcast_scraper/workflow/orchestration.py` call
+`maybe_update_pipeline_status(cfg, output_dir, stage=...)` (from **`monitor/status.py`**):
 
 | Stage name | Location in orchestration |
 | ---------- | ------------------------ |
@@ -158,45 +142,36 @@ polls this file (same interval as `psutil` sampling, default 0.5s).
 | `vector_indexing` | Before vector index build |
 | `done` | After pipeline completion |
 
-The `_write_pipeline_status()` helper is a thin function (~15 lines) added to
-`orchestration.py`. It is a no-op when `--monitor` is not active (controlled
-by a `Config` flag), so there is zero overhead in normal runs. Even when
-active, the cost is one small JSON write per stage transition (not per
-episode).
+`maybe_update_pipeline_status()` is a no-op when **`cfg.monitor`** is false, so there is zero
+overhead in normal runs. When enabled, cost is one small atomic JSON write per stage transition
+(not per episode).
 
 ### Monitor Process Lifecycle
 
 ```text
-CLI: podcast_scraper --monitor ...
+CLI: python -m podcast_scraper.cli … --monitor
   │
-  ├─ Fork monitor subprocess (target: _monitor_main)
-  │    └─ Monitor reads .pipeline_status.json + psutil.Process(pipeline_pid)
-  │    └─ Renders rich.Live dashboard every 0.5s
-  │    └─ On pipeline exit: prints final summary table, exits
+  ├─ spawn monitor process (start_monitor_subprocess → _monitor_entry)
+  │    └─ Reads .pipeline_status.json + psutil.Process(pipeline_pid)
+  │    └─ Renders rich.Live every poll interval (or .monitor.log if stderr not a TTY)
+  │    └─ On pipeline exit: final summary table, then exit
   │
-  └─ Run pipeline normally (writes status file at stage boundaries)
-       └─ On completion: writes stage="done", exits
+  └─ Run pipeline (maybe_update_pipeline_status at stage boundaries)
+       └─ On completion: stage="done", exit
 ```
 
-The monitor subprocess is started before the pipeline begins and is joined
-after the pipeline returns. If the user Ctrl-C's, the pipeline's signal
-handler cleans up and the monitor detects process exit.
+The monitor process is started before the pipeline begins and is joined after the pipeline returns.
+On Ctrl-C, the pipeline’s signal handling and process exit are reflected by the monitor via **psutil**
+and the status file.
 
-### Terminal Split (Optional UX Enhancement)
+### Deferred: automatic terminal split (not shipped)
 
-When `--monitor` is passed:
-
-1. **tmux detected** (`$TMUX` set): split the current pane horizontally
-   (`tmux split-window -h`) and run the monitor in the new pane. The pipeline
-   runs in the original pane.
-2. **macOS Terminal.app** (no tmux): use `osascript` to open a new
-   Terminal.app window running the monitor.
-3. **Fallback** (neither tmux nor macOS): run the monitor as a background
-   process; output goes to `<output_dir>/.monitor.log`. A message tells the
-   developer to `tail -f` it.
-
-The terminal split is a UX convenience. The monitor works identically in all
-three modes — only the terminal arrangement differs.
+An earlier design described **tmux** pane split, **macOS Terminal.app** via **`osascript`**, and a
+**fallback** to **`.monitor.log`**. **Only the shipped behavior remains:** the monitor child is
+always started via **`start_monitor_subprocess`**; **rich** renders to **stderr** when it is a TTY,
+otherwise the same snapshots go to **`.monitor.log`** (see **`runner.py`**). There is **no**
+**`terminal_split.py`**, no **`tmux`**, and no **`osascript`** automation in **`src/`**. Users who
+want a second pane should split the terminal manually or **`tail -f .monitor.log`**.
 
 ### Rich Live Dashboard
 
@@ -355,45 +330,26 @@ monitor = [
 **`f`** flamegraph capture and **memray** re-exec are unavailable (or fail fast with a clear message)
 if the binaries are not on **`PATH`**.
 
-### Platform Considerations
+### Platform considerations
 
-- **tmux detection**: checks `$TMUX` environment variable (cross-platform).
-- **`osascript`**: macOS-only; used only as fallback when tmux is unavailable.
-- **`py-spy`**: requires SIP disabled or `sudo` on macOS for process
-  attachment. Works without elevation on Linux.
-- **`memray`**: wraps the process; may affect measurements slightly.
+- **`py-spy`**: on macOS, attaching by PID may require SIP changes or **`sudo`** (upstream
+  **py-spy** behavior); Linux often works without elevation.
+- **`memray`**: re-exec wraps the process; can slightly affect timing vs a plain run.
+- **Cross-platform core**: **`psutil`** + **`rich`** + status file — no OS-specific code path for the
+  dashboard itself.
 
 ---
 
-## Implementation Plan
+## Implementation record (v2.6.0)
 
-### Phase 1: Status File + Core Monitor (MVP)
+Phases below match what shipped; only **terminal split** remains explicitly out of scope.
 
-1. Add `_write_pipeline_status()` to `orchestration.py` (no-op when
-   `cfg.monitor` is False).
-2. Create `src/podcast_scraper/monitor/status.py` — read/write helpers.
-3. Create `src/podcast_scraper/monitor/sampler.py` — cross-process
-   `ResourceSampler` using `psutil.Process(pid)`.
-4. Create `src/podcast_scraper/monitor/dashboard.py` — `rich.Live` rendering.
-5. Create `src/podcast_scraper/monitor/__init__.py` — `start_monitor()` that
-   spawns the monitor as a `multiprocessing.Process`.
-6. Add `--monitor` flag to CLI and `monitor` field to `Config`.
-7. Wire `start_monitor()` into `run_pipeline()`.
-8. Unit tests for status file read/write, sampler, dashboard rendering.
-
-### Phase 2: Terminal Split + Final Summary
-
-1. **Deferred:** `terminal_split.py` — tmux / osascript auto-split (optional UX).
-2. **Done:** Final summary table on pipeline exit (**`rich`** or plain text for **`.monitor.log`**).
-3. **Done:** Pipeline crash detection (process gone).
-
-### Phase 3: Flamegraph + Memray (Optional)
-
-1. **Done:** Parent-process stdin **`f`** → **`py-spy record`** (**`py_spy_listener.py`** +
-   orchestration wiring).
-2. **Done:** **`--memray`** / **`memray`**, **`memray_output`**, **`memray run`** re-exec
-   (**`memray_util.py`**, CLI + **`run_from_config_file`**).
-3. **Done:** **`[monitor]`** optional dependency group in **`pyproject.toml`**.
+| Phase | Scope | Result |
+| ----- | ----- | ------ |
+| **1** | Status file, child monitor, sampler, dashboard, CLI **`--monitor`** / **`Config.monitor`**, orchestration **`maybe_update_pipeline_status`**, unit tests | **Done** |
+| **2** | Final summary table, crash detection, **`.monitor.log`** non-TTY path | **Done** |
+| **2b** | Auto **tmux** / **Terminal.app** split (**`terminal_split.py`**) | **Deferred / not in tree** |
+| **3** | **`[monitor]`** extra, **memray** re-exec, **py-spy** stdin **`f`**, service YAML **`memray:`** | **Done** |
 
 ---
 
@@ -407,8 +363,10 @@ if the binaries are not on **`PATH`**.
 - **Integration test** (`tests/integration/monitor/`):
   - Spawn a dummy long-running process, start monitor, verify it reads status
     and samples resources, verify clean shutdown.
-- **Manual QA**: run `podcast_scraper --monitor` with a real pipeline config
-  and verify the dashboard renders correctly in tmux and plain terminal.
+- **Manual QA**: run **`python -m podcast_scraper.cli … --monitor`** with a real config; verify
+  **rich** dashboard on a TTY **stderr** and **`.monitor.log`** lines when stderr is not a TTY;
+  optionally **`pip install -e ".[monitor]"`** and exercise **memray** / **`f`** flamegraph per
+  [LIVE_PIPELINE_MONITOR.md](../guides/LIVE_PIPELINE_MONITOR.md).
 
 ---
 
@@ -418,16 +376,15 @@ if the binaries are not on **`PATH`**.
 | - | -------- | ---------- |
 | 1 | Separate process or in-process thread? | Separate process — isolation from GIL, crash independence, simpler coordination. |
 | 2 | Stage signaling mechanism? | Status file (`.pipeline_status.json`) — easy integration (one `json.dump` per stage), debuggable (`cat`), atomic on POSIX, already precedented by freeze_profile pattern. |
-| 3 | Work outside tmux/Terminal.app? | Yes — fallback mode writes to `.monitor.log` with `tail -f` instruction. Core dashboard logic is the same in all modes. |
-| 4 | MVP scope? | MVP: stages + dashboard + summary + **`.monitor.log`** non-TTY fallback. Optional **`.[monitor]`**: **py-spy** + **memray**. **Terminal split** still deferred. |
+| 3 | Work outside tmux/Terminal.app? | Yes — when the monitor’s **stderr** is not a TTY, it appends plain lines to **`.monitor.log`** (header line + one line per tick + footer). Operators can **`tail -f`** that file; there is no in-app **tmux**/**osascript** split. |
+| 4 | MVP scope? | **Shipped:** stages + dashboard + summary + **`.monitor.log`** non-TTY fallback. Optional **`.[monitor]`**: **py-spy** + **memray**. **Terminal split** not shipped. |
 
 ---
 
 ## References
 
-- **Parent RFC**: `docs/rfc/RFC-064-performance-profiling-release-freeze.md`
-- **Source Code**: `src/podcast_scraper/monitor/` (implemented)
-- **Operator guide**: `docs/guides/LIVE_PIPELINE_MONITOR.md`
-- **Sampler Pattern**: `scripts/eval/freeze_profile.py` `ResourceSampler`
-- **Tracking Issue**:
-  [#512](https://github.com/chipi/podcast_scraper/issues/512)
+- **Parent RFC**: [RFC-064](RFC-064-performance-profiling-release-freeze.md)
+- **Source**: `src/podcast_scraper/monitor/`
+- **Operator guide**: [LIVE_PIPELINE_MONITOR.md](../guides/LIVE_PIPELINE_MONITOR.md)
+- **Sampler pattern**: `scripts/eval/freeze_profile.py` (**ResourceSampler**)
+- **Tracking**: [GitHub #512](https://github.com/chipi/podcast_scraper/issues/512)

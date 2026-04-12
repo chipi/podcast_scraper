@@ -6,6 +6,7 @@
 - **Related PRDs**:
   - None — GitHub [#440](https://github.com/chipi/podcast_scraper/issues/440) and [#444](https://github.com/chipi/podcast_scraper/issues/444) track scope.
 - **Related ADRs**:
+  - [ADR-074](../adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md) — Layout A parent, unified discovery, manifest as operational artifact
   - [ADR-051](../adr/ADR-051-per-episode-json-artifacts-with-logical-union.md) — per-episode GI/KG artifacts; union at query time
   - [ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md) — vector index abstraction (RFC-061)
   - [ADR-061](../adr/ADR-061-faiss-phase-1-with-post-filter-metadata.md) — FAISS Phase 1 indexing

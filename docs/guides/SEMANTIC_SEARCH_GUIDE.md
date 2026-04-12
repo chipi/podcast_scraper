@@ -2,9 +2,10 @@
 
 Meaning-based retrieval over **Grounded Insights** (insights and quotes), **summary
 bullets**, **transcript chunks**, and **Knowledge Graph** **Topic** / **Entity** nodes
-(when `kg.json` is present) in a pipeline output directory. Phase 1 uses a
-local **FAISS** index (`faiss-cpu`) and the same embedding stack as GIL evidence
-(`embedding_loader`, sentence-transformers).
+(when `kg.json` is present) in a pipeline output directory. The **shipped** implementation
+uses a local **FAISS** index (`faiss-cpu`) and the same embedding stack as GIL evidence
+(`embedding_loader`, sentence-transformers). **Qdrant**, remote services, and other
+platform-scale options are **not implemented** — see **Draft** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
 
 ## When to use it
 
@@ -109,6 +110,7 @@ pipeline output directory. See
 
 ## Related docs
 
-- **RFC-061:** `docs/rfc/RFC-061-semantic-corpus-search.md`
-- **PRD-021:** `docs/prd/PRD-021-semantic-corpus-search.md`
+- **RFC-061 (FAISS, shipped):** [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
+- **RFC-070 (platform / future, Draft):** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
+- **PRD-021:** [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
 - **GIL CLI:** [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)

@@ -1,5 +1,8 @@
 # PRD-NNN: [Feature Name]
 
+- **Status**: Draft | Partial (vX.Y.Z) | Implemented (vX.Y.Z) — use **Implemented** when the
+  capability is shipped; reserve **Completed** for RFC/ADR headers, not PRDs.
+
 ## Summary
 
 [One paragraph describing what this feature does and why it matters. Should be clear and concise, suitable for executive summary.]

@@ -1,39 +1,32 @@
 # RFC-066: Run Comparison Tool — Performance Tab
 
-## Status
-
-**Completed (v2.6.0)** — Streamlit app `tools/run_compare/app.py` exposes **Performance** (`?page=performance`) joining run comparison data with frozen RFC-064 profiles (split from RFC-064)
-
-## RFC Number
-
-066
-
-## Authors
-
-Podcast Scraper Team
-
-## Date
-
-2026-04-09 (stub) · 2026-04-10 (expanded)
-
-## Related RFCs
-
-- `docs/rfc/RFC-064-performance-profiling-release-freeze.md` — Frozen profiles
-  and release freeze framework (provides the data)
-- `docs/rfc/RFC-065-live-pipeline-monitor.md` — Sibling RFC; live monitoring
-  dashboard (also split from RFC-064)
-- `docs/rfc/RFC-047-run-comparison-visual-tool.md` — Existing Streamlit
-  comparison tool (extended by this RFC)
-- `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` — Quality
-  benchmarking framework (quality side of the comparison)
-
-## Related Issues
-
-- [#511](https://github.com/chipi/podcast_scraper/issues/511) — Tracking issue
-- [#510](https://github.com/chipi/podcast_scraper/issues/510) — RFC-064 epic
-  (frozen profiles prerequisite)
-
----
+- **Status**: Completed (v2.6.0) — Streamlit app `tools/run_compare/app.py` exposes **Performance**
+  (`?page=performance`) joining run comparison data with frozen RFC-064 profiles (split from RFC-064).
+- **Authors**: Podcast Scraper Team
+- **Stakeholders**: Maintainers, operators comparing eval runs and release profiles
+- **Related PRDs**:
+  - [PRD-007: AI Quality & Experimentation Platform](../prd/PRD-007-ai-quality-experiment-platform.md) —
+    experiment / comparison tooling (RFC-047, RFC-041)
+- **Related ADRs**:
+  - [ADR-076: Streamlit for operator run comparison and performance views](../adr/ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md) — eval / Performance UI stays in Streamlit
+  - [ADR-075: Frozen YAML performance profiles](../adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md) — profile artifact pattern consumed here
+  - [ADR-014: Codified Comparison Baselines](../adr/ADR-014-codified-comparison-baselines.md)
+  - [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
+  - [ADR-040: Explicit Golden Dataset Versioning](../adr/ADR-040-explicit-golden-dataset-versioning.md)
+- **Related RFCs**:
+  - [RFC-064: Performance profiling and release freeze](RFC-064-performance-profiling-release-freeze.md) —
+    frozen profiles (data source)
+  - [RFC-065: Live pipeline monitor](RFC-065-live-pipeline-monitor.md) — sibling split from RFC-064
+  - [RFC-047: Run comparison visual tool](RFC-047-run-comparison-visual-tool.md) — Streamlit app this
+    RFC extends
+  - [RFC-041: Podcast ML benchmarking framework](RFC-041-podcast-ml-benchmarking-framework.md) — quality
+    side of run comparison
+- **Related Documents**:
+  - [Performance Profile Guide](../guides/PERFORMANCE_PROFILE_GUIDE.md)
+  - [GitHub #511](https://github.com/chipi/podcast_scraper/issues/511) — tracking issue
+  - [GitHub #510](https://github.com/chipi/podcast_scraper/issues/510) — RFC-064 epic (profiles
+    prerequisite)
+- **Updated**: 2026-04-09 (stub), 2026-04-10 (expanded)
 
 ## Abstract
 
@@ -53,7 +46,7 @@ design with profiling infrastructure.
 
 ---
 
-## Motivation
+## Problem Statement
 
 After RFC-064 shipped the `freeze_profile.py` script and `diff_profiles.py`
 terminal diff, we have frozen YAML profiles accumulating in `data/profiles/`.

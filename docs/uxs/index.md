@@ -72,7 +72,7 @@ Authoritative specs; current implementations should conform (see [status lifecyc
 
 | UXS | Title | Related PRDs / RFCs | Description |
 | --- | ----- | ------------------- | ----------- |
-| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | PRD-003, PRD-017, PRD-019, PRD-021, PRD-022, PRD-023; [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md), [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) | Tokens + **Library** + **Digest** tab (PRD-023 / RFC-068); digest discovery on **Digest** only |
+| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | PRD-003, PRD-017, PRD-019, PRD-021, PRD-022, PRD-023, PRD-025; [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md), [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) | Tokens + **Dashboard** (PRD-025 / RFC-071) + **Library** + **Digest** (PRD-023 / RFC-068); digest discovery on **Digest** only |
 
 ## Draft UX specifications
 

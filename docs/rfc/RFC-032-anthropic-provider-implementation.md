@@ -1,6 +1,6 @@
 # RFC-032: Anthropic Provider Implementation (Revised)
 
-- **Status**: Implemented
+- **Status**: Completed (v2.4.0)
 - **Revision**: 3
 - **Date**: 2026-02-04
 - **Authors**:

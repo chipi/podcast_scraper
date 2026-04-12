@@ -91,6 +91,30 @@ and **Proposed** ADRs).
 | [ADR-071](ADR-071-four-tier-summarization-strategy.md) | Four-Tier Summarization Strategy | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | ML Dev / ML Prod / LLM Local / LLM Cloud — direct Llama 3.2:3b beats hybrid (24.3% vs 23.7%, 2x faster) | Yes |
 | [ADR-072](ADR-072-llama32-3b-as-tier3-local-llm.md) | Llama 3.2:3b as Tier 3 Local LLM | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | 3B beats 7-12B models — instruction-following > size; temp=0.3 direct, temp=0.5 hybrid; 26.4% ROUGE-L @ 7.5s/ep | Yes |
 | [ADR-073](ADR-073-rfc057-autoresearch-closure.md) | RFC-057 Autoresearch Loop — Closure and Final State | Accepted | [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) | Closes RFC-057; documents Track A/B outcomes, silver refs, 72-config matrix, production defaults | Yes |
+| [ADR-074](ADR-074-multi-feed-corpus-parent-layout-and-manifest.md) | Multi-Feed Corpus Parent Layout and Machine-Readable Manifest | Accepted | [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md) | Layout A corpus parent; unified discovery; `corpus_manifest.json` / optional summaries as operational artifacts | Yes |
+| [ADR-075](ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md) | Frozen YAML Performance Profiles for Release Resource Baselines | Accepted | [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md) | `data/profiles/*.yaml` + freeze/diff scripts; resource cost sibling to quality baselines | Yes |
+| [ADR-076](ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md) | Streamlit for Operator Run Comparison and Performance Views | Accepted | [RFC-047](../rfc/RFC-047-run-comparison-visual-tool.md), [RFC-066](../rfc/RFC-066-run-compare-performance-tab.md) | Eval / Performance UI stays in `tools/run_compare/`; Vue viewer stays corpus-first | Yes |
+
+## Gap analysis {:#gaps}
+
+**Counts (reconcile when adding ADRs):** **76** files under `docs/adr/ADR-*.md` (ADR-001–ADR-076;
+numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-055**, **ADR-056**),
+**3** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**), **2** **Accepted** with
+**Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.
+
+| Situation | Guidance |
+| --- | --- |
+| **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
+| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest contract: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. |
+| **Proposed ADRs** | Promote **ADR-055** / **ADR-056** to **Accepted** (or supersede) when **RFC-053** / **RFC-054** ship end-to-end. |
+
+**Future triggers:** versioned **`.pipeline_status.json`** if external parsers appear; profile YAML
+stability beyond **RFC-064** + **ADR-075** if non-Python consumers need it; **RFC-070** + **ADR-060**
+when platform vector backends land materially.
+
+**Open decisions without ADRs:** see **Architecture Decision Candidates** below.
+
+**Related:** [PRD gap analysis](../prd/index.md#gaps), [RFC gap analysis](../rfc/index.md#gaps).
 
 ---
 
@@ -111,4 +135,7 @@ These items have been identified as potential architectural decisions but are cu
 
 ## Creating New ADRs
 
-Use the **[ADR Template](ADR_TEMPLATE.md)** to document new architectural decisions. Decisions typically originate from an **[RFC](../rfc/index.md)** that has been accepted and implemented.
+Use the **[ADR Template](ADR_TEMPLATE.md)** to document new architectural decisions. Decisions
+typically originate from an **[RFC](../rfc/index.md)** that has been **reviewed** and often
+**Completed** when implementation lands (RFCs use **Completed**, not **Accepted** — **Accepted**
+is the ADR status).

@@ -57,7 +57,8 @@ graph TD
 * **Purpose**: Defines the **LAW**.
 * **Focus**: The final, immutable decisions extracted from an RFC.
 * **Location**: `docs/adr/`
-* **When to create**: Once an RFC is accepted and the core architectural decisions are finalized.
+* **When to create**: Once an RFC has been **reviewed** and the core architectural decisions are
+  ready to freeze (**RFC** status uses **Draft** / **Completed**; **Accepted** is for **ADRs** only).
 * **Outcome**: A permanent record of the project's architectural principles, providing context for future maintainers.
 
 ---

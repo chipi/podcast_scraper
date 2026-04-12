@@ -2,12 +2,14 @@
 
 This document lists **open work only** — items that are not yet fully implemented. For completed work, see [RFC index](rfc/index.md) (Completed table) and [Release notes](releases/index.md).
 
-**Last audited**: 2026-04-03 (RFC + ADR status audit; see `docs/wip/rfc-status-audit.md`)
+**Last audited**: 2026-04-12 (PRD / RFC / ADR **Gap analysis** sections on each index:
+[`docs/prd/index.md`](prd/index.md#gaps), [`docs/rfc/index.md`](rfc/index.md#gaps),
+[`docs/adr/index.md`](adr/index.md#gaps))
 
 ## Current Status
 
-- **Open RFCs**: 16 (9 partial, 5 not started, 2 narrative/CI-pending)
-- **Completed RFCs**: 46 (core pipeline, 9-provider ecosystem, GIL/KG core, audio, eval, model registry, and more)
+- **Open RFCs**: 17 (includes [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md) Draft; see [RFC index](rfc/index.md))
+- **Completed RFCs**: 55 (see [RFC index](rfc/index.md); includes [RFC-061](rfc/RFC-061-semantic-corpus-search.md) FAISS)
 - **Open PRDs**: 8
 
 ## Tier 1 — Active / Near-Term
@@ -16,7 +18,7 @@ Items currently in progress or next up. High user value or blocking other work.
 
 | Pri | Item | Type | Status | Gaps | Impact |
 | --- | --- | --- | --- | --- | --- |
-| **1** | [RFC-061](rfc/RFC-061-semantic-corpus-search.md) / [PRD-021](prd/PRD-021-semantic-corpus-search.md) | RFC | **Phase 1 done** | Sentence-boundary chunking (ADR-062) tokenizer-only; `gi explore --topic` semantic upgrade (ADR-063) not wired; Phase 2 (Qdrant/service) future | High |
+| **1** | [RFC-070](rfc/RFC-070-semantic-corpus-search-platform-future.md) / [PRD-021](prd/PRD-021-semantic-corpus-search.md) | RFC | **Draft** | [RFC-061](rfc/RFC-061-semantic-corpus-search.md) (FAISS) **Completed**. Open: Qdrant **`VectorStore`**, native filters, pgvector/RFC-051, re-ranking | High |
 | **2** | [RFC-054](rfc/RFC-054-e2e-mock-response-strategy.md) | RFC | **Partial** | E2E mock server exists. Full composable ResponseProfile/Router architecture NOT implemented. Blocks #399 (provider hardening) | High |
 | **3** | [RFC-050](rfc/RFC-050-grounded-insight-layer-use-cases.md) / [PRD-017](prd/PRD-017-grounded-insight-layer.md) | RFC | **Partial** | `gi explore` and `gi query` work. `gi list` missing. Insight Explorer pattern partial | Medium-High |
 | **4** | [RFC-056](rfc/RFC-056-knowledge-graph-layer-use-cases.md) / [PRD-019](prd/PRD-019-knowledge-graph-layer.md) | RFC | **Partial** | `kg validate/inspect/export/entities/topics` work. `kg explore` and `kg list` missing | Medium-High |
@@ -78,7 +80,7 @@ These architectural decisions are accepted/proposed but code does not exist yet:
 ```text
 RFC-058 (diarization) ──► RFC-060 Phase 2 (diarization-enhanced commercial)
 RFC-027 (metrics) ──────► RFC-043 (automated alerts)
-RFC-061 (semantic search) ──► RFC-062 (viewer v2)
+RFC-061 (semantic search, FAISS) ──► RFC-062 (viewer v2); RFC-070 (platform vector) Draft
 PRD-017/019 (GIL/KG) ──► RFC-051 (database projection)
 RFC-054 (E2E mocks) ──► #399 (provider hardening)
 ```

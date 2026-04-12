@@ -35,6 +35,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio design accepted ([ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md)); **implementation not landed** in `main` (no `[diarize]` extra yet) |
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
+| [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Semantic Corpus Search — Platform & Future Backends | PRD-021 | Draft — Qdrant **`VectorStore`**, native filtering, pgvector/RFC-051, re-ranking, digest fusion; split from completed [RFC-061](RFC-061-semantic-corpus-search.md) |
 
 ## Completed RFCs
 
@@ -86,7 +87,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | v2.5.0 | Ollama provider and optimized prompt templates |
 | [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | v2.6.0 | KG ontology, artifacts, and separation from GIL |
 | [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | PRD-007 | v2.6.0 | Closed per [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md); Tracks A/B complete; silver refs + 72-config eval matrix |
-| [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search | PRD-021 | v2.6.0 | FAISS Phase 1, `podcast search`, indexer, semantic `gi explore` when index present ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); Qdrant Phase 2 pending |
+| [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search (FAISS) | PRD-021 | v2.6.0 | Shipped: `FaissVectorStore`, `podcast search` / `index`, embed-and-index, semantic `gi explore`, `/api/search` ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); platform backends — [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) (Draft) |
 | [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-017, PRD-019, PRD-021 | v2.6.0 | FastAPI `podcast serve`, Vue 3 + Vite + Cytoscape SPA, Playwright UI E2E ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)); platform routes remain v2.7 per ADR-064 |
 | [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) | Multi-Feed Corpus, Append/Resume, and Unified Discovery | #440+ | v2.6.0 | N feeds, layout A, opt-in append; unified index (#505); `corpus_manifest.json` / run summary (#506); extends RFC-004; see [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) |
 | [RFC-064](RFC-064-performance-profiling-release-freeze.md) | Performance Profiling and Release Freeze Framework | - | v2.6.0 | Frozen profiles under `data/profiles/`, `scripts/eval/freeze_profile.py`, `diff_profiles.py`, `make profile-freeze` / `profile-diff`; [guide](../guides/PERFORMANCE_PROFILE_GUIDE.md) |
@@ -95,6 +96,25 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-067](RFC-067-corpus-library-api-viewer.md) | Corpus Library — Catalog API & Viewer | PRD-022 | v2.6.0 | Filesystem-first `/api/corpus/*`, Library tab, episode detail, FAISS similar episodes, handoffs to graph and `/api/search` (Phases 1–3) |
 | [RFC-068](RFC-068-corpus-digest-api-viewer.md) | Corpus Digest — API & Viewer | PRD-023 | v2.6.0 | `GET /api/corpus/digest`, Digest tab, Library 24h glance, feed diversity, semantic topic bands; `corpus_digest_api` on `/api/health` |
 | [RFC-069](RFC-069-graph-exploration-toolkit.md) | GI/KG Viewer — Graph Exploration Toolkit | PRD-024 | v2.6.0 | Zoom controls, % readout, Shift+drag box zoom, minimap v1, degree-bucket filter, built-in layouts, edge filters; extends RFC-062 |
+| [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (GI/KG Viewer) | PRD-025 | v2.6.0 | **Dashboard** tab: **`/api/corpus/*`** aggregates + Chart.js (**Pipeline** / **Content intelligence**); manifest + capped **`run.json`** discovery; index/digest/GI-KG timelines; [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md) |
+
+## Gap analysis {:#gaps}
+
+**Counts (reconcile when moving RFCs):** **70** files under `docs/rfc/RFC-*.md` — IDs **RFC-001–RFC-071**
+with **no RFC-014**. **14** open and **56** completed in the tables above.
+
+**Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**), pipeline
+metrics (**RFC-027**), continuous review (**RFC-038**), metrics alerts (**RFC-043**), GIL/KG use cases
+and Postgres projection (**RFC-050**, **RFC-051**, **RFC-056**), adaptive summarization routing
+(**RFC-053**), E2E mock composition (**RFC-054**), diarization and cleaning (**RFC-058**–**RFC-060**;
+**RFC-058** is design-accepted, **not** fully landed in `main`), semantic search **platform** draft
+(**RFC-070**; **RFC-061** FAISS path is **Completed**).
+
+**Closed program:** [RFC-057](RFC-057-autoresearch-optimization-loop.md) — **Completed**; closure summary
+in [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md).
+
+**Maintenance:** Edit each RFC **`Status`** line when you move its row between **Open** and **Completed**.
+Product gaps: [PRD gap analysis](../prd/index.md#gaps). Decision records: [ADR gap analysis](../adr/index.md#gaps).
 
 ## Quick Links
 
@@ -107,3 +127,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 ## Creating New RFCs
 
 Use the **[RFC Template](RFC_TEMPLATE.md)** as a starting point for new technical design documents.
+
+**Status vocabulary:** Use **Draft** while in flight and **Completed** when shipped (optionally with
+version or caveats in the same line). Do not use **Accepted** for RFCs — that label is for **ADRs**
+only.

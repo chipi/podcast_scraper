@@ -476,12 +476,13 @@ restore script to replace it.
 
 ## Semantic corpus search (RFC-061) {#semantic-corpus-search-rfc-061}
 
-Optional **vector index** under `<output_dir>/search/` for meaning-based retrieval over
+Optional **FAISS** vector index under `<output_dir>/search/` for meaning-based retrieval over
 GIL, summaries, and transcripts. Enable with **`vector_search: true`** in config (YAML
 keys mirror `Config`: `vector_index_path`, `vector_embedding_model`,
 `vector_chunk_size_tokens`, `vector_chunk_overlap_tokens`). The pipeline runs
 embed-and-index after finalize when enabled; you can also run **`podcast index`** /
 **`podcast search`** and get **semantic `gi explore --topic`** when the index exists.
+**Qdrant** and other platform backends are **Draft** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
 
 **Full guide:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
 

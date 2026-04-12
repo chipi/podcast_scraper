@@ -11,6 +11,8 @@ Product Requirements Documents (PRDs) define the **what** and **why** behind eac
 
 PRDs serve as the foundation for technical design (RFCs) and help ensure features align with user needs and project goals.
 
+**Status vocabulary:** Shipped PRDs use **`Implemented (vX.Y.Z)`** (or **`Partial`** / **`Draft`** while in flight). Use **`Completed`** for **RFC** and **ADR** status lines, not for PRD headers — keeps product docs consistent with the PRD index.
+
 Features with meaningful **UI** may also link **[UX specifications](../uxs/index.md)** (UXS) for tokens, layout, and accessibility; RFCs then reference that UX contract alongside the PRD.
 
 ## How PRDs Work
@@ -32,7 +34,7 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-042, 044, 052, 055, 056, 051 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[055](../rfc/RFC-055-knowledge-graph-layer-core.md) done; [RFC-056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md), [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) open |
 | [PRD-020](PRD-020-audio-speaker-diarization.md) | Audio-Based Speaker Diarization & Commercial Cleaning | RFC-058, RFC-059, RFC-060 | True speaker diarization via pyannote.audio; downstream commercial content cleaning |
 
-## Completed PRDs
+## Implemented PRDs
 
 | PRD | Title | Version | Related RFCs | Description |
 | --- | ----- | ------- | ------------ | ----------- |
@@ -49,10 +51,34 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 | [PRD-012](PRD-012-gemini-provider-integration.md) | Google Gemini Provider Integration | v2.5.0 | RFC-035 | Google Gemini - 2M context, native audio |
 | [PRD-013](PRD-013-grok-provider-integration.md) | Grok Provider Integration (xAI) | v2.5.0 | RFC-036 | Grok - xAI's AI model with real-time information access |
 | [PRD-014](PRD-014-ollama-provider-integration.md) | Ollama Provider Integration | v2.5.0 | RFC-037 | Ollama - fully local/offline, zero cost |
-| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | v2.6.0 | RFC-061, 062 | FAISS Phase 1, `podcast search` / `podcast index`, semantic `gi explore`, viewer v2 + `podcast serve`; Qdrant Phase 2 ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)) future |
+| [PRD-021](PRD-021-semantic-corpus-search.md) | Semantic Corpus Search | v2.6.0 | RFC-061, 062, 070 | Shipped: FAISS, `podcast search` / `podcast index`, semantic `gi explore`, viewer + `podcast serve` ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)); platform backends / Qdrant — Draft [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) |
 | [PRD-022](PRD-022-corpus-library-episode-browser.md) | Corpus Library & Episode Browser | v2.6.0 | RFC-067, 062, 061, 063 | Filesystem-first catalog in viewer: feeds/episodes, summaries, similar episodes, handoff to graph and semantic search ([RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) Phases 1–3) |
 | [PRD-023](PRD-023-corpus-digest-recap.md) | Corpus Digest & Library Glance | v2.6.0 | RFC-068, 067, 061, 062 | Digest tab + 24h Library glance: diverse recent episodes, global topic bands, GI/KG badges, search/graph handoffs ([RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md)) |
 | [PRD-024](PRD-024-graph-exploration-toolkit.md) | GI/KG Graph Exploration Toolkit | v2.6.0 | RFC-069, 062 | Graph tab toolkit: zoom 100%/%, Shift+drag box zoom, minimap v1, degree bucket filter, built-in layouts, edge filters ([RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md)) |
+| [PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (GI/KG Viewer) | v2.6.0 | RFC-071, 062, 063, 061, 067, 068 | **Dashboard** tab: **Pipeline** vs **Content intelligence** Chart.js panels; corpus stats, manifest, **`run.json`** scan, index/digest glance ([RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)) |
+
+## Gap analysis {:#gaps}
+
+**Counts (reconcile when adding PRDs):** **25** PRD documents — **7** open above, **18** implemented.
+Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers — not **`Completed`**
+(that label is for RFCs and ADRs).
+
+| Gap type | What to do |
+| --- | --- |
+| **Partial PRD** | Finish the **open** RFCs named in that row before promoting the PRD to **Implemented**. |
+| **Implemented PRD + open RFC** | Expected when the RFC is a **future** slice (e.g. [PRD-021](PRD-021-semantic-corpus-search.md) and Draft [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)). |
+| **Viewer / UI** | [UX specifications](../uxs/index.md) and the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md). |
+| **Architecture vs code** | [ADR index — Gap analysis](../adr/index.md#gaps) **Code** column. |
+
+**Open-program themes:** experiments and benchmark CI ([PRD-007](PRD-007-ai-quality-experiment-platform.md)),
+engineering governance ([PRD-015](PRD-015-engineering-governance-productivity.md)), ops observability gaps
+([PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) — distinct from viewer
+[PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md)), GIL/KG/DB
+([PRD-017](PRD-017-grounded-insight-layer.md), [PRD-018](PRD-018-database-projection-gil-kg.md),
+[PRD-019](PRD-019-knowledge-graph-layer.md)), diarization and cleaning ([PRD-020](PRD-020-audio-speaker-diarization.md)).
+
+**Related:** [RFC gap analysis](../rfc/index.md#gaps) (technical backlog), [ADR gap analysis](../adr/index.md#gaps)
+(decisions and implementation state).
 
 ## Quick Links
 

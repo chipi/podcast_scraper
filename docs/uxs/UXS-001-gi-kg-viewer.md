@@ -10,8 +10,10 @@
   - [PRD-022: Corpus Library & Episode Browser](../prd/PRD-022-corpus-library-episode-browser.md) (library tab / catalog)
   - [PRD-023: Corpus Digest & Library Glance](../prd/PRD-023-corpus-digest-recap.md) (Digest tab — discovery; PRD may still describe historical Library glance)
   - [PRD-024: Graph exploration toolkit](../prd/PRD-024-graph-exploration-toolkit.md) (graph chrome: zoom, layout, filters)
+  - [PRD-025: Corpus intelligence dashboard](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md) (**Dashboard** tab: Pipeline vs Content intelligence charts)
 - **Related RFCs**:
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-071: Corpus intelligence dashboard](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md) (APIs, chart composition)
   - [RFC-069: Graph exploration toolkit](../rfc/RFC-069-graph-exploration-toolkit.md) (Cytoscape controls, minimap, degree filter)
   - [RFC-067: Corpus Library API & Viewer](../rfc/RFC-067-corpus-library-api-viewer.md) (catalog APIs, handoffs — behavioral detail in RFC)
   - [RFC-068: Corpus Digest API & Viewer](../rfc/RFC-068-corpus-digest-api-viewer.md) (digest API, **Digest** tab — behavioral detail in RFC)

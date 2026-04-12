@@ -3,6 +3,8 @@
 - **Status**: Completed
 - **Authors**: Marko Dragoljevic
 - **Stakeholders**: ML evaluation team, Core developers
+- **Related ADRs**:
+  - [ADR-076: Streamlit for operator run comparison and performance views](../adr/ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md)
 - **Related RFCs**:
   - `docs/rfc/RFC-015-ai-experiment-pipeline.md` (AI Experiment Pipeline)
   - `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` (Benchmarking Framework)
