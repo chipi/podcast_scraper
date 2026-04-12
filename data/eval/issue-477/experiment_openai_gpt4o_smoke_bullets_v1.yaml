@@ -1,5 +1,7 @@
 # Experiment: GPT-4o JSON bullet summaries on smoke dataset (5 episodes).
 #
+# **Issue #477** — canonical copy lives in ``data/eval/issue-477/`` (see README.md here).
+#
 # This is a **normal experiment config** — its ``id`` is the **run id** under
 # ``data/eval/runs/<id>/``. It is **not** a silver reference until you **promote** a
 # successful run with ``make run-promote``; only then does e.g.

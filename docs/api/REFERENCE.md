@@ -90,7 +90,11 @@ class Config(BaseModel)
 #### RSS Feed Configuration
 
 - `rss_url` (`Optional[str]`, alias: `"rss"`): RSS feed URL to scrape. Required unless loading from config file.
-- `max_episodes` (`Optional[int]`, alias: `"max_episodes"`): Maximum number of episodes to process. If `None`, processes all episodes.
+- `max_episodes` (`Optional[int]`, alias: `"max_episodes"`): Maximum number of episodes to process after order, optional date filter, and offset. If `None`, no cap at this step (all items that passed prior filters are processed).
+- `episode_order` (`Literal["newest","oldest"]`, default: `"newest"`, alias: `"episode_order"`): RSS item order before date filtering and offset. `newest` keeps document order; `oldest` reverses the list (GitHub #521).
+- `episode_offset` (`int`, default: `0`, alias: `"episode_offset"`): Number of items to skip after order and optional date filter (GitHub #521).
+- `episode_since` (`Optional[date]`, alias: `"episode_since"`): Inclusive lower bound on episode publication date (`pubDate` → calendar date; timezone-aware values use UTC date). `None` means no lower bound (GitHub #521).
+- `episode_until` (`Optional[date]`, alias: `"episode_until"`): Inclusive upper bound on episode publication date. `None` means no upper bound. When both bounds are set, `episode_since` must be on or before `episode_until` (GitHub #521).
 
 #### Output Configuration
 

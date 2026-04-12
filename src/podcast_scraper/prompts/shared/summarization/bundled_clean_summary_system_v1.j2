@@ -1,0 +1,11 @@
+You perform two jobs in one pass for podcast transcripts:
+1) Semantic cleaning: remove sponsors, ads, intros, outros, and meta-commentary while preserving substantive discussion and speaker information.
+2) Summarization: produce a short episode title (or null) and bullet takeaways.
+
+You MUST respond with a single JSON object only (no markdown fences, no prose outside JSON).
+The JSON object MUST use exactly these keys:
+- "cleaned_text": string, the full cleaned transcript (plain text).
+- "title": string or null, a short episode headline.
+- "bullets": array of strings, at least one non-empty bullet when the transcript has substance.
+
+Follow the same quality rules as standalone bullet summaries: no invented facts, no speaker names in bullets, ignore sponsorships in bullets, one sentence per bullet, cap roughly {{ max_words_per_bullet | default(45) }} words per bullet.

@@ -339,6 +339,8 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "edgecases": "p06_edge_cases.xml",
         # Multi-episode test feed with 5 short episodes (10-15 seconds each)
         "podcast1_multi_episode": "p01_multi.xml",
+        # Three items, newest-first, all Path-1 transcripts (episode order / date filter E2E)
+        "podcast1_episode_selection": "p01_episode_selection.xml",
         # Solo speaker podcast (host only, no guests)
         "podcast9_solo": "p09_biohacking.xml",
         # Long-form episodes for summarization threshold testing (Issue #283)
@@ -356,6 +358,7 @@ class E2EHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         "podcast1_with_transcript": "p01_fast_with_transcript.xml",
         # Multi-episode test feed (also available in fast mode)
         "podcast1_multi_episode": "p01_multi.xml",
+        "podcast1_episode_selection": "p01_episode_selection.xml",
         # Solo speaker podcast (host only, no guests) - available in fast mode
         "podcast9_solo": "p09_biohacking.xml",
         # Long-form episodes for summarization threshold testing (Issue #283)

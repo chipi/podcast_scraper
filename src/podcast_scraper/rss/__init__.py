@@ -29,6 +29,7 @@ from .parser import (
     find_enclosure_media,
     find_transcript_urls,
     parse_rss_items,
+    published_date_for_episode_filter,
 )
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     "find_enclosure_media",
     "find_transcript_urls",
     "parse_rss_items",
+    "published_date_for_episode_filter",
 ]

@@ -1,0 +1,18 @@
+Podcast episode transcript (clean pattern-based noise first; apply semantic cleaning in your output):
+
+{% if title %}
+Episode Title: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Output rules (strict):
+- Return ONLY valid JSON. Your response must start with `{` and end with `}`. No markdown, no code fences, no prose.
+- Required shape: {"cleaned_text": "...", "title": null or string, "bullets": ["...", ...]}
+- Include at least {{ bullet_min | default(3) }} distinct takeaway(s) when the transcript has enough substance; fewer only for very short or sparse content.
+- Aim for 6–8 bullets for a typical episode; fewer only if content is genuinely sparse.
+{% if bullet_max is defined and bullet_max %}
+- Do not exceed {{ bullet_max }} bullets total.
+{% endif %}
+- "cleaned_text" must contain the full transcript after semantic cleaning (not an excerpt).

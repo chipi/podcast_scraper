@@ -1,0 +1,30 @@
+# Experiment: GPT-4o bundled clean+summary+bullets on benchmark (10 episodes, Issue #477).
+#
+# **Canonical copy:** ``data/eval/issue-477/`` (see README.md here).
+#
+# Optional REFERENCE: silver_sonnet46_benchmark_bullets_v1 (bullet silver on benchmark).
+# There is no checked-in silver_gpt4o_benchmark_bullets_v1; promote if you need GPT-4o bullets.
+#
+# Requires: OPENAI_API_KEY
+
+id: "experiment_openai_gpt4o_benchmark_bundled_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+llm_pipeline_mode: "bundled"

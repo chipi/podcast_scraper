@@ -230,16 +230,18 @@ def generate_episode_metadata(
 Capture relevant configuration fields in metadata:
 
 ```python
-
 config_snapshot = {
     "language": cfg.language,
     "whisper_model": cfg.whisper_model if cfg.transcribe_missing else None,
     "auto_speakers": cfg.auto_speakers,
     "screenplay": cfg.screenplay,
     "max_episodes": cfg.max_episodes,
+    "episode_order": cfg.episode_order,
+    "episode_offset": cfg.episode_offset,
+    "episode_since": cfg.episode_since.isoformat() if cfg.episode_since else None,
+    "episode_until": cfg.episode_until.isoformat() if cfg.episode_until else None,
 }
-
-```python
+```
 
 1. **Feed Metadata**: Extract from `RssFeed` object and RSS parsing
    - **Feed ID Generation**: Generate stable unique identifier from feed URL (see ID Generation Strategy below)

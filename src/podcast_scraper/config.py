@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import warnings
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Literal, Optional, TYPE_CHECKING
 from urllib.parse import urlparse
@@ -559,6 +560,10 @@ class Config(BaseModel):
         rss_url: RSS feed URL to scrape. Required unless loading from config file.
         output_dir: Output directory path. Auto-generated from RSS URL if not provided.
         max_episodes: Maximum number of episodes to process. None processes all episodes.
+        episode_order: ``newest`` (feed document order) or ``oldest`` (reversed) before filters.
+        episode_offset: Items to skip after order and optional date filter (GitHub #521).
+        episode_since: Optional inclusive lower bound on episode pubDate (calendar date).
+        episode_until: Optional inclusive upper bound on episode pubDate (calendar date).
         user_agent: HTTP User-Agent header for requests.
         timeout: Request timeout in seconds (minimum: 1).
         delay_ms: Delay between requests in milliseconds.
@@ -659,6 +664,39 @@ class Config(BaseModel):
         "Can be set via OUTPUT_DIR environment variable.",
     )
     max_episodes: Optional[int] = Field(default=None, alias="max_episodes")
+    episode_order: Literal["newest", "oldest"] = Field(
+        default="newest",
+        alias="episode_order",
+        description=(
+            "RSS item order before date filter and offset/limit: newest keeps document order; "
+            "oldest reverses (GitHub #521)."
+        ),
+    )
+    episode_offset: int = Field(
+        default=0,
+        alias="episode_offset",
+        description=(
+            "Skip this many items after order and optional date filter, before max_episodes "
+            "(GitHub #521)."
+        ),
+    )
+    episode_since: Optional[date] = Field(
+        default=None,
+        alias="episode_since",
+        description=(
+            "Keep items with pubDate on or after this calendar date (UTC date for "
+            "timezone-aware pubDate). Items without a parseable date are kept; see logs "
+            "(GitHub #521)."
+        ),
+    )
+    episode_until: Optional[date] = Field(
+        default=None,
+        alias="episode_until",
+        description=(
+            "Keep items with pubDate on or before this calendar date (UTC date for "
+            "timezone-aware pubDate). Items without a parseable date are kept (GitHub #521)."
+        ),
+    )
     user_agent: str = Field(default=DEFAULT_USER_AGENT, alias="user_agent")
     timeout: int = Field(default=DEFAULT_TIMEOUT_SECONDS, alias="timeout")
     transcription_timeout: Optional[int] = Field(
@@ -1647,9 +1685,7 @@ class Config(BaseModel):
     vector_backend: Literal["faiss", "qdrant"] = Field(
         default="faiss",
         alias="vector_backend",
-        description=(
-            "Vector index backend. Phase 1: faiss only; qdrant deferred (RFC-061 Phase 2)."
-        ),
+        description=("Vector index backend. Shipped: faiss only; qdrant deferred (RFC-070)."),
     )
     vector_index_types: Optional[
         List[Literal["insight", "quote", "summary", "transcript", "kg_topic", "kg_entity"]]
@@ -2007,6 +2043,25 @@ class Config(BaseModel):
             "Transcript cleaning strategy (default: 'hybrid'). "
             "Options: 'pattern' (pattern-based only), 'llm' (LLM-based only), "
             "'hybrid' (pattern-based + conditional LLM when needed)."
+        ),
+    )
+    llm_pipeline_mode: Literal["staged", "bundled"] = Field(
+        default="staged",
+        alias="llm_pipeline_mode",
+        description=(
+            "LLM transcript pipeline for cleaning + summary + bullets (Issue #477). "
+            "'staged' = separate semantic clean and summarize calls (default). "
+            "'bundled' = one structured completion when the summary provider implements "
+            "summarize_bundled (OpenAI/Anthropic/Gemini); falls back to staged on failure."
+        ),
+    )
+    llm_bundled_max_output_tokens: int = Field(
+        default=16384,
+        ge=256,
+        alias="llm_bundled_max_output_tokens",
+        description=(
+            "Max completion/output tokens for bundled clean+summary+bullets calls "
+            "(large default: output includes full cleaned transcript JSON)."
         ),
     )
     # ML generation parameters (all defaults come from Config, no hardcoded values)
@@ -2626,6 +2681,29 @@ class Config(BaseModel):
         except (TypeError, ValueError) as exc:
             raise ValueError("max_episodes must be an integer") from exc
         return parsed if parsed > 0 else None
+
+    @field_validator("episode_order", mode="before")
+    @classmethod
+    def _normalize_episode_order(cls, value: Any) -> str:
+        if value is None or value == "":
+            return "newest"
+        s = str(value).strip().lower()
+        if s not in ("newest", "oldest"):
+            raise ValueError("episode_order must be 'newest' or 'oldest'")
+        return s
+
+    @field_validator("episode_offset", mode="before")
+    @classmethod
+    def _coerce_episode_offset(cls, value: Any) -> int:
+        if value is None or value == "":
+            return 0
+        try:
+            offset = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("episode_offset must be an integer") from exc
+        if offset < 0:
+            raise ValueError("episode_offset must be non-negative")
+        return offset
 
     @field_validator("timeout", mode="before")
     @classmethod
@@ -3658,6 +3736,17 @@ class Config(BaseModel):
         Raises:
             ValueError: If any validation check fails
         """
+        # Episode selection (GitHub #521)
+        if (
+            self.episode_since is not None
+            and self.episode_until is not None
+            and self.episode_since > self.episode_until
+        ):
+            raise ValueError(
+                f"episode_since ({self.episode_since}) must be on or before "
+                f"episode_until ({self.episode_until})"
+            )
+
         # === Summary Settings Validation ===
 
         # 1. Validate ML params structure (always present now, with defaults from Config)

@@ -17,7 +17,7 @@ Experiment configs are **inputs** to the experiment runner. They specify:
 
 ```text
 configs/
-├── summarization/          # Autoresearch paragraph-track configs (autoresearch_prompt_*_paragraph_v1)
+├── summarization/          # Paragraph-track configs (autoresearch_prompt_*_paragraph_v1)
 ├── summarization_bullets/  # Autoresearch bullets-track configs (autoresearch_prompt_*_bullets_v1)
 ├── silver_selection/       # Silver reference candidate configs (silver_candidate_*, silver_openai_*)
 ├── ml/                     # HuggingFace / hybrid ML baseline configs (baseline_ml_*, hybrid_ml_*)
@@ -25,6 +25,10 @@ configs/
 ├── _archive/               # Archived old configs
 └── *.yaml                  # One-off experiments and legacy configs (llm_*, gil_*, kg_*, etc.)
 ```
+
+**Issue #477 (bundled LLM smoke/benchmark):** canonical YAMLs live under
+[`data/eval/issue-477/`](../issue-477/README.md) (not under `configs/`), with a local README and
+commands.
 
 ## Structure
 
@@ -96,6 +100,8 @@ Configs are referenced when running experiments:
 
 ```bash
 make experiment-run CONFIG=data/eval/configs/summarization/autoresearch_prompt_openai_smoke_paragraph_v1.yaml
+make experiment-run CONFIG=data/eval/issue-477/experiment_openai_gpt4o_smoke_paragraph_v1.yaml \
+  REFERENCE=silver_gpt4o_smoke_v1
 make experiment-run CONFIG=data/eval/configs/silver_selection/silver_candidate_anthropic_sonnet46_smoke_v1.yaml
 make experiment-run CONFIG=data/eval/configs/my_experiment.yaml  # root for one-offs
 ```

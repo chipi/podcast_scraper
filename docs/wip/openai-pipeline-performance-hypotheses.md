@@ -98,3 +98,4 @@ the same machine.
 2. When optimizing, pick **one** lever (e.g. cleaning model, `max_episodes`, concurrency) per
    experiment so `profile-diff` stays interpretable.
 3. Revisit this list after RFC-066 / compare UI automates run-to-run stage tables.
+4. Bundled clean+summary experiment plan and configs: [issue-477-llm-bundle-experiment-plan.md](issue-477-llm-bundle-experiment-plan.md).

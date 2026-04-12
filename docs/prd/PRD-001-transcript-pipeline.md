@@ -52,7 +52,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 - **FR5**: Persist transcripts using deterministic filenames `<episode_number> - <title>[ _<run_suffix>].<ext>` in a derived output directory (`output/rss_<host>_<hash>` by default).
 - **FR6**: Provide `--skip-existing` semantics so reprocessing avoids already-downloaded episodes.
 - **FR7**: Provide `--dry-run` mode that logs planned work (including file destinations) without touching disk.
-- **FR8**: Allow `--max-episodes` to cap the number of items processed.
+- **FR8**: Allow **`--max-episodes`** to cap the number of items processed after other selection steps, and support **episode selection** via order (`--episode-order`), publish-date bounds (`--since` / `--until`), and offset (`--episode-offset`) as in [CONFIGURATION.md](../api/CONFIGURATION.md#episode-selection-github-521) (GitHub #521).
 - **FR9**: Emit structured logs + progress updates friendly to terminal usage (leveraging progress abstraction).
 - **FR10**: Support optional inter-request delay (`--delay-ms`) for rate-limited feeds.
 
@@ -77,7 +77,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 ## Open Questions
 
-- Should we support filtering by publish date or keyword in addition to `--max-episodes`? (Future consideration.)
+- **Publish-date filtering:** Implemented for calendar-day bounds (`episode_since` / `episode_until`, CLI `--since` / `--until`). Keyword-based RSS filtering remains a future consideration.
 - Do we need per-episode metadata exports (JSON summaries) alongside transcripts? Not in scope for v1.
 
 ## RFC-010 Integration

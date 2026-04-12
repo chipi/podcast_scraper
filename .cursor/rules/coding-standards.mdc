@@ -93,6 +93,50 @@ logger.error(f"Pipeline failed: {error}", exc_info=True)
 - Use `logging`, never `print()`
 - Run `make format` proactively during development
 
+## CodeQL Path-Injection (`py/path-injection`)
+
+CodeQL does **not** track sanitization across function boundaries.
+Calling a helper like `safe_relpath_under_corpus_root()` or
+`safe_resolve_directory()` is not enough — CodeQL cannot see the
+`normpath` + `startswith` that happened inside the helper.
+
+**Required pattern** (every function that touches the filesystem
+with user-influenced paths):
+
+1. Call the helper to get a sanitized string.
+2. **Re-apply** `os.path.normpath()` + `.startswith(safe_prefix)`
+   **inline** in the same function, on the same variable, before
+   any filesystem sink (`os.path.isfile`, `open`, etc.).
+3. Use the **guarded string** directly in `os.path.isfile(s)` and
+   `open(s)` — do **not** wrap it back in `Path(s).is_file()` or
+   `Path(s).read_text()` (CodeQL loses taint tracking through the
+   `Path()` constructor).
+
+```python
+# Working pattern (matches corpus_scope.py, corpus_catalog.py):
+root_s = os.path.normpath(str(root))
+safe_prefix = root_s + os.sep
+
+safe = safe_relpath_under_corpus_root(root, user_rel)
+if safe is not None:
+    safe = os.path.normpath(safe)
+    if safe.startswith(safe_prefix) and os.path.isfile(safe):
+        with open(safe, encoding="utf-8") as fh:
+            doc = json.loads(fh.read())
+```
+
+**Do not:**
+
+- Use `Path(safe).is_file()` or `Path(safe).read_text()` after
+  the helper — CodeQL loses the sanitization through `Path()`.
+- Rely on `# codeql[py/path-injection]` comments alone — they are
+  documentation, not suppression directives.
+- Use `.resolve()` or `.expanduser()` on tainted `Path` objects
+  without an inline `normpath` + `startswith` guard afterward.
+
+Reference files that pass CodeQL: `search/corpus_scope.py`,
+`server/corpus_catalog.py`, `server/routes/corpus_binary.py`.
+
 ## Shippable Code Standard
 
 Before considering work complete, run:
@@ -107,6 +151,7 @@ Code must pass linting, formatting, AND tests after every session.
 
 ---
 
-**Version:** 1.0
+**Version:** 1.1
 **Created:** 2026-02-09
+**Updated:** 2026-04-11 (added CodeQL path-injection pattern)
 **Source:** Extracted from `.cursorrules` v1.0

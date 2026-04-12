@@ -1,0 +1,37 @@
+# Experiment: GPT-4o **paragraph** summaries on smoke dataset (5 episodes).
+#
+# **Issue #477** — canonical copy lives in ``data/eval/issue-477/`` (see README.md here).
+#
+# Symmetric with ``experiment_openai_gpt4o_smoke_bullets_v1.yaml`` in this folder:
+# same backend model (``gpt-4o``), dataset (``curated_5feeds_smoke_v1``), preprocessing
+# (``cleaning_v4``), and generation params — different prompt track (prose vs JSON bullets).
+#
+# Pair with silver: ``silver_gpt4o_smoke_v1`` (``long_v1`` user prompt; paragraph in
+# ``summary_final``).
+#
+# Use for Issue #477 **Track B** (regression guard) so paragraph smoke matches bullet smoke
+# model tier. Autoresearch keeps ``autoresearch_prompt_openai_smoke_paragraph_v1`` on
+# ``gpt-4o-mini`` for cheaper prompt-tuning loops.
+#
+# Requires: OPENAI_API_KEY in environment (or .env).
+
+id: "experiment_openai_gpt4o_smoke_paragraph_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  system: "openai/summarization/system_v1"
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

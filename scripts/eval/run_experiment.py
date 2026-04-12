@@ -144,7 +144,86 @@ def _eval_podcast_scraper_config_overrides(experiment_cfg: ExperimentConfig) -> 
     out: Dict[str, Any] = {}
     if experiment_cfg.transcript_cleaning_strategy is not None:
         out["transcript_cleaning_strategy"] = experiment_cfg.transcript_cleaning_strategy
+    if experiment_cfg.llm_pipeline_mode is not None:
+        out["llm_pipeline_mode"] = experiment_cfg.llm_pipeline_mode
     return out
+
+
+def _eval_summarize(
+    provider: Any,
+    cfg_obj: Any,
+    text: str,
+    summary_params: Dict[str, Any],
+    pipeline_metrics: Any,
+) -> Any:
+    """Call summarize or summarize_bundled based on Config.llm_pipeline_mode (Issue #477)."""
+    mode = getattr(cfg_obj, "llm_pipeline_mode", "staged")
+    if mode == "bundled":
+        bundled = getattr(provider, "summarize_bundled", None)
+        if not callable(bundled):
+            raise ValueError(
+                "Experiment llm_pipeline_mode=bundled requires a provider with "
+                f"summarize_bundled (got {type(provider).__name__})."
+            )
+        return bundled(
+            text,
+            episode_title=None,
+            episode_description=None,
+            params=summary_params,
+            pipeline_metrics=pipeline_metrics,
+            call_metrics=None,
+        )
+    return provider.summarize(
+        text,
+        episode_title=None,
+        episode_description=None,
+        params=summary_params,
+        pipeline_metrics=pipeline_metrics,
+        call_metrics=None,
+    )
+
+
+def _log_eval_pipeline_cost_report(cfg_obj: Any, finish_dict: Dict[str, Any]) -> None:
+    """Log token totals and rough USD estimates from accumulated eval Metrics.finish()."""
+    from podcast_scraper.workflow.helpers import calculate_provider_cost
+
+    sp = str(getattr(cfg_obj, "summary_provider", ""))
+    model_attr = {
+        "openai": "openai_summary_model",
+        "anthropic": "anthropic_summary_model",
+        "gemini": "gemini_summary_model",
+        "mistral": "mistral_summary_model",
+        "grok": "grok_summary_model",
+        "deepseek": "deepseek_summary_model",
+        "ollama": "ollama_summary_model",
+    }
+    attr = model_attr.get(sp)
+    model = str(getattr(cfg_obj, attr, "") or "") if attr else ""
+    lines = ["Eval pipeline LLM snapshot (from accumulated Metrics.finish()):"]
+    by_stage = finish_dict.get("llm_token_totals_by_stage") or {}
+    for stage, blob in sorted(by_stage.items()):
+        if not isinstance(blob, dict):
+            continue
+        calls = int(blob.get("calls") or 0)
+        if calls <= 0:
+            continue
+        inp = int(blob.get("input") or 0)
+        out = int(blob.get("output") or 0)
+        usd = None
+        if sp and model:
+            usd = calculate_provider_cost(
+                cfg_obj,
+                sp,
+                "summarization",
+                model,
+                prompt_tokens=inp,
+                completion_tokens=out,
+            )
+        usd_s = f"{usd:.6f}" if usd is not None else "n/a"
+        lines.append(f"  {stage}: calls={calls} in={inp} out={out} ~USD={usd_s}")
+    te = finish_dict.get("total_episode_estimated_cost_usd")
+    lines.append(f"  total_episode_estimated_cost_usd (from per-episode rows): {te}")
+    logger.info("\n".join(lines))
 
 
 def _episode_summary_params(cfg: ExperimentConfig) -> Dict[str, Any]:
@@ -382,6 +461,7 @@ def run_experiment(  # noqa: C901
     smoke_inference_only: bool = False,
     score_only: bool = False,
     force: bool = False,
+    cost_report: bool = False,
 ) -> None:
     """Run a single experiment described by ExperimentConfig.
 
@@ -403,6 +483,7 @@ def run_experiment(  # noqa: C901
             predictions.jsonl (scoring only)
         force: If True, delete existing run directory before starting.
             Useful for re-running experiments during development.
+        cost_report: If True, write eval_pipeline_metrics.json and log token / rough USD snapshot.
 
     Raises:
         ValueError: If contract validation fails
@@ -1114,6 +1195,12 @@ def run_experiment(  # noqa: C901
         total_chars_in = 0
         total_chars_out = 0
 
+        eval_llm_metrics = None
+        if cfg.task == "summarization":
+            from podcast_scraper.workflow import metrics as _eval_pipeline_metrics
+
+            eval_llm_metrics = _eval_pipeline_metrics.Metrics()
+
         with open(predictions_path, "w", encoding="utf-8") as pred_f:
             for path in input_files:
                 episode_id = episode_id_from_path(path, cfg.data)
@@ -1222,7 +1309,23 @@ def run_experiment(  # noqa: C901
                             summary_params = {
                                 "preprocessing_profile": cfg.preprocessing_profile,
                             }
-                        summary_result = provider.summarize(text, params=summary_params)
+                        if eval_llm_metrics is not None:
+                            summary_result = _eval_summarize(
+                                provider,
+                                cfg_obj,
+                                text,
+                                summary_params,
+                                eval_llm_metrics,
+                            )
+                        else:
+                            summary_result = provider.summarize(
+                                text,
+                                episode_title=None,
+                                episode_description=None,
+                                params=summary_params,
+                                pipeline_metrics=None,
+                                call_metrics=None,
+                            )
                         if isinstance(summary_result, dict):
                             summary = summary_result.get("summary", "")
                             intermediates = summary_result.get("intermediates")
@@ -1512,6 +1615,17 @@ def run_experiment(  # noqa: C901
                 f"Average compression: {avg_compression:.1f}x" if avg_compression else "N/A"
             )
         logger.info(f"Predictions: {predictions_path}")
+
+        if cost_report and eval_llm_metrics is not None:
+            fin = eval_llm_metrics.finish()
+            snap_path = results_dir / "eval_pipeline_metrics.json"
+            snap_path.write_text(
+                json.dumps(fin, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            logger.info("Wrote eval pipeline metrics snapshot: %s", snap_path)
+            if cfg_obj is not None:
+                _log_eval_pipeline_cost_report(cfg_obj, fin)
 
         # Cleanup provider if it exists (NER tasks don't use provider pattern)
         if provider is not None:
@@ -1973,6 +2087,14 @@ def main() -> None:
             "cause stale files to persist)."
         ),
     )
+    parser.add_argument(
+        "--cost-report",
+        action="store_true",
+        help=(
+            "After summarization inference, write eval_pipeline_metrics.json and log "
+            "LLM token totals plus rough USD estimates (Issue #477 tooling)."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -2035,6 +2157,7 @@ def main() -> None:
             smoke_inference_only=args.smoke_inference_only,
             score_only=args.score_only,
             force=args.force,
+            cost_report=args.cost_report,
         )
     except Exception as e:
         logger.error(f"Experiment failed: {e}", exc_info=True)

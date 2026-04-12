@@ -160,6 +160,11 @@ class Metrics:
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0
     llm_kg_output_tokens: int = 0
+    # Single-call clean + summary + bullets (Issue #477 bundled pipeline experiment)
+    llm_bundled_clean_summary_calls: int = 0
+    llm_bundled_clean_summary_input_tokens: int = 0
+    llm_bundled_clean_summary_output_tokens: int = 0
+    llm_bundled_fallback_to_staged_count: int = 0
 
     # Audio preprocessing metrics (RFC-040, Issue #387)
     preprocessing_times: List[float] = field(
@@ -473,6 +478,16 @@ class Metrics:
         self.llm_kg_calls += 1
         self.llm_kg_input_tokens += input_tokens
         self.llm_kg_output_tokens += output_tokens
+
+    def record_llm_bundled_clean_summary_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record one bundled LLM call (semantic clean + title + bullets, Issue #477)."""
+        self.llm_bundled_clean_summary_calls += 1
+        self.llm_bundled_clean_summary_input_tokens += input_tokens
+        self.llm_bundled_clean_summary_output_tokens += output_tokens
+
+    def record_llm_bundled_fallback_to_staged(self) -> None:
+        """Increment count when bundled clean+summary fails and staged path is used."""
+        self.llm_bundled_fallback_to_staged_count += 1
 
     def record_preprocessing_time(self, duration: float) -> None:
         """Record time spent preprocessing audio for an episode.
@@ -818,6 +833,14 @@ class Metrics:
         gi_out_avg = _avg_tokens_per_call(self.llm_gi_output_tokens, self.llm_gi_calls)
         kg_in_avg = _avg_tokens_per_call(self.llm_kg_input_tokens, self.llm_kg_calls)
         kg_out_avg = _avg_tokens_per_call(self.llm_kg_output_tokens, self.llm_kg_calls)
+        bd_in_avg = _avg_tokens_per_call(
+            self.llm_bundled_clean_summary_input_tokens,
+            self.llm_bundled_clean_summary_calls,
+        )
+        bd_out_avg = _avg_tokens_per_call(
+            self.llm_bundled_clean_summary_output_tokens,
+            self.llm_bundled_clean_summary_calls,
+        )
 
         gi_llm_calls_per_artifact = (
             round(self.llm_gi_calls / self.gi_artifacts_generated, 2)
@@ -852,6 +875,18 @@ class Metrics:
         avg_size_reduction_percent = (
             round((1 - total_preprocessed / total_original) * 100, 1) if total_original > 0 else 0.0
         )
+
+        with self._episode_metrics_lock:
+            total_episode_estimated_cost_usd = round(
+                sum((em.estimated_cost or 0.0) for em in self.episode_metrics),
+                6,
+            )
+            total_episode_prompt_tokens = sum(
+                (em.prompt_tokens or 0) for em in self.episode_metrics
+            )
+            total_episode_completion_tokens = sum(
+                (em.completion_tokens or 0) for em in self.episode_metrics
+            )
 
         return {
             "schema_version": "1.0.0",  # Versioned schema for metrics (Issue #379)
@@ -1015,6 +1050,49 @@ class Metrics:
             "llm_kg_avg_input_tokens_per_call": kg_in_avg,
             "llm_kg_avg_output_tokens_per_call": kg_out_avg,
             "llm_kg_calls_per_kg_artifact": kg_llm_calls_per_artifact,
+            "llm_bundled_clean_summary_calls": self.llm_bundled_clean_summary_calls,
+            "llm_bundled_clean_summary_input_tokens": (self.llm_bundled_clean_summary_input_tokens),
+            "llm_bundled_clean_summary_output_tokens": (
+                self.llm_bundled_clean_summary_output_tokens
+            ),
+            "llm_bundled_clean_summary_avg_input_tokens_per_call": bd_in_avg,
+            "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
+            "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
+            "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
+            "total_episode_prompt_tokens": total_episode_prompt_tokens,
+            "total_episode_completion_tokens": total_episode_completion_tokens,
+            "llm_token_totals_by_stage": {
+                "speaker_detection": {
+                    "input": self.llm_speaker_detection_input_tokens,
+                    "output": self.llm_speaker_detection_output_tokens,
+                    "calls": self.llm_speaker_detection_calls,
+                },
+                "cleaning": {
+                    "input": self.llm_cleaning_input_tokens,
+                    "output": self.llm_cleaning_output_tokens,
+                    "calls": self.llm_cleaning_calls,
+                },
+                "summarization": {
+                    "input": self.llm_summarization_input_tokens,
+                    "output": self.llm_summarization_output_tokens,
+                    "calls": self.llm_summarization_calls,
+                },
+                "bundled_clean_summary": {
+                    "input": self.llm_bundled_clean_summary_input_tokens,
+                    "output": self.llm_bundled_clean_summary_output_tokens,
+                    "calls": self.llm_bundled_clean_summary_calls,
+                },
+                "gi": {
+                    "input": self.llm_gi_input_tokens,
+                    "output": self.llm_gi_output_tokens,
+                    "calls": self.llm_gi_calls,
+                },
+                "kg": {
+                    "input": self.llm_kg_input_tokens,
+                    "output": self.llm_kg_output_tokens,
+                    "calls": self.llm_kg_calls,
+                },
+            },
             # Audio preprocessing metrics (Issue #387)
             "avg_preprocessing_seconds": avg_preprocessing,
             "preprocessing_count": len(self.preprocessing_times),

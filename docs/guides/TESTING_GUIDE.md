@@ -338,6 +338,7 @@ due to inherent non-determinism. These tests get automatic reruns.
 
 The following categories are now **stable** and don't need flaky markers:
 
+- **Episode selection (GitHub #521)** - `tests/e2e/test_episode_selection_e2e.py` (mock feed `podcast1_episode_selection`, Path 1 transcripts; one test is `critical_path` for fast E2E)
 - **Transformers/spaCy model loading** - Uses offline mode (`HF_HUB_OFFLINE=1`)
 - **ML model tests** - Explicit `summary_reduce_model` prevents cache misses
 - **HTTP integration tests** - Explicit server waits prevent timing issues
@@ -396,6 +397,8 @@ Put optional full-pipeline YAML presets under **`config/acceptance/`** (not comm
 `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local under `config/acceptance/`) exercises two feeds in one run. With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
 
 **Append / resume (GitHub #444):** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` is the same two-feed OpenAI full-pipeline preset with **`append: true`**. Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+
+**Episode selection (GitHub #521):** Pytest E2E regression for `--episode-order`, `--since` / `--until`, `--episode-offset`, and config overrides lives in **`tests/e2e/test_episode_selection_e2e.py`** (mock server feed **`podcast1_episode_selection`**, fixture **`tests/fixtures/rss/p01_episode_selection.xml`**). One test is marked **`critical_path`** so it runs under **`make test-e2e-fast`** / the E2E slice of **`make test-ci-fast`**. Integration coverage includes **`tests/integration/workflow/test_workflow_stages_integration.py`** (`prepare_episodes_from_feed`) and **`tests/integration/infrastructure/test_e2e_server.py`** (`TestE2EEpisodeSelectionFeed`). See [CONFIGURATION.md — Episode selection](../api/CONFIGURATION.md#episode-selection-github-521) and [E2E Testing Guide — E2E Feeds (RSS)](E2E_TESTING_GUIDE.md#e2e-feeds-rss).
 
 **Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py`** (YAML metadata, rglob fallback, parent search hint), **`tests/unit/podcast_scraper/utils/test_corpus_lock.py`**, **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI).
 

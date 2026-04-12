@@ -695,9 +695,17 @@ def configure_e2e_feed_limiting(request):
         E2EHTTPRequestHandler.set_use_fast_fixtures(False)  # Use full fixtures
     elif test_mode == "nightly":
         # Nightly mode: Allow podcasts 1-5 (p01-p05) for comprehensive testing
+        # plus episode-selection feed (p01_episode_selection.xml; GitHub #521).
         # Use full fixtures (not fast) for production-quality testing
         E2EHTTPRequestHandler.set_allowed_podcasts(
-            {"podcast1", "podcast2", "podcast3", "podcast4", "podcast5"}
+            {
+                "podcast1",
+                "podcast2",
+                "podcast3",
+                "podcast4",
+                "podcast5",
+                "podcast1_episode_selection",
+            }
         )
         E2EHTTPRequestHandler.set_use_fast_fixtures(False)  # Use full fixtures
     elif test_mode == "fast":
@@ -712,6 +720,7 @@ def configure_e2e_feed_limiting(request):
                 "podcast1",
                 "podcast1_with_transcript",
                 "podcast1_multi_episode",
+                "podcast1_episode_selection",
                 "podcast9_solo",
                 "podcast7_sustainability",  # Issue #283: threshold testing
                 "podcast8_solar",  # Issue #283: threshold testing
@@ -727,6 +736,7 @@ def configure_e2e_feed_limiting(request):
         E2EHTTPRequestHandler.set_allowed_podcasts(
             {
                 "podcast1_multi_episode",
+                "podcast1_episode_selection",
                 # For config file tests and tests needing transcript URLs
                 "podcast1_with_transcript",
                 "edgecases",

@@ -283,6 +283,7 @@ The service reads configuration from a JSON or YAML file. See [Configuration API
 rss: https://example.com/feed.xml
 output_dir: /app/output
 max_episodes: 50
+# Optional episode selection (GitHub #521): episode_order, episode_offset, episode_since, episode_until
 transcribe_missing: true
 whisper_model: base.en
 generate_metadata: true

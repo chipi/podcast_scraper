@@ -10,6 +10,12 @@ rss: https://example.com/feed.xml
 # config.example.multi-feed.yaml and config.example.multi-feed.json in this folder.
 output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
 max_episodes: 10
+# Episode selection (GitHub #521): optional order, offset, publish-date window — see
+# docs/api/CONFIGURATION.md#episode-selection-github-521
+# episode_order: newest   # or oldest
+# episode_offset: 0
+# episode_since: "2024-01-01"
+# episode_until: "2024-12-31"
 
 # Provider configuration - mixed example (can use different providers for different capabilities)
 # Options: openai, gemini, mistral, deepseek, grok, ollama (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace)

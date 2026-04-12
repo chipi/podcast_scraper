@@ -44,6 +44,13 @@ _LOGGER = logging.getLogger(__name__)
 BYTES_PER_KB = 1024
 
 
+def _cli_iso_date(value: str):
+    """Parse ``YYYY-MM-DD`` for ``--since`` / ``--until`` (GitHub #521)."""
+    from datetime import date as date_cls
+
+    return date_cls.fromisoformat(value.strip())
+
+
 class _RichProgress:
     """Simple adapter that exposes rich Progress update interface with validation."""
 
@@ -362,6 +369,10 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.max_episodes is not None and args.max_episodes <= 0:
         errors.append(f"--max-episodes must be positive, got: {args.max_episodes}")
 
+    episode_offset = getattr(args, "episode_offset", 0)
+    if episode_offset < 0:
+        errors.append(f"--episode-offset must be non-negative, got: {episode_offset}")
+
     if args.timeout <= 0:
         errors.append(f"--timeout must be positive, got: {args.timeout}")
 
@@ -446,6 +457,40 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"
+    )
+    parser.add_argument(
+        "--episode-order",
+        choices=("newest", "oldest"),
+        default="newest",
+        help=(
+            "RSS item order before date filter and offset: newest = feed document order; "
+            "oldest = reversed (GitHub #521)"
+        ),
+    )
+    parser.add_argument(
+        "--episode-offset",
+        type=int,
+        default=0,
+        help=(
+            "Skip this many items after order and optional date filter, before "
+            "--max-episodes (GitHub #521)"
+        ),
+    )
+    parser.add_argument(
+        "--since",
+        dest="episode_since",
+        type=_cli_iso_date,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Keep episodes published on or after this date (GitHub #521)",
+    )
+    parser.add_argument(
+        "--until",
+        dest="episode_until",
+        type=_cli_iso_date,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Keep episodes published on or before this date (GitHub #521)",
     )
     parser.add_argument(
         "--prefer-type",
@@ -2919,6 +2964,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "rss_url": args.rss,
         "output_dir": filesystem.derive_output_dir(args.rss, args.output_dir),
         "max_episodes": args.max_episodes,
+        "episode_order": getattr(args, "episode_order", "newest"),
+        "episode_offset": getattr(args, "episode_offset", 0),
+        "episode_since": getattr(args, "episode_since", None),
+        "episode_until": getattr(args, "episode_until", None),
         "user_agent": args.user_agent,
         "timeout": args.timeout,
         "delay_ms": args.delay_ms,
@@ -3358,6 +3407,10 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
     d(f"  RSS URL: {cfg.rss_url}")
     d(f"  Output Directory: {cfg.output_dir}")
     d(f"  Max Episodes: {cfg.max_episodes or 'all'}")
+    d(f"  Episode order: {cfg.episode_order}")
+    d(f"  Episode offset: {cfg.episode_offset}")
+    d(f"  Episode since: {cfg.episode_since or 'none'}")
+    d(f"  Episode until: {cfg.episode_until or 'none'}")
     d(f"  Workers: {cfg.workers}")
     d(f"  Log Level: {cfg.log_level}")
     d(f"  Log File: {cfg.log_file or 'console only'}")

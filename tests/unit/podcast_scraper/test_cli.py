@@ -361,6 +361,27 @@ class TestValidateArgs(unittest.TestCase):
         error_msg = str(cm.exception)
         self.assertIn("--max-episodes must be positive", error_msg)
 
+    def test_episode_offset_negative(self):
+        """Test that negative --episode-offset adds error (GitHub #521)."""
+        args = Namespace(
+            rss="https://example.com/feed.xml",
+            max_episodes=10,
+            episode_offset=-1,
+            timeout=30,
+            delay_ms=0,
+            transcribe_missing=False,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            whisper_device=None,
+            screenplay=False,
+            num_speakers=2,
+            speaker_names=None,
+            workers=4,
+            output_dir=None,
+        )
+        with self.assertRaises(ValueError) as cm:
+            cli.validate_args(args)
+        self.assertIn("--episode-offset must be non-negative", str(cm.exception))
+
     def test_delay_ms_zero(self):
         """Test that delay_ms=0 is valid."""
         args = Namespace(

@@ -1,6 +1,7 @@
 # Reference: silver_gpt4o_smoke_bullets_v1
 
 **Promoted from:** `experiment_openai_gpt4o_smoke_bullets_v1`
+(`data/eval/issue-477/experiment_openai_gpt4o_smoke_bullets_v1.yaml`)
 **Promoted at:** 2026-03-31T09:00:52.581646Z
 **Role:** Reference (used as truth for evaluation)
 **Dataset:** N/A

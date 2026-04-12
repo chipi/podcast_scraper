@@ -841,3 +841,38 @@ class TestE2EServerMultiEpisodeFeed:
                     f"Should have at least 2 transcript file(s) in multi-episode mode, "
                     f"got {len(transcript_files)}"
                 )
+
+
+@pytest.mark.integration
+class TestE2EEpisodeSelectionFeed:
+    """RSS contract for ``podcast1_episode_selection`` (GitHub #521)."""
+
+    def test_episode_selection_feed_url_and_path1_items(self, e2e_server):
+        """Three items, newest-first in document order, all have transcript URLs."""
+        import xml.etree.ElementTree as ET
+
+        feed_url = e2e_server.urls.feed("podcast1_episode_selection")
+        assert "/feeds/podcast1_episode_selection/feed.xml" in feed_url
+
+        response = requests.get(feed_url, timeout=2)
+        assert response.status_code == 200
+
+        root = ET.fromstring(response.text)  # nosec B314
+        channel = root.find("channel")
+        items = channel.findall("item")
+        assert len(items) == 3
+
+        ns = "{https://podcastindex.org/namespace/1.0}"
+        titles = []
+        for item in items:
+            transcript = item.find(f"{ns}transcript")
+            assert transcript is not None, "each item should have podcast:transcript (Path 1)"
+            url_attr = transcript.get("url")
+            assert url_attr and "/transcripts/p01_multi_e" in url_attr
+            title_el = item.find("title")
+            assert title_el is not None and title_el.text
+            titles.append(title_el.text)
+
+        assert "E2E Selection Marker NEWEST" in titles
+        assert "E2E Selection Marker MIDDLE" in titles
+        assert "E2E Selection Marker OLDEST" in titles

@@ -122,6 +122,7 @@ Feed names and RSS file mapping. Which feed name you can use depends on **test m
 | `podcast5` | `p05_investing.xml` | Investing podcast |
 | `edgecases` | `p06_edge_cases.xml` | Edge-case episodes |
 | `podcast1_multi_episode` | `p01_multi.xml` | 5 short episodes (multi-episode tests) |
+| `podcast1_episode_selection` | `p01_episode_selection.xml` | 3 items, newest-first, all Path 1 transcripts (#521) |
 | `podcast9_solo` | `p09_biohacking.xml` | Solo speaker (host only) |
 | `podcast7_sustainability` | `p07_sustainability.xml` | Long-form (~15k words; Issue #283) |
 | `podcast8_solar` | `p08_solar.xml` | Long-form (~20k words; Issue #283) |
@@ -133,6 +134,7 @@ Feed names and RSS file mapping. Which feed name you can use depends on **test m
 | `podcast1` | `p01_fast.xml` | 1 short episode (Path 2: transcription) |
 | `podcast1_with_transcript` | `p01_fast_with_transcript.xml` | 1 episode with transcript URL (Path 1: download) |
 | `podcast1_multi_episode` | `p01_multi.xml` | Same 5-episode feed |
+| `podcast1_episode_selection` | `p01_episode_selection.xml` | Same as full map (episode selection E2E) |
 | `podcast9_solo` | `p09_biohacking.xml` | Solo speaker |
 | `podcast7_sustainability` | `p07_sustainability.xml` | Long-form |
 | `podcast8_solar` | `p08_solar.xml` | Long-form |
@@ -143,12 +145,12 @@ Set automatically by `conftest` from `E2E_TEST_MODE`.
 
 | Mode | Allowed feed names |
 | ---- | ------------------ |
-| `fast` | `podcast1`, `podcast1_with_transcript`, `podcast1_multi_episode`, `podcast9_solo`, `podcast7_sustainability`, `podcast8_solar` |
-| `multi_episode` | `podcast1_multi_episode`, `podcast1_with_transcript`, `edgecases`, `podcast7_sustainability`, `podcast8_solar` |
-| `nightly` | `podcast1`, `podcast2`, `podcast3`, `podcast4`, `podcast5` (full fixtures) |
+| `fast` | `podcast1`, `podcast1_with_transcript`, `podcast1_multi_episode`, `podcast1_episode_selection`, `podcast9_solo`, `podcast7_sustainability`, `podcast8_solar` |
+| `multi_episode` | `podcast1_multi_episode`, `podcast1_episode_selection`, `podcast1_with_transcript`, `edgecases`, `podcast7_sustainability`, `podcast8_solar` |
+| `nightly` | `podcast1`, `podcast2`, `podcast3`, `podcast4`, `podcast5`, `podcast1_episode_selection` (full fixtures) |
 | `data_quality` | All feeds (None = allow all) |
 
-Use `e2e_server.urls.feed("podcast1_multi_episode")` etc. Only feeds in the allowed set for the current mode are served; others return 404.
+Use `e2e_server.urls.feed("podcast1_multi_episode")` or `e2e_server.urls.feed("podcast1_episode_selection")` etc. Only feeds in the allowed set for the current mode are served; others return 404.
 
 ### E2E Server Options
 

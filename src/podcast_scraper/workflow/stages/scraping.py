@@ -6,7 +6,7 @@ This module handles RSS feed fetching, parsing, and episode preparation.
 from __future__ import annotations
 
 import logging
-from typing import List, TYPE_CHECKING
+from typing import Any, List, TYPE_CHECKING
 
 from ... import config, models
 
@@ -18,6 +18,7 @@ else:
 from ...rss import (
     create_episode_from_item,
     extract_feed_metadata,
+    published_date_for_episode_filter,
 )
 from ..types import FeedMetadata
 
@@ -110,12 +111,45 @@ def prepare_episodes_from_feed(
     Returns:
         List of Episode objects
     """
-    items = feed.items
+    items = list(feed.items)
     total_items = len(items)
+
+    if cfg.episode_order == "oldest":
+        items = list(reversed(items))
+
+    if cfg.episode_since is not None or cfg.episode_until is not None:
+        kept: List[Any] = []
+        missing_pub = 0
+        for it in items:
+            pub_d = published_date_for_episode_filter(it)
+            if pub_d is None:
+                missing_pub += 1
+                kept.append(it)
+                continue
+            if cfg.episode_since is not None and pub_d < cfg.episode_since:
+                continue
+            if cfg.episode_until is not None and pub_d > cfg.episode_until:
+                continue
+            kept.append(it)
+        if missing_pub:
+            logger.warning(
+                "Episode date filter: %s item(s) had no parseable pubDate; "
+                "keeping them in the selection (GitHub #521)",
+                missing_pub,
+            )
+        items = kept
+
+    if cfg.episode_offset:
+        items = items[cfg.episode_offset :]
+
     if cfg.max_episodes is not None:
         items = items[: cfg.max_episodes]
 
-    logger.info(f"Episodes to process: {len(items)} of {total_items}")
+    logger.info(
+        "Episodes to process: %s of %s (after order/date filter/offset/limit)",
+        len(items),
+        total_items,
+    )
 
     episodes = [
         create_episode_from_item(item, idx, feed.base_url)

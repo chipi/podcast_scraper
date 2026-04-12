@@ -38,7 +38,8 @@ make autoresearch-score \
 
 Default `make autoresearch-score` (no args) uses the **bullet** config and default reference
 `silver_gpt4o_smoke_bullets_v1` (aligned ROUGE). That reference **must exist** under
-`data/eval/references/silver/` — run `experiment_openai_gpt4o_smoke_bullets_v1`, then **promote**
+`data/eval/references/silver/` — run `experiment_openai_gpt4o_smoke_bullets_v1`
+(`CONFIG=data/eval/issue-477/experiment_openai_gpt4o_smoke_bullets_v1.yaml`), then **promote**
 the run (see `data/eval/configs/README.md`). Until then, pass `REFERENCE=silver_gpt4o_smoke_v1` only if you
 accept paragraph-vs-bullet ROUGE noise. **Paragraph line:** always pass `CONFIG` + `REFERENCE` as
 in the table.
@@ -133,7 +134,8 @@ See `config/examples/.env.example` for the full list.
 
 - Materialized transcripts: `data/eval/materialized/curated_5feeds_smoke_v1/` (if missing: `make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1`).
 - **Bullet ROUGE:** `data/eval/references/silver/silver_gpt4o_smoke_bullets_v1/` exists only
-  **after** you run `experiment_openai_gpt4o_smoke_bullets_v1`, review the run, and **promote** it
+  **after** you run `experiment_openai_gpt4o_smoke_bullets_v1`
+  (`CONFIG=data/eval/issue-477/experiment_openai_gpt4o_smoke_bullets_v1.yaml`), review the run, and **promote** it
   (see `data/eval/configs/README.md`). Until then, use `REFERENCE=silver_gpt4o_smoke_v1` only as a
   temporary mismatch, or wait before scoring.
 

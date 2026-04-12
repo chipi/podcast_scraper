@@ -1207,6 +1207,160 @@ class OpenAIProvider:
                     provider="OpenAIProvider/Summarization",
                 ) from exc
 
+    def summarize_bundled(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,
+    ) -> Dict[str, Any]:
+        """One completion: semantic transcript clean + JSON title/bullets (Issue #477).
+
+        Returns the same ``summary`` shape as :meth:`summarize` (JSON string) plus
+        ``bundled_cleaned_transcript`` for optional persistence.
+        """
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "OpenAIProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompts.store import get_prompt_metadata, render_prompt
+        from ...utils.provider_metrics import (
+            _safe_openai_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
+        _uses_completion_tokens = self.summary_model.startswith(("o1", "o3", "gpt-5"))
+        _token_kwarg: Dict[str, Any] = (
+            {"max_completion_tokens": max_out}
+            if _uses_completion_tokens
+            else {"max_tokens": max_out}
+        )
+
+        tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
+        system_prompt = render_prompt(
+            "shared/summarization/bundled_clean_summary_system_v1",
+            **tmpl_kwargs,
+        )
+        user_prompt = render_prompt(
+            "shared/summarization/bundled_clean_summary_user_v1",
+            transcript=text,
+            title=episode_title or "",
+            **tmpl_kwargs,
+        )
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("openai")
+
+        def _make_api_call() -> Any:
+            kwargs: Dict[str, Any] = {
+                "model": self.summary_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": self.summary_temperature,
+                **_token_kwarg,
+            }
+            if not self.summary_model.startswith(("o1", "o3", "gpt-5")):
+                kwargs["response_format"] = {"type": "json_object"}
+            return self.client.chat.completions.create(**kwargs)
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_openai_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+
+        call_metrics.finalize()
+        warn_if_truncated(
+            response.choices[0].finish_reason,
+            "openai",
+            "summarize_bundled",
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        if not raw:
+            raise ValueError("OpenAI bundled call returned empty content")
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        cleaned = data.get("cleaned_text")
+        bullets = data.get("bullets")
+        if not isinstance(cleaned, str) or not cleaned.strip():
+            raise ValueError("Bundled JSON missing non-empty cleaned_text string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        input_tokens = None
+        output_tokens = None
+        if hasattr(response, "usage") and response.usage:
+            pt = getattr(response.usage, "prompt_tokens", None)
+            ct = getattr(response.usage, "completion_tokens", None)
+            input_tokens = int(pt) if isinstance(pt, (int, float)) else 0
+            output_tokens = int(ct) if isinstance(ct, (int, float)) else 0
+            if input_tokens > 0 or output_tokens > 0:
+                call_metrics.set_tokens(input_tokens, output_tokens)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
+
+        if input_tokens is not None:
+            from ...workflow.helpers import calculate_provider_cost
+
+            cost = calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type="openai",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
+            call_metrics.set_cost(cost)
+
+        prompt_metadata = {
+            "system": get_prompt_metadata(
+                "shared/summarization/bundled_clean_summary_system_v1",
+                params=tmpl_kwargs,
+            ),
+            "user": get_prompt_metadata(
+                "shared/summarization/bundled_clean_summary_user_v1",
+                params={
+                    **tmpl_kwargs,
+                    "transcript": text[:100] + "..." if len(text) > 100 else text,
+                },
+            ),
+        }
+
+        return {
+            "summary": raw,
+            "summary_short": None,
+            "bundled_cleaned_transcript": cleaned.strip(),
+            "metadata": {
+                "model": self.summary_model,
+                "provider": "openai",
+                "bundled": True,
+                "max_output_tokens": max_out,
+                "prompts": prompt_metadata,
+            },
+        }
+
     def generate_insights(
         self,
         text: str,

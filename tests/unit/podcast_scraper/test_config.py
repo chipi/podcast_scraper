@@ -5,6 +5,7 @@ import os
 import sys
 import unittest
 import warnings
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -568,6 +569,48 @@ class TestOutputControlValidation(unittest.TestCase):
         self.assertTrue(cfg.clean_output)
         self.assertFalse(cfg.skip_existing)
         self.assertFalse(cfg.reuse_media)
+
+
+class TestEpisodeSelectionConfig(unittest.TestCase):
+    """Episode order / offset / date range (GitHub #521)."""
+
+    def test_episode_since_after_until_raises(self):
+        """episode_since must not be after episode_until."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                episode_since=date(2024, 6, 1),
+                episode_until=date(2024, 1, 1),
+            )
+        self.assertIn("episode_since", str(ctx.exception))
+        self.assertIn("episode_until", str(ctx.exception))
+
+    def test_episode_since_equal_until_ok(self):
+        """Same calendar day for since and until is valid."""
+        cfg = Config(
+            rss_url="https://example.com/feed.xml",
+            episode_since=date(2024, 3, 15),
+            episode_until=date(2024, 3, 15),
+        )
+        self.assertEqual(cfg.episode_since, date(2024, 3, 15))
+        self.assertEqual(cfg.episode_until, date(2024, 3, 15))
+
+    def test_episode_offset_negative_raises(self):
+        """episode_offset must be non-negative."""
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss_url="https://example.com/feed.xml",
+                episode_offset=-1,
+            )
+        self.assertIn("episode_offset", str(ctx.exception))
+
+    def test_episode_order_invalid_raises(self):
+        """episode_order must be newest or oldest."""
+        with self.assertRaises(ValidationError):
+            Config(
+                rss_url="https://example.com/feed.xml",
+                episode_order="first",  # type: ignore[arg-type]
+            )
 
 
 class TestTranscriptionValidation(unittest.TestCase):

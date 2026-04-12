@@ -31,7 +31,7 @@ class IndexStats:
 
 @runtime_checkable
 class VectorStore(Protocol):
-    """Backend-agnostic vector index (FAISS locally; Qdrant in a later phase)."""
+    """Backend-agnostic vector index (FAISS shipped; Qdrant — RFC-070)."""
 
     def upsert(self, doc_id: str, embedding: List[float], metadata: Dict[str, Any]) -> None:
         """Insert or replace one vector and its metadata."""

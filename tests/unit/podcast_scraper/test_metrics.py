@@ -475,6 +475,16 @@ class TestFinish(unittest.TestCase):
             "llm_kg_avg_input_tokens_per_call",
             "llm_kg_avg_output_tokens_per_call",
             "llm_kg_calls_per_kg_artifact",
+            "llm_bundled_clean_summary_calls",
+            "llm_bundled_clean_summary_input_tokens",
+            "llm_bundled_clean_summary_output_tokens",
+            "llm_bundled_clean_summary_avg_input_tokens_per_call",
+            "llm_bundled_clean_summary_avg_output_tokens_per_call",
+            "llm_bundled_fallback_to_staged_count",
+            "total_episode_estimated_cost_usd",
+            "total_episode_prompt_tokens",
+            "total_episode_completion_tokens",
+            "llm_token_totals_by_stage",
             # Preprocessing metrics
             "avg_preprocessing_seconds",
             "preprocessing_count",
@@ -1289,6 +1299,42 @@ class TestFinishIncludesLLMMetrics(unittest.TestCase):
         self.assertEqual(result["llm_kg_calls"], 0)
         self.assertEqual(result["llm_kg_input_tokens"], 0)
         self.assertEqual(result["llm_kg_output_tokens"], 0)
+        self.assertEqual(result["llm_bundled_clean_summary_calls"], 0)
+        self.assertEqual(result["llm_bundled_clean_summary_input_tokens"], 0)
+        self.assertEqual(result["llm_bundled_clean_summary_output_tokens"], 0)
+        self.assertEqual(result["llm_bundled_fallback_to_staged_count"], 0)
+        self.assertEqual(result["total_episode_estimated_cost_usd"], 0.0)
+        self.assertEqual(result["total_episode_prompt_tokens"], 0)
+        self.assertEqual(result["total_episode_completion_tokens"], 0)
+        self.assertIn("bundled_clean_summary", result["llm_token_totals_by_stage"])
+
+    def test_finish_bundled_and_episode_cost_rollups(self):
+        """Issue #477: bundled LLM counters and per-episode cost sum in finish()."""
+        m = metrics.Metrics()
+        m.record_llm_bundled_clean_summary_call(5000, 2000)
+        m.record_llm_bundled_fallback_to_staged()
+        m.update_episode_metrics(
+            "ep1",
+            prompt_tokens=100,
+            completion_tokens=50,
+            estimated_cost=0.012,
+        )
+
+        with patch("podcast_scraper.workflow.metrics.time.time", return_value=100.0):
+            m._start_time = 100.0
+            result = m.finish()
+
+        self.assertEqual(result["llm_bundled_clean_summary_calls"], 1)
+        self.assertEqual(result["llm_bundled_clean_summary_input_tokens"], 5000)
+        self.assertEqual(result["llm_bundled_clean_summary_output_tokens"], 2000)
+        self.assertEqual(result["llm_bundled_fallback_to_staged_count"], 1)
+        self.assertEqual(result["total_episode_estimated_cost_usd"], 0.012)
+        self.assertEqual(result["total_episode_prompt_tokens"], 100)
+        self.assertEqual(result["total_episode_completion_tokens"], 50)
+        b = result["llm_token_totals_by_stage"]["bundled_clean_summary"]
+        self.assertEqual(b["input"], 5000)
+        self.assertEqual(b["output"], 2000)
+        self.assertEqual(b["calls"], 1)
 
     def test_finish_includes_cleaning_gi_kg_llm_metrics(self):
         """finish() exposes cleaning / GIL / KG LLM counters when set."""

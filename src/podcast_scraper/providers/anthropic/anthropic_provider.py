@@ -875,6 +875,147 @@ class AnthropicProvider:
                     provider="AnthropicProvider/Summarization",
                 ) from exc
 
+    def summarize_bundled(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,
+    ) -> Dict[str, Any]:
+        """One completion: semantic transcript clean + JSON title/bullets (Issue #477)."""
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "AnthropicProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompts.store import get_prompt_metadata, render_prompt
+        from ...utils.provider_metrics import (
+            _safe_anthropic_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
+        tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
+        system_prompt = render_prompt(
+            "shared/summarization/bundled_clean_summary_system_v1",
+            **tmpl_kwargs,
+        )
+        user_prompt = render_prompt(
+            "shared/summarization/bundled_clean_summary_user_v1",
+            transcript=text,
+            title=episode_title or "",
+            **tmpl_kwargs,
+        )
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("anthropic")
+
+        def _make_api_call() -> Any:
+            return self.client.messages.create(
+                model=self.summary_model,
+                max_tokens=max_out,
+                temperature=self.summary_temperature,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],
+            )
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_anthropic_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+
+        call_metrics.finalize()
+
+        summary = ""
+        if response.content and len(response.content) > 0:
+            first_block = response.content[0]
+            if hasattr(first_block, "text"):
+                summary = first_block.text
+            elif isinstance(first_block, str):
+                summary = first_block
+        raw = (summary or "").strip()
+        if not raw:
+            raise ValueError("Anthropic bundled call returned empty content")
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        cleaned = data.get("cleaned_text")
+        bullets = data.get("bullets")
+        if not isinstance(cleaned, str) or not cleaned.strip():
+            raise ValueError("Bundled JSON missing non-empty cleaned_text string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        input_tokens = None
+        output_tokens = None
+        if hasattr(response, "usage") and response.usage:
+            in_toks = getattr(response.usage, "input_tokens", None)
+            out_toks = getattr(response.usage, "output_tokens", None)
+            input_tokens = int(in_toks) if isinstance(in_toks, (int, float)) else 0
+            output_tokens = int(out_toks) if isinstance(out_toks, (int, float)) else 0
+            if input_tokens > 0 or output_tokens > 0:
+                call_metrics.set_tokens(input_tokens, output_tokens)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
+
+        if input_tokens is not None:
+            from ...workflow.helpers import calculate_provider_cost
+
+            cost = calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type="anthropic",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
+            call_metrics.set_cost(cost)
+
+        prompt_metadata = {
+            "system": get_prompt_metadata(
+                "shared/summarization/bundled_clean_summary_system_v1",
+                params=tmpl_kwargs,
+            ),
+            "user": get_prompt_metadata(
+                "shared/summarization/bundled_clean_summary_user_v1",
+                params={
+                    **tmpl_kwargs,
+                    "transcript": text[:100] + "..." if len(text) > 100 else text,
+                },
+            ),
+        }
+
+        return {
+            "summary": raw,
+            "summary_short": None,
+            "bundled_cleaned_transcript": cleaned.strip(),
+            "metadata": {
+                "model": self.summary_model,
+                "provider": "anthropic",
+                "bundled": True,
+                "max_output_tokens": max_out,
+                "prompts": prompt_metadata,
+            },
+        }
+
     def _build_summarization_prompts(
         self,
         text: str,

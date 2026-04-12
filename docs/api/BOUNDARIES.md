@@ -99,6 +99,7 @@ The following modules are **internal implementation details** and should not be 
 
 ```bash
 python -m podcast_scraper.cli https://example.com/feed.xml --max-episodes 10
+# Episode order / date window: see CONFIGURATION.md (Episode selection, GitHub #521).
 ```
 
 ### Automated Service Use

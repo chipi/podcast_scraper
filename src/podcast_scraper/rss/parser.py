@@ -7,7 +7,7 @@ import re
 
 # Bandit: parsing handled via defusedxml safe APIs
 import xml.etree.ElementTree as ET  # nosec B405
-from datetime import datetime
+from datetime import date, datetime, timezone
 from html import unescape
 from html.parser import HTMLParser
 from typing import List, Optional, Tuple, TYPE_CHECKING
@@ -627,6 +627,28 @@ def extract_episode_published_date(item: ET.Element) -> Optional[datetime]:
             pass
 
     return None
+
+
+def published_date_for_episode_filter(item: ET.Element) -> Optional[date]:
+    """Normalize item publication time to a calendar date for range filtering.
+
+    Timezone-aware datetimes are converted to UTC before taking the date.
+    Used by :func:`prepare_episodes_from_feed` with ``episode_since`` /
+    ``episode_until`` (GitHub #521).
+
+    Args:
+        item: RSS or Atom ``item`` element.
+
+    Returns:
+        Calendar date in UTC for aware timestamps, or naive local date; ``None``
+        if no parseable publication time.
+    """
+    dt = extract_episode_published_date(item)
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).date()
+    return dt.date()
 
 
 def extract_episode_description(item: ET.Element) -> Optional[str]:

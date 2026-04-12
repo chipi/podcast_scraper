@@ -1,0 +1,32 @@
+# Autoresearch Track A — bundled clean+summary+bullets (Issue #477).
+#
+# **Canonical copy:** ``data/eval/issue-477/`` (see README.md here).
+#
+# Inference uses ``shared/summarization/bundled_clean_summary_*`` templates, not bullets_json_v1.
+# Tune those files under ``src/podcast_scraper/prompts/shared/summarization/`` when iterating.
+#
+# Pair with silver: ``silver_gpt4o_smoke_bullets_v1`` (same bar as staged bullets).
+#
+# Requires: OPENAI_API_KEY
+
+id: "autoresearch_prompt_openai_smoke_bundled_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o-mini"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+llm_pipeline_mode: "bundled"

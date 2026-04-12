@@ -1279,6 +1279,53 @@ See [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SER
 - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
 - `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
 
+<a id="episode-selection-github-521"></a>
+
+## Episode selection (GitHub #521)
+
+Large feeds often list hundreds or thousands of `<item>` elements. Episode selection controls **which items become `Episode` objects** before download and transcription. All steps apply **per feed** (multi-feed runs use the same `Config` fields for each inner pipeline).
+
+### Processing order
+
+1. **`episode_order`**: `newest` (default) keeps RSS document order; `oldest` reverses the item list so the tail of the feed is processed first.
+2. **Date filter** (optional): If **`episode_since`** and/or **`episode_until`** are set, items are kept only when their parsed **`pubDate`** falls on an inclusive calendar-day range. Timezone-aware timestamps are converted to **UTC** before taking the calendar date. Items **without** a parseable `pubDate` are **still kept**; the pipeline logs one **warning** with how many items had no date.
+3. **`episode_offset`**: Skip this many items from the start of the list produced by steps 1–2 (non-negative integer, default `0`).
+4. **`max_episodes`**: Keep at most this many items (same semantics as before; `None` means no limit at this step).
+
+CLI flags: **`--episode-order`**, **`--episode-offset`**, **`--since`**, **`--until`** (dates as `YYYY-MM-DD`). See [CLI.md — Basic Options](CLI.md#common-options).
+
+### Config fields (YAML / JSON / `Config(...)`)
+
+| Field | Type | Default | Purpose |
+| ----- | ---- | ------- | ------- |
+| `episode_order` | `newest` or `oldest` | `newest` | Item order before date filter and offset |
+| `episode_offset` | integer | `0` | Skip N items after order and date filter |
+| `episode_since` | date or `YYYY-MM-DD` string | omitted / `null` | Inclusive lower bound on publication date |
+| `episode_until` | date or `YYYY-MM-DD` string | omitted / `null` | Inclusive upper bound on publication date |
+
+Validation: when both date bounds are set, **`episode_since`** must be on or before **`episode_until`**. **`episode_offset`** must be non-negative.
+
+### Staged back-catalog with append
+
+Combine **`episode_order: oldest`**, **`max_episodes`**, and **`append: true`** ([Append / resume](#append-resume-github-444)) to ingest a long history in batches: each run only considers the configured slice, while append skips episodes that already have valid artifacts on disk.
+
+### Python example
+
+```python
+from datetime import date
+
+from podcast_scraper import Config
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    episode_order="oldest",
+    episode_offset=0,
+    max_episodes=100,
+    episode_since=date(2022, 1, 1),
+    episode_until=date(2022, 12, 31),
+)
+```
+
 <a id="append-resume-github-444"></a>
 
 ## Append / resume (GitHub #444)
@@ -1319,6 +1366,10 @@ If the process exits before **finalize** (e.g. crash), **`index.json`** may lag 
   "rss": "https://example.com/feed.xml",
   "output_dir": "./transcripts",
   "max_episodes": 50,
+  "episode_order": "newest",
+  "episode_offset": 0,
+  "episode_since": null,
+  "episode_until": null,
   "transcribe_missing": true,
   "whisper_model": "base",
   "workers": 8,
@@ -1338,6 +1389,10 @@ If the process exits before **finalize** (e.g. crash), **`index.json`** may lag 
 
 ```yaml
 max_episodes: 50
+# episode_order: newest  # or oldest (GitHub #521)
+# episode_offset: 0
+# episode_since: "2024-01-01"
+# episode_until: "2024-12-31"
 transcribe_missing: true
 whisper_model: base
 workers: 8
