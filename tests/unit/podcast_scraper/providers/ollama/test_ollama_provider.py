@@ -1904,3 +1904,151 @@ class TestOllamaProviderPatchCoverage(unittest.TestCase):
 
         self.assertIn("cleaning failed", str(ctx.exception).lower())
         self.assertIsNone(ctx.exception.suggestion)
+
+
+@pytest.mark.unit
+class TestOllamaSummarizeBundled(unittest.TestCase):
+    """Unit tests for summarize_bundled() (Issue #477)."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="ollama",
+            summary_provider="ollama",
+            ollama_api_base="http://localhost:11434/v1",
+            auto_speakers=False,
+            generate_summaries=False,
+            llm_pipeline_mode="bundled",
+        )
+        self.valid_json = (
+            '{"title": "Test Title", '
+            '"summary": "A detailed prose summary.", '
+            '"bullets": ["Point one.", "Point two."]}'
+        )
+
+    def _make_provider(self):
+        provider = OllamaProvider(self.cfg)
+        provider.client = Mock()
+        provider._summarization_initialized = True
+        return provider
+
+    def _mock_response(self, content, pt=100, ct=50):
+        resp = Mock()
+        resp.choices = [Mock()]
+        resp.choices[0].message.content = content
+        resp.choices[0].finish_reason = "stop"
+        resp.usage = Mock(prompt_tokens=pt, completion_tokens=ct)
+        return resp
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_success_returns_expected_shape(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.chat.completions.create.return_value = self._mock_response(self.valid_json)
+
+        result = provider.summarize_bundled("transcript text")
+
+        self.assertIn("summary", result)
+        self.assertIn("metadata", result)
+        self.assertTrue(result["metadata"]["bundled"])
+        self.assertNotIn("bundled_cleaned_transcript", result)
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_json_contains_title_summary_bullets(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.chat.completions.create.return_value = self._mock_response(self.valid_json)
+
+        result = provider.summarize_bundled("transcript text")
+        import json
+
+        parsed = json.loads(result["summary"])
+        self.assertEqual(parsed["title"], "Test Title")
+        self.assertEqual(parsed["summary"], "A detailed prose summary.")
+        self.assertEqual(len(parsed["bullets"]), 2)
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_missing_summary_field(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        bad_json = '{"title": "T", "bullets": ["b"]}'
+        provider.client.chat.completions.create.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("summary", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_missing_bullets(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        bad_json = '{"title": "T", "summary": "s"}'
+        provider.client.chat.completions.create.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("bullets", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_empty_bullets(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        bad_json = '{"title": "T", "summary": "s", "bullets": []}'
+        provider.client.chat.completions.create.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("bullets", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_invalid_json(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        provider.client.chat.completions.create.return_value = self._mock_response(
+            "not json at all"
+        )
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("JSON", str(ctx.exception))
+
+    def test_bundled_not_initialized_raises(self):
+        provider = OllamaProvider(self.cfg)
+        with self.assertRaises(RuntimeError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("not initialized", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_records_pipeline_metrics(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.chat.completions.create.return_value = self._mock_response(
+            self.valid_json, pt=200, ct=80
+        )
+        pm = Mock()
+
+        provider.summarize_bundled("text", pipeline_metrics=pm)
+
+        pm.record_llm_bundled_clean_summary_call.assert_called_once_with(200, 80)
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_uses_provider_prefixed_prompt_names(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.chat.completions.create.return_value = self._mock_response(self.valid_json)
+
+        provider.summarize_bundled("text")
+
+        calls = [c[0][0] for c in mock_render.call_args_list]
+        self.assertTrue(
+            any("ollama/summarization/bundled" in c for c in calls),
+            f"Expected ollama-prefixed prompt name, got: {calls}",
+        )
