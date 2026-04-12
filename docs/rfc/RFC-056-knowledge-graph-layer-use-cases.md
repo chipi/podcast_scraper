@@ -1,6 +1,8 @@
 # RFC-056: Knowledge Graph Layer – Use Cases & End-to-End Consumption
 
-- **Status**: Draft
+- **Status**: Completed — single-layer consumption patterns retained; cross-layer use
+  cases (opinion tracking, guest intelligence, controversy detection) moved to
+  [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md)
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers, integrators
 - **Execution Timing**: **Parallel with RFC-055 implementation** — Consumption patterns,
@@ -23,6 +25,9 @@
     alignment with episode profile)
 
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout and run scoping)
+
+  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
+    (cross-layer use cases — Position Tracker, Guest Brief)
 - **Related Documents**:
   - `docs/architecture/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
   - `docs/architecture/kg/kg.schema.json` — Normative JSON Schema (v1 frozen, #464)

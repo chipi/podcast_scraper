@@ -27,15 +27,14 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
 | [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | - | Automated regression alerts and PR comments for pipeline metrics |
-| [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Grounded Insight Layer – Use Cases & End-to-End Consumption | PRD-017 | Use cases, Insight Explorer, query patterns with insights + quotes |
 | [RFC-051](RFC-051-database-projection-gil-kg.md) | Database Projection (GIL & Knowledge Graph) | PRD-018 | Relational export for GIL (`gi.json`) and KG (RFC-055) artifacts |
 | [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling; routes summarization, GIL (RFC-049), and KG (RFC-055) strategies |
 | [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
-| [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Knowledge Graph Layer — Use Cases & End-to-End Consumption | PRD-019 | KG query patterns, export, `kg` CLI expectations, optional DB consumption |
 | [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio design accepted ([ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md)); **implementation not landed** in `main` (no `[diarize]` extra yet) |
 | [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
 | [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Semantic Corpus Search — Platform & Future Backends | PRD-021 | Draft — Qdrant **`VectorStore`**, native filtering, pgvector/RFC-051, re-ranking, digest fusion; split from completed [RFC-061](RFC-061-semantic-corpus-search.md) |
+| [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) | Canonical Identity Layer & Cross-Layer Bridge | PRD-017, PRD-019, PRD-021 | Shared `person:`/`org:`/`topic:` IDs, `bridge.json` per episode, Position Tracker and Guest Brief flagship use cases; supersedes cross-layer aspects of RFC-050/056 |
 
 ## Completed RFCs
 
@@ -84,8 +83,10 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-047](RFC-047-run-comparison-visual-tool.md) | Lightweight Run Comparison & Diagnostics Tool | PRD-007 | v2.5.0 | Streamlit-based visual tool for comparing runs |
 | [RFC-048](RFC-048-evaluation-application-alignment.md) | Evaluation ↔ Application Alignment | PRD-007 | v2.5.0 | Fingerprinting and single-path eval-app alignment |
 | [RFC-049](RFC-049-grounded-insight-layer-core.md) | Grounded Insight Layer – Core Concepts & Data Model | PRD-017 | v2.6.0 | Core ontology, grounding contract, storage format for GIL |
+| [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Grounded Insight Layer – Use Cases & End-to-End Consumption | PRD-017 | v2.6.0 | Single-layer GIL consumption (CLI inspect, Insight Explorer, query patterns); cross-layer use cases moved to [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) |
 | [RFC-052](RFC-052-locally-hosted-llm-models-with-prompts.md) | Locally Hosted LLM Models with Prompts | PRD-014 | v2.5.0 | Ollama provider and optimized prompt templates |
 | [RFC-055](RFC-055-knowledge-graph-layer-core.md) | Knowledge Graph Layer — Core Concepts & Data Model | PRD-019 | v2.6.0 | KG ontology, artifacts, and separation from GIL |
+| [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Knowledge Graph Layer — Use Cases & End-to-End Consumption | PRD-019 | v2.6.0 | Single-layer KG consumption (`kg` CLI, entity roll-up, export); cross-layer use cases moved to [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) |
 | [RFC-057](RFC-057-autoresearch-optimization-loop.md) | AutoResearch Optimization Loop (Prompts & ML Params) | PRD-007 | v2.6.0 | Closed per [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md); Tracks A/B complete; silver refs + 72-config eval matrix |
 | [RFC-061](RFC-061-semantic-corpus-search.md) | Semantic Corpus Search (FAISS) | PRD-021 | v2.6.0 | Shipped: `FaissVectorStore`, `podcast search` / `index`, embed-and-index, semantic `gi explore`, `/api/search` ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); platform backends — [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) (Draft) |
 | [RFC-062](RFC-062-gi-kg-viewer-v2.md) | GI/KG Viewer v2 — Semantic Search UI | PRD-017, PRD-019, PRD-021 | v2.6.0 | FastAPI `podcast serve`, Vue 3 + Vite + Cytoscape SPA, Playwright UI E2E ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)); platform routes remain v2.7 per ADR-064 |
@@ -100,15 +101,15 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **70** files under `docs/rfc/RFC-*.md` — IDs **RFC-001–RFC-071**
-with **no RFC-014**. **14** open and **56** completed in the tables above.
+**Counts (reconcile when moving RFCs):** **71** files under `docs/rfc/RFC-*.md` — IDs **RFC-001–RFC-072**
+with **no RFC-014**. **13** open and **58** completed in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**), pipeline
-metrics (**RFC-027**), continuous review (**RFC-038**), metrics alerts (**RFC-043**), GIL/KG use cases
-and Postgres projection (**RFC-050**, **RFC-051**, **RFC-056**), adaptive summarization routing
-(**RFC-053**), E2E mock composition (**RFC-054**), diarization and cleaning (**RFC-058**–**RFC-060**;
-**RFC-058** is design-accepted, **not** fully landed in `main`), semantic search **platform** draft
-(**RFC-070**; **RFC-061** FAISS path is **Completed**).
+metrics (**RFC-027**), continuous review (**RFC-038**), metrics alerts (**RFC-043**), Postgres
+projection (**RFC-051**), adaptive summarization routing (**RFC-053**), E2E mock composition
+(**RFC-054**), diarization and cleaning (**RFC-058**–**RFC-060**; **RFC-058** is design-accepted,
+**not** fully landed in `main`), semantic search **platform** draft (**RFC-070**; **RFC-061** FAISS
+path is **Completed**), canonical identity layer and cross-layer bridge (**RFC-072**).
 
 **Closed program:** [RFC-057](RFC-057-autoresearch-optimization-loop.md) — **Completed**; closure summary
 in [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md).
