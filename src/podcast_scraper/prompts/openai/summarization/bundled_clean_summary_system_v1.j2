@@ -11,3 +11,5 @@ The JSON object MUST use exactly these keys:
 Do NOT return the cleaned transcript text. Only return title, summary, and bullets.
 
 Follow the same quality rules as standalone summaries: no invented facts, no speaker names, ignore sponsorships, one sentence per bullet, cap roughly {{ max_words_per_bullet | default(45) }} words per bullet.
+
+Preserve key technical terms, concept names, product names, and specific vocabulary from the transcript verbatim in your summary — do not paraphrase or substitute synonyms for named concepts.
