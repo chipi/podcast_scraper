@@ -16,8 +16,8 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "pattern": "^1\\.0$",
-      "description": "Schema version (must be 1.0)"
+      "pattern": "^(1\\.0|2\\.0)$",
+      "description": "Schema version: 1.0 legacy; 2.0 RFC-072 (Person, person: ids, insight_type, position_hint)"
     },
     "model_version": {
       "type": "string",
@@ -51,6 +51,7 @@
         { "$ref": "#/$defs/podcast_node" },
         { "$ref": "#/$defs/episode_node" },
         { "$ref": "#/$defs/speaker_node" },
+        { "$ref": "#/$defs/person_node" },
         { "$ref": "#/$defs/topic_node" },
         { "$ref": "#/$defs/insight_node" },
         { "$ref": "#/$defs/quote_node" }
@@ -61,7 +62,7 @@
       "required": ["id", "type", "properties"],
       "properties": {
         "id": { "type": "string", "minLength": 1, "description": "Unique node identifier" },
-        "type": { "type": "string", "enum": ["Podcast", "Episode", "Speaker", "Topic", "Insight", "Quote"], "description": "Node type" },
+        "type": { "type": "string", "enum": ["Podcast", "Episode", "Speaker", "Person", "Topic", "Insight", "Quote"], "description": "Node type" },
         "properties": { "type": "object", "description": "Type-specific properties" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Extraction confidence (optional, for ML-derived nodes)" }
       }
@@ -117,6 +118,21 @@
         }
       }
     },
+    "person_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "properties"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "RFC-072: person:{slug}" },
+        "type": { "const": "Person" },
+        "properties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name"],
+          "properties": { "name": { "type": "string", "minLength": 1 }, "aliases": { "type": "array", "items": { "type": "string" } } }
+        }
+      }
+    },
     "topic_node": {
       "type": "object",
       "additionalProperties": false,
@@ -146,7 +162,18 @@
           "properties": {
             "text": { "type": "string", "minLength": 1, "description": "The insight statement (can be rephrased for clarity)" },
             "episode_id": { "type": "string", "minLength": 1, "description": "Episode where insight was extracted" },
-            "grounded": { "type": "boolean", "description": "Whether insight has ≥1 supporting quote (CRITICAL: must be explicit)" }
+            "grounded": { "type": "boolean", "description": "Whether insight has ≥1 supporting quote (CRITICAL: must be explicit)" },
+            "insight_type": {
+              "type": "string",
+              "enum": ["claim", "recommendation", "observation", "question", "unknown"],
+              "description": "Optional v2.0 classification (default unknown when omitted)"
+            },
+            "position_hint": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Optional mean(quote_start_ms)/episode_duration_ms (RFC-072)"
+            }
           }
         },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Extraction confidence (0.0-1.0)" }
@@ -167,7 +194,7 @@
           "properties": {
             "text": { "type": "string", "minLength": 1, "description": "VERBATIM text from transcript (no paraphrasing!)" },
             "episode_id": { "type": "string", "minLength": 1, "description": "Episode containing the quote" },
-            "speaker_id": { "type": ["string", "null"], "description": "Speaker who said the quote (nullable if no diarization)" },
+            "speaker_id": { "type": ["string", "null"], "description": "person:{slug} when diarization present; null otherwise (RFC-072; legacy speaker: or raw labels may appear in old corpora)" },
             "char_start": { "type": "integer", "minimum": 0, "description": "Character start in transcript text" },
             "char_end": { "type": "integer", "minimum": 0, "description": "Character end in transcript text" },
             "timestamp_start_ms": { "type": "integer", "minimum": 0, "description": "Timestamp start (milliseconds)" },

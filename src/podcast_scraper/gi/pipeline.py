@@ -23,8 +23,8 @@ from ..graph_id_utils import (
     episode_node_id,
     gil_insight_node_id,
     gil_quote_node_id,
+    person_node_id,
     slugify_label,
-    speaker_node_id,
     topic_node_id_from_slug,
 )
 from .grounding import GroundedQuote
@@ -261,29 +261,45 @@ def _speaker_id_for_char_range(
     return best
 
 
-def _attach_speaker_for_quote(
+def _attach_person_for_quote(
     nodes: list,
     edges: list,
-    episode_id: str,
     quote_id: str,
     speaker_label: Optional[str],
-    speakers_added: Set[str],
+    person_id_value: Optional[str],
+    persons_added: Set[str],
 ) -> None:
-    """Add Speaker node and SPOKEN_BY (Quote -> Speaker) when diarization label exists."""
-    if not speaker_label or not str(speaker_label).strip():
+    """Add Person node and SPOKEN_BY (Quote -> Person) when diarization label exists."""
+    if (
+        not speaker_label
+        or not str(speaker_label).strip()
+        or not person_id_value
+        or not str(person_id_value).strip()
+    ):
         return
     raw = str(speaker_label).strip()
-    sid = speaker_node_id(raw)
-    if sid not in speakers_added:
+    pid = str(person_id_value).strip()
+    if pid not in persons_added:
         nodes.append(
             {
-                "id": sid,
-                "type": "Speaker",
+                "id": pid,
+                "type": "Person",
                 "properties": {"name": raw},
             }
         )
-        speakers_added.add(sid)
-    edges.append({"type": "SPOKEN_BY", "from": quote_id, "to": sid})
+        persons_added.add(pid)
+    edges.append({"type": "SPOKEN_BY", "from": quote_id, "to": pid})
+
+
+def _position_hint_from_timestamp_starts(
+    timestamp_starts_ms: List[int],
+    episode_duration_ms: Optional[int],
+) -> Optional[float]:
+    """RFC-072: mean quote start ms / episode duration, rounded (or None)."""
+    if not episode_duration_ms or episode_duration_ms <= 0 or not timestamp_starts_ms:
+        return None
+    mean_start = sum(timestamp_starts_ms) / len(timestamp_starts_ms)
+    return round(min(mean_start / float(episode_duration_ms), 1.0), 2)
 
 
 def _build_stub_artifact(
@@ -296,6 +312,7 @@ def _build_stub_artifact(
     episode_title: str,
     date_str: str,
     transcript_ref: str,
+    episode_duration_ms: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Build minimal stub artifact (one Episode, one Insight, one Quote, one SUPPORTED_BY)."""
     ep_node_id = episode_node_id(episode_id)
@@ -306,15 +323,19 @@ def _build_stub_artifact(
     char_end = max(0, len(text_slice) - 1)
     quote_id = gil_quote_node_id(episode_id, 0, text_slice, char_start, char_end)
 
+    ep_props: Dict[str, Any] = {
+        "podcast_id": podcast_id,
+        "title": episode_title,
+        "publish_date": date_str,
+    }
+    if episode_duration_ms is not None and episode_duration_ms > 0:
+        ep_props["duration_ms"] = int(episode_duration_ms)
+
     nodes: list = [
         {
             "id": ep_node_id,
             "type": "Episode",
-            "properties": {
-                "podcast_id": podcast_id,
-                "title": episode_title,
-                "publish_date": date_str,
-            },
+            "properties": ep_props,
         },
         {
             "id": insight_id,
@@ -323,6 +344,7 @@ def _build_stub_artifact(
                 "text": _STUB_INSIGHT_TEXT,
                 "episode_id": episode_id,
                 "grounded": True,
+                "insight_type": "unknown",
             },
         },
         {
@@ -345,7 +367,7 @@ def _build_stub_artifact(
         {"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id},
     ]
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,
@@ -354,19 +376,38 @@ def _build_stub_artifact(
     }
 
 
-def _resolve_insight_texts(
+def _normalize_insight_type(raw: Any) -> str:
+    allowed = frozenset({"claim", "recommendation", "observation", "question", "unknown"})
+    if isinstance(raw, str):
+        k = raw.strip().lower()
+        if k in allowed:
+            return k
+    return "unknown"
+
+
+def _parse_insight_item(item: Any) -> Optional[Tuple[str, str]]:
+    if isinstance(item, str):
+        s = item.strip()
+        return (s, "unknown") if s else None
+    if isinstance(item, dict):
+        text = item.get("text") or item.get("insight")
+        if isinstance(text, str) and text.strip():
+            return (text.strip(), _normalize_insight_type(item.get("insight_type")))
+    return None
+
+
+def _resolve_insight_specs(
     transcript_text: str,
     cfg: Optional["config.Config"],
     insight_texts: Optional[List[str]] = None,
     insight_provider: Optional[Any] = None,
     episode_title: Optional[str] = None,
     pipeline_metrics: Optional[Any] = None,
-) -> List[str]:
-    """Resolve list of insight strings for GIL from config, provider, or stub.
+) -> List[Tuple[str, str]]:
+    """Resolve (insight text, insight_type) pairs for GIL (RFC-072 v1.1).
 
-    Order: use insight_texts if non-empty; else if gi_insight_source=provider
-    and provider has generate_insights, call it; else if single stub desired,
-    return [_STUB_INSIGHT_TEXT]. Normalizes and caps length per gi_max_insights.
+    Order: use insight_texts if non-empty (type ``unknown``); else provider
+    ``generate_insights`` (strings or dicts with ``text`` / ``insight_type``); else stub.
     """
     max_insights = config_constants.DEFAULT_SUMMARY_BULLETS_DOWNSTREAM_MAX
     if cfg is not None:
@@ -375,8 +416,9 @@ def _resolve_insight_texts(
         )
 
     if insight_texts:
-        # Normalize: strip, drop empty, cap
-        resolved = [s.strip() for s in insight_texts if (s and s.strip())][:max_insights]
+        resolved = [(s.strip(), "unknown") for s in insight_texts if (s and s.strip())][
+            :max_insights
+        ]
         if resolved:
             return resolved
 
@@ -396,9 +438,14 @@ def _resolve_insight_texts(
                     pipeline_metrics=pipeline_metrics,
                 )
                 if isinstance(out, list):
-                    resolved = [s.strip() for s in out if (s and s.strip())][:max_insights]
-                    if resolved:
-                        return resolved
+                    resolved_specs: List[Tuple[str, str]] = []
+                    for item in out:
+                        p = _parse_insight_item(item)
+                        if p:
+                            resolved_specs.append(p)
+                    resolved_specs = resolved_specs[:max_insights]
+                    if resolved_specs:
+                        return resolved_specs
             except Exception as e:
                 logger.debug(
                     "generate_insights failed, falling back to stub: %s",
@@ -406,7 +453,7 @@ def _resolve_insight_texts(
                     exc_info=True,
                 )
 
-    return [_STUB_INSIGHT_TEXT]
+    return [(_STUB_INSIGHT_TEXT, "unknown")]
 
 
 def build_artifact(
@@ -429,6 +476,7 @@ def build_artifact(
     pipeline_metrics: Optional[Any] = None,
     gil_created_evidence_providers: Optional[List[Any]] = None,
     topic_labels: Optional[List[str]] = None,
+    episode_duration_ms: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Build a GIL artifact for one episode.
 
@@ -467,6 +515,8 @@ def build_artifact(
             to ``summary_provider``) are appended for caller cleanup (e.g. ``.cleanup()``).
         topic_labels: Optional episode topic labels (e.g. from summary bullets); creates
             Topic nodes and ABOUT edges (Insight → Topic) aligned with KG ``topic:{slug}`` ids.
+        episode_duration_ms: Optional episode length in ms for ``Episode.duration_ms`` and
+            ``Insight.position_hint`` (RFC-072); omit when unknown.
 
     Returns:
         Dict with schema_version, model_version, prompt_version, episode_id, nodes, edges.
@@ -475,7 +525,7 @@ def build_artifact(
     title = (episode_title or "Episode").strip() or "Episode"
     date_str = _safe_iso_date(publish_date)
 
-    insights = _resolve_insight_texts(
+    insight_specs = _resolve_insight_specs(
         transcript_text=transcript_text or "",
         cfg=cfg,
         insight_texts=insight_texts,
@@ -505,7 +555,7 @@ def build_artifact(
         and (transcript_text or "").strip()
     )
 
-    if use_evidence_stack and insights:
+    if use_evidence_stack and insight_specs:
         assert cfg is not None
         try:
             from .deps import create_gil_evidence_providers
@@ -548,10 +598,10 @@ def build_artifact(
             _er = max(0, _cfg_int(cfg, "gi_evidence_extract_retries", 0))
             qa_min = _cfg_float(cfg, "gi_qa_score_min", QA_SCORE_MIN)
             nli_min = _cfg_float(cfg, "gi_nli_entailment_min", NLI_ENTAILMENT_MIN)
-            for it in insights:
+            for it_text, _ in insight_specs:
                 grounded = find_grounded_quotes_via_providers(
                     transcript=transcript_text.strip(),
-                    insight_text=it,
+                    insight_text=it_text,
                     quote_extraction_provider=q_prov,
                     entailment_provider=e_prov,
                     qa_score_min=qa_min,
@@ -563,7 +613,7 @@ def build_artifact(
             total_grounded = sum(len(q) for q in insight_quotes)
             _handle_zero_grounded_quotes(
                 episode_id=episode_id,
-                insights=insights,
+                insights=[t for t, _ in insight_specs],
                 total_grounded=total_grounded,
                 cfg=cfg,
                 pipeline_metrics=pipeline_metrics,
@@ -574,7 +624,7 @@ def build_artifact(
                 pipeline_metrics.gi_evidence_stack_completed += 1
             return _artifact_from_multi_insight(
                 episode_id=episode_id,
-                insight_texts=insights,
+                insight_specs=insight_specs,
                 insight_quotes_list=insight_quotes,
                 model_version=artifact_model_version,
                 prompt_version=prompt_version,
@@ -585,6 +635,7 @@ def build_artifact(
                 transcript_text=transcript_text or "",
                 transcript_segments=transcript_segments,
                 topic_labels=topic_labels,
+                episode_duration_ms=episode_duration_ms,
             )
         except GILGroundingUnsatisfiedError:
             raise
@@ -596,7 +647,7 @@ def build_artifact(
             )
 
     # Single stub path (no evidence stack or fallback)
-    if len(insights) == 1 and insights[0] == _STUB_INSIGHT_TEXT:
+    if len(insight_specs) == 1 and insight_specs[0][0] == _STUB_INSIGHT_TEXT:
         return _build_stub_artifact(
             episode_id=episode_id,
             transcript_text=transcript_text,
@@ -606,6 +657,7 @@ def build_artifact(
             episode_title=title,
             date_str=date_str,
             transcript_ref=transcript_ref,
+            episode_duration_ms=episode_duration_ms,
         )
 
     # Multiple insights but evidence stack failed: still emit multi-insight artifact
@@ -613,8 +665,8 @@ def build_artifact(
     try:
         return _artifact_from_multi_insight(
             episode_id=episode_id,
-            insight_texts=insights,
-            insight_quotes_list=[[]] * len(insights),
+            insight_specs=insight_specs,
+            insight_quotes_list=[[]] * len(insight_specs),
             model_version=artifact_model_version,
             prompt_version=prompt_version,
             podcast_id=pid,
@@ -624,6 +676,7 @@ def build_artifact(
             transcript_text=transcript_text or "",
             transcript_segments=transcript_segments,
             topic_labels=topic_labels,
+            episode_duration_ms=episode_duration_ms,
         )
     except Exception:
         return _build_stub_artifact(
@@ -635,12 +688,13 @@ def build_artifact(
             episode_title=title,
             date_str=date_str,
             transcript_ref=transcript_ref,
+            episode_duration_ms=episode_duration_ms,
         )
 
 
 def _artifact_from_multi_insight(
     episode_id: str,
-    insight_texts: List[str],
+    insight_specs: List[Tuple[str, str]],
     insight_quotes_list: List[List[GroundedQuote]],
     *,
     model_version: str,
@@ -652,6 +706,7 @@ def _artifact_from_multi_insight(
     transcript_text: Optional[str] = None,
     transcript_segments: Optional[List[Dict[str, Any]]] = None,
     topic_labels: Optional[List[str]] = None,
+    episode_duration_ms: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Build artifact from Episode + N Insights + their grounded quote lists.
 
@@ -659,20 +714,24 @@ def _artifact_from_multi_insight(
     precise timestamp_start_ms and timestamp_end_ms (FR2.2).
     """
     ep_node_id = episode_node_id(episode_id)
+    ep_props: Dict[str, Any] = {
+        "podcast_id": podcast_id,
+        "title": episode_title,
+        "publish_date": date_str,
+    }
+    if episode_duration_ms is not None and episode_duration_ms > 0:
+        ep_props["duration_ms"] = int(episode_duration_ms)
+
     nodes: list = [
         {
             "id": ep_node_id,
             "type": "Episode",
-            "properties": {
-                "podcast_id": podcast_id,
-                "title": episode_title,
-                "publish_date": date_str,
-            },
+            "properties": ep_props,
         },
     ]
     edges: list = []
     quote_global_idx = 0
-    speakers_added: Set[str] = set()
+    persons_added: Set[str] = set()
     use_segments = bool(transcript_text and transcript_segments and len(transcript_segments) > 0)
     topic_node_specs = _dedupe_topic_node_specs(topic_labels)
     for tid, display_label in topic_node_specs:
@@ -685,20 +744,39 @@ def _artifact_from_multi_insight(
         )
 
     # Pad so we have one quote list per insight
-    while len(insight_quotes_list) < len(insight_texts):
+    while len(insight_quotes_list) < len(insight_specs):
         insight_quotes_list.append([])
 
-    for idx, (it_text, quotes) in enumerate(zip(insight_texts, insight_quotes_list)):
+    for idx, ((it_text, it_type), quotes) in enumerate(zip(insight_specs, insight_quotes_list)):
         insight_id = gil_insight_node_id(episode_id, idx, it_text)
         insight_confidence = _insight_confidence_from_quotes(quotes)
+        timestamp_starts_ms: List[int] = []
+        insight_props: Dict[str, Any] = {
+            "text": it_text,
+            "episode_id": episode_id,
+            "grounded": len(quotes) > 0,
+            "insight_type": it_type,
+        }
+        for gq in quotes:
+            if not isinstance(gq, GroundedQuote):
+                continue
+            ts_start, _ts_end = 0, 0
+            if use_segments and transcript_segments:
+                ts_start, _ts_end = _char_range_to_ms(
+                    transcript_text or "",
+                    gq.char_start,
+                    gq.char_end,
+                    transcript_segments,
+                )
+            if ts_start > 0:
+                timestamp_starts_ms.append(ts_start)
+        ph = _position_hint_from_timestamp_starts(timestamp_starts_ms, episode_duration_ms)
+        if ph is not None:
+            insight_props["position_hint"] = ph
         insight_node: Dict[str, Any] = {
             "id": insight_id,
             "type": "Insight",
-            "properties": {
-                "text": it_text,
-                "episode_id": episode_id,
-                "grounded": len(quotes) > 0,
-            },
+            "properties": insight_props,
         }
         if insight_confidence is not None:
             insight_node["confidence"] = float(insight_confidence)
@@ -718,7 +796,8 @@ def _artifact_from_multi_insight(
             )
             quote_global_idx += 1
             ts_start, ts_end = 0, 0
-            sp_id: Optional[str] = None
+            speaker_label: Optional[str] = None
+            person_id_for_quote: Optional[str] = None
             if use_segments and transcript_segments:
                 ts_start, ts_end = _char_range_to_ms(
                     transcript_text or "",
@@ -726,12 +805,14 @@ def _artifact_from_multi_insight(
                     gq.char_end,
                     transcript_segments,
                 )
-                sp_id = _speaker_id_for_char_range(
+                speaker_label = _speaker_id_for_char_range(
                     transcript_text or "",
                     gq.char_start,
                     gq.char_end,
                     transcript_segments,
                 )
+                if speaker_label:
+                    person_id_for_quote = person_node_id(speaker_label)
             nodes.append(
                 {
                     "id": quote_id,
@@ -739,7 +820,7 @@ def _artifact_from_multi_insight(
                     "properties": {
                         "text": gq.text,
                         "episode_id": episode_id,
-                        "speaker_id": sp_id,
+                        "speaker_id": person_id_for_quote,
                         "char_start": gq.char_start,
                         "char_end": gq.char_end,
                         "timestamp_start_ms": ts_start,
@@ -749,17 +830,17 @@ def _artifact_from_multi_insight(
                 }
             )
             edges.append({"type": "SUPPORTED_BY", "from": insight_id, "to": quote_id})
-            _attach_speaker_for_quote(
+            _attach_person_for_quote(
                 nodes,
                 edges,
-                episode_id,
                 quote_id,
-                sp_id,
-                speakers_added,
+                speaker_label,
+                person_id_for_quote,
+                persons_added,
             )
 
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "model_version": model_version,
         "prompt_version": prompt_version,
         "episode_id": episode_id,

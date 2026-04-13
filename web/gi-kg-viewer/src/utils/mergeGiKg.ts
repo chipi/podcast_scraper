@@ -8,11 +8,11 @@ function deepClone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x)) as T
 }
 
-const DEDUP_TYPES = new Set(['Entity', 'Topic'])
+const DEDUP_TYPES = new Set(['Entity', 'Topic', 'Person'])
 
 /**
  * Canonical identity key for a node that should be deduplicated across episodes.
- * Entity → lowercased `name`, Topic → lowercased `label`.
+ * Entity / Person → lowercased `name` (or `label` / `title` when present), Topic → lowercased `label`.
  * Returns null for types we don't dedup (Episode, Insight, Quote, etc.).
  */
 function entityCanonicalKey(node: RawGraphNode): string | null {
@@ -25,7 +25,7 @@ function entityCanonicalKey(node: RawGraphNode): string | null {
 }
 
 /**
- * Deduplicate Entity / Topic nodes that share the same canonical name.
+ * Deduplicate Entity, Topic, and Person nodes that share the same canonical name.
  * Keeps the first occurrence, merges properties from duplicates,
  * and rewrites all edges to point to the surviving node ID.
  */

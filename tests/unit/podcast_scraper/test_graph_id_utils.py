@@ -7,8 +7,8 @@ from podcast_scraper.graph_id_utils import (
     episode_node_id,
     gil_insight_node_id,
     gil_quote_node_id,
+    person_node_id,
     slugify_label,
-    speaker_node_id,
     topic_node_id_from_slug,
 )
 
@@ -20,9 +20,10 @@ def test_episode_and_topic_ids() -> None:
     assert topic_node_id_from_slug("inflation") == "topic:inflation"
 
 
-def test_entity_and_speaker_ids() -> None:
-    assert entity_node_id("person", "Jane Doe") == "entity:person:jane-doe"
-    assert speaker_node_id("Sam Altman") == "speaker:sam-altman"
+def test_entity_and_person_ids() -> None:
+    assert entity_node_id("person", "Jane Doe") == "person:jane-doe"
+    assert entity_node_id("organization", "Acme") == "org:acme"
+    assert person_node_id("Sam Altman") == "person:sam-altman"
 
 
 def test_gil_hashes_stable() -> None:
@@ -47,5 +48,5 @@ def test_slugify_label_max_len_truncates() -> None:
     assert len(slugify_label(long_word, max_len=40)) == 40
 
 
-def test_speaker_node_id_diacritic_normalizes_like_cil() -> None:
-    assert speaker_node_id("José") == "speaker:jose"
+def test_person_node_id_diacritic_normalizes_like_cil() -> None:
+    assert person_node_id("José") == "person:jose"

@@ -4,6 +4,7 @@ import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useExploreStore } from '../../stores/explore'
 import { useShellStore } from '../../stores/shell'
 import { truncate } from '../../utils/formatting'
+import { quoteAttributionDisplayFromId } from '../../utils/parsing'
 import HelpTip from '../shared/HelpTip.vue'
 
 const emit = defineEmits<{ 'go-graph': [] }>()
@@ -443,10 +444,16 @@ function focusNode(id: string): void {
               >
                 <p>{{ truncate(q.text, 300) }}</p>
                 <p
-                  v-if="q.speaker_name"
+                  v-if="q.speaker_name || q.speaker_id"
                   class="mt-0.5 text-[10px] font-medium text-primary"
                 >
-                  — {{ q.speaker_name }}
+                  —
+                  {{
+                    q.speaker_name ||
+                      quoteAttributionDisplayFromId(
+                        typeof q.speaker_id === 'string' ? q.speaker_id : '',
+                      )
+                  }}
                   <span
                     v-if="q.start_ms != null"
                     class="font-normal text-muted"

@@ -14,6 +14,20 @@ from .io import read_artifact
 
 logger = logging.getLogger(__name__)
 
+
+def _kg_entity_kind_display(props: Dict[str, Any]) -> str:
+    """Map ``kind`` (RFC-072) or legacy ``entity_kind`` to person|organization."""
+    k = props.get("kind")
+    if k == "org":
+        return "organization"
+    if k == "person":
+        return "person"
+    ek = props.get("entity_kind")
+    if isinstance(ek, str) and ek.strip():
+        return ek.strip()
+    return "person"
+
+
 EXIT_SUCCESS = 0
 EXIT_INVALID_ARGS = 2
 EXIT_NO_ARTIFACTS = 3
@@ -106,7 +120,7 @@ def inspect_summary(
             erow: Dict[str, Any] = {
                 "id": str(n.get("id", "")),
                 "name": str(props.get("name", "")),
-                "entity_kind": str(props.get("entity_kind", "")),
+                "entity_kind": _kg_entity_kind_display(props),
                 "role": props.get("role"),
             }
             if isinstance(ed, str) and ed.strip():
@@ -166,9 +180,9 @@ def build_embedding_document_for_kg_node(
         label = props.get("label")
         if label and str(label).strip() != str(name or "").strip():
             parts.append(str(label).strip())
-        ek = props.get("entity_kind")
-        if ek:
-            parts.append(f"kind:{ek}")
+        ek_disp = _kg_entity_kind_display(props)
+        if ek_disp:
+            parts.append(f"kind:{ek_disp}")
         role = props.get("role")
         if role:
             parts.append(f"role:{role}")
@@ -214,7 +228,7 @@ def entity_rollup(
             name = str(props.get("name", "")).strip()
             if not name:
                 continue
-            kind = str(props.get("entity_kind", "person"))
+            kind = _kg_entity_kind_display(props)
             key = f"{kind}:{name.lower()}"
             if key not in agg:
                 agg[key] = {

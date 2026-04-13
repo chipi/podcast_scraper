@@ -415,7 +415,7 @@ class GroundedInsightsMetadata(BaseModel):
     artifact_path: str = Field(description="Path to gi.json relative to output directory")
     insight_count: int = Field(description="Number of Insight nodes in the artifact")
     generated_at: datetime = Field(description="When the GIL artifact was generated")
-    schema_version: str = Field(default="1.0", description="GIL artifact schema version")
+    schema_version: str = Field(default="2.0", description="GIL artifact schema version")
 
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
@@ -433,7 +433,7 @@ class KnowledgeGraphMetadata(BaseModel):
     node_count: int = Field(description="Number of nodes in the KG artifact")
     edge_count: int = Field(description="Number of edges in the KG artifact")
     generated_at: datetime = Field(description="When the KG artifact was generated")
-    schema_version: str = Field(default="1.0", description="KG artifact schema version")
+    schema_version: str = Field(default="1.2", description="KG artifact schema version")
 
     @field_serializer("generated_at")
     def serialize_generated_at(self, value: datetime) -> str:
@@ -3340,6 +3340,9 @@ def generate_episode_metadata(  # noqa: C901
                                 gi_topic_labels.append(_s)
                         if not gi_topic_labels:
                             gi_topic_labels = None
+                gi_episode_duration_ms: Optional[int] = None
+                if episode_duration_seconds is not None and int(episode_duration_seconds) > 0:
+                    gi_episode_duration_ms = int(episode_duration_seconds) * 1000
                 payload = build_artifact(
                     episode_id,
                     transcript_text,
@@ -3361,6 +3364,7 @@ def generate_episode_metadata(  # noqa: C901
                     pipeline_metrics=pipeline_metrics,
                     gil_created_evidence_providers=gil_evidence_cleanup,
                     topic_labels=gi_topic_labels,
+                    episode_duration_ms=gi_episode_duration_ms,
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
                 gi_elapsed = time.time() - gi_start

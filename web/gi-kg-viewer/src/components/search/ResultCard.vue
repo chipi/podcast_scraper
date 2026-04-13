@@ -7,6 +7,7 @@ import {
   SEARCH_RESULT_GRAPH_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
+import { quoteAttributionDisplayFromId } from '../../utils/parsing'
 import { isKgSurfaceMultiEpisodeDedupe } from '../../utils/searchHitKgDedupe'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 
@@ -206,10 +207,16 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
         >
           <p>{{ truncate(String(q.text ?? ''), 300) }}</p>
           <p
-            v-if="q.speaker_id"
+            v-if="q.speaker_name || q.speaker_id"
             class="mt-0.5 text-[10px] font-medium text-primary"
           >
-            — {{ q.speaker_id }}
+            —
+            {{
+              String(q.speaker_name ?? '') ||
+                quoteAttributionDisplayFromId(
+                  typeof q.speaker_id === 'string' ? q.speaker_id : '',
+                )
+            }}
             <span
               v-if="q.timestamp_start_ms != null"
               class="font-normal text-muted"

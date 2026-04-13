@@ -18,7 +18,7 @@
 | --- | --- |
 | `Episode` | `episode:{episode_id}` (same anchor string as artifact `episode_id`; shared with GI) |
 | `Topic` | `topic:{slug}` — global by normalized label slug (bullets or provider) |
-| `Entity` | `entity:{entity_kind}:{name_slug}` — global by kind + slugified name (hosts/guests/LLM). Properties include **`name`** and optional graph **`label`** (pipeline mirrors `name`, like Topic **`label`**). |
+| `Entity` | **v1.2 (RFC-072):** `person:{slug}` or `org:{slug}`; properties use **`kind`**: `person` \| `org`. **Legacy:** `entity:person:{slug}` / `entity:organization:{slug}` with **`entity_kind`** — migrate with `scripts/migrate_kg_entity_ids.py`. Properties include **`name`** and optional **`label`**. |
 
 **Slug:** Derived from the topic label via the pipeline slugifier (lowercase, hyphenated, max length capped in code) — must be non-empty in artifacts.
 
@@ -43,7 +43,7 @@ Fields and enums are normative in **`kg.schema.json`**.
 
 ## Provenance
 
-- **`schema_version`:** `1.0` (legacy) or **`1.1`** (pipeline default when emitting; adds optional Topic/Entity `description` per #487).
+- **`schema_version`:** `1.0` (legacy), **`1.1`** (optional Topic/Entity `description` per #487), or **`1.2`** (RFC-072: `kind`, `person:` / `org:` ids).
 - **`extraction.model_version`:** `stub` \| `summary_bullets` \| `provider:<summarization_model_id>` \| `provider:summary_bullets:<summarization_model_id>`.
 - **`extraction.extracted_at`:** ISO-8601 timestamp (UTC `Z` in shipped output).
 - **`extraction.transcript_ref`:** Relative transcript path or label for the text used in extraction.

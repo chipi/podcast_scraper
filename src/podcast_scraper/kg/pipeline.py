@@ -290,7 +290,7 @@ def build_artifact(
     )
 
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "episode_id": episode_id,
         "extraction": {
             "model_version": resolved_model,
@@ -308,6 +308,16 @@ def _entity_dedup_key(*, name: str, entity_kind: Optional[str]) -> str:
     return f"{ek}:{name.strip().lower()}"
 
 
+def _normalized_kind_from_props(props: Dict[str, Any]) -> str:
+    """Map stored ``kind`` (RFC-072) or legacy ``entity_kind`` to person/organization."""
+    raw = props.get("kind")
+    if raw == "org":
+        return "organization"
+    if raw == "person":
+        return "person"
+    return _normalize_entity_kind(props.get("entity_kind"))
+
+
 def _entity_identity_keys(nodes: List[Dict[str, Any]]) -> Set[str]:
     """Keys for existing Entity nodes: kind + lowercased name (matches node id semantics)."""
     out: Set[str] = set()
@@ -317,7 +327,12 @@ def _entity_identity_keys(nodes: List[Dict[str, Any]]) -> Set[str]:
         props = n.get("properties") or {}
         name = props.get("name")
         if isinstance(name, str) and name.strip():
-            out.add(_entity_dedup_key(name=name, entity_kind=props.get("entity_kind")))
+            out.add(
+                _entity_dedup_key(
+                    name=name,
+                    entity_kind=_normalized_kind_from_props(props),
+                )
+            )
     return out
 
 
@@ -328,12 +343,14 @@ def _entity_properties(
     role: str,
     description: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Entity node properties: name, label (for graphs / Topic parity), kind, role."""
+    """Entity node properties: name, label, ``kind`` (person|org), role (RFC-072)."""
     name_s = (name or "").strip()[:500]
+    ek = _normalize_entity_kind(entity_kind)
+    kind_out = "org" if ek == "organization" else "person"
     props: Dict[str, Any] = {
         "name": name_s,
         "label": name_s[:200],
-        "entity_kind": entity_kind,
+        "kind": kind_out,
         "role": role,
     }
     if description and str(description).strip():

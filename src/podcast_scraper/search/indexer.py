@@ -174,6 +174,17 @@ def _kg_embed_text_topic(props: Dict[str, Any]) -> Optional[str]:
     return " ".join(parts) if parts else None
 
 
+def _kg_entity_kind_for_meta(props: Dict[str, Any]) -> Optional[str]:
+    """person|organization for index metadata (RFC-072 ``kind`` or legacy ``entity_kind``)."""
+    k = props.get("kind")
+    if k == "org":
+        return "organization"
+    if k == "person":
+        return "person"
+    ek = props.get("entity_kind")
+    return ek if isinstance(ek, str) else None
+
+
 def _kg_embed_text_entity(props: Dict[str, Any]) -> Optional[str]:
     """Concatenate Entity name, optional distinct label, and description for embedding."""
     parts: List[str] = []
@@ -233,7 +244,7 @@ def _kg_vector_rows_from_path(
         elif nt == "Entity":
             ktext = _kg_embed_text_entity(props)
             if ktext:
-                ek = props.get("entity_kind")
+                ek = _kg_entity_kind_for_meta(props)
                 rows.append(
                     (
                         f"kg_entity:{scope_tag}:{nid}",

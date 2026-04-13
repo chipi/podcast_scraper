@@ -34,6 +34,7 @@ const HIDDEN_PROPS = new Set([
   'title',
   'description',
   'entity_kind',
+  'kind',
 ])
 
 const node = computed(() => {
@@ -87,6 +88,9 @@ const graphNodeIdTooltip = computed((): string => {
 const entityKind = computed(() => {
   const p = node.value?.properties
   if (!p) return null
+  const kd = typeof p.kind === 'string' ? p.kind.trim().toLowerCase() : ''
+  if (kd === 'org') return 'organization'
+  if (kd === 'person') return 'person'
   const ek = p.entity_kind
   return typeof ek === 'string' && ek.trim() ? ek.trim() : null
 })

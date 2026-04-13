@@ -12,8 +12,23 @@ describe('visualGroupForNode', () => {
     expect(visualGroupForNode({ type: 'Insight' })).toBe('Insight')
   })
 
+  it('maps GIL Person to Entity_person styling group', () => {
+    expect(visualGroupForNode({ type: 'Person', properties: { name: 'Ada' } })).toBe(
+      'Entity_person',
+    )
+  })
+
   it('defaults Entity to Entity_person when no entity_kind', () => {
     expect(visualGroupForNode({ type: 'Entity' })).toBe('Entity_person')
+  })
+
+  it('maps RFC-072 kind person|org on Entity', () => {
+    expect(visualGroupForNode({ type: 'Entity', properties: { kind: 'person' } })).toBe(
+      'Entity_person',
+    )
+    expect(visualGroupForNode({ type: 'Entity', properties: { kind: 'org' } })).toBe(
+      'Entity_organization',
+    )
   })
 
   it('maps organization variants to Entity_organization', () => {
