@@ -1,0 +1,27 @@
+# Apples-to-apples comparison: bundled output bullets-only vs non-bundled bullets.
+#
+# Uses scoring_output_field: bullets to extract only the bullets array from the
+# bundled JSON summary_final before computing ROUGE.
+#
+# Run with --score-only to reuse existing predictions from the bundled run:
+#   make experiment-run CONFIG=... REFERENCE=silver_sonnet46_smoke_bullets_v1 SCORE_ONLY=1
+#
+# Compare against: autoresearch_prompt_openai_smoke_bullets_v1 (non-bundled bullets)
+
+id: "autoresearch_prompt_openai_bundled_smoke_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o-mini"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "bullets"

@@ -1820,15 +1820,55 @@ def run_experiment(  # noqa: C901
     if cfg.params and "scoring" in cfg.params:
         scoring_params = cfg.params["scoring"]
 
-    metrics = score_run(
-        predictions_path=predictions_path,
-        dataset_id=dataset_id,
-        run_id=run_id,
-        reference_paths=reference_paths if reference_paths else None,
-        metadata_map=metadata_map if metadata_map else None,
-        scoring_params=scoring_params,
-        task=cfg.task,
-    )
+    # If scoring_output_field is set, extract that field from JSON summary_final before scoring.
+    # This allows apples-to-apples comparison for bundled outputs (e.g. extract "bullets" only).
+    scoring_predictions_path = predictions_path
+    _extracted_tmp: Optional[Path] = None
+    if getattr(cfg, "scoring_output_field", None):
+        import tempfile
+
+        field = cfg.scoring_output_field
+        extracted = []
+        for line in predictions_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            pred = json.loads(line)
+            out = pred.get("output", {})
+            sf = out.get("summary_final", "") if isinstance(out, dict) else str(out)
+            try:
+                parsed = json.loads(sf)
+                if field == "bullets" and isinstance(parsed.get("bullets"), list):
+                    sf = " ".join(str(b) for b in parsed["bullets"])
+                elif field == "summary" and isinstance(parsed.get("summary"), str):
+                    sf = parsed["summary"]
+            except (json.JSONDecodeError, AttributeError):
+                pass  # keep original sf if not valid JSON
+            new_pred = dict(pred)
+            new_pred["output"] = {"summary_final": sf}
+            extracted.append(new_pred)
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, dir=results_dir, prefix="scoring_extract_"
+        )
+        for p in extracted:
+            tmp.write(json.dumps(p) + "\n")
+        tmp.close()
+        _extracted_tmp = Path(tmp.name)
+        scoring_predictions_path = _extracted_tmp
+        logger.info("scoring_output_field=%r: scoring against extracted field only", field)
+
+    try:
+        metrics = score_run(
+            predictions_path=scoring_predictions_path,
+            dataset_id=dataset_id,
+            run_id=run_id,
+            reference_paths=reference_paths if reference_paths else None,
+            metadata_map=metadata_map if metadata_map else None,
+            scoring_params=scoring_params,
+            task=cfg.task,
+        )
+    finally:
+        if _extracted_tmp and _extracted_tmp.exists():
+            _extracted_tmp.unlink()
 
     # Save metrics.json
     metrics_path = results_dir / "metrics.json"
