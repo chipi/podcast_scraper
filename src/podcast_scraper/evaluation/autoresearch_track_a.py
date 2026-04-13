@@ -308,7 +308,11 @@ def call_openai_judge(*, api_key: str, model: str, user_content: str) -> float:
 
 def call_anthropic_judge(*, api_key: str, model: str, user_content: str) -> float:
     """Run one Anthropic messages call and parse ``score`` from the assistant JSON reply."""
+    import logging
+
     import anthropic
+
+    logger = logging.getLogger(__name__)
 
     client = anthropic.Anthropic(api_key=api_key)
     msg = client.messages.create(
@@ -317,11 +321,27 @@ def call_anthropic_judge(*, api_key: str, model: str, user_content: str) -> floa
         temperature=0.0,
         messages=[{"role": "user", "content": user_content}],
     )
-    parts: List[str] = []
-    for block in msg.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    content = "".join(parts).strip()
+    # Handle both Message object and string responses
+    if isinstance(msg, str):
+        content = msg.strip()
+    else:
+        logger.debug(
+            "Message type: %s, stop_reason: %s, content blocks: %d",
+            type(msg),
+            getattr(msg, "stop_reason", "N/A"),
+            len(msg.content),
+        )
+        parts: List[str] = []
+        for i, block in enumerate(msg.content):
+            logger.debug(
+                "  Block %d: type=%s, has_text=%s",
+                i,
+                type(block).__name__,
+                hasattr(block, "text"),
+            )
+            if hasattr(block, "text"):
+                parts.append(block.text)
+        content = "".join(parts).strip()
     return parse_judge_score_json(content)
 
 

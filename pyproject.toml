@@ -175,6 +175,7 @@ exclude = [
     "^tools/.*",  # Standalone Streamlit tools (not part of src package)
     "^\\.venv/.*",  # Local venv (make type uses ``mypy .``)
     "^\\.venv-dev/.*",  # CI-parity venv (see Makefile VENVDEV)
+    "^autoresearch/.*",  # Standalone autoresearch scripts (not part of src package)
 ]
 
 [[tool.mypy.overrides]]
