@@ -1911,6 +1911,14 @@ class TestOllamaSummarizeBundled(unittest.TestCase):
     """Unit tests for summarize_bundled() (Issue #477)."""
 
     def setUp(self):
+        self._ollama_validate_patcher = patch.object(
+            OllamaProvider,
+            "_validate_ollama_running",
+            autospec=True,
+        )
+        self._ollama_validate_patcher.start()
+        self.addCleanup(self._ollama_validate_patcher.stop)
+
         self.cfg = config.Config(
             rss_url="https://example.com/feed.xml",
             speaker_detector_provider="ollama",
