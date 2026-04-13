@@ -1,4 +1,4 @@
-"""Unit tests for in-process index rebuild mutex (GitHub #507 follow-up)."""
+"""Integration tests for in-process index rebuild mutex (GitHub #507 follow-up)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,8 @@ pytest.importorskip("fastapi")
 
 from podcast_scraper.server.app import create_app
 from podcast_scraper.server.index_rebuild import CorpusRebuildGate, gate_for_corpus
+
+pytestmark = [pytest.mark.integration]
 
 
 def test_corpus_rebuild_gate_try_begin_excludes_second() -> None:
