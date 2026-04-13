@@ -14,12 +14,26 @@ from podcast_scraper.search.cil_lift_overrides import (
     CilLiftOverrides,
     resolve_id_alias,
 )
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
 # Public alias (same name as historical API); canonical implementation in builders.
 bridge_path_next_to_gi = bridge_path_next_to_gi_json
+
+
+def _bridge_json_str_next_to_gi_json(safe_gi_path: str) -> str:
+    """Sibling ``*.bridge.json`` path for a sanitized ``*.gi.json`` (string ops only)."""
+    parent = os.path.dirname(safe_gi_path)
+    name = os.path.basename(safe_gi_path)
+    if name.endswith(".gi.json"):
+        return os.path.normpath(os.path.join(parent, name[: -len(".gi.json")] + ".bridge.json"))
+    stem, dot, _ext = name.rpartition(".")
+    if not dot:
+        return os.path.normpath(os.path.join(parent, f"{name}.bridge.json"))
+    if stem.endswith(".gi"):
+        return os.path.normpath(os.path.join(parent, stem[: -len(".gi")] + ".bridge.json"))
+    return os.path.normpath(os.path.join(parent, f"{stem}.bridge.json"))
 
 
 def _nodes_by_id(artifact: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -193,32 +207,25 @@ def try_lift_transcript_chunk_from_gi(
 
     speaker_name = ""
     topic_name = ""
-    root_norm = corpus_root.resolve()
-    root_s = os.path.normpath(str(root_norm))
-    safe_prefix = root_s + os.sep
-    bridge_abs = bridge_path_next_to_gi(gi_path)
-    try:
-        rel_bridge = bridge_abs.resolve().relative_to(root_norm)
-    except ValueError:
-        rel_bridge = None
-    if rel_bridge is not None:
-        safe_bridge = safe_relpath_under_corpus_root(
-            root_norm,
-            str(rel_bridge).replace("\\", "/"),
-        )
-        if safe_bridge:
-            safe_bridge = os.path.normpath(safe_bridge)
-        if safe_bridge and safe_bridge.startswith(safe_prefix) and os.path.isfile(safe_bridge):
-            try:
-                with open(safe_bridge, encoding="utf-8") as fh:
-                    bridge = json.loads(fh.read())
-            except (OSError, json.JSONDecodeError):
-                bridge = {}
-            if isinstance(bridge, dict):
-                if person_id:
-                    speaker_name = _display_name_from_bridge(bridge, person_id)
-                if topic_id:
-                    topic_name = _display_name_from_bridge(bridge, topic_id)
+    root_resolved = safe_resolve_directory(corpus_root)
+    if root_resolved is not None:
+        root_s = os.path.normpath(str(root_resolved))
+        safe_prefix = root_s + os.sep
+        safe_gi = normpath_if_under_root(os.path.normpath(str(gi_path)), root_s)
+        if safe_gi and safe_gi.startswith(safe_prefix):
+            bridge_cand = _bridge_json_str_next_to_gi_json(safe_gi)
+            safe_bridge = normpath_if_under_root(os.path.normpath(bridge_cand), root_s)
+            if safe_bridge and safe_bridge.startswith(safe_prefix) and os.path.isfile(safe_bridge):
+                try:
+                    with open(safe_bridge, encoding="utf-8") as fh:
+                        bridge = json.loads(fh.read())
+                except (OSError, json.JSONDecodeError):
+                    bridge = {}
+                if isinstance(bridge, dict):
+                    if person_id:
+                        speaker_name = _display_name_from_bridge(bridge, person_id)
+                    if topic_id:
+                        topic_name = _display_name_from_bridge(bridge, topic_id)
 
     lifted: Dict[str, Any] = {
         "insight": _insight_payload(nodes, insight_id),

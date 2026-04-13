@@ -41,6 +41,7 @@ import gc
 import os
 import signal
 import sys
+import time
 from pathlib import Path
 from typing import List, Optional
 
@@ -235,6 +236,20 @@ def preload_spacy_models(model_names: Optional[List[str]] = None) -> None:
             sys.exit(1)
 
 
+def _hf_preload_attempts() -> int:
+    raw = os.environ.get("HF_PRELOAD_RETRIES", "5").strip()
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 5
+
+
+def _hf_preload_backoff_s(attempt_zero_based: int) -> float:
+    base = float(os.environ.get("HF_PRELOAD_RETRY_BASE_S", "8"))
+    cap = float(os.environ.get("HF_PRELOAD_RETRY_MAX_S", "120"))
+    return min(cap, base * (2**attempt_zero_based))
+
+
 def _transformers_pretrained_kwargs(
     cache_dir: Path,
     *,
@@ -363,11 +378,41 @@ def preload_transformers_models(model_names: Optional[List[str]] = None) -> None
                 local_files_only=False,
                 pinned_revision=pinned_revision,
             )
-            # Bandit B615 does not see revision inside **download_kw; it is set when pinned.
-            tokenizer = AutoTokenizer.from_pretrained(resolved_model, **download_kw)  # nosec B615
-            model = AutoModelForSeq2SeqLM.from_pretrained(
-                resolved_model, **download_kw
-            )  # nosec B615
+            attempts = _hf_preload_attempts()
+            tokenizer = None
+            model = None
+            last_dl_exc: Optional[BaseException] = None
+            for attempt in range(attempts):
+                try:
+                    # Bandit B615 does not see revision inside **download_kw; set when pinned.
+                    tokenizer = AutoTokenizer.from_pretrained(
+                        resolved_model, **download_kw
+                    )  # nosec B615
+                    model = AutoModelForSeq2SeqLM.from_pretrained(
+                        resolved_model, **download_kw
+                    )  # nosec B615
+                    last_dl_exc = None
+                    break
+                except KeyboardInterrupt:
+                    raise
+                except Exception as exc:
+                    last_dl_exc = exc
+                    if attempt + 1 >= attempts:
+                        break
+                    delay = _hf_preload_backoff_s(attempt)
+                    print(
+                        f"    Hugging Face download failed "
+                        f"(attempt {attempt + 1}/{attempts}); "
+                        f"retrying in {delay:.0f}s: {exc}",
+                        file=sys.stderr,
+                    )
+                    time.sleep(delay)
+            if tokenizer is None or model is None:
+                if last_dl_exc is not None:
+                    raise last_dl_exc
+                raise RuntimeError(
+                    f"Failed to download {resolved_model}: no model after {attempts} attempt(s)"
+                )
 
             # Calculate final size after download
             if model_cache_path.exists():

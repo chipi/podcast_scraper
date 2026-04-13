@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Mapping
 
-from podcast_scraper.utils.path_validation import safe_fixed_file_under_root
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +43,14 @@ def _aliases_from_raw(raw: Mapping[str, Any], key: str) -> Dict[str, str]:
 
 def load_cil_lift_overrides(corpus_root: Path) -> CilLiftOverrides:
     """Load ``<corpus_root>/cil_lift_overrides.json`` if present; else empty defaults."""
-    safe = safe_fixed_file_under_root(corpus_root, _OVERRIDES_FILENAME)
-    if not safe or not os.path.isfile(safe):
+    root_resolved = safe_resolve_directory(corpus_root)
+    if root_resolved is None:
+        return CilLiftOverrides()
+    root_s = os.path.normpath(str(root_resolved))
+    safe_prefix = root_s + os.sep
+    joined = os.path.normpath(os.path.join(root_s, _OVERRIDES_FILENAME))
+    safe = normpath_if_under_root(joined, root_s)
+    if not safe or not safe.startswith(safe_prefix) or not os.path.isfile(safe):
         return CilLiftOverrides()
     try:
         with open(safe, encoding="utf-8") as fh:

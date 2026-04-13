@@ -8,9 +8,8 @@ import os
 from pathlib import Path
 from typing import Any, Iterator
 
-from podcast_scraper.builders.rfc072_artifact_paths import gi_and_kg_json_paths_next_to_bridge
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
-from podcast_scraper.utils.path_validation import normpath_if_under_root
+from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -30,22 +29,61 @@ def _read_json(path_str: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def _bridge_json_paths_under_corpus(root_s: str) -> list[str]:
+    """List ``*.bridge.json`` paths under *root_s* using ``os.walk`` (no ``Path.glob``)."""
+    safe_prefix = root_s + os.sep
+    found: list[str] = []
+    if not os.path.isdir(root_s):
+        return found
+    for dirpath, _dirnames, filenames in os.walk(root_s):
+        dnorm = os.path.normpath(dirpath)
+        if dnorm != root_s and not dnorm.startswith(safe_prefix):
+            continue
+        for fn in filenames:
+            if not fn.endswith(".bridge.json"):
+                continue
+            joined = os.path.normpath(os.path.join(dnorm, fn))
+            sb = normpath_if_under_root(joined, root_s)
+            if sb and sb.startswith(safe_prefix) and os.path.isfile(sb):
+                found.append(sb)
+    return sorted(found)
+
+
+def _gi_kg_str_paths_next_to_bridge(safe_bridge: str, root_s: str) -> tuple[str | None, str | None]:
+    """Sibling ``*.gi.json`` / ``*.kg.json`` paths for a sanitized bridge path string."""
+    parent = os.path.dirname(safe_bridge)
+    name = os.path.basename(safe_bridge)
+    if not name.endswith(".bridge.json"):
+        return None, None
+    stem = name[: -len(".bridge.json")]
+    gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
+    kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
+    safe_gi = normpath_if_under_root(gi_j, root_s)
+    safe_kg = normpath_if_under_root(kg_j, root_s)
+    return safe_gi, safe_kg
+
+
 def iter_cil_episode_bundles(
     corpus_root: Path,
 ) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
     """Yield ``(bridge, gi, kg)`` dicts for each sibling triple under ``corpus_root``."""
-    root = corpus_root.resolve()
-    root_s = os.path.normpath(str(root))
-    for bridge_path in sorted(root.glob("**/*.bridge.json")):
-        safe_bridge = normpath_if_under_root(os.path.normpath(str(bridge_path)), root_s)
-        if not safe_bridge or not os.path.isfile(safe_bridge):
+    root_resolved = safe_resolve_directory(corpus_root)
+    if root_resolved is None:
+        return
+    root_s = os.path.normpath(str(root_resolved))
+    safe_prefix = root_s + os.sep
+    for safe_bridge in _bridge_json_paths_under_corpus(root_s):
+        if not safe_bridge.startswith(safe_prefix):
             continue
-        gi_path, kg_path = gi_and_kg_json_paths_next_to_bridge(Path(safe_bridge))
-        safe_gi = normpath_if_under_root(os.path.normpath(str(gi_path)), root_s)
-        safe_kg = normpath_if_under_root(os.path.normpath(str(kg_path)), root_s)
+        safe_gi, safe_kg = _gi_kg_str_paths_next_to_bridge(safe_bridge, root_s)
         if not safe_gi or not safe_kg:
             continue
-        if not os.path.isfile(safe_gi) or not os.path.isfile(safe_kg):
+        if (
+            not safe_gi.startswith(safe_prefix)
+            or not safe_kg.startswith(safe_prefix)
+            or not os.path.isfile(safe_gi)
+            or not os.path.isfile(safe_kg)
+        ):
             continue
         bridge = _read_json(safe_bridge)
         gi = _read_json(safe_gi)

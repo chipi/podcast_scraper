@@ -26,26 +26,27 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SELF = Path(__file__).resolve()
 
-# Broad emoji / pictographic ranges (no ``regex`` package).
-_EMOJI = re.compile(
-    "["
-    "\U0001f1e6-\U0001f1ff"  # regional indicators
-    "\U0001f300-\U0001faff"  # symbols, pictographs, supplemental
-    "\U00002600-\U000026ff"  # misc symbols (e.g. warning sign)
-    "\U00002700-\U000027bf"  # dingbats
-    "\U000023e9-\U000023fa"  # media / UI glyphs (includes 23f8-23fa)
-    "\U000025fc-\U000025ff"
-    "\U00002b50-\U00002b59"  # star variants
-    "\U0000200d"  # ZWJ
-    "\U0000fe0f"  # emoji variation selector
-    "\U000020e3"  # combining enclosing keycap
-    "]+",
-    flags=re.UNICODE,
+# One range (or literal) per pattern avoids CodeQL ``redos`` / overlapping-class noise.
+_EMOJI_PATTERNS = tuple(
+    re.compile(p, flags=re.UNICODE)
+    for p in (
+        r"[\U0001f1e6-\U0001f1ff]+",  # regional indicators
+        r"[\U0001f300-\U0001faff]+",  # symbols, pictographs, supplemental
+        r"[\U00002600-\U000026ff]+",  # misc symbols (e.g. warning sign)
+        r"[\U00002700-\U000027bf]+",  # dingbats
+        r"[\U000023e9-\U000023fa]+",  # media / UI glyphs
+        r"[\U000025fc-\U000025ff]+",
+        r"[\U00002b50-\U00002b59]+",  # star variants
+        r"\U0000200d+",  # ZWJ runs
+        r"\U0000fe0f+",  # emoji variation selector
+        r"\U000020e3+",  # combining enclosing keycap
+    )
 )
 
 
 def transform(text: str) -> str:
-    text = _EMOJI.sub("", text)
+    for pat in _EMOJI_PATTERNS:
+        text = pat.sub("", text)
     # Headings: "##  Foo" / "###   Bar" after strip
     text = re.sub(r"^(#{1,6}\s) +", r"\1", text, flags=re.MULTILINE)
     # Blockquotes: "> ** Important:**" left a gap after pictograph removal
