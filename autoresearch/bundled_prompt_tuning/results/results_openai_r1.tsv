@@ -7,3 +7,4 @@ exp-4	0.474687	+0.007691	accepted	concise summary instruction (2-3 para cap, no-
 exp-r2-1	0.458081	-0.016606	rejected	fix exactly 2 paragraphs; ROUGE-L=25.3%, embed=77.2%, judge_mean=0.936; judges agreed but ROUGE-L dropped	gpt-4o-mini	claude-haiku-4-5-20251001	9f43a4b9	curated_5feeds_smoke_v1
 exp-r2-2	0.254719	-0.219968	rejected	fix exactly 3 paragraphs; ROUGE-L=25.5%, embed=75.3%, judge_mean=0.893; judges contested → ROUGE-only blend	gpt-4o-mini	claude-haiku-4-5-20251001	9f43a4b9	curated_5feeds_smoke_v1
 exp-r2-3	0.282039	-0.192648	rejected	reduce bullet count to 5-6; ROUGE-L=28.2%, embed=72.5%, judge_mean=0.933; judges contested → ROUGE-only blend; 3 consecutive fails → early stop	gpt-4o-mini	claude-haiku-4-5-20251001	9f43a4b9	curated_5feeds_smoke_v1
+exp-r3-1	0.484212	+0.009525	accepted	few-shot style examples in system prompt; ROUGE-L=28.6%, embed=n/a, judge_mean=0.946; judges agreed; +2.0%	gpt-4o-mini	claude-haiku-4-5-20251001	9f43a4b9	curated_5feeds_smoke_v1

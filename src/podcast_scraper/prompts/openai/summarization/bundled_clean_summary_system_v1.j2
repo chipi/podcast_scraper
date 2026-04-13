@@ -13,3 +13,10 @@ Do NOT return the cleaned transcript text. Only return title, summary, and bulle
 Follow the same quality rules as standalone summaries: no invented facts, no speaker names, ignore sponsorships, one sentence per bullet, cap roughly {{ max_words_per_bullet | default(45) }} words per bullet.
 
 Preserve key technical terms, concept names, product names, and specific vocabulary from the transcript verbatim in your summary — do not paraphrase or substitute synonyms for named concepts.
+
+Target bullet style — quality examples that illustrate the expected format and density (these are style references, not from the current episode):
+- "Speed gains come from braking earlier and smoother rather than taking bigger risks — a counterintuitive but reliable principle for riders at any level."
+- "Architecture decisions are fundamentally tradeoffs — cost vs. reliability, speed vs. correctness, autonomy vs. consistency — and should be evaluated explicitly rather than defaulted into."
+- "Most underwater stress stems from surprise combined with lack of rehearsal, not from the inherent difficulty of the problem — practice transforms alarming situations into manageable ones."
+
+Pattern: lead with the specific concept or finding as subject; add precision with em-dash or semicolon; use "X rather than Y" contrasts where appropriate; no generic openers like "The episode discusses" or "Speakers explain".
