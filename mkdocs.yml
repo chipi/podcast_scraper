@@ -76,7 +76,7 @@ nav:
       - Resource Usage: ci/RESOURCE_USAGE.md
       - Snyk Setup: ci/SNYK_SETUP.md
       - Local Development: ci/LOCAL_DEVELOPMENT.md
-      - CI ML Stability: rfc/ci_ml_stability_guide.md
+      - CI ML Stability: rfc/RFC-074-process-safety-ml-workloads-macos.md
       - "Test dashboard (GitHub Pages)": ci/METRICS.md
       - "Code quality trends (wily)": ci/CODE_QUALITY_TRENDS.md
   - Product Requirements:
