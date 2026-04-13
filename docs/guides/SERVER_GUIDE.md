@@ -8,6 +8,7 @@ The FastAPI server layer for the GI/KG viewer and future platform APIs.
 the same Python library that powers the CLI, service API, and batch workflows
 also backs an HTTP server.
 The server exposes corpus artifacts, **semantic search**, **GI explore**,
+**RFC-072 CIL cross-layer queries** (person/topic arcs over `*.bridge.json` + GI/KG siblings),
 **Corpus Library** catalog APIs, and **vector index** stats / rebuild controls
 through a JSON API consumed by the Vue 3 SPA
 ([`web/gi-kg-viewer/`][viewer-readme]).
@@ -92,6 +93,7 @@ routes/
   index_rebuild.py   # viewer — POST /index/rebuild (background job)
   search.py          # viewer — semantic corpus search
   explore.py         # viewer — GI explore + UC4 NL query
+  cil.py             # viewer — CIL position arc, guest brief, topic timeline (#527 / RFC-072)
   corpus_library.py  # viewer — /corpus/* catalog + similar episodes (RFC-067)
   corpus_digest.py   # viewer — GET /corpus/digest (RFC-068)
   platform/          # placeholder stubs (feeds, episodes, jobs, status)
@@ -126,13 +128,18 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 
 | Method | Path | Tag | Description | Key query params |
 | ------ | ---- | --- | ----------- | ---------------- |
-| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api` (RFC-067/068). Omit digest flag on older builds → clients treat digest as unavailable. | — |
+| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api` (RFC-067/068). Omit digest flag on older builds → clients treat digest as unavailable. | — |
 | GET | `/api/artifacts` | artifacts | List `*.gi.json` and `*.kg.json` (recursive); each item includes `mtime_utc` (#507). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
 | GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
 | POST | `/api/index/rebuild` | index | Queue background `index_corpus` (202); mutex per corpus. Poll `GET /api/index/stats`. | `path`, `rebuild`, `embedding_model`, `vector_index_path`, `vector_faiss_index_mode`, `vector_index_types` (comma-separated) |
 | GET | `/api/search` | search | Semantic corpus search via FAISS + sentence embeddings. | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model`, `dedupe_kg_surfaces` (default `true`: merge same-text `kg_entity` / `kg_topic` rows) |
 | GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
+| GET | `/api/persons/{person_id}/positions` | cil | Position arc — chronological insights for a **person** and **topic** across episodes (RFC-072 Pattern A). Scans `**/*.bridge.json` with sibling GI/KG. | `topic` (required), `path`, `insight_types` (comma-separated; omit → `claim` only; `all` / `*` → no filter) |
+| GET | `/api/persons/{person_id}/brief` | cil | Guest brief — insights grouped by topic plus quotes for that person (RFC-072 Pattern B). | `path` |
+| GET | `/api/persons/{person_id}/topics` | cil | Distinct topic ids for that person (from brief keys). | `path` |
+| GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode (RFC-072 Pattern C). | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
+| GET | `/api/topics/{topic_id}/persons` | cil | Distinct `person:` ids that discuss the topic via grounded quotes. | `path` |
 | GET | `/api/corpus/feeds` | corpus | Aggregate feeds from episode metadata under the corpus root. | `path` (optional if server default set) |
 | GET | `/api/corpus/episodes` | corpus | Paginated episode list (newest-first scan); optional filters. | `path`, `feed_id`, `q` (title substring), `since` (`YYYY-MM-DD`), `limit` (1–200), `cursor` |
 | GET | `/api/corpus/episodes/detail` | corpus | Episode row + summary bullets + GI/KG relative paths. | `path`, `metadata_relpath` (required) |
@@ -155,6 +162,7 @@ Pydantic response schemas are defined in
 - `IndexStatsEnvelope` / `IndexStatsBody` / `IndexRebuildAccepted`
 - `CorpusSearchApiResponse` / `SearchHitModel`
 - `ExploreApiResponse`
+- `CilArcEpisodeBlock` / `CilPositionArcResponse` / `CilGuestBriefInsightRow` / `CilGuestBriefQuoteRow` / `CilGuestBriefResponse` / `CilTopicTimelineResponse` / `CilIdListResponse`
 - `CorpusFeedsResponse` / `CorpusFeedItem`
 - `CorpusEpisodesResponse` / `CorpusEpisodeListItem`
 - `CorpusEpisodeDetailResponse`
@@ -177,7 +185,7 @@ Pydantic response schemas are defined in
    fallback.
    The private `_resolve_corpus_root(path, fallback)` pattern is repeated
    in `index_stats.py`, `index_rebuild.py`, `search.py`, `explore.py`,
-   `corpus_library.py`, `corpus_digest.py`, and `corpus_metrics.py`.
+   `cil.py`, `corpus_library.py`, `corpus_digest.py`, and `corpus_metrics.py`.
 5. **Platform routes** use a sub-package (`routes/platform/`) and will
    follow the same conventions when mounted.
 
@@ -305,6 +313,7 @@ Located in `tests/unit/podcast_scraper/server/`:
 | `test_viewer_index_stats.py` | Index stats with no corpus, no index, and mocked FAISS store. |
 | `test_viewer_search.py` | Search with no corpus, mocked `run_corpus_search` results. |
 | `test_viewer_explore.py` | Explore filter mode and UC4 natural-language mode with mocked GI functions. |
+| `test_cil_queries.py` | CIL query helpers over synthetic bridge + GI/KG bundles (#527). |
 | `test_corpus_catalog.py` | Catalog rows, filters, and pagination helpers for Corpus Library. |
 | `test_index_rebuild_gate.py` | Per-corpus rebuild mutex (`CorpusRebuildGate`). |
 | `test_index_staleness.py` | Index staleness helpers used by index stats. |
@@ -330,6 +339,7 @@ NL modes), and app factory edge cases. Marked `@pytest.mark.integration`.
 Additional integration modules under `tests/integration/server/` include
 `test_viewer_corpus_library.py` (Corpus Library routes),
 `test_viewer_corpus_digest.py` (`GET /api/corpus/digest`, RFC-068),
+`test_cil_api.py` (CIL `/api/persons/*` and `/api/topics/*` routes),
 `test_index_rebuild.py` (`POST /api/index/rebuild` gate and acceptance),
 `test_viewer_index_stats.py`, `test_viewer_api.py`, `test_server_app.py`, and
 `test_server_package_init.py`.
@@ -373,8 +383,9 @@ See the [E2E Testing Guide](E2E_TESTING_GUIDE.md) and
 
 ## Platform evolution
 
-**Mounted today:** only **viewer** routers (`health`, `artifacts`, `index_stats`,
-`index_rebuild`, `search`, `explore`, `corpus_library`). **No** `routes/platform/*`
+**Mounted today:** **viewer** routers (`health`, `artifacts`, `index_stats`,
+`index_rebuild`, `search`, `explore`, `cil`, `corpus_library`, and related corpus
+routes as wired in `create_app`). **No** `routes/platform/*`
 router is registered in `create_app` yet — the files are **stubs only** until
 ADR-064 platform work lands.
 

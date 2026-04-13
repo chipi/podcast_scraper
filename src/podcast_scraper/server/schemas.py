@@ -8,11 +8,11 @@ from pydantic import BaseModel, Field
 
 
 class ArtifactItem(BaseModel):
-    """One GI or KG artifact file under a corpus directory."""
+    """One GI, KG, or bridge artifact file under a corpus directory."""
 
     name: str = Field(description="File name (basename).")
     relative_path: str = Field(description="Path relative to the listed corpus root (POSIX).")
-    kind: Literal["gi", "kg"] = Field(description="Artifact kind.")
+    kind: Literal["gi", "kg", "bridge"] = Field(description="Artifact kind.")
     size_bytes: int = Field(ge=0, description="File size in bytes.")
     mtime_utc: str = Field(
         description="Last modification time (UTC ISO-8601 with Z suffix).",
@@ -70,6 +70,10 @@ class HealthResponse(BaseModel):
     corpus_binary_api: bool = Field(
         default=True,
         description="True when GET /api/corpus/binary is mounted (local artwork, RFC-067 Phase 4).",
+    )
+    cil_queries_api: bool = Field(
+        default=True,
+        description="True when RFC-072 cross-layer CIL query routes are mounted (GitHub #527).",
     )
 
 
@@ -137,6 +141,12 @@ class SearchHitModel(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     text: str = ""
     supporting_quotes: list[dict[str, Any]] | None = None
+    lifted: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "RFC-072 chunk-to-Insight lift for transcript hits when GI/bridge align (#528)."
+        ),
+    )
 
 
 class CorpusSearchApiResponse(BaseModel):
@@ -306,8 +316,14 @@ class CorpusEpisodeDetailResponse(BaseModel):
     )
     gi_relative_path: str
     kg_relative_path: str
+    bridge_relative_path: str = Field(
+        description="Sibling ``.bridge.json`` path (RFC-072) from metadata stem.",
+    )
     has_gi: bool = False
     has_kg: bool = False
+    has_bridge: bool = Field(
+        description="True when ``bridge_relative_path`` exists on disk.",
+    )
     feed_image_url: str | None = Field(
         default=None,
         description="From ``feed.image_url`` in metadata when present.",
@@ -536,3 +552,64 @@ class CorpusRunsSummaryResponse(BaseModel):
 
     path: str
     runs: list[CorpusRunSummaryItem] = Field(default_factory=list)
+
+
+# --- RFC-072 cross-layer queries (GitHub #527) ---
+
+
+class CilArcEpisodeBlock(BaseModel):
+    """One episode slice in a position arc or topic timeline."""
+
+    episode_id: str
+    publish_date: str | None = None
+    insights: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class CilPositionArcResponse(BaseModel):
+    """Response for GET /api/persons/{person_id}/positions."""
+
+    path: str
+    person_id: str
+    topic_id: str
+    episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
+
+
+class CilGuestBriefInsightRow(BaseModel):
+    """One insight row inside ``CilGuestBriefResponse.topics``."""
+
+    episode_id: str
+    insight: dict[str, Any]
+    insight_type: str
+    position_hint: float | None = None
+
+
+class CilGuestBriefQuoteRow(BaseModel):
+    """Quote evidence row for a guest brief."""
+
+    episode_id: str
+    quote: dict[str, Any]
+
+
+class CilGuestBriefResponse(BaseModel):
+    """Response for GET /api/persons/{person_id}/brief."""
+
+    path: str
+    person_id: str
+    topics: dict[str, list[CilGuestBriefInsightRow]] = Field(default_factory=dict)
+    quotes: list[CilGuestBriefQuoteRow] = Field(default_factory=list)
+
+
+class CilTopicTimelineResponse(BaseModel):
+    """Response for GET /api/topics/{topic_id}/timeline."""
+
+    path: str
+    topic_id: str
+    episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
+
+
+class CilIdListResponse(BaseModel):
+    """Response for GET /api/persons/{id}/topics and GET /api/topics/{id}/persons."""
+
+    path: str
+    anchor_id: str
+    ids: list[str] = Field(default_factory=list)

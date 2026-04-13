@@ -372,6 +372,31 @@ describe('cross-episode entity deduplication', () => {
   })
 })
 
+describe('GI+KG combine CIL id dedup', () => {
+  it('merges GI Person and KG Entity with the same person: id', () => {
+    const gi = parseArtifact('a.gi.json', {
+      episode_id: 'ep',
+      nodes: [
+        { id: 'episode:x', type: 'Episode', properties: { title: 'E' } },
+        { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+      ],
+      edges: [],
+    })
+    const kg = parseArtifact('a.kg.json', {
+      episode_id: 'ep',
+      extraction: { model_version: 'v1' },
+      nodes: [
+        { id: 'kg:episode:x', type: 'Episode', properties: { title: 'E' } },
+        { id: 'person:alice', type: 'Entity', properties: { name: 'Alice', kind: 'person' } },
+      ],
+      edges: [],
+    })
+    const m = combineGiKgParsedArtifacts(gi, kg)!
+    const withAlice = (m.data.nodes ?? []).filter((n) => /person:alice$/.test(String(n.id ?? '')))
+    expect(withAlice).toHaveLength(1)
+  })
+})
+
 // ── mergeGiKgFromArtifactArrays ──
 
 describe('mergeGiKgFromArtifactArrays', () => {

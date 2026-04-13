@@ -3064,6 +3064,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         index_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_index_argv(index_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "verify-gil-chunk-offsets":
+        from .search.cli_handlers import parse_verify_gil_chunk_offsets_argv
+
+        v_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_verify_gil_chunk_offsets_argv(v_argv)
+
     if argv and len(argv) > 0 and argv[0] == "serve":
         from .server.cli_handlers import parse_serve_argv
 
@@ -3865,6 +3871,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "pricing-assumptions",
             "search",
             "serve",
+            "verify-gil-chunk-offsets",
         )
     ):
         pass  # Skip ffmpeg check for subcommands
@@ -3936,6 +3943,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_index_cli
 
         return run_index_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "verify-gil-chunk-offsets":
+        from .search.cli_handlers import run_verify_gil_chunk_offsets_cli
+
+        return run_verify_gil_chunk_offsets_cli(args, log)
 
     if hasattr(args, "command") and args.command == "serve":
         from .server.cli_handlers import run_serve

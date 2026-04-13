@@ -21,6 +21,10 @@ from podcast_scraper.search.cli_handlers import (
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.protocol import SearchResult
+from podcast_scraper.search.transcript_chunk_lift import (
+    lift_row_if_transcript,
+    TranscriptLiftGiCache,
+)
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
@@ -223,6 +227,17 @@ def run_corpus_search(
         )
         for h in filtered
     ]
+    lift_cache = TranscriptLiftGiCache()
+    for row in enriched:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict) or meta.get("doc_type") != "transcript":
+            continue
+        ep = meta.get("episode_id")
+        if not isinstance(ep, str) or not ep.strip():
+            continue
+        gpath = gi_cache.get(ep.strip())
+        if gpath is not None and gpath.is_file():
+            lift_row_if_transcript(row, output_dir, gpath, lift_cache)
     if dedupe_kg_surfaces:
         enriched = dedupe_kg_surface_rows(enriched)
     enriched = enriched[:top_k]

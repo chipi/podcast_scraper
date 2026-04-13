@@ -35,8 +35,10 @@ def _row(
         summary_text=None,
         gi_relative_path="x.gi.json",
         kg_relative_path="x.kg.json",
+        bridge_relative_path="x.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
     )
 
 
@@ -53,8 +55,10 @@ def test_digest_row_dict_includes_visual_fields() -> None:
         summary_text=None,
         gi_relative_path="m.gi.json",
         kg_relative_path="m.kg.json",
+        bridge_relative_path="m.bridge.json",
         has_gi=True,
         has_kg=False,
+        has_bridge=False,
         feed_image_url="https://f.example/a.png",
         episode_image_url="https://e.example/b.png",
         duration_seconds=3600,
@@ -84,8 +88,10 @@ def test_digest_row_dict_includes_feed_rss_url_and_description() -> None:
         summary_text=None,
         gi_relative_path="m.gi.json",
         kg_relative_path="m.kg.json",
+        bridge_relative_path="m.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
         feed_rss_url="https://example.com/rss",
         feed_description="About the show",
     )
@@ -107,8 +113,10 @@ def test_digest_row_dict_resolves_feed_title_from_feed_index() -> None:
         summary_text=None,
         gi_relative_path="m.gi.json",
         kg_relative_path="m.kg.json",
+        bridge_relative_path="m.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
     )
     d = digest_row_dict(row, feed_titles_by_feed_id={"f": "From sibling"})
     assert d["feed_display_title"] == "From sibling"
@@ -127,8 +135,10 @@ def test_digest_row_dict_resolves_feed_rss_from_sibling_index() -> None:
         summary_text=None,
         gi_relative_path="m.gi.json",
         kg_relative_path="m.kg.json",
+        bridge_relative_path="m.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
         feed_rss_url=None,
     )
     d = digest_row_dict(

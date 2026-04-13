@@ -101,8 +101,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **71** files under `docs/rfc/RFC-*.md` — IDs **RFC-001–RFC-072**
-with **no RFC-014**. **13** open and **58** completed in the tables above.
+**Counts (reconcile when moving RFCs):** **73** files under `docs/rfc/RFC-*.md` — IDs **RFC-001–RFC-074**
+with **no RFC-014**. **15** open and **58** completed in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**), pipeline
 metrics (**RFC-027**), continuous review (**RFC-038**), metrics alerts (**RFC-043**), Postgres
@@ -129,6 +129,8 @@ path is **Completed**), canonical identity layer and cross-layer bridge (**RFC-0
 | [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Cleaning | **Not started** as designed ([ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) Code **No**) |
 | [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Search platform | **Draft** — Qdrant **`VectorStore`**, filters, pgvector/RFC-051, re-ranking ([RFC-061](RFC-061-semantic-corpus-search.md) **Completed** for FAISS) |
 | [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) | GIL/KG cross-layer | Shared IDs, `bridge.json`, flagship cross-layer use cases; supersedes cross-layer aspects of **RFC-050** / **RFC-056** |
+| [RFC-073](RFC-073-enrichment-layer-architecture.md) | Enrichment | **Draft** — enrichment layer architecture |
+| [RFC-074](RFC-074-process-safety-ml-workloads-macos.md) | Process safety | **Draft** — macOS ML process pileup prevention, Makefile/agent/hook hardening |
 
 ### Recently completed (v2.6.0+)
 

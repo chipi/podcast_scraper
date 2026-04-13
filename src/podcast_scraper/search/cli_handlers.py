@@ -641,3 +641,109 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
     ns = cast(Namespace, parser.parse_args(list(argv)))
     ns.command = "index"
     return ns
+
+
+def parse_verify_gil_chunk_offsets_argv(argv: Sequence[str]) -> Namespace:
+    """Parse argv after ``verify-gil-chunk-offsets`` (GitHub #528 / RFC-072 Phase 5)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast_scraper verify-gil-chunk-offsets",
+        description=(
+            "Compare GIL Quote char ranges to FAISS transcript chunk metadata per episode "
+            "(offset alignment gate before search lift)."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Pipeline output directory (metadata/ + search/)",
+    )
+    parser.add_argument(
+        "--index-path",
+        default=None,
+        help="Vector index directory (default: <output-dir>/search)",
+    )
+    parser.add_argument(
+        "--min-overlap-rate",
+        type=float,
+        default=0.95,
+        metavar="R",
+        help="With --strict, fail if overlap rate is below R (default: 0.95)",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "Exit 1 when verdict is divergent, no quotes, or overlap rate below "
+            "--min-overlap-rate"
+        ),
+    )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=8,
+        metavar="N",
+        help="Max sample quote ids per episode without overlap (default: 8)",
+    )
+    ns = cast(Namespace, parser.parse_args(list(argv)))
+    ns.command = "verify-gil-chunk-offsets"
+    return ns
+
+
+def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) -> int:
+    """Run Quote vs transcript chunk offset report (#528)."""
+    from podcast_scraper.search.gil_chunk_offset_verify import (
+        build_offset_alignment_report,
+        load_index_metadata_map,
+        merge_report_dict,
+    )
+
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("verify-gil-chunk-offsets: --output-dir is required")
+        return EXIT_INVALID_ARGS
+
+    root = Path(output_dir)
+    index_dir = _resolve_index_dir(root, getattr(args, "index_path", None))
+    meta_path = index_dir / "metadata.json"
+    if not meta_path.is_file():
+        logger.error("No metadata.json at %s (index missing?)", index_dir)
+        return EXIT_NO_ARTIFACTS
+
+    try:
+        metadata_map = load_index_metadata_map(index_dir)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        logger.error("Failed to read index metadata: %s", format_exception_for_log(exc))
+        return EXIT_NO_ARTIFACTS
+
+    gi_cache = _episode_to_gi_path(root)
+    max_samples = int(getattr(args, "max_samples", 8) or 8)
+    report = build_offset_alignment_report(
+        gi_by_episode=gi_cache,
+        metadata_by_doc=metadata_map,
+        max_samples_per_episode=max(1, max_samples),
+    )
+    merge_report_dict(
+        report,
+        {
+            "corpus_root": str(root.resolve()),
+            "index_dir": str(index_dir.resolve()),
+        },
+    )
+    print(json.dumps(report, indent=2))
+
+    if not getattr(args, "strict", False):
+        return EXIT_SUCCESS
+
+    verdict = str(report.get("verdict") or "")
+    rate = report.get("overlap_rate")
+    min_r = float(getattr(args, "min_overlap_rate", 0.95) or 0.95)
+    if verdict == "no_quotes":
+        logger.error("strict: no Quote nodes found in GI files")
+        return EXIT_NO_ARTIFACTS
+    if verdict == "divergent":
+        logger.error("strict: verdict divergent (overlap rate too low)")
+        return EXIT_INVALID_ARGS
+    if rate is None or float(rate) < min_r:
+        logger.error("strict: overlap_rate %s below %s", rate, min_r)
+        return EXIT_INVALID_ARGS
+    return EXIT_SUCCESS

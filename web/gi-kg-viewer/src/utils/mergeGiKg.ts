@@ -24,21 +24,62 @@ function entityCanonicalKey(node: RawGraphNode): string | null {
   return `${t}\0${raw.toLowerCase().trim()}`
 }
 
+export type EntityDedupMode = 'name-based' | 'cil-first'
+
+function stripLayerPrefixesForCil(rawId: string): string {
+  let s = String(rawId).trim()
+  let prev = ''
+  while (s !== prev) {
+    prev = s
+    if (s.startsWith('g:')) {
+      s = s.slice(2)
+    } else if (s.startsWith('k:') && !s.startsWith('kg:')) {
+      s = s.slice(2)
+    } else if (s.startsWith('kg:')) {
+      s = s.slice(3)
+    }
+  }
+  return s
+}
+
 /**
- * Deduplicate Entity, Topic, and Person nodes that share the same canonical name.
+ * When GI+KG are combined, the same RFC-072 id (e.g. ``person:alice``) may appear
+ * as a GI ``Person`` and a KG ``Entity`` with different graph types; merge on CIL id.
+ */
+function cilMergeKey(node: RawGraphNode): string | null {
+  if (!node?.id) return null
+  const bare = stripLayerPrefixesForCil(String(node.id))
+  if (/^(person|org|topic):/.test(bare)) {
+    return `cil\0${bare}`
+  }
+  return null
+}
+
+function deduplicationKey(node: RawGraphNode, mode: EntityDedupMode): string | null {
+  if (mode === 'cil-first') {
+    const c = cilMergeKey(node)
+    if (c) return c
+  }
+  return entityCanonicalKey(node)
+}
+
+/**
+ * Deduplicate Entity, Topic, and Person nodes that share the same canonical name
+ * (or the same CIL id when ``mode`` is ``cil-first``).
  * Keeps the first occurrence, merges properties from duplicates,
  * and rewrites all edges to point to the surviving node ID.
  */
 function deduplicateEntities(
   nodes: RawGraphNode[],
   edges: RawGraphEdge[],
+  mode: EntityDedupMode = 'name-based',
 ): { nodes: RawGraphNode[]; edges: RawGraphEdge[] } {
   const canonToWinner = new Map<string, RawGraphNode>()
   const idReplace = new Map<string, string>()
 
   for (const n of nodes) {
     if (!n || n.id == null) continue
-    const key = entityCanonicalKey(n)
+    const key = deduplicationKey(n, mode)
     if (!key) continue
     const existing = canonToWinner.get(key)
     if (!existing) {
@@ -121,10 +162,7 @@ export function mergeParsedArtifacts(arts: ParsedArtifact[]): ParsedArtifact | n
     }
   }
   const mergedData = deepClone(arts[0].data) as ArtifactData
-  const deduped = deduplicateEntities(
-    Array.from(nodeById.values()),
-    edgeList,
-  )
+  const deduped = deduplicateEntities(Array.from(nodeById.values()), edgeList, 'name-based')
   mergedData.nodes = deduped.nodes
   mergedData.edges = deduped.edges
   mergedData.episode_id = `merged:${String(arts.length)}-artifacts`
@@ -334,7 +372,7 @@ export function combineGiKgParsedArtifacts(
     mergedData.nodes || [],
     mergedData.edges || [],
   )
-  const deduped = deduplicateEntities(epAug.nodes, epAug.edges)
+  const deduped = deduplicateEntities(epAug.nodes, epAug.edges, 'cil-first')
   mergedData.nodes = deduped.nodes
   mergedData.edges = deduped.edges
   const nodeTypes = nodeTypesFromNodesLocal(mergedData.nodes || [])

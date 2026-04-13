@@ -39,9 +39,27 @@ Pinned revisions:
 
 import gc
 import os
+import signal
 import sys
 from pathlib import Path
 from typing import List, Optional
+
+# RFC-074: Wall-clock timeout to prevent indefinite hangs during model
+# downloads or loads that can trigger macOS APFS kernel lock contention.
+PRELOAD_TIMEOUT_SECONDS = int(os.environ.get("PRELOAD_TIMEOUT", "600"))
+
+
+def _timeout_handler(signum, frame):
+    print(
+        f"\nERROR: Model preload timed out after {PRELOAD_TIMEOUT_SECONDS}s. "
+        "A model download or load may be stuck.",
+        file=sys.stderr,
+    )
+    sys.exit(2)
+
+
+if hasattr(signal, "SIGALRM"):
+    signal.signal(signal.SIGALRM, _timeout_handler)
 
 # Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -529,6 +547,9 @@ def main() -> None:
     """Main entry point for model preloading."""
     import argparse
 
+    if hasattr(signal, "SIGALRM"):
+        signal.alarm(PRELOAD_TIMEOUT_SECONDS)
+
     parser = argparse.ArgumentParser(description="Preload ML models for podcast scraper")
     parser.add_argument(
         "--production",
@@ -619,6 +640,9 @@ def main() -> None:
             print("Preloading GIL evidence models (embedding + QA + NLI)...")
             preload_evidence_models()
             print("")
+
+    if hasattr(signal, "SIGALRM"):
+        signal.alarm(0)
 
     print("All models preloaded and verified successfully!")
     print("Models are cached in:")

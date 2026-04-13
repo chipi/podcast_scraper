@@ -98,6 +98,8 @@ def test_corpus_feeds_and_episodes_flat_layout(tmp_path: Path) -> None:
     assert detail["summary_text"] == "Full paragraph summary."
     assert detail["has_gi"] is True
     assert detail["has_kg"] is False
+    assert detail["has_bridge"] is False
+    assert detail["bridge_relative_path"].endswith("one.bridge.json")
     assert detail["feed_image_url"] == "https://cdn.example/feed-art.png"
     assert detail["episode_image_url"] == "https://cdn.example/ep-art.png"
     assert detail["duration_seconds"] == 90

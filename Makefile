@@ -29,21 +29,17 @@ export PIP_FIND_LINKS := $(abspath wheels/spacy)
 endif
 endif
 
-# Test parallelism: Memory-aware calculation that adapts to available RAM and CPU
-# - Considers available memory and memory per worker (varies by test type)
-# - Reserves 2 cores for system operations
-# - Caps at 8 to prevent excessive memory usage
-# - More conservative on macOS (reduces workers by 1)
-# - Falls back to 2 if calculation fails
+# Test parallelism: default fallback value. Each test recipe calculates its own
+# optimal worker count at recipe time via calculate_test_workers.py.
+# This parse-time value is only used if a recipe references $(PYTEST_WORKERS) directly.
 # Can be overridden: PYTEST_WORKERS=4 make test
-# Uses memory-aware calculation script (defaults to integration test estimates)
-PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type default 2>/dev/null || echo 2)
+PYTEST_WORKERS ?= 2
 
 # Note: NIGHTLY_PYTEST_WORKERS removed — test-nightly now runs sequentially only.
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
@@ -96,8 +92,10 @@ help:
 	@echo "Analysis commands:"
 	@echo "  make analyze-test-memory [TARGET=test-unit] [WORKERS=N]  Analyze test memory usage and resource consumption"
 	@echo ""
-	@echo "Cleanup commands:"
+	@echo "Cleanup and safety commands:"
 	@echo "  make cleanup-processes  Clean up leftover Python/test processes from previous runs"
+	@echo "  make check-zombie       Detect unkillable (UE state) Python processes (reboot required)"
+	@echo "  make check-spotlight    Verify Spotlight indexing is disabled (macOS ML safety)"
 	@echo ""
 	@echo "Test commands:"
 	@echo "  make test-unit            Run unit tests with coverage in parallel (uses .venv if present)"
@@ -473,14 +471,49 @@ quality-metrics-ci:
 	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) scripts/tools/kg_quality_metrics.py tests/fixtures/gil_kg_ci_enforce --enforce --strict-schema --fail-on-errors --min-artifacts 1 --min-avg-nodes 1 --min-avg-edges 0 --min-extraction-coverage 1.0
 
 cleanup-processes:
-	# Clean up leftover Python/test processes from previous runs
-	# This prevents resource conflicts and memory issues from accumulated processes
-	# Automatically called by pytest fixture, but can be run manually if needed
-	@echo "🧹 Cleaning up leftover test processes..."
-	@pkill -f pytest 2>/dev/null || true
+	# Clean up leftover Python/test processes from previous runs (RFC-074)
+	# Covers pytest workers, ML model probe processes, and worker calculator
+	@echo "Cleaning up leftover test processes..."
+	@pkill -f "pytest" 2>/dev/null || true
 	@pkill -f "python.*podcast_scraper.*test" 2>/dev/null || true
 	@pkill -f "gw[0-9]" 2>/dev/null || true
-	@echo "✅ Process cleanup complete"
+	@pkill -f "python.*ml_model_cache_helpers" 2>/dev/null || true
+	@pkill -f "python.*calculate_test_workers" 2>/dev/null || true
+	@echo "Process cleanup complete"
+
+check-zombie:
+	# Detect unkillable (UE state) Python processes that require reboot (RFC-074)
+	@echo "Checking for unkillable Python processes..."
+	@zombie_count=$$(ps aux 2>/dev/null | grep -E '[Pp]ython|[Pp]ytest' | \
+		awk '$$8 ~ /U/' | grep -v grep | wc -l | tr -d ' '); \
+	if [ "$$zombie_count" -gt 0 ]; then \
+		echo "WARNING: $$zombie_count unkillable Python process(es) found:"; \
+		ps aux | grep -E '[Pp]ython|[Pp]ytest' | awk '$$8 ~ /U/' | grep -v grep; \
+		echo ""; \
+		echo "These processes are in uninterruptible wait (UE state)."; \
+		echo "They cannot be killed -- reboot is required."; \
+		echo "After reboot, run Disk Utility First Aid on the boot volume."; \
+		exit 1; \
+	else \
+		echo "No zombie processes found."; \
+	fi
+
+check-spotlight:
+	# Verify Spotlight indexing is disabled or cache dirs are excluded (RFC-074)
+	@echo "Checking Spotlight indexing status..."
+	@if command -v mdutil >/dev/null 2>&1; then \
+		if mdutil -s / 2>/dev/null | grep -q "Indexing enabled"; then \
+			echo "WARNING: Spotlight indexing is enabled on /."; \
+			echo "Heavy ML I/O + Spotlight = APFS lock contention risk."; \
+			echo "Disable with: sudo mdutil -a -i off"; \
+			echo "Or exclude cache dirs in System Settings > Spotlight > Privacy:"; \
+			echo "  ~/.cache/huggingface  ~/.cache/whisper  .venv/"; \
+		else \
+			echo "Spotlight indexing is disabled. Good."; \
+		fi; \
+	else \
+		echo "mdutil not found (not macOS). Skipping."; \
+	fi
 
 test-unit: cleanup-processes
 	# Unit tests: parallel execution for faster feedback
@@ -1189,10 +1222,12 @@ build:
 	$(PYTHON) -m build
 	@if [ -d dist ]; then mkdir -p .build && rm -rf .build/dist && mv dist .build/ && echo "Moved dist to .build/dist/"; fi
 
-# Check if ML models are cached (used to conditionally run preload-ml-models)
-# Returns "1" if models are missing, "0" if all cached
-# This check runs at Makefile parse time, so it's fast and doesn't block
-ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src'); \
+# ML model cache probe — runs at RECIPE TIME inside `make ci` only (RFC-074).
+# Previously this was a parse-time $(shell ...) that spawned a heavy Python process
+# on every `make` invocation (including `make help`), causing APFS kernel lock
+# contention and unkillable zombie processes on macOS.
+ci: cleanup-processes
+	@cached=$$($(PYTHON) -c "import sys; sys.path.insert(0, 'src'); \
 	from tests.integration.ml_model_cache_helpers import _is_whisper_model_cached, _is_transformers_model_cached; \
 	from podcast_scraper import config; \
 	whisper_ok = _is_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL); \
@@ -1200,22 +1235,29 @@ ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src');
 	spacy_ok = False; \
 	try: \
 		import spacy; \
-		spacy.load(config.DEFAULT_NER_MODEL); \
-		spacy_ok = True; \
-	except: \
+		spacy_ok = config.DEFAULT_NER_MODEL.replace('-', '_') in \
+			[m.replace('-', '_') for m in spacy.util.get_installed_models()]; \
+	except Exception: \
 		pass; \
 	all_cached = whisper_ok and transformers_ok and spacy_ok; \
-	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
+	print('1' if not all_cached else '0', end='')" 2>/dev/null || printf '1'); \
+	if [ "$$cached" = "1" ]; then \
+		echo "ML models not fully cached — running preload..."; \
+		$(MAKE) preload-ml-models; \
+	else \
+		echo "ML models already cached, skipped preload"; \
+	fi; \
+	$(MAKE) _ci_body
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test test-ui test-ui-e2e coverage-enforce docs build
-	# Conditional preload: Only runs preload-ml-models if models are not cached
-	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
-	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
-		echo ""; \
-		echo "✓ ML models already cached, skipped preload"; \
-	fi
+# RFC-074: Force offline mode for HuggingFace during test runs.
+# conftest.py already sets these for pytest, but this ensures any Python
+# invoked by Makefile recipes (probes, scripts) also respects offline mode.
+export HF_HUB_OFFLINE ?= 1
+export TRANSFORMERS_OFFLINE ?= 1
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui docs build
+_ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e coverage-enforce docs build
+
+ci-fast: cleanup-processes format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui docs build
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright) because fast suite
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build

@@ -69,6 +69,14 @@ def corpus(tmp_path: Path) -> Path:
     }
     (meta / "ep1.kg.json").write_text(json.dumps(kg_payload), encoding="utf-8")
 
+    bridge_payload = {
+        "schema_version": "1.0",
+        "episode_id": "ep1",
+        "emitted_at": "2026-04-13T00:00:00Z",
+        "identities": [],
+    }
+    (meta / "ep1.bridge.json").write_text(json.dumps(bridge_payload), encoding="utf-8")
+
     return tmp_path
 
 
@@ -98,6 +106,7 @@ class TestHealth:
         assert body.get("corpus_library_api") is True
         assert body.get("corpus_digest_api") is True
         assert body.get("corpus_binary_api") is True
+        assert body.get("cil_queries_api") is True
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +120,9 @@ class TestArtifacts:
         assert resp.status_code == 200
         body = resp.json()
         names = sorted(a["name"] for a in body["artifacts"])
-        assert names == ["ep1.gi.json", "ep1.kg.json"]
+        assert names == ["ep1.bridge.json", "ep1.gi.json", "ep1.kg.json"]
+        kinds = {a["name"]: a["kind"] for a in body["artifacts"]}
+        assert kinds["ep1.bridge.json"] == "bridge"
 
     def test_load_gi_artifact(self, client: TestClient, corpus: Path) -> None:
         resp = client.get(
@@ -131,6 +142,16 @@ class TestArtifacts:
         assert resp.status_code == 200
         data = resp.json()
         assert "knowledge_graph" in data
+
+    def test_load_bridge_artifact(self, client: TestClient, corpus: Path) -> None:
+        resp = client.get(
+            "/api/artifacts/metadata/ep1.bridge.json",
+            params={"path": str(corpus)},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("schema_version") == "1.0"
+        assert data.get("episode_id") == "ep1"
 
     def test_traversal_blocked(self, client: TestClient, corpus: Path) -> None:
         resp = client.get(

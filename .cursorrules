@@ -95,6 +95,24 @@
   - `make ci-fast` and `make test-fast` run unit + integration + E2E and need time to finish
   - When invoking them via automation (e.g. run_terminal_cmd), MUST use timeout at least 600000 ms (10 min) so the run is not killed before completion
 
+### Process Safety — ML Workloads (RFC-074)
+
+10. **NEVER retry a `make` command that produced no output**
+
+  - If `make` appears stuck (no output for 60s), do NOT spawn another `make`
+  - Report to user: "make appears stuck — check for zombie processes with `make check-zombie`"
+  - NEVER run multiple `make ci` / `make ci-fast` / `make test` concurrently — process pileup on macOS causes unkillable kernel-level zombies and filesystem corruption
+
+10a. **Before running `make ci` or `make ci-fast`, check for existing runs**
+
+  - Run `pgrep -f "make.*(ci|test)" 2>/dev/null || true` first
+  - If processes found, ask user before proceeding
+
+10b. **After any `make` command that hangs or is killed, run `make cleanup-processes`**
+
+  - This prevents accumulation of orphaned Python/ML processes
+  - If `make check-zombie` reports UE-state processes, tell the user: reboot is required
+
 ### Tool Usage
 
 8a. **ALWAYS use Makefile commands, NEVER direct tool invocations**

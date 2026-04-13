@@ -96,6 +96,7 @@ async def search_corpus(
             metadata=dict(r.get("metadata") or {}),
             text=str(r.get("text") or ""),
             supporting_quotes=r.get("supporting_quotes"),
+            lifted=r.get("lifted") if isinstance(r.get("lifted"), dict) else None,
         )
         for r in outcome.results
     ]

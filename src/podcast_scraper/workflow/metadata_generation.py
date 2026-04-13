@@ -2527,6 +2527,15 @@ def _determine_kg_path(metadata_path: str) -> str:
     return os.path.splitext(metadata_path)[0] + ".kg.json"
 
 
+def _determine_bridge_path(metadata_path: str) -> str:
+    """Return path for RFC-072 bridge artifact (same dir, base name .bridge.json)."""
+    if metadata_path.endswith(".metadata.json"):
+        return metadata_path.replace(".metadata.json", ".bridge.json")
+    if metadata_path.endswith(".metadata.yaml"):
+        return metadata_path.replace(".metadata.yaml", ".bridge.json")
+    return os.path.splitext(metadata_path)[0] + ".bridge.json"
+
+
 def _serialize_metadata(
     metadata_doc: EpisodeMetadataDocument,
     metadata_path: str,
@@ -3265,6 +3274,10 @@ def generate_episode_metadata(  # noqa: C901
         )
         return metadata_path
 
+    # Payloads reused for RFC-072 bridge.json when GI and/or KG run in this invocation.
+    bridge_gi_payload: Optional[Dict[str, Any]] = None
+    bridge_kg_payload: Optional[Dict[str, Any]] = None
+
     # Run GIL when enabled; produce grounded_insights for metadata model (consistent meta model)
     gi_meta: Optional[GroundedInsightsMetadata] = None
     if getattr(cfg, "generate_gi", False):
@@ -3367,6 +3380,7 @@ def generate_episode_metadata(  # noqa: C901
                     episode_duration_ms=gi_episode_duration_ms,
                 )
                 write_artifact(Path(gi_path), payload, validate=True)
+                bridge_gi_payload = payload
                 gi_elapsed = time.time() - gi_start
                 logger.debug("[%s] Generated GIL artifact: %s", episode.idx, gi_path)
                 # Index for metadata model: provenance only (full graph stays in gi.json)
@@ -3534,6 +3548,7 @@ def generate_episode_metadata(  # noqa: C901
                     pipeline_metrics=pipeline_metrics,
                 )
                 kg_write_artifact(Path(kg_path), kg_payload, validate=True)
+                bridge_kg_payload = kg_payload
                 kg_elapsed = time.time() - kg_start
                 logger.debug("[%s] Generated KG artifact: %s", episode.idx, kg_path)
                 nodes_kg = kg_payload.get("nodes") or []
@@ -3579,6 +3594,35 @@ def generate_episode_metadata(  # noqa: C901
                 "[%s] KG artifact generation failed (non-fatal): %s",
                 episode.idx,
                 kg_exc,
+                exc_info=True,
+            )
+
+    if bridge_gi_payload is not None or bridge_kg_payload is not None:
+        try:
+            from ..builders.bridge_builder import build_bridge
+
+            bridge_path = _determine_bridge_path(metadata_path)
+            bridge_doc = build_bridge(
+                str(episode_id),
+                bridge_gi_payload,
+                bridge_kg_payload,
+            )
+            bridge_parent = os.path.dirname(bridge_path) or "."
+            os.makedirs(bridge_parent, exist_ok=True)
+            with open(bridge_path, "w", encoding="utf-8") as bf:
+                json.dump(
+                    bridge_doc,
+                    bf,
+                    indent=2,
+                    ensure_ascii=False,
+                    allow_nan=False,
+                )
+            logger.debug("[%s] Generated bridge artifact: %s", episode.idx, bridge_path)
+        except Exception as bridge_exc:
+            logger.warning(
+                "[%s] Bridge artifact generation failed (non-fatal): %s",
+                episode.idx,
+                bridge_exc,
                 exc_info=True,
             )
 
