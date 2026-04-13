@@ -108,7 +108,7 @@ The Position Tracker lives within the **shared Person Landing** component (owned
 [UXS-010](UXS-010-guest-intelligence-brief.md)). All entry points navigate to the
 Person Landing, which defaults to the Guest Brief tab. The user toggles to the
 Position Tracker from there. When the entry point is topic-specific, the Position
-Tracker tab is pre-selected with that topic active.
+Tracker tab is preselected with that topic active.
 
 - Clicking a Person node in the Cytoscape graph opens the Person Landing in the
   right rail.

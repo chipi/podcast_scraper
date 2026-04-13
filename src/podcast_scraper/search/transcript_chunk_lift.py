@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
@@ -193,6 +194,8 @@ def try_lift_transcript_chunk_from_gi(
     speaker_name = ""
     topic_name = ""
     root_norm = corpus_root.resolve()
+    root_s = os.path.normpath(str(root_norm))
+    safe_prefix = root_s + os.sep
     bridge_abs = bridge_path_next_to_gi(gi_path)
     try:
         rel_bridge = bridge_abs.resolve().relative_to(root_norm)
@@ -203,9 +206,12 @@ def try_lift_transcript_chunk_from_gi(
             root_norm,
             str(rel_bridge).replace("\\", "/"),
         )
-        if safe_bridge and Path(safe_bridge).is_file():
+        if safe_bridge:
+            safe_bridge = os.path.normpath(safe_bridge)
+        if safe_bridge and safe_bridge.startswith(safe_prefix) and os.path.isfile(safe_bridge):
             try:
-                bridge = json.loads(Path(safe_bridge).read_text(encoding="utf-8"))
+                with open(safe_bridge, encoding="utf-8") as fh:
+                    bridge = json.loads(fh.read())
             except (OSError, json.JSONDecodeError):
                 bridge = {}
             if isinstance(bridge, dict):

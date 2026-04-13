@@ -183,7 +183,7 @@ The Position Tracker API builds on the existing CIL endpoints. Requirements mark
   All entry points navigate to the Person Landing, which defaults to the Guest Brief
   tab (PRD-029). The user toggles to Position Tracker from there. When the entry
   point is topic-specific (e.g. a topic link from PRD-026), the Position Tracker tab
-  is pre-selected with that topic active.
+  is preselected with that topic active.
 - **FR2.2**: Person header section shows:
   - Person display name (`text-lg font-semibold`).
   - Canonical `person:{slug}` ID (`muted`, `text-xs`, monospace).

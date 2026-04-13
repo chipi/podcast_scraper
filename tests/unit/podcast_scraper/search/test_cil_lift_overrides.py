@@ -19,6 +19,13 @@ def test_load_missing_file_returns_defaults(tmp_path: Path) -> None:
     assert o.topic_id_aliases == {}
 
 
+def test_load_invalid_json_returns_defaults(tmp_path: Path) -> None:
+    (tmp_path / "cil_lift_overrides.json").write_text("{broken", encoding="utf-8")
+    o = load_cil_lift_overrides(tmp_path)
+    assert o.transcript_char_shift == 0
+    assert o.entity_id_aliases == {}
+
+
 def test_load_valid_file(tmp_path: Path) -> None:
     (tmp_path / "cil_lift_overrides.json").write_text(
         json.dumps(

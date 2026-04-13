@@ -266,6 +266,8 @@ class CatalogEpisodeRow:
 def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
     """Scan corpus for ``*.metadata.*`` and build catalog rows."""
     root = corpus_root.resolve()
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
     rows: list[CatalogEpisodeRow] = []
     for meta_path in discover_metadata_files(root):
         try:
@@ -294,10 +296,17 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
         kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
         bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)
-        # codeql[py/path-injection] -- gi_safe/kg_safe from normpath+startswith guard.
-        has_gi = bool(gi_safe and os.path.isfile(gi_safe))
-        has_kg = bool(kg_safe and os.path.isfile(kg_safe))
-        has_bridge = bool(bridge_safe and os.path.isfile(bridge_safe))
+        if gi_safe:
+            gi_safe = os.path.normpath(gi_safe)
+        if kg_safe:
+            kg_safe = os.path.normpath(kg_safe)
+        if bridge_safe:
+            bridge_safe = os.path.normpath(bridge_safe)
+        has_gi = bool(gi_safe and gi_safe.startswith(safe_prefix) and os.path.isfile(gi_safe))
+        has_kg = bool(kg_safe and kg_safe.startswith(safe_prefix) and os.path.isfile(kg_safe))
+        has_bridge = bool(
+            bridge_safe and bridge_safe.startswith(safe_prefix) and os.path.isfile(bridge_safe)
+        )
         rows.append(
             CatalogEpisodeRow(
                 metadata_relative_path=rel,
@@ -334,11 +343,14 @@ def catalog_row_for_metadata_path(
 ) -> Optional[CatalogEpisodeRow]:
     """Build a single catalog row from a metadata relative path (no full corpus scan)."""
     root = corpus_root.resolve()
-    safe_meta = safe_relpath_under_corpus_root(root, metadata_relative_path)
-    # codeql[py/path-injection] -- safe_meta from normpath+startswith in safe_relpath.
-    if not safe_meta or not os.path.isfile(safe_meta):
-        return None
     root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
+    safe_meta = safe_relpath_under_corpus_root(root, metadata_relative_path)
+    if not safe_meta:
+        return None
+    safe_meta = os.path.normpath(safe_meta)
+    if not safe_meta.startswith(safe_prefix) or not os.path.isfile(safe_meta):
+        return None
     rel = os.path.relpath(safe_meta, root_s).replace("\\", "/")
     if rel.startswith(".."):
         return None
@@ -364,10 +376,17 @@ def catalog_row_for_metadata_path(
     gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
     kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
     bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)
-    # codeql[py/path-injection] -- gi_safe/kg_safe from normpath+startswith guard.
-    has_gi = bool(gi_safe and os.path.isfile(gi_safe))
-    has_kg = bool(kg_safe and os.path.isfile(kg_safe))
-    has_bridge = bool(bridge_safe and os.path.isfile(bridge_safe))
+    if gi_safe:
+        gi_safe = os.path.normpath(gi_safe)
+    if kg_safe:
+        kg_safe = os.path.normpath(kg_safe)
+    if bridge_safe:
+        bridge_safe = os.path.normpath(bridge_safe)
+    has_gi = bool(gi_safe and gi_safe.startswith(safe_prefix) and os.path.isfile(gi_safe))
+    has_kg = bool(kg_safe and kg_safe.startswith(safe_prefix) and os.path.isfile(kg_safe))
+    has_bridge = bool(
+        bridge_safe and bridge_safe.startswith(safe_prefix) and os.path.isfile(bridge_safe)
+    )
     return CatalogEpisodeRow(
         metadata_relative_path=rel,
         feed_id=feed_id,

@@ -167,3 +167,43 @@ def test_skips_incomplete_triple(tmp_path: Path) -> None:
         '{"schema_version":"1.0","identities":[]}', encoding="utf-8"
     )
     assert cil_queries.position_arc(tmp_path, "person:x", "topic:y") == []
+
+
+def test_skips_corrupt_gi_json(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "ok",
+        episode_id="episode:z",
+        publish_date="2024-01-01",
+        person="person:z",
+        topic="topic:z",
+        insight_id="iz",
+        quote_id="qz",
+        insight_text="Z",
+    )
+    gi_path = meta / "ok.gi.json"
+    gi_path.write_text("{not json", encoding="utf-8")
+    assert cil_queries.position_arc(tmp_path, "person:z", "topic:z") == []
+
+
+def test_skips_when_kg_missing(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    meta.mkdir(parents=True)
+    bridge = {
+        "schema_version": "1.0",
+        "episode_id": "e",
+        "identities": [
+            {
+                "id": "person:x",
+                "type": "person",
+                "sources": {"gi": True, "kg": True},
+                "display_name": "P",
+                "aliases": [],
+            },
+        ],
+    }
+    gi = {"episode_id": "e", "nodes": [], "edges": []}
+    (meta / "solo.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+    (meta / "solo.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    assert cil_queries.guest_brief(tmp_path, "person:x")["topics"] == {}

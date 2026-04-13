@@ -4,35 +4,30 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Iterator
 
 from podcast_scraper.builders.rfc072_artifact_paths import gi_and_kg_json_paths_next_to_bridge
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.utils.path_validation import normpath_if_under_root
 
 logger = logging.getLogger(__name__)
 
 
-def _read_json(path: Path) -> dict[str, Any] | None:
+def _read_json(path_str: str) -> dict[str, Any] | None:
     try:
-        text = path.read_text(encoding="utf-8")
+        with open(path_str, encoding="utf-8") as fh:
+            text = fh.read()
     except OSError as exc:
-        logger.debug("cil_queries: skip read %s: %s", path, exc)
+        logger.debug("cil_queries: skip read %s: %s", path_str, exc)
         return None
     try:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
-        logger.debug("cil_queries: invalid JSON %s: %s", path, exc)
+        logger.debug("cil_queries: invalid JSON %s: %s", path_str, exc)
         return None
     return data if isinstance(data, dict) else None
-
-
-def _is_under(root: Path, path: Path) -> bool:
-    try:
-        path.resolve().relative_to(root.resolve())
-        return True
-    except ValueError:
-        return False
 
 
 def iter_cil_episode_bundles(
@@ -40,15 +35,21 @@ def iter_cil_episode_bundles(
 ) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
     """Yield ``(bridge, gi, kg)`` dicts for each sibling triple under ``corpus_root``."""
     root = corpus_root.resolve()
+    root_s = os.path.normpath(str(root))
     for bridge_path in sorted(root.glob("**/*.bridge.json")):
-        if not bridge_path.is_file() or not _is_under(root, bridge_path):
+        safe_bridge = normpath_if_under_root(os.path.normpath(str(bridge_path)), root_s)
+        if not safe_bridge or not os.path.isfile(safe_bridge):
             continue
-        gi_path, kg_path = gi_and_kg_json_paths_next_to_bridge(bridge_path)
-        if not gi_path.is_file() or not kg_path.is_file():
+        gi_path, kg_path = gi_and_kg_json_paths_next_to_bridge(Path(safe_bridge))
+        safe_gi = normpath_if_under_root(os.path.normpath(str(gi_path)), root_s)
+        safe_kg = normpath_if_under_root(os.path.normpath(str(kg_path)), root_s)
+        if not safe_gi or not safe_kg:
             continue
-        bridge = _read_json(bridge_path)
-        gi = _read_json(gi_path)
-        kg = _read_json(kg_path)
+        if not os.path.isfile(safe_gi) or not os.path.isfile(safe_kg):
+            continue
+        bridge = _read_json(safe_bridge)
+        gi = _read_json(safe_gi)
+        kg = _read_json(safe_kg)
         if bridge is None or gi is None or kg is None:
             continue
         yield bridge, gi, kg

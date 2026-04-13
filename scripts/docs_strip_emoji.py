@@ -33,8 +33,7 @@ _EMOJI = re.compile(
     "\U0001f300-\U0001faff"  # symbols, pictographs, supplemental
     "\U00002600-\U000026ff"  # misc symbols (e.g. warning sign)
     "\U00002700-\U000027bf"  # dingbats
-    "\U000023e9-\U000023fa"  # media / UI glyphs
-    "\U000023f8-\U000023fa"
+    "\U000023e9-\U000023fa"  # media / UI glyphs (includes 23f8-23fa)
     "\U000025fc-\U000025ff"
     "\U00002b50-\U00002b59"  # star variants
     "\U0000200d"  # ZWJ

@@ -231,3 +231,37 @@ def test_no_lift_when_no_overlap(tmp_path: Path) -> None:
     }
     p = tmp_path / "unused.gi.json"
     assert try_lift_transcript_chunk_from_gi(gi, tmp_path, p, char_start=0, char_end=10) is None
+
+
+def test_lift_ignores_malformed_bridge_json(tmp_path: Path) -> None:
+    gi_path = tmp_path / "ep_br_mal.gi.json"
+    gi = {
+        "nodes": [
+            {
+                "id": "ins",
+                "type": "Insight",
+                "properties": {"text": "X", "grounded": True},
+            },
+            {
+                "id": "quo",
+                "type": "Quote",
+                "properties": {
+                    "char_start": 0,
+                    "char_end": 40,
+                    "timestamp_start_ms": 0,
+                    "timestamp_end_ms": 0,
+                },
+            },
+        ],
+        "edges": [
+            {"type": "SUPPORTED_BY", "from": "ins", "to": "quo"},
+            {"type": "ABOUT", "from": "ins", "to": "topic:t"},
+            {"type": "SPOKEN_BY", "from": "quo", "to": "person:p"},
+        ],
+    }
+    gi_path.write_text(json.dumps(gi), encoding="utf-8")
+    (tmp_path / "ep_br_mal.bridge.json").write_text("{not-json", encoding="utf-8")
+    lifted = try_lift_transcript_chunk_from_gi(gi, tmp_path, gi_path, char_start=5, char_end=25)
+    assert lifted is not None
+    assert lifted["speaker"]["display_name"] == ""
+    assert lifted["topic"]["display_name"] == ""

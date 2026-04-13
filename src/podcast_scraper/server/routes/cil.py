@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.server import cil_queries
-from podcast_scraper.server.pathutil import resolve_corpus_path_param
+from podcast_scraper.server.pathutil import resolve_corpus_path_param, resolved_corpus_root_str
 from podcast_scraper.server.schemas import (
     CilArcEpisodeBlock,
     CilGuestBriefInsightRow,
@@ -83,8 +83,9 @@ async def person_positions(
         )
         for b in raw
     ]
+    anchor = getattr(request.app.state, "output_dir", None)
     return CilPositionArcResponse(
-        path=str(root.resolve()),
+        path=resolved_corpus_root_str(root, anchor),
         person_id=person_id.strip(),
         topic_id=topic.strip(),
         episodes=episodes,
@@ -120,8 +121,9 @@ async def person_brief(
         for row in quotes_raw:
             if isinstance(row, dict):
                 quotes.append(CilGuestBriefQuoteRow.model_validate(row))
+    anchor = getattr(request.app.state, "output_dir", None)
     return CilGuestBriefResponse(
-        path=str(root.resolve()),
+        path=resolved_corpus_root_str(root, anchor),
         person_id=str(brief.get("person_id") or person_id.strip()),
         topics=topics_out,
         quotes=quotes,
@@ -154,8 +156,9 @@ async def topic_timeline(
         )
         for b in raw
     ]
+    anchor = getattr(request.app.state, "output_dir", None)
     return CilTopicTimelineResponse(
-        path=str(root.resolve()),
+        path=resolved_corpus_root_str(root, anchor),
         topic_id=topic_id.strip(),
         episodes=episodes,
     )
@@ -173,8 +176,9 @@ async def topic_persons(
     """Person ids that discuss this topic (via grounded GI quotes)."""
     root = _require_root(request, path)
     ids = cil_queries.topic_person_ids(root, topic_id)
+    anchor = getattr(request.app.state, "output_dir", None)
     return CilIdListResponse(
-        path=str(root.resolve()),
+        path=resolved_corpus_root_str(root, anchor),
         anchor_id=topic_id.strip(),
         ids=ids,
     )
@@ -192,8 +196,9 @@ async def person_topics(
     """Topic ids this person discusses (via grounded GI edges)."""
     root = _require_root(request, path)
     ids = cil_queries.person_topic_ids(root, person_id)
+    anchor = getattr(request.app.state, "output_dir", None)
     return CilIdListResponse(
-        path=str(root.resolve()),
+        path=resolved_corpus_root_str(root, anchor),
         anchor_id=person_id.strip(),
         ids=ids,
     )

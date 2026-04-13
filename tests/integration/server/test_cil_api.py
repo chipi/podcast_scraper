@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.server.app import create_app
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.critical_path]
 
 
 def _bundle(
@@ -149,3 +149,33 @@ class TestCilApi:
         )
         assert resp.status_code == 200
         assert resp.json()["ids"] == ["person:pat"]
+
+    def test_positions_insight_types_wildcards(self, client: TestClient, cil_corpus: Path) -> None:
+        pid = quote("person:pat", safe="")
+        for raw in ("all", "*", ""):
+            resp = client.get(
+                f"/api/persons/{pid}/positions",
+                params={"topic": "topic:science", "path": str(cil_corpus), "insight_types": raw},
+            )
+            assert resp.status_code == 200
+            assert len(resp.json()["episodes"]) == 1
+
+    def test_positions_default_output_dir_no_path_query(self, cil_corpus: Path) -> None:
+        client = TestClient(create_app(cil_corpus, static_dir=False))
+        pid = quote("person:pat", safe="")
+        resp = client.get(
+            f"/api/persons/{pid}/positions",
+            params={"topic": "topic:science"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["path"]
+
+    def test_require_path_when_no_default_output_dir(self) -> None:
+        client = TestClient(create_app(None, static_dir=False))
+        pid = quote("person:pat", safe="")
+        resp = client.get(
+            f"/api/persons/{pid}/positions",
+            params={"topic": "topic:science"},
+        )
+        assert resp.status_code == 400
+        assert "path" in resp.json()["detail"].lower()

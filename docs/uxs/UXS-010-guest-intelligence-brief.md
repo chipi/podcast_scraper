@@ -130,7 +130,7 @@ both the Guest Brief and the Position Tracker ([UXS-009](UXS-009-position-tracke
   both views) and a **tab bar** to switch between "Brief" and "Positions".
 - Default tab: "Brief" (Guest Brief).
 - When the entry point is topic-specific (e.g. a "Track positions" link from
-  PRD-026 with a pre-selected topic), the "Positions" tab is pre-selected with that
+  PRD-026 with a preselected topic), the "Positions" tab is preselected with that
   topic active in the Position Tracker's topic selector.
 
 ### Tab bar
