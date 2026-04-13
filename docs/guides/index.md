@@ -69,8 +69,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ----------- |
-| [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, promotion, and quality evaluation (RFC-041) |
-| [Metrics Guide](METRICS_GUIDE.md) | Pipeline `metrics.json`, download-resilience counters, links to run tracking and CI metrics |
+| [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, promotion, metrics, and quality evaluation (RFC-041) |
 | [Evaluation Reports](eval-reports/index.md) | Quality sweeps: ROUGE, embeddings, report library |
 | [Performance Guide](PERFORMANCE.md) | Performance considerations, optimization, and troubleshooting |
 | [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles: RSS, CPU%, wall time per stage (RFC-064) |

@@ -20,21 +20,22 @@ from .memray_util import MEMRAY_ACTIVE_ENV
 from .sampler import CrossProcessSampler
 from .status import read_pipeline_status
 
+# Env: force `.monitor.log` instead of `rich.Live` on stderr (profile freeze / RFC-065).
+MONITOR_FILE_LOG_ENV = "PODCAST_SCRAPER_MONITOR_FILE_LOG"
+
 SampleSeg = Tuple[float, float, float, float]  # wall_mono, peak_mb, avg_cpu, count
 
 
-MONITOR_FILE_LOG_ENV = "PODCAST_SCRAPER_MONITOR_FILE_LOG"
+def _monitor_file_log_env_truthy() -> bool:
+    val = os.environ.get(MONITOR_FILE_LOG_ENV)
+    if val is None:
+        return False
+    return val.strip().lower() in ("1", "true", "yes", "on")
 
 
 def monitor_use_rich_live_on_stderr() -> bool:
-    """Return True if the monitor should use ``rich.Live`` on stderr.
-
-    When ``PODCAST_SCRAPER_MONITOR_FILE_LOG`` is set to a truthy value, the monitor
-    always appends to ``.monitor.log`` instead (used by ``freeze_profile`` so ticks
-    are archived even when the parent terminal has a TTY).
-    """
-    force = os.environ.get(MONITOR_FILE_LOG_ENV, "").strip().lower()
-    if force in ("1", "true", "yes"):
+    """Use Rich Live on stderr when it is a TTY and file logging is not forced."""
+    if _monitor_file_log_env_truthy():
         return False
     return sys.stderr.isatty()
 
@@ -255,17 +256,22 @@ def monitor_main(
     out = Path(output_dir)
     sampler = CrossProcessSampler(pipeline_pid, interval_s=poll_interval_s)
     sampler.start()
-    use_tty = monitor_use_rich_live_on_stderr()
+    use_rich_live = monitor_use_rich_live_on_stderr()
     memray_active = os.environ.get(MEMRAY_ACTIVE_ENV) == "1"
     console = Console(stderr=True)
     log_file: Optional[TextIO] = None
     log_path: Optional[Path] = None
-    if not use_tty:
+    if not use_rich_live:
         log_path = out / ".monitor.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_file = open(log_path, "a", encoding="utf-8")
+        reason = (
+            "PODCAST_SCRAPER_MONITOR_FILE_LOG"
+            if _monitor_file_log_env_truthy()
+            else "non-TTY stderr"
+        )
         log_file.write(
-            f"\n# podcast_scraper monitor (non-TTY stderr; append log) "
+            f"\n# podcast_scraper monitor ({reason}; append log) "
             f"session_start={time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}\n",
         )
         log_file.flush()
@@ -279,7 +285,7 @@ def monitor_main(
     )
 
     try:
-        if use_tty:
+        if use_rich_live:
             _run_tty_loop(loop, console, poll_interval_s)
         else:
             assert log_file is not None
@@ -291,7 +297,7 @@ def monitor_main(
 
     _maybe_append_unsegmented_row(loop)
 
-    if use_tty:
+    if use_rich_live:
         _emit_tty_footer(console, loop.history_rows, loop.peak_session_rss, pipeline_pid)
     elif log_path is not None:
         _emit_file_footer(log_path, loop.history_rows, loop.peak_session_rss, pipeline_pid)

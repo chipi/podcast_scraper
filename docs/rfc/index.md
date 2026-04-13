@@ -109,10 +109,53 @@ metrics (**RFC-027**), continuous review (**RFC-038**), metrics alerts (**RFC-04
 projection (**RFC-051**), adaptive summarization routing (**RFC-053**), E2E mock composition
 (**RFC-054**), diarization and cleaning (**RFC-058**–**RFC-060**; **RFC-058** is design-accepted,
 **not** fully landed in `main`), semantic search **platform** draft (**RFC-070**; **RFC-061** FAISS
-path is **Completed**), canonical identity layer and cross-layer bridge (**RFC-072**).
+path is **Completed**), canonical identity layer and cross-layer bridge (**RFC-072**). Single-layer
+**RFC-050** / **RFC-056** are **Completed**; cross-layer GIL/KG work is **RFC-072**.
 
-**Closed program:** [RFC-057](RFC-057-autoresearch-optimization-loop.md) — **Completed**; closure summary
-in [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md).
+### Open RFCs (detail)
+
+| RFC | Theme | Notes |
+| --- | --- | --- |
+| [RFC-015](RFC-015-ai-experiment-pipeline.md) | Experiments | Runner implemented; **CI auto-run still pending** |
+| [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Observability | **Partial** — rich metrics; CSV / two-tier logging gaps |
+| [RFC-038](RFC-038-continuous-review-tooling.md) | Governance | Dependabot + pydeps; **pre-release checklist** partial ([ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md) Partial) |
+| [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarks | Datasets/scripts exist; **automated CI benchmarking** not fully wired |
+| [RFC-043](RFC-043-automated-metrics-alerts.md) | Metrics | Alerts/summaries exist; **PR comment bot** not done ([ADR-047](../adr/ADR-047-proactive-metric-regression-alerting.md) Partial) |
+| [RFC-051](RFC-051-database-projection-gil-kg.md) | GIL/KG DB | **Not started** — Postgres projection ([ADR-054](../adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) Code **No**) |
+| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Summarization | **Not started** — no episode profiling router ([ADR-055](../adr/ADR-055-adaptive-summarization-routing.md) **Proposed**) |
+| [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Testing | Mocks exist; **composable ResponseProfile** not built ([ADR-056](../adr/ADR-056-composable-e2e-mock-response-strategy.md) **Proposed**) |
+| [RFC-058](RFC-058-audio-speaker-diarization.md) | Diarization | [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) accepted; **no `[diarize]` / pyannote in tree** |
+| [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speakers | Factory + providers wired; package still **Stage 0** / full modularization TBD |
+| [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Cleaning | **Not started** as designed ([ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) Code **No**) |
+| [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Search platform | **Draft** — Qdrant **`VectorStore`**, filters, pgvector/RFC-051, re-ranking ([RFC-061](RFC-061-semantic-corpus-search.md) **Completed** for FAISS) |
+| [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) | GIL/KG cross-layer | Shared IDs, `bridge.json`, flagship cross-layer use cases; supersedes cross-layer aspects of **RFC-050** / **RFC-056** |
+
+### Recently completed (v2.6.0+)
+
+| RFC | Delivered (high level) |
+| --- | --- |
+| [RFC-050](RFC-050-grounded-insight-layer-use-cases.md) | Single-layer GIL consumption; cross-layer → **RFC-072** |
+| [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md) | Single-layer KG consumption; cross-layer → **RFC-072** |
+| [RFC-057](RFC-057-autoresearch-optimization-loop.md) | Closed per [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md) |
+| [RFC-061](RFC-061-semantic-corpus-search.md) | FAISS path, CLI + API + semantic `gi explore` |
+| [RFC-062](RFC-062-gi-kg-viewer-v2.md) | Server + Vue SPA + Playwright ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)) |
+| [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) | Multi-feed layout, manifest ([ADR-074](../adr/ADR-074-multi-feed-corpus-parent-layout-and-manifest.md)) |
+| [RFC-064](RFC-064-performance-profiling-release-freeze.md) | Frozen profiles, freeze/diff scripts ([ADR-075](../adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md)) |
+| [RFC-065](RFC-065-live-pipeline-monitor.md) | `--monitor`, `.pipeline_status.json`, optional `[monitor]` |
+| [RFC-066](RFC-066-run-compare-performance-tab.md) | Streamlit **Performance** vs frozen profiles ([ADR-076](../adr/ADR-076-streamlit-for-operator-run-comparison-and-performance-views.md)) |
+| [RFC-067](RFC-067-corpus-library-api-viewer.md) | `/api/corpus/*`, Library tab, similar episodes |
+| [RFC-068](RFC-068-corpus-digest-api-viewer.md) | Digest API + tab, Library glance |
+| [RFC-069](RFC-069-graph-exploration-toolkit.md) | Graph exploration toolkit |
+| [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) | Dashboard tab, corpus intelligence panels |
+
+Older **draft RFC audit** tables (pre-2026-04) are **archeology** — trust this index and each RFC’s
+**Status** block.
+
+### Recommendations
+
+1. **Status changes** — Edit RFC body + this index **together**.
+2. **Large deliveries without new ADRs** — Often **RFC + guides + API docs**; see [ADR gap analysis](../adr/index.md#gaps) for when an ADR is still worth extracting.
+3. **Decision vs code** — Use **Open** / **Completed** here plus [`docs/adr/index.md`](../adr/index.md) **Code** column.
 
 **Maintenance:** Edit each RFC **`Status`** line when you move its row between **Open** and **Completed**.
 Product gaps: [PRD gap analysis](../prd/index.md#gaps). Decision records: [ADR gap analysis](../adr/index.md#gaps).

@@ -102,15 +102,71 @@ numbering has historical gaps). From the index table: **2** **Proposed** (**ADR-
 **3** **Accepted** with **Code = No** (**ADR-054**, **ADR-058**, **ADR-059**), **2** **Accepted** with
 **Code = Partial** (**ADR-031**, **ADR-047**). **Accepted** means ratified, not necessarily shipped.
 
+### When to extract a new ADR
+
+Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** (API guide,
+`docs/api/*.md`, UXS) is usually enough.
+
+| ADR type | When to extract | Recent examples |
+| --- | --- | --- |
+| **Closure / program outcome** | A **large RFC program** ends; you need an immutable summary. | [ADR-073](ADR-073-rfc057-autoresearch-closure.md) closes [RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md) |
+| **Empirical production defaults** | Benchmarks change **default models/tiers** you must freeze for onboarding. | [ADR-067](ADR-067-pegasus-led-retirement-podcast-content.md)–[ADR-072](ADR-072-llama32-3b-as-tier3-local-llm.md) |
+| **Stack & ownership boundary** | **Who owns HTTP**, which **frontend stack**, which **UI E2E runner**. | [ADR-064](ADR-064-canonical-server-layer-with-feature-flagged-routes.md)–[ADR-066](ADR-066-playwright-for-ui-e2e-testing.md) |
+| **Heavy optional dependencies** | An extra **bloats install** or splits CUDA/CPU paths; defaults must not pay the cost. | [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) (**accepted; `[diarize]` not landed**) |
+| **Cross-cutting protocol / contract** | Multiple subsystems share the **same interface**. | [ADR-060](ADR-060-vectorstore-protocol-with-backend-abstraction.md), [ADR-053](ADR-053-grounding-contract-for-evidence-backed-insights.md), [ADR-051](ADR-051-per-episode-json-artifacts-with-logical-union.md) |
+| **Process / CI philosophy** | A **policy** decision that outlives one RFC. | [ADR-021](ADR-021-acceptance-test-tier-as-final-ci-gate.md) |
+
+### When **not** to add an ADR
+
+- **Viewer milestones** that do not change stack (e.g. [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md)) — **RFC + UXS-001 + E2E map** suffice.
+- **Single-route APIs** for the viewer with schema in code + tests (e.g. [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md)) — Server Guide + tests suffice.
+- **Operational tooling** without architectural boundary moves (e.g. [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md)) — **RFC-first**.
+- **Frozen artifact workflows** (e.g. [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md)); **profile YAML** baselines are covered by **[ADR-075](ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md)**.
+
+### ADRs by implementation state
+
+**Proposed**
+
+| ADR | Primary RFC | Note |
+| --- | --- | --- |
+| [ADR-055](ADR-055-adaptive-summarization-routing.md) | [RFC-053](../rfc/RFC-053-adaptive-summarization-routing.md) | No episode profiling / routing in pipeline yet |
+| [ADR-056](ADR-056-composable-e2e-mock-response-strategy.md) | [RFC-054](../rfc/RFC-054-e2e-mock-response-strategy.md) | Composable ResponseProfile / Router not implemented |
+
+**Accepted, code not landed (expected)**
+
+| ADR | Primary RFC | Note |
+| --- | --- | --- |
+| [ADR-054](ADR-054-relational-postgres-projection-for-gil-and-kg.md) | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) | Postgres projection future |
+| [ADR-058](ADR-058-additive-pyannote-diarization-with-separate-extra.md) | [RFC-058](../rfc/RFC-058-audio-speaker-diarization.md) | No `[diarize]` extra in `pyproject.toml` yet |
+| [ADR-059](ADR-059-confidence-scored-multi-signal-commercial-detection.md) | [RFC-060](../rfc/RFC-060-diarization-aware-commercial-cleaning.md) | Commercial detector as designed not landed |
+
+**Accepted, partial**
+
+| ADR | Gap |
+| --- | --- |
+| [ADR-031](ADR-031-mandatory-pre-release-validation.md) | `make pre-release` / checklist not fully aligned with [RFC-038](../rfc/RFC-038-continuous-review-tooling.md) |
+| [ADR-047](ADR-047-proactive-metric-regression-alerting.md) | Alerts exist; **automated PR comments** not complete |
+
+### Stale-audit corrections (reference)
+
+Trust the **Code** column in the table above: **ADR-048** is implemented; **ADR-062** / **ADR-063**
+are **Yes**; **ADR-064**–**ADR-066** are implemented; **ADR-021** is reflected in script-based
+`make test-acceptance`.
+
+### Situation cheat sheet
+
 | Situation | Guidance |
 | --- | --- |
 | **Prefer a new ADR** | Irreversible stack boundary, cross-cutting protocol, frozen empirical default, heavy optional extra, or closure of a large program (e.g. **ADR-073**). |
-| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest contract: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. |
+| **Often RFC-only** | Bounded HTTP routes or viewer tabs where **ADR-064**–**ADR-066** + UXS already fix the stack (e.g. **RFC-067**, **RFC-068**, **RFC-069**, **RFC-071**). Corpus layout + manifest: **ADR-074**. Frozen resource baselines: **ADR-075**. Streamlit vs Vue for eval tools: **ADR-076**. |
 | **Proposed ADRs** | Promote **ADR-055** / **ADR-056** to **Accepted** (or supersede) when **RFC-053** / **RFC-054** ship end-to-end. |
 
-**Future triggers:** versioned **`.pipeline_status.json`** if external parsers appear; profile YAML
-stability beyond **RFC-064** + **ADR-075** if non-Python consumers need it; **RFC-070** + **ADR-060**
-when platform vector backends land materially.
+### Future triggers
+
+- **Multi-feed manifest** as an **immutable external contract** beyond [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) — partially addressed by **ADR-074**.
+- **`.pipeline_status.json` schema** if external monitors depend on it and breaking changes need versioning.
+- **Profile YAML** for **non-Python** consumers beyond `tools/run_compare` / **`make profile-diff`** — partially addressed by **ADR-075**.
+- **RFC-070** + **ADR-060** when platform vector backends land materially.
 
 **Open decisions without ADRs:** see **Architecture Decision Candidates** below.
 

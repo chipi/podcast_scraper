@@ -24,8 +24,8 @@ from podcast_scraper import Config, run_pipeline
 from podcast_scraper.rss.downloader import (
     configure_downloader,
     fetch_url,
+    reset_http_sessions,
 )
-from podcast_scraper.rss.http_policy import configure_http_policy
 
 try:
     from tests.e2e.fixtures.e2e_http_server import (
@@ -43,9 +43,12 @@ def _cleanup_transient_errors():
 
 @pytest.fixture(autouse=True)
 def _reset_errors():
-    """Ensure error behaviors are cleaned up after each test."""
+    """Ensure error behaviors and HTTP sessions are cleaned up after each test."""
+    reset_http_sessions()
     yield
     _cleanup_transient_errors()
+    configure_downloader(http_retry_total=2, http_backoff_factor=0.0)
+    reset_http_sessions()
 
 
 @pytest.mark.e2e
@@ -81,13 +84,10 @@ class TestTransientHTTPErrors:
         E2EHTTPRequestHandler.set_error_behavior(transcript_path, status=500)
 
         configure_downloader(http_retry_total=1, http_backoff_factor=0.0)
-        try:
-            url = f"{e2e_server.urls.base()}{transcript_path}"
-            resp = fetch_url(url, "test-agent", timeout=10)
-            assert resp is None, "Permanent 500 should exhaust retries and return None"
-        finally:
-            configure_http_policy()
-            configure_downloader(http_retry_total=8, http_backoff_factor=1.0)
+        reset_http_sessions()
+        url = f"{e2e_server.urls.base()}{transcript_path}"
+        resp = fetch_url(url, "test-agent", timeout=10)
+        assert resp is None, "Permanent 500 should exhaust retries and return None"
 
 
 @pytest.mark.e2e
@@ -104,7 +104,9 @@ class TestConfigurableRetryValues:
                 max_episodes=1,
                 transcribe_missing=False,
                 http_retry_total=2,
-                http_backoff_factor=0.1,
+                http_backoff_factor=0.0,
+                rss_retry_total=2,
+                rss_backoff_factor=0.0,
             )
             count, summary = run_pipeline(cfg)
             assert count >= 0
@@ -130,6 +132,10 @@ class TestPipelineTransientRecovery:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=False,
+                http_retry_total=3,
+                http_backoff_factor=0.0,
+                rss_retry_total=3,
+                rss_backoff_factor=0.0,
             )
             count, summary = run_pipeline(cfg)
             assert count >= 1, "Pipeline should recover and save transcript " "after transient 503"
@@ -159,6 +165,10 @@ class TestMultiFeedIsolation:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=False,
+                http_retry_total=2,
+                http_backoff_factor=0.0,
+                rss_retry_total=2,
+                rss_backoff_factor=0.0,
             )
             result = service.run(cfg)
 
@@ -182,6 +192,10 @@ class TestFailureSummaryInRunJson:
                 output_dir=tmpdir,
                 max_episodes=3,
                 transcribe_missing=False,
+                http_retry_total=2,
+                http_backoff_factor=0.0,
+                rss_retry_total=2,
+                rss_backoff_factor=0.0,
             )
             count, summary = run_pipeline(cfg)
 
@@ -198,6 +212,10 @@ class TestFailureSummaryInRunJson:
                 output_dir=tmpdir,
                 max_episodes=1,
                 transcribe_missing=False,
+                http_retry_total=2,
+                http_backoff_factor=0.0,
+                rss_retry_total=2,
+                rss_backoff_factor=0.0,
             )
             count, summary = run_pipeline(cfg)
 

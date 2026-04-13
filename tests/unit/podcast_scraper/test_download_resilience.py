@@ -58,8 +58,8 @@ class TestConfigRetryFields(unittest.TestCase):
         cfg = Config(rss_url="http://x.com/feed.xml")
         self.assertEqual(cfg.http_retry_total, 8)
         self.assertEqual(cfg.http_backoff_factor, 1.0)
-        self.assertEqual(cfg.rss_retry_total, 10)
-        self.assertEqual(cfg.rss_backoff_factor, 2.0)
+        self.assertEqual(cfg.rss_retry_total, 5)
+        self.assertEqual(cfg.rss_backoff_factor, 1.0)
 
     def test_custom_values(self):
         cfg = Config(
@@ -152,8 +152,8 @@ class TestConfigureDownloader(unittest.TestCase):
         dl._configured_http_backoff_factor = None
         self.assertEqual(_effective_http_retry_total(), 8)
         self.assertAlmostEqual(_effective_http_backoff_factor(), 1.0)
-        self.assertEqual(_effective_rss_retry_total(), 10)
-        self.assertAlmostEqual(_effective_rss_backoff_factor(), 2.0)
+        self.assertEqual(_effective_rss_retry_total(), 5)
+        self.assertAlmostEqual(_effective_rss_backoff_factor(), 1.0)
 
     def test_configure_overrides_effective(self):
         configure_downloader(

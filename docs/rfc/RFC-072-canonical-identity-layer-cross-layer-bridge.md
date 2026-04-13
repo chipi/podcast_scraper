@@ -46,9 +46,19 @@ stack:
 2. **Guest Intelligence Brief** — a structured pre-interview dossier on a guest's known
    positions, best quotes, and potential challenge points.
 
-The CIL and bridge work entirely on the existing filesystem JSON artifact stack. No
-database prerequisite. GIL and KG remain separate artifacts with independent schemas
-(per ADR-052). The bridge is the seam, not a merge.
+Alongside the CIL, this RFC introduces two additive GIL v1.1 fields:
+
+- **`insight_type`** — an optional classification on every Insight node (`claim`,
+  `recommendation`, `observation`, `question`, `unknown`) that makes the flagship
+  query patterns type-aware: the Position Tracker can filter to claims, and the Guest
+  Brief can rank positions by statement type.
+- **`position_hint`** — a normalised float (`0.0`-`1.0`) derived from supporting Quote
+  timestamps and episode duration, giving each Insight a temporal position within its
+  episode. No extraction change needed — pure arithmetic on existing data.
+
+The CIL, bridge, `insight_type`, and `position_hint` work entirely on the existing
+filesystem JSON artifact stack. No database prerequisite. GIL and KG remain separate
+artifacts with independent schemas (per ADR-052). The bridge is the seam, not a merge.
 
 ---
 
@@ -127,7 +137,7 @@ and here is the moment it changed, grounded in his own words."
 | Layer | Contribution |
 | --- | --- |
 | CIL | `person:satya-nadella` + `topic:ai-safety` as stable join keys across episodes |
-| GIL | Insights attributed to that person on that topic, each grounded in timestamped quotes |
+| GIL | Insights attributed to that person on that topic, each grounded in timestamped quotes. `insight_type` (Section 2a) enables filtering to `claim` type Insights for a focused position arc. `position_hint` (Section 2b) adds intra-episode ordering so Insights within a single episode show argumentative progression — setup vs conclusion. |
 | KG | Episode publish dates, entity metadata (role, org affiliation) |
 | Semantic Search | Entry point — user searches a person + topic, FAISS returns chunks, chunks lift to Insights via the bridge |
 | Bridge | The per-episode join that makes "all Insights by person X on topic Y" a single corpus-wide query |
@@ -153,6 +163,8 @@ and here is the moment it changed, grounded in his own words."
         {
           "id": "insight:a1b2c3d4",
           "text": "AI safety is important but should not slow down innovation",
+          "insight_type": "claim",
+          "position_hint": 0.15,
           "grounded": true,
           "confidence": 0.88,
           "supporting_quotes": [
@@ -173,6 +185,8 @@ and here is the moment it changed, grounded in his own words."
         {
           "id": "insight:e5f6g7h8",
           "text": "AI safety requires mandatory external audits before deployment",
+          "insight_type": "claim",
+          "position_hint": 0.85,
           "grounded": true,
           "confidence": 0.91,
           "supporting_quotes": [
@@ -235,7 +249,7 @@ with other guests.
 | Layer | Contribution |
 | --- | --- |
 | CIL | `person:` as the anchor for the entire brief |
-| GIL | All Insights and Quotes attributed to this person across all episodes — the substance of the brief |
+| GIL | All Insights and Quotes attributed to this person across all episodes — the substance of the brief. `insight_type` (Section 2a) enables surfacing `claim` and `recommendation` types as known positions. `position_hint` (Section 2b) serves as a tiebreaker — later statements on a topic are more likely to represent the guest's settled position. |
 | KG | Entity relationships (org affiliation, co-appearances), topic associations, episode metadata |
 | Semantic Search | Optional — "find episodes where this guest was discussed but was not present" (mentions without appearance) |
 | Bridge | The join that makes "everything person X has said across 50 episodes" a single query |
@@ -263,6 +277,8 @@ with other guests.
       "strongest_insight": {
         "id": "insight:x1y2z3",
         "text": "AI regulation will significantly lag behind the pace of innovation",
+        "insight_type": "claim",
+        "position_hint": 0.78,
         "confidence": 0.92,
         "grounded": true,
         "episode_id": "episode:abc123",
@@ -280,6 +296,9 @@ with other guests.
     }
   ],
   "potential_challenges": [
+    // Phase 6 scope (analysis layer, separate RFC).
+    // Phase 4 returns this as an empty array.
+    // Shown here to illustrate the full brief vision.
     {
       "topic": {
         "id": "topic:ai-regulation",
@@ -326,7 +345,8 @@ straightforward once the foundation is in place:
 
 - **Controversy radar** — surface topic + person pairs where Insights from different
   persons contradict each other. A corpus-wide scan of bridge files filtered by shared
-  topics, then NLI comparison of Insight pairs.
+  topics, then NLI comparison of Insight pairs. `insight_type` (Section 2a) makes this
+  more tractable by scoping contradiction detection to `claim` vs `claim` pairs.
 - **Follow-the-thread** — chronological topic evolution across episodes. A simpler
   variant of the Position Tracker without the person filter.
 - **Gap analysis** — topics that appear in audience questions (if captured) but have
@@ -345,6 +365,9 @@ straightforward once the foundation is in place:
 
 2. **Migrate GIL** to replace `speaker:{slug}` with `person:{slug}` (clean-slate
    tolerance confirmed; additive migration path provided for existing artifacts).
+   Simultaneously add two additive v1.1 fields on Insight nodes: `insight_type`
+   (Section 2a) for type-aware query patterns, and `position_hint` (Section 2b) for
+   intra-episode temporal ordering — both improving the flagship use cases.
 
 3. **Migrate KG** to replace `entity:person:{slug}` and `entity:organization:{slug}`
    with `person:{slug}` and `org:{slug}` respectively.
@@ -386,6 +409,11 @@ straightforward once the foundation is in place:
 - The flagship use cases (Position Tracker, Guest Brief) define the *data foundation*
   and *query patterns*. The analysis layer (contradiction detection, position change
   detection) is a follow-up capability, not part of this RFC.
+- `insight_type` and `position_hint` are additive (GIL v1.1). Existing `gi.json`
+  artifacts without these fields remain valid — consumers treat missing `insight_type`
+  as `"unknown"` and missing `position_hint` as `null`. No migration script needed for
+  either field. `position_hint` requires `episode_duration_ms` from the KG Episode
+  node; it is `null` when duration is unavailable.
 
 **Assumptions:**
 
@@ -500,6 +528,149 @@ entity resolution when names appear with variations across episodes.
 in all existing artifacts. Idempotent (safe to re-run). Back up the corpus before
 running.
 
+#### 2a. Insight Type Enum (GIL v1.1 — Additive)
+
+An optional `insight_type` field is added to every Insight node in `gi.json`. This is
+an additive v1.1 change — no existing field is removed or renamed, and existing
+artifacts remain valid (missing `insight_type` is treated as `"unknown"`).
+
+**Why it matters for the flagships:**
+
+- **Position Tracker**: A chronological arc of Insights is useful, but an arc filtered
+  to `claim` type Insights is dramatically more useful. "I wonder if AI will replace
+  jobs" (question) carries different weight than "AI will replace 40% of jobs by 2030"
+  (claim) when tracking how a person's *stated positions* evolve. Without `insight_type`,
+  the consumer must mentally classify every Insight in the arc.
+- **Guest Brief**: The `known_positions` section should surface `claim` and
+  `recommendation` type Insights most prominently — those are the positions. The
+  `potential_challenges` section (Phase 6) becomes much more tractable when comparing
+  `claim` Insights specifically, rather than flagging contradictions between an
+  observation and a claim.
+- **Analysis layer (Phase 6)**: Contradiction detection via NLI or LLM-as-judge is
+  more precise when scoped to `claim` vs `claim` pairs on the same topic, rather than
+  all Insight pairs.
+
+**Enum values:**
+
+| Value | Semantics | Example |
+| --- | --- | --- |
+| `claim` | A stated position, belief, or factual assertion | "AI regulation will lag innovation by 3-5 years" |
+| `recommendation` | An explicit suggestion or call to action | "Companies should adopt mandatory external audits" |
+| `observation` | A descriptive or analytical remark without a stance | "The EU has moved faster than the US on AI policy" |
+| `question` | A question posed by the speaker (rhetorical or genuine) | "Can we really trust self-regulation?" |
+| `unknown` | Default — not yet classified (existing artifacts, extraction failure) | *(implicit for pre-v1.1 artifacts)* |
+
+**Schema change in `gi.json` Insight node:**
+
+```json
+{
+  "id": "insight:a1b2c3d4",
+  "type": "Insight",
+  "properties": {
+    "text": "AI regulation will significantly lag behind the pace of innovation",
+    "confidence": 0.92,
+    "grounded": true,
+    "insight_type": "claim"
+  }
+}
+```
+
+**Extraction prompt change:** The LLM extraction step in the GIL builder receives a
+small addition asking it to classify each Insight into one of the five types. This is
+a prompt engineering change (RFC-052 territory, autoresearch candidate) — not a schema
+breaking change. The classification is expected to be high-accuracy for `claim` vs
+`question` (structurally distinct) and moderate-accuracy for `claim` vs `observation`
+(requires understanding stance). Accuracy can be measured and improved via the existing
+eval framework.
+
+**Backward compatibility:** Existing `gi.json` artifacts without `insight_type` are
+treated as `"unknown"` by all consumers. No migration script needed — the field is
+optional. New pipeline runs emit it; old artifacts are valid without it.
+
+**Relationship to grounding contract (ADR-053):** `insight_type` is orthogonal to the
+grounding contract. A `claim` type Insight still requires a supporting Quote with
+`grounded: true`. The type classifies *what kind of statement* the Insight represents,
+not *how well it is evidenced*.
+
+#### 2b. Position Hint (GIL v1.1 — Additive, Derived)
+
+An optional `position_hint` field is added to every Insight node in `gi.json`. Unlike
+`insight_type`, this field requires **no extraction change** — it is purely derived from
+data that already exists (Quote timestamps and episode duration).
+
+**The problem it solves:**
+
+Insights do not inherit any temporal position from their supporting Quotes, even though
+Quotes carry `timestamp_start_ms` and `timestamp_end_ms`. All Insights from a single
+episode look temporally equivalent. But in practice, the last thing someone says on a
+topic often carries more weight than the first — a guest might spend 20 minutes building
+toward a conclusion. For the Position Tracker, knowing *where* in an episode an Insight
+occurred is the difference between "here are 5 things they said" and "here is the
+progression of their argument, and here is the conclusion."
+
+**Why it matters for the flagships:**
+
+- **Position Tracker**: When assembling a chronological arc across episodes, Insights
+  within a single episode can be ordered by `position_hint` to show argumentative
+  progression. A `claim` Insight at `position_hint: 0.85` (late in the episode) is
+  likely a conclusion; one at `0.12` (early) is likely framing or setup. This adds
+  intra-episode narrative structure to the inter-episode timeline.
+- **Guest Brief**: The `strongest_insight` selection for a topic can use `position_hint`
+  as a tiebreaker — later statements on a topic are more likely to represent the guest's
+  settled position than early exploratory remarks.
+- **Analysis layer (Phase 6)**: Position change detection within a single episode
+  (a guest who reverses their stance during the conversation) becomes detectable when
+  Insights have temporal ordering.
+
+**Computation:**
+
+```python
+def compute_position_hint(
+    supporting_quotes: list[dict], episode_duration_ms: int | None
+) -> float | None:
+    if not episode_duration_ms or not supporting_quotes:
+        return None
+    mean_start = sum(
+        q["timestamp_start_ms"] for q in supporting_quotes
+    ) / len(supporting_quotes)
+    return round(min(mean_start / episode_duration_ms, 1.0), 2)
+```
+
+Returns a normalised float from `0.0` (start of episode) to `1.0` (end of episode),
+clamped to `1.0` (guards against bad data where a Quote timestamp exceeds the reported
+episode duration), rounded to two decimal places. Returns `null` if
+`episode_duration_ms` is missing or if the Insight has no supporting Quotes with
+timestamps.
+
+**Schema change in `gi.json` Insight node (combined with `insight_type`):**
+
+```json
+{
+  "id": "insight:a1b2c3d4",
+  "type": "Insight",
+  "properties": {
+    "text": "AI regulation will significantly lag behind the pace of innovation",
+    "confidence": 0.92,
+    "grounded": true,
+    "insight_type": "claim",
+    "position_hint": 0.85
+  }
+}
+```
+
+**Where `episode_duration_ms` comes from:** The KG `Episode` node already carries
+`duration_ms` in its properties (sourced from RSS feed metadata or audio file
+inspection). The GIL builder reads this value at build time to compute `position_hint`
+for each Insight. If the Episode node lacks `duration_ms`, `position_hint` is `null`.
+
+**Backward compatibility:** Identical to `insight_type` — existing artifacts without
+`position_hint` are treated as `null` by all consumers. No migration script needed.
+New pipeline runs emit it; old artifacts are valid without it.
+
+**No extraction change needed:** This is a pure post-processing step in the GIL
+builder. The Quote timestamps and episode duration are already available at build time.
+No LLM call, no prompt change, no autoresearch candidate — just arithmetic.
+
 ---
 
 ### 3. KG Ontology Migration
@@ -587,7 +758,7 @@ query time without a database.
 | `type` | enum | `person` / `org` / `topic` |
 | `display_name` | string | Human-readable name (for UI, not identity) |
 | `aliases` | string[] | Known variant spellings seen in this episode |
-| `sources.gi` | boolean | Whether this ID appears in `gi.json` for this episode |
+| `sources.gi` | boolean | Whether this ID appears in `gi.json` for this episode. A topic with `sources.gi: false` is KG-known but not yet GIL-enriched (no ABOUT edges from Insights) — this is a valid and expected state in the current pipeline, since GIL topic support is deferred in v1. Query patterns that need GIL Insights (e.g. Pattern A) correctly skip these episodes. |
 | `sources.kg` | boolean | Whether this ID appears in `kg.json` for this episode |
 
 **What the bridge does NOT contain:**
@@ -664,9 +835,15 @@ These patterns directly support the flagship use cases.
 
 **Pattern A: Position Tracker query — Insights by person + topic across episodes**
 
+The optional `insight_types` filter defaults to `("claim",)` for a focused position
+arc. Pass `None` to include all types (useful for exploratory views).
+
 ```python
 def position_arc(
-    corpus_dir: Path, target_person: str, target_topic: str
+    corpus_dir: Path,
+    target_person: str,
+    target_topic: str,
+    insight_types: tuple[str, ...] | None = ("claim",),
 ) -> list[dict]:
     results = []
     for episode_dir in corpus_dir.iterdir():
@@ -706,6 +883,15 @@ def position_arc(
         )
 
         insights = [n for n in gi["nodes"] if n["id"] in relevant_insights]
+        if insight_types:
+            insights = [
+                n for n in insights
+                if n.get("properties", {}).get("insight_type", "unknown")
+                in insight_types
+            ]
+        insights.sort(
+            key=lambda n: n.get("properties", {}).get("position_hint") or 0.0
+        )
         if insights:
             results.append({
                 "episode_id": bridge["episode_id"],
@@ -717,6 +903,12 @@ def position_arc(
 ```
 
 **Pattern B: Guest Brief query — all Insights by a person, grouped by topic**
+
+Insights are grouped by topic and annotated with `insight_type` and `position_hint`.
+The brief consumer uses `insight_type` to rank: `claim` and `recommendation` types
+surface as `known_positions`; `observation` and `question` types provide supporting
+context. `position_hint` serves as a tiebreaker — later statements are more likely to
+represent the guest's settled position.
 
 ```python
 def guest_brief(corpus_dir: Path, target_person: str) -> dict:
@@ -756,9 +948,12 @@ def guest_brief(corpus_dir: Path, target_person: str) -> dict:
                     None,
                 )
                 if insight_node:
+                    props = insight_node.get("properties", {})
                     by_topic.setdefault(topic_id, []).append({
                         "episode_id": bridge["episode_id"],
                         "insight": insight_node,
+                        "insight_type": props.get("insight_type", "unknown"),
+                        "position_hint": props.get("position_hint"),
                     })
 
         for qid in spoken_quotes:
@@ -780,8 +975,16 @@ def guest_brief(corpus_dir: Path, target_person: str) -> dict:
 
 **Pattern C: Topic timeline — follow-the-thread across episodes**
 
+Like Pattern A, supports an optional `insight_types` filter (defaults to all types,
+since topic timelines often benefit from the full picture) and sorts Insights within
+each episode by `position_hint`.
+
 ```python
-def topic_timeline(corpus_dir: Path, target_topic: str) -> list[dict]:
+def topic_timeline(
+    corpus_dir: Path,
+    target_topic: str,
+    insight_types: tuple[str, ...] | None = None,
+) -> list[dict]:
     results = []
     for episode_dir in corpus_dir.iterdir():
         bridge_path = episode_dir / "bridge.json"
@@ -803,6 +1006,15 @@ def topic_timeline(corpus_dir: Path, target_topic: str) -> list[dict]:
             if e["type"] == "ABOUT" and e["to"] == target_topic
         }
         insights = [n for n in gi["nodes"] if n["id"] in about_insights]
+        if insight_types:
+            insights = [
+                n for n in insights
+                if n.get("properties", {}).get("insight_type", "unknown")
+                in insight_types
+            ]
+        insights.sort(
+            key=lambda n: n.get("properties", {}).get("position_hint") or 0.0
+        )
 
         episode_node = next(
             (n for n in kg["nodes"] if n["type"] == "Episode"), None
@@ -812,11 +1024,12 @@ def topic_timeline(corpus_dir: Path, target_topic: str) -> list[dict]:
             if episode_node else None
         )
 
-        results.append({
-            "episode_id": bridge["episode_id"],
-            "publish_date": publish_date,
-            "insights": insights,
-        })
+        if insights:
+            results.append({
+                "episode_id": bridge["episode_id"],
+                "publish_date": publish_date,
+                "insights": insights,
+            })
 
     return sorted(results, key=lambda r: r["publish_date"] or "")
 ```
@@ -854,6 +1067,8 @@ same transcript normalisation. See Known Limitations, section 1.
     "insight": {
       "id": "insight:a1b2c3d4",
       "text": "AI regulation will significantly lag behind the pace of innovation",
+      "insight_type": "claim",
+      "position_hint": 0.85,
       "grounded": true
     },
     "speaker": {
@@ -924,6 +1139,30 @@ diverge, a mapping layer is needed before this enrichment is available.
    - **Rationale**: The bridge is the prerequisite. Building the collection and
      assembly layer first, then layering analysis on top, avoids coupling the
      foundation to a specific analysis approach.
+
+8. **`insight_type` as an additive GIL v1.1 field, not deferred to the analysis layer**
+   - **Decision**: Add an optional `insight_type` enum (`claim`, `recommendation`,
+     `observation`, `question`, `unknown`) to every Insight node in `gi.json`. Default
+     `unknown` so existing artifacts remain valid without migration.
+   - **Rationale**: The Position Tracker and Guest Brief are qualitatively better when
+     they can distinguish claims from observations and questions. Without `insight_type`,
+     the consumer must mentally classify every Insight — which defeats the purpose of
+     structured data. The field is additive (no breakage), the extraction prompt change
+     is small and measurable, and emitting it now means new pipeline runs accumulate
+     typed Insights before Phase 4 implementation. Deferring it to Phase 4 or Phase 6
+     would require re-extracting all artifacts.
+
+9. **`position_hint` as a derived GIL v1.1 field, computed from existing data**
+   - **Decision**: Add an optional `position_hint` float (`0.0`-`1.0`) to every Insight
+     node, derived from the mean `timestamp_start_ms` of supporting Quotes divided by
+     `episode_duration_ms`. Default `null` when duration is missing.
+   - **Rationale**: Insights within a single episode are temporally flat — a framing
+     remark at minute 2 and a concluding claim at minute 55 look identical. The Position
+     Tracker needs intra-episode ordering to show argumentative progression, and the
+     Guest Brief needs a tiebreaker for "strongest insight" selection. Unlike
+     `insight_type`, this requires no extraction change — it is pure arithmetic on data
+     already present at build time (Quote timestamps + Episode duration). Zero cost to
+     emit, meaningful improvement to both flagships.
 
 ---
 
@@ -1028,7 +1267,24 @@ pipeline emits is the lever.
 timeline shows the thread for `topic:ai-regulation` but misses episodes that used
 `topic:ai-policy` for the same concept.
 
-### 4. Analysis layer not included (limits flagship use case depth)
+### 4. Episode duration availability (degrades `position_hint` coverage)
+
+`position_hint` depends on `episode_duration_ms` from the KG Episode node. This value
+is sourced from RSS feed metadata (`<itunes:duration>`) or audio file inspection. If
+the feed omits duration or the audio was not inspected, `position_hint` is `null` for
+all Insights in that episode.
+
+**Mitigation:** Most podcast RSS feeds include `<itunes:duration>`. For feeds that do
+not, a one-time audio inspection pass can backfill the value. The field degrades
+gracefully — query patterns treat `null` as `0.0` for sorting purposes, so Insights
+without a hint sort to the beginning rather than disappearing.
+
+**Blast radius:** Proportional to how many episodes lack duration metadata. Position
+Tracker loses intra-episode ordering for those episodes but still shows the
+inter-episode chronological arc. Guest Brief loses the `position_hint` tiebreaker but
+still ranks by confidence and type.
+
+### 5. Analysis layer not included (limits flagship use case depth)
 
 The Position Tracker can assemble a chronological arc of Insights. It cannot
 automatically detect that the 2025 Insight contradicts the 2023 Insight. The Guest
@@ -1086,6 +1342,17 @@ patterns defined here are where the product value lives.
 - **Cross-layer query tests**: Assert that Position Tracker and Guest Brief query
   patterns return correct results against a synthetic multi-episode corpus with known
   identities.
+- **Insight type tests**: Assert that `insight_type` is emitted on Insight nodes in
+  new pipeline runs. Assert that the Position Tracker `insight_types` filter correctly
+  includes/excludes Insights by type. Assert that the Guest Brief annotates each
+  Insight with its type. Assert backward compatibility: `gi.json` artifacts without
+  `insight_type` are treated as `"unknown"` by all query patterns.
+- **Position hint tests**: Assert that `position_hint` is computed correctly from
+  supporting Quote timestamps and episode duration. Cover edge cases: no supporting
+  Quotes (returns `null`), missing `episode_duration_ms` (returns `null`), single
+  Quote, multiple Quotes (mean of `timestamp_start_ms`). Assert that the Position
+  Tracker sorts Insights within each episode by `position_hint`. Assert backward
+  compatibility: artifacts without `position_hint` are treated as `null`.
 
 **Success Criteria:**
 
@@ -1101,6 +1368,10 @@ patterns defined here are where the product value lives.
    given person + topic across a multi-episode test corpus.
 7. Guest Brief query returns all Insights grouped by topic for a given person across a
    multi-episode test corpus.
+8. New pipeline runs emit `insight_type` and `position_hint` on every Insight node
+   (where data is available). Pre-existing artifacts without these fields are handled
+   gracefully (`insight_type` defaults to `"unknown"`, `position_hint` defaults to
+   `null`).
 
 ---
 
@@ -1111,11 +1382,16 @@ patterns defined here are where the product value lives.
 Implement `podcast_scraper/identity/slugify.py`. Update both GIL and KG builders to
 import from it. No artifact changes yet — just align the slug function.
 
-**Phase 2 — Ontology migration:**
+**Phase 2 — Ontology migration + GIL v1.1 fields (`insight_type`, `position_hint`):**
 
-Update GIL ontology (`speaker:` to `person:`). Update KG ontology (`entity:person:` to
-`person:`, `entity:organization:` to `org:`). Update schemas. Run migration scripts
-against existing artifacts (after backup). Update all tests.
+Update GIL ontology (`speaker:` to `person:`). Add `insight_type` field to Insight
+nodes in the GIL builder extraction prompt (default `"unknown"` for backward
+compatibility). Add `position_hint` computation to the GIL builder post-processing
+(derived from Quote timestamps and episode duration — no extraction change). Update KG
+ontology (`entity:person:` to `person:`, `entity:organization:` to `org:`). Update
+schemas. Run migration scripts against existing artifacts (after backup). Update all
+tests. Existing artifacts without `insight_type` or `position_hint` remain valid — no
+migration needed for these fields.
 
 **Phase 3 — Bridge artifact:**
 
@@ -1164,14 +1440,24 @@ data collected via Phases 3-4. Separate RFC.
    alone.
 7. **Deferred merge**: GIL and KG remain separate (per ADR-052) while the bridge
    provides the join. Real usage informs whether to merge later.
+8. **Type-aware Insights**: `insight_type` makes the Position Tracker and Guest Brief
+   qualitatively better by distinguishing claims from observations and questions — the
+   difference between a structured position arc and a noisy quote dump.
+9. **Intra-episode ordering**: `position_hint` adds temporal structure within episodes
+   so the Position Tracker can show argumentative progression (setup to conclusion) and
+   the Guest Brief can prefer later, more settled statements as the "strongest insight."
+   Zero extraction cost — derived from existing Quote timestamps.
 
 ---
 
 ## Migration Path
 
 1. **Phase 1**: Deploy slugifier. No artifact changes.
-2. **Phase 2**: Back up corpus. Run migration scripts. Validate full corpus. Bump
-   `gi.json` `schema_version` to `2.0`, `kg.json` `schema_version` to `1.2`.
+2. **Phase 2**: Back up corpus. Run migration scripts. Add `insight_type` to GIL
+   builder extraction prompt and `position_hint` computation to GIL builder
+   post-processing (new runs emit both; old artifacts stay valid without them).
+   Validate full corpus. Bump `gi.json` `schema_version` to `2.0`, `kg.json`
+   `schema_version` to `1.2`.
 3. **Phase 3**: Deploy bridge builder. Rebuild all episode artifacts (pipeline re-run
    or standalone bridge builder against existing artifacts).
 4. **Phase 4**: Implement flagship query patterns. Expose API endpoints. Update

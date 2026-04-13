@@ -23,6 +23,7 @@ them, how to interpret them, and how that work relates to **quality evaluation**
   [Live monitor during profile freeze](#live-monitor-during-profile-freeze-rfc-065) below.
 - **[CONFIGURATION.md](../api/CONFIGURATION.md#live-pipeline-monitor-rfc-065-512)** — config table
   including **`PODCAST_SCRAPER_MONITOR_FILE_LOG`**.
+
 - **[Performance reports](performance-reports/index.md)** — published profile snapshots
   (tables, caveats), sibling to [Evaluation Reports](eval-reports/index.md).
 

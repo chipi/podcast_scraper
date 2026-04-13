@@ -257,6 +257,7 @@ flowchart TD
 - `workflow.orchestration`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
 - `rss.parser`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](../adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
 - `rss.downloader`: HTTP session pooling with retry-enabled adapters (configurable via `Config` retry fields), streaming downloads, and shared progress hooks. `configure_downloader()` applies runtime retry settings from `Config` at pipeline start.
+
 - `rss.feed_cache`: Optional on-disk cache for RSS
   feed XML (reduces repeated HTTP fetches). Enabled
   via `PODCAST_SCRAPER_RSS_CACHE_DIR`; used by

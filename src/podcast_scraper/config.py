@@ -569,8 +569,8 @@ class Config(BaseModel):
         delay_ms: Delay between requests in milliseconds.
         http_retry_total: Max urllib3 retries for media/transcript downloads (default 8).
         http_backoff_factor: Backoff factor for HTTP retries (default 1.0).
-        rss_retry_total: Max urllib3 retries for RSS feed fetches (default 10).
-        rss_backoff_factor: Backoff factor for RSS retries (default 2.0).
+        rss_retry_total: Max urllib3 retries for RSS feed fetches (default 5).
+        rss_backoff_factor: Backoff factor for RSS retries (default 1.0).
         episode_retry_max: App-level retries per episode after urllib3 exhaustion (default 1).
         episode_retry_delay_sec: Initial delay between episode retries (default 10.0).
         host_request_interval_ms: Min ms between requests to same host (0=off; Issue #522).
@@ -752,22 +752,22 @@ class Config(BaseModel):
         ),
     )
     rss_retry_total: int = Field(
-        default=10,
+        default=5,
         alias="rss_retry_total",
         ge=0,
         le=20,
         description=(
-            "Max urllib3 retries for RSS feed fetches "
-            "(default 10, more than media to handle flaky feeds)."
+            "Max urllib3 retries for RSS feed fetches " "(default 5). Caps total wait at ~31 s."
         ),
     )
     rss_backoff_factor: float = Field(
-        default=2.0,
+        default=1.0,
         alias="rss_backoff_factor",
         ge=0.0,
         le=10.0,
         description=(
-            "Exponential backoff factor for RSS feed retries " "(default 2.0, gentler than media)."
+            "Exponential backoff factor for RSS feed retries "
+            "(default 1.0). Delay = factor * 2^(attempt-1)."
         ),
     )
     episode_retry_max: int = Field(

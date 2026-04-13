@@ -16,7 +16,6 @@ nav:
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md
       - RSS and feed ingestion: guides/RSS_GUIDE.md
-      - Metrics Guide: guides/METRICS_GUIDE.md
       - Git Worktree Guide: guides/GIT_WORKTREE_GUIDE.md
       - Testing Guide: guides/TESTING_GUIDE.md
       - Unit Testing Guide: guides/UNIT_TESTING_GUIDE.md

@@ -25,6 +25,9 @@
 - ✅ NEVER use `cd` to project root (already in workspace directory)
 - ✅ ALWAYS use correct GitHub username (check with `mcp_github_get_me`, not Mac username)
 - ✅ ALWAYS show terminal output for make/test commands (`is_background: false`)
+- ❌ NEVER `git stash` during an active merge (destroys merge state and all conflict resolutions — see `.cursorrules` rules 4a–4c)
+- ❌ NEVER `git checkout <ref> -- <file>` during a merge (destroys resolved content; use `git show <ref>:<path>` to inspect)
+- ❌ NEVER overwrite local files with remote content without showing the diff and getting explicit approval (rule 4d)
 - ✅ Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
 - ✅ **GI/KG viewer UX** (`web/gi-kg-viewer/`): when UI changes affect users or Playwright, update in order:
   **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
