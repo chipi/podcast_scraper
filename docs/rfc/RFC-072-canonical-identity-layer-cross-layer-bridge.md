@@ -20,6 +20,12 @@
   - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (single-layer consumption;
     cross-layer use cases now live here)
   - `docs/rfc/RFC-061-semantic-corpus-search.md`
+  - `docs/rfc/RFC-073-enrichment-layer-architecture.md` -- enrichment layer; provides
+    `grounding_rate`, `topic_cooccurrence`, `temporal_velocity`, and
+    `nli_contradiction` enrichers that feed PRDs 026--029
+  - `docs/rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md` --
+    analysis layer (formerly "Phase 6"); position change detection, contradiction
+    detection, stance summarisation. Operates on data collected by this RFC
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md`
   - `docs/architecture/kg/ontology.md`
@@ -245,16 +251,9 @@ in the corpus. With the bridge, the scan is a fast filter on small files.
 **Current boundary — what the bridge does NOT do:**
 
 Position *change detection* — recognising that the 2025 Insight contradicts the 2023
-Insight — is not something the current extraction pipeline produces. GIL extracts
-Insights per episode independently. Detecting contradiction or evolution across
-Insights requires either:
-
-- An LLM pass over the collected Insights (post-assembly analysis)
-- NLI-based stance comparison (entailment/contradiction scoring between Insight pairs)
-
-The bridge makes the *collection* possible. The *analysis* is a follow-up capability
-that builds on the collected position arc. The RFC does not specify the analysis layer;
-it ensures the data is joinable so the analysis layer has something to work with.
+Insight — is a separate capability defined in
+[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md). The
+bridge makes the *collection* possible; RFC-075 adds the *analysis*.
 
 ### Flagship 2: Guest Intelligence Brief
 
@@ -351,11 +350,10 @@ with other guests.
 
 **Current boundary — what the bridge does NOT do:**
 
-The `potential_challenges` section requires comparing Insights across different persons
-on the same topic. Like position change detection, this is an analysis layer that
-operates on the collected data, not something the bridge itself produces. The bridge
-makes the collection possible; contradiction detection requires NLI or LLM comparison
-of Insight pairs.
+The `potential_challenges` section requires comparing Insights across different
+persons on the same topic. Contradiction detection is defined in
+[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md). The
+bridge makes the collection possible; RFC-075 adds the analysis.
 
 The `best_quotes` ranking requires a scoring signal (quote length, specificity,
 grounding strength, or a learned quality score). The bridge provides access to all
@@ -371,9 +369,9 @@ The CIL and bridge also enable these use cases, which are not detailed here but 
 straightforward once the foundation is in place:
 
 - **Controversy radar** — surface topic + person pairs where Insights from different
-  persons contradict each other. A corpus-wide scan of bridge files filtered by shared
-  topics, then NLI comparison of Insight pairs. `insight_type` (Section 2a) makes this
-  more tractable by scoping contradiction detection to `claim` vs `claim` pairs.
+  persons contradict each other. See
+  [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md) for
+  the analysis mechanism.
 - **Follow-the-thread** — chronological topic evolution across episodes. A simpler
   variant of the Position Tracker without the person filter.
 - **Gap analysis** — topics that appear in audience questions (if captured) but have
@@ -435,7 +433,8 @@ straightforward once the foundation is in place:
 - Slugifier must be deterministic, idempotent, and produce non-empty strings.
 - The flagship use cases (Position Tracker, Guest Brief) define the *data foundation*
   and *query patterns*. The analysis layer (contradiction detection, position change
-  detection) is a follow-up capability, not part of this RFC.
+  detection) is in
+  [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
 - `insight_type` and `position_hint` are additive (GIL v1.1). Existing `gi.json`
   artifacts without these fields remain valid — consumers treat missing `insight_type`
   as `"unknown"` and missing `position_hint` as `null`. No migration script needed for
@@ -569,13 +568,11 @@ artifacts remain valid (missing `insight_type` is treated as `"unknown"`).
   (claim) when tracking how a person's *stated positions* evolve. Without `insight_type`,
   the consumer must mentally classify every Insight in the arc.
 - **Guest Brief**: The `known_positions` section should surface `claim` and
-  `recommendation` type Insights most prominently — those are the positions. The
-  `potential_challenges` section (Phase 6) becomes much more tractable when comparing
-  `claim` Insights specifically, rather than flagging contradictions between an
-  observation and a claim.
-- **Analysis layer (Phase 6)**: Contradiction detection via NLI or LLM-as-judge is
-  more precise when scoped to `claim` vs `claim` pairs on the same topic, rather than
-  all Insight pairs.
+  `recommendation` type Insights most prominently — those are the positions.
+  `potential_challenges` (RFC-075) becomes more tractable when comparing `claim`
+  Insights specifically.
+- **Analysis layer (RFC-075)**: Contradiction detection is more precise when scoped
+  to `claim` vs `claim` pairs on the same topic.
 
 **Enum values:**
 
@@ -645,9 +642,8 @@ progression of their argument, and here is the conclusion."
 - **Guest Brief**: The `strongest_insight` selection for a topic can use `position_hint`
   as a tiebreaker — later statements on a topic are more likely to represent the guest's
   settled position than early exploratory remarks.
-- **Analysis layer (Phase 6)**: Position change detection within a single episode
-  (a guest who reverses their stance during the conversation) becomes detectable when
-  Insights have temporal ordering.
+- **Analysis layer (RFC-075)**: Position change detection within a single episode
+  becomes detectable when Insights have temporal ordering.
 
 **Computation:**
 
@@ -1162,7 +1158,8 @@ diverge, a mapping layer is needed before this enrichment is available.
 7. **Flagship use cases define the data foundation, not the analysis layer**
    - **Decision**: Position Tracker and Guest Brief define the query patterns and output
      shapes. Contradiction detection, stance comparison, and position change detection
-     are follow-up capabilities.
+     are defined in
+     [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
    - **Rationale**: The bridge is the prerequisite. Building the collection and
      assembly layer first, then layering analysis on top, avoids coupling the
      foundation to a specific analysis approach.
@@ -1176,8 +1173,8 @@ diverge, a mapping layer is needed before this enrichment is available.
      the consumer must mentally classify every Insight — which defeats the purpose of
      structured data. The field is additive (no breakage), the extraction prompt change
      is small and measurable, and emitting it now means new pipeline runs accumulate
-     typed Insights before Phase 4 implementation. Deferring it to Phase 4 or Phase 6
-     would require re-extracting all artifacts.
+     typed Insights before Phase 4 implementation. Deferring it to Phase 4 or to
+     RFC-075 would require re-extracting all artifacts.
 
 9. **`position_hint` as a derived GIL v1.1 field, computed from existing data**
    - **Decision**: Add an optional `position_hint` float (`0.0`-`1.0`) to every Insight
@@ -1318,14 +1315,13 @@ automatically detect that the 2025 Insight contradicts the 2023 Insight. The Gue
 Brief can list all positions and quotes. It cannot automatically identify which
 positions conflict with other guests.
 
-**Mitigation:** The analysis layer (NLI-based stance comparison, LLM-based
-contradiction detection) is a follow-up that operates on the data the bridge makes
-collectible. This RFC ensures the data is there; the analysis RFC ensures it is
-interpreted.
+**Mitigation:** The analysis layer is defined in
+[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md). This
+RFC ensures the data is joinable; RFC-075 ensures it is interpreted.
 
 **Blast radius:** The flagship use cases deliver value without the analysis layer —
 a chronological position arc is useful even without automated change detection. But
-the "wow" moment (automatically flagging the shift) requires the follow-up.
+the "wow" moment (automatically flagging the shift) requires RFC-075.
 
 ---
 
@@ -1441,17 +1437,20 @@ Implement Position Tracker and Guest Brief query patterns. Expose via API:
 After verifying char offset alignment (Known Limitations, section 1), add
 chunk-to-Insight lift to search result enrichment. No FAISS rebuild required.
 
-**Phase 6 — Analysis layer (future RFC):**
+**Phase 6 — Analysis layer:**
 
-Contradiction detection, stance comparison, and position-change flagging on data collected
-via Phases 3–4. **Before scoping a separate RFC**, decide whether the primary outcome is
-*detecting* change (signals, filters) or *narrating* change (human-readable arcs); which
-mechanisms fit Insight pairs (NLI with careful framing, LLM-as-judge, embedding plus stance,
-or a hybrid); how controversy radar prunes pairwise comparisons at corpus scale; and what
-labeled eval sets are feasible (same-person shift, cross-person agree/disagree, gold
-narratives). **Defer implementation** until Phases 1–4 have been run on a real corpus so
-extraction quality is visible (Known Limitations 2–3). See **Known Limitation §5** (Analysis
-layer not included).
+Extracted to
+[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
+Covers contradiction detection, stance comparison, position-change flagging, and
+stance summarisation. Uses RFC-073's `nli_contradiction` enricher as the batch base
+layer; adds query-time LLM refinement. Populates the field contracts defined in
+PRD-028 (`position_change_detected`, `stance_summary`) and PRD-029
+(`potential_challenges`).
+
+**`grounding_rate` source note:** The `grounding_rate` statistic used in PRD-026
+(Topic Entity View, person chip badge) and PRD-029 (Guest Brief, `topic_summary`)
+comes from RFC-073's `grounding_rate` corpus enricher, not from an RFC-075 analysis
+pass.
 
 ---
 
@@ -1507,7 +1506,8 @@ behaviour.
 4. **Phase 4**: Implement flagship query patterns. Expose API endpoints. Update
    Cytoscape viewer (ADR-065) to navigate by canonical ID.
 5. **Phase 5**: Enable search result lifting post char-offset verification.
-6. **Phase 6**: Analysis layer (separate RFC; see roadmap Phase 6 notes above).
+6. **Phase 6**: Analysis layer --
+   [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
 
 ---
 

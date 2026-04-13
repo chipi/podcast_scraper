@@ -54,9 +54,12 @@ move into the RFC.
 ## UXS architecture
 
 The viewer UXS is split into a **shared design system hub** (UXS-001) and
-**per-feature specs** (UXS-002 through UXS-008). Each feature UXS references UXS-001
+**per-feature specs** (UXS-002+). Each feature UXS references UXS-001
 for tokens, typography, and shared conventions. This keeps individual specs short
 (2-4 pages) while the shared foundation stays in one place.
+
+Draft UXS documents (UXS-007 through UXS-010) exist in this directory but are **not
+indexed** until promoted to Active. They are discoverable by filename.
 
 ## Conventions
 
@@ -87,13 +90,6 @@ Authoritative specs; current implementations should conform
 | [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069 | Graph chrome: toolbar, minimap, degree filter, node detail |
 | [UXS-005](UXS-005-semantic-search.md) | Semantic Search | PRD-021; RFC-061 | Search panel: query, advanced filters, result cards, insights modal |
 | [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: Pipeline/Content charts, API/Data panel |
-
-## Draft UX specifications
-
-| UXS | Title | Related PRDs / RFCs | Description |
-| --- | ----- | ------------------- | ----------- |
-| [UXS-007](UXS-007-topic-entity-view.md) | Topic Entity View | PRD-026; RFC-073 | Topic right rail: timeline, insights, persons, related topics |
-| [UXS-008](UXS-008-enriched-search.md) | Enriched Search | PRD-027; RFC-073 | Enriched Answer panel above search results, trust/provenance |
 
 ## Templates
 

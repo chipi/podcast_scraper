@@ -59,6 +59,19 @@ reintroduce it in new or edited `docs/**` files.
 
 **This project:** Templates `docs/prd/PRD_TEMPLATE.md`, `docs/rfc/RFC_TEMPLATE.md`; indexes `docs/prd/index.md`, `docs/rfc/index.md`; naming `PRD-NNN-name.md`, `RFC-NNN-name.md`.
 
+### Index inclusion rule (PRD, RFC, ADR, UXS)
+
+**Do NOT add Draft-status documents to their index file.** Only add a document to its
+index (`docs/prd/index.md`, `docs/rfc/index.md`, `docs/adr/index.md`, `docs/uxs/index.md`)
+when its status is promoted past Draft (e.g. Partial / Implemented for PRDs; Completed /
+Accepted for RFCs and ADRs; Active for UXSs). Draft documents live in their directory and
+are discoverable by filename, but the index tables are reserved for documents that have been
+reviewed and are authoritative or in-flight with real implementation work.
+
+- **Draft PRD/RFC/ADR/UXS** → do **not** add to index
+- **Partial / Implemented / Active / Completed / Accepted** → add to index
+- When promoting a Draft to a higher status, add it to the index at that time
+
 ## 📝 Always Update When
 
 - `README.md` → CLI flags, features, installation
@@ -170,7 +183,7 @@ See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for:
 
 ---
 
-**Version:** 1.1
+**Version:** 1.2
 **Created:** 2026-02-09
-**Updated:** 2026-04-12 — documentation prose: no checkmark emoji in `docs/`
+**Updated:** 2026-04-13 — index inclusion rule: no Draft docs in index tables
 **Source:** Merged from `markdown-style.mdc` v2.0 + `.cursorrules` v1.0 documentation rules

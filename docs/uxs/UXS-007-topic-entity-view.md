@@ -20,6 +20,12 @@
     handoff
   - [UXS-005: Semantic Search](UXS-005-semantic-search.md) -- "Search this topic"
     handoff
+  - [UXS-008: Enriched Search](UXS-008-enriched-search.md) -- enriched search
+    handoff; topic pills in enriched sources open this view
+  - [UXS-009: Position Tracker](UXS-009-position-tracker.md) -- person chip click
+    can open Person Landing with Position Tracker
+  - [UXS-010: Guest Intelligence Brief](UXS-010-guest-intelligence-brief.md) --
+    person chip click can open Person Landing with Guest Brief
 - **Implementation paths**:
   - New: `web/gi-kg-viewer/src/components/topic/TopicEntityView.vue`
   - Existing: `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` (rail
@@ -95,7 +101,11 @@ vertically with `border` dividers between them:
 
 ### Insights section
 
-- Scrollable list of grounded Insight cards on `surface` background.
+- Scrollable list of grounded Insight cards on `surface` background. Insight cards
+  follow the **shared InsightCard component** defined in
+  [UXS-001](UXS-001-gi-kg-viewer.md). This view uses the following InsightCard
+  slots: insight text, grounding badge, speaker chip, episode attribution, and
+  supporting quote blockquote.
 - Each card: insight text (`text-sm`), speaker name chip (`muted`), episode title +
   publish date (`muted`, `text-xs`), supporting verbatim quote in a `border`-left
   blockquote with a timestamp jump link (`link` token).
@@ -115,7 +125,9 @@ vertically with `border` dividers between them:
 - When `grounding_rate` corpus enricher has run: small grounding quality badge on each
   chip -- percentage of grounded Insights. Intent tokens: `success` for >= 80%,
   `muted` for 50-79%, `warning` for < 50%. Hidden when enricher has not run.
-- Clicking a person chip filters the Insights section.
+- Clicking a person chip filters the Insights section. A secondary action (e.g.
+  dedicated link icon or long-press) opens the Person Landing (UXS-010) for that
+  person, giving access to their Guest Brief and Position Tracker.
 - Sorted by Insight count descending.
 - When diarization is unavailable: `muted` note, "Speaker attribution requires
   diarization. Enable pyannote in pipeline config."
@@ -155,6 +167,20 @@ All degradation states use `muted` text and honest language:
 - Core artifacts only -> Header shows episode count from KG MENTIONS scan; Timeline
   hidden; Insights hidden; Related Topics hidden. View is still useful for basic
   topic identity.
+
+---
+
+## Accessibility
+
+- All interactive elements (topic chips, person chips, buttons, timeline bars) are
+  keyboard-focusable and have visible focus indicators using UXS-001 `focus-ring`
+  token.
+- Screen reader: panel announces "Topic: [name]" on open. Trend badge, section
+  headings, and empty states use `aria-label` or `aria-live` for dynamic content.
+- Colour is not the sole differentiator for intent tokens -- trend badges include
+  both icon and text label; grounding badges include percentage text.
+- Minimum contrast: all text meets WCAG 2.1 AA (4.5:1 for `text-sm`, 3:1 for
+  `text-lg`).
 
 ---
 

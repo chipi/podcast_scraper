@@ -23,18 +23,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | RFC | Title | Related PRD | Description |
 | --- | ----- | ----------- | ----------- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline (CI integration pending) |
-| [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Pipeline Metrics Improvements | - | Improvements to pipeline metrics collection and reporting |
-| [RFC-038](RFC-038-continuous-review-tooling.md) | Continuous Review Tooling | #45 | Dependabot, pydeps, pre-release checklist |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
-| [RFC-043](RFC-043-automated-metrics-alerts.md) | Automated Metrics Alerts | - | Automated regression alerts and PR comments for pipeline metrics |
-| [RFC-051](RFC-051-database-projection-gil-kg.md) | Database Projection (GIL & Knowledge Graph) | PRD-018 | Relational export for GIL (`gi.json`) and KG (RFC-055) artifacts |
-| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Adaptive Summarization Routing Based on Episode Profiling | PRD-005 | Episode profiling; routes summarization, GIL (RFC-049), and KG (RFC-055) strategies |
-| [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Flexible E2E Mock Response Strategy | #135, #399, #401 | Flexible strategy for E2E mock responses supporting normal and advanced error handling scenarios |
-| [RFC-058](RFC-058-audio-speaker-diarization.md) | Audio-Based Speaker Diarization | PRD-020 | pyannote.audio design accepted ([ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md)); **implementation not landed** in `main` (no `[diarize]` extra yet) |
-| [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speaker Detection Refactor & Test Audio Improvements | PRD-020 | Modularize speaker detection, unique test voices, commercial segments |
-| [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Multi-Signal Commercial Detection & Cleaning | PRD-020 | Expanded patterns + positional heuristics (Phase 1, all providers); diarization-enhanced (Phase 2, future) |
-| [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Semantic Corpus Search — Platform & Future Backends | PRD-021 | Draft — Qdrant **`VectorStore`**, native filtering, pgvector/RFC-051, re-ranking, digest fusion; split from completed [RFC-061](RFC-061-semantic-corpus-search.md) |
-| [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) | Canonical Identity Layer & Cross-Layer Bridge | PRD-017, PRD-019, PRD-021 | Shared `person:`/`org:`/`topic:` IDs, `bridge.json` per episode, Position Tracker and Guest Brief flagship use cases; supersedes cross-layer aspects of RFC-050/056 |
 
 ## Completed RFCs
 
@@ -101,36 +90,26 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **73** files under `docs/rfc/RFC-*.md` — IDs **RFC-001–RFC-074**
-with **no RFC-014**. **15** open and **58** completed in the tables above.
+**Counts (reconcile when moving RFCs):** **73** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-074**
+with **no RFC-014**. **2** open (in-flight, partial implementation), **58** completed, and **13** Draft
+(not indexed until promoted) in the tables above.
 
-**Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**), pipeline
-metrics (**RFC-027**), continuous review (**RFC-038**), metrics alerts (**RFC-043**), Postgres
-projection (**RFC-051**), adaptive summarization routing (**RFC-053**), E2E mock composition
-(**RFC-054**), diarization and cleaning (**RFC-058**–**RFC-060**; **RFC-058** is design-accepted,
-**not** fully landed in `main`), semantic search **platform** draft (**RFC-070**; **RFC-061** FAISS
-path is **Completed**), canonical identity layer and cross-layer bridge (**RFC-072**). Single-layer
-**RFC-050** / **RFC-056** are **Completed**; cross-layer GIL/KG work is **RFC-072**.
+**Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
+
+**Draft RFCs (not indexed):** Pipeline metrics (**RFC-027**), continuous review (**RFC-038**),
+metrics alerts (**RFC-043**), Postgres projection (**RFC-051**), adaptive summarization routing
+(**RFC-053**), E2E mock composition (**RFC-054**), diarization and cleaning
+(**RFC-058**--**RFC-060**), semantic search platform (**RFC-070**), canonical identity layer
+(**RFC-072**), enrichment layer (**RFC-073**), process safety (**RFC-074**). These are discoverable
+by filename under `docs/rfc/` but excluded from the index per the
+[index inclusion rule](../guides/MARKDOWN_LINTING_GUIDE.md) (Draft docs are not indexed).
 
 ### Open RFCs (detail)
 
 | RFC | Theme | Notes |
 | --- | --- | --- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | Experiments | Runner implemented; **CI auto-run still pending** |
-| [RFC-027](RFC-027-pipeline-metrics-improvements.md) | Observability | **Partial** — rich metrics; CSV / two-tier logging gaps |
-| [RFC-038](RFC-038-continuous-review-tooling.md) | Governance | Dependabot + pydeps; **pre-release checklist** partial ([ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md) Partial) |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarks | Datasets/scripts exist; **automated CI benchmarking** not fully wired |
-| [RFC-043](RFC-043-automated-metrics-alerts.md) | Metrics | Alerts/summaries exist; **PR comment bot** not done ([ADR-047](../adr/ADR-047-proactive-metric-regression-alerting.md) Partial) |
-| [RFC-051](RFC-051-database-projection-gil-kg.md) | GIL/KG DB | **Not started** — Postgres projection ([ADR-054](../adr/ADR-054-relational-postgres-projection-for-gil-and-kg.md) Code **No**) |
-| [RFC-053](RFC-053-adaptive-summarization-routing.md) | Summarization | **Not started** — no episode profiling router ([ADR-055](../adr/ADR-055-adaptive-summarization-routing.md) **Proposed**) |
-| [RFC-054](RFC-054-e2e-mock-response-strategy.md) | Testing | Mocks exist; **composable ResponseProfile** not built ([ADR-056](../adr/ADR-056-composable-e2e-mock-response-strategy.md) **Proposed**) |
-| [RFC-058](RFC-058-audio-speaker-diarization.md) | Diarization | [ADR-058](../adr/ADR-058-additive-pyannote-diarization-with-separate-extra.md) accepted; **no `[diarize]` / pyannote in tree** |
-| [RFC-059](RFC-059-speaker-detection-refactor-test-audio.md) | Speakers | Factory + providers wired; package still **Stage 0** / full modularization TBD |
-| [RFC-060](RFC-060-diarization-aware-commercial-cleaning.md) | Cleaning | **Not started** as designed ([ADR-059](../adr/ADR-059-confidence-scored-multi-signal-commercial-detection.md) Code **No**) |
-| [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) | Search platform | **Draft** — Qdrant **`VectorStore`**, filters, pgvector/RFC-051, re-ranking ([RFC-061](RFC-061-semantic-corpus-search.md) **Completed** for FAISS) |
-| [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md) | GIL/KG cross-layer | Shared IDs, `bridge.json`, flagship cross-layer use cases; supersedes cross-layer aspects of **RFC-050** / **RFC-056** |
-| [RFC-073](RFC-073-enrichment-layer-architecture.md) | Enrichment | **Draft** — enrichment layer architecture |
-| [RFC-074](RFC-074-process-safety-ml-workloads-macos.md) | Process safety | **Draft** — macOS ML process pileup prevention, Makefile/agent/hook hardening |
 
 ### Recently completed (v2.6.0+)
 

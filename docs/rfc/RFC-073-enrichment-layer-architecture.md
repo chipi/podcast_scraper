@@ -23,6 +23,9 @@
   - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
   - `docs/rfc/RFC-061-semantic-corpus-search.md`
+  - `docs/rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md` --
+    consumes `nli_contradiction` enricher output as the base layer for query-time
+    analysis
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md`
   - `docs/architecture/kg/ontology.md`
@@ -947,6 +950,17 @@ pattern.
 The first six are pure arithmetic -- no model, no external dependency, trivially
 testable. They ship enabled by default. The last two require opt-in.
 
+**`nli_contradiction` scope clarification:** This enricher produces **candidate
+contradiction pairs** -- each record contains `topic_id`, `person_a_id`,
+`person_b_id`, `insight_a_id`, `insight_b_id`, and a `contradiction_score`
+(0.0 -- 1.0). It does **not** generate human-readable position summaries or
+rankings.
+[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md)
+adds query-time refinement (summaries, ranking). The enricher output is the
+**base layer** for PRD-029's `potential_challenges` array: the Guest Brief can
+surface raw contradiction pairs (with Insight text) even before RFC-075's LLM
+refinement is available. See the dual-layer strategy in PRD-029.
+
 ---
 
 ## Key Decisions
@@ -1123,6 +1137,13 @@ Separate RFC defining LLM enricher prompt contract and output schema. This phase
 covers the **QueryEnricher protocol** required by PRD-027 (Enriched Search) -- a
 request-time enricher that operates on FAISS results rather than writing files.
 Ideas for future LLM enrichers include stance comparison and automated guest briefs.
+
+**Phase numbering disambiguation:** "RFC-073 Phase 4" (this section) refers to the
+**QueryEnricher protocol** extension for request-time LLM enrichment. "RFC-072
+Phase 4" refers to **CIL query patterns** (cross-layer joins, `position_arc` and
+`guest_brief` queries). These are distinct capabilities in different RFCs that happen
+to share the same phase number. PRD-027 (Enriched Search) depends on RFC-073 Phase 4;
+PRD-028/029 (Position Tracker/Guest Brief) depend on RFC-072 Phase 4.
 
 ---
 

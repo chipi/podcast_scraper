@@ -19,12 +19,24 @@
     extends; PRD-027 adds enrichment on top, not a replacement
   - `docs/prd/PRD-017-grounded-insight-layer.md` -- GIL artifact foundation
   - `docs/prd/PRD-019-knowledge-graph-layer.md` -- KG artifact foundation
+  - `docs/prd/PRD-026-topic-entity-view.md` -- topic pills in enriched sources
+    open Topic Entity View
+  - `docs/prd/PRD-028-position-tracker.md` -- speaker names in enriched sources
+    can open Position Tracker via Person Landing
+  - `docs/prd/PRD-029-guest-intelligence-brief.md` -- speaker names in enriched
+    sources can open Guest Brief via Person Landing
 - **Related UX specs**:
   - `docs/uxs/UXS-008-enriched-search.md` -- visual contract for Enriched Answer
     panel, provider attribution, degradation states
   - `docs/uxs/UXS-005-semantic-search.md` -- baseline search panel this extends
   - `docs/uxs/UXS-001-gi-kg-viewer.md` -- shared design system (tokens, typography,
     states)
+  - `docs/uxs/UXS-007-topic-entity-view.md` -- topic pill handoff from enriched
+    sources to Topic Entity View
+  - `docs/uxs/UXS-009-position-tracker.md` -- speaker name handoff from enriched
+    sources to Position Tracker
+  - `docs/uxs/UXS-010-guest-intelligence-brief.md` -- speaker name handoff from
+    enriched sources to Guest Brief / Person Landing
 
 ---
 
@@ -73,6 +85,11 @@ This PRD requires a **QueryEnricher** protocol that shares RFC-073's trust contr
 (`derived: true`, tier classification, provider opt-in) but operates at request time.
 The QueryEnricher protocol will be defined as an RFC-073 Phase 4 extension or a
 companion RFC.
+
+**Phase numbering disambiguation:** "RFC-073 Phase 4" refers to the QueryEnricher
+protocol extension (request-time enrichment). "RFC-072 Phase 4" refers to CIL query
+patterns (cross-layer joins, topic/person queries). These are distinct capabilities
+in different RFCs that happen to share the same phase number.
 
 The enricher extends the existing provider system (ADR-026) -- users who already have
 an LLM provider configured for summarization or other pipeline features get Enriched
@@ -145,7 +162,10 @@ positions from the grounded Insights.
 **FR1.4** -- Below the answer text, a **Sources** section lists all Insights used to
 generate the answer. Each source shows: speaker name, Insight text, episode title,
 publish date, and a timestamp deep-link (opens episode at that moment if audio is
-available, otherwise highlights the transcript segment).
+available, otherwise highlights the transcript segment). Speaker names are clickable
+and open the Person Landing (PRD-029) for that person, giving access to their Guest
+Brief and Position Tracker. Topic tags on sources are clickable and open the Topic
+Entity View (PRD-026).
 
 **FR1.5** -- Sources are collapsible -- the panel defaults to showing 3 sources with
 a "Show all N sources" control if more exist.

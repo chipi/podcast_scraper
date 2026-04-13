@@ -18,6 +18,12 @@
 - **Related UX specs**:
   - [UXS-005: Semantic Search](UXS-005-semantic-search.md) -- baseline search panel
     this feature extends
+  - [UXS-007: Topic Entity View](UXS-007-topic-entity-view.md) -- topic tags in
+    enriched sources open Topic Entity View
+  - [UXS-009: Position Tracker](UXS-009-position-tracker.md) -- speaker names in
+    enriched sources open Person Landing with Position Tracker
+  - [UXS-010: Guest Intelligence Brief](UXS-010-guest-intelligence-brief.md) --
+    speaker names in enriched sources open Person Landing with Guest Brief
 - **Implementation paths**:
   - Existing: `web/gi-kg-viewer/src/components/search/SearchPanel.vue` (extended)
   - Existing: `web/gi-kg-viewer/src/components/search/ResultCard.vue`
@@ -71,6 +77,11 @@ answer:
   episode title and publish date (`muted`, `text-xs`), and a timestamp deep-link
   (`link` token -- opens episode at that moment if audio is available, otherwise
   highlights the transcript segment).
+- **Speaker names are clickable** (`link` token, cursor pointer) and open the
+  Person Landing (UXS-010) for that person, giving access to their Guest Brief and
+  Position Tracker.
+- **Topic tags** on sources (when present) are clickable and open the Topic Entity
+  View (UXS-007) for that topic.
 - Sources are collapsible -- defaults to showing 3 sources with a "Show all N
   sources" control (`primary`, `text-sm`) if more exist.
 - **Grounded source count** indicator: "Based on N grounded insights" (`muted`,
@@ -119,6 +130,15 @@ The Advanced search modal (UXS-005) gains a new toggle:
 
 ## Degraded states
 
+**Degradation philosophy:** Enriched Search uses a **silent degradation** strategy
+that differs from the "honest empty state" approach used in UXS-007, UXS-009, and
+UXS-010. When enrichment is unavailable, the panel is hidden entirely -- the user
+sees the baseline search experience (UXS-005) with no indication that enrichment
+exists. This is intentional: enrichment is additive, and advertising an unavailable
+feature would confuse users who have not configured an LLM provider. The other views
+(Topic Entity, Position Tracker, Guest Brief) use honest empty states because the
+user has already navigated *to* that feature and expects to see content.
+
 All degradation is silent and honest:
 
 - **No grounded Insights lifted:** Enriched Answer panel is hidden entirely. Raw
@@ -133,6 +153,22 @@ All degradation is silent and honest:
   state). Raw results are shown immediately while the enricher works.
 - **Enrichment not configured:** Search panel is unchanged from UXS-005. No mention
   of missing configuration unless the user explicitly inspects health.
+
+---
+
+## Accessibility
+
+- The Enriched Answer panel uses `role="region"` with
+  `aria-label="Enriched answer"`.
+- The "AI-generated / grounded" badge is announced by screen readers.
+- Source collapse/expand uses `aria-expanded` and is keyboard-operable.
+- Speaker name links and topic tag links are keyboard-focusable with visible focus
+  indicators using UXS-001 `focus-ring` token.
+- The "Enhanced" chip uses `aria-label="Enriched search available"`.
+- Colour is not the sole differentiator -- the `gi` border is supplemented by the
+  text badge.
+- Minimum contrast: all text meets WCAG 2.1 AA (4.5:1 for `text-sm`, 3:1 for
+  `text-lg`).
 
 ---
 

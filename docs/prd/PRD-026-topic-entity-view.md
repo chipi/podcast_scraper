@@ -18,6 +18,12 @@
   - `docs/prd/PRD-024-graph-exploration-toolkit.md` -- graph chrome this view extends
   - `docs/prd/PRD-025-corpus-intelligence-dashboard-viewer.md` -- operational dashboard
     (distinct: PRD-025 is operator/pipeline health; this PRD is end-user intelligence)
+  - `docs/prd/PRD-027-enriched-search.md` -- enriched search; topic pills in search
+    results open this view
+  - `docs/prd/PRD-028-position-tracker.md` -- Position Tracker links back via
+    "View topic"; person chips here can open Position Tracker
+  - `docs/prd/PRD-029-guest-intelligence-brief.md` -- Guest Brief links back via
+    "View topic"; person chips here can open Guest Brief
 - **Related UX specs**:
   - `docs/uxs/UXS-007-topic-entity-view.md` -- visual contract for Topic Entity View
     panel layout, sections, degradation states
@@ -182,6 +188,8 @@ topic), showing display name, Insight count, and most recent episode date.
 **FR5.2** -- Persons are sorted by Insight count descending.
 
 **FR5.3** -- Clicking a person chip filters the Insights section (FR4) to that person.
+A secondary action (e.g. long-press or dedicated link) opens the Person Landing
+(PRD-029) for that person, giving access to their Guest Brief and Position Tracker.
 
 **FR5.4** -- When the `grounding_rate` corpus enricher has run, each person chip
 shows a small grounding quality badge: the percentage of their Insights that are
@@ -230,7 +238,7 @@ topic label, consistent with existing "Search topic" affordance in Digest (UXS-0
 | GI-enriched bar segments | `bridge.json` per episode (`sources.gi`) | No (bridge is core) |
 | Insights list | `gi.json` (ABOUT edges -> Insight -> Quote nodes) | No (core artifact) |
 | Person attribution | `gi.json` (SPOKEN_BY edges) + `bridge.json` | No (core artifacts) |
-| Person grounding badge | `grounding_rate` corpus enricher | Yes -- `grounding_rate` |
+| Person grounding badge | `grounding_rate` corpus enricher (RFC-073) | Yes -- `grounding_rate` |
 | Related topics | `topic_cooccurrence` corpus enricher | Yes -- `topic_cooccurrence` |
 
 **Graceful degradation:** If enrichers have not run, the view degrades cleanly:
@@ -248,8 +256,10 @@ topic label, consistent with existing "Search topic" affordance in Digest (UXS-0
 
 **New endpoint required:**
 
-`GET /api/topics/{topic_slug}` -- returns Topic Entity View data assembled from
-enricher outputs and core artifacts for a given canonical topic ID.
+`GET /api/topics/{topic_id}` -- returns Topic Entity View data assembled from
+enricher outputs and core artifacts for a given canonical topic ID (e.g.
+`topic:ai-regulation`). Path segments use full canonical IDs, consistent with the
+CIL convention established in RFC-072.
 
 Response shape:
 

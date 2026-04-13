@@ -235,6 +235,41 @@ duration) belongs in RFC-062.
   Domain-specific success messages (e.g. "insights loaded") may lean on `gi` instead
   of generic `success`.
 
+### InsightCard (shared component)
+
+The **InsightCard** is a reusable card component used across multiple feature UXSs
+(UXS-007, UXS-009, UXS-010) to display a GIL Insight with consistent visual
+treatment. Feature UXSs declare which slots they use; the component renders only
+populated slots.
+
+**Required slots** (always present):
+
+- **Insight text**: the Insight's text content (`text-sm`, `canvas-foreground`).
+- **Grounding badge**: "grounded" (`success` token, `text-xs`) or "ungrounded"
+  (`warning` token, `text-xs`). Visual indicator of data quality.
+
+**Optional slots** (feature UXSs opt in):
+
+| Slot                 | Token / style                                         | Used by          |
+| -------------------- | ----------------------------------------------------- | ---------------- |
+| `insight_type` badge | Small pill, `text-xs`. See token mapping below        | UXS-009, UXS-010 |
+| `position_hint` bar  | 40px x 4px bar, `primary` on `border`, 0.0 -- 1.0     | UXS-009, UXS-010 |
+| Confidence score     | `muted`, `text-xs`. Hidden when unavailable           | UXS-009, UXS-010 |
+| Speaker chip         | `muted`, `text-sm`. Clickable to Person Landing       | UXS-007          |
+| Episode attribution  | Episode title + publish date, `muted`, `text-xs`      | UXS-007, UXS-010 |
+| Supporting quote     | Blockquote, `border` left 3px, italic. With timestamp | UXS-007, UXS-009 |
+
+**`insight_type` token mapping**: `claim` = `primary`, `recommendation` = `success`,
+`observation` = `muted`, `question` = `link`, other = `muted`.
+
+**"Strongest" variant** (UXS-010 only): When a card represents the
+`strongest_insight` for a topic group, it receives a `primary` left border (3px)
+and a "Strongest" label (`primary`, `text-xs`).
+
+**Accessibility**: InsightCard uses `role="article"` with `aria-label` constructed
+from the insight type and first ~50 characters of text. Badge tokens are
+supplemented by text labels (colour is never the sole differentiator).
+
 ---
 
 ## Charts and graph
@@ -347,4 +382,5 @@ search overlay.
 | 2026-04-03 | Added Tunable parameters section (frozen vs open knobs); RFC-062    |
 |            | and PRD cross-references updated to document theme preset system    |
 | 2026-04-06 | Status Active -- viewer v2 implements this contract per RFC-062     |
-| 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs.             |
+| 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs              |
+| 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment)      |
