@@ -10,9 +10,9 @@
 
 ## Total Experiments Run
 
-14 experiments total (exp-1 through exp-4 in r1; exp-r2-1 through exp-r2-3 in r2, early-stopped; exp-r3-1
-through exp-r3-5 in r3, all 5 planned experiments run). r2 and r3 used corrected judges
-(claude-haiku-4-5-20251001) after r1 judge issue resolved.
+17 experiments total (exp-1 through exp-4 in r1; exp-r2-1 through exp-r2-3 in r2, early-stopped;
+exp-r3-1 through exp-r3-5 in r3; exp-r4-1 through exp-r4-3 in r4, early-stopped after 3
+consecutive judge-contested failures). r2–r4 used corrected judges (claude-haiku-4-5-20251001).
 
 ---
 
@@ -34,7 +34,7 @@ through exp-r3-5 in r3, all 5 planned experiments run). r2 and r3 used corrected
 | exp-r3-4  | 0.501324 | 30.2%   | n/a   | 0.966      | full blend       |
 | exp-r3-5  | 0.483498 | 28.2%   | n/a   | 0.953      | full blend       |
 
-**Best: exp-r3-3 (0.504330) — champion after r3**
+**Best: exp-r3-3 (0.504330) — champion after r3 and r4 (r4 champion unchanged)**
 
 - Absolute improvement over baseline: **+0.273147**
 - Relative improvement: **+118.2%**
@@ -186,29 +186,72 @@ of the original user prompt is more effective than numbered sections.
 
 ---
 
+## Round 4 Results
+
+3 experiments run, all rejected. 3-consecutive-fail early stop triggered. Champion unchanged.
+
+**Root cause discovered:** any prompt change that meaningfully alters the summary paragraph style
+triggers judge contestation (judge scores diverge >0.15), which forces ROUGE-only blend and drops
+the final scalar by ~47%. The current champion prompt (exp-r3-3) happens to produce summary output
+that both judges agree on. Any structural rewrite breaks that agreement.
+
+### exp-r4-1 (−48%, rejected)
+
+**Change:** Paragraph count 4–6 (up from 2–3 default).
+
+**Effect:** Ratchet 0.261 (judges contested, ROUGE-only). Paragraph ROUGE-L improved 19.9% → 23.6%
+(+3.7 pp) — largest paragraph gain seen — but ratchet drop far exceeded the −1% dual-metric
+threshold. gpt-4o-mini struggles to maintain judge agreement at 4–6 paragraph length.
+
+### exp-r4-2 (−47%, rejected)
+
+**Change:** Structure narration in both templates: thesis-first P1, topic-anchor openers for
+subsequent paragraphs ("On [topic]...", "[Topic] is framed as...").
+
+**Effect:** Ratchet 0.268 (contested). Paragraph ROUGE-L 21.7% (+1.8 pp, below +2 pp threshold).
+Prescriptive paragraph openers change output style enough to trigger judge disagreement.
+
+### exp-r4-3 (−48%, rejected)
+
+**Change:** Added a 2-paragraph silver-quality summary example to the system prompt (same "show
+don't tell" approach that worked for bullets in r3-1).
+
+**Effect:** Ratchet 0.264 (contested). Paragraph ROUGE-L 21.6% (+1.7 pp). Even a style example —
+with no prescriptive grammar rules — changed the summary enough to cause contestation. Early stop.
+
+**Key r4 finding:** The judge-contestation barrier is the primary obstacle to paragraph improvement
+with gpt-4o-mini at this scale. The silver uses 5–6 paragraphs; gpt-4o-mini is instructed to
+produce 2–3. Any change that pushes the model toward silver-style paragraphs produces output that
+the two judges disagree about. This is likely a model-scale issue (not a prompt issue): gpt-4o-mini
+at higher paragraph counts produces inconsistent output; gpt-4o likely would not. See next directions.
+
+---
+
 ## Suggested Next Directions
 
-1. **Style narration iteration (r4):** exp-r3-3 showed that style narration outperforms all other
-   r3 strategies. Next: extend the narration with bad-vs-good bullet examples ("avoid: 'The episode
-   discusses X' — prefer: 'X enables Y because Z'"), or add a style description for the summary
-   paragraph to match the silver's dense, thesis-first structure.
+1. **gpt-4o for paragraph experiments:** r4 showed gpt-4o-mini triggers judge contestation at
+   4–6 paragraphs. gpt-4o (r3-4 experiment) produced higher judge_mean (0.966 vs 0.953) and may
+   maintain judge agreement at higher paragraph counts. Try the r4-1 paragraph count change with
+   gpt-4o model. This is the most direct path to closing the paragraph gap.
 
-2. **Few-shot for title + summary + bullets combined:** r3-1 showed few-shot examples help for
-   bullets. Try adding a complete few-shot block (title + summary + bullets) showing all three
-   components together, rather than bullets only.
+2. **Benchmark-scale validation:** All tuning on the 5-episode smoke set is noisy — judge
+   contestation on even 1 episode flips the entire blend from full→ROUGE-only, causing ~47% swings.
+   At benchmark scale (25+ episodes), individual contestation events average out and the signal
+   becomes more reliable. Run the r3-3 champion on the full benchmark first to confirm gains hold.
 
-3. **gpt-4o on a larger dataset:** r3-4 was marginal on 5 episodes (ROUGE-L small drop, judge
-   quality up). Worth re-testing on the full benchmark — at scale, gpt-4o's higher capability may
-   produce clearer gains, and the ROUGE-L vs judge tradeoff may flip.
+3. **Separate paragraph tuning track:** The current ratchet optimizes full JSON vs bullets-only
+   silver. Paragraph quality improvements are systematically blocked because they change summary
+   style and trigger judge contestation. Consider a dedicated paragraph tuning run with: (a) a
+   paragraph-only silver reference, (b) gpt-4o model, (c) paragraph ROUGE-L as the ratchet metric.
 
-4. **Benchmark-scale validation:** All tuning so far on the 5-episode smoke set is noisy. Running
-   the r3-3 champion prompt on the full benchmark would confirm whether the +6.2% gain holds or
-   is smoke-set variance.
+4. **Bad-vs-good bullet examples:** exp-r3-3 showed style narration is the most effective lever
+   for bullets. Extending it with explicit anti-patterns ("avoid: 'The episode discusses X' —
+   prefer: 'X enables Y because Z'") could push bullets ROUGE-L above 33.6% to match non-bundled.
 
-5. **Summary paragraph alignment:** All r3 gains came from bullets (silver has bullets-only
-   reference). The summary paragraph contributes noise to ROUGE. Aligning the summary paragraph
-   more closely with what judges reward (clear thesis, concise structure) could push judge_mean
-   above 0.953 and unlock further score gains.
+5. **Re-evaluate the bundled value proposition:** bundled is 2.6× faster and 42% fewer tokens,
+   but paragraphs lag non-bundled by 6.7 pp. If paragraph quality matters as much as bullets, the
+   right answer may be gpt-4o bundled (higher cost, 1 call) vs gpt-4o-mini non-bundled (2 calls).
+   A direct comparison on the smoke dataset would clarify the tradeoff.
 
 ---
 

@@ -58,6 +58,45 @@ as grammatical subject, no generic openers. r3 focuses on closing the style gap.
 
 After these, if none land, try combinations of the winners from r1 + r2.
 
+## Round 4 — Priority Hypotheses (paragraph quality, try in this order)
+
+r3 best: **0.504330** (ROUGE-L 31.2%, judge_mean 0.953). Bullets nearly matched non-bundled
+(−2.5 pp); paragraph still lags (19.9% vs 26.6% non-bundled, −6.7 pp).
+
+Silver paragraph style (observed from `silver_sonnet46_smoke_v1`): 5–6 paragraphs, 335–410 words,
+P1 = thesis sentence naming the episode domain + central argument, P2–Pn each cover one topic
+opened with a topic anchor ("On [topic]...", "[Topic] is framed as...", "A recurring theme..."),
+final paragraph = practical takeaway.
+
+Root cause of gap: current prompt defaults to 2–3 paragraphs — structural mismatch with silver's
+5–6 paragraphs before any style differences come into play.
+
+**Dual-metric acceptance for r4:**
+
+- Standard accept: ratchet ≥ +1% (as before).
+- Paragraph accept: ratchet within −1% (no regression) AND paragraph ROUGE-L improves ≥ +2 pp.
+  Record as "paragraph-accepted" in TSV status.
+- After each experiment, run paragraph comparison:
+  `make autoresearch-score-bundled CONFIG=data/eval/configs/summarization/compare_openai_bundled_paragraph_smoke_v1.yaml REFERENCE=silver_sonnet46_smoke_v1 DRY_RUN=1`
+
+**Allowed extra command for r4:**
+
+```bash
+make autoresearch-score-bundled \
+  CONFIG=data/eval/configs/summarization/compare_openai_bundled_paragraph_smoke_v1.yaml \
+  REFERENCE=silver_sonnet46_smoke_v1 DRY_RUN=1
+```
+
+1. **Paragraph count: 4–6** — change `paragraphs_min | default(2)` → `default(4)` and
+   `paragraphs_max | default(3)` → `default(6)` in both templates. Biggest structural fix.
+2. **Structure narration for summary** — add prose guidance: each paragraph covers one distinct
+   topic, P1 = thesis, P2–Pn open with topic anchors, final = takeaway.
+3. **Few-shot summary example** — add a complete silver-quality summary example (3 paragraphs)
+   to the system prompt, same approach as r3-1 for bullets.
+4. **Opening sentence pattern** — add instruction: "Begin the summary with a sentence naming
+   the episode's domain and its central argument or premise."
+5. **Combined: count + structure narration** — try both together if individual changes fall short.
+
 ## Setup (run once before loop)
 
 1. Run `make autoresearch-score-bundled DRY_RUN=1` — confirm a scalar prints to stdout.
