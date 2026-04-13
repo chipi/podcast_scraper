@@ -10,7 +10,7 @@ Transcript:
 Output rules (strict):
 - Return ONLY valid JSON. Your response must start with `{` and end with `}`. No markdown, no code fences, no prose.
 - Required shape: {"title": null or string, "summary": "...", "bullets": ["...", ...]}
-- "summary" must be a detailed prose summary of {{ paragraphs_min | default(2) }}-{{ paragraphs_max | default(4) }} paragraphs. Begin with the central thesis. Follow the episode's chronological arc paragraph by paragraph. Separate paragraphs with \n\n.
+- "summary" must be a focused prose summary of {{ paragraphs_min | default(2) }}-{{ paragraphs_max | default(3) }} paragraphs. Begin with the central thesis. Cover major topics in the order they appear; no filler. Separate paragraphs with \n\n.
 - Include at least {{ bullet_min | default(3) }} distinct takeaway(s) when the transcript has enough substance; fewer only for very short or sparse content.
 - Aim for 6-8 bullets for a typical episode; fewer only if content is genuinely sparse.
 {% if bullet_max is defined and bullet_max %}

@@ -3,3 +3,4 @@ baseline	0.231183	0.000000	baseline	generic shared prompts seeded to openai/; RO
 exp-1	0.461547	+0.230364	accepted	cover ALL major discussion segments in order; ROUGE-L=25.8%, embed=73.7%, judge_mean=0.936; judges agreed → full blend	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
 exp-2	0.466996	+0.005449	accepted	preserve verbatim terminology/concept names; ROUGE-L=26.3%, embed=75.3%, judge_mean=0.943; judges agreed → full blend	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
 exp-3	0.256322	-0.210674	rejected	chronological arc + longer paragraphs → more tokens, judges contested; ROUGE-L=25.6%, embed=71.0%, judge_mean=0.893; ROUGE-only blend	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
+exp-4	0.474687	+0.007691	accepted	concise summary instruction (2-3 para cap, no-filler rule) → tighter output, judges agreed; ROUGE-L=27.3%, embed=76.7%, judge_mean=0.946	gpt-4o-mini	claude-haiku-4-5	9f43a4b9	curated_5feeds_smoke_v1
