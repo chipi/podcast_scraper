@@ -207,7 +207,7 @@ tests/integration/
 | Subfolder | Purpose | Example files |
 | --------- | ------- | ------------- |
 | `llm/` | LLM provider integration | `test_anthropic_providers.py`, `test_openai_providers.py` |
-| `ml/` | ML model loading, embedding, QA, NLI, summarizer | `test_embedding_loader_integration.py`, `test_summarizer_integration.py` |
+| `ml/` | ML model loading, embedding, QA, NLI (mocked inference) | `test_embedding_loader_integration.py`, `test_model_loader_integration.py` |
 | `ollama/` | Ollama model-specific tests | `test_gemma2_9b_summary.py`, `test_llama3_1_8b_speaker.py` |
 | (root) | Cross-provider: factories, protocols, capabilities | `test_capabilities_integration.py`, `test_fallback_behavior.py` |
 
@@ -254,6 +254,47 @@ sessions with bounded retries. Teardown clears downloader overrides.
 
 If you add integration tests that call `fetch_url` / `fetch_rss_feed_url` for real HTTP,
 reuse the same pattern (or mock HTTP). See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (threading and metrics) for how configuration applies to sessions.
+
+## FastAPI viewer, CIL, `bridge.json`, and semantic search lift {#fastapi-cil-bridge-search-lift}
+
+**Wired HTTP** coverage for the GI/KG viewer stack lives under **`tests/integration/server/`**
+(not the legacy root-level `test_server_api.py` path). Typical modules:
+
+- **`test_server_api.py`** — health, artifacts (including **`*.bridge.json`**), index stats,
+  search, explore, factory edge cases.
+- **`test_cil_api.py`** — **`GET /api/persons/*`** and **`GET /api/topics/*`** (RFC-072 CIL)
+  against a minimal corpus with sibling **GI / KG / bridge** files.
+- **`test_viewer_corpus_library.py`** — Corpus Library responses that surface **`has_bridge`**
+  and **`bridge_relative_path`**.
+
+**Bridge assembly** (builder invariants, not HTTP): **`tests/integration/test_bridge_integration.py`**.
+
+**Semantic search lift** and **offset verification** are primarily **unit-tested** under
+`tests/unit/podcast_scraper/search/` (`transcript_chunk_lift`, `gil_chunk_offset_verify`).
+Operator validation on a real indexed corpus uses **`make verify-gil-offsets-strict`** or
+`python -m podcast_scraper.cli verify-gil-chunk-offsets` — see
+[Semantic Search Guide — Chunk-to-Insight lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528)
+and [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md).
+
+## Transformers cache (E2E `ml_models` only)
+
+Root `tests/conftest.py` sets **`HF_HUB_OFFLINE=1`** / **`TRANSFORMERS_OFFLINE=1`** for pytest.
+**Integration tests do not load real Transformers weights.** E2E tests marked **`ml_models`**
+that need **`facebook/bart-base`** or **`allenai/led-base-16384`** (MAP/REDUCE test defaults;
+config aliases **`bart-small`** and **`long-fast`**) call **`require_transformers_model_cached`**
+and **`pytest.skip`** when those snapshots are missing under **`get_transformers_cache_dir()`**
+(project `.cache/huggingface/hub` or **`HF_HUB_CACHE`**).
+
+**Satisfy cache locally (needs network once):**
+
+```bash
+make preload-ml-models
+```
+
+**CI:** The workflow preloads models and sets **`ML_MODELS_VALIDATED=true`** so workers trust the
+cache after the shell validation step.
+
+Examples: **`tests/e2e/test_ml_models_e2e.py`** (summarization, preload helpers, and related).
 
 ## Running Integration Tests
 

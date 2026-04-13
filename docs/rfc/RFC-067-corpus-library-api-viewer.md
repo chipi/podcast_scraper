@@ -16,7 +16,8 @@
   - [RFC-004: Filesystem Layout](RFC-004-filesystem-layout.md) — output directory conventions
   - [RFC-068: Corpus Digest](RFC-068-corpus-digest-api-viewer.md) — digest API & viewer (PRD-023)
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer — Corpus library module](../uxs/UXS-001-gi-kg-viewer.md#corpus-library-module-prd-022)
+  - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) — Library tab, Episode rail, catalog layout
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
 - **Related Documents**:
   - [ADR-064: Canonical server layer](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) — route mounting pattern
 
@@ -59,7 +60,7 @@ already writes. Users need:
 
 1. **Phase 1:** Ship three REST endpoints under `/api/corpus/` with stable JSON shapes,
    path traversal safety, and tests on synthetic corpus layouts (flat + `feeds/`).
-2. **Phase 1:** Add **Library** UI per UXS-001; reuse `corpusPath` from the shell store;
+2. **Phase 1:** Add **Library** UI per UXS-003; reuse `corpusPath` from the shell store;
    hand off to artifacts store and search store without duplicating path logic.
 3. **Phase 2:** Document and implement **catalog caching or materialization** so 10k+
    episodes remain usable.
@@ -258,7 +259,7 @@ where other routes return embedded errors, follow **`/api/search`** style only i
 - Extend `mainTab` union in
   `App.vue` (`web/gi-kg-viewer/src/App.vue`) with `'library'`.
 - Add a **Library** button in the main nav next to Graph / Dashboard with the same styling
-  pattern as existing tabs (UXS-001).
+  pattern as existing main-view tabs (UXS-001 shell, UXS-003 Library).
 
 ### Components
 

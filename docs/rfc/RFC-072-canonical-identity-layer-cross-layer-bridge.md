@@ -38,6 +38,19 @@
   - [Issue #528](https://github.com/chipi/podcast_scraper/issues/528) — Phase 5
     (chunk-to-Insight lift; gated on char-offset verification)
 
+## Implementation status (repository)
+
+Phases **1–5** are implemented in the current tree: canonical identity slugging and
+builders; per-episode **`bridge.json`** emission in the metadata pipeline; **CIL** read
+routes under **`/api/persons/*`** and **`/api/topics/*`**; semantic-search **transcript
+lift** (`lifted`) and **`verify-gil-chunk-offsets`** with **`merged_episode_gi_paths`**
+for feed-nested metadata; shared path rules in **`builders/rfc072_artifact_paths.py`**
+and GIL edge-type normalisation in **`gi/edge_normalization.py`**. This RFC remains the
+normative design; if GitHub issue bodies drift, reconcile them to match this document.
+
+**Status** (header above): treat as **Draft** until stakeholders sign off; behaviour is
+nevertheless exercised in CI (acceptance + offset verification) and tests.
+
 ---
 
 ## Abstract
@@ -1430,8 +1443,25 @@ chunk-to-Insight lift to search result enrichment. No FAISS rebuild required.
 
 **Phase 6 — Analysis layer (future RFC):**
 
-Contradiction detection, stance comparison, position change flagging. Operates on the
-data collected via Phases 3-4. Separate RFC.
+Contradiction detection, stance comparison, and position-change flagging on data collected
+via Phases 3–4. **Before scoping a separate RFC**, decide whether the primary outcome is
+*detecting* change (signals, filters) or *narrating* change (human-readable arcs); which
+mechanisms fit Insight pairs (NLI with careful framing, LLM-as-judge, embedding plus stance,
+or a hybrid); how controversy radar prunes pairwise comparisons at corpus scale; and what
+labeled eval sets are feasible (same-person shift, cross-person agree/disagree, gold
+narratives). **Defer implementation** until Phases 1–4 have been run on a real corpus so
+extraction quality is visible (Known Limitations 2–3). See **Known Limitation §5** (Analysis
+layer not included).
+
+---
+
+## GI/KG viewer (RFC-062) alignment
+
+RFC-072 **type and ID** changes (`Person` instead of `Speaker`, `person:` / `org:` prefixes,
+`bridge.json` where wired) are implemented in the SPA under `web/gi-kg-viewer/src/utils/`
+(for example `parsing.ts`, `visualGroup.ts`, `mergeGiKg.ts`, `searchFocus.ts`). Co-located
+**Vitest** suites (`*.test.ts`) cover canonical id display, graph grouping, and merge
+behaviour.
 
 ---
 
@@ -1477,7 +1507,7 @@ data collected via Phases 3-4. Separate RFC.
 4. **Phase 4**: Implement flagship query patterns. Expose API endpoints. Update
    Cytoscape viewer (ADR-065) to navigate by canonical ID.
 5. **Phase 5**: Enable search result lifting post char-offset verification.
-6. **Phase 6**: Analysis layer (separate RFC).
+6. **Phase 6**: Analysis layer (separate RFC; see roadmap Phase 6 notes above).
 
 ---
 

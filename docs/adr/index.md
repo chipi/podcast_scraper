@@ -118,7 +118,7 @@ Use an ADR when one or more of these hold; otherwise an **RFC + normative doc** 
 
 ### When **not** to add an ADR
 
-- **Viewer milestones** that do not change stack (e.g. [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md)) — **RFC + UXS-001 + E2E map** suffice.
+- **Viewer milestones** that do not change stack (e.g. [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md)) — **RFC + feature UXS (e.g. UXS-004) + UXS-001 hub + E2E map** suffice.
 - **Single-route APIs** for the viewer with schema in code + tests (e.g. [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md)) — Server Guide + tests suffice.
 - **Operational tooling** without architectural boundary moves (e.g. [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md)) — **RFC-first**.
 - **Frozen artifact workflows** (e.g. [RFC-064](../rfc/RFC-064-performance-profiling-release-freeze.md)); **profile YAML** baselines are covered by **[ADR-075](ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md)**.

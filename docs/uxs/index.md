@@ -8,9 +8,9 @@ accessibility expectations, and checklists for review.
 
 They complement:
 
-- **PRDs** — what and why (requirements, success metrics)
-- **RFCs** — technical how (APIs, architecture, implementation)
-- **ADRs** — durable architectural *decisions* (token detail stays in UXS, not ADRs)
+- **PRDs** -- what and why (requirements, success metrics)
+- **RFCs** -- technical how (APIs, architecture, implementation)
+- **ADRs** -- durable architectural *decisions* (token detail stays in UXS, not ADRs)
 
 ## When to create a UXS
 
@@ -51,15 +51,23 @@ move into the RFC.
 | **Active**     | Authoritative; implementations should conform to this spec             |
 | **Superseded** | Replaced by a newer UXS (link the replacement in revision history)     |
 
+## UXS architecture
+
+The viewer UXS is split into a **shared design system hub** (UXS-001) and
+**per-feature specs** (UXS-002 through UXS-008). Each feature UXS references UXS-001
+for tokens, typography, and shared conventions. This keeps individual specs short
+(2-4 pages) while the shared foundation stays in one place.
+
 ## Conventions
 
-- **Browser E2E + UXS (GI/KG viewer):** Anyone changing **viewer UX** (including AI agents) should
-  treat **docs + tests** as part of the same change, in order:
+- **Browser E2E + UXS (GI/KG viewer):** Anyone changing **viewer UX** (including AI agents)
+  should treat **docs + tests** as part of the same change, in order:
   **(1)** [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
   (Playwright contract: `getByRole` strings, hooks, entry flows),
-  **(2)** `web/gi-kg-viewer/e2e/*.spec.ts` and helpers — run **`make test-ui-e2e`**,
-  **(3)** [UXS-001](UXS-001-gi-kg-viewer.md) when **tokens, layout density, or stated experience rules**
-  change (not only when tests fail). See [E2E Testing Guide — workflow](../guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
+  **(2)** `web/gi-kg-viewer/e2e/*.spec.ts` and helpers -- run **`make test-ui-e2e`**,
+  **(3)** the relevant feature UXS when **tokens, layout density, or stated experience rules**
+  change (not only when tests fail). See
+  [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
   and [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509).
 - **IDs:** `UXS-NNN` with three digits (see table below for the next number).
 - **Files:** `docs/uxs/UXS-NNN-kebab-case-slug.md`
@@ -68,16 +76,25 @@ move into the RFC.
 
 ## Active UX specifications
 
-Authoritative specs; current implementations should conform (see [status lifecycle](#status-lifecycle)).
+Authoritative specs; current implementations should conform
+(see [status lifecycle](#status-lifecycle)).
 
 | UXS | Title | Related PRDs / RFCs | Description |
 | --- | ----- | ------------------- | ----------- |
-| [UXS-001](UXS-001-gi-kg-viewer.md) | GI / KG viewer | PRD-003, PRD-017, PRD-019, PRD-021, PRD-022, PRD-023, PRD-025; [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md), [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) | Tokens + **Dashboard** (PRD-025 / RFC-071) + **Library** + **Digest** (PRD-023 / RFC-068); digest discovery on **Digest** only |
+| [UXS-001](UXS-001-gi-kg-viewer.md) | GI/KG Viewer (Shared Design System) | PRD-003, PRD-017, PRD-019; RFC-062 | Shared tokens, typography, layout, states, accessibility, components |
+| [UXS-002](UXS-002-corpus-digest.md) | Corpus Digest | PRD-023; RFC-068 | Digest tab: topic bands, recent episodes, rolling window |
+| [UXS-003](UXS-003-corpus-library.md) | Corpus Library | PRD-022; RFC-067 | Library tab: feed/episode catalog, Episode rail, filters |
+| [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069 | Graph chrome: toolbar, minimap, degree filter, node detail |
+| [UXS-005](UXS-005-semantic-search.md) | Semantic Search | PRD-021; RFC-061 | Search panel: query, advanced filters, result cards, insights modal |
+| [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: Pipeline/Content charts, API/Data panel |
 
 ## Draft UX specifications
 
-None. Add new specs here while status is **Draft**; move rows to **Active** when the spec is frozen and implementation has landed (or is in progress against a locked token set).
+| UXS | Title | Related PRDs / RFCs | Description |
+| --- | ----- | ------------------- | ----------- |
+| [UXS-007](UXS-007-topic-entity-view.md) | Topic Entity View | PRD-026; RFC-073 | Topic right rail: timeline, insights, persons, related topics |
+| [UXS-008](UXS-008-enriched-search.md) | Enriched Search | PRD-027; RFC-073 | Enriched Answer panel above search results, trust/provenance |
 
 ## Templates
 
-- [UXS template](UXS_TEMPLATE.md) — copy when adding `UXS-NNN-*.md`
+- [UXS template](UXS_TEMPLATE.md) -- copy when adding `UXS-NNN-*.md`

@@ -91,7 +91,7 @@ and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 viewer surfaces, entry paths, and stable selectors. **Whenever you change viewer UX** (labels,
 layout, routes, tokens, a11y names, or E2E flows), update artifacts in this order: **(1)** the
 surface map, **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**,
-**(3)** [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) if the visual/experience contract changed.
+**(3)** [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) if the visual/experience contract changed.
 Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
 ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)).
 
@@ -113,7 +113,8 @@ make test-ui-e2e      # Playwright browser E2E (needs Firefox)
 ```
 
 **`make test-ui`** runs `npm run test:unit` (Vitest) in `web/gi-kg-viewer`. Tests cover pure
-TypeScript logic: artifact parsing, GI+KG merge, metrics, formatting, colors, visual groups,
+TypeScript logic: artifact parsing, GI+KG merge, bridge-aware dedupe where implemented, metrics,
+formatting, colors, visual groups,
 and search-focus mapping. No browser or DOM required — runs in ~150 ms.
 
 **`make test-ui-e2e`** runs `npm install` in `web/gi-kg-viewer`, installs the **Firefox** browser
@@ -143,6 +144,28 @@ GitHub Actions jobs:
 Both viewer jobs are in `.github/workflows/python-app.yml`. Touching `web/gi-kg-viewer/` in a
 PR should include green runs for both (see
 [CONTRIBUTING.md](https://github.com/chipi/podcast_scraper/blob/main/CONTRIBUTING.md)).
+
+### GIL, KG, CIL, and semantic search validation {#gil-kg-cil-and-semantic-search-validation}
+
+Use this table when you change **GIL**, **KG**, **`bridge.json`**, **CIL HTTP**, **FAISS
+indexing**, or **search response shape**.
+
+| Change area | Suggested checks |
+| ----------- | ---------------- |
+| GIL pipeline, `gi.json`, `gi` CLI | `make test-unit -k gi` (or scoped paths), `tests/e2e/test_gi_cli_e2e.py`; see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
+| KG pipeline, `kg` CLI | `tests/unit/kg/`, `tests/e2e/test_kg_cli_e2e.py` |
+| `bridge.json` builder | `tests/unit/builders/test_bridge_builder.py`, `tests/integration/test_bridge_integration.py` |
+| CIL query helpers / HTTP | `tests/unit/podcast_scraper/server/test_cil_queries.py`, `tests/integration/server/test_cil_api.py` |
+| Transcript search + **lift** + offset math | `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`, `tests/integration/server/test_viewer_search.py` |
+| Viewer merge / bridge TS | `make test-ui`; UX changes also `make test-ui-e2e` + [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) |
+
+**Corpus-level gate (indexed run only):** `make verify-gil-offsets-strict` runs
+`verify-gil-chunk-offsets` with **`--strict`** and **`--min-overlap-rate 0.95`** (override
+**`GIL_OFFSET_VERIFY_DIR`**). Use after acceptance or nightly jobs that produce
+**`search/metadata.json`** + GI quotes, not as a substitute for pytest on every PR without
+such a tree. Rationale: [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md).
+
+**Single overview:** [GIL / KG / CIL cross-layer guide](GIL_KG_CIL_CROSS_LAYER.md).
 
 **Nightly** (`.github/workflows/nightly.yml`): **`nightly-viewer-unit`** and
 **`nightly-viewer-e2e`** run the same Vitest / Playwright commands on every scheduled or

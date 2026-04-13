@@ -168,6 +168,23 @@ Use this field for audits and metrics, not a second hand-maintained model id in 
 
 The file is co-located with the transcript and summary. The logical “full” set of grounded insights across the project is the union of all per-episode `gi.json` files (no global store in v1).
 
+**Quote character offsets:** **Quote** nodes store **`char_start`** / **`char_end`** in the
+**same transcript coordinate space** as FAISS **transcript** chunks when both are built from the
+same on-disk transcript. **Semantic search lift** and **offset verification** assume that
+alignment. See [Semantic Search Guide — Chunk-to-Insight lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528).
+
+---
+
+## bridge.json (canonical identity, RFC-072)
+
+When the pipeline emits it, a sibling **`*.bridge.json`** (same stem as `*.gi.json` /
+`*.kg.json`) lists **canonical identities** (`person:…`, `topic:…`, `org:…`) with
+**`display_name`** so HTTP APIs and the viewer can join GIL and KG without merging full graphs
+into one file. **CIL query routes** and **search lift** use these ids for display resolution.
+
+- **Specification:** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
+- **Cross-layer map (HTTP, CLI, tests):** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md)
+
 ---
 
 ## Schema and Validation

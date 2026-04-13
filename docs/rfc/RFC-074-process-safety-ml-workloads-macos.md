@@ -176,12 +176,14 @@ The parse-time `calculate_test_workers.py` call is redundant because
 every test recipe already calls it inline with the correct `--test-type`.
 
 **Change 1.3: Fix `_is_transformers_model_cached` to avoid loading
-tokenizer.**
+tokenizer.** (Implemented)
 
 In `tests/integration/ml_model_cache_helpers.py`, replace the
 `AutoTokenizer.from_pretrained(..., local_files_only=True)` call with
-a filesystem check for the snapshot directory and key files (matching
-the pattern already used by `_is_whisper_model_cached`).
+a filesystem check: verify the snapshot directory contains `config.json`
+plus at least one weight file (`.safetensors` or `.bin`). This matches
+the pure-filesystem pattern used by `_is_whisper_model_cached` and
+eliminates the heavy disk I/O that contributed to APFS lock contention.
 
 ### Group 2: Pre-commit hook -- timeout and process group cleanup
 

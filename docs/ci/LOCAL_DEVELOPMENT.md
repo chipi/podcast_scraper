@@ -33,7 +33,9 @@ make install-hooks
 - **isort** import sorting check (staged `.py` files only)
 - **flake8** linting (staged `.py` files only)
 - **markdownlint** (if installed; staged `.md` files only)
-- **mypy** on the **entire** repo (`mypy .`), with `PYTHONPATH` including the repo root — same as CI `make type`. Any error fails the commit, not only errors in staged files.
+- **mypy** on the **entire** repo (`mypy .`), with `PYTHONPATH` including the repo root -- same as CI `make type`. Any error fails the commit, not only errors in staged files.
+- **120-second watchdog timeout** (RFC-074): if any check hangs (e.g. `black --check` stuck on APFS lock contention), the hook kills the process group and exits with an error instead of hanging indefinitely.
+- **Process group cleanup**: on exit (normal, interrupt, or timeout), the hook sends `kill -- -$$` to terminate all child processes.
 
 **If any check fails, the commit is blocked** until you fix the issues.
 
@@ -184,6 +186,64 @@ graph TD
 - **Local parity:** `make ci` runs same checks as GitHub
 - **Quick iteration:** `make ci-fast` for rapid development feedback
 - **Clear errors:** Strict mode for docs and type checking
+
+---
+
+## Process Safety for ML Workloads (RFC-074)
+
+ML model loading (spaCy, Transformers, Whisper) triggers heavy filesystem
+I/O that can cause macOS APFS kernel lock contention. Processes can enter
+uninterruptible wait (`UE` state) where `kill -9` has no effect. Repeated
+`make` invocations amplify this into a pileup that can crash the system.
+
+### Diagnostic commands
+
+```bash
+make check-zombie      # Detect unkillable (UE state) Python processes
+make check-spotlight   # Verify Spotlight indexing is disabled (macOS)
+make cleanup-processes # Kill leftover Python/test processes
+```
+
+Run `make check-zombie` after any session where processes appeared stuck.
+If it reports UE processes, reboot is the only option -- then run Disk
+Utility First Aid on the boot volume.
+
+### What the build system does automatically
+
+- `cleanup-processes` runs as a prerequisite to every `ci` and `ci-fast`
+  invocation
+- No ML library imports happen at Makefile parse time (so `make help`
+  completes in under 1 second with zero Python processes)
+- `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` are exported for all
+  Makefile recipes, preventing accidental model downloads during builds
+- The pre-commit hook has a 120-second watchdog timeout and kills its
+  process group on exit
+
+### Recommended system settings (macOS)
+
+Disable Spotlight indexing on ML cache directories to reduce APFS lock
+contention:
+
+```bash
+# Option A: Disable Spotlight entirely
+sudo mdutil -a -i off
+
+# Option B: Exclude specific directories in System Settings > Spotlight > Privacy
+#   ~/.cache/huggingface
+#   ~/.cache/whisper
+#   .venv/
+```
+
+### Cursor session hook
+
+A `sessionStart` hook in `.cursor/hooks.json` runs `make check-zombie`
+logic at the start of every Cursor chat session. If UE processes are
+detected, the agent warns you immediately before doing any work that
+could make the situation worse.
+
+### Recovery runbook
+
+Full recovery steps: [RFC-074 Recovery Runbook](../rfc/RFC-074-process-safety-ml-workloads-macos.md#recovery-runbook).
 
 ---
 

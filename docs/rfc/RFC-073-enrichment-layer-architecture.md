@@ -3,8 +3,12 @@
 - **Status**: Draft
 - **Authors**: Marko
 - **Stakeholders**: Core team
-- **Target Release**: v2.7
+- **Target Release**: TBD
 - **Related PRDs**:
+  - `docs/prd/PRD-026-topic-entity-view.md` -- first read-side consumer of
+    enrichment outputs (topic co-occurrence, temporal velocity)
+  - `docs/prd/PRD-027-enriched-search.md` -- query-time enrichment extending
+    semantic search (Phase 4 extension of this RFC)
   - `docs/prd/PRD-017-grounded-insight-layer.md`
   - `docs/prd/PRD-019-knowledge-graph-layer.md`
 - **Related ADRs**:
@@ -39,8 +43,9 @@ underlying ingredients. A missing or failed enricher degrades the experience gra
 it never corrupts the core.
 
 The RFC defines what an enricher is, what it is not, the protocol every enricher must
-implement, the output directory structure, the registry mechanism, and two concrete OSS
-enricher implementations that demonstrate the pattern.
+implement, the output directory structure, the registry mechanism, and two concrete
+enricher implementations that demonstrate the pattern. These enrichers directly serve
+the use cases defined in PRD-026 (Topic Entity View) and PRD-027 (Enriched Search).
 
 **Filesystem alignment note:** This RFC follows the existing flat layout defined in
 ADR-004 and ADR-051. Core artifacts are sibling files in `metadata/` sharing a common
@@ -209,6 +214,9 @@ class Enricher(Protocol):
         Must not raise -- catch exceptions internally and return
         a result with status: "failed" and error details.
         Never modify any core artifact file.
+
+        Note: the runner wraps each call in try/except as a safety
+        net, but enrichers should still handle their own errors.
         """
         ...
 ```
@@ -227,6 +235,8 @@ class Enricher(Protocol):
 
 **Output contract -- every enricher output MUST include:**
 
+Episode-scope enricher (has `episode_id`):
+
 ```json
 {
   "enricher_id": "topic_cooccurrence",
@@ -240,7 +250,21 @@ class Enricher(Protocol):
 }
 ```
 
-If the enricher fails:
+Corpus-scope enricher (`episode_id` omitted -- spans all episodes):
+
+```json
+{
+  "enricher_id": "temporal_velocity",
+  "enricher_version": "1.0.0",
+  "schema_version": "1.0",
+  "derived": true,
+  "computed_at": "2026-04-13T10:00:00Z",
+  "status": "ok",
+  "data": { }
+}
+```
+
+If the enricher fails (episode-scope example; corpus-scope omits `episode_id`):
 
 ```json
 {
@@ -334,6 +358,10 @@ and the enricher writes `topic_cooccurrence.json`, the output file is
 - Corpus-scope enrichers write to `{corpus_root}/enrichments/`.
 - `discover_metadata_files` (existing) is unaffected -- it globs `*.metadata.json`
   under `metadata/`, not under `metadata/enrichments/`.
+- In multi-feed layouts, episode-scope enrichments stay co-located with their feed's
+  `metadata/enrichments/` (the runner writes to `bundle.metadata_path.parent /
+  "enrichments"`). Corpus-scope enrichments always write to the top-level
+  `{corpus_root}/enrichments/`, spanning all feeds.
 
 ---
 
@@ -347,17 +375,36 @@ hardcoded enricher lists in the pipeline.
 
 enrichment:
   enabled: true
-  pass: after_core          # always -- enrichers never run inline
+  pass: after_core              # always -- enrichers never run inline
   enrichers:
+    # --- deterministic (on by default) ---
     - id: topic_cooccurrence
+      enabled: true
+    - id: topic_cooccurrence_corpus
       enabled: true
     - id: temporal_velocity
       enabled: true
+    - id: grounding_rate
+      enabled: true
+    - id: guest_coappearance
+      enabled: true
+    - id: insight_density
+      enabled: true
+    # --- embedding / ML (off by default) ---
+    - id: topic_similarity
+      enabled: false            # embedding tier -- opt-in
     - id: nli_contradiction
-      enabled: false        # ML tier -- opt-in
+      enabled: false            # ML tier -- opt-in
+    # --- LLM (off, double opt-in) ---
     - id: llm_position_narration
-      enabled: false        # LLM tier -- explicit opt-in required
+      enabled: false            # LLM tier -- requires opt_in: true
+      # opt_in: true            # uncomment to activate
 ```
+
+**Config integration:** The `enrichment` block maps to a new `EnrichmentConfig`
+Pydantic model nested in the existing `Config` class, following the same pattern as
+other config sections. Enricher IDs are validated against `_BUILTIN_ENRICHERS` keys.
+Invalid IDs are config errors, not silent skips.
 
 **Registry implementation:**
 
@@ -385,6 +432,8 @@ _BUILTIN_ENRICHERS: dict[str, str] = {
         "podcast_scraper.enrichment.builtin.grounding_rate",
     "guest_coappearance":
         "podcast_scraper.enrichment.builtin.guest_coappearance",
+    "insight_density":
+        "podcast_scraper.enrichment.builtin.insight_density",
 }
 
 
@@ -410,6 +459,11 @@ def resolve_enrichers(config: dict) -> Iterator[Enricher]:
 **Pipeline integration -- two-phase enrichment pass:**
 
 The enrichment pass runs in two explicit phases after all core artifacts are written.
+It is invoked **once at the end of `run_pipeline`**, after all episodes have been
+processed and all core artifacts (metadata, GIL, KG, bridge) exist on disk. It is
+gated by `enrichment.enabled` in config -- when `false` or absent, the call is a
+no-op.
+
 Episode-scope enrichers run first (once per episode). Corpus-scope enrichers run
 second (once per corpus). Enrichers within a phase have no guaranteed order and must
 not depend on each other's output. A corpus-scope enricher **may** read episode-scope
@@ -424,8 +478,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from podcast_scraper.search.corpus_scope import discover_metadata_files
+from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.workflow.metadata_generation import (
-    _determine_bridge_path,
     _determine_gi_path,
     _determine_kg_path,
 )
@@ -443,7 +497,7 @@ def _build_bundles(corpus_root: Path) -> list[EpisodeArtifactBundle]:
         meta_s = str(meta_path)
         gi = Path(_determine_gi_path(meta_s))
         kg = Path(_determine_kg_path(meta_s))
-        bridge = Path(_determine_bridge_path(meta_s))
+        bridge = Path(bridge_json_path_adjacent_to_metadata(meta_s))
         stem = meta_path.stem
         for suffix in (".metadata",):
             if stem.endswith(suffix):
@@ -468,8 +522,10 @@ def _build_bundles(corpus_root: Path) -> list[EpisodeArtifactBundle]:
     return bundles
 
 
-def _failure_envelope(enricher, error: str) -> dict:
-    return {
+def _failure_envelope(
+    enricher, error: str, episode_id: str | None = None,
+) -> dict:
+    envelope: dict = {
         "enricher_id": enricher.manifest.id,
         "enricher_version": enricher.manifest.version,
         "schema_version": "1.0",
@@ -479,6 +535,9 @@ def _failure_envelope(enricher, error: str) -> dict:
         "error": error,
         "data": None,
     }
+    if episode_id:
+        envelope["episode_id"] = episode_id
+    return envelope
 
 
 def run_enrichment_pass(corpus_root: Path, config: dict) -> None:
@@ -517,7 +576,9 @@ def run_enrichment_pass(corpus_root: Path, config: dict) -> None:
                     "Enricher %s failed for %s: %s",
                     enricher.manifest.id, bundle.stem, exc,
                 )
-                result = _failure_envelope(enricher, str(exc))
+                result = _failure_envelope(
+                    enricher, str(exc), episode_id=bundle.episode_id,
+                )
             output_path.write_text(json.dumps(result, indent=2))
 
     # --- Phase 2: corpus-scope ---
@@ -565,21 +626,21 @@ as "not configured," not as a failure.
 
 ---
 
-## Example Enrichers (OSS)
+## Example Enrichers
 
 ### Enricher 1: Topic Co-occurrence (`topic_cooccurrence`)
 
 **What it does:** For a given episode, computes which topic pairs appear together.
 Across the corpus, these co-occurrence counts provide the data that the Topic Entity
-View can render as `RELATED_TO`-style connections. The KG ontology reserves
+View (PRD-026) renders as `RELATED_TO`-style connections. The KG ontology reserves
 `RELATED_TO` as an edge type but the v1 builder does not emit it; this enricher
 provides the signal without mutating `*.kg.json`.
 
-**Why it matters:** The Topic Entity View needs to know which topics cluster together.
-A topic with zero related-topic signals is an island -- a user browsing
-`topic:ai-safety` has no way to discover that `topic:ai-regulation` is closely
-associated in the corpus. Co-occurrence is the cheapest possible signal for this --
-no model, no embeddings, pure counting.
+**Why it matters:** PRD-026's Related Topics section (FR6) needs to know which topics
+cluster together. A topic with zero related-topic signals is an island -- a user
+browsing `topic:ai-safety` has no way to discover that `topic:ai-regulation` is
+closely associated in the corpus. Co-occurrence is the cheapest possible signal for
+this -- no model, no embeddings, pure counting.
 
 **Tier:** `deterministic`
 **Scope:** `episode` (per-episode co-occurrence) + `corpus` (aggregated counts,
@@ -694,12 +755,12 @@ inject edges into `*.kg.json` (immutability invariant).
 by counting topic appearances per time window (monthly by default) and computing a
 trend signal (acceleration, stable, declining).
 
-**Why it matters:** The Topic Entity View needs more than a timeline -- it needs a
-*trend*. A topic that appeared in 2 episodes in 2023 and 12 episodes in Q1 2026 is
-accelerating. A topic that peaked in 2024 and has not appeared since is declining.
-This signal requires no model -- it is pure arithmetic over KG MENTIONS edges and
-episode publish dates. But it is the difference between a flat timeline and a living
-corpus map.
+**Why it matters:** PRD-026's Timeline section (FR3) needs more than a list of
+episodes -- it needs a *trend*. A topic that appeared in 2 episodes in 2023 and 12
+episodes in Q1 2026 is accelerating. A topic that peaked in 2024 and has not appeared
+since is declining. This signal requires no model -- it is pure arithmetic over KG
+MENTIONS edges and episode publish dates. But it is the difference between a flat
+timeline and a living corpus map.
 
 **Tier:** `deterministic`
 **Scope:** `corpus`
@@ -866,11 +927,11 @@ enricher_instance = TemporalVelocityEnricher()
 
 ---
 
-## Enricher Catalogue (OSS -- v2.7 candidates)
+## Enricher Catalogue
 
-The following enrichers are defined as OSS candidates for v2.7. The two above are
-fully specified. The remainder are described at design level -- implementation follows
-the same protocol pattern.
+The following enrichers are initial candidates. The two above are fully specified. The
+remainder are described at design level -- implementation follows the same protocol
+pattern.
 
 | ID | Tier | Scope | Reads | Default | What it computes |
 | --- | --- | --- | --- | --- | --- |
@@ -884,7 +945,7 @@ the same protocol pattern.
 | `nli_contradiction` | ml | corpus | gi + bridge | Off | NLI-scored contradiction pairs across Insights on shared topics |
 
 The first six are pure arithmetic -- no model, no external dependency, trivially
-testable. They ship enabled by default in v2.7. The last two require opt-in.
+testable. They ship enabled by default. The last two require opt-in.
 
 ---
 
@@ -924,18 +985,16 @@ testable. They ship enabled by default in v2.7. The last two require opt-in.
      consume enricher output. An enricher has no knowledge of which features consume
      it.
    - **Rationale**: Keeps enrichers testable in isolation, reusable across features,
-     and composable. The Topic Entity View consumes temporal velocity output. The
-     Controversy Radar also consumes temporal velocity output. The enricher does not
-     know or care about either.
+     and composable. The Topic Entity View (PRD-026) consumes temporal velocity
+     output. A future controversy radar feature could also consume temporal velocity
+     output. The enricher does not know or care about either.
 
-6. **Domain extensions register domain-specific enrichers**
-   - **Decision**: The enricher registry supports domain-specific enricher modules
-     alongside builtins. A domain config can register enrichers that consume
-     domain-specific artifact fields. Only registered enrichers may read artifact
-     paths; no network access except for declared LLM tier enrichers.
-   - **Rationale**: Cyber domain enrichers (CVE co-occurrence, threat actor velocity)
-     follow the same protocol as OSS enrichers. The registry is the extension point
-     (v2.7 platform architecture).
+6. **Only registered enrichers may read artifact paths**
+   - **Decision**: No network access except for declared LLM tier enrichers. The
+     registry is the only entry point for enricher execution.
+   - **Rationale**: Prevents unregistered code from accessing corpus data. LLM tier
+     enrichers are the only exception (they need provider API access) and require
+     explicit double opt-in.
 
 7. **Two-phase execution: episode first, then corpus**
    - **Decision**: The enrichment pass runs in two explicit phases. Phase 1 runs all
@@ -948,10 +1007,10 @@ testable. They ship enabled by default in v2.7. The last two require opt-in.
      depend on per-episode enricher output. A flat list with no ordering would
      produce wrong or partial results.
 
-8. **Outputs are overwritten on re-run; v2.7 uses full corpus recompute**
+8. **Outputs are overwritten on re-run; initial release uses full corpus recompute**
    - **Decision**: Running the enrichment pass overwrites existing enricher output
      files unconditionally. Corpus-scope enrichers recompute from scratch across all
-     episodes. Incremental/delta updates are a non-goal for v2.7.
+     episodes. Incremental/delta updates are a non-goal for the initial release.
    - **Rationale**: Full recompute is simple and correct. For typical corpus sizes
      (hundreds of episodes), deterministic enrichers complete in seconds. Incremental
      updates add complexity that is not justified until corpus sizes reach thousands
@@ -1041,29 +1100,29 @@ testable. They ship enabled by default in v2.7. The last two require opt-in.
 
 ## Rollout
 
-**Phase 1 -- Protocol and registry (v2.7 prerequisite):**
+**Phase 1 -- Protocol and registry:**
 Implement `protocol.py` (including `EpisodeArtifactBundle`), `registry.py`,
 `enrichment_pass.py` with two-phase execution. No enrichers yet.
 Wire enrichment pass into `workflow.orchestration` as a no-op when no enrichers are
 configured.
 
-**Phase 2 -- Deterministic enrichers (v2.7 OSS):**
+**Phase 2 -- Deterministic enrichers:**
 Implement and ship `topic_cooccurrence`, `topic_cooccurrence_corpus`,
 `temporal_velocity`, `grounding_rate`, `guest_coappearance`, `insight_density`.
 All enabled by default. These are the salt and pepper -- always on, zero cost,
-immediate value.
+immediate value. These enrichers directly serve PRD-026 (Topic Entity View) and
+provide the grounding data for PRD-027 (Enriched Search).
 
-**Phase 3 -- Embedding and ML enrichers (v2.7 opt-in):**
+**Phase 3 -- Embedding and ML enrichers (opt-in):**
 Implement `topic_similarity` and `nli_contradiction`. Off by default, opt-in.
 Document in enricher guide.
 
-**Phase 4 -- LLM enrichers (post-v2.7, separate RFC):**
+**Phase 4 -- LLM and query-time enrichers (separate RFC):**
 Position narration, guest brief synthesis, contradiction explanation. Double opt-in.
-Separate RFC defining LLM enricher prompt contract and output schema.
-
-**Phase 5 -- Domain enricher extensions (platform layer):**
-Domain configs register domain-specific enrichers via the existing registry.
-No core changes required -- the extension point is already in place from Phase 1.
+Separate RFC defining LLM enricher prompt contract and output schema. This phase also
+covers the **QueryEnricher protocol** required by PRD-027 (Enriched Search) -- a
+request-time enricher that operates on FAISS results rather than writing files.
+Ideas for future LLM enrichers include stance comparison and automated guest briefs.
 
 ---
 
@@ -1071,10 +1130,17 @@ No core changes required -- the extension point is already in place from Phase 1
 
 This RFC defines the **write side** of the enrichment layer: protocol, registry,
 execution, and output format. The **read side** -- how the FastAPI server discovers
-and serves enrichment files, and how the GI/KG viewer consumes them -- is out of
-scope for this RFC and will be addressed in a follow-up feature RFC or PRD.
+and serves enrichment files, and how the GI/KG viewer consumes them -- is defined by
+the consuming PRDs:
 
-Likely integration points (informational, not normative):
+- **PRD-026 (Topic Entity View)** is the first read-side consumer. It requires API
+  endpoints to serve `topic_cooccurrence`, `temporal_velocity`, and `grounding_rate`
+  enrichment outputs. It drives the server changes listed below.
+- **PRD-027 (Enriched Search)** extends semantic search with query-time LLM
+  enrichment. It requires a **QueryEnricher protocol** (Phase 4 extension of this
+  RFC) that operates at request time rather than writing files.
+
+Likely server integration points (informational, not normative):
 
 - `artifacts.py` route globs (`**/*.gi.json`, etc.) would need extension for
   `metadata/enrichments/*.json` and `enrichments/*.json`.
@@ -1083,8 +1149,8 @@ Likely integration points (informational, not normative):
 - The viewer's `useArtifactsStore` would fetch enrichment data via new or extended
   API routes.
 
-Until the read-side RFC ships, enrichment files are produced on disk and available
-for manual inspection or script consumption.
+Until the PRD-026 server routes are implemented, enrichment files are produced on
+disk and available for manual inspection or script consumption.
 
 ---
 
@@ -1097,9 +1163,9 @@ for manual inspection or script consumption.
 3. **Scalable complexity**: Start with six trivial deterministic enrichers. Add ML
    and LLM tiers progressively as the corpus and use cases demand. No architectural
    change required.
-4. **Platform-ready**: Domain extensions register enrichers via the same registry.
-   Cyber domain enrichers follow the same protocol as OSS enrichers. The extension
-   point is the registry, not a code fork.
+4. **Extensible**: New enrichers register via the same registry and protocol. Adding
+   a new enricher requires no changes to the runner, config schema, or existing
+   enrichers.
 5. **Trust-preserving**: `derived: true` on all enricher output means downstream
    consumers -- including LLM prompts -- always know what is grounded fact vs
    computed signal. This is the enrichment layer's equivalent of the GIL grounding
@@ -1110,8 +1176,36 @@ for manual inspection or script consumption.
 
 ---
 
+## Open Questions
+
+The following are deliberately deferred and do not block implementation of Phases 1-2:
+
+1. **CLI subcommand for standalone enrichment.** Should there be a `make enrich` /
+   `python -m podcast_scraper.cli enrich --output-dir ...` that runs the enrichment
+   pass independently of the full pipeline? Useful for re-enriching an existing
+   corpus without re-running extraction. Likely yes for Phase 2.
+
+2. **Parallelism within a phase.** Episode-scope enrichers are embarrassingly
+   parallel across episodes (each writes to a different file). Should the runner use
+   a thread pool? For deterministic enrichers the overhead is negligible; for
+   embedding/ML enrichers on large corpora it would matter. Deferred until Phase 3.
+
+3. **`.gitignore` for enrichment outputs.** Test fixtures and eval corpus outputs
+   may generate `enrichments/` directories. Should these be gitignored globally or
+   per-fixture? Follow existing pattern for `metadata/` test outputs.
+
+4. **Enricher output cleanup.** If an enricher is disabled after previously running,
+   its output files remain on disk. Should the runner delete stale enrichment files,
+   or leave cleanup to the user? Default: leave them (safe, no data loss).
+
+---
+
 ## References
 
+- `docs/prd/PRD-026-topic-entity-view.md` -- first read-side consumer of enrichment
+  outputs (topic co-occurrence, temporal velocity, grounding rate)
+- `docs/prd/PRD-027-enriched-search.md` -- query-time enrichment extending semantic
+  search (Phase 4 extension)
 - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` -- bridge artifact
   that enrichers read
 - `docs/architecture/gi/ontology.md` -- GIL grounding contract

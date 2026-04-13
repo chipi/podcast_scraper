@@ -93,6 +93,54 @@ pipeline output directory. See
 (*Semantic search*) and [README.md](https://github.com/chipi/podcast_scraper/blob/main/README.md)
 (*GI / KG Viewer*).
 
+Response hits are **JSON objects** with `doc_id`, `score`, `metadata`, `text`, optional
+`supporting_quotes` (insight rows), and optional **`lifted`** on **transcript** rows when
+RFC-072 lift applies (see below).
+
+## Chunk-to-Insight lift and offset verification (RFC-072 / #528) {#chunk-to-insight-lift-and-offset-verification-rfc-072--528}
+
+**Lift:** For hits whose metadata has **`doc_type`: `transcript`**, the server may attach a
+**`lifted`** dictionary: **insight** (id, text, grounded, optional `insight_type` /
+`position_hint`), **speaker** and **topic** (canonical id + **`display_name`** from
+**`bridge.json`** when present), and **quote** timestamps from the matched **Quote** node.
+Matching uses **half-open overlap** between the chunk’s **`char_start` / `char_end`** and a
+**Quote** span, then walks **SUPPORTED_BY**, **ABOUT**, and **SPOKEN_BY** edges in `gi.json`.
+No FAISS rebuild is required; this is **query-time** enrichment.
+
+**Prerequisite:** **Quote** offsets and **index** transcript chunk offsets must refer to the
+**same normalised transcript text**. Validate on a real indexed corpus with:
+
+```bash
+python -m podcast_scraper.cli verify-gil-chunk-offsets --output-dir /path/to/corpus --strict --min-overlap-rate 0.95
+```
+
+or **`make verify-gil-offsets-strict`** (override **`GIL_OFFSET_VERIFY_DIR`**). The verifier
+walks discovered **`*.metadata.json`** paths (including **feed-nested** `feeds/.../metadata/`)
+so multi-feed outputs are included.
+
+**Verifier JSON:** The tool prints `verdict`, `overlap_rate`, per-episode breakdown, and
+`warnings`. Useful labels:
+
+- **`aligned`** — Overlap rate at least **0.99** and every scanned episode had at least one
+  transcript chunk row in the index (no “GI but no chunks” episodes).
+- **`mostly_aligned`** — Overlap rate at least **0.85** but not meeting `aligned`.
+- **`divergent`** — Overlap rate below **0.85**; treat as blocking for lift until offsets or
+  indexing are fixed.
+- **`no_quotes`** — No Quote nodes in the GI files that were scanned (empty or missing GIL).
+
+If transcript text normalisation (BOM, newlines, Unicode) differs between indexing and GIL
+generation, overlap drops; use the report to align pipelines (RFC-072 Known Limitations).
+
+**Flags:** `--index-path DIR` (default `<output-dir>/search`), `--strict` (non-zero exit when
+overlap is below `--min-overlap-rate`, verdict is `divergent`, or no quotes were found),
+`--max-samples N` (cap sample quote ids listed per episode when there is no overlap). For
+**`make verify-gil-offsets-strict`**, set **`GIL_OFFSET_VERIFY_DIR`** for the corpus root and
+optionally **`GIL_OFFSET_MIN_RATE`** (default **0.95**).
+
+**See also:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md),
+[RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (Phase 5 / Known
+Limitations).
+
 ## `gi explore` and `gi query`
 
 - **`gi explore --topic "…"`** — If a FAISS index is present at **`output_dir/search`**
@@ -111,6 +159,8 @@ pipeline output directory. See
 ## Related docs
 
 - **RFC-061 (FAISS, shipped):** [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
+- **RFC-072 (CIL, bridge, lift):** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
 - **RFC-070 (platform / future, Draft):** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - **PRD-021:** [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
 - **GIL CLI:** [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md)
+- **Cross-layer map:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md)

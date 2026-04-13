@@ -16,7 +16,8 @@
   - [RFC-062: GI/KG viewer v2](RFC-062-gi-kg-viewer-v2.md) — shell, tabs, Search panel
   - [RFC-063: Multi-Feed Corpus](RFC-063-multi-feed-corpus-append-resume.md)
 - **Related UX specs**:
-  - [UXS-001: Corpus digest (PRD-023)](../uxs/UXS-001-gi-kg-viewer.md#corpus-digest-prd-023)
+  - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md) — Digest tab and discovery layout (PRD-023)
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
 - **Related Documents**:
   - [ADR-064: Canonical server layer](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)
 
@@ -154,7 +155,7 @@ via query params with server-enforced maxima).
 **Shell (`App.vue`):**
 
 - Extend `mainTab` union with `'digest'`.
-- Nav button **Digest** next to Graph / Dashboard / Library (UXS-001).
+- Nav button **Digest** next to Graph / Dashboard / Library (UXS-002, shell per UXS-001).
 
 **Components:**
 
@@ -209,4 +210,4 @@ present).
 ## References
 
 - **PRD-023**: `docs/prd/PRD-023-corpus-digest-recap.md`
-- **UXS-001**: `docs/uxs/UXS-001-gi-kg-viewer.md`
+- **UXS-002**: `docs/uxs/UXS-002-corpus-digest.md` (Digest surface); **UXS-001**: shared design system

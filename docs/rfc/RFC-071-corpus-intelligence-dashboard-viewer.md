@@ -25,7 +25,8 @@
   - [RFC-067](RFC-067-corpus-library-api-viewer.md) — **`GET /api/corpus/feeds`** (feeds-in-index vs catalog)
   - [RFC-068](RFC-068-corpus-digest-api-viewer.md) — **`GET /api/corpus/digest?compact=true`** glance line
 - **Related UX specs**:
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — **Dashboard tab (charts)**
+  - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md) — **Dashboard tab (charts)**
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
   - [Server guide](../guides/SERVER_GUIDE.md) (HTTP overview)
@@ -66,7 +67,7 @@ and **corpus_metrics** behavior was hard to navigate for contributors.
 | **`utils/artifactMtimeBuckets.ts`** | Client-side GI/KG mtime bucketing (caps documented in code). |
 
 **Behavioral** rules (refresh generation, loading flags, error handling) belong in this RFC; **visual**
-density, tokens, and **aria** labels for the **Dashboard** row belong in **UXS-001**.
+density, tokens, and **aria** labels for the **Dashboard** row belong in **UXS-006** (tokens per **UXS-001**).
 
 ### Backend (`src/podcast_scraper/server/routes/corpus_metrics.py`)
 
@@ -118,4 +119,4 @@ or shared stores change across tabs.
 - [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md)
 - [RFC-062](RFC-062-gi-kg-viewer-v2.md)
 - [RFC-063](RFC-063-multi-feed-corpus-append-resume.md)
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-006](../uxs/UXS-006-dashboard.md); [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)

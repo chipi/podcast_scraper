@@ -36,8 +36,11 @@
   - [RFC-051: Database projection GIL/KG](RFC-051-database-projection-gil-kg.md) — future structured
     query backend
 - **Related UX specs**:
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — tokens, density, tab copy, accessibility
-    targets (updated with v2 shell)
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system (tokens, density,
+    shell chrome, accessibility)
+  - [UXS-002 Corpus Digest](../uxs/UXS-002-corpus-digest.md), [UXS-003 Corpus Library](../uxs/UXS-003-corpus-library.md),
+    [UXS-004 Graph Exploration](../uxs/UXS-004-graph-exploration.md), [UXS-005 Semantic Search](../uxs/UXS-005-semantic-search.md),
+    [UXS-006 Dashboard](../uxs/UXS-006-dashboard.md) — per-surface visual contracts (see [UXS index](../uxs/index.md))
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) —
     Playwright contract (selectors, surfaces); **update when UI or E2E changes** (repo path:
@@ -84,11 +87,11 @@ This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI 
 | Surface | What shipped (summary) | Normative detail |
 | ------- | ---------------------- | ---------------- |
 | **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **Corpus** / **API · Data** left tabs, right **Search & Explore** vs **Episode** / graph context rails | [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
-| **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** rail, **Open Library** / **Search topic** handoffs | [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
-| **Library** | Feed list + cursor-paginated episodes, filters, **Episode** rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [RFC-067](RFC-067-corpus-library-api-viewer.md) |
-| **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | This RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
-| **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | UXS-001 + [RFC-061](RFC-061-semantic-corpus-search.md) |
-| **Dashboard** | **Corpus summary** strip; **Dashboard sections** tablist **Pipeline** vs **Content intelligence**; Chart.js (manifest, **run.json**, index/digest glance, GI/KG timelines, histograms) | [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md); stats from **`/api/corpus/*`** |
+| **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** rail, **Open Library** / **Search topic** handoffs | [UXS-002](../uxs/UXS-002-corpus-digest.md) + [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
+| **Library** | Feed list + cursor-paginated episodes, filters, **Episode** rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [UXS-003](../uxs/UXS-003-corpus-library.md) + [RFC-067](RFC-067-corpus-library-api-viewer.md) |
+| **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | [UXS-004](../uxs/UXS-004-graph-exploration.md) + this RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
+| **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | [UXS-005](../uxs/UXS-005-semantic-search.md) + [RFC-061](RFC-061-semantic-corpus-search.md) |
+| **Dashboard** | **Corpus summary** strip; **Dashboard sections** tablist **Pipeline** vs **Content intelligence**; Chart.js (manifest, **run.json**, index/digest glance, GI/KG timelines, histograms) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md); stats from **`/api/corpus/*`** |
 | **API · Data** | **Health** matrix (**Artifacts**, **Semantic search**, **Library API**, **Digest API**, **Binary**, …), elevated **Data** cards (**Corpus root**, **Corpus catalog**, **Graph**, **Vector index** with rebuild) | UXS-001 |
 | **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) |
 | **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Firefox; dedicated Vite port in CI) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
@@ -1028,7 +1031,7 @@ RFC-051 (DB Projection)        → structured query backend (platform reads)
   [RFC-049](RFC-049-grounded-insight-layer-core.md), [RFC-050](RFC-050-grounded-insight-layer-use-cases.md),
   [RFC-055](RFC-055-knowledge-graph-layer-core.md), [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md),
   [RFC-051](RFC-051-database-projection-gil-kg.md)
-- **UXS**: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- **UXS**: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) (hub); [UXS index](../uxs/index.md) (feature specs)
 - **E2E**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`)
 - **ADRs**: [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md),
   [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)
