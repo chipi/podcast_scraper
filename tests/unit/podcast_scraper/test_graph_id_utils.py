@@ -40,3 +40,12 @@ def test_gil_hashes_stable() -> None:
 
 def test_slugify_label() -> None:
     assert slugify_label("  Car Loans!! ") == "car-loans"
+
+
+def test_slugify_label_max_len_truncates() -> None:
+    long_word = "x" * 100
+    assert len(slugify_label(long_word, max_len=40)) == 40
+
+
+def test_speaker_node_id_diacritic_normalizes_like_cil() -> None:
+    assert speaker_node_id("José") == "speaker:jose"

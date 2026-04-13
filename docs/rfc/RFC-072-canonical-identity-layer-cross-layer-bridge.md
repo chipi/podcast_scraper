@@ -23,6 +23,20 @@
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md`
   - `docs/architecture/kg/ontology.md`
+- **GitHub (implementation tracking)**:
+  This RFC is the authoritative spec. The issues below were derived from it; if an
+  issue body drifts, reconcile the issue to match the RFC.
+  - [Issue #524](https://github.com/chipi/podcast_scraper/issues/524) — Phase 1
+    (canonical slugifier, wire builders; no artifact ID migration yet)
+  - [Issue #525](https://github.com/chipi/podcast_scraper/issues/525) — Phase 2
+    (ontology migration **and** GIL v1.1 `insight_type` + `position_hint` per Sections
+    2a–2b; viewer compat)
+  - [Issue #526](https://github.com/chipi/podcast_scraper/issues/526) — Phase 3
+    (`bridge.json` + viewer awareness)
+  - [Issue #527](https://github.com/chipi/podcast_scraper/issues/527) — Phase 4
+    (cross-layer query API)
+  - [Issue #528](https://github.com/chipi/podcast_scraper/issues/528) — Phase 5
+    (chunk-to-Insight lift; gated on char-offset verification)
 
 ---
 
