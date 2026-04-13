@@ -2,7 +2,12 @@
 
 This document is the **Playwright automation contract** for the GI/KG viewer (`web/gi-kg-viewer`).
 It lists surfaces, entry paths, owning specs, and selectors tests rely on. It complements
-[UXS-001](../../../docs/uxs/UXS-001-gi-kg-viewer.md) (visual and experience contract) and
+the UXS specs -- [UXS-001](../../../docs/uxs/UXS-001-gi-kg-viewer.md) (shared design system)
+plus feature UXS files ([UXS-002](../../../docs/uxs/UXS-002-corpus-digest.md) Digest,
+[UXS-003](../../../docs/uxs/UXS-003-corpus-library.md) Library,
+[UXS-004](../../../docs/uxs/UXS-004-graph-exploration.md) Graph,
+[UXS-005](../../../docs/uxs/UXS-005-semantic-search.md) Search,
+[UXS-006](../../../docs/uxs/UXS-006-dashboard.md) Dashboard) -- and
 [RFC-062](../../../docs/rfc/RFC-062-gi-kg-viewer-v2.md) (technical design); it does not replace them.
 
 **Related:** [ADR-066](../../../docs/adr/ADR-066-playwright-for-ui-e2e-testing.md). Tracked in
@@ -151,8 +156,12 @@ Use this order for **viewer UX** work (humans and agents); details also live in
    or **selectors** in specs change, update the map in the **same PR** (usually **before** or
    alongside test edits so the contract stays obvious).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **UXS** — Update [UXS-001](../../../docs/uxs/UXS-001-gi-kg-viewer.md) when the **visual or experience
-   contract** (tokens, density, documented patterns) changes, not only when tests fail.
+3. **UXS** — Update the relevant feature UXS file
+   ([UXS-002](../../../docs/uxs/UXS-002-corpus-digest.md) through
+   [UXS-006](../../../docs/uxs/UXS-006-dashboard.md)) when the **visual or experience contract**
+   (layout, density, documented patterns) changes; update
+   [UXS-001](../../../docs/uxs/UXS-001-gi-kg-viewer.md) only when **shared** tokens or design
+   system primitives change. See [UXS index](../../../docs/uxs/index.md) for the full list.
 
 - **Reviewers:** if a PR changes Playwright selectors or primary control labels, confirm
   `E2E_SURFACE_MAP.md` was updated when applicable.
