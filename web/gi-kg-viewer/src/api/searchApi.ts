@@ -4,6 +4,14 @@ export interface SearchHit {
   metadata: Record<string, unknown>
   text: string
   supporting_quotes?: Record<string, unknown>[] | null
+  /** RFC-072 chunk-to-Insight lift when the server enriches transcript rows (#528). */
+  lifted?: Record<string, unknown> | null
+}
+
+/** Counters for the current search response page (after top-k slice). */
+export interface CorpusSearchLiftStats {
+  transcript_hits_returned: number
+  lift_applied: number
 }
 
 export interface SearchResponse {
@@ -11,6 +19,7 @@ export interface SearchResponse {
   results: SearchHit[]
   error?: string | null
   detail?: string | null
+  lift_stats?: CorpusSearchLiftStats | null
 }
 
 export interface SearchRequestOptions {

@@ -9,6 +9,10 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
 from podcast_scraper.builders.rfc072_artifact_paths import bridge_path_next_to_gi_json
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.search.cil_lift_overrides import (
+    CilLiftOverrides,
+    resolve_id_alias,
+)
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 logger = logging.getLogger(__name__)
@@ -149,6 +153,7 @@ def try_lift_transcript_chunk_from_gi(
     *,
     char_start: int,
     char_end: int,
+    overrides: Optional[CilLiftOverrides] = None,
 ) -> Optional[Dict[str, Any]]:
     """If a Quote overlaps the chunk span, return RFC-072-style ``lifted`` dict, else ``None``."""
     quote_id = _best_overlapping_quote(gi, char_start, char_end)
@@ -180,6 +185,10 @@ def try_lift_transcript_chunk_from_gi(
         ts0_i, ts1_i = 0, 0
 
     person_id = _person_id_for_quote(gi, quote_id)
+    if overrides and person_id:
+        person_id = resolve_id_alias(person_id, overrides.entity_id_aliases)
+    if overrides and topic_id:
+        topic_id = resolve_id_alias(topic_id, overrides.topic_id_aliases)
 
     speaker_name = ""
     topic_name = ""
@@ -248,6 +257,7 @@ def lift_row_if_transcript(
     corpus_root: Path,
     gi_path: Path,
     cache: TranscriptLiftGiCache,
+    overrides: Optional[CilLiftOverrides] = None,
 ) -> None:
     """Mutate ``row`` in place: set ``lifted`` when doc_type is transcript and lift succeeds."""
     meta = row.get("metadata")
@@ -265,6 +275,11 @@ def lift_row_if_transcript(
         return
     if ce <= cs:
         return
+    shift = int(overrides.transcript_char_shift) if overrides else 0
+    cs_adj = cs + shift
+    ce_adj = ce + shift
+    if ce_adj <= cs_adj:
+        return
 
     doc = cache.get(gi_path)
     if doc is None:
@@ -274,8 +289,9 @@ def lift_row_if_transcript(
         doc,
         corpus_root,
         gi_path,
-        char_start=cs,
-        char_end=ce,
+        char_start=cs_adj,
+        char_end=ce_adj,
+        overrides=overrides,
     )
     if lifted is not None:
         row["lifted"] = lifted

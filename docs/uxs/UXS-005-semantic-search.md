@@ -9,6 +9,7 @@
 - **Related RFCs**:
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+  - [RFC-072: Canonical identity + cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (chunk-to-Insight **lift** on transcript hits)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/search/SearchPanel.vue`
   - `web/gi-kg-viewer/src/components/search/ResultCard.vue`
@@ -68,7 +69,11 @@ counts; **Similarity** bars proportional to score / max(score) in the list
 ## Results
 
 A muted "N results" / "1 result" line only (the query stays in the textarea; it is
-not repeated here). Each hit can expose:
+not repeated here). When the API returns **`lift_stats`** and at least one transcript
+row is on the page, a compact **Lift: applied / transcript rows** ratio appears on
+the same row (native **`title`** explains RFC-072 lift coverage).
+
+Each hit can expose:
 
 - **G** (graph focus, GI token) and **L** (Library episode) as separate controls
 - **L** requires a healthy API check + corpus path and `source_metadata_relative_path`
@@ -79,6 +84,9 @@ not repeated here). Each hit can expose:
 - When **Merge duplicate KG surfaces** merged a row (`kg_surface_match_count` >= 2),
   G only -- L and E are hidden so actions are not tied to a single representative
   episode
+- **Transcript** hits may include a collapsible **`region` Lifted GI insight** (linked
+  insight id/text, speaker/topic labels, quote time range) when the server attaches
+  **`lifted`** (#528)
 
 ---
 
@@ -95,3 +103,4 @@ search panel surfaces and selectors.
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-06 | Initial content (in UXS-001)                                   |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-005                 |
+| 2026-04-13 | Document lift_stats summary line + Lifted GI insight region    |

@@ -524,6 +524,31 @@ class TestGILPipeline:
         ins = next(n for n in out["nodes"] if n["type"] == "Insight")
         assert ins["properties"]["position_hint"] == pytest.approx(0.5)
 
+    def test_artifact_position_hint_fallback_uses_nonzero_starts(self):
+        transcript = "ab"
+        segments = [
+            {"start": 5.0, "end": 6.0, "text": "a"},
+            {"start": 6.0, "end": 20.0, "text": "b"},
+        ]
+        gq = GroundedQuote(char_start=0, char_end=1, text="a", qa_score=0.9, nli_score=0.8)
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            [("I", "unknown")],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+            episode_duration_ms=None,
+        )
+        ins = next(n for n in out["nodes"] if n["type"] == "Insight")
+        # Quote "a" in first segment: 5000-6000 ms; fallback dur = max end = 6000 for one quote
+        assert ins["properties"]["position_hint"] == pytest.approx(round(5000 / 6000.0, 2))
+
     def test_build_artifact_with_insight_texts_produces_multiple_insights(self):
         """build_artifact(..., insight_texts=[...]) produces one Insight per text."""
         cfg = MagicMock()

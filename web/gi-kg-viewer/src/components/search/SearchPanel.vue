@@ -445,6 +445,16 @@ const advancedFeedInputTitle = computed(() => {
           {{ search.results.length }}
           {{ search.results.length === 1 ? 'result' : 'results' }}
         </p>
+        <p
+          v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
+          class="text-[10px] text-muted"
+          title="RFC-072 lift coverage for this result page (transcript rows returned vs rows with a linked GI insight)."
+        >
+          Lift:
+          {{ search.liftStats.lift_applied }} /
+          {{ search.liftStats.transcript_hits_returned }}
+          transcript rows linked to GI
+        </p>
         <button
           type="button"
           class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary"

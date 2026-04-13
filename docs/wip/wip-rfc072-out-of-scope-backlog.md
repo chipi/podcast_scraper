@@ -101,6 +101,7 @@ follow-the-thread, controversy-oriented queries) + **Section 6** search lift + *
 - RFC-072: `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md` (Known Limitations, roadmap)
 - Semantic search lift + offset gate: `docs/guides/SEMANTIC_SEARCH_GUIDE.md` (chunk-to-Insight lift section)
 - Cross-layer map: `docs/guides/GIL_KG_CIL_CROSS_LAYER.md`
+- Phase 6 analysis **input contract** (WIP): `docs/wip/wip-rfc072-phase6-input-contract.md`
 
 ---
 

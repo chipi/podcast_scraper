@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from podcast_scraper.search.cil_lift_overrides import CilLiftOverrides
 from podcast_scraper.search.transcript_chunk_lift import (
     bridge_path_next_to_gi,
     lift_row_if_transcript,
@@ -116,6 +117,95 @@ def test_lift_row_if_transcript_sets_lifted(tmp_path: Path) -> None:
     lift_row_if_transcript(row, tmp_path, gi_path, cache)
     assert "lifted" in row
     assert row["lifted"]["insight"]["id"] == "i2"
+
+
+def test_lift_row_applies_transcript_char_shift(tmp_path: Path) -> None:
+    """Positive shift aligns index chunk spans with GI Quote char space."""
+    gi_path = tmp_path / "ep_shift.gi.json"
+    gi = {
+        "nodes": [
+            {
+                "id": "ins",
+                "type": "Insight",
+                "properties": {"text": "Shifted.", "grounded": True},
+            },
+            {
+                "id": "quo",
+                "type": "Quote",
+                "properties": {
+                    "char_start": 100,
+                    "char_end": 200,
+                    "timestamp_start_ms": 0,
+                    "timestamp_end_ms": 0,
+                },
+            },
+        ],
+        "edges": [{"type": "SUPPORTED_BY", "from": "ins", "to": "quo"}],
+    }
+    gi_path.write_text(json.dumps(gi), encoding="utf-8")
+    row: dict = {
+        "doc_id": "chunk",
+        "score": 0.5,
+        "metadata": {
+            "doc_type": "transcript",
+            "episode_id": "e1",
+            "char_start": 0,
+            "char_end": 50,
+        },
+        "text": "x",
+    }
+    cache = TranscriptLiftGiCache()
+    lift_row_if_transcript(
+        row,
+        tmp_path,
+        gi_path,
+        cache,
+        CilLiftOverrides(transcript_char_shift=100),
+    )
+    assert row.get("lifted", {}).get("insight", {}).get("id") == "ins"
+
+
+def test_entity_alias_uses_bridge_display_for_target_id(tmp_path: Path) -> None:
+    gi_path = tmp_path / "ep_alias.gi.json"
+    bridge_path = tmp_path / "ep_alias.bridge.json"
+    gi = {
+        "nodes": [
+            {
+                "id": "ins",
+                "type": "Insight",
+                "properties": {"text": "A", "grounded": True},
+            },
+            {
+                "id": "quo",
+                "type": "Quote",
+                "properties": {
+                    "char_start": 0,
+                    "char_end": 50,
+                    "timestamp_start_ms": 0,
+                    "timestamp_end_ms": 0,
+                },
+            },
+        ],
+        "edges": [
+            {"type": "SUPPORTED_BY", "from": "ins", "to": "quo"},
+            {"type": "SPOKEN_BY", "from": "quo", "to": "person:legacy"},
+        ],
+    }
+    bridge = {"identities": [{"id": "person:canonical", "display_name": "Canonical Name"}]}
+    gi_path.write_text(json.dumps(gi), encoding="utf-8")
+    bridge_path.write_text(json.dumps(bridge), encoding="utf-8")
+    overrides = CilLiftOverrides(entity_id_aliases={"person:legacy": "person:canonical"})
+    lifted = try_lift_transcript_chunk_from_gi(
+        gi,
+        tmp_path,
+        gi_path,
+        char_start=10,
+        char_end=20,
+        overrides=overrides,
+    )
+    assert lifted is not None
+    assert lifted["speaker"]["id"] == "person:canonical"
+    assert lifted["speaker"]["display_name"] == "Canonical Name"
 
 
 def test_no_lift_when_no_overlap(tmp_path: Path) -> None:

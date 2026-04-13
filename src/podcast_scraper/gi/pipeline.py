@@ -294,12 +294,24 @@ def _attach_person_for_quote(
 def _position_hint_from_timestamp_starts(
     timestamp_starts_ms: List[int],
     episode_duration_ms: Optional[int],
+    *,
+    duration_fallback_ms: Optional[int] = None,
 ) -> Optional[float]:
-    """RFC-072: mean quote start ms / episode duration, rounded (or None)."""
-    if not episode_duration_ms or episode_duration_ms <= 0 or not timestamp_starts_ms:
+    """RFC-072: mean quote start ms / episode duration, rounded (or None).
+
+    When ``episode_duration_ms`` is missing, ``duration_fallback_ms`` may be set to a
+    positive value (e.g. max quote ``timestamp_end_ms`` for the insight) so arcs still get
+    a weak ordering signal instead of omitting ``position_hint`` entirely.
+    """
+    dur: Optional[int] = None
+    if episode_duration_ms and episode_duration_ms > 0:
+        dur = episode_duration_ms
+    elif duration_fallback_ms and duration_fallback_ms > 0:
+        dur = duration_fallback_ms
+    if not dur or not timestamp_starts_ms:
         return None
     mean_start = sum(timestamp_starts_ms) / len(timestamp_starts_ms)
-    return round(min(mean_start / float(episode_duration_ms), 1.0), 2)
+    return round(min(mean_start / float(dur), 1.0), 2)
 
 
 def _build_stub_artifact(
@@ -751,6 +763,7 @@ def _artifact_from_multi_insight(
         insight_id = gil_insight_node_id(episode_id, idx, it_text)
         insight_confidence = _insight_confidence_from_quotes(quotes)
         timestamp_starts_ms: List[int] = []
+        timestamp_ends_ms: List[int] = []
         insight_props: Dict[str, Any] = {
             "text": it_text,
             "episode_id": episode_id,
@@ -760,9 +773,9 @@ def _artifact_from_multi_insight(
         for gq in quotes:
             if not isinstance(gq, GroundedQuote):
                 continue
-            ts_start, _ts_end = 0, 0
+            ts_start, ts_end_q = 0, 0
             if use_segments and transcript_segments:
-                ts_start, _ts_end = _char_range_to_ms(
+                ts_start, ts_end_q = _char_range_to_ms(
                     transcript_text or "",
                     gq.char_start,
                     gq.char_end,
@@ -770,7 +783,14 @@ def _artifact_from_multi_insight(
                 )
             if ts_start > 0:
                 timestamp_starts_ms.append(ts_start)
-        ph = _position_hint_from_timestamp_starts(timestamp_starts_ms, episode_duration_ms)
+            if ts_end_q > 0:
+                timestamp_ends_ms.append(ts_end_q)
+        duration_fb = max(timestamp_ends_ms) if timestamp_ends_ms else None
+        ph = _position_hint_from_timestamp_starts(
+            timestamp_starts_ms,
+            episode_duration_ms,
+            duration_fallback_ms=duration_fb,
+        )
         if ph is not None:
             insight_props["position_hint"] = ph
         insight_node: Dict[str, Any] = {

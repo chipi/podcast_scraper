@@ -478,7 +478,10 @@ def run_search_cli(args: Namespace, logger: logging.Logger) -> int:
 
     fmt = getattr(args, "format", "pretty") or "pretty"
     if fmt == "json":
-        print(json.dumps({"query": query, "results": enriched}, indent=2))
+        payload: Dict[str, Any] = {"query": query, "results": enriched}
+        if outcome.lift_stats is not None:
+            payload["lift_stats"] = outcome.lift_stats
+        print(json.dumps(payload, indent=2))
     else:
         print(f"Query: {query}\n")
         for row in enriched:

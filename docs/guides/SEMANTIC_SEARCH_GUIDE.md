@@ -107,6 +107,21 @@ Matching uses **half-open overlap** between the chunk’s **`char_start` / `char
 **Quote** span, then walks **SUPPORTED_BY**, **ABOUT**, and **SPOKEN_BY** edges in `gi.json`.
 No FAISS rebuild is required; this is **query-time** enrichment.
 
+**Response counters:** On successful search, the JSON may include **`lift_stats`** with
+**`transcript_hits_returned`** (rows in that response with `doc_type: transcript`) and
+**`lift_applied`** (those rows carrying a non-null **`lifted`** object). Counts apply to
+the paginated **`top_k`** slice after server-side KG surface dedupe.
+
+**Optional corpus overrides:** A file **`cil_lift_overrides.json`** at the corpus root
+(same directory you pass as **`path`** / `--output-dir`) can tune lift without reindexing:
+
+- **`transcript_char_shift`** (integer) — added to each transcript hit’s **`char_start`** /
+  **`char_end`** before overlap with **Quote** spans (fixed offset when index and GI use
+  different normalised text bases).
+- **`entity_id_aliases`** / **`topic_id_aliases`** — string-to-string maps; **speaker** /
+  **topic** ids from the graph are resolved through the map before **`bridge.json`**
+  **`display_name`** lookup and before emitting **`lifted.speaker.id`** / **`lifted.topic.id`**.
+
 **Prerequisite:** **Quote** offsets and **index** transcript chunk offsets must refer to the
 **same normalised transcript text**. Validate on a real indexed corpus with:
 

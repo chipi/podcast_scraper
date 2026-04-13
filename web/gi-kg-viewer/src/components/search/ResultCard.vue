@@ -98,6 +98,50 @@ const quotes = computed(() => {
 })
 
 const quotesOpen = ref(false)
+const liftedOpen = ref(true)
+
+/** RFC-072 optional enrichment on transcript chunk hits (#528). */
+const lifted = computed((): Record<string, unknown> | null => {
+  const raw = props.hit.lifted
+  if (raw == null || typeof raw !== 'object') return null
+  return raw as Record<string, unknown>
+})
+
+function liftedInsightText(ins: unknown): string {
+  if (ins == null || typeof ins !== 'object') return ''
+  const t = (ins as Record<string, unknown>).text
+  return typeof t === 'string' ? t : ''
+}
+
+function liftedInsightId(ins: unknown): string {
+  if (ins == null || typeof ins !== 'object') return ''
+  const id = (ins as Record<string, unknown>).id
+  return typeof id === 'string' ? id : ''
+}
+
+function liftedEntityLabel(block: unknown, fallback: string): string {
+  if (block == null || typeof block !== 'object') return fallback
+  const o = block as Record<string, unknown>
+  const dn = o.display_name
+  if (typeof dn === 'string' && dn.trim()) return dn
+  const id = o.id
+  if (typeof id === 'string' && id.trim()) return id
+  return fallback
+}
+
+const liftedQuoteTimeLabel = computed((): string => {
+  const L = lifted.value
+  if (!L) return '—'
+  const q = L.quote
+  if (q == null || typeof q !== 'object') return '—'
+  const o = q as Record<string, unknown>
+  const a = Number(o.timestamp_start_ms)
+  const b = Number(o.timestamp_end_ms)
+  if (!Number.isFinite(a) && !Number.isFinite(b)) return '—'
+  const s = Number.isFinite(a) ? (a / 1000).toFixed(1) : '?'
+  const e = Number.isFinite(b) ? (b / 1000).toFixed(1) : '?'
+  return `${s}s – ${e}s`
+})
 
 function onGraphClick(ev: MouseEvent): void {
   ev.stopPropagation()
@@ -182,6 +226,54 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
     <p class="leading-snug text-surface-foreground">
       {{ truncate(hit.text || '(no text)', 320) }}
     </p>
+
+    <div
+      v-if="lifted"
+      class="mt-2 border-t border-border pt-2"
+      role="region"
+      aria-label="Lifted GI insight"
+      @click.stop
+    >
+      <button
+        type="button"
+        class="text-[10px] text-primary underline hover:text-surface-foreground"
+        @click="liftedOpen = !liftedOpen"
+      >
+        {{ liftedOpen ? 'Hide' : 'Show' }} linked GI insight
+      </button>
+      <div
+        v-if="liftedOpen"
+        class="mt-1 space-y-1 rounded border border-primary/25 bg-canvas/80 px-2 py-1.5 text-[11px] leading-snug text-surface-foreground"
+      >
+        <p
+          v-if="liftedInsightId(lifted.insight)"
+          class="font-mono text-[10px] text-muted"
+        >
+          {{ liftedInsightId(lifted.insight) }}
+        </p>
+        <p v-if="liftedInsightText(lifted.insight)">
+          {{ truncate(liftedInsightText(lifted.insight), 280) }}
+        </p>
+        <p
+          v-if="lifted.speaker || lifted.topic"
+          class="text-[10px] text-muted"
+        >
+          <span v-if="lifted.speaker">
+            Speaker: {{ liftedEntityLabel(lifted.speaker, '—') }}
+          </span>
+          <span v-if="lifted.speaker && lifted.topic"> · </span>
+          <span v-if="lifted.topic">
+            Topic: {{ liftedEntityLabel(lifted.topic, '—') }}
+          </span>
+        </p>
+        <p
+          v-if="lifted.quote && typeof lifted.quote === 'object'"
+          class="text-[10px] text-muted"
+        >
+          Quote time: {{ liftedQuoteTimeLabel }}
+        </p>
+      </div>
+    </div>
 
     <div
       v-if="quotes.length"

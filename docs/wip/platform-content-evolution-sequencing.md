@@ -1,91 +1,107 @@
-# Platform ↔ Content Evolution: Sequencing and Anticipation Guide
+# Platform + Content Evolution: Sequencing and Anticipation Guide
 
-**Status:** Cross-analysis of two architecture documents — identifies what to
+**Status:** Cross-analysis of architecture documents -- identifies what to
 do first, what to anticipate, and what to defer.
 
-**Date:** 2026-04-05
+**Date:** 2026-04-13 (updated to reflect RFC-072/073 alignment)
 
 **Input documents:**
 
 - [Platform Architecture Blueprint](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
-  — infrastructure evolution (tenancy, workers, queues, Postgres, deployment)
-- [Content Evolution Note](platform-extensibility-architecture-note.md) —
+  -- infrastructure evolution (tenancy, workers, queues, Postgres, deployment)
+- [Content Evolution Note](platform-extensibility-architecture-note.md) --
   content-type evolution (generic core, pluggable content types + transports)
+- [RFC-072: Canonical Identity Layer + Bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
+  -- cross-layer identity foundation (`person:`, `org:`, `topic:` canonical IDs,
+  bridge artifact, CIL read routes). Shipped.
+- [RFC-073: Enrichment Layer Architecture](../rfc/RFC-073-enrichment-layer-architecture.md)
+  -- fourth artifact tier for derived signals (enricher protocol, registry,
+  deterministic + LLM enrichers). In progress. First consumers: PRD-026, PRD-027.
 
 **Purpose:** The platform blueprint and content evolution are two separate
 efforts with different timelines. This document maps their dependencies and
 identifies the **specific design decisions** during platform work (v2.x) that
 must anticipate content evolution (v3.0) to avoid painful migrations later.
+RFC-072 and RFC-073 are v2.x work that is already content-agnostic by design,
+providing implemented patterns that the v3.0 content evolution will generalise.
 
 ---
 
 ## Executive Summary
 
 **Do platform first, content evolution later.** But make four specific
-anticipations during platform work — each costs almost nothing now (a column
+anticipations during platform work -- each costs almost nothing now (a column
 name, a field in a payload) but saves schema migrations and rework later.
+
+Two v2.x efforts -- RFC-072 (Canonical Identity Layer) and RFC-073
+(Enrichment Layer) -- are already content-agnostic by design. Their patterns
+(canonical IDs, bridge artifact, enricher protocol, plugin registry) are
+**implemented precursors** that the v3.0 content evolution will generalise.
+The anticipations below should leverage these existing patterns.
 
 | # | Anticipation | Where It Applies | Cost Now | Cost If Skipped |
 | --- | --- | --- | --- | --- |
-| 1 | Generic content identity in Postgres | RFC-051 schema | Column naming | `ALTER TABLE` on every projected table + all queries |
+| 1 | Generic content identity in Postgres | RFC-051 schema | Column naming + CIL projection tables | `ALTER TABLE` on every projected table + all queries |
 | 2 | Generic catalog/source model | Part A catalog tables | One extra column | New table + migration + subscription model rework |
-| 3 | Generic job payload envelope | Part B worker jobs | JSON field naming | Job schema migration + worker code changes |
+| 3 | Generic job payload envelope | Part B worker jobs | JSON field naming + `enrichment_enabled` | Job schema migration + worker code changes |
 | 4 | Generic pipeline fingerprint key | A.4 dedup logic | Variable naming | Dedup key migration + reprocessing risk |
 
 ---
 
 ## Sequencing: What Goes When
 
-### Phase 1: v2.x — Platform Infrastructure (Podcast-Only)
+### Phase 1: v2.x -- Platform Infrastructure (Podcast-Only)
 
 All of these proceed as planned. Content evolution does not block or change
 them, except for the four anticipations noted below.
 
 | Item | Blueprint Ref | Status | Content Evolution Impact |
 | --- | --- | --- | --- |
-| GI/KG Viewer v2 | RFC-062, Phase D | Current work | **None.** Pure podcast UI. |
-| Semantic search | RFC-061 | In progress | **None.** Operates on text + embeddings, already generic. |
+| GI/KG Viewer v2 | RFC-062, Phase D | Shipped | **None.** Pure podcast UI. UXS split (UXS-001 through UXS-008) already separates shared design system from feature-specific contracts -- extends naturally to v3 content-type views. |
+| Semantic search | RFC-061 | Shipped | **None.** Operates on text + embeddings, already generic. |
+| Canonical Identity Layer + bridge | RFC-072 | Shipped | **PRECURSOR.** `person:{slug}`, `org:{slug}`, `topic:{slug}` are content-agnostic canonical IDs. The bridge artifact and CIL patterns are the **implemented foundation** for cross-content-type entity resolution (Phase 3 / F.3). Postgres schema (Anticipation #1) should use these canonical IDs directly. |
+| Enrichment layer | RFC-073 | In progress | **None.** Enricher protocol is content-agnostic -- reads core artifacts (GIL, KG, bridge), produces derived signals. Works unchanged for any content type that produces the same artifact shapes. First consumers: PRD-026 (Topic Entity View), PRD-027 (Enriched Search). |
 | Evaluation framework | RFC-041/057 | In progress | **None.** Needed later for content-type prompt tuning. |
-| Postgres projection | RFC-051, Phase C | Next major | **ANTICIPATE** — see Anticipation #1 and #2 below. |
-| Catalog + subscriptions | Part A, Phase A | Planned | **ANTICIPATE** — see Anticipation #2 below. |
-| Workers + queues | Part B, simple tier | Planned | **ANTICIPATE** — see Anticipation #3 below. |
-| Pipeline fingerprinting | A.4 | Planned | **ANTICIPATE** — see Anticipation #4 below. |
-| Adaptive routing | RFC-053 | Planned | **Design for content type input** — add `content_type` as a routing dimension in the routing interface, even if only `"podcast"` exists at first. |
+| Postgres projection | RFC-051, Phase C | Next major | **ANTICIPATE** -- see Anticipation #1 and #2 below. RFC-072 canonical IDs (`person:{slug}`, `topic:{slug}`) should be the identity columns, not ad-hoc slugs. |
+| Catalog + subscriptions | Part A, Phase A | Planned | **ANTICIPATE** -- see Anticipation #2 below. |
+| Workers + queues | Part B, simple tier | Planned | **ANTICIPATE** -- see Anticipation #3 below. |
+| Pipeline fingerprinting | A.4 | Planned | **ANTICIPATE** -- see Anticipation #4 below. |
+| Adaptive routing | RFC-053 | Planned | **Design for content type input** -- add `content_type` as a routing dimension in the routing interface, even if only `"podcast"` exists at first. |
 | Docker Compose | Part B | Planned | **None.** Container topology is content-agnostic. |
 | Observability | Part E | Planned | **None.** Metrics and logging are content-agnostic. |
 | Auth (stages 1-2) | A.12 | Planned | **None.** API key auth is content-agnostic. |
 | Alembic migrations | B.16 | Planned | **None.** Migration tooling is content-agnostic. Having Alembic from day one makes the v3.0 schema changes easier. |
-| Digest features | Part C | Planned | **None for v0/v1.** Digest operates on projected tables — if those tables use generic naming (Anticipation #1), digest queries generalize automatically. |
+| Digest features | Part C | Planned | **None for v0/v1.** Digest operates on projected tables -- if those tables use generic naming (Anticipation #1), digest queries generalize automatically. |
 
-### Phase 2: v3.0 — Content Evolution Refactoring
+### Phase 2: v3.0 -- Content Evolution Refactoring
 
 Happens after platform v1 is operational. Depends on platform infrastructure
 being in place.
 
 | Item | Content Evolution Ref | Depends On (Platform) |
 | --- | --- | --- |
-| Core protocols + registry | Phase 1-2 | Postgres schema (to know what `ContentItem` maps to in DB) |
-| Podcast + RSS as plugins | Phase 2-3 | Nothing — internal refactoring |
-| Module reorganization | Phase 4 | Nothing — internal refactoring |
-| ProcessingConfig extraction | Phase 5 | Worker implementation (to know what config workers consume) |
+| Core protocols + registry | Phase 1-2 | Postgres schema (to know what `ContentItem` maps to in DB). **Note:** RFC-072 CIL patterns (`person:{slug}`, `topic:{slug}`, bridge artifact) and RFC-073 enricher protocol are already content-agnostic -- the core protocols should reference these as proven patterns for identity and enrichment. |
+| Podcast + RSS as plugins | Phase 2-3 | Nothing -- internal refactoring |
+| Module reorganization | Phase 4 | Nothing -- internal refactoring |
+| ProcessingConfig extraction | Phase 5 | Worker implementation (to know what config workers consume). Should include `enrichment_enabled` (RFC-073). |
 | Multi-source config (`sources:` field) | Phase 5 | Catalog model in Postgres (to know how sources are stored) |
 | CLI plugin commands | Phase 6 | Registry implementation (Phase 1) |
 
-### Phase 3: v3.x — Cross-Content Features
+### Phase 3: v3.x -- Cross-Content Features
 
 Happens after at least one external module (e.g., news-ingest) is built.
 
 | Item | Content Evolution Ref | Depends On |
 | --- | --- | --- |
-| Cross-content-type KG | F.3 | Postgres projection + semantic search + at least 2 content types producing KG |
-| Entity resolution | F.3 | Cross-content KG + canonical entity registry design |
-| Viewer v3 (mixed content) | F.2 | Multiple content types in production + UX spec |
+| Cross-content-type KG | F.3 | Postgres projection + semantic search + at least 2 content types producing KG. **Note:** RFC-072 CIL canonical IDs (`person:{slug}`, `topic:{slug}`) and bridge artifact are the **implemented foundation** -- the same IDs produced by different content types automatically resolve to the same canonical entity. |
+| Entity resolution | F.3 | Cross-content KG + canonical entity registry design. RFC-072 `slugify` handles deterministic cases; ambiguous cases (name variations) need embedding similarity or LLM canonicalization. |
+| Viewer v3 (mixed content) | F.2 | Multiple content types in production + UX spec. Current UXS hub-and-spoke model (UXS-001 shared design system + feature UXS files) extends naturally. |
 | Content-type-aware scheduling | F.5 | Workers operational + metrics showing contention across types |
 | Dedicated pipelines | F.5 | Distributed tier (D.7 v2) + content-type queue routing |
 
 ---
 
-## Anticipation #1: Postgres Schema — Generic Content Identity
+## Anticipation #1: Postgres Schema -- Generic Content Identity
 
 **When:** During RFC-051 implementation (Postgres projection).
 
@@ -214,6 +230,40 @@ CREATE TABLE kg_edges (
 CREATE INDEX idx_kg_edges_content_item ON kg_edges(content_item_id);
 ```
 
+**Canonical identity columns (RFC-072 alignment):** The Postgres schema should
+also include columns for RFC-072 canonical IDs. The bridge artifact
+(`bridge.json`) already emits `person:{slug}`, `org:{slug}`, `topic:{slug}`
+identities per episode. When projecting to Postgres, these canonical IDs
+become the natural join keys for cross-layer and cross-content-type queries:
+
+```sql
+CREATE TABLE canonical_identities (
+    canonical_id TEXT PRIMARY KEY,       -- e.g. "person:lex-fridman", "topic:ai-regulation"
+    identity_type TEXT NOT NULL,         -- "person", "org", "topic" (from CIL)
+    display_name TEXT NOT NULL,
+    aliases TEXT[],                      -- from bridge.json aliases
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_canonical_identities_type ON canonical_identities(identity_type);
+
+CREATE TABLE content_item_identities (
+    content_item_id TEXT NOT NULL,       -- FK to content_items
+    canonical_id TEXT NOT NULL,          -- FK to canonical_identities
+    source_gi BOOLEAN DEFAULT false,     -- from bridge.json sources.gi
+    source_kg BOOLEAN DEFAULT false,     -- from bridge.json sources.kg
+    PRIMARY KEY (content_item_id, canonical_id)
+);
+
+CREATE INDEX idx_cii_canonical ON content_item_identities(canonical_id);
+```
+
+This is the Postgres projection of `bridge.json` -- the same canonical IDs
+that the filesystem bridge provides for cross-layer joins become SQL-queryable.
+When non-podcast content types arrive, their bridge artifacts produce the same
+canonical IDs, and the join table works unchanged.
+
 **Also apply to these tables** (if they exist in the projection schema):
 
 ```sql
@@ -248,9 +298,28 @@ CREATE TABLE summaries (
 CREATE INDEX idx_summaries_content_item ON summaries(content_item_id);
 ```
 
+**Enrichment outputs (RFC-073 alignment):** If projecting enrichment outputs
+to Postgres, the same generic naming applies. Enricher outputs reference
+`content_item_id` and canonical IDs from the bridge:
+
+```sql
+CREATE TABLE enrichment_outputs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content_item_id TEXT NOT NULL,       -- episode or other content item
+    enricher_name TEXT NOT NULL,         -- e.g. "topic_cooccurrence", "temporal_velocity"
+    enricher_scope TEXT NOT NULL,        -- "episode" or "corpus"
+    content_type TEXT NOT NULL DEFAULT 'podcast',
+    output JSONB NOT NULL,              -- enricher-specific output
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_enrichment_content_item ON enrichment_outputs(content_item_id);
+CREATE INDEX idx_enrichment_enricher ON enrichment_outputs(enricher_name);
+```
+
 **What this costs now:** Nothing functional. It's column names and two extra
 columns (`content_type`, `source_transport`) with defaults. All queries work
-the same — `WHERE content_item_id = ?` instead of `WHERE episode_id = ?`.
+the same -- `WHERE content_item_id = ?` instead of `WHERE episode_id = ?`.
 The defaults mean existing podcast data populates correctly without changes.
 
 **What skipping this costs later:** `ALTER TABLE` on every projected table to
@@ -278,7 +347,7 @@ def project_content_item(
 
 ---
 
-## Anticipation #2: Catalog Table — Generic Source Model
+## Anticipation #2: Catalog Table -- Generic Source Model
 
 **When:** During Part A Phase A implementation (catalog + subscriptions).
 
@@ -355,7 +424,7 @@ CREATE TABLE subscriptions (
 ```
 
 **What this costs now:** The `sources` table is slightly more generic than
-`feeds` — one extra column (`source_type`), `config` as JSONB instead of
+`feeds` -- one extra column (`source_type`), `config` as JSONB instead of
 `rss_url` as a dedicated column, and generic naming. The `feeds` view
 provides backwards compatibility for any code that expects the old shape.
 
@@ -365,7 +434,7 @@ Update all catalog API endpoints. Update the scheduler that polls feeds.
 Update the viewer's feed list. Potentially break the subscription model if
 `feed_id` is baked into multiple layers.
 
-**Subscription model stays the same** — it's tenant ↔ source. The only
+**Subscription model stays the same** -- it's tenant <-> source. The only
 change is the column name (`source_id` instead of `feed_id`).
 
 **Scheduler impact:** The scheduler (B.7.1) that polls feeds becomes
@@ -379,13 +448,13 @@ SELECT * FROM feeds WHERE enabled = true AND last_polled_at < now() - interval '
 SELECT * FROM sources WHERE enabled = true AND last_polled_at < now() - poll_interval_seconds * interval '1 second';
 ```
 
-The scheduler doesn't need to know about content types — it just polls
+The scheduler doesn't need to know about content types -- it just polls
 enabled sources and enqueues jobs. The worker determines what to do based
 on `source_type`, `transport`, and `content_type`.
 
 ---
 
-## Anticipation #3: Job Payload — Generic Envelope
+## Anticipation #3: Job Payload -- Generic Envelope
 
 **When:** During Part B implementation (workers + queues, arq job schema).
 
@@ -460,7 +529,7 @@ class PipelineJob:
 
 ```python
 async def process_job(ctx: dict, job: PipelineJob) -> None:
-    """Worker job handler — content-type-agnostic envelope."""
+    """Worker job handler -- content-type-agnostic envelope."""
     # Build Config from job payload (v2.x: always podcast)
     cfg = build_config_from_job(job)
 
@@ -483,7 +552,7 @@ job payload. In v3.0, it dispatches based on `content_type` and
 **What this costs now:** The job payload has four extra string fields
 (`content_type`, `source_transport`, `source_config`, `pipeline_fingerprint`)
 that are always `"podcast"`, `"rss"`, `{rss_url, episode_guid}`, and a hash.
-The worker ignores `content_type` and `source_transport` in v2.x — they're
+The worker ignores `content_type` and `source_transport` in v2.x -- they're
 just metadata. The `source_config` dict replaces what would have been
 top-level `rss_url` and `episode_guid` fields.
 
@@ -494,7 +563,7 @@ from the old format need manual reprocessing or a migration script.
 
 ---
 
-## Anticipation #4: Pipeline Fingerprint — Generic Dedup Key
+## Anticipation #4: Pipeline Fingerprint -- Generic Dedup Key
 
 **When:** During A.4 implementation (process once, serve many).
 
@@ -595,12 +664,14 @@ implement, changing it is a breaking change.
 
 | Platform RFC/Feature | Specific Anticipation | Concrete Action |
 | --- | --- | --- |
-| **RFC-051** (Postgres projection) | Anticipation #1 | Use `content_item_id`, `source_id`, `content_type`, `source_transport` in all table schemas. Add `content_type` index. |
+| **RFC-051** (Postgres projection) | Anticipation #1 | Use `content_item_id`, `source_id`, `content_type`, `source_transport` in all table schemas. Add `content_type` index. Project RFC-072 bridge identities into `canonical_identities` + `content_item_identities` join table. Project RFC-073 enrichment outputs into `enrichment_outputs` table. |
 | **Part A** (catalog + subscriptions) | Anticipation #2 | Name the table `sources` (not `feeds`). Add `source_type`, `transport`, `content_type` columns. Use `config JSONB` for transport-specific fields. Create `feeds` view for backwards compat. |
-| **Part B** (workers + queues) | Anticipation #3 | Job payload uses `content_item_id`, `source_id`, `content_type`, `source_transport`, `source_config` dict. Worker dispatches on these fields (v2.x: always podcast). |
+| **Part B** (workers + queues) | Anticipation #3 | Job payload uses `content_item_id`, `source_id`, `content_type`, `source_transport`, `source_config` dict. Worker dispatches on these fields (v2.x: always podcast). Include `enrichment_enabled` in processing config. |
 | **A.4** (pipeline fingerprinting) | Anticipation #4 | Dedup key is `content_item_id:fingerprint`. Caller computes `content_item_id` (podcast module uses existing `generate_episode_id`). |
 | **RFC-053** (adaptive routing) | Anticipation #5 | Routing input includes `content_type` and `prompt_profile`. Routing rules are content-type-scoped. |
-| **RFC-062** (viewer/server) | No change needed | Viewer already operates on artifacts. When projected tables use generic naming, viewer queries generalize automatically. |
+| **RFC-062** (viewer/server) | No change needed | Viewer already operates on artifacts with UXS hub-and-spoke model. New content types add feature UXS files; shared design system (UXS-001) is reused. |
+| **RFC-072** (CIL + bridge) | Already shipped | Canonical IDs (`person:`, `org:`, `topic:`) are content-agnostic. Bridge artifact pattern works for any content type. Postgres projection should use these as join keys (see Anticipation #1). |
+| **RFC-073** (enrichment layer) | Already content-agnostic | Enricher protocol reads core artifacts, produces derived signals. No anticipation needed -- the protocol works for any content type that produces GIL/KG/bridge artifacts. |
 | **Part E** (observability) | No change needed | Add `content_type` as a label/dimension on metrics (e.g., `pipeline_duration{content_type="podcast"}`). Free metadata. |
 | **B.16** (Alembic migrations) | No change needed | Having Alembic from day one makes v3.0 schema changes (if any) trivial to manage. |
 
@@ -611,21 +682,34 @@ implement, changing it is a breaking change.
 These platform items are already content-agnostic or don't interact with
 content identity:
 
-- **Docker Compose topology** — container layout is about resource profiles,
+- **Docker Compose topology** -- container layout is about resource profiles,
   not content types
-- **Redis / arq setup** — queue infrastructure is content-agnostic; the job
+- **Redis / arq setup** -- queue infrastructure is content-agnostic; the job
   payload is what matters (Anticipation #3)
-- **Auth evolution** (A.12) — API keys and JWT are content-agnostic
-- **Observability stack** (Part E) — Prometheus, Grafana, structured logging
+- **Auth evolution** (A.12) -- API keys and JWT are content-agnostic
+- **Observability stack** (Part E) -- Prometheus, Grafana, structured logging
   work the same regardless of content types (just add `content_type` label)
-- **Deployment lifecycle** (Part F) — CI/CD, rollback, secrets management
+- **Deployment lifecycle** (Part F) -- CI/CD, rollback, secrets management
   are content-agnostic
-- **Digest features** (Part C) — operate on projected tables; if those tables
+- **Digest features** (Part C) -- operate on projected tables; if those tables
   use generic naming (Anticipation #1), digest queries work for any content
   type without changes
-- **Semantic search** (RFC-061) — vector store indexes documents with metadata;
+- **Semantic search** (RFC-061) -- vector store indexes documents with metadata;
   adding `content_type` to metadata is trivial and can be done at any time
-- **Evaluation framework** (RFC-041/057) — runs experiments on pipeline output;
+- **Canonical Identity Layer** (RFC-072) -- `person:{slug}`, `org:{slug}`,
+  `topic:{slug}` are already content-agnostic. The bridge artifact and CIL
+  patterns work unchanged for any content type that produces GIL/KG artifacts.
+  The slugifier is a shared utility.
+- **Enrichment layer** (RFC-073) -- enricher protocol reads core artifacts
+  (GIL, KG, bridge) and produces derived signals. Content-agnostic by design.
+  Enrichers that operate on transcript text (e.g. `insight_density`) will need
+  content-type-specific variants, but the protocol and registry are generic.
+- **GI/KG viewer** (RFC-062) -- now uses a hub-and-spoke UXS model (UXS-001
+  shared design system + feature-specific UXS files). New content types add
+  feature UXS files; shared tokens and layout primitives are reused. New
+  server routes for enrichment (PRD-026, PRD-027) and CIL queries
+  (`/api/persons/*`, `/api/topics/*`) are content-agnostic.
+- **Evaluation framework** (RFC-041/057) -- runs experiments on pipeline output;
   content-type-aware evaluation is a v3.x concern
 
 ---
@@ -643,19 +727,22 @@ For consistency across all platform code, use these names:
 | `source_config` | `rss_url` (as top-level field) | Job payloads, catalog `config` JSONB |
 | `content_item` | `episode` (in generic/platform code) | Python variable names, API schemas |
 | `source` | `feed` (in generic/platform code) | Python variable names, API schemas |
+| `person:{slug}` | `speaker:{slug}` (GIL), `entity:person:{slug}` (KG) | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, API responses, cross-layer joins |
+| `org:{slug}` | `entity:organization:{slug}` (KG) | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, API responses |
+| `topic:{slug}` | *(already shared, now formalised)* | CIL canonical IDs (RFC-072), bridge.json, Postgres `canonical_identities`, enrichment outputs (RFC-073) |
 
 **Exception:** Inside the podcast module itself (`content_types/podcast/`,
 `transports/rss/`), continue using `Episode`, `RssFeed`, `episode_id`,
-`feed_url` — these are the domain-specific names. The generic names are
+`feed_url` -- these are the domain-specific names. The generic names are
 for the platform layer (Postgres, workers, API, routing) that sits above
 content-type-specific code.
 
 ```python
-# Podcast module (content-type-specific) — uses domain language:
+# Podcast module (content-type-specific) -- uses domain language:
 episode = Episode(title="Planet Money #1234", item=xml_element, ...)
 episode_id = generate_episode_id(feed_url=rss_url, guid=guid)
 
-# Platform layer (generic) — uses generic language:
+# Platform layer (generic) -- uses generic language:
 content_item_id = episode_id  # same value, different name at this layer
 source_id = generate_source_id(rss_url)
 project_content_item(content_item_id=content_item_id, source_id=source_id, ...)
@@ -670,39 +757,66 @@ platform v1 to content evolution v3.0. PRs are grouped into streams that
 can run in parallel where noted. Each PR is self-contained: tests pass,
 CI green, no broken intermediate states.
 
-PRs are intentionally heavy — each delivers a coherent chunk of value.
+PRs are intentionally heavy -- each delivers a coherent chunk of value.
 
-### Stream A: Finish Podcast Capabilities (Current Work)
+### Stream A: Podcast Capabilities
 
-These are in-flight or next-up. They complete the podcast feature set and
-are prerequisites for everything else.
+These complete the podcast feature set and are prerequisites for everything
+else. Items marked "shipped" are implemented and exercised in CI.
 
 ```text
-PR-A1  GI/KG Viewer v2 completion (RFC-062 remaining milestones)
-       ─────────────────────────────────────────────────────────
-       Scope: Remaining viewer milestones, Playwright E2E, polish.
+PR-A1  GI/KG Viewer v2 (RFC-062)                              [SHIPPED]
+       ──────────────────────────
+       Scope: Complete viewer with Playwright E2E, UXS hub-and-spoke
+              model (UXS-001 shared design system + UXS-002 through
+              UXS-006 for feature surfaces).
        Delivers: Complete viewer for podcast GI/KG data.
-       Depends on: Nothing (current work).
 
-PR-A2  Semantic search completion (RFC-061)
-       ─────────────────────────────────────
-       Scope: Vector store, embedding indexing, `podcast search` CLI,
-              search API endpoint, viewer search panel.
+PR-A2  Semantic search (RFC-061)                               [SHIPPED]
+       ─────────────────────────
+       Scope: Vector store, embedding indexing, search API endpoint,
+              viewer search panel, chunk-to-Insight lift.
        Delivers: Full-text + semantic search over podcast corpus.
-       Depends on: Nothing (in progress, parallel with A1).
 
-PR-A3  Evaluation framework maturity (RFC-041/057)
+PR-A3  Canonical Identity Layer + bridge (RFC-072)             [SHIPPED]
+       ───────────────────────────────────────────
+       Scope: Canonical slugifier, CIL namespace (person:/org:/topic:),
+              GIL ontology migration (speaker: -> person:), KG ontology
+              migration (entity:person: -> person:), bridge.json emission,
+              GIL v1.1 fields (insight_type, position_hint), CIL read
+              routes (/api/persons/*, /api/topics/*), chunk-to-Insight
+              lift in semantic search, viewer CIL awareness.
+       Delivers: Cross-layer identity foundation. Enables cross-episode
+              person intelligence, topic threading, enriched search lift.
+       Impact on content evolution: person:{slug}, org:{slug}, topic:{slug}
+              are content-agnostic -- the same canonical IDs will work for
+              any content type that produces GIL/KG artifacts.
+
+PR-A4  Enrichment layer (RFC-073)                           [IN PROGRESS]
+       ──────────────────────────
+       Scope: Enricher protocol, registry, enrichment pass in pipeline,
+              deterministic enrichers (topic_cooccurrence, temporal_velocity,
+              grounding_rate, guest_coappearance, insight_density),
+              LLM enrichers (llm_search_synthesis, llm_position_narration,
+              guest_brief_synthesis), server routes for enrichment outputs.
+       Delivers: Fourth artifact tier for derived signals. First consumers:
+              PRD-026 (Topic Entity View), PRD-027 (Enriched Search).
+       Impact on content evolution: Enricher protocol is content-agnostic --
+              reads core artifacts via EpisodeArtifactBundle, produces
+              derived signals. Works unchanged for any content type.
+
+PR-A5  Evaluation framework maturity (RFC-041/057)
        ────────────────────────────────────────────
        Scope: Scorer, baseline comparison, experiment runner,
               golden dataset management.
        Delivers: Ability to benchmark prompt/model combinations.
               Needed later for content-type-aware routing (F.4).
-       Depends on: Nothing (in progress, parallel with A1/A2).
+       Depends on: Nothing (in progress, parallel with A3/A4).
 ```
 
 ### Stream B: Platform Infrastructure (v2.x)
 
-These introduce the platform layer. **Anticipations #1-5 apply here** —
+These introduce the platform layer. **Anticipations #1-5 apply here** --
 the specific generic naming decisions from this document.
 
 ```text
@@ -723,7 +837,7 @@ PR-B1  Postgres foundation + Alembic + projection schema
        Delivers: RFC-051 core. Postgres as query surface for GI/KG data.
        Depends on: Nothing (can start now).
        Anticipations: #1 (generic schema naming).
-       Size: Large — new package, schema, migrations, projection logic,
+       Size: Large -- new package, schema, migrations, projection logic,
              CLI command, tests. ~1500-2500 lines.
 
 PR-B2  Catalog + subscriptions + sources table
@@ -744,7 +858,7 @@ PR-B2  Catalog + subscriptions + sources table
        Delivers: Part A Phases A-B. Catalog of sources with subscriptions.
        Depends on: PR-B1 (Postgres + Alembic in place).
        Anticipations: #2 (generic catalog model).
-       Size: Medium-large — new tables, models, CLI commands. ~1000-1500 lines.
+       Size: Medium-large -- new tables, models, CLI commands. ~1000-1500 lines.
 
 PR-B3  Workers + queues (simple tier) + job payload
        ─────────────────────────────────────────────
@@ -769,7 +883,7 @@ PR-B3  Workers + queues (simple tier) + job payload
                  from catalog.
        Depends on: PR-B1 (Postgres), PR-B2 (catalog).
        Anticipations: #3 (generic job payload), #4 (generic dedup key).
-       Size: Large — new worker process, queue integration, CLI, Compose,
+       Size: Large -- new worker process, queue integration, CLI, Compose,
              tests. ~2000-3000 lines.
 
 PR-B4  Platform API routes + server integration
@@ -787,7 +901,7 @@ PR-B4  Platform API routes + server integration
          - Integration tests
        Delivers: Part A.7 API layer. Platform management via REST API.
        Depends on: PR-B2 (catalog), PR-B3 (workers/jobs).
-       Size: Medium — route handlers, schemas, tests. ~800-1200 lines.
+       Size: Medium -- route handlers, schemas, tests. ~800-1200 lines.
 
 PR-B5  Observability foundation
        ────────────────────────
@@ -796,14 +910,14 @@ PR-B5  Observability foundation
          - Key metrics: `pipeline_duration_seconds{content_type}`,
            `queue_depth{queue}`, `jobs_processed_total{status}`,
            `episodes_processed_total{content_type}`
-         - Structured JSON logging with correlation IDs (API → worker)
+         - Structured JSON logging with correlation IDs (API -> worker)
          - Health check endpoints for all services
          - Grafana dashboard JSON (importable)
          - Docker Compose update: add Grafana + Prometheus services
        Delivers: Part E foundation. Visibility into platform operations.
        Depends on: PR-B3 (workers exist to emit metrics).
        Anticipations: `content_type` as metric label from day one.
-       Size: Medium — metrics, logging, dashboard, Compose. ~800-1200 lines.
+       Size: Medium -- metrics, logging, dashboard, Compose. ~800-1200 lines.
 
 PR-B6  Auth stage 2 (API key)
        ──────────────────────
@@ -816,7 +930,7 @@ PR-B6  Auth stage 2 (API key)
          - Tests for auth middleware
        Delivers: A.12 stage 2. Secure API for network-exposed deployments.
        Depends on: PR-B4 (platform routes to protect).
-       Size: Small — middleware, env var, tests. ~200-400 lines.
+       Size: Small -- middleware, env var, tests. ~200-400 lines.
 
 PR-B7  Docker Compose production profile + deployment
        ───────────────────────────────────────────────
@@ -831,7 +945,7 @@ PR-B7  Docker Compose production profile + deployment
          - Documentation: deployment guide
        Delivers: Part F. Deployable platform on a single host.
        Depends on: PR-B1 through PR-B6 (all platform components).
-       Size: Medium — Compose files, Caddy config, scripts, docs.
+       Size: Medium -- Compose files, Caddy config, scripts, docs.
              ~500-800 lines.
 ```
 
@@ -854,7 +968,7 @@ PR-C1  Adaptive routing framework (RFC-053)
                  `content_type` is a routing dimension from day one.
        Depends on: Nothing (can start after podcast capabilities are solid).
        Anticipations: #5 (content type in routing interface).
-       Size: Medium — routing logic, integration, tests. ~800-1200 lines.
+       Size: Medium -- routing logic, integration, tests. ~800-1200 lines.
 ```
 
 ### Stream D: Content Evolution (v3.0)
@@ -868,49 +982,70 @@ PR-D1  Core protocols, manifests, and registry
        Scope:
          - New `core/` package:
            `core/__init__.py`
-           `core/protocols.py` — ContentItem, ContentSource,
+           `core/protocols.py` -- ContentItem, ContentSource,
              ContentTypeHandler, ProcessingConfig protocols
-           `core/manifests.py` — ContentTypeManifest, TransportManifest
+           `core/manifests.py` -- ContentTypeManifest, TransportManifest
              dataclasses (frozen, with JSON Schema fields)
-           `core/registry.py` — PluginRegistry (entry point discovery,
+           `core/registry.py` -- PluginRegistry (entry point discovery,
              get/list content types and transports, validate wiring)
-           `core/testing.py` — assert_valid_content_item,
+           `core/testing.py` -- assert_valid_content_item,
              assert_valid_manifest, assert_pipeline_compatible helpers
-         - Episode satisfies ContentItem (structural typing — no changes
+         - Episode satisfies ContentItem (structural typing -- no changes
            to Episode itself, just verify protocol compliance in tests)
-         - RSS parser satisfies ContentSource (same — verify, don't change)
+         - RSS parser satisfies ContentSource (same -- verify, don't change)
+         - **RFC-072 alignment:** ContentItem protocol should include a
+           method or property for emitting canonical CIL identities
+           (person:/org:/topic: slugs). The existing `identity/slugify.py`
+           and bridge builder patterns are the reference implementation.
+           PluginRegistry should validate that content types can produce
+           bridge-compatible identity declarations.
+         - **RFC-073 alignment:** ProcessingConfig protocol should include
+           `enrichment_enabled: bool`. The enricher protocol and registry
+           are already content-agnostic -- they read artifacts via
+           EpisodeArtifactBundle and produce derived signals. The core
+           PluginRegistry can reuse the enricher registry pattern for
+           plugin discovery via entry points.
          - Unit tests for registry, manifests, protocol compliance
-         - NO behavior changes — existing pipeline untouched
+         - NO behavior changes -- existing pipeline untouched
        Delivers: Content Evolution Phase 1. The interface layer exists.
        Depends on: PR-B1 (Postgres schema informs ContentItem fields).
-       Size: Medium — new package, protocols, registry, tests.
+              RFC-072 CIL patterns and RFC-073 enricher protocol are
+              reference implementations for identity and enrichment.
+       Size: Medium -- new package, protocols, registry, tests.
              ~800-1200 lines.
 
 PR-D2  Podcast + RSS as plugins + module reorganization
        ─────────────────────────────────────────────────
        Scope:
          - Create `content_types/podcast/`:
-           `handler.py` — PodcastContentType, PodcastContentHandler
-           `manifest.py` — PODCAST_MANIFEST
-           `entities.py` — move Episode, RssFeed from `models/entities.py`
+           `handler.py` -- PodcastContentType, PodcastContentHandler
+           `manifest.py` -- PODCAST_MANIFEST
+           `entities.py` -- move Episode, RssFeed from `models/entities.py`
              (keep re-exports in old location for backwards compat)
-           `config.py` — podcast-specific config fields (extracted later
+           `config.py` -- podcast-specific config fields (extracted later
              in PR-D4, but namespace created here)
          - Create `transports/rss/`:
-           `source.py` — RssTransport, RssSource (wraps existing parser)
-           `manifest.py` — RSS_MANIFEST
+           `source.py` -- RssTransport, RssSource (wraps existing parser)
+           `manifest.py` -- RSS_MANIFEST
            Move `rss/parser.py`, `rss/downloader.py` here
              (keep re-exports in old `rss/` for backwards compat)
          - Register both via entry points in `pyproject.toml`
          - Registry discovers them in tests
-         - Update imports across codebase (the noisy part — but mechanical)
+         - **RFC-072 alignment:** PodcastContentHandler declares that it
+           produces bridge.json (CIL identities). The manifest includes
+           `produces_bridge: true`. The existing bridge_builder.py is
+           the reference implementation.
+         - **RFC-073 alignment:** PodcastContentHandler declares that it
+           supports enrichment (enricher protocol). The manifest includes
+           `supports_enrichment: true`. Existing enrichers work unchanged.
+         - Update imports across codebase (the noisy part -- but mechanical)
          - Backwards-compat re-exports so external code importing from
            old paths still works
          - ALL existing tests pass unchanged
        Delivers: Content Evolution Phases 2 + 4. Podcast and RSS are
                  plugins. Module structure reflects the architecture.
        Depends on: PR-D1 (protocols and registry exist).
-       Size: Large — module moves, import updates, entry points,
+       Size: Large -- module moves, import updates, entry points,
              backwards-compat re-exports. ~1500-2500 lines of changes
              (mostly import path updates, not new logic).
 
@@ -928,25 +1063,29 @@ PR-D3  Generic orchestration + split run_pipeline
          - `service.run()` and CLI call the podcast-specific wrapper
            (no change to external interface)
          - Worker (PR-B3) can optionally call the generic entry point
-           (or continue using the wrapper — both work)
+           (or continue using the wrapper -- both work)
          - Integration tests: generic pipeline with mock content items
          - ALL existing tests pass unchanged (they call the wrapper)
        Delivers: Content Evolution Phase 3. The pipeline core is generic.
                  External modules can call run_pipeline with their own
                  content items.
        Depends on: PR-D2 (podcast plugin provides ContentTypeHandler).
-       Size: Medium — orchestration refactoring, new generic entry point,
+       Size: Medium -- orchestration refactoring, new generic entry point,
              tests. ~800-1500 lines.
 
 PR-D4  ProcessingConfig extraction + multi-source config
        ──────────────────────────────────────────────────
        Scope:
          - Extract `ProcessingConfig` from `Config`:
-           `core/config.py` — ProcessingConfig Pydantic model with
+           `core/config.py` -- ProcessingConfig Pydantic model with
              summary_provider, summary_model, gi_enabled, kg_enabled,
-             output_dir, workers, provider API keys/models, etc.
+             enrichment_enabled (RFC-073), output_dir, workers,
+             provider API keys/models, etc.
          - `Config` composes `ProcessingConfig` (has-a, not is-a)
          - `Config.processing` property returns ProcessingConfig
+         - **RFC-073 alignment:** Include `enrichment` section in config
+           with `enabled`, `opt_in` list, and per-enricher overrides.
+           The existing enrichment config pattern is the reference.
          - Add `sources` field to Config (optional list of SourceConfig):
            ```yaml
            sources:
@@ -965,23 +1104,23 @@ PR-D4  ProcessingConfig extraction + multi-source config
        Delivers: Content Evolution Phase 5. Config is layered.
                  External modules have a clean config surface.
        Depends on: PR-D3 (generic pipeline accepts ProcessingConfig),
-                   PR-B3 (worker uses config — update to ProcessingConfig).
-       Size: Large — Config refactoring, new model, validation, backwards
+                   PR-B3 (worker uses config -- update to ProcessingConfig).
+       Size: Large -- Config refactoring, new model, validation, backwards
              compat, worker update, tests. ~1500-2000 lines.
 
 PR-D5  CLI plugin commands + plugin developer docs
        ────────────────────────────────────────────
        Scope:
          - `podcast-scraper plugins` CLI subcommand:
-           `podcast-scraper plugins --list` — list installed content types
+           `podcast-scraper plugins --list` -- list installed content types
              and transports with manifest details
-           `podcast-scraper plugins --validate config.yaml` — validate
+           `podcast-scraper plugins --validate config.yaml` -- validate
              config wiring against installed plugins
          - `core/testing.py` enhancements: full test helpers for plugin
            authors (assert_valid_content_item, assert_valid_manifest,
            assert_pipeline_compatible, mock_content_item factory)
          - Documentation:
-           `docs/guides/PLUGIN_DEVELOPMENT_GUIDE.md` — how to build an
+           `docs/guides/PLUGIN_DEVELOPMENT_GUIDE.md` -- how to build an
              external module (package structure, manifest, entry points,
              testing, publishing)
            Update `docs/architecture/ARCHITECTURE.md` with content
@@ -991,7 +1130,7 @@ PR-D5  CLI plugin commands + plugin developer docs
        Delivers: Content Evolution Phase 6. Plugin ecosystem is ready
                  for external module development.
        Depends on: PR-D4 (multi-source config, full registry integration).
-       Size: Medium — CLI commands, test helpers, documentation.
+       Size: Medium -- CLI commands, test helpers, documentation.
              ~800-1200 lines.
 ```
 
@@ -1016,7 +1155,7 @@ PR-E1  news-ingest module (separate repo: content-modules)
        Delivers: First external module. Validates the entire plugin
                  architecture end-to-end.
        Depends on: PR-D5 (plugin ecosystem ready).
-       Size: Medium — new package in separate repo. ~1000-1500 lines.
+       Size: Medium -- new package in separate repo. ~1000-1500 lines.
 ```
 
 ### Stream F: Cross-Content Features (v3.x)
@@ -1026,15 +1165,21 @@ PR-F1  Cross-content-type KG + entity resolution (RFC needed)
        ──────────────────────────────────────────────────────
        Scope: Entity deduplication across content types, canonical entity
               registry, cross-source KG linking.
+       Precursor: RFC-072 CIL canonical IDs (person:{slug}, org:{slug},
+              topic:{slug}) and bridge artifact are the implemented
+              foundation. The same slugifier produces identical IDs for
+              the same entity regardless of content type. Ambiguous cases
+              (name variations) need embedding similarity or LLM
+              canonicalization -- RFC-072 Known Limitation #2 scopes this.
        Depends on: PR-E1 (at least 2 content types producing KG data).
-       Size: Large — new RFC, entity resolution logic, KG merging.
+       Size: Large -- new RFC, entity resolution logic, KG merging.
 
-PR-F2  Viewer v3 — mixed content UI (UXS needed)
+PR-F2  Viewer v3 -- mixed content UI (UXS needed)
        ──────────────────────────────────────────
        Scope: Content-type faceting, unified timeline, content-type-specific
               detail views, cross-content KG visualization.
        Depends on: PR-F1 (cross-content KG exists to visualize).
-       Size: Large — new UX spec, frontend components, API changes.
+       Size: Large -- new UX spec, frontend components, API changes.
 
 PR-F3  Content-type-aware scheduling + dedicated pipelines
        ───────────────────────────────────────────────────
@@ -1042,18 +1187,20 @@ PR-F3  Content-type-aware scheduling + dedicated pipelines
               high-volume content batching.
        Depends on: PR-B3 (workers operational), PR-E1 (multiple content
               types in production), metrics showing contention.
-       Size: Medium — queue routing logic, Compose topology changes.
+       Size: Medium -- queue routing logic, Compose topology changes.
 ```
 
 ### Visual: PR Dependency Graph
 
 ```text
-Stream A (podcast features — current work)
-  A1 (viewer v2) ──────────────────────────────────────────────┐
-  A2 (semantic search) ────────────────────────────────────────┤
-  A3 (eval framework) ─────────────────────────────────────────┤
+Stream A (podcast capabilities)
+  A1 (viewer v2, RFC-062)          [SHIPPED] ──────────────────┐
+  A2 (semantic search, RFC-061)    [SHIPPED] ──────────────────┤
+  A3 (CIL + bridge, RFC-072)      [SHIPPED] ──────────────────┤
+  A4 (enrichment layer, RFC-073)   [IN PROGRESS] ─────────────┤
+  A5 (eval framework)              [IN PROGRESS] ─────────────┤
                                                                │
-Stream B (platform infrastructure — v2.x)                      │
+Stream B (platform infrastructure -- v2.x)                     │
   B1 (Postgres + projection) ──┬───────────────────────────────┤
                                │                               │
   B2 (catalog + sources) ──────┤                               │
@@ -1068,14 +1215,15 @@ Stream B (platform infrastructure — v2.x)                      │
                                │                               │
   B7 (Docker prod) ────────────┘                               │
                                                                │
-Stream C (adaptive routing — parallel with late B)             │
+Stream C (adaptive routing -- parallel with late B)            │
   C1 (routing framework) ─────────────────────────────────────┤
                                                                │
                                                                ▼
                                                     Platform v1 operational
                                                                │
-Stream D (content evolution — v3.0)                            │
+Stream D (content evolution -- v3.0)                           │
   D1 (core protocols + registry) ◄─────────────────────────────┘
+       │  (references RFC-072 CIL patterns + RFC-073 enricher protocol)
        │
   D2 (podcast + RSS as plugins + module reorg)
        │
@@ -1088,44 +1236,46 @@ Stream D (content evolution — v3.0)                            │
        ▼
   Content evolution v3.0 complete
        │
-Stream E (first external module — v3.0 validation)
+Stream E (first external module -- v3.0 validation)
   E1 (news-ingest in content-modules repo)
        │
        ▼
-Stream F (cross-content features — v3.x)
-  F1 (cross-content KG)
+Stream F (cross-content features -- v3.x)
+  F1 (cross-content KG)  ◄── RFC-072 CIL is the precursor
   F2 (viewer v3)
   F3 (content-type scheduling)
 ```
 
 ### PR Summary Table
 
-| PR | Stream | Name | Size | Depends On | Anticipations |
-| --- | --- | --- | --- | --- | --- |
-| A1 | A | Viewer v2 completion | Large | — | — |
-| A2 | A | Semantic search | Large | — | — |
-| A3 | A | Eval framework | Medium | — | — |
-| B1 | B | Postgres + projection | Large | — | #1 (generic schema) |
-| B2 | B | Catalog + sources | Medium-large | B1 | #2 (generic catalog) |
-| B3 | B | Workers + queues | Large | B1, B2 | #3 (generic job), #4 (generic dedup) |
-| B4 | B | Platform API routes | Medium | B2, B3 | — |
-| B5 | B | Observability | Medium | B3 | `content_type` metric label |
-| B6 | B | Auth stage 2 | Small | B4 | — |
-| B7 | B | Docker prod profile | Medium | B1-B6 | — |
-| C1 | C | Adaptive routing | Medium | — | #5 (content type in routing) |
-| D1 | D | Core protocols + registry | Medium | B1 | — |
-| D2 | D | Podcast/RSS as plugins | Large | D1 | — |
-| D3 | D | Generic orchestration | Medium | D2 | — |
-| D4 | D | ProcessingConfig + multi-source | Large | D3, B3 | — |
-| D5 | D | CLI plugins + docs | Medium | D4 | — |
-| E1 | E | news-ingest (separate repo) | Medium | D5 | — |
-| F1 | F | Cross-content KG | Large | E1 | — |
-| F2 | F | Viewer v3 | Large | F1 | — |
-| F3 | F | Content-type scheduling | Medium | B3, E1 | — |
+| PR | Stream | Name | Size | Status | Depends On | Anticipations |
+| --- | --- | --- | --- | --- | --- | --- |
+| A1 | A | Viewer v2 (RFC-062) | Large | Shipped | -- | -- |
+| A2 | A | Semantic search (RFC-061) | Large | Shipped | -- | -- |
+| A3 | A | CIL + bridge (RFC-072) | Large | Shipped | -- | -- |
+| A4 | A | Enrichment layer (RFC-073) | Large | In progress | -- | -- |
+| A5 | A | Eval framework | Medium | In progress | -- | -- |
+| B1 | B | Postgres + projection | Large | -- | -- | #1 (generic schema + CIL projection) |
+| B2 | B | Catalog + sources | Medium-large | -- | B1 | #2 (generic catalog) |
+| B3 | B | Workers + queues | Large | -- | B1, B2 | #3 (generic job + enrichment_enabled), #4 (generic dedup) |
+| B4 | B | Platform API routes | Medium | -- | B2, B3 | -- |
+| B5 | B | Observability | Medium | -- | B3 | `content_type` metric label |
+| B6 | B | Auth stage 2 | Small | -- | B4 | -- |
+| B7 | B | Docker prod profile | Medium | -- | B1-B6 | -- |
+| C1 | C | Adaptive routing | Medium | -- | -- | #5 (content type in routing) |
+| D1 | D | Core protocols + registry | Medium | -- | B1 | RFC-072 CIL patterns, RFC-073 enricher protocol |
+| D2 | D | Podcast/RSS as plugins | Large | -- | D1 | bridge + enrichment manifest flags |
+| D3 | D | Generic orchestration | Medium | -- | D2 | -- |
+| D4 | D | ProcessingConfig + multi-source | Large | -- | D3, B3 | -- |
+| D5 | D | CLI plugins + docs | Medium | -- | D4 | -- |
+| E1 | E | news-ingest (separate repo) | Medium | -- | D5 | -- |
+| F1 | F | Cross-content KG | Large | -- | E1 | RFC-072 CIL precursor |
+| F2 | F | Viewer v3 | Large | -- | F1 | -- |
+| F3 | F | Content-type scheduling | Medium | -- | B3, E1 | -- |
 
-**Total: 20 PRs across 6 streams.** Streams A, B, and C can run in
-parallel. Stream D is sequential (each PR depends on the previous).
-Streams E and F follow D.
+**Total: 22 PRs across 6 streams.** Stream A items A1-A3 are shipped;
+A4-A5 are in progress. Streams A, B, and C can run in parallel. Stream D
+is sequential (each PR depends on the previous). Streams E and F follow D.
 
 ---
 
@@ -1136,13 +1286,22 @@ should remain **separate documents** (not merged):
 
 | Document | Scope | Timeline |
 | --- | --- | --- |
-| Platform Blueprint | How to run at scale (infra) | v2.x (now → near-term) |
+| Platform Blueprint | How to run at scale (infra) | v2.x (now -> near-term) |
 | Content Evolution Note | What to process (content types) | v3.0 (after platform v1) |
-| **This document** | How they interact (sequencing) | Reference during v2.x implementation |
+| RFC-072 (CIL + bridge) | Cross-layer identity foundation | Shipped (v2.x) -- canonical IDs are content-agnostic |
+| RFC-073 (Enrichment layer) | Derived signals from core artifacts | In progress (v2.x) -- enricher protocol is content-agnostic |
+| PRD-026 / PRD-027 | First enrichment consumers (Topic Entity View, Enriched Search) | In progress (v2.x) |
+| **This document** | How they all interact (sequencing) | Reference during v2.x implementation |
 
 **Cross-references to add:**
 
-- Platform Blueprint → add a note in Part A (catalog), Part B (job schema),
+- Platform Blueprint -> add a note in Part A (catalog), Part B (job schema),
   and RFC-051 referencing this sequencing guide for generic naming conventions
-- Content Evolution Note → already references the blueprint; add a note that
+- Content Evolution Note -> already references the blueprint; add a note that
   Anticipations #1-5 are tracked in this document
+- RFC-072 -> canonical IDs (`person:`, `org:`, `topic:`) are the identity
+  layer that Anticipation #1 Postgres schema should project; bridge artifact
+  is the filesystem precursor to the `canonical_identities` table
+- RFC-073 -> enricher protocol and registry pattern validate the plugin
+  discovery approach that Stream D (content evolution) will generalise;
+  `enrichment_enabled` should be in ProcessingConfig (Anticipation #3 / PR-D4)

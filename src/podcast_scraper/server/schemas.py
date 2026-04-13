@@ -149,6 +149,21 @@ class SearchHitModel(BaseModel):
     )
 
 
+class CorpusSearchLiftStatsModel(BaseModel):
+    """Lift counters for the returned ``results`` page (after ``top_k`` slice)."""
+
+    transcript_hits_returned: int = Field(
+        default=0,
+        ge=0,
+        description="Rows in this response with metadata.doc_type == transcript.",
+    )
+    lift_applied: int = Field(
+        default=0,
+        ge=0,
+        description="Rows in this response with a non-null ``lifted`` object.",
+    )
+
+
 class CorpusSearchApiResponse(BaseModel):
     """Response for GET /api/search."""
 
@@ -156,6 +171,10 @@ class CorpusSearchApiResponse(BaseModel):
     results: list[SearchHitModel] = Field(default_factory=list)
     error: str | None = None
     detail: str | None = None
+    lift_stats: CorpusSearchLiftStatsModel | None = Field(
+        default=None,
+        description="RFC-072 lift coverage for this response page (#528).",
+    )
 
 
 class ExploreApiResponse(BaseModel):
