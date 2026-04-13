@@ -70,12 +70,12 @@ git clone https://github.com/chipi/podcast_scraper.git
 cd podcast_scraper
 
 # Create and activate virtual environment
-# ⚠️ IMPORTANT: Always activate the venv before running make commands
+# IMPORTANT: Always activate the venv before running make commands
 
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# ⚠️ CRITICAL: Verify Python and pip versions in the venv
+# CRITICAL: Verify Python and pip versions in the venv
 # The venv's Python must be >= 3.10 for the project to work correctly
 
 python --version   # Should show Python 3.10.x or higher
@@ -87,7 +87,7 @@ pip --version      # Should show pip with Python 3.10+ support
 # python3.11 -m venv .venv  # Use specific version if needed
 # source .venv/bin/activate
 
-# ⚠️ CRITICAL: Upgrade pip and setuptools BEFORE installing in editable mode
+# CRITICAL: Upgrade pip and setuptools BEFORE installing in editable mode
 # This is required for PEP 660 support (editable installs with pyproject.toml)
 # The make init command does this automatically, but if you install manually:
 
@@ -163,7 +163,7 @@ Details, CI notes, and **how to refresh wheels when `pyproject.toml` pins change
 - Sets up development tools (black, isort, flake8, mypy)
 - To install pre-commit hooks, run `make install-hooks` separately
 
-**⚠️ Important Notes:**
+**Important Notes:**
 
 - **Python 3.10+ is REQUIRED** — The project uses features that require Python 3.10 or higher. Always verify the venv's Python version with `python --version` after activation. If it's < 3.10, recreate the venv with a newer Python version.
 - **Always activate your virtual environment** before running `make` commands. The Makefile uses tools installed in `.venv/bin/`, so they won't be found if the venv isn't activated.
@@ -198,7 +198,7 @@ See [`config/examples/.env.example`](config/examples/.env.example) for all optio
 
 ## IDE Configuration
 
-**⚠️ IMPORTANT:** Your IDE must be configured to use the virtual environment's Python interpreter. Otherwise, it won't find installed packages, type checking won't work, and autocomplete will fail.
+**IMPORTANT:** Your IDE must be configured to use the virtual environment's Python interpreter. Otherwise, it won't find installed packages, type checking won't work, and autocomplete will fail.
 
 ### Visual Studio Code / Cursor
 
@@ -287,7 +287,7 @@ See [`config/examples/.env.example`](config/examples/.env.example) for all optio
 
 ### 1. Create a Branch
 
-**⚠️ CRITICAL: Check for uncommitted changes first!**
+**CRITICAL: Check for uncommitted changes first!**
 
 ```bash
 # Quick check - should return nothing if clean
@@ -302,11 +302,11 @@ git status --porcelain
 git checkout -b feat/my-feature   # or fix/bug-name, docs/update-xyz
 ```
 
-**💡 Why this matters:** Uncommitted changes get included in your new branch, causing confusing PRs with unrelated files.
+**Why this matters:** Uncommitted changes get included in your new branch, causing confusing PRs with unrelated files.
 
-**📖 For full branch creation checklist:** See [Development Guide - Branch Creation](docs/guides/DEVELOPMENT_GUIDE.md#critical-workflow-rules)
+**For full branch creation checklist:** See [Development Guide - Branch Creation](docs/guides/DEVELOPMENT_GUIDE.md#critical-workflow-rules)
 
-**🔄 Advanced: Using Git Worktrees**
+**Advanced: Using Git Worktrees**
 
 If you want to work on multiple features simultaneously without branch switching, consider using git worktrees. This allows you to have multiple branches checked out in separate directories, each with its own virtual environment and IDE instance.
 
@@ -352,7 +352,7 @@ git add <specific-files>               # Prefer explicit staging
 git commit -m "feat: add my feature"   # Use conventional commits
 ```
 
-**⚠️ Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking, markdown linting, JSON/YAML validation) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated. The hook has a 120-second timeout (RFC-074) -- if a check hangs, it kills the process group instead of blocking indefinitely.
+**Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking, markdown linting, JSON/YAML validation) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated. The hook has a 120-second timeout (RFC-074) -- if a check hangs, it kills the process group instead of blocking indefinitely.
 
 **Commit format:** `type: description`
 

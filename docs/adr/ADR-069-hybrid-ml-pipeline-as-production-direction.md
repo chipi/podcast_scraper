@@ -69,11 +69,11 @@ The same finding held for Qwen 2.5:7b (temperature=0.5: +4.23% vs baseline).
 
 | Param Group | Param | Candidate | ROUGE-L | Delta | Decision |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| ollama_reduce | temperature | 0.1 | 17.1% | -9.5% | ✗ |
+| ollama_reduce | temperature | 0.1 | 17.1% | -9.5% | |
 | ollama_reduce | **temperature** | **0.5** | **20.8%** | **+10.0%** | Yes |
-| ollama_reduce | top_p | 0.7 | 20.7% | -0.5% | ✗ |
-| ollama_reduce | top_p | 0.95 | 20.5% | -1.4% | ✗ |
-| ollama_reduce | top_p | 1.0 | 20.4% | -1.9% | ✗ |
+| ollama_reduce | top_p | 0.7 | 20.7% | -0.5% | |
+| ollama_reduce | top_p | 0.95 | 20.5% | -1.4% | |
+| ollama_reduce | top_p | 1.0 | 20.4% | -1.9% | |
 | — | — | — | — | early stop | — |
 
 **Round total**: baseline 18.9% → 20.8% ROUGE-L (+10.0%), 1 param accepted.
@@ -84,12 +84,12 @@ Base: `hybrid_ml_bart_llama32_3b_smoke_paragraph_v1` (ROUGE-L 20.66%, post BART 
 
 | Param Group | Param | Candidate | ROUGE-L | Delta | Decision |
 | :--- | :--- | :---: | :---: | :---: | :---: |
-| ollama_reduce | top_p | 0.7 | 20.65% | -0.05% | ✗ |
+| ollama_reduce | top_p | 0.7 | 20.65% | -0.05% | |
 | ollama_reduce | **top_p** | **0.95** | **22.71%** | **+9.91%** | Yes |
 | ollama_reduce | **top_p** | **1.0** | **23.12%** | **+1.84%** | Yes |
-| ollama_reduce | frequency_penalty | 0.3 | 19.55% | -15.44% | ✗ |
-| ollama_reduce | frequency_penalty | 0.6 | 22.66% | -1.99% | ✗ |
-| ollama_reduce | frequency_penalty | 1.0 | 20.04% | -13.35% | ✗ |
+| ollama_reduce | frequency_penalty | 0.3 | 19.55% | -15.44% | |
+| ollama_reduce | frequency_penalty | 0.6 | 22.66% | -1.99% | |
+| ollama_reduce | frequency_penalty | 1.0 | 20.04% | -13.35% | |
 | — | — | — | early stop | — | — |
 
 **Round total**: 20.66% → 23.12% ROUGE-L (+11.93%), 2 params accepted.
@@ -112,8 +112,8 @@ repetition penalties — adding them suppresses legitimate recurring concepts.
 | Mistral-Nemo:12b baseline | 18.7% | 77.7% | 19s | 100% local |
 | `ml_bart_led_autoresearch_v1` (pure ML) | 18.8% | 72.6% | ~30s | 100% local |
 | Qwen 2.5:7b (swept) | 18.2% | 76.4% | 20s | 100% local |
-| OpenAI GPT-4o (cloud reference) | ~28–32% | ~82% | ~3s | ☁️ cloud |
-| Anthropic Claude Sonnet 4.6 (cloud) | ~32.6% | ~85% | ~3s | ☁️ cloud |
+| OpenAI GPT-4o (cloud reference) | ~28–32% | ~82% | ~3s | cloud |
+| Anthropic Claude Sonnet 4.6 (cloud) | ~32.6% | ~85% | ~3s | cloud |
 
 The hybrid champion closes **70% of the gap** between pure-ML local (18.8%) and best cloud
 (32.6%) at zero variable cost and with full data privacy.

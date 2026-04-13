@@ -1,6 +1,6 @@
 # Cursor AI Best Practices for podcast_scraper
 
-## 🚀 Quick Reference: Model Selection
+## Quick Reference: Model Selection
 
 **Default Rule of Thumb:**
 
@@ -9,7 +9,7 @@
 
 > Auto optimizes for speed & cost, not deep reasoning.
 
-## 🎯 Quick Reference: @Rules System
+## Quick Reference: @Rules System
 
 **Two separate rule systems:**
 

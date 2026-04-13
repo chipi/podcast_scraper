@@ -482,20 +482,20 @@ The registry enables introspection commands:
 # List installed content types
 podcast-scraper plugins --content-types
 # Output:
-#   podcast    (bundled)  Podcast Episode — stages: transcription, summarization, gi, kg
-#   news_article          News Article — stages: summarization, gi, kg
+# podcast    (bundled)  Podcast Episode — stages: transcription, summarization, gi, kg
+# news_article          News Article — stages: summarization, gi, kg
 
 # List installed transports
 podcast-scraper plugins --transports
 # Output:
-#   rss        (bundled)  RSS Feed — content types: podcast
-#   web_scrape            Web Scraper — content types: news_article, blog_post
+# rss        (bundled)  RSS Feed — content types: podcast
+# web_scrape            Web Scraper — content types: news_article, blog_post
 
 # Validate a config file's wiring
 podcast-scraper plugins --validate config.yaml
 # Output:
-#   [ok] source[0]: transport=rss, content_type=podcast — OK
-#   ✗ source[1]: transport=web_scrape — not installed (pip install news-ingest)
+# [ok] source[0]: transport=rss, content_type=podcast — OK
+# source[1]: transport=web_scrape — not installed (pip install news-ingest)
 ```
 
 ### Design Constraints
@@ -878,12 +878,12 @@ pip install news-ingest
 
 # Check what's installed
 podcast-scraper plugins --list
-#   Content types:
-#     podcast        (bundled)   Podcast Episode
-#     news_article               News Article
-#   Transports:
-#     rss            (bundled)   RSS Feed → podcast
-#     web_scrape                 Web Scraper → news_article
+# Content types:
+# podcast        (bundled)   Podcast Episode
+# news_article               News Article
+# Transports:
+# rss            (bundled)   RSS Feed → podcast
+# web_scrape                 Web Scraper → news_article
 
 # Use multi-source config
 podcast-scraper --config multi.yaml

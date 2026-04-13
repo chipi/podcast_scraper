@@ -352,10 +352,10 @@ test-acceptance:
 
 | Section | Lines | Tests | Status |
 | --------- | ------- | ------- | -------- |
-| Installation | 35-58 | `test_readme_installation.py` | ⏳ Planned |
-| Basic Usage | 60-75 | `test_readme_basic_usage.py` | ⏳ Planned |
-| Key Features | 10-21 | `test_readme_key_features.py` | ⏳ Planned |
-| Requirements | 25-33 | Installation tests | ⏳ Planned |
+| Installation | 35-58 | `test_readme_installation.py` |  Planned |
+| Basic Usage | 60-75 | `test_readme_basic_usage.py` |  Planned |
+| Key Features | 10-21 | `test_readme_key_features.py` |  Planned |
+| Requirements | 25-33 | Installation tests |  Planned |
 | Documentation | 77-98 | Not tested (links only) | No — Out of scope |
 
 **Total Test Count Estimate:**

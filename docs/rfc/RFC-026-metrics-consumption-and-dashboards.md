@@ -14,7 +14,7 @@
   - **`docs/rfc/RFC-040-automated-metrics-alerts.md`** (Phase 4 - extracted for independent evolution)
 - **Related Documents**:
 
-**🚨 DEPENDENCY NOTE:**
+** DEPENDENCY NOTE:**
 
 **RFC-026 assumes RFC-024 and RFC-025 are implemented.**
 
@@ -139,7 +139,7 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 
 ### Phase 0: Minimum Viable Consumption (Mandatory, Before Dashboards)
 
-**🚨 CRITICAL: This phase must be completed before any dashboard work.**
+** CRITICAL: This phase must be completed before any dashboard work.**
 
 **Goal:** Enable basic metrics consumption without visual dashboards.
 
@@ -163,7 +163,7 @@ These principles are shared across RFC-024, RFC-025, and RFC-026:
 - Metrics can be consumed via `curl` + `jq` in < 5 seconds
 - No visual dashboard required
 
-**Status:** 🚧 To Be Implemented (prerequisite for all other phases)
+**Status:**  To Be Implemented (prerequisite for all other phases)
 
 ### 1. Metrics JSON API (Machine-Readable)
 
@@ -256,9 +256,9 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest-nightly.json | jq
 **Visual Elements:**
 
 - Green: Metrics within normal range
-- ⚠️ Yellow: Minor deviation (< 10%)
-- 🔴 Red: Significant deviation (> 10%)
-- 📊 Charts: Line graphs for trends
+-  Yellow: Minor deviation (< 10%)
+-  Red: Significant deviation (> 10%)
+-  Charts: Line graphs for trends
 
 **Example Dashboard:**
 
@@ -376,7 +376,7 @@ curl -s https://chipi.github.io/podcast_scraper/metrics/latest.json | jq '.trend
 
 ### Alert Behavior
 
-**🚨 CRITICAL: Alerts are informational initially (no CI failures)**
+** CRITICAL: Alerts are informational initially (no CI failures)**
 
 - Alerts are displayed in job summaries and dashboards
 - Alerts do NOT cause CI failures or block merges
@@ -462,7 +462,7 @@ def detect_deviations(current, history):
 
 ### Phase 4: Automated Alerts (MOVED TO RFC-040)
 
-**Status:** ⏭️ **Extracted to RFC-040** for independent evolution
+**Status:**  **Extracted to RFC-040** for independent evolution
 
 Phase 4 (automated alerts) has been extracted to a separate RFC to enable:
 - Independent evolution of alerting strategy

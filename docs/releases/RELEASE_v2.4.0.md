@@ -12,7 +12,7 @@ v2.4.0 is a **major minor release** introducing a **comprehensive multi-provider
 
  Key Features
 
-### 🚀 Multi-Provider Ecosystem (8 Providers)
+### Multi-Provider Ecosystem (8 Providers)
 
 **Complete provider flexibility with unified protocol architecture:**
 
@@ -57,7 +57,7 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 - [Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration examples
 - [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) - Implementation details
 
-## ⚙️ Production-Ready Configuration Defaults
+## Production-Ready Configuration Defaults
 
 **Improved defaults for production use:**
 
@@ -99,7 +99,7 @@ whisper_model: base.en  # New default (was: base)
 
 ```
 
-## 🗂️ Advanced Cache Management
+## Advanced Cache Management
 
 **Comprehensive cache management CLI:**
 
@@ -159,7 +159,7 @@ make cache-clean-spacy
 
 ```
 
-## 🎯 Summarization Quality Improvements
+## Summarization Quality Improvements
 
 **Significant quality enhancements for ML summarization:**
 
@@ -221,7 +221,7 @@ BART_TRANSITION_END = 4500
 - **CUDA** (NVIDIA): Optimized memory usage
 - **Multi-GPU**: Better detection and utilization
 
-### 📊 Output Directory Reorganization
+### Output Directory Reorganization
 
 **Improved output structure for better organization:**
 
@@ -250,7 +250,7 @@ output/
 - New runs automatically use new structure
 - Existing output directories work unchanged
 
-### 🔧 Run ID Suffix Enhancements
+### Run ID Suffix Enhancements
 
 **Automatic run ID suffix generation for better tracking:**
 
@@ -287,7 +287,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 
 ```
 
-## 🧪 Test Infrastructure Improvements
+## Test Infrastructure Improvements
 
 **Comprehensive test coverage and stability enhancements:**
 
@@ -322,7 +322,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 - **ML Caching**: Models cached in CI for faster execution
 - **Parallel Execution**: Tests run in parallel where safe
 
-### 📚 Documentation Expansion
+### Documentation Expansion
 
 **Comprehensive documentation for all features:**
 
@@ -348,7 +348,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 
 ## What's New
 
-### 🔒 Security & Stability
+### Security & Stability
 
 #### Dependency Updates
 
@@ -362,7 +362,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 - **Filesystem Blocking**: Unit tests block filesystem I/O where appropriate
 - **Subprocess Blocking**: Unit tests block subprocess execution
 
-### ⚡ Performance Improvements
+### Performance Improvements
 
 #### ML Model Preloading
 
@@ -376,7 +376,7 @@ RUN_ID=my_experiment python3 -m podcast_scraper.cli ...
 - **HF_HUB_CACHE Priority**: Respects `HF_HUB_CACHE` environment variable
 - **spaCy Exclusion**: Removed spaCy from CI cache (too large, rarely changes)
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 #### Provider Issues
 
@@ -641,7 +641,7 @@ whisper_model: base.en       # NEW: English-optimized model
 
 ## Breaking Changes
 
-### ⚠️ Behavior Changes (Not Strictly Breaking)
+### Behavior Changes (Not Strictly Breaking)
 
 **1. Automatic Transcription (New Default)**
 

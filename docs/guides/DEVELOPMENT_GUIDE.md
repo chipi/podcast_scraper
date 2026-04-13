@@ -281,7 +281,7 @@ pip install -e ".[dev,ml,llm]"  # Editable mode with dev, ML, and LLM extras
 
 ### Updating Virtual Environment Dependencies
 
-**⚠️ CRITICAL: Update venv when dependency ranges change**
+**CRITICAL: Update venv when dependency ranges change**
 
 When `pyproject.toml` dependency version ranges are modified (e.g., `black>=23.0.0,<27.0.0`), you **must** update your local virtual environment to match what CI installs.
 
@@ -751,7 +751,7 @@ Different AI assistants load guidelines from different locations:
 
 ### Critical Workflow Rules
 
-**🚨 BRANCH CREATION CHECKLIST - MANDATORY BEFORE CREATING ANY BRANCH:**
+**BRANCH CREATION CHECKLIST - MANDATORY BEFORE CREATING ANY BRANCH:**
 
 **CRITICAL: Always check for uncommitted changes before creating a new branch.**
 
@@ -1217,7 +1217,7 @@ You can proceed without PRD/RFC for:
 - New public modules are added
 - API contracts change
 
-### ⚠️ Before Pushing Documentation Changes
+### Before Pushing Documentation Changes
 
 **Always check `mkdocs.yml` and verify all links when adding, moving, or deleting documentation files:**
 

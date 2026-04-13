@@ -34,7 +34,7 @@ We evaluate candidates based on:
 
 ## Field-by-Field Analysis
 
-### 🔴 High Priority Candidates
+### High Priority Candidates
 
 #### 1. **`OUTPUT_DIR`** / `OUTPUT_DIRECTORY`
 
@@ -66,7 +66,7 @@ We evaluate candidates based on:
 - **Priority**: HIGH
 - **Recommendation**:  **ADD**
 
-### 🟡 Medium Priority Candidates
+### Medium Priority Candidates
 
 #### 4. **`WORKERS`**
 
@@ -142,7 +142,7 @@ We evaluate candidates based on:
   - Useful for CI/CD validation
 - **Use Case**: `DRY_RUN=true python3 -m podcast_scraper ...`
 - **Priority**: LOW
-- **Recommendation**: ⚠️ **MAYBE** (useful but not critical)
+- **Recommendation**:  **MAYBE** (useful but not critical)
 
 #### 12. **`SKIP_EXISTING`**
 
@@ -151,7 +151,7 @@ We evaluate candidates based on:
   - Useful in scripts
 - **Use Case**: `SKIP_EXISTING=true python3 -m podcast_scraper ...`
 - **Priority**: LOW
-- **Recommendation**: ⚠️ **MAYBE** (convenient but not critical)
+- **Recommendation**:  **MAYBE** (convenient but not critical)
 
 #### 13. **`CLEAN_OUTPUT`**
 
@@ -160,7 +160,7 @@ We evaluate candidates based on:
   - CI/CD might want clean runs
 - **Use Case**: `CLEAN_OUTPUT=true python3 -m podcast_scraper ...`
 - **Priority**: LOW
-- **Recommendation**: ⚠️ **MAYBE** (safety consideration)
+- **Recommendation**:  **MAYBE** (safety consideration)
 
 #### 14. **`LANGUAGE`**
 
@@ -169,7 +169,7 @@ We evaluate candidates based on:
   - Some users might want to override
 - **Use Case**: `LANGUAGE=fr python3 -m podcast_scraper ...`
 - **Priority**: LOW
-- **Recommendation**: ⚠️ **MAYBE** (rarely changes)
+- **Recommendation**:  **MAYBE** (rarely changes)
 
 #### 15. **`WHISPER_MODEL`**
 
@@ -178,7 +178,7 @@ We evaluate candidates based on:
   - Some deployments might prefer smaller models
 - **Use Case**: `WHISPER_MODEL=small python3 -m podcast_scraper ...`
 - **Priority**: LOW
-- **Recommendation**: ⚠️ **MAYBE** (rarely changes)
+- **Recommendation**:  **MAYBE** (rarely changes)
 
 ### Not Recommended
 
@@ -232,11 +232,11 @@ We evaluate candidates based on:
 6. `TIMEOUT` - Network flexibility - **IMPLEMENTED**
 7. `SUMMARY_DEVICE` - Hardware flexibility - **IMPLEMENTED**
 
-### Phase 3: Low Priority (Convenience) - ⚠️ NOT IMPLEMENTED (As Recommended)
+### Phase 3: Low Priority (Convenience) -  NOT IMPLEMENTED (As Recommended)
 
-1. ⚠️ `DRY_RUN` - Testing convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
-2. ⚠️ `SKIP_EXISTING` - Resumption convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
-3. ⚠️ `CLEAN_OUTPUT` - Safety control - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+1.  `DRY_RUN` - Testing convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+2.  `SKIP_EXISTING` - Resumption convenience - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
+3.  `CLEAN_OUTPUT` - Safety control - **NOT IMPLEMENTED** (marked as "maybe" in original analysis)
 
 **Note**: Phase 3 variables were marked as "maybe" in the original analysis and were intentionally not implemented, as they are better suited for config files or CLI flags.
 

@@ -74,7 +74,7 @@ The following modules are **internal implementation details** and should not be 
 3. **`config.load_config_file`** - Public API for config loading.
 4. **Internal functions prefixed with `_`** - Good convention followed throughout.
 
-### ⚠️ Potential Issues
+### Potential Issues
 
 1. **`progress` module** - Currently not in `__all__`, but may be used by advanced external integrations. Keep as internal unless a public hook is requested.
 2. **Provider Protocols** - While internal, they define the contract for extensibility. If we allow user-defined providers, these would need to move to public API.

@@ -130,7 +130,7 @@ be architecturally necessary. At that point, the hybrid tier would be reconsider
 | 2 — ML Prod | ml_bart_led_autoresearch_v1 | 20.4% | 70.1% | 265 | 30.6s | 100% local | $0 |
 | — | ml_hybrid_bart_llama32_3b_autoresearch_v1 | 23.7% | 72.9% | 441 | 15.7s | 100% local | $0 |
 | 3 — LLM Local | direct_llama32_3b_autoresearch_v1 | **26.4%** | **79.5%** | 615 | **7.5s** | 100% local | $0 |
-| 4 — LLM Cloud | Anthropic Claude Sonnet 4.6 | ~32.6% | ~85% | ~420 | ~3s | ☁️ cloud | variable |
+| 4 — LLM Cloud | Anthropic Claude Sonnet 4.6 | ~32.6% | ~85% | ~420 | ~3s | cloud | variable |
 
 ## Constant Assignments
 

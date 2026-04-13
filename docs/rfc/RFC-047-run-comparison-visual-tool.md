@@ -90,7 +90,7 @@ The tool provides a focused, single-page "what changed?" view that answers key q
 
 - **Auto-discover on startup**: Tool scans `data/eval/runs/`, `data/eval/baselines/`, `data/eval/references/` and shows all available runs
 - **Filter by type**: User can filter to show only runs, only baselines, only references, or all
-- **Availability indicators**: Tool shows which artifacts are present for each run (e.g., "[ok] has diagnostics.jsonl", "⚠ missing run_summary.json")
+- **Availability indicators**: Tool shows which artifacts are present for each run (e.g., "[ok] has diagnostics.jsonl", " missing run_summary.json")
 - **Select 2–N runs**: User chooses which runs/baselines/references to compare (any combination)
 - **User designates baseline**: User explicitly selects which run is the baseline (others are candidates)
 - **Flexible comparison**: Compare anything vs anything - runs vs baselines, baselines vs references, etc.
@@ -101,10 +101,10 @@ The tool provides a focused, single-page "what changed?" view that answers key q
 For each run, display compact tiles with:
 
 - **Success rate** (episodes processed / total episodes)
-- ⛔ **Failed episodes count**
-- 📏 **Avg output tokens**
-- ⏱ **Avg latency per episode** (seconds)
-- 🧹 **Gate failures** (speaker label, truncation, boilerplate counts)
+-  **Failed episodes count**
+-  **Avg output tokens**
+-  **Avg latency per episode** (seconds)
+-  **Gate failures** (speaker label, truncation, boilerplate counts)
 
 **Purpose**: Immediate "safe or broken" signal
 

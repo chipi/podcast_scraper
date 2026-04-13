@@ -2,7 +2,7 @@
 
 **For complete guide:** `docs/guides/GIT_WORKTREE_GUIDE.md` (478 lines)
 
-## 🚀 Quick Start
+## Quick Start
 
 **For manual worktree setup (no make wt-setup):** Use the **git-worktree-setup** skill. This project prefers `make wt-setup` when available.
 
@@ -48,7 +48,7 @@ make wt-remove
 # Follow prompts to remove worktree and optionally delete branch
 ```
 
-## 📋 Branch Naming Convention
+## Branch Naming Convention
 
 Include GitHub issue numbers for traceability:
 
@@ -64,7 +64,7 @@ Include GitHub issue numbers for traceability:
 - GitHub auto-links commits/PRs to issues
 - Easy to find related issue from any git log
 
-## 🔧 Makefile Commands
+## Makefile Commands
 
 ```bash
 make wt-setup     # Interactive setup (creates worktree + venv)
@@ -73,13 +73,13 @@ make wt-remove    # Interactive removal
 make wt-prune     # Prune stale worktree references
 ```
 
-## ⚙️ Manual Setup (If Needed)
+## Manual Setup (If Needed)
 
 **For the procedure:** Use the **git-worktree-setup** skill.
 
 **This project:** Worktree path pattern `../podcast_scraper-<issue>-<name>`; venv `.venv`; install `pip install -e ".[dev]"`.
 
-## 🎯 Key Benefits
+## Key Benefits
 
 ### One Branch = One Worktree = One Cursor Window
 
@@ -95,17 +95,17 @@ This ensures:
 - Zero accidental cross-contamination
 - Independent Python environments
 
-## 🔄 Rebase Strategy
+## Rebase Strategy
 
 ### When to Rebase
 
-✅ Rebase when:
+ Rebase when:
 - PR is ready for review (clean diff)
 - CI failing due to main changes (get latest fixes)
 - Merge conflicts expected (smaller conflicts)
 - Main has breaking changes you need
 
-❌ Don't rebase when:
+ Don't rebase when:
 - Just want latest changes for curiosity
 - Actively coding with no blockers
 
@@ -129,23 +129,23 @@ git rebase --abort  # Return to pre-rebase state
 git push --force-with-lease  # NEVER use --force
 ```
 
-## 🚨 Workflow Rules
+## Workflow Rules
 
 ### MUST (Required)
 
-- ✅ **Never commit directly to main** - All changes via PR
-- ✅ **One branch per worktree** - Don't switch branches inside worktrees
-- ✅ **Use `--force-with-lease` after rebase** - Never use `--force`
-- ✅ **Remove worktree after PR merge** - Prevents clutter
-- ✅ **All PRs use squash merge** - Maintains linear history
+- **Never commit directly to main** - All changes via PR
+- **One branch per worktree** - Don't switch branches inside worktrees
+- **Use `--force-with-lease` after rebase** - Never use `--force`
+- **Remove worktree after PR merge** - Prevents clutter
+- **All PRs use squash merge** - Maintains linear history
 
 ### SHOULD (Recommended)
 
-- ✅ **Rebase before requesting review** - Clean diff for reviewers
-- ✅ **Include issue number in branch name** - Traceability
-- ✅ **Use isolated venv per worktree** - Complete isolation
-- ✅ **Run `make wt-list` weekly** - Audit for forgotten worktrees
-- ✅ **Open separate Cursor window per worktree** - Clean AI context
+- **Rebase before requesting review** - Clean diff for reviewers
+- **Include issue number in branch name** - Traceability
+- **Use isolated venv per worktree** - Complete isolation
+- **Run `make wt-list` weekly** - Audit for forgotten worktrees
+- **Open separate Cursor window per worktree** - Clean AI context
 
 ## 🆘 Emergency Recovery
 
@@ -153,7 +153,7 @@ git push --force-with-lease  # NEVER use --force
 
 **This project:** Worktree paths `../podcast_scraper-*`; venv reinstall `pip install -e ".[dev]"`.
 
-## 📊 Disk Space
+## Disk Space
 
 Per worktree:
 - Working files: ~50MB
@@ -163,7 +163,7 @@ Per worktree:
 
 With 5 active worktrees: ~1GB total
 
-## ✅ Weekly Maintenance Checklist
+## Weekly Maintenance Checklist
 
 ```bash
 # Check for forgotten worktrees
@@ -182,7 +182,7 @@ du -sh ../podcast_scraper-*
 cd podcast_scraper && git pull
 ```
 
-## 🔗 GitHub Issue Auto-Close
+## GitHub Issue Auto-Close
 
 Use these keywords in PR title or description to auto-close issues:
 
@@ -194,7 +194,7 @@ Use these keywords in PR title or description to auto-close issues:
 
 **Tip:** Include in PR title for visibility: `feat: Add Dependabot (Fixes #169)`
 
-## 📖 Visual Workflow
+## Visual Workflow
 
 ```text
 Create Worktree → Develop + Test → Push Branch → Fast CI

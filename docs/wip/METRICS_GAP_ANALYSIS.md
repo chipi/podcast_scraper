@@ -22,7 +22,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 - Phase 4: Codecov integration
 - Nightly schedule enabled
 
-### ⚠️ Gaps vs RFC-025
+### Gaps vs RFC-025
 
 | Requirement | Status | Gap |
 | ------------ | -------- | ----- |
@@ -45,18 +45,18 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 - Dashboard integration: Complexity metrics displayed
 - Trend tracking: Complexity metrics in history
 
-### ⚠️ Gaps vs RFC-025/RFC-026
+### Gaps vs RFC-025/RFC-026
 
 | Requirement | Status | Gap |
 | ------------ | -------- | ----- |
 | Complexity metrics collection | Implemented | None |
 | Complexity in dashboard | Implemented | None |
 | Complexity trends | Implemented | None |
-| **Enforcement (Phase 5)** | ⚠️ Not enabled | Explicitly marked as "Future" in issue - acceptable gap |
+| **Enforcement (Phase 5)** |  Not enabled | Explicitly marked as "Future" in issue - acceptable gap |
 | **Dead code detection in dashboard** | Not displayed | Vulture output not integrated into dashboard |
 | **Spell checking in dashboard** | Not displayed | Codespell output not integrated into dashboard |
 
-**Verdict:** ⚠️ **Mostly compliant** with minor gaps:
+**Verdict:**  **Mostly compliant** with minor gaps:
 
 - Enforcement is explicitly deferred (acceptable)
 - Dead code and spell checking results not in dashboard (minor gap - could be added)
@@ -80,7 +80,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 | ------------ | -------- | ----- | -------- |
 | **Pipeline metrics collection in CI** | **NOT IMPLEMENTED** | No pipeline runs in CI to generate `metrics.json` | **HIGH** - Pipeline metrics never collected |
 | **Pipeline metrics passed to `generate_metrics.py`** | **NOT IMPLEMENTED** | `--pipeline-metrics` flag not used in workflows | **HIGH** - Metrics not included in dashboard |
-| **Pipeline metrics in dashboard** | ⚠️ Code exists but no data | Dashboard code ready but no metrics to display | **MEDIUM** - Dashboard section empty |
+| **Pipeline metrics in dashboard** |  Code exists but no data | Dashboard code ready but no metrics to display | **MEDIUM** - Dashboard section empty |
 | **Pipeline metrics trends** | Not implemented | No trend calculation for pipeline metrics | **MEDIUM** - Missing trend analysis |
 | **RFC-027 additional metrics** | Not implemented | Missing: RSS fetch time, model loading times, cache hit rates, memory usage | **LOW** - Future enhancement |
 
@@ -105,7 +105,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 - Nightly test suite
 - Workflow updated
 
-### ⚠️ Gaps vs RFC-025
+### Gaps vs RFC-025
 
 | Requirement | Status | Gap |
 | ------------ | -------- | ----- |
@@ -113,7 +113,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 | Trend tracking | Implemented | None |
 | Flaky test analysis | Implemented | None |
 | **Pipeline metrics in nightly** | Not collected | Nightly runs tests, not application pipeline |
-| **Performance regression detection** | ⚠️ Partial | Runtime regression detection exists, but no pipeline performance regressions |
+| **Performance regression detection** |  Partial | Runtime regression detection exists, but no pipeline performance regressions |
 
 **Verdict:** **Mostly compliant** - Nightly build is comprehensive but doesn't collect pipeline metrics (same gap as issue #180).
 
@@ -135,12 +135,12 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 - Deviation detection and alerts
 - Flaky test detection and reporting
 
-### ⚠️ Minor Gaps
+### Minor Gaps
 
 | Requirement | Status | Gap |
 | ------------ | -------- | ----- |
 | **Resource usage metrics** | Not implemented | CPU/memory usage not tracked (RFC mentions this) |
-| **Parallel execution efficiency** | ⚠️ Partial | Tests per second calculated, but no efficiency metric |
+| **Parallel execution efficiency** |  Partial | Tests per second calculated, but no efficiency metric |
 
 **Verdict:** **95% compliant** - Core requirements met. Resource usage is explicitly marked as "Ownership: CI/infrastructure owners" and may require additional tooling.
 
@@ -159,11 +159,11 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 - GitHub Pages deployment
 - Machine-readable JSON format
 
-### ⚠️ Minor Gaps
+### Minor Gaps
 
 | Requirement | Status | Gap |
 | ------------ | -------- | ----- |
-| **Pipeline metrics in dashboard** | ⚠️ Code ready, no data | Dashboard code exists but no pipeline metrics collected |
+| **Pipeline metrics in dashboard** |  Code ready, no data | Dashboard code exists but no pipeline metrics collected |
 | **Automated PR comments** | Not implemented | RFC mentions this as Phase 4 (future) |
 | **Webhook notifications** | Not implemented | RFC mentions this as Phase 4 (future) |
 
@@ -173,27 +173,27 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 
 ## 7. RFC-027: Pipeline Metrics Improvements
 
-### ⚠️ Partial Implementation
+### Partial Implementation
 
 | Requirement | Status | Gap |
 | ------------ | -------- | ----- |
 | **JSON export** | Implemented | None |
 | **CSV export** | Not implemented | RFC mentions CSV export - not implemented |
-| **Two-tier output (DEBUG/INFO)** | ⚠️ Partial | `log_metrics()` uses INFO, should use DEBUG per RFC |
-| **Standardized formatting** | ⚠️ Partial | Uses title case in logs, snake_case in JSON (inconsistent) |
+| **Two-tier output (DEBUG/INFO)** |  Partial | `log_metrics()` uses INFO, should use DEBUG per RFC |
+| **Standardized formatting** |  Partial | Uses title case in logs, snake_case in JSON (inconsistent) |
 | **RSS fetch time tracking** | Not implemented | RFC requirement |
 | **Model loading time tracking** | Not implemented | RFC requirement |
 | **Cache hit/miss tracking** | Not implemented | RFC requirement |
 | **Memory usage tracking** | Not implemented | RFC requirement |
 | **Parallel processing efficiency** | Not implemented | RFC requirement |
 
-**Verdict:** ⚠️ **30% compliant** - Basic export implemented, but most RFC-027 requirements not yet implemented. This is acceptable as RFC-027 is marked as "Draft" and issue #180 only implemented "basic" performance metric collection.
+**Verdict:**  **30% compliant** - Basic export implemented, but most RFC-027 requirements not yet implemented. This is acceptable as RFC-027 is marked as "Draft" and issue #180 only implemented "basic" performance metric collection.
 
 ---
 
 ## Critical Gaps Summary
 
-### 🔴 **HIGH PRIORITY**
+### **HIGH PRIORITY**
 
 1. **Pipeline Metrics Not Collected in CI**
    - **Issue:** Pipeline metrics infrastructure exists but no metrics are generated in CI workflows
@@ -205,7 +205,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
    - **Impact:** Even if metrics were collected, they wouldn't be included in dashboard
    - **Solution:** Update workflows to pass pipeline metrics JSON to `generate_metrics.py`
 
-### 🟡 **MEDIUM PRIORITY**
+### **MEDIUM PRIORITY**
 
 1. **RFC-027 Additional Metrics Not Implemented**
    - **Issue:** Missing RSS fetch time, model loading times, cache hit rates, memory usage
@@ -222,7 +222,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
    - **Impact:** Can't see pipeline performance regressions over time
    - **Solution:** Add trend calculation similar to test metrics
 
-### 🟢 **LOW PRIORITY**
+### **LOW PRIORITY**
 
 1. **CSV Export Not Implemented**
    - **Issue:** RFC-027 mentions CSV export but only JSON implemented
@@ -310,4 +310,4 @@ The metrics infrastructure is **well-implemented** for test metrics (RFC-025) an
 
 - RFC-025: 95% compliant
 - RFC-026: 90% compliant
-- RFC-027: ⚠️ 30% compliant (acceptable - marked as draft, basic implementation done)
+- RFC-027:  30% compliant (acceptable - marked as draft, basic implementation done)

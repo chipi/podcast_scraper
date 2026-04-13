@@ -36,10 +36,10 @@ This document outlines the refactoring plan to modularize the podcast scraper ar
 
 | Area              | Score | Status      | Priority    |
 | ----------------- | ----- | ----------- | ----------- |
-| Speaker Detection | 5/10  | 🟡 Moderate | **HIGH**    |
-| Transcription     | 6/10  | 🟡 Moderate | **HIGH**    |
-| Summarization     | 4/10  | 🔴 Low      | **HIGH**    |
-| RSS Feed Source   | 2/10  | 🔴 Low      | **IGNORED** |
+| Speaker Detection | 5/10  |  Moderate | **HIGH**    |
+| Transcription     | 6/10  |  Moderate | **HIGH**    |
+| Summarization     | 4/10  |  Low      | **HIGH**    |
+| RSS Feed Source   | 2/10  |  Low      | **IGNORED** |
 
 ---
 

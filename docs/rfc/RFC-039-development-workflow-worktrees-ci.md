@@ -365,7 +365,7 @@ cursor .
 - Complete cleanup when worktree is removed
 - Matches Cursor's expectation of isolated environments
 
-**⚠️ Caution: Python Tooling Configuration**
+** Caution: Python Tooling Configuration**
 
 When using isolated venvs, ensure your tooling doesn't assume a single venv path:
 
@@ -376,7 +376,7 @@ When using isolated venvs, ensure your tooling doesn't assume a single venv path
 | `pre-commit` hooks | Runs in current venv (works correctly) | Yes — No changes needed |
 | `.python-version` | Shared across worktrees (tracked in git) | Yes — Works correctly |
 | `pyproject.toml` / lock files | Shared across worktrees (tracked in git) | Yes — Works correctly |
-| IDE run configs | May need per-worktree adjustment | ⚠️ Check if issues |
+| IDE run configs | May need per-worktree adjustment |  Check if issues |
 
 **Key principle:** Configuration files (tracked in git) are shared. Runtime artifacts
 (`.venv/`, `__pycache__/`, `.pytest_cache/`) are per-worktree and gitignored.
@@ -756,7 +756,7 @@ For `main` branch:
 | Require CI checks | Yes — `fast-checks`, `full-checks` |
 | Require approval | Yes — 1 reviewer (or self-approve for solo) |
 | Block force-push | Yes — Enabled |
-| Require up-to-date | ⚠️ Optional (triggers rebases) |
+| Require up-to-date |  Optional (triggers rebases) |
 
 ---
 
@@ -802,7 +802,7 @@ wt-new:
  read -p "Short name (no spaces or slashes): " name; \
  safename=$$(echo "$$name" | tr '/ ' '--' | tr -cd '[:alnum:]-_'); \
  if [ "$$safename" != "$$name" ]; then \
-  echo "⚠️  Sanitized name: $$name → $$safename"; \
+  echo "  Sanitized name: $$name → $$safename"; \
  fi; \
  if [ -z "$$safename" ]; then \
   echo "Error: name cannot be empty"; exit 1; \
@@ -834,7 +834,7 @@ wt-setup:
  read -p "Short name (no spaces or slashes): " name; \
  safename=$$(echo "$$name" | tr '/ ' '--' | tr -cd '[:alnum:]-_'); \
  if [ "$$safename" != "$$name" ]; then \
-  echo "⚠️  Sanitized name: $$name → $$safename"; \
+  echo "  Sanitized name: $$name → $$safename"; \
  fi; \
  if [ -z "$$safename" ]; then \
   echo "Error: name cannot be empty"; exit 1; \
@@ -1281,9 +1281,9 @@ git push --force-with-lease
 
 # === CREATE PR ===
 # In PR description, use keywords to auto-close issues:
-#   Fixes #169
-#   Closes #169
-#   Resolves #169
+# Fixes #169
+# Closes #169
+# Resolves #169
 
 # === CLEANUP AFTER PR MERGE ===
 

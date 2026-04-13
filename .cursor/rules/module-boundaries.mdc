@@ -2,13 +2,13 @@
 
 **For complete architecture:** `docs/architecture/ARCHITECTURE.md`
 
-## 🚨 CRITICAL: Respect Module Boundaries
+## CRITICAL: Respect Module Boundaries
 
 **NEVER mix concerns across module boundaries.**
 
 ## Module Responsibility Matrix
 
-| Module | Responsibility | ✅ CAN Do | ❌ CANNOT Do |
+| Module | Responsibility | Allowed | Forbidden |
 |--------|----------------|----------|--------------|
 | `cli.py` | CLI interface | Parse args, display output | Business logic, HTTP, file I/O |
 | `service.py` | Service API | Return structured results | CLI interaction, user prompts |
@@ -26,36 +26,36 @@
 
 ## Common Violations to Avoid
 
-### ❌ BAD: Adding HTTP to cli.py
+### Bad: Adding HTTP to cli.py
 
 ```python
 # cli.py - WRONG!
 import requests
 
 def main():
-    response = requests.get(url)  # ❌ NO! Use downloader.py
+    response = requests.get(url)  # Wrong: Use downloader.py
 ```
 
-### ✅ GOOD: CLI calls downloader
+### Good: CLI calls downloader
 
 ```python
 # cli.py - CORRECT
 from podcast_scraper import downloader
 
 def main():
-    content = downloader.fetch_url(url)  # ✅ Use proper module
+    content = downloader.fetch_url(url)  # Use proper module
 ```
 
-### ❌ BAD: Business logic in config.py
+### Bad: Business logic in config.py
 
 ```python
 # config.py - WRONG!
 class Config(BaseModel):
-    def process_episodes(self):  # ❌ NO! This is business logic
+    def process_episodes(self):  # Wrong: This is business logic
         pass
 ```
 
-### ✅ GOOD: Config only validates
+### Good: Config only validates
 
 ```python
 # config.py - CORRECT
@@ -64,28 +64,28 @@ class Config(BaseModel):
     max_episodes: Optional[int]
 
     @validator("max_episodes")
-    def validate_positive(cls, v):  # ✅ Validation only
+    def validate_positive(cls, v):  # Validation only
         if v is not None and v < 1:
             raise ValueError("Must be positive")
         return v
 ```
 
-### ❌ BAD: CLI interaction in service.py
+### Bad: CLI interaction in service.py
 
 ```python
 # service.py - WRONG!
 def run(cfg):
-    print("Processing...")  # ❌ NO! Service is non-interactive
-    answer = input("Continue? ")  # ❌ NO! No user prompts
+    print("Processing...")  # Wrong: Service is non-interactive
+    answer = input("Continue? ")  # Wrong: No user prompts
 ```
 
-### ✅ GOOD: Service returns structured results
+### Good: Service returns structured results
 
 ```python
 # service.py - CORRECT
 def run(cfg: Config) -> ServiceResult:
     # Process silently
-    return ServiceResult(  # ✅ Structured result
+    return ServiceResult(  # Structured result
         episodes_processed=5,
         summary="Processed 5 episodes",
         success=True
@@ -117,8 +117,8 @@ from podcast_scraper.models import Episode
 
 ```python
 # __init__.py uses __getattr__ for lazy loading
-from podcast_scraper import cli, service  # ✅ Works (lazy loaded)
-import podcast_scraper.cli as cli         # ✅ Also works
+from podcast_scraper import cli, service  # Works (lazy loaded)
+import podcast_scraper.cli as cli         # Also works
 ```
 
 **When adding new lazy-loaded modules:**
@@ -132,7 +132,7 @@ import podcast_scraper.cli as cli         # ✅ Also works
 ### All Runtime Options in Config
 
 ```python
-# ✅ GOOD - Centralized configuration
+# GOOD - Centralized configuration
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcribe_missing=True,
@@ -140,7 +140,7 @@ cfg = Config(
 )
 run_pipeline(cfg)
 
-# ❌ BAD - Scattered parameters
+# BAD - Scattered parameters
 fetch_rss(url, timeout=30)
 download(episodes, workers=8)
 transcribe(jobs, model="base")
@@ -214,28 +214,28 @@ def test_parse_feed():
 
 ## Provider-Specific Code (CRITICAL)
 
-**🚨 Provider-specific code MUST stay in the provider module - NEVER in central config/workflow**
+** Provider-specific code MUST stay in the provider module - NEVER in central config/workflow**
 
 **Rule:** All provider-specific concerns (logging, SDK configuration, error handling, etc.) must be encapsulated within the provider module itself. Central configuration (`workflow.py`, `config.py`) must NOT contain provider-specific logic.
 
-### ❌ BAD: Provider-specific code in central config
+### Bad: Provider-specific code in central config
 
 ```python
 # workflow.py - WRONG!
 def apply_log_level(level: str):
     # ... setup logging ...
-    # ❌ NO! OpenAI-specific logging config doesn't belong here
+    # Wrong: OpenAI-specific logging config doesn't belong here
     openai_logger = logging.getLogger("openai._base_client")
     openai_logger.setLevel(logging.WARNING)
 ```
 
-### ✅ GOOD: Provider manages its own concerns
+### Good: Provider manages its own concerns
 
 ```python
 # openai/openai_provider.py - CORRECT
 class OpenAIProvider:
     def __init__(self, cfg: Config):
-        # ✅ Provider-specific logging config belongs here
+        # Provider-specific logging config belongs here
         root_logger = logging.getLogger()
         if root_logger.level <= logging.DEBUG:
             openai_logger = logging.getLogger("openai._base_client")
@@ -259,13 +259,13 @@ class OpenAIProvider:
 
 ## Quick Checklist Before Commit
 
-- [ ] Did I add HTTP calls to non-downloader modules? → ❌ Move to downloader
-- [ ] Did I add business logic to config.py? → ❌ Move to workflow/service
-- [ ] Did I add CLI prompts to service.py? → ❌ Service is non-interactive
-- [ ] Did I add parsing to downloader.py? → ❌ Move to appropriate parser
-- [ ] Did I add provider-specific code to workflow.py or config.py? → ❌ Move to provider module
-- [ ] Are imports organized (stdlib → third-party → local)? → ✅ Use isort
-- [ ] Am I using lazy loading correctly? → ✅ Check __init__.py pattern
+- [ ] Did I add HTTP calls to non-downloader modules? → **Wrong:** Move to downloader
+- [ ] Did I add business logic to config.py? → **Wrong:** Move to workflow/service
+- [ ] Did I add CLI prompts to service.py? → **Wrong:** Service is non-interactive
+- [ ] Did I add parsing to downloader.py? → **Wrong:** Move to appropriate parser
+- [ ] Did I add provider-specific code to workflow.py or config.py? → **Wrong:** Move to provider module
+- [ ] Are imports organized (stdlib → third-party → local)? → **OK:** Use isort
+- [ ] Am I using lazy loading correctly? → **OK:** Check __init__.py pattern
 
 ## Remember
 

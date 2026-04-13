@@ -1,6 +1,6 @@
 # AI Coding Guidelines for podcast_scraper
 
-## ⚠️ PRIMARY REFERENCE FILES ⚠️
+## Primary reference files
 
 **For Cursor AI (automatic enforcement):**
 **`.cursorrules`** - Critical rules enforced automatically by Cursor
@@ -12,39 +12,39 @@
 
 **CRITICAL RULES:**
 
-- ❌ NEVER push any branch without explicit user approval (commits OK after diff approval, pushes NEVER by default)
-- ❌ NEVER commit without showing changes and getting user approval
-- ❌ NEVER push to main branch (always use feature branches)
-- ✅ Always show `git status` and `git diff` before committing
-- ✅ Always wait for explicit user approval before committing
-- ✅ After making file edits: summarize changes and ask "Keep these changes or undo any of them?"
-- ✅ When intent is clear: **run commands and tools yourself** (make, scripts, tests); **only** ask when blocked (auth/secrets, ambiguous scope, or policy needs approval) — see *Autonomous execution* in `.cursorrules` / `.ai-coding-guidelines.md`
-- ✅ When any make target fails (test, ci, lint, format, docs, etc.): establish root cause first, then fix from there (no random experimenting)
-- ✅ Run `make ci-fast` before committing when needed (exceptions: workflow-only changes; **recent green `ci-fast` or `ci` in this session on the same diff** with no substantive edits after; user says skip / already validated — see `.cursorrules` rule 5)
-- ✅ ALWAYS use Makefile commands (never direct pytest/python/black commands)
-- ✅ NEVER use `cd` to project root (already in workspace directory)
-- ✅ ALWAYS use correct GitHub username (check with `mcp_github_get_me`, not Mac username)
-- ✅ ALWAYS show terminal output for make/test commands (`is_background: false`)
-- ❌ NEVER `git stash` during an active merge (destroys merge state and all conflict resolutions — see `.cursorrules` rules 4a–4c)
-- ❌ NEVER `git checkout <ref> -- <file>` during a merge (destroys resolved content; use `git show <ref>:<path>` to inspect)
-- ❌ NEVER overwrite local files with remote content without showing the diff and getting explicit approval (rule 4d)
-- ✅ Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
-- ✅ **GI/KG viewer UX** (`web/gi-kg-viewer/`): when UI changes affect users or Playwright, update in order:
+- **Never** push any branch without explicit user approval (commits OK after diff approval, pushes NEVER by default)
+- **Never** commit without showing changes and getting user approval
+- **Never** push to main branch (always use feature branches)
+- **Always** show `git status` and `git diff` before committing
+- **Always** wait for explicit user approval before committing
+- After making file edits: summarize changes and ask "Keep these changes or undo any of them?"
+- When intent is clear: **run commands and tools yourself** (make, scripts, tests); **only** ask when blocked (auth/secrets, ambiguous scope, or policy needs approval) — see *Autonomous execution* in `.cursorrules` / `.ai-coding-guidelines.md`
+- When any make target fails (test, ci, lint, format, docs, etc.): establish root cause first, then fix from there (no random experimenting)
+- Run `make ci-fast` before committing when needed (exceptions: workflow-only changes; **recent green `ci-fast` or `ci` in this session on the same diff** with no substantive edits after; user says skip / already validated; **incremental tiny follow-up** — see `.cursorrules` rules **5** and **5c**)
+- **Always** use Makefile commands (never direct pytest/python/black commands)
+- **Never** use `cd` to project root (already in workspace directory)
+- **Always** use correct GitHub username (check with `mcp_github_get_me`, not Mac username)
+- **Always** show terminal output for make/test commands (`is_background: false`)
+- **Never** `git stash` during an active merge (destroys merge state and all conflict resolutions — see `.cursorrules` rules 4a–4c)
+- **Never** `git checkout <ref> -- <file>` during a merge (destroys resolved content; use `git show <ref>:<path>` to inspect)
+- **Never** overwrite local files with remote content without showing the diff and getting explicit approval (rule 4d)
+- Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
+- **GI/KG viewer UX** (`web/gi-kg-viewer/`): when UI changes affect users or Playwright, update in order:
   **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
   and/or the relevant **feature UXS** (`docs/uxs/index.md`) if the visual/token experience contract changes.
   See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section).
-- ✅ **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
-- ✅ **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
+- **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
+- **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
 
-## 📚 COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
+## COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 
 **When the user asks to "load ai coding guidelines" or "load coding guidelines", you MUST load ALL of these files:**
 
-1. ✅ **`.ai-coding-guidelines.md`** - Main AI coding guidelines (PRIMARY source of truth)
-2. ✅ **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** - Cursor AI best practices and model selection
-3. ✅ **`docs/guides/DEVELOPMENT_GUIDE.md`** - Detailed development guide (code style, testing, CI/CD, architecture)
-4. ✅ **`docs/guides/TESTING_GUIDE.md`** - Testing guide (unit, integration, E2E implementation)
-5. ✅ **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** - Markdown style and linting guide (style rules,
+1. **`.ai-coding-guidelines.md`** — Main AI coding guidelines (PRIMARY source of truth)
+2. **`docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`** — Cursor AI best practices and model selection
+3. **`docs/guides/DEVELOPMENT_GUIDE.md`** — Detailed development guide (code style, testing, CI/CD, architecture)
+4. **`docs/guides/TESTING_GUIDE.md`** — Testing guide (unit, integration, E2E implementation)
+5. **`docs/guides/MARKDOWN_LINTING_GUIDE.md`** — Markdown style and linting guide (style rules,
    linting practices, tools, workflows)
 
 **Why load all of them:**
@@ -117,4 +117,4 @@
 - **`docs/architecture/TESTING_STRATEGY.md`** - Comprehensive testing approach
 - **`docs/architecture/ARCHITECTURE.md`** - Architecture design and module responsibilities
 
-**See the "📚 COMPLETE GUIDE FILE SET" section above for the complete loading pattern.**
+**See the "Complete guide file set" section above for the complete loading pattern.**

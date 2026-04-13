@@ -295,14 +295,14 @@ def main():
 ```python
 
     # Analyze imports
-    print("\n📊 Analyzing import patterns...")
+    print("\n Analyzing import patterns...")
     import_data = analyze_imports()
     issues = check_thresholds(import_data)
 
 ```
 
             json.dump(report, f, indent=2)
-        print(f"\n📄 Report saved to: {report_path}")
+        print(f"\n Report saved to: {report_path}")
 
 ```python
 

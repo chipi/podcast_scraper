@@ -49,8 +49,8 @@ Different transcription providers impose various file size constraints:
 | Provider | API Endpoint | Max File Size | Max Duration | Documentation | Status |
 |----------|-------------|---------------|--------------|---------------|--------|
 | **OpenAI Whisper** | Audio API | **25 MB** | N/A | [Official Docs](https://platform.openai.com/docs/guides/speech-to-text/whisper) | Yes — Supported |
-| **Mistral Voxtral** | Audio API | **TBD** (likely similar to OpenAI) | TBD | [API Docs](https://docs.mistral.ai/) | 🔄 Planned (PRD-010) |
-| **Google Gemini** | Multimodal API | **TBD** (native audio) | TBD | [AI Studio](https://ai.google.dev/) | 🔄 Planned (PRD-012) |
+| **Mistral Voxtral** | Audio API | **TBD** (likely similar to OpenAI) | TBD | [API Docs](https://docs.mistral.ai/) |  Planned (PRD-010) |
+| **Google Gemini** | Multimodal API | **TBD** (native audio) | TBD | [AI Studio](https://ai.google.dev/) |  Planned (PRD-012) |
 | **Grok** | N/A | No — No transcription | N/A | [API Docs](https://docs.x.ai) | Implemented (PRD-013, LLMs only) |
 | **Google Cloud (sync)** | Speech-to-Text | **10 MB** | ~1 minute | [Quotas](https://cloud.google.com/speech-to-text/quotas) | No — Not planned |
 | **Azure Speech** | Fast/Batch | **300 MB - 1 GB** | 120-240 min | [Service Limits](https://learn.microsoft.com/azure/ai-services/speech-service/speech-services-quotas-and-limits) | No — Not planned |

@@ -417,15 +417,15 @@ Golden Signals:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Metric               Current    Baseline   Delta      Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ASR WER              3.2%       3.1%       +0.1%      ⚠️  WARN
+ASR WER              3.2%       3.1%       +0.1%        WARN
 ASR latency          0.42s/min  0.40s/min  +5%          PASS
-Tokens/episode       2,450      2,400      +2.1%      ⚠️  WARN
+Tokens/episode       2,450      2,400      +2.1%        WARN
 Avg chunk size       512 tok    510 tok    +0.4%        PASS
 Summary latency      1.8s       1.9s       -5.3%        PASS
-Total cost/episode   $0.35      $0.33      +6%        ⚠️  WARN
+Total cost/episode   $0.35      $0.33      +6%          WARN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Regression Check: ⚠️  WARN (3 metrics increased but within thresholds)
+Regression Check:   WARN (3 metrics increased but within thresholds)
 
 Details:
 - ASR: Silence trimming reduced audio duration by 8%, slightly increased WER
@@ -641,7 +641,7 @@ These may be added in future versions as the system matures.
 
 ---
 
-## 🚀 Evolution & Improvements (2026-01-10 Update)
+## Evolution & Improvements (2026-01-10 Update)
 
 ### Critical Enhancements for Phase 0 Implementation
 
@@ -930,11 +930,11 @@ regression_rules:
 5. Reference model implemented (baseline, silver, gold references)
 6. Promotion workflow (`scripts/eval/promote_run.py`, `make run-promote`)
 
-### 🟡 Phase 2: CI Integration (Pending)
+### Phase 2: CI Integration (Pending)
 
-1. ⏳ Smoke tests (3 episodes from curated datasets)
-2. ⏳ Nightly full benchmarks (all datasets)
-3. ⏳ Regression alerts (Slack/email)
+1.  Smoke tests (3 episodes from curated datasets)
+2.  Nightly full benchmarks (all datasets)
+3.  Regression alerts (Slack/email)
 
 **Timeline:** Phase 0-1 complete. Phase 2 depends on RFC-015 Phase 4 (CI integration).
 
@@ -953,7 +953,7 @@ complexity, we can iterate quickly while maintaining confidence in our changes.
 
 1. Phase 0-1 complete (dataset materialization, baseline creation, metrics structure, promotion workflow)
 2. Integration with RFC-015 complete (experiment runner uses dataset JSONs, baseline/reference support)
-3. ⏳ Phase 2 pending (CI integration - depends on RFC-015 Phase 4)
+3.  Phase 2 pending (CI integration - depends on RFC-015 Phase 4)
 
 **Next Steps:**
 

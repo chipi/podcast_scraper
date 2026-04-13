@@ -10,7 +10,7 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 
 ## Key Changes
 
-### 🔒 Security Test Coverage
+### Security Test Coverage
 
 #### Comprehensive Security Tests Added
 
@@ -34,7 +34,7 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 
 **Impact**: Significantly improves security test coverage, ensuring critical security functions are properly tested and validated.
 
-### 🔧 Thread-Safety Fixes
+### Thread-Safety Fixes
 
 #### Per-Worker REDUCE Models
 
@@ -72,7 +72,7 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 
 **Impact**: Ensures consistent behavior regardless of processing path (parallel vs sequential).
 
-### ⚡ Performance Improvements
+### Performance Improvements
 
 #### REDUCE Model Reuse Across Episodes
 
@@ -88,7 +88,7 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 
 **Impact**: Reduces memory usage and eliminates redundant model downloads for episodes using the same REDUCE model.
 
-### 🛠️ Code Quality Improvements
+### Code Quality Improvements
 
 #### GitHub Actions Workflow Fixes
 
@@ -110,7 +110,7 @@ v2.3.2 is a **patch release** focused on **comprehensive security test coverage*
 
 **Files**: `workflow.py`, `docs/TYPE_HINTS_ANALYSIS.md`, `.github/hooks/pre-commit`
 
-### 📚 Documentation Improvements
+### Documentation Improvements
 
 #### README Updates
 

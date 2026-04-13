@@ -101,7 +101,7 @@ This RFC defines a comprehensive plan to improve E2E (end-to-end) test infrastru
 
 ## Design & Implementation
 
-### 0. Network Guard + OpenAI Mocking (Stage 0) - 🚨 NON-NEGOTIABLE
+### 0. Network Guard + OpenAI Mocking (Stage 0) -  NON-NEGOTIABLE
 
 **Goal**: Prevent accidental external network calls and mock OpenAI API calls in E2E tests.
 

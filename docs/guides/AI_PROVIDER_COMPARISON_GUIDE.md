@@ -227,7 +227,7 @@ Anthropic           $0.40               $4.00               $40.00
 OpenAI (text only)  $0.55               $5.50               $55.00
 OpenAI (full)       $37.40              $374.00             $3,740.00
 
-⚠️  At 10,000 episodes/month, OpenAI full stack costs $3,740!
+  At 10,000 episodes/month, OpenAI full stack costs $3,740!
     Using local transcription + DeepSeek: $1.60 (99.96% savings)
 ```
 
@@ -363,24 +363,24 @@ grok_summary_model: grok-beta
 │                              KEY TAKEAWAYS                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  🥇 CHEAPEST CLOUD:      DeepSeek         $0.016/100 episodes (97% off)    │
-│  🥇 BEST CLOUD QUALITY:  Anthropic Haiku  33.7% ROUGE-L (benchmark Apr 2026)│
-│  🥇 FASTEST CLOUD:       Gemini Flash     2.7s/ep paragraphs               │
-│  🥇 LARGEST CONTEXT:     Gemini Pro       2,000,000 tokens                 │
-│  🥇 BEST FREE TIER:      Gemini/Grok      Generous limits                  │
-│  🥇 REAL-TIME INFO:      Grok             X/Twitter integration            │
-│  🥇 EU COMPLIANT:        Mistral          European summarization provider  │
-│  🥇 COMPLETE PRIVACY:    Local/Ollama     Data never leaves device         │
-│  🥇 BEST LOCAL (para):   qwen3.5:35b      31.9% ROUGE-L, 21s/ep           │
-│  🥇 BEST LOCAL (bullets):qwen3.5:35b      36.2% ROUGE-L, 14s/ep           │
+│   CHEAPEST CLOUD:      DeepSeek         $0.016/100 episodes (97% off)    │
+│   BEST CLOUD QUALITY:  Anthropic Haiku  33.7% ROUGE-L (benchmark Apr 2026)│
+│   FASTEST CLOUD:       Gemini Flash     2.7s/ep paragraphs               │
+│   LARGEST CONTEXT:     Gemini Pro       2,000,000 tokens                 │
+│   BEST FREE TIER:      Gemini/Grok      Generous limits                  │
+│   REAL-TIME INFO:      Grok             X/Twitter integration            │
+│   EU COMPLIANT:        Mistral          European summarization provider  │
+│   COMPLETE PRIVACY:    Local/Ollama     Data never leaves device         │
+│   BEST LOCAL (para):   qwen3.5:35b      31.9% ROUGE-L, 21s/ep           │
+│   BEST LOCAL (bullets):qwen3.5:35b      36.2% ROUGE-L, 14s/ep           │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  📈 COST INSIGHT:                                                          │
+│   COST INSIGHT:                                                          │
 │     Transcription = 90%+ of cloud costs                                    │
 │     → Use local Whisper + cloud text = massive savings                     │
 │                                                                             │
-│  📊 EVAL INSIGHT (Apr 2026, benchmark 10 eps, vs Sonnet 4.6 silver):      │
+│   EVAL INSIGHT (Apr 2026, benchmark 10 eps, vs Sonnet 4.6 silver):      │
 │     Anthropic Haiku leads cloud paragraphs (33.7% ROUGE-L, 86.2% embed)   │
 │     qwen3.5:35b is the only on-prem model above cloud median (31.9%)       │
 │     Rankings change when the silver reference changes — see eval reports   │

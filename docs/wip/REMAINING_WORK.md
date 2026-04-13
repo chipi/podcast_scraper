@@ -23,7 +23,7 @@
 
 ---
 
-## ⏳ Remaining Work
+## Remaining Work
 
 ### Priority 1: CI Integration (Critical Path)
 
@@ -198,8 +198,8 @@
 - Fully tested alerting system
 
 **Dependencies:**
-- ⏳ RFC-015 Phase 4 (CI integration)
-- ⏳ RFC-041 Phase 3 (CI integration)
+-  RFC-015 Phase 4 (CI integration)
+-  RFC-041 Phase 3 (CI integration)
 
 ---
 
@@ -249,11 +249,11 @@
 ## Current Status
 
 **Phase 1:** Complete (Foundation)
-**Phase 2:** ⏳ In Progress (~70% complete)
+**Phase 2:**  In Progress (~70% complete)
 - Evaluation metrics
 - Storage & comparison
 - Benchmark runner
-- ⏳ CI integration (next)
-- ⏳ Documentation
+-  CI integration (next)
+-  Documentation
 
-**Phase 3:** ⏳ Planned (depends on Phase 2)
+**Phase 3:**  Planned (depends on Phase 2)

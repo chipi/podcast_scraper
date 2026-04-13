@@ -75,9 +75,9 @@ git push --force-with-lease
 
 # Create PR when ready
 # Use keywords in PR description to auto-close issues:
-#   Fixes #169
-#   Closes #169
-#   Resolves #169
+# Fixes #169
+# Closes #169
+# Resolves #169
 
 ```
 
@@ -765,9 +765,9 @@ git push --force-with-lease
 
 # === CREATE PR ===
 # In PR description, use keywords to auto-close issues:
-#   Fixes #169
-#   Closes #169
-#   Resolves #169
+# Fixes #169
+# Closes #169
+# Resolves #169
 
 # === CLEANUP AFTER PR MERGE ===
 

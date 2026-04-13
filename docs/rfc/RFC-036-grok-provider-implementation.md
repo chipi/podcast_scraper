@@ -944,11 +944,11 @@ Before implementation, verify the following with your xAI API access:
 1. **API Availability**: Grok API is publicly available (you have access)
 2. **Base URL**: `https://api.x.ai/v1` (OpenAI-compatible endpoint)
 3. **API Compatibility**: OpenAI-compatible (uses OpenAI SDK with custom base_url)
-4. ⚠️ **Model Names**: Verify actual model names with your API (likely `grok-beta`, `grok-2`)
-5. ⚠️ **Pricing**: Verify pricing at <https://console.x.ai> or <https://docs.x.ai>
-6. ⚠️ **Free Tier**: Check your xAI account dashboard for free tier availability and limits
-7. ⚠️ **Rate Limits**: Check your xAI account dashboard for rate limits
-8. ⚠️ **Context Window**: Verify context window size (likely 128k, but confirm)
+4.  **Model Names**: Verify actual model names with your API (likely `grok-beta`, `grok-2`)
+5.  **Pricing**: Verify pricing at <https://console.x.ai> or <https://docs.x.ai>
+6.  **Free Tier**: Check your xAI account dashboard for free tier availability and limits
+7.  **Rate Limits**: Check your xAI account dashboard for rate limits
+8.  **Context Window**: Verify context window size (likely 128k, but confirm)
 9. **SDK**: Uses OpenAI SDK (no xAI-specific SDK needed)
 
 ## References

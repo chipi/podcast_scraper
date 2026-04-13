@@ -108,7 +108,7 @@ More aggressive transforms applied per-provider:
 | Canonical cleanup rules   | Model selection        |
 | Adapter selection         | Generation parameters  |
 | Output formatting         | **Chunking strategy**  |
-|                           | **Chunk size/overlap** |
+| | **Chunk size/overlap** |
 
 **Important:** Chunking stays in run config because:
 

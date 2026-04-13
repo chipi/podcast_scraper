@@ -4,11 +4,11 @@
 
 Podcast Scraper is a Python tool that downloads transcripts for every episode in a podcast RSS feed. It understands Podcasting 2.0 transcript tags, resolves relative URLs, and can fall back to Whisper transcription when episodes lack published transcripts.
 
-> **⚠️ Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](LEGAL.md) for details.
+> **Important:** This project is intended for **personal, non-commercial use only**. All downloaded content must remain local and not be shared or redistributed. See [Legal Notice & Appropriate Use](LEGAL.md) for details.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 - **Transcript Downloads** — Automatic detection and download of podcast transcripts from RSS feeds.
 - **Whisper Fallback** — Generate transcripts using OpenAI Whisper when none exist.
@@ -23,7 +23,7 @@ Podcast Scraper is a Python tool that downloads transcripts for every episode in
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Installation
 
@@ -75,8 +75,8 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --output-dir ./my_transcripts
 
 # Optional: oldest-first or publish-date window — see CONFIGURATION.md (Episode selection)
-#   --episode-order oldest --max-episodes 50
-#   --since 2024-01-01 --until 2024-12-31
+# --episode-order oldest --max-episodes 50
+# --since 2024-01-01 --until 2024-12-31
 
 # Use Whisper when transcripts are missing (now default in v2.4.0)
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
@@ -116,7 +116,7 @@ skip_existing: true
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 ### Getting Started
 
@@ -126,7 +126,7 @@ skip_existing: true
 | **[Configuration Guide](api/CONFIGURATION.md)** | Complete configuration options and examples |
 | **[CLI Reference](api/CLI.md)** | Command-line interface documentation |
 | **[Python API](api/REFERENCE.md)** | Public API for programmatic usage |
-| **[Legal Notice](LEGAL.md)** | ⚠️ Important usage restrictions and fair use |
+| **[Legal Notice](LEGAL.md)** | Important usage restrictions and fair use |
 
 ### User Guides
 
@@ -141,7 +141,7 @@ skip_existing: true
 
 | Resource | Description |
 | :--- | :--- |
-| **[Quick Reference](guides/QUICK_REFERENCE.md)** | ⭐ One-page cheat sheet for common commands |
+| **[Quick Reference](guides/QUICK_REFERENCE.md)** | One-page cheat sheet for common commands |
 | **[Architecture Overview](architecture/ARCHITECTURE.md)** | High-level system design and module responsibilities |
 | **[Testing Strategy](architecture/TESTING_STRATEGY.md)** | Test coverage, quality assurance, and testing guidelines |
 | **[Testing Guide](guides/TESTING_GUIDE.md)** | Detailed test execution, fixtures, and coverage information |
@@ -166,7 +166,7 @@ skip_existing: true
 
 ---
 
-## ⚖️ Legal & Fair Use
+## Legal & Fair Use
 
 This project is intended for **personal, non-commercial use only**. All downloaded content must remain local to your device and must not be shared, uploaded, or redistributed.
 
@@ -182,7 +182,7 @@ This software is provided for educational and personal-use purposes only. It is 
 
 ---
 
-## 📄 License
+## License
 
 MIT License — See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main/LICENSE) for details.
 
@@ -190,7 +190,7 @@ MIT License — See [LICENSE](https://github.com/chipi/podcast_scraper/blob/main
 
 ---
 
-## 🔗 Quick Links
+## Quick Links
 
 - **Repository:** [github.com/chipi/podcast_scraper](https://github.com/chipi/podcast_scraper)
 - **Issues:** [Report bugs or request features](https://github.com/chipi/podcast_scraper/issues)

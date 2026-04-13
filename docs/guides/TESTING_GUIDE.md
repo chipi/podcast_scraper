@@ -327,7 +327,7 @@ def test_with_provider():
 
 Both functions are idempotent (safe to call multiple times) and handle None gracefully.
 
-### ⚠️ Warning: `-s` Flag and Parallel Execution
+### Warning: `-s` Flag and Parallel Execution
 
 **Do not use `-s` (no capture) with parallel tests** — it causes hangs due to tqdm
 progress bars competing for terminal access.

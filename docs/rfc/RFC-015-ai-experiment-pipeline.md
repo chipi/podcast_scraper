@@ -18,7 +18,7 @@
 
 ---
 
-## 📊 Implementation Status (Phase 1-3 Complete)
+## Implementation Status (Phase 1-3 Complete)
 
 ### Completed Phases
 
@@ -52,14 +52,14 @@
 - Comparison tools (baseline deltas, reference metrics)
 - README governance layer for all artifact types
 
-### 🟡 Remaining Work
+### Remaining Work
 
 **Phase 4: CI Integration** (Pending)
 
-- ⏳ Smoke tests on PRs
-- ⏳ Nightly comprehensive experiments
-- ⏳ Regression detection automation
-- ⏳ PR comment integration
+-  Smoke tests on PRs
+-  Nightly comprehensive experiments
+-  Regression detection automation
+-  PR comment integration
 
 **See [GitHub Issue #304](https://github.com/chipi/podcast_scraper/issues/304) for detailed implementation plan.**
 
@@ -69,7 +69,7 @@
 
 ## Abstract
 
-**🎯 Quick Summary:** This RFC is **Phase 1-3 complete**. The experiment runner, evaluation metrics, and storage/comparison infrastructure are fully implemented and operational. CI integration (Phase 4) remains pending. The system supports dataset JSONs, baseline/reference comparisons, promotion workflow, and comprehensive fingerprinting.
+** Quick Summary:** This RFC is **Phase 1-3 complete**. The experiment runner, evaluation metrics, and storage/comparison infrastructure are fully implemented and operational. CI integration (Phase 4) remains pending. The system supports dataset JSONs, baseline/reference comparisons, promotion workflow, and comprehensive fingerprinting.
 
 ---
 
@@ -1253,7 +1253,7 @@ def run_experiments(
                     future.result()
                     print(f"[ok] Completed: {config_file}")
                 except Exception as e:
-                    print(f"✗ Failed: {config_file} - {e}")
+                    print(f" Failed: {config_file} - {e}")
     else:
 
 ```
@@ -1270,7 +1270,7 @@ def run_experiments(
                 )
                 print(f"[ok] Completed: {config_file}")
             except Exception as e:
-                print(f"✗ Failed: {config_file} - {e}")
+                print(f" Failed: {config_file} - {e}")
                 if not parallel:
 
 ```
@@ -2455,7 +2455,7 @@ summarization_openai_gpt4_mini_promptB   0.152     37.5×   <-- best
 ```text
 
 | summarization_openai_gpt4_mini_v1 | 0.145 | 38.2× |
-| summarization_openai_gpt4_mini_promptB | **0.152** | 37.5× ⭐ |
+| summarization_openai_gpt4_mini_promptB | **0.152** | 37.5×  |
 
 ```json
 
@@ -2539,7 +2539,7 @@ results/
 
 | summarization_bart_led_v1 | 0.120 | 0.315 | 0.145 | 43.4× | 2024-01-15 | Baseline local model |
 | summarization_openai_gpt4_mini_v1 | 0.145 | 0.330 | 0.150 | 38.2× | 2024-01-16 | OpenAI GPT-4o-mini |
-| summarization_openai_gpt4_mini_promptB | 0.152 | 0.335 | 0.155 | 37.5× | 2024-01-17 | Improved prompt ⭐ |
+| summarization_openai_gpt4_mini_promptB | 0.152 | 0.335 | 0.155 | 37.5× | 2024-01-17 | Improved prompt  |
 
 **NER Tab:**
 
@@ -2932,7 +2932,7 @@ The experiment runner evolves through four phases:
 
 ---
 
-## 🚀 Evolution & Improvements (2026-01-10 Update)
+## Evolution & Improvements (2026-01-10 Update)
 
 ### Critical Enhancements for Production Readiness
 
@@ -3220,7 +3220,7 @@ def create_golden_dataset(config: GoldenConfig):
 
     logger.info(f"Generating golden outputs for {config.dataset_id}...")
     logger.info(f"Using expensive model: {config.model}")
-    logger.info("⚠️  This will be expensive! Estimated cost: $X.XX")
+    logger.info("  This will be expensive! Estimated cost: $X.XX")
 
     # Generate outputs
     predictions = run_expensive_model(config)
@@ -3257,7 +3257,7 @@ def create_golden_dataset(config: GoldenConfig):
     (golden_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
     logger.info(f" Golden dataset created at {golden_dir}")
-    logger.info("⚠️  Commit this to git to make it official")
+    logger.info("  Commit this to git to make it official")
 ```
 
 **Why:** Golden data is sacred. Don't let it change silently. Require explicit approval and git commit.
@@ -3343,14 +3343,14 @@ regression_rules:
 
 Based on these improvements, the recommended implementation order is:
 
-### 1. **RFC-016 Phase 2** (3-5 days) 🔴 **CRITICAL**
+### 1. **RFC-016 Phase 2** (3-5 days)  **CRITICAL**
 
 - Enhance factories to accept experiment params dict
 - Add `ProviderParams` typed models per task
 - Add provider fingerprinting (model name, version, device, git commit)
 - Add preprocessing profile ID tracking
 
-### 2. **RFC-015 Phase 1** (2 weeks) 🟡 **HIGH PRIORITY**
+### 2. **RFC-015 Phase 1** (2 weeks)  **HIGH PRIORITY**
 
 - Create minimal experiment runner
 - Enforce baseline_id + dataset_id + golden_ref requirements

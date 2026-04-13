@@ -373,14 +373,12 @@ search overlay.
 
 ## Revision history
 
-| Date       | Change                                                              |
-| ---------- | ------------------------------------------------------------------- |
-| 2026-04-03 | Initial draft                                                       |
+| Date | Change |
+| --- | --- |
+| 2026-04-03 | Initial draft |
 | 2026-04-03 | Added theme support, key states, boundary note, visual refs section |
-| 2026-04-03 | Blueprint gray scale, shadcn pairing, intent/domain split, Inter +  |
-|            | JetBrains Mono, chart series tokens, design-reference citations     |
-| 2026-04-03 | Added Tunable parameters section (frozen vs open knobs); RFC-062    |
-|            | and PRD cross-references updated to document theme preset system    |
-| 2026-04-06 | Status Active -- viewer v2 implements this contract per RFC-062     |
-| 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs              |
-| 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment)      |
+| 2026-04-03 | Blueprint gray scale, shadcn pairing, intent/domain split, Inter + JetBrains Mono, chart series tokens, design-reference citations |
+| 2026-04-03 | Added Tunable parameters section (frozen vs open knobs); RFC-062 and PRD cross-references updated to document theme preset system |
+| 2026-04-06 | Status Active — viewer v2 implements this contract per RFC-062 |
+| 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs |
+| 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment) |

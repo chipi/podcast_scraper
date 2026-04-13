@@ -428,7 +428,7 @@ The system now passes the "minimal docs CI/CD" requirement:
 
 ### Key Improvements Over Time
 
-1. **Path-Based Workflow Filtering** ⭐ NEW
+1. **Path-Based Workflow Filtering**  NEW
    - Intelligent path filtering prevents unnecessary workflow runs
    - Docs-only changes skip Python testing, linting, and security scanning
    - Saves ~18 minutes per docs-only commit

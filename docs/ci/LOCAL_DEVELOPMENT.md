@@ -229,9 +229,9 @@ contention:
 sudo mdutil -a -i off
 
 # Option B: Exclude specific directories in System Settings > Spotlight > Privacy
-#   ~/.cache/huggingface
-#   ~/.cache/whisper
-#   .venv/
+# ~/.cache/huggingface
+# ~/.cache/whisper
+# .venv/
 ```
 
 ### Cursor session hook
