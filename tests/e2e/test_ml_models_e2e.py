@@ -55,6 +55,13 @@ try:
 except ImportError:
     pass
 
+try:
+    import whisper  # noqa: F401
+
+    WHISPER_AVAILABLE = True
+except ImportError:
+    WHISPER_AVAILABLE = False
+
 
 @pytest.mark.e2e
 @pytest.mark.ml_models
@@ -489,3 +496,96 @@ class TestMLProviderDryRun:
 
             metadata_files = list(Path(tmpdir).rglob("*.metadata.json"))
             assert len(metadata_files) == 0, "Dry-run should not create metadata files"
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@pytest.mark.slow
+@pytest.mark.module_summarization
+@pytest.mark.skipif(not TRANSFORMERS_AVAILABLE, reason="Transformers dependencies not available")
+class TestSummarizerSummaryModelConstruction:
+    """E2E: construct ``SummaryModel`` for MAP/REDUCE test defaults (offline cache).
+
+    Integration tests do not load real Transformers weights; this coverage lives here.
+    """
+
+    def test_map_and_reduce_models_load_from_cache(self) -> None:
+        from podcast_scraper import summarizer
+
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL, None)
+
+        test_models = [
+            ("MAP (test default)", config.TEST_DEFAULT_SUMMARY_MODEL, "summary_model"),
+            (
+                "REDUCE (test default)",
+                config.TEST_DEFAULT_SUMMARY_REDUCE_MODEL,
+                "summary_reduce_model",
+            ),
+        ]
+        for _label, model_name, config_field in test_models:
+            if config_field == "summary_model":
+                cfg = Config(
+                    rss_urls=["https://example.com/feed.xml"],
+                    summary_model=model_name,
+                )
+                resolved_model_name = summarizer.select_summary_model(cfg)
+            else:
+                cfg = Config(
+                    rss_urls=["https://example.com/feed.xml"],
+                    summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+                    summary_reduce_model=model_name,
+                )
+                map_model_name = summarizer.select_summary_model(cfg)
+                resolved_model_name = summarizer.select_reduce_model(cfg, map_model_name)
+
+            model = summarizer.SummaryModel(
+                model_name=resolved_model_name,
+                device=cfg.summary_device,
+                cache_dir=None,
+            )
+            assert model.model is not None
+            assert model.tokenizer is not None
+            summarizer.unload_model(model)
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@pytest.mark.critical_path
+@pytest.mark.skipif(not WHISPER_AVAILABLE, reason="Whisper dependencies not available")
+class TestModelLoaderPreloadWhisperCached:
+    """E2E: ``preload_whisper_models`` with a model already on disk."""
+
+    def test_preload_whisper_models_with_cached_model(self) -> None:
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+
+        from podcast_scraper.providers.ml.model_loader import preload_whisper_models
+
+        try:
+            preload_whisper_models([config.TEST_DEFAULT_WHISPER_MODEL])
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "network" in error_msg or "socket" in error_msg or "connection" in error_msg:
+                return
+            raise
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@pytest.mark.critical_path
+@pytest.mark.skipif(not TRANSFORMERS_AVAILABLE, reason="Transformers dependencies not available")
+class TestModelLoaderPreloadTransformersCached:
+    """E2E: ``preload_transformers_models`` with a model already on disk."""
+
+    def test_preload_transformers_models_with_cached_model(self) -> None:
+        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
+
+        from podcast_scraper.providers.ml.model_loader import preload_transformers_models
+
+        try:
+            preload_transformers_models([config.TEST_DEFAULT_SUMMARY_MODEL])
+        except Exception as e:
+            error_msg = str(e).lower()
+            if "network" in error_msg or "socket" in error_msg or "connection" in error_msg:
+                return
+            raise

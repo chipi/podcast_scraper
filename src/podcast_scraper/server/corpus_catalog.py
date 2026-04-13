@@ -11,6 +11,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
+from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
@@ -60,22 +61,6 @@ def _gi_kg_relpaths_from_metadata(metadata_relpath: str) -> tuple[str, str]:
         return f"{base}.gi.json", f"{base}.kg.json"
     stem = os.path.splitext(mp)[0]
     return f"{stem}.gi.json", f"{stem}.kg.json"
-
-
-def _bridge_relpath_from_metadata(metadata_relpath: str) -> str:
-    """RFC-072 ``.bridge.json`` path next to ``.gi.json`` / ``.kg.json``."""
-    mp = metadata_relpath
-    if mp.endswith(".metadata.json"):
-        base = mp[: -len(".metadata.json")]
-        return f"{base}.bridge.json"
-    if mp.endswith(".metadata.yaml"):
-        base = mp[: -len(".metadata.yaml")]
-        return f"{base}.bridge.json"
-    if mp.endswith(".metadata.yml"):
-        base = mp[: -len(".metadata.yml")]
-        return f"{base}.bridge.json"
-    stem = os.path.splitext(mp)[0]
-    return f"{stem}.bridge.json"
 
 
 def _parse_publish_date_str(raw: Any) -> Optional[str]:
@@ -305,7 +290,7 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
-        bridge_rel = _bridge_relpath_from_metadata(rel)
+        bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
         kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
         bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)
@@ -375,7 +360,7 @@ def catalog_row_for_metadata_path(
     feed_url = _feed_rss_url(doc)
     feed_desc = _feed_description(doc)
     gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
-    bridge_rel = _bridge_relpath_from_metadata(rel)
+    bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
     gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
     kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
     bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)

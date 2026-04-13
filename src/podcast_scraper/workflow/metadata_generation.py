@@ -2527,15 +2527,6 @@ def _determine_kg_path(metadata_path: str) -> str:
     return os.path.splitext(metadata_path)[0] + ".kg.json"
 
 
-def _determine_bridge_path(metadata_path: str) -> str:
-    """Return path for RFC-072 bridge artifact (same dir, base name .bridge.json)."""
-    if metadata_path.endswith(".metadata.json"):
-        return metadata_path.replace(".metadata.json", ".bridge.json")
-    if metadata_path.endswith(".metadata.yaml"):
-        return metadata_path.replace(".metadata.yaml", ".bridge.json")
-    return os.path.splitext(metadata_path)[0] + ".bridge.json"
-
-
 def _serialize_metadata(
     metadata_doc: EpisodeMetadataDocument,
     metadata_path: str,
@@ -3600,8 +3591,9 @@ def generate_episode_metadata(  # noqa: C901
     if bridge_gi_payload is not None or bridge_kg_payload is not None:
         try:
             from ..builders.bridge_builder import build_bridge
+            from ..builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 
-            bridge_path = _determine_bridge_path(metadata_path)
+            bridge_path = bridge_json_path_adjacent_to_metadata(metadata_path)
             bridge_doc = build_bridge(
                 str(episode_id),
                 bridge_gi_payload,

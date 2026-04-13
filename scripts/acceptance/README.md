@@ -116,7 +116,13 @@ Equivalent:
 make test-acceptance FROM_FAST_STEMS=1 USE_FIXTURES=1 NO_AUTO_ANALYZE=1 NO_AUTO_BENCHMARK=1 TIMEOUT=900
 ```
 
-**Main / release CI** runs `make test-acceptance-fixtures-fast` on push (see `.github/workflows/python-app.yml`, job `test-acceptance-fixtures`).
+**Main / release CI** runs `make test-acceptance-fixtures-fast` on push (see `.github/workflows/python-app.yml`, job `test-acceptance-fixtures`). The same job then runs **`make verify-gil-offsets-after-acceptance`**: for the latest session under `.test_outputs/acceptance/sessions/`, every `runs/run_*` that contains **`search/metadata.json`** is checked with **`verify-gil-chunk-offsets --strict`** so **GIL Quote** character spans align with **FAISS transcript** chunks (RFC-072 / issue #528; semantic **lift** contract). Override the acceptance output root with **`OUTPUT_DIR=…`** if you use a non-default `--output-dir`. **Scheduled nightly** (`.github/workflows/nightly.yml`) does not run this acceptance matrix; it uses **`make test-nightly`** instead.
+
+To run the offset pass locally after a fixture session:
+
+```bash
+make verify-gil-offsets-after-acceptance
+```
 
 Run with a per-run timeout (e.g. 600 seconds) so long configs are killed and reported as failed:
 

@@ -55,6 +55,7 @@ nav:
       - Performance Profile Guide: guides/PERFORMANCE_PROFILE_GUIDE.md
       - Optimization Workflow: guides/OPTIMIZATION_WORKFLOW_GUIDE.md
       - Live Pipeline Monitor: guides/LIVE_PIPELINE_MONITOR.md
+      - Tufte Chart Critique: guides/TUFTE_CHART_CRITIQUE.md
       - Glossary: guides/GLOSSARY.md
   - Architecture:
       - architecture/index.md
@@ -75,6 +76,7 @@ nav:
       - Resource Usage: ci/RESOURCE_USAGE.md
       - Snyk Setup: ci/SNYK_SETUP.md
       - Local Development: ci/LOCAL_DEVELOPMENT.md
+      - CI ML Stability: rfc/ci_ml_stability_guide.md
       - "Test dashboard (GitHub Pages)": ci/METRICS.md
       - "Code quality trends (wily)": ci/CODE_QUALITY_TRENDS.md
   - Product Requirements:
@@ -104,10 +106,19 @@ nav:
       - PRD-023 Corpus Digest & Library Glance: prd/PRD-023-corpus-digest-recap.md
       - PRD-024 GI/KG Graph Exploration Toolkit: prd/PRD-024-graph-exploration-toolkit.md
       - PRD-025 Corpus Intelligence Dashboard Viewer: prd/PRD-025-corpus-intelligence-dashboard-viewer.md
+      - PRD-026 Topic Entity View: prd/PRD-026-topic-entity-view.md
+      - PRD-027 Enriched Search: prd/PRD-027-enriched-search.md
       - PRD Template: prd/PRD_TEMPLATE.md
   - UX Specifications:
       - uxs/index.md
       - UXS-001 GI / KG Viewer: uxs/UXS-001-gi-kg-viewer.md
+      - UXS-002 Corpus Digest: uxs/UXS-002-corpus-digest.md
+      - UXS-003 Corpus Library: uxs/UXS-003-corpus-library.md
+      - UXS-004 Graph Exploration: uxs/UXS-004-graph-exploration.md
+      - UXS-005 Semantic Search: uxs/UXS-005-semantic-search.md
+      - UXS-006 Dashboard: uxs/UXS-006-dashboard.md
+      - UXS-007 Topic Entity View: uxs/UXS-007-topic-entity-view.md
+      - UXS-008 Enriched Search: uxs/UXS-008-enriched-search.md
       - UXS Template: uxs/UXS_TEMPLATE.md
   - Architecture Decisions:
       - adr/index.md
@@ -260,6 +271,9 @@ nav:
       - RFC-069 Graph Exploration Toolkit: rfc/RFC-069-graph-exploration-toolkit.md
       - RFC-070 Semantic Corpus Search Platform Future: rfc/RFC-070-semantic-corpus-search-platform-future.md
       - RFC-071 Corpus Intelligence Dashboard Viewer: rfc/RFC-071-corpus-intelligence-dashboard-viewer.md
+      - RFC-072 Canonical Identity Layer (CIL) & Cross-Layer Bridge: rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md
+      - RFC-073 Enrichment Layer Architecture: rfc/RFC-073-enrichment-layer-architecture.md
+      - RFC-074 Process Safety for ML Workloads (macOS): rfc/RFC-074-process-safety-ml-workloads-macos.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md
@@ -276,6 +290,7 @@ nav:
       - API Versioning: api/VERSIONING.md
   - Grounded Insights:
       - Guide: guides/GROUNDED_INSIGHTS_GUIDE.md
+      - "GIL / KG / CIL cross-layer (RFC-072)": guides/GIL_KG_CIL_CROSS_LAYER.md
       - "Semantic search (RFC-061)": guides/SEMANTIC_SEARCH_GUIDE.md
       - GIL Ontology: architecture/gi/ontology.md
   - Knowledge Graph (KG):

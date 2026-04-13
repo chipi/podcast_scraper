@@ -13,11 +13,11 @@ from podcast_scraper.providers.ml import embedding_loader
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
 from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
-    _episode_to_gi_path,
     _hit_passes_cli_filters,
     _metadata_relpath_by_scope_from_corpus,
     _parse_since,
     _resolve_index_dir,
+    merged_episode_gi_paths,
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.protocol import SearchResult
@@ -191,7 +191,7 @@ def run_corpus_search(
     )
 
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
-    gi_cache = _episode_to_gi_path(output_dir)
+    gi_cache = merged_episode_gi_paths(output_dir)
     rel_by_scope = _metadata_relpath_by_scope_from_corpus(output_dir)
     filtered: List[SearchResult] = []
     collect_cap = fetch_k if dedupe_kg_surfaces else top_k

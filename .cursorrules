@@ -226,8 +226,9 @@ or accessible names used by tests):
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update first when anything **E2E-visible** or **selector-related**
    changes (Playwright `getByRole` strings, entry flows, `#search-q`, `.graph-canvas`, etc.).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/UXS-001-gi-kg-viewer.md`** — Update when the **visual or experience contract**
-   (tokens, density, documented patterns) changes, not only when tests break.
+3. **`docs/uxs/`** — Update **`UXS-001`** for **shared** tokens/shell rules; update the relevant
+   **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
+   **surface-specific** visual contract changes, not only when tests break.
 
 **Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
 **root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as

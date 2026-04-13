@@ -11,6 +11,11 @@ PACKAGE = podcast_scraper
 # GI/KG viewer (Vue + Vite + Playwright, RFC-062). Override if the app moves, e.g. ``make serve-ui WEB_VIEWER_DIR=apps/viewer``.
 WEB_VIEWER_DIR ?= web/gi-kg-viewer
 
+# GIL Quote vs FAISS chunk offset gate (#528 / RFC-072 Phase 5). ``make verify-gil-offsets-strict`` uses these.
+# Override for CI or another indexed corpus: GIL_OFFSET_VERIFY_DIR=/path/to/corpus-root make verify-gil-offsets-strict
+GIL_OFFSET_VERIFY_DIR ?= output
+GIL_OFFSET_MIN_RATE ?= 0.95
+
 # Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm/server).
 # Override path: ``make venv-dev-init VENVDEV=.venv-ci-unit``
 VENVDEV ?= .venv-dev
@@ -39,7 +44,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-q verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e verify-gil-offsets-strict
 
 help:
 	@echo "Common developer commands:"
@@ -74,6 +79,8 @@ help:
 	@echo "  make fetch-ci-metrics-validate [N=40]  Download (same as above) then validate every run-* bundle"
 	@echo "  make fetch-nightly-metrics [N=25]  N unset: one artifact or Pages curl; N>=1: download N nightlies + merge JSONL for charts"
 	@echo "  make validate-metrics-bundle BUNDLE=path  Validate downloaded latest-*.json + optional history JSONL"
+	@echo "  make verify-gil-offsets-strict [GIL_OFFSET_VERIFY_DIR=path] [GIL_OFFSET_MIN_RATE=0.95]  Quote vs FAISS chunk offsets (#528; strict gate)"
+	@echo "  make verify-gil-offsets-after-acceptance [OUTPUT_DIR=path]  After test-acceptance*: verify every run_* with search/metadata.json"
 	@echo "  make build-metrics-dashboard-preview   CI: merged history + nightly + dashboard-data.json → artifacts/dashboard-preview/"
 	@echo "  make metrics-preview-check             Same as preview build with strict history-*.jsonl validation (METRICS_PREVIEW_STRICT)"
 	@echo "  make serve-metrics-dashboard   Rebuild preview + HTTP server (http://127.0.0.1:8777/)"
@@ -440,6 +447,39 @@ test-ui:
 test-ui-e2e:
 	@echo "Playwright E2E (gi-kg-viewer)..."
 	@cd $(WEB_VIEWER_DIR) && npm install && npx playwright install firefox && npm run test:e2e
+
+# RFC-072 Phase 5 (#528): fail if GIL Quote spans do not overlap FAISS transcript chunks enough.
+verify-gil-offsets-strict:
+	@echo "GIL vs FAISS chunk offset verification (strict, min overlap rate $(GIL_OFFSET_MIN_RATE))..."
+	@test -d "$(GIL_OFFSET_VERIFY_DIR)" || { echo "GIL_OFFSET_VERIFY_DIR not found: $(GIL_OFFSET_VERIFY_DIR)"; exit 2; }
+	@test -f "$(GIL_OFFSET_VERIFY_DIR)/search/metadata.json" || { echo "No search/metadata.json under $(GIL_OFFSET_VERIFY_DIR) (index missing?)"; exit 2; }
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src" && $(PYTHON) -m $(PACKAGE).cli verify-gil-chunk-offsets \
+		--output-dir "$(GIL_OFFSET_VERIFY_DIR)" \
+		--strict \
+		--min-overlap-rate "$(GIL_OFFSET_MIN_RATE)"
+
+# Run after ``make test-acceptance*`` (same OUTPUT_DIR). Uses the lexicographically latest session_* folder.
+verify-gil-offsets-after-acceptance:
+	@set -e; \
+	base="$(or $(OUTPUT_DIR),.test_outputs/acceptance)/sessions"; \
+	test -d "$$base" || { echo "No sessions dir: $$base (run test-acceptance-fixtures-fast first?)"; exit 2; }; \
+	session=$$(ls -1d "$$base"/session_* 2>/dev/null | sort | tail -1); \
+	test -n "$$session" || { echo "No session_* under $$base"; exit 2; }; \
+	runs="$$session/runs"; \
+	test -d "$$runs" || { echo "No runs dir: $$runs"; exit 2; }; \
+	n=0; \
+	for d in "$$runs"/run_*; do \
+		test -d "$$d" || continue; \
+		if test -f "$$d/search/metadata.json"; then \
+			echo "verify-gil-offsets-strict: $$d"; \
+			$(MAKE) verify-gil-offsets-strict GIL_OFFSET_VERIFY_DIR="$$d" GIL_OFFSET_MIN_RATE="$(GIL_OFFSET_MIN_RATE)"; \
+			n=$$((n+1)); \
+		fi; \
+	done; \
+	if test "$$n" -eq 0; then \
+		echo "No run_* with search/metadata.json under $$runs"; exit 2; \
+	fi; \
+	echo "OK: verified GIL vs FAISS offsets for $$n acceptance run(s)"
 
 gil-quality-metrics:
 	# PRD-017 GIL quality metrics over .gi.json (see scripts/tools/gil_quality_metrics.py).

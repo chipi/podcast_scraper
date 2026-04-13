@@ -123,6 +123,62 @@ def _episode_to_gi_path(output_dir: Path) -> Dict[str, Path]:
     return out
 
 
+def _episode_to_gi_path_from_discovered(output_dir: Path) -> Dict[str, Path]:
+    """Map episode_id -> ``gi.json`` for every discovered ``*.metadata.json`` under the corpus.
+
+    Covers feed-nested layouts (``feeds/.../metadata/``) where top-level ``metadata/`` is empty
+    or absent (#528 offset verification on acceptance / multi-feed outputs).
+    """
+    root = safe_resolve_directory(output_dir)
+    if root is None:
+        return {}
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
+    out: Dict[str, Path] = {}
+    for meta_path in discover_metadata_files(output_dir):
+        if meta_path.suffix.lower() != ".json":
+            continue
+        mp_s = os.path.normpath(str(meta_path))
+        if not mp_s.startswith(safe_prefix):
+            continue
+        try:
+            with open(meta_path, encoding="utf-8") as _fh:
+                doc = json.loads(_fh.read())
+        except (OSError, json.JSONDecodeError):
+            continue
+        ep = doc.get("episode") or {}
+        eid = ep.get("episode_id")
+        if not isinstance(eid, str) or not eid:
+            continue
+        gi = doc.get("grounded_insights")
+        if isinstance(gi, dict):
+            rel = gi.get("artifact_path")
+            if isinstance(rel, str) and rel.strip():
+                safe = safe_relpath_under_corpus_root(root, rel.strip())
+                if safe is not None:
+                    safe = os.path.normpath(safe)
+                    if safe.startswith(safe_prefix) and os.path.isfile(safe):
+                        out[eid] = Path(safe)
+                        continue
+        gi_path_s = os.path.normpath(_determine_gi_path(str(meta_path)))
+        if gi_path_s.startswith(safe_prefix) and os.path.isfile(gi_path_s):
+            out[eid] = Path(gi_path_s)
+    return out
+
+
+def merged_episode_gi_paths(output_dir: Path) -> Dict[str, Path]:
+    """Map episode_id -> ``gi.json`` for search, filters, and offset verification.
+
+    Starts from all discovered ``*.metadata.json`` under the corpus (feed-nested layouts),
+    then applies the legacy top-level ``metadata/*.metadata.json`` scan. Flat entries
+    override discovered keys when both exist (same merge as ``verify-gil-chunk-offsets``).
+    """
+    out = _episode_to_gi_path_from_discovered(output_dir)
+    for eid, pth in _episode_to_gi_path(output_dir).items():
+        out[eid] = pth
+    return out
+
+
 def _metadata_relpath_by_scope_from_corpus(output_dir: Path) -> Dict[str, str]:
     """Map fingerprint scope key -> corpus-relative ``*.metadata.json`` path (POSIX).
 
@@ -715,7 +771,7 @@ def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) ->
         logger.error("Failed to read index metadata: %s", format_exception_for_log(exc))
         return EXIT_NO_ARTIFACTS
 
-    gi_cache = _episode_to_gi_path(root)
+    gi_cache = merged_episode_gi_paths(root)
     max_samples = int(getattr(args, "max_samples", 8) or 8)
     report = build_offset_alignment_report(
         gi_by_episode=gi_cache,

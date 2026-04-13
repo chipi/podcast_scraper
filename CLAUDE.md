@@ -31,8 +31,8 @@
 - ✅ Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
 - ✅ **GI/KG viewer UX** (`web/gi-kg-viewer/`): when UI changes affect users or Playwright, update in order:
   **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
-  if the visual/token experience contract changes. See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and
-  `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section).
+  and/or the relevant **feature UXS** (`docs/uxs/index.md`) if the visual/token experience contract changes.
+  See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section).
 - ✅ **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
 - ✅ **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
 

@@ -7,11 +7,10 @@ import logging
 from pathlib import Path
 from typing import Any, Iterator
 
+from podcast_scraper.builders.rfc072_artifact_paths import gi_and_kg_json_paths_next_to_bridge
+from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+
 logger = logging.getLogger(__name__)
-
-
-def _norm_edge_type(raw: Any) -> str:
-    return str(raw or "").strip().upper()
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -36,15 +35,6 @@ def _is_under(root: Path, path: Path) -> bool:
         return False
 
 
-def _sibling_gi_kg(bridge_path: Path) -> tuple[Path, Path]:
-    name = bridge_path.name
-    if not name.endswith(".bridge.json"):
-        raise ValueError(f"not a bridge path: {bridge_path}")
-    stem = name[: -len(".bridge.json")]
-    parent = bridge_path.parent
-    return parent / f"{stem}.gi.json", parent / f"{stem}.kg.json"
-
-
 def iter_cil_episode_bundles(
     corpus_root: Path,
 ) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
@@ -53,7 +43,7 @@ def iter_cil_episode_bundles(
     for bridge_path in sorted(root.glob("**/*.bridge.json")):
         if not bridge_path.is_file() or not _is_under(root, bridge_path):
             continue
-        gi_path, kg_path = _sibling_gi_kg(bridge_path)
+        gi_path, kg_path = gi_and_kg_json_paths_next_to_bridge(bridge_path)
         if not gi_path.is_file() or not kg_path.is_file():
             continue
         bridge = _read_json(bridge_path)
@@ -130,7 +120,7 @@ def _quote_ids_spoken_by_person(gi: dict[str, Any], person: str) -> set[str]:
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
-        if _norm_edge_type(e.get("type")) != "SPOKEN_BY":
+        if normalize_gil_edge_type(e.get("type")) != "SPOKEN_BY":
             continue
         if str(e.get("to")) != person:
             continue
@@ -145,7 +135,7 @@ def _insight_ids_supported_by_quotes(gi: dict[str, Any], spoken_quotes: set[str]
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
-        if _norm_edge_type(e.get("type")) != "SUPPORTED_BY":
+        if normalize_gil_edge_type(e.get("type")) != "SUPPORTED_BY":
             continue
         if str(e.get("to")) not in spoken_quotes:
             continue
@@ -200,7 +190,7 @@ def position_arc(
         for e in gi.get("edges") or []:
             if not isinstance(e, dict):
                 continue
-            if _norm_edge_type(e.get("type")) != "ABOUT":
+            if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
             if str(e.get("to")) != topic:
                 continue
@@ -258,7 +248,7 @@ def _guest_brief_append_for_episode(
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
-        if _norm_edge_type(e.get("type")) != "ABOUT":
+        if normalize_gil_edge_type(e.get("type")) != "ABOUT":
             continue
         if str(e.get("from")) not in supported_insights:
             continue
@@ -320,7 +310,7 @@ def topic_timeline(
         for e in gi.get("edges") or []:
             if not isinstance(e, dict):
                 continue
-            if _norm_edge_type(e.get("type")) != "ABOUT":
+            if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
             if str(e.get("to")) != topic:
                 continue
@@ -380,7 +370,7 @@ def topic_person_ids(corpus_root: Path, target_topic: str) -> list[str]:
         for e in gi.get("edges") or []:
             if not isinstance(e, dict):
                 continue
-            if _norm_edge_type(e.get("type")) != "ABOUT":
+            if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
             if str(e.get("to")) != topic:
                 continue
@@ -392,7 +382,7 @@ def topic_person_ids(corpus_root: Path, target_topic: str) -> list[str]:
         for e in gi.get("edges") or []:
             if not isinstance(e, dict):
                 continue
-            if _norm_edge_type(e.get("type")) != "SUPPORTED_BY":
+            if normalize_gil_edge_type(e.get("type")) != "SUPPORTED_BY":
                 continue
             ins = str(e.get("from"))
             q = e.get("to")
@@ -403,7 +393,7 @@ def topic_person_ids(corpus_root: Path, target_topic: str) -> list[str]:
             for e in gi.get("edges") or []:
                 if not isinstance(e, dict):
                     continue
-                if _norm_edge_type(e.get("type")) != "SPOKEN_BY":
+                if normalize_gil_edge_type(e.get("type")) != "SPOKEN_BY":
                     continue
                 if str(e.get("from")) not in qids:
                     continue

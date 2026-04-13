@@ -328,6 +328,7 @@ make lint
 make test-unit          # Fast feedback (~30s)
 make ci-fast            # Default pre-push gate (~6-10 min)
 make ci                 # Full suite before PR (~10-15 min)
+make check-zombie       # After any stuck/hung make run (macOS)
 ```
 
 If your PR touches **`web/gi-kg-viewer/`**:
@@ -351,7 +352,7 @@ git add <specific-files>               # Prefer explicit staging
 git commit -m "feat: add my feature"   # Use conventional commits
 ```
 
-**⚠️ Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking, markdown linting, JSON/YAML validation) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated.
+**⚠️ Pre-commit hook:** The git pre-commit hook will automatically run checks (formatting, linting, type checking, markdown linting, JSON/YAML validation) before your commit. If checks fail, fix the issues and commit again. The hook uses tools from `.venv/bin/`, so ensure your venv is activated. The hook has a 120-second timeout (RFC-074) -- if a check hangs, it kills the process group instead of blocking indefinitely.
 
 **Commit format:** `type: description`
 

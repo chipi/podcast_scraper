@@ -563,8 +563,8 @@ class TestAllProvidersRealModels(unittest.TestCase):
                     f"(which violates integration test rules)."
                 )
 
-        # Get transcript from fixtures
-        fixture_root = Path(__file__).parent.parent.parent / "fixtures"
+        # Get transcript from fixtures (tests/fixtures/, not repo-root fixtures/)
+        fixture_root = Path(__file__).parent.parent / "fixtures"
         transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
 
         if not transcript_file.exists():
@@ -801,8 +801,8 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
         from podcast_scraper.rss import parser as rss_parser
         from podcast_scraper.workflow import metadata_generation as metadata
 
-        # Get transcript from fixtures
-        fixture_root = Path(__file__).parent.parent.parent / "fixtures"
+        # Get transcript from fixtures (tests/fixtures/, not repo-root fixtures/)
+        fixture_root = Path(__file__).parent.parent / "fixtures"
         transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
 
         if not transcript_file.exists():

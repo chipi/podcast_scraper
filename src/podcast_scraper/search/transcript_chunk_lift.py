@@ -7,24 +7,14 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional
 
+from podcast_scraper.builders.rfc072_artifact_paths import bridge_path_next_to_gi_json
+from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 logger = logging.getLogger(__name__)
 
-
-def _norm_edge_type(raw: Any) -> str:
-    return str(raw or "").strip().upper()
-
-
-def bridge_path_next_to_gi(gi_path: Path) -> Path:
-    """Sibling ``*.bridge.json`` for ``*.gi.json`` (same stem rule as catalog)."""
-    name = gi_path.name
-    if name.endswith(".gi.json"):
-        return gi_path.with_name(name[: -len(".gi.json")] + ".bridge.json")
-    stem = gi_path.stem
-    if stem.endswith(".gi"):
-        return gi_path.with_name(stem[: -len(".gi")] + ".bridge.json")
-    return gi_path.with_name(f"{stem}.bridge.json")
+# Public alias (same name as historical API); canonical implementation in builders.
+bridge_path_next_to_gi = bridge_path_next_to_gi_json
 
 
 def _nodes_by_id(artifact: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -85,7 +75,7 @@ def _insight_for_quote(gi: Mapping[str, Any], quote_id: str) -> Optional[str]:
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
-        if _norm_edge_type(e.get("type")) != "SUPPORTED_BY":
+        if normalize_gil_edge_type(e.get("type")) != "SUPPORTED_BY":
             continue
         if str(e.get("to")) != quote_id:
             continue
@@ -100,7 +90,7 @@ def _topic_ids_for_insight(gi: Mapping[str, Any], insight_id: str) -> List[str]:
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
-        if _norm_edge_type(e.get("type")) != "ABOUT":
+        if normalize_gil_edge_type(e.get("type")) != "ABOUT":
             continue
         if str(e.get("from")) != insight_id:
             continue
@@ -114,7 +104,7 @@ def _person_id_for_quote(gi: Mapping[str, Any], quote_id: str) -> Optional[str]:
     for e in gi.get("edges") or []:
         if not isinstance(e, dict):
             continue
-        if _norm_edge_type(e.get("type")) != "SPOKEN_BY":
+        if normalize_gil_edge_type(e.get("type")) != "SPOKEN_BY":
             continue
         if str(e.get("from")) != quote_id:
             continue
@@ -236,6 +226,7 @@ class TranscriptLiftGiCache:
         self._gi: Dict[str, Optional[Dict[str, Any]]] = {}
 
     def get(self, gi_path: Path) -> Optional[Dict[str, Any]]:
+        """Return parsed GI JSON for *gi_path*, loading and caching on first access."""
         key = str(gi_path.resolve())
         if key in self._gi:
             return self._gi[key]
