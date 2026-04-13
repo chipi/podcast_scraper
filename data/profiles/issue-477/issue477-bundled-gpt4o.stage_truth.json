@@ -1,0 +1,88 @@
+{
+  "profile_stage_truth_version": 1,
+  "release": "issue477-bundled-gpt4o",
+  "dataset_id": "e2e_podcast1_mtb_n2",
+  "source_metrics_path": "/Users/markodragoljevic/Projects/podcast_scraper-FUTURE/.tmp/profile_capture/e2e/openai_bundled/run_20260412-135749_b6c57b7d/metrics.json",
+  "sample_interval_s": 0.5,
+  "run_wall_s": 21.5184,
+  "sum_mapped_stage_wall_s": 32.6082,
+  "parallelism_hint_ratio": 1.5154,
+  "wall_seconds_by_stage": {
+    "speaker_detection": 2.24,
+    "summarization": 5.76,
+    "gi_generation": 21.66,
+    "kg_extraction": 2.68,
+    "vector_indexing": 0.2682
+  },
+  "resource_by_stage_psutil": {
+    "speaker_detection": {
+      "peak_rss_mb": 629.33,
+      "avg_cpu_pct": 2.37
+    },
+    "summarization": {
+      "peak_rss_mb": 640.7,
+      "avg_cpu_pct": 0.99
+    },
+    "gi_generation": {
+      "peak_rss_mb": 640.83,
+      "avg_cpu_pct": 0.3
+    },
+    "kg_extraction": {
+      "peak_rss_mb": 643.84,
+      "avg_cpu_pct": 1.73
+    },
+    "vector_indexing": {
+      "peak_rss_mb": 644,
+      "avg_cpu_pct": 0.7
+    }
+  },
+  "global_peak_rss_mb_sampled": 643.84,
+  "metrics_excerpt": {
+    "schema_version": "1.0.0",
+    "run_duration_seconds": 21.42,
+    "episodes_scraped_total": 2,
+    "episodes_skipped_total": 0,
+    "errors_total": 0,
+    "time_scraping": 0.0,
+    "time_parsing": 0.0,
+    "time_normalizing": 2.24,
+    "time_writing_storage": 0.0,
+    "io_and_waiting_wall_seconds": 18.79,
+    "io_and_waiting_thread_sum_seconds": 19.93,
+    "time_io_and_waiting": 19.93,
+    "download_media_count": 2,
+    "avg_download_media_seconds": 0.0,
+    "preprocessing_count": 0,
+    "avg_preprocessing_seconds": 0.0,
+    "transcribe_count": 0,
+    "avg_transcribe_seconds": 0.0,
+    "extract_names_count": 2,
+    "avg_extract_names_seconds": 1.12,
+    "cleaning_count": 2,
+    "avg_cleaning_seconds": 0.0,
+    "summarize_count": 2,
+    "avg_summarize_seconds": 2.88,
+    "gi_count": 2,
+    "avg_gi_seconds": 10.83,
+    "kg_count": 2,
+    "avg_kg_seconds": 1.34,
+    "vector_index_seconds": 0.2682,
+    "download_media_time_by_episode": {
+      "1": 0.0,
+      "2": 0.0
+    },
+    "transcribe_time_by_episode": {},
+    "extract_names_time_by_episode": {
+      "1": 1.2215,
+      "2": 1.0113
+    },
+    "summarize_time_by_episode": {
+      "1": 3.3163,
+      "2": 2.4456
+    },
+    "cleaning_time_by_episode": {
+      "1": 0.003,
+      "2": 0.0025
+    }
+  }
+}

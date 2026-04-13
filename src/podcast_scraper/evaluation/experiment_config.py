@@ -531,6 +531,13 @@ class ExperimentConfig(BaseModel):
             "When omitted, product default applies (typically hybrid for API LLM providers)."
         ),
     )
+    llm_pipeline_mode: Optional[Literal["staged", "bundled"]] = Field(
+        default=None,
+        description=(
+            "When set, passed to podcast_scraper.config.Config.llm_pipeline_mode "
+            "(Issue #477: bundled clean+summary+bullets vs staged)."
+        ),
+    )
     params: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(

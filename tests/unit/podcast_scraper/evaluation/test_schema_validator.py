@@ -8,7 +8,6 @@ import pytest
 
 import podcast_scraper.evaluation.schema_validator as schema_validator_mod
 from podcast_scraper.evaluation.schema_validator import (
-    HAS_JSONSCHEMA,
     validate_metrics_ner,
     validate_metrics_summarization,
     validate_schema,
@@ -36,13 +35,12 @@ class TestValidateSchema:
         with pytest.raises(ValueError, match="Failed to load schema"):
             validate_schema({}, path, strict=True)
 
-    def test_valid_schema_with_required_fields_fallback(self, tmp_path):
-        """Basic validation passes when obj has required fields (no jsonschema)."""
+    def test_valid_schema_with_required_fields(self, tmp_path):
+        """Validation passes when obj has required fields."""
         schema_path = tmp_path / "schema.json"
-        schema_path.write_text(json.dumps({"required": ["id"]}), encoding="utf-8")
-        validate_schema({"id": 1}, schema_path, strict=False)
+        schema_path.write_text(json.dumps({"type": "object", "required": ["id"]}), encoding="utf-8")
+        assert validate_schema({"id": 1}, schema_path, strict=False) is True
 
-    @pytest.mark.skipif(not HAS_JSONSCHEMA, reason="jsonschema not installed")
     def test_jsonschema_invalid_instance_strict_raises(self, tmp_path):
         schema_path = tmp_path / "schema.json"
         schema_path.write_text(
@@ -54,7 +52,6 @@ class TestValidateSchema:
         with pytest.raises(ValueError, match="Schema validation failed"):
             validate_schema({"n": "not-int"}, schema_path, strict=True)
 
-    @pytest.mark.skipif(not HAS_JSONSCHEMA, reason="jsonschema not installed")
     def test_jsonschema_invalid_instance_non_strict_returns_false(self, tmp_path):
         schema_path = tmp_path / "schema.json"
         schema_path.write_text(

@@ -1,4 +1,4 @@
-# ADR-024: Secure Credential Injection
+# ADR-011: Secure Credential Injection
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

@@ -1,4 +1,4 @@
-# ADR-061: Relational Postgres Projection for GIL and KG
+# ADR-054: Relational Postgres Projection for GIL and KG
 
 - **Status**: Accepted
 - **Date**: 2026-04-03

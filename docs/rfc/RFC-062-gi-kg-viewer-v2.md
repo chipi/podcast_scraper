@@ -1,55 +1,104 @@
 # RFC-062: GI/KG Viewer v2 — Semantic Search UI & Web Application Architecture
 
-- **Status**: Completed
+- **Status**: Completed (v2.6.0) — Vue 3 SPA **`web/gi-kg-viewer/`**, FastAPI
+  **`src/podcast_scraper/server/`**, **`podcast serve`** / **`make serve`**, Playwright E2E.
+  The **shell** (nav, **Corpus** vs **API · Data**, **Dashboard**, graph host, semantic search,
+  health matrix) lives here; **Library**, **Digest**, extended **corpus** and **index rebuild**
+  APIs, and **graph exploration chrome** are specified in sibling RFCs but **ship inside the same
+  app** (see **Delivered scope** below).
 - **Authors**: Podcast Scraper Team
-- **Stakeholders**: Core team, GIL/KG consumers, viewer users
+- **Stakeholders**: Core team, GIL/KG consumers, corpus operators, viewer users
 - **Related PRDs**:
-  - `docs/prd/PRD-021-semantic-corpus-search.md` (semantic search — surfaced in viewer)
-  - `docs/prd/PRD-017-grounded-insight-layer.md` (GIL — primary visualization content)
-  - `docs/prd/PRD-019-knowledge-graph-layer.md` (KG — primary visualization content)
+  - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md) — GI graph content
+  - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md) — KG graph content
+  - [PRD-021: Semantic Corpus Search](../prd/PRD-021-semantic-corpus-search.md) — semantic search UI
+  - [PRD-022: Corpus Library & Episode Browser](../prd/PRD-022-corpus-library-episode-browser.md) —
+    **Library** tab (with [RFC-067](RFC-067-corpus-library-api-viewer.md))
+  - [PRD-023: Corpus Digest & Library Glance](../prd/PRD-023-corpus-digest-recap.md) — **Digest** tab
+    (with [RFC-068](RFC-068-corpus-digest-api-viewer.md))
+  - [PRD-024: Graph exploration toolkit](../prd/PRD-024-graph-exploration-toolkit.md) — graph chrome
+    (with [RFC-069](RFC-069-graph-exploration-toolkit.md))
+- **Related ADRs**:
+  - [ADR-064: Canonical server layer with feature-flagged routes](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)
+  - [ADR-066: Playwright for UI E2E testing](../adr/ADR-066-playwright-for-ui-e2e-testing.md)
 - **Related RFCs**:
-  - `docs/rfc/RFC-061-semantic-corpus-search.md` (search backend this viewer consumes)
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (GIL artifact format)
-  - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md` (UC4/UC5 — semantic QA, Insight Explorer)
-  - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` (KG artifact format)
-  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (KG use cases)
-  - `docs/rfc/RFC-051-database-projection-gil-kg.md` (future structured query backend)
+  - [RFC-061: Semantic corpus search](RFC-061-semantic-corpus-search.md) — search backend
+  - [RFC-049: GIL core](RFC-049-grounded-insight-layer-core.md) — GI artifact shape
+  - [RFC-050: GIL use cases](RFC-050-grounded-insight-layer-use-cases.md) — explore / QA patterns
+  - [RFC-055: KG core](RFC-055-knowledge-graph-layer-core.md) — KG artifact shape
+  - [RFC-056: KG use cases](RFC-056-knowledge-graph-layer-use-cases.md)
+  - [RFC-067: Corpus library API & viewer](RFC-067-corpus-library-api-viewer.md) — **`/api/corpus/feeds`**
+    **`/episodes`**, Library UX, episode rail handoffs
+  - [RFC-068: Corpus digest API & viewer](RFC-068-corpus-digest-api-viewer.md) — **`/api/corpus/digest`**
+    **Digest** tab, discovery flows
+  - [RFC-069: Graph exploration toolkit](RFC-069-graph-exploration-toolkit.md) — minimap, degree
+    filter, layouts, zoom affordances on the graph card
+  - [RFC-051: Database projection GIL/KG](RFC-051-database-projection-gil-kg.md) — future structured
+    query backend
 - **Related UX specs**:
-  - `docs/uxs/UXS-001-gi-kg-viewer.md` (visual and token contract for viewer v1/v2)
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — tokens, density, tab copy, accessibility
+    targets (updated with v2 shell)
 - **Related Documents**:
-  - [GitHub #489](https://github.com/chipi/podcast_scraper/issues/489) — Implementation issue for this RFC
-  - [GitHub #445](https://github.com/chipi/podcast_scraper/issues/445) — Viewer v1 implementation
-  - [GitHub #484](https://github.com/chipi/podcast_scraper/issues/484) — Semantic Corpus Search Phase 1
+  - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) —
+    Playwright contract (selectors, surfaces); **update when UI or E2E changes** (repo path:
+    `web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`)
+  - [Platform architecture blueprint](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
+  - [GitHub #489](https://github.com/chipi/podcast_scraper/issues/489) — Viewer v2 implementation
+  - [GitHub #509](https://github.com/chipi/podcast_scraper/issues/509) — E2E / surface map hygiene
+  - [GitHub #445](https://github.com/chipi/podcast_scraper/issues/445) — Viewer v1 (removed)
+  - [GitHub #484](https://github.com/chipi/podcast_scraper/issues/484) — Semantic search phase 1
   - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
-  - [GitHub #50](https://github.com/chipi/podcast_scraper/issues/50) — Simple UI + server (v2.7)
-  - [GitHub #347](https://github.com/chipi/podcast_scraper/issues/347) — UI to access output from DB (v2.7)
+  - [GitHub #50](https://github.com/chipi/podcast_scraper/issues/50) — Platform UI + server (v2.7)
+  - [GitHub #347](https://github.com/chipi/podcast_scraper/issues/347) — UI for DB-backed corpus (v2.7)
   - [GitHub #46](https://github.com/chipi/podcast_scraper/issues/46) — Docker architecture (v2.7)
-  - `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md` — Platform architecture vision
+- **Updated**: 2026-04-11 (expanded v2.6 shell scope, sibling RFC cross-links, server layout)
 
 ## Abstract
 
-This RFC proposes a full rebuild of the GI/KG viewer (`web/gi-kg-viz/`) as a proper
-Vue 3 web application backed by the project's first FastAPI server layer. The viewer v2
-replaces the current collection of vanilla-JS pages with a single-page application
-featuring semantic search integration (RFC-061), a Cytoscape.js graph engine, typed
-state management via Pinia, and a REST API layer wrapping the `VectorStore`,
-`gi explore`, and artifact loading capabilities of the core Python library.
+This RFC defines the **v2 GI/KG viewer**: a **Vue 3 + Vite** single-page app (**`web/gi-kg-viewer/`**)
+backed by the canonical FastAPI layer (**`src/podcast_scraper/server/`**). It replaces the removed
+vanilla-JS prototype (**`web/gi-kg-viz/`**, #445) with one **“Podcast Intelligence Platform”** shell:
+main navigation (**Digest**, **Library**, **Graph**, **Dashboard**), a left rail (**Corpus** path vs
+**API · Data**), semantic search (**RFC-061**), a **Cytoscape.js** graph host, and a **Dashboard** with
+**Pipeline** vs **Content intelligence** chart sections. **Pinia**, **TypeScript**, and **Tailwind**
+(UXS-001 tokens) carry state and styling; **`podcast serve`** serves the built SPA plus **`/api/*`**.
 
-The FastAPI backend is intentionally placed in `src/podcast_scraper/server/` — not
-`viewer/` — because it is the **seed of the platform API**. The viewer is the first
-consumer of this server; the platform UI ([#50](https://github.com/chipi/podcast_scraper/issues/50),
-[#347](https://github.com/chipi/podcast_scraper/issues/347), megasketch Part A) is the
-second. One server, pluggable route groups, feature flags to activate platform routes
-when ready.
+The same release expanded the **server** beyond the original search + artifacts + explore + index
+stats sketch: **corpus metrics**, **library**, **digest**, **binary/covers**, **`POST /api/index/rebuild`**
+and **`GET /api/corpus/runs/summary`** (and related routes) power **API · Data**, **Library**, **Digest**,
+and **Dashboard** panels. Behavioral and API detail for those areas lives in **RFC-067**, **RFC-068**,
+and **RFC-069**; graph chrome specifics (minimap, degree buckets, layout combobox, export PNG) are
+**RFC-069** on top of this RFC’s graph integration patterns.
 
-**Architecture Alignment:** The server is a **consumption and coordination layer** — it
-does not modify artifacts, pipeline stages, or CLI commands. It wraps existing Python
-APIs (`VectorStore.search()`, `gi explore`, artifact loading) behind REST endpoints.
-The frontend is a static SPA served by the same process, with a file-picker fallback
-for offline use. This follows the megasketch constraint A.2: **"One pipeline core,
-multiple shells"** — the CLI is one shell, the server is another.
+The FastAPI package remains the **seed of the platform API** ([#50](https://github.com/chipi/podcast_scraper/issues/50),
+[#347](https://github.com/chipi/podcast_scraper/issues/347)): **`enable_platform`** in **`app.py`**
+is reserved for future platform routers; **v2.6** mounts **viewer + corpus** routes unconditionally.
+
+**Architecture alignment:** The server is a **consumption and coordination layer** — it does not mutate
+artifacts or pipeline outputs. It wraps **`VectorStore`**, **`gi explore`**, filesystem artifacts, and
+corpus helpers behind REST. The SPA uses a **file-picker fallback** when **`/api/health`** fails.
+This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI vs server).
+
+## Delivered scope (v2.6 viewer shell)
+
+| Surface | What shipped (summary) | Normative detail |
+| ------- | ---------------------- | ---------------- |
+| **App shell** | Header (**Podcast Intelligence Platform** + v2), **Main views** tabs, **Corpus** / **API · Data** left tabs, right **Search & Explore** vs **Episode** / graph context rails | [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) |
+| **Digest** | Default entry tab for online mode; rolling window, topic bands, **Recent** list, **Episode** rail, **Open Library** / **Search topic** handoffs | [RFC-068](RFC-068-corpus-digest-api-viewer.md) |
+| **Library** | Feed list + cursor-paginated episodes, filters, **Episode** rail (**Open in graph**, **Prefill semantic search**, similar episodes) | [RFC-067](RFC-067-corpus-library-api-viewer.md) |
+| **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | This RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
+| **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | UXS-001 + [RFC-061](RFC-061-semantic-corpus-search.md) |
+| **Dashboard** | **Corpus summary** strip; **Dashboard sections** tablist **Pipeline** vs **Content intelligence**; Chart.js (manifest, **run.json**, index/digest glance, GI/KG timelines, histograms) | [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md); stats from **`/api/corpus/*`** |
+| **API · Data** | **Health** matrix (**Artifacts**, **Semantic search**, **Library API**, **Digest API**, **Binary**, …), elevated **Data** cards (**Corpus root**, **Corpus catalog**, **Graph**, **Vector index** with rebuild) | UXS-001 |
+| **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) |
+| **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Firefox; dedicated Vite port in CI) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
 
 ## Problem Statement
+
+**v2.6 scope note:** The shipped app addresses the v1 gaps below **and** adds corpus-scale
+navigation (**Digest**, **Library**), aggregate **Dashboard** analytics, **API · Data** operations
+(including **vector index rebuild**), and deep graph chrome (**RFC-069**) — all in one SPA. The
+following bullets remain the historical motivation; **Delivered scope** summarizes what landed.
 
 The viewer v1 (`web/gi-kg-viz/`, [#445](https://github.com/chipi/podcast_scraper/issues/445))
 was built as an exploratory prototype to visualize GI and KG artifacts:
@@ -113,6 +162,18 @@ through a graphical interface.
    functionality
 10. **Platform-ready design** — server, frontend, and API contracts designed to grow
     into the full platform vision (megasketch Part A/B) without architectural rewrites
+11. **Corpus discovery tabs** — **Digest** and **Library** main views with shared **Episode** rail
+    patterns and handoffs to graph and search (**RFC-068**, **RFC-067**)
+12. **Corpus and runs APIs** — **`/api/corpus/*`** for stats, feeds, episodes, digest, runs summary,
+    binary/covers; extended **`/api/health`** capability flags for the left **API** card
+13. **Index lifecycle in UI** — **`GET /api/index/stats`** plus **`POST /api/index/rebuild`**
+    (incremental vs full) from **API · Data**, with disabled states while rebuild runs
+14. **Graph exploration toolkit** — On-canvas and card chrome for fit/zoom/export, layouts, degree
+    buckets, minimap, Shift+drag box zoom (**RFC-069**)
+15. **Dashboard analytics** — **Pipeline** vs **Content intelligence** sections driven by corpus +
+    index + artifact aggregate endpoints
+16. **Playwright regression suite** — Specs and **E2E surface map** kept in lockstep with UI
+    (**ADR-066**, [#509](https://github.com/chipi/podcast_scraper/issues/509))
 
 ## Constraints & Assumptions
 
@@ -275,68 +336,36 @@ UI (#50, #347, megasketch) is the second. Route groups are pluggable via feature
 
 ```text
 src/podcast_scraper/server/
-├── __init__.py
-├── app.py                            # FastAPI app factory (feature-flagged routers)
-├── dependencies.py                   # shared: config, output_dir, vector_store
-├── schemas.py                        # Pydantic response models (shared across routers)
-├── middleware/
-│   ├── __init__.py
-│   └── cors.py                       # CORS config; future: auth, request logging
+├── app.py                 # FastAPI factory: mounts routers below + optional StaticFiles → dist/
+├── pathutil.py            # Corpus path validation / errors
 ├── routes/
-│   ├── __init__.py
-│   ├── health.py                     # GET /api/health (always mounted)
-│   │
-│   │   # --- Viewer routes (v2.6, this RFC) ---
-│   ├── artifacts.py                  # GET /api/artifacts, /api/artifacts/:name
-│   ├── search.py                     # GET /api/search (semantic search)
-│   ├── explore.py                    # GET /api/explore (gi explore / gi query)
-│   ├── index_stats.py                # GET /api/index/stats
-│   │
-│   │   # --- Platform routes (v2.7, added later via #50, #347) ---
-│   ├── feeds.py                      # CRUD /api/feeds (catalog, placeholder)
-│   ├── episodes.py                   # GET /api/episodes (browsing, placeholder)
-│   ├── jobs.py                       # POST/GET /api/jobs (pipeline runs, placeholder)
-│   └── status.py                     # GET /api/status (pipeline status, placeholder)
+│   ├── health.py          # GET /api/health (+ capability flags for UI matrix)
+│   ├── artifacts.py       # GET /api/artifacts, artifact bodies, metadata paths
+│   ├── search.py          # GET /api/search
+│   ├── explore.py         # GET /api/explore
+│   ├── index_stats.py     # GET /api/index/stats
+│   ├── index_rebuild.py   # POST /api/index/rebuild
+│   ├── corpus_library.py  # feeds, episodes, similar (RFC-067)
+│   ├── corpus_digest.py   # digest window + topic bands (RFC-068)
+│   ├── corpus_metrics.py  # corpus stats, runs summary, aggregates for Dashboard
+│   ├── corpus_binary.py   # episode cover / binary helpers
+│   └── platform/          # v2.7 — reserved; enable_platform currently no-op in app factory
+├── dependencies.py        # shared wiring (output_dir, stores) as implemented
+└── schemas.py             # Pydantic models shared by routes
 ```
 
-**FastAPI app factory (`app.py`):**
+**FastAPI app factory (`app.py`) — v2.6 behavior:**
 
-```python
-def create_app(
-    output_dir: Path,
-    *,
-    enable_viewer: bool = True,
-    enable_platform: bool = False,
-    vector_index_path: Path | None = None,
-) -> FastAPI:
-    app = FastAPI(title="podcast_scraper")
+- **`create_app(output_dir, static_dir=..., enable_platform=False)`** — all **viewer + corpus**
+  routers above are **`include_router(..., prefix="/api")`** unconditionally.
+- **`enable_platform`**: reserved; **platform** package exists for future **#50 / #347** work but does
+  not mount extra routers yet.
+- **`static_dir`**: when **`web/gi-kg-viewer/dist`** exists (or path passed), mounts **`StaticFiles`**
+  at **`/`** with **`html=True`** for SPA fallback.
+- **CORS**: allows local Vite ports **5173** / **5174** for dev.
 
-    # Always available
-    app.include_router(health_router)
-
-    # Viewer routes (v2.6 — this RFC)
-    if enable_viewer:
-        app.include_router(artifacts_router, prefix="/api")
-        app.include_router(search_router, prefix="/api")
-        app.include_router(explore_router, prefix="/api")
-        app.include_router(index_stats_router, prefix="/api")
-        app.mount("/", StaticFiles(...), name="viewer")
-
-    # Platform routes (v2.7, future — #50, #347, megasketch)
-    if enable_platform:
-        app.include_router(feeds_router, prefix="/api")
-        app.include_router(episodes_router, prefix="/api")
-        app.include_router(jobs_router, prefix="/api")
-
-    return app
-```
-
-- Accepts `output_dir` (path to corpus outputs) and optional `vector_index_path`
-- Lazily loads `FaissVectorStore` on first search request
-- Mounts Vite build output as static files at `/` (viewer mode)
-- CORS enabled for dev mode (Vite dev server on different port)
-- Platform routes are placeholder files until v2.7 work begins — they exist in the
-  tree to make the growth path visible but are not mounted by default
+Other modules (**middleware**, extra **schemas** split) may evolve; the list above is the **shipped**
+route surface for the viewer.
 
 **CLI entry point (`podcast serve`):**
 
@@ -407,23 +436,28 @@ async def explore_insights(
     ...
 ```
 
-**Platform route contracts (v2.7, placeholder stubs only):**
+**Corpus routes (v2.6, shipped — not “platform placeholders”):**
+
+- **`/api/corpus/*`** — feeds, episodes, digest, aggregate stats, runs summary, binary/covers, etc.
+  (**RFC-067**, **RFC-068**, metrics helpers). These are **filesystem-first** catalog/digest APIs for
+  the viewer, distinct from future **#50 / #347** CRUD + job routes under **`enable_platform`**.
+
+**Platform route contracts (v2.7, future):**
 
 ```python
-# Future: CRUD /api/feeds — catalog management (#50)
-# Future: GET /api/episodes — episode browsing (#347)
-# Future: POST/GET /api/jobs — pipeline job management (#50)
-# Future: GET /api/status — pipeline status monitoring (#50)
+# Future under routes/platform/ + enable_platform:
+# CRUD /api/feeds, job runners, Postgres-backed corpus, … (#50, #347, megasketch)
 ```
 
 **Integration with existing code:**
 
-The server imports and calls existing functions — it does not reimplement logic:
+The server imports and calls existing library code — it does not reimplement search/explore logic:
 
 - `VectorStore.search()` for `/api/search`
-- `run_uc5_insight_explorer()` for `/api/explore`
-- `IndexStats` from the vector store for `/api/index/stats`
+- `run_uc5_insight_explorer()` (or equivalent) for `/api/explore`
+- `IndexStats` / rebuild orchestration for `/api/index/stats` and `/api/index/rebuild`
 - Direct file reads for `/api/artifacts`
+- Corpus filesystem scans and metadata joins for **`/api/corpus/*`** (see **RFC-067** / **RFC-068**)
 
 **Relationship to existing `service.py`:**
 
@@ -467,12 +501,13 @@ The viewer must degrade gracefully when no backend is running:
 
 | Feature | With backend | Without backend |
 | ------- | ------------ | --------------- |
-| Load artifacts | `/api/artifacts` | File picker / `showDirectoryPicker()` |
+| Load artifacts | `/api/artifacts` (online path can auto-list + merge GI/KG) | File picker / `showDirectoryPicker()` |
 | Graph rendering | Full | Full |
 | Metrics panel | Full | Full (computed from loaded artifacts) |
-| Semantic search | Full | Disabled (message: "Run `podcast serve` to enable search") |
-| Explore/QA | Full | Disabled (same message) |
-| Index stats | Full | Disabled |
+| Semantic search | Full | Disabled (instructional copy in UI) |
+| Explore/QA | Full | Disabled |
+| Index stats / rebuild | Full | Disabled |
+| **Digest** / **Library** / **Dashboard** corpus charts | Full when **`/api/corpus/*`** healthy | Degraded (no catalog, digest, or run summaries) |
 
 **Detection:** On mount, `api/client.ts` pings `GET /api/health`. If it fails, the
 `artifacts` store switches to file-picker mode and search/explore components show a
@@ -525,8 +560,7 @@ cd web/gi-kg-viewer && npm run build
 | `make serve-ui` | Start Vite dev server only |
 | `cd web/gi-kg-viewer && npm run build` | Production build of frontend |
 | `make test-ui` | Vitest unit tests for TS utils |
-| `make test-ui-e2e` | Playwright browser E2E (Firefox) |
-| `make test-ui-e2e` | Playwright E2E tests for viewer |
+| `make test-ui-e2e` | Playwright browser E2E (Firefox; see **`web/gi-kg-viewer/e2e/`**) |
 
 ## Key Decisions
 
@@ -560,10 +594,10 @@ cd web/gi-kg-viewer && npm run build
    - **Rationale**: This is the project's **canonical server layer**, not just the
      viewer's backend. The viewer is the first consumer; platform routes (#50, #347,
      megasketch) are the second. Naming it `server/` avoids a rename when platform work
-     starts. Feature flags (`enable_viewer`, `enable_platform`) control which route
-     groups are mounted. This follows megasketch constraint A.2: "One pipeline core,
-     multiple shells." The `podcast serve` CLI command starts this server. The existing
-     `scripts/gi_kg_viz_server.py` has been replaced by this proper module.
+     starts. **v2.6** mounts **viewer + corpus** API routers by default; **`enable_platform`**
+     in **`create_app`** is reserved for future platform-only routers (**ADR-064**). This
+     follows megasketch constraint A.2: "One pipeline core, multiple shells." The
+     **`podcast serve`** CLI starts this server (replacing **`scripts/gi_kg_viz_server.py`**).
 
 5. **Tailwind CSS (no component library)**
    - **Decision**: Tailwind utility classes + custom components
@@ -587,12 +621,13 @@ cd web/gi-kg-viewer && npm run build
      CSS cascade) and aligns with the Tailwind workflow.
 
 7. **Pinia state management**
-   - **Decision**: Pinia stores for artifacts, search, graph, and index state
+   - **Decision**: Pinia stores for artifacts, search, graph, index, corpus path, and
+     feature-specific slices (library/digest/dashboard wiring as implemented)
    - **Rationale**: Replaces the `window.GiKgViz` / `window.GiKgVizShell` globals
      with typed reactive stores. Components subscribe to store state and dispatch
-     actions. Cross-component coordination (search result → graph focus) happens
-     through store watchers, not DOM events or callback chains. Scales cleanly when
-     platform stores (`feeds.ts`, `jobs.ts`, `episodes.ts`) are added in v2.7.
+     actions. Cross-component coordination (search result → graph focus, Library episode →
+     rail) happens through store watchers, not DOM events or callback chains. Additional
+     platform stores (**feeds**, **jobs**, …) can land under **`enable_platform`** in v2.7.
 
 8. **Playwright for UI E2E testing**
    - **Decision**: Playwright as the browser E2E test framework
@@ -906,7 +941,10 @@ RFC-055 (KG Core)              → KG artifacts visualized in graph
     ↓
 RFC-061 (Semantic Search)      → search backend consumed by viewer
     ↓
-RFC-062 (this RFC)             → server + viewer SPA + E2E tests
+RFC-062 (this RFC)             → FastAPI app + Vue SPA shell + graph + dashboard + E2E
+    ├─ RFC-067 (Library)       → /api/corpus/feeds|episodes|… + Library tab
+    ├─ RFC-068 (Digest)        → /api/corpus/digest + Digest tab
+    └─ RFC-069 (Graph toolkit) → Cytoscape chrome (minimap, degree, layouts, zoom)
     ↓
 RFC-051 (DB Projection)        → structured query backend (platform reads)
     ↓
@@ -915,18 +953,13 @@ RFC-051 (DB Projection)        → structured query backend (platform reads)
 #46 / megasketch Part B        → Docker Compose deployment
 ```
 
-**Key Distinction:**
+**Key distinction:**
 
-- **RFC-061**: Defines the search *engine* — `VectorStore`, FAISS, embed-and-index
-  pipeline, CLI commands
-- **RFC-062**: Defines the *server layer* and the search *UI* — FastAPI server with
-  pluggable route groups, Vue 3 frontend, graph integration, dashboard, E2E tests.
-  The server is the first building block of the platform; the viewer is its first UI.
-
-Together, RFC-061 provides the retrieval engine, RFC-062 provides the server and
-visual interface, and the platform work (#50, #347, megasketch) extends both with
-CRUD routes, job management, and Postgres integration — all on the same
-`src/podcast_scraper/server/` foundation.
+- **RFC-061**: Search *engine* — `VectorStore`, FAISS, embed-and-index pipeline, CLI
+- **RFC-062**: *Server process* + *viewer shell* + graph/search/dashboard integration;
+  **RFC-067** / **RFC-068** / **RFC-069** extend the **same** app with corpus and graph UX
+- **Platform (#50, #347)**: CRUD, jobs, Postgres — **`enable_platform`**, same **`server/`**
+  package (**ADR-064**)
 
 ## Benefits
 
@@ -942,8 +975,8 @@ CRUD routes, job management, and Postgres integration — all on the same
    activate when backend + index are available
 6. **Developer experience**: Vite HMR, TypeScript, ESLint, Vitest — standard modern
    tooling instead of CDN script tags and browser refresh
-7. **Regression safety**: Playwright E2E test layer catches visual and functional
-   regressions before they reach users. Test structure grows with platform views.
+7. **Regression safety**: Playwright E2E (**`web/gi-kg-viewer/e2e/`**) and the **E2E surface map**
+   catch visual and functional regressions; keep map and specs aligned when changing UI.
 8. **One server, one CLI**: `podcast serve` is the single entry point for all server
    functionality — viewer today, platform tomorrow. No fragmented scripts.
 
@@ -965,10 +998,10 @@ CRUD routes, job management, and Postgres integration — all on the same
 1. **Graph export formats**: Should the viewer support exporting the graph as data
    (JSON, GraphML) in addition to image (PNG, SVG)? Useful for external tools.
    Recommendation: defer to M6 polish; image export first.
-2. **Platform route stubs**: Should the v2.7 platform route files (`feeds.py`,
-   `episodes.py`, `jobs.py`) ship as empty stubs with `pass` handlers in v2.6, or
-   should they be added only when platform work starts? Recommendation: empty stubs
-   in v2.6 to make the growth path visible and validate the feature-flag pattern.
+2. **Platform route stubs**: **Resolved for v2.6** — **corpus** needs are covered by
+   **`corpus_library.py`**, **`corpus_digest.py`**, **`corpus_metrics.py`**, etc. **v2.7**
+   platform CRUD/jobs will live under **`routes/platform/`** when **`enable_platform`**
+   mounts them; no duplicate stub **`feeds.py`** beside corpus routes.
 3. **Frontend directory rename**: When platform views are added (v2.7), should
    `web/gi-kg-viewer/` be renamed to `web/app/` to reflect the broader scope?
    Recommendation: defer — rename is trivial and can happen when platform views
@@ -982,23 +1015,27 @@ CRUD routes, job management, and Postgres integration — all on the same
   CI, multi-browser, lighter than Cypress. See Testing Strategy section.
 - **Bundle vendoring** — Resolved: `npm install` via `package.json`. Vite bundles
   everything; vendoring is a v1 concern solved by proper tooling.
-- **Backend naming** — Resolved: `src/podcast_scraper/server/`, not `viewer/`. This
-  is the project's server layer, not just the viewer's backend.
+- **Backend naming** — Resolved: `src/podcast_scraper/server/`, not `viewer/`. This is the
+  project's server layer, not just the viewer's backend.
 
 ## References
 
-- **Related PRD**: `docs/prd/PRD-021-semantic-corpus-search.md`
-- **Related RFC**: `docs/rfc/RFC-061-semantic-corpus-search.md`
-- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-- **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
-- **Related RFC**: `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
-- **Related RFC**: `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md`
-- **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
-- **Viewer v1**: `web/gi-kg-viz/` (removed — was the #445 prototype)
-- **Platform Vision**: `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md`
-- **Platform Issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50) (UI + server),
-  [#347](https://github.com/chipi/podcast_scraper/issues/347) (UI for DB),
-  [#46](https://github.com/chipi/podcast_scraper/issues/46) (Docker architecture)
-- **Source Code**: `scripts/gi_kg_viz_server.py` (removed — replaced by `server/`)
-- **Source Code**: `podcast_scraper/gi/explore.py` (explore/query logic)
-- **Source Code**: `podcast_scraper/service.py` (one-shot pipeline execution)
+- **PRDs**: [PRD-017](../prd/PRD-017-grounded-insight-layer.md), [PRD-019](../prd/PRD-019-knowledge-graph-layer.md),
+  [PRD-021](../prd/PRD-021-semantic-corpus-search.md), [PRD-022](../prd/PRD-022-corpus-library-episode-browser.md),
+  [PRD-023](../prd/PRD-023-corpus-digest-recap.md), [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md)
+- **RFCs**: [RFC-061](RFC-061-semantic-corpus-search.md), [RFC-067](RFC-067-corpus-library-api-viewer.md),
+  [RFC-068](RFC-068-corpus-digest-api-viewer.md), [RFC-069](RFC-069-graph-exploration-toolkit.md),
+  [RFC-049](RFC-049-grounded-insight-layer-core.md), [RFC-050](RFC-050-grounded-insight-layer-use-cases.md),
+  [RFC-055](RFC-055-knowledge-graph-layer-core.md), [RFC-056](RFC-056-knowledge-graph-layer-use-cases.md),
+  [RFC-051](RFC-051-database-projection-gil-kg.md)
+- **UXS**: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- **E2E**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) (`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`)
+- **ADRs**: [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md),
+  [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md)
+- **Platform vision**: [PLATFORM_ARCHITECTURE_BLUEPRINT.md](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md)
+- **Platform issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50),
+  [#347](https://github.com/chipi/podcast_scraper/issues/347),
+  [#46](https://github.com/chipi/podcast_scraper/issues/46)
+- **Source**: `src/podcast_scraper/server/` (FastAPI), `web/gi-kg-viewer/` (Vue SPA),
+  `podcast_scraper/gi/explore.py`, `podcast_scraper/service.py`
+- **Removed**: `web/gi-kg-viz/` (v1), `scripts/gi_kg_viz_server.py` (replaced by **`podcast serve`**)

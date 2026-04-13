@@ -1,6 +1,6 @@
 # RFC-067: Corpus Library — Catalog API & Viewer Integration
 
-- **Status**: Accepted (implemented v2.6.0)
+- **Status**: Completed (v2.6.0) — Phases 1–3 shipped (`/api/corpus/*`, Library tab, episode detail, similar episodes)
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, viewer users, pipeline maintainers
 - **Related PRDs**:
@@ -302,7 +302,7 @@ applicable (`useViewerKeyboard` extension optional in a follow-up).
 Reserved query parameters (implement when low cost):
 
 - `?tab=library` — open Library on load
-- `?library_feed=<feed_id>` — pre-select feed after feeds load
+- `?library_feed=<feed_id>` — preselect feed after feeds load
 
 Document in README or viewer help when implemented.
 

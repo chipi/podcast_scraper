@@ -1,35 +1,42 @@
 # RFC-064: Performance Profiling and Release Freeze Framework
 
-## Status
-
-**Completed (v2.6.0)** — `data/profiles/*.yaml`, `scripts/eval/freeze_profile.py`, `scripts/eval/diff_profiles.py`, Makefile `profile-freeze` / `profile-diff`, and resource fields consumed by RFC-066 / `tools/run_compare/`. Ongoing profile refresh per release remains operational hygiene, not an open design gap.
-
-## RFC Number
-
-064
-
-## Authors
-
-Podcast Scraper Team
-
-## Date
-
-2026-04-09
-
-## Related RFCs
-
-- `docs/rfc/RFC-041-podcast-ml-benchmarking-framework.md` — Quality benchmarking framework; this RFC is the resource cost sibling
-- `docs/rfc/RFC-047-run-comparison-visual-tool.md` — Run comparison tool; a future RFC will extend it with a performance tab
-- `docs/rfc/RFC-056-autoresearch-optimization-loop.md` — Autoresearch loop; benefits from per-stage resource visibility
-- `docs/rfc/RFC-063-multi-feed-corpus-append-resume.md` — Multi-feed corpus; profiling assumes single-feed in v1; multi-feed profiling is a future consideration
-
-## Related ADRs
-
-- ADR-014: Codified Comparison Baselines
-- ADR-027: Deep Provider Fingerprinting
-- ADR-040: Explicit Golden Dataset Versioning
-
----
+- **Status**: Completed (v2.6.0) — `data/profiles/*.yaml`, `scripts/eval/freeze_profile.py`,
+  `scripts/eval/diff_profiles.py`, Makefile **`profile-freeze`** / **`profile-diff`**, and profile
+  fields consumed by **[RFC-066](RFC-066-run-compare-performance-tab.md)** /
+  **`tools/run_compare/`**. Refreshing profiles each release is operational hygiene, not an open
+  design gap.
+- **Authors**: Podcast Scraper Team
+- **Stakeholders**: Maintainers, release owners, operators comparing resource cost across releases
+- **Related PRDs**:
+  - [PRD-007: AI Quality & Experimentation Platform](../prd/PRD-007-ai-quality-experiment-platform.md) —
+    benchmarking and eval context (pair with RFC-041)
+  - [PRD-016: Operational Observability & Pipeline Intelligence](../prd/PRD-016-operational-observability-pipeline-intelligence.md) —
+    release-time visibility; sibling to live monitor (**RFC-065**)
+- **Related ADRs**:
+  - [ADR-075: Frozen YAML performance profiles for release baselines](../adr/ADR-075-frozen-yaml-performance-profiles-for-release-baselines.md) — ratifies `data/profiles/` + freeze/diff pattern
+  - [ADR-014: Codified Comparison Baselines](../adr/ADR-014-codified-comparison-baselines.md)
+  - [ADR-027: Unified Provider Metrics Contract](../adr/ADR-027-unified-provider-metrics-contract.md)
+  - [ADR-040: Explicit Golden Dataset Versioning](../adr/ADR-040-explicit-golden-dataset-versioning.md)
+- **Related RFCs**:
+  - [RFC-041: Podcast ML benchmarking framework](RFC-041-podcast-ml-benchmarking-framework.md) —
+    quality side; this RFC is the **resource cost** sibling
+  - [RFC-047: Run comparison visual tool](RFC-047-run-comparison-visual-tool.md) — Streamlit shell;
+    **[RFC-066](RFC-066-run-compare-performance-tab.md)** adds the **Performance** page on top of
+    frozen profiles
+  - [RFC-057: AutoResearch optimization loop](RFC-057-autoresearch-optimization-loop.md) —
+    overnight runs benefit from per-stage resource visibility (**ADR-073** closure)
+  - [RFC-063: Multi-feed corpus append & resume](RFC-063-multi-feed-corpus-append-resume.md) —
+    v1 freeze assumes single-feed; multi-feed profiling is a follow-on
+  - [RFC-065: Live pipeline monitor](RFC-065-live-pipeline-monitor.md) — live **`--monitor`** view;
+    complements **frozen** profiles in this RFC
+  - [RFC-066: Run compare — Performance tab](RFC-066-run-compare-performance-tab.md) — visual join
+    of eval runs and **`data/profiles/`**
+- **Related Documents**:
+  - [Performance Profile Guide](../guides/PERFORMANCE_PROFILE_GUIDE.md) — capture workflow,
+    methodology, E2E vs real RSS, troubleshooting
+  - [GitHub #510](https://github.com/chipi/podcast_scraper/issues/510) — epic / prerequisite
+    tracking (profiles family)
+- **Updated**: 2026-04-09 (initial), 2026-04-11 (front matter + links + Problem Statement alignment)
 
 ## Abstract
 
@@ -44,14 +51,16 @@ The framework has two components:
 1. **`data/profiles/` — frozen release profiles**: YAML snapshots of peak RSS, wall time, and CPU utilization per pipeline stage, committed at release time and versioned by release tag.
 2. **`scripts/eval/freeze_profile.py` — profile capture and diff tooling**: A headless script that runs the reference dataset, captures resource metrics via `psutil` alongside the existing `Metrics` collector, and writes the frozen profile. A companion diff script compares any two profiles.
 
-**Out of scope for this RFC** (deferred to dedicated RFCs):
+**Split to sibling RFCs** (not part of the frozen-profile capture contract here):
 
-- **RFC-065: Live Pipeline Monitor** — **`--monitor`**, **`rich`** or **`.monitor.log`**, optional **`.[monitor]`** (**py-spy** / **memray**); tmux/Terminal split still deferred. See [RFC-065](RFC-065-live-pipeline-monitor.md).
-- **RFC-066: Run Comparison Tool — Performance Tab** — Streamlit extension joining quality and resource metrics by release tag.
+- **[RFC-065](RFC-065-live-pipeline-monitor.md)** — live **`--monitor`** (**`rich`** / **`.monitor.log`**),
+  optional **`.[monitor]`** (**py-spy** / **memray**); auto terminal split deferred
+- **[RFC-066](RFC-066-run-compare-performance-tab.md)** — Streamlit **Performance** page joining quality
+  and **`data/profiles/`** by release tag
 
 ---
 
-## Motivation
+## Problem Statement
 
 As `podcast_scraper` evolves — new providers, heavier models, additional pipeline stages (GI, KG, vector search) — resource cost can drift silently. A new release might improve summary quality while doubling peak RAM, or reduce WER while tripling Whisper wall time. Without a performance baseline system, these regressions are invisible until they cause operational problems during overnight autoresearch runs or exceed memory limits on the development machine.
 
@@ -85,9 +94,12 @@ The project already has significant performance instrumentation. This RFC builds
 
 ## Non-Goals
 
-- Live monitoring dashboard or interactive profiling (future RFC)
-- RFC-047 Streamlit extension with performance tab (future RFC)
-- Real-time alerting or dashboards
+- **Live** resource dashboards during a run — covered by **[RFC-065](RFC-065-live-pipeline-monitor.md)**
+  (**`--monitor`**, **`rich`** / **`.monitor.log`**, optional **`.[monitor]`**); this RFC stays on
+  **frozen** YAML + diff
+- **Streamlit** multi-release charts and run/profile joins — **[RFC-066](RFC-066-run-compare-performance-tab.md)**
+  (**Performance** page); this RFC does not define UI
+- Real-time alerting or fleet-wide dashboards
 - Cloud infrastructure or persistent storage
 - Profiling of LLM API calls (network latency is not a local resource cost; token/cost tracking already exists in `Metrics`)
 - Hard CI gates on resource metrics (data collection first; enforcement is optional and comes later)
@@ -439,7 +451,7 @@ A future enhancement could feed acceptance run timing data into the profile form
 | Freeze trigger | Baseline promotion workflow | `make profile-freeze VERSION=x` |
 | Reference dataset | `indicator_v1` (primary), `shortwave_v1` (secondary) | `indicator_v1` (primary dataset only for consistency) |
 | Fingerprinting | `fingerprint.json` per run | `environment:` block reusing `ProviderFingerprint` |
-| Visual comparison | RFC-047 quality tab | Terminal diff tool (`make profile-diff`) |
+| Visual comparison | RFC-047 quality tab | Terminal diff (`make profile-diff`); RFC-066 **Performance** page |
 
 The two systems are **intentionally separate runs**. Profiling overhead (psutil polling) is negligible, but quality evaluation concerns (scoring, regression gates) are orthogonal to resource measurement. They share the same reference episodes and fingerprinting conventions but execute independently.
 
@@ -504,10 +516,13 @@ All artifacts are local YAML files committed to git. No backend services, no dat
 - Diff tool annotates threshold violations
 - Still advisory — no hard CI gates
 
-### Future RFCs (out of scope)
+### Sibling deliverables (split from this RFC)
 
-- **RFC-065: Live Pipeline Monitor** (`docs/rfc/RFC-065-live-pipeline-monitor.md`) — **`--monitor`**, **`rich`** or **`.monitor.log`**, optional **py-spy** (**`f`**) and **memray** re-exec via **`.[monitor]`**; automatic terminal split deferred.
-- **RFC-066: Run Comparison Tool — Performance Tab** (`docs/rfc/RFC-066-run-compare-performance-tab.md`) — Streamlit extension joining quality and resource metrics by release tag, with trend charts and quality/cost scatter plots.
+- **[RFC-065: Live pipeline monitor](RFC-065-live-pipeline-monitor.md)** — **`--monitor`**, **`rich`**
+  or **`.monitor.log`**, optional **py-spy** (**`f`**) and **memray** via **`.[monitor]`**; automatic
+  terminal split deferred
+- **[RFC-066: Run compare — Performance tab](RFC-066-run-compare-performance-tab.md)** — Streamlit
+  **Performance** page joining quality and resource metrics by release tag
 
 ---
 
@@ -526,7 +541,7 @@ The release guide is a separate deliverable — not part of this RFC. This RFC d
 
 ### Multi-Feed Profiling (RFC-063)
 
-The freeze script in v1 assumes single-feed pipeline execution (`run_pipeline()` called once with the reference dataset). When RFC-063 (Multi-Feed Corpus) ships, multi-feed runs will call `run_pipeline()` N times sequentially, with potential model reloads between feeds and different resource profiles per feed. Profiling multi-feed runs — per-feed profiles, aggregate corpus-level metrics, model reload overhead — is a natural extension but is out of scope for v1. The single-feed freeze provides the baseline; multi-feed profiling can build on the same artifact format with a `feed_id` dimension added later.
+The freeze script in v1 assumes single-feed pipeline execution (`run_pipeline()` called once with the reference dataset). When [RFC-063](RFC-063-multi-feed-corpus-append-resume.md) ships, multi-feed runs will call `run_pipeline()` N times sequentially, with potential model reloads between feeds and different resource profiles per feed. Profiling multi-feed runs — per-feed profiles, aggregate corpus-level metrics, model reload overhead — is a natural extension but is out of scope for v1. The single-feed freeze provides the baseline; multi-feed profiling can build on the same artifact format with a `feed_id` dimension added later.
 
 ---
 

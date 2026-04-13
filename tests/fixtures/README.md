@@ -194,6 +194,7 @@ episodes (5 episodes) to validate multi-episode processing logic.
 
 - **Fast Feed** (`p01_fast.xml`): 1 episode, 1 minute - for regular E2E tests (code quality)
 - **Multi-Episode Feed** (`p01_multi.xml`): 5 episodes, 10-15 seconds each - for multi-episode processing tests
+- **Episode selection E2E** (`p01_episode_selection.xml`): 3 short episodes, newest-first in the RSS document, each with a `podcast:transcript` URL (Path 1). Reuses `p01_multi_e05` / `e03` / `e01` audio and transcript files. On the E2E mock server this feed is exposed as **`podcast1_episode_selection`** (`e2e_server.urls.feed("podcast1_episode_selection")`). Used by `tests/e2e/test_episode_selection_e2e.py` and integration checks for GitHub #521 (`episode_order`, `--since` / `--until`, `episode_offset`).
 - **Original Mock Data** (`p01_mtb.xml`, etc.): Full episodes - for nightly data quality tests
 - **Long-Form Fixtures** (`p07`, `p08`, `p09`): Extra-long episodes (1-2+ hours) - for threshold boundary testing and long-context model evaluation (related to issue #283)
 

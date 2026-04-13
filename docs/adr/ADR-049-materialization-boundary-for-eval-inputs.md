@@ -1,4 +1,4 @@
-# ADR-040: Materialization Boundary for Evaluation Inputs
+# ADR-049: Materialization Boundary for Evaluation Inputs
 
 - **Status**: Accepted
 - **Date**: 2026-04-03

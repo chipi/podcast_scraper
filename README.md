@@ -22,6 +22,7 @@ and hands-on work with edge and cloud AI/ML technologies.
 ## Features
 
 - **Transcript Downloads** — Automatic detection and download from RSS feeds
+- **Episode selection** — Order (`newest` / `oldest`), optional publish-date window (`--since` / `--until`), offset, and `max_episodes` for large back-catalogs ([CONFIGURATION.md](docs/api/CONFIGURATION.md#episode-selection-github-521), GitHub #521)
 - **Multi-feed corpus** — One config or CLI invocation for multiple shows: `feeds` / `rss_urls` in YAML, repeatable `--rss` / `--rss-file` on the CLI; isolated output under `<output_dir>/feeds/<stable_id>/` per feed. With `vector_search` + FAISS, a **single parent index** is built under `<output_dir>/search` after all feeds finish; **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured log lines record batch status ([RFC-063](docs/rfc/RFC-063-multi-feed-corpus-append-resume.md), [CONFIGURATION.md](docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Inspect offline: `python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`.
 - **Transcription** — Generate transcripts with Whisper, OpenAI API, or Google Gemini API
 - **Audio Preprocessing** — Optimize audio files before transcription (reduce size, remove silence, normalize loudness)
@@ -34,11 +35,12 @@ and hands-on work with edge and cloud AI/ML technologies.
 - **Provider System** — Swap between local and cloud providers via config
 - **MPS Exclusive Mode** — Serialize GPU work on Apple Silicon to prevent memory contention and improve reliability (enabled by default)
 - **Reproducibility** — Deterministic runs with seed control, pinned model revisions, and comprehensive run manifests (Issue #379)
-- **Operational Hardening** — Retry policies with exponential backoff, timeout enforcement, failure handling flags, and structured JSON logging (Issue #379)
+- **Operational Hardening** — Configurable HTTP retries (media vs RSS), application-level episode retries on transient errors, timeout enforcement, `--fail-fast` / `--max-failures`, structured JSON logging, and `failure_summary` in `run.json` when episodes fail ([CONFIGURATION.md — Download resilience](docs/api/CONFIGURATION.md#download-resilience), Issue #379)
 - **Security** — Path validation, model allowlist validation, safetensors format preference, and `trust_remote_code=False` enforcement (Issue #379)
 - **Diagnostics** — `doctor` command for environment validation and dependency checks (Issue #379)
 - **Semantic corpus search** — Optional FAISS index (`vector_search` in config), `search` / `index` CLIs, and semantic `gi explore --topic` when an index exists ([guide](docs/guides/SEMANTIC_SEARCH_GUIDE.md), RFC-061)
-- **Run Tracking** — Per-episode stage timings, run summaries, and episode index files for complete pipeline observability (Issue #379)
+- **Run Tracking** — Per-episode stage timings, run summaries, episode index files, and `metrics.json` fields for download retries (`http_urllib3_retry_events`, `episode_download_retries`) (Issue #379)
+
 - **Live pipeline monitor** — Optional **`--monitor`**: separate process + **`rich`** dashboard (or **`.monitor.log`** if stderr is not a TTY) and **`.pipeline_status.json`**. Optional **`pip install -e ".[monitor]"`**: **`--memray`** for heap profiling; with monitor + TTY, **`f`** runs **py-spy** to **`debug/flamegraph_*.svg`** ([RFC-065](docs/rfc/RFC-065-live-pipeline-monitor.md), [guide](docs/guides/LIVE_PIPELINE_MONITOR.md), #512)
 - **GI / KG Viewer (v2)** — Optional browser UI: graph visualization, dashboard, semantic search, explore, **Corpus Library** (feed/episode browser, [RFC-067](docs/rfc/RFC-067-corpus-library-api-viewer.md)), and **Corpus Digest** (time-windowed highlights, [RFC-068](docs/rfc/RFC-068-corpus-digest-api-viewer.md)) — all against a pipeline output folder ([RFC-062](docs/rfc/RFC-062-gi-kg-viewer-v2.md); see below)
 

@@ -759,6 +759,10 @@ class TestBuildProcessingMetadata(unittest.TestCase):
         self.assertEqual(result.config_snapshot["auto_speakers"], True)
         self.assertEqual(result.config_snapshot["screenplay"], True)
         self.assertEqual(result.config_snapshot["max_episodes"], 10)
+        self.assertEqual(result.config_snapshot["episode_order"], "newest")
+        self.assertEqual(result.config_snapshot["episode_offset"], 0)
+        self.assertIsNone(result.config_snapshot["episode_since"])
+        self.assertIsNone(result.config_snapshot["episode_until"])
         self.assertIsNotNone(result.processing_timestamp)
 
     def test_build_processing_metadata_transcribe_disabled(self):

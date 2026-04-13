@@ -1,4 +1,4 @@
-# ADR-064: AutoResearch Thin Harness with Credential Isolation
+# ADR-057: AutoResearch Thin Harness with Credential Isolation
 
 - **Status**: Accepted
 - **Date**: 2026-04-03

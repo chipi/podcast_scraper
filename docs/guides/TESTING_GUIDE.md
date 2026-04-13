@@ -6,26 +6,47 @@
 > - **This document** - Quick reference, test execution commands
 > - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
+> - **[RSS and feed ingestion](RSS_GUIDE.md)** - How RSS is fetched and parsed (helps when testing scraping vs transcript download)
 > - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes; **browser E2E** for the GI/KG Vue viewer (`make test-ui-e2e`)
 > - **[Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Quick Reference
 
-| Layer | Speed | Scope | Mocking |
-| ------- | ------- | ------- | --------- |
-| **Unit** | < 100ms | Single function | All dependencies mocked |
-| **Integration** | < 5s | Component interactions | External services mocked |
-| **E2E** | < 60s | Complete workflow | No mocking (real everything) |
-| **Browser UI E2E** | ~1–3 min (suite) | Vue viewer in Firefox (Playwright) | Vite + route/API mocks in specs |
+| Layer | Speed | Scope | ML/AI | Mocking |
+| ------- | ------- | ------- | ------ | --------- |
+| **Unit** | < 100ms | Single function | Mocked | All dependencies mocked |
+| **Integration** | < 5s | Component interactions | Mocked | External services + ML/AI mocked |
+| **E2E** | < 60s | Complete workflow | Real | No mocking (real everything) |
+| **Browser UI E2E** | ~1-3 min (suite) | Vue viewer in Firefox (Playwright) | N/A | Vite + route/API mocks in specs |
 
-**Unit tests and `pyproject` extras:** `tests/unit/` must **not** depend on **`[ml]`**, **`[llm]`**, **`[compare]`**, or **`[server]`** — mock or use integration tests instead. **`[dev]`** is the **CI baseline** for `test-unit`. **Viewer HTTP** tests that need FastAPI use **`importorskip("fastapi")`** and **skip** when only **`.[dev]`** is installed (install **`.[server]`** locally to run them). See [Unit Testing Guide — Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
+**Unit tests and `pyproject` extras:** `tests/unit/` must **only** depend on **`[dev]`** -- never on `[ml]`, `[llm]`, `[compare]`, or `[server]`. CI `test-unit` installs `.[dev]` only, so any test requiring a non-`[dev]` extra will be silently skipped and never validated. If a test needs FastAPI, httpx, torch, spaCy, faiss, etc., move it to `tests/integration/` (where CI installs `.[dev,ml,llm,server]`). Do **not** use `pytest.importorskip()` in `tests/unit/` to work around missing extras. See [Unit Testing Guide -- Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy -- Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
+
+**Automated policy enforcement:** Two scripts run in `make ci` and `make ci-fast` to
+catch testing-policy violations before they reach CI:
+
+| Script | Make target | What it checks |
+| ------ | ----------- | -------------- |
+| `check_unit_test_imports.py` | `make check-unit-imports` | Library modules import without ML deps at import time |
+| `check_test_policy.py` | `make check-test-policy` | 3-tier ML/AI boundary rules (see table below) |
+
+`check_test_policy.py` enforces four rules:
+
+| Rule ID | Scope | Violation |
+| ------- | ----- | --------- |
+| U1-importorskip | `tests/unit/` | `pytest.importorskip()` -- move to `integration/` or mock |
+| U2-available-guard | `tests/unit/` | `*_AVAILABLE` skip guards -- mock ML deps instead of skipping |
+| I1-ml-models-marker | `tests/integration/` | `@pytest.mark.ml_models` -- real ML belongs in `tests/e2e/` |
+| G1-empty-test-file | all `tests/` | Zero `test_` methods -- delete or add tests |
+
+Run `make check-test-policy` locally after adding or moving tests. Pass `--fix-hint`
+for remediation suggestions. Both scripts live in `scripts/tools/`.
 
 **Decision Tree:**
 
-1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? → **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy — Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
-2. Testing a complete **CLI / library / service** workflow? → **E2E Test** (pytest)
-3. Testing component interactions? → **Integration Test**
-4. Testing a single function? → **Unit Test**
+1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? --> **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy -- Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
+2. Testing a complete **CLI / library / service** workflow? --> **E2E Test** (pytest)
+3. Testing component interactions? --> **Integration Test**
+4. Testing a single function? --> **Unit Test**
 
 ## Running Tests
 
@@ -79,7 +100,7 @@ Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GU
 | Concern | Tool | Location |
 | -------- | ---- | -------- |
 | Viewer **TS utility logic** (parsing, merge, metrics, formatting) | **Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` |
-| Viewer **HTTP API** (`/api/*`) — mocked internals | pytest **unit** tests (FastAPI `TestClient`) | `tests/unit/podcast_scraper/server/` (`test_viewer_*.py`, catalog/index helpers) |
+| Viewer **HTTP API** (`/api/*`) -- pure logic helpers | pytest **unit** tests (no FastAPI needed) | `tests/unit/podcast_scraper/server/` (catalog, index staleness, pathutil) |
 | Viewer **HTTP API** — wired app + real files | pytest **integration** | `tests/integration/server/` (`test_server_api.py`, `test_viewer_corpus_library.py`, `test_index_rebuild.py`, …) |
 | Viewer **UI** (render, click, keyboard, graph container) | **Playwright** | `web/gi-kg-viewer/e2e/*.spec.ts` |
 | Full **pipeline** / CLI / providers | pytest **E2E** | `tests/e2e/` |
@@ -338,9 +359,10 @@ due to inherent non-determinism. These tests get automatic reruns.
 
 The following categories are now **stable** and don't need flaky markers:
 
+- **Episode selection (GitHub #521)** - `tests/e2e/test_episode_selection_e2e.py` (mock feed `podcast1_episode_selection`, Path 1 transcripts; one test is `critical_path` for fast E2E)
 - **Transformers/spaCy model loading** - Uses offline mode (`HF_HUB_OFFLINE=1`)
 - **ML model tests** - Explicit `summary_reduce_model` prevents cache misses
-- **HTTP integration tests** - Explicit server waits prevent timing issues
+- **HTTP integration tests** (`tests/integration/rss/test_http_integration.py`, marker `integration_http`) — Local `http.server` only; autouse fixture resets `configure_http_policy` / `configure_downloader` and closes downloader sessions so urllib3 retry defaults do not stall 5xx tests. See [Integration Testing Guide — Real HTTP client integration](INTEGRATION_TESTING_GUIDE.md#real-http-client-integration-local-server).
 - **Parallel execution** - Global state cleanup prevents race conditions
 
 ### Reducing Flakiness
@@ -396,6 +418,8 @@ Put optional full-pipeline YAML presets under **`config/acceptance/`** (not comm
 `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` (local under `config/acceptance/`) exercises two feeds in one run. With **`USE_FIXTURES=1`**, the acceptance runner replaces each external feed URL with a distinct local E2E fixture feed so the run stays offline.
 
 **Append / resume (GitHub #444):** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml` is the same two-feed OpenAI full-pipeline preset with **`append: true`**. Pytest coverage: `tests/e2e/test_append_resume_e2e.py` (two CLI invocations, stable `run_append_*`, `index.json` 1.1.0). See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+
+**Episode selection (GitHub #521):** Pytest E2E regression for `--episode-order`, `--since` / `--until`, `--episode-offset`, and config overrides lives in **`tests/e2e/test_episode_selection_e2e.py`** (mock server feed **`podcast1_episode_selection`**, fixture **`tests/fixtures/rss/p01_episode_selection.xml`**). One test is marked **`critical_path`** so it runs under **`make test-e2e-fast`** / the E2E slice of **`make test-ci-fast`**. Integration coverage includes **`tests/integration/workflow/test_workflow_stages_integration.py`** (`prepare_episodes_from_feed`) and **`tests/integration/infrastructure/test_e2e_server.py`** (`TestE2EEpisodeSelectionFeed`). See [CONFIGURATION.md — Episode selection](../api/CONFIGURATION.md#episode-selection-github-521) and [E2E Testing Guide — E2E Feeds (RSS)](E2E_TESTING_GUIDE.md#e2e-feeds-rss).
 
 **Corpus resolution + CLI (post–#505 / inspect hardening):** Unit tests include **`tests/unit/podcast_scraper/utils/test_corpus_episode_paths.py`** (YAML metadata, rglob fallback, parent search hint), **`tests/unit/podcast_scraper/utils/test_corpus_lock.py`**, **`TestKgSubcommandMultiFeed`** and **`TestGiSubcommand`** multi-feed **`gi inspect` / `kg inspect`** paths in **`tests/unit/podcast_scraper/test_cli.py`**, and viewer **`web/gi-kg-viewer/src/stores/shell.hints.test.ts`** for **`GET /api/artifacts`** `hints`. Playwright **`web/gi-kg-viewer/e2e/corpus-hints.spec.ts`** mirrors the hint banner (requires **`npx playwright install firefox`** locally / in CI).
 

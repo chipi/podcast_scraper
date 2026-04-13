@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import platform
+import shutil
 import sys
 import tempfile
 import threading
@@ -35,6 +36,7 @@ except ImportError as exc:  # pragma: no cover
 
 from podcast_scraper import config as ps_config
 from podcast_scraper.evaluation.fingerprint import generate_provider_fingerprint
+from podcast_scraper.monitor.runner import MONITOR_FILE_LOG_ENV
 from podcast_scraper.workflow import run_pipeline
 
 logger = logging.getLogger(__name__)
@@ -279,12 +281,13 @@ def build_stage_truth_document(
     resource_by_stage: Dict[str, Dict[str, float]],
     global_peak_rss_mb_sampled: float,
     metrics: Dict[str, Any],
+    rfc065_monitor: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """JSON-serializable audit bundle alongside the frozen YAML profile."""
     sum_mapped = round(sum(wall_by_stage.values()), 4)
     run_w = round(run_wall_s, 4)
     ratio = round(sum_mapped / run_w, 4) if run_w > 0 else 0.0
-    return {
+    doc: Dict[str, Any] = {
         "profile_stage_truth_version": 1,
         "release": release,
         "dataset_id": dataset_id,
@@ -298,6 +301,9 @@ def build_stage_truth_document(
         "global_peak_rss_mb_sampled": round(global_peak_rss_mb_sampled, 2),
         "metrics_excerpt": _metrics_excerpt(metrics),
     }
+    if rfc065_monitor is not None:
+        doc["rfc065_monitor"] = rfc065_monitor
+    return doc
 
 
 def _machine_environment_block() -> Dict[str, Any]:
@@ -351,6 +357,26 @@ def _find_metrics_json_path(cfg: ps_config.Config, output_dir: str) -> Optional[
     if not existing:
         return None
     return max(existing, key=lambda p: os.stat(p).st_mtime)
+
+
+def _find_monitor_log_path(cfg: ps_config.Config, output_dir: str) -> Optional[str]:
+    """Newest ``.monitor.log`` under ``output_dir`` (including run-scoped subdirs)."""
+    out_abs = os.path.abspath(output_dir)
+    candidates: List[str] = [os.path.join(out_abs, ".monitor.log")]
+    root = Path(out_abs)
+    if root.is_dir():
+        candidates.extend(str(p.resolve()) for p in root.rglob(".monitor.log"))
+    existing = [c for c in candidates if os.path.isfile(c)]
+    if not existing:
+        return None
+    return max(existing, key=lambda p: os.stat(p).st_mtime)
+
+
+def _repo_relative(path: Path, repo_root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(repo_root.resolve()))
+    except ValueError:
+        return str(path.resolve())
 
 
 def _fingerprint_device(cfg: ps_config.Config) -> Optional[str]:
@@ -436,11 +462,19 @@ def _run_measured_pipeline(
     t_wall0 = time.perf_counter()
     t_mono0 = time.monotonic()
     sampler.start()
+    prev_monitor_file_log = os.environ.get(MONITOR_FILE_LOG_ENV)
+    if cfg.monitor:
+        os.environ[MONITOR_FILE_LOG_ENV] = "1"
     try:
         run_pipeline(cfg)
     finally:
         t_mono1 = time.monotonic()
         sampler.stop()
+        if cfg.monitor:
+            if prev_monitor_file_log is None:
+                os.environ.pop(MONITOR_FILE_LOG_ENV, None)
+            else:
+                os.environ[MONITOR_FILE_LOG_ENV] = prev_monitor_file_log
     t_wall1 = time.perf_counter()
     run_wall = t_wall1 - t_wall0
 
@@ -524,6 +558,15 @@ def main() -> None:
         action="store_true",
         help="Do not write <version>.stage_truth.json next to the profile YAML.",
     )
+    parser.add_argument(
+        "--monitor",
+        action="store_true",
+        help=(
+            "Enable RFC-065 live monitor for the measured run only (warm-up unchanged). "
+            "Archives ticks to <version>.monitor.log beside the YAML; forces file logging "
+            f"via {MONITOR_FILE_LOG_ENV} so capture works even under a TTY."
+        ),
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -557,19 +600,28 @@ def main() -> None:
     out_path = Path(args.output) if args.output else out_default
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
+    monitor_for_measure = bool(base_cfg.monitor) or bool(args.monitor)
+    measured_cfg = base_cfg.model_copy(
+        update={"monitor": monitor_for_measure},
+        deep=True,
+    )
+
     try:
         if not args.skip_warmup:
             with tempfile.TemporaryDirectory(prefix="profile_freeze_warmup_") as tmp:
                 warm = base_cfg.model_copy(
-                    update={"max_episodes": 1, "output_dir": tmp},
+                    update={"max_episodes": 1, "output_dir": tmp, "monitor": False},
                     deep=True,
                 )
                 logger.info("Warm-up run (max_episodes=1) ...")
                 run_pipeline(warm)
 
-        logger.info("Measured run ...")
+        if monitor_for_measure:
+            logger.info("Measured run (RFC-065 monitor enabled) ...")
+        else:
+            logger.info("Measured run ...")
         metrics, run_wall, res_by_stage, peak_rss_mb, metrics_path = _run_measured_pipeline(
-            base_cfg,
+            measured_cfg,
             sample_interval_s=float(args.sample_interval),
         )
     finally:
@@ -625,6 +677,34 @@ def main() -> None:
     )
     logger.info("Wrote profile: %s", out_path)
 
+    rfc065_monitor_audit: Optional[Dict[str, Any]] = None
+    if monitor_for_measure:
+        mlog = _find_monitor_log_path(measured_cfg, measured_cfg.output_dir)
+        dest_log = out_path.parent / f"{out_path.stem}.monitor.log"
+        if mlog:
+            shutil.copy2(mlog, dest_log)
+            line_count = sum(1 for _ in dest_log.open(encoding="utf-8", errors="replace"))
+            rfc065_monitor_audit = {
+                "enabled": True,
+                "forced_file_log_env": MONITOR_FILE_LOG_ENV,
+                "source_log": os.path.abspath(mlog),
+                "archived_log": _repo_relative(dest_log, _ROOT),
+                "lines": line_count,
+                "bytes": dest_log.stat().st_size,
+            }
+            logger.info("Archived monitor log: %s", dest_log)
+        else:
+            rfc065_monitor_audit = {
+                "enabled": True,
+                "forced_file_log_env": MONITOR_FILE_LOG_ENV,
+                "archived_log": None,
+                "note": "No .monitor.log found under output_dir after run.",
+            }
+            logger.warning(
+                "Monitor was enabled but no .monitor.log found under %s",
+                measured_cfg.output_dir,
+            )
+
     if not args.no_stage_truth_snapshot:
         st_path = out_path.parent / f"{out_path.stem}.stage_truth.json"
         st_doc = build_stage_truth_document(
@@ -637,6 +717,7 @@ def main() -> None:
             resource_by_stage=res_by_stage,
             global_peak_rss_mb_sampled=peak_rss_mb,
             metrics=metrics,
+            rfc065_monitor=rfc065_monitor_audit,
         )
         st_path.write_text(json.dumps(st_doc, indent=2, sort_keys=False) + "\n", encoding="utf-8")
         logger.info("Wrote stage truth snapshot: %s", st_path)

@@ -56,8 +56,9 @@ DEFAULT_BASE_CONFIG = (
     / "data/eval/configs/summarization_bullets/autoresearch_prompt_openai_smoke_bullets_v1.yaml"
 )
 # ROUGE target for bullet JSON (must exist under data/eval/references/silver/...).
-# Create by running experiment_openai_gpt4o_smoke_bullets_v1, then promote; see
-# data/eval/configs/summarization_bullets/ and data/eval/configs/README.md.
+# Create by running experiment_openai_gpt4o_smoke_bullets_v1
+# (CONFIG=data/eval/issue-477/experiment_openai_gpt4o_smoke_bullets_v1.yaml), then promote; see
+# data/eval/issue-477/README.md and data/eval/configs/README.md.
 # Interim (mismatched ROUGE): REFERENCE=silver_gpt4o_smoke_v1
 DEFAULT_REFERENCE_ID = "silver_gpt4o_smoke_bullets_v1"
 EVAL_DIR = Path(__file__).resolve().parent

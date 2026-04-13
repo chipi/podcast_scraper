@@ -109,7 +109,7 @@ The pipeline must degrade gracefully under transient failures, respect operator 
 
 | Requirement | Expectation | Status | References |
 | ----------- | ----------- | ------ | ---------- |
-| **Retries** | Transient errors (network, model loading) use exponential backoff retry with configurable counts/delays; HTTP uses retry adapters. | Met | [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md), [ARCHITECTURE](ARCHITECTURE.md) |
+| **Retries** | RSS/media HTTP uses urllib3 retry adapters plus optional application-level episode retry (`http_*`, `rss_*`, `episode_*` on `Config`). Model loading uses exponential backoff. LLM/API calls use unified provider retry (`retry_with_metrics`). | Met | [CONFIGURATION — Download resilience](../api/CONFIGURATION.md#download-resilience), [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md) (LLM/API only), [ARCHITECTURE](ARCHITECTURE.md) |
 | **Rate limiting** | External API calls respect provider rate limits; on throttling (e.g. HTTP 429) the system backs off and retries (exponential backoff). No unbounded retry storms. | Met | [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md), provider PRDs (e.g. [PRD-010](../prd/PRD-010-mistral-provider-integration.md), [PRD-011](../prd/PRD-011-deepseek-provider-integration.md)) |
 | **Timeouts** | Configurable timeouts for transcription and summarization; no indefinite hangs. | Met | [ARCHITECTURE](ARCHITECTURE.md), [TROUBLESHOOTING](../guides/TROUBLESHOOTING.md) |
 | **Failure handling** | Operators can set `--fail-fast` and `--max-failures`; episode-level failures are tracked in metrics without masking exit codes. | Met | [ARCHITECTURE](ARCHITECTURE.md) |
@@ -175,7 +175,7 @@ The system must scale to typical single-feed and multi-episode use cases without
 | **Single-feed, many episodes** | Pipeline handles many episodes per feed within resource limits (timeouts, memory); sequential ML per ADR-001. | Met | [ADR-001](../adr/ADR-001-hybrid-concurrency-strategy.md), [ARCHITECTURE](ARCHITECTURE.md) |
 | **Concurrency** | IO-bound work (downloads) uses threading; ML work is sequential to avoid GPU OOM and contention. | Met | [ADR-001](../adr/ADR-001-hybrid-concurrency-strategy.md), [ADR-046](../adr/ADR-046-mps-exclusive-mode-apple-silicon.md) |
 | **GIL / KG query scale** | File-based GIL and KG artifacts scale to moderate episode counts; database projection (PRD-018, RFC-051) is the path for fast cross-episode queries at scale. | Plan | [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md), [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) |
-| **Vector search scale** | FAISS flat index supports corpora up to ~10 K episodes with sub-second query latency. Beyond that, IVF or Qdrant migration (RFC-061 Phase 2) provides the scaling path. | Met | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md), [PRD-021](../prd/PRD-021-semantic-corpus-search.md) |
+| **Vector search scale** | FAISS (flat / auto IVF / IVFPQ) supports CLI-scale corpora; Qdrant or remote backends — [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) (Draft). | Met (FAISS) | [RFC-061](../rfc/RFC-061-semantic-corpus-search.md), [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md), [PRD-021](../prd/PRD-021-semantic-corpus-search.md) |
 | **Corpus Library scale** | Filesystem-backed catalog scans scale to moderate corpus sizes (≤ 1 K episodes per feed); pagination and caching mitigate larger corpora. | Met | [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) |
 
 ### 6.3 Out of Scope (Scalability)

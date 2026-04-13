@@ -1,6 +1,6 @@
 # PRD-022: Corpus Library & Episode Browser
 
-- **Status**: Completed (v2.6.0) — Phases 1–3 (catalog APIs, Library tab, handoffs) plus **optional Phase 4** corpus-local artwork (RFC-067): ingest-time download behind `download_podcast_artwork`, `GET /api/corpus/binary`, viewer prefers same-origin art when verified paths exist.
+- **Status**: Implemented (v2.6.0) — Phases 1–3 (catalog APIs, Library tab, handoffs) plus **optional Phase 4** corpus-local artwork (RFC-067): ingest-time download behind `download_podcast_artwork`, `GET /api/corpus/binary`, viewer prefers same-origin art when verified paths exist.
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
   - [RFC-067: Corpus Library API & Viewer](../rfc/RFC-067-corpus-library-api-viewer.md) — technical design (Phases 1–3 + **Phase 4** local artwork): **visual metadata** (RSS-sourced URLs, optional **verified** `*_image_local_relpath`, duration, episode number) in API + viewer

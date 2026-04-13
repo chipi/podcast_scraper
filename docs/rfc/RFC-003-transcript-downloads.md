@@ -4,6 +4,7 @@
 - **Authors**: GPT-5 Codex (initial documentation)
 - **Stakeholders**: Maintainers, networking contributors
 - **Related PRD**: `docs/prd/PRD-001-transcript-pipeline.md`
+- **Related guide**: [RSS and feed ingestion](../guides/RSS_GUIDE.md) (feed fetch, parsing, and `Episode` construction **before** transcript download)
 - **Related ADRs**:
   - [ADR-001: Hybrid Concurrency Strategy](../adr/ADR-001-hybrid-concurrency-strategy.md)
   - [ADR-003: Deterministic Feed Storage](../adr/ADR-003-deterministic-feed-storage.md)
@@ -19,8 +20,8 @@ Transcript URLs vary in format, may expose inaccurate MIME types, and can includ
 
 ## Constraints & Assumptions
 
-- HTTP stack uses `requests` with retry-enabled adapters (RFC-004 covers filesystem interactions).
-- Downloads should not halt the overall pipeline when individual episodes fail.
+- HTTP stack uses `requests` with retry-enabled adapters (RFC-004 covers filesystem interactions). Retry counts and backoff factors are configurable via `Config` fields (`http_retry_total`, `http_backoff_factor`, `rss_retry_total`, `rss_backoff_factor`) with resilient defaults. An additional application-level episode retry (`episode_retry_max`, default 1) re-runs the full episode download on transient network errors after urllib3 retries are exhausted. Optional per-host pacing, circuit breaker, and RSS conditional GET (Issue #522) are documented in the same section. See [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience).
+- Downloads should not halt the overall pipeline when individual episodes fail. End-of-run `failure_summary` in `run.json` aggregates failures by error type for triage.
 - User-specified preferences (`prefer_type`) are honored when selecting candidates.
 
 ## Design & Implementation
@@ -61,6 +62,7 @@ Transcript URLs vary in format, may expose inaccurate MIME types, and can includ
 ## Rollout & Monitoring
 
 - Logging includes success, failure, and skip events for traceability.
+- `run.json` includes a `failure_summary` when episodes fail, grouping failures by error type with counts and episode IDs.
 - Future enhancements (e.g., checksum validation) can extend this RFC without breaking existing behavior.
 
 ## References

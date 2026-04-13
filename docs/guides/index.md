@@ -10,6 +10,13 @@ Practical guides for using and developing Podcast Scraper.
 | [Troubleshooting](TROUBLESHOOTING.md) | Common issues and solutions |
 | [Glossary](GLOSSARY.md) | Key terms and concepts |
 
+## Configuration
+
+| Reference | Description |
+| --------- | ----------- |
+| [Configuration API](../api/CONFIGURATION.md) | `Config`, env vars, YAML — [Twelve-factor (config)](../api/CONFIGURATION.md#twelve-factor-app-alignment-config), [Download resilience](../api/CONFIGURATION.md#download-resilience) (retries, Issue #522, presets, CLI parity), `failure_summary` in `run.json` |
+| [CLI](../api/CLI.md) | Flags including `--http-retry-total`, `--episode-retry-max`, etc. (Control Options) |
+
 ## Development
 
 | Guide | Description |
@@ -50,6 +57,7 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ------------- |
+| [RSS and feed ingestion](RSS_GUIDE.md) | How RSS URLs become `RssFeed` and `Episode` objects: HTTP, caches, parsing, selection, multi-feed; entry point for future non-RSS ingestion docs |
 | [Semantic Search](SEMANTIC_SEARCH_GUIDE.md) | RFC-061 corpus vector index: config (`vector_search`), `search` / `index` CLIs, semantic `gi explore --topic` |
 | [Grounded Insights](GROUNDED_INSIGHTS_GUIDE.md) | Grounded insights (insights + evidence quotes), enabling GIL, gi.json, CLI, schema; optional [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) |
 | [Knowledge Graph](KNOWLEDGE_GRAPH_GUIDE.md) | KG (entities, topics, relationships): PRD-019 / RFC-055–056, artifacts, `kg` CLI; same [browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype) for `kg.json` |
@@ -61,14 +69,13 @@ Practical guides for using and developing Podcast Scraper.
 
 | Guide | Description |
 | ------- | ----------- |
-| [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, and quality evaluation (RFC-041) |
+| [Experiment Guide](EXPERIMENT_GUIDE.md) | Datasets, baselines, experiments, promotion, metrics, and quality evaluation (RFC-041) |
 | [Evaluation Reports](eval-reports/index.md) | Quality sweeps: ROUGE, embeddings, report library |
 | [Performance Guide](PERFORMANCE.md) | Performance considerations, optimization, and troubleshooting |
 | [Performance Profile Guide](PERFORMANCE_PROFILE_GUIDE.md) | Frozen release profiles: RSS, CPU%, wall time per stage (RFC-064) |
+| [Optimization Workflow](OPTIMIZATION_WORKFLOW_GUIDE.md) | Data-driven process for investigating and solving performance/cost problems |
 | [Live Pipeline Monitor](LIVE_PIPELINE_MONITOR.md) | Dev tooling: `--monitor`, RSS/CPU/stage dashboard or `.monitor.log`, `.pipeline_status.json`; optional `.[monitor]` memray + py-spy (RFC-065, #512) |
 | [Performance Reports](performance-reports/index.md) | Published profile snapshots (tables, caveats) |
-| [Experiment metrics (eval runs)](METRICS_GUIDE.md) | Metrics from eval runs and reporting |
-| [Promotion Workflow](PROMOTION_WORKFLOW.md) | Promotion and release workflow |
 
 ## AI Coding
 

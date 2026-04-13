@@ -1,0 +1,35 @@
+# Experiment: GPT-4o JSON bullet summaries on smoke dataset (5 episodes).
+#
+# **Issue #477** — canonical copy lives in ``data/eval/issue-477/`` (see README.md here).
+#
+# This is a **normal experiment config** — its ``id`` is the **run id** under
+# ``data/eval/runs/<id>/``. It is **not** a silver reference until you **promote** a
+# successful run with ``make run-promote``; only then does e.g.
+# ``silver_gpt4o_smoke_bullets_v1`` exist under ``data/eval/references/silver/``.
+#
+# Flow: materialize dataset → ``make experiment-run CONFIG=...`` → review outputs →
+# ``make run-promote RUN_ID=<this id> AS=reference PROMOTED_ID=silver_gpt4o_smoke_bullets_v1 ...``
+# (see ``data/eval/configs/README.md`` § Promoting a run to a silver reference).
+#
+# Requires: OPENAI_API_KEY in environment (or .env).
+
+id: "experiment_openai_gpt4o_smoke_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

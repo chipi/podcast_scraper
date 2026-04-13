@@ -15,17 +15,7 @@ from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
 
-# Try to import jsonschema for proper validation
-try:
-    import jsonschema
-
-    HAS_JSONSCHEMA = True
-except ImportError:
-    HAS_JSONSCHEMA = False
-    logger.warning(
-        "jsonschema library not available. Using basic validation only. "
-        "Install with: pip install jsonschema"
-    )
+import jsonschema
 
 
 def validate_schema(obj: Dict[str, Any], schema_path: Path, strict: bool = False) -> bool:
@@ -62,35 +52,22 @@ def validate_schema(obj: Dict[str, Any], schema_path: Path, strict: bool = False
         )
         return True
 
-    if HAS_JSONSCHEMA:
-        try:
-            jsonschema.validate(instance=obj, schema=schema_data)
-            logger.debug(f"Schema validation passed: {schema_path.name}")
-            return True
-        except jsonschema.ValidationError as e:
-            msg = f"Schema validation failed: {e.message}"
-            if strict:
-                raise ValueError(msg) from e
-            logger.warning(f"{msg} (continuing anyway)")
-            return False
-        except jsonschema.SchemaError as e:
-            msg = f"Invalid schema file {schema_path}: {e.message}"
-            if strict:
-                raise ValueError(msg) from e
-            logger.warning(f"{msg} (continuing anyway)")
-            return False
-    else:
-        # Basic validation fallback: check required fields from schema
-        required = schema_data.get("required", [])
-        missing = [field for field in required if field not in obj]
-        if missing:
-            msg = f"Missing required fields: {missing}"
-            if strict:
-                raise ValueError(msg)
-            logger.warning(f"{msg} (continuing anyway - structure may differ)")
-            return False
-        logger.debug(f"Basic validation passed (jsonschema not available): {schema_path.name}")
+    try:
+        jsonschema.validate(instance=obj, schema=schema_data)
+        logger.debug(f"Schema validation passed: {schema_path.name}")
         return True
+    except jsonschema.ValidationError as e:
+        msg = f"Schema validation failed: {e.message}"
+        if strict:
+            raise ValueError(msg) from e
+        logger.warning(f"{msg} (continuing anyway)")
+        return False
+    except jsonschema.SchemaError as e:
+        msg = f"Invalid schema file {schema_path}: {e.message}"
+        if strict:
+            raise ValueError(msg) from e
+        logger.warning(f"{msg} (continuing anyway)")
+        return False
 
 
 def _normalize_summarization_reference_entry(entry: Dict[str, Any]) -> Dict[str, Any]:

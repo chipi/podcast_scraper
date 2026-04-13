@@ -1,4 +1,4 @@
-# ADR-042: Mandatory Pre-Release Validation
+# ADR-031: Mandatory Pre-Release Validation
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

@@ -7,7 +7,6 @@ All ML dependencies (tokenizers, models, pipelines) are mocked.
 
 import os
 import sys
-import types
 import unittest
 from unittest.mock import Mock, patch
 
@@ -17,16 +16,9 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# Try to import summarizer, skip tests if dependencies not available
-try:
-    from podcast_scraper.providers.ml import summarizer
-
-    SUMMARIZER_AVAILABLE = True
-except ImportError:
-    SUMMARIZER_AVAILABLE = False
-    summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
-
 import pytest
+
+from podcast_scraper.providers.ml import summarizer
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
 
@@ -41,7 +33,6 @@ def _add_summarize_lock_to_mock(mock_model):
     return mock_model
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestChunkTextWords(unittest.TestCase):
     """Tests for chunk_text_words function."""
 
@@ -85,7 +76,6 @@ class TestChunkTextWords(unittest.TestCase):
         self.assertGreater(len(chunks), 0)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestChunkTextForSummarization(unittest.TestCase):
     """Tests for chunk_text_for_summarization function."""
 
@@ -167,7 +157,6 @@ class TestChunkTextForSummarization(unittest.TestCase):
         self.assertGreater(len(chunks), 0)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestValidateAndFixRepetitiveSummary(unittest.TestCase):
     """Tests for _validate_and_fix_repetitive_summary function."""
 
@@ -228,7 +217,6 @@ class TestValidateAndFixRepetitiveSummary(unittest.TestCase):
         self.assertEqual(result, summary)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestStripInstructionLeak(unittest.TestCase):
     """Tests for _strip_instruction_leak function."""
 
@@ -277,7 +265,6 @@ class TestStripInstructionLeak(unittest.TestCase):
         self.assertEqual(result.strip(), "")
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSelectKeySummaries(unittest.TestCase):
     """Tests for _select_key_summaries function."""
 
@@ -327,7 +314,6 @@ class TestSelectKeySummaries(unittest.TestCase):
         self.assertEqual(result, summaries)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestJoinSummariesWithStructure(unittest.TestCase):
     """Tests for _join_summaries_with_structure function."""
 
@@ -365,7 +351,6 @@ class TestJoinSummariesWithStructure(unittest.TestCase):
         self.assertEqual(result, "")
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSafeSummarizeExpanded(unittest.TestCase):
     """Additional tests for safe_summarize function."""
 
@@ -418,7 +403,6 @@ class TestSafeSummarizeExpanded(unittest.TestCase):
         )
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestCheckIfNeedsChunking(unittest.TestCase):
     """Tests for _check_if_needs_chunking function."""
 
@@ -494,7 +478,6 @@ class TestCheckIfNeedsChunking(unittest.TestCase):
             )
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestPrepareChunks(unittest.TestCase):
     """Tests for _prepare_chunks function."""
 
@@ -553,7 +536,6 @@ class TestPrepareChunks(unittest.TestCase):
         self.assertGreater(len(chunks), 1)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestMergeTinyChunks(unittest.TestCase):
     """Tests for _merge_tiny_chunks (Issue #428)."""
 
@@ -601,7 +583,6 @@ class TestMergeTinyChunks(unittest.TestCase):
         self.assertEqual(summarizer._merge_tiny_chunks(mock_model, []), [])
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummarizeChunksMap(unittest.TestCase):
     """Tests for _summarize_chunks_map function."""
 
@@ -675,7 +656,6 @@ class TestSummarizeChunksMap(unittest.TestCase):
         self.assertEqual(len(result), 2)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestCombineSummariesReduce(unittest.TestCase):
     """Tests for _combine_summaries_reduce function."""
 
@@ -770,7 +750,6 @@ class TestCombineSummariesReduce(unittest.TestCase):
         # Should use extractive approach (selects key summaries first)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestCombineSummariesExtractive(unittest.TestCase):
     """Tests for _combine_summaries_extractive function."""
 
@@ -829,7 +808,6 @@ class TestCombineSummariesExtractive(unittest.TestCase):
         mock_model.summarize.assert_called()
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestCombineSummariesAbstractive(unittest.TestCase):
     """Tests for _combine_summaries_abstractive function."""
 
@@ -886,7 +864,6 @@ class TestCombineSummariesAbstractive(unittest.TestCase):
             )
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestPostprocessMLSummary(unittest.TestCase):
     """Tests for _postprocess_ml_summary function."""
 
@@ -942,7 +919,6 @@ class TestPostprocessMLSummary(unittest.TestCase):
         self.assertIn(".", result)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestDedupeSentences(unittest.TestCase):
     """Tests for _dedupe_sentences function."""
 
@@ -979,7 +955,6 @@ class TestDedupeSentences(unittest.TestCase):
         self.assertIn("more details", result)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestPruneFillerSentences(unittest.TestCase):
     """Tests for _prune_filler_sentences function."""
 
@@ -1045,7 +1020,6 @@ class TestPruneFillerSentences(unittest.TestCase):
         self.assertIsInstance(result, str)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestDistillFinalSummary(unittest.TestCase):
     """Tests for _distill_final_summary function."""
 
@@ -1108,7 +1082,6 @@ class TestDistillFinalSummary(unittest.TestCase):
         mock_model.summarize.assert_called_once()
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummarizerRetryLogic(unittest.TestCase):
     """Tests for summarizer retry logic with 'Already borrowed' errors."""
 
@@ -1170,7 +1143,6 @@ class TestSummarizerRetryLogic(unittest.TestCase):
             )
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class Test2ndPassDistill(unittest.TestCase):
     """Tests for optional 2nd-pass distillation with faithfulness prompt (Issue #387)."""
 
@@ -1236,7 +1208,6 @@ class Test2ndPassDistill(unittest.TestCase):
             self.assertEqual(result, "Postprocessed original")
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestResolveModelNameAndSponsorBlocks(unittest.TestCase):
     """Tests for resolve_model_name and remove_sponsor_blocks helpers."""
 

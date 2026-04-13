@@ -22,7 +22,7 @@ The CLI is the primary user entry point. It must expose all critical functionali
 ## Design & Implementation
 
 1. **Argument parsing**
-   - `parse_args` defines all flags documented in README (RSS URL, output, max episodes, Whisper flags, etc.).
+   - `parse_args` defines all flags documented in README (RSS URL, output, max episodes, episode order / offset / date bounds, Whisper flags, etc.).
    - Supports `--config` for JSON/YAML files; merges validated values into parser defaults.
    - `--version` prints version string and exits.
 2. **Validation**

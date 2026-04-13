@@ -22,21 +22,21 @@ This guide covers unit test implementation details: what to mock, isolation patt
 
 ## Pyproject extras: what unit tests may depend on
 
-**Rule:** Tests under `tests/unit/` must **not** require optional extras **`[ml]`**, **`[llm]`**, or **`[compare]`** (or any install path beyond what CI expects for the unit job). Use **`unittest.mock.patch`**, **`patch.dict(sys.modules, …)`** for fake modules, or **move** the scenario to **`tests/integration/`** (with the right markers and workflow deps).
+**Rule:** Tests under `tests/unit/` must **only** depend on **`[dev]`**. They must **not** require **`[ml]`**, **`[llm]`**, **`[compare]`**, **`[server]`**, or any other non-`[dev]` extra. If a test needs a package from another extra (FastAPI, httpx, torch, spaCy, faiss, etc.), **move it to `tests/integration/`** (with the right markers and workflow deps). Alternatively, use **`unittest.mock.patch`** or **`patch.dict(sys.modules, …)`** for fake modules.
 
 **Baseline extra:** **`[dev]`** — this is what `check_unit_test_imports.py` and “no ML at import time” checks target. Treat anything declared under **`[project.optional-dependencies].dev`** in `pyproject.toml` (and its transitive wheels) as **allowed** for unit tests. Do **not** assume **`[ml]`** is installed.
 
-**Viewer / FastAPI (`[server]`):**
+**Why this matters:** CI `test-unit` installs `pip install -e .[dev]` only. Any test in `tests/unit/` that needs a non-`[dev]` package will be silently skipped (via `importorskip`) or fail outright, meaning it never validates anything in CI. Integration CI jobs install `.[dev,ml,llm,server]`, so tests there run with the full dependency set.
 
-- **CI:** **`test-unit`** installs **`pip install -e .[dev]`** only. Modules that call **`pytest.importorskip("fastapi")`** **skip** viewer HTTP tests there — that is intentional (unit jobs stay aligned with **`[dev]`** only).
-- **Local / full check:** Install **`.[server]`** (e.g. **`pip install -e '.[dev,server]'`**) to run FastAPI **`TestClient`** unit tests on your machine.
-- **CI parity without touching `.venv`:** **`make venv-dev-init`** creates **`.venv-dev`** with **`pip install -e .[dev]`** only (same extras as GitHub **`test-unit`**). Then **`make test-unit-dev-venv`** runs **`check_unit_test_imports`** + **`pytest tests/unit/`** inside that env. Override path: **`make venv-dev-init VENVDEV=.venv-ci-unit`**. Install **ffmpeg** locally if audio-related unit tests fail (CI installs it in the unit job).
-- **Authoring:** Prefer **thin HTTP boundaries** (domain exceptions, lazy imports, patching **`FaissVectorStore.load`**, etc.) so **most** server-related unit tests do not need a real FAISS build or other ML stacks. Reserve **`TestClient` + `create_app`** for route/contract checks; put **real** index I/O and ML in **integration** tests (integration CI installs **`[server]`** where needed).
+**Viewer / FastAPI tests:** Place in **`tests/integration/server/`** (not `tests/unit/`). Use `pytest.importorskip("fastapi")` there. CI integration jobs install `[server]`, so these tests run. Prefer thin HTTP boundaries (domain exceptions, lazy imports, patching `FaissVectorStore.load`, etc.) so most server logic can be tested without real FAISS or ML stacks. Reserve `TestClient` + `create_app` for route/contract checks in integration tests.
+
+**Local CI parity:** **`make venv-dev-init`** creates **`.venv-dev`** with `pip install -e .[dev]` only (same extras as GitHub `test-unit`). Then **`make test-unit-dev-venv`** runs `check_unit_test_imports` + `pytest tests/unit/` inside that env. Override path: `make venv-dev-init VENVDEV=.venv-ci-unit`. Install ffmpeg locally if audio-related unit tests fail (CI installs it in the unit job).
 
 **Anti-patterns for unit tests:**
 
-- **`pytest.importorskip("faiss")`**, **`torch`**, **`spacy`**, etc. — use mocks or integration tests.
-- Top-level imports of modules that **require** `[ml]` / `[llm]` before mocks are applied.
+- **`pytest.importorskip()`** for any non-`[dev]` package -- causes silent skips in CI, test never runs.
+- Top-level imports of modules that require `[ml]` / `[llm]` / `[server]` before mocks are applied.
+- `TestClient` / `create_app` calls that need FastAPI -- these belong in integration tests.
 
 **See also:** [Testing Strategy — Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject) for CI alignment and rationale.
 
@@ -148,7 +148,16 @@ sys.modules["transformers"] = MagicMock()
 from podcast_scraper.providers.ml import ml_provider
 ```
 
-**CI Verification:** `scripts/tools/check_unit_test_imports.py` verifies modules can import without ML deps.
+**CI Verification:**
+
+- `scripts/tools/check_unit_test_imports.py` (`make check-unit-imports`) -- verifies
+  library modules can import without ML deps at import time.
+- `scripts/tools/check_test_policy.py` (`make check-test-policy`) -- enforces the
+  3-tier ML/AI boundary policy: no `pytest.importorskip()` in unit tests (rule U1),
+  no `*_AVAILABLE` skip guards in unit tests (rule U2), no `@pytest.mark.ml_models`
+  in integration tests (rule I1), and no empty test files anywhere (rule G1).
+
+Both scripts run automatically in `make ci` and `make ci-fast`.
 
 ## Test Structure
 

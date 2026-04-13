@@ -20,14 +20,16 @@ def create_run_summary(
     pipeline_metrics: Optional[Any],
     output_dir: str,
     run_id: Optional[str] = None,
+    failure_summary: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Create run summary combining manifest and metrics.
+    """Create run summary combining manifest, metrics, and failure info.
 
     Args:
         run_manifest: RunManifest object (optional)
         pipeline_metrics: Metrics object (optional)
         output_dir: Output directory path
         run_id: Optional run identifier
+        failure_summary: Failure breakdown from run_index (optional)
 
     Returns:
         Dictionary containing run summary
@@ -108,6 +110,9 @@ def create_run_summary(
         # breaks ``json.dumps`` and dashboard parsing of ``run.json``.
 
         summary["metrics"] = metrics_summary
+
+    if failure_summary and failure_summary.get("total_failed", 0) > 0:
+        summary["failure_summary"] = failure_summary
 
     return summary
 

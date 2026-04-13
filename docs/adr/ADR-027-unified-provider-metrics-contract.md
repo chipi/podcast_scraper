@@ -1,4 +1,4 @@
-# ADR-024: Unified Provider Metrics Contract
+# ADR-027: Unified Provider Metrics Contract
 
 - **Status**: Accepted
 - **Date**: 2026-02-05

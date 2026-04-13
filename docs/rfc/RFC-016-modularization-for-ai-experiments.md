@@ -1,6 +1,6 @@
 # RFC-016: Modularization for AI Experiment Pipeline
 
-- **Status**: **Complete** — All phases implemented, legacy cleanup optional
+- **Status**: **Completed** — All phases implemented, legacy cleanup optional
 - **Authors**:
 - **Stakeholders**: Maintainers, developers implementing AI experiment pipeline, developers maintaining core workflow
 - **Related ADRs**:

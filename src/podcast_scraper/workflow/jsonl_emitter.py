@@ -83,6 +83,14 @@ class JSONLEmitter:
             "workers": cfg.workers,
             "transcription_parallelism": cfg.transcription_parallelism,
             "max_episodes": cfg.max_episodes,
+            "episode_order": cfg.episode_order,
+            "episode_offset": cfg.episode_offset,
+            "episode_since": (
+                cfg.episode_since.isoformat() if cfg.episode_since is not None else None
+            ),
+            "episode_until": (
+                cfg.episode_until.isoformat() if cfg.episode_until is not None else None
+            ),
             "preprocessing_enabled": cfg.preprocessing_enabled,
             "transcript_cache_enabled": cfg.transcript_cache_enabled,
         }
@@ -237,6 +245,21 @@ class JSONLEmitter:
             "llm_summarization_avg_output_tokens_per_call": metrics_dict.get(
                 "llm_summarization_avg_output_tokens_per_call"
             ),
+            "llm_bundled_clean_summary_calls": metrics_dict.get("llm_bundled_clean_summary_calls"),
+            "llm_bundled_clean_summary_input_tokens": metrics_dict.get(
+                "llm_bundled_clean_summary_input_tokens"
+            ),
+            "llm_bundled_clean_summary_output_tokens": metrics_dict.get(
+                "llm_bundled_clean_summary_output_tokens"
+            ),
+            "llm_bundled_fallback_to_staged_count": metrics_dict.get(
+                "llm_bundled_fallback_to_staged_count"
+            ),
+            "total_episode_estimated_cost_usd": metrics_dict.get(
+                "total_episode_estimated_cost_usd"
+            ),
+            "total_episode_prompt_tokens": metrics_dict.get("total_episode_prompt_tokens"),
+            "total_episode_completion_tokens": metrics_dict.get("total_episode_completion_tokens"),
             "schema_version": metrics_dict.get("schema_version"),
         }
         self._write_line(event)

@@ -16,6 +16,7 @@ from tools.run_compare.data import (
     JoinedRelease,
     load_profile,
     longest_common_prefix,
+    profile_has_rfc065_trace,
     profile_stage_delta_rows,
     profile_trend_long_rows,
     ProfileEntry,
@@ -59,6 +60,44 @@ totals:
     assert p.episodes_processed == 2
     assert p.stages["summarization"]["wall_time_s"] == 10.5
     assert p.totals["wall_time_s"] == 20
+    assert p.monitor_log_path is None
+    assert p.rfc065_monitor is None
+    assert not profile_has_rfc065_trace(p)
+
+
+def test_load_profile_picks_up_monitor_log_and_stage_truth(tmp_path: Path) -> None:
+    yaml_text = """
+release: v2-mon
+date: '2026-03-01T00:00:00Z'
+dataset_id: ds_x
+episodes_processed: 1
+environment: {hostname: h}
+stages: {}
+totals: {wall_time_s: 1, peak_rss_mb: 1}
+"""
+    path = _write_profile(tmp_path, "v2-mon.yaml", yaml_text)
+    (tmp_path / "v2-mon.monitor.log").write_text("tick1\n", encoding="utf-8")
+    st_doc = {
+        "profile_stage_truth_version": 1,
+        "rfc065_monitor": {
+            "enabled": True,
+            "archived_log": "data/profiles/v2-mon.monitor.log",
+            "lines": 42,
+            "bytes": 100,
+        },
+    }
+    (tmp_path / "v2-mon.stage_truth.json").write_text(
+        json.dumps(st_doc),
+        encoding="utf-8",
+    )
+    p = load_profile(path)
+    assert p.monitor_log_path is not None
+    assert p.monitor_log_path.name == "v2-mon.monitor.log"
+    assert p.monitor_trace_lines == 42
+    assert p.monitor_trace_bytes == 100
+    assert p.rfc065_monitor is not None
+    assert p.rfc065_monitor["archived_log"] == "data/profiles/v2-mon.monitor.log"
+    assert profile_has_rfc065_trace(p)
 
 
 def test_discover_profiles_skips_bad_file(tmp_path: Path) -> None:

@@ -3,16 +3,16 @@
 - **Status**: Accepted
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
-- **Related RFCs**: [RFC-061](../rfc/RFC-061-semantic-corpus-search.md)
+- **Related RFCs**: [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) (FAISS shipped),
+  [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) (Qdrant / platform — Draft)
 - **Related PRDs**: [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
 
 ## Context & Problem Statement
 
-Semantic Corpus Search (RFC-061) requires a vector index over GIL insights, quotes,
-summary bullets, and transcript chunks. The project needs to support FAISS for CLI/local
-use (Phase 1) and Qdrant for platform/service mode (Phase 2). Consumers of the search
-API (CLI, server, viewer) should not be coupled to a specific vector database
-implementation.
+Semantic corpus search requires a vector index over GIL insights, quotes, summary bullets,
+and transcript chunks. **RFC-061** ships **FAISS** for CLI/local use; **RFC-070** (Draft) tracks
+**Qdrant** and other platform backends. Consumers of the search API (CLI, server, viewer) should
+not be coupled to a specific vector database implementation.
 
 ## Decision
 
@@ -22,8 +22,8 @@ We define a **`VectorStore` protocol** (PEP 544) with the following interface:
    `persist()`, `stats()`.
 2. **Standard result types**: `SearchResult` (doc_id, score, metadata) and
    `IndexStats` (total_vectors, doc_type_counts, feeds_indexed, embedding_model, etc.).
-3. **Backend implementations**: `FaissVectorStore` (Phase 1), `QdrantVectorStore`
-   (Phase 2). Both implement the same protocol.
+3. **Backend implementations**: `FaissVectorStore` (**RFC-061**, shipped), `QdrantVectorStore`
+   (**RFC-070**, not yet implemented). Both implement the same protocol.
 4. **Metadata as flat dict**: Known keys (`doc_type`, `episode_id`, `feed_id`,
    `publish_date`, `speaker_id`, `grounded`, `char_start`, `char_end`,
    `timestamp_start_ms`). Filtering is backend-specific (post-filter for FAISS, native
@@ -70,4 +70,5 @@ We define a **`VectorStore` protocol** (PEP 544) with the following interface:
 ## References
 
 - [ADR-020: Protocol-Based Provider Discovery](ADR-020-protocol-based-provider-discovery.md)
-- [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
+- [RFC-061: Semantic Corpus Search (FAISS)](../rfc/RFC-061-semantic-corpus-search.md)
+- [RFC-070: Semantic Corpus Search — Platform & Future](../rfc/RFC-070-semantic-corpus-search-platform-future.md)

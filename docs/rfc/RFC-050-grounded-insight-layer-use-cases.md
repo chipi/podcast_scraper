@@ -1,6 +1,8 @@
 # RFC-050: Grounded Insight Layer – Use Cases & End-to-End Consumption
 
-- **Status**: Draft
+- **Status**: Completed — single-layer consumption patterns retained; cross-layer use
+  cases (opinion tracking, guest intelligence, controversy detection) moved to
+  [RFC-072](RFC-072-canonical-identity-layer-cross-layer-bridge.md)
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, downstream consumers,
   API users
@@ -26,6 +28,8 @@
     (prompt quality for local LLM extraction)
   - `docs/rfc/RFC-053-adaptive-summarization-routing.md`
     (downstream — adaptive routing)
+  - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
+    (cross-layer use cases — Position Tracker, Guest Brief)
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md` - Human-readable ontology
   - `docs/architecture/gi/gi.schema.json` - Machine-readable schema

@@ -43,7 +43,7 @@ PYTEST_WORKERS ?= $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --te
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff serve-gi-kg-viz test-ui test-ui-e2e
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-quality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e
 
 help:
 	@echo "Common developer commands:"
@@ -66,6 +66,7 @@ help:
 	@echo ""
 	@echo "Verification commands:"
 	@echo "  make check-unit-imports  Verify unit tests can import modules without ML dependencies"
+	@echo "  make check-test-policy   Enforce 3-tier ML/AI testing policy (no importorskip in unit, etc.)"
 	@echo "  make check-pricing-assumptions  Show config/pricing_assumptions.yaml status (optional --strict)"
 	@echo "  make validate-gi-schema [ARTIFACTS_DIR=path]  Validate gi.json files against GIL schema (strict)"
 	@echo "  make validate-kg-schema [ARTIFACTS_DIR=path]  Validate kg.json files against KG schema (strict)"
@@ -208,8 +209,10 @@ help:
 	@echo "                            Usage: make baseline-create BASELINE_ID=bart_led_baseline_v1 DATASET_ID=indicator_v1"
 	@echo "  make experiment-run      Run an experiment using a config file"
 	@echo "                            Usage: make experiment-run CONFIG=data/eval/configs/my_experiment.yaml"
-	@echo "  make profile-freeze      RFC-064: capture data/profiles/<VERSION>.yaml (needs PIPELINE_CONFIG=...)"
+	@echo "  make profile-freeze      RFC-064: capture data/profiles/<VERSION>.yaml (PIPELINE_CONFIG=...; optional MONITOR=1)"
 	@echo "  make profile-diff        RFC-064: terminal diff of two profiles (FROM=v1 TO=v2)"
+	@echo "  make profile-promote     Promote a working profile to data/profiles/references/"
+	@echo "                            Usage: make profile-promote SOURCE=... PROMOTED_ID=... REASON=\"...\""
 	@echo "  make run-compare         Streamlit UI: compare eval runs (RFC-047; pip install -e '.[compare]')"
 	@echo "                            Usage: make run-compare [BASELINE=id]  (optional: default baseline in sidebar)"
 	@echo "  make ml-param-sweep      RFC-057 Track B: ML hyperparameter ratchet (no API keys needed)"
@@ -361,10 +364,12 @@ quality: complexity deadcode docstrings spelling
 	# Ignore CVE-2026-1839: transformers Trainer loads rng_state via torch.load without weights_only; fixed in 5.0.0rc3+.
 	#   We pin transformers<5.0.0 (extractive QA / pipeline — see pyproject [ml]). Revisit when stable 5.x is adopted.
 	# TODO(CVE-2026-1839): Remove --ignore-vuln after bumping transformers to a fixed 5.x release.
+	# Ignore CVE-2025-69872: diskcache 5.6.3 vulnerability (transitive dep). Revisit when diskcache publishes a fix.
+	# TODO(CVE-2025-69872): Remove --ignore-vuln when diskcache releases a patched version.
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839 --ignore-vuln CVE-2025-69872
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
@@ -386,6 +391,11 @@ check-unit-imports:
 	# This ensures unit tests can run in CI without heavy ML dependencies installed
 	# Run this when: adding new modules, refactoring imports, or debugging CI failures
 	export PYTHONPATH="${PYTHONPATH}:$(PWD)" && $(PYTHON) scripts/tools/check_unit_test_imports.py
+
+check-test-policy:
+	# Enforce 3-tier ML/AI testing policy (no importorskip in unit, no ml_models in integration, etc.)
+	# Run this when: adding/moving tests, before commit, or debugging CI skip issues
+	$(PYTHON) scripts/tools/check_test_policy.py --fix-hint
 
 # Optional ARGS: e.g. make check-pricing-assumptions ARGS="--strict"
 check-pricing-assumptions:
@@ -554,9 +564,17 @@ test-ci-fast:
 	echo "Running critical path integration (test-ci-fast)..."; \
 	$(PYTHON) -m pytest tests/integration/ -m 'not nightly and integration and critical_path' \
 		-n $$WI --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
-	echo "Running critical path E2E (test-ci-fast)..."; \
-	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path' \
-		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2
+	echo "Running critical path E2E (test-ci-fast, non-ML, parallel)..."; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and not ml_models' \
+		-n $$WE --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	echo "Running critical path E2E (test-ci-fast, ML models, sequential)..."; \
+	set +e; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'not nightly and e2e and critical_path and ml_models' \
+		-n 1 --allow-hosts=127.0.0.1,localhost --durations=20 --reruns 3 --reruns-delay 2; \
+	ec=$$?; \
+	set -e; \
+	if [ $$ec -eq 5 ]; then ec=0; fi; \
+	exit $$ec
 
 test-e2e: cleanup-processes
 	# E2E tests: parallel execution for speed
@@ -576,7 +594,7 @@ test-e2e-sequential:
 	E2E_TEST_MODE=multi_episode $(PYTHON) -m pytest tests/e2e/ -m "e2e and not analysis" --disable-socket --allow-hosts=127.0.0.1,localhost
 
 test-e2e-fast:
-	# Fast E2E tests: parallel execution for speed
+	# Fast E2E tests: parallel non-ML, then sequential ML (avoids xdist "stuck at ~80%" when one worker runs Whisper)
 	# Uses E2E-specific worker calculation (memory-aware, caps at 4 to prevent system freezes)
 	# Critical path tests only (includes ML tests if models are cached)
 	# Excludes analysis/diagnostic tests (p07/p08 threshold analysis) - these are slow and not critical path
@@ -586,7 +604,14 @@ test-e2e-fast:
 	# Use --durations=20 to monitor slow tests and optimize them separately
 	# Coverage: measured independently but no threshold (fast tests are a subset, full suite enforces threshold)
 	# Note: Removed --disable-socket for pytest-rerunfailures compatibility with -n (parallel)
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis" -n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20
+	@WE=$$($(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2); \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and not ml_models" -n $$WE --cov=$(PACKAGE) --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20 && \
+	set +e; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m "e2e and critical_path and not analysis and ml_models" -n 1 --cov=$(PACKAGE) --cov-append --cov-report=term-missing --allow-hosts=127.0.0.1,localhost --reruns 3 --reruns-delay 1 --durations=20; \
+	ec=$$?; \
+	set -e; \
+	if [ $$ec -eq 5 ]; then ec=0; fi; \
+	exit $$ec
 
 test-e2e-data-quality:
 	# Data quality E2E tests: full pipeline validation with multiple episodes
@@ -709,6 +734,7 @@ test-sequential:
 # Avoids one large xdist session (which can hang at shutdown). Each layer uses its own worker count.
 test-fast:
 	# Fast tests: unit + critical path integration + critical path e2e (separate runs, then combine coverage)
+	# E2E: non-ml_models parallel, then ml_models with -n 1 (avoids xdist tail / progress stuck around ~80%)
 	# Uses fast feed for E2E (1 episode) via E2E_TEST_MODE=fast. Excludes nightly.
 	@echo "Running unit tests (fast) with coverage..."
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/unit/ -m 'not integration and not e2e' \
@@ -718,10 +744,19 @@ test-fast:
 	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/integration/ -m 'integration and critical_path' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type integration --max-workers 5 2>/dev/null || echo 3) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost -q
-	@echo "Running critical path E2E tests with coverage (appending)..."
-	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly' \
+	@echo "Running critical path E2E tests (non-ML, parallel) with coverage (appending)..."
+	@E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and not ml_models' \
 		-n $(shell $(PYTHON) scripts/tools/calculate_test_workers.py --test-type e2e --max-workers 4 2>/dev/null || echo 2) \
 		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20
+	@echo "Running critical path E2E tests (ML models, sequential) with coverage (appending)..."
+	@set +e; \
+	E2E_TEST_MODE=fast $(PYTHON) -m pytest tests/e2e/ -m 'e2e and critical_path and not nightly and ml_models' \
+		-n 1 \
+		--cov=$(PACKAGE) --cov-append --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --durations=20; \
+	ec=$$?; \
+	set -e; \
+	if [ $$ec -eq 5 ]; then ec=0; fi; \
+	exit $$ec
 	@echo "Combining coverage..."
 	@$(MAKE) merge-cov-fragments
 	@$(PYTHON) -m coverage report 2>&1 | grep -E "^[[:space:]]*TOTAL" || (echo "No TOTAL line in coverage report"; exit 1)
@@ -1172,7 +1207,7 @@ ML_MODELS_CACHED := $(shell $(PYTHON) -c "import sys; sys.path.insert(0, 'src');
 	all_cached = whisper_ok and transformers_ok and spacy_ok; \
 	print('1' if not all_cached else '0', end='')" 2>/dev/null || echo "1")
 
-ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test test-ui test-ui-e2e coverage-enforce docs build
+ci: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy $(if $(filter 1,$(ML_MODELS_CACHED)),preload-ml-models,) test test-ui test-ui-e2e coverage-enforce docs build
 	# Conditional preload: Only runs preload-ml-models if models are not cached
 	# This makes ci seamless for new contributors (auto-downloads) and fast for experienced ones (skips if cached)
 	@if [ "$(ML_MODELS_CACHED)" = "0" ]; then \
@@ -1180,7 +1215,7 @@ ci: format-check lint lint-markdown type security complexity deadcode docstrings
 		echo "✓ ML models already cached, skipped preload"; \
 	fi
 
-ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling quality-metrics-ci test-fast test-ui docs build
+ci-fast: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy quality-metrics-ci test-fast test-ui docs build
 	# Note: ci-fast skips coverage-enforce and test-ui-e2e (Playwright) because fast suite
 
 ci-clean: clean-all format-check lint lint-markdown type security preload-ml-models test docs build
@@ -1865,7 +1900,7 @@ experiment-run:
 profile-freeze:
 	@# Usage: make profile-freeze VERSION=v2.6.0 PIPELINE_CONFIG=config/profiles/profile_freeze.yaml
 	@# Optional: DATASET_ID=... OUTPUT=... SKIP_WARMUP=1 E2E_FEED=podcast1_multi_episode
-	@# Optional: SAMPLE_INTERVAL=0.25 NO_STAGE_TRUTH=1
+	@# Optional: SAMPLE_INTERVAL=0.25 NO_STAGE_TRUTH=1 MONITOR=1 (RFC-065 ticks -> <VERSION>.monitor.log)
 	@if [ -z "$(VERSION)" ]; then \
 		echo "❌ Error: VERSION is required (e.g. VERSION=v2.6.0)"; \
 		exit 1; \
@@ -1886,6 +1921,7 @@ profile-freeze:
 	if [ -n "$(E2E_FEED)" ]; then cmd="$$cmd --e2e-feed $(E2E_FEED)"; fi; \
 	if [ -n "$(SAMPLE_INTERVAL)" ]; then cmd="$$cmd --sample-interval $(SAMPLE_INTERVAL)"; fi; \
 	if [ "$(NO_STAGE_TRUTH)" = "1" ]; then cmd="$$cmd --no-stage-truth-snapshot"; fi; \
+	if [ "$(MONITOR)" = "1" ]; then cmd="$$cmd --monitor"; fi; \
 	eval $$cmd
 
 profile-diff:
@@ -1895,6 +1931,30 @@ profile-diff:
 		exit 1; \
 	fi
 	@$(PYTHON) scripts/eval/diff_profiles.py "data/profiles/$(FROM).yaml" "data/profiles/$(TO).yaml"
+
+profile-promote:
+	@# Usage: make profile-promote SOURCE=data/profiles/v2.6-wip-openai.yaml \
+	@#        PROMOTED_ID=v2.6.0-openai REASON="Release v2.6.0 reference"
+	@# Optional: NO_STAGE_TRUTH_REQUIRED=1 DRY_RUN=1
+	@if [ -z "$(SOURCE)" ]; then \
+		echo "❌ Error: SOURCE is required (path to working profile YAML)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(PROMOTED_ID)" ]; then \
+		echo "❌ Error: PROMOTED_ID is required (e.g. v2.6.0-openai)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(REASON)" ]; then \
+		echo "❌ Error: REASON is required (why this profile is being promoted)"; \
+		exit 1; \
+	fi
+	@cmd="$(PYTHON) scripts/eval/promote_profile.py \
+		--source \"$(SOURCE)\" \
+		--promoted-id \"$(PROMOTED_ID)\" \
+		--reason \"$(REASON)\""; \
+	if [ "$(NO_STAGE_TRUTH_REQUIRED)" = "1" ]; then cmd="$$cmd --no-stage-truth-required"; fi; \
+	if [ "$(DRY_RUN)" = "1" ]; then cmd="$$cmd --dry-run"; fi; \
+	eval $$cmd
 
 ml-param-sweep:
 	@# RFC-057 Track B: ML parameter autoresearch ratchet loop (no LLM judges needed).

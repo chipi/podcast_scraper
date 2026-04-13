@@ -11,7 +11,6 @@ filesystem I/O (tempfile.mkdtemp() in setUp/tearDown).
 
 import os
 import sys
-import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -27,21 +26,13 @@ tests_dir = Path(__file__).parent.parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
-# Try to import summarizer, skip tests if dependencies not available
-try:
-    from podcast_scraper.providers.ml import summarizer
-
-    SUMMARIZER_AVAILABLE = True
-except ImportError:
-    SUMMARIZER_AVAILABLE = False
-    summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
-
 import pytest
+
+from podcast_scraper.providers.ml import summarizer
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestValidateModelSource(unittest.TestCase):
     """Test _validate_model_source() security function."""
 

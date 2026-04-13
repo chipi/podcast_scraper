@@ -1988,6 +1988,14 @@ def _build_processing_metadata(
         {
             "language": cfg.language,
             "max_episodes": cfg.max_episodes,
+            "episode_order": cfg.episode_order,
+            "episode_offset": cfg.episode_offset,
+            "episode_since": (
+                cfg.episode_since.isoformat() if cfg.episode_since is not None else None
+            ),
+            "episode_until": (
+                cfg.episode_until.isoformat() if cfg.episode_until is not None else None
+            ),
             "auto_speakers": cfg.auto_speakers,
             "screenplay": cfg.screenplay,
         }
@@ -2111,77 +2119,7 @@ def _generate_episode_summary(  # noqa: C901
                 transcript_length,
             )
 
-            # Clean transcript before summarization using provider's cleaning processor
-            logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
-            from ..cleaning import PatternBasedCleaner
-
-            # Get cleaning processor from provider if available, otherwise use default
-            cleaning_processor = getattr(summary_provider, "cleaning_processor", None)
-            if cleaning_processor is None:
-                # Default to pattern-based cleaner
-                cleaning_processor = PatternBasedCleaner()
-
-            # Pass provider to cleaner if it supports it (for HybridCleaner / LLMBasedCleaner)
-            from ..cleaning import HybridCleaner, LLMBasedCleaner
-
-            cleaning_started = time.perf_counter()
-            try:
-                if isinstance(cleaning_processor, HybridCleaner):
-                    cleaned_text = cleaning_processor.clean(
-                        transcript_text,
-                        provider=summary_provider,
-                        pipeline_metrics=pipeline_metrics,
-                    )
-                elif isinstance(cleaning_processor, LLMBasedCleaner):
-                    cleaned_text = cleaning_processor.clean(
-                        transcript_text,
-                        summary_provider,
-                        pipeline_metrics=pipeline_metrics,
-                    )
-                else:
-                    cleaned_text = cleaning_processor.clean(transcript_text)
-            finally:
-                if pipeline_metrics is not None:
-                    pipeline_metrics.record_cleaning_time(
-                        time.perf_counter() - cleaning_started, episode_idx
-                    )
-            # Safely get lengths for logging (handle Mock objects in tests)
-            try:
-                original_len = len(transcript_text) if transcript_text else 0
-                cleaned_len = len(cleaned_text) if cleaned_text else 0
-                logger.debug(
-                    "[%s] Transcript cleaned: %d -> %d chars",
-                    episode_idx,
-                    original_len,
-                    cleaned_len,
-                )
-            except (TypeError, AttributeError):
-                # Skip length logging if objects don't support len() (e.g., Mock in tests)
-                logger.debug("[%s] Transcript cleaned (length unavailable)", episode_idx)
-
-            # Save cleaned transcript to separate file if configured
-            if cfg.save_cleaned_transcript:
-                try:
-                    transcript_path_obj = Path(full_transcript_path)
-                    cleaned_path = transcript_path_obj.parent / (
-                        transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
-                    )
-                    with open(cleaned_path, "w", encoding="utf-8") as f:
-                        f.write(cleaned_text)
-                    logger.debug(
-                        "[%s] Saved cleaned transcript to: %s",
-                        episode_idx,
-                        cleaned_path.name,
-                    )
-                except Exception as e:
-                    logger.error(
-                        "[%s] Failed to save cleaned transcript: %s",
-                        episode_idx,
-                        e,
-                    )
-
-            # Use provider's summarize method
-            # For metadata generation (final summary), use reduce params
+            # Params for summarization / bundled path (reduce stage knobs)
             params: Dict[str, Any] = {
                 "max_length": cfg.summary_reduce_params.get("max_new_tokens"),
                 "min_length": cfg.summary_reduce_params.get("min_new_tokens"),
@@ -2199,15 +2137,142 @@ def _generate_episode_summary(  # noqa: C901
 
             params.update(_hybrid_ml_layered_summarize_params(cfg, summary_provider))
 
-            # All providers must support call_metrics (no backward compatibility)
-            result = summary_provider.summarize(
-                text=cleaned_text,
-                episode_title=None,  # Not available in this context
-                episode_description=None,  # Not available in this context
-                params=params,
-                pipeline_metrics=pipeline_metrics,
-                call_metrics=call_metrics,
-            )
+            result: Optional[Dict[str, Any]] = None
+            bundled_fn = getattr(summary_provider, "summarize_bundled", None)
+            if getattr(cfg, "llm_pipeline_mode", "staged") == "bundled" and callable(bundled_fn):
+                try:
+                    logger.debug("[%s] Bundled clean+summary (pattern pre-clean)", episode_idx)
+                    from ..cleaning import PatternBasedCleaner
+
+                    cleaning_started = time.perf_counter()
+                    pattern_cleaned = PatternBasedCleaner().clean(transcript_text)
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_cleaning_time(
+                            time.perf_counter() - cleaning_started, episode_idx
+                        )
+                    result = bundled_fn(
+                        pattern_cleaned,
+                        episode_title=None,
+                        episode_description=None,
+                        params=params,
+                        pipeline_metrics=pipeline_metrics,
+                        call_metrics=call_metrics,
+                    )
+                    cleaned_for_file = pattern_cleaned
+                    if cfg.save_cleaned_transcript:
+                        try:
+                            transcript_path_obj = Path(full_transcript_path)
+                            cleaned_path = transcript_path_obj.parent / (
+                                transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
+                            )
+                            with open(cleaned_path, "w", encoding="utf-8") as f:
+                                f.write(cleaned_for_file)
+                            logger.debug(
+                                "[%s] Saved cleaned transcript to: %s",
+                                episode_idx,
+                                cleaned_path.name,
+                            )
+                        except Exception as e:
+                            logger.error(
+                                "[%s] Failed to save cleaned transcript: %s",
+                                episode_idx,
+                                e,
+                            )
+                except Exception as bundled_exc:
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_llm_bundled_fallback_to_staged()
+                    logger.warning(
+                        "[%s] Bundled clean+summary failed, falling back to staged: %s",
+                        episode_idx,
+                        redact_for_log(str(bundled_exc)),
+                    )
+                    result = None
+            elif getattr(cfg, "llm_pipeline_mode", "staged") == "bundled":
+                logger.warning(
+                    "[%s] llm_pipeline_mode=bundled but provider has no summarize_bundled; "
+                    "using staged path",
+                    episode_idx,
+                )
+
+            if result is None:
+                # Clean transcript before summarization using provider's cleaning processor
+                logger.debug("[%s] Cleaning transcript before summarization...", episode_idx)
+                from ..cleaning import PatternBasedCleaner
+
+                # Get cleaning processor from provider if available, otherwise use default
+                cleaning_processor = getattr(summary_provider, "cleaning_processor", None)
+                if cleaning_processor is None:
+                    # Default to pattern-based cleaner
+                    cleaning_processor = PatternBasedCleaner()
+
+                # Pass provider to cleaner if it supports it (HybridCleaner / LLMBasedCleaner)
+                from ..cleaning import HybridCleaner, LLMBasedCleaner
+
+                cleaning_started = time.perf_counter()
+                try:
+                    if isinstance(cleaning_processor, HybridCleaner):
+                        cleaned_text = cleaning_processor.clean(
+                            transcript_text,
+                            provider=summary_provider,
+                            pipeline_metrics=pipeline_metrics,
+                        )
+                    elif isinstance(cleaning_processor, LLMBasedCleaner):
+                        cleaned_text = cleaning_processor.clean(
+                            transcript_text,
+                            summary_provider,
+                            pipeline_metrics=pipeline_metrics,
+                        )
+                    else:
+                        cleaned_text = cleaning_processor.clean(transcript_text)
+                finally:
+                    if pipeline_metrics is not None:
+                        pipeline_metrics.record_cleaning_time(
+                            time.perf_counter() - cleaning_started, episode_idx
+                        )
+                # Safely get lengths for logging (handle Mock objects in tests)
+                try:
+                    original_len = len(transcript_text) if transcript_text else 0
+                    cleaned_len = len(cleaned_text) if cleaned_text else 0
+                    logger.debug(
+                        "[%s] Transcript cleaned: %d -> %d chars",
+                        episode_idx,
+                        original_len,
+                        cleaned_len,
+                    )
+                except (TypeError, AttributeError):
+                    # Skip length logging if objects don't support len() (e.g., Mock in tests)
+                    logger.debug("[%s] Transcript cleaned (length unavailable)", episode_idx)
+
+                # Save cleaned transcript to separate file if configured
+                if cfg.save_cleaned_transcript:
+                    try:
+                        transcript_path_obj = Path(full_transcript_path)
+                        cleaned_path = transcript_path_obj.parent / (
+                            transcript_path_obj.stem + ".cleaned" + transcript_path_obj.suffix
+                        )
+                        with open(cleaned_path, "w", encoding="utf-8") as f:
+                            f.write(cleaned_text)
+                        logger.debug(
+                            "[%s] Saved cleaned transcript to: %s",
+                            episode_idx,
+                            cleaned_path.name,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            "[%s] Failed to save cleaned transcript: %s",
+                            episode_idx,
+                            e,
+                        )
+
+                # All providers must support call_metrics (no backward compatibility)
+                result = summary_provider.summarize(
+                    text=cleaned_text,
+                    episode_title=None,  # Not available in this context
+                    episode_description=None,  # Not available in this context
+                    params=params,
+                    pipeline_metrics=pipeline_metrics,
+                    call_metrics=call_metrics,
+                )
 
             # Finalize call metrics after provider call
             call_metrics.finalize()

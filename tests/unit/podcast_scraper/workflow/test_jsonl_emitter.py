@@ -69,6 +69,10 @@ class TestJSONLEmitter(unittest.TestCase):
         self.assertEqual(event["run_id"], self.run_id)
         self.assertIn("timestamp", event)
         self.assertIn("config", event)
+        self.assertEqual(event["config"]["episode_order"], "newest")
+        self.assertEqual(event["config"]["episode_offset"], 0)
+        self.assertIsNone(event["config"]["episode_since"])
+        self.assertIsNone(event["config"]["episode_until"])
 
     def test_emit_episode_finished(self):
         """Test emitting episode_finished event."""

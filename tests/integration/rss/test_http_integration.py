@@ -34,6 +34,7 @@ if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper.rss import downloader
+from podcast_scraper.rss.http_policy import configure_http_policy
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent.parent
@@ -226,11 +227,35 @@ class TestHTTPClientIntegration:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        """Set up test fixtures."""
+        """Set up test fixtures and bounded downloader retries.
+
+        Thread-local ``requests`` sessions cache urllib3 ``Retry`` adapters. Without
+        closing sessions after ``configure_downloader`` (via ``reset_http_sessions()``), the first session keeps
+        production-scale retry totals (and backoff). A handler that always returns
+        500 then looks like a hang. Cap retries with zero backoff for fast,
+        deterministic integration runs; ``test_retry_logic`` still gets enough
+        attempts (two 500s then 200) with ``http_retry_total=2``.
+        """
+        configure_http_policy()
+        downloader.configure_downloader(
+            http_retry_total=2,
+            http_backoff_factor=0.0,
+            rss_retry_total=2,
+            rss_backoff_factor=0.0,
+        )
+        downloader.reset_http_sessions()
+
         self.cfg = create_test_config(
             user_agent="test-agent/1.0",
             timeout=5,
         )
+        yield
+        downloader.reset_http_sessions()
+        configure_http_policy()
+        downloader._configured_http_retry_total = None
+        downloader._configured_http_backoff_factor = None
+        downloader._configured_rss_retry_total = None
+        downloader._configured_rss_backoff_factor = None
 
     @pytest.mark.critical_path
     def test_successful_http_request(self, test_http_server):
@@ -340,14 +365,9 @@ class TestHTTPClientIntegration:
         # Verify error handling (fetch_url returns None on error)
         assert resp is None, "fetch_url should return None on 404 error"
 
-    @pytest.mark.slow
     # Not critical_path - this is error handling, not part of the core workflow
     def test_500_error_handling(self, test_http_server):
-        """Test 500 error handling.
-
-        This test is marked as slow because it involves retry logic
-        that may take time to complete.
-        """
+        """Test 500 error handling (bounded retries via autouse ``setup``)."""
         url = test_http_server.url("/error-500")
 
         # Make real HTTP request

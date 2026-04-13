@@ -3,7 +3,8 @@
 - **Status**: Implemented (v2.6.0)
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**:
-  - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search (**partial**; Phase 1 FAISS + CLI **complete**; Phase 2 Qdrant **open**)
+  - [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) — semantic corpus search, FAISS + CLI (**Completed**)
+  - [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) — Qdrant / platform vector backends (**Draft**)
   - [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) — GI/KG viewer v2 (**complete**)
   - [RFC-049](../rfc/RFC-049-grounded-insight-layer-core.md) — GIL core (**complete**; prerequisite, indexable artifacts)
   - [RFC-050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) — GIL use cases (**open**; UC4/UC5 semantics)
@@ -31,7 +32,7 @@ read-weak" artifact stores into a navigable, question-driven knowledge layer.
 **Shipped in v2.6.0:** FAISS-backed indexing, `podcast search` / `podcast index`, semantic
 upgrade for `gi explore` when an index exists ([RFC-061](../rfc/RFC-061-semantic-corpus-search.md)),
 and local viewer + `podcast serve` search surfaces ([RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)).
-**Not yet shipped:** Qdrant-backed backend and platform-scale serving (RFC-061 Phase 2).
+**Not yet shipped:** Qdrant-backed backend and platform-scale serving ([RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md), Draft).
 
 ## Background & Context
 
@@ -313,4 +314,4 @@ Phase 1 + local viewer (v2.6.0) — satisfied:
 - [x] Documentation updated (README, config examples, guides)
 - [x] `make ci-fast` passes with search enabled and disabled
 
-**Future:** RFC-061 Phase 2 (Qdrant), optional BM25/hybrid search — not required to keep this PRD in **Implemented** status for v2.6.0.
+**Future:** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) (Qdrant, pgvector, re-ranking), optional BM25/hybrid search — not required to keep this PRD in **Implemented** status for v2.6.0.

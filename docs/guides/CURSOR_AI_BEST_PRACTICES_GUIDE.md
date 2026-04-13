@@ -1043,7 +1043,10 @@ AI response:
 
 **When implementing features:**
 
-- Update relevant RFCs (Draft → Accepted → Completed)
+- Update relevant RFCs (typically **Draft** → **Completed** when shipped; **Accepted** is for ADRs,
+  not RFC status)
+- Update relevant PRDs (**Draft** / **Partial** / **Implemented** when shipped — use **Implemented** on
+  PRD headers, not **Completed**; **Completed** is for RFCs/ADRs only)
 - Update guides if adding new patterns
 - Update `mkdocs.yml` if adding new docs
 - Run `make fix-md` before committing

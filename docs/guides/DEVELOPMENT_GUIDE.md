@@ -44,6 +44,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 ```bash
 make check-unit-imports        # Verify modules can import without ML dependencies
+make check-test-policy         # Enforce 3-tier ML/AI testing policy (importorskip, ml_models, empty files)
 make deps-analyze              # Analyze module dependencies (with report)
 make deps-check                # Check dependencies (exits on error)
 make analyze-test-memory       # Analyze test memory usage (default: test-unit)
@@ -118,7 +119,14 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
    - Runs automatically in CI before unit tests
    - Use when: adding new modules, refactoring imports, or debugging CI failures
 
-4. **Run unit tests**: Run `make test-unit` before pushing
+4. **Enforce testing policy**: Run `make check-test-policy` before pushing
+   - Checks: no `pytest.importorskip()` in unit tests, no `*_AVAILABLE` skip guards
+     in unit tests, no `@pytest.mark.ml_models` in integration tests, no empty test files
+   - Script: `scripts/tools/check_test_policy.py` (pass `--fix-hint` for remediation tips)
+   - Runs automatically in `make ci` and `make ci-fast`
+   - Use when: adding, moving, or deleting test files
+
+5. **Run unit tests**: Run `make test-unit` before pushing
 
 ### Module Dependency Analysis
 
@@ -384,7 +392,7 @@ This allows config files for project defaults and environment variables for depl
 
 **See also:**
 
-- `docs/api/CONFIGURATION.md` - Configuration API reference (includes environment variables)
+- `docs/api/CONFIGURATION.md` - Configuration API reference (includes environment variables and [Twelve-factor app alignment (config)](../api/CONFIGURATION.md#twelve-factor-app-alignment-config))
 - `docs/rfc/RFC-013-openai-provider-implementation.md` - API key management details
 - `docs/prd/PRD-006-openai-provider-integration.md` - OpenAI provider requirements
 
@@ -476,12 +484,13 @@ restore script to replace it.
 
 ## Semantic corpus search (RFC-061) {#semantic-corpus-search-rfc-061}
 
-Optional **vector index** under `<output_dir>/search/` for meaning-based retrieval over
+Optional **FAISS** vector index under `<output_dir>/search/` for meaning-based retrieval over
 GIL, summaries, and transcripts. Enable with **`vector_search: true`** in config (YAML
 keys mirror `Config`: `vector_index_path`, `vector_embedding_model`,
 `vector_chunk_size_tokens`, `vector_chunk_overlap_tokens`). The pipeline runs
 embed-and-index after finalize when enabled; you can also run **`podcast index`** /
 **`podcast search`** and get **semantic `gi explore --topic`** when the index exists.
+**Qdrant** and other platform backends are **Draft** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
 
 **Full guide:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
 

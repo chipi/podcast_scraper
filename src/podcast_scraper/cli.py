@@ -44,6 +44,13 @@ _LOGGER = logging.getLogger(__name__)
 BYTES_PER_KB = 1024
 
 
+def _cli_iso_date(value: str):
+    """Parse ``YYYY-MM-DD`` for ``--since`` / ``--until`` (GitHub #521)."""
+    from datetime import date as date_cls
+
+    return date_cls.fromisoformat(value.strip())
+
+
 class _RichProgress:
     """Simple adapter that exposes rich Progress update interface with validation."""
 
@@ -333,6 +340,49 @@ def _validate_workers_config(args: argparse.Namespace, errors: List[str]) -> Non
         errors.append("--workers must be at least 1")
 
 
+def _validate_download_resilience_cli(args: argparse.Namespace, errors: List[str]) -> None:
+    """Validate HTTP retry, episode retry, and Issue #522 fair-HTTP CLI flags."""
+    _hrt = getattr(args, "http_retry_total", None)
+    if _hrt is not None and not 0 <= _hrt <= 20:
+        errors.append(f"--http-retry-total must be between 0 and 20, got: {_hrt}")
+    _hb = getattr(args, "http_backoff_factor", None)
+    if _hb is not None and not 0.0 <= _hb <= 10.0:
+        errors.append(f"--http-backoff-factor must be between 0.0 and 10.0, got: {_hb}")
+    _rrt = getattr(args, "rss_retry_total", None)
+    if _rrt is not None and not 0 <= _rrt <= 20:
+        errors.append(f"--rss-retry-total must be between 0 and 20, got: {_rrt}")
+    _rb = getattr(args, "rss_backoff_factor", None)
+    if _rb is not None and not 0.0 <= _rb <= 10.0:
+        errors.append(f"--rss-backoff-factor must be between 0.0 and 10.0, got: {_rb}")
+    _erm = getattr(args, "episode_retry_max", None)
+    if _erm is not None and not 0 <= _erm <= 10:
+        errors.append(f"--episode-retry-max must be between 0 and 10, got: {_erm}")
+    _erd = getattr(args, "episode_retry_delay_sec", None)
+    if _erd is not None and not 0.0 <= _erd <= 120.0:
+        errors.append(f"--episode-retry-delay-sec must be between 0.0 and 120.0, got: {_erd}")
+
+    _hri = getattr(args, "host_request_interval_ms", None)
+    if _hri is not None and not 0 <= _hri <= 600_000:
+        errors.append(f"--host-request-interval-ms must be between 0 and 600000, got: {_hri}")
+    _hmc = getattr(args, "host_max_concurrent", None)
+    if _hmc is not None and not 0 <= _hmc <= 64:
+        errors.append(f"--host-max-concurrent must be between 0 and 64, got: {_hmc}")
+    _cbf = getattr(args, "circuit_breaker_failure_threshold", None)
+    if _cbf is not None and not 1 <= _cbf <= 100:
+        errors.append(f"--circuit-breaker-failure-threshold must be between 1 and 100, got: {_cbf}")
+    _cbw = getattr(args, "circuit_breaker_window_seconds", None)
+    if _cbw is not None and not 1 <= _cbw <= 86400:
+        errors.append(f"--circuit-breaker-window-seconds must be between 1 and 86400, got: {_cbw}")
+    _cbc = getattr(args, "circuit_breaker_cooldown_seconds", None)
+    if _cbc is not None and not 1 <= _cbc <= 86400:
+        errors.append(
+            f"--circuit-breaker-cooldown-seconds must be between 1 and 86400, got: {_cbc}"
+        )
+    _cbs = getattr(args, "circuit_breaker_scope", None)
+    if _cbs is not None and _cbs not in ("feed", "host"):
+        errors.append(f"--circuit-breaker-scope must be feed or host, got: {_cbs!r}")
+
+
 def validate_args(args: argparse.Namespace) -> None:
     """Validate parsed CLI arguments and raise ValueError when invalid."""
     errors: List[str] = []
@@ -362,11 +412,17 @@ def validate_args(args: argparse.Namespace) -> None:
     if args.max_episodes is not None and args.max_episodes <= 0:
         errors.append(f"--max-episodes must be positive, got: {args.max_episodes}")
 
+    episode_offset = getattr(args, "episode_offset", 0)
+    if episode_offset < 0:
+        errors.append(f"--episode-offset must be non-negative, got: {episode_offset}")
+
     if args.timeout <= 0:
         errors.append(f"--timeout must be positive, got: {args.timeout}")
 
     if args.delay_ms < 0:
         errors.append(f"--delay-ms must be non-negative, got: {args.delay_ms}")
+
+    _validate_download_resilience_cli(args, errors)
 
     # Validate feature-specific configs
     _validate_whisper_config(args, errors)
@@ -446,6 +502,40 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--max-episodes", type=int, default=None, help="Maximum number of episodes to process"
+    )
+    parser.add_argument(
+        "--episode-order",
+        choices=("newest", "oldest"),
+        default="newest",
+        help=(
+            "RSS item order before date filter and offset: newest = feed document order; "
+            "oldest = reversed (GitHub #521)"
+        ),
+    )
+    parser.add_argument(
+        "--episode-offset",
+        type=int,
+        default=0,
+        help=(
+            "Skip this many items after order and optional date filter, before "
+            "--max-episodes (GitHub #521)"
+        ),
+    )
+    parser.add_argument(
+        "--since",
+        dest="episode_since",
+        type=_cli_iso_date,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Keep episodes published on or after this date (GitHub #521)",
+    )
+    parser.add_argument(
+        "--until",
+        dest="episode_until",
+        type=_cli_iso_date,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Keep episodes published on or before this date (GitHub #521)",
     )
     parser.add_argument(
         "--prefer-type",
@@ -551,6 +641,146 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         dest="max_failures",
         metavar="N",
         help="Stop after N episode failures (Issue #379)",
+    )
+    parser.add_argument(
+        "--http-retry-total",
+        type=int,
+        default=None,
+        dest="http_retry_total",
+        metavar="N",
+        help=("Max urllib3 retries per media/transcript HTTP request (0-20; default from config)"),
+    )
+    parser.add_argument(
+        "--http-backoff-factor",
+        type=float,
+        default=None,
+        dest="http_backoff_factor",
+        metavar="F",
+        help="Exponential backoff factor for media/transcript retries (0-10; default from config)",
+    )
+    parser.add_argument(
+        "--rss-retry-total",
+        type=int,
+        default=None,
+        dest="rss_retry_total",
+        metavar="N",
+        help="Max urllib3 retries per RSS feed fetch (0-20; default from config)",
+    )
+    parser.add_argument(
+        "--rss-backoff-factor",
+        type=float,
+        default=None,
+        dest="rss_backoff_factor",
+        metavar="F",
+        help="Exponential backoff factor for RSS retries (0-10; default from config)",
+    )
+    parser.add_argument(
+        "--episode-retry-max",
+        type=int,
+        default=None,
+        dest="episode_retry_max",
+        metavar="N",
+        help=(
+            "Application-level retries per episode after urllib3 exhaustion (0-10; "
+            "0=off; default from config)"
+        ),
+    )
+    parser.add_argument(
+        "--episode-retry-delay-sec",
+        type=float,
+        default=None,
+        dest="episode_retry_delay_sec",
+        metavar="SEC",
+        help="Initial delay in seconds between episode-level retries (0-120; default from config)",
+    )
+    parser.add_argument(
+        "--host-request-interval-ms",
+        type=int,
+        default=None,
+        dest="host_request_interval_ms",
+        metavar="MS",
+        help=(
+            "Minimum milliseconds between HTTP requests to the same host (0-600000; "
+            "0=off; Issue #522)"
+        ),
+    )
+    parser.add_argument(
+        "--host-max-concurrent",
+        type=int,
+        default=None,
+        dest="host_max_concurrent",
+        metavar="N",
+        help="Max concurrent downloads per host (0-64; 0=unlimited; Issue #522)",
+    )
+    _circuit = parser.add_mutually_exclusive_group()
+    _circuit.add_argument(
+        "--circuit-breaker",
+        action="store_true",
+        dest="circuit_breaker_enabled",
+        default=None,
+        help="Enable HTTP circuit breaker (Issue #522; default off unless config sets it)",
+    )
+    _circuit.add_argument(
+        "--no-circuit-breaker",
+        action="store_false",
+        dest="circuit_breaker_enabled",
+        default=None,
+        help="Disable HTTP circuit breaker (overrides config; Issue #522)",
+    )
+    parser.add_argument(
+        "--circuit-breaker-failure-threshold",
+        type=int,
+        default=None,
+        dest="circuit_breaker_failure_threshold",
+        metavar="N",
+        help="Failures in rolling window before opening circuit (1-100)",
+    )
+    parser.add_argument(
+        "--circuit-breaker-window-seconds",
+        type=int,
+        default=None,
+        dest="circuit_breaker_window_seconds",
+        metavar="SEC",
+        help="Rolling window for breaker failure counts (1-86400)",
+    )
+    parser.add_argument(
+        "--circuit-breaker-cooldown-seconds",
+        type=int,
+        default=None,
+        dest="circuit_breaker_cooldown_seconds",
+        metavar="SEC",
+        help="Cooldown while circuit is open (1-86400)",
+    )
+    parser.add_argument(
+        "--circuit-breaker-scope",
+        type=str,
+        default=None,
+        choices=("feed", "host"),
+        dest="circuit_breaker_scope",
+        help="Breaker scope: feed (rss URL) or host (netloc)",
+    )
+    _rss_cond = parser.add_mutually_exclusive_group()
+    _rss_cond.add_argument(
+        "--rss-conditional-get",
+        action="store_true",
+        dest="rss_conditional_get",
+        default=None,
+        help="Use If-None-Match / If-Modified-Since for RSS (Issue #522)",
+    )
+    _rss_cond.add_argument(
+        "--no-rss-conditional-get",
+        action="store_false",
+        dest="rss_conditional_get",
+        default=None,
+        help="Disable RSS conditional GET (overrides config; Issue #522)",
+    )
+    parser.add_argument(
+        "--rss-cache-dir",
+        type=str,
+        default=None,
+        dest="rss_cache_dir",
+        metavar="DIR",
+        help="Directory for RSS ETag/Last-Modified body cache (default ~/.cache/... or env)",
     )
 
 
@@ -2919,6 +3149,10 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "rss_url": args.rss,
         "output_dir": filesystem.derive_output_dir(args.rss, args.output_dir),
         "max_episodes": args.max_episodes,
+        "episode_order": getattr(args, "episode_order", "newest"),
+        "episode_offset": getattr(args, "episode_offset", 0),
+        "episode_since": getattr(args, "episode_since", None),
+        "episode_until": getattr(args, "episode_until", None),
         "user_agent": args.user_agent,
         "timeout": args.timeout,
         "delay_ms": args.delay_ms,
@@ -3229,6 +3463,28 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
             payload["vector_index_types"] = _vit
     if hasattr(args, "download_podcast_artwork"):
         payload["download_podcast_artwork"] = args.download_podcast_artwork
+    _download_resilience_keys = (
+        "http_retry_total",
+        "http_backoff_factor",
+        "rss_retry_total",
+        "rss_backoff_factor",
+        "episode_retry_max",
+        "episode_retry_delay_sec",
+        "host_request_interval_ms",
+        "host_max_concurrent",
+        "circuit_breaker_enabled",
+        "circuit_breaker_failure_threshold",
+        "circuit_breaker_window_seconds",
+        "circuit_breaker_cooldown_seconds",
+        "circuit_breaker_scope",
+        "rss_conditional_get",
+        "rss_cache_dir",
+    )
+    for _drk in _download_resilience_keys:
+        if hasattr(args, _drk):
+            _drv = getattr(args, _drk)
+            if _drv is not None:
+                payload[_drk] = _drv
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 
@@ -3270,10 +3526,17 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
         cfg.run_id or "-",
     )
     logger.info(
-        "config: http timeout=%ss delay=%sms | transcribe=%s | speakers=%s lang=%s ner=%s | "
+        "config: http timeout=%ss delay=%sms | download_retry http=%s/%s rss=%s/%s | "
+        "episode_retry=%s delay=%ss | transcribe=%s | speakers=%s lang=%s ner=%s | "
         "summary=%s | metadata=%s | gi=%s | kg=%s | flags=%s",
         cfg.timeout,
         cfg.delay_ms,
+        cfg.http_retry_total,
+        cfg.http_backoff_factor,
+        cfg.rss_retry_total,
+        cfg.rss_backoff_factor,
+        cfg.episode_retry_max,
+        cfg.episode_retry_delay_sec,
         transcribe,
         "on" if cfg.auto_speakers else "off",
         cfg.language,
@@ -3358,6 +3621,10 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
     d(f"  RSS URL: {cfg.rss_url}")
     d(f"  Output Directory: {cfg.output_dir}")
     d(f"  Max Episodes: {cfg.max_episodes or 'all'}")
+    d(f"  Episode order: {cfg.episode_order}")
+    d(f"  Episode offset: {cfg.episode_offset}")
+    d(f"  Episode since: {cfg.episode_since or 'none'}")
+    d(f"  Episode until: {cfg.episode_until or 'none'}")
     d(f"  Workers: {cfg.workers}")
     d(f"  Log Level: {cfg.log_level}")
     d(f"  Log File: {cfg.log_file or 'console only'}")
@@ -3367,6 +3634,15 @@ def _log_configuration_detail(cfg: config.Config, logger: logging.Logger) -> Non
     d("HTTP Settings:")
     d(f"  Timeout: {cfg.timeout}s")
     d(f"  Delay: {cfg.delay_ms}ms")
+    d(
+        f"  Download retries: http_retry_total={cfg.http_retry_total} "
+        f"http_backoff_factor={cfg.http_backoff_factor} "
+        f"rss_retry_total={cfg.rss_retry_total} rss_backoff_factor={cfg.rss_backoff_factor}"
+    )
+    d(
+        f"  Episode-level retries: episode_retry_max={cfg.episode_retry_max} "
+        f"episode_retry_delay_sec={cfg.episode_retry_delay_sec}"
+    )
     d(
         f"  User-Agent: {cfg.user_agent[:50]}..."
         if len(cfg.user_agent) > 50

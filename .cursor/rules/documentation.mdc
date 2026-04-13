@@ -26,8 +26,10 @@
   normal bullets without emoji.
 - **Sample CLI output** in docs: use neutral markers (e.g. `[ok]`) instead of **✓** if you show
   fictional terminal lines.
-- **RFC status lines** and PRD headers: use text only (e.g. `Completed`, `Draft`, `Partial`), not
+- **RFC / ADR status lines:** use text only (e.g. **`Completed`**, **`Draft`**, **`Accepted`**), not
   emoji prefixes.
+- **PRD status lines:** use **`Implemented`**, **`Partial`**, or **`Draft`** for shipped vs in-flight
+  product docs — do **not** use **`Completed`** on PRD headers (that label is for RFCs/ADRs).
 
 This matches the maintainer decision to drop checkmark styling in published docs; agents must not
 reintroduce it in new or edited `docs/**` files.

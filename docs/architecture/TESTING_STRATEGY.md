@@ -54,11 +54,11 @@ The testing strategy follows a three-tier pyramid:
   /----------------\
 ```
 
-| Layer | Scope | Entry Point | HTTP | Fixtures | ML Models |
-| ----- | ----- | ----------- | ---- | -------- | --------- |
+| Layer | Scope | Entry Point | HTTP | Fixtures | ML/AI Models |
+| ----- | ----- | ----------- | ---- | -------- | ------------ |
 | **Unit** | Individual functions/modules | Function/class level | Mocked | Mocked | Mocked |
-| **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Real (optional) |
-| **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (in workflow) |
+| **Integration** | Component interactions | Component level | Local test server (or mocked) | Test fixtures | Mocked |
+| **E2E** | Complete user workflows | User level (CLI/API) | Real HTTP client (local server) | Real data files | Real (the only place) |
 | **Frontend unit** | TypeScript utility logic (parsing, merge, metrics) | Node (Vitest) | N/A | Vitest + inline fixtures | N/A |
 | **Browser UI E2E** | Vue viewer in a real browser | Browser (Playwright) | Vite dev server (local) | Playwright + fixture JSON | N/A (no Python ML in UI tests) |
 
@@ -151,14 +151,11 @@ The testing strategy follows a three-tier pyramid:
 - **I/O Policy**:
   - **Allowed**: Real filesystem I/O (temp directories), real component interactions
   - **Mocked**: External services (HTTP APIs, external APIs) - mocked for speed/reliability
-  - ⚠️ **ML models**: Mocked by default for speed. Use real models with `@pytest.mark.ml_models`
-    for ML workflow integration tests (excluded from fast suite, see
-    [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUIDE.md))
+  - **Mocked**: All ML/AI models and APIs (Whisper, spaCy, transformers, OpenAI, Gemini, Ollama, etc.) -- real ML/AI is E2E only
   - **Optional**: Local HTTP server for HTTP client testing in isolation
 - **Coverage**: Critical paths and edge cases, component interactions
-- **Examples**: Provider factory → provider implementation, RSS parser → Episode → Provider → File output, HTTP client with local test server
-- **Key Distinction**: Tests how components work together, not complete user workflows. Mock ML
-  models for fast tests; use real models with `@pytest.mark.ml_models` for ML workflow tests.
+- **Examples**: Provider factory with mocked ML, RSS parser to Episode to Provider to File output, HTTP client with local test server
+- **Key Distinction**: Tests how our components wire together, not complete user workflows. ML/AI boundaries are always mocked. `@pytest.mark.ml_models` must not appear on integration tests.
 
 ### End-to-End Tests
 
@@ -231,36 +228,44 @@ directory).
 **Python API for the viewer** (`GET /api/search`, `/api/explore`, `/api/corpus/*`,
 `POST /api/index/rebuild`, etc.) is validated at two pytest layers:
 
-- **Unit:** `tests/unit/podcast_scraper/server/` — `test_viewer_*.py`, `test_corpus_catalog.py`,
-  `test_index_rebuild_gate.py`, `test_index_staleness.py`, …; FastAPI `TestClient` and targeted
-  mocks. **CI `test-unit`** installs **`.[dev]`** only, so modules using
-  **`pytest.importorskip("fastapi")`** **skip** there; install **`.[server]`** locally to run them.
-- **Integration:** `tests/integration/server/` — wired `create_app` with real filesystem layouts
-  and no mocking of route internals (e.g. `test_server_api.py`, `test_viewer_corpus_library.py`,
-  `test_index_rebuild.py`, `test_viewer_index_stats.py`).
+- **Unit:** `tests/unit/podcast_scraper/server/` -- pure logic tests (`test_corpus_catalog.py`,
+  `test_index_staleness.py`, `test_pathutil.py`, etc.) that do **not** import FastAPI or any
+  non-`[dev]` package. These run in CI `test-unit` which installs `.[dev]` only.
+- **Integration:** `tests/integration/server/` -- wired `create_app` with real filesystem layouts,
+  `TestClient`, and no mocking of route internals (e.g. `test_server_api.py`,
+  `test_viewer_corpus_library.py`, `test_index_rebuild.py`, `test_index_rebuild_gate.py`,
+  `test_viewer_index_stats.py`). CI integration jobs install `.[dev,ml,llm,server]`.
 
 ### Unit tests and optional extras (`pyproject`) {#unit-tests-and-optional-extras-pyproject}
 
 **Contract for `tests/unit/`:**
 
-1. **Never require `[ml]`, `[llm]`, `[compare]`, or ad-hoc non-`dev` packages.** Real FAISS,
-   Whisper, spaCy, cloud SDKs, etc. belong in **integration** or **E2E** tests (with the workflow
-   installing the right extras). Use **mocks**, **`sys.modules` stubs**, or **lazy imports** in
-   unit tests.
-2. **`[dev]`** is the **logical baseline** for “what unit tests are allowed to assume” from
-   `pyproject.toml` (pytest, linters, and other entries under the **`dev`** extra, including their
-   transitive dependencies).
-3. **`[server]`** is **optional** for unit tests: **PR and nightly `test-unit`** use
-   **`pip install -e .[dev]`** only. FastAPI-backed tests **skip** without **`[server]`** via
-   **`importorskip`**. Install **`.[server]`** locally when developing viewer routes. Do not pull
-   **ML** into unit tests — keep **FAISS / torch / spacy** out of `tests/unit/` except via mocks.
+1. **Never require any non-`[dev]` extra** (`[ml]`, `[llm]`, `[compare]`, `[server]`, etc.).
+   Real FAISS, Whisper, spaCy, FastAPI, httpx, cloud SDKs, etc. belong in **integration** or
+   **E2E** tests (with the workflow installing the right extras). Use **mocks**,
+   **`sys.modules` stubs**, or **lazy imports** in unit tests.
+2. **`[dev]`** is the **only baseline** for `tests/unit/`. CI `test-unit` installs
+   `pip install -e .[dev]` only. Anything declared under `[project.optional-dependencies].dev`
+   in `pyproject.toml` (and its transitive wheels) is allowed; nothing else.
+3. **Do not use `pytest.importorskip()` in `tests/unit/`** to guard non-`[dev]` imports.
+   It causes silent skips in CI, meaning the test never validates anything. If a test needs
+   FastAPI, httpx, faiss, torch, etc., move it to `tests/integration/` where CI installs
+   the full extras (`.[dev,ml,llm,server]`). Do not pull ML into unit tests -- keep
+   FAISS / torch / spacy out of `tests/unit/` except via mocks.
 
-**Verification:** `scripts/tools/check_unit_test_imports.py` (run before unit tests in CI) ensures
-key **library** modules import without the heavy **ML** stack; it does not install **`[server]`**.
-The same **`[dev]`**-only assumption applies to the full **`pytest tests/unit/`** job on CI.
+**Verification (two complementary scripts, both in `make ci` / `make ci-fast`):**
 
-**Detail:** [Unit Testing Guide — Pyproject extras](../guides/UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on).
+- `scripts/tools/check_unit_test_imports.py` (`make check-unit-imports`) -- ensures key
+  library modules import without the heavy ML stack at import time.
+- `scripts/tools/check_test_policy.py` (`make check-test-policy`) -- enforces the
+  3-tier ML/AI boundary policy across the test corpus: no `pytest.importorskip()` in
+  unit tests (U1), no `*_AVAILABLE` skip guards in unit tests (U2), no
+  `@pytest.mark.ml_models` in integration tests (I1), and no empty test files (G1).
+  Run with `--fix-hint` for remediation suggestions.
 
+The same `[dev]`-only assumption applies to the full `pytest tests/unit/` job on CI.
+
+**Detail:** [Unit Testing Guide -- Pyproject extras](../guides/UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on).
 Use **Playwright** when the risk is **client rendering or interaction**, not when a pure JSON
 contract change is enough.
 
@@ -276,9 +281,9 @@ The decision questions above provide a quick way to determine test type. For cri
 
 **Quick Reference:**
 
-- **Unit Test**: Single function/module in isolation, all dependencies mocked
-- **Integration Test**: Multiple components working together, real internal implementations, mocked external services (including ML models for speed)
-- **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (NO mocks)
+- **Unit Test**: Single function/module in isolation, all dependencies mocked, `[dev]` only
+- **Integration Test**: Multiple components working together, real internal implementations, all ML/AI mocked
+- **E2E Test**: Complete user workflow from entry point to output, real HTTP client, real data files, real ML models (the only place for real ML/AI)
 - **Browser UI E2E (Playwright)**: Vue viewer behavior in a real browser; see [Browser UI E2E (Playwright)](#browser-ui-e2e-playwright) and [Testing Guide — Browser E2E](../guides/TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2)
 
 **Critical Path Priority**: If your test covers the critical path (RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files), prioritize it. See [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) for details.
@@ -606,16 +611,16 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 
 ### Mocking Strategy
 
-- **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients)
-- **Integration Tests**: Mock external services (HTTP APIs, external APIs) and ML models (Whisper,
-  spaCy, Transformers), use real internal implementations (real providers, real Config, real
-
-  workflow logic)
-
+- **Unit Tests**: Mock all external dependencies (HTTP, ML models, file system, API clients).
+  `[dev]` only -- no non-`[dev]` extras allowed.
+- **Integration Tests**: Mock all external services (HTTP APIs, external APIs) and all ML/AI
+  models and APIs (Whisper, spaCy, Transformers, OpenAI, Gemini, Ollama, etc.). Use real
+  internal implementations (real providers, real Config, real workflow logic). Real ML/AI
+  inference never happens at this layer.
 - **E2E Tests**: Use real implementations (HTTP client, ML models, file system) with local test
   server. For API providers, use E2E server mock endpoints instead of direct API calls. ML models
-
-  (Whisper, spaCy, Transformers) are REAL - no mocks allowed.
+  (Whisper, spaCy, Transformers) are REAL -- no mocks allowed. This is the only layer where
+  `@pytest.mark.ml_models` is valid.
 
 **Provider Testing Strategy (9 providers):**
 
@@ -631,11 +636,11 @@ E2E tests are organized into three tiers to balance fast CI feedback with compre
 - **Integration Tests**: Per-provider integration
   files (`test_<provider>_providers.py`) use real
   provider implementations with mocked external
-  services. ML models mocked for speed.
+  services. All ML/AI models and APIs are mocked.
 - **E2E Tests**: Per-provider E2E files
   (`test_<provider>_provider_e2e.py`) use E2E server
   mock endpoints for LLM providers, real ML models
-  for MLProvider.
+  for MLProvider. This is the only layer with real ML.
 - **Key Principle**: Always verify protocol
   compliance, not class names. All providers
   implement the same protocol interfaces.
@@ -790,12 +795,12 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 ### Mocking External Dependencies
 
 - **HTTP**: Mock `requests.Session` and responses (unit/integration tests), use E2E server for E2E tests
-- **Whisper**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit tests), use real models (integration/E2E tests)
+- **Whisper**: Mock `whisper.load_model()` and `whisper.transcribe()` (unit and integration tests), use real models (E2E tests only)
 - **ML Dependencies (spacy, torch, transformers)**:
-  - **Unit Tests**: Must **not** require the **`[ml]`** extra — mock or stub (`sys.modules`) before
+  - **Unit Tests**: Must **not** require the **`[ml]`** extra -- mock or stub (`sys.modules`) before
     importing dependent modules; see [Unit tests and optional extras](#unit-tests-and-optional-extras-pyproject).
-  - **Integration Tests**: Real ML dependencies required
-  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure listed library modules import without ML deps at import time (does not install `[server]`)
+  - **Integration Tests**: Always mocked -- real ML inference is E2E only
+  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` (import-time check) and `scripts/tools/check_test_policy.py` (3-tier boundary rules) to ensure unit tests stay `[dev]`-only and ML models stay in E2E
 - **File System**: Use `tempfile` for isolated test environments
 - **API Providers** (OpenAI, Gemini, Anthropic,
   Mistral, DeepSeek, Grok, Ollama):

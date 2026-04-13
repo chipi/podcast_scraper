@@ -1026,6 +1026,150 @@ class GeminiProvider:
                     provider="GeminiProvider/Summarization",
                 ) from exc
 
+    def summarize_bundled(
+        self,
+        text: str,
+        episode_title: Optional[str] = None,
+        episode_description: Optional[str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        pipeline_metrics: metrics.Metrics | None = None,
+        call_metrics: Any | None = None,
+    ) -> Dict[str, Any]:
+        """One completion: semantic transcript clean + JSON title/bullets (Issue #477)."""
+        if not self._summarization_initialized:
+            raise RuntimeError(
+                "GeminiProvider summarization not initialized. Call initialize() first."
+            )
+
+        from ...prompts.store import get_prompt_metadata, render_prompt
+        from ...utils.provider_metrics import (
+            _safe_gemini_retryable,
+            ProviderCallMetrics,
+            retry_with_metrics,
+        )
+
+        max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
+        tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
+        system_prompt = render_prompt(
+            "gemini/summarization/bundled_clean_summary_system_v1",
+            **tmpl_kwargs,
+        )
+        user_prompt = render_prompt(
+            "gemini/summarization/bundled_clean_summary_user_v1",
+            transcript=text,
+            title=episode_title or "",
+            **tmpl_kwargs,
+        )
+
+        if call_metrics is None:
+            call_metrics = ProviderCallMetrics()
+        call_metrics.set_provider_name("gemini")
+
+        def _make_api_call() -> Any:
+            generation_config = {
+                "temperature": self.summary_temperature,
+                "max_output_tokens": max_out,
+                "response_mime_type": "application/json",
+                "system_instruction": system_prompt,
+            }
+            return self.client.models.generate_content(
+                model=self.summary_model,
+                contents=user_prompt,
+                config=cast(Any, generation_config),
+            )
+
+        try:
+            response = retry_with_metrics(
+                _make_api_call,
+                max_retries=3,
+                initial_delay=1.0,
+                max_delay=30.0,
+                retryable_exceptions=_safe_gemini_retryable(),
+                metrics=call_metrics,
+            )
+        except Exception:
+            call_metrics.finalize()
+            raise
+
+        call_metrics.finalize()
+
+        raw = (response.text if hasattr(response, "text") else str(response) or "").strip()
+        if not raw:
+            raise ValueError("Gemini bundled call returned empty content")
+
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Bundled JSON must be an object")
+        summary_prose = data.get("summary")
+        bullets = data.get("bullets")
+        if not isinstance(summary_prose, str) or not summary_prose.strip():
+            raise ValueError("Bundled JSON missing non-empty summary string")
+        if not isinstance(bullets, list) or not bullets:
+            raise ValueError("Bundled JSON missing non-empty bullets list")
+
+        input_tokens = None
+        output_tokens = None
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            usage = response.usage_metadata
+            input_tokens_raw = getattr(usage, "prompt_token_count", 0)
+            output_tokens_raw = getattr(usage, "candidates_token_count", 0)
+            try:
+                input_tokens = int(input_tokens_raw) if input_tokens_raw is not None else None
+            except (TypeError, ValueError):
+                input_tokens = None
+            try:
+                output_tokens = int(output_tokens_raw) if output_tokens_raw is not None else None
+            except (TypeError, ValueError):
+                output_tokens = None
+            if input_tokens is not None and output_tokens is not None:
+                call_metrics.set_tokens(input_tokens, output_tokens)
+
+        if pipeline_metrics is not None and input_tokens is not None and output_tokens is not None:
+            pipeline_metrics.record_llm_bundled_clean_summary_call(input_tokens, output_tokens)
+
+        if input_tokens is not None:
+            from ...workflow.helpers import calculate_provider_cost
+
+            cost = calculate_provider_cost(
+                cfg=self.cfg,
+                provider_type="gemini",
+                capability="summarization",
+                model=self.summary_model,
+                prompt_tokens=input_tokens,
+                completion_tokens=output_tokens,
+            )
+            call_metrics.set_cost(cost)
+
+        prompt_metadata = {
+            "system": get_prompt_metadata(
+                "gemini/summarization/bundled_clean_summary_system_v1",
+                params=tmpl_kwargs,
+            ),
+            "user": get_prompt_metadata(
+                "gemini/summarization/bundled_clean_summary_user_v1",
+                params={
+                    **tmpl_kwargs,
+                    "transcript": text[:100] + "..." if len(text) > 100 else text,
+                },
+            ),
+        }
+
+        return {
+            "summary": raw,
+            "summary_short": None,
+            "metadata": {
+                "model": self.summary_model,
+                "provider": "gemini",
+                "bundled": True,
+                "max_output_tokens": max_out,
+                "prompts": prompt_metadata,
+            },
+        }
+
     def _build_summarization_prompts(
         self,
         text: str,

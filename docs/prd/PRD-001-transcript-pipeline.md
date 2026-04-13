@@ -8,6 +8,8 @@
   - [RFC-004](../rfc/RFC-004-filesystem-layout.md) — filesystem layout (**complete**)
   - [RFC-008](../rfc/RFC-008-config-model.md) — configuration model (**complete**)
   - [RFC-009](../rfc/RFC-009-progress-integration.md) — progress reporting (**complete**)
+- **Related guides**:
+  - [RSS and feed ingestion](../guides/RSS_GUIDE.md) — end-to-end feed fetch, HTTP policy, caches, episode selection, multi-feed (operational companion to RFC-002 / RFC-003)
 
 ## Summary
 
@@ -29,7 +31,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 - Whisper transcription (covered by PRD-002).
 - UI/CLI ergonomics beyond must-have parameters (covered by PRD-003).
-- Media download optimizations beyond basic HTTP retry and progress visibility.
+- Media download optimizations beyond configurable HTTP retry (now implemented with resilient defaults) and progress visibility.
 
 ## Personas
 
@@ -48,11 +50,11 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 - **FR1**: Accept an RSS URL (HTTP/HTTPS) and validate it before executing requests.
 - **FR2**: Resolve the feed, parse items safely, and detect transcript URLs via Podcasting 2.0 tags, `<transcript>` nodes, or equivalent.
 - **FR3**: Support preference ordering (`prefer_type`) to pick the best transcript when multiple URLs are provided.
-- **FR4**: Download transcript assets with retry/backoff and surface failures without halting the entire run.
+- **FR4**: Download transcript assets with retry/backoff and surface failures without halting the entire run. Three-layer retry is active by default: urllib3 adapters (8 retries for media, 10 for RSS), application-level episode retry (1 retry per episode on transient network errors), and end-of-run failure summary in `run.json`. All parameters are configurable via `Config` fields. See [CONFIGURATION.md -- Download Resilience](../api/CONFIGURATION.md#download-resilience).
 - **FR5**: Persist transcripts using deterministic filenames `<episode_number> - <title>[ _<run_suffix>].<ext>` in a derived output directory (`output/rss_<host>_<hash>` by default).
 - **FR6**: Provide `--skip-existing` semantics so reprocessing avoids already-downloaded episodes.
 - **FR7**: Provide `--dry-run` mode that logs planned work (including file destinations) without touching disk.
-- **FR8**: Allow `--max-episodes` to cap the number of items processed.
+- **FR8**: Allow **`--max-episodes`** to cap the number of items processed after other selection steps, and support **episode selection** via order (`--episode-order`), publish-date bounds (`--since` / `--until`), and offset (`--episode-offset`) as in [CONFIGURATION.md](../api/CONFIGURATION.md#episode-selection-github-521) (GitHub #521).
 - **FR9**: Emit structured logs + progress updates friendly to terminal usage (leveraging progress abstraction).
 - **FR10**: Support optional inter-request delay (`--delay-ms`) for rate-limited feeds.
 
@@ -77,7 +79,7 @@ Create a resilient pipeline that ingests a podcast RSS feed, locates published t
 
 ## Open Questions
 
-- Should we support filtering by publish date or keyword in addition to `--max-episodes`? (Future consideration.)
+- **Publish-date filtering:** Implemented for calendar-day bounds (`episode_since` / `episode_until`, CLI `--since` / `--until`). Keyword-based RSS filtering remains a future consideration.
 - Do we need per-episode metadata exports (JSON summaries) alongside transcripts? Not in scope for v1.
 
 ## RFC-010 Integration

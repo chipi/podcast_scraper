@@ -21,6 +21,7 @@ GIL and KG are **separate** experiment configs and runs (not combined in one run
 - **datasets/** - Dataset definitions (episode selection, canonical episode lists)
 - **materialized/** - Derived inputs for runs (re-generable, byte-for-byte reproducible)
 - **configs/** - Experiment configuration YAML files (inputs to experiments)
+- **issue-477/** - Issue #477 bundled LLM eval YAMLs + README ([issue-477/README.md](issue-477/README.md))
 - **baselines/** - Frozen reference runs used for regression detection
 - **references/** - Frozen quality targets (silver/gold references for evaluation)
 - **runs/** - Ad-hoc experiments and temporary outputs

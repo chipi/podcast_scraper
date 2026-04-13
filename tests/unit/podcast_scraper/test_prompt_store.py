@@ -356,6 +356,57 @@ class TestPromptStoreBundledSharedSummarization(unittest.TestCase):
         self.assertIn("JSON", text)
         self.assertIn("x", text)
 
+    def test_bundled_system_prompt_resolves_via_shared_fallback(self):
+        """Provider-prefixed bundled prompt falls back to shared/."""
+        clear_cache()
+        set_prompt_dir(get_prompt_dir())
+        text = render_prompt(
+            "openai/summarization/bundled_clean_summary_system_v1",
+            max_words_per_bullet=45,
+        )
+        self.assertIn("title", text)
+        self.assertIn("summary", text)
+        self.assertIn("bullets", text)
+        self.assertNotIn("cleaned_text", text)
+
+    def test_bundled_user_prompt_resolves_via_shared_fallback(self):
+        """Provider-prefixed bundled user prompt falls back to shared/."""
+        clear_cache()
+        set_prompt_dir(get_prompt_dir())
+        text = render_prompt(
+            "anthropic/summarization/bundled_clean_summary_user_v1",
+            transcript="hello world",
+            title="Episode 1",
+        )
+        self.assertIn("hello world", text)
+        self.assertIn("Episode 1", text)
+        self.assertNotIn("cleaned_text", text)
+
+    def test_bundled_prompt_no_cleaned_text_in_shape(self):
+        """Bundled prompt output shape must not mention cleaned_text."""
+        clear_cache()
+        set_prompt_dir(get_prompt_dir())
+        for provider in ("openai", "anthropic", "gemini"):
+            sys_text = render_prompt(
+                f"{provider}/summarization/" "bundled_clean_summary_system_v1",
+                max_words_per_bullet=45,
+            )
+            self.assertNotIn(
+                "cleaned_text",
+                sys_text,
+                f"{provider} system prompt still mentions cleaned_text",
+            )
+            user_text = render_prompt(
+                f"{provider}/summarization/" "bundled_clean_summary_user_v1",
+                transcript="t",
+                title="",
+            )
+            self.assertNotIn(
+                "cleaned_text",
+                user_text,
+                f"{provider} user prompt still mentions cleaned_text",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,1008 @@
+#!/usr/bin/env python3
+"""E2E tests for providers with real ML models.
+
+These tests verify that providers can load and use real ML models:
+- Whisper transcription models (tiny model for speed)
+- spaCy NER models (en_core_web_sm for speaker detection)
+- Transformer summarization models (small models like bart-base or distilbart)
+
+These tests are marked with @pytest.mark.ml_models and @pytest.mark.e2e
+because they require:
+- ML dependencies installed (openai-whisper, spacy, transformers, torch)
+- Real model downloads (first run only, then cached)
+- Longer execution time (model loading and inference)
+
+Note: These tests use the smallest/fastest models available to keep execution time reasonable.
+
+Moved from tests/integration/providers/ — real ML models belong in E2E only.
+"""
+
+import os
+import sys
+import unittest
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
+
+# Allow importing the package when tests run from within the package directory.
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if PACKAGE_ROOT not in sys.path:
+    sys.path.insert(0, PACKAGE_ROOT)
+
+from podcast_scraper import config, models
+
+# Add tests directory to path for conftest import
+tests_dir = Path(__file__).parent.parent
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
+
+# Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
+import importlib.util
+
+# Import cache helpers from integration directory
+import sys
+from pathlib import Path
+
+tests_dir = Path(__file__).parent.parent
+if str(tests_dir) not in sys.path:
+    sys.path.insert(0, str(tests_dir))
+
+parent_conftest_path = tests_dir / "conftest.py"
+spec = importlib.util.spec_from_file_location("parent_conftest", parent_conftest_path)
+if spec is None or spec.loader is None:
+    raise ImportError(f"Could not load conftest from {parent_conftest_path}")
+parent_conftest = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(parent_conftest)
+
+create_test_config = parent_conftest.create_test_config
+
+integration_dir = Path(__file__).parent.parent / "integration"
+if str(integration_dir) not in sys.path:
+    sys.path.insert(0, str(integration_dir))
+from ml_model_cache_helpers import (  # noqa: E402
+    require_transformers_model_cached,
+    require_whisper_model_cached,
+)
+
+# Check if ML dependencies are available
+# Use lazy imports to avoid loading heavy libraries (torch/transformers) at module import time
+# This reduces initial memory footprint for test workers
+WHISPER_AVAILABLE = False
+SPACY_AVAILABLE = False
+TRANSFORMERS_AVAILABLE = False
+
+
+def _check_whisper_available():
+    """Lazy check for Whisper availability."""
+    global WHISPER_AVAILABLE
+    if WHISPER_AVAILABLE:
+        return True
+    try:
+        import whisper  # noqa: F401
+
+        WHISPER_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
+
+
+def _check_spacy_available():
+    """Lazy check for spaCy availability."""
+    global SPACY_AVAILABLE
+    if SPACY_AVAILABLE:
+        return True
+    try:
+        import spacy  # noqa: F401
+
+        SPACY_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
+
+
+def _check_transformers_available():
+    """Lazy check for Transformers availability (avoids loading torch at import time)."""
+    global TRANSFORMERS_AVAILABLE
+    if TRANSFORMERS_AVAILABLE:
+        return True
+    try:
+        from transformers import AutoModelForSeq2SeqLM, AutoTokenizer  # noqa: F401
+
+        TRANSFORMERS_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@unittest.skipIf(not _check_whisper_available(), "Whisper dependencies not available")
+class TestWhisperProviderRealModel(unittest.TestCase):
+    """Test Whisper provider with real model loading."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Test default whisper (tiny.en), not production default (base).
+        self.cfg = create_test_config(
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            language="en",
+        )
+
+    def test_whisper_model_loading(self):
+        """Test that Whisper model can be loaded."""
+        # Require model to be cached (fail fast if not)
+        # Note: cfg.whisper_model defaults to "tiny.en" (from test defaults)
+        # Check for "tiny.en" which is what's preloaded
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+
+        from podcast_scraper.transcription.factory import create_transcription_provider
+
+        # Create provider (real factory)
+        provider = create_transcription_provider(self.cfg)
+
+        # Initialize provider (loads real model)
+        provider.initialize()  # type: ignore[attr-defined]
+
+        # Get the model from the provider
+        model = provider._whisper_model  # type: ignore[attr-defined]
+
+        # Verify model was loaded
+        self.assertIsNotNone(model, "Whisper model should be loaded")
+
+        # Verify model has expected attributes
+        self.assertTrue(hasattr(model, "device"), "Model should have device attribute")
+        self.assertTrue(hasattr(model, "transcribe"), "Model should have transcribe method")
+
+    def test_whisper_provider_with_real_model(self):
+        """Test Whisper provider initialization with real model."""
+        # Require model to be cached (fail fast if not)
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+
+        from podcast_scraper.transcription.factory import create_transcription_provider
+
+        # Create provider (real factory)
+        provider = create_transcription_provider(self.cfg)
+
+        # Initialize provider (loads real model)
+        provider.initialize()  # type: ignore[attr-defined]
+
+        # Verify provider is initialized
+        self.assertTrue(provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertIsNotNone(provider._whisper_model)  # type: ignore[attr-defined]
+
+        # Verify model is actually loaded (not mocked)
+        model = provider._whisper_model  # type: ignore[attr-defined]
+        self.assertIsNotNone(model)
+        self.assertTrue(hasattr(model, "transcribe"))
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@unittest.skipIf(not _check_spacy_available(), "spaCy dependencies not available")
+class TestSpacyProviderRealModel(unittest.TestCase):
+    """Test spaCy NER provider with real model loading."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        from podcast_scraper import config
+
+        self.cfg = create_test_config(
+            auto_speakers=True,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
+            language="en",
+        )
+
+    def test_spacy_model_loading(self):
+        """Test that spaCy model can be loaded."""
+        # Require model to be cached (fail fast if not)
+
+        from podcast_scraper.providers.ml import speaker_detection
+
+        # Load real spaCy model
+        nlp = speaker_detection.get_ner_model(self.cfg)
+
+        # Verify model was loaded
+        self.assertIsNotNone(nlp, "spaCy model should be loaded")
+
+        # Verify model has expected attributes
+        self.assertTrue(hasattr(nlp, "pipe"), "Model should have pipe method")
+
+    def test_ner_detector_with_real_model(self):
+        """Test NER detector with real spaCy model."""
+        # Require model to be cached (fail fast if not)
+
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+
+        # Create detector (real factory)
+        detector = create_speaker_detector(self.cfg)
+
+        # Initialize detector (loads real model)
+        detector.initialize()  # type: ignore[attr-defined]
+
+        # Verify detector is initialized
+        # MLProvider uses _spacy_nlp instead of _nlp
+        self.assertTrue(hasattr(detector, "_spacy_nlp"))
+        self.assertIsNotNone(detector._spacy_nlp)  # type: ignore[attr-defined]
+
+        # Test that detector can actually use the model
+        # (detect_speakers uses the model internally)
+        result = detector.detect_speakers(  # type: ignore[attr-defined]
+            episode_title="Test Episode",
+            episode_description="This is a test episode with John Smith and Jane Doe.",
+            known_hosts={"John Smith"},
+        )
+
+        # Verify result is valid
+        # detect_speakers returns Tuple[list[str], Set[str], bool, bool]
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 4)
+        speakers, hosts, success, used_defaults = result
+        self.assertIsInstance(speakers, list)
+        self.assertIsInstance(hosts, set)
+        self.assertIsInstance(success, bool)
+        self.assertIsInstance(used_defaults, bool)
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@unittest.skipIf(not _check_transformers_available(), "Transformers dependencies not available")
+class TestTransformersProviderRealModel(unittest.TestCase):
+    """Test Transformers summarization provider with real model loading."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.cfg = create_test_config(
+            generate_summaries=True,
+            generate_metadata=True,  # Required when generate_summaries=True
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+            summary_device="cpu",  # Use CPU to avoid GPU requirements
+            language="en",
+        )
+
+    def test_transformers_model_loading(self):
+        """Test that Transformers model can be loaded."""
+        from podcast_scraper.providers.ml import summarizer
+
+        # Load real transformer model
+        model_name = summarizer.select_summary_model(self.cfg)
+
+        # Require model to be cached (fail fast if not)
+        require_transformers_model_cached(model_name, None)
+
+        try:
+            model = summarizer.SummaryModel(
+                model_name=model_name,
+                device="cpu",
+                cache_dir=None,
+            )
+
+            # Verify model was loaded
+            self.assertIsNotNone(model, "Transformer model should be loaded")
+            self.assertIsNotNone(model.model, "Model should have model attribute")
+            self.assertIsNotNone(model.tokenizer, "Model should have tokenizer attribute")
+            self.assertIsNotNone(model.pipeline, "Model should have pipeline attribute")
+
+            # Clean up model to prevent memory leak
+            summarizer.unload_model(model)
+        except Exception as e:
+            # If network access is blocked (model files not fully cached), skip the test
+            error_str = str(e).lower()
+            if (
+                "socket" in error_str
+                or "connect" in error_str
+                or "network" in error_str
+                or "couldn't connect" in error_str
+                or "huggingface.co" in error_str
+            ):
+                pytest.skip(
+                    f"Model files not fully cached (network access blocked): {e}. "
+                    f"Run 'make preload-ml-models' to ensure all model files are cached."
+                )
+            # Re-raise other errors as real failures
+            raise
+
+    def test_summarization_provider_with_real_model(self):
+        """Test summarization provider with real transformer model."""
+        from podcast_scraper.providers.ml import summarizer
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        # Require model to be cached (skip if not, to avoid network downloads)
+        model_name = summarizer.select_summary_model(self.cfg)
+        require_transformers_model_cached(model_name, None)
+
+        # Also check for REDUCE model if it might be used for long transcripts
+        reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+        if reduce_model_name != model_name:  # Only check if different from MAP model
+            from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models. "
+                    f"This test requires cached models to avoid network downloads "
+                    f"(which violates integration test rules)."
+                )
+
+        # Create provider (real factory)
+        provider = create_summarization_provider(self.cfg)
+
+        # Initialize provider (loads real model)
+        provider.initialize()  # type: ignore[attr-defined]
+
+        # Verify provider is initialized
+        # MLProvider uses is_initialized property and _transformers_initialized
+        self.assertTrue(provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertTrue(provider._transformers_initialized)  # type: ignore[attr-defined]
+        self.assertIsNotNone(provider._map_model)  # type: ignore[attr-defined]
+
+        # Verify model is actually loaded (not mocked)
+        map_model = provider._map_model  # type: ignore[attr-defined]
+        self.assertIsNotNone(map_model)
+        self.assertIsNotNone(map_model.pipeline)  # type: ignore[attr-defined]
+
+        # Test that provider can actually use the model
+        # (summarize uses the model internally)
+        test_text = (
+            "This is a test transcript. It contains multiple sentences. "
+            "The purpose is to test summarization. We want to verify the model works."
+        )
+        result = provider.summarize(  # type: ignore[attr-defined]
+            text=test_text,
+            episode_title="Test Episode",
+            episode_description="A test episode",
+            params=None,
+        )
+
+        # Verify result is valid
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, dict)
+        # Result should contain summary
+        self.assertIn("summary", result)
+        self.assertIsInstance(result["summary"], str)
+        self.assertGreater(len(result["summary"]), 0)
+
+        # Clean up provider to prevent memory leak
+        provider.cleanup()  # type: ignore[attr-defined]
+
+
+@pytest.mark.e2e
+@pytest.mark.ml_models
+@unittest.skipIf(
+    not (
+        _check_whisper_available() and _check_spacy_available() and _check_transformers_available()
+    ),
+    "Not all ML dependencies available",
+)
+class TestAllProvidersRealModels(unittest.TestCase):
+    """Test all providers together with real models."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        from podcast_scraper import config
+
+        self.cfg = create_test_config(
+            output_dir=self.temp_dir,
+            transcribe_missing=True,
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
+            auto_speakers=True,
+            ner_model=config.TEST_DEFAULT_NER_MODEL,  # Test default: en_core_web_sm
+            generate_summaries=True,
+            generate_metadata=True,
+            summary_model=config.TEST_DEFAULT_SUMMARY_MODEL,
+            summary_device="cpu",
+            language="en",
+        )
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def test_all_providers_initialize_with_real_models(self):
+        """Test that all providers can be initialized with real models."""
+        from podcast_scraper.providers.ml import summarizer
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+        from podcast_scraper.summarization.factory import create_summarization_provider
+        from podcast_scraper.transcription.factory import create_transcription_provider
+
+        # Require all models to be cached (skip if not, to avoid network downloads)
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+        model_name = summarizer.select_summary_model(self.cfg)
+        require_transformers_model_cached(model_name, None)
+
+        # Also check for REDUCE model if it might be used
+        # REDUCE model is used for long transcripts, but we check it here to ensure
+        # the test doesn't fail if the summarization provider tries to use it
+        reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+        if reduce_model_name != model_name:  # Only check if different from MAP model
+            from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                import pytest
+
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models. "
+                    f"This test requires cached models to avoid network downloads "
+                    f"(which violates integration test rules)."
+                )
+
+        # Create all providers (real factories)
+        transcription_provider = create_transcription_provider(self.cfg)
+        speaker_detector = create_speaker_detector(self.cfg)
+        summarization_provider = create_summarization_provider(self.cfg)
+
+        # Initialize all providers (loads real models)
+        transcription_provider.initialize()  # type: ignore[attr-defined]
+        speaker_detector.initialize()  # type: ignore[attr-defined]
+        # Transformers may try to connect to HuggingFace even with local_files_only=True
+        # to verify cache integrity. If network is blocked, catch the error and skip.
+        try:
+            summarization_provider.initialize()  # type: ignore[attr-defined]
+        except (OSError, RuntimeError) as e:
+            # Check if this is a network-related error (Transformers trying to connect)
+            error_msg = str(e).lower()
+            if (
+                "couldn't connect" in error_msg
+                or "huggingface.co" in error_msg
+                or "network" in error_msg
+                or "socket" in error_msg
+            ):
+                import pytest
+
+                pytest.skip(
+                    f"Network isolation prevents Transformers from verifying cache. "
+                    f"This is expected when network is blocked (pytest-socket). "
+                    f"Error: {e}"
+                )
+            # Re-raise if it's a different error (e.g., file not found)
+            raise
+
+        # Verify all providers are initialized with real models
+        # MLProvider uses is_initialized property
+        self.assertTrue(transcription_provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertIsNotNone(transcription_provider._whisper_model)  # type: ignore[attr-defined]
+
+        # MLProvider uses _spacy_nlp instead of _nlp
+        self.assertIsNotNone(speaker_detector._spacy_nlp)  # type: ignore[attr-defined]
+
+        # MLProvider uses is_initialized property and _transformers_initialized
+        self.assertTrue(summarization_provider.is_initialized)  # type: ignore[attr-defined]
+        self.assertTrue(
+            summarization_provider._transformers_initialized,
+        )  # type: ignore[attr-defined]
+        self.assertIsNotNone(summarization_provider._map_model)  # type: ignore[attr-defined]
+
+        # Verify models are actually loaded (not mocked)
+        # Whisper model
+        whisper_model = transcription_provider._whisper_model  # type: ignore[attr-defined]
+        self.assertTrue(hasattr(whisper_model, "transcribe"))
+
+        # spaCy model
+        spacy_model = speaker_detector._spacy_nlp  # type: ignore[attr-defined]
+        self.assertTrue(hasattr(spacy_model, "pipe"))
+
+        # Transformer model
+        transformer_model = summarization_provider._map_model  # type: ignore[attr-defined]
+        self.assertIsNotNone(transformer_model.pipeline)  # type: ignore[attr-defined]
+
+        # Clean up all providers to prevent memory leak
+        transcription_provider.cleanup()  # type: ignore[attr-defined]
+        speaker_detector.cleanup()  # type: ignore[attr-defined]
+        summarization_provider.cleanup()  # type: ignore[attr-defined]
+
+    @pytest.mark.critical_path
+    def test_critical_path_with_real_models(self):
+        """Test critical path (Full Workflow) with real cached ML models:
+        RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files.
+
+        This test validates the COMPLETE critical path with all core features
+        using REAL cached ML models:
+        - RSS feed parsing
+        - Transcript download (from test fixtures)
+        - NER speaker detection (hosts and guests) - REAL spaCy model
+        - Summarization - REAL Transformers model
+        - Metadata generation with all features
+        - File output
+
+        This is Priority 2 from Critical Path Testing Guide:
+        "Critical Path with Real Models (Should Have)"
+        - Validates actual ML models work in the critical path
+        - Uses cached models (checked before test runs)
+        - Runs in fast test suite if models are cached (marked critical_path, not slow)
+        - Skips if models are not cached (to avoid network downloads)
+        - Works offline with cached models (no network access required)
+
+        How it works together:
+        - Models are pre-cached via `make preload-ml-models` (checked before test runs)
+        - Offline mode (HF_HUB_OFFLINE=1, TRANSFORMERS_OFFLINE=1) prevents network access
+        - SummaryModel uses local_files_only=True when loading (enforced in code)
+        - With cached models + offline mode + local_files_only=True, no network needed
+        - If initialization fails, it's a real error (missing cache files), not network
+        """
+        import os
+        from pathlib import Path
+
+        from podcast_scraper.providers.ml import summarizer
+        from podcast_scraper.rss import parser as rss_parser
+        from podcast_scraper.workflow import metadata_generation as metadata
+
+        # Ensure offline mode is enabled (should already be set in conftest.py, but ensure it)
+        # This prevents transformers from trying to connect to HuggingFace even with cached models.
+        # Together with local_files_only=True in SummaryModel, this ensures 100% offline operation.
+        # If transformers still tries to connect, it indicates a bug or missing cache files.
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+        # Require all models to be cached (skip if not, to avoid network downloads)
+        # This check ensures models exist in cache before we try to load them.
+        # If models aren't cached, skip with helpful message to run 'make preload-ml-models'.
+        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
+        model_name = summarizer.select_summary_model(self.cfg)
+        require_transformers_model_cached(model_name, None)
+
+        # Also check for REDUCE model if it might be used
+        # REDUCE model is used for long transcripts, but we check it here to ensure
+        # the test doesn't fail if the summarization provider tries to use it
+        reduce_model_name = summarizer.select_reduce_model(self.cfg, model_name)
+        if reduce_model_name != model_name:  # Only check if different from MAP model
+            from tests.integration.ml_model_cache_helpers import _is_transformers_model_cached
+
+            if not _is_transformers_model_cached(reduce_model_name, None):
+                pytest.skip(
+                    f"REDUCE model '{reduce_model_name}' is not cached. "
+                    f"Run 'make preload-ml-models' to pre-cache all required models. "
+                    f"This test requires cached models to avoid network downloads "
+                    f"(which violates integration test rules)."
+                )
+
+        # Get transcript from fixtures
+        fixture_root = Path(__file__).parent.parent.parent / "fixtures"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+
+        if not transcript_file.exists():
+            self.skipTest(f"Transcript file not found: {transcript_file}")
+
+        transcript_text = transcript_file.read_text(encoding="utf-8")
+
+        # Create minimal RSS feed
+        rss_xml = (
+            "<?xml version='1.0'?>\n"
+            '<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" '
+            'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">\n'
+            "  <channel>\n"
+            "    <title>Test Feed</title>\n"
+            "    <author>John Host</author>\n"
+            "    <itunes:author>Jane Host</itunes:author>\n"
+            "    <item>\n"
+            "      <title>Episode 1: Interview with Bob Guest</title>\n"
+            "      <description>In this episode, we talk with Bob Guest about "
+            "technology and software development.</description>\n"
+            '      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" />\n'
+            "    </item>\n"
+            "  </channel>\n"
+            "</rss>"
+        )
+
+        # Parse RSS feed
+        title, authors, items = rss_parser.parse_rss_items(rss_xml.encode("utf-8"))
+        feed = models.RssFeed(
+            title=title,
+            authors=authors,
+            items=items,
+            base_url="https://example.com/feed.xml",
+        )
+        episodes = [
+            rss_parser.create_episode_from_item(item, idx, feed.base_url)
+            for idx, item in enumerate(feed.items, start=1)
+        ]
+        episode = episodes[0]
+
+        # Create transcript file
+        transcript_path = os.path.join(self.temp_dir, "0001 - Episode_1.txt")
+        os.makedirs(os.path.dirname(transcript_path), exist_ok=True)
+        with open(transcript_path, "w", encoding="utf-8") as f:
+            f.write(transcript_text)
+
+        # Step 1: Detect hosts from feed metadata (REAL NER model)
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+
+        speaker_detector = create_speaker_detector(self.cfg)
+        speaker_detector.initialize()
+        detected_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,
+            feed_authors=feed.authors,
+        )
+
+        # Hosts may or may not be detected; run must not crash.
+        self.assertIsInstance(detected_hosts, set)
+
+        # Step 2: Detect guests from episode metadata (REAL NER model)
+        episode_description = rss_parser.extract_episode_description(episode.item)
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
+            speaker_detector.detect_speakers(
+                episode_title=episode.title,
+                episode_description=episode_description,
+                known_hosts=detected_hosts,
+            )
+        )
+
+        # Verify speaker detection ran (may or may not detect, but should not crash)
+        self.assertIsInstance(detected_speakers, list)
+        self.assertIsInstance(detected_hosts_set, set)
+        self.assertIsInstance(detection_succeeded, bool)
+
+        # Step 3: Summarize transcript (REAL Transformers model)
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        summarization_provider = create_summarization_provider(self.cfg)
+        # Initialize provider - should work with cached models and offline mode.
+        # With offline mode enabled (HF_HUB_OFFLINE=1) and models cached (checked above),
+        # SummaryModel uses local_files_only=True, so no network access should occur.
+        # If initialization fails, it indicates:
+        # - Missing cache files (run 'make preload-ml-models' to fix)
+        # - Corrupted cache (clear cache and re-run preload)
+        # - Code bug (transformers trying to connect despite offline mode)
+        # We don't catch network errors here because with proper setup, there shouldn't be any.
+        try:
+            summarization_provider.initialize()
+        except (OSError, RuntimeError, Exception) as e:
+            # If initialization fails, provide helpful error message
+            # This should be rare with proper cache setup, but handle gracefully
+            error_str = str(e).lower()
+            if (
+                "socket" in error_str
+                or "connect" in error_str
+                or "network" in error_str
+                or "huggingface.co" in error_str
+                or "couldn't connect" in error_str
+            ):
+                # This shouldn't happen with offline mode + cached models, but if it does,
+                # it means transformers is trying to connect despite our safeguards.
+                # This could indicate:
+                # 1. Missing tokenizer files in cache (incomplete preload)
+                # 2. Transformers library bug (not respecting offline mode)
+                # 3. Cache corruption
+                pytest.skip(
+                    f"Model initialization attempted network access despite offline mode: {e}. "
+                    f"This suggests missing or incomplete cache files. "
+                    "Run 'make preload-ml-models' to cache model files, including tokenizers."
+                )
+            # For other errors (not network-related), re-raise as real errors
+            raise
+
+        # Use first 1000 chars for speed (real models are slow)
+        summary_result = summarization_provider.summarize(
+            text=transcript_text[:1000],
+            episode_title=episode.title,
+            episode_description=episode_description,
+            params=None,
+        )
+
+        # Verify summary was generated
+        self.assertIsInstance(summary_result, dict)
+        self.assertIn("summary", summary_result)
+        self.assertIsInstance(summary_result["summary"], str)
+        self.assertGreater(len(summary_result["summary"]), 0)
+
+        # Step 4: Generate metadata with NER and summarization
+        metadata_path = metadata.generate_episode_metadata(
+            feed=feed,
+            episode=episode,
+            feed_url="https://example.com/feed.xml",
+            cfg=self.cfg,
+            output_dir=self.temp_dir,
+            run_suffix=None,
+            transcript_file_path="0001 - Episode_1.txt",
+            transcript_source="direct_download",
+            whisper_model=None,
+            detected_hosts=list(detected_hosts),
+            detected_guests=[s for s in detected_speakers if s not in detected_hosts],
+            summary_provider=summarization_provider,
+        )
+
+        # Verify metadata file was created
+        self.assertIsNotNone(metadata_path)
+        self.assertTrue(os.path.exists(metadata_path))
+
+        # Verify metadata includes all features
+        import json
+
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        self.assertIn("speakers", data["content"])
+        speakers = data["content"]["speakers"]
+        self.assertIsInstance(speakers, list)
+        # Verify speakers array contains host and guest information
+        host_speakers = [s for s in speakers if s.get("role") == "host"]
+        guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+        self.assertEqual(len(host_speakers), len(detected_hosts))
+        self.assertEqual(
+            len(guest_speakers), len([s for s in detected_speakers if s not in detected_hosts])
+        )
+        # Summary is stored at top-level, not in content
+        self.assertIn("summary", data)
+        self.assertIsNotNone(data["summary"], "Summary should be generated")
+        self.assertEqual(data["content"]["transcript_source"], "direct_download")
+
+        # Cleanup
+        speaker_detector.cleanup()
+        summarization_provider.cleanup()
+
+
+@pytest.mark.e2e
+@pytest.mark.critical_path
+@pytest.mark.openai
+class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
+    """Test critical path (Full Workflow) with OpenAI providers:
+    RSS → Parse → Download/Transcribe → OpenAI Speaker Detection → OpenAI
+    Summarization → Metadata → Files.
+
+    This test validates the COMPLETE critical path with all core features
+    using OpenAI providers:
+    - RSS feed parsing
+    - Transcript download (from test fixtures)
+    - OpenAI speaker detection (hosts and guests) - Mocked API calls
+    - OpenAI summarization - Mocked API calls
+    - Metadata generation with all features
+    - File output
+
+    This is Priority 1 from Critical Path Testing Guide: "Critical Path (Must Have)"
+    - Validates OpenAI providers work in the critical path
+    - Uses mocked OpenAI API (no real API calls, fast execution)
+    - Runs in fast test suite (marked critical_path, not slow)
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        import tempfile
+
+        self.temp_dir = tempfile.mkdtemp()
+        self.cfg = create_test_config(
+            output_dir=self.temp_dir,
+            transcription_provider="openai",
+            speaker_detector_provider="openai",
+            summary_provider="openai",
+            openai_api_key="sk-test123",
+            generate_summaries=True,
+            generate_metadata=True,
+            auto_speakers=True,
+            transcribe_missing=True,
+            screenplay_num_speakers=3,  # Allow 3 speakers so Bob Guest is included
+        )
+
+    def tearDown(self):
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    @patch("openai.OpenAI")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_critical_path_with_openai_providers(
+        self,
+        mock_render_prompt,
+        mock_openai_class,
+    ):
+        """Test critical path with OpenAI providers (mocked API calls)."""
+        import os
+        from pathlib import Path
+
+        from podcast_scraper import models
+        from podcast_scraper.rss import parser as rss_parser
+        from podcast_scraper.workflow import metadata_generation as metadata
+
+        # Get transcript from fixtures
+        fixture_root = Path(__file__).parent.parent.parent / "fixtures"
+        transcript_file = fixture_root / "transcripts" / "p01_e01_fast.txt"
+
+        if not transcript_file.exists():
+            self.skipTest(f"Transcript file not found: {transcript_file}")
+
+        transcript_text = transcript_file.read_text(encoding="utf-8")
+
+        # Create minimal RSS feed
+        rss_xml = (
+            "<?xml version='1.0'?>\n"
+            '<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" '
+            'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">\n'
+            "  <channel>\n"
+            "    <title>Test Feed</title>\n"
+            "    <author>John Host</author>\n"
+            "    <itunes:author>Jane Host</itunes:author>\n"
+            "    <item>\n"
+            "      <title>Episode 1: Interview with Bob Guest</title>\n"
+            "      <description>In this episode, we talk with Bob Guest about "
+            "technology and software development.</description>\n"
+            '      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" />\n'
+            "    </item>\n"
+            "  </channel>\n"
+            "</rss>"
+        )
+
+        # Parse RSS feed
+        title, authors, items = rss_parser.parse_rss_items(rss_xml.encode("utf-8"))
+        feed = models.RssFeed(
+            title=title,
+            authors=authors,
+            items=items,
+            base_url="https://example.com/feed.xml",
+        )
+        episodes = [
+            rss_parser.create_episode_from_item(item, idx, feed.base_url)
+            for idx, item in enumerate(feed.items, start=1)
+        ]
+        episode = episodes[0]
+
+        # Create transcript file
+        transcript_path = os.path.join(self.temp_dir, "0001 - Episode_1.txt")
+        os.makedirs(os.path.dirname(transcript_path), exist_ok=True)
+        with open(transcript_path, "w", encoding="utf-8") as f:
+            f.write(transcript_text)
+
+        # Mock unified OpenAI client (all capabilities share the same client)
+        mock_client = Mock()
+        mock_openai_class.return_value = mock_client
+
+        # Mock prompt rendering for speaker detection and summarization
+        mock_render_prompt.side_effect = [
+            "System prompt for speaker detection",
+            "User prompt with episode metadata",
+            "System prompt for summarization",
+            "User prompt with transcript",
+        ]
+
+        # Mock OpenAI speaker detection response
+        # Note: detect_hosts uses feed_authors directly, so it won't call the API
+        # detect_speakers will be called and needs the full response format
+        mock_speaker_response = Mock()
+        mock_speaker_response.choices = [
+            Mock(
+                message=Mock(
+                    content=(
+                        '{"speakers": ["John Host", "Jane Host", "Bob Guest"], '
+                        '"hosts": ["John Host", "Jane Host"], '
+                        '"guests": ["Bob Guest"]}'
+                    )
+                )
+            )
+        ]
+        # Mock OpenAI summarization response
+        mock_summary_response = Mock()
+        mock_summary_response.choices = [
+            Mock(message=Mock(content="This is a test summary of the episode."))
+        ]
+        # Unified client handles all API calls
+        mock_client.chat.completions.create.side_effect = [
+            mock_speaker_response,  # First call: speaker detection
+            mock_summary_response,  # Second call: summarization
+        ]
+
+        # Step 1: Detect hosts from feed metadata (OpenAI)
+        from podcast_scraper.speaker_detectors.factory import create_speaker_detector
+
+        speaker_detector = create_speaker_detector(self.cfg)
+        speaker_detector.initialize()
+        detected_hosts = speaker_detector.detect_hosts(
+            feed_title=feed.title,
+            feed_description=None,
+            feed_authors=feed.authors,
+        )
+
+        # Verify hosts were detected
+        self.assertIsInstance(detected_hosts, set)
+        # OpenAI should detect hosts from the mocked response
+        self.assertIn("John Host", detected_hosts)
+        self.assertIn("Jane Host", detected_hosts)
+
+        # Step 2: Detect guests from episode metadata (OpenAI)
+        episode_description = rss_parser.extract_episode_description(episode.item)
+        detected_speakers, detected_hosts_set, detection_succeeded, _ = (
+            speaker_detector.detect_speakers(
+                episode_title=episode.title,
+                episode_description=episode_description,
+                known_hosts=detected_hosts,
+            )
+        )
+
+        # Verify speaker detection ran
+        self.assertIsInstance(detected_speakers, list)
+        self.assertIsInstance(detected_hosts_set, set)
+        self.assertIsInstance(detection_succeeded, bool)
+        # OpenAI should detect "Bob Guest" from the mocked response
+        self.assertIn("Bob Guest", detected_speakers)
+
+        # Step 3: Summarize transcript (OpenAI)
+        from podcast_scraper.summarization.factory import create_summarization_provider
+
+        summarization_provider = create_summarization_provider(self.cfg)
+        summarization_provider.initialize()
+
+        # Mock the provider's summarize method directly
+        with patch.object(
+            summarization_provider,
+            "summarize",
+            return_value={
+                "summary": "This is a test summary of the episode.",
+                "summary_short": None,
+                "metadata": {
+                    "provider": "openai",
+                    "model_used": config.TEST_DEFAULT_OPENAI_SUMMARY_MODEL,
+                },
+            },
+        ):
+            # Step 4: Generate metadata with OpenAI speaker detection and summarization
+            metadata_path = metadata.generate_episode_metadata(
+                feed=feed,
+                episode=episode,
+                feed_url="https://example.com/feed.xml",
+                cfg=self.cfg,
+                output_dir=self.temp_dir,
+                run_suffix=None,
+                transcript_file_path="0001 - Episode_1.txt",
+                transcript_source="direct_download",
+                whisper_model=None,
+                detected_hosts=list(detected_hosts),
+                detected_guests=[s for s in detected_speakers if s not in detected_hosts],
+                summary_provider=summarization_provider,
+            )
+
+            # Verify metadata file was created
+            self.assertIsNotNone(metadata_path)
+            self.assertTrue(os.path.exists(metadata_path))
+
+            # Verify metadata includes all features
+            import json
+
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            self.assertIn("speakers", data["content"])
+            speakers = data["content"]["speakers"]
+            self.assertIsInstance(speakers, list)
+            # Verify speakers array contains host and guest information
+            host_speakers = [s for s in speakers if s.get("role") == "host"]
+            guest_speakers = [s for s in speakers if s.get("role") == "guest"]
+            self.assertEqual(len(host_speakers), len(detected_hosts))
+            self.assertEqual(
+                len(guest_speakers), len([s for s in detected_speakers if s not in detected_hosts])
+            )
+            # Summary is stored in a separate "summary" field, not in "content"
+            self.assertIn("summary", data)
+            self.assertIsNotNone(data["summary"], "Summary should be generated")
+            # Check normalized schema fields (required)
+            self.assertIn(
+                "bullets", data["summary"], "Summary should have bullets field (normalized schema)"
+            )
+            self.assertIsInstance(data["summary"]["bullets"], list, "bullets should be a list")
+            self.assertGreater(len(data["summary"]["bullets"]), 0, "bullets should not be empty")
+            # short_summary is computed from bullets
+            self.assertIn(
+                "short_summary",
+                data["summary"],
+                "Summary should have short_summary field (computed)",
+            )
+            self.assertIsNotNone(
+                data["summary"]["short_summary"], "Summary text should be generated"
+            )
+            self.assertEqual(data["content"]["transcript_source"], "direct_download")
+
+            # Verify OpenAI API was called (unified client handles all calls)
+            self.assertTrue(mock_client.chat.completions.create.called)
+
+        # Cleanup
+        speaker_detector.cleanup()
+        summarization_provider.cleanup()
+
+
+if __name__ == "__main__":
+    unittest.main()

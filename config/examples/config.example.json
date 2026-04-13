@@ -5,6 +5,7 @@
   "_comment_multi_feed": "Multi-feed (GitHub #440): use feeds array instead of rss; output_dir required. See config.example.multi-feed.json and config.example.multi-feed.yaml.",
   "output_dir": "output_podcast_example",
   "max_episodes": 10,
+  "_comment_episode_selection": "GitHub #521: optional episode_order (newest|oldest), episode_offset, episode_since / episode_until (YYYY-MM-DD). See docs/api/CONFIGURATION.md#episode-selection-github-521.",
 
   "_comment_providers": "Provider configuration - mixed example (can use different providers for different capabilities). Options: openai, gemini, mistral, deepseek, grok, ollama (API-based), whisper (local Whisper), spacy (local spaCy), transformers (local HuggingFace). Note: deepseek, grok, and ollama do NOT support transcription (no audio API). Mistral is a full-stack provider (transcription + speaker detection + summarization) with EU data residency. Grok offers real-time information access via X/Twitter integration. Ollama is a local, self-hosted solution with ZERO API costs - perfect for privacy and offline operation",
   "transcription_provider": "whisper",

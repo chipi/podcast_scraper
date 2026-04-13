@@ -126,6 +126,12 @@ class Metrics:
     # Per-episode operation timing (key = episode.idx, 1-based; safe under parallel workers)
     download_media_time_by_episode: Dict[int, float] = field(default_factory=dict)
     download_media_attempts: int = 0  # Total media download attempts (including reused/cached)
+    # App-level episode download retries (after urllib3 retries; see Config episode_retry_*)
+    episode_download_retries: int = 0
+    episode_download_retry_sleep_seconds: float = 0.0
+    _episode_download_retry_lock: threading.Lock = field(
+        default_factory=threading.Lock, init=False, repr=False
+    )
     transcribe_time_by_episode: Dict[int, float] = field(
         default_factory=dict
     )  # Actual transcription only; omitted when transcript cache hit (no API transcribe)
@@ -160,6 +166,11 @@ class Metrics:
     llm_kg_calls: int = 0
     llm_kg_input_tokens: int = 0
     llm_kg_output_tokens: int = 0
+    # Single-call clean + summary + bullets (Issue #477 bundled pipeline experiment)
+    llm_bundled_clean_summary_calls: int = 0
+    llm_bundled_clean_summary_input_tokens: int = 0
+    llm_bundled_clean_summary_output_tokens: int = 0
+    llm_bundled_fallback_to_staged_count: int = 0
 
     # Audio preprocessing metrics (RFC-040, Issue #387)
     preprocessing_times: List[float] = field(
@@ -320,6 +331,12 @@ class Metrics:
         """Record a media download attempt (called regardless of cache/reuse)."""
         self.download_media_attempts += 1
 
+    def record_episode_download_retry(self, sleep_sec: float) -> None:
+        """Record one application-level episode download retry and planned backoff sleep."""
+        with self._episode_download_retry_lock:
+            self.episode_download_retries += 1
+            self.episode_download_retry_sleep_seconds += max(0.0, sleep_sec)
+
     def record_download_media_time(self, duration: float, episode_idx: int) -> None:
         """Record time spent downloading media for an episode (by episode.idx).
 
@@ -473,6 +490,16 @@ class Metrics:
         self.llm_kg_calls += 1
         self.llm_kg_input_tokens += input_tokens
         self.llm_kg_output_tokens += output_tokens
+
+    def record_llm_bundled_clean_summary_call(self, input_tokens: int, output_tokens: int) -> None:
+        """Record one bundled LLM call (semantic clean + title + bullets, Issue #477)."""
+        self.llm_bundled_clean_summary_calls += 1
+        self.llm_bundled_clean_summary_input_tokens += input_tokens
+        self.llm_bundled_clean_summary_output_tokens += output_tokens
+
+    def record_llm_bundled_fallback_to_staged(self) -> None:
+        """Increment count when bundled clean+summary fails and staged path is used."""
+        self.llm_bundled_fallback_to_staged_count += 1
 
     def record_preprocessing_time(self, duration: float) -> None:
         """Record time spent preprocessing audio for an episode.
@@ -778,10 +805,21 @@ class Metrics:
     def finish(self) -> Dict[str, Any]:
         """Calculate final metrics and return as dict.
 
+        ``http_urllib3_retry_events`` comes from the process-wide downloader counter
+        (reset when ``configure_downloader`` runs at pipeline start). It is not
+        safe to interpret for a single run if multiple pipelines execute
+        concurrently in one process.
+
         Returns:
             Dictionary of all metrics with final values
         """
         self.run_duration_seconds = time.time() - self._start_time
+
+        from ..rss.downloader import get_http_retry_event_count
+        from ..rss.http_policy import get_http_policy_metrics_snapshot
+
+        http_urllib3_retry_events = get_http_retry_event_count()
+        http_policy_metrics = get_http_policy_metrics_snapshot()
 
         def _avg_episode_dict(d: Dict[int, float]) -> float:
             return round(sum(d.values()) / len(d), 2) if d else 0.0
@@ -818,6 +856,14 @@ class Metrics:
         gi_out_avg = _avg_tokens_per_call(self.llm_gi_output_tokens, self.llm_gi_calls)
         kg_in_avg = _avg_tokens_per_call(self.llm_kg_input_tokens, self.llm_kg_calls)
         kg_out_avg = _avg_tokens_per_call(self.llm_kg_output_tokens, self.llm_kg_calls)
+        bd_in_avg = _avg_tokens_per_call(
+            self.llm_bundled_clean_summary_input_tokens,
+            self.llm_bundled_clean_summary_calls,
+        )
+        bd_out_avg = _avg_tokens_per_call(
+            self.llm_bundled_clean_summary_output_tokens,
+            self.llm_bundled_clean_summary_calls,
+        )
 
         gi_llm_calls_per_artifact = (
             round(self.llm_gi_calls / self.gi_artifacts_generated, 2)
@@ -853,13 +899,30 @@ class Metrics:
             round((1 - total_preprocessed / total_original) * 100, 1) if total_original > 0 else 0.0
         )
 
-        return {
+        with self._episode_metrics_lock:
+            total_episode_estimated_cost_usd = round(
+                sum((em.estimated_cost or 0.0) for em in self.episode_metrics),
+                6,
+            )
+            total_episode_prompt_tokens = sum(
+                (em.prompt_tokens or 0) for em in self.episode_metrics
+            )
+            total_episode_completion_tokens = sum(
+                (em.completion_tokens or 0) for em in self.episode_metrics
+            )
+
+        out: Dict[str, Any] = {
             "schema_version": "1.0.0",  # Versioned schema for metrics (Issue #379)
             "run_duration_seconds": round(self.run_duration_seconds, 2),
             "episodes_scraped_total": self.episodes_scraped_total,
             "episodes_skipped_total": self.episodes_skipped_total,
             "errors_total": self.errors_total,
             "bytes_downloaded_total": self.bytes_downloaded_total,
+            "http_urllib3_retry_events": http_urllib3_retry_events,
+            "episode_download_retries": self.episode_download_retries,
+            "episode_download_retry_sleep_seconds": round(
+                self.episode_download_retry_sleep_seconds, 3
+            ),
             "transcripts_downloaded": self.transcripts_downloaded,
             "transcripts_transcribed": self.transcripts_transcribed,
             "episodes_summarized": self.episodes_summarized,
@@ -1015,6 +1078,49 @@ class Metrics:
             "llm_kg_avg_input_tokens_per_call": kg_in_avg,
             "llm_kg_avg_output_tokens_per_call": kg_out_avg,
             "llm_kg_calls_per_kg_artifact": kg_llm_calls_per_artifact,
+            "llm_bundled_clean_summary_calls": self.llm_bundled_clean_summary_calls,
+            "llm_bundled_clean_summary_input_tokens": (self.llm_bundled_clean_summary_input_tokens),
+            "llm_bundled_clean_summary_output_tokens": (
+                self.llm_bundled_clean_summary_output_tokens
+            ),
+            "llm_bundled_clean_summary_avg_input_tokens_per_call": bd_in_avg,
+            "llm_bundled_clean_summary_avg_output_tokens_per_call": bd_out_avg,
+            "llm_bundled_fallback_to_staged_count": self.llm_bundled_fallback_to_staged_count,
+            "total_episode_estimated_cost_usd": total_episode_estimated_cost_usd,
+            "total_episode_prompt_tokens": total_episode_prompt_tokens,
+            "total_episode_completion_tokens": total_episode_completion_tokens,
+            "llm_token_totals_by_stage": {
+                "speaker_detection": {
+                    "input": self.llm_speaker_detection_input_tokens,
+                    "output": self.llm_speaker_detection_output_tokens,
+                    "calls": self.llm_speaker_detection_calls,
+                },
+                "cleaning": {
+                    "input": self.llm_cleaning_input_tokens,
+                    "output": self.llm_cleaning_output_tokens,
+                    "calls": self.llm_cleaning_calls,
+                },
+                "summarization": {
+                    "input": self.llm_summarization_input_tokens,
+                    "output": self.llm_summarization_output_tokens,
+                    "calls": self.llm_summarization_calls,
+                },
+                "bundled_clean_summary": {
+                    "input": self.llm_bundled_clean_summary_input_tokens,
+                    "output": self.llm_bundled_clean_summary_output_tokens,
+                    "calls": self.llm_bundled_clean_summary_calls,
+                },
+                "gi": {
+                    "input": self.llm_gi_input_tokens,
+                    "output": self.llm_gi_output_tokens,
+                    "calls": self.llm_gi_calls,
+                },
+                "kg": {
+                    "input": self.llm_kg_input_tokens,
+                    "output": self.llm_kg_output_tokens,
+                    "calls": self.llm_kg_calls,
+                },
+            },
             # Audio preprocessing metrics (Issue #387)
             "avg_preprocessing_seconds": avg_preprocessing,
             "preprocessing_count": len(self.preprocessing_times),
@@ -1082,6 +1188,8 @@ class Metrics:
             "transcription_device": self.transcription_device,
             "summarization_device": self.summarization_device,
         }
+        out.update(http_policy_metrics)
+        return out
 
     def to_json(self) -> str:
         """Convert metrics to JSON string.

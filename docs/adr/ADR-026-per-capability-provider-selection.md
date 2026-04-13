@@ -1,4 +1,4 @@
-# ADR-040: Per-Capability Provider Selection
+# ADR-026: Per-Capability Provider Selection
 
 - **Status**: Accepted
 - **Date**: 2026-02-10

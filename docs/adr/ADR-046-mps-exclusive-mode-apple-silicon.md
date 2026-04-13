@@ -1,4 +1,4 @@
-# ADR-055: MPS Exclusive Mode for Apple Silicon
+# ADR-046: MPS Exclusive Mode for Apple Silicon
 
 - **Status**: Accepted
 - **Date**: 2026-02-10

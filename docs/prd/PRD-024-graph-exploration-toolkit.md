@@ -1,6 +1,6 @@
 # PRD-024: GI/KG Graph Exploration Toolkit (Viewer)
 
-- **Status**: Completed (v2.6.0) — [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) implemented in `web/gi-kg-viewer` (Graph tab: zoom UI, minimap, degree buckets, layouts, box zoom).
+- **Status**: Implemented (v2.6.0) — [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) implemented in `web/gi-kg-viewer` (Graph tab: zoom UI, minimap, degree buckets, layouts, box zoom).
 
 ## Summary
 

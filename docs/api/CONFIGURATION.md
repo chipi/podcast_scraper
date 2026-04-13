@@ -76,17 +76,189 @@ WORKERS=4
 
 **Result**: `workers = 4` (env var used because config file is not set)
 
+### Twelve-factor app alignment (config)
+
+The [Twelve-Factor App](https://12factor.net/) is a useful reference for **how we split config between files and the environment**, especially as you run the pipeline in more places (CI, Docker, schedulers, multiple feeds).
+
+- **Factor III — Config:** [Store config in the environment](https://12factor.net/config). In this repo that means **process environment variables** and (for local dev) an optional **`.env`** file loaded by `python-dotenv`: API keys, `WORKERS`, `TIMEOUT`, `OUTPUT_DIR`, optional **`PODCAST_SCRAPER_*`** download-resilience overrides, and the rest of the variables listed below. **Committed YAML/JSON** is still the right place for **shared, non-secret defaults** and reproducible presets. **Secrets and per-deploy overrides** should live in the environment (or your platform’s secret store, injected as env). The **`LOG_LEVEL`** exception above matches common twelve-factor practice: operators can change verbosity without editing a file.
+
+- **Other factors (at a glance):** Treat the running CLI or `service.run` process as **stateless** where possible (VI); send **logs** to stdout/stderr and let the platform aggregate them (XI); keep **dev/prod config shape** similar so the same keys and env names work everywhere (X). Docker and CI docs build on the same ideas.
+
 ### Supported Environment Variables
 
 #### RSS feed cache (optional)
 
 **`PODCAST_SCRAPER_RSS_CACHE_DIR`**
 
-- **Description**: If set to a writable directory, the app reads cached RSS XML from disk when present and writes the feed body after a successful HTTP fetch and parse. Reduces repeated downloads for the same feed URL (for example, many acceptance configs in one session).
-- **Default**: Unset (no caching; each pipeline run fetches the feed over HTTP).
+- **Description**: If set to a writable directory, the **scraping stage** reads cached RSS XML from disk when present and writes the feed body after a successful HTTP fetch and parse. Reduces repeated downloads for the same feed URL (for example, many acceptance configs in one session).
+- **Default**: Unset (no feed XML disk cache in that layer).
 - **Example**: `export PODCAST_SCRAPER_RSS_CACHE_DIR=/tmp/podcast_rss_cache`
 - **Note**: Does not cache episode media; use `reuse_media` in config for that. The acceptance test runner sets this variable per session (`sessions/session_*/rss_cache`).
-- **HTTP retries**: Feed downloads use `fetch_rss_feed_url` in code, which applies urllib3 retries with exponential backoff (stronger defaults than transcript/media `fetch_url`). Not separately configurable via environment variables.
+- **Also used for Issue #522**: When `rss_conditional_get` is enabled and `rss_cache_dir` is not set in config, the same env var supplies the base path for ETag / Last-Modified validators and cached RSS bodies (see [Download Resilience](#download-resilience)). You can point both layers at one directory or set `rss_cache_dir` in YAML to split them.
+
+#### Download resilience environment variables (`PODCAST_SCRAPER_*`, optional)
+
+When a key is **omitted** from the config file and not passed programmatically, these environment variables populate the corresponding `Config` fields (same precedence as `WORKERS` / `TIMEOUT`: config file still wins if the field is set).
+
+| Environment variable | Config field | Notes |
+| -------------------- | ------------ | ----- |
+| `PODCAST_SCRAPER_HTTP_RETRY_TOTAL` | `http_retry_total` | Integer 0--20 |
+| `PODCAST_SCRAPER_HTTP_BACKOFF_FACTOR` | `http_backoff_factor` | Float 0--10 |
+| `PODCAST_SCRAPER_RSS_RETRY_TOTAL` | `rss_retry_total` | Integer 0--20 |
+| `PODCAST_SCRAPER_RSS_BACKOFF_FACTOR` | `rss_backoff_factor` | Float 0--10 |
+| `PODCAST_SCRAPER_EPISODE_RETRY_MAX` | `episode_retry_max` | Integer 0--10 |
+| `PODCAST_SCRAPER_EPISODE_RETRY_DELAY_SEC` | `episode_retry_delay_sec` | Float 0--120 |
+| `PODCAST_SCRAPER_HOST_REQUEST_INTERVAL_MS` | `host_request_interval_ms` | Integer 0--600000 |
+| `PODCAST_SCRAPER_HOST_MAX_CONCURRENT` | `host_max_concurrent` | Integer 0--64 |
+| `PODCAST_SCRAPER_CIRCUIT_BREAKER_ENABLED` | `circuit_breaker_enabled` | `1` / `true` / `yes` / `on` or `0` / `false` / `no` / `off` |
+| `PODCAST_SCRAPER_CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `circuit_breaker_failure_threshold` | Integer 1--100 |
+| `PODCAST_SCRAPER_CIRCUIT_BREAKER_WINDOW_SECONDS` | `circuit_breaker_window_seconds` | Integer 1--86400 |
+| `PODCAST_SCRAPER_CIRCUIT_BREAKER_COOLDOWN_SECONDS` | `circuit_breaker_cooldown_seconds` | Integer 1--86400 |
+| `PODCAST_SCRAPER_CIRCUIT_BREAKER_SCOPE` | `circuit_breaker_scope` | `feed` or `host` (case-insensitive) |
+| `PODCAST_SCRAPER_RSS_CONDITIONAL_GET` | `rss_conditional_get` | Boolean strings as above |
+| `PODCAST_SCRAPER_RSS_CACHE_DIR` | `rss_cache_dir` | Path string (also see RSS feed cache section above) |
+
+**Process-level override (not a `Config` field):** `PODCAST_SCRAPER_RSS_SKIP_CONDITIONAL` — if set to `1`, `true`, `yes`, or `on`, the pipeline disables RSS conditional GET for that process even when config enables it. Use for one-shot debugging when you suspect a bad **304 Not Modified** or stale validators; remove the variable for normal runs.
+
+**Embedders:** After changing retry settings in-process, call `podcast_scraper.rss.downloader.reset_http_sessions()` so new `requests` sessions pick up adapters (see threading note below).
+
+#### Download Resilience
+
+The pipeline ships with resilient defaults for downloading thousands of episodes across feeds without manual intervention. Retry parameters and optional **fair HTTP** knobs (Issue #522) are configurable via config file fields or CLI flags ([CLI.md — Control Options](CLI.md#control-options)). Checked-in examples: `config/examples/config.example.download-resilience.yaml` (tuning + fast-fail comments), `config/examples/config.example.download-resilience.polite.yaml` (recommended polite preset). Defaults are active even if you set nothing.
+
+**Note:** [ADR-028](../adr/ADR-028-unified-retry-policy-with-metrics.md) covers **LLM/API provider** retries and call metrics (`retry_with_metrics`, etc.), not RSS/media **HTTP** retries. Download-layer retries are the `http_*`, `rss_*`, and `episode_*` fields in this section; fair-HTTP fields are optional (`host_*`, `circuit_breaker_*`, `rss_conditional_get`, `rss_cache_dir`). `metrics.json` records `http_urllib3_retry_events`, episode-level retry counters, and Issue #522 policy counters ([Experiment Guide -- Pipeline run metrics](../guides/EXPERIMENT_GUIDE.md#pipeline-run-metrics-download-resilience); run layout in [PIPELINE_AND_WORKFLOW -- Run tracking](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429)).
+
+**HTTP-level retry (urllib3 adapters)**
+
+| Field | Type | Default | Range | Description |
+| ----- | ---- | ------- | ----- | ----------- |
+| `http_retry_total` | int | `8` | 0--20 | Max urllib3 retries for media/transcript downloads. RSS feeds use `rss_retry_total`. |
+| `http_backoff_factor` | float | `1.0` | 0.0--10.0 | Exponential backoff factor. Delay = factor x 2^(attempt-1) (1 s, 2 s, 4 s, 8 s ...). |
+| `rss_retry_total` | int | `10` | 0--20 | Max urllib3 retries for RSS feed fetches (more patient than media, since the feed is critical). |
+| `rss_backoff_factor` | float | `2.0` | 0.0--10.0 | Backoff factor for RSS retries (gentler than media to avoid hammering rate-limited feed hosts). |
+
+**Application-level episode retry**
+
+After all urllib3 retries are exhausted for a single HTTP request, the pipeline can retry the entire episode processing flow (download + save) on transient network errors (connection resets, timeouts, HTTP 429/5xx).
+
+| Field | Type | Default | Range | Description |
+| ----- | ---- | ------- | ----- | ----------- |
+| `episode_retry_max` | int | `1` | 0--10 | Application-level retries per episode. Set to `0` to disable. Only retries on transient network errors. |
+| `episode_retry_delay_sec` | float | `10.0` | 0.0--120.0 | Initial delay in seconds between episode-level retries. Uses exponential backoff. |
+
+**Fair HTTP usage (Issue #522, optional)**
+
+These fields default to off or conservative values. They apply at pipeline start via `configure_http_policy` (alongside `configure_downloader`). urllib3 still honors `Retry-After` on retried responses; the app also records `Retry-After` into a per-host wait used before new requests when policy is enabled.
+
+| Field | Type | Default | Range | Description |
+| ----- | ---- | ------- | ----- | ----------- |
+| `host_request_interval_ms` | int | `0` | 0--600000 | Minimum milliseconds between requests to the same host (`0` = off). |
+| `host_max_concurrent` | int | `0` | 0--64 | Max concurrent in-flight downloads per host (`0` = unlimited). |
+| `circuit_breaker_enabled` | bool | `false` | — | Enable rolling-window circuit breaker for HTTP. |
+| `circuit_breaker_failure_threshold` | int | `5` | 1--100 | Failures in the window before opening the circuit (401, 403, 429, 5xx, connection errors). |
+| `circuit_breaker_window_seconds` | int | `60` | 1--86400 | Rolling window for failure counts. |
+| `circuit_breaker_cooldown_seconds` | int | `120` | 1--86400 | Cooldown while open before a probe request. |
+| `circuit_breaker_scope` | string | `feed` | `feed` or `host` | `feed`: key is the RSS URL; `host`: key is the request host. |
+| `rss_conditional_get` | bool | `false` | — | Send `If-None-Match` / `If-Modified-Since` on RSS GET; handle `304` using cached body. |
+| `rss_cache_dir` | string | (see below) | — | Directory for validators and cached RSS body. Default: `PODCAST_SCRAPER_RSS_CACHE_DIR` if set, else `~/.cache/podcast_scraper/rss`. |
+
+**`delay_ms` vs per-host pacing:** `delay_ms` adds a sleep **between episodes** in the workflow (coarse, feed-level politeness). `host_request_interval_ms` (Issue #522) spaces requests **per host** around each gated HTTP call. They are independent; use both only if you intend layered pacing.
+
+**Troubleshooting (RSS conditional GET):** If the feed looks stale but HTTP keeps returning **304**, clear the conditional cache directory for that feed (hashed filenames under `rss_cache_dir`) or run once with `PODCAST_SCRAPER_RSS_SKIP_CONDITIONAL=1`. If the cache directory is not creatable or not writable, the run continues with **full RSS GETs** (no validators) and logs a warning.
+
+**Failure summary in run.json**
+
+When episodes fail, `run.json` includes a `failure_summary` section aggregating failures by error type, with counts and the list of failed episode IDs. This makes it easy to triage partial failures after large batch runs.
+
+**Threading, sessions, and metrics**
+
+- **`configure_downloader`** and **`configure_http_policy`** run once at the start of each CLI / `run_pipeline` / `service.run` invocation. They update the retry policy and optional per-host throttling / circuit breaker / RSS conditional cache for **new** work on each thread. Sessions that already exist on a worker thread **keep** their previous adapter until that thread builds a fresh session (documented in `configure_downloader` in code). Typical pipeline use configures before workers download, so workers pick up the intended policy.
+- **`http_urllib3_retry_events` in `metrics.json`** is a **process-wide** counter, reset at the start of each run when the downloader is configured. Do **not** run two **`run_pipeline()`** calls **at the same time** in one process if you need that field to belong to a single logical run; use **separate processes** instead. Episode-level retry counters on the same `Metrics` instance are scoped to one pipeline run but would still be misleading if two pipelines shared one collector (not how `run_pipeline` is used).
+
+**Example (resilient defaults, no config needed)**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+max_episodes: 500
+```
+
+The defaults above give each HTTP request up to 8 retries with exponential backoff, plus one full episode-level retry on transient errors. For most feeds this is sufficient.
+
+**Example (aggressive retry for very flaky networks)**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+http_retry_total: 12
+http_backoff_factor: 2.0
+rss_retry_total: 15
+rss_backoff_factor: 3.0
+episode_retry_max: 3
+episode_retry_delay_sec: 30.0
+```
+
+**Example (minimal retry for fast CI runs)**
+
+```yaml
+rss: https://feeds.example.com/podcast.xml
+output_dir: ./my_corpus
+http_retry_total: 1
+http_backoff_factor: 0.0
+rss_retry_total: 1
+rss_backoff_factor: 0.0
+episode_retry_max: 0
+```
+
+##### Recommended presets (download resilience)
+
+Use one of these patterns unless you have a specific reason to tune further:
+
+| Preset | When to use | Where to start |
+| ------ | ----------- | -------------- |
+| **Shipped defaults** | Normal batch runs; most feeds and home networks | Omit all `http_*`, `rss_*`, `episode_*`, and Issue #522 fields. No config file changes required. |
+| **Polite HTTP (Issue #522)** | High `workers`, many episodes from one CDN, or multi-feed corpora where the same host sees RSS + media traffic | Merge `config/examples/config.example.download-resilience.polite.yaml` into your YAML (or copy its keys). |
+| **Fast fail** | CI, smoke tests, or debugging where you want errors quickly | Use the minimal-retry example above or the commented block in `config/examples/config.example.download-resilience.yaml`. |
+
+Full field reference and semantics for retries and fair HTTP are in the tables earlier in this section. Example snippets (including aggressive retry for flaky networks) stay in this document; the `config/examples/` files are meant to be copied and edited.
+
+##### CLI vs configuration parity (download resilience)
+
+Every download-resilience field can be set in YAML/JSON config. CLI flags override merged config when you pass them (see [CLI.md — Control Options](CLI.md#control-options)). Field-to-flag mapping:
+
+| Config field | CLI flag |
+| ------------ | -------- |
+| `http_retry_total` | `--http-retry-total` |
+| `http_backoff_factor` | `--http-backoff-factor` |
+| `rss_retry_total` | `--rss-retry-total` |
+| `rss_backoff_factor` | `--rss-backoff-factor` |
+| `episode_retry_max` | `--episode-retry-max` |
+| `episode_retry_delay_sec` | `--episode-retry-delay-sec` |
+| `host_request_interval_ms` | `--host-request-interval-ms` |
+| `host_max_concurrent` | `--host-max-concurrent` |
+| `circuit_breaker_enabled` | `--circuit-breaker` / `--no-circuit-breaker` |
+| `circuit_breaker_failure_threshold` | `--circuit-breaker-failure-threshold` |
+| `circuit_breaker_window_seconds` | `--circuit-breaker-window-seconds` |
+| `circuit_breaker_cooldown_seconds` | `--circuit-breaker-cooldown-seconds` |
+| `circuit_breaker_scope` | `--circuit-breaker-scope` |
+| `rss_conditional_get` | `--rss-conditional-get` / `--no-rss-conditional-get` |
+| `rss_cache_dir` | `--rss-cache-dir` |
+
+**Booleans from the CLI:** `--circuit-breaker` / `--rss-conditional-get` enable; `--no-circuit-breaker` / `--no-rss-conditional-get` disable. Each pair is mutually exclusive on one command line. You can still force **off** via YAML (`circuit_breaker_enabled: false`, etc.) without passing CLI flags.
+
+**Programmatic**
+
+```python
+from podcast_scraper import Config
+
+cfg = Config(
+    rss_url="https://feeds.example.com/podcast.xml",
+    output_dir="./my_corpus",
+    http_retry_total=12,
+    episode_retry_max=2,
+    episode_retry_delay_sec=15.0,
+)
+```
 
 #### LLM cost estimate assumptions (optional YAML)
 
@@ -745,6 +917,8 @@ This reduces LLM API calls by 70-90% while maintaining high quality.
 | Field | CLI Flag | Default | Description |
 | ------- | ---------- | --------- | ------------- |
 | `transcript_cleaning_strategy` | `--transcript-cleaning-strategy` | `hybrid` | Cleaning strategy: `pattern`, `llm`, or `hybrid` (applies to LLM + `hybrid_ml` summarization providers). Pair with `hybrid_internal_preprocessing_after_pattern` under [Hybrid ML](#hybrid-ml-map-reduce-configuration) when using **`hybrid_ml`** + **`pattern`**. |
+| `llm_pipeline_mode` | N/A | `staged` | Issue #477: `staged` = separate semantic clean + summarize; `bundled` = one structured completion when the provider implements `summarize_bundled` (OpenAI, Anthropic, Gemini), with automatic fallback to staged on failure. Config file only unless wired via CLI later. |
+| `llm_bundled_max_output_tokens` | N/A | `16384` | Max completion tokens for bundled clean+summary+bullets (large default because JSON includes full `cleaned_text`). Config file only. |
 | `openai_cleaning_model` | `--openai-cleaning-model` | `gpt-4o-mini` | OpenAI model for cleaning (cheaper than summary model) |
 | `openai_cleaning_temperature` | `--openai-cleaning-temperature` | `0.2` | Temperature for OpenAI cleaning (lower = more deterministic) |
 | `gemini_cleaning_model` | `--gemini-cleaning-model` | `gemini-1.5-flash` | Gemini model for cleaning (cheaper than summary model) |
@@ -890,6 +1064,7 @@ If either is set to an LLM (e.g. openai, anthropic), the corresponding API key m
 | Field | CLI Flag | Default | Description |
 | ----- | -------- | ------- | ----------- |
 | `monitor` | `--monitor` | `false` | Spawn a subprocess that shows live **RSS**, **CPU%**, and pipeline **stage** (reads/writes **`.pipeline_status.json`** under the effective output directory). Uses **psutil** + **rich** (core deps). See [Live Pipeline Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) and [RFC-065](../rfc/RFC-065-live-pipeline-monitor.md). |
+| *(environment)* | — | — | **`PODCAST_SCRAPER_MONITOR_FILE_LOG`**: when set to a truthy value (`1`, `true`, `yes`), the monitor subprocess **always** appends ticks to **`.monitor.log`** instead of using **`rich.Live`** on stderr, even when stderr is a TTY. **`freeze_profile.py`** sets this for the measured run when the monitor is enabled so **`.monitor.log`** can be archived next to frozen profiles. |
 | `memray` | `--memray` | `false` | Re-exec the CLI or service under **memray** for heap profiling (optional extra **`.[monitor]`**). Sets **`PODCAST_SCRAPER_MEMRAY_ACTIVE=1`** in the child to avoid re-exec loops. |
 | `memray_output` | `--memray-output` | *(derived)* | Memray capture **`.bin`** path. Default: **`<output_dir>/debug/memray_<timestamp>.bin`**, or **`./debug/...`** when `output_dir` is unset (service: cwd-based default). |
 
@@ -1223,6 +1398,8 @@ else:
 
 ## RSS and multi-feed corpus (GitHub #440)
 
+**Conceptual overview** (fetch, parse, selection, multi-feed layout): [RSS and feed ingestion guide](../guides/RSS_GUIDE.md).
+
 You can target **one** feed with `rss` (string) or **multiple** feeds with **`feeds`** or **`rss_urls`** (YAML list of URL strings). Both list keys normalize to the same internal field (`rss_urls`).
 
 **Rules:**
@@ -1271,11 +1448,58 @@ cfg = Config(
 )
 ```
 
-See [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
+See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
 
 - `config/examples/config.example.multi-feed.yaml` / `config/examples/config.example.multi-feed.json` (generic placeholder feeds; same provider mix as `config.example.*`)
 - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
 - `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
+
+<a id="episode-selection-github-521"></a>
+
+## Episode selection (GitHub #521)
+
+Large feeds often list hundreds or thousands of `<item>` elements. Episode selection controls **which items become `Episode` objects** before download and transcription. All steps apply **per feed** (multi-feed runs use the same `Config` fields for each inner pipeline). Where this runs in the scraping stage: [RSS and feed ingestion guide](../guides/RSS_GUIDE.md#episode-selection-order-window-offset-cap).
+
+### Processing order
+
+1. **`episode_order`**: `newest` (default) keeps RSS document order; `oldest` reverses the item list so the tail of the feed is processed first.
+2. **Date filter** (optional): If **`episode_since`** and/or **`episode_until`** are set, items are kept only when their parsed **`pubDate`** falls on an inclusive calendar-day range. Timezone-aware timestamps are converted to **UTC** before taking the calendar date. Items **without** a parseable `pubDate` are **still kept**; the pipeline logs one **warning** with how many items had no date.
+3. **`episode_offset`**: Skip this many items from the start of the list produced by steps 1–2 (non-negative integer, default `0`).
+4. **`max_episodes`**: Keep at most this many items (same semantics as before; `None` means no limit at this step).
+
+CLI flags: **`--episode-order`**, **`--episode-offset`**, **`--since`**, **`--until`** (dates as `YYYY-MM-DD`). See [CLI.md — Basic Options](CLI.md#common-options).
+
+### Config fields (YAML / JSON / `Config(...)`)
+
+| Field | Type | Default | Purpose |
+| ----- | ---- | ------- | ------- |
+| `episode_order` | `newest` or `oldest` | `newest` | Item order before date filter and offset |
+| `episode_offset` | integer | `0` | Skip N items after order and date filter |
+| `episode_since` | date or `YYYY-MM-DD` string | omitted / `null` | Inclusive lower bound on publication date |
+| `episode_until` | date or `YYYY-MM-DD` string | omitted / `null` | Inclusive upper bound on publication date |
+
+Validation: when both date bounds are set, **`episode_since`** must be on or before **`episode_until`**. **`episode_offset`** must be non-negative.
+
+### Staged back-catalog with append
+
+Combine **`episode_order: oldest`**, **`max_episodes`**, and **`append: true`** ([Append / resume](#append-resume-github-444)) to ingest a long history in batches: each run only considers the configured slice, while append skips episodes that already have valid artifacts on disk.
+
+### Python example
+
+```python
+from datetime import date
+
+from podcast_scraper import Config
+
+cfg = Config(
+    rss_url="https://example.com/feed.xml",
+    episode_order="oldest",
+    episode_offset=0,
+    max_episodes=100,
+    episode_since=date(2022, 1, 1),
+    episode_until=date(2022, 12, 31),
+)
+```
 
 <a id="append-resume-github-444"></a>
 
@@ -1317,6 +1541,10 @@ If the process exits before **finalize** (e.g. crash), **`index.json`** may lag 
   "rss": "https://example.com/feed.xml",
   "output_dir": "./transcripts",
   "max_episodes": 50,
+  "episode_order": "newest",
+  "episode_offset": 0,
+  "episode_since": null,
+  "episode_until": null,
   "transcribe_missing": true,
   "whisper_model": "base",
   "workers": 8,
@@ -1328,7 +1556,11 @@ If the process exits before **finalize** (e.g. crash), **`index.json`** may lag 
   "summary_chunk_parallelism": 1,
   "preload_models": true,
   "preprocessing_enabled": true,
-  "preprocessing_sample_rate": 16000
+  "preprocessing_sample_rate": 16000,
+  "http_retry_total": 8,
+  "http_backoff_factor": 1.0,
+  "episode_retry_max": 1,
+  "episode_retry_delay_sec": 10.0
 }
 ```
 
@@ -1336,6 +1568,10 @@ If the process exits before **finalize** (e.g. crash), **`index.json`** may lag 
 
 ```yaml
 max_episodes: 50
+# episode_order: newest  # or oldest (GitHub #521)
+# episode_offset: 0
+# episode_since: "2024-01-01"
+# episode_until: "2024-12-31"
 transcribe_missing: true
 whisper_model: base
 workers: 8
@@ -1347,6 +1583,18 @@ summary_batch_size: 1  # Episode-level parallelism
 summary_chunk_parallelism: 1  # Chunk-level parallelism
 preprocessing_enabled: true  # Enable audio preprocessing
 preprocessing_sample_rate: 16000  # Target sample rate
+# Download resilience (defaults shown; omit to use these values)
+# http_retry_total: 8
+# http_backoff_factor: 1.0
+# rss_retry_total: 10
+# rss_backoff_factor: 2.0
+# episode_retry_max: 1
+# episode_retry_delay_sec: 10.0
+# Fair HTTP (Issue #522; optional)
+# host_request_interval_ms: 0
+# host_max_concurrent: 0
+# circuit_breaker_enabled: false
+# rss_conditional_get: false
 ```
 
 ## Aliases and Normalization

@@ -1,4 +1,4 @@
-# ADR-020: Standardized Test Pyramid
+# ADR-019: Standardized Test Pyramid
 
 - **Status**: Accepted
 - **Date**: 2026-01-11

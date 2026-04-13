@@ -6,9 +6,10 @@ This index is the single entry point for understanding *how* we measure summariz
 quality and *why* each metric was chosen. Individual reports (linked below) contain the
 raw numbers; this page gives you the context to interpret them.
 
-For the full metric catalog (intrinsic gates, length, cost, performance) see the
-[Metrics Guide](../METRICS_GUIDE.md). This page focuses on the **vs-reference**
-comparison metrics used across provider evaluation reports.
+For the full metric catalog (intrinsic gates, length, cost, performance)
+see the [Experiment Guide](../EXPERIMENT_GUIDE.md) (Step 4: Evaluate
+Results). This page focuses on the **vs-reference** comparison metrics
+used across provider evaluation reports.
 
 ---
 
@@ -216,7 +217,7 @@ never modified after creation — new measurements get a new report file.
 
 - [Performance reports](../performance-reports/index.md) — frozen **resource** profiles
   (RFC-064); complementary to quality evaluation here
-- [Metrics Guide](../METRICS_GUIDE.md) — full metric catalog (intrinsic + vs-reference)
+- [Experiment Guide](../EXPERIMENT_GUIDE.md) -- full metric catalog (intrinsic + vs-reference)
 - [Experiment Guide](../EXPERIMENT_GUIDE.md) — how to run experiments end-to-end
 - [AI Provider Comparison Guide](../AI_PROVIDER_COMPARISON_GUIDE.md) — decision guide
   with conclusions from these reports

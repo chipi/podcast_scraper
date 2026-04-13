@@ -88,16 +88,16 @@ See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*)
 @pytest.mark.slow              # Tests that take >5s
 @pytest.mark.integration       # Tests that use multiple modules
 @pytest.mark.e2e              # End-to-end tests with full workflow
-@pytest.mark.ml_models        # Tests that load ML models
+@pytest.mark.ml_models        # Tests that load real ML models (E2E only)
 @pytest.mark.critical_path    # Fast tests that run on PRs
 ```
 
 ### Marker Combinations
 
 ```python
-# Slow integration test with ML models
+# E2E test with real ML models
+@pytest.mark.e2e
 @pytest.mark.slow
-@pytest.mark.integration
 @pytest.mark.ml_models
 def test_whisper_transcription():
     pass
@@ -108,6 +108,10 @@ def test_whisper_transcription():
 def test_workflow_download_only():
     pass
 ```
+
+**`@pytest.mark.ml_models` belongs on E2E tests only.** Integration tests must
+mock all ML/AI boundaries (torch, transformers, spaCy, Whisper, OpenAI, etc.).
+If a test loads a real ML model or calls a real AI API, it is an E2E test.
 
 ## Test Structure
 
@@ -131,14 +135,16 @@ def test_sanitize():
 
 ### Unit tests and `pyproject` extras (mandatory for authors)
 
-- **`tests/unit/`** must **not** require **`[ml]`**, **`[llm]`**, or **`[compare]`** — mock, stub
-  `sys.modules`, or move to **`tests/integration/`**.
-- **`[dev]`** is the baseline (see `pyproject.toml`); **`check_unit_test_imports.py`** guards ML
-  import-time issues (it does not install **`[server]`**).
-- **Viewer / FastAPI:** CI **`test-unit`** installs **`pip install -e .[dev]`** only. Module-level
-  **`pytest.importorskip("fastapi")`** skips viewer HTTP tests without **`[server]`**; install
-  **`.[server]`** locally to run them. Avoid real FAISS / torch / spacy in unit tests — use patches
-  (see `docs/guides/UNIT_TESTING_GUIDE.md` § *Pyproject extras*).
+- **`tests/unit/`** must **only** depend on **`[dev]`** — never on **`[ml]`**, **`[llm]`**,
+  **`[compare]`**, or **`[server]`**. If a test needs any non-`[dev]` extra (FastAPI, torch,
+  spaCy, httpx, faiss, etc.), it belongs in **`tests/integration/`**, not `tests/unit/`.
+- **Do not use `pytest.importorskip()` in `tests/unit/`** to paper over missing extras.
+  `importorskip` causes the test to be silently skipped in CI (which only installs `.[dev]`),
+  meaning it never actually runs. Move the test to `tests/integration/` instead.
+- **`[dev]`** is the CI baseline (see `pyproject.toml`); **`check_unit_test_imports.py`** guards
+  ML import-time issues.
+- **Viewer / FastAPI tests** belong in **`tests/integration/server/`** where CI installs
+  `.[dev,ml,llm,server]`. Use `pytest.importorskip("fastapi")` there (not in `tests/unit/`).
 - **Local CI parity:** **`make venv-dev-init`** + **`make test-unit-dev-venv`** uses a separate
   **`.venv-dev`** (`.[dev]` only) so you do not strip extras from the main **`.venv`**.
 
@@ -167,6 +173,49 @@ tests/
 ```
 
 See `docs/guides/INTEGRATION_TESTING_GUIDE.md` § Directory Organization for details.
+
+## ML/AI boundary policy (3-tier)
+
+| Layer | ML models (Whisper, spaCy, transformers) | AI APIs (OpenAI, Gemini, Ollama, etc.) |
+|-------|------------------------------------------|----------------------------------------|
+| **Unit** | Always mocked | Always mocked |
+| **Integration** | Always mocked | Always mocked |
+| **E2E** | Real (the only place) | Real or E2E server mocks |
+
+**If a test loads a real ML model or calls a real AI API, it is E2E -- not integration.**
+`@pytest.mark.ml_models` belongs on E2E tests only. Integration tests verify how
+*our* components wire together; the ML/AI boundary is always a mock or stub there.
+
+## CI skips are bugs, not features
+
+- **Do not add `skipIf`, `importorskip`, or `skipTest` that would cause a test to be
+  silently skipped on CI.** A test that never runs on CI is worse than no test.
+- If you see a skipped test in CI output, investigate why -- do not treat it as normal.
+- If a test cannot run on CI (missing system binary, optional feature), document why
+  in the skip reason and verify it runs in at least one CI job.
+- **`tests/unit/`**: zero skips expected on CI `test-unit` (`.[dev]` only).
+- **`tests/integration/`**: zero skips expected on CI integration jobs (`.[dev,ml,llm,server]`).
+
+## Automated policy enforcement
+
+Two scripts guard the testing policy in CI (`ci` and `ci-fast` targets):
+
+| Script | Make target | What it checks |
+|--------|-------------|----------------|
+| `scripts/tools/check_unit_test_imports.py` | `make check-unit-imports` | Library modules import without ML deps at import time |
+| `scripts/tools/check_test_policy.py` | `make check-test-policy` | 3-tier ML/AI boundary rules (see below) |
+
+**`check_test_policy.py` rules:**
+
+| Rule ID | Scope | Violation |
+|---------|-------|-----------|
+| U1-importorskip | `tests/unit/` | `pytest.importorskip()` -- move test to `integration/` or mock |
+| U2-available-guard | `tests/unit/` | `*_AVAILABLE` skip guards (e.g. `SUMMARIZER_AVAILABLE`) -- mock instead |
+| I1-ml-models-marker | `tests/integration/` | `@pytest.mark.ml_models` -- real ML belongs in `tests/e2e/` only |
+| G1-empty-test-file | all `tests/` | Zero `test_` methods -- delete or add tests |
+
+Run `make check-test-policy` locally before committing test changes. Both scripts run
+automatically as part of `make ci` and `make ci-fast`.
 
 ## Mocking Requirements
 

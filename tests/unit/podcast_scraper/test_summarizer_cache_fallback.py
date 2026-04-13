@@ -8,7 +8,6 @@ in summarizer.py (SummaryModel.__init__, get_cache_size, prune_cache).
 import os
 import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -19,22 +18,13 @@ PROJECT_ROOT = os.path.dirname(PACKAGE_ROOT)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# Try to import summarizer and config, skip tests if dependencies not available
-try:
-    from podcast_scraper import config, summarizer
-
-    SUMMARIZER_AVAILABLE = True
-except ImportError:
-    SUMMARIZER_AVAILABLE = False
-    summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
-    config = types.ModuleType("config")  # type: ignore[assignment]
-
 import pytest
+
+from podcast_scraper import config, summarizer
 
 pytestmark = [pytest.mark.unit, pytest.mark.module_summarization]
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummaryModelCacheFallback(unittest.TestCase):
     """Tests for SummaryModel cache fallback when cache_utils import fails."""
 
@@ -92,7 +82,6 @@ class TestSummaryModelCacheFallback(unittest.TestCase):
                 self.assertEqual(model.cache_dir, tmp_dir)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestGetCacheSizeFallback(unittest.TestCase):
     """Tests for get_cache_size cache fallback when cache_utils import fails."""
 
@@ -142,7 +131,6 @@ class TestGetCacheSizeFallback(unittest.TestCase):
                 self.assertGreater(size, 0)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestPruneCacheFallback(unittest.TestCase):
     """Tests for prune_cache cache fallback when cache_utils import fails."""
 
@@ -213,7 +201,6 @@ class TestPruneCacheFallback(unittest.TestCase):
             self.assertIn("outside safe locations", str(ctx.exception))
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestCacheFallbackPaths(unittest.TestCase):
     """Direct tests for cache fallback code paths."""
 

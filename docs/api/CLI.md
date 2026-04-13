@@ -40,14 +40,22 @@ python -m podcast_scraper.cli --config config.yaml
         - version_option
       show_source: false
 
+<a id="common-options"></a>
+
 ## Common Options
 
 ### Basic Options
 
 - `RSS_URL` - RSS feed URL (required if not using `--config`)
 - `--output-dir PATH` - Output directory
-- `--max-episodes N` - Maximum episodes to process
+- `--max-episodes N` - Maximum episodes to process after other episode-selection steps
+- `--episode-order {newest,oldest}` - Feed item order before date filter and offset (`newest` = XML document order, default; `oldest` = reversed). GitHub #521.
+- `--episode-offset N` - Skip this many items after order and optional date filter (non-negative integer, default `0`). GitHub #521.
+- `--since YYYY-MM-DD` - Keep items whose `pubDate` maps to a calendar date on or after this day (inclusive). GitHub #521.
+- `--until YYYY-MM-DD` - Keep items whose `pubDate` maps to a calendar date on or before this day (inclusive). GitHub #521.
 - `--workers N` - Number of concurrent download workers
+
+Selection order: **`--episode-order`** → optional **`--since` / `--until`** → **`--episode-offset`** → **`--max-episodes`**. Items without a parseable `pubDate` are **kept** when date filters are set; the run logs a warning with a count. See [CONFIGURATION.md — Episode selection](CONFIGURATION.md#episode-selection-github-521).
 
 <a id="rss-and-multi-feed"></a>
 
@@ -204,6 +212,26 @@ See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarizatio
 - `--clean-output` - Remove output directory before processing
 - `--fail-fast` - Stop on first episode failure (Issue #379)
 - `--max-failures N` - Stop after N episode failures (Issue #379)
+- `--http-retry-total N` - Max urllib3 retries per media/transcript HTTP request (0-20)
+- `--http-backoff-factor F` - Exponential backoff factor for those retries (0.0-10.0)
+- `--rss-retry-total N` - Max urllib3 retries per RSS feed fetch (0-20)
+- `--rss-backoff-factor F` - Backoff factor for RSS retries (0.0-10.0)
+- `--episode-retry-max N` - Application-level retries per episode after urllib3 exhaustion (0-10; `0` disables)
+- `--episode-retry-delay-sec SEC` - Initial seconds between episode-level retries (0.0-120.0)
+- `--host-request-interval-ms MS` - Minimum milliseconds between requests to the same host (0-600000; `0` = off; Issue #522)
+- `--host-max-concurrent N` - Max concurrent downloads per host (0-64; `0` = unlimited; Issue #522)
+- `--circuit-breaker` / `--no-circuit-breaker` - Enable or disable HTTP circuit breaker (Issue #522; mutually exclusive)
+- `--circuit-breaker-failure-threshold N` - Failures in rolling window before open (1-100)
+- `--circuit-breaker-window-seconds SEC` - Rolling window (1-86400)
+- `--circuit-breaker-cooldown-seconds SEC` - Cooldown while open (1-86400)
+- `--circuit-breaker-scope {feed,host}` - Breaker key: RSS URL vs request host
+- `--rss-conditional-get` / `--no-rss-conditional-get` - Enable or disable RSS conditional GET (Issue #522; mutually exclusive)
+- `--rss-cache-dir DIR` - Directory for RSS conditional validators/body cache
+
+Defaults, semantics, recommended presets, and full config/CLI parity:
+[CONFIGURATION.md — Download resilience](CONFIGURATION.md#download-resilience).
+Examples: `config/examples/config.example.download-resilience.yaml`,
+`config/examples/config.example.download-resilience.polite.yaml`.
 
 ### Logging Options
 
@@ -384,6 +412,16 @@ python -m podcast_scraper.cli https://example.com/feed.xml
 
 # Limit to 10 episodes
 python -m podcast_scraper.cli https://example.com/feed.xml --max-episodes 10
+
+# Oldest-first batching (e.g. back-catalog): process 50 oldest items in the feed
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --episode-order oldest \
+  --max-episodes 50
+
+# Publish-date window (calendar days; timezone-aware pubDate uses UTC date)
+python -m podcast_scraper.cli https://example.com/feed.xml \
+  --since 2024-01-01 \
+  --until 2024-12-31
 ```
 
 ### Advanced Usage

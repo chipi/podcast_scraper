@@ -1,36 +1,45 @@
-# RFC-061: Semantic Corpus Search
+# RFC-061: Semantic Corpus Search (FAISS — Shipped)
 
-- **Status**: Completed (Phase 1 implemented; Qdrant Phase 2 pending)
+- **Status**: Completed (v2.6.0) — **`FaissVectorStore`**, embed-and-index stage, **`podcast search`** /
+  **`podcast index`**, semantic **`gi explore --topic`** when an index exists, **`VectorStore`**
+  protocol ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)). **Deferred /
+  platform follow-ups** (Qdrant, pgvector, re-ranking, digest-vector fusion) live in
+  **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**.
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team, GIL/KG consumers, downstream API/digest users
 - **Related PRDs**:
-  - `docs/prd/PRD-021-semantic-corpus-search.md` (product requirements)
-  - `docs/prd/PRD-017-grounded-insight-layer.md` (GIL — primary indexed content)
-  - `docs/prd/PRD-019-knowledge-graph-layer.md` (KG — secondary indexed content)
+  - [PRD-021: Semantic Corpus Search](../prd/PRD-021-semantic-corpus-search.md)
+  - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md)
+  - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
 - **Related RFCs**:
-  - `docs/rfc/RFC-049-grounded-insight-layer-core.md` (GIL artifacts)
-  - `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md` (UC4/UC5 — semantic QA, Insight Explorer)
-  - `docs/rfc/RFC-051-database-projection-gil-kg.md` (complementary SQL serving)
-  - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` (KG artifacts)
-  - `docs/rfc/RFC-056-knowledge-graph-layer-use-cases.md` (KG use cases — entity/topic roll-ups)
+  - [RFC-070: Semantic corpus search — platform & future](RFC-070-semantic-corpus-search-platform-future.md) —
+    Qdrant, scale, hybrid quality (Draft)
+  - [RFC-049: GIL core](RFC-049-grounded-insight-layer-core.md)
+  - [RFC-050: GIL use cases](RFC-050-grounded-insight-layer-use-cases.md)
+  - [RFC-051: Database projection](RFC-051-database-projection-gil-kg.md)
+  - [RFC-055: KG core](RFC-055-knowledge-graph-layer-core.md)
+  - [RFC-056: KG use cases](RFC-056-knowledge-graph-layer-use-cases.md)
 - **Related Documents**:
-  - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
-  - `docs/architecture/gi/ontology.md` — GIL ontology (node types, text fields)
+  - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466)
+  - [GIL ontology](../architecture/gi/ontology.md)
+  - [Semantic search guide](../guides/SEMANTIC_SEARCH_GUIDE.md)
+- **Updated**: 2026-04-11 (split deferred scope to RFC-070)
 
 ## Abstract
 
-This RFC defines the technical design for **Semantic Corpus Search**: a vector index over
-GIL insights, quotes, summary bullets, and transcript chunks that enables meaning-based
-retrieval across the podcast corpus. The design introduces a `VectorStore` protocol with
-a FAISS implementation for CLI/local use (Phase 1) and a Qdrant implementation for
-platform/service mode (Phase 2). Search results preserve full GIL provenance — grounding
-status, supporting quotes, timestamps, and transcript references.
+This RFC defines the **shipped** technical design for **Semantic Corpus Search (Phase 1)**:
+a vector index over GIL insights, quotes, summary bullets, transcript chunks, and (when
+enabled) KG surfaces — meaning-based retrieval across the podcast corpus using **FAISS**
+(**`FaissVectorStore`**) and JSON sidecars under **`<output_dir>/search/`**. It introduces the
+**`VectorStore`** protocol so other backends can be added later without changing CLI or HTTP
+callers (**[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)** tracks **Qdrant**, **pgvector**,
+re-ranking, and platform-scale choices). Search results preserve GIL provenance — grounding,
+quotes, timestamps, and transcript references where applicable.
 
-**Architecture Alignment:** This feature is purely additive. It does not change existing
-artifacts (`gi.json`, `kg.json`, summaries, transcripts), pipeline stages, or CLI commands.
-It adds a new optional pipeline stage (embed-and-index), a new CLI command (`podcast search`),
-and transparently upgrades `gi explore` / `gi query` to use semantic matching when an index
-is available.
+**Architecture alignment:** Additive only. No change to **`gi.json`**, **`kg.json`**, summaries, or
+transcript files. Optional pipeline stage (embed-and-index), **`podcast search`** / **`podcast index`**,
+and transparent semantic upgrade for **`gi explore --topic`** when an index is present. FastAPI
+**`/api/search`** (viewer) is a thin wrapper over the same **`VectorStore.search()`** path.
 
 ## Problem Statement
 
@@ -64,8 +73,8 @@ for GIL grounding and eval metrics, not user-facing search.
 
 ## Goals
 
-1. **`VectorStore` protocol**: Clean abstraction supporting FAISS (Phase 1) and Qdrant
-   (Phase 2) behind the same interface
+1. **`VectorStore` protocol**: Backend-agnostic interface; **FAISS implementation shipped** in this
+   RFC; additional backends — **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**
 2. **Embed-and-index pipeline stage**: Produces and maintains a vector index as part of
    the pipeline, incremental by default
 3. **`podcast search` CLI**: Meaning-based corpus queries with filtering and structured output
@@ -94,7 +103,9 @@ for GIL grounding and eval metrics, not user-facing search.
 
 ### 1. VectorStore Protocol
 
-A minimal protocol that both FAISS and Qdrant backends implement:
+A minimal protocol implemented by **`FaissVectorStore`** in v2.6; future backends (e.g. Qdrant)
+must satisfy the same contract (**[ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)**,
+**[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**):
 
 ```python
 from __future__ import annotations
@@ -191,8 +202,8 @@ FAISS has no built-in metadata filtering. Strategy:
 3. Return top `k` from filtered set
 4. If fewer than `k` results after filtering, warn user
 
-This is simple and sufficient for CLI-scale corpora. Qdrant Phase 2 replaces this with
-native payload filtering.
+This is simple and sufficient for CLI-scale corpora. **Native payload filtering** (e.g. Qdrant)
+is out of scope here — see **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**.
 
 ### 3. Transcript Chunker
 
@@ -341,7 +352,7 @@ New fields in `Config` (all optional, search disabled by default):
 
 ```python
 vector_search: bool = False
-vector_backend: Literal["faiss", "qdrant"] = "faiss"
+vector_backend: Literal["faiss", "qdrant"] = "faiss"  # qdrant reserved — RFC-070
 vector_index_path: Optional[str] = None  # auto: <output_dir>/search/
 vector_index_types: list[str] = [
     "insights", "quotes", "summary_bullets", "transcript_chunks"
@@ -355,21 +366,22 @@ CLI flags: `--vector-search`, `--vector-backend`, `--vector-index-path`,
 
 ## Key Decisions
 
-1. **FAISS for Phase 1, Qdrant for Phase 2**
-   - **Decision**: Ship with FAISS; add Qdrant when platform mode ships
-   - **Rationale**: FAISS is in-process, zero server overhead, sufficient for CLI-scale
-     corpora. Qdrant adds native filtering and upserts but requires Docker for production.
-     The `VectorStore` protocol makes the switch transparent.
+1. **FAISS for shipped Phase 1; other backends deferred**
+   - **Decision**: Ship **`FaissVectorStore`** only in v2.6; **`vector_backend: qdrant`** is reserved
+     in config until **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)** implements it.
+   - **Rationale**: FAISS is in-process, no separate service, sufficient for CLI-scale corpora with
+     auto **IVF / IVFPQ** upgrade at large **N**. Qdrant / pgvector / re-ranking are platform-scale
+     concerns, documented in RFC-070.
 
 2. **Global corpus index, not per-feed**
    - **Decision**: One index for the entire corpus with feed metadata for filtering
    - **Rationale**: Cross-feed discovery is a primary use case. Per-feed would require
      multi-index coordination.
 
-3. **Post-filter metadata (FAISS Phase 1)**
+3. **Post-filter metadata (FAISS)**
    - **Decision**: Over-fetch from FAISS, post-filter by metadata
-   - **Rationale**: Simple, no external dependency. Sufficient for < 1M vectors.
-     Qdrant Phase 2 replaces with native payload filtering.
+   - **Rationale**: Simple, no external dependency. Sufficient for CLI corpora at shipped scale.
+     Native filtering — **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**.
 
 4. **Sentence-boundary chunking**
    - **Decision**: Sentence-boundary windows, not fixed-token or paragraph-based
@@ -387,35 +399,12 @@ CLI flags: `--vector-search`, `--vector-backend`, `--vector-index-path`,
    - **Rationale**: CPU is sufficient for CLI-scale corpora. GPU variant has CUDA
      dependency that complicates installation.
 
-## Alternatives Considered
+## Alternatives Considered (Phase 1)
 
-1. **Qdrant-only (skip FAISS)**
-   - **Description**: Use Qdrant local mode for Phase 1
-   - **Pros**: Built-in filtering; native upserts; same API for local and server
-   - **Cons**: Heavier dependency; local mode is "for small-scale / demos" per docs;
-     adds Rust binary to the Python package
-   - **Why Rejected**: FAISS is lighter, battle-tested, and sufficient for Phase 1
-
-2. **ChromaDB**
-   - **Description**: Use Chroma as an all-in-one embedded vector DB
-   - **Pros**: Simple API; built-in metadata filtering; embedded mode
-   - **Cons**: Heavier than FAISS; SQLite-based storage adds fragility; less mature
-     at scale; another dependency to maintain
-   - **Why Rejected**: FAISS is more predictable and lighter; Qdrant is better for
-     production scale
-
-3. **Postgres pgvector (via RFC-051)**
-   - **Description**: Add vector columns to the RFC-051 Postgres projection
-   - **Pros**: Single database for structured + vector queries; native SQL filtering
-   - **Cons**: Requires Postgres server (violates CLI-first); pgvector performance
-     lags FAISS/Qdrant at scale; couples search to database projection
-   - **Why Rejected**: Good for Phase 3 (platform) but not for CLI Phase 1
-
-4. **No abstraction (FAISS directly)**
-   - **Description**: Call FAISS API directly without `VectorStore` protocol
-   - **Pros**: Less code; simpler
-   - **Cons**: Locks in FAISS; no migration path to Qdrant/platform
-   - **Why Rejected**: The protocol is tiny (~20 lines) and enables clean Phase 2
+For **shipped** CLI-first scope we chose **FAISS + `VectorStore` protocol** over **Qdrant-only**,
+**ChromaDB**, **raw FAISS without a protocol**, and **Postgres-only pgvector** for the initial local
+index. A fuller comparison table and **platform-era** revisits (Qdrant, pgvector + [RFC-051](RFC-051-database-projection-gil-kg.md),
+re-ranking) live in **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**.
 
 ## Testing Strategy
 
@@ -453,11 +442,10 @@ CLI flags: `--vector-search`, `--vector-backend`, `--vector-index-path`,
 - **Step 6**: `gi explore` semantic upgrade (transparent: `<output_dir>/search/vectors.faiss` + `--topic`) — **done**
 - **Step 7**: Documentation update (README, Development Guide, `docs/guides/SEMANTIC_SEARCH_GUIDE.md`, MkDocs nav) — **done**
 
-**Phase 2 (platform, separate RFC/issue):**
+**Deferred (platform / scale — [RFC-070](RFC-070-semantic-corpus-search-platform-future.md)):**
 
-- `QdrantVectorStore` implementation
-- Service-mode API endpoint
-- Digest clustering integration
+- **`QdrantVectorStore`**, native payload filters, optional **pgvector**, re-ranking, digest-vector
+  fusion — see RFC-070 (Draft).
 
 **Monitoring:**
 
@@ -481,20 +469,23 @@ This RFC (RFC-061) is part of the GIL/KG **depth** initiative ([#466](https://gi
 RFC-049 (GIL Core)              → artifacts to index
 RFC-050 (GIL Use Cases)         → UC4/UC5 that search enables
     ↓
-RFC-061 (this RFC)              → semantic search over corpus
+RFC-061 (this RFC)              → FAISS semantic search + CLI + protocol (Completed)
+    ↓
+RFC-070 (Draft)                 → Qdrant / pgvector / scale / quality extras
     ↓
 RFC-051 (DB Projection)         → complementary structured serving
-Platform megasketch              → digest, API, multi-tenant search
+Platform megasketch              → multi-tenant search, remote vector DB
 ```
 
-**Key Distinction:**
+**Key distinction:**
 
-- **RFC-049/050**: Define *what* GIL extracts and *how* it's consumed (structured)
-- **RFC-061**: Adds *meaning-based discovery* over GIL + KG + summary + transcript content
-- **RFC-051**: Adds *SQL-based serving* for structured queries (complementary, not competing)
+- **RFC-049/050**: *What* GIL extracts and *how* it's consumed (structured)
+- **RFC-061**: *Meaning-based discovery* over GIL + KG + summary + transcript (**FAISS**, shipped)
+- **RFC-070**: *Platform and backend* extensions (Draft)
+- **RFC-051**: *SQL-based serving* (complementary)
 
-Together, semantic search (RFC-061) and database projection (RFC-051) provide two
-complementary query paths: "find by meaning" (vectors) and "filter by structure" (SQL).
+Together, **RFC-061** (vectors, local) and **RFC-051** (SQL) are complementary; **RFC-070** is the
+planned hook for **remote / filtered** vector backends when needed.
 
 ## Benefits
 
@@ -504,8 +495,8 @@ complementary query paths: "find by meaning" (vectors) and "filter by structure"
 4. **Preserves GIL provenance**: Search results carry grounding, quotes, timestamps — not
    hallucinated text
 5. **Minimal new dependencies**: `faiss-cpu` (~20 MB); everything else already in the tree
-6. **Foundation for platform features**: Digest clustering, recommendations, and API search
-   all build on the same index
+6. **Foundation for platform features**: Same index and protocol support viewer **`/api/search`**;
+   digest clustering / Qdrant / re-ranking — **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**
 
 ## Migration Path
 
@@ -514,20 +505,18 @@ N/A — this is a new additive feature. Existing behavior is unchanged when
 
 ## Open Questions
 
-1. **Metadata sidecar format**: JSON file vs SQLite for the FAISS metadata mapping?
-   JSON is simpler; SQLite handles larger corpora better. Recommendation: start with JSON,
-   add SQLite option when corpora exceed ~50K vectors.
-2. **Exact dedup**: Should the index deduplicate near-identical insights across episodes?
-   (Recommend: defer to digest layer; index stores all, clustering deduplicates at query time.)
-3. **Re-ranking**: Should search results be re-ranked with a cross-encoder for higher
-   precision? (Recommend: defer to Phase 2; bi-encoder retrieval is sufficient for v1.)
+1. **Metadata sidecar format** — **Resolved for Phase 1:** JSON sidecars (**`metadata.json`**,
+   **`id_map.json`**, **`index_meta.json`**) as implemented under **`search/`**. SQLite or
+   backend-native storage at extreme scale — **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**.
+2. **Near-dedup across episodes** — **Deferred:** index stores rows; digest / clustering / RFC-070.
+3. **Cross-encoder re-ranking** — **Deferred:** **[RFC-070](RFC-070-semantic-corpus-search-platform-future.md)**.
 
 ## References
 
-- **Related PRD**: `docs/prd/PRD-021-semantic-corpus-search.md`
-- **Related RFC**: `docs/rfc/RFC-049-grounded-insight-layer-core.md`
-- **Related RFC**: `docs/rfc/RFC-050-grounded-insight-layer-use-cases.md`
-- **Related RFC**: `docs/rfc/RFC-051-database-projection-gil-kg.md`
-
-- **Source Code**: `podcast_scraper/providers/ml/embedding_loader.py`
-- **Source Code**: `podcast_scraper/gi/explore.py`
+- [PRD-021](../prd/PRD-021-semantic-corpus-search.md)
+- [RFC-070](RFC-070-semantic-corpus-search-platform-future.md) (deferred / platform scope)
+- [RFC-049](RFC-049-grounded-insight-layer-core.md), [RFC-050](RFC-050-grounded-insight-layer-use-cases.md),
+  [RFC-051](RFC-051-database-projection-gil-kg.md)
+- [ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)
+- **Source:** `src/podcast_scraper/search/`, `podcast_scraper/providers/ml/embedding_loader.py`,
+  `podcast_scraper/gi/explore.py`

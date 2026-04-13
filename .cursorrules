@@ -53,6 +53,31 @@
 
   - Run `git status --porcelain`; if output → commit/stash/discard first
 
+4a. **NEVER `git stash` during an active merge**
+
+  - `git stash` during a merge **aborts the merge and destroys all conflict resolutions** — the stash captures the working tree but NOT `.git/MERGE_HEAD`
+  - Before ANY `git stash`: check `test -f .git/MERGE_HEAD`; if it exists, **do not stash**
+  - To test something during a merge, use `git show <ref>:<path>` (prints to stdout, no working-tree changes) or a separate worktree
+
+4b. **NEVER `git checkout <ref> -- <file>` during an active merge**
+
+  - This replaces the resolved content with the version from that ref, **destroying the user's conflict resolution work**
+  - Only safe checkout variants during a merge: `git checkout --ours <file>` / `git checkout --theirs <file>` — and only with explicit user approval
+  - To inspect other branches without touching the working tree: `git show <ref>:<path>` or `git diff <ref> -- <path>`
+
+4c. **Treat in-progress merge state as sacred**
+
+  - When `.git/MERGE_HEAD` exists, the working tree contains **irreplaceable** conflict resolution work
+  - Commands that destroy merge state (all abort the merge): `git stash`, `git checkout <branch>`, `git reset --hard`, `git merge --abort`, `git rebase`
+  - Before running ANY git command during a merge, ask: "Will this destroy the merge state?" If unsure, **ask the user**
+
+4d. **NEVER overwrite local files with remote content without asking**
+
+  - `git checkout origin/<branch> -- <file>` replaces the local file **silently and irreversibly**
+  - Also applies to: `git restore --source origin/main -- <path>`, `git reset --hard origin/main`
+  - Before overwriting any local file with remote content: **show the diff** (`git diff HEAD origin/main -- <path>`) and **get explicit approval**
+  - To inspect remote content without modifying files: `git show origin/main:<path>` or `git diff origin/main -- <path>`
+
 ### Terminal Command Execution
 
 9. **🚨 NEVER run commands in background — ALWAYS `is_background: false` 🚨**
@@ -158,6 +183,8 @@
   **Documentation prose:** In `docs/**` (PRD/RFC/ADR/guides/api/wip, etc.), do **not** use
   checkmark / cross / clipboard emoji (✅ ❌ 📋) or decorative ✓ for status, lists, or tables — use
   plain words (Yes/No, Run/Skip, Good/Bad). Full rule in `.cursor/rules/documentation.mdc`.
+  **PRD vs RFC status words:** PRDs use **Implemented** / Partial / Draft; **Completed** is for **RFC**
+  and **ADR** headers, not PRDs.
 
 ## 📋 PROJECT CONTEXT
 
@@ -224,6 +251,8 @@ make fix-md        # Auto-fix markdown
 - ALL analysis/plans → `docs/wip/`
 - Auto-load `.mdc` files for detailed guidance (Rule 16)
 - NEVER commit secrets
+- 🚨 NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
+- NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
 - **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
 
@@ -238,6 +267,6 @@ make fix-md        # Auto-fix markdown
 
 ---
 
-**Version:** 2.2
-**Updated:** 2026-03-31
+**Version:** 2.3
+**Updated:** 2026-04-13
 **Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`

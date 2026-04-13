@@ -1308,3 +1308,119 @@ class TestGeminiProviderErrorHandling(unittest.TestCase):
         from podcast_scraper.cleaning import HybridCleaner
 
         self.assertIsInstance(provider.cleaning_processor, HybridCleaner)
+
+
+@pytest.mark.unit
+class TestGeminiSummarizeBundled(unittest.TestCase):
+    """Unit tests for summarize_bundled() (Issue #477)."""
+
+    def setUp(self):
+        self.cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="gemini",
+            speaker_detector_provider="gemini",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+            llm_pipeline_mode="bundled",
+        )
+        self.valid_json = (
+            '{"title": "Test Title", '
+            '"summary": "A detailed prose summary.", '
+            '"bullets": ["Point one.", "Point two."]}'
+        )
+
+    def _make_provider(self):
+        provider = GeminiProvider(self.cfg)
+        provider._summarization_initialized = True
+        mock_client = Mock()
+        provider.client = mock_client
+        return provider
+
+    def _mock_response(self, content, pt=100, ct=50):
+        resp = Mock()
+        resp.text = content
+        usage = Mock()
+        usage.prompt_token_count = pt
+        usage.candidates_token_count = ct
+        resp.usage_metadata = usage
+        return resp
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_success_returns_expected_shape(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.models.generate_content.return_value = self._mock_response(self.valid_json)
+
+        result = provider.summarize_bundled("transcript text")
+
+        self.assertIn("summary", result)
+        self.assertIn("metadata", result)
+        self.assertTrue(result["metadata"]["bundled"])
+        self.assertNotIn("bundled_cleaned_transcript", result)
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_json_contains_title_summary_bullets(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.models.generate_content.return_value = self._mock_response(self.valid_json)
+
+        result = provider.summarize_bundled("transcript text")
+        parsed = json.loads(result["summary"])
+        self.assertEqual(parsed["title"], "Test Title")
+        self.assertEqual(parsed["summary"], "A detailed prose summary.")
+        self.assertEqual(len(parsed["bullets"]), 2)
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_missing_summary_field(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        bad_json = '{"title": "T", "bullets": ["b"]}'
+        provider.client.models.generate_content.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("summary", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_missing_bullets(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        bad_json = '{"title": "T", "summary": "s"}'
+        provider.client.models.generate_content.return_value = self._mock_response(bad_json)
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("bullets", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_rejects_invalid_json(self, mock_render):
+        mock_render.side_effect = ["System", "User"]
+        provider = self._make_provider()
+        provider.client.models.generate_content.return_value = self._mock_response("not json")
+
+        with self.assertRaises(ValueError) as ctx:
+            provider.summarize_bundled("text")
+        self.assertIn("JSON", str(ctx.exception))
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_uses_provider_prefixed_prompt_names(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        provider = self._make_provider()
+        provider.client.models.generate_content.return_value = self._mock_response(self.valid_json)
+
+        provider.summarize_bundled("text")
+
+        calls = [c[0][0] for c in mock_render.call_args_list]
+        self.assertTrue(
+            any("gemini/summarization/bundled" in c for c in calls),
+            f"Expected gemini-prefixed prompt name, got: {calls}",
+        )

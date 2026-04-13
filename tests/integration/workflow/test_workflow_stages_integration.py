@@ -11,6 +11,8 @@ import shutil
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
+from datetime import date
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -400,6 +402,77 @@ class TestScrapingStage(unittest.TestCase):
         cfg = create_test_config(max_episodes=3)
         episodes = scraping.prepare_episodes_from_feed(feed, cfg)
         self.assertEqual(len(episodes), 3)
+
+    @staticmethod
+    def _feed_three_items_newest_first() -> object:
+        """RSS document order newest-first (typical feed), distinct titles for assertions."""
+        feed = create_test_feed()
+        specs = (
+            ("Newest", "Mon, 29 Sep 2025 07:00:00 +0000"),
+            ("Middle", "Mon, 15 Sep 2025 07:00:00 +0000"),
+            ("Oldest", "Mon, 01 Sep 2025 07:00:00 +0000"),
+        )
+        items = []
+        for title, pub in specs:
+            item = ET.Element("item")
+            ET.SubElement(item, "title").text = title
+            ET.SubElement(item, "guid").text = f"guid-{title}"
+            ET.SubElement(item, "pubDate").text = pub
+            items.append(item)
+        feed.items = items
+        return feed
+
+    def test_prepare_episodes_episode_order_newest_default(self):
+        """Default episode_order (newest) keeps document order."""
+        feed = self._feed_three_items_newest_first()
+        cfg = create_test_config(max_episodes=1)
+        episodes = scraping.prepare_episodes_from_feed(feed, cfg)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0].title, "Newest")
+
+    def test_prepare_episodes_episode_order_oldest(self):
+        """episode_order oldest reverses items before max_episodes."""
+        feed = self._feed_three_items_newest_first()
+        cfg = create_test_config(episode_order="oldest", max_episodes=1)
+        episodes = scraping.prepare_episodes_from_feed(feed, cfg)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0].title, "Oldest")
+
+    def test_prepare_episodes_episode_offset_after_order(self):
+        """episode_offset skips after order (and date filter) are applied."""
+        feed = self._feed_three_items_newest_first()
+        cfg = create_test_config(episode_order="newest", episode_offset=1, max_episodes=1)
+        episodes = scraping.prepare_episodes_from_feed(feed, cfg)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0].title, "Middle")
+
+    def test_prepare_episodes_date_filter_since_until(self):
+        """episode_since / episode_until filter by calendar pubDate (GitHub #521)."""
+        feed = self._feed_three_items_newest_first()
+        cfg = create_test_config(
+            episode_since=date(2025, 9, 10),
+            episode_until=date(2025, 9, 20),
+            max_episodes=10,
+        )
+        episodes = scraping.prepare_episodes_from_feed(feed, cfg)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0].title, "Middle")
+
+    def test_prepare_episodes_order_offset_and_dates_combined(self):
+        """Oldest order + date window + offset yields expected single episode."""
+        feed = self._feed_three_items_newest_first()
+        # After oldest: [Oldest Sep1, Middle Sep15, Newest Sep29]
+        # Keep Sep 1–22: Oldest + Middle; offset 1 -> Middle
+        cfg = create_test_config(
+            episode_order="oldest",
+            episode_since=date(2025, 9, 1),
+            episode_until=date(2025, 9, 22),
+            episode_offset=1,
+            max_episodes=1,
+        )
+        episodes = scraping.prepare_episodes_from_feed(feed, cfg)
+        self.assertEqual(len(episodes), 1)
+        self.assertEqual(episodes[0].title, "Middle")
 
 
 @pytest.mark.integration

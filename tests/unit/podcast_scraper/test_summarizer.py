@@ -4,7 +4,6 @@
 import os
 import sys
 import tempfile
-import types
 import unittest
 from unittest.mock import Mock, patch
 
@@ -37,27 +36,9 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-# Try to import summarizer, skip tests if dependencies not available
-try:
-    from podcast_scraper import config, summarizer
-
-    SUMMARIZER_AVAILABLE = True
-except ImportError:
-    SUMMARIZER_AVAILABLE = False
-    # Create a mock summarizer module for testing
-    summarizer = types.ModuleType("summarizer")  # type: ignore[assignment]
-    # Set attributes using setattr to avoid mypy assignment errors
-    setattr(summarizer, "select_summary_model", None)
-    setattr(summarizer, "SummaryModel", None)
-    setattr(summarizer, "DEFAULT_SUMMARY_MODELS", {})
-    setattr(summarizer, "chunk_text_for_summarization", None)
-    setattr(summarizer, "summarize_long_text", None)
-    setattr(summarizer, "safe_summarize", None)
-    setattr(summarizer, "optimize_model_memory", None)
-    setattr(summarizer, "unload_model", None)
+from podcast_scraper import config, summarizer
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestModelSelection(unittest.TestCase):
     """Test model selection logic."""
 
@@ -202,7 +183,6 @@ class TestModelSelection(unittest.TestCase):
             summarizer.DEFAULT_SUMMARY_MODELS.update(original_models)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSummaryModel(unittest.TestCase):
     """Test SummaryModel class.
 
@@ -422,7 +402,6 @@ class TestSummaryModel(unittest.TestCase):
         self.assertEqual(result, "")
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestChunking(unittest.TestCase):
     """Test text chunking for long transcripts.
 
@@ -777,7 +756,6 @@ class TestSponsorCleanup(unittest.TestCase):
         self.assertNotIn("This episode is brought to you by", cleaned)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestSafeSummarize(unittest.TestCase):
     """Test safe_summarize function.
 
@@ -929,7 +907,6 @@ class TestSafeSummarize(unittest.TestCase):
         self.assertEqual(result, "")  # Should return empty string on error
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestMemoryOptimization(unittest.TestCase):
     """Test memory optimization functions.
 
@@ -1161,7 +1138,6 @@ class TestMemoryOptimization(unittest.TestCase):
         self.assertIsNone(model.pipeline)
 
 
-@unittest.skipIf(not SUMMARIZER_AVAILABLE, "Summarization dependencies not available")
 class TestWorkflowIntegration(unittest.TestCase):
     """Test integration with workflow.py (model loading/reuse/unloading)."""
 

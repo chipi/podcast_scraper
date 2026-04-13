@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
+  <channel>
+    <title>Episode selection E2E (p01)</title>
+    <link>http://localhost/</link>
+    <description>Three short episodes, newest-first in document order, all Path-1 transcripts (GitHub #521).</description>
+    <language>en-us</language>
+    <itunes:author>Test Fixture</itunes:author>
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="/images/p01_cover.jpg"/>
+
+    <!-- Document order: newest first (typical RSS). Reuses p01_multi audio/transcript assets. -->
+    <item>
+      <title>E2E Selection Marker NEWEST</title>
+      <guid isPermaLink="false">p01_multi_e05</guid>
+      <pubDate>Mon, 29 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Newest pubDate in this feed (selection E2E).</description>
+      <enclosure url="/audio/p01_multi_e05.mp3" length="60000" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_multi_e05.txt" type="text/plain" />
+      <itunes:episode>5</itunes:episode>
+      <itunes:duration>00:00:12</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>E2E Selection Marker MIDDLE</title>
+      <guid isPermaLink="false">p01_multi_e03</guid>
+      <pubDate>Mon, 15 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Middle pubDate in this feed (selection E2E).</description>
+      <enclosure url="/audio/p01_multi_e03.mp3" length="75000" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_multi_e03.txt" type="text/plain" />
+      <itunes:episode>3</itunes:episode>
+      <itunes:duration>00:00:15</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+
+    <item>
+      <title>E2E Selection Marker OLDEST</title>
+      <guid isPermaLink="false">p01_multi_e01</guid>
+      <pubDate>Mon, 01 Sep 2025 07:00:00 +0000</pubDate>
+      <description>Oldest pubDate in this feed (selection E2E).</description>
+      <enclosure url="/audio/p01_multi_e01.mp3" length="50000" type="audio/mpeg"/>
+      <podcast:transcript url="/transcripts/p01_multi_e01.txt" type="text/plain" />
+      <itunes:episode>1</itunes:episode>
+      <itunes:duration>00:00:10</itunes:duration>
+      <itunes:episodeType>full</itunes:episodeType>
+    </item>
+  </channel>
+</rss>

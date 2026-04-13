@@ -20,7 +20,7 @@ implementations, mock external dependencies.
 | **Internal implementations** | Real (Config, factories, providers, workflow) |
 | **Filesystem** | Real (temp directories) |
 | **External HTTP** | Mocked (or local test server) |
-| **ML Models** | Mocked for speed (unless testing ML workflow) |
+| **ML/AI models and APIs** | Always mocked (real ML/AI is E2E only) |
 
 ## Mocking Philosophy
 
@@ -43,36 +43,29 @@ implementations, mock external dependencies.
 
        # Mock API client, test provider integration
 
-### Conditionally Mock
+### Always Mock: ML/AI models and APIs
 
-**ML Models** (Whisper, spaCy, Transformers):
+**All ML models** (Whisper, spaCy, Transformers) and **all AI APIs** (OpenAI, Gemini,
+Ollama, etc.) are **always mocked** in integration tests. Real ML inference and real
+API calls belong exclusively in E2E tests.
 
-| Testing | Mock? | Marker |
-| --------- | ------- | -------- |
-| Non-ML workflows (config → provider creation) | Mock | None |
-| ML workflow integration | Real | `@pytest.mark.ml_models` |
-
-**Decision rule:** If test name contains "workflow" and involves ML → use real models.
+`@pytest.mark.ml_models` must not appear on integration tests. If a test loads a real
+ML model or calls a real AI API, it is an E2E test and belongs in `tests/e2e/`.
 
 ```python
-
-# Mock ML for speed (testing component wiring)
-
+# Integration: mock ML, test component wiring
 @pytest.mark.integration
 def test_config_to_provider_creation(self):
     with patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"):
         provider = create_transcription_provider(cfg)
         # Test provider creation, not ML execution
 
-# Real ML for workflow tests
-
+# Integration: mock summarization, test workflow logic
 @pytest.mark.integration
-@pytest.mark.ml_models
 def test_summarization_workflow(self):
-    # Use real ML models for workflow testing
-    summary_provider = create_summarization_provider(cfg)
-    summary_provider.initialize()
-    result = summary_provider.summarize(transcript)
+    with patch("podcast_scraper.providers.ml.summarizer.SummaryModel") as mock_model:
+        mock_model.return_value.summarize.return_value = {"summary": "test"}
+        # Test workflow orchestration with mocked ML
 ```
 
 ## Never Mock
@@ -89,21 +82,16 @@ def test_summarization_workflow(self):
    - Provider → metadata, workflow → providers
    - This is the integration we're testing
 
-## When to Use Real ML Models
+## Real ML Models Belong in E2E Only
 
-Use real models with `@pytest.mark.ml_models` when:
+**Do not use real ML models in integration tests.** If a test loads a real ML model
+(Whisper, spaCy, Transformers) or calls a real AI API (OpenAI, Gemini, Ollama), it
+belongs in `tests/e2e/` with `@pytest.mark.e2e` and `@pytest.mark.ml_models`.
 
-1. Test is specifically testing ML workflow integration
-2. Test name contains "workflow" and involves ML
-3. Test validates actual model behavior
-4. Test uses `require_*_model_cached()` helpers
+`make check-test-policy` (rule I1-ml-models-marker) enforces this automatically.
 
-Keep ML mocking when:
-
-1. Testing non-ML component interactions
-2. Testing error handling, configuration, or factory behavior
-3. Test would be too slow with real models
-4. Test doesn't need actual ML behavior
+Integration tests verify how *our* components wire together. The ML/AI boundary is
+always a mock or stub at this layer.
 
 ## Test Patterns
 
@@ -125,22 +113,16 @@ def test_rss_to_provider_workflow(self):
     assert result.success
 ```
 
-### Provider Integration Test
+### Provider Integration Test (mocked ML)
 
 ```python
 @pytest.mark.integration
-@pytest.mark.ml_models
 def test_transcription_workflow(self):
-    """Test real transcription provider in workflow."""
-    require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
-
-    provider = create_transcription_provider(cfg)
-    provider.initialize()
-    try:
-        result = provider.transcribe(audio_path)
-        assert result.text
-    finally:
-        provider.cleanup()
+    """Test transcription provider wiring with mocked Whisper."""
+    with patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"):
+        provider = create_transcription_provider(cfg)
+        provider.initialize()
+        # Verify provider creation and lifecycle, not ML output
 ```
 
 ### Local HTTP Server Test
@@ -154,9 +136,10 @@ def test_http_client_behavior(self, local_http_server):
     assert response.status_code == 200
 ```
 
-## Model Cache Helpers
+## Model Cache Helpers (E2E only)
 
-For tests using real ML models, use cache helpers to skip gracefully if models aren't cached:
+Real-ML tests live in `tests/e2e/` (not here). They use cache helpers to skip
+gracefully when models are not downloaded:
 
 ```python
 from tests.integration.ml_model_cache_helpers import (
@@ -165,7 +148,7 @@ from tests.integration.ml_model_cache_helpers import (
     require_spacy_model_cached,
 )
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.ml_models
 def test_with_real_models(self):
     require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
@@ -256,6 +239,22 @@ tests/integration/
 | Summary schema | `test_summary_schema_integration.py` |
 | Protocol verification | `test_protocol_verification_integration.py` |
 
+## Real HTTP client integration (local server)
+
+`tests/integration/rss/test_http_integration.py` exercises `podcast_scraper.rss.downloader`
+against a **local** `http.server` on `127.0.0.1` (marker `integration_http`). There is no
+external network; pytest allows localhost sockets for this suite.
+
+**Global downloader state:** The module uses thread-local `requests.Session` objects with
+urllib3 `Retry` adapters. Production defaults retry many times on 5xx with exponential
+backoff, which can make a test that hits a handler returning only 500 look hung. This
+file uses an autouse fixture that calls `configure_http_policy()`, caps retries with
+`configure_downloader(...)`, and `downloader.reset_http_sessions()` so each test builds
+sessions with bounded retries. Teardown clears downloader overrides.
+
+If you add integration tests that call `fetch_url` / `fetch_rss_feed_url` for real HTTP,
+reuse the same pattern (or mock HTTP). See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience) (threading and metrics) for how configuration applies to sessions.
+
 ## Running Integration Tests
 
 ```bash
@@ -279,10 +278,12 @@ pytest tests/integration/workflow/test_component_workflows.py -v
 
 ## Test Markers
 
-- `@pytest.mark.integration` - Required for all integration tests
-- `@pytest.mark.ml_models` - Tests requiring real ML models
-- `@pytest.mark.critical_path` - Critical path tests (run in fast suite).
+- `@pytest.mark.integration` -- Required for all integration tests
+- `@pytest.mark.critical_path` -- Critical path tests (run in fast suite).
   See [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)
+
+`@pytest.mark.ml_models` must **not** appear on integration tests (enforced by
+`make check-test-policy`, rule I1). Real-ML tests belong in `tests/e2e/`.
 
 ## Provider Testing
 

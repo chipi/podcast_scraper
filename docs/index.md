@@ -74,6 +74,10 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --max-episodes 10 \
   --output-dir ./my_transcripts
 
+# Optional: oldest-first or publish-date window — see CONFIGURATION.md (Episode selection)
+#   --episode-order oldest --max-episodes 50
+#   --since 2024-01-01 --until 2024-12-31
+
 # Use Whisper when transcripts are missing (now default in v2.4.0)
 python3 -m podcast_scraper.cli https://example.com/feed.xml \
   --whisper-model base.en
@@ -91,6 +95,9 @@ python3 -m podcast_scraper.cli https://example.com/feed.xml \
 rss: https://example.com/feed.xml
 output_dir: ./transcripts
 max_episodes: 50
+# episode_order: newest  # or oldest — see docs/api/CONFIGURATION.md#episode-selection-github-521
+# episode_since: "2024-01-01"
+# episode_until: "2024-12-31"
 transcribe_missing: true
 whisper_model: base.en
 screenplay: true

@@ -1,0 +1,35 @@
+# Profile capture: E2E mock RSS + OpenAI gpt-4o (Issue #477 baseline).
+# Matches eval configs in data/eval/issue-477/ (same model for summarization).
+# Placeholder rss -> podcast1_mtb via freeze_profile.
+#
+# Run:
+#   .venv/bin/python3 scripts/eval/freeze_profile.py \
+#     --version issue477-staged-gpt4o \
+#     --pipeline-config data/profiles/issue-477/capture_e2e_openai_gpt4o.yaml \
+#     --dataset-id e2e_podcast1_mtb_n2 \
+#     --output data/profiles/issue-477/issue477-staged-gpt4o.yaml
+
+rss: https://example.invalid/e2e-placeholder-single-feed.xml
+output_dir: .tmp/profile_capture/e2e/openai
+max_episodes: 2
+
+transcription_provider: openai
+speaker_detector_provider: openai
+summary_provider: openai
+
+openai_transcription_model: whisper-1
+openai_speaker_model: gpt-4o-mini
+openai_summary_model: gpt-4o
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss

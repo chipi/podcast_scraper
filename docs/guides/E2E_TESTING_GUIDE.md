@@ -4,6 +4,7 @@
 >
 > - [Testing Strategy](../architecture/TESTING_STRATEGY.md) - High-level testing philosophy and test pyramid
 > - [Testing Guide](TESTING_GUIDE.md) - Quick reference and test execution commands
+> - [RSS and feed ingestion](RSS_GUIDE.md) - Production RSS path (HTTP, parsing, episode selection); contrasts with local `e2e_server` fixture feeds below
 
 This guide covers **pytest** E2E test implementation: real HTTP client, E2E server, ML model
 usage, and OpenAI mock endpoints.
@@ -107,9 +108,13 @@ def test_basic_workflow(e2e_server):
 | `e2e_server.urls.ollama_api_base()` | Ollama mock API base (`/v1`) |
 | `e2e_server.urls.anthropic_api_base()` | Anthropic mock API base (base URL, no `/v1`) |
 
+### Download resilience E2E
+
+`tests/e2e/test_download_resilience_e2e.py` covers transient HTTP responses (fail-then-succeed), configurable retry totals, multi-feed isolation when one feed returns errors, and `failure_summary` in `run.json`. The handler supports `E2EHTTPRequestHandler.set_transient_error(path, status=..., fail_count=...)` in addition to permanent `set_error_behavior`. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience).
+
 ### E2E Feeds (RSS)
 
-Feed names and RSS file mapping. Which feed name you can use depends on **test mode** (see [Test Modes](#test-modes)).
+Feed names and RSS file mapping. Which feed name you can use depends on **test mode** (see [Test Modes](#test-modes)). For how the real pipeline fetches and parses RSS (retries, conditional GET, circuit breaker, multi-feed), see [RSS and feed ingestion](RSS_GUIDE.md).
 
 **Full fixtures** (used in `data_quality` and `nightly`; mapping from `PODCAST_RSS_MAP`):
 
@@ -122,6 +127,7 @@ Feed names and RSS file mapping. Which feed name you can use depends on **test m
 | `podcast5` | `p05_investing.xml` | Investing podcast |
 | `edgecases` | `p06_edge_cases.xml` | Edge-case episodes |
 | `podcast1_multi_episode` | `p01_multi.xml` | 5 short episodes (multi-episode tests) |
+| `podcast1_episode_selection` | `p01_episode_selection.xml` | 3 items, newest-first, all Path 1 transcripts (#521) |
 | `podcast9_solo` | `p09_biohacking.xml` | Solo speaker (host only) |
 | `podcast7_sustainability` | `p07_sustainability.xml` | Long-form (~15k words; Issue #283) |
 | `podcast8_solar` | `p08_solar.xml` | Long-form (~20k words; Issue #283) |
@@ -133,6 +139,7 @@ Feed names and RSS file mapping. Which feed name you can use depends on **test m
 | `podcast1` | `p01_fast.xml` | 1 short episode (Path 2: transcription) |
 | `podcast1_with_transcript` | `p01_fast_with_transcript.xml` | 1 episode with transcript URL (Path 1: download) |
 | `podcast1_multi_episode` | `p01_multi.xml` | Same 5-episode feed |
+| `podcast1_episode_selection` | `p01_episode_selection.xml` | Same as full map (episode selection E2E) |
 | `podcast9_solo` | `p09_biohacking.xml` | Solo speaker |
 | `podcast7_sustainability` | `p07_sustainability.xml` | Long-form |
 | `podcast8_solar` | `p08_solar.xml` | Long-form |
@@ -143,12 +150,12 @@ Set automatically by `conftest` from `E2E_TEST_MODE`.
 
 | Mode | Allowed feed names |
 | ---- | ------------------ |
-| `fast` | `podcast1`, `podcast1_with_transcript`, `podcast1_multi_episode`, `podcast9_solo`, `podcast7_sustainability`, `podcast8_solar` |
-| `multi_episode` | `podcast1_multi_episode`, `podcast1_with_transcript`, `edgecases`, `podcast7_sustainability`, `podcast8_solar` |
-| `nightly` | `podcast1`, `podcast2`, `podcast3`, `podcast4`, `podcast5` (full fixtures) |
+| `fast` | `podcast1`, `podcast1_with_transcript`, `podcast1_multi_episode`, `podcast1_episode_selection`, `podcast9_solo`, `podcast7_sustainability`, `podcast8_solar` |
+| `multi_episode` | `podcast1_multi_episode`, `podcast1_episode_selection`, `podcast1_with_transcript`, `edgecases`, `podcast7_sustainability`, `podcast8_solar` |
+| `nightly` | `podcast1`, `podcast2`, `podcast3`, `podcast4`, `podcast5`, `podcast1_episode_selection` (full fixtures) |
 | `data_quality` | All feeds (None = allow all) |
 
-Use `e2e_server.urls.feed("podcast1_multi_episode")` etc. Only feeds in the allowed set for the current mode are served; others return 404.
+Use `e2e_server.urls.feed("podcast1_multi_episode")` or `e2e_server.urls.feed("podcast1_episode_selection")` etc. Only feeds in the allowed set for the current mode are served; others return 404.
 
 ### E2E Server Options
 
@@ -361,6 +368,12 @@ E2E_TEST_MODE=multi_episode make test-e2e
 make test-e2e-fast
 ```
 
+### `make test-fast` / `make ci-fast` and E2E progress {#make-test-fast--make-ci-fast-and-e2e-progress}
+
+The Makefile runs **two** pytest passes for critical-path E2E: tests **without** `@pytest.mark.ml_models` use parallel workers (`-n`); tests **with** `ml_models` run **sequentially** (`-n 1`). That avoids pytest-xdist showing a long flat progress bar while a single worker runs Whisper, spaCy, or Transformers (it looked like a hang around 70–80% even though work was still running). The ML phase can still take many minutes on CPU; ensure the Whisper test model is cached (`make preload-ml-models` or CI cache) so runs fail fast instead of downloading.
+
+`make test-e2e-fast` uses the same split (`not ml_models` then `ml_models`).
+
 ## Test Files
 
 | Purpose | Test File |
@@ -388,7 +401,7 @@ make test-e2e-fast
 
 make test-e2e
 
-# Fast (excludes ml_models)
+# Fast critical path (parallel non-ML, then sequential ML; see Test Modes above)
 
 make test-e2e-fast
 
@@ -403,10 +416,13 @@ pytest tests/e2e/test_basic_e2e.py -v -m e2e --disable-socket --allow-hosts=127.
 
 ## Test Markers
 
-- `@pytest.mark.e2e` - Required for all E2E tests
-- `@pytest.mark.ml_models` - Tests requiring real ML models
-- `@pytest.mark.critical_path` - Critical path tests (run in fast suite).
+- `@pytest.mark.e2e` -- Required for all E2E tests
+- `@pytest.mark.ml_models` -- Tests requiring real ML models (E2E only)
+- `@pytest.mark.critical_path` -- Critical path tests (run in fast suite).
   See [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)
+
+`@pytest.mark.ml_models` belongs **only** on E2E tests. `make check-test-policy`
+(rule I1) enforces that integration tests do not carry this marker.
 
 - `@pytest.mark.multi_episode` - Multi-episode tests
 - `@pytest.mark.data_quality` - Data quality tests (nightly)

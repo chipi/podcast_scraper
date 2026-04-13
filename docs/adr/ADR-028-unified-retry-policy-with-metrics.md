@@ -1,9 +1,11 @@
-# ADR-032: Unified Retry Policy with Metrics
+# ADR-028: Unified Retry Policy with Metrics
 
 - **Status**: Accepted
 - **Date**: 2026-02-05
 - **Authors**: Podcast Scraper Team
 - **Related Issues**: #399 (Provider-level concerns to harden)
+
+**Scope:** This decision applies to **LLM/API provider** calls (transcription, summarization, speaker detection, etc.). It does **not** govern RSS feed or media **HTTP** download retries; those are configured as `http_*`, `rss_*`, and `episode_*` in [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience).
 
 ## Context & Problem Statement
 

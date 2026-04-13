@@ -30,14 +30,6 @@ from podcast_scraper import config, downloader
 
 pytestmark = [pytest.mark.integration, pytest.mark.module_workflow]
 
-# Check if ML dependencies are available
-SPACY_AVAILABLE = False
-try:
-    import spacy  # noqa: F401
-
-    SPACY_AVAILABLE = True
-except ImportError:
-    pass
 
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent.parent
@@ -575,72 +567,6 @@ class TestIntegrationMain(unittest.TestCase):
                 self.assertIn("Direct downloads planned: 1", log_text)
                 self.assertIn("Whisper transcriptions planned: 0", log_text)
                 self.assertIn("would save as", log_text)
-
-    @pytest.mark.slow
-    @pytest.mark.ml_models
-    @pytest.mark.skipif(not SPACY_AVAILABLE, reason="spaCy dependencies not available")
-    def test_dry_run_performs_speaker_detection(self):
-        """Test that dry-run mode still performs host/guest detection.
-
-        This test requires multiple episodes to verify speaker detection works
-        across episodes, so it's marked as slow to run in full test mode.
-        Requires ML models (spaCy) for speaker detection.
-        Note: spaCy model (en_core_web_sm) is installed as a dependency.
-        """
-        rss_url = "https://example.com/feed.xml"
-        rss_xml = build_rss_xml_with_speakers(
-            "Test Podcast",
-            authors=["John Host"],
-            items=[
-                {
-                    "title": "Interview with Alice Guest",
-                    "description": "This episode features Alice Guest discussing technology.",
-                },
-                {
-                    "title": "Chat with Bob Guest",
-                    "description": "Bob Guest joins us for a conversation.",
-                },
-            ],
-        )
-        responses = {
-            downloader.normalize_url(rss_url): create_rss_response(rss_xml, rss_url),
-        }
-
-        http_mock = self._mock_http_map(responses)
-        with (
-            patch("podcast_scraper.downloader.fetch_url", side_effect=http_mock),
-            patch("podcast_scraper.downloader.fetch_rss_feed_url", side_effect=http_mock),
-        ):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                import logging
-
-                with self.assertLogs(logging.getLogger("podcast_scraper"), level="INFO") as log_ctx:
-                    exit_code = cli.main(
-                        [
-                            rss_url,
-                            "--output-dir",
-                            tmpdir,
-                            "--dry-run",
-                            "--auto-speakers",
-                        ]
-                    )
-                self.assertEqual(exit_code, 0)
-                log_text = "\n".join(log_ctx.output)
-                # Verify host detection happened (works in dry-run from RSS author tags)
-                # DETECTED HOSTS is logged at INFO level in dry-run mode if feed.authors exists
-                if "DETECTED HOSTS" not in log_text:
-                    # If DETECTED HOSTS not found, check if authors were extracted from RSS
-                    # The feed should have authors=["John Host"] from build_rss_xml_with_speakers
-                    # If not logged, it might be because feed.authors is empty or cache_detected_hosts=False
-                    # For now, just check that dry-run processing happened
-                    self.assertIn("(dry-run) would initialize speaker detector", log_text)
-                else:
-                    self.assertIn("John Host", log_text)
-                # Verify episode processing happened (log uses RSS item title, not "Episode N:" prefix)
-                self.assertIn("Interview with Alice Guest", log_text)
-                self.assertIn("Chat with Bob Guest", log_text)
-                # Note: Guest detection requires model initialization, which is skipped in dry-run
-                # So we don't check for "Guest:" in dry-run mode
 
 
 @pytest.mark.integration
