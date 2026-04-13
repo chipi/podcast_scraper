@@ -28,6 +28,34 @@ r1 best: **0.474687** (ROUGE-L 27.3%, embed 76.7%, judge_mean 0.946).
 5. **Embed push: transcript-phrasing anchor** — add instruction to prefer phrasing close to the
    transcript's own wording in the summary (not just bullets).
 
+## Round 3 — Priority Hypotheses (try in this order)
+
+r2 best: **0.474687** (all r2 experiments rejected; champion unchanged from r1 exp-4).
+
+Silver reference style (observed from `silver_sonnet46_smoke_bullets_v1`): dense noun-anchored
+sentences, em-dash or semicolon elaboration, "X rather than Y" contrasts, specific concept/finding
+as grammatical subject, no generic openers. r3 focuses on closing the style gap.
+
+1. **Few-shot style examples** — add 3 silver-quality example bullets to the system prompt as a
+   target style anchor. Hypothesis: showing the model the exact style closes the vocabulary and
+   structural gap with the silver reference more directly than instructions alone.
+2. **Anchor lead + ban generic openers** — require each bullet to open with the specific
+   concept/technique/tool/finding as its grammatical subject; explicitly ban openers like
+   "The episode", "Speakers", "The host", "One key". Hypothesis: enforces the noun-anchor pattern
+   observed in the silver.
+3. **Explicit style narration** — add prose description: noun-heavy, prefer "X rather than Y"
+   contrasts, use em-dash for precision, no filler phrases. Hypothesis: meta-description of target
+   style helps when examples alone are insufficient.
+4. **Model upgrade: gpt-4o** — change model from gpt-4o-mini to gpt-4o in the experiment YAML.
+   Hypothesis: gpt-4o produces output closer to Sonnet-4.6 silver style, potentially closing 5–8pp
+   ROUGE-L gap that is a model-quality ceiling not a prompt ceiling.
+   Exception: this experiment requires editing the YAML at
+   `data/eval/configs/summarization_bullets/autoresearch_prompt_openai_bundled_smoke_bullets_v1.yaml`
+   (model field only). Restore YAML if rejected; commit alongside prompt files if accepted.
+5. **Separate task framing** — restructure user prompt into numbered Task 1 (title), Task 2
+   (summary), Task 3 (bullets) sections. Hypothesis: explicit task decomposition helps gpt-4o-mini
+   budget attention and produce tighter per-section output.
+
 After these, if none land, try combinations of the winners from r1 + r2.
 
 ## Setup (run once before loop)

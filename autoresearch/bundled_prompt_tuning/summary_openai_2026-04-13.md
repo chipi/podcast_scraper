@@ -10,8 +10,9 @@
 
 ## Total Experiments Run
 
-9 experiments total (exp-1 through exp-4 in r1; exp-r2-1 through exp-r2-3 in r2, early-stopped after 3
-consecutive failures). r2 used corrected judges (claude-haiku-4-5-20251001) after r1 judge issue resolved.
+14 experiments total (exp-1 through exp-4 in r1; exp-r2-1 through exp-r2-3 in r2, early-stopped; exp-r3-1
+through exp-r3-5 in r3, all 5 planned experiments run). r2 and r3 used corrected judges
+(claude-haiku-4-5-20251001) after r1 judge issue resolved.
 
 ---
 
@@ -27,11 +28,17 @@ consecutive failures). r2 used corrected judges (claude-haiku-4-5-20251001) afte
 | exp-r2-1  | 0.458081 | 25.3%   | 77.2% | 0.936      | full blend       |
 | exp-r2-2  | 0.254719 | 25.5%   | 75.3% | 0.893      | ROUGE-only blend |
 | exp-r2-3  | 0.282039 | 28.2%   | 72.5% | 0.933      | ROUGE-only blend |
+| exp-r3-1  | 0.484212 | 28.6%   | n/a   | 0.946      | full blend       |
+| exp-r3-2  | 0.472618 | 27.0%   | n/a   | 0.946      | full blend       |
+| exp-r3-3  | 0.504330 | 31.2%   | n/a   | 0.953      | full blend       |
+| exp-r3-4  | 0.501324 | 30.2%   | n/a   | 0.966      | full blend       |
+| exp-r3-5  | 0.483498 | 28.2%   | n/a   | 0.953      | full blend       |
 
-**Best: exp-4 (0.474687) — champion unchanged after r2**
+**Best: exp-r3-3 (0.504330) — champion after r3**
 
-- Absolute improvement over baseline: **+0.243504**
-- Relative improvement: **+105.3%**
+- Absolute improvement over baseline: **+0.273147**
+- Relative improvement: **+118.2%**
+- Improvement over previous r1 champion (exp-4): **+0.029643 (+6.2%)**
 
 Note: the large jump from baseline to exp-1 is partly explained by the baseline being ROUGE-only
 (judges contested), while accepted experiments used the full ROUGE+judge blend (judges agreed). The
@@ -127,25 +134,81 @@ silver reference style is narrow and length mismatches cause divergence.
 
 ---
 
+## Round 3 Results
+
+All 5 planned r3 experiments run. 2 accepted, 3 rejected.
+
+### exp-r3-1 (+2.0% from r1 champion, accepted)
+
+**Change:** Added 3 silver-quality example bullets to the system prompt as a style target — showing
+the exact density, em-dash precision, and "X rather than Y" contrast pattern of the silver reference.
+
+**Effect:** ROUGE-L 27.3% → 28.6% (+1.3 pp), judge_mean steady at 0.946. Judges agreed. Direct
+style exemplars closed some vocabulary gap.
+
+### exp-r3-2 (−2.4% from r3-1 champion, rejected)
+
+**Change:** Added anchor-lead instruction requiring each bullet to open with the specific
+concept/technique as grammatical subject; explicitly banned "The episode", "Speakers", "The host",
+"One key" openers in both system and user prompts.
+
+**Effect:** ROUGE-L dropped 28.6% → 27.0%. The prescriptive subject-noun rule constrained the model
+too much and produced less fluent bullets. Judge scores unchanged (0.946). Prompt constraints that
+force grammatical structure hurt more than they help.
+
+### exp-r3-3 (+4.2% from r3-1 champion, accepted)
+
+**Change:** Added prose style narration to the system prompt: "dense and noun-anchored; prefer 'X
+does Y'; use em-dash or semicolon to pack a second layer of precision; favor 'X rather than Y'
+contrasts; every bullet stands alone as a self-contained insight."
+
+**Effect:** ROUGE-L 28.6% → 31.2% (+2.6 pp), judge_mean 0.946 → 0.953. Judges agreed. This was
+the highest single-experiment gain in r3. Style narration (describing the *type* of writing) works
+better than grammatical prescriptions (exp-r3-2) or structural rules.
+
+### exp-r3-4 (−0.6% from r3-3 champion, rejected)
+
+**Change:** Model upgrade gpt-4o-mini → gpt-4o (YAML change only, prompts unchanged).
+
+**Effect:** ROUGE-L dropped from 31.2% → 30.2% despite judge_mean rising from 0.953 → 0.966.
+gpt-4o produces outputs that judges rate more highly but that are slightly less aligned with the
+silver reference vocabulary. At rouge_weight=0.70, the ROUGE drop outweighs the judge gain.
+Marginal at this eval scale; worth re-testing on a larger dataset before ruling out.
+
+### exp-r3-5 (−4.1% from r3-3 champion, rejected)
+
+**Change:** Restructured user prompt output rules into 3 numbered Tasks (Task 1 title, Task 2 summary,
+Task 3 bullets) to help the model budget attention per section.
+
+**Effect:** ROUGE-L dropped 31.2% → 28.2%. Restructuring the prompt into tasks fragmented the
+existing instruction flow, and the model lost context between the tasks. The flat bullet-list format
+of the original user prompt is more effective than numbered sections.
+
+---
+
 ## Suggested Next Directions
 
-1. **Judge agreement focus:** The contested/non-contested flip is the biggest score lever given
-   the 0.70 ROUGE / 0.30 judge blend. Prompts that keep judges aligned (clear structure,
-   consistent terminology) unlock the full blend. Investigate what triggers judge disagreement.
+1. **Style narration iteration (r4):** exp-r3-3 showed that style narration outperforms all other
+   r3 strategies. Next: extend the narration with bad-vs-good bullet examples ("avoid: 'The episode
+   discusses X' — prefer: 'X enables Y because Z'"), or add a style description for the summary
+   paragraph to match the silver's dense, thesis-first structure.
 
-2. **Silver alignment study:** Read a sample of silver reference summaries to understand their
-   typical style, paragraph count, and vocabulary patterns. Align prompts to match that style
-   more closely rather than making the output longer.
+2. **Few-shot for title + summary + bullets combined:** r3-1 showed few-shot examples help for
+   bullets. Try adding a complete few-shot block (title + summary + bullets) showing all three
+   components together, rather than bullets only.
 
-3. **Paragraph count tuning:** The current 2–3 paragraph cap improved results vs 2–4. A targeted
-   ablation fixing at exactly 2 or exactly 3 paragraphs could surface the optimal target.
+3. **gpt-4o on a larger dataset:** r3-4 was marginal on 5 episodes (ROUGE-L small drop, judge
+   quality up). Worth re-testing on the full benchmark — at scale, gpt-4o's higher capability may
+   produce clearer gains, and the ROUGE-L vs judge tradeoff may flip.
 
-4. **Bullet count tuning:** The 6–8 bullet target in the user prompt may be higher than what the
-   silver reference uses. Reducing to 5–6 could improve judge scores.
+4. **Benchmark-scale validation:** All tuning so far on the 5-episode smoke set is noisy. Running
+   the r3-3 champion prompt on the full benchmark would confirm whether the +6.2% gain holds or
+   is smoke-set variance.
 
-5. **Embedding similarity push:** Terminology preservation (exp-2) and conciseness (exp-4) both
-   moved embed up. Further gains likely come from asking for phrasing closer to the transcript,
-   or from experimenting with stricter word-level anchoring in bullets.
+5. **Summary paragraph alignment:** All r3 gains came from bullets (silver has bullets-only
+   reference). The summary paragraph contributes noise to ROUGE. Aligning the summary paragraph
+   more closely with what judges reward (clear thesis, concise structure) could push judge_mean
+   above 0.953 and unlock further score gains.
 
 ---
 
