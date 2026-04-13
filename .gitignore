@@ -159,5 +159,8 @@ wheels/spacy/*.whl
 # Autoresearch merged experiment configs (temp files next to score.py)
 autoresearch/**/eval/autoresearch_cfg_*.yaml
 
+# Autoresearch run logs
+autoresearch/logs/
+
 # Worktree-specific files
 WORKTREE.md
