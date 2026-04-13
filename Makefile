@@ -363,10 +363,12 @@ quality: complexity deadcode docstrings spelling
 	# Ignore CVE-2026-1839: transformers Trainer loads rng_state via torch.load without weights_only; fixed in 5.0.0rc3+.
 	#   We pin transformers<5.0.0 (extractive QA / pipeline — see pyproject [ml]). Revisit when stable 5.x is adopted.
 	# TODO(CVE-2026-1839): Remove --ignore-vuln after bumping transformers to a fixed 5.x release.
+	# Ignore CVE-2025-69872: diskcache 5.6.3 vulnerability (transitive dep). Revisit when diskcache publishes a fix.
+	# TODO(CVE-2025-69872): Remove --ignore-vuln when diskcache releases a patched version.
 	# Note: If protobuf is updated to >=6.33.5 or >=7.0.0, this ignore can be removed
 	# Note: en-core-web-sm is installed from GitHub (not PyPI), so it cannot be audited by pip-audit
 	#       If it appears in audit output, it can be safely ignored as it's not from PyPI
-	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839
+	$(PYTHON) -m pip_audit --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2026-0994 --ignore-vuln CVE-2026-4539 --ignore-vuln CVE-2026-1839 --ignore-vuln CVE-2025-69872
 
 docs:
 	$(PYTHON) -m mkdocs build --strict
