@@ -196,6 +196,27 @@ See `docs/guides/INTEGRATION_TESTING_GUIDE.md` § Directory Organization for det
 - **`tests/unit/`**: zero skips expected on CI `test-unit` (`.[dev]` only).
 - **`tests/integration/`**: zero skips expected on CI integration jobs (`.[dev,ml,llm,server]`).
 
+## Automated policy enforcement
+
+Two scripts guard the testing policy in CI (`ci` and `ci-fast` targets):
+
+| Script | Make target | What it checks |
+|--------|-------------|----------------|
+| `scripts/tools/check_unit_test_imports.py` | `make check-unit-imports` | Library modules import without ML deps at import time |
+| `scripts/tools/check_test_policy.py` | `make check-test-policy` | 3-tier ML/AI boundary rules (see below) |
+
+**`check_test_policy.py` rules:**
+
+| Rule ID | Scope | Violation |
+|---------|-------|-----------|
+| U1-importorskip | `tests/unit/` | `pytest.importorskip()` -- move test to `integration/` or mock |
+| U2-available-guard | `tests/unit/` | `*_AVAILABLE` skip guards (e.g. `SUMMARIZER_AVAILABLE`) -- mock instead |
+| I1-ml-models-marker | `tests/integration/` | `@pytest.mark.ml_models` -- real ML belongs in `tests/e2e/` only |
+| G1-empty-test-file | all `tests/` | Zero `test_` methods -- delete or add tests |
+
+Run `make check-test-policy` locally before committing test changes. Both scripts run
+automatically as part of `make ci` and `make ci-fast`.
+
 ## Mocking Requirements
 
 ### Always Mock External Dependencies

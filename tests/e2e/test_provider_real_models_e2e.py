@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Integration tests for providers with real ML models.
+"""E2E tests for providers with real ML models.
 
 These tests verify that providers can load and use real ML models:
 - Whisper transcription models (tiny model for speed)
 - spaCy NER models (en_core_web_sm for speaker detection)
 - Transformer summarization models (small models like bart-base or distilbart)
 
-These tests are marked with @pytest.mark.ml_models
+These tests are marked with @pytest.mark.ml_models and @pytest.mark.e2e
 because they require:
 - ML dependencies installed (openai-whisper, spacy, transformers, torch)
 - Real model downloads (first run only, then cached)
 - Longer execution time (model loading and inference)
 
 Note: These tests use the smallest/fastest models available to keep execution time reasonable.
+
+Moved from tests/integration/providers/ — real ML models belong in E2E only.
 """
 
 import os
@@ -24,25 +26,25 @@ from unittest.mock import Mock, patch
 import pytest
 
 # Allow importing the package when tests run from within the package directory.
-PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PACKAGE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PACKAGE_ROOT not in sys.path:
     sys.path.insert(0, PACKAGE_ROOT)
 
 from podcast_scraper import config, models
 
 # Add tests directory to path for conftest import
-tests_dir = Path(__file__).parent.parent.parent
+tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
 # Import from parent conftest explicitly to avoid conflicts with infrastructure conftest
 import importlib.util
 
-# Import cache helpers from same directory
+# Import cache helpers from integration directory
 import sys
 from pathlib import Path
 
-tests_dir = Path(__file__).parent.parent.parent
+tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
     sys.path.insert(0, str(tests_dir))
 
@@ -55,7 +57,7 @@ spec.loader.exec_module(parent_conftest)
 
 create_test_config = parent_conftest.create_test_config
 
-integration_dir = Path(__file__).parent.parent
+integration_dir = Path(__file__).parent.parent / "integration"
 if str(integration_dir) not in sys.path:
     sys.path.insert(0, str(integration_dir))
 from ml_model_cache_helpers import (  # noqa: E402
@@ -113,7 +115,7 @@ def _check_transformers_available():
         return False
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.ml_models
 @unittest.skipIf(not _check_whisper_available(), "Whisper dependencies not available")
 class TestWhisperProviderRealModel(unittest.TestCase):
@@ -121,9 +123,10 @@ class TestWhisperProviderRealModel(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        # Test default whisper (tiny.en), not production default (base).
         self.cfg = create_test_config(
             transcribe_missing=True,
-            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,  # Use test default (tiny.en), not production default (base)
+            whisper_model=config.TEST_DEFAULT_WHISPER_MODEL,
             language="en",
         )
 
@@ -175,7 +178,7 @@ class TestWhisperProviderRealModel(unittest.TestCase):
         self.assertTrue(hasattr(model, "transcribe"))
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.ml_models
 @unittest.skipIf(not _check_spacy_available(), "spaCy dependencies not available")
 class TestSpacyProviderRealModel(unittest.TestCase):
@@ -243,7 +246,7 @@ class TestSpacyProviderRealModel(unittest.TestCase):
         self.assertIsInstance(used_defaults, bool)
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.ml_models
 @unittest.skipIf(not _check_transformers_available(), "Transformers dependencies not available")
 class TestTransformersProviderRealModel(unittest.TestCase):
@@ -365,7 +368,7 @@ class TestTransformersProviderRealModel(unittest.TestCase):
         provider.cleanup()  # type: ignore[attr-defined]
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.ml_models
 @unittest.skipIf(
     not (
@@ -472,7 +475,9 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
         # MLProvider uses is_initialized property and _transformers_initialized
         self.assertTrue(summarization_provider.is_initialized)  # type: ignore[attr-defined]
-        self.assertTrue(summarization_provider._transformers_initialized)  # type: ignore[attr-defined]
+        self.assertTrue(
+            summarization_provider._transformers_initialized,
+        )  # type: ignore[attr-defined]
         self.assertIsNotNone(summarization_provider._map_model)  # type: ignore[attr-defined]
 
         # Verify models are actually loaded (not mocked)
@@ -495,9 +500,11 @@ class TestAllProvidersRealModels(unittest.TestCase):
 
     @pytest.mark.critical_path
     def test_critical_path_with_real_models(self):
-        """Test critical path (Full Workflow) with real cached ML models: RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files.
+        """Test critical path (Full Workflow) with real cached ML models:
+        RSS → Parse → Download/Transcribe → NER → Summarization → Metadata → Files.
 
-        This test validates the COMPLETE critical path with all core features using REAL cached ML models:
+        This test validates the COMPLETE critical path with all core features
+        using REAL cached ML models:
         - RSS feed parsing
         - Transcript download (from test fixtures)
         - NER speaker detection (hosts and guests) - REAL spaCy model
@@ -505,7 +512,8 @@ class TestAllProvidersRealModels(unittest.TestCase):
         - Metadata generation with all features
         - File output
 
-        This is Priority 2 from Critical Path Testing Guide: "Critical Path with Real Models (Should Have)"
+        This is Priority 2 from Critical Path Testing Guide:
+        "Critical Path with Real Models (Should Have)"
         - Validates actual ML models work in the critical path
         - Uses cached models (checked before test runs)
         - Runs in fast test suite if models are cached (marked critical_path, not slow)
@@ -565,19 +573,23 @@ class TestAllProvidersRealModels(unittest.TestCase):
         transcript_text = transcript_file.read_text(encoding="utf-8")
 
         # Create minimal RSS feed
-        rss_xml = """<?xml version='1.0'?>
-<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
-  <channel>
-    <title>Test Feed</title>
-    <author>John Host</author>
-    <itunes:author>Jane Host</itunes:author>
-    <item>
-      <title>Episode 1: Interview with Bob Guest</title>
-      <description>In this episode, we talk with Bob Guest about technology and software development.</description>
-      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" />
-    </item>
-  </channel>
-</rss>""".strip()
+        rss_xml = (
+            "<?xml version='1.0'?>\n"
+            '<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" '
+            'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">\n'
+            "  <channel>\n"
+            "    <title>Test Feed</title>\n"
+            "    <author>John Host</author>\n"
+            "    <itunes:author>Jane Host</itunes:author>\n"
+            "    <item>\n"
+            "      <title>Episode 1: Interview with Bob Guest</title>\n"
+            "      <description>In this episode, we talk with Bob Guest about "
+            "technology and software development.</description>\n"
+            '      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" />\n'
+            "    </item>\n"
+            "  </channel>\n"
+            "</rss>"
+        )
 
         # Parse RSS feed
         title, authors, items = rss_parser.parse_rss_items(rss_xml.encode("utf-8"))
@@ -610,7 +622,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
             feed_authors=feed.authors,
         )
 
-        # Verify hosts were detected (may or may not succeed depending on model, but should not crash)
+        # Hosts may or may not be detected; run must not crash.
         self.assertIsInstance(detected_hosts, set)
 
         # Step 2: Detect guests from episode metadata (REAL NER model)
@@ -662,7 +674,7 @@ class TestAllProvidersRealModels(unittest.TestCase):
                 pytest.skip(
                     f"Model initialization attempted network access despite offline mode: {e}. "
                     f"This suggests missing or incomplete cache files. "
-                    f"Run 'make preload-ml-models' to ensure all model files (including tokenizers) are cached."
+                    "Run 'make preload-ml-models' to cache model files, including tokenizers."
                 )
             # For other errors (not network-related), re-raise as real errors
             raise
@@ -727,13 +739,16 @@ class TestAllProvidersRealModels(unittest.TestCase):
         summarization_provider.cleanup()
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.critical_path
 @pytest.mark.openai
 class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
-    """Test critical path (Full Workflow) with OpenAI providers: RSS → Parse → Download/Transcribe → OpenAI Speaker Detection → OpenAI Summarization → Metadata → Files.
+    """Test critical path (Full Workflow) with OpenAI providers:
+    RSS → Parse → Download/Transcribe → OpenAI Speaker Detection → OpenAI
+    Summarization → Metadata → Files.
 
-    This test validates the COMPLETE critical path with all core features using OpenAI providers:
+    This test validates the COMPLETE critical path with all core features
+    using OpenAI providers:
     - RSS feed parsing
     - Transcript download (from test fixtures)
     - OpenAI speaker detection (hosts and guests) - Mocked API calls
@@ -796,19 +811,23 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
         transcript_text = transcript_file.read_text(encoding="utf-8")
 
         # Create minimal RSS feed
-        rss_xml = """<?xml version='1.0'?>
-<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
-  <channel>
-    <title>Test Feed</title>
-    <author>John Host</author>
-    <itunes:author>Jane Host</itunes:author>
-    <item>
-      <title>Episode 1: Interview with Bob Guest</title>
-      <description>In this episode, we talk with Bob Guest about technology and software development.</description>
-      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" />
-    </item>
-  </channel>
-</rss>""".strip()
+        rss_xml = (
+            "<?xml version='1.0'?>\n"
+            '<rss xmlns:podcast="https://podcastindex.org/namespace/1.0" '
+            'xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">\n'
+            "  <channel>\n"
+            "    <title>Test Feed</title>\n"
+            "    <author>John Host</author>\n"
+            "    <itunes:author>Jane Host</itunes:author>\n"
+            "    <item>\n"
+            "      <title>Episode 1: Interview with Bob Guest</title>\n"
+            "      <description>In this episode, we talk with Bob Guest about "
+            "technology and software development.</description>\n"
+            '      <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" />\n'
+            "    </item>\n"
+            "  </channel>\n"
+            "</rss>"
+        )
 
         # Parse RSS feed
         title, authors, items = rss_parser.parse_rss_items(rss_xml.encode("utf-8"))
@@ -849,18 +868,18 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
         mock_speaker_response.choices = [
             Mock(
                 message=Mock(
-                    content='{"speakers": ["John Host", "Jane Host", "Bob Guest"], "hosts": ["John Host", "Jane Host"], "guests": ["Bob Guest"]}'
+                    content=(
+                        '{"speakers": ["John Host", "Jane Host", "Bob Guest"], '
+                        '"hosts": ["John Host", "Jane Host"], '
+                        '"guests": ["Bob Guest"]}'
+                    )
                 )
             )
         ]
         # Mock OpenAI summarization response
         mock_summary_response = Mock()
         mock_summary_response.choices = [
-            Mock(
-                message=Mock(
-                    content="This is a test summary of the episode discussing technology and software development."
-                )
-            )
+            Mock(message=Mock(content="This is a test summary of the episode."))
         ]
         # Unified client handles all API calls
         mock_client.chat.completions.create.side_effect = [
@@ -913,7 +932,7 @@ class TestCriticalPathWithOpenAIProviders(unittest.TestCase):
             summarization_provider,
             "summarize",
             return_value={
-                "summary": "This is a test summary of the episode discussing technology and software development.",
+                "summary": "This is a test summary of the episode.",
                 "summary_short": None,
                 "metadata": {
                     "provider": "openai",

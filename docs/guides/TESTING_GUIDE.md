@@ -21,12 +21,32 @@
 
 **Unit tests and `pyproject` extras:** `tests/unit/` must **only** depend on **`[dev]`** -- never on `[ml]`, `[llm]`, `[compare]`, or `[server]`. CI `test-unit` installs `.[dev]` only, so any test requiring a non-`[dev]` extra will be silently skipped and never validated. If a test needs FastAPI, httpx, torch, spaCy, faiss, etc., move it to `tests/integration/` (where CI installs `.[dev,ml,llm,server]`). Do **not** use `pytest.importorskip()` in `tests/unit/` to work around missing extras. See [Unit Testing Guide -- Pyproject extras](UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on) and [Testing Strategy -- Unit tests and optional extras](../architecture/TESTING_STRATEGY.md#unit-tests-and-optional-extras-pyproject).
 
+**Automated policy enforcement:** Two scripts run in `make ci` and `make ci-fast` to
+catch testing-policy violations before they reach CI:
+
+| Script | Make target | What it checks |
+| ------ | ----------- | -------------- |
+| `check_unit_test_imports.py` | `make check-unit-imports` | Library modules import without ML deps at import time |
+| `check_test_policy.py` | `make check-test-policy` | 3-tier ML/AI boundary rules (see table below) |
+
+`check_test_policy.py` enforces four rules:
+
+| Rule ID | Scope | Violation |
+| ------- | ----- | --------- |
+| U1-importorskip | `tests/unit/` | `pytest.importorskip()` -- move to `integration/` or mock |
+| U2-available-guard | `tests/unit/` | `*_AVAILABLE` skip guards -- mock ML deps instead of skipping |
+| I1-ml-models-marker | `tests/integration/` | `@pytest.mark.ml_models` -- real ML belongs in `tests/e2e/` |
+| G1-empty-test-file | all `tests/` | Zero `test_` methods -- delete or add tests |
+
+Run `make check-test-policy` locally after adding or moving tests. Pass `--fix-hint`
+for remediation suggestions. Both scripts live in `scripts/tools/`.
+
 **Decision Tree:**
 
-1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? → **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy — Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
-2. Testing a complete **CLI / library / service** workflow? → **E2E Test** (pytest)
-3. Testing component interactions? → **Integration Test**
-4. Testing a single function? → **Unit Test**
+1. Testing the **GI/KG viewer UI** in a real browser (graph, search shell, keyboard, theme)? --> **`make test-ui-e2e`** (Playwright). See [Browser E2E (GI / KG Viewer v2)](#browser-e2e-gi-kg-viewer-v2) and [Testing Strategy -- Browser UI E2E](../architecture/TESTING_STRATEGY.md#browser-ui-e2e-playwright).
+2. Testing a complete **CLI / library / service** workflow? --> **E2E Test** (pytest)
+3. Testing component interactions? --> **Integration Test**
+4. Testing a single function? --> **Unit Test**
 
 ## Running Tests
 

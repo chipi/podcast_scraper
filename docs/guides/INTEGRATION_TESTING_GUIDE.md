@@ -82,21 +82,16 @@ def test_summarization_workflow(self):
    - Provider → metadata, workflow → providers
    - This is the integration we're testing
 
-## When to Use Real ML Models
+## Real ML Models Belong in E2E Only
 
-Use real models with `@pytest.mark.ml_models` when:
+**Do not use real ML models in integration tests.** If a test loads a real ML model
+(Whisper, spaCy, Transformers) or calls a real AI API (OpenAI, Gemini, Ollama), it
+belongs in `tests/e2e/` with `@pytest.mark.e2e` and `@pytest.mark.ml_models`.
 
-1. Test is specifically testing ML workflow integration
-2. Test name contains "workflow" and involves ML
-3. Test validates actual model behavior
-4. Test uses `require_*_model_cached()` helpers
+`make check-test-policy` (rule I1-ml-models-marker) enforces this automatically.
 
-Keep ML mocking when:
-
-1. Testing non-ML component interactions
-2. Testing error handling, configuration, or factory behavior
-3. Test would be too slow with real models
-4. Test doesn't need actual ML behavior
+Integration tests verify how *our* components wire together. The ML/AI boundary is
+always a mock or stub at this layer.
 
 ## Test Patterns
 
@@ -118,22 +113,16 @@ def test_rss_to_provider_workflow(self):
     assert result.success
 ```
 
-### Provider Integration Test
+### Provider Integration Test (mocked ML)
 
 ```python
 @pytest.mark.integration
-@pytest.mark.ml_models
 def test_transcription_workflow(self):
-    """Test real transcription provider in workflow."""
-    require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
-
-    provider = create_transcription_provider(cfg)
-    provider.initialize()
-    try:
-        result = provider.transcribe(audio_path)
-        assert result.text
-    finally:
-        provider.cleanup()
+    """Test transcription provider wiring with mocked Whisper."""
+    with patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"):
+        provider = create_transcription_provider(cfg)
+        provider.initialize()
+        # Verify provider creation and lifecycle, not ML output
 ```
 
 ### Local HTTP Server Test
@@ -147,9 +136,10 @@ def test_http_client_behavior(self, local_http_server):
     assert response.status_code == 200
 ```
 
-## Model Cache Helpers
+## Model Cache Helpers (E2E only)
 
-For tests using real ML models, use cache helpers to skip gracefully if models aren't cached:
+Real-ML tests live in `tests/e2e/` (not here). They use cache helpers to skip
+gracefully when models are not downloaded:
 
 ```python
 from tests.integration.ml_model_cache_helpers import (
@@ -158,7 +148,7 @@ from tests.integration.ml_model_cache_helpers import (
     require_spacy_model_cached,
 )
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.ml_models
 def test_with_real_models(self):
     require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
@@ -288,10 +278,12 @@ pytest tests/integration/workflow/test_component_workflows.py -v
 
 ## Test Markers
 
-- `@pytest.mark.integration` - Required for all integration tests
-- `@pytest.mark.ml_models` - Tests requiring real ML models
-- `@pytest.mark.critical_path` - Critical path tests (run in fast suite).
+- `@pytest.mark.integration` -- Required for all integration tests
+- `@pytest.mark.critical_path` -- Critical path tests (run in fast suite).
   See [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)
+
+`@pytest.mark.ml_models` must **not** appear on integration tests (enforced by
+`make check-test-policy`, rule I1). Real-ML tests belong in `tests/e2e/`.
 
 ## Provider Testing
 

@@ -148,7 +148,16 @@ sys.modules["transformers"] = MagicMock()
 from podcast_scraper.providers.ml import ml_provider
 ```
 
-**CI Verification:** `scripts/tools/check_unit_test_imports.py` verifies modules can import without ML deps.
+**CI Verification:**
+
+- `scripts/tools/check_unit_test_imports.py` (`make check-unit-imports`) -- verifies
+  library modules can import without ML deps at import time.
+- `scripts/tools/check_test_policy.py` (`make check-test-policy`) -- enforces the
+  3-tier ML/AI boundary policy: no `pytest.importorskip()` in unit tests (rule U1),
+  no `*_AVAILABLE` skip guards in unit tests (rule U2), no `@pytest.mark.ml_models`
+  in integration tests (rule I1), and no empty test files anywhere (rule G1).
+
+Both scripts run automatically in `make ci` and `make ci-fast`.
 
 ## Test Structure
 

@@ -180,35 +180,34 @@ class TestSpeakerDetectorDetectHosts(unittest.TestCase):
         self.assertIn("feed_description", params)
         self.assertIn("feed_authors", params)
 
-    def test_detect_hosts_returns_set(self):
+    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    def test_detect_hosts_returns_set(self, mock_load_spacy):
         """Test that detect_hosts() returns a Set[str]."""
+        mock_load_spacy.return_value = Mock()
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
-        # Call with minimal inputs
         result = detector.detect_hosts(
             feed_title="Test Podcast", feed_description=None, feed_authors=None
         )
 
-        # Should return a set
         self.assertIsInstance(result, set)
-        # All items should be strings
         for item in result:
             self.assertIsInstance(item, str)
 
-    def test_detect_hosts_with_authors(self):
+    @patch("podcast_scraper.speaker_detection._load_spacy_model")
+    def test_detect_hosts_with_authors(self, mock_load_spacy):
         """Test detect_hosts() with feed_authors (preferred source)."""
+        mock_load_spacy.return_value = Mock()
         detector = create_speaker_detector(self.cfg)
         detector.initialize()
 
-        # Test with authors (should prefer this source)
         result = detector.detect_hosts(
             feed_title="Test Podcast",
             feed_description="A test podcast",
             feed_authors=["John Doe", "Jane Smith"],
         )
 
-        # Should return authors as hosts
         self.assertIsInstance(result, set)
         self.assertIn("John Doe", result)
         self.assertIn("Jane Smith", result)

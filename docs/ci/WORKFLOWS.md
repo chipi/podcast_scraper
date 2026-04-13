@@ -1521,30 +1521,37 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Integration test job includes full ML stack for complete validation
    - Optional extras in `pyproject.toml`: `[dev]`, `[ml]`, `[compare]`, `[llm]`, `[server]`; docs builds also use `docs/requirements.txt` and `.[ml]` when mkdocstrings needs ML imports
 
-4. **ML Dependency Import Verification** ⭐ NEW
+4. **ML Dependency Import Verification**
    - Automatic check that unit tests can import modules without ML dependencies
    - Prevents modules from importing ML deps at top level (which would break CI)
    - Script: `scripts/tools/check_unit_test_imports.py`
    - Runs before unit tests in CI, catches issues early
 
-5. **Comprehensive Security Scanning**
+5. **3-Tier Testing Policy Enforcement**
+   - Validates the ML/AI boundary policy across the entire test corpus
+   - Catches `pytest.importorskip()` in unit tests, `*_AVAILABLE` skip guards,
+     `@pytest.mark.ml_models` in integration tests, and empty test files
+   - Script: `scripts/tools/check_test_policy.py` (pass `--fix-hint` for remediation)
+   - Runs in both `make ci` and `make ci-fast`
+
+6. **Comprehensive Security Scanning**
    - CodeQL for static analysis (Python + Actions)
    - Snyk for dependency and Docker image scanning
    - Scheduled weekly scans for newly discovered vulnerabilities
    - Bandit & pip-audit in lint job for immediate feedback
    - Multiple layers of security validation
 
-6. **Documentation as Code**
+7. **Documentation as Code**
    - Docs build validated on every PR
    - Automatic deployment to GitHub Pages on merge
    - API documentation auto-generated from docstrings
 
-7. **Resource Optimization**
+8. **Resource Optimization**
    - Pip caching reduces dependency install time
    - Proactive disk space management
    - Post-test cache cleanup
 
-8. **Developer Experience**
+9. **Developer Experience**
    - Fast lint feedback (~2-3 min)
    - Clear separation of concerns (lint vs test)
    - `make ci` command to run full CI suite locally

@@ -253,8 +253,16 @@ directory).
    the full extras (`.[dev,ml,llm,server]`). Do not pull ML into unit tests -- keep
    FAISS / torch / spacy out of `tests/unit/` except via mocks.
 
-**Verification:** `scripts/tools/check_unit_test_imports.py` (run before unit tests in CI) ensures
-key library modules import without the heavy ML stack.
+**Verification (two complementary scripts, both in `make ci` / `make ci-fast`):**
+
+- `scripts/tools/check_unit_test_imports.py` (`make check-unit-imports`) -- ensures key
+  library modules import without the heavy ML stack at import time.
+- `scripts/tools/check_test_policy.py` (`make check-test-policy`) -- enforces the
+  3-tier ML/AI boundary policy across the test corpus: no `pytest.importorskip()` in
+  unit tests (U1), no `*_AVAILABLE` skip guards in unit tests (U2), no
+  `@pytest.mark.ml_models` in integration tests (I1), and no empty test files (G1).
+  Run with `--fix-hint` for remediation suggestions.
+
 The same `[dev]`-only assumption applies to the full `pytest tests/unit/` job on CI.
 
 **Detail:** [Unit Testing Guide -- Pyproject extras](../guides/UNIT_TESTING_GUIDE.md#pyproject-extras-what-unit-tests-may-depend-on).
@@ -792,7 +800,7 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
   - **Unit Tests**: Must **not** require the **`[ml]`** extra -- mock or stub (`sys.modules`) before
     importing dependent modules; see [Unit tests and optional extras](#unit-tests-and-optional-extras-pyproject).
   - **Integration Tests**: Always mocked -- real ML inference is E2E only
-  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` to ensure listed library modules import without ML deps at import time (does not install `[server]`)
+  - **Verification**: CI runs `scripts/tools/check_unit_test_imports.py` (import-time check) and `scripts/tools/check_test_policy.py` (3-tier boundary rules) to ensure unit tests stay `[dev]`-only and ML models stay in E2E
 - **File System**: Use `tempfile` for isolated test environments
 - **API Providers** (OpenAI, Gemini, Anthropic,
   Mistral, DeepSeek, Grok, Ollama):

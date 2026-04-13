@@ -1180,7 +1180,7 @@ directly.
 | `dashboard/` | CI/nightly metrics collection, dashboard generation, JSONL history | `generate_metrics.py`, `generate_dashboard.py`, `consolidate_dashboard_data.py`, `collect_pipeline_metrics.py` |
 | `eval/` | Experiment pipeline, benchmarks, dataset materialization, run promotion | `run_experiment.py`, `compare_runs.py`, `materialize_baseline.py`, `materialize_dataset.py`, `promote_run.py`, `freeze_profile.py`, `diff_profiles.py` |
 | `registry/` | Baseline promotion | `promote_baseline.py` |
-| `tools/` | Dev tooling: dependency analysis, markdown fix, test memory profiling, schema validation | `analyze_dependencies.py`, `fix_markdown.py`, `check_unit_test_imports.py`, `profile_e2e_test_memory.py` |
+| `tools/` | Dev tooling: dependency analysis, markdown fix, test memory profiling, schema validation, testing policy enforcement | `analyze_dependencies.py`, `fix_markdown.py`, `check_unit_test_imports.py`, `check_test_policy.py`, `profile_e2e_test_memory.py` |
 
 See `scripts/README.md` for detailed usage and
 `make` target mappings.

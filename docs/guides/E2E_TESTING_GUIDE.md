@@ -416,10 +416,13 @@ pytest tests/e2e/test_basic_e2e.py -v -m e2e --disable-socket --allow-hosts=127.
 
 ## Test Markers
 
-- `@pytest.mark.e2e` - Required for all E2E tests
-- `@pytest.mark.ml_models` - Tests requiring real ML models
-- `@pytest.mark.critical_path` - Critical path tests (run in fast suite).
+- `@pytest.mark.e2e` -- Required for all E2E tests
+- `@pytest.mark.ml_models` -- Tests requiring real ML models (E2E only)
+- `@pytest.mark.critical_path` -- Critical path tests (run in fast suite).
   See [Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)
+
+`@pytest.mark.ml_models` belongs **only** on E2E tests. `make check-test-policy`
+(rule I1) enforces that integration tests do not carry this marker.
 
 - `@pytest.mark.multi_episode` - Multi-episode tests
 - `@pytest.mark.data_quality` - Data quality tests (nightly)

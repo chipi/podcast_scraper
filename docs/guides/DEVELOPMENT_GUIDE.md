@@ -44,6 +44,7 @@ For comprehensive testing information, see the dedicated testing documentation:
 
 ```bash
 make check-unit-imports        # Verify modules can import without ML dependencies
+make check-test-policy         # Enforce 3-tier ML/AI testing policy (importorskip, ml_models, empty files)
 make deps-analyze              # Analyze module dependencies (with report)
 make deps-check                # Check dependencies (exits on error)
 make analyze-test-memory       # Analyze test memory usage (default: test-unit)
@@ -118,7 +119,14 @@ Modules importing ML dependencies at **module level** will fail unit tests in CI
    - Runs automatically in CI before unit tests
    - Use when: adding new modules, refactoring imports, or debugging CI failures
 
-4. **Run unit tests**: Run `make test-unit` before pushing
+4. **Enforce testing policy**: Run `make check-test-policy` before pushing
+   - Checks: no `pytest.importorskip()` in unit tests, no `*_AVAILABLE` skip guards
+     in unit tests, no `@pytest.mark.ml_models` in integration tests, no empty test files
+   - Script: `scripts/tools/check_test_policy.py` (pass `--fix-hint` for remediation tips)
+   - Runs automatically in `make ci` and `make ci-fast`
+   - Use when: adding, moving, or deleting test files
+
+5. **Run unit tests**: Run `make test-unit` before pushing
 
 ### Module Dependency Analysis
 
