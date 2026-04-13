@@ -1911,6 +1911,12 @@ class TestOllamaSummarizeBundled(unittest.TestCase):
     """Unit tests for summarize_bundled() (Issue #477)."""
 
     def setUp(self):
+        self._httpx_patcher = patch(
+            "podcast_scraper.providers.ollama.ollama_provider.httpx", MagicMock()
+        )
+        self._httpx_patcher.start()
+        self.addCleanup(self._httpx_patcher.stop)
+
         self._ollama_validate_patcher = patch.object(
             OllamaProvider,
             "_validate_ollama_running",

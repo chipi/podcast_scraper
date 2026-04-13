@@ -20,7 +20,7 @@ implementations, mock external dependencies.
 | **Internal implementations** | Real (Config, factories, providers, workflow) |
 | **Filesystem** | Real (temp directories) |
 | **External HTTP** | Mocked (or local test server) |
-| **ML Models** | Mocked for speed (unless testing ML workflow) |
+| **ML/AI models and APIs** | Always mocked (real ML/AI is E2E only) |
 
 ## Mocking Philosophy
 
@@ -43,36 +43,29 @@ implementations, mock external dependencies.
 
        # Mock API client, test provider integration
 
-### Conditionally Mock
+### Always Mock: ML/AI models and APIs
 
-**ML Models** (Whisper, spaCy, Transformers):
+**All ML models** (Whisper, spaCy, Transformers) and **all AI APIs** (OpenAI, Gemini,
+Ollama, etc.) are **always mocked** in integration tests. Real ML inference and real
+API calls belong exclusively in E2E tests.
 
-| Testing | Mock? | Marker |
-| --------- | ------- | -------- |
-| Non-ML workflows (config → provider creation) | Mock | None |
-| ML workflow integration | Real | `@pytest.mark.ml_models` |
-
-**Decision rule:** If test name contains "workflow" and involves ML → use real models.
+`@pytest.mark.ml_models` must not appear on integration tests. If a test loads a real
+ML model or calls a real AI API, it is an E2E test and belongs in `tests/e2e/`.
 
 ```python
-
-# Mock ML for speed (testing component wiring)
-
+# Integration: mock ML, test component wiring
 @pytest.mark.integration
 def test_config_to_provider_creation(self):
     with patch("podcast_scraper.providers.ml.ml_provider._import_third_party_whisper"):
         provider = create_transcription_provider(cfg)
         # Test provider creation, not ML execution
 
-# Real ML for workflow tests
-
+# Integration: mock summarization, test workflow logic
 @pytest.mark.integration
-@pytest.mark.ml_models
 def test_summarization_workflow(self):
-    # Use real ML models for workflow testing
-    summary_provider = create_summarization_provider(cfg)
-    summary_provider.initialize()
-    result = summary_provider.summarize(transcript)
+    with patch("podcast_scraper.providers.ml.summarizer.SummaryModel") as mock_model:
+        mock_model.return_value.summarize.return_value = {"summary": "test"}
+        # Test workflow orchestration with mocked ML
 ```
 
 ## Never Mock

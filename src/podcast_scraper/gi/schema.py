@@ -72,11 +72,9 @@ def validate_artifact(data: Dict[str, Any], strict: bool = False) -> None:
     schema = load_schema()
     if schema is None:
         return
-    try:
-        import jsonschema
+    import jsonschema
 
+    try:
         jsonschema.validate(instance=data, schema=schema)
-    except ImportError:
-        pass
     except jsonschema.ValidationError as e:
         raise ValueError(f"GIL artifact schema validation failed: {str(e)}") from e
