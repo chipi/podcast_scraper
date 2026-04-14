@@ -103,6 +103,18 @@ def test_migrate_kg_entity_ids_and_kind() -> None:
     assert out["edges"][0]["from"] == "person:pat"
 
 
+def test_migrate_gil_nodes_not_list_unchanged() -> None:
+    data = {"schema_version": "1.0", "nodes": {"not": "a list"}}
+    out = migrate_gil_document(data)
+    assert out["nodes"] == {"not": "a list"}
+
+
+def test_migrate_kg_nodes_not_list_unchanged() -> None:
+    data = {"schema_version": "1.1", "nodes": "x"}
+    out = migrate_kg_document(data)
+    assert out["nodes"] == "x"
+
+
 def test_migrate_kg_idempotent() -> None:
     data = {
         "schema_version": "1.2",

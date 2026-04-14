@@ -111,6 +111,7 @@ Each workflow only runs when specific files are modified:
 
 - `**.py`
 - `.github/workflows/**`
+- For false-positive dismissal policy, see [`CODEQL_DISMISSALS.md`](CODEQL_DISMISSALS.md)
 
 **`docs.yml` Workflow:**
 
@@ -465,17 +466,26 @@ The system now passes the "minimal docs CI/CD" requirement:
    - Bandit & pip-audit in lint job for immediate feedback
    - Multiple layers of security validation
 
-7. **Documentation as Code**
+7. **CodeQL False-Positive Dismissal Process**
+   - Some CodeQL alerts are false positives because CodeQL cannot model
+     cross-function sanitisation patterns used in this codebase
+   - Each known false-positive pattern is catalogued as a numbered **alert type**
+     in [`CODEQL_DISMISSALS.md`](CODEQL_DISMISSALS.md)
+   - That file contains the full registry (types, rationale, dismissed-alert
+     inventory) and the step-by-step process for classifying and dismissing
+     new alerts
+
+8. **Documentation as Code**
    - Docs build validated on every PR
    - Automatic deployment to GitHub Pages on merge
    - API documentation auto-generated from docstrings
 
-8. **Resource Optimization**
+9. **Resource Optimization**
    - Pip caching reduces dependency install time
    - Proactive disk space management
    - Post-test cache cleanup
 
-9. **Developer Experience**
+10. **Developer Experience**
    - Fast lint feedback (~2-3 min)
    - Clear separation of concerns (lint vs test)
    - `make ci` command to run full CI suite locally
@@ -576,5 +586,6 @@ git push
 - **[Testing Strategy](../architecture/TESTING_STRATEGY.md)** - Test coverage and quality standards
 - **[Testing Guide](../guides/TESTING_GUIDE.md)** - Test execution commands
 - **[Development Guide](../guides/DEVELOPMENT_GUIDE.md)** - Implementation instructions
+- **[CodeQL Dismissals](CODEQL_DISMISSALS.md)** - False-positive dismissal log and policy
 
 ---

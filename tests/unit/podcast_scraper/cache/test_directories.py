@@ -146,10 +146,19 @@ class TestGetWhisperCacheDir(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             cache_base = Path(temp_dir) / "cache_base"
-            with patch.dict(os.environ, {"CACHE_DIR": str(cache_base)}):
+            saved: dict[str, str | None] = {}
+            for key in ("CACHE_DIR", "WHISPER_CACHE_DIR"):
+                saved[key] = os.environ.pop(key, None)
+            try:
+                os.environ["CACHE_DIR"] = str(cache_base)
                 cache_dir = cache_utils.get_whisper_cache_dir()
-                # Should derive as CACHE_DIR/whisper
                 self.assertEqual(cache_dir, cache_base / "whisper")
+            finally:
+                for key, val in saved.items():
+                    if val is None:
+                        os.environ.pop(key, None)
+                    else:
+                        os.environ[key] = val
 
     def test_get_whisper_cache_dir_whisper_cache_dir_takes_priority(self):
         """Test WHISPER_CACHE_DIR takes priority over CACHE_DIR."""

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from podcast_scraper.builders.bridge_builder import build_bridge
 
 
@@ -53,6 +55,37 @@ def test_aliases_and_display_merged_across_layers() -> None:
     assert bob["sources"] == {"gi": True, "kg": True}
     assert set(bob["aliases"]) == {"Bobby", "Bob Smith"}
     assert bob["display_name"] == "Robert"
+
+
+def test_strips_g_prefix_on_kg_entity_id() -> None:
+    gi: dict[str, Any] = {"nodes": []}
+    kg = {
+        "nodes": [
+            {
+                "id": "g:person:zoe",
+                "type": "Entity",
+                "properties": {"name": "Zoe", "kind": "person"},
+            }
+        ]
+    }
+    out = build_bridge("e2", gi, kg)
+    ids = {i["id"] for i in out["identities"]}
+    assert ids == {"person:zoe"}
+
+
+def test_string_alias_on_person_node() -> None:
+    gi = {
+        "nodes": [
+            {
+                "id": "person:sam",
+                "type": "Person",
+                "properties": {"name": "Sam", "aliases": "Sammy"},
+            }
+        ]
+    }
+    out = build_bridge("e3", gi, {})
+    sam = next(i for i in out["identities"] if i["id"] == "person:sam")
+    assert sam["aliases"] == ["Sammy"]
 
 
 def test_ignores_non_cil_nodes() -> None:

@@ -208,6 +208,43 @@ def test_entity_alias_uses_bridge_display_for_target_id(tmp_path: Path) -> None:
     assert lifted["speaker"]["display_name"] == "Canonical Name"
 
 
+def test_transcript_lift_cache_rejects_non_object_json(tmp_path: Path) -> None:
+    gi_path = tmp_path / "list.gi.json"
+    gi_path.write_text("[1,2,3]", encoding="utf-8")
+    cache = TranscriptLiftGiCache()
+    assert cache.get(gi_path) is None
+
+
+def test_lift_row_skips_non_dict_metadata(tmp_path: Path) -> None:
+    row: dict = {"metadata": "bad"}
+    cache = TranscriptLiftGiCache()
+    lift_row_if_transcript(row, tmp_path, tmp_path / "x.gi.json", cache)
+    assert "lifted" not in row
+
+
+def test_lift_row_skips_when_shift_collapses_span(tmp_path: Path) -> None:
+    gi_path = tmp_path / "s.gi.json"
+    gi_path.write_text("{}", encoding="utf-8")
+    row: dict = {
+        "metadata": {
+            "doc_type": "transcript",
+            "episode_id": "e",
+            "char_start": 0,
+            "char_end": 10,
+        },
+        "text": "t",
+    }
+    cache = TranscriptLiftGiCache()
+    lift_row_if_transcript(
+        row,
+        tmp_path,
+        gi_path,
+        cache,
+        CilLiftOverrides(transcript_char_shift=-100),
+    )
+    assert "lifted" not in row
+
+
 def test_no_lift_when_no_overlap(tmp_path: Path) -> None:
     gi = {
         "nodes": [

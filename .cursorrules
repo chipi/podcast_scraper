@@ -187,9 +187,21 @@
 
   - Use `mcp_github_get_me` to get current user's GitHub login
 
+### CodeQL Alert Dismissals
+
+16. **CodeQL alert dismissals: check the registry, classify, then decide**
+
+  - **Trigger:** CodeQL check fails on a PR.
+  - **Step 1 — Read the registry:** Read `docs/ci/CODEQL_DISMISSALS.md`. It enumerates every **alert type** (numbered), the sanitiser chain / rationale for each, the full dismissal inventory, and the step-by-step process.
+  - **Step 2 — Classify the alert:**
+    - **(a) Known type, same pattern** (matches a numbered type in the registry and uses the same documented sanitiser chain): dismiss as false positive via `gh api`, add a row to the dismissal table, and tell the user what you did.
+    - **(b) New type or broken chain** (no matching type in the registry, or the sanitiser chain is absent / different): **do NOT dismiss**. Explain the taint flow to the user, propose a code fix to route through an existing sanitiser, and **wait for explicit user approval** before any dismissal. If approved, add the new type to the registry.
+  - **Step 3 — Never dismiss silently.** Always state: alert number(s), file/line, which type it matches (or "new type"), and what action you took.
+  - **Step 4 — User approval required for (b).** For new/unknown types the user must explicitly approve the dismissal or the code fix. Do not assume.
+
 ### Auto-Loading Detailed Rules (.mdc Files)
 
-16. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
+17. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
 
   - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
   - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
@@ -280,7 +292,7 @@ make fix-md        # Auto-fix markdown
 - Respect module boundaries
 - Default: `make ci-fast` before committing (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives; **incremental / tiny follow-up** — see rules **5** and **5c**)
 - ALL analysis/plans → `docs/wip/`
-- Auto-load `.mdc` files for detailed guidance (Rule 16)
+- Auto-load `.mdc` files for detailed guidance (Rule 17)
 - NEVER commit secrets
 -  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)

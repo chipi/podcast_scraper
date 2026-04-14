@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from podcast_scraper.server import cil_queries
 
@@ -191,6 +192,149 @@ def test_skips_corrupt_gi_json(tmp_path: Path) -> None:
     gi_path.write_text("{not json", encoding="utf-8")
     root = str(tmp_path)
     assert cil_queries.position_arc(root, root, "person:z", "topic:z") == []
+
+
+def test_iter_rejects_root_outside_anchor(tmp_path: Path) -> None:
+    anchor = str(tmp_path / "out")
+    outside = str(tmp_path / "other")
+    assert list(cil_queries.iter_cil_episode_bundles(outside, anchor)) == []
+
+
+def test_topic_timeline_insight_type_filter(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    _write_bundle(
+        meta,
+        "t",
+        episode_id="episode:t",
+        publish_date="2024-01-01",
+        person="person:p",
+        topic="topic:t",
+        insight_id="ins",
+        quote_id="quo",
+        insight_text="Claim text",
+        insight_type="claim",
+    )
+    _write_bundle(
+        meta,
+        "u",
+        episode_id="episode:u",
+        publish_date="2024-02-01",
+        person="person:p2",
+        topic="topic:t2",
+        insight_id="ins2",
+        quote_id="quo2",
+        insight_text="Observation",
+        insight_type="observation",
+    )
+    root = str(tmp_path)
+    tl = cil_queries.topic_timeline(root, root, "topic:t", insight_types=("claim",))
+    assert len(tl) == 1
+    assert tl[0]["episode_id"] == "episode:t"
+
+
+def test_topic_person_ids_skips_non_person_spoken_by(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    directory = meta
+    directory.mkdir(parents=True, exist_ok=True)
+    episode_id = "episode:sp"
+    bridge = {
+        "schema_version": "1.0",
+        "episode_id": episode_id,
+        "identities": [
+            {
+                "id": "topic:tx",
+                "type": "topic",
+                "sources": {"gi": True, "kg": True},
+                "display_name": "Tx",
+                "aliases": [],
+            },
+        ],
+    }
+    gi = {
+        "episode_id": episode_id,
+        "nodes": [
+            {
+                "id": "ins_x",
+                "type": "Insight",
+                "properties": {"text": "x", "insight_type": "claim"},
+            },
+            {
+                "id": "quo_x",
+                "type": "Quote",
+                "properties": {"char_start": 0, "char_end": 10},
+            },
+        ],
+        "edges": [
+            {"type": "ABOUT", "from": "ins_x", "to": "topic:tx"},
+            {"type": "SUPPORTED_BY", "from": "ins_x", "to": "quo_x"},
+            {"type": "SPOKEN_BY", "from": "quo_x", "to": "host:anon"},
+        ],
+    }
+    kg = {
+        "nodes": [
+            {
+                "id": "kg:ep",
+                "type": "Episode",
+                "properties": {"publish_date": "2024-01-01"},
+            }
+        ],
+        "edges": [],
+    }
+    stem = "edge"
+    (directory / f"{stem}.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+    (directory / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+    (directory / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+    root = str(tmp_path)
+    assert cil_queries.topic_person_ids(root, root, "topic:tx") == []
+
+
+def test_position_arc_skips_empty_episode_id(tmp_path: Path) -> None:
+    meta = tmp_path / "metadata"
+    directory = meta
+    directory.mkdir(parents=True, exist_ok=True)
+    bridge = {
+        "schema_version": "1.0",
+        "episode_id": "",
+        "identities": [
+            {
+                "id": "person:a",
+                "type": "person",
+                "sources": {"gi": True, "kg": True},
+                "display_name": "A",
+                "aliases": [],
+            },
+            {
+                "id": "topic:t",
+                "type": "topic",
+                "sources": {"gi": True, "kg": True},
+                "display_name": "T",
+                "aliases": [],
+            },
+        ],
+    }
+    gi = {
+        "episode_id": "",
+        "nodes": [
+            {
+                "id": "i",
+                "type": "Insight",
+                "properties": {"text": "x", "insight_type": "claim"},
+            },
+            {"id": "q", "type": "Quote", "properties": {}},
+        ],
+        "edges": [
+            {"type": "SPOKEN_BY", "from": "q", "to": "person:a"},
+            {"type": "SUPPORTED_BY", "from": "i", "to": "q"},
+            {"type": "ABOUT", "from": "i", "to": "topic:t"},
+        ],
+    }
+    kg: dict[str, Any] = {"nodes": [], "edges": []}
+    for stem in ("bad",):
+        (directory / f"{stem}.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+        (directory / f"{stem}.gi.json").write_text(json.dumps(gi), encoding="utf-8")
+        (directory / f"{stem}.kg.json").write_text(json.dumps(kg), encoding="utf-8")
+    root = str(tmp_path)
+    assert cil_queries.position_arc(root, root, "person:a", "topic:t") == []
 
 
 def test_skips_when_kg_missing(tmp_path: Path) -> None:

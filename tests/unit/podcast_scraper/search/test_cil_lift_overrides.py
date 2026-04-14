@@ -56,3 +56,18 @@ def test_resolve_id_alias_cycle_safe() -> None:
 def test_frozen_overrides_dataclass() -> None:
     o = CilLiftOverrides(transcript_char_shift=3)
     assert o.transcript_char_shift == 3
+
+
+def test_load_top_level_array_returns_defaults(tmp_path: Path) -> None:
+    (tmp_path / "cil_lift_overrides.json").write_text("[1,2]", encoding="utf-8")
+    o = load_cil_lift_overrides(tmp_path)
+    assert o.transcript_char_shift == 0
+
+
+def test_load_invalid_shift_coerces_to_zero(tmp_path: Path) -> None:
+    (tmp_path / "cil_lift_overrides.json").write_text(
+        json.dumps({"transcript_char_shift": "nope"}),
+        encoding="utf-8",
+    )
+    o = load_cil_lift_overrides(tmp_path)
+    assert o.transcript_char_shift == 0

@@ -6,7 +6,7 @@ Requires ``fastapi`` (``pip install -e '.[server]'``).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, cast, Dict, List
 
 import pytest
 
@@ -214,3 +214,30 @@ def test_search_lift_stats_reflects_transcript_and_lift(
         "transcript_hits_returned": 2,
         "lift_applied": 1,
     }
+
+
+def test_search_lift_stats_invalid_dropped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(
+        *_a: Any,
+        **_k: Any,
+    ) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[],
+            lift_stats=cast(
+                Dict[str, int],
+                {"transcript_hits_returned": "bad", "lift_applied": 1},
+            ),
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.search.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/search",
+        params={"q": "q", "path": str(tmp_path)},
+    )
+    assert response.status_code == 200
+    assert response.json().get("lift_stats") is None
