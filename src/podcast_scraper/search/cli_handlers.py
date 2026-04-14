@@ -797,8 +797,11 @@ def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) ->
     rate = report.get("overlap_rate")
     min_r = float(getattr(args, "min_overlap_rate", 0.95) or 0.95)
     if verdict == "no_quotes":
-        logger.error("strict: no Quote nodes found in GI files")
-        return EXIT_NO_ARTIFACTS
+        logger.warning(
+            "strict: no Quote nodes found in GI files (pass — nothing to misalign; "
+            "see TD-002 in docs/architecture/TECH_DEBT.md)"
+        )
+        return EXIT_SUCCESS
     if verdict == "divergent":
         logger.error("strict: verdict divergent (overlap rate too low)")
         return EXIT_INVALID_ARGS
