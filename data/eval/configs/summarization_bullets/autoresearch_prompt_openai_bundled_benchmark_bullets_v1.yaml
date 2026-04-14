@@ -1,0 +1,26 @@
+# Bundled OpenAI bullets ratchet — benchmark scale validation.
+#
+# Mirror of autoresearch_prompt_openai_bundled_smoke_bullets_v1.yaml with
+# benchmark dataset (10 episodes). Used for validating smoke-scale champions.
+#
+# Pair with silver: silver_sonnet46_benchmark_bullets_v1
+#
+# Requires: OPENAI_API_KEY
+
+id: "autoresearch_prompt_openai_bundled_benchmark_bullets_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v1"
+
+params:
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "bullets"
