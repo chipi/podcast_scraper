@@ -38,11 +38,14 @@ def _bridge_json_paths_under_corpus(corpus_root: Path) -> list[str]:
     root_resolved = safe_resolve_directory(corpus_root)
     if root_resolved is None:
         return []
-    root_s = os.path.normpath(str(root_resolved))
+    # Same shape as index_source_mtime / pathutil: normpath+realpath after resolve for CodeQL.
+    root_s = os.path.normpath(os.path.realpath(str(root_resolved.resolve())))
     safe_prefix = root_s + os.sep
     found: list[str] = []
+    # codeql[py/path-injection] -- root_s from safe_resolve_directory + normpath+realpath.
     if not os.path.isdir(root_s):
         return found
+    # codeql[py/path-injection] -- walk only root_s; files via normpath_if_under_root before open.
     for dirpath, _dirnames, filenames in os.walk(root_s):
         dnorm = os.path.normpath(dirpath)
         if dnorm != root_s and not dnorm.startswith(safe_prefix):
