@@ -104,14 +104,16 @@ def test_position_arc_default_claim_filter(tmp_path: Path) -> None:
         insight_text="Just wondering",
         insight_type="observation",
     )
-    arc = cil_queries.position_arc(str(tmp_path), "person:alice", "topic:climate")
+    root = str(tmp_path)
+    arc = cil_queries.position_arc(root, root, "person:alice", "topic:climate")
     assert len(arc) == 1
     assert arc[0]["episode_id"] == "episode:a"
     assert len(arc[0]["insights"]) == 1
     assert arc[0]["insights"][0]["properties"]["text"] == "We should act"
 
     arc_all = cil_queries.position_arc(
-        str(tmp_path),
+        root,
+        root,
         "person:alice",
         "topic:climate",
         insight_types=None,
@@ -132,11 +134,12 @@ def test_guest_brief_and_person_topics(tmp_path: Path) -> None:
         quote_id="q1",
         insight_text="AI is big",
     )
-    brief = cil_queries.guest_brief(str(tmp_path), "person:bob")
+    root = str(tmp_path)
+    brief = cil_queries.guest_brief(root, root, "person:bob")
     assert brief["person_id"] == "person:bob"
     assert "topic:ai" in brief["topics"]
     assert len(brief["quotes"]) == 1
-    topics = cil_queries.person_topic_ids(str(tmp_path), "person:bob")
+    topics = cil_queries.person_topic_ids(root, root, "person:bob")
     assert topics == ["topic:ai"]
 
 
@@ -153,10 +156,11 @@ def test_topic_timeline_and_topic_persons(tmp_path: Path) -> None:
         quote_id="qx",
         insight_text="Tax is complex",
     )
-    tl = cil_queries.topic_timeline(str(tmp_path), "topic:tax")
+    root = str(tmp_path)
+    tl = cil_queries.topic_timeline(root, root, "topic:tax")
     assert len(tl) == 1
     assert tl[0]["episode_id"] == "episode:x"
-    persons = cil_queries.topic_person_ids(str(tmp_path), "topic:tax")
+    persons = cil_queries.topic_person_ids(root, root, "topic:tax")
     assert persons == ["person:carol"]
 
 
@@ -166,7 +170,8 @@ def test_skips_incomplete_triple(tmp_path: Path) -> None:
     (meta / "orphan.bridge.json").write_text(
         '{"schema_version":"1.0","identities":[]}', encoding="utf-8"
     )
-    assert cil_queries.position_arc(str(tmp_path), "person:x", "topic:y") == []
+    root = str(tmp_path)
+    assert cil_queries.position_arc(root, root, "person:x", "topic:y") == []
 
 
 def test_skips_corrupt_gi_json(tmp_path: Path) -> None:
@@ -184,7 +189,8 @@ def test_skips_corrupt_gi_json(tmp_path: Path) -> None:
     )
     gi_path = meta / "ok.gi.json"
     gi_path.write_text("{not json", encoding="utf-8")
-    assert cil_queries.position_arc(str(tmp_path), "person:z", "topic:z") == []
+    root = str(tmp_path)
+    assert cil_queries.position_arc(root, root, "person:z", "topic:z") == []
 
 
 def test_skips_when_kg_missing(tmp_path: Path) -> None:
@@ -206,4 +212,5 @@ def test_skips_when_kg_missing(tmp_path: Path) -> None:
     gi = {"episode_id": "e", "nodes": [], "edges": []}
     (meta / "solo.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
     (meta / "solo.gi.json").write_text(json.dumps(gi), encoding="utf-8")
-    assert cil_queries.guest_brief(str(tmp_path), "person:x")["topics"] == {}
+    root = str(tmp_path)
+    assert cil_queries.guest_brief(root, root, "person:x")["topics"] == {}

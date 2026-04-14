@@ -1,10 +1,14 @@
 """RFC-072 cross-layer corpus queries (bridge + GI + KG on disk; no database).
 
-Public query functions accept ``root_safe: str`` — the **already-sanitised**
-corpus root returned by ``pathutil.resolved_corpus_root_str``.  That function
-applies ``os.path.normpath`` + ``str.startswith`` (the sanitiser shape that
-CodeQL's ``py/path-injection`` query recognises), so every ``os.walk`` /
-``os.path.isdir`` / ``open`` call here operates on a trusted string.
+Public query functions accept two path strings:
+
+* ``root_path`` — user-influenced corpus root (may be tainted).
+* ``anchor_path`` — the server's configured ``output_dir`` (not tainted).
+
+Every function normalises ``root_path`` with ``os.path.normpath`` and then
+guards it with ``root_s.startswith(anchor_s)`` before any filesystem access
+(``os.walk``, ``os.path.isdir``, ``open``).  This is the exact sanitiser
+shape that CodeQL's ``py/path-injection`` query recognises.
 """
 
 from __future__ import annotations
@@ -35,16 +39,20 @@ def _read_json(path_str: str) -> dict[str, Any] | None:
 
 
 def iter_cil_episode_bundles(
-    root_safe: str,
+    root_path: str,
+    anchor_path: str,
 ) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
-    """Yield ``(bridge, gi, kg)`` dicts for each sibling triple under *root_safe*.
+    """Yield ``(bridge, gi, kg)`` dicts for each sibling triple.
 
-    *root_safe* must be the string returned by
-    ``pathutil.resolved_corpus_root_str`` (already ``normpath`` + ``startswith``
-    sanitised).  All further filesystem access applies ``normpath`` +
-    ``startswith`` inline so CodeQL sees a continuous sanitiser chain.
+    *anchor_path* is the **untainted** server ``output_dir``.  The tainted
+    *root_path* is normalised and guard-checked against *anchor_path* before
+    any filesystem access — the ``normpath`` + ``startswith`` pattern that
+    CodeQL recognises as a safe-access barrier.
     """
-    root_s = os.path.normpath(root_safe)
+    anchor_s = os.path.normpath(anchor_path)
+    root_s = os.path.normpath(root_path)
+    if root_s != anchor_s and not root_s.startswith(anchor_s + os.sep):
+        return
     safe_prefix = root_s + os.sep
     if not os.path.isdir(root_s):
         return
@@ -202,7 +210,8 @@ def _episode_id_from_bridge(bridge: dict[str, Any]) -> str:
 
 
 def position_arc(
-    root_safe: str,
+    root_path: str,
+    anchor_path: str,
     target_person: str,
     target_topic: str,
     insight_types: tuple[str, ...] | None = ("claim",),
@@ -211,7 +220,7 @@ def position_arc(
     person = target_person.strip()
     topic = target_topic.strip()
     results: list[dict[str, Any]] = []
-    for bridge, gi, kg in iter_cil_episode_bundles(root_safe):
+    for bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids or topic not in gi_ids:
             continue
@@ -307,13 +316,13 @@ def _guest_brief_append_for_episode(
         all_quotes.append({"episode_id": episode_id, "quote": quote_node})
 
 
-def guest_brief(root_safe: str, target_person: str) -> dict[str, Any]:
+def guest_brief(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:
     """RFC-072 Pattern B — insights by topic + quotes for a person."""
     person = target_person.strip()
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
 
-    for bridge, gi, _kg in iter_cil_episode_bundles(root_safe):
+    for bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids:
             continue
@@ -327,14 +336,15 @@ def guest_brief(root_safe: str, target_person: str) -> dict[str, Any]:
 
 
 def topic_timeline(
-    root_safe: str,
+    root_path: str,
+    anchor_path: str,
     target_topic: str,
     insight_types: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """RFC-072 Pattern C — insights about a topic across episodes."""
     topic = target_topic.strip()
     results: list[dict[str, Any]] = []
-    for bridge, gi, kg in iter_cil_episode_bundles(root_safe):
+    for bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
         if topic not in _bridge_all_ids(bridge):
             continue
 
@@ -381,20 +391,20 @@ def topic_timeline(
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
 
-def person_topic_ids(root_safe: str, target_person: str) -> list[str]:
+def person_topic_ids(root_path: str, anchor_path: str, target_person: str) -> list[str]:
     """Distinct topic ids linked to ``target_person`` via grounded GI edges."""
-    brief = guest_brief(root_safe, target_person)
+    brief = guest_brief(root_path, anchor_path, target_person)
     topics = brief.get("topics")
     if not isinstance(topics, dict):
         return []
     return sorted({str(k) for k in topics.keys() if k})
 
 
-def topic_person_ids(root_safe: str, target_topic: str) -> list[str]:
+def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> list[str]:
     """Distinct person ids that speak (via quotes) to insights about ``target_topic``."""
     topic = target_topic.strip()
     persons: set[str] = set()
-    for bridge, gi, _kg in iter_cil_episode_bundles(root_safe):
+    for bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         if topic not in _bridge_all_ids(bridge):
             continue
 
