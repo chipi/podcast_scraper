@@ -21,6 +21,7 @@ data:
 
 params:
   temperature: 0.0
+  seed: 42
 
 preprocessing_profile: "cleaning_v4"
 scoring_output_field: "summary"

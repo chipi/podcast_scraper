@@ -618,6 +618,7 @@ def run_experiment(  # noqa: C901
                 generate_gi=False,
                 openai_summary_model=model_name,
                 openai_temperature=params_dict_raw.get("temperature", 0.0),
+                openai_summary_seed=params_dict_raw.get("seed"),
                 openai_max_tokens=params_dict_raw.get("max_length", 800),
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
                 openai_summary_user_prompt=user_prompt,

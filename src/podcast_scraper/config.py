@@ -1159,6 +1159,16 @@ class Config(BaseModel):
         alias="openai_temperature",
         description="Temperature for OpenAI generation (0.0-2.0, lower = more deterministic)",
     )
+    openai_summary_seed: Optional[int] = Field(
+        default=None,
+        alias="openai_summary_seed",
+        description=(
+            "Optional deterministic-sampling seed for OpenAI summarization calls. "
+            "Combined with temperature=0, yields approximately reproducible outputs "
+            "(same seed + prompt + model → near-identical output). Primarily used "
+            "by the autoresearch ratchet to stabilise smoke-scale scoring."
+        ),
+    )
     openai_cleaning_model: str = Field(
         default_factory=_get_default_openai_cleaning_model,
         alias="openai_cleaning_model",

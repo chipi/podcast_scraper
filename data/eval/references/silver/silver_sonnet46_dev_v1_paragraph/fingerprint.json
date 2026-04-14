@@ -1,0 +1,87 @@
+{
+  "fingerprint_version": "1.0",
+  "task": "summarization",
+  "run_context": {
+    "run_id": "2026-04-14T14:25:32.296892Z",
+    "baseline_id": "silver_candidate_sonnet46_dev_v1_paragraph",
+    "dataset_id": "curated_5feeds_dev_v1",
+    "git": {
+      "commit": "0b5e9f1d82b958d116018bec95ed7a6e33a1f161",
+      "branch": "feat/eval-benchmark-v2",
+      "dirty": true
+    }
+  },
+  "provider": {
+    "provider_type": "anthropic",
+    "provider_library": "unknown",
+    "provider_library_version": "unknown"
+  },
+  "pipeline": {
+    "type": "single_stage",
+    "stages": {
+      "main": {
+        "stage_id": "main",
+        "model": {
+          "provider_type": "anthropic",
+          "framework": null,
+          "model_name": "claude-sonnet-4-6",
+          "model_revision": null,
+          "tokenizer_name": null,
+          "tokenizer_revision": null,
+          "endpoint": null
+        },
+        "generation_params": {
+          "temperature": 0.0,
+          "max_tokens": 800
+        }
+      }
+    }
+  },
+  "preprocessing": {
+    "profile_id": "cleaning_v4",
+    "profile_version": "4.0",
+    "steps": {
+      "remove_timestamps": true,
+      "normalize_speakers": true,
+      "remove_sponsor_blocks": true,
+      "collapse_blank_lines": true,
+      "remove_fillers": false,
+      "remove_garbage_lines": true,
+      "remove_credit_blocks": true,
+      "remove_outro_blocks": true,
+      "remove_artifacts": true,
+      "strip_episode_header": true,
+      "anonymize_speakers": true,
+      "filter_junk_lines": true
+    }
+  },
+  "tokenization": {},
+  "chunking": {
+    "strategy": "word_chunking",
+    "word_chunk_size": 900,
+    "word_overlap": 150,
+    "effective_token_chunk_size": 600,
+    "token_overlap": 60,
+    "boundary_heuristic": "sentence_boundary_prefer",
+    "source": "default"
+  },
+  "environment": {
+    "python_version": "3.11.8",
+    "os": "Darwin-24.6.0-arm64"
+  },
+  "runtime": {},
+  "prompts": {
+    "user": {
+      "name": "anthropic/summarization/long_v1",
+      "file": "anthropic/summarization/long_v1.j2",
+      "sha256": "12f5a1de5497720ae0b9053a9f76d0b24422be3e4f280894d0220e67105aa854",
+      "params": {}
+    },
+    "system": {
+      "name": "anthropic/summarization/system_v1",
+      "file": "anthropic/summarization/system_v1.j2",
+      "sha256": "d7aabe400110cb1961ba9dea7e380559713aaf3628347deea7758aba5bc0f7ac",
+      "params": {}
+    }
+  }
+}

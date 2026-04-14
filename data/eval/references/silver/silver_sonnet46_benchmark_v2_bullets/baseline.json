@@ -1,0 +1,32 @@
+{
+  "run_id": "silver_candidate_sonnet46_benchmark_v2_bullets",
+  "dataset_id": "curated_5feeds_benchmark_v2",
+  "created_at": "2026-04-14T14:27:52.503472Z",
+  "created_by": "markodragoljevic",
+  "fingerprint_ref": "fingerprint.json",
+  "task": "summarization",
+  "backend": {
+    "type": "anthropic",
+    "model": "claude-sonnet-4-6"
+  },
+  "params": {
+    "model": "claude-sonnet-4-6",
+    "max_length": 800,
+    "temperature": 0.0,
+    "user_prompt": "shared/summarization/bullets_json_v1",
+    "system_prompt": "shared/summarization/system_bullets_v1"
+  },
+  "stats": {
+    "num_episodes": 5,
+    "total_time_seconds": 37.10159993171692,
+    "avg_time_seconds": 7.420319986343384,
+    "total_chars_in": 155192,
+    "total_chars_out": 6873,
+    "avg_compression": 22.57995053106358
+  },
+  "promoted_from": "silver_candidate_sonnet46_benchmark_v2_bullets",
+  "promoted_at": "2026-04-14T14:31:45.749790Z",
+  "promoted_as": "reference",
+  "promoted_id": "silver_sonnet46_benchmark_v2_bullets",
+  "reference_quality": "silver"
+}

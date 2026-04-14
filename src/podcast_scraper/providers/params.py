@@ -93,6 +93,13 @@ class SummarizationParams(BaseModel):
         le=2.0,
         description="Temperature for generation (OpenAI/Gemini only, 0.0-2.0)",
     )
+    seed: Optional[int] = Field(
+        default=None,
+        description=(
+            "Optional deterministic-sampling seed (OpenAI only). Combined with "
+            "temperature=0, yields approximately reproducible outputs. None = unseeded."
+        ),
+    )
     device: Optional[str] = Field(
         default=None,
         description="Device for model execution ('cpu', 'cuda', 'mps', or None for auto)",

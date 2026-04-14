@@ -210,6 +210,8 @@ class OpenAIProvider:
         else:
             self.insight_model = self.summary_model
         self.summary_temperature = getattr(cfg, "openai_temperature", 0.3)
+        _seed = getattr(cfg, "openai_summary_seed", None)
+        self.summary_seed: Optional[int] = int(_seed) if _seed is not None else None
         # GPT-4o-mini supports 128k context window - can handle full transcripts
         self.max_context_tokens = 128000  # Conservative estimate
 
@@ -1064,15 +1066,18 @@ class OpenAIProvider:
             )
 
             def _make_api_call():
-                return self.client.chat.completions.create(
-                    model=self.summary_model,
-                    messages=[
+                kwargs: Dict[str, Any] = {
+                    "model": self.summary_model,
+                    "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
-                    temperature=self.summary_temperature,
+                    "temperature": self.summary_temperature,
                     **_token_kwarg,
-                )
+                }
+                if self.summary_seed is not None:
+                    kwargs["seed"] = self.summary_seed
+                return self.client.chat.completions.create(**kwargs)
 
             try:
                 response = retry_with_metrics(
@@ -1269,6 +1274,8 @@ class OpenAIProvider:
             }
             if not self.summary_model.startswith(("o1", "o3", "gpt-5")):
                 kwargs["response_format"] = {"type": "json_object"}
+            if self.summary_seed is not None:
+                kwargs["seed"] = self.summary_seed
             return self.client.chat.completions.create(**kwargs)
 
         try:

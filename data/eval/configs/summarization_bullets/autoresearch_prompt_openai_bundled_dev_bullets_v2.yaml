@@ -1,0 +1,32 @@
+# Autoresearch v2 bundled bullets ratchet — OpenAI, dev dataset (10 episodes).
+#
+# Ratchet scores bullets only (scoring_output_field: bullets) vs silver_sonnet46_dev_v1_bullets.
+# This is the ITERATION dataset — tune prompts here. Validate champions on benchmark_v2
+# (curated_5feeds_benchmark_v2, held-out e03 episodes) before committing.
+#
+# Templates under tuning:
+#   src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_system_v1.j2
+#   src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_user_v1.j2
+#
+# Results log: autoresearch/bundled_prompt_tuning/results/results_openai_bullets_dev_v2.tsv
+#
+# Requires: OPENAI_API_KEY
+
+id: "autoresearch_prompt_openai_bundled_dev_bullets_v2"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  temperature: 0.0
+  seed: 42
+
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "bullets"

@@ -1,0 +1,23 @@
+# Autoresearch v2 bundled paragraph ratchet — OpenAI, dev dataset (10 episodes).
+#
+# Ratchet scores paragraph only (scoring_output_field: summary) vs silver_sonnet46_dev_v1_paragraph.
+# Shares prompt templates with bullets ratchet — dual-metric acceptance required.
+
+id: "autoresearch_prompt_openai_bundled_dev_paragraph_v2"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  temperature: 0.0
+  seed: 42
+
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "summary"

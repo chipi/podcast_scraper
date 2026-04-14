@@ -1,0 +1,50 @@
+{
+  "dataset_id": "curated_5feeds_benchmark_v2",
+  "version": "1.0",
+  "description": "Held-out benchmark dataset (autoresearch v2): third episode per feed (e03 only). Never used during prompt tuning — only touched to validate champions committed via curated_5feeds_dev_v1. Episodes are ~32 minutes (3x longer than e01/e02) which also tests prompt generalization to longer content. DO NOT iterate against this dataset.",
+  "created_at": "2026-04-14T00:00:00.000000Z",
+  "content_regime": "explainer",
+  "num_episodes": 5,
+  "episodes": [
+    {
+      "episode_id": "p01_e03",
+      "title": "Episode 3: The Mechanics of a Quiet, Fast Bike (with Noah Prins)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p01/p01_e03.txt",
+      "transcript_hash": "62a724d8816c829eb0735d6d8d32f324954a654a208b906e6646f96016bb265e",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 31.8
+    },
+    {
+      "episode_id": "p02_e03",
+      "title": "Episode 3: Security as Design, Not a Checklist (with Camila Ruiz)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p02/p02_e03.txt",
+      "transcript_hash": "ff87ee70fad51b07908b6edafff4ffd487ba3305e3508643896e166c43571203",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 33.0
+    },
+    {
+      "episode_id": "p03_e03",
+      "title": "Episode 3: Calm Under Pressure (with Owen Chen)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p03/p03_e03.txt",
+      "transcript_hash": "ddbb0f5a07596337be121f7a971a03361504e72143ffe575fd8ff35780a7ffbb",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 32.5
+    },
+    {
+      "episode_id": "p04_e03",
+      "title": "Episode 3: Lighting Decisions That Save a Shoot (with Elise Brouwer)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p04/p04_e03.txt",
+      "transcript_hash": "84d4eb9e1e3d4f2d82192df1634a001e6981d0fc7ab589702c2027f7fafdd2a8",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 33.2
+    },
+    {
+      "episode_id": "p05_e03",
+      "title": "Episode 3: Risk Management for People Who Hate Spreadsheets (with Kasper Jansen)",
+      "transcript_path": "data/eval/sources/curated_5feeds_raw_v1/feed-p05/p05_e03.txt",
+      "transcript_hash": "2ab094c71f8438ac3c48520c9a831e571b8bd05e9c299b781fab492197075338",
+      "preprocessing_profile": "cleaning_v3",
+      "duration_minutes": 32.2
+    }
+  ]
+}

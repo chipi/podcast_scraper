@@ -1,0 +1,31 @@
+{
+  "dataset_id": "curated_5feeds_dev_v1",
+  "run_id": "silver_candidate_sonnet46_dev_v1_bullets",
+  "episode_count": 10,
+  "intrinsic": {
+    "gates": {
+      "boilerplate_leak_rate": 0.0,
+      "speaker_label_leak_rate": 0.0,
+      "truncation_rate": 0.0,
+      "failed_episodes": [],
+      "episode_gate_failures": {}
+    },
+    "warnings": {
+      "speaker_name_leak_rate": 0.0
+    },
+    "length": {
+      "avg_tokens": 346.2,
+      "min_tokens": 312,
+      "max_tokens": 385
+    },
+    "performance": {
+      "avg_latency_ms": 6648.416686058044,
+      "median_latency_ms": 6457.970976829529,
+      "p95_latency_ms": 8066.119194030762,
+      "avg_latency_ms_excluding_first": 6678.946654001872
+    }
+  },
+  "vs_reference": null,
+  "schema": "metrics_summarization_v2",
+  "task": "summarization"
+}
