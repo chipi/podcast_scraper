@@ -23,9 +23,8 @@
   - `docs/rfc/RFC-049-grounded-insight-layer-core.md`
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md`
   - `docs/rfc/RFC-061-semantic-corpus-search.md`
-  - `docs/rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md` --
-    consumes `nli_contradiction` enricher output as the base layer for query-time
-    analysis
+  (Future analysis layer consumes `nli_contradiction` enricher output as the base
+  layer for query-time analysis.)
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md`
   - `docs/architecture/kg/ontology.md`
@@ -618,7 +617,7 @@ LLM enrichers require explicit opt-in.
 | `deterministic` | Nothing beyond Python stdlib | On | topic co-occurrence, temporal velocity, grounding rate |
 | `embedding` | FAISS index (already present) | Off | topic similarity, semantic deduplication |
 | `ml` | Local ML model via Ollama or HuggingFace | Off | NLI contradiction, sentiment |
-| `llm` | LLM API call -- explicit opt-in only | Off, opt-in | position narration, guest brief synthesis |
+| `llm` | LLM API call -- explicit opt-in only | Off, opt-in | position narration, profile synthesis |
 
 LLM tier enrichers are the only ones that incur API cost and carry hallucination risk.
 They require both `enabled: true` and `opt_in: true` in config. The `requires_opt_in`
@@ -955,11 +954,9 @@ contradiction pairs** -- each record contains `topic_id`, `person_a_id`,
 `person_b_id`, `insight_a_id`, `insight_b_id`, and a `contradiction_score`
 (0.0 -- 1.0). It does **not** generate human-readable position summaries or
 rankings.
-[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md)
-adds query-time refinement (summaries, ranking). The enricher output is the
-**base layer** for PRD-029's `potential_challenges` array: the Guest Brief can
-surface raw contradiction pairs (with Insight text) even before RFC-075's LLM
-refinement is available. See the dual-layer strategy in PRD-029.
+A future analysis layer may add query-time refinement (summaries, ranking). The
+enricher output is a **base layer** that can surface raw contradiction pairs
+(with Insight text) without further LLM refinement.
 
 ---
 
@@ -1132,18 +1129,18 @@ Implement `topic_similarity` and `nli_contradiction`. Off by default, opt-in.
 Document in enricher guide.
 
 **Phase 4 -- LLM and query-time enrichers (separate RFC):**
-Position narration, guest brief synthesis, contradiction explanation. Double opt-in.
+Position narration, profile synthesis, search enrichment. Double opt-in.
 Separate RFC defining LLM enricher prompt contract and output schema. This phase also
 covers the **QueryEnricher protocol** required by PRD-027 (Enriched Search) -- a
 request-time enricher that operates on FAISS results rather than writing files.
-Ideas for future LLM enrichers include stance comparison and automated guest briefs.
+Ideas for future LLM enrichers include search synthesis and profile summarisation.
 
 **Phase numbering disambiguation:** "RFC-073 Phase 4" (this section) refers to the
 **QueryEnricher protocol** extension for request-time LLM enrichment. "RFC-072
 Phase 4" refers to **CIL query patterns** (cross-layer joins, `position_arc` and
-`guest_brief` queries). These are distinct capabilities in different RFCs that happen
-to share the same phase number. PRD-027 (Enriched Search) depends on RFC-073 Phase 4;
-PRD-028/029 (Position Tracker/Guest Brief) depend on RFC-072 Phase 4.
+`person_profile` queries). These are distinct capabilities in different RFCs that
+happen to share the same phase number. PRD-027 (Enriched Search) depends on RFC-073
+Phase 4; PRD-028/029 (Position Tracker/Person Profile) depend on RFC-072 Phase 4.
 
 ---
 

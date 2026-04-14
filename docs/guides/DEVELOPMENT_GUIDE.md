@@ -1370,7 +1370,11 @@ make install-hooks
 
 ### Release checklist
 
-Use this checklist before tagging a release (e.g. v2.6.0). Until `make pre-release` exists (see [ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md)), follow these steps manually.
+**Standing plan (policy, eval/perf expectations, doc validation order):** see
+[Release Playbook](RELEASE_PLAYBOOK.md).
+
+Use this checklist before tagging a release (e.g. v2.6.0). For the full gate, run **`make pre-release`**
+(see [ADR-031](../adr/ADR-031-mandatory-pre-release-validation.md) and [Release Playbook](RELEASE_PLAYBOOK.md) Phase 3); then complete tagging and GitHub Release below.
 
 #### 1. Pre-flight
 

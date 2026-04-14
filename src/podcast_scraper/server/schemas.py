@@ -593,8 +593,8 @@ class CilPositionArcResponse(BaseModel):
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
 
 
-class CilGuestBriefInsightRow(BaseModel):
-    """One insight row inside ``CilGuestBriefResponse.topics``."""
+class CilPersonProfileInsightRow(BaseModel):
+    """One insight row inside ``CilPersonProfileResponse.topics``."""
 
     episode_id: str
     insight: dict[str, Any]
@@ -602,20 +602,20 @@ class CilGuestBriefInsightRow(BaseModel):
     position_hint: float | None = None
 
 
-class CilGuestBriefQuoteRow(BaseModel):
-    """Quote evidence row for a guest brief."""
+class CilPersonProfileQuoteRow(BaseModel):
+    """Quote evidence row for a person profile."""
 
     episode_id: str
     quote: dict[str, Any]
 
 
-class CilGuestBriefResponse(BaseModel):
-    """Response for GET /api/persons/{person_id}/brief."""
+class CilPersonProfileResponse(BaseModel):
+    """Response for GET /api/persons/{person_id}/brief (RFC-072 Pattern B, Person Profile)."""
 
     path: str
     person_id: str
-    topics: dict[str, list[CilGuestBriefInsightRow]] = Field(default_factory=dict)
-    quotes: list[CilGuestBriefQuoteRow] = Field(default_factory=list)
+    topics: dict[str, list[CilPersonProfileInsightRow]] = Field(default_factory=dict)
+    quotes: list[CilPersonProfileQuoteRow] = Field(default_factory=list)
 
 
 class CilTopicTimelineResponse(BaseModel):

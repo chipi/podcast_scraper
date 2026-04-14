@@ -279,7 +279,7 @@ def position_arc(
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
 
-def _guest_brief_append_for_episode(
+def _person_profile_append_for_episode(
     bridge: dict[str, Any],
     gi: dict[str, Any],
     person: str,
@@ -322,8 +322,8 @@ def _guest_brief_append_for_episode(
         all_quotes.append({"episode_id": episode_id, "quote": quote_node})
 
 
-def guest_brief(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:
-    """RFC-072 Pattern B — insights by topic + quotes for a person."""
+def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:
+    """RFC-072 Pattern B — insights by topic + quotes for a person (Person Profile)."""
     person = target_person.strip()
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
@@ -332,7 +332,7 @@ def guest_brief(root_path: str, anchor_path: str, target_person: str) -> dict[st
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids:
             continue
-        _guest_brief_append_for_episode(bridge, gi, person, by_topic, all_quotes)
+        _person_profile_append_for_episode(bridge, gi, person, by_topic, all_quotes)
 
     return {
         "person_id": person,
@@ -399,8 +399,8 @@ def topic_timeline(
 
 def person_topic_ids(root_path: str, anchor_path: str, target_person: str) -> list[str]:
     """Distinct topic ids linked to ``target_person`` via grounded GI edges."""
-    brief = guest_brief(root_path, anchor_path, target_person)
-    topics = brief.get("topics")
+    profile = person_profile(root_path, anchor_path, target_person)
+    topics = profile.get("topics")
     if not isinstance(topics, dict):
         return []
     return sorted({str(k) for k in topics.keys() if k})

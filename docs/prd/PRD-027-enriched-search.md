@@ -23,8 +23,8 @@
     open Topic Entity View
   - `docs/prd/PRD-028-position-tracker.md` -- speaker names in enriched sources
     can open Position Tracker via Person Landing
-  - `docs/prd/PRD-029-guest-intelligence-brief.md` -- speaker names in enriched
-    sources can open Guest Brief via Person Landing
+  - `docs/prd/PRD-029-person-profile.md` -- speaker names in enriched sources can
+    open Person Profile via Person Landing
 - **Related UX specs**:
   - `docs/uxs/UXS-008-enriched-search.md` -- visual contract for Enriched Answer
     panel, provider attribution, degradation states
@@ -35,8 +35,8 @@
     sources to Topic Entity View
   - `docs/uxs/UXS-009-position-tracker.md` -- speaker name handoff from enriched
     sources to Position Tracker
-  - `docs/uxs/UXS-010-guest-intelligence-brief.md` -- speaker name handoff from
-    enriched sources to Guest Brief / Person Landing
+  - `docs/uxs/UXS-010-person-profile.md` -- speaker name handoff from
+    enriched sources to Person Profile / Person Landing
 
 ---
 

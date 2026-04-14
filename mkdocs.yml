@@ -12,6 +12,7 @@ nav:
       - guides/index.md
       - Quick Reference: guides/QUICK_REFERENCE.md
       - Development Guide: guides/DEVELOPMENT_GUIDE.md
+      - Release Playbook: guides/RELEASE_PLAYBOOK.md
       - Polyglot repository layout: guides/POLYGLOT_REPO_GUIDE.md
       - Server Guide: guides/SERVER_GUIDE.md
       - Pipeline and Workflow Guide: guides/PIPELINE_AND_WORKFLOW.md

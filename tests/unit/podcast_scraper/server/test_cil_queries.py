@@ -122,7 +122,7 @@ def test_position_arc_default_claim_filter(tmp_path: Path) -> None:
     assert len(arc_all) == 2
 
 
-def test_guest_brief_and_person_topics(tmp_path: Path) -> None:
+def test_person_profile_and_person_topics(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     _write_bundle(
         meta,
@@ -136,7 +136,7 @@ def test_guest_brief_and_person_topics(tmp_path: Path) -> None:
         insight_text="AI is big",
     )
     root = str(tmp_path)
-    brief = cil_queries.guest_brief(root, root, "person:bob")
+    brief = cil_queries.person_profile(root, root, "person:bob")
     assert brief["person_id"] == "person:bob"
     assert "topic:ai" in brief["topics"]
     assert len(brief["quotes"]) == 1
@@ -357,4 +357,4 @@ def test_skips_when_kg_missing(tmp_path: Path) -> None:
     (meta / "solo.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
     (meta / "solo.gi.json").write_text(json.dumps(gi), encoding="utf-8")
     root = str(tmp_path)
-    assert cil_queries.guest_brief(root, root, "person:x")["topics"] == {}
+    assert cil_queries.person_profile(root, root, "person:x")["topics"] == {}

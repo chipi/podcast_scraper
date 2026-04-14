@@ -93,7 +93,7 @@ routes/
   index_rebuild.py   # viewer — POST /index/rebuild (background job)
   search.py          # viewer — semantic corpus search
   explore.py         # viewer — GI explore + UC4 NL query
-  cil.py             # viewer — CIL position arc, guest brief, topic timeline (#527 / RFC-072)
+  cil.py             # viewer — CIL position arc, person profile, topic timeline (#527 / RFC-072)
   corpus_library.py  # viewer — /corpus/* catalog + similar episodes (RFC-067)
   corpus_digest.py   # viewer — GET /corpus/digest (RFC-068)
   platform/          # placeholder stubs (feeds, episodes, jobs, status)
@@ -136,7 +136,7 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/search` | search | Semantic corpus search via FAISS + sentence embeddings. **Transcript** hits may include optional **`lifted`**: overlapping **Quote** → **Insight** plus **speaker** / **topic** display names from **`bridge.json`** when present ([Semantic Search Guide — lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528)). Successful responses include optional **`lift_stats`**: **`transcript_hits_returned`** and **`lift_applied`** for the returned page (after `top_k`). | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model`, `dedupe_kg_surfaces` (default `true`: merge same-text `kg_entity` / `kg_topic` rows) |
 | GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
 | GET | `/api/persons/{person_id}/positions` | cil | Position arc — chronological insights for a **person** and **topic** across episodes (RFC-072 Pattern A). Scans `**/*.bridge.json` with sibling GI/KG. | `topic` (required), `path`, `insight_types` (comma-separated; omit → `claim` only; `all` / `*` → no filter) |
-| GET | `/api/persons/{person_id}/brief` | cil | Guest brief — insights grouped by topic plus quotes for that person (RFC-072 Pattern B). | `path` |
+| GET | `/api/persons/{person_id}/brief` | cil | Person profile — insights grouped by topic plus quotes for that person (RFC-072 Pattern B). | `path` |
 | GET | `/api/persons/{person_id}/topics` | cil | Distinct topic ids for that person (from brief keys). | `path` |
 | GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode (RFC-072 Pattern C). | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
 | GET | `/api/topics/{topic_id}/persons` | cil | Distinct `person:` ids that discuss the topic via grounded quotes. | `path` |
@@ -162,7 +162,7 @@ Pydantic response schemas are defined in
 - `IndexStatsEnvelope` / `IndexStatsBody` / `IndexRebuildAccepted`
 - `CorpusSearchApiResponse` / `SearchHitModel` (optional **`lifted`** on transcript rows when lift applies)
 - `ExploreApiResponse`
-- `CilArcEpisodeBlock` / `CilPositionArcResponse` / `CilGuestBriefInsightRow` / `CilGuestBriefQuoteRow` / `CilGuestBriefResponse` / `CilTopicTimelineResponse` / `CilIdListResponse`
+- `CilArcEpisodeBlock` / `CilPositionArcResponse` / `CilPersonProfileInsightRow` / `CilPersonProfileQuoteRow` / `CilPersonProfileResponse` / `CilTopicTimelineResponse` / `CilIdListResponse`
 - `CorpusFeedsResponse` / `CorpusFeedItem`
 - `CorpusEpisodesResponse` / `CorpusEpisodeListItem`
 - `CorpusEpisodeDetailResponse`

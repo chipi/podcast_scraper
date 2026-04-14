@@ -29,7 +29,7 @@
   - `docs/rfc/RFC-053-adaptive-summarization-routing.md`
     (downstream — adaptive routing)
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
-    (cross-layer use cases — Position Tracker, Guest Brief)
+    (cross-layer use cases — Position Tracker, Person Profile)
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md` - Human-readable ontology
   - `docs/architecture/gi/gi.schema.json` - Machine-readable schema

@@ -27,7 +27,7 @@
   - `docs/rfc/RFC-004-filesystem-layout.md` (output layout and run scoping)
 
   - `docs/rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md`
-    (cross-layer use cases — Position Tracker, Guest Brief)
+    (cross-layer use cases — Position Tracker, Person Profile)
 - **Related Documents**:
   - `docs/architecture/kg/ontology.md` — Human-readable ontology (**v1 frozen**, GitHub #464)
   - `docs/architecture/kg/kg.schema.json` — Normative JSON Schema (v1 frozen, #464)

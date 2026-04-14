@@ -22,8 +22,8 @@
     enriched sources open Topic Entity View
   - [UXS-009: Position Tracker](UXS-009-position-tracker.md) -- speaker names in
     enriched sources open Person Landing with Position Tracker
-  - [UXS-010: Guest Intelligence Brief](UXS-010-guest-intelligence-brief.md) --
-    speaker names in enriched sources open Person Landing with Guest Brief
+  - [UXS-010: Person Profile](UXS-010-person-profile.md) --
+    speaker names in enriched sources open Person Landing with Person Profile
 - **Implementation paths**:
   - Existing: `web/gi-kg-viewer/src/components/search/SearchPanel.vue` (extended)
   - Existing: `web/gi-kg-viewer/src/components/search/ResultCard.vue`
@@ -78,7 +78,7 @@ answer:
   (`link` token -- opens episode at that moment if audio is available, otherwise
   highlights the transcript segment).
 - **Speaker names are clickable** (`link` token, cursor pointer) and open the
-  Person Landing (UXS-010) for that person, giving access to their Guest Brief and
+  Person Landing (UXS-010) for that person, giving access to their Person Profile and
   Position Tracker.
 - **Topic tags** on sources (when present) are clickable and open the Topic Entity
   View (UXS-007) for that topic.
@@ -136,7 +136,7 @@ UXS-010. When enrichment is unavailable, the panel is hidden entirely -- the use
 sees the baseline search experience (UXS-005) with no indication that enrichment
 exists. This is intentional: enrichment is additive, and advertising an unavailable
 feature would confuse users who have not configured an LLM provider. The other views
-(Topic Entity, Position Tracker, Guest Brief) use honest empty states because the
+(Topic Entity, Position Tracker, Person Profile) use honest empty states because the
 user has already navigated *to* that feature and expects to see content.
 
 All degradation is silent and honest:

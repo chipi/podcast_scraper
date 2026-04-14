@@ -11,10 +11,10 @@ from podcast_scraper.server import cil_queries
 from podcast_scraper.server.pathutil import resolve_corpus_path_param, resolved_corpus_root_str
 from podcast_scraper.server.schemas import (
     CilArcEpisodeBlock,
-    CilGuestBriefInsightRow,
-    CilGuestBriefQuoteRow,
-    CilGuestBriefResponse,
     CilIdListResponse,
+    CilPersonProfileInsightRow,
+    CilPersonProfileQuoteRow,
+    CilPersonProfileResponse,
     CilPositionArcResponse,
     CilTopicTimelineResponse,
 )
@@ -101,38 +101,38 @@ async def person_positions(
     )
 
 
-@router.get("/persons/{person_id}/brief", response_model=CilGuestBriefResponse)
-async def person_brief(
+@router.get("/persons/{person_id}/brief", response_model=CilPersonProfileResponse)
+async def person_profile(
     request: Request,
     person_id: str,
     path: str | None = Query(
         default=None,
         description="Corpus root. Omit when server default output_dir is set.",
     ),
-) -> CilGuestBriefResponse:
-    """Guest intelligence brief — insights grouped by topic (RFC-072 Pattern B)."""
+) -> CilPersonProfileResponse:
+    """Person profile — insights grouped by topic (RFC-072 Pattern B)."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
-    brief = cil_queries.guest_brief(root_safe, anchor_safe, person_id)
-    topics_raw = brief.get("topics") or {}
-    topics_out: dict[str, list[CilGuestBriefInsightRow]] = {}
+    raw = cil_queries.person_profile(root_safe, anchor_safe, person_id)
+    topics_raw = raw.get("topics") or {}
+    topics_out: dict[str, list[CilPersonProfileInsightRow]] = {}
     if isinstance(topics_raw, dict):
         for tid, rows in topics_raw.items():
             if not isinstance(rows, list):
                 continue
-            out_rows: list[CilGuestBriefInsightRow] = []
+            out_rows: list[CilPersonProfileInsightRow] = []
             for row in rows:
                 if isinstance(row, dict):
-                    out_rows.append(CilGuestBriefInsightRow.model_validate(row))
+                    out_rows.append(CilPersonProfileInsightRow.model_validate(row))
             topics_out[str(tid)] = out_rows
-    quotes_raw = brief.get("quotes") or []
-    quotes: list[CilGuestBriefQuoteRow] = []
+    quotes_raw = raw.get("quotes") or []
+    quotes: list[CilPersonProfileQuoteRow] = []
     if isinstance(quotes_raw, list):
         for row in quotes_raw:
             if isinstance(row, dict):
-                quotes.append(CilGuestBriefQuoteRow.model_validate(row))
-    return CilGuestBriefResponse(
+                quotes.append(CilPersonProfileQuoteRow.model_validate(row))
+    return CilPersonProfileResponse(
         path=root_safe,
-        person_id=str(brief.get("person_id") or person_id.strip()),
+        person_id=str(raw.get("person_id") or person_id.strip()),
         topics=topics_out,
         quotes=quotes,
     )

@@ -15,7 +15,7 @@ stays in the linked guides and RFCs.
 | **GIL** (`gi.json`) | Evidence-backed insights and verbatim **Quote** nodes (`char_start` / `char_end`, timestamps, optional speaker). | [Grounded Insights Guide](GROUNDED_INSIGHTS_GUIDE.md), [GIL ontology](../architecture/gi/ontology.md) |
 | **KG** (`*.kg.json`) | Entities, topics, and relationships for navigation and linking. | [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md), [KG ontology](../architecture/kg/ontology.md) |
 | **`bridge.json`** (per episode) | Joins GI and KG surfaces under **one** canonical id per real-world person/topic/org; **`display_name`** for UI. Emitted next to `gi.json` / `kg.json` stems. | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) |
-| **CIL HTTP API** | Read-only queries over on-disk **bridge + gi + kg** (position arc, guest brief, topic timeline, id lists). | [Server Guide](SERVER_GUIDE.md) (`/api/persons/*`, `/api/topics/*`) |
+| **CIL HTTP API** | Read-only queries over on-disk **bridge + gi + kg** (position arc, person profile, topic timeline, id lists). | [Server Guide](SERVER_GUIDE.md) (`/api/persons/*`, `/api/topics/*`) |
 | **Semantic search lift** | For **transcript** FAISS hits, optional **`lifted`** block (insight, speaker, topic, quote times) when chunk spans overlap a **Quote** and `bridge.json` resolves names. | [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) |
 | **Offset verification** | Confirms **Quote** char ranges overlap **transcript chunk** metadata in the index (same coordinate space). | [Semantic Search Guide — lift and verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528) |
 

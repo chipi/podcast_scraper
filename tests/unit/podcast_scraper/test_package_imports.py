@@ -8,6 +8,7 @@ issues like:
 - Missing __version__ or __api_version__
 """
 
+import importlib.metadata
 import importlib.util
 import os
 import sys
@@ -179,7 +180,10 @@ class TestPackageImports(unittest.TestCase):
         version_after = podcast_scraper.__version__
 
         self.assertEqual(version_before, version_after)
-        self.assertEqual(version_after, "2.4.0")
+        self.assertEqual(
+            version_after,
+            importlib.metadata.version("podcast-scraper"),
+        )
 
     def test_service_import_doesnt_break_version(self):
         """Test that importing service doesn't break version access."""
@@ -192,7 +196,10 @@ class TestPackageImports(unittest.TestCase):
         version_after = podcast_scraper.__version__
 
         self.assertEqual(version_before, version_after)
-        self.assertEqual(version_after, "2.4.0")
+        self.assertEqual(
+            version_after,
+            importlib.metadata.version("podcast-scraper"),
+        )
 
     def test_preprocessing_module_importable(self):
         """Test that preprocessing.py can be imported."""
