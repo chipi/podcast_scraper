@@ -1244,7 +1244,7 @@ after reboot.
 | Makefile parse time | No `$(shell ...)` calls that import ML libraries; `PYTEST_WORKERS` is a static default | `Makefile` |
 | ML cache checks | Filesystem-only probes (`config.json` + weight file existence) instead of `AutoTokenizer.from_pretrained()` | `tests/integration/ml_model_cache_helpers.py` |
 | CI targets | `cleanup-processes` runs as a prerequisite to `ci` and `ci-fast` | `Makefile` |
-| Offline mode | `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` exported for all Makefile recipes | `Makefile` |
+| Offline mode | Pytest: `tests/conftest.py`; `make ci` probe: inline env; preload/smoke: `env -u` so Hub works | `Makefile`, `tests/conftest.py` |
 | Pre-commit hook | 120-second watchdog timeout; process group cleanup on exit (`kill -- -$$`) | `.github/hooks/pre-commit` |
 | Preload script | 600-second `signal.alarm` hard timeout | `scripts/cache/preload_ml_models.py` |
 | Agent rules | Rules 10/10a/10b in `.cursorrules`: no retrying stuck commands, no overlapping `make ci`, mandatory `cleanup-processes` after hung runs | `.cursorrules` |

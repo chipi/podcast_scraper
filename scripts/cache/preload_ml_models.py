@@ -31,6 +31,11 @@ Usage:
     # Skip GIL evidence models (QA + NLI)
     SKIP_GIL=1 python scripts/cache/preload_ml_models.py
 
+    # Wall-clock cap for the whole run (SIGALRM on Unix). Default is short for dev preload;
+    # ``--production`` uses a larger default because cold HF downloads exceed 10 minutes.
+    # Use PRELOAD_TIMEOUT=0 to disable the alarm.
+    PRELOAD_TIMEOUT=7200 python scripts/cache/preload_ml_models.py --production
+
 Pinned revisions:
     Transformers downloads use ``get_pinned_revision_for_model`` where defined so the
     on-disk snapshot matches ``SummaryModel`` / hybrid E2E loads under
@@ -47,16 +52,47 @@ from typing import List, Optional
 
 # RFC-074: Wall-clock timeout to prevent indefinite hangs during model
 # downloads or loads that can trigger macOS APFS kernel lock contention.
-PRELOAD_TIMEOUT_SECONDS = int(os.environ.get("PRELOAD_TIMEOUT", "600"))
+# Effective value is set in main() after parsing --production (see _arm_preload_alarm).
+_PRELOAD_TIMEOUT_EFFECTIVE: int = 600
 
 
 def _timeout_handler(signum, frame):
     print(
-        f"\nERROR: Model preload timed out after {PRELOAD_TIMEOUT_SECONDS}s. "
-        "A model download or load may be stuck.",
+        f"\nERROR: Model preload timed out after {_PRELOAD_TIMEOUT_EFFECTIVE}s. "
+        "A model download or load may be stuck. "
+        "For cold ``--production`` preloads, raise PRELOAD_TIMEOUT or rely on the "
+        "production default (see script docstring).",
         file=sys.stderr,
     )
     sys.exit(2)
+
+
+def _arm_preload_alarm(*, production: bool) -> None:
+    """Configure SIGALRM duration for this run (Unix only).
+
+    ``PRELOAD_TIMEOUT`` overrides defaults. ``0`` disables the alarm.
+    Non-production default stays at 600s so local dev preloads do not hang forever.
+    Production default is 7200s: cold cache downloads (Whisper + HF + GIL) exceed 600s
+    on both CI and developer machines, which previously aborted mid first large model
+    (often ``bart-small`` / ``facebook/bart-base``).
+    """
+    global _PRELOAD_TIMEOUT_EFFECTIVE
+    raw = os.environ.get("PRELOAD_TIMEOUT")
+    if raw is not None and str(raw).strip() != "":
+        _PRELOAD_TIMEOUT_EFFECTIVE = int(raw)
+    elif production:
+        _PRELOAD_TIMEOUT_EFFECTIVE = 7200
+    else:
+        _PRELOAD_TIMEOUT_EFFECTIVE = 600
+    if _PRELOAD_TIMEOUT_EFFECTIVE < 0:
+        print("ERROR: PRELOAD_TIMEOUT must be >= 0 (use 0 to disable the alarm)", file=sys.stderr)
+        sys.exit(2)
+    if not hasattr(signal, "SIGALRM"):
+        return
+    if _PRELOAD_TIMEOUT_EFFECTIVE == 0:
+        signal.alarm(0)
+        return
+    signal.alarm(_PRELOAD_TIMEOUT_EFFECTIVE)
 
 
 if hasattr(signal, "SIGALRM"):
@@ -237,11 +273,12 @@ def preload_spacy_models(model_names: Optional[List[str]] = None) -> None:
 
 
 def _hf_preload_attempts() -> int:
-    raw = os.environ.get("HF_PRELOAD_RETRIES", "5").strip()
+    # Default 2 tries (initial + 1 retry); set HF_PRELOAD_RETRIES=3 if you want an extra round.
+    raw = os.environ.get("HF_PRELOAD_RETRIES", "2").strip()
     try:
         return max(1, int(raw))
     except ValueError:
-        return 5
+        return 2
 
 
 def _hf_preload_backoff_s(attempt_zero_based: int) -> float:
@@ -592,9 +629,6 @@ def main() -> None:
     """Main entry point for model preloading."""
     import argparse
 
-    if hasattr(signal, "SIGALRM"):
-        signal.alarm(PRELOAD_TIMEOUT_SECONDS)
-
     parser = argparse.ArgumentParser(description="Preload ML models for podcast scraper")
     parser.add_argument(
         "--production",
@@ -602,6 +636,7 @@ def main() -> None:
         help="Preload production models (Whisper base.en, BART-large-cnn, LED-large-16384)",
     )
     args = parser.parse_args()
+    _arm_preload_alarm(production=args.production)
 
     if args.production:
         print("Preloading ALL ML models (test + production) for nightly tests...")
@@ -650,9 +685,18 @@ def main() -> None:
 
         preload_transformers_models(transformers_models)
         print("")
-        print("Preloading GIL evidence models (embedding + QA + NLI)...")
-        preload_evidence_models()
-        print("")
+        skip_gil_prod = os.environ.get("SKIP_GIL", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if not skip_gil_prod:
+            print("Preloading GIL evidence models (embedding + QA + NLI)...")
+            preload_evidence_models()
+            print("")
+        else:
+            print("Skipping GIL evidence models (SKIP_GIL=1)")
+            print("")
     else:
         print("Preloading ML models...")
         print("This will download and cache models to avoid network calls during testing.")

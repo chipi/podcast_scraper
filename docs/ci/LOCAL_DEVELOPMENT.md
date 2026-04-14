@@ -214,8 +214,10 @@ Utility First Aid on the boot volume.
   invocation
 - No ML library imports happen at Makefile parse time (so `make help`
   completes in under 1 second with zero Python processes)
-- `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` are exported for all
-  Makefile recipes, preventing accidental model downloads during builds
+- Pytest runs with offline HF enforced via `tests/conftest.py`
+  (`HF_HUB_OFFLINE` / `TRANSFORMERS_OFFLINE`); the `make ci` cache probe
+  passes those variables only for its inline Python check. Preload and
+  `make hf-hub-smoke-test` unset them so Hub downloads are not blocked
 - The pre-commit hook has a 120-second watchdog timeout and kills its
   process group on exit
 

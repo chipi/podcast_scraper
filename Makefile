@@ -16,6 +16,10 @@ WEB_VIEWER_DIR ?= web/gi-kg-viewer
 GIL_OFFSET_VERIFY_DIR ?= output
 GIL_OFFSET_MIN_RATE ?= 0.95
 
+# RFC-074: Preload / hf-hub-smoke-test must reach Hugging Face; unset offline flags for those recipes
+# only (a global Makefile export previously forced HF offline and broke ``make preload-ml-models*``).
+HF_NET_ENV := env -u HF_HUB_OFFLINE -u TRANSFORMERS_OFFLINE
+
 # Secondary venv matching GitHub ``test-unit``: ``pip install -e .[dev]`` only (no ml/llm/server).
 # Override path: ``make venv-dev-init VENVDEV=.venv-ci-unit``
 VENVDEV ?= .venv-dev
@@ -1279,7 +1283,7 @@ build:
 # on every `make` invocation (including `make help`), causing APFS kernel lock
 # contention and unkillable zombie processes on macOS.
 ci: cleanup-processes
-	@cached=$$($(PYTHON) -c "import sys; sys.path.insert(0, 'src'); \
+	@cached=$$(HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 $(PYTHON) -c "import sys; sys.path.insert(0, 'src'); \
 	from tests.integration.ml_model_cache_helpers import _is_whisper_model_cached, _is_transformers_model_cached; \
 	from podcast_scraper import config; \
 	whisper_ok = _is_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL); \
@@ -1301,11 +1305,8 @@ ci: cleanup-processes
 	fi; \
 	$(MAKE) _ci_body
 
-# RFC-074: Force offline mode for HuggingFace during test runs.
-# conftest.py already sets these for pytest, but this ensures any Python
-# invoked by Makefile recipes (probes, scripts) also respects offline mode.
-export HF_HUB_OFFLINE ?= 1
-export TRANSFORMERS_OFFLINE ?= 1
+# Offline HF for pytest: ``tests/conftest.py`` sets HF_HUB_OFFLINE / TRANSFORMERS_OFFLINE.
+# The ``ci:`` cache probe above passes them inline so probes do not hit the Hub accidentally.
 
 _ci_body: format-check lint lint-markdown type security complexity deadcode docstrings spelling check-test-policy test test-ui test-ui-e2e coverage-enforce docs build
 
@@ -1599,15 +1600,15 @@ clean-all: clean clean-cache
 
 preload-ml-models:
 	@echo "Preloading ML models for local development..."
-	@$(PYTHON) scripts/cache/preload_ml_models.py
+	@$(HF_NET_ENV) $(PYTHON) scripts/cache/preload_ml_models.py
 
 preload-ml-models-production:
 	@echo "Preloading production ML models for nightly tests..."
 	@echo "Models: Whisper base, BART/LED/Pegasus, hybrid LongT5+FLAN-T5, en_core_web_sm"
-	@$(PYTHON) scripts/cache/preload_ml_models.py --production
+	@$(HF_NET_ENV) $(PYTHON) scripts/cache/preload_ml_models.py --production
 
 hf-hub-smoke-test:
-	@$(PYTHON) scripts/cache/hf_hub_smoke_test.py $(HF_SMOKE_ARGS)
+	@$(HF_NET_ENV) $(PYTHON) scripts/cache/hf_hub_smoke_test.py $(HF_SMOKE_ARGS)
 
 backup-cache:
 	@echo "Backing up .cache directory (ML models)..."

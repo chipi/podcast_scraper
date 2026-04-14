@@ -289,22 +289,24 @@ Currently only `test-unit`, `test-unit-no-ml`, `test-unit-dev-venv`,
 `test-integration`, and `test-e2e` depend on it. Add it to `ci` and
 `ci-fast` as well.
 
-### Group 5: Offline mode in Makefile test recipes
+### Group 5: Offline mode for tests (not global Makefile export)
 
-**Change 5.1: Set offline environment variables in test recipes.**
+**Change 5.1: Do not export HF offline for every recipe.**
 
-`conftest.py` already sets `HF_HUB_OFFLINE=1` and
-`TRANSFORMERS_OFFLINE=1`, but the ML probe and other Makefile-invoked
-Python scripts do not inherit these. Add to the `ci:` recipe and
-test recipes:
+`tests/conftest.py` sets `HF_HUB_OFFLINE=1` and
+`TRANSFORMERS_OFFLINE=1` for pytest. A **global** Makefile `export` of
+those variables broke `make preload-ml-models` / `make
+preload-ml-models-production` and `make hf-hub-smoke-test`, because
+those targets must reach Hugging Face.
 
-```make
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-```
+Current approach:
 
-This ensures any accidental model download attempt fails fast instead
-of hanging on network I/O.
+- **`ci:` cache probe:** prefix the probe `$(PYTHON) -c ...` with
+  `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` so the probe does not hit
+  the Hub accidentally.
+- **Preload / HF smoke:** run with `env -u HF_HUB_OFFLINE -u
+  TRANSFORMERS_OFFLINE` so downloads work even if the developer
+  exported offline mode in their shell.
 
 ### Group 6: System setup documentation and verification
 
@@ -338,25 +340,15 @@ The following macOS settings are prerequisites for safe ML development:
 **Change 7.1: Add wall-clock timeout.**
 
 The project already has `src/podcast_scraper/utils/timeout.py` using
-`threading.Timer`. Use the same pattern in `preload_ml_models.py`:
+`threading.Timer`. `preload_ml_models.py` uses `SIGALRM` (Unix) instead.
 
-```python
-import signal
-import sys
+Defaults (after parsing CLI args): non-production preloads use **600s**;
+``--production`` uses **7200s** because cold Whisper + Hugging Face + GIL
+evidence downloads exceed 10 minutes on CI and locally. Environment variable
+``PRELOAD_TIMEOUT`` overrides both; ``0`` disables the alarm.
 
-PRELOAD_TIMEOUT_SECONDS = 600  # 10 minutes
-
-def _timeout_handler(signum, frame):
-    print(f"ERROR: Model preload timed out after {PRELOAD_TIMEOUT_SECONDS}s",
-          file=sys.stderr)
-    sys.exit(2)
-
-signal.signal(signal.SIGALRM, _timeout_handler)
-signal.alarm(PRELOAD_TIMEOUT_SECONDS)
-```
-
-Place at the top of `main()`, before any model loading begins. Reset
-with `signal.alarm(0)` after all loading completes.
+Arm the alarm after ``argparse`` (so ``--production`` is known), before
+any model loading. Reset with ``signal.alarm(0)`` after all loading completes.
 
 Note: `signal.alarm` is Unix-only, which is fine -- this script only
 runs locally on macOS or in Linux CI.
