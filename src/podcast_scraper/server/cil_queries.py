@@ -44,34 +44,40 @@ def iter_cil_episode_bundles(
 ) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
     """Yield ``(bridge, gi, kg)`` dicts for each sibling triple.
 
-    *anchor_path* is the **untainted** server ``output_dir``.  The tainted
-    *root_path* is normalised and guard-checked against *anchor_path* before
-    any filesystem access — the ``normpath`` + ``startswith`` pattern that
-    CodeQL recognises as a safe-access barrier.
+    Only *anchor_path* (the **untainted** server ``output_dir``) is used for
+    ``os.walk`` and ``os.path.isdir``.  The user-supplied *root_path* is
+    normalised and used only as a string prefix filter on the results produced
+    by the anchor walk — it never touches a filesystem call directly.
     """
     anchor_s = os.path.normpath(anchor_path)
     root_s = os.path.normpath(root_path)
     if root_s != anchor_s and not root_s.startswith(anchor_s + os.sep):
         return
-    safe_prefix = root_s + os.sep
-    if not os.path.isdir(root_s):
+    root_prefix = root_s + os.sep
+    anchor_prefix = anchor_s + os.sep
+
+    if not os.path.isdir(anchor_s):
         return
 
     bridge_paths: list[str] = []
-    for dirpath, _dirnames, filenames in os.walk(root_s):
+    for dirpath, _dirnames, filenames in os.walk(anchor_s):
         dnorm = os.path.normpath(dirpath)
-        if dnorm != root_s and not dnorm.startswith(safe_prefix):
+        if dnorm != anchor_s and not dnorm.startswith(anchor_prefix):
+            continue
+        if dnorm != root_s and not dnorm.startswith(root_prefix):
             continue
         for fn in filenames:
             if not fn.endswith(".bridge.json"):
                 continue
             joined = os.path.normpath(os.path.join(dnorm, fn))
-            if joined.startswith(safe_prefix) and os.path.isfile(joined):
+            if not joined.startswith(root_prefix):
+                continue
+            if os.path.isfile(joined):
                 bridge_paths.append(joined)
     bridge_paths.sort()
 
     for safe_bridge in bridge_paths:
-        if not safe_bridge.startswith(safe_prefix):
+        if not safe_bridge.startswith(root_prefix):
             continue
         parent = os.path.dirname(safe_bridge)
         name = os.path.basename(safe_bridge)
@@ -80,9 +86,9 @@ def iter_cil_episode_bundles(
         stem = name[: -len(".bridge.json")]
         gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
         kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
-        if not gi_j.startswith(safe_prefix):
+        if not gi_j.startswith(root_prefix):
             continue
-        if not kg_j.startswith(safe_prefix):
+        if not kg_j.startswith(root_prefix):
             continue
         if not os.path.isfile(gi_j) or not os.path.isfile(kg_j):
             continue
