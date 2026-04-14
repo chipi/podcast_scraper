@@ -29,8 +29,16 @@ def _read_json(path_str: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _bridge_json_paths_under_corpus(root_s: str) -> list[str]:
-    """List ``*.bridge.json`` paths under *root_s* using ``os.walk`` (no ``Path.glob``)."""
+def _bridge_json_paths_under_corpus(corpus_root: Path) -> list[str]:
+    """List ``*.bridge.json`` under a resolved corpus root using ``os.walk`` (no ``Path.glob``).
+
+    *corpus_root* is re-resolved via ``safe_resolve_directory`` so ``os.walk`` is not fed
+    a raw user string (CodeQL py/path-injection).
+    """
+    root_resolved = safe_resolve_directory(corpus_root)
+    if root_resolved is None:
+        return []
+    root_s = os.path.normpath(str(root_resolved))
     safe_prefix = root_s + os.sep
     found: list[str] = []
     if not os.path.isdir(root_s):
@@ -72,7 +80,7 @@ def iter_cil_episode_bundles(
         return
     root_s = os.path.normpath(str(root_resolved))
     safe_prefix = root_s + os.sep
-    for safe_bridge in _bridge_json_paths_under_corpus(root_s):
+    for safe_bridge in _bridge_json_paths_under_corpus(root_resolved):
         if not safe_bridge.startswith(safe_prefix):
             continue
         safe_gi, safe_kg = _gi_kg_str_paths_next_to_bridge(safe_bridge, root_s)

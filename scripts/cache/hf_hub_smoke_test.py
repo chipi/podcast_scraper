@@ -105,7 +105,8 @@ def _from_pretrained_probe(
         kw["revision"] = revision
     t0 = time.perf_counter()
     try:
-        tok = AutoTokenizer.from_pretrained(repo_id, **kw)
+        # nosec B615 - Dev smoke script; repo_id from CLI default / allowlist; revision when pinned.
+        tok = AutoTokenizer.from_pretrained(repo_id, **kw)  # nosec B615
         _ = tok.encode("smoke test", add_special_tokens=True)
         elapsed = time.perf_counter() - t0
         return True, f"AutoTokenizer.from_pretrained ok in {elapsed:.1f}s"
