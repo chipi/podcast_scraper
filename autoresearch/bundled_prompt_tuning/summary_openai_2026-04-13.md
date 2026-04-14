@@ -249,30 +249,66 @@ silver paragraph style, but the judge rubric blocks acceptance.
 
 ---
 
+## Round 6 Results
+
+3 experiments run, all rejected. Root cause: ratchet dilution.
+
+After fixing the judge rubric (Efficiency replaces Conciseness, fraction-based contestation), all r6
+experiments had 0/5 episodes contested — the judging system was working correctly. But all r6 runs
+still rejected because of the ratchet design: scoring full bundled JSON against
+`silver_sonnet46_smoke_bullets_v1` (bullets-only plain text) penalises longer summaries regardless of
+quality. More paragraph text = lower ROUGE-L overlap with a shorter reference.
+
+r6-1 had para ROUGE-L 26.5% (matching non-bundled 26.6%) and bullets ROUGE-L 28.4% — both strong
+results — but the ratchet scalar dropped −6.1% from the longer JSON output.
+
+---
+
+## Ratchet Redesign (implemented 2026-04-14)
+
+**Root cause:** Ratchet scored full bundled JSON against a bullets-only plain text silver reference.
+More paragraph content structurally diluted ROUGE-L regardless of quality.
+
+**Fix:** Four changes made together:
+
+1. **`scoring_output_field: bullets`** added to ratchet config — bullets extracted from candidate
+   JSON before ROUGE computation. Reference (`silver_sonnet46_smoke_bullets_v1`) is bullets-only
+   plain text. Ratchet now measures bullet quality in isolation.
+
+2. **Model upgrade: gpt-4o** — ratchet config switched from gpt-4o-mini to gpt-4o. r6-1 showed
+   gpt-4o bullets quality is better; r3-4 showed gpt-4o judge scores are higher. Accepts higher
+   cost for cleaner signal.
+
+3. **4–6 paragraph default** — `default(2)`/`default(3)` changed to `default(4)`/`default(6)` in
+   both bundled templates. Paragraphs no longer penalise the ratchet, so we commit the r6-1
+   quality improvement as the new champion baseline.
+
+4. **Bundled silver created:** `silver_gpt4o_smoke_bundled_v1` — gpt-4o bundled output (4–6 para,
+   r7 champion prompts) promoted to silver reference for evaluation tracking. NOT used in the
+   ratchet loop; ratchet stays on `silver_sonnet46_smoke_bullets_v1`.
+
+Comparison configs (`compare_openai_bundled_bullets_smoke_v1.yaml`,
+`compare_openai_bundled_paragraph_smoke_v1.yaml`) deleted — superseded by the ratchet's native
+`scoring_output_field: bullets`.
+
+**R7 baseline (new ratchet):** 0.513219 (ROUGE-L 33.6% bullets, judge_mean 0.927, 0/5 contested).
+Previous r3-3 champion measured 0.504330 under the old ratchet — not directly comparable (different
+scoring domain), but the redesign confirms the signal is cleaner.
+
+---
+
 ## Suggested Next Directions
 
-1. **Re-calibrate the judge rubric for longer summaries.** The rubric is the binding constraint —
-   it was calibrated when 2–3 paragraph summaries were the norm, and now systematically rejects
-   longer outputs regardless of quality. Updating the rubric to evaluate 4–6 paragraph summaries
-   on their own terms (coverage, accuracy, structure) would unblock the r4/r5 improvements.
+1. **Push bullets further (r7).** Baseline is ROUGE-L 33.6% bullets vs `silver_sonnet46_smoke_bullets_v1`.
+   Style narration from r3-3 is already in place. Next: explicit anti-pattern examples ("avoid:
+   'The episode discusses X' — prefer: 'X enables Y because Z'") or expanding the few-shot examples.
 
-2. **Dedicated paragraph tuning track with paragraph silver as ratchet metric.** Run a separate
-   autoresearch loop scoring extracted paragraph output against `silver_sonnet46_smoke_v1` (ROUGE
-   only, no judges). This sidesteps the judge calibration issue entirely and directly optimizes
-   paragraph ROUGE-L. r5-1 showed 27.2% is achievable with gpt-4o + 4–6 paragraphs.
+2. **Dedicated paragraph track.** Create an `autoresearch_prompt_openai_bundled_smoke_paragraph_v1.yaml`
+   config with `scoring_output_field: summary` and reference `silver_sonnet46_smoke_v1`. Baseline
+   paragraph ROUGE-L is ~26.5% (r6-1). Tune independently of bullets ratchet.
 
-3. **Benchmark-scale validation of r3-3 champion.** All tuning on 5-episode smoke — judge
-   contestation on even 1 episode flips the full blend to ROUGE-only (~47% swing). At benchmark
-   scale the signal is more stable. Validate that the 0.504 champion holds before further tuning.
-
-4. **Push bullets to match non-bundled (2.5 pp gap remaining).** The r3-3 style narration is the
-   most effective lever. Extending it with explicit anti-patterns ("avoid: 'The episode discusses
-   X' — prefer: 'X enables Y because Z'") could close the remaining gap (31.1% → 33.6% target).
-
-5. **Re-evaluate bundled value proposition with updated numbers.** Bullets: −2.5 pp vs
-   non-bundled. Paragraphs: −6.7 pp (but −0 pp achievable with gpt-4o if rubric is fixed).
-   Bundled is 2.6× faster and 42% fewer tokens. Whether the paragraph gap matters depends on
-   how the summary is used downstream.
+3. **Benchmark-scale validation.** Validate r7 baseline on `curated_5feeds_benchmark_v1` before
+   further tuning. At 5-episode scale, noise is high; larger scale confirms signal stability.
 
 ---
 

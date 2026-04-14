@@ -1,6 +1,8 @@
 # Autoresearch bundled prompt tuning — OpenAI, smoke scale.
 #
-# Pair with silver: silver_sonnet46_smoke_bullets_v1
+# Ratchet design (r7+): scores bullets only (scoring_output_field: bullets) vs
+# silver_sonnet46_smoke_bullets_v1. Paragraph quality is tracked separately via
+# silver_gpt4o_smoke_bundled_v1 (evaluation only, not ratchet).
 #
 # Templates under tuning:
 #   src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_system_v1.j2
@@ -15,7 +17,7 @@ task: "summarization"
 
 backend:
   type: "openai"
-  model: "gpt-4o-mini"
+  model: "gpt-4o"
 
 llm_pipeline_mode: "bundled"
 
@@ -26,3 +28,4 @@ params:
   temperature: 0.0
 
 preprocessing_profile: "cleaning_v4"
+scoring_output_field: "bullets"

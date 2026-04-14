@@ -97,6 +97,40 @@ make autoresearch-score-bundled \
    the episode's domain and its central argument or premise."
 5. **Combined: count + structure narration** — try both together if individual changes fall short.
 
+## Round 7 — Bullets depth experiments (redesigned ratchet)
+
+**New ratchet design (as of 2026-04-14):**
+
+- Scores bullets only (`scoring_output_field: bullets`) vs `silver_sonnet46_smoke_bullets_v1`.
+- Model is gpt-4o (switched from gpt-4o-mini).
+- Templates default to 4–6 paragraphs.
+- Paragraph quality tracked separately via `silver_gpt4o_smoke_bundled_v1` (evaluation only).
+
+R7 baseline: **0.513219** (ROUGE-L 33.6% bullets, judge_mean 0.927, 0/5 contested).
+
+The ratchet now measures bullet quality in isolation. Paragraph changes no longer affect the score.
+All r4–r6 structural changes that improved paragraphs can now be retried without penalty.
+
+1. **Anti-pattern examples in style narration** — add explicit negative examples alongside the
+   existing positive examples: "avoid 'The episode discusses X' — prefer 'X enables Y because Z'".
+   Hypothesis: negative exemplars sharpen the vocabulary boundary the model has already learned.
+
+2. **Expand few-shot bullet examples to 5** — currently 3 examples; add 2 more from different
+   domains (one technical, one conceptual). Hypothesis: broader style coverage improves alignment
+   across all 5 episodes in the smoke set.
+
+3. **Dense-concept anchor rule** — add: "Each bullet must name a specific tool, technique, finding,
+   or named concept from the transcript as its grammatical subject. Generic subjects like 'The
+   approach', 'This method', 'The system' are not acceptable."
+   Hypothesis: reinforces the noun-anchor pattern already in style narration with an explicit rule.
+
+4. **Reduce max bullet count to 8** — current aim is 6–8; explicitly capping at 8 may improve
+   precision. Hypothesis: forcing the model to choose the 8 best bullets improves per-bullet density.
+
+5. **Paragraph + bullets: combined 4-6 para with structure narration** — now that 4–6 paragraphs
+   don't penalise ratchet, test whether adding paragraph structure narration (P1=thesis,
+   P2–Pn=topic anchors) improves either bullets (via model coherence) or overall judge scores.
+
 ## Round 5 — gpt-4o paragraph experiments
 
 r4 finding: gpt-4o-mini triggers judge contestation at 4–6 paragraphs. r3-4 showed gpt-4o gets

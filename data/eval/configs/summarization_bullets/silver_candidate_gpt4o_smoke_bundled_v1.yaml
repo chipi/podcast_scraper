@@ -1,0 +1,31 @@
+# Silver candidate: gpt-4o bundled mode — full title + summary + bullets reference.
+#
+# Purpose: Generate the bundled silver reference for overall quality tracking.
+# Produces full JSON {"title": ..., "summary": ..., "bullets": [...]} per episode.
+# NOT used as ratchet reference (ratchet uses silver_sonnet46_smoke_bullets_v1 +
+# scoring_output_field: bullets). This reference is for evaluation only.
+#
+# After running, promote with:
+#   make run-promote RUN_ID=silver_candidate_gpt4o_smoke_bundled_v1 \
+#     AS=reference PROMOTED_ID=silver_gpt4o_smoke_bundled_v1 \
+#     REASON="Bundled silver reference: gpt-4o title+summary+bullets (4-6 para, r7 champion prompts)" \
+#     REFERENCE_QUALITY=silver
+#
+# Requires: OPENAI_API_KEY
+
+id: "silver_candidate_gpt4o_smoke_bundled_v1"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+params:
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

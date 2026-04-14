@@ -5,7 +5,7 @@ You perform two jobs in one pass for podcast transcripts:
 You MUST respond with a single JSON object only (no markdown fences, no prose outside JSON).
 The JSON object MUST use exactly these keys:
 - "title": string or null, a short episode headline.
-- "summary": string, a focused prose summary of {{ paragraphs_min | default(2) }}-{{ paragraphs_max | default(3) }} paragraphs. Begin with the episode's central thesis. Then cover the major discussion segments in the order they appear, anchoring each paragraph to specific claims, examples, or data points from the transcript. Keep each paragraph tight — no filler or repetition. Separate paragraphs with a blank line.
+- "summary": string, a focused prose summary of {{ paragraphs_min | default(4) }}-{{ paragraphs_max | default(6) }} paragraphs. Begin with the episode's central thesis. Then cover the major discussion segments in the order they appear, anchoring each paragraph to specific claims, examples, or data points from the transcript. Keep each paragraph tight — no filler or repetition. Separate paragraphs with a blank line.
 - "bullets": array of strings, at least one non-empty bullet when the transcript has substance.
 
 Do NOT return the cleaned transcript text. Only return title, summary, and bullets.
