@@ -1,15 +1,20 @@
-"""RFC-072 cross-layer corpus queries (bridge + GI + KG on disk; no database)."""
+"""RFC-072 cross-layer corpus queries (bridge + GI + KG on disk; no database).
+
+Public query functions accept ``root_safe: str`` — the **already-sanitised**
+corpus root returned by ``pathutil.resolved_corpus_root_str``.  That function
+applies ``os.path.normpath`` + ``str.startswith`` (the sanitiser shape that
+CodeQL's ``py/path-injection`` query recognises), so every ``os.walk`` /
+``os.path.isdir`` / ``open`` call here operates on a trusted string.
+"""
 
 from __future__ import annotations
 
 import json
 import logging
 import os
-from pathlib import Path
 from typing import Any, Iterator
 
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
-from podcast_scraper.utils.path_validation import normpath_if_under_root, safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -29,23 +34,22 @@ def _read_json(path_str: str) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def _bridge_json_paths_under_corpus(corpus_root: Path) -> list[str]:
-    """List ``*.bridge.json`` under a resolved corpus root using ``os.walk`` (no ``Path.glob``).
+def iter_cil_episode_bundles(
+    root_safe: str,
+) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
+    """Yield ``(bridge, gi, kg)`` dicts for each sibling triple under *root_safe*.
 
-    *corpus_root* is re-resolved via ``safe_resolve_directory`` so ``os.walk`` is not fed
-    a raw user string (CodeQL py/path-injection).
+    *root_safe* must be the string returned by
+    ``pathutil.resolved_corpus_root_str`` (already ``normpath`` + ``startswith``
+    sanitised).  All further filesystem access applies ``normpath`` +
+    ``startswith`` inline so CodeQL sees a continuous sanitiser chain.
     """
-    root_resolved = safe_resolve_directory(corpus_root)
-    if root_resolved is None:
-        return []
-    # Same shape as index_source_mtime / pathutil: normpath+realpath after resolve for CodeQL.
-    root_s = os.path.normpath(os.path.realpath(str(root_resolved.resolve())))
+    root_s = os.path.normpath(root_safe)
     safe_prefix = root_s + os.sep
-    found: list[str] = []
-    # codeql[py/path-injection] -- root_s from safe_resolve_directory + normpath+realpath.
     if not os.path.isdir(root_s):
-        return found
-    # codeql[py/path-injection] -- walk only root_s; files via normpath_if_under_root before open.
+        return
+
+    bridge_paths: list[str] = []
     for dirpath, _dirnames, filenames in os.walk(root_s):
         dnorm = os.path.normpath(dirpath)
         if dnorm != root_s and not dnorm.startswith(safe_prefix):
@@ -54,51 +58,29 @@ def _bridge_json_paths_under_corpus(corpus_root: Path) -> list[str]:
             if not fn.endswith(".bridge.json"):
                 continue
             joined = os.path.normpath(os.path.join(dnorm, fn))
-            sb = normpath_if_under_root(joined, root_s)
-            if sb and sb.startswith(safe_prefix) and os.path.isfile(sb):
-                found.append(sb)
-    return sorted(found)
+            if joined.startswith(safe_prefix) and os.path.isfile(joined):
+                bridge_paths.append(joined)
+    bridge_paths.sort()
 
-
-def _gi_kg_str_paths_next_to_bridge(safe_bridge: str, root_s: str) -> tuple[str | None, str | None]:
-    """Sibling ``*.gi.json`` / ``*.kg.json`` paths for a sanitized bridge path string."""
-    parent = os.path.dirname(safe_bridge)
-    name = os.path.basename(safe_bridge)
-    if not name.endswith(".bridge.json"):
-        return None, None
-    stem = name[: -len(".bridge.json")]
-    gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
-    kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
-    safe_gi = normpath_if_under_root(gi_j, root_s)
-    safe_kg = normpath_if_under_root(kg_j, root_s)
-    return safe_gi, safe_kg
-
-
-def iter_cil_episode_bundles(
-    corpus_root: Path,
-) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
-    """Yield ``(bridge, gi, kg)`` dicts for each sibling triple under ``corpus_root``."""
-    root_resolved = safe_resolve_directory(corpus_root)
-    if root_resolved is None:
-        return
-    root_s = os.path.normpath(str(root_resolved))
-    safe_prefix = root_s + os.sep
-    for safe_bridge in _bridge_json_paths_under_corpus(root_resolved):
+    for safe_bridge in bridge_paths:
         if not safe_bridge.startswith(safe_prefix):
             continue
-        safe_gi, safe_kg = _gi_kg_str_paths_next_to_bridge(safe_bridge, root_s)
-        if not safe_gi or not safe_kg:
+        parent = os.path.dirname(safe_bridge)
+        name = os.path.basename(safe_bridge)
+        if not name.endswith(".bridge.json"):
             continue
-        if (
-            not safe_gi.startswith(safe_prefix)
-            or not safe_kg.startswith(safe_prefix)
-            or not os.path.isfile(safe_gi)
-            or not os.path.isfile(safe_kg)
-        ):
+        stem = name[: -len(".bridge.json")]
+        gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
+        kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
+        if not gi_j.startswith(safe_prefix):
+            continue
+        if not kg_j.startswith(safe_prefix):
+            continue
+        if not os.path.isfile(gi_j) or not os.path.isfile(kg_j):
             continue
         bridge = _read_json(safe_bridge)
-        gi = _read_json(safe_gi)
-        kg = _read_json(safe_kg)
+        gi = _read_json(gi_j)
+        kg = _read_json(kg_j)
         if bridge is None or gi is None or kg is None:
             continue
         yield bridge, gi, kg
@@ -220,7 +202,7 @@ def _episode_id_from_bridge(bridge: dict[str, Any]) -> str:
 
 
 def position_arc(
-    corpus_root: Path,
+    root_safe: str,
     target_person: str,
     target_topic: str,
     insight_types: tuple[str, ...] | None = ("claim",),
@@ -229,7 +211,7 @@ def position_arc(
     person = target_person.strip()
     topic = target_topic.strip()
     results: list[dict[str, Any]] = []
-    for bridge, gi, kg in iter_cil_episode_bundles(corpus_root):
+    for bridge, gi, kg in iter_cil_episode_bundles(root_safe):
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids or topic not in gi_ids:
             continue
@@ -325,13 +307,13 @@ def _guest_brief_append_for_episode(
         all_quotes.append({"episode_id": episode_id, "quote": quote_node})
 
 
-def guest_brief(corpus_root: Path, target_person: str) -> dict[str, Any]:
+def guest_brief(root_safe: str, target_person: str) -> dict[str, Any]:
     """RFC-072 Pattern B — insights by topic + quotes for a person."""
     person = target_person.strip()
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
 
-    for bridge, gi, _kg in iter_cil_episode_bundles(corpus_root):
+    for bridge, gi, _kg in iter_cil_episode_bundles(root_safe):
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids:
             continue
@@ -345,14 +327,14 @@ def guest_brief(corpus_root: Path, target_person: str) -> dict[str, Any]:
 
 
 def topic_timeline(
-    corpus_root: Path,
+    root_safe: str,
     target_topic: str,
     insight_types: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """RFC-072 Pattern C — insights about a topic across episodes."""
     topic = target_topic.strip()
     results: list[dict[str, Any]] = []
-    for bridge, gi, kg in iter_cil_episode_bundles(corpus_root):
+    for bridge, gi, kg in iter_cil_episode_bundles(root_safe):
         if topic not in _bridge_all_ids(bridge):
             continue
 
@@ -399,20 +381,20 @@ def topic_timeline(
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
 
-def person_topic_ids(corpus_root: Path, target_person: str) -> list[str]:
+def person_topic_ids(root_safe: str, target_person: str) -> list[str]:
     """Distinct topic ids linked to ``target_person`` via grounded GI edges."""
-    brief = guest_brief(corpus_root, target_person)
+    brief = guest_brief(root_safe, target_person)
     topics = brief.get("topics")
     if not isinstance(topics, dict):
         return []
     return sorted({str(k) for k in topics.keys() if k})
 
 
-def topic_person_ids(corpus_root: Path, target_topic: str) -> list[str]:
+def topic_person_ids(root_safe: str, target_topic: str) -> list[str]:
     """Distinct person ids that speak (via quotes) to insights about ``target_topic``."""
     topic = target_topic.strip()
     persons: set[str] = set()
-    for bridge, gi, _kg in iter_cil_episode_bundles(corpus_root):
+    for bridge, gi, _kg in iter_cil_episode_bundles(root_safe):
         if topic not in _bridge_all_ids(bridge):
             continue
 

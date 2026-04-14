@@ -42,9 +42,15 @@ def _parse_insight_types(
     return parts if parts else default
 
 
-def _require_root(request: Request, path: str | None) -> Path:
-    fallback = getattr(request.app.state, "output_dir", None)
-    root = _resolve_corpus_root(path, fallback)
+def _require_root_safe(request: Request, path: str | None) -> tuple[str, Path | None]:
+    """Return ``(root_safe, anchor)`` — sanitised corpus root string and anchor.
+
+    ``root_safe`` comes from ``resolved_corpus_root_str`` which applies
+    ``os.path.normpath`` + ``str.startswith`` — the sanitiser that CodeQL
+    recognises for ``py/path-injection``.
+    """
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(path, anchor)
     if root is None:
         raise HTTPException(
             status_code=400,
@@ -53,7 +59,7 @@ def _require_root(request: Request, path: str | None) -> Path:
                 "(set PODCAST_SERVE_OUTPUT_DIR or pass output_dir to create_app)."
             ),
         )
-    return root
+    return resolved_corpus_root_str(root, anchor), anchor
 
 
 @router.get("/persons/{person_id}/positions", response_model=CilPositionArcResponse)
@@ -72,9 +78,9 @@ async def person_positions(
     ),
 ) -> CilPositionArcResponse:
     """Position arc — insights by person + topic across episodes (RFC-072 Pattern A)."""
-    root = _require_root(request, path)
+    root_safe, _anchor = _require_root_safe(request, path)
     types = _parse_insight_types(insight_types, default=("claim",))
-    raw = cil_queries.position_arc(root, person_id, topic, insight_types=types)
+    raw = cil_queries.position_arc(root_safe, person_id, topic, insight_types=types)
     episodes = [
         CilArcEpisodeBlock(
             episode_id=str(b["episode_id"]),
@@ -83,9 +89,8 @@ async def person_positions(
         )
         for b in raw
     ]
-    anchor = getattr(request.app.state, "output_dir", None)
     return CilPositionArcResponse(
-        path=resolved_corpus_root_str(root, anchor),
+        path=root_safe,
         person_id=person_id.strip(),
         topic_id=topic.strip(),
         episodes=episodes,
@@ -102,8 +107,8 @@ async def person_brief(
     ),
 ) -> CilGuestBriefResponse:
     """Guest intelligence brief — insights grouped by topic (RFC-072 Pattern B)."""
-    root = _require_root(request, path)
-    brief = cil_queries.guest_brief(root, person_id)
+    root_safe, _anchor = _require_root_safe(request, path)
+    brief = cil_queries.guest_brief(root_safe, person_id)
     topics_raw = brief.get("topics") or {}
     topics_out: dict[str, list[CilGuestBriefInsightRow]] = {}
     if isinstance(topics_raw, dict):
@@ -121,9 +126,8 @@ async def person_brief(
         for row in quotes_raw:
             if isinstance(row, dict):
                 quotes.append(CilGuestBriefQuoteRow.model_validate(row))
-    anchor = getattr(request.app.state, "output_dir", None)
     return CilGuestBriefResponse(
-        path=resolved_corpus_root_str(root, anchor),
+        path=root_safe,
         person_id=str(brief.get("person_id") or person_id.strip()),
         topics=topics_out,
         quotes=quotes,
@@ -145,9 +149,9 @@ async def topic_timeline(
     ),
 ) -> CilTopicTimelineResponse:
     """Topic evolution across episodes (RFC-072 Pattern C)."""
-    root = _require_root(request, path)
+    root_safe, _anchor = _require_root_safe(request, path)
     types = _parse_insight_types(insight_types, default=None)
-    raw = cil_queries.topic_timeline(root, topic_id, insight_types=types)
+    raw = cil_queries.topic_timeline(root_safe, topic_id, insight_types=types)
     episodes = [
         CilArcEpisodeBlock(
             episode_id=str(b["episode_id"]),
@@ -156,9 +160,8 @@ async def topic_timeline(
         )
         for b in raw
     ]
-    anchor = getattr(request.app.state, "output_dir", None)
     return CilTopicTimelineResponse(
-        path=resolved_corpus_root_str(root, anchor),
+        path=root_safe,
         topic_id=topic_id.strip(),
         episodes=episodes,
     )
@@ -174,11 +177,10 @@ async def topic_persons(
     ),
 ) -> CilIdListResponse:
     """Person ids that discuss this topic (via grounded GI quotes)."""
-    root = _require_root(request, path)
-    ids = cil_queries.topic_person_ids(root, topic_id)
-    anchor = getattr(request.app.state, "output_dir", None)
+    root_safe, _anchor = _require_root_safe(request, path)
+    ids = cil_queries.topic_person_ids(root_safe, topic_id)
     return CilIdListResponse(
-        path=resolved_corpus_root_str(root, anchor),
+        path=root_safe,
         anchor_id=topic_id.strip(),
         ids=ids,
     )
@@ -194,11 +196,10 @@ async def person_topics(
     ),
 ) -> CilIdListResponse:
     """Topic ids this person discusses (via grounded GI edges)."""
-    root = _require_root(request, path)
-    ids = cil_queries.person_topic_ids(root, person_id)
-    anchor = getattr(request.app.state, "output_dir", None)
+    root_safe, _anchor = _require_root_safe(request, path)
+    ids = cil_queries.person_topic_ids(root_safe, person_id)
     return CilIdListResponse(
-        path=resolved_corpus_root_str(root, anchor),
+        path=root_safe,
         anchor_id=person_id.strip(),
         ids=ids,
     )
