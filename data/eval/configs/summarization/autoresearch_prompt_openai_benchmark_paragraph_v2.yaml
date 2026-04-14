@@ -1,0 +1,25 @@
+# Autoresearch v2 non-bundled paragraph — HELD-OUT benchmark validation.
+# DO NOT iterate against this dataset.
+# Paired silver: silver_sonnet46_benchmark_v2_paragraph
+
+id: "autoresearch_prompt_openai_benchmark_paragraph_v2"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  system: "openai/summarization/system_v1"
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  seed: 42
+
+preprocessing_profile: "cleaning_v4"

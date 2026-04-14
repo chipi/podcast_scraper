@@ -1,0 +1,29 @@
+# Autoresearch v2 non-bundled paragraph ratchet — OpenAI, dev dataset (10 episodes).
+#
+# Templates under tuning (OpenAI-specific):
+#   src/podcast_scraper/prompts/openai/summarization/system_v1.j2
+#   src/podcast_scraper/prompts/openai/summarization/long_v1.j2
+#
+# Paired silver: silver_sonnet46_dev_v1_paragraph
+
+id: "autoresearch_prompt_openai_dev_paragraph_v2"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  system: "openai/summarization/system_v1"
+  user: "openai/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  seed: 42
+
+preprocessing_profile: "cleaning_v4"
