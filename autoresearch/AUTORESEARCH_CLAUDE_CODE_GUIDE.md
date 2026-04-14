@@ -1,7 +1,13 @@
 # Running AutoResearch Overnight with Claude Code
 
 A practical guide for running autonomous autoresearch optimization loops on your M4 Pro
-laptop, specific to the podcast_scraper prompt tuning setup (RFC-057 Track A).
+laptop, specific to the podcast_scraper prompt tuning setup.
+
+> **Framework: v2** ([RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md)). Iteration
+> happens on `curated_5feeds_dev_v1` (10 ep); champions are validated on
+> `curated_5feeds_benchmark_v2` (5 held-out ep). **Never iterate against held-out.** All v2
+> configs set `params.seed: 42`. Original v1 smoke/benchmark configs are preserved but frozen —
+> don't use them for new work unless you're specifically reproducing a prior result.
 
 ---
 
@@ -43,11 +49,13 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Tuning knobs
-AUTORESEARCH_EVAL_N=5                        # episodes per run (5 = full smoke set, minimum reliable)
+AUTORESEARCH_EVAL_N=10                       # episodes per run (v2 dev has 10; set to 10 for full dev)
 AUTORESEARCH_SCORE_ROUGE_WEIGHT=0.70         # default; don't change between experiments
 ```
 
-> **N=5 is the minimum for overnight runs.** N=1 scores are too noisy for a reliable
+> **N=10 is the v2 default for dev iteration.** Use N=5 only if you're specifically reproducing
+> a v1 smoke-scale run (v1 smoke dataset had 5 episodes). For held-out validation
+> (`curated_5feeds_benchmark_v2`), use N=5 (its size). N=1 scores are too noisy for a reliable
 > ratchet — we saw 0.660 vs actual 0.571 baseline because of this in the first session.
 
 ### 3. Python environment activated

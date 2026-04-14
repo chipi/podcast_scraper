@@ -134,6 +134,41 @@ JSON blob differently (one judge might treat JSON length as a conciseness signal
 
 ---
 
+## Seed & determinism (v2)
+
+v2 adds a `seed` plumbing path for OpenAI calls. All v2 autoresearch configs set
+`params.seed: 42`. The seed is threaded:
+
+```text
+YAML params.seed=42
+  → ExperimentConfig.params["seed"]
+  → run_experiment.py: openai_summary_seed=params_dict_raw.get("seed")
+  → Config.openai_summary_seed
+  → OpenAIProvider.summary_seed
+  → client.chat.completions.create(..., seed=42)
+```
+
+Non-bundled and bundled paths both pass the seed. See
+`src/podcast_scraper/providers/openai/openai_provider.py` lines around the
+`_make_api_call` helpers.
+
+### Empirical behaviour
+
+OpenAI's seed is *approximately* deterministic, per their API docs. Tested during v2:
+
+- Stable `system_fingerprint` across runs → good sign.
+- `predictions.jsonl` md5 still differs between two seeded runs → seed does NOT give
+  byte-identical outputs.
+- Final score variance reduced but not eliminated — roughly ~5% swing remains from API
+  non-determinism alone, before judge variance.
+
+**Practical implication**: seed helps but does not fix the fundamental problem. For a
+principled fix, implement multi-run averaging (N=3 per experiment) — deferred to future
+work per RFC-073. In the meantime, seed + the v2 dev (N=10) + held-out validation are the
+combined mitigation.
+
+---
+
 ## Known limitations
 
 1. **Cheap judge models.** `gpt-4o-mini` and `claude-haiku` are the cheapest models
@@ -153,6 +188,17 @@ JSON blob differently (one judge might treat JSON length as a conciseness signal
    characters of the transcript. For very long episodes, the judge may miss content
    discussed late in the transcript and penalise the summary for "missing" themes it
    cannot see.
+
+5. **OpenAI temperature=0 is not deterministic.** Documented by OpenAI as "approximately
+   deterministic." Seed plumbing (§Seed & determinism) reduces variance but does not
+   eliminate it. Smoke-scale (N=5) scores can flip across runs for borderline
+   configurations — use v2 dev (N=10) as the primary iteration set and validate champions
+   on held-out for any decision that matters.
+
+6. **Held-out benchmark is small (v2).** `curated_5feeds_benchmark_v2` has only 5 episodes.
+   Own noise ~±5%. Big enough to catch major overfitting (>10pp drops), too small to
+   discriminate between similarly-good champions. Acceptable for this stage; tracked for
+   expansion in RFC-073 §Future Work.
 
 ---
 

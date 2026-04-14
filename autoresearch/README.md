@@ -1,157 +1,193 @@
-# Autoresearch (RFC-057)
+# Autoresearch
 
 Thin automation layer on top of `scripts/eval/run_experiment.py` and
 `src/podcast_scraper/evaluation/`.
 
-- **Track A (v1):** `prompt_tuning/` — prompt edits + `eval/score.py` + dual judges.
-- **Track B (future):** ML inference params (`config/autoresearch/ml_params.yaml`).
+**Current framework: v2** — see [RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md).
+**Original framework: v1** — see [RFC-057](../docs/rfc/RFC-057-autoresearch-optimization-loop.md)
+(closed via [ADR-073](../docs/adr/ADR-073-rfc057-autoresearch-closure.md); Track B still v1).
 
-**Full design:** `docs/rfc/RFC-057-autoresearch-optimization-loop.md`
+## v2 headline: dev + held-out, not smoke + benchmark
 
-**Human loop rules (source of truth for caps / policy):**
+| Tier | Dataset | Size | Role | Touch during iteration? |
+| ---- | ------- | ---- | ---- | ----------------------- |
+| **Dev** | `curated_5feeds_dev_v1` | 10 ep (e01+e02) | Ratchet iteration | Yes (every experiment) |
+| **Held-out** | `curated_5feeds_benchmark_v2` | 5 ep (e03, ~32 min) | Champion validation | **Never** — once per committed champion |
 
-- **Summary bullets (JSON):** `autoresearch/prompt_tuning/program_summary_bullets.md`
-- **Summary paragraphs:** `autoresearch/prompt_tuning/program_summary.md`
+`curated_5feeds_smoke_v1` and `curated_5feeds_benchmark_v1` are preserved **as-is** for reproducibility of
+v1 runs, baselines, and silvers. Do not modify. New work uses the v2 datasets.
 
-## Two research lines (same harness, different config + reference)
-
-Use **`make autoresearch-score`** with explicit `CONFIG=` and `REFERENCE=` so ROUGE compares like-with-like.
-
-| Line | Config | Silver reference (ROUGE target) | Program (allowlist) |
-| --- | --- | --- | --- |
-| **Summary bullets** | `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml` | `silver_gpt4o_smoke_bullets_v1` | `program_summary_bullets.md` |
-| **Summary paragraphs** | `data/eval/configs/autoresearch_prompt_openai_smoke_paragraph_v1.yaml` | `silver_gpt4o_smoke_v1` | `program_summary.md` |
-
-**Examples:**
-
-```bash
-# Bullets — use bullet silver once it exists
-make autoresearch-score \
-  CONFIG=data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml \
-  REFERENCE=silver_gpt4o_smoke_bullets_v1
-
-# Paragraphs — legacy paragraph silver
-make autoresearch-score \
-  CONFIG=data/eval/configs/autoresearch_prompt_openai_smoke_paragraph_v1.yaml \
-  REFERENCE=silver_gpt4o_smoke_v1
-```
-
-Default `make autoresearch-score` (no args) uses the **bullet** config and default reference
-`silver_gpt4o_smoke_bullets_v1` (aligned ROUGE). That reference **must exist** under
-`data/eval/references/silver/` — run `experiment_openai_gpt4o_smoke_bullets_v1`
-(`CONFIG=data/eval/issue-477/experiment_openai_gpt4o_smoke_bullets_v1.yaml`), then **promote**
-the run (see `data/eval/configs/README.md`). Until then, pass `REFERENCE=silver_gpt4o_smoke_v1` only if you
-accept paragraph-vs-bullet ROUGE noise. **Paragraph line:** always pass `CONFIG` + `REFERENCE` as
-in the table.
+See [JUDGING.md](JUDGING.md) for the dual-judge system (rubric, fraction-based contestation, prose
+extraction, seed plumbing).
 
 ---
 
-## Claude Code brief (point the agent here)
+## Current champions (OpenAI v2, held-out scores)
 
-Use this section as the **single onboarding context** for Claude Code (or any coding agent). Work from the **repository root** unless a path below is absolute.
+| Track | Approach | Config | Silver | Held-out final | ROUGE-L |
+| ----- | -------- | ------ | ------ | -------------- | ------- |
+| Bullets | **Non-bundled** (winner) | `autoresearch_prompt_openai_benchmark_bullets_v2.yaml` | `silver_sonnet46_benchmark_v2_bullets` | **0.566** | 39.6% |
+| Bullets | Bundled | `autoresearch_prompt_openai_bundled_benchmark_bullets_v2.yaml` | `silver_sonnet46_benchmark_v2_bullets` | 0.505 | 33.2% |
+| Paragraph | **Non-bundled** (winner) | `autoresearch_prompt_openai_benchmark_paragraph_v2.yaml` | `silver_sonnet46_benchmark_v2_paragraph` | **0.481** | 31.7% |
+| Paragraph | Bundled | `autoresearch_prompt_openai_bundled_benchmark_paragraph_v2.yaml` | `silver_sonnet46_benchmark_v2_paragraph` | 0.469 | 29.5% |
 
-### Mission
+Full comparison: [`openai_v2_comparison_2026-04-14.md`](openai_v2_comparison_2026-04-14.md).
 
-Iteratively **improve summary-bullet quality** (JSON bullet output from the
-`bullets_json_v1` template, not a separate “paragraph summary” prompt) for the eval
-experiment `data/eval/configs/autoresearch_prompt_openai_smoke_bullets_v1.yaml` by editing **only**
-allowlisted Jinja templates. After each edit, run the score harness and **ratchet**:
-commit if the scalar **improves**, otherwise `git reset --hard HEAD`.
+---
 
-**Research framing (what “better summary” means, dimensions, proxy vs product):**
-`autoresearch/prompt_tuning/program.md` → section *Research objectives*. Use it when
-writing hypotheses and when the scalar disagrees with spot checks.
+## Running the ratchet (v2)
 
-### Score command (from repo root)
+### Dev iteration (the normal loop)
 
-```bash
-make autoresearch-score
-```
-
-Equivalent:
+Run the orchestrator directly with explicit `CONFIG` and `REFERENCE`:
 
 ```bash
-python autoresearch/prompt_tuning/eval/score.py
+# Bundled bullets ratchet (gpt-4o, 10 ep dev, scoring_output_field: bullets)
+make autoresearch-score-bundled \
+  CONFIG=data/eval/configs/summarization_bullets/autoresearch_prompt_openai_bundled_dev_bullets_v2.yaml \
+  REFERENCE=silver_sonnet46_dev_v1_bullets
+
+# Non-bundled bullets ratchet (gpt-4o, 10 ep dev)
+AUTORESEARCH_EVAL_N=10 .venv/bin/python autoresearch/bundled_prompt_tuning/eval/score.py \
+  --config data/eval/configs/summarization_bullets/autoresearch_prompt_openai_dev_bullets_v2.yaml \
+  --reference silver_sonnet46_dev_v1_bullets
+
+# Bundled paragraph ratchet
+AUTORESEARCH_EVAL_N=10 .venv/bin/python autoresearch/bundled_prompt_tuning/eval/score.py \
+  --config data/eval/configs/summarization/autoresearch_prompt_openai_bundled_dev_paragraph_v2.yaml \
+  --reference silver_sonnet46_dev_v1_paragraph
+
+# Non-bundled paragraph ratchet
+AUTORESEARCH_EVAL_N=10 .venv/bin/python autoresearch/bundled_prompt_tuning/eval/score.py \
+  --config data/eval/configs/summarization/autoresearch_prompt_openai_dev_paragraph_v2.yaml \
+  --reference silver_sonnet46_dev_v1_paragraph
 ```
 
-**Output:** one **float on stdout** (last line) — **higher is better**.
+Output: one `final` scalar on stdout (higher is better); `rougeL_f1`, `judge_mean`,
+`contested`, per-episode contestation count on stderr.
 
-**Logs:** stderr (look for `rougeL_f1`, `judge_mean`, `contested`, `final`).
+**Accept rule** (dev): `+1%` delta vs the last committed champion. For prompts shared between
+tracks (bundled system+user cover both bullets and paragraph), apply dual-metric:
+target track `+1%` AND the other track `−1%` or better.
 
-**Cost / speed:** set `AUTORESEARCH_EVAL_N=1` in the environment or `.env` for a **one-episode** smoke loop while experimenting.
+### Held-out validation (after accepting a champion)
 
-**Dry re-score (no new LLM summarization, no judges):** only after a full run already exists:
+Run **once** per committed champion — never iterate against held-out:
 
 ```bash
-make autoresearch-score DRY_RUN=1
+# Bundled bullets held-out
+AUTORESEARCH_EVAL_N=5 .venv/bin/python autoresearch/bundled_prompt_tuning/eval/score.py \
+  --config data/eval/configs/summarization_bullets/autoresearch_prompt_openai_bundled_benchmark_bullets_v2.yaml \
+  --reference silver_sonnet46_benchmark_v2_bullets
+
+# Non-bundled paragraph held-out (example)
+AUTORESEARCH_EVAL_N=5 .venv/bin/python autoresearch/bundled_prompt_tuning/eval/score.py \
+  --config data/eval/configs/summarization/autoresearch_prompt_openai_benchmark_paragraph_v2.yaml \
+  --reference silver_sonnet46_benchmark_v2_paragraph
 ```
 
-Useful to re-check ROUGE from existing `predictions.jsonl`; **not** sufficient to evaluate a **new** prompt — run full `make autoresearch-score` after template changes.
+If held-out score is within `dev ± noise floor` (~±3-5%), the champion generalises — commit it.
+If held-out collapses, the change was overfitting dev — revert.
 
-### Scoring semantics (short)
+### Dry re-score (ROUGE only, no judge API calls)
 
-- Metric combines **ROUGE-L vs silver** (default `silver_gpt4o_smoke_bullets_v1` for the bullet
-  config; override with `REFERENCE=`) with **two LLM judges** (OpenAI + Anthropic), per
-  `autoresearch/prompt_tuning/eval/rubric.md` and `judge_config.yaml`.
-- If judges **disagree strongly** (contested), the harness falls back to **ROUGE-only** for the final scalar — check stderr for `contested=True`.
+Useful to re-check ROUGE from existing `predictions.jsonl` without re-running summarization:
 
-### Allowlisted files you MAY edit
+```bash
+make autoresearch-score-bundled \
+  CONFIG=... REFERENCE=... DRY_RUN=1
+```
 
-| Path | Role |
-| --- | --- |
-| `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | **On-disk** template for summary bullets (this is what `prompts.user: shared/summarization/bullets_json_v1` loads) |
+Not sufficient to evaluate a *new* prompt — judges don't run. Run the full harness after template changes.
 
-To use a provider-specific override later, switch the experiment YAML to
-`openai/summarization/bullets_json_v1` and add `prompts/openai/summarization/bullets_json_v1.j2`
-(RFC-017: provider path wins over shared).
+---
 
-The `summarization/` folder is the shared **task** namespace; **`bullets_json_v1`** pins the
-bullet-JSON contract.
+## Allowlisted files for prompt tuning
 
-Do **not** edit other prompts or configs unless `program.md` is updated by a human to expand the allowlist.
+### Bundled mode
 
-### Files you must NOT edit
+| File | Role |
+| ---- | ---- |
+| `src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_system_v1.j2` | Bundled system prompt (OpenAI-specific) |
+| `src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_user_v1.j2` | Bundled user prompt (OpenAI-specific) |
+
+### Non-bundled mode
+
+| File | Role |
+| ---- | ---- |
+| `src/podcast_scraper/prompts/shared/summarization/system_bullets_v1.j2` | Shared bullets system prompt |
+| `src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2` | Shared bullets user prompt |
+| `src/podcast_scraper/prompts/openai/summarization/system_v1.j2` | OpenAI paragraph system prompt |
+| `src/podcast_scraper/prompts/openai/summarization/long_v1.j2` | OpenAI paragraph user prompt |
+
+## Files you must NOT edit during a ratchet
 
 | Path | Reason |
-| --- | --- |
-| `autoresearch/prompt_tuning/eval/score.py` | Immutable harness |
-| `autoresearch/prompt_tuning/eval/rubric.md` | Immutable during a run |
-| `autoresearch/prompt_tuning/eval/judge_config.yaml` | Pinned judge models (human-only between runs) |
+| ---- | ------ |
+| `autoresearch/bundled_prompt_tuning/eval/score.py` | Immutable harness |
+| `autoresearch/bundled_prompt_tuning/eval/rubric.md` | Immutable during a run |
+| `autoresearch/bundled_prompt_tuning/eval/judge_config.yaml` | Pinned judge models (human-only between rounds) |
 | `data/eval/**` | Gold inputs, references, datasets — read-only |
+| Benchmark v2 configs (`*_benchmark_bullets_v2.yaml`, `*_benchmark_paragraph_v2.yaml`) | Held-out — run once per champion only |
 
-### Environment (local)
+---
 
-The score CLI loads **`.env`** then **`.env.autoresearch`** (optional overrides) from the repo root. Required for a **full** run (summarization + judges), unless documented fallbacks apply:
+## Environment
+
+The score CLI loads `.env` then `.env.autoresearch` (optional overrides) from the repo root. Required
+for a full run:
 
 - `AUTORESEARCH_EXPERIMENT_OPENAI_API_KEY` — OpenAI for `run_experiment` summarization
 - `AUTORESEARCH_JUDGE_OPENAI_API_KEY` — judge A
 - `AUTORESEARCH_JUDGE_ANTHROPIC_API_KEY` — judge B
-- Optional: `AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1` — use `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` when dedicated vars unset (local dev only)
+- Optional: `AUTORESEARCH_ALLOW_PRODUCTION_KEYS=1` — fall back to `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
 
-See `config/examples/.env.example` for the full list.
+All v2 ratchet configs set `params.seed: 42` — OpenAI's approximately-deterministic sampling. See
+[JUDGING.md](JUDGING.md) §Seed & determinism for the empirical characterisation.
 
-### Prerequisites
+---
 
-- Materialized transcripts: `data/eval/materialized/curated_5feeds_smoke_v1/` (if missing: `make dataset-materialize DATASET_ID=curated_5feeds_smoke_v1`).
-- **Bullet ROUGE:** `data/eval/references/silver/silver_gpt4o_smoke_bullets_v1/` exists only
-  **after** you run `experiment_openai_gpt4o_smoke_bullets_v1`
-  (`CONFIG=data/eval/issue-477/experiment_openai_gpt4o_smoke_bullets_v1.yaml`), review the run, and **promote** it
-  (see `data/eval/configs/README.md`). Until then, use `REFERENCE=silver_gpt4o_smoke_v1` only as a
-  temporary mismatch, or wait before scoring.
+## Prerequisites
 
-### Git workflow
+- Materialized transcripts (both datasets):
+  - `data/eval/materialized/curated_5feeds_dev_v1/` (10 ep) — `make dataset-materialize DATASET_ID=curated_5feeds_dev_v1`
+  - `data/eval/materialized/curated_5feeds_benchmark_v2/` (5 ep) — `make dataset-materialize DATASET_ID=curated_5feeds_benchmark_v2`
+- Silver references:
+  - `silver_sonnet46_dev_v1_bullets`, `silver_sonnet46_dev_v1_paragraph`
+  - `silver_sonnet46_benchmark_v2_bullets`, `silver_sonnet46_benchmark_v2_paragraph`
+- All seeded automatically by `silver_candidate_sonnet46_<dataset>_<track>.yaml` + `promote_run.py`.
 
-1. Use a dedicated branch, e.g. `autoresearch/<short-tag>` — **not** `main`.
-2. Before each experiment: state a **one-sentence hypothesis** (in chat or `results.tsv` notes).
-3. After `make autoresearch-score`:
-   - If scalar **improved** vs the last kept commit: `git add` **only** allowlisted files → `git commit -m "[autoresearch] exp-<N>: <hypothesis>"`.
-   - Else: `git reset --hard HEAD` (branch should be agent-only; no mixed human WIP).
-4. Append a row to `autoresearch/prompt_tuning/results.tsv` (header already in file).
+---
 
-### Stop condition
+## Git workflow
 
-Respect the **maximum experiments per session** written in `autoresearch/prompt_tuning/program.md` by the human (e.g. 50). Stop when reached.
+1. Use a dedicated branch, e.g. `autoresearch/<short-tag>` — not `main`.
+2. Before each experiment: state a one-sentence hypothesis (in chat or results TSV notes).
+3. After each ratchet run:
+   - **Improved** vs last committed champion: `git add` only allowlisted files + results TSV →
+     commit with `[autoresearch-<track>] <exp-id>: <hypothesis> (+X%)`.
+   - **Not improved**: `git checkout HEAD -- <template paths>`.
+4. Append one row per experiment to the relevant results TSV.
+5. After accepting a champion, run held-out validation and record the held-out score in the TSV
+   as a separate `held-out` row.
 
-### Where outputs land
+### Results TSVs
 
-- Run artifacts: `data/eval/runs/autoresearch_prompt_openai_smoke_bullets_v1/` (`predictions.jsonl`, `metrics.json`, `metrics_report.md`).
+| Track | File |
+| ----- | ---- |
+| Bundled bullets (dev v2) | `autoresearch/bundled_prompt_tuning/results/results_openai_r1.tsv` (rolling) |
+| Bundled paragraph (dev v2) | `autoresearch/bundled_prompt_tuning/results/results_openai_paragraph_r1.tsv` |
+| Non-bundled bullets (dev v2) | `autoresearch/prompt_tuning/results/results_openai_nonbundled_bullets_dev_v2.tsv` |
+| Non-bundled paragraph (dev v2) | `autoresearch/prompt_tuning/results/results_openai_nonbundled_paragraph_dev_v2.tsv` |
+
+TSV columns: `experiment_id  score  delta  status  notes  judge_a_model  judge_b_model  rubric_hash  eval_dataset_ref`.
+
+---
+
+## Next work (deferred)
+
+1. **Multi-run averaging** (N=3) to eliminate OpenAI API non-determinism as a signal noise source. See [RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md) §Future Work.
+2. **Other providers** — Anthropic, Gemini, Mistral under v2. Port OpenAI champion prompts as starting template, re-use Sonnet 4.6 silvers.
+3. **Grow held-out dataset** from 5 episodes if champion discrimination becomes the limiting factor.
+
+For any of the above, start by reading [RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md) §Replication for other providers.
