@@ -297,18 +297,66 @@ scoring domain), but the redesign confirms the signal is cleaner.
 
 ---
 
+## Round 7 Results
+
+4 experiments run (1 accepted, 3 rejected). 3-consecutive-fail early stop triggered. Champion: **0.524266**.
+
+### exp-r7-1 (+2.2% from r7 baseline, accepted)
+
+**Change:** Added 3 anti-pattern examples to system prompt style narration — explicit negative→positive
+rewrites ("avoid: 'The episode discusses X' → 'X works by [mechanism]'").
+
+**Effect:** ROUGE-L 33.6% → 35.4% (+1.8 pp), judge_mean 0.927 → 0.921. Negative exemplars sharpen the
+vocabulary boundary the model already learned from positive examples.
+
+### exp-r7-2 (−5.6% from r7-1 champion, rejected)
+
+**Change:** Expanded few-shot examples from 3 to 5, adding domain-specific examples (transformer
+attention complexity, compounding returns).
+
+**Effect:** ROUGE-L dropped to 31.8%. Domain-specific vocabulary in examples shifts the model's
+output vocabulary away from the silver reference style. The original 3 examples (motorsport,
+architecture, underwater) are domain-neutral by design.
+
+### exp-r7-3 (−4.6% from r7-1 champion, rejected)
+
+**Change:** Replaced the "lead with most specific claim" rule with a prescriptive subject-noun
+mandate: grammatical subject must be a specific named entity; generic subjects explicitly banned.
+
+**Effect:** ROUGE-L dropped to 32.1%. Same pattern as r3-2: prescriptive grammatical rules
+over-constrain the model and hurt ROUGE-L. Style narration (positive framing) works; grammatical
+mandates (negative constraint) do not.
+
+### exp-r7-4 (−6.4% from r7-1 champion, rejected) — early stop
+
+**Change:** Added hard "do not exceed 8 bullets" cap to the existing "aim for 6–8" instruction.
+
+**Effect:** ROUGE-L dropped to 30.7%. Silver reference uses 9+ bullets in some episodes; hard-capping
+at 8 reduces coverage. The "aim for 6–8" soft guidance is better than a hard cap.
+
+**Key r7 finding:** The bullet style surface is nearly saturated at the 5-episode smoke scale.
+Anti-pattern exemplars gave the final meaningful gain (+2.2%). Further lexical/structural
+instructions consistently hurt by over-constraining or shifting vocabulary.
+
+---
+
 ## Suggested Next Directions
 
-1. **Push bullets further (r7).** Baseline is ROUGE-L 33.6% bullets vs `silver_sonnet46_smoke_bullets_v1`.
-   Style narration from r3-3 is already in place. Next: explicit anti-pattern examples ("avoid:
-   'The episode discusses X' — prefer: 'X enables Y because Z'") or expanding the few-shot examples.
+1. **Dedicated paragraph track.** Create `autoresearch_prompt_openai_bundled_smoke_paragraph_v1.yaml`
+   with `scoring_output_field: summary` and reference `silver_sonnet46_smoke_v1`. Baseline paragraph
+   ROUGE-L ~26.5% (r6-1). Tune independently of bullets ratchet with the same fixed judging system.
 
-2. **Dedicated paragraph track.** Create an `autoresearch_prompt_openai_bundled_smoke_paragraph_v1.yaml`
-   config with `scoring_output_field: summary` and reference `silver_sonnet46_smoke_v1`. Baseline
-   paragraph ROUGE-L is ~26.5% (r6-1). Tune independently of bullets ratchet.
+2. **Re-run non-bundled tuning under fixed judges.** The judging fixes (fraction-based contestation,
+   Efficiency dimension, prose extraction) apply to all tracks. Non-bundled paragraph and bullets
+   experiments that were rejected due to judge contestation are worth re-testing — the signal is
+   now trustworthy across all modes.
 
-3. **Benchmark-scale validation.** Validate r7 baseline on `curated_5feeds_benchmark_v1` before
-   further tuning. At 5-episode scale, noise is high; larger scale confirms signal stability.
+3. **Benchmark-scale validation of r7-1 champion.** All tuning on 5-episode smoke. Validate 0.524
+   champion on `curated_5feeds_benchmark_v1` before further tuning to confirm signal stability.
+
+4. **R8 hypotheses (bullets).** If smoke scale is exhausted, try: (a) instruction to reference
+   specific numbers, percentages, or named studies in bullets when present; (b) explicit coverage
+   mandate ("each bullet must come from a different section of the episode").
 
 ---
 
