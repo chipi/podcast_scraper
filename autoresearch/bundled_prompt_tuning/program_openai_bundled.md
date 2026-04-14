@@ -97,6 +97,22 @@ make autoresearch-score-bundled \
    the episode's domain and its central argument or premise."
 5. **Combined: count + structure narration** — try both together if individual changes fall short.
 
+## Round 5 — gpt-4o paragraph experiments
+
+r4 finding: gpt-4o-mini triggers judge contestation at 4–6 paragraphs. r3-4 showed gpt-4o gets
+judge_mean 0.966 and maintains agreement. r5 repeats r4 experiments with gpt-4o to isolate whether
+judge contestation was a model-capacity issue.
+
+Each r5 experiment changes BOTH the YAML model (gpt-4o-mini → gpt-4o) AND the prompt. Restore
+both if rejected; commit both if accepted.
+
+1. **gpt-4o + paragraph count 4–6** — r4-1 rerun with gpt-4o. Primary test of the hypothesis.
+2. **gpt-4o + structure narration** — r4-2 rerun with gpt-4o; if r5-1 fails but shows promise.
+3. **gpt-4o + count + structure combined** — both changes together if individual ones fall short.
+
+Acceptance: standard ratchet ≥ +1%, or dual-metric (ratchet ≥ −1% AND paragraph ROUGE-L ≥ +2 pp).
+After each experiment also run paragraph comparison (same as r4 allowed command).
+
 ## Setup (run once before loop)
 
 1. Run `make autoresearch-score-bundled DRY_RUN=1` — confirm a scalar prints to stdout.
