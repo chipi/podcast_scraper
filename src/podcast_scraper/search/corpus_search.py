@@ -11,16 +11,21 @@ from typing import Any, cast, Dict, List, Optional, Sequence, Set
 
 from podcast_scraper.providers.ml import embedding_loader
 from podcast_scraper.providers.ml.model_registry import ModelRegistry
+from podcast_scraper.search.cil_lift_overrides import load_cil_lift_overrides
 from podcast_scraper.search.cli_handlers import (
     _enrich_hit,
-    _episode_to_gi_path,
     _hit_passes_cli_filters,
     _metadata_relpath_by_scope_from_corpus,
     _parse_since,
     _resolve_index_dir,
+    merged_episode_gi_paths,
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.protocol import SearchResult
+from podcast_scraper.search.transcript_chunk_lift import (
+    lift_row_if_transcript,
+    TranscriptLiftGiCache,
+)
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
@@ -95,6 +100,67 @@ class CorpusSearchOutcome:
     """Machine-readable: ``empty_query``, ``no_index``, ``load_failed``, ``embed_failed``."""
     detail: Optional[str] = None
     """Optional human/debug message (logged server-side; may be omitted in API)."""
+    lift_stats: Optional[Dict[str, int]] = None
+    """Per-response lift counters (RFC-072 #528); set on success after ``top_k`` slice."""
+
+
+def _lift_stats_for_page(enriched: List[Dict[str, Any]]) -> Dict[str, int]:
+    transcript_returned = 0
+    lift_applied = 0
+    for r in enriched:
+        meta_r = r.get("metadata")
+        if isinstance(meta_r, dict) and meta_r.get("doc_type") == "transcript":
+            transcript_returned += 1
+        if isinstance(r.get("lifted"), dict):
+            lift_applied += 1
+    return {
+        "transcript_hits_returned": transcript_returned,
+        "lift_applied": lift_applied,
+    }
+
+
+def _enrich_lift_and_slice(
+    filtered: List[SearchResult],
+    output_dir: Path,
+    gi_cache: Dict[str, Path],
+    rel_by_scope: Dict[str, str],
+    *,
+    top_k: int,
+    dedupe_kg_surfaces: bool,
+) -> tuple[List[Dict[str, Any]], Dict[str, int]]:
+    title_cache: Dict[str, tuple[str, str]] = {}
+    enriched = [
+        _enrich_hit(
+            h,
+            gi_cache,
+            metadata_relpath_by_scope=rel_by_scope,
+            corpus_root=output_dir,
+            title_cache=title_cache,
+        )
+        for h in filtered
+    ]
+    lift_overrides = load_cil_lift_overrides(output_dir)
+    lift_cache = TranscriptLiftGiCache()
+    for row in enriched:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict) or meta.get("doc_type") != "transcript":
+            continue
+        ep = meta.get("episode_id")
+        if not isinstance(ep, str) or not ep.strip():
+            continue
+        gpath = gi_cache.get(ep.strip())
+        if gpath is not None and gpath.is_file():
+            lift_row_if_transcript(
+                row,
+                output_dir,
+                gpath,
+                lift_cache,
+                lift_overrides,
+            )
+    if dedupe_kg_surfaces:
+        enriched = dedupe_kg_surface_rows(enriched)
+    page = enriched[:top_k]
+    return page, _lift_stats_for_page(page)
 
 
 def run_corpus_search(
@@ -187,7 +253,7 @@ def run_corpus_search(
     )
 
     since_dt = _parse_since(since) if isinstance(since, str) and since.strip() else None
-    gi_cache = _episode_to_gi_path(output_dir)
+    gi_cache = merged_episode_gi_paths(output_dir)
     rel_by_scope = _metadata_relpath_by_scope_from_corpus(output_dir)
     filtered: List[SearchResult] = []
     collect_cap = fetch_k if dedupe_kg_surfaces else top_k
@@ -212,18 +278,12 @@ def run_corpus_search(
         if len(filtered) >= collect_cap:
             break
 
-    title_cache: Dict[str, tuple[str, str]] = {}
-    enriched = [
-        _enrich_hit(
-            h,
-            gi_cache,
-            metadata_relpath_by_scope=rel_by_scope,
-            corpus_root=output_dir,
-            title_cache=title_cache,
-        )
-        for h in filtered
-    ]
-    if dedupe_kg_surfaces:
-        enriched = dedupe_kg_surface_rows(enriched)
-    enriched = enriched[:top_k]
-    return CorpusSearchOutcome(results=enriched)
+    enriched, lift_stats = _enrich_lift_and_slice(
+        filtered,
+        output_dir,
+        gi_cache,
+        rel_by_scope,
+        top_k=top_k,
+        dedupe_kg_surfaces=dedupe_kg_surfaces,
+    )
+    return CorpusSearchOutcome(results=enriched, lift_stats=lift_stats)

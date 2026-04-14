@@ -140,9 +140,33 @@ export function entityDisplayNameFromId(idStr: string): string {
   if (s.startsWith('k:') || s.startsWith('g:')) {
     s = s.slice(2)
   }
-  const m = s.match(/^entity:(?:person|organization):(.+)$/)
-  if (!m?.[1]) return ''
-  return humanizeSlug(m[1])
+  if (s.startsWith('kg:')) {
+    s = s.slice(3)
+  }
+  let m = s.match(/^entity:(?:person|organization):(.+)$/)
+  if (m?.[1]) return humanizeSlug(m[1])
+  m = s.match(/^person:(.+)$/)
+  if (m?.[1]) return humanizeSlug(m[1])
+  m = s.match(/^org:(.+)$/)
+  if (m?.[1]) return humanizeSlug(m[1])
+  return ''
+}
+
+/**
+ * Label for quote attribution when only an id is available (search hits, explore rows).
+ * Uses {@link entityDisplayNameFromId} for `person:` / `org:` / legacy `entity:…` ids;
+ * humanises legacy `speaker:` slugs; otherwise returns the trimmed string.
+ */
+export function quoteAttributionDisplayFromId(idStr: string | null | undefined): string {
+  if (idStr == null) return ''
+  const raw = String(idStr).trim()
+  if (!raw) return ''
+  const fromEntity = entityDisplayNameFromId(raw)
+  if (fromEntity) return fromEntity
+  if (raw.startsWith('speaker:')) {
+    return humanizeSlug(raw.slice('speaker:'.length))
+  }
+  return raw
 }
 
 const MAX_GRAPH_LABEL = 40

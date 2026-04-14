@@ -44,6 +44,7 @@ This architecture document is the central hub for understanding the system. For 
   Insight Layer node/edge types and grounding contract
 - **[GIL Schema](gi/gi.schema.json)** — Machine-
   readable JSON schema for `gi.json` validation
+- **[GIL / KG / CIL cross-layer](../guides/GIL_KG_CIL_CROSS_LAYER.md)** — `bridge.json`, CIL HTTP queries, search lift, offset verification (RFC-072)
 
 ## Goals and Scope
 
@@ -82,6 +83,13 @@ This architecture document is the central hub for understanding the system. For 
   corpus digest (RFC-068), graph exploration
   (RFC-069), and semantic search — served as a
   FastAPI + Vue 3 SPA.
+- Support **canonical cross-layer identity** (CIL,
+  RFC-072): per-episode **`bridge.json`** joins GIL and
+  KG under shared **`person:`** / **`topic:`** / **`org:`**
+  ids; **read-only CIL HTTP APIs** and optional
+  **transcript hit lift** in semantic search depend on
+  aligned **Quote** and **FAISS chunk** char offsets.
+  Overview: [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
 
 ## Ways to run and deploy
 
@@ -96,7 +104,23 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 **Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](../api/REFERENCE.md) and [Service API](../api/SERVICE.md).
 
-**Server / viewer:** `src/podcast_scraper/server/` is the canonical **read-oriented** HTTP layer. **Mounted viewer routers** expose artifacts, search, explore, **FAISS index stats**, **background index rebuild**, and **`/api/corpus/*`** (Corpus Library); the Vue `dist/` is optional static mounting. **`routes/platform/*`** remains **stub-only** (not registered in `create_app`) until ADR-064 platform routes land (#50, #347). OpenAPI: **`/docs`**, **`/openapi.json`**. See [Server Guide](../guides/SERVER_GUIDE.md), [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md).
+**Server / viewer:** `src/podcast_scraper/server/` is the canonical **read-oriented** HTTP layer. **Mounted viewer routers** expose artifacts, search, explore, **CIL** cross-layer routes (`/api/persons/*`, `/api/topics/*`, RFC-072), **FAISS index stats**, **background index rebuild**, and **`/api/corpus/*`** (Corpus Library); the Vue `dist/` is optional static mounting. **`routes/platform/*`** remains **stub-only** (not registered in `create_app`) until ADR-064 platform routes land (#50, #347). OpenAPI: **`/docs`**, **`/openapi.json`**. See [Server Guide](../guides/SERVER_GUIDE.md), [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md), [GIL / KG / CIL cross-layer](../guides/GIL_KG_CIL_CROSS_LAYER.md).
+
+## GIL, KG, and canonical cross-layer (CIL) {#gil-kg-and-canonical-cross-layer-cil}
+
+**GIL** (`gi.json`) and **KG** (`*.kg.json`) stay **separate artifacts** ([ADR-052](../adr/ADR-052-separate-gil-and-kg-artifact-layers.md)). **RFC-072** adds **`bridge.json`** per episode: a compact list of **canonical identities** (`person:…`, `topic:…`, `org:…`) with **`display_name`** and provenance so HTTP APIs and the viewer can join layers without merging the full ontologies.
+
+**Consumption today:**
+
+- **Viewer** — Loads GI/KG (and bridge where present) via **`GET /api/artifacts`**; graph merge and catalog rows may use bridge paths from metadata ([Server Guide](../guides/SERVER_GUIDE.md), [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)).
+- **CIL query API** — Filesystem scans for `*.bridge.json` with sibling `gi.json` / `kg.json`; patterns for person/topic arcs and timelines ([RFC-072 § query patterns](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)).
+- **Semantic search** — **Transcript** hits can expose an optional **`lifted`** object (insight, speaker, topic, quote timestamps) when chunk char ranges overlap a **Quote** and edges/`bridge.json` allow resolution ([Semantic Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md)).
+
+**Shared implementation seams:** `src/podcast_scraper/builders/rfc072_artifact_paths.py` is the single place for **bridge / GI / KG sibling path** rules (metadata → `bridge.json`, `bridge.json` → `gi.json`/`kg.json`, `gi.json` → `bridge.json`). `src/podcast_scraper/gi/edge_normalization.py` normalises **GIL edge `type`** strings for graph walks (CIL queries and search lift). **`build_bridge`** payload assembly stays in `builders/bridge_builder.py`.
+
+**Operational gate:** Before relying on lift in production-shaped corpora, run **Quote vs chunk offset** verification (`verify-gil-chunk-offsets` or **`make verify-gil-offsets-strict`**) on an indexed run. Details: [Semantic Search Guide — lift and verification](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528), [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
+
+**Full spec:** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md).
 
 **Providers:** Nine providers (1 local ML + 1 hybrid ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
 
@@ -126,6 +150,7 @@ The following architectural principles govern this system. For the full history 
 
 - **Workflow**: Git worktree-based isolation ([ADR-032](../adr/ADR-032-git-worktree-based-development.md)) with independent environments ([ADR-034](../adr/ADR-034-isolated-runtime-environments.md)).
 - **Quality**: Three-tier test pyramid ([ADR-019](../adr/ADR-019-standardized-test-pyramid.md)) with automated health metrics ([ADR-023](../adr/ADR-023-public-operational-metrics.md)).
+- **Process Safety** ([RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md)): ML model loading (spaCy, Transformers, Whisper) triggers heavy APFS filesystem I/O that can cause macOS kernel lock contention. Mitigations: no ML imports at Makefile parse time, filesystem-only cache checks, pre-commit hook timeout (120s), `cleanup-processes` prerequisite on `ci`/`ci-fast`, offline-mode enforcement (`HF_HUB_OFFLINE`, `TRANSFORMERS_OFFLINE`), and agent rules preventing overlapping `make ci` runs. Diagnostic targets: `make check-zombie` (detects unkillable UE-state processes) and `make check-spotlight` (verifies Spotlight indexing status).
 
 ### Reproducibility & Operational Hardening (Issue #379)
 
@@ -1201,6 +1226,47 @@ Runtime configuration organized by use case.
 Root files: `digest_topics.yaml` (Corpus Digest
 topic-band config, RFC-068),
 `pricing_assumptions.yaml` (cost estimation).
+
+## Process Safety for ML Workloads (RFC-074)
+
+ML model loading (spaCy, Transformers, Whisper) involves heavy filesystem
+I/O -- `readdir()`, `lstat()`, `mmap()` on multi-GB files. On macOS (APFS),
+this contends for a global kernel lock, and processes can enter
+uninterruptible wait (`UE` state) where even `kill -9` has no effect.
+Repeated `make` invocations (especially from agentic tooling) amplify the
+problem into a pileup that can corrupt APFS metadata and prevent login
+after reboot.
+
+### Mitigations in the build system
+
+| Layer | Mitigation | Location |
+| ----- | ---------- | -------- |
+| Makefile parse time | No `$(shell ...)` calls that import ML libraries; `PYTEST_WORKERS` is a static default | `Makefile` |
+| ML cache checks | Filesystem-only probes (`config.json` + weight file existence) instead of `AutoTokenizer.from_pretrained()` | `tests/integration/ml_model_cache_helpers.py` |
+| CI targets | `cleanup-processes` runs as a prerequisite to `ci` and `ci-fast` | `Makefile` |
+| Offline mode | Pytest: `tests/conftest.py`; `make ci` probe: inline env; preload/smoke: `env -u` so Hub works | `Makefile`, `tests/conftest.py` |
+| Pre-commit hook | 120-second watchdog timeout; process group cleanup on exit (`kill -- -$$`) | `.github/hooks/pre-commit` |
+| Preload script | 600-second `signal.alarm` hard timeout | `scripts/cache/preload_ml_models.py` |
+| Agent rules | Rules 10/10a/10b in `.cursorrules`: no retrying stuck commands, no overlapping `make ci`, mandatory `cleanup-processes` after hung runs | `.cursorrules` |
+| Session hook | Cursor `sessionStart` hook runs `check-zombie.sh` to detect UE processes before any work begins | `.cursor/hooks/` |
+
+### Diagnostic targets
+
+```bash
+make check-zombie      # Detect unkillable (UE state) Python processes
+make check-spotlight   # Verify Spotlight indexing status (macOS)
+make cleanup-processes # Kill leftover Python/test processes
+```
+
+`check-zombie` and `check-spotlight` are advisory -- they are not wired
+into `ci-fast` or `ci` and never block builds. `cleanup-processes` runs
+automatically before every `ci` and `ci-fast` invocation.
+
+### Recovery
+
+If `check-zombie` reports UE processes, reboot is the only option. After
+reboot, run Disk Utility First Aid on the boot volume. Full recovery
+runbook: [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md#recovery-runbook).
 
 ## Testing
 

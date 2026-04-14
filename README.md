@@ -11,10 +11,10 @@ and optionally extracts structured insights (GIL) and knowledge graphs (KG).
 Use local models (Whisper, transformers) or cloud APIs (OpenAI, Gemini, Anthropic,
 Mistral, DeepSeek, Grok, Ollama) — your choice.
 
-🎓 **Learning Project:** This is a personal project where I'm exploring AI-assisted coding
+**Learning project:** This is a personal project where I'm exploring AI-assisted coding
 and hands-on work with edge and cloud AI/ML technologies.
 
-> **⚠️ Personal use only.** Downloaded content must remain local and not be redistributed.
+> **Personal use only.** Downloaded content must remain local and not be redistributed.
 > See [Legal Notice](docs/LEGAL.md).
 
 ---
@@ -131,7 +131,7 @@ Corpus indexing (`vector_search` with the default FAISS backend) calls the embed
 
 ### Install
 
-> **💡 Tip:** For end users who just want to run the tool, consider using [pipx](#method-2-pipx-recommended-for-end-users) or [uv](#method-3-uv-fast-installation) for easier installation. See the [Installation Guide](docs/guides/INSTALLATION_GUIDE.md) for all methods.
+> **Tip:** For end users who just want to run the tool, consider using [pipx](#method-2-pipx-recommended-for-end-users) or [uv](#method-3-uv-fast-installation) for easier installation. See the [Installation Guide](docs/guides/INSTALLATION_GUIDE.md) for all methods.
 
 #### Method 1: pip (Standard - Recommended for Development)
 
@@ -152,7 +152,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Verify Python version (must be 3.10+)
 python --version  # Should show Python 3.10.x or higher
 
-# ⚠️ CRITICAL: Upgrade pip and setuptools before installing
+# CRITICAL: Upgrade pip and setuptools before installing
 pip install --upgrade pip setuptools wheel
 
 # Install with LLM provider SDKs (OpenAI, Gemini, Anthropic, Mistral, etc.)
@@ -281,7 +281,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Verify Python version (must be 3.10+)
 python --version  # Should show Python 3.10.x or higher
 
-# ⚠️ CRITICAL: Upgrade pip and setuptools before installing
+# CRITICAL: Upgrade pip and setuptools before installing
 # This is required for editable installs with pyproject.toml
 pip install --upgrade pip setuptools wheel
 
@@ -331,7 +331,7 @@ Before running, verify the installation worked:
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Test that the package is installed
-python -c "import podcast_scraper; print('✓ Installation successful')"
+python -c "import podcast_scraper; print('[ok] Installation successful')"
 
 # Check CLI is available
 python -m podcast_scraper.cli --help

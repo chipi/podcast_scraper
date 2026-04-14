@@ -89,6 +89,14 @@ Episode **metadata** includes `knowledge_graph` when KG ran: `artifact_path`, `n
 
 ---
 
+## bridge.json and shared identities (RFC-072)
+
+**KG** and **GIL** keep **separate** artifacts ([ADR-052](../adr/ADR-052-separate-gil-and-kg-artifact-layers.md)). **RFC-072** adds **`bridge.json`** per episode: a compact join table of **canonical** ids (`person:…`, `topic:…`, `org:…`) with **`display_name`** and source flags so clients can align **entity/topic nodes** in `kg.json` with **people and topics** referenced from `gi.json` without a single merged ontology file.
+
+**Read paths:** CIL HTTP APIs scan **`*.bridge.json`** with sibling **`gi.json`** / **`kg.json`**; the viewer and Corpus Library expose **bridge-relative paths** and **`has_bridge`** when catalogued. Details: [GIL / KG / CIL cross-layer guide](GIL_KG_CIL_CROSS_LAYER.md), [Server Guide](SERVER_GUIDE.md).
+
+---
+
 ## CLI (`kg` namespace)
 
 Run as `python -m podcast_scraper.cli kg <subcommand> ...` (same entrypoint as `gi`).

@@ -1,6 +1,6 @@
 # AI Coding Guidelines - Primary Reference
 
-## ⚠️ MANDATORY: Read `.ai-coding-guidelines.md` First
+## MANDATORY: Read `.ai-coding-guidelines.md` First
 
 ## User instructions vs repo defaults
 
@@ -10,29 +10,29 @@
 - **Safety** (secrets, push to `main`, push without being asked): still protected — if asked to do something unsafe, **say so and ask** instead of complying silently.
 - **Autonomous execution (default):** When intent is **clear**, run commands and tools yourself (`make`, scripts, tests, downloads); **only** ask when blocked (no auth/secrets, unclear scope, or policy needs explicit approval). See `.cursorrules` and `.ai-coding-guidelines.md` section *Autonomous execution*.
 
-## 🚨 START-OF-SESSION CHECKLIST (MANDATORY - DO THIS FIRST)
+## START-OF-SESSION CHECKLIST (MANDATORY - DO THIS FIRST)
 
 **Before taking ANY action in this project, you MUST:**
 
-1. ✅ **Read `.ai-coding-guidelines.md`** — this is the PRIMARY source of truth
-2. ✅ **Acknowledge you've read it** — say "I've read the AI guidelines" or similar
-3. ✅ **Confirm when asked** — if user asks "Did you read the guidelines?", answer honestly
-4. ✅ **Reference it constantly** — for all decisions about code, workflow, and patterns
+1. **Read `.ai-coding-guidelines.md`** — this is the PRIMARY source of truth
+2. **Acknowledge you've read it** — say "I've read the AI guidelines" or similar
+3. **Confirm when asked** — if user asks "Did you read the guidelines?", answer honestly
+4. **Reference it constantly** — for all decisions about code, workflow, and patterns
 
 **If the user asks "Did you read the guidelines?" or "Check the guidelines first":**
 
-- ✅ STOP what you're doing
-- ✅ Read `.ai-coding-guidelines.md` immediately
-- ✅ Acknowledge what you read
-- ✅ Then proceed with the task
+- STOP what you're doing
+- Read `.ai-coding-guidelines.md` immediately
+- Acknowledge what you read
+- Then proceed with the task
 
-## 🚨 CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
+## CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
 
 **For the procedure:** Use the **commit-with-approval** skill.
 
 **This project:** Validation = `make ci-fast` (~6–10 min). **Skip a repeat run** before commit if `ci-fast` or `make ci` already passed in-session on the **current** tree and nothing substantive changed after; say so briefly. If markdown edited: `make fix-md`, self-check (one H1, blanks after headings, code fences with language, tables), then `make lint-markdown`. Never commit without showing `git status` and `git diff` and getting explicit approval.
 
-## 🚨 CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
+## CRITICAL: PR Push Workflow - MANDATORY CHECKLIST
 
 **For the procedure:** Use the **push-to-pr** skill.
 
@@ -42,26 +42,26 @@
 
 **Run ONLY if you changed:**
 
-- ✅ Dockerfile — any build process changes
-- ✅ Project structure — package layout changes
-- ✅ Dependencies — `pyproject.toml` core deps/metadata
-- ✅ Package configuration — `[tool.setuptools]` changes
+- Dockerfile — any build process changes
+- Project structure — package layout changes
+- Dependencies — `pyproject.toml` core deps/metadata
+- Package configuration — `[tool.setuptools]` changes
 
 **Skip for:** Python-only code, docs, tests, non-Docker config.
 
-## 🚨 CRITICAL: Git Branch Workflow
+## CRITICAL: Git Branch Workflow
 
 ### NEVER Push Directly to Main
 
-1. ❌ **NEVER push directly to main** — even with admin permissions
-2. ✅ **ALWAYS create a feature branch**: `git checkout -b feat/name`
-3. ✅ **ALWAYS create a PR** for review and merge
+1. **Never:** **NEVER push directly to main** — even with admin permissions
+2. **ALWAYS create a feature branch**: `git checkout -b feat/name`
+3. **ALWAYS create a PR** for review and merge
 
 ### Branch creation (this project)
 
 Run `git status --porcelain` first; if there is output, commit, stash, or discard. Then from latest main: `git checkout main`, `git pull origin main`, `git checkout -b feat/name`.
 
-## 🎯 DECISION TREES
+## DECISION TREES
 
 ### When to Ask User
 
@@ -84,7 +84,7 @@ Run `git status --porcelain` first; if there is output, commit, stash, or discar
 - Formatting with black (always do)
 - Adding docstrings (always do)
 
-## 🔍 CURSOR-SPECIFIC GUIDANCE
+## CURSOR-SPECIFIC GUIDANCE
 
 ### Model Selection
 
@@ -100,7 +100,7 @@ Run `git status --porcelain` first; if there is output, commit, stash, or discar
 - Reference specific sections of `.ai-coding-guidelines.md` for deep dives
 - Auto-load detailed `.mdc` rules when needed (see `.cursorrules` Rule 16)
 
-## 📋 Testing Strategy Summary
+## Testing Strategy Summary
 
 ```bash
 # Default: Start with fast tests
@@ -115,7 +115,7 @@ make test-all-slow         # All slow tests
 make ci              # Full suite (~10-15 min)
 ```
 
-## 🚀 Common Commands
+## Common Commands
 
 ```bash
 # Development
@@ -140,7 +140,7 @@ make fix-md           # Auto-fix markdown issues
 make docker-test      # Only if changed Dockerfile/structure
 ```
 
-## 📖 RELATED DOCUMENTATION
+## RELATED DOCUMENTATION
 
 - **`.cursorrules`** — Core project rules (always active)
 - **`.ai-coding-guidelines.md`** (2,310 lines) → Complete AI guidelines
@@ -161,7 +161,7 @@ make docker-test      # Only if changed Dockerfile/structure
   - "load markdown guide" → `docs/guides/MARKDOWN_LINTING_GUIDE.md`
   - "load cursor guide" → `docs/guides/CURSOR_AI_BEST_PRACTICES_GUIDE.md`
 
-## ⚠️ REMEMBER
+## REMEMBER
 
 1. NEVER push to main (use feature branches + PRs)
 2. ALWAYS show changes and get approval before commit/push

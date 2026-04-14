@@ -32,6 +32,11 @@
 # Don't use set -e - we want to collect all errors, not exit on first failure
 set +e
 
+# RFC-074: Master timeout to prevent unkillable hanging processes.
+# If any check (black, mypy, etc.) gets stuck in kernel I/O, this ensures
+# the hook exits instead of leaving zombie processes.
+MAX_HOOK_SECONDS=120
+
 # Colors for output (define early so they can be used anywhere)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -45,11 +50,32 @@ LOG_DIR=$(mktemp -d "${HOOK_TMPDIR}/precommit_XXXXXX" 2>/dev/null || echo "$TMPD
 HOOK_PID=$$
 LOG_PREFIX="${LOG_DIR}/precommit_${HOOK_PID}"
 
-# Cleanup function
+# Cleanup function — kill child processes and remove temp files (RFC-074)
 cleanup() {
+    kill -- -$$ 2>/dev/null || true
     rm -rf "${LOG_DIR}/precommit_${HOOK_PID}"* 2>/dev/null || true
 }
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
+
+# RFC-074: Background watchdog that kills the hook if it exceeds MAX_HOOK_SECONDS.
+# This prevents black/mypy/etc. from hanging indefinitely in kernel I/O.
+_hook_start_seconds=$SECONDS
+(
+    while true; do
+        sleep 5
+        elapsed=$(( SECONDS - _hook_start_seconds ))
+        if [ "$elapsed" -ge "$MAX_HOOK_SECONDS" ]; then
+            echo "" >&2
+            echo -e "\033[0;31mPre-commit hook timed out after ${MAX_HOOK_SECONDS}s\033[0m" >&2
+            echo "A check may be stuck. Run: make check-zombie" >&2
+            kill -TERM -- -$HOOK_PID 2>/dev/null || true
+            sleep 2
+            kill -9 -- -$HOOK_PID 2>/dev/null || true
+            exit 1
+        fi
+    done
+) &
+_WATCHDOG_PID=$!
 
 # Function to safely check if a command exists
 command_exists() {
@@ -453,6 +479,9 @@ else
     echo -e "${YELLOW}⚠${NC} No YAML files staged, skipping YAML checks"
     echo ""
 fi
+
+# Kill the watchdog before exiting normally
+kill $_WATCHDOG_PID 2>/dev/null || true
 
 # Summary
 echo "═══════════════════════════════════════════════"

@@ -88,16 +88,22 @@ dependencies stay out of the core:
 │  │(default)│  │  │(default)│  │  │ Summarization       │  │
 │  └────────┘  │  └────────┘  │  │ GI Extraction        │  │
 │              │              │  │ KG Extraction        │  │
-│  ┌────────┐  │  ┌────────┐  │  │ Search Indexing      │  │
-│  │ News   │  │  │  Web   │  │  │ Projection           │  │
-│  │(external)│ │  │Scrape  │  │  └─────────────────────┘  │
-│  └────────┘  │  │(external)│ │                            │
-│              │  └────────┘  │  ┌─────────────────────┐  │
-│  ┌────────┐  │  ┌────────┐  │  │ Provider System      │  │
-│  │Social  │  │  │Folder  │  │  │ (9 providers,        │  │
-│  │(external)│ │  │Watch   │  │  │  prompt templates,   │  │
-│  └────────┘  │  │(external)│ │  │  model registry)     │  │
+│  ┌────────┐  │  ┌────────┐  │  │ Bridge (CIL)        │  │
+│  │ News   │  │  │  Web   │  │  │ Search Indexing      │  │
+│  │(external)│ │  │Scrape  │  │  │ Projection           │  │
+│  └────────┘  │  │(external)│ │  └─────────────────────┘  │
+│              │  └────────┘  │                            │
+│  ┌────────┐  │  ┌────────┐  │  ┌─────────────────────┐  │
+│  │Social  │  │  │Folder  │  │  │ Enrichment Layer     │  │
+│  │(external)│ │  │Watch   │  │  │ (RFC-073: optional   │  │
+│  └────────┘  │  │(external)│ │  │  derived signals)    │  │
 │              │  └────────┘  │  └─────────────────────┘  │
+│              │              │                            │
+│              │              │  ┌─────────────────────┐  │
+│              │              │  │ Provider System      │  │
+│              │              │  │ (9 providers,        │  │
+│              │              │  │  prompt templates,   │  │
+│              │              │  │  model registry)     │  │
 ├──────────────┴──────────────┴───────────────────────────┤
 │                Storage / Serving Layer                    │
 │    Filesystem, Postgres projection, Vector search,       │
@@ -162,6 +168,7 @@ class ProcessingConfig(Protocol):
     summary_model: str
     gi_enabled: bool
     kg_enabled: bool
+    enrichment_enabled: bool  # RFC-073 enrichment pass
     output_dir: Path
     # ... processing-relevant fields only
 ```
@@ -475,20 +482,20 @@ The registry enables introspection commands:
 # List installed content types
 podcast-scraper plugins --content-types
 # Output:
-#   podcast    (bundled)  Podcast Episode — stages: transcription, summarization, gi, kg
-#   news_article          News Article — stages: summarization, gi, kg
+# podcast    (bundled)  Podcast Episode — stages: transcription, summarization, gi, kg
+# news_article          News Article — stages: summarization, gi, kg
 
 # List installed transports
 podcast-scraper plugins --transports
 # Output:
-#   rss        (bundled)  RSS Feed — content types: podcast
-#   web_scrape            Web Scraper — content types: news_article, blog_post
+# rss        (bundled)  RSS Feed — content types: podcast
+# web_scrape            Web Scraper — content types: news_article, blog_post
 
 # Validate a config file's wiring
 podcast-scraper plugins --validate config.yaml
 # Output:
-#   [ok] source[0]: transport=rss, content_type=podcast — OK
-#   ✗ source[1]: transport=web_scrape — not installed (pip install news-ingest)
+# [ok] source[0]: transport=rss, content_type=podcast — OK
+# source[1]: transport=web_scrape — not installed (pip install news-ingest)
 ```
 
 ### Design Constraints
@@ -598,10 +605,16 @@ src/podcast_scraper/
 ├── providers/                     # Provider system (UNCHANGED)
 ├── gi/                            # GI extraction (UNCHANGED, uses ContentItem)
 ├── kg/                            # KG extraction (UNCHANGED, uses ContentItem)
+├── builders/                      # Bridge builder (RFC-072, UNCHANGED)
+├── enrichment/                    # Enrichment layer (RFC-073, UNCHANGED)
+│   ├── protocol.py                # Enricher, EnricherManifest, EpisodeArtifactBundle
+│   ├── registry.py                # Builtin enricher registry
+│   ├── enrichment_pass.py         # Two-phase runner
+│   └── builtin/                   # Deterministic, embedding, ML, LLM enrichers
 ├── summarization/                 # Summarization (UNCHANGED)
 ├── transcription/                 # Transcription (UNCHANGED)
 ├── search/                        # Vector search (UNCHANGED)
-├── server/                        # FastAPI server (UNCHANGED)
+├── server/                        # FastAPI server (UNCHANGED -- enrichment routes added)
 ├── workflow/                      # Orchestration (REFACTORED to use core/)
 ├── cli.py                         # CLI (calls podcast-specific entry point)
 ├── config.py                      # Full Config (composes ProcessingConfig)
@@ -612,15 +625,25 @@ src/podcast_scraper/
 
 ## What Does NOT Change
 
-- **Provider system** — already content-agnostic, operates on text
-- **GI / KG extraction** — operates on text + metadata, not RSS
-- **Summarization** — operates on text
-- **Search / vector indexing** — operates on documents with metadata
-- **Viewer / server** — displays artifacts, already generic enough
-- **Prompt templates** — `PromptStore` structure unchanged; content-type-aware
+- **Provider system** -- already content-agnostic, operates on text
+- **GI / KG extraction** -- operates on text + metadata, not RSS
+- **Summarization** -- operates on text
+- **Search / vector indexing** -- operates on documents with metadata
+- **Enrichment layer (RFC-073)** -- the enricher protocol (`Enricher`,
+  `EnricherManifest`, `EpisodeArtifactBundle`) is already content-agnostic.
+  Enrichers read core artifacts (GIL, KG, bridge) and produce derived signals.
+  When the pipeline processes non-podcast content types, enrichers work
+  unchanged as long as the content type produces the same artifact shapes.
+  Content-type-specific enrichers (if needed) register via the same registry.
+- **Viewer / server** -- displays artifacts, already generic enough. The
+  enrichment layer adds new server routes (e.g. `GET /api/topics/{slug}` for
+  PRD-026, extended `POST /api/search` for PRD-027) and viewer surfaces
+  (Topic Entity View, Enriched Search panel), but these consume artifacts
+  generically and do not hardcode podcast assumptions.
+- **Prompt templates** -- `PromptStore` structure unchanged; content-type-aware
   variants are a natural extension
-- **CLI** — stays `podcast-scraper <rss_url>`, calls podcast-specific entry point
-- **All existing tests and acceptance configs** — podcast behavior is preserved
+- **CLI** -- stays `podcast-scraper <rss_url>`, calls podcast-specific entry point
+- **All existing tests and acceptance configs** -- podcast behavior is preserved
 
 ---
 
@@ -692,10 +715,24 @@ The refactoring is **not speculative** — podcast + RSS validate every interfac
 
 - **RFC-062 (Server/Viewer):** The viewer displays artifacts from any content type.
   The Postgres projection layer (RFC-051) is already keyed by episode/artifact IDs
-  — generalizing to content item IDs is straightforward.
+  -- generalizing to content item IDs is straightforward.
+
+- **RFC-072 (CIL / Bridge):** The Canonical Identity Layer and bridge artifact
+  (`*.bridge.json`) establish cross-layer identity resolution (`person:{slug}`,
+  `topic:{slug}`). This is a **direct precursor** to cross-content-type entity
+  resolution (F.3 below) -- the same canonical IDs and bridge structure can link
+  entities across content types, not just across episodes.
+
+- **RFC-073 (Enrichment Layer):** The enricher protocol is content-agnostic by
+  design -- enrichers read core artifacts (GIL, KG, bridge) and produce derived
+  signals. When non-podcast content types produce the same artifact shapes, all
+  existing enrichers work unchanged. Content-type-specific enrichers register via
+  the same registry and protocol. The first consumers are PRD-026 (Topic Entity
+  View) and PRD-027 (Enriched Search).
 
 - **Provider System:** No changes. Providers operate on text/audio, not on content
-  types.
+  types. LLM-tier enrichers (RFC-073) and query-time enrichers (PRD-027) use the
+  existing provider system -- no separate provider setup needed.
 
 ---
 
@@ -841,12 +878,12 @@ pip install news-ingest
 
 # Check what's installed
 podcast-scraper plugins --list
-#   Content types:
-#     podcast        (bundled)   Podcast Episode
-#     news_article               News Article
-#   Transports:
-#     rss            (bundled)   RSS Feed → podcast
-#     web_scrape                 Web Scraper → news_article
+# Content types:
+# podcast        (bundled)   Podcast Episode
+# news_article               News Article
+# Transports:
+# rss            (bundled)   RSS Feed → podcast
+# web_scrape                 Web Scraper → news_article
 
 # Use multi-source config
 podcast-scraper --config multi.yaml
@@ -1303,7 +1340,25 @@ and DB schema together so they're consistent.
 data. With multiple content types, the UI needs to present a unified view across
 podcasts, articles, and social posts.
 
-**This needs its own spec** — probably a UXS (UX Spec) or RFC for viewer v3.
+**This needs its own spec** -- probably a UXS (UX Spec) or RFC for viewer v3.
+
+**Current state (v2.x):** The viewer UX documentation has been refactored into a
+hub-and-spoke model:
+
+- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system (tokens,
+  typography, layout primitives, states)
+- Feature-specific UXS files: [UXS-002](../uxs/UXS-002-corpus-digest.md)
+  (Digest), [UXS-003](../uxs/UXS-003-corpus-library.md) (Library),
+  [UXS-004](../uxs/UXS-004-graph-exploration.md) (Graph),
+  [UXS-005](../uxs/UXS-005-semantic-search.md) (Search),
+  [UXS-006](../uxs/UXS-006-dashboard.md) (Dashboard)
+- New feature UXS for enrichment consumers:
+  [UXS-007](../uxs/UXS-007-topic-entity-view.md) (PRD-026),
+  [UXS-008](../uxs/UXS-008-enriched-search.md) (PRD-027)
+
+This structure already separates shared design tokens from feature-specific
+contracts. A v3 viewer for mixed content types would extend the same pattern --
+new feature UXS files for content-type-specific views, shared tokens in UXS-001.
 
 **Key questions:**
 
@@ -1314,16 +1369,27 @@ podcasts, articles, and social posts.
 - Does the viewer need to know about content types at all, or does it just
   display artifacts generically?
 
-**Likely approach:** The viewer operates on artifacts (GI, KG, summaries) which
-are content-type-agnostic. Content-type-specific rendering (audio player, etc.)
-is handled by optional UI components that register per content type — mirroring
-the backend plugin architecture.
+**Likely approach:** The viewer operates on artifacts (GI, KG, bridge,
+enrichments) which are content-type-agnostic. Content-type-specific rendering
+(audio player, etc.) is handled by optional UI components that register per
+content type -- mirroring the backend plugin architecture. The enrichment layer
+(RFC-073) and its consumers (PRD-026 Topic Entity View, PRD-027 Enriched Search)
+demonstrate this: they consume derived signals from any content type that
+produces GIL/KG/bridge artifacts, without hardcoding podcast assumptions.
 
 ### F.3 Cross-content-type KG and entity resolution
 
 **This is the core value proposition** of the multi-content-type vision. A person
 mentioned in a podcast, quoted in a news article, and discussed in a social
 thread should be the same entity in the knowledge graph.
+
+**Precursor work (v2.x):** RFC-072 (Canonical Identity Layer) has already
+established the foundation for cross-episode entity resolution within a single
+content type. The bridge artifact (`*.bridge.json`) assigns canonical IDs
+(`person:{slug}`, `topic:{slug}`) to entities across episodes, linking GIL and
+KG nodes to stable identities. This is Phase 2 in the approach below -- and it
+is **implemented**. The same canonical ID scheme and bridge structure are
+designed to extend to cross-content-type resolution (Phase 3).
 
 **The hard problems:**
 
@@ -1332,6 +1398,8 @@ thread should be the same entity in the knowledge graph.
   entity? NER gives you mentions, not identities.
 - **Entity resolution / record linkage:** Matching mentions to canonical entities.
   Options: Wikidata IDs, custom entity registry, embedding-based similarity.
+  RFC-072's `slugify` approach (deterministic slug from display name) handles
+  the simple case; ambiguous cases need the strategies above.
 - **Scale:** A popular entity might have thousands or millions of links across
   content items. The KG data model and query patterns need to handle this
   without degrading. Postgres with proper indexing, or a dedicated graph DB
@@ -1341,13 +1409,18 @@ thread should be the same entity in the knowledge graph.
 
 **Phased approach:**
 
-1. **Within-source KG** (current) — entities are per-episode, no cross-linking
-2. **Within-type corpus KG** — entity deduplication across episodes of the same
-   podcast (or articles from the same source). `gi/corpus.py` and `kg/corpus.py`
-   already do some of this.
-3. **Cross-type corpus KG** — entity resolution across content types. This is
-   where the real value is and where the hard problems live.
-4. **Canonical entity registry** — a maintained registry of known entities with
+1. **Within-source KG** -- entities are per-episode, no cross-linking
+2. **Within-type corpus KG (implemented -- RFC-072)** -- canonical identity
+   resolution across episodes of the same podcast via bridge artifact.
+   `person:{slug}` and `topic:{slug}` IDs are stable across episodes.
+   Enrichers (RFC-073) consume these identities to compute cross-episode
+   signals (topic co-occurrence, temporal velocity, grounding rate).
+3. **Cross-type corpus KG** -- entity resolution across content types. This is
+   where the real value is and where the hard problems live. The bridge
+   structure from Phase 2 extends naturally -- a `person:elon-musk` in a
+   podcast bridge and a `person:elon-musk` in a news bridge are the same
+   canonical entity.
+4. **Canonical entity registry** -- a maintained registry of known entities with
    stable IDs, aliases, and metadata. Possibly backed by Wikidata or a custom
    ontology.
 
@@ -1428,12 +1501,16 @@ types happens after podcast capabilities are fully nailed down:
 
 **Prerequisites (must be done first):**
 
-- GI/KG viewer v2 complete (RFC-062) — current work
-- Postgres projection (RFC-051) — next major infrastructure
-- Semantic search (RFC-061) — in progress
-- Adaptive routing (RFC-053) — planned
-- Evaluation framework mature — needed for content-type-aware routing
-- Platform blueprint v1 operational — workers, queues, basic multi-feed
+- GI/KG viewer v2 complete (RFC-062) -- shipped
+- Canonical Identity Layer + bridge (RFC-072) -- shipped (precursor to
+  cross-content-type entity resolution)
+- Enrichment layer (RFC-073) -- in progress (content-agnostic enricher
+  protocol; first consumers: PRD-026, PRD-027)
+- Postgres projection (RFC-051) -- next major infrastructure
+- Semantic search (RFC-061) -- shipped
+- Adaptive routing (RFC-053) -- planned
+- Evaluation framework mature -- needed for content-type-aware routing
+- Platform blueprint v1 operational -- workers, queues, basic multi-feed
 
 **v3.0 refactoring sequence:**
 
@@ -1445,12 +1522,17 @@ types happens after podcast capabilities are fully nailed down:
 
 **Parallel work during v2.x (before v3.0):**
 
-- Keep module boundaries clean in current work — don't add more podcast
+- Keep module boundaries clean in current work -- don't add more podcast
   coupling to the processing pipeline
+- RFC-072 (CIL/bridge) and RFC-073 (enrichment) are already content-agnostic
+  by design -- their protocols work for any content type that produces
+  GIL/KG/bridge artifacts
 - When introducing Postgres, design the schema to be content-type-extensible
   (use generic `content_item_id` instead of `episode_id` in new tables)
 - When building adaptive routing, design the routing interface to accept
   content type as an input dimension
+- Enricher registry (RFC-073) uses the same module-attribute discovery pattern
+  proposed for content-type plugins -- validates the approach before v3.0
 
 This way, the v3.0 refactoring is smaller because v2.x work already
 anticipated it.
@@ -1467,6 +1549,9 @@ section within it.
 | [Architecture](../architecture/ARCHITECTURE.md) | Current state | How does the system work today? |
 | [Platform Blueprint](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md) | Infrastructure evolution | How do we scale to a platform? (tenancy, workers, queues, DB, deployment) |
 | **This document** | Content evolution | How do we evolve beyond podcasts? (content types, transports, plugins, cross-source KG) |
+| [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) | Identity layer | How do entities get canonical IDs across episodes? (precursor to cross-content-type resolution) |
+| [RFC-073](../rfc/RFC-073-enrichment-layer-architecture.md) | Enrichment layer | How do derived signals layer on top of core artifacts? (content-agnostic protocol) |
+| [PRD-026](../prd/PRD-026-topic-entity-view.md) / [PRD-027](../prd/PRD-027-enriched-search.md) | Enrichment consumers | First features consuming enricher outputs (topic view, enriched search) |
 | [Non-Functional Requirements](../architecture/NON_FUNCTIONAL_REQUIREMENTS.md) | Quality attributes | What are the performance, reliability, security targets? |
 
 **Cross-references needed:**
@@ -1477,6 +1562,11 @@ section within it.
   (Postgres, workers, queues)
 - Architecture doc should reference this doc in the "Architecture Evolution"
   section as the v3.0 direction
+- RFC-073 enrichment layer is content-agnostic and extends naturally to
+  non-podcast content types (no changes needed when new types arrive)
+- RFC-072 CIL/bridge is the implemented precursor to cross-content-type entity
+  resolution (F.3) -- the canonical ID scheme (`person:{slug}`, `topic:{slug}`)
+  is designed to work across content types
 
 **When to promote from `docs/wip/`:** When the v3.0 refactoring is approved
 and scheduled, move this to `docs/architecture/CONTENT_EVOLUTION_BLUEPRINT.md`

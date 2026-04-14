@@ -70,7 +70,7 @@ We adopt **Adaptive Summarization Routing** using rule-based routing with episod
 - **Episode Profile**: Duration, speaker count, turn-taking rate, entity density, numeric density, topic drift
 - **Strategies**: Short monologue, short dialogue, technical, long monologue, long dialogue, standard
 - **Model Roles**: Extractor, Summarizer, Reducer, Finalizer (compatible with RFC-042)
-- **Status**: 🟡 Draft RFC (RFC-053) - Not yet implemented
+- **Status**:  Draft RFC (RFC-053) - Not yet implemented
 
 ## References
 

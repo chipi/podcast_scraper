@@ -4,7 +4,7 @@ This guide covers markdown style rules, linting practices, tools, and workflows 
 project. It includes style guidelines, automated fixing, table formatting solutions, pre-commit hooks,
 and CI/CD integration.
 
-**💡 For Cursor Users:** Pin this file in Cursor's context (Rules/Context features) so it's always
+**For Cursor Users:** Pin this file in Cursor's context (Rules/Context features) so it's always
 available when writing markdown. This helps Cursor follow these rules automatically.
 
 For general development practices, see [Development Guide](DEVELOPMENT_GUIDE.md).
@@ -40,10 +40,11 @@ For general development practices, see [Development Guide](DEVELOPMENT_GUIDE.md)
 
 In all markdown under `docs/` (including PRDs, RFCs, ADRs, guides, API docs, and `docs/wip/`):
 
-- **Do not** use ✅, ❌, 📋, or decorative ✓ as list bullets, table cells, or status prefixes.
+- **Do not** use checkmark-style emoji, cross-style emoji, clipboard emoji, or a decorative tick
+  character as list bullets, table cells, or status prefixes.
 - **Prefer** plain words: Yes / No, Run / Skip, Done, Good / Bad, Allowed / Forbidden, or normal
   bullets without emoji.
-- **Fictional CLI samples** in docs: use a neutral marker such as `[ok]` instead of ✓.
+- **Fictional CLI samples** in docs: use a neutral marker such as `[ok]` instead of a tick character.
 
 Rationale: the project dropped checkmark styling in published docs; keep new edits consistent.
 Agents: see `.cursor/rules/documentation.mdc` (load when editing markdown per project rules).
@@ -167,7 +168,7 @@ python scripts/tools/fix_markdown.py --dry-run
 
 **What markdownlint typically auto-fixes:** depends on rule support in your installed `markdownlint-cli` (for example spacing/blank lines where the rule supports `--fix`).
 
-**⚠️ Important:** Pre-commit and CI still enforce **all** enabled rules from `.markdownlint.json`. Anything `markdownlint --fix` cannot correct must be fixed manually.
+**Important:** Pre-commit and CI still enforce **all** enabled rules from `.markdownlint.json`. Anything `markdownlint --fix` cannot correct must be fixed manually.
 
 **When to use:**
 
@@ -247,7 +248,7 @@ markdownlint --fix "**/*.md" --ignore node_modules --ignore .venv --ignore .buil
 
 ### Solution: Use Python to Generate Exact Alignment
 
-**⚠️ Important**: When dealing with complex tables or "aligned" style errors, manually aligning pipes is error-prone and time-consuming. Use Python to generate perfectly aligned rows:
+**Important**: When dealing with complex tables or "aligned" style errors, manually aligning pipes is error-prone and time-consuming. Use Python to generate perfectly aligned rows:
 
 ```python
 

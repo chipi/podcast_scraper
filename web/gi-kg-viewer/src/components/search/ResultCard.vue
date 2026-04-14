@@ -7,6 +7,7 @@ import {
   SEARCH_RESULT_GRAPH_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
+import { quoteAttributionDisplayFromId } from '../../utils/parsing'
 import { isKgSurfaceMultiEpisodeDedupe } from '../../utils/searchHitKgDedupe'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 
@@ -97,6 +98,50 @@ const quotes = computed(() => {
 })
 
 const quotesOpen = ref(false)
+const liftedOpen = ref(true)
+
+/** RFC-072 optional enrichment on transcript chunk hits (#528). */
+const lifted = computed((): Record<string, unknown> | null => {
+  const raw = props.hit.lifted
+  if (raw == null || typeof raw !== 'object') return null
+  return raw as Record<string, unknown>
+})
+
+function liftedInsightText(ins: unknown): string {
+  if (ins == null || typeof ins !== 'object') return ''
+  const t = (ins as Record<string, unknown>).text
+  return typeof t === 'string' ? t : ''
+}
+
+function liftedInsightId(ins: unknown): string {
+  if (ins == null || typeof ins !== 'object') return ''
+  const id = (ins as Record<string, unknown>).id
+  return typeof id === 'string' ? id : ''
+}
+
+function liftedEntityLabel(block: unknown, fallback: string): string {
+  if (block == null || typeof block !== 'object') return fallback
+  const o = block as Record<string, unknown>
+  const dn = o.display_name
+  if (typeof dn === 'string' && dn.trim()) return dn
+  const id = o.id
+  if (typeof id === 'string' && id.trim()) return id
+  return fallback
+}
+
+const liftedQuoteTimeLabel = computed((): string => {
+  const L = lifted.value
+  if (!L) return '—'
+  const q = L.quote
+  if (q == null || typeof q !== 'object') return '—'
+  const o = q as Record<string, unknown>
+  const a = Number(o.timestamp_start_ms)
+  const b = Number(o.timestamp_end_ms)
+  if (!Number.isFinite(a) && !Number.isFinite(b)) return '—'
+  const s = Number.isFinite(a) ? (a / 1000).toFixed(1) : '?'
+  const e = Number.isFinite(b) ? (b / 1000).toFixed(1) : '?'
+  return `${s}s – ${e}s`
+})
 
 function onGraphClick(ev: MouseEvent): void {
   ev.stopPropagation()
@@ -183,6 +228,54 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
     </p>
 
     <div
+      v-if="lifted"
+      class="mt-2 border-t border-border pt-2"
+      role="region"
+      aria-label="Lifted GI insight"
+      @click.stop
+    >
+      <button
+        type="button"
+        class="text-[10px] text-primary underline hover:text-surface-foreground"
+        @click="liftedOpen = !liftedOpen"
+      >
+        {{ liftedOpen ? 'Hide' : 'Show' }} linked GI insight
+      </button>
+      <div
+        v-if="liftedOpen"
+        class="mt-1 space-y-1 rounded border border-primary/25 bg-canvas/80 px-2 py-1.5 text-[11px] leading-snug text-surface-foreground"
+      >
+        <p
+          v-if="liftedInsightId(lifted.insight)"
+          class="font-mono text-[10px] text-muted"
+        >
+          {{ liftedInsightId(lifted.insight) }}
+        </p>
+        <p v-if="liftedInsightText(lifted.insight)">
+          {{ truncate(liftedInsightText(lifted.insight), 280) }}
+        </p>
+        <p
+          v-if="lifted.speaker || lifted.topic"
+          class="text-[10px] text-muted"
+        >
+          <span v-if="lifted.speaker">
+            Speaker: {{ liftedEntityLabel(lifted.speaker, '—') }}
+          </span>
+          <span v-if="lifted.speaker && lifted.topic"> · </span>
+          <span v-if="lifted.topic">
+            Topic: {{ liftedEntityLabel(lifted.topic, '—') }}
+          </span>
+        </p>
+        <p
+          v-if="lifted.quote && typeof lifted.quote === 'object'"
+          class="text-[10px] text-muted"
+        >
+          Quote time: {{ liftedQuoteTimeLabel }}
+        </p>
+      </div>
+    </div>
+
+    <div
       v-if="quotes.length"
       class="mt-1.5"
       @click.stop
@@ -206,10 +299,16 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
         >
           <p>{{ truncate(String(q.text ?? ''), 300) }}</p>
           <p
-            v-if="q.speaker_id"
+            v-if="q.speaker_name || q.speaker_id"
             class="mt-0.5 text-[10px] font-medium text-primary"
           >
-            — {{ q.speaker_id }}
+            —
+            {{
+              String(q.speaker_name ?? '') ||
+                quoteAttributionDisplayFromId(
+                  typeof q.speaker_id === 'string' ? q.speaker_id : '',
+                )
+            }}
             <span
               v-if="q.timestamp_start_ms != null"
               class="font-normal text-muted"

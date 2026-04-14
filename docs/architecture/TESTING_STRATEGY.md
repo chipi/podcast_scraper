@@ -25,6 +25,14 @@ templates managed by `PromptStore` (RFC-017).
 **GIL**: The Grounded Insight Layer (GIL, PRD-017) has testing for insight/quote extraction,
 grounding contract validation, and `gi.json` schema compliance. See **GIL Testing (Implemented)** below.
 
+**CIL / bridge / search lift (RFC-072, #527–528):** Unit tests cover **`bridge.json`**
+building, **`cil_queries`**, **transcript chunk lift**, and **GIL–FAISS offset**
+verification helpers; FastAPI integration tests cover **CIL routes** and extended
+**search** responses. The **strict offset gate** is a **Makefile** target
+(`make verify-gil-offsets-strict`) run against a **concrete indexed corpus**, not part of
+default `make ci-fast` — see [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md)
+and [Testing Guide — GIL, KG, CIL, and semantic search](../guides/TESTING_GUIDE.md#gil-kg-cil-and-semantic-search-validation).
+
 For detailed implementation guides per test layer,
 see the layer-specific guides linked above.
 
@@ -1154,7 +1162,7 @@ All previously-identified coverage gaps have been addressed. Key modules and the
 - [x] Error handling tests
 - [x] Return value validation
 
-### GIL Testing (Implemented — PRD-017, RFC-049/050)
+### GIL Testing (Implemented — PRD-017, RFC-049/050) {#gil-testing-implemented--prd-017-rfc-049050}
 
 Testing for the Grounded Insight Layer follows the established test pyramid. Current coverage:
 
@@ -1175,6 +1183,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [x] Workflow: generate_episode_metadata passes quote_extraction_provider and entailment_provider into build_artifact when generate_gi and gi_require_grounding true (`test_metadata_generation.py`)
 - [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`); config logging warnings for GIL stub insights and API summary + local evidence hybrid (`TestLogConfigurationGiStubWarning`, `TestLogConfigurationGilHybridWarning`)
 - [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
+- [x] Bridge builder (`tests/unit/builders/test_bridge_builder.py`); CIL corpus logic (`test_cil_queries.py`); CIL HTTP (`tests/integration/server/test_cil_api.py`); search lift + offset verify (`tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`); bridge wiring integration (`tests/integration/test_bridge_integration.py`)
 
 #### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}
 

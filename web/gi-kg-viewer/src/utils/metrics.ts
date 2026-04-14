@@ -71,7 +71,7 @@ export function computeArtifactMetrics(art: ParsedArtifact): ArtifactMetricsResu
         }
       }
       if (n.type === 'Quote') quotes += 1
-      if (n.type === 'Speaker') speakers += 1
+      if (n.type === 'Speaker' || n.type === 'Person') speakers += 1
     }
     rows.push({ k: 'Insights', v: String(insights) })
     rows.push({ k: 'Grounded (true)', v: String(groundedTrue) })
@@ -85,7 +85,7 @@ export function computeArtifactMetrics(art: ParsedArtifact): ArtifactMetricsResu
     }
     rows.push({ k: 'Quotes', v: String(quotes) })
     if (speakers > 0) {
-      rows.push({ k: 'Speakers', v: String(speakers) })
+      rows.push({ k: 'People', v: String(speakers) })
     }
     if (visualNodeTypeCountsOut.Entity_person) {
       rows.push({

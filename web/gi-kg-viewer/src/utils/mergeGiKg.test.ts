@@ -211,6 +211,39 @@ describe('cross-episode entity deduplication', () => {
     expect(mentionsFromPM).toHaveLength(2)
   })
 
+  it('deduplicates Person nodes with the same name across episodes (GI merge)', () => {
+    const gi1 = parseArtifact('ep1.gi.json', {
+      episode_id: 'ep1',
+      nodes: [
+        { id: 'episode:ep1', type: 'Episode', properties: { title: 'Ep1' } },
+        { id: 'person:dup-a', type: 'Person', properties: { name: 'Alice Example' } },
+        { id: 'q1', type: 'Quote', properties: { text: 'hi' } },
+      ],
+      edges: [{ type: 'SPOKEN_BY', from: 'q1', to: 'person:dup-a' }],
+    })
+    const gi2 = parseArtifact('ep2.gi.json', {
+      episode_id: 'ep2',
+      nodes: [
+        { id: 'episode:ep2', type: 'Episode', properties: { title: 'Ep2' } },
+        { id: 'person:dup-b', type: 'Person', properties: { name: 'Alice Example' } },
+        { id: 'q2', type: 'Quote', properties: { text: 'yo' } },
+      ],
+      edges: [{ type: 'SPOKEN_BY', from: 'q2', to: 'person:dup-b' }],
+    })
+    const merged = mergeParsedArtifacts([gi1, gi2])!
+    expect(merged).not.toBeNull()
+
+    const people = (merged.data.nodes ?? []).filter((n) => n.type === 'Person')
+    expect(people).toHaveLength(1)
+    const winnerId = String(people[0].id)
+
+    const spoken = (merged.data.edges ?? []).filter((e) => e.type === 'SPOKEN_BY')
+    expect(spoken).toHaveLength(2)
+    for (const e of spoken) {
+      expect(String(e.to)).toBe(winnerId)
+    }
+  })
+
   it('deduplicates Topic nodes with the same label across episodes (KG merge)', () => {
     const kg1 = parseArtifact('ep1.kg.json', {
       episode_id: 'ep1',
@@ -336,6 +369,31 @@ describe('cross-episode entity deduplication', () => {
     const merged = mergeParsedArtifacts([gi1, gi2])!
     const insights = (merged.data.nodes ?? []).filter((n) => n.type === 'Insight')
     expect(insights).toHaveLength(2)
+  })
+})
+
+describe('GI+KG combine CIL id dedup', () => {
+  it('merges GI Person and KG Entity with the same person: id', () => {
+    const gi = parseArtifact('a.gi.json', {
+      episode_id: 'ep',
+      nodes: [
+        { id: 'episode:x', type: 'Episode', properties: { title: 'E' } },
+        { id: 'person:alice', type: 'Person', properties: { name: 'Alice' } },
+      ],
+      edges: [],
+    })
+    const kg = parseArtifact('a.kg.json', {
+      episode_id: 'ep',
+      extraction: { model_version: 'v1' },
+      nodes: [
+        { id: 'kg:episode:x', type: 'Episode', properties: { title: 'E' } },
+        { id: 'person:alice', type: 'Entity', properties: { name: 'Alice', kind: 'person' } },
+      ],
+      edges: [],
+    })
+    const m = combineGiKgParsedArtifacts(gi, kg)!
+    const withAlice = (m.data.nodes ?? []).filter((n) => /person:alice$/.test(String(n.id ?? '')))
+    expect(withAlice).toHaveLength(1)
   })
 })
 

@@ -1,4 +1,5 @@
 [codespell]
 skip = *.pyc,*.json,*.xml,*.lock,*.mp3,*.whl,./.venv,./.build,./.git
-ignore-words-list = rouge,fo,Exting,AKS
+ignore-words-list = rouge,fo,Exting,AKS,UE
 # fo: placeholder; rouge: metric name; Exting: transcript artifact pattern in preprocessing (literal, not typo of "Existing")
+# UE: macOS kernel uninterruptible wait process state (RFC-074)

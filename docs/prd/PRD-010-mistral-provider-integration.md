@@ -130,7 +130,7 @@ mistral_summary_user_prompt: str = Field(
 
 ## Mistral Model Pricing
 
-> **⚠️ Pricing Information:** The pricing table below is provided for reference only and may be outdated. **Always check [Mistral Pricing](https://mistral.ai/pricing/) for current rates** before making cost decisions.
+> **Pricing Information:** The pricing table below is provided for reference only and may be outdated. **Always check [Mistral Pricing](https://mistral.ai/pricing/) for current rates** before making cost decisions.
 
 ### Model Pricing (per million tokens)
 

@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import { reactive, ref } from 'vue'
-import { searchCorpus, type SearchHit } from '../api/searchApi'
+import {
+  searchCorpus,
+  type CorpusSearchLiftStats,
+  type SearchHit,
+} from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
 
@@ -10,6 +14,7 @@ export const useSearchStore = defineStore('search', () => {
   const error = ref<string | null>(null)
   const apiError = ref<string | null>(null)
   const results = ref<SearchHit[]>([])
+  const liftStats = ref<CorpusSearchLiftStats | null>(null)
 
   /**
    * When set with ``feedFilterHandoffPristine``, Advanced feed input shows this title while
@@ -40,6 +45,7 @@ export const useSearchStore = defineStore('search', () => {
     options?: { since?: string; feedDisplayTitle?: string },
   ): void {
     results.value = []
+    liftStats.value = null
     apiError.value = null
     error.value = null
     filters.feed = normalizeFeedIdForViewer(feed)
@@ -83,6 +89,7 @@ export const useSearchStore = defineStore('search', () => {
     }
     loading.value = true
     results.value = []
+    liftStats.value = null
     try {
       const body = await searchCorpus(q, {
         path: root,
@@ -100,12 +107,15 @@ export const useSearchStore = defineStore('search', () => {
           ? `${body.error}: ${body.detail}`
           : body.error
         results.value = []
+        liftStats.value = null
         return
       }
       results.value = body.results
+      liftStats.value = body.lift_stats ?? null
     } catch (e) {
       error.value = e instanceof Error ? e.message : String(e)
       results.value = []
+      liftStats.value = null
     } finally {
       loading.value = false
     }
@@ -124,6 +134,7 @@ export const useSearchStore = defineStore('search', () => {
     error,
     apiError,
     results,
+    liftStats,
     filters,
     feedFilterDisplayLabel,
     feedFilterHandoffPristine,

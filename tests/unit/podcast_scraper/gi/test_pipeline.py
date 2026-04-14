@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for GIL pipeline build_artifact, _resolve_insight_texts, _artifact_from_multi_insight."""
+"""Tests for GIL pipeline build_artifact, _resolve_insight_specs, _artifact_from_multi_insight."""
 
 from unittest.mock import MagicMock, patch
 
@@ -10,7 +10,7 @@ from podcast_scraper.gi.grounding import GroundedQuote
 from podcast_scraper.gi.pipeline import (
     _artifact_from_multi_insight,
     _char_range_to_ms,
-    _resolve_insight_texts,
+    _resolve_insight_specs,
     _speaker_id_for_char_range,
     build_artifact,
 )
@@ -23,7 +23,7 @@ class TestGILPipeline:
     def test_build_artifact_has_required_keys(self):
         """Output has schema_version, model_version, prompt_version, episode_id, nodes, edges."""
         out = build_artifact("episode:1", "Some transcript.")
-        assert out["schema_version"] == "1.0"
+        assert out["schema_version"] == "2.0"
         assert out["model_version"] == "stub"
         assert out["prompt_version"] == "v1"
         assert out["episode_id"] == "episode:1"
@@ -217,70 +217,86 @@ class TestGILPipeline:
         assert len(quote_nodes) == 1
         assert quote_nodes[0]["properties"]["text"] == "the proof"
 
-    def test_resolve_insight_texts_non_empty_stripped_and_capped(self):
+    def test_resolve_insight_specs_non_empty_stripped_and_capped(self):
         """When insight_texts is non-empty, return stripped and capped by gi_max_insights."""
         cfg = MagicMock()
         cfg.gi_max_insights = 3
-        out = _resolve_insight_texts(
+        out = _resolve_insight_specs(
             "transcript",
             cfg=cfg,
             insight_texts=["A", " B ", "C", "D", "E"],
         )
-        assert out == ["A", "B", "C"]
+        assert out == [("A", "unknown"), ("B", "unknown"), ("C", "unknown")]
 
-    def test_resolve_insight_texts_empty_insight_texts_ignored(self):
+    def test_resolve_insight_specs_empty_insight_texts_ignored(self):
         """When insight_texts is empty or all blank, fall back to stub."""
         cfg = MagicMock()
         cfg.gi_insight_source = "stub"
         cfg.gi_max_insights = 5
-        out = _resolve_insight_texts("t", cfg=cfg, insight_texts=[])
+        out = _resolve_insight_specs("t", cfg=cfg, insight_texts=[])
         assert len(out) == 1
-        assert "stub" in out[0].lower()
-        out2 = _resolve_insight_texts("t", cfg=cfg, insight_texts=["  ", ""])
+        assert "stub" in out[0][0].lower()
+        assert out[0][1] == "unknown"
+        out2 = _resolve_insight_specs("t", cfg=cfg, insight_texts=["  ", ""])
         assert len(out2) == 1
-        assert "stub" in out2[0].lower()
+        assert "stub" in out2[0][0].lower()
 
-    def test_resolve_insight_texts_provider_called_when_source_provider(self):
+    def test_resolve_insight_specs_provider_called_when_source_provider(self):
         """When gi_insight_source=provider and provider has generate_insights, use it."""
         cfg = MagicMock()
         cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 5
         provider = MagicMock()
         provider.generate_insights = MagicMock(return_value=["I1", "I2"])
-        out = _resolve_insight_texts(
+        out = _resolve_insight_specs(
             "transcript here",
             cfg=cfg,
             insight_texts=None,
             insight_provider=provider,
             episode_title="Ep",
         )
-        assert out == ["I1", "I2"]
+        assert out == [("I1", "unknown"), ("I2", "unknown")]
         provider.generate_insights.assert_called_once()
         call_kw = provider.generate_insights.call_args[1]
         assert call_kw["text"] == "transcript here"
         assert call_kw["episode_title"] == "Ep"
         assert call_kw["max_insights"] == 5
 
-    def test_resolve_insight_texts_provider_exception_fallback_to_stub(self):
+    def test_resolve_insight_specs_provider_dict_items_preserve_type(self):
+        """Structured generate_insights items carry insight_type when valid."""
+        cfg = MagicMock()
+        cfg.gi_insight_source = "provider"
+        cfg.gi_max_insights = 5
+        provider = MagicMock()
+        provider.generate_insights = MagicMock(
+            return_value=[
+                {"text": "Claim one", "insight_type": "claim"},
+                {"insight": "Q?", "insight_type": "question"},
+            ]
+        )
+        out = _resolve_insight_specs("t", cfg=cfg, insight_provider=provider)
+        assert out == [("Claim one", "claim"), ("Q?", "question")]
+
+    def test_resolve_insight_specs_provider_exception_fallback_to_stub(self):
         """When provider.generate_insights raises, return stub."""
         cfg = MagicMock()
         cfg.gi_insight_source = "provider"
         cfg.gi_max_insights = 5
         provider = MagicMock()
         provider.generate_insights = MagicMock(side_effect=RuntimeError("api error"))
-        out = _resolve_insight_texts(
+        out = _resolve_insight_specs(
             "t",
             cfg=cfg,
             insight_provider=provider,
         )
         assert len(out) == 1
-        assert "stub" in out[0].lower()
+        assert "stub" in out[0][0].lower()
 
-    def test_resolve_insight_texts_no_cfg_returns_stub(self):
+    def test_resolve_insight_specs_no_cfg_returns_stub(self):
         """When cfg is None, return single stub."""
-        out = _resolve_insight_texts("t", cfg=None)
+        out = _resolve_insight_specs("t", cfg=None)
         assert len(out) == 1
-        assert "stub" in out[0].lower()
+        assert "stub" in out[0][0].lower()
 
     def test_artifact_from_multi_insight_multiple_insights_and_quotes(self):
         """Multiple insights and quote lists produce correct nodes/edges."""
@@ -288,7 +304,7 @@ class TestGILPipeline:
         q2 = GroundedQuote(char_start=10, char_end=15, text="Two", qa_score=0.85, nli_score=0.75)
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["Insight A", "Insight B"],
+            [("Insight A", "unknown"), ("Insight B", "unknown")],
             [[q1], [q2]],
             model_version="test",
             prompt_version="v1",
@@ -298,6 +314,7 @@ class TestGILPipeline:
             transcript_ref="transcript.txt",
         )
         assert out["episode_id"] == "ep:1"
+        assert out["schema_version"] == "2.0"
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(insight_nodes) == 2
@@ -324,7 +341,7 @@ class TestGILPipeline:
         )
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["Insight A"],
+            [("Insight A", "observation")],
             [[q]],
             model_version="test",
             prompt_version="v1",
@@ -335,13 +352,14 @@ class TestGILPipeline:
         )
         insight_nodes = [n for n in out["nodes"] if n["type"] == "Insight"]
         assert len(insight_nodes) == 1
+        assert insight_nodes[0]["properties"]["insight_type"] == "observation"
         assert insight_nodes[0]["confidence"] == pytest.approx(0.91)
 
     def test_artifact_from_multi_insight_topic_labels_add_topics_and_about(self):
         """topic_labels create Topic nodes and ABOUT edges from each Insight."""
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["Insight A"],
+            [("Insight A", "unknown")],
             [[]],
             model_version="m",
             prompt_version="v1",
@@ -363,7 +381,7 @@ class TestGILPipeline:
         """When insight_quotes_list is shorter than insight_texts, pad with []."""
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["I1", "I2", "I3"],
+            [("I1", "unknown"), ("I2", "unknown"), ("I3", "unknown")],
             [[]],
             model_version="m",
             prompt_version="v1",
@@ -413,7 +431,7 @@ class TestGILPipeline:
         )
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["Insight"],
+            [("Insight", "unknown")],
             [[gq]],
             model_version="m",
             prompt_version="v1",
@@ -426,11 +444,11 @@ class TestGILPipeline:
         )
         quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
         assert len(quote_nodes) == 1
-        assert quote_nodes[0]["properties"]["speaker_id"] == "Guest"
+        assert quote_nodes[0]["properties"]["speaker_id"] == "person:guest"
         spoken = [e for e in out["edges"] if e["type"] == "SPOKEN_BY"]
         assert len(spoken) == 1
         assert spoken[0]["from"] == quote_nodes[0]["id"]
-        spk_nodes = [n for n in out["nodes"] if n["type"] == "Speaker"]
+        spk_nodes = [n for n in out["nodes"] if n["type"] == "Person"]
         assert len(spk_nodes) == 1
         assert spk_nodes[0]["properties"]["name"] == "Guest"
         validate_artifact(out, strict=True)
@@ -468,7 +486,7 @@ class TestGILPipeline:
         )
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["Insight"],
+            [("Insight", "unknown")],
             [[gq]],
             model_version="m",
             prompt_version="v1",
@@ -484,12 +502,59 @@ class TestGILPipeline:
         assert quote_nodes[0]["properties"]["timestamp_start_ms"] == 0
         assert quote_nodes[0]["properties"]["timestamp_end_ms"] == 1500
 
+    def test_artifact_position_hint_uses_episode_duration_ms(self):
+        """position_hint is mean(ts_start)/duration when duration known (ts_start > 0 only)."""
+        transcript = "hello"
+        segments = [{"start": 5.0, "end": 6.0, "text": "hello"}]
+        gq = GroundedQuote(char_start=0, char_end=5, text="hello", qa_score=0.9, nli_score=0.8)
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            [("I", "unknown")],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+            episode_duration_ms=10_000,
+        )
+        ins = next(n for n in out["nodes"] if n["type"] == "Insight")
+        assert ins["properties"]["position_hint"] == pytest.approx(0.5)
+
+    def test_artifact_position_hint_fallback_uses_nonzero_starts(self):
+        transcript = "ab"
+        segments = [
+            {"start": 5.0, "end": 6.0, "text": "a"},
+            {"start": 6.0, "end": 20.0, "text": "b"},
+        ]
+        gq = GroundedQuote(char_start=0, char_end=1, text="a", qa_score=0.9, nli_score=0.8)
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            [("I", "unknown")],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+            episode_duration_ms=None,
+        )
+        ins = next(n for n in out["nodes"] if n["type"] == "Insight")
+        # Quote "a" in first segment: 5000-6000 ms; fallback dur = max end = 6000 for one quote
+        assert ins["properties"]["position_hint"] == pytest.approx(round(5000 / 6000.0, 2))
+
     def test_build_artifact_with_insight_texts_produces_multiple_insights(self):
         """build_artifact(..., insight_texts=[...]) produces one Insight per text."""
         cfg = MagicMock()
         cfg.generate_gi = True
         cfg.gi_require_grounding = False  # Skip evidence stack so no model load
-        cfg.gi_max_insights = 5  # Ensure real int for slice in _resolve_insight_texts
+        cfg.gi_max_insights = 5  # Ensure real int for slice in _resolve_insight_specs
         out = build_artifact(
             "ep:1",
             "Transcript.",

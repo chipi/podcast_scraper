@@ -17,26 +17,19 @@ from fastapi.testclient import TestClient
 
 from podcast_scraper.search.faiss_store import VECTORS_FILE
 from podcast_scraper.server.app import create_app
+from podcast_scraper.server.schemas import HealthResponse
 
 pytestmark = [pytest.mark.integration]
 
 
 def test_health_ok(tmp_path: Path) -> None:
+    """Health JSON matches :class:`HealthResponse` defaults (full router wiring)."""
     app = create_app(tmp_path, static_dir=False)
     client = TestClient(app)
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {
-        "status": "ok",
-        "artifacts_api": True,
-        "search_api": True,
-        "explore_api": True,
-        "index_routes_api": True,
-        "corpus_metrics_api": True,
-        "corpus_library_api": True,
-        "corpus_digest_api": True,
-        "corpus_binary_api": True,
-    }
+    body = HealthResponse.model_validate(response.json())
+    assert body == HealthResponse()
 
 
 def test_list_artifacts_finds_gi_and_kg(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@
 
 **For complete details:** `docs/guides/TESTING_GUIDE.md`, `docs/architecture/TESTING_STRATEGY.md`
 
-## 🚨 After Code Changes: Test Review Checklist
+## After Code Changes: Test Review Checklist
 
 **CRITICAL: Never leave failing tests after code changes.**
 
@@ -40,7 +40,7 @@ When **viewer UX** changes (labels, routes, layout, theme tokens, accessible nam
 
 See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*) and **`.cursorrules`** (*GI/KG viewer UX*).
 
-## 🚨 MANDATORY: Testing Before Commit
+## MANDATORY: Testing Before Commit
 
 **For which tests to run:** Use the **test-scope-decision-tree** skill.
 
@@ -58,27 +58,31 @@ See **`docs/guides/E2E_TESTING_GUIDE.md`** (section *When you change viewer UX*)
 
 **When NOT to run slow tests:**
 
-- ❌ Only unit test changes
-- ❌ Only documentation changes
-- ❌ Only configuration changes (that don't affect ML)
-- ❌ Code changes that don't touch ML model paths
+- Skip when: only unit test changes
+- Skip when: only documentation changes
+- Skip when: only configuration changes (that don't affect ML)
+- Skip when: code changes that don't touch ML model paths
 
 ### Docker testing (CONDITIONAL)
 
 **Run `make docker-test` ONLY if you changed:**
 
-- ✅ Dockerfile — any changes to build process
-- ✅ Project structure — changes to package layout
-- ✅ Dependencies — changes to `pyproject.toml` (core deps, metadata)
-- ✅ Package configuration — changes to `[tool.setuptools]`
+- Dockerfile — any changes to build process
+- Project structure — changes to package layout
+- Dependencies — changes to `pyproject.toml` (core deps, metadata)
+- Package configuration — changes to `[tool.setuptools]`
 
 **Skip for:** Python-only changes, docs, tests, non-Docker config.
 
-## ⚡ Test Efficiency Rules
+## Test Efficiency Rules
 
 **For the procedure:** Use the **efficient-pytest-runs** skill.
 
 **This project:** Use make targets for suites; for single-test debug use pytest with `-v --tb=short -ra -rs`. Never run the same suite twice.
+
+### Incremental validation (user declines full `ci-fast`)
+
+When the user declines a full **`make ci-fast`** rerun or the change is an obvious tiny follow-up, follow **`.cursorrules` rule 5c**: run the **narrowest Makefile target** that covers the delta, report what was skipped versus full `ci-fast`, and note that **pre-commit still runs `make ci-fast`** on commit unless `--no-verify`. For small Python edits, use the **test-scope-decision-tree** skill to pick a minimal test target; if scope is unclear, run **`make ci-fast`** or ask.
 
 ## Pytest Markers
 
@@ -245,12 +249,12 @@ def test_save_file():
 
 ### What to Mock
 
-- ✅ HTTP requests (`requests.Session`, `requests.get`)
-- ✅ Whisper models (`whisper.load_model`, `whisper.transcribe`)
-- ✅ File I/O (use `tempfile.TemporaryDirectory`)
-- ✅ spaCy models (mock NER extraction)
-- ✅ Time operations (`time.sleep`, `time.time`)
-- ✅ OpenAI API calls (when implemented)
+- HTTP requests (`requests.Session`, `requests.get`)
+- Whisper models (`whisper.load_model`, `whisper.transcribe`)
+- File I/O (use `tempfile.TemporaryDirectory`)
+- spaCy models (mock NER extraction)
+- Time operations (`time.sleep`, `time.time`)
+- OpenAI API calls (when implemented)
 
 ## Coverage Requirements
 

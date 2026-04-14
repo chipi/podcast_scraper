@@ -45,11 +45,13 @@ def _mtime_utc_iso(st_mtime: float) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
 
-def _kind_for_suffix(name: str) -> Literal["gi", "kg"] | None:
+def _kind_for_suffix(name: str) -> Literal["gi", "kg", "bridge"] | None:
     if name.endswith(".gi.json"):
         return "gi"
     if name.endswith(".kg.json"):
         return "kg"
+    if name.endswith(".bridge.json"):
+        return "bridge"
     return None
 
 
@@ -58,12 +60,12 @@ async def list_artifacts(
     request: Request,
     path: str = Query(..., description="Corpus output directory to scan."),
 ) -> ArtifactListResponse:
-    """List ``*.gi.json`` and ``*.kg.json`` files under the given directory (recursive)."""
+    """List ``*.gi.json``, ``*.kg.json``, and ``*.bridge.json`` under the directory (recursive)."""
     anchor = getattr(request.app.state, "output_dir", None)
     base = resolve_corpus_path_param(path, anchor)
     items: list[ArtifactItem] = []
     seen: set[Path] = set()
-    for pattern in ("**/*.gi.json", "**/*.kg.json"):
+    for pattern in ("**/*.gi.json", "**/*.kg.json", "**/*.bridge.json"):
         for p in sorted(base.glob(pattern)):
             if not p.is_file() or p in seen:
                 continue
@@ -106,7 +108,10 @@ async def get_artifact(
     if not target.is_file():
         raise HTTPException(status_code=404, detail="Artifact not found.")
     if _kind_for_suffix(target.name) is None:
-        raise HTTPException(status_code=400, detail="Not a .gi.json or .kg.json file.")
+        raise HTTPException(
+            status_code=400,
+            detail="Not a .gi.json, .kg.json, or .bridge.json file.",
+        )
     try:
         # lgtm[py/path-injection] -- ``target`` built only under anchor-sanitized ``base``.
         text = target.read_text(encoding="utf-8")

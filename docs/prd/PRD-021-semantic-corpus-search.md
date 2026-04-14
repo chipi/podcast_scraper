@@ -19,7 +19,9 @@
   - [GitHub #466](https://github.com/chipi/podcast_scraper/issues/466) — GI + KG depth roadmap
   - `docs/architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md` — Platform context
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) (viewer surfaces semantic search per RFC-062)
+  - [UXS-005: Semantic Search](../uxs/UXS-005-semantic-search.md) -- search panel
+    layout, advanced filters, result cards, insights modal
+  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
 
 ## Summary
 

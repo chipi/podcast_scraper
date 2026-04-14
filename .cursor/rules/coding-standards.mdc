@@ -31,11 +31,11 @@ from podcast_scraper.models import Episode
 - Pydantic validation ensures type safety
 
 ```python
-# ✅ GOOD - Centralized
+# GOOD - Centralized
 cfg = Config(rss_url="...", transcribe_missing=True, workers=8)
 run_pipeline(cfg)
 
-# ❌ BAD - Scattered parameters
+# BAD - Scattered parameters
 fetch_rss(url, timeout=30)
 download(episodes, workers=8)
 ```

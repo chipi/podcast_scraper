@@ -688,10 +688,10 @@ All checks must pass for the PR to be mergeable (unless branch protection rules 
 
 **Optional Checks (Run if files match):**
 
-- ⚠️ `docker-build` (PRs: only if Dockerfile/.dockerignore changed)
-- ⚠️ `snyk-dependencies` (if code changed)
-- ⚠️ `snyk-docker` (if Docker files changed)
-- ⚠️ `analyze` (if Python/workflow files changed)
+- `docker-build` (PRs: only if Dockerfile/.dockerignore changed)
+- `snyk-dependencies` (if code changed)
+- `snyk-docker` (if Docker files changed)
+- `analyze` (if Python/workflow files changed)
 
 **Note:** Snyk jobs have `continue-on-error: true`, so they won't block PRs even if they fail.
 
@@ -1504,7 +1504,7 @@ The system now passes the "minimal docs CI/CD" requirement:
 
 ### Key Improvements Over Time
 
-1. **Path-Based Workflow Filtering** ⭐ NEW
+1. **Path-Based Workflow Filtering**  NEW
    - Intelligent path filtering prevents unnecessary workflow runs
    - Docs-only changes skip Python testing, linting, and security scanning
    - Saves ~18 minutes per docs-only commit
@@ -1796,10 +1796,10 @@ preload (3:30) → e2e (11:30) → viewer-e2e (~3–20) → nightly-only (64:00)
 
 **Benefits:**
 
-- 📊 **Visualize dependencies:** SVG graphs show module relationships
-- 🔍 **Detect cycles:** Catch circular imports automatically
-- 📈 **Track architecture:** Monitor coupling and dependencies over time
-- 🚨 **Early warnings:** Identify modules exceeding import thresholds
+- **Visualize dependencies:** SVG graphs show module relationships
+- **Detect cycles:** Catch circular imports automatically
+- **Track architecture:** Monitor coupling and dependencies over time
+- **Early warnings:** Identify modules exceeding import thresholds
 
 ---
 

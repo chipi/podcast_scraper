@@ -23,8 +23,9 @@
   - [PRD-022](../prd/PRD-022-corpus-library-episode-browser.md), [PRD-023](../prd/PRD-023-corpus-digest-recap.md) —
     feeds catalog + digest glance strings
 - **Related UX specs**:
-  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — **Dashboard tab (charts)** layout, tokens,
+  - [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md) — **Dashboard tab (charts)** layout, tokens,
     accessibility targets
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared design system
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
     — **Dashboard** row (Playwright contract)
@@ -84,7 +85,7 @@ Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit 
   caps); publish-month bars + catalog vs bar-sum insight; node-type and doc-type bars with optional
   **% of vectors**. |
 | **Loading / errors** | Optional loading copy; errors surfaced without breaking the shell. |
-| **Visual contract** | [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) **Dashboard tab (charts)**. |
+| **Visual contract** | [UXS-006](../uxs/UXS-006-dashboard.md) **Dashboard tab (charts)** (tokens per [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)). |
 
 ## Success criteria
 
@@ -92,10 +93,10 @@ Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit 
    **Content intelligence** without loading the graph canvas.
 2. Charts use the same **corpus root** as **API · Data** and respect multi-feed layout where applicable.
 3. **`make test-ui-e2e`** covers **Dashboard** surfaces per E2E map.
-4. Documentation chain: **PRD-025** (this) → **RFC-071** → **UXS-001** § Dashboard.
+4. Documentation chain: **PRD-025** (this) → **RFC-071** → **UXS-006**.
 
 ## References
 
 - [RFC-071](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-006](../uxs/UXS-006-dashboard.md); [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
 - [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md)

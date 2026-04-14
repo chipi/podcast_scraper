@@ -27,7 +27,7 @@ v2.6.0 adds **viewer and HTTP** capabilities; the core library API is unchanged.
 
 v2.4.0 introduces a multi-provider ecosystem and changes several defaults.
 
-### ⚠️ Breaking Behavior Changes
+### Breaking Behavior Changes
 
 These are not code-breaking but change the default behavior of the pipeline:
 
@@ -38,7 +38,7 @@ These are not code-breaking but change the default behavior of the pipeline:
 3. **Output Structure**: Transcripts and metadata are now placed in subdirectories.
    - **Migration**: Update any scripts that assume all files are in the root run directory.
 
-### 🚀 Multi-Provider Configuration
+### Multi-Provider Configuration
 
 v2.4.0 replaces specific provider flags with a unified provider system:
 

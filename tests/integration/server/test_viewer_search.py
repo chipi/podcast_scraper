@@ -6,7 +6,7 @@ Requires ``fastapi`` (``pip install -e '.[server]'``).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, cast, Dict, List
 
 import pytest
 
@@ -48,7 +48,11 @@ def test_search_returns_results_when_mocked(
                     "metadata": {"doc_type": "insight", "episode_id": "ep1"},
                     "text": "hello",
                 }
-            ]
+            ],
+            lift_stats={
+                "transcript_hits_returned": 0,
+                "lift_applied": 0,
+            },
         )
 
     monkeypatch.setattr(
@@ -68,6 +72,10 @@ def test_search_returns_results_when_mocked(
     assert len(body["results"]) == 1
     assert body["results"][0]["doc_id"] == "insight:ep1:n1"
     assert body["results"][0]["score"] == pytest.approx(0.91)
+    assert body.get("lift_stats") == {
+        "transcript_hits_returned": 0,
+        "lift_applied": 0,
+    }
 
 
 def test_search_type_query_params(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -160,3 +168,76 @@ def test_search_maps_outcome_error(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     assert body["error"] == "no_index"
     assert body["detail"] == "/tmp/x"
     assert body["results"] == []
+    assert body.get("lift_stats") is None
+
+
+def test_search_lift_stats_reflects_transcript_and_lift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def fake_run(
+        output_dir: Path,
+        query: str,
+        **kwargs: Any,
+    ) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[
+                {
+                    "doc_id": "t1",
+                    "score": 0.5,
+                    "metadata": {"doc_type": "transcript", "episode_id": "e1"},
+                    "text": "chunk",
+                    "lifted": {"insight": {"id": "i1"}},
+                },
+                {
+                    "doc_id": "t2",
+                    "score": 0.4,
+                    "metadata": {"doc_type": "transcript", "episode_id": "e1"},
+                    "text": "chunk2",
+                },
+            ],
+            lift_stats={"transcript_hits_returned": 2, "lift_applied": 1},
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.search.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/search",
+        params={"q": "q", "path": str(tmp_path)},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["lift_stats"] == {
+        "transcript_hits_returned": 2,
+        "lift_applied": 1,
+    }
+
+
+def test_search_lift_stats_invalid_dropped(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(
+        *_a: Any,
+        **_k: Any,
+    ) -> CorpusSearchOutcome:
+        return CorpusSearchOutcome(
+            results=[],
+            lift_stats=cast(
+                Dict[str, int],
+                {"transcript_hits_returned": "bad", "lift_applied": 1},
+            ),
+        )
+
+    monkeypatch.setattr(
+        "podcast_scraper.server.routes.search.run_corpus_search",
+        fake_run,
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    response = client.get(
+        "/api/search",
+        params={"q": "q", "path": str(tmp_path)},
+    )
+    assert response.status_code == 200
+    assert response.json().get("lift_stats") is None

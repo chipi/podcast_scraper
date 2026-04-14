@@ -33,7 +33,7 @@ According to PEP 484 (Type Hints):
 - They improve **IDE support** (autocomplete, refactoring)
 - They don't change **function signatures** from a runtime perspective
 
-### ⚠️ Potential Edge Cases
+### Potential Edge Cases
 
 1. **Inspection/Reflection Code**:
    - Code that inspects `__annotations__` will see new annotations

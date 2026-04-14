@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useSearchStore } from './search'
 
 describe('useSearchStore', () => {
@@ -46,5 +46,25 @@ describe('useSearchStore', () => {
     expect(s.error).toBe('Enter a search query.')
     s.clearResults()
     expect(s.error).toBeNull()
+  })
+
+  it('runSearch stores lift_stats from API', async () => {
+    const s = useSearchStore()
+    s.query = 'climate'
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          query: 'climate',
+          results: [],
+          lift_stats: { transcript_hits_returned: 2, lift_applied: 1 },
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      )
+    }) as typeof fetch
+    await s.runSearch('/mock/corpus')
+    expect(s.liftStats).toEqual({
+      transcript_hits_returned: 2,
+      lift_applied: 1,
+    })
   })
 })

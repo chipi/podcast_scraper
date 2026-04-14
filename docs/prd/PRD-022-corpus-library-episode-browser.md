@@ -16,7 +16,9 @@
   - [PRD-019: Knowledge Graph Layer](PRD-019-knowledge-graph-layer.md) — KG artifacts opened from library
   - [PRD-023: Corpus Digest & Library Glance](PRD-023-corpus-digest-recap.md) — 24h glance + Digest tab atop same catalog
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — tokens and Library module IA (extended for this PRD)
+  - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) -- Library tab IA,
+    Episode rail, filters, graph integration
+  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
 
 ## Summary
 
@@ -178,6 +180,7 @@ the graph or search **in two or three steps**.
 
 ## Related Documents
 
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) — Library module layout and tokens
+- [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md)
+- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
 - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
   — update when Library UI ships (automation contract)

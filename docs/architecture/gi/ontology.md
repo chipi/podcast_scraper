@@ -4,7 +4,7 @@
 
 v1 (implementation-ready)
 
-**Shipping note (GIL backlog / Issue #460):** The extractor currently emits **Episode**, **Insight**, **Quote**, and **SUPPORTED_BY** edges. **Topic** nodes and **ABOUT** edges are defined in this ontology for forward compatibility and for **`gi explore`** when artifacts are enriched, but are **not** produced automatically by the default pipeline yet. **Quote.speaker_id** is set when transcription **segments** (e.g. `.segments.json`) include **`speaker`** or **`speaker_id`** aligned with the transcript; otherwise **`null`**. When **`speaker_id`** is set from diarization, the pipeline also emits a **Speaker** node and a **SPOKEN_BY** edge (**Quote → Speaker**) so **`gi explore`** can show graph-backed speaker names even when quote properties omit a human-readable label.
+**Shipping note (GIL backlog / Issue #460):** The extractor currently emits **Episode**, **Insight**, **Quote**, and **SUPPORTED_BY** edges. **Topic** nodes and **ABOUT** edges are defined in this ontology for forward compatibility and for **`gi explore`** when artifacts are enriched, but are **not** produced automatically by the default pipeline yet. **Quote.speaker_id** is set when transcription **segments** (e.g. `.segments.json`) include **`speaker`** or **`speaker_id`** aligned with the transcript; otherwise **`null`**. When diarization is present, the pipeline emits a **Person** node (RFC-072 **`person:{slug}`**) and a **SPOKEN_BY** edge (**Quote → Person**) so **`gi explore`** can show graph-backed names. Legacy artifacts may still use **Speaker** / **`speaker:`** until migrated.
 
 ## Purpose
 
@@ -489,8 +489,17 @@ Note: No `SUPPORTED_BY` edges exist for this Insight, and `grounded=false` is ex
 
 ---
 
+## RFC-072 (schema 2.0)
+
+- **`schema_version`:** `2.0` for new pipeline output; `1.0` remains valid for older files.
+- **Person nodes:** **`Person`** replaces **`Speaker`**; ids use **`person:{slug}`** (see `graph_id_utils.person_node_id`). **`Quote.speaker_id`** values use the same **`person:`** prefix when diarization is present.
+- **Edges:** **`SPOKEN_BY`** remains **Quote → Person**.
+- **Insight (optional v1.1 fields):** **`insight_type`** (`claim` \| `recommendation` \| `observation` \| `question` \| `unknown`) and **`position_hint`** (0–1, mean quote start ms / episode duration when duration is known). **`Episode.properties.duration_ms`** may be set when RSS/audio duration is available.
+- **Migration:** `scripts/migrate_gi_speaker_to_person.py` rewrites legacy **`Speaker`** / **`speaker:`** artifacts.
+
 ## Version History
 
-| Version | Date       | Changes                                               |
-| ------- | ---------- | ----------------------------------------------------- |
-| 1.0     | 2026-02-06 | Initial v1: Insight + Quote model, grounding contract |
+| Version | Date       | Changes                                                         |
+| ------- | ---------- | --------------------------------------------------------------- |
+| 1.0     | 2026-02-06 | Initial v1: Insight + Quote model, grounding contract           |
+| 2.0     | 2026-04-13 | RFC-072: Person / `person:`, `insight_type`, `position_hint`    |

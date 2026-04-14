@@ -10,7 +10,7 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 
 ## Key Changes
 
-### 🔒 Security Fixes
+### Security Fixes
 
 #### Critical Security Vulnerabilities Fixed
 
@@ -53,7 +53,7 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 - **Fix**: Explicitly close `os.devnull` file handle in `InterceptedTqdm.close()` and add `__del__()` safety net
 - **File**: `whisper_integration.py`
 
-### 📊 Logging Improvements
+### Logging Improvements
 
 **Production-Friendly Logging:**
 
@@ -76,7 +76,7 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 - Includes log level guidelines, module-specific patterns, and examples
 - Helps contributors maintain consistent, production-friendly logging
 
-### 🛡️ Security Scanning Integration
+### Security Scanning Integration
 
 **Snyk Security Scanning:**
 
@@ -98,7 +98,7 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 - **Impact**: Catches linting issues locally before pushing to PRs
 - **File**: `.github/hooks/pre-commit`
 
-### 🧪 Test Coverage Improvements
+### Test Coverage Improvements
 
 **New Test Suites:**
 
@@ -114,7 +114,7 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 - Removed unused imports and variables
 - Improved test organization and structure
 
-### ⚡ Performance & Reliability Improvements
+### Performance & Reliability Improvements
 
 **RSS Fetch Optimization:**
 
@@ -138,7 +138,7 @@ v2.3.1 is a **patch release** focused on **security fixes**, **code quality impr
 - **Impact**: Reduces unnecessary CI runs, faster feedback cycles
 - **Files**: `.github/workflows/*.yml`
 
-### 📚 Documentation Improvements
+### Documentation Improvements
 
 **New Documentation:**
 

@@ -668,11 +668,11 @@ Parameter tuning experiments (v1-v6) have been completed. Results validate the p
 | Experiment | Boilerplate Leak | Speaker Name Leak | Failed Episodes | Avg Tokens | Latency (ms) |
 |------------|------------------|-------------------|-----------------|------------|--------------|
 | **v1 baseline** | 0% | 80% | 0 | 445 | 37,179 |
-| v2 longer output | **20%** ⚠️ | 80% | 1 (p03_e01) | 607.4 | 52,943 |
-| v3 stronger ngram | **20%** ⚠️ | 80% | 1 (p05_e01) | 375.2 | 37,590 |
+| v2 longer output | **20%**  | 80% | 1 (p03_e01) | 607.4 | 52,943 |
+| v3 stronger ngram | **20%**  | 80% | 1 (p05_e01) | 375.2 | 37,590 |
 | v4 smaller chunks | 0% [ok] | 80% | 0 | 445 | 36,585 |
 | v5 larger chunks | 0% [ok] | 80% | 0 | 477.4 | 38,430 |
-| v6 combined | **20%** ⚠️ | 80% | 1 (p05_e01) | 438.2 | 45,214 |
+| v6 combined | **20%**  | 80% | 1 (p05_e01) | 438.2 | 45,214 |
 
 #### Key Findings
 

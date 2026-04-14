@@ -1230,6 +1230,12 @@ jobs:
         export PYTHONPATH="${PYTHONPATH}:$(pwd)"
         # Local Whisper in multi-feed ML preset can approach 900s on slow CPU; keep margin.
         TIMEOUT=1500 make test-acceptance-fixtures-fast
+    - name: Verify GIL Quote vs FAISS transcript chunk offsets (acceptance corpora)
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+        # RFC-072 / #528: each successful acceptance run_* with vector_search + generate_gi must
+        # align Quote char spans with indexed transcript chunks (feeds nightly / lift contract).
+        make verify-gil-offsets-after-acceptance
 
   # Documentation build - validates docs can be built correctly
   # Runs as very last step after all tests and coverage pass (final validation)

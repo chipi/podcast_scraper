@@ -49,8 +49,9 @@ def _minimal_validate(data: Dict[str, Any]) -> None:
             raise ValueError(f"GIL artifact missing required key: {key!r}")
     if not isinstance(data.get("schema_version"), str):
         raise ValueError("GIL artifact 'schema_version' must be a string")
-    if data.get("schema_version") != "1.0":
-        raise ValueError("GIL artifact 'schema_version' must be '1.0'")
+    sv = data.get("schema_version")
+    if sv not in ("1.0", "2.0"):
+        raise ValueError("GIL artifact 'schema_version' must be '1.0' or '2.0'")
     if not isinstance(data.get("nodes"), list):
         raise ValueError("GIL artifact 'nodes' must be an array")
     if not isinstance(data.get("edges"), list):

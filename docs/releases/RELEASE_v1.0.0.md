@@ -7,7 +7,7 @@
 
 v1.0.0 marks the first stable release of Podcast Scraper, a command-line tool for downloading podcast transcripts from RSS feeds with Whisper fallback transcription support. This release provides a complete, production-ready implementation with multi-threaded downloads, configuration file support, progress tracking, and robust error handling.
 
-## 🎉 Initial Features
+## Initial Features
 
 ### Core Functionality
 

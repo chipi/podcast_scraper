@@ -396,7 +396,7 @@ class TestExploreCollectAndOutput:
         )
         out = _artifact_from_multi_insight(
             "ep:1",
-            ["Insight"],
+            [("Insight", "unknown")],
             [[gq]],
             model_version="m",
             prompt_version="v1",

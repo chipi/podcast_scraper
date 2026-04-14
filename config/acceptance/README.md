@@ -210,3 +210,17 @@ Run fast subset after expanding a glob (filter to stems in `FAST_CONFIGS.txt`):
 ```bash
 make test-acceptance CONFIGS="config/acceptance/*.yaml" USE_FIXTURES=1 FAST_ONLY=1
 ```
+
+## CI: GIL vs FAISS offset check after the fast matrix
+
+On **push** to `main` / release branches, `.github/workflows/python-app.yml` runs
+`make test-acceptance-fixtures-fast`, then **`make verify-gil-offsets-after-acceptance`**.
+That walks the latest acceptance **`session_*/runs/run_*`** trees and runs
+`verify-gil-chunk-offsets --strict` on every run that has **`search/metadata.json`**
+(RFC-072 / issue #528). **Nightly** (`.github/workflows/nightly.yml`) does not run the
+acceptance matrix today; it runs **`make test-nightly`** instead. To re-check offsets locally
+after a fixture session:
+
+```bash
+make verify-gil-offsets-after-acceptance
+```

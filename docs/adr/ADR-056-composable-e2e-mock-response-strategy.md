@@ -74,7 +74,7 @@ We adopt a **Composable E2E Mock Response Strategy** that separates:
 - **Response Profiles**: Normal, Error (429, 5xx), Edge Case (partial, degraded)
 - **Non-Functional Behavior**: Retry logic, timeouts, rate limits
 - **Default**: Most tests get realistic default responses automatically
-- **Status**: 🟡 Draft RFC (RFC-054) - Not yet implemented
+- **Status**:  Draft RFC (RFC-054) - Not yet implemented
 
 ## References
 

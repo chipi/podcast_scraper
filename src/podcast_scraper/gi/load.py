@@ -69,7 +69,7 @@ def _speaker_graph_meta(
     artifact: Dict[str, Any],
     quote_node_id: str,
 ) -> Tuple[Optional[str], Optional[str]]:
-    """Return (speaker_node_id, speaker_name) from SPOKEN_BY Quote -> Speaker."""
+    """Return (person_node_id, display name) from SPOKEN_BY Quote -> Person or Speaker."""
     for edge in artifact.get("edges", []):
         if edge.get("type") != "SPOKEN_BY" or edge.get("from") != quote_node_id:
             continue
@@ -77,7 +77,10 @@ def _speaker_graph_meta(
         if not to_id:
             continue
         node = _node_by_id(artifact, to_id)
-        if not node or node.get("type") != "Speaker":
+        if not node:
+            continue
+        nt = node.get("type")
+        if nt not in ("Person", "Speaker"):
             continue
         name = (node.get("properties") or {}).get("name")
         nm = str(name).strip() if name is not None else ""

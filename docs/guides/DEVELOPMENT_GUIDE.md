@@ -281,7 +281,7 @@ pip install -e ".[dev,ml,llm]"  # Editable mode with dev, ML, and LLM extras
 
 ### Updating Virtual Environment Dependencies
 
-**⚠️ CRITICAL: Update venv when dependency ranges change**
+**CRITICAL: Update venv when dependency ranges change**
 
 When `pyproject.toml` dependency version ranges are modified (e.g., `black>=23.0.0,<27.0.0`), you **must** update your local virtual environment to match what CI installs.
 
@@ -466,6 +466,44 @@ python scripts/cache/restore_cache.py --backup 20250108 --force
 - `scripts/cache/restore_cache.py` - Restore script documentation
 - `.cache/README.md` - Cache directory documentation
 
+#### Process Safety for ML Cache Operations (RFC-074)
+
+ML model loading triggers heavy filesystem I/O (readdir, lstat, mmap on
+multi-GB files). On macOS (APFS), this contends for a global kernel lock
+and can cause processes to enter uninterruptible wait (`UE` state) where
+`kill -9` has no effect.
+
+**Key safeguards in the build system:**
+
+- **No ML imports at Makefile parse time** -- `make help` completes in
+  under 1 second with zero Python processes spawned.
+- **Filesystem-only cache checks** -- `_is_transformers_model_cached()`
+  checks for `config.json` + weight files instead of calling
+  `AutoTokenizer.from_pretrained()`, avoiding heavy disk I/O.
+- **Offline mode** -- `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1`
+  are exported for all Makefile recipes, preventing accidental model
+  downloads during builds.
+- **Preload timeout** -- `preload_ml_models.py` has a 600-second
+  `signal.alarm` hard timeout to prevent indefinite hangs.
+
+**Diagnostic commands:**
+
+```bash
+make check-zombie      # Detect unkillable (UE state) Python processes
+make check-spotlight   # Verify Spotlight indexing status (macOS)
+make cleanup-processes # Kill leftover Python/test processes
+```
+
+If `make check-zombie` reports UE processes, reboot is the only option.
+After reboot, run Disk Utility First Aid on the boot volume.
+
+**Recommended macOS settings:** Disable Spotlight indexing on
+`~/.cache/huggingface`, `~/.cache/whisper`, and `.venv/` directories
+(System Settings, Spotlight, Privacy) to reduce APFS lock contention.
+
+Full details: [RFC-074](../rfc/RFC-074-process-safety-ml-workloads-macos.md),
+[Architecture -- Process Safety](../architecture/ARCHITECTURE.md#process-safety-for-ml-workloads-rfc-074).
+
 #### Cleaning Cache
 
 To remove cached models (useful for testing or freeing disk space):
@@ -528,6 +566,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 | `make serve-ui` | Vite dev server only (`web/gi-kg-viewer`, port **5173**, proxies `/api` → 8000). |
 | `make test-ui` | Vitest unit tests for TS utility logic (parsing, merge, metrics, formatting). Fast (~150 ms), no browser. |
 | `make test-ui-e2e` | Playwright browser tests: `npm install`, `playwright install firefox`, `npm run test:e2e` (Vite on **5174** inside Playwright config — no clash with 5173). |
+| `make verify-gil-offsets-strict` | **Quote** vs **indexed transcript chunk** character alignment on a corpus (set **`GIL_OFFSET_VERIFY_DIR`**; optional **`GIL_OFFSET_MIN_RATE`**, default **0.95**). Supports **feed-nested** metadata. See [Semantic Search Guide — lift & verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |
 
 **Contributor notes:**
 
@@ -535,7 +574,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
   (copy, labels, layout, routes, theme tokens, accessible names, list/load flows), update **(1)**
   [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md),
   **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**, **(3)**
-  [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) when the **visual or experience spec** changes.
+  [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
   Checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 - UI E2E uses **Firefox** (see `web/gi-kg-viewer/playwright.config.ts`).
 - Pytest coverage for the same APIs lives under `tests/unit/podcast_scraper/server/`
@@ -544,7 +583,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 - **Full server reference:** [Server Guide](SERVER_GUIDE.md) — architecture, all endpoints,
   adding routes, testing, platform evolution.
 
-**See also:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Grounded Insights
+**See also:** [GIL / KG / CIL cross-layer](GIL_KG_CIL_CROSS_LAYER.md) · [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) · [Grounded Insights
 Guide](GROUNDED_INSIGHTS_GUIDE.md) · [Knowledge Graph Guide](KNOWLEDGE_GRAPH_GUIDE.md) ·
 [CLI API](../api/CLI.md) (`gi` / `kg` / `search` / `index` subcommands).
 
@@ -645,8 +684,8 @@ and `data/profiles/README.md`.
 
 | Target | What it runs | When to use |
 | ------ | ------------ | ----------- |
-| `make ci-fast` | Format-check, lint, type, security, complexity, docstrings, spelling, quality-metrics-ci, `test-fast` (critical-path unit + integration + E2E), `test-ui` (Vitest), docs, build | **Default pre-commit gate.** ~6-10 min. Skips Playwright and coverage enforcement. |
-| `make ci` | Everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), coverage enforcement | Before PR merge or when touching viewer E2E / coverage-sensitive areas. ~10-15 min. |
+| `make ci-fast` | `cleanup-processes`, format-check, lint, type, security, complexity, docstrings, spelling, quality-metrics-ci, `test-fast` (critical-path unit + integration + E2E), `test-ui` (Vitest), docs, build | **Default pre-commit gate.** ~6-10 min. Skips Playwright and coverage enforcement. |
+| `make ci` | `cleanup-processes`, everything in `ci-fast` + full `test` suite, `test-ui-e2e` (Playwright), coverage enforcement | Before PR merge or when touching viewer E2E / coverage-sensitive areas. ~10-15 min. |
 | `make test-fast` | Critical-path unit + integration + E2E tests only (no lint/format/type) | Quick test-only feedback. |
 
 The pre-commit hook runs staged checks (format,
@@ -712,7 +751,7 @@ Different AI assistants load guidelines from different locations:
 
 ### Critical Workflow Rules
 
-**🚨 BRANCH CREATION CHECKLIST - MANDATORY BEFORE CREATING ANY BRANCH:**
+**BRANCH CREATION CHECKLIST - MANDATORY BEFORE CREATING ANY BRANCH:**
 
 **CRITICAL: Always check for uncommitted changes before creating a new branch.**
 
@@ -1178,7 +1217,7 @@ You can proceed without PRD/RFC for:
 - New public modules are added
 - API contracts change
 
-### ⚠️ Before Pushing Documentation Changes
+### Before Pushing Documentation Changes
 
 **Always check `mkdocs.yml` and verify all links when adding, moving, or deleting documentation files:**
 
@@ -1309,6 +1348,14 @@ If CI fails on your PR:
 | Test failures | Fix or update tests |
 | Coverage drop | Add tests for new code |
 | Markdown linting | Run `make fix-md` to auto-fix markdown issues |
+
+**Process safety (RFC-074):**
+
+`cleanup-processes` runs automatically before every `ci` and `ci-fast`
+invocation. If you see stuck Python processes after a failed `make`
+run, use `make cleanup-processes` manually. If `make check-zombie`
+reports UE-state processes, reboot is required. See
+[CI Local Development -- Process Safety](../ci/LOCAL_DEVELOPMENT.md).
 
 **Prevent failures with pre-commit hooks:**
 

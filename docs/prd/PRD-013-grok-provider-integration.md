@@ -47,7 +47,7 @@ This PRD addresses adding Grok as an xAI-based provider.
 
 ## Grok Model Selection and Cost Analysis
 
-**⚠️ Note:** Model names, pricing, and API details below are placeholders and need verification from xAI's official documentation.
+** Note:** Model names, pricing, and API details below are placeholders and need verification from xAI's official documentation.
 
 ### Configuration Fields
 
@@ -128,7 +128,7 @@ grok_summary_user_prompt: str = Field(
 
 ## Model Options and Pricing
 
-**⚠️ Note:** Pricing information should be verified from xAI's official documentation at <https://console.x.ai> or <https://docs.x.ai>. The following are estimates based on common pricing patterns.
+** Note:** Pricing information should be verified from xAI's official documentation at <https://console.x.ai> or <https://docs.x.ai>. The following are estimates based on common pricing patterns.
 
 | Model | Input Cost | Output Cost | Context Window | Speed | Best For |
 | ----- | ---------- | ----------- | -------------- | ----- | -------- |
@@ -139,7 +139,7 @@ grok_summary_user_prompt: str = Field(
 
 ### Free Tier Limits
 
-**⚠️ Needs Verification:** Free tier availability and limits should be verified from xAI documentation at <https://console.x.ai>.
+** Needs Verification:** Free tier availability and limits should be verified from xAI documentation at <https://console.x.ai>.
 
 | Model | Requests/Min | Tokens/Min | Requests/Day |
 | ----- | ------------ | ---------- | ------------ |
@@ -158,7 +158,7 @@ grok_summary_user_prompt: str = Field(
 
 ### Cost Comparison: All Providers (Per 100 Episodes)
 
-**⚠️ Note:** Grok pricing should be verified from xAI documentation. Estimates based on common pricing patterns.
+** Note:** Grok pricing should be verified from xAI documentation. Estimates based on common pricing patterns.
 
 | Component | OpenAI (gpt-4o-mini) | DeepSeek (chat) | Grok (verify) |
 | --------- | -------------------- | --------------- | ------------- |
@@ -169,7 +169,7 @@ grok_summary_user_prompt: str = Field(
 
 ### Processing Time Comparison (Single Episode Summary)
 
-**⚠️ Note:** Grok performance metrics should be verified through actual API testing.
+** Note:** Grok performance metrics should be verified through actual API testing.
 
 | Provider | Time | Tokens/Second |
 | -------- | ---- | ------------- |

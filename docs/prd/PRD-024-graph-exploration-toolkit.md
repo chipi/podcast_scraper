@@ -13,7 +13,7 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 ## Goals
 
 - **G1**: One coordinated implementation slice (“toolkit pass”) so interactions can be evaluated together.
-- **G2**: All new controls are **graph-local** (toolbar / collapsible panel / overlay), consistent with [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) tokens.
+- **G2**: All new controls are **graph-local** (toolbar / collapsible panel / overlay), consistent with [UXS-004](../uxs/UXS-004-graph-exploration.md) and [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) tokens.
 - **G3**: **No regression** on existing E2E contracts; update [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) and Playwright as needed.
 - **G4**: Acceptable performance on **medium** corpora (hundreds of nodes); document limits for **very large** graphs.
 
@@ -61,7 +61,7 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 
 ### FR5: Quality & docs
 
-- **FR5.1**: Update **UXS-001** for new visible strings and density rules.
+- **FR5.1**: Update **UXS-004** (and UXS-001 if shared tokens change) for new visible strings and density rules.
 - **FR5.2**: Extend Playwright coverage for at least one path through new controls (see RFC).
 
 ### FR6: Chrome density
@@ -77,5 +77,5 @@ Today the graph (Cytoscape.js, see [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md))
 ## Related Documents
 
 - **RFC**: [RFC-069](../rfc/RFC-069-graph-exploration-toolkit.md) (technical design).
-- **Viewer**: [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
+- **Viewer**: [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [UXS-004](../uxs/UXS-004-graph-exploration.md), [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
 - **Automation**: [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).

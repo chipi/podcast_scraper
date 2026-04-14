@@ -466,9 +466,9 @@ This RFC documents the comprehensive improvements made to the integration test s
 
 **What Could Be Better (Minor):**
 
-1. ⚠️ **Test organization** - Could be more scenario-based (but current organization is fine)
-2. ⚠️ **Performance testing** - Optional, not critical for integration tests
-3. ⚠️ **Real Whisper in full pipeline** - Practical limitation, acceptable trade-off
+1.  **Test organization** - Could be more scenario-based (but current organization is fine)
+2.  **Performance testing** - Optional, not critical for integration tests
+3.  **Real Whisper in full pipeline** - Practical limitation, acceptable trade-off
 
 ## Remaining Opportunities
 

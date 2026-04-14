@@ -180,7 +180,7 @@ Modify `test-unit` job in `.github/workflows/python-app.yml`:
   if: always()
 
   run: |
-    echo "## 📊 Unit Test Coverage" >> $GITHUB_STEP_SUMMARY
+    echo "##  Unit Test Coverage" >> $GITHUB_STEP_SUMMARY
     if [ -f reports/coverage-unit.xml ]; then
       COVERAGE=$(python -c "import xml.etree.ElementTree as ET; \
         tree = ET.parse('reports/coverage-unit.xml'); \
@@ -409,8 +409,8 @@ coverage-check:
 | Level | Threshold | Action |
 | ------- | ----------- | -------- |
 | Good | ≥ 80% | No action needed |
-| 🟡 Warning | 65-80% | Monitor, improve gradually |
-| 🔴 Failure | < 65% | CI fails, must address |
+|  Warning | 65-80% | Monitor, improve gradually |
+|  Failure | < 65% | CI fails, must address |
 
 ## Risks and Mitigations
 

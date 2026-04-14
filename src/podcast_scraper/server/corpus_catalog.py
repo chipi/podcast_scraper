@@ -11,6 +11,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
+from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
@@ -238,8 +239,10 @@ class CatalogEpisodeRow:
     summary_text: Optional[str]
     gi_relative_path: str
     kg_relative_path: str
+    bridge_relative_path: str
     has_gi: bool
     has_kg: bool
+    has_bridge: bool
     feed_image_url: Optional[str] = None
     episode_image_url: Optional[str] = None
     duration_seconds: Optional[int] = None
@@ -263,6 +266,8 @@ class CatalogEpisodeRow:
 def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
     """Scan corpus for ``*.metadata.*`` and build catalog rows."""
     root = corpus_root.resolve()
+    root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
     rows: list[CatalogEpisodeRow] = []
     for meta_path in discover_metadata_files(root):
         try:
@@ -287,11 +292,21 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
         feed_url = _feed_rss_url(doc)
         feed_desc = _feed_description(doc)
         gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
+        bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
         gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
         kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
-        # codeql[py/path-injection] -- gi_safe/kg_safe from normpath+startswith guard.
-        has_gi = bool(gi_safe and os.path.isfile(gi_safe))
-        has_kg = bool(kg_safe and os.path.isfile(kg_safe))
+        bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)
+        if gi_safe:
+            gi_safe = os.path.normpath(gi_safe)
+        if kg_safe:
+            kg_safe = os.path.normpath(kg_safe)
+        if bridge_safe:
+            bridge_safe = os.path.normpath(bridge_safe)
+        has_gi = bool(gi_safe and gi_safe.startswith(safe_prefix) and os.path.isfile(gi_safe))
+        has_kg = bool(kg_safe and kg_safe.startswith(safe_prefix) and os.path.isfile(kg_safe))
+        has_bridge = bool(
+            bridge_safe and bridge_safe.startswith(safe_prefix) and os.path.isfile(bridge_safe)
+        )
         rows.append(
             CatalogEpisodeRow(
                 metadata_relative_path=rel,
@@ -305,8 +320,10 @@ def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
                 summary_text=sbody,
                 gi_relative_path=gi_rel,
                 kg_relative_path=kg_rel,
+                bridge_relative_path=bridge_rel,
                 has_gi=has_gi,
                 has_kg=has_kg,
+                has_bridge=has_bridge,
                 feed_image_url=f_img,
                 episode_image_url=e_img,
                 duration_seconds=dur_s,
@@ -326,11 +343,14 @@ def catalog_row_for_metadata_path(
 ) -> Optional[CatalogEpisodeRow]:
     """Build a single catalog row from a metadata relative path (no full corpus scan)."""
     root = corpus_root.resolve()
-    safe_meta = safe_relpath_under_corpus_root(root, metadata_relative_path)
-    # codeql[py/path-injection] -- safe_meta from normpath+startswith in safe_relpath.
-    if not safe_meta or not os.path.isfile(safe_meta):
-        return None
     root_s = os.path.normpath(str(root))
+    safe_prefix = root_s + os.sep
+    safe_meta = safe_relpath_under_corpus_root(root, metadata_relative_path)
+    if not safe_meta:
+        return None
+    safe_meta = os.path.normpath(safe_meta)
+    if not safe_meta.startswith(safe_prefix) or not os.path.isfile(safe_meta):
+        return None
     rel = os.path.relpath(safe_meta, root_s).replace("\\", "/")
     if rel.startswith(".."):
         return None
@@ -352,11 +372,21 @@ def catalog_row_for_metadata_path(
     feed_url = _feed_rss_url(doc)
     feed_desc = _feed_description(doc)
     gi_rel, kg_rel = _gi_kg_relpaths_from_metadata(rel)
+    bridge_rel = bridge_json_path_adjacent_to_metadata(rel)
     gi_safe = safe_relpath_under_corpus_root(root, gi_rel)
     kg_safe = safe_relpath_under_corpus_root(root, kg_rel)
-    # codeql[py/path-injection] -- gi_safe/kg_safe from normpath+startswith guard.
-    has_gi = bool(gi_safe and os.path.isfile(gi_safe))
-    has_kg = bool(kg_safe and os.path.isfile(kg_safe))
+    bridge_safe = safe_relpath_under_corpus_root(root, bridge_rel)
+    if gi_safe:
+        gi_safe = os.path.normpath(gi_safe)
+    if kg_safe:
+        kg_safe = os.path.normpath(kg_safe)
+    if bridge_safe:
+        bridge_safe = os.path.normpath(bridge_safe)
+    has_gi = bool(gi_safe and gi_safe.startswith(safe_prefix) and os.path.isfile(gi_safe))
+    has_kg = bool(kg_safe and kg_safe.startswith(safe_prefix) and os.path.isfile(kg_safe))
+    has_bridge = bool(
+        bridge_safe and bridge_safe.startswith(safe_prefix) and os.path.isfile(bridge_safe)
+    )
     return CatalogEpisodeRow(
         metadata_relative_path=rel,
         feed_id=feed_id,
@@ -369,8 +399,10 @@ def catalog_row_for_metadata_path(
         summary_text=sbody,
         gi_relative_path=gi_rel,
         kg_relative_path=kg_rel,
+        bridge_relative_path=bridge_rel,
         has_gi=has_gi,
         has_kg=has_kg,
+        has_bridge=has_bridge,
         feed_image_url=f_img,
         episode_image_url=e_img,
         duration_seconds=dur_s,

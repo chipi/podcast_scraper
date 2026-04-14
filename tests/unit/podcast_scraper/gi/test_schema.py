@@ -35,9 +35,9 @@ class TestGILSchema:
             validate_artifact(data, strict=False)
 
     def test_validate_artifact_bad_schema_version(self):
-        """schema_version other than 1.0 raises."""
+        """schema_version other than 1.0/2.0 raises."""
         data = {
-            "schema_version": "2.0",
+            "schema_version": "9.9",
             "model_version": "stub",
             "prompt_version": "v1",
             "episode_id": "episode:1",
@@ -46,6 +46,18 @@ class TestGILSchema:
         }
         with pytest.raises(ValueError, match="1.0"):
             validate_artifact(data, strict=False)
+
+    def test_validate_artifact_minimal_2_0_valid(self):
+        """schema_version 2.0 passes minimal validation."""
+        data = {
+            "schema_version": "2.0",
+            "model_version": "stub",
+            "prompt_version": "v1",
+            "episode_id": "episode:1",
+            "nodes": [],
+            "edges": [],
+        }
+        validate_artifact(data, strict=False)
 
     def test_validate_artifact_nodes_not_array(self):
         """nodes must be an array."""

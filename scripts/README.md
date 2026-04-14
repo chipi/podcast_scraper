@@ -148,6 +148,8 @@ git commit -m "your message"
 - **`check_unit_test_imports.py`** - Verify unit tests can import modules without ML dependencies
 - **`profile_e2e_test_memory.py`** - Profile individual E2E tests to identify memory-intensive tests
 
+**Hugging Face diagnostics** live under `cache/`: **`hf_hub_smoke_test.py`** ( **`make hf-hub-smoke-test`** ) — see the **Cache Management (`cache/`)** section below.
+
 See `docs/guides/DEVELOPMENT_GUIDE.md` for detailed usage of these tools.
 
 ---
@@ -175,6 +177,26 @@ Restores cache from a backup archive.
 - `make restore-cache-dry-run` - Preview restore operation
 
 See `docs/guides/DEVELOPMENT_GUIDE.md` for detailed usage.
+
+### hf_hub_smoke_test.py
+
+Checks Hugging Face hub connectivity in three steps: raw HTTPS (`urllib`), `huggingface_hub.model_info`, and `transformers.AutoTokenizer.from_pretrained` using the same cache directory logic as preload. Use when CI `preload-ml-models` fails with “couldn’t connect to huggingface.co” to see whether the problem is network/TLS, the hub API, or Transformers only.
+
+**Make target:**
+
+- `make hf-hub-smoke-test` — run with defaults (`facebook/bart-base`)
+
+**Usage:**
+
+```bash
+make hf-hub-smoke-test
+make hf-hub-smoke-test HF_SMOKE_ARGS="--model google/flan-t5-base"
+.venv/bin/python3 scripts/cache/hf_hub_smoke_test.py
+.venv/bin/python3 scripts/cache/hf_hub_smoke_test.py --model google/flan-t5-base
+.venv/bin/python3 scripts/cache/hf_hub_smoke_test.py --cache /path/to/hub
+```
+
+Options: `--skip-https`, `--skip-hub-api`. Requires network and an ML-capable venv (`pip install -e .[ml]`). If **`HF_HUB_OFFLINE=1`** is set, step 2 fails by design; unset it for a full online check (step 3 may still pass from disk cache).
 
 ---
 

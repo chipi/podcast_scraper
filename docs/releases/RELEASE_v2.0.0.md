@@ -4,11 +4,11 @@
 **Type:** Major Release
 **Last Updated:** November 18, 2025
 
-## 🎉 Major Release: Refactored Architecture & Comprehensive Documentation
+## Major Release: Refactored Architecture & Comprehensive Documentation
 
 Version 2.0.0 represents a significant milestone with a complete codebase refactoring, comprehensive documentation, and new features.
 
-### 🏗️ Major Architectural Changes
+### Major Architectural Changes
 
 #### Codebase Refactoring into Modular Structure (#3)
 
@@ -47,7 +47,7 @@ Added extensive documentation infrastructure:
 - **API Documentation**: Migration guides and API comparisons
 - **MkDocs Site**: Live documentation at <https://chipi.github.io/podcast_scraper/>
 
-### ✨ New Features
+### New Features
 
 #### RFC-010: Automatic Speaker Name Detection (#11)
 
@@ -58,7 +58,7 @@ Added extensive documentation infrastructure:
 - **Caching Support**: Optional host detection caching across episodes for performance
 - **Graceful Fallback**: Works seamlessly when spaCy is unavailable
 
-### 🔧 Improvements
+### Improvements
 
 - **MIT License**: Added proper license file and documentation
 - **CI/CD Enhancements**: Improved workflows and tooling alignment (#10)
@@ -66,7 +66,7 @@ Added extensive documentation infrastructure:
 - **Security**: CodeQL analysis workflow configuration
 - **Type Safety**: Full type hints and Pydantic validation
 
-### 📚 Documentation Highlights
+### Documentation Highlights
 
 - Complete architecture documentation
 - 10+ RFCs covering design decisions
@@ -75,7 +75,7 @@ Added extensive documentation infrastructure:
 - Product requirements documents
 - Live MkDocs documentation site
 
-### 🔄 Migration Notes
+### Migration Notes
 
 For users upgrading from v1.0.0:
 

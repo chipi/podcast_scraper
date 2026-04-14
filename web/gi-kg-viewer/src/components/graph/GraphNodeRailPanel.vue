@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useArtifactsStore } from '../../stores/artifacts'
 import { useEpisodeRailStore } from '../../stores/episodeRail'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -9,6 +10,7 @@ import NodeDetail from './NodeDetail.vue'
 const gf = useGraphFilterStore()
 const nav = useGraphNavigationStore()
 const episodeRail = useEpisodeRailStore()
+const artifacts = useArtifactsStore()
 
 const emit = defineEmits<{ 'go-graph': [] }>()
 
@@ -64,6 +66,7 @@ function onClose(): void {
       embed-in-rail
       :view-artifact="viewArtifact"
       :node-id="nodeId"
+      :bridge-document="artifacts.bridgeDocument"
       @close="onClose"
       @go-graph="emit('go-graph')"
     />

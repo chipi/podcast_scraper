@@ -14,7 +14,7 @@
   - `docs/architecture/kg/kg.schema.json` — Machine-readable schema (published; validated in CI via `make validate-kg-schema`)
   - `docs/guides/KNOWLEDGE_GRAPH_GUIDE.md` — User-facing guide (updated with implementation)
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
+  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
 
 ## Summary
 

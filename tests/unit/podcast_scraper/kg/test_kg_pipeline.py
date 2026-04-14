@@ -21,7 +21,7 @@ class TestKgPipeline(unittest.TestCase):
             publish_date="2024-01-15T12:00:00Z",
             transcript_ref="transcripts/ep.txt",
         )
-        self.assertEqual(art["schema_version"], "1.1")
+        self.assertEqual(art["schema_version"], "1.2")
         self.assertEqual(art["episode_id"], "episode:test-1")
         self.assertEqual(len(art["nodes"]), 1)
         self.assertEqual(art["nodes"][0]["type"], "Episode")
@@ -195,10 +195,10 @@ class TestKgPipeline(unittest.TestCase):
         )
         validate_artifact(art, strict=True)
         entities = [n for n in art["nodes"] if n["type"] == "Entity"]
-        kinds = sorted((n["properties"]["entity_kind"], n["properties"]["name"]) for n in entities)
+        kinds = sorted((n["properties"]["kind"], n["properties"]["name"]) for n in entities)
         self.assertEqual(
             kinds,
-            [("organization", "Mercury"), ("person", "Mercury")],
+            [("org", "Mercury"), ("person", "Mercury")],
         )
         self.assertEqual(len(entities), 2)
 
@@ -227,8 +227,8 @@ class TestKgPipeline(unittest.TestCase):
         )
         validate_artifact(art, strict=True)
         entities = [n for n in art["nodes"] if n["type"] == "Entity"]
-        kinds = {(n["properties"]["entity_kind"], n["properties"]["name"]) for n in entities}
-        self.assertIn(("organization", "ACME"), kinds)
+        kinds = {(n["properties"]["kind"], n["properties"]["name"]) for n in entities}
+        self.assertIn(("org", "ACME"), kinds)
         self.assertIn(("person", "ACME"), kinds)
         self.assertEqual(len(entities), 2)
 

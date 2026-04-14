@@ -108,6 +108,41 @@ class TestKgSchema(unittest.TestCase):
             validate_artifact(art, strict=True)
         self.assertIn("validation failed", str(ctx.exception).lower())
 
+    def test_strict_accepts_1_2_kind_and_person_prefix_id(self) -> None:
+        """v1.2 Entity uses ``kind`` and ``person:`` ids (RFC-072)."""
+        art = {
+            "schema_version": "1.2",
+            "episode_id": "e:1",
+            "extraction": {
+                "model_version": "stub",
+                "extracted_at": "2024-01-01T00:00:00Z",
+                "transcript_ref": "t.txt",
+            },
+            "nodes": [
+                {
+                    "id": "episode:e:1",
+                    "type": "Episode",
+                    "properties": {
+                        "podcast_id": "p",
+                        "title": "T",
+                        "publish_date": "2024-01-01T00:00:00Z",
+                    },
+                },
+                {
+                    "id": "person:pat",
+                    "type": "Entity",
+                    "properties": {
+                        "name": "Pat",
+                        "label": "Pat",
+                        "kind": "person",
+                        "role": "host",
+                    },
+                },
+            ],
+            "edges": [],
+        }
+        validate_artifact(art, strict=True)
+
     def test_strict_accepts_reserved_related_to_edge(self) -> None:
         """RELATED_TO is allowed by schema though v1 builder does not emit it."""
         art = {

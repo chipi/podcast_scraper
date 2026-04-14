@@ -166,102 +166,70 @@ def _is_spacy_model_cached(model_name: str) -> bool:
 def _is_transformers_model_cached(model_name: str, cache_dir: Optional[str] = None) -> bool:
     """Check if a Hugging Face Transformers model is cached locally.
 
-    This function performs both existence checks and integrity validation to ensure
-    cached models are not corrupted. It validates safetensors files by attempting
-    to read their metadata headers. Additionally, it attempts to actually load the
-    tokenizer with local_files_only=True to ensure the model can be loaded in tests
-    where network access is blocked.
+    RFC-074: This function uses **filesystem checks only** -- no model or tokenizer
+    loading.  The previous implementation called ``AutoTokenizer.from_pretrained()``
+    which triggered heavy disk I/O (readdir, mmap) and contributed to APFS kernel
+    lock contention on macOS.
+
+    The check verifies that the HuggingFace cache directory contains a snapshot
+    with ``config.json`` and at least one weight file (``.safetensors`` or ``.bin``).
 
     Args:
         model_name: Hugging Face model identifier (e.g., "facebook/bart-large-cnn")
         cache_dir: Cache directory path (defaults to standard HF cache)
 
     Returns:
-        True if model appears to be cached AND can be loaded with local_files_only=True, False otherwise
+        True if model appears to be cached with weight and config files,
+        False otherwise
     """
-    # Use same cache directory logic as preload script and SummaryModel
-    # Prefer local cache if available, fallback to provided or default
     if cache_dir:
         cache_path = Path(cache_dir)
     else:
-        # Use cache_utils to get cache directory (prefers local, falls back to default)
         cache_path = get_transformers_cache_dir()
 
-    # Explicit path logging for debugging
     import logging
-    import os
 
     logger = logging.getLogger(__name__)
     logger.debug(
         f"Checking Transformers model cache:\n"
         f"  Model: {model_name}\n"
         f"  Cache directory: {cache_path}\n"
-        f"  Cache exists: {cache_path.exists()}\n"
-        f"  User: {os.environ.get('USER', 'unknown')}\n"
-        f"  Home: {Path.home()}"
+        f"  Cache exists: {cache_path.exists()}"
     )
 
     if not cache_path.exists():
         logger.debug(f"Cache directory does not exist: {cache_path}")
         return False
 
-    # Transformers stores models as: models--{org}--{model_name}
-    # e.g., "facebook/bart-large-cnn" -> "models--facebook--bart-large-cnn"
+    # HuggingFace stores models as: models--{org}--{model_name}
     model_cache_name = model_name.replace("/", "--")
     model_cache_path = cache_path / f"models--{model_cache_name}"
-    cache_path_str = str(cache_path)
 
-    logger.debug(
-        f"  Model cache path: {model_cache_path}\n"
-        f"  Model cache exists: {model_cache_path.exists()}"
-    )
+    if not model_cache_path.is_dir():
+        logger.debug(f"Model cache directory does not exist: {model_cache_path}")
+        return False
 
-    # Check if cache directory exists and has content
-    if model_cache_path.exists() and model_cache_path.is_dir():
-        # Primary check: Try to actually load the tokenizer with local_files_only=True
-        # This is the most reliable check since it matches what SummaryModel does
-        # and handles all cache structures (snapshots, blobs, .no_exist, etc.)
-        try:
-            from transformers import AutoTokenizer
+    snapshots = model_cache_path / "snapshots"
+    if not snapshots.is_dir():
+        logger.debug(f"No snapshots directory: {snapshots}")
+        return False
 
-            # Try loading tokenizer with same parameters as SummaryModel uses
-            # nosec B615 - local_files_only=True prevents network access, model_name from test config
-            AutoTokenizer.from_pretrained(
-                model_name,
-                cache_dir=cache_path_str,
-                local_files_only=True,
-            )  # nosec B615
-            # If we get here, the model is actually loadable
-            logger.debug(f"Model {model_name} is cached and loadable from: {model_cache_path}")
-            return True
-        except Exception as e:
-            # Model can't be loaded with local_files_only=True
-            # Fall back to file existence checks for better error messages
+    for snapshot in snapshots.iterdir():
+        if not snapshot.is_dir():
+            continue
+        config = snapshot / "config.json"
+        if not config.is_file():
+            continue
+        weight_files = list(snapshot.glob("*.safetensors")) + list(snapshot.glob("*.bin"))
+        if weight_files:
             logger.debug(
-                f"Model {model_name} cannot be loaded with local_files_only=True:\n"
-                f"  Cache path: {cache_path_str}\n"
-                f"  Model cache path: {model_cache_path}\n"
-                f"  Error: {e}"
+                f"Model {model_name} is cached: {snapshot} "
+                f"(config.json + {len(weight_files)} weight file(s))"
             )
-            snapshots = model_cache_path / "snapshots"
-            if snapshots.exists():
-                # Check if any snapshot directory exists (indicates model was downloaded)
-                for item in snapshots.iterdir():
-                    if item.is_dir():
-                        # Check for model files (safetensors or bin)
-                        model_files = list(item.glob("*.bin")) + list(item.glob("*.safetensors"))
-                        if model_files:
-                            # Model files exist but can't be loaded (incomplete cache, missing tokenizer, etc.)
-                            logger.debug(
-                                f"Model files exist but cannot be loaded:\n"
-                                f"  Model files found: {len(model_files)}\n"
-                                f"  Snapshot: {item}\n"
-                                f"  This indicates incomplete cache or missing tokenizer files"
-                            )
-                            return False
-            return False
+            return True
+        logger.debug(f"Snapshot {snapshot.name} has config.json but no weight files")
 
-    logger.debug(f"Model cache directory does not exist: {model_cache_path}")
+    logger.debug(f"Model {model_name}: no valid snapshot found in {snapshots}")
     return False
 
 
@@ -509,7 +477,7 @@ def is_evidence_stack_cached() -> bool:
     Embedding uses the same hub layout as other HF repos; :func:`_is_transformers_model_cached`
     is unreliable for some sentence-transformers checkpoints, so we use
     :func:`podcast_scraper.providers.ml.model_loader.is_evidence_model_cached` for the
-    embedding ID. QA and NLI use the tokenizer ``local_files_only`` probe.
+    embedding ID. QA and NLI use the filesystem-only cache probe (RFC-074).
 
     Returns:
         True if embedding, QA, and NLI defaults are present and loadable offline.

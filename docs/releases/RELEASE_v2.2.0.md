@@ -97,7 +97,7 @@ metadata_subdirectory: "metadata"   # Optional: separate metadata directory
 
 ## What's New
 
-### 🧪 Test Suite Refactoring
+### Test Suite Refactoring
 
 **Major reorganization of test suite for better maintainability:**
 
@@ -132,7 +132,7 @@ metadata_subdirectory: "metadata"   # Optional: separate metadata directory
 - Better separation of concerns
 - All 151 tests continue to pass
 
-### 🏗️ Code Refactoring & Modularization
+### Code Refactoring & Modularization
 
 **Breaking down large functions into smaller, reusable components:**
 
@@ -224,7 +224,7 @@ metadata_subdirectory: "metadata"   # Optional: separate metadata directory
 - Reduced complexity (addressed `C901` complexity warnings)
 - Better code reuse opportunities
 
-### 🧹 Code Quality Improvements
+### Code Quality Improvements
 
 **Comprehensive cleanup and organization:**
 

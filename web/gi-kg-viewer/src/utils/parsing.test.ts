@@ -6,6 +6,7 @@ import {
   defaultFilterState,
   ensureEpisodeToInsightEdges,
   entityDisplayNameFromId,
+  quoteAttributionDisplayFromId,
   filterArtifactEgoOneHop,
   filtersActive,
   findRawNodeInArtifact,
@@ -173,8 +174,36 @@ describe('entityDisplayNameFromId', () => {
     expect(entityDisplayNameFromId('g:entity:organization:acme-corp')).toBe('Acme Corp')
   })
 
+  it('humanises RFC-072 person: and org: ids', () => {
+    expect(entityDisplayNameFromId('person:john-doe')).toBe('John Doe')
+    expect(entityDisplayNameFromId('k:kg:org:acme-corp')).toBe('Acme Corp')
+  })
+
   it('returns empty for non-entity id', () => {
     expect(entityDisplayNameFromId('topic:climate')).toBe('')
+  })
+})
+
+// ── quoteAttributionDisplayFromId ──
+
+describe('quoteAttributionDisplayFromId', () => {
+  it('delegates to entityDisplayNameFromId for person and org ids', () => {
+    expect(quoteAttributionDisplayFromId('person:jane-doe')).toBe('Jane Doe')
+    expect(quoteAttributionDisplayFromId('org:acme-inc')).toBe('Acme Inc')
+  })
+
+  it('humanises legacy speaker: slugs', () => {
+    expect(quoteAttributionDisplayFromId('speaker:host-one')).toBe('Host One')
+  })
+
+  it('returns raw id when not a known pattern', () => {
+    expect(quoteAttributionDisplayFromId('raw-id-123')).toBe('raw-id-123')
+  })
+
+  it('returns empty for null or blank', () => {
+    expect(quoteAttributionDisplayFromId(null)).toBe('')
+    expect(quoteAttributionDisplayFromId('')).toBe('')
+    expect(quoteAttributionDisplayFromId('   ')).toBe('')
   })
 })
 

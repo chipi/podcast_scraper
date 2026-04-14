@@ -134,7 +134,7 @@ summary_provider: openai         # $0.41/100 (convenience)
 
 ## OpenAI Model Pricing
 
-> **⚠️ Pricing Information:** The pricing table below is provided for reference only and may be outdated. **Always check [OpenAI Pricing](https://openai.com/api/pricing/) for current rates** before making cost decisions.
+> **Pricing Information:** The pricing table below is provided for reference only and may be outdated. **Always check [OpenAI Pricing](https://openai.com/api/pricing/) for current rates** before making cost decisions.
 
 ### Model Pricing (per million tokens)
 

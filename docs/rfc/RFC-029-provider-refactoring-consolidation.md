@@ -147,7 +147,7 @@ provider = create_summarization_provider(cfg)  # Returns MLProvider or OpenAIPro
 - Supports provider selection via CLI arguments
 - Maps CLI arguments to Config object
 
-### ⏳ Remaining Work
+### Remaining Work
 
 #### Test Updates (High Priority)
 
@@ -386,7 +386,7 @@ self.assertTrue(hasattr(provider, "cleanup"))  # Protocol method
 | Capability | Provider Options | Current Choice | Rationale |
 | ------------ | ------------------ | ---------------- | ----------- |
 | **Transcription** | `whisper`, `openai` | `whisper` | Yes — Specific library name |
-| **Speaker Detection** | `ner`, `openai` | `ner` | ⚠️ Technique name (uses spaCy) |
+| **Speaker Detection** | `ner`, `openai` | `ner` |  Technique name (uses spaCy) |
 | **Summarization** | `local`, `openai` | `local` | No — Generic term (uses Transformers/PyTorch) |
 
 ### Problem
@@ -814,7 +814,7 @@ def test_workflow_uses_provider():
 
 ### Immediate Next Steps (Priority Order)
 
-#### 1. 🔴 **Run Tests and Fix Any Issues** (Critical)
+#### 1.  **Run Tests and Fix Any Issues** (Critical)
 
 **Goal**: Verify everything works with the new provider naming
 
@@ -837,7 +837,7 @@ make test-e2e
 - Some tests might need updates for new defaults
 - Backward compatibility tests should verify deprecated names work
 
-## 2. 🟡 **Clean Up Old Provider Files** (Medium Priority)
+## 2.  **Clean Up Old Provider Files** (Medium Priority)
 
 **Goal**: Mark old separate provider files as deprecated
 
@@ -859,7 +859,7 @@ make test-e2e
 
 **Note**: Don't delete yet - keep for backward compatibility, remove in future major version
 
-### 3. 🟡 **Update Remaining Test Files** (Medium Priority)
+### 3.  **Update Remaining Test Files** (Medium Priority)
 
 **Goal**: Ensure all tests use factories and check protocol compliance
 

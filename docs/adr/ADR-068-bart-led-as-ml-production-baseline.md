@@ -35,14 +35,14 @@ Base config: `baseline_ml_dev_authority` (BART-base MAP, num_beams=4; LED REDUCE
 
 | Param | Candidate | ROUGE-L | Delta | Decision |
 | :--- | :---: | :---: | :---: | :---: |
-| reduce `max_new_tokens` | 450 | — | rejected | ✗ |
+| reduce `max_new_tokens` | 450 | — | rejected | |
 | reduce `max_new_tokens` | **550** | **18.54%** | **+2.89%** | Accepted |
-| reduce `max_new_tokens` | 750 | — | rejected | ✗ |
+| reduce `max_new_tokens` | 750 | — | rejected | |
 | reduce `num_beams` | **6** | **18.82%** | **+1.15%** | Accepted |
-| reduce `num_beams` | 8 | — | rejected | ✗ |
-| reduce `length_penalty` | 1.2 | — | rejected | ✗ |
-| reduce `length_penalty` | 1.5 | — | rejected | ✗ |
-| reduce `length_penalty` | 0.8 | — | early stop | ✗ |
+| reduce `num_beams` | 8 | — | rejected | |
+| reduce `length_penalty` | 1.2 | — | rejected | |
+| reduce `length_penalty` | 1.5 | — | rejected | |
+| reduce `length_penalty` | 0.8 | — | early stop | |
 
 **Round 1 outcome**: ROUGE-L 18.05% → 18.82% (+4.26%), 2 params accepted.
 
@@ -52,11 +52,11 @@ Base: round-1 winner (`max_new_tokens=550`, `num_beams=6`)
 
 | Param | Candidate | Delta | Decision |
 | :--- | :---: | :---: | :---: |
-| map `num_beams` | 6 | +0.0% | ✗ |
-| map `num_beams` | 8 | — | ✗ early stop |
-| reduce `no_repeat_ngram_size` | 4, 5, 2 | ≤0% | ✗ all |
-| reduce `min_new_tokens` | 150, 280, 320 | ≤0% | ✗ all |
-| reduce `repetition_penalty` | 1.1, 1.5, 1.0 | ≤0% | ✗ all |
+| map `num_beams` | 6 | +0.0% | |
+| map `num_beams` | 8 | — | early stop |
+| reduce `no_repeat_ngram_size` | 4, 5, 2 | ≤0% | all |
+| reduce `min_new_tokens` | 150, 280, 320 | ≤0% | all |
+| reduce `repetition_penalty` | 1.1, 1.5, 1.0 | ≤0% | all |
 
 **Round 2 outcome**: No further gain. Round 1 winner is the stable optimum.
 
@@ -85,7 +85,7 @@ Evaluated on `curated_5feeds_smoke_v1` vs. `silver_sonnet46_smoke_v1`:
 | `ml_bart_led_autoresearch_v1` | **18.82%** | **72.6%** | ~230 | 100% local |
 | `ml_prod_authority_v1` (Pegasus) | ~6.5% | ~41% | ~58 | 100% local |
 | `ml_small_authority` (pre-sweep) | ~16.3% | ~70% | ~185 | 100% local |
-| OpenAI GPT-4o (cloud reference) | ~28–32% | ~82% | ~420 | ☁️ cloud |
+| OpenAI GPT-4o (cloud reference) | ~28–32% | ~82% | ~420 | cloud |
 
 **Key finding**: Sweeping just 2 reduce parameters (`max_new_tokens`, `num_beams`) gave +4.26%
 over the development baseline. The remaining ~10pp gap to cloud models is the motivation for

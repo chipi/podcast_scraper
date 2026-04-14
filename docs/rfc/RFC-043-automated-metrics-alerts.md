@@ -27,7 +27,7 @@ RFC-026 originally included 4 phases:
 - Phase 1: Job Summaries (completed)
 - Phase 2: GitHub Pages JSON API (completed)
 - Phase 3: Visual Dashboards (completed)
-- ⏸️ Phase 4: Automated Alerts (NOT started - extracted to this RFC)
+-  Phase 4: Automated Alerts (NOT started - extracted to this RFC)
 
 **Rationale for extraction:**
 
@@ -142,9 +142,9 @@ def generate_pr_comment(pr_metrics: dict, baseline_metrics: dict) -> str:
 
 ```text
 
-        alerts.append(f"⚠️ Runtime changed by {runtime_delta:+.1f}s ({runtime_delta/baseline_metrics['runtime']*100:+.1f}%)")
+        alerts.append(f" Runtime changed by {runtime_delta:+.1f}s ({runtime_delta/baseline_metrics['runtime']*100:+.1f}%)")
     if coverage_delta < -1.0:
-        alerts.append(f"⚠️ Coverage dropped by {abs(coverage_delta):.1f}%")
+        alerts.append(f" Coverage dropped by {abs(coverage_delta):.1f}%")
 
 ```yaml
 
@@ -206,7 +206,7 @@ Add to `.github/workflows/python-app.yml` (PR jobs):
 
         const botComment = comments.find(c =>
           c.user.login === 'github-actions[bot]' &&
-          c.body.includes('📊 Test Metrics Comparison')
+          c.body.includes(' Test Metrics Comparison')
         );
 
         // Update or create
@@ -233,7 +233,7 @@ Add to `.github/workflows/python-app.yml` (PR jobs):
 
 ```markdown
 
-## 📊 Test Metrics Comparison
+## Test Metrics Comparison
 
 ### Changes in this PR:
 
@@ -246,8 +246,8 @@ Add to `.github/workflows/python-app.yml` (PR jobs):
 
 ### Alerts:
 
-⚠️ Runtime increased by 6.5% compared to main branch
-⚠️ 2 flaky tests detected (tests that passed on retry)
+ Runtime increased by 6.5% compared to main branch
+ 2 flaky tests detected (tests that passed on retry)
 
 ### Recommendations:
 - Review slowest tests if runtime increased significantly
@@ -256,7 +256,7 @@ Add to `.github/workflows/python-app.yml` (PR jobs):
 
 ---
 <details>
-<summary>📈 View full metrics dashboard</summary>
+<summary> View full metrics dashboard</summary>
 
 https://chipi.github.io/podcast_scraper/metrics/
 </details>
@@ -283,7 +283,7 @@ from typing import Optional
 def send_slack_alert(webhook_url: str, alerts: list, metrics: dict) -> None:
     """Send formatted alert to Slack webhook."""
     payload = {
-        "text": "🚨 Test Metrics Alert",
+        "text": " Test Metrics Alert",
         "attachments": [
             {
                 "color": "danger" if alert["severity"] == "error" else "warning",
@@ -309,7 +309,7 @@ def send_discord_alert(webhook_url: str, alerts: list, metrics: dict) -> None:
 ```json
 
     payload = {
-        "content": "🚨 Test Metrics Alert",
+        "content": " Test Metrics Alert",
         "embeds": [
             {
                 "title": alert["metric"],

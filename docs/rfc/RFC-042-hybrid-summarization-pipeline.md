@@ -145,10 +145,10 @@ Classic summarization models (BART, LED, PEGASUS):
 
 Podcast transcripts are:
 
-- 🎙️ **Conversational** - Natural speech patterns, fillers, false starts
-- 🔁 **Repetitive** - Ideas restated multiple times for emphasis
-- 📝 **Noisy** - Timestamps, speaker labels, formatting artifacts
-- 🗣️ **Structurally unlike news articles** - No headlines, no inverted pyramid
+-  **Conversational** - Natural speech patterns, fillers, false starts
+-  **Repetitive** - Ideas restated multiple times for emphasis
+-  **Noisy** - Timestamps, speaker labels, formatting artifacts
+-  **Structurally unlike news articles** - No headlines, no inverted pyramid
 
 Classic summarizers default to safe extraction when faced with such input.
 
@@ -628,7 +628,7 @@ FLAN-T5 occupies a unique position in the model landscape:
 | --- | --- | --- | --- |
 | Instruction-following | Yes — Yes | No — No | Yes — Yes |
 | Runs via `transformers` | Yes — Native | Yes Native | No — Needs llama.cpp |
-| Structured output (JSON) | ⚠️ Decent | No — No | Yes — Good |
+| Structured output (JSON) |  Decent | No — No | Yes — Good |
 | Memory (base) | ~1 GB | ~0.5-2 GB | ~4-8 GB (4-bit) |
 | External dependencies | None | None | llama.cpp or Ollama |
 | Zero-shot capability | Yes — Good | No — No | Yes — Excellent |
@@ -765,11 +765,11 @@ result = qa(
     context=transcript_text,
 )
 # result = {
-#     "answer": "Regulation will lag innovation "
-#               "by 3-5 years",
-#     "start": 4521,
-#     "end": 4567,
-#     "score": 0.89,
+# "answer": "Regulation will lag innovation "
+# "by 3-5 years",
+# "start": 4521,
+# "end": 4567,
+# "score": 0.89,
 # }
 ```
 

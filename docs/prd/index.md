@@ -26,13 +26,9 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 
 | PRD | Title | Related RFCs | Description |
 | --- | ----- | ------------ | ----------- |
-| [PRD-007](PRD-007-ai-quality-experiment-platform.md) | AI Quality & Experimentation Platform | RFC-015, 016, 041, 057 | Experiment runner, materialization, autoresearch loop ([RFC-057](../rfc/RFC-057-autoresearch-optimization-loop.md)) closed; CI integration for experiments/benchmarks still open |
-| [PRD-015](PRD-015-engineering-governance-productivity.md) | Engineering Governance & Productivity Platform | RFC-018-024, 030, 031, 038, 039 | Integrated system for developer velocity and quality |
 | [PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) | Operational Observability & Pipeline Intelligence | RFC-025, 026, 027, 064, 065, 066 | **Partial (v2.6.0):** test metrics + GitHub Pages dashboards (RFC-025/026) and **live monitor** (RFC-065), **frozen perf profiles** + **compare Performance tab** (RFC-064/066) shipped; RFC-027 pipeline-metrics gaps (e.g. CSV) remain |
-| [PRD-017](PRD-017-grounded-insight-layer.md) | Grounded Insight Layer (GIL) | RFC-042, 044, 052, 049, 050, 051, 072 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[049](../rfc/RFC-049-grounded-insight-layer-core.md)/[050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) **Completed** (single-layer); cross-layer → **open** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md); **open** [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) |
-| [PRD-018](PRD-018-database-projection-gil-kg.md) | Database Projection for GIL and KG | RFC-049, 050, 051, 055, 056, 072 | Postgres projection of `gi.json` and KG artifacts (separate tables); blocked on **RFC-051** |
-| [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-042, 044, 052, 055, 056, 051, 072 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[055](../rfc/RFC-055-knowledge-graph-layer-core.md)/[056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) **Completed** (single-layer); cross-layer → **open** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md); **open** [RFC-051](../rfc/RFC-051-database-projection-gil-kg.md) |
-| [PRD-020](PRD-020-audio-speaker-diarization.md) | Audio-Based Speaker Diarization & Commercial Cleaning | RFC-058, RFC-059, RFC-060 | True speaker diarization via pyannote.audio; downstream commercial content cleaning |
+| [PRD-017](PRD-017-grounded-insight-layer.md) | Grounded Insight Layer (GIL) | RFC-042, 044, 052, 049, 050, 051, 072 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[049](../rfc/RFC-049-grounded-insight-layer-core.md)/[050](../rfc/RFC-050-grounded-insight-layer-use-cases.md) **Completed** (single-layer); cross-layer work in Draft RFC-072 and RFC-051 |
+| [PRD-019](PRD-019-knowledge-graph-layer.md) | Knowledge Graph Layer (KG) | RFC-042, 044, 052, 055, 056, 051, 072 | **Partial (v2.6.0):** [RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md)/[044](../rfc/RFC-044-model-registry.md)/[052](../rfc/RFC-052-locally-hosted-llm-models-with-prompts.md)/[055](../rfc/RFC-055-knowledge-graph-layer-core.md)/[056](../rfc/RFC-056-knowledge-graph-layer-use-cases.md) **Completed** (single-layer); cross-layer work in Draft RFC-072 and RFC-051 |
 
 ## Implemented PRDs
 
@@ -59,7 +55,8 @@ Features with meaningful **UI** may also link **[UX specifications](../uxs/index
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when adding PRDs):** **25** PRD documents — **7** open above, **18** implemented.
+**Counts (reconcile when adding PRDs):** **29** PRD documents -- **3** open (Partial) above,
+**18** implemented, **8** Draft (not indexed until promoted).
 Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers — not **`Completed`**
 (that label is for RFCs and ADRs).
 
@@ -70,12 +67,12 @@ Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers —
 | **Viewer / UI** | [UX specifications](../uxs/index.md) and the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md). |
 | **Architecture vs code** | [ADR index — Gap analysis](../adr/index.md#gaps) **Code** column. |
 
-**Open-program themes:** experiments and benchmark CI ([PRD-007](PRD-007-ai-quality-experiment-platform.md)),
-engineering governance ([PRD-015](PRD-015-engineering-governance-productivity.md)), ops observability gaps
-([PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) — distinct from viewer
-[PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md)), GIL/KG plus **cross-layer** work
-([RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)) and Postgres projection
-([PRD-018](PRD-018-database-projection-gil-kg.md)), diarization and cleaning ([PRD-020](PRD-020-audio-speaker-diarization.md)).
+**Open-program themes:** Ops observability gaps
+([PRD-016](PRD-016-operational-observability-pipeline-intelligence.md) -- distinct from viewer
+[PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md)), GIL/KG cross-layer work (PRD-017/019
+Partial; Draft RFC-072), and several Draft PRDs not indexed: experiments (PRD-007), governance
+(PRD-015), Postgres projection (PRD-018), diarization (PRD-020), topic view (PRD-026), enriched
+search (PRD-027), position tracker (PRD-028), guest brief (PRD-029).
 
 **Related:** [RFC gap analysis](../rfc/index.md#gaps) (technical backlog), [ADR gap analysis](../adr/index.md#gaps)
 (decisions and implementation state).

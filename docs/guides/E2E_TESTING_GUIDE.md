@@ -36,8 +36,9 @@ without walking this list in order:
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update if anything **E2E-visible** or **selector-related** changed
    (including `getByRole` strings, `#search-q`, `.graph-canvas`, file-picker vs list flows).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, and/or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/UXS-001-gi-kg-viewer.md`** — Update when the **visual or experience contract**
-   (tokens, density, documented patterns) changes, even if tests still pass.
+3. **`docs/uxs/`** — Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
+   or shell-wide rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
+   Graph, Search, Dashboard, …) when a **surface-specific** visual contract changes, even if tests still pass.
 
 Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browser viewer*),
 [TESTING_GUIDE.md](TESTING_GUIDE.md) (*Browser E2E*), [UX specifications index](../uxs/index.md),

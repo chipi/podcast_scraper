@@ -170,13 +170,13 @@ When critiquing a chart, return this structure:
 
 | Principle           | Score | Notes                              |
 |---------------------|-------|------------------------------------|
-| Data-Ink Ratio      |    | Clean, minimal spines              |
-| Direct Labeling     |    | Legend box with 4 colors           |
-| Show the Data       | ⚠️    | Means shown, no variance           |
-| Annotate Insight    |    | Title is "Revenue". No subtitle.   |
-| No Chartjunk        |    | No decoration                      |
-| Lie Factor          |    | Axis starts at 0                   |
-| Small Multiples     | ⚠️    | Could benefit from faceting        |
+| Data-Ink Ratio      | | Clean, minimal spines              |
+| Direct Labeling     | | Legend box with 4 colors           |
+| Show the Data       | | Means shown, no variance           |
+| Annotate Insight    | | Title is "Revenue". No subtitle.   |
+| No Chartjunk        | | No decoration                      |
+| Lie Factor          | | Axis starts at 0                   |
+| Small Multiples     | | Could benefit from faceting        |
 
 **Verdict:** Structurally sound, but this chart doesn't communicate — it just displays.
 

@@ -545,9 +545,9 @@ ollama pull gemma2:9b        # Balanced (12GB+ RAM, summarization)
 
 # 3. Configure (model-specific prompts are automatically selected)
 # config.yaml:
-#   ollama_speaker_model: llama3.1:8b  # or mistral:7b for speed
-#   ollama_summary_model: qwen2.5:7b    # or gemma2:9b for quality
-#   ollama_timeout: 120
+# ollama_speaker_model: llama3.1:8b  # or mistral:7b for speed
+# ollama_summary_model: qwen2.5:7b    # or gemma2:9b for quality
+# ollama_timeout: 120
 ```
 
 ### Production Setup
@@ -562,9 +562,9 @@ ollama pull llama3.3:latest
 
 # 3. Configure for quality
 # config.yaml:
-#   ollama_speaker_model: llama3.3:latest
-#   ollama_summary_model: llama3.3:latest
-#   ollama_timeout: 300
+# ollama_speaker_model: llama3.3:latest
+# ollama_summary_model: llama3.3:latest
+# ollama_timeout: 300
 ```
 
 ### Hybrid Setup (Ollama + Other Providers)

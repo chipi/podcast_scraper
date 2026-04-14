@@ -51,10 +51,10 @@ git commit --no-verify -m "your message"
 
 ## Benefits
 
-- ✅ Catch issues locally before pushing
-- ✅ Prevent CI failures from linting
-- ✅ Maintain consistent code quality
-- ✅ Get immediate feedback
+- Catch issues locally before pushing
+- Prevent CI failures from linting
+- Maintain consistent code quality
+- Get immediate feedback
 
 ### Troubleshooting
 

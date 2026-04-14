@@ -12,7 +12,7 @@
   - `docs/architecture/gi/ontology.md` - Human-readable ontology
   - `docs/architecture/gi/gi.schema.json` - Machine-readable schema
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
+  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
 
 ## Summary
 

@@ -57,6 +57,7 @@ The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://gi
 | `make serve-ui` | Vite only in `web/gi-kg-viewer` (proxies `/api` → **8000**). |
 | `make test-ui` | Vitest unit tests for TS utils under `web/gi-kg-viewer` (no browser). |
 | `make test-ui-e2e` | Playwright E2E (Firefox); installs npm deps and browsers as needed. |
+| `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets against **FAISS transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |
 
 **CI** runs the same `web/gi-kg-viewer` paths; see `.github/workflows/python-app.yml`.
 

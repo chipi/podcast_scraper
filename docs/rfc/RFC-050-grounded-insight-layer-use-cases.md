@@ -644,7 +644,7 @@ Top Insights:
 
 3. "European approach may become global standard" [UNGROUNDED]
    confidence: 0.45 | episode: The Future of AI Policy | 0 quotes
-   ⚠️ No verbatim evidence found
+    No verbatim evidence found
 
 Use `gi show-insight --id <insight_id> ...` to see full evidence for any insight.
 ```

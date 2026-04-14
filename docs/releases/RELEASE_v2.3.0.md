@@ -10,7 +10,7 @@ v2.3.0 introduces **episode summarization with local transformer models** (PRD-0
 
 ## Key Features
 
-### 🎯 PRD-005 & RFC-012: Episode Summarization (Implemented)
+### PRD-005 & RFC-012: Episode Summarization (Implemented)
 
 **Automatic generation of concise summaries and key takeaways from podcast transcripts:**
 
@@ -93,7 +93,7 @@ save_cleaned_transcript: true               # Save cleaned transcript to .cleane
 - [PRD-005](../prd/PRD-005-episode-summarization.md) - Product Requirements Document
 - [RFC-012](../rfc/RFC-012-episode-summarization.md) - Technical Design Document
 
-### 🔌 Public API & Service Mode
+### Public API & Service Mode
 
 **New programmatic interfaces for non-interactive use:**
 
@@ -161,7 +161,7 @@ class ServiceResult:
 - [API Boundaries](../api/BOUNDARIES.md) - API design and boundaries
 - [API Migration Guide](../api/MIGRATION_GUIDE.md) - Migration between versions
 
-## 📊 Performance Metrics
+## Performance Metrics
 
 **Comprehensive performance tracking for A/B testing and optimization:**
 
@@ -188,7 +188,7 @@ Pipeline Summary:
 - Average summary time: 12.5s/episode
 ```text
 
-### 🧪 Evaluation & Testing Tools
+### Evaluation & Testing Tools
 
 **New evaluation scripts for quality assurance and regression testing:**
 
@@ -249,7 +249,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 
 - `data/eval/MANUAL_EVAL_CHECKLIST.md` - Manual evaluation rubric (coverage, faithfulness, clarity, conciseness)
 
-## 🗂️ Root Directory Reorganization
+## Root Directory Reorganization
 
 **Cleaner project structure with organized build artifacts:**
 
@@ -272,7 +272,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 
 ## What's New
 
-### 🚀 Memory Optimizations
+### Memory Optimizations
 
 #### Summary Model Memory Leak Fix
 
@@ -308,7 +308,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 - `clear_spacy_model_cache()` called after episode processing
 - Module-level cache already existed; now properly cleaned up
 
-### 📊 Performance Impact
+### Performance Impact
 
 | Component | Before | After | Improvement |
 | --------- | ------ | ----- | ----------- |
@@ -317,7 +317,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 | spaCy cache persistence | Persistent | Cleared after processing | ~50MB freed |
 | **Total baseline** | **50-60GB** | **~1-2GB** | **~97% reduction** |
 
-### 🔧 Technical Changes
+### Technical Changes
 
 #### Summarization Implementation
 
@@ -358,7 +358,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 - **CI Updates**: Updated GitHub Actions workflows for new paths
 - **Documentation**: Updated README and CONTRIBUTING with new structure
 
-### 🐛 Bug Fixes
+### Bug Fixes
 
 - **Memory Leak**: Fixed summary model being loaded once per episode instead of being reused
 - **Dry-Run Memory**: Fixed PyTorch being initialized during dry-run mode even when not needed
@@ -368,7 +368,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 - **Missing Import**: Fixed missing `time` import in `metadata.py`
 - **Unused Imports**: Removed unused imports in `workflow.py` and `test_service.py`
 
-### 🔧 CI/CD Improvements (Post-Release Update)
+### CI/CD Improvements (Post-Release Update)
 
 **Comprehensive CI/CD fixes and improvements (#52):**
 
@@ -398,7 +398,7 @@ python scripts/eval/eval_cleaning.py --episode ep01
 - Better documentation formatting and navigation
 - Cleaner build process with proper artifact management
 
-### 📝 Configuration
+### Configuration
 
 **New Configuration Fields:**
 
@@ -426,7 +426,7 @@ reuse_media: false                         # Reuse existing media files
 - Now allows output generation (summaries, metadata) from existing transcripts even when skipping other processing steps
 - Useful for testing summarization without re-downloading or re-transcribing
 
-## 🔄 Backward Compatibility
+## Backward Compatibility
 
 - Fully backward compatible
 - All existing functionality preserved
@@ -434,7 +434,7 @@ reuse_media: false                         # Reuse existing media files
 - No breaking API changes
 - Service API is additive (doesn't affect existing CLI)
 
-### 📚 Related Documentation
+### Related Documentation
 
 - RFC-012: Episode Summarization Using Local Transformers
 - RFC-010: Automatic Speaker Name Detection

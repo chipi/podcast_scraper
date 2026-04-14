@@ -31,7 +31,7 @@ class TestKgCorpus(unittest.TestCase):
             "properties": {
                 "name": "Jane",
                 "label": "Jane",
-                "entity_kind": "person",
+                "kind": "person",
                 "role": "guest",
                 "description": "Policy lawyer.",
             },

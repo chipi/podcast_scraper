@@ -8,9 +8,9 @@
 
 v2.5.0 is a **minor release** that expands the LLM provider ecosystem from 2 to 7 providers (6 cloud + 1 local LLM), introduces **production-hardening features** (MPS exclusive mode, entity reconciliation, run manifests), adds **comprehensive LLM metrics tracking**, and includes significant **quality improvements** and **stability fixes**. This release focuses on making the multi-provider system production-ready with better observability, reproducibility, and correctness.
 
-## 🚀 Key Features
+## Key Features
 
-### 🌐 Expanded LLM Provider Ecosystem (6 Cloud + 1 Local LLM)
+### Expanded LLM Provider Ecosystem (6 Cloud + 1 Local LLM)
 
 **Complete LLM provider support with unified interface:**
 
@@ -66,7 +66,7 @@ pip install -e ".[llm]"
 - [Provider Configuration Quick Reference](../guides/PROVIDER_CONFIGURATION_QUICK_REFERENCE.md) - Configuration examples
 - [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) - Implementation details
 
-### 🍎 MPS Exclusive Mode (Apple Silicon Optimization)
+### MPS Exclusive Mode (Apple Silicon Optimization)
 
 **Prevents GPU memory contention on Apple Silicon:**
 
@@ -96,7 +96,7 @@ mps_exclusive: true  # Default: true (enabled)
 - [Segfault Mitigation Guide](../guides/SEGFAULT_MITIGATION.md) - MPS stability strategies
 - [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md) - Hardware acceleration details
 
-### 🔗 Entity Reconciliation
+### Entity Reconciliation
 
 **Automatic correction of entity names in summaries:**
 
@@ -161,7 +161,7 @@ output/
 
 **Related Issue:** #379
 
-### 📊 Unified LLM Metrics & Workflow Consolidation
+### Unified LLM Metrics & Workflow Consolidation
 
 **Comprehensive metrics tracking for all LLM providers:**
 
@@ -192,7 +192,7 @@ completion_tokens=B, estimated_cost=C
 
 **Related Issue:** #399
 
-### 📚 Grounded Insights Documentation
+### Grounded Insights Documentation
 
 **Comprehensive documentation for Grounded Insights (GI) features:**
 
@@ -210,7 +210,7 @@ Added complete documentation for the Grounded Insights (GI) system:
 
 **Related PR:** #391
 
-## 🎯 Improvements
+## Improvements
 
 ### Dependency Management
 
@@ -249,7 +249,7 @@ Added complete documentation for the Grounded Insights (GI) system:
 - **CUDA Optimization**: Better CUDA memory usage and multi-GPU detection
 - **Device Detection**: Improved automatic device detection and fallback logic
 
-## 🐛 Bug Fixes
+## Bug Fixes
 
 ### Correctness & Reproducibility
 
@@ -277,7 +277,7 @@ Added complete documentation for the Grounded Insights (GI) system:
 - **Metrics Dashboard**: Improved metrics dashboard and fixed slowest tests extraction (#239)
 - **Coverage Thresholds**: Removed coverage thresholds from fast integration and E2E tests for consistency
 
-## ⚙️ Configuration Changes
+## Configuration Changes
 
 ### New Configuration Fields
 
@@ -326,7 +326,7 @@ ollama_temperature: 0.3
 --summary-provider anthropic|mistral|deepseek|grok|ollama
 ```
 
-## 🛠️ Technical Details
+## Technical Details
 
 ### Provider Architecture
 
@@ -390,7 +390,7 @@ All providers now implement a unified `ProviderCallMetrics` contract:
 - **SpaCy Integration**: Uses spaCy NER to extract entities from summaries
 - **Correction Tracking**: All corrections logged with old/new values and edit distance
 
-## ⏩ Migration Notes
+## Migration Notes
 
 ### For Users Upgrading from v2.4.0
 
@@ -555,7 +555,7 @@ This release maintains full backward compatibility with v2.4.0:
 - **API**: No public API changes
 - **Output**: Output format unchanged (run manifest is additive)
 
-### ⚠️ Behavior Changes (Not Strictly Breaking)
+### Behavior Changes (Not Strictly Breaking)
 
 **1. MPS Exclusive Mode (New Default)**
 

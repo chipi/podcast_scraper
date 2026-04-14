@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": ".cursor/hooks/check-zombie.sh",
+        "timeout": 10
+      }
+    ]
+  }
+}

@@ -2,13 +2,15 @@
 
 - **Status**: Completed (v2.6.0)
 - **Authors**: (TBD)
-- **Stakeholders**: Viewer maintainers, UX reviewer for [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+- **Stakeholders**: Viewer maintainers, UX reviewer for [UXS-004](../uxs/UXS-004-graph-exploration.md)
+    (shared tokens: [UXS-001](../uxs/UXS-001-gi-kg-viewer.md))
 - **Related PRDs**:
   - [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md)
 - **Related RFCs**:
   - [RFC-062](RFC-062-gi-kg-viewer-v2.md) (viewer stack, Cytoscape, merge)
 - **Related UX specs**:
-  - [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
+  - [UXS-004: Graph Exploration](../uxs/UXS-004-graph-exploration.md)
+  - [UXS-001: GI/KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared shell tokens
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
 
@@ -42,7 +44,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 1. Ship **PRD-024** functional requirements in **one PR** (or tightly coupled follow-up within the same milestone).
 2. Prefer **vanilla Cytoscape APIs** and **small Vue components**; minimap may use a **navigator extension** if maintained; otherwise a minimal second-instance approach—**minimap ships in v1**.
 3. Keep **graph filter state** coherent: node filters, legend solo, new edge filters, and layout choice should have a clear precedence (see below).
-4. Update **UXS-001**, **E2E_SURFACE_MAP.md**, and **Playwright** for new affordances.
+4. Update **UXS-004** (and **UXS-001** if shell tokens change), **E2E_SURFACE_MAP.md**, and **Playwright** for new affordances.
 
 ## Non-goals
 
@@ -110,7 +112,7 @@ All proposed features must **compose** with this baseline (no breaking tap/dblta
 
 ### 10. Documentation
 
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md): graph toolbar density, minimap overlay, keyboard modifiers for box zoom.
+- [UXS-004](../uxs/UXS-004-graph-exploration.md): graph toolbar density, minimap overlay, keyboard modifiers for box zoom.
 - [PRD-024](../prd/PRD-024-graph-exploration-toolkit.md): marked **complete** (v2.6.0).
 
 ## Resolved decisions (stakeholder input)

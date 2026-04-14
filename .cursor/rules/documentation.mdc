@@ -2,7 +2,7 @@
 
 **For complete details:** `docs/guides/MARKDOWN_LINTING_GUIDE.md`
 
-## 🚨 MANDATORY Workflow Before Committing Markdown
+## MANDATORY Workflow Before Committing Markdown
 
 **For the procedure:** Use the **markdown-pre-commit** skill.
 
@@ -20,12 +20,12 @@
 **Applies to:** All markdown under `docs/` (including `docs/prd/`, `docs/rfc/`, `docs/adr/`,
 `docs/guides/`, `docs/api/`, `docs/wip/`, etc.).
 
-- **Do not** use green check / red X / clipboard emoji for status or tables: no **✅**, **❌**,
-  **📋**, or decorative **✓** as list markers or table cells.
+- **Do not** use green-check, red-cross, or clipboard emoji, or a decorative tick character, as list
+  markers or table cells.
 - **Use plain words instead:** Yes / No, Run / Skip, Done, Good / Bad, Allowed / Forbidden, or
   normal bullets without emoji.
-- **Sample CLI output** in docs: use neutral markers (e.g. `[ok]`) instead of **✓** if you show
-  fictional terminal lines.
+- **Sample CLI output** in docs: use neutral markers (e.g. `[ok]`) instead of a tick character if you
+  show fictional terminal lines.
 - **RFC / ADR status lines:** use text only (e.g. **`Completed`**, **`Draft`**, **`Accepted`**), not
   emoji prefixes.
 - **PRD status lines:** use **`Implemented`**, **`Partial`**, or **`Draft`** for shipped vs in-flight
@@ -34,9 +34,14 @@
 This matches the maintainer decision to drop checkmark styling in published docs; agents must not
 reintroduce it in new or edited `docs/**` files.
 
-## 📁 Document Location Rules
+**Same convention for repository AI instructions:** Treat `.cursorrules`, `CLAUDE.md`,
+`.ai-coding-guidelines.md`, and `.cursor/rules/*.mdc` like product docs for list and heading markers:
+do **not** use green-check, red-X, clipboard, or decorative tick characters as bullets or status
+icons. Use plain words (**Required**, **Never**, **Allowed**, **Skip**) or unadorned list markers.
 
-### 🚨 ABSOLUTE RULE
+## Document Location Rules
+
+### ABSOLUTE RULE
 
 - **ALL analysis/plans/reviews** → `docs/wip/` folder
 - **NEVER create `docs/analysis/`** — this folder MUST NOT EXIST
@@ -47,7 +52,7 @@ reintroduce it in new or edited `docs/**` files.
 - **Allowed:** `docs/wip/implementation-plan.md`, `docs/wip/code-analysis.md`
 - **Forbidden:** `docs/analysis/anything.md`, `docs/plan/anything.md`
 
-## 📚 When to Create PRD/RFC
+## When to Create PRD/RFC
 
 - **PRD** → User-facing features, significant additions, workflow changes
 - **RFC** → Architecture changes, breaking API changes, design decisions
@@ -59,7 +64,20 @@ reintroduce it in new or edited `docs/**` files.
 
 **This project:** Templates `docs/prd/PRD_TEMPLATE.md`, `docs/rfc/RFC_TEMPLATE.md`; indexes `docs/prd/index.md`, `docs/rfc/index.md`; naming `PRD-NNN-name.md`, `RFC-NNN-name.md`.
 
-## 📝 Always Update When
+### Index inclusion rule (PRD, RFC, ADR, UXS)
+
+**Do NOT add Draft-status documents to their index file.** Only add a document to its
+index (`docs/prd/index.md`, `docs/rfc/index.md`, `docs/adr/index.md`, `docs/uxs/index.md`)
+when its status is promoted past Draft (e.g. Partial / Implemented for PRDs; Completed /
+Accepted for RFCs and ADRs; Active for UXSs). Draft documents live in their directory and
+are discoverable by filename, but the index tables are reserved for documents that have been
+reviewed and are authoritative or in-flight with real implementation work.
+
+- **Draft PRD/RFC/ADR/UXS** → do **not** add to index
+- **Partial / Implemented / Active / Completed / Accepted** → add to index
+- When promoting a Draft to a higher status, add it to the index at that time
+
+## Always Update When
 
 - `README.md` → CLI flags, features, installation
 - `docs/architecture/ARCHITECTURE.md` → Modules, data flow, design
@@ -170,7 +188,7 @@ See `docs/guides/MARKDOWN_LINTING_GUIDE.md` for:
 
 ---
 
-**Version:** 1.1
+**Version:** 1.2
 **Created:** 2026-02-09
-**Updated:** 2026-04-12 — documentation prose: no checkmark emoji in `docs/`
+**Updated:** 2026-04-13 — index inclusion rule: no Draft docs in index tables
 **Source:** Merged from `markdown-style.mdc` v2.0 + `.cursorrules` v1.0 documentation rules

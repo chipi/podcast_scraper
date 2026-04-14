@@ -299,8 +299,8 @@ verbose = 1
 | Level | Coverage | Action |
 | ------- | ---------- | -------- |
 | Good | ≥ 80% | Target |
-| 🟡 Warning | 60-80% | Improve gradually |
-| 🔴 Fail | < 60% | Needs attention |
+|  Warning | 60-80% | Improve gradually |
+|  Fail | < 60% | Needs attention |
 
 **CI Integration:**
 
@@ -453,7 +453,7 @@ Add to `.github/workflows/python-app.yml` lint job:
 
     pip install radon vulture interrogate codespell
 
-    echo "## 📊 Code Quality Report" >> $GITHUB_STEP_SUMMARY
+    echo "##  Code Quality Report" >> $GITHUB_STEP_SUMMARY
 
     echo "### Complexity Analysis" >> $GITHUB_STEP_SUMMARY
     echo '```' >> $GITHUB_STEP_SUMMARY

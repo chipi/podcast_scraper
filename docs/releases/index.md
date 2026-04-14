@@ -6,7 +6,7 @@ Before tagging a release, follow the [Release checklist](../guides/DEVELOPMENT_G
 
 ## Latest Release
 
-- **[v2.6.0](RELEASE_v2.6.0.md)** — GI/KG viewer Corpus Library API, index rebuild, performance profiling workflow (planned April 2026)
+- **[v2.6.0](RELEASE_v2.6.0.md)** — GI/KG viewer (Library, Digest, Dashboard, Graph, Search), semantic search, multi-feed corpus, Run Compare Performance + frozen profiles (April 2026)
 - **[v2.5.0](RELEASE_v2.5.0.md)** — LLM Provider Expansion & Production Hardening (released February 2026)
 - **[v2.4.0](RELEASE_v2.4.0.md)** — Provider ecosystem & production readiness
 
@@ -14,7 +14,7 @@ Before tagging a release, follow the [Release checklist](../guides/DEVELOPMENT_G
 
 | Version | Highlights |
 | --------- | ------------ |
-| [v2.6.0](RELEASE_v2.6.0.md) | Corpus Library `/api/corpus/*`, background index rebuild, viewer Library tab, RFC-064 profile capture/diff tooling |
+| [v2.6.0](RELEASE_v2.6.0.md) | Viewer v2 (Library, Digest, Dashboard, Graph, Search), FAISS semantic search, multi-feed corpus, Run Compare Performance tab, RFC-064 frozen profiles, live monitor |
 | [v2.5.0](RELEASE_v2.5.0.md) | LLM provider expansion (6 cloud + Ollama local), production hardening, LLM metrics, MPS exclusive mode |
 | [v2.4.0](RELEASE_v2.4.0.md) | Multi-provider ecosystem (8 providers), production defaults, cache management |
 | [v2.3.2](RELEASE_v2.3.2.md) | Security tests, thread-safety fixes |

@@ -8,7 +8,11 @@ from fastapi import APIRouter, Query, Request
 
 from podcast_scraper.search.corpus_search import run_corpus_search
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.server.schemas import CorpusSearchApiResponse, SearchHitModel
+from podcast_scraper.server.schemas import (
+    CorpusSearchApiResponse,
+    CorpusSearchLiftStatsModel,
+    SearchHitModel,
+)
 
 router = APIRouter(tags=["search"])
 
@@ -96,7 +100,20 @@ async def search_corpus(
             metadata=dict(r.get("metadata") or {}),
             text=str(r.get("text") or ""),
             supporting_quotes=r.get("supporting_quotes"),
+            lifted=r.get("lifted") if isinstance(r.get("lifted"), dict) else None,
         )
         for r in outcome.results
     ]
-    return CorpusSearchApiResponse(query=q, results=hits)
+    stats_raw = outcome.lift_stats
+    lift_stats: CorpusSearchLiftStatsModel | None = None
+    if isinstance(stats_raw, dict):
+        try:
+            th = int(stats_raw.get("transcript_hits_returned", 0))
+            la = int(stats_raw.get("lift_applied", 0))
+            lift_stats = CorpusSearchLiftStatsModel(
+                transcript_hits_returned=max(0, th),
+                lift_applied=max(0, la),
+            )
+        except (TypeError, ValueError):
+            lift_stats = None
+    return CorpusSearchApiResponse(query=q, results=hits, lift_stats=lift_stats)

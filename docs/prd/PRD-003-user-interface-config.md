@@ -6,7 +6,8 @@
   - [RFC-008](../rfc/RFC-008-config-model.md) — configuration model (**complete**)
   - [RFC-009](../rfc/RFC-009-progress-integration.md) — progress reporting (**complete**)
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) (local visualization served with the tool)
+  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
+    (tokens, theming, tunable parameters)
 
 ## Summary
 

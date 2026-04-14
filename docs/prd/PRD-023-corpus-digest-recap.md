@@ -13,7 +13,9 @@
   - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md)
   - [PRD-019: Knowledge Graph Layer](PRD-019-knowledge-graph-layer.md)
 - **Related UX specs**:
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
+  - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md) -- Digest tab layout,
+    topic bands, recent episodes, health discovery
+  - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
 
 ## Summary
 
@@ -63,7 +65,7 @@ APIs, ranking, topic configuration, and performance budgets.
   from existing metadata bullets where present).
 - **No per-user or per-corpus topic lists** in MVP (global fixed topics only; overrides
   are a later phase).
-- **No mobile-first layouts**; desktop baseline per UXS-001.
+- **No mobile-first layouts**; desktop baseline per UXS-001/UXS-002.
 - **No cross-episode KG analytics** (entity trending, sentics, etc.) in MVP beyond what
   RFC-068 lists for L2.
 - **Generic HTTP image proxy** for arbitrary remote URLs without ingest — out of scope
@@ -98,7 +100,7 @@ APIs, ranking, topic configuration, and performance budgets.
 ### FR1 — Two surfaces, one product intent
 
 - **FR1.1:** **Digest tab** (label **Digest**) provides the **full** digest experience
-  (window presets, topic bands, richer layout) per UXS-001 and RFC-068.
+  (window presets, topic bands, richer layout) per UXS-002 and RFC-068.
 - **FR1.2:** **Library glance** is a **collapsible** region **above** the Library’s
   feed/episode layout; **default state = expanded**.
 - **FR1.3:** Library glance is **fixed to the last rolling 24 hours** (calendar), not the
@@ -126,7 +128,7 @@ APIs, ranking, topic configuration, and performance budgets.
 - **FR4.1:** Each digest row includes identifiers needed for Library/detail handoff:
   `metadata_relative_path`, `feed_id`, `episode_title`, `publish_date` when parseable.
 - **FR4.2:** Show **summary title** and/or **first one or two bullets** when present
-  (truncate per UXS-001 density rules).
+  (truncate per UXS-002 density rules).
 - **FR4.3 (visual metadata):** When the corpus catalog exposes optional **feed/episode
   image URLs**, optional **verified local artwork relpaths** (`feed_image_local_relpath`,
   `episode_image_local_relpath` — same semantics as RFC-067 list rows), **duration**, and
@@ -191,7 +193,8 @@ APIs, ranking, topic configuration, and performance budgets.
 - [PRD-017: Grounded Insight Layer](PRD-017-grounded-insight-layer.md), [PRD-019: Knowledge
   Graph Layer](PRD-019-knowledge-graph-layer.md)
 - [RFC-062: GI/KG Viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
-- [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md)
+- [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md)
+- [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md)
 
 ## Constraints & Assumptions
 
@@ -222,12 +225,13 @@ APIs, ranking, topic configuration, and performance budgets.
 ## Related Work
 
 - [RFC-068: Corpus Digest — API & Viewer](../rfc/RFC-068-corpus-digest-api-viewer.md)
-- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) — Digest module + Library glance
+- [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md)
+- [UXS-001](../uxs/UXS-001-gi-kg-viewer.md)
 
 ## Release Checklist
 
 - [x] PRD reviewed
 - [x] RFC-068 completed (implementation shipped)
-- [x] UXS-001 updated (Digest + glance + health discovery)
+- [x] UXS-002 updated (Digest + glance + health discovery)
 - [x] Viewer implementation + tests per RFC-068 (unit, integration, Vitest, Playwright `digest.spec.ts`)
 - [x] E2E surface map updated for new tab/region

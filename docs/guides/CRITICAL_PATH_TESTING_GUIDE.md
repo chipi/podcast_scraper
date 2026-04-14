@@ -101,12 +101,12 @@ The critical path should be tested at **all three levels** of the test pyramid:
 
 **Critical Path Integration Tests:**
 
-1. **`test_full_workflow_with_ner_and_summarization`** ⭐ **ESSENTIAL (ML Providers)**
+1. **`test_full_workflow_with_ner_and_summarization`**  **ESSENTIAL (ML Providers)**
    - Validates: RSS → Parse → Download/Transcribe → **NER** → **Local Summarization** → Metadata → Files
    - Uses: ML providers (Whisper, spaCy NER, Transformers)
    - This is the **complete critical path** with ML providers
 
-2. **`test_full_workflow_with_openai_providers`** ⭐ **ESSENTIAL (OpenAI Providers)**
+2. **`test_full_workflow_with_openai_providers`**  **ESSENTIAL (OpenAI Providers)**
    - Validates: RSS → Parse → Download/Transcribe → **OpenAI Speaker Detection** →
      **OpenAI Summarization** → Metadata → Files
 
@@ -214,10 +214,10 @@ When deciding what to test, ask:
 
 **These tests validate features beyond the critical path:**
 
-- ⚠️ Extended metadata features
-- ⚠️ Configuration edge cases
-- ⚠️ Error handling edge cases
-- ⚠️ HTTP behavior tests
+- Extended metadata features
+- Configuration edge cases
+- Error handling edge cases
+- HTTP behavior tests
 
 **Execution**: Run in slow test suite
 
@@ -238,13 +238,13 @@ When deciding what to test, ask:
 
 **6 tests covering critical path:**
 
-1. **`test_full_workflow_with_ner_and_summarization`** ⭐ **ESSENTIAL (ML Providers)**
+1. **`test_full_workflow_with_ner_and_summarization`**  **ESSENTIAL (ML Providers)**
    - File: `tests/integration/test_component_workflows.py::TestRSSToMetadataWorkflow`
    - Validates: RSS → Parse → Download/Transcribe → **NER** → **Local Summarization** → Metadata → Files
    - Uses: RSS feed with audio URL, mocked Whisper, mocked NER, mocked local summarization
    - **This is the complete critical path with ML providers**
 
-2. **`test_full_workflow_with_openai_providers`** ⭐ **ESSENTIAL (OpenAI Providers)**
+2. **`test_full_workflow_with_openai_providers`**  **ESSENTIAL (OpenAI Providers)**
    - File: `tests/integration/test_component_workflows.py::TestRSSToMetadataWorkflow`
    - Validates: RSS → Parse → Download/Transcribe → **OpenAI Speaker Detection** →
      **OpenAI Summarization** → Metadata → Files

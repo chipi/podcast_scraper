@@ -2,11 +2,11 @@
 
 <!-- markdownlint-disable MD029 MD007 -->
 
-## 🚨 CRITICAL RULES (ALWAYS ENFORCE - NO EXCEPTIONS)
+## CRITICAL RULES (ALWAYS ENFORCE - NO EXCEPTIONS)
 
 ### User intent beats defaults (interpretation priority)
 
-- **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "skip ci-fast" / "I already ran full `make ci`" → do not re-run `make ci-fast` / `make ci` unless they ask; "stop" / "don't run CI" → stop immediately).
+- **Explicit user instructions override** conflicting *procedural* rules below (examples: "commit all files" / "use `git add -A`" → do it; "skip ci-fast" / "no full ci rerun" / "incremental only" / "docs-only check" / "I already ran full `make ci`" → do not insist on `make ci-fast` / `make ci`; use **rule 5c** narrow targets instead unless they ask for a full run; "stop" / "don't run CI" → stop immediately).
 - **If scope or intent is unclear** (which paths, whether to touch config like `.gitignore`, whether validation is required): **ask first** — do not add unrequested steps (extra edits, long runs, repo policy "help") to be clever.
 - **Prefer pause over action:** if you are **not ~100% sure** what the user wants, **stop, summarize what you understood, and ask** — avoid being eager (extra commands, refactors, config changes, "while I'm here" work).
 - **Non-negotiable safety** (never commit secrets; never push unless asked; never push to `main`): if the user asks for something unsafe, **explain and ask** — do not silently comply or silently ignore without saying why.
@@ -80,7 +80,7 @@
 
 ### Terminal Command Execution
 
-9. **🚨 NEVER run commands in background — ALWAYS `is_background: false` 🚨**
+9. ** NEVER run commands in background — ALWAYS `is_background: false` **
 
   - **#1 MOST VIOLATED RULE — PAY EXTRA ATTENTION**
   - `is_background: true` ONLY for long-running servers (e.g., `mkdocs serve`)
@@ -95,12 +95,30 @@
   - `make ci-fast` and `make test-fast` run unit + integration + E2E and need time to finish
   - When invoking them via automation (e.g. run_terminal_cmd), MUST use timeout at least 600000 ms (10 min) so the run is not killed before completion
 
+### Process Safety — ML Workloads (RFC-074)
+
+10. **NEVER retry a `make` command that produced no output**
+
+  - If `make` appears stuck (no output for 60s), do NOT spawn another `make`
+  - Report to user: "make appears stuck — check for zombie processes with `make check-zombie`"
+  - NEVER run multiple `make ci` / `make ci-fast` / `make test` concurrently — process pileup on macOS causes unkillable kernel-level zombies and filesystem corruption
+
+10a. **Before running `make ci` or `make ci-fast`, check for existing runs**
+
+  - Run `pgrep -f "make.*(ci|test)" 2>/dev/null || true` first
+  - If processes found, ask user before proceeding
+
+10b. **After any `make` command that hangs or is killed, run `make cleanup-processes`**
+
+  - This prevents accumulation of orphaned Python/ML processes
+  - If `make check-zombie` reports UE-state processes, tell the user: reboot is required
+
 ### Tool Usage
 
 8a. **ALWAYS use Makefile commands, NEVER direct tool invocations**
 
-  - ✅ `make test`, `make format`, `make lint`, `make fix-md`
-  - ❌ `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
+  - **Use:** `make test`, `make format`, `make lint`, `make fix-md`
+  - **Do not use:** `pytest`, `black .`, `flake8`, `npx markdownlint-cli2`
   - Exception: `git` commands are fine; Python: `.venv/bin/python3 script.py`
 
 8b. **ALWAYS update venv when dependency ranges change**
@@ -127,7 +145,7 @@
   - Exception: If test failure is complex, document it and ask user before proceeding
   - Exception: Workflow-only changes (only `.github/workflows/*.yml` modified) — no need to run `make ci-fast`; nothing to validate locally
   - Exception: **Recent CI on current tree (efficiency)** — skip re-running `make ci-fast` or `make ci` right before commit when **all** are true: (1) the same target already **passed** (exit 0) **in this session** (or the user clearly stated they just ran it), and (2) **no substantive edits** were made **after** that run to anything that gate covers (e.g. `src/`, tests, `pyproject.toml`, workflows, markdown not re-validated). **Re-run** if anything material changed after the last green run, the last run **failed**, or you are **unsure** the tree matches what was validated. State briefly when skipping (e.g. "ci-fast already passed on this diff; skipping repeat run").
-  - Exception: User **explicitly** waives a repeat run — skip unless they ask again (pre-commit hook may still run on commit unless they use `--no-verify`)
+  - Exception: User **explicitly** waives a repeat run — skip unless they ask again (pre-commit hook may still run on commit unless they use `--no-verify`); prefer **rule 5c** narrow targets over arguing for a full rerun
 
 5a. **When any make target fails (test, ci, lint, format, docs, etc.): root cause first, then fix**
 
@@ -140,6 +158,17 @@
   - Do NOT only try to "fix the broken path" with ad-hoc changes (flags, timeouts, special cases).
   - DO ask: "Where do we already do something similar without this problem?" Search the codebase (Makefile, scripts, same area) for comparable flows, then compare and reuse that pattern.
   - Align the broken path to an existing working pattern before inventing new workarounds.
+
+5c. **Incremental validation when repeating full `make ci-fast` is unnecessary or the user declines it**
+
+  - **User intent:** If the user says they do **not** want a full CI re-run (e.g. "no full ci-fast", "small change", "docs-only"), **comply**. Do not start another full `make ci-fast` unless they ask or the diff clearly needs it.
+  - **Agent response (brief):** State (1) what Makefile targets you **ran**, (2) what **`make ci-fast` would have added**, (3) that **`git commit` pre-commit still runs `make ci-fast`** unless they use `--no-verify`.
+  - **Narrow targets (Makefile only — no raw pytest/black):**
+    - **`mkdocs.yml` only** or other **MkDocs wiring** without large doc rewrites: **`make docs`**
+    - **Markdown under `docs/`**: **`make fix-md`**, **`make lint-markdown`**; add **`make docs`** if `mkdocs.yml`, plugins, or nav could be affected
+    - **Policy text only** (e.g. `.cursorrules`, `.cursor/rules/*.mdc`) with no runnable code: usually **nothing** unless asked; offer **`make lint-markdown`** if substantial markdown was edited
+    - **Small Python follow-up** after **`make ci-fast` already passed (exit 0) in this session** on the same tree and the edit is obviously localized: **`make format`** (touched paths), **`make lint`**, **`make type`** if types changed; add a **minimal test target** only when scope is clear (load **`test-scope-decision-tree`** skill); if unsure, run **`make ci-fast`** or ask
+  - **Do not** rely on incremental shortcuts when the diff touches **`pyproject.toml`**, **Dockerfile**, **broad `src/` + test changes**, **viewer E2E-visible surfaces**, or **anything that does not map cleanly to a narrow target** — run **`make ci-fast`** or ask.
 
 12. **ALL analysis/plans → `docs/wip/` (never `docs/analysis/` or `docs/plan/`)**
 
@@ -158,9 +187,21 @@
 
   - Use `mcp_github_get_me` to get current user's GitHub login
 
+### CodeQL Alert Dismissals
+
+16. **CodeQL alert dismissals: check the registry, classify, then decide**
+
+  - **Trigger:** CodeQL check fails on a PR.
+  - **Step 1 — Read the registry:** Read `docs/ci/CODEQL_DISMISSALS.md`. It enumerates every **alert type** (numbered), the sanitiser chain / rationale for each, the full dismissal inventory, and the step-by-step process.
+  - **Step 2 — Classify the alert:**
+    - **(a) Known type, same pattern** (matches a numbered type in the registry and uses the same documented sanitiser chain): dismiss as false positive via `gh api`, add a row to the dismissal table, and tell the user what you did.
+    - **(b) New type or broken chain** (no matching type in the registry, or the sanitiser chain is absent / different): **do NOT dismiss**. Explain the taint flow to the user, propose a code fix to route through an existing sanitiser, and **wait for explicit user approval** before any dismissal. If approved, add the new type to the registry.
+  - **Step 3 — Never dismiss silently.** Always state: alert number(s), file/line, which type it matches (or "new type"), and what action you took.
+  - **Step 4 — User approval required for (b).** For new/unknown types the user must explicitly approve the dismissal or the code fix. Do not assume.
+
 ### Auto-Loading Detailed Rules (.mdc Files)
 
-16. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
+17. **AUTOMATICALLY load `.mdc` files when encountering specific situations**
 
   - These are NOT auto-loaded — YOU must `read_file` them BEFORE proceeding
   - **ALWAYS announce loading** (e.g., "Loading testing-strategy.mdc...")
@@ -181,12 +222,13 @@
   All files in `.cursor/rules/`.
 
   **Documentation prose:** In `docs/**` (PRD/RFC/ADR/guides/api/wip, etc.), do **not** use
-  checkmark / cross / clipboard emoji (✅ ❌ 📋) or decorative ✓ for status, lists, or tables — use
-  plain words (Yes/No, Run/Skip, Good/Bad). Full rule in `.cursor/rules/documentation.mdc`.
+  checkmark / cross / clipboard emoji or decorative tick marks for status, lists, or tables — use
+  plain words (Yes/No, Run/Skip, Good/Bad). Same for `.cursorrules`, `CLAUDE.md`,
+  `.ai-coding-guidelines.md`, and `.cursor/rules/*.mdc`. Full rule in `.cursor/rules/documentation.mdc`.
   **PRD vs RFC status words:** PRDs use **Implemented** / Partial / Draft; **Completed** is for **RFC**
   and **ADR** headers, not PRDs.
 
-## 📋 PROJECT CONTEXT
+## PROJECT CONTEXT
 
 Python tool for podcast transcript downloading/generation:
 
@@ -208,8 +250,9 @@ or accessible names used by tests):
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update first when anything **E2E-visible** or **selector-related**
    changes (Playwright `getByRole` strings, entry flows, `#search-q`, `.graph-canvas`, etc.).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/UXS-001-gi-kg-viewer.md`** — Update when the **visual or experience contract**
-   (tokens, density, documented patterns) changes, not only when tests break.
+3. **`docs/uxs/`** — Update **`UXS-001`** for **shared** tokens/shell rules; update the relevant
+   **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
+   **surface-specific** visual contract changes, not only when tests break.
 
 **Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
 **root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as
@@ -226,7 +269,7 @@ browser; touch it only when they ask about that UI field, not as a substitute fo
 Details: `docs/guides/E2E_TESTING_GUIDE.md` (Playwright), `docs/guides/DEVELOPMENT_GUIDE.md` (GI/KG viewer),
 `docs/guides/SERVER_GUIDE.md` (HTTP reference), `docs/uxs/index.md`.
 
-## 🔧 ESSENTIAL COMMANDS
+## ESSENTIAL COMMANDS
 
 ```bash
 make format        # black + isort
@@ -239,19 +282,19 @@ make lint-markdown # Check markdown
 make fix-md        # Auto-fix markdown
 ```
 
-## ⚠️ REMEMBER
+## REMEMBER
 
-- 🚨 NEVER `is_background: true` for make/test/git/pip
+-  NEVER `is_background: true` for make/test/git/pip
 - NEVER push to main (feature branches + PRs only)
 - Prefer showing changes + approval before commit; **user can override** with explicit "go" / "commit all" (see User intent section)
 - ALWAYS use Makefile commands, never direct tools
 - Write lint-valid code from the start
 - Respect module boundaries
-- Default: `make ci-fast` before committing (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives — see rule 5)
+- Default: `make ci-fast` before committing (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives; **incremental / tiny follow-up** — see rules **5** and **5c**)
 - ALL analysis/plans → `docs/wip/`
-- Auto-load `.mdc` files for detailed guidance (Rule 16)
+- Auto-load `.mdc` files for detailed guidance (Rule 17)
 - NEVER commit secrets
-- 🚨 NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
+-  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
 - **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:

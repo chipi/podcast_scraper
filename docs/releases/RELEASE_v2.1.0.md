@@ -9,7 +9,7 @@ v2.1.0 introduces automatic speaker name detection using Named Entity Recognitio
 
 ## What's New
 
-### ✨ RFC-010: Automatic Speaker Name Detection (Implemented)
+### RFC-010: Automatic Speaker Name Detection (Implemented)
 
 **Automatic host and guest identification from episode metadata:**
 

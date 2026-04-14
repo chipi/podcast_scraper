@@ -277,8 +277,10 @@ def _row(
         summary_text=summary_text,
         gi_relative_path="m.gi.json",
         kg_relative_path="m.kg.json",
+        bridge_relative_path="m.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
     )
 
 
@@ -306,10 +308,13 @@ def test_catalog_row_for_metadata_path_detects_gi_kg(tmp_path: Path) -> None:
     _write_meta(mdir / "ep.metadata.json")
     (mdir / "ep.gi.json").write_text("{}", encoding="utf-8")
     (mdir / "ep.kg.json").write_text("{}", encoding="utf-8")
+    (mdir / "ep.bridge.json").write_text("{}", encoding="utf-8")
     rel = "metadata/ep.metadata.json"
     row = catalog_row_for_metadata_path(root, rel)
     assert row is not None
     assert row.has_gi and row.has_kg
+    assert row.has_bridge
+    assert row.bridge_relative_path == "metadata/ep.bridge.json"
 
 
 def test_feed_display_title_by_feed_id_first_nonempty_wins() -> None:
@@ -326,8 +331,10 @@ def test_feed_display_title_by_feed_id_first_nonempty_wins() -> None:
             summary_text=None,
             gi_relative_path="a.gi.json",
             kg_relative_path="a.kg.json",
+            bridge_relative_path="a.bridge.json",
             has_gi=False,
             has_kg=False,
+            has_bridge=False,
         ),
         CatalogEpisodeRow(
             metadata_relative_path="b.json",
@@ -341,8 +348,10 @@ def test_feed_display_title_by_feed_id_first_nonempty_wins() -> None:
             summary_text=None,
             gi_relative_path="b.gi.json",
             kg_relative_path="b.kg.json",
+            bridge_relative_path="b.bridge.json",
             has_gi=False,
             has_kg=False,
+            has_bridge=False,
         ),
     ]
     assert feed_display_title_by_feed_id(rows) == {"f": "Podcast Name"}
@@ -361,8 +370,10 @@ def test_resolve_feed_display_title_prefers_row_then_map() -> None:
         summary_text=None,
         gi_relative_path="x.gi.json",
         kg_relative_path="x.kg.json",
+        bridge_relative_path="x.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
     )
     assert resolve_feed_display_title(row, {"f": "Other"}) == "Local"
     row2 = CatalogEpisodeRow(
@@ -377,7 +388,9 @@ def test_resolve_feed_display_title_prefers_row_then_map() -> None:
         summary_text=None,
         gi_relative_path="y.gi.json",
         kg_relative_path="y.kg.json",
+        bridge_relative_path="y.bridge.json",
         has_gi=False,
         has_kg=False,
+        has_bridge=False,
     )
     assert resolve_feed_display_title(row2, {"f": "Shared"}) == "Shared"

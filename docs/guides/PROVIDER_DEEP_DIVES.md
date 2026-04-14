@@ -18,15 +18,15 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  LOCAL ML PROVIDERS                                             │
 │  ═══════════════════                                            │
 │                                                                 │
-│  💰 Cost:     $0 (just electricity)                            │
-│  ⚡ Speed:    Moderate (GPU dependent)                          │
-│  🏆 Quality:  Good                                              │
-│  🔒 Privacy:  ████████████████████ 100% (complete)              │
+│   Cost:     $0 (just electricity)                            │
+│   Speed:    Moderate (GPU dependent)                          │
+│   Quality:  Good                                              │
+│   Privacy:  ████████████████████ 100% (complete)              │
 │                                                                 │
 │  Components:                                                    │
-│  ├── 🎙️ Transcription: OpenAI Whisper (local)                  │
-│  ├── 👤 Speaker Det:   spaCy NER models                         │
-│  └── 📝 Summarization: Hugging Face BART/LED                    │
+│  ├──  Transcription: OpenAI Whisper (local)                  │
+│  ├──  Speaker Det:   spaCy NER models                         │
+│  └──  Summarization: Hugging Face BART/LED                    │
 │                                                                 │
 │  Best For: Privacy, offline use, zero ongoing cost              │
 └─────────────────────────────────────────────────────────────────┘
@@ -52,16 +52,16 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  OPENAI                                        Industry Leader  │
 │  ══════                                                         │
 │                                                                 │
-│  💰 Cost:     $$$ (Premium pricing)                             │
-│  ⚡ Speed:    Fast (100 tok/s)                                  │
-│  🏆 Quality:  ████████████████████ Best                         │
-│  🔒 Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│  📊 Tracking: Built-in token/audio usage metrics for cost eval  │
-│  ⚠️ Limit:    25 MB audio file size limit for Whisper API       │
+│   Cost:     $$$ (Premium pricing)                             │
+│   Speed:    Fast (100 tok/s)                                  │
+│   Quality:  ████████████████████ Best                         │
+│   Privacy:  ████████████░░░░░░░░ Standard (US)                │
+│   Tracking: Built-in token/audio usage metrics for cost eval  │
+│   Limit:    25 MB audio file size limit for Whisper API       │
 │                                                                 │
 │  Models:                                                        │
 │  ├── GPT-4o       $5.00/$15.00  │ Best quality                 │
-│  ├── GPT-4o-mini  $0.15/$0.60   │ ⭐ Production recommended     │
+│  ├── GPT-4o-mini  $0.15/$0.60   │  Production recommended     │
 │  └── Whisper      $0.006/min    │ Transcription                │
 │                                                                 │
 │  Best For: Quality-critical production, reliable workflows      │
@@ -81,14 +81,14 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ANTHROPIC CLAUDE                              Safety Focused   │
 │  ═══════════════                                                │
 │                                                                 │
-│  💰 Cost:     $$ (Competitive)                                  │
-│  ⚡ Speed:    Fast (100 tok/s)                                  │
-│  🏆 Quality:  ███████████████████░ Excellent                    │
-│  🔒 Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│  ⚠️  Summarization only (no transcription or speaker detection) │
+│   Cost:     $$ (Competitive)                                  │
+│   Speed:    Fast (100 tok/s)                                  │
+│   Quality:  ███████████████████░ Excellent                    │
+│   Privacy:  ████████████░░░░░░░░ Standard (US)                │
+│    Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models:                                                        │
-│  ├── Claude Haiku 4.5   $1/$5   │ ⭐ Eval/acceptance alias      │
+│  ├── Claude Haiku 4.5   $1/$5   │  Eval/acceptance alias      │
 │  ├── claude-haiku-4-5            │ Anthropic alias (current)    │
 │  └── claude-3-5-sonnet-20241022 │ Deprecated (404)             │
 │                                                                 │
@@ -109,15 +109,15 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  MISTRAL                                       European Leader  │
 │  ═══════                                                        │
 │                                                                 │
-│  💰 Cost:     $-$$ (Competitive)                                │
-│  ⚡ Speed:    Fast                                              │
-│  🏆 Quality:  ██████████████████░░ Very Good                    │
-│  🔒 Privacy:  ████████████████░░░░ High (EU servers)            │
-│  ⚠️  Summarization only (no transcription or speaker detection) │
+│   Cost:     $-$$ (Competitive)                                │
+│   Speed:    Fast                                              │
+│   Quality:  ██████████████████░░ Very Good                    │
+│   Privacy:  ████████████████░░░░ High (EU servers)            │
+│    Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models:                                                        │
-│  ├── Large 3      $2/$6      │ ⭐ Production                   │
-│  └── Small 3.1    $0.10/$0.30│ ⭐ Dev/test (cheapest!)         │
+│  ├── Large 3      $2/$6      │  Production                   │
+│  └── Small 3.1    $0.10/$0.30│  Dev/test (cheapest!)         │
 │                                                                 │
 │  Best For: EU compliance, summarization with data residency     │
 └─────────────────────────────────────────────────────────────────┘
@@ -136,18 +136,18 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  DEEPSEEK                                      Ultra Low Cost   │
 │  ════════                                                       │
 │                                                                 │
-│  💰 Cost:     $ (95% cheaper than OpenAI!)                      │
-│  ⚡ Speed:    Fast (150 tok/s)                                  │
-│  🏆 Quality:  ██████████████░░░░░░ Good                         │
-│  🔒 Privacy:  ████████░░░░░░░░░░░░ China servers                │
-│  ⚠️  Summarization only (no transcription or speaker detection) │
+│   Cost:     $ (95% cheaper than OpenAI!)                      │
+│   Speed:    Fast (150 tok/s)                                  │
+│   Quality:  ██████████████░░░░░░ Good                         │
+│   Privacy:  ████████░░░░░░░░░░░░ China servers                │
+│    Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models:                                                        │
 │  ├── DeepSeek Chat      $0.28/$0.42 (cache miss)               │
-│  ├── DeepSeek Chat      $0.028/$0.42 (cache hit!) 💰           │
+│  ├── DeepSeek Chat      $0.028/$0.42 (cache hit!)            │
 │  └── DeepSeek Reasoner  Complex reasoning tasks                │
 │                                                                 │
-│  🔥 $0.016/100 episodes vs $0.55 OpenAI = 97% SAVINGS          │
+│   $0.016/100 episodes vs $0.55 OpenAI = 97% SAVINGS          │
 │                                                                 │
 │  Best For: Budget optimization, bulk processing, startups       │
 └─────────────────────────────────────────────────────────────────┘
@@ -166,18 +166,18 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  GOOGLE GEMINI                                 Massive Context  │
 │  ═════════════                                                  │
 │                                                                 │
-│  💰 Cost:     $ (Generous free tier!)                           │
-│  ⚡ Speed:    Fast                                              │
-│  🏆 Quality:  ██████████████████░░ Very Good                    │
-│  🔒 Privacy:  ████████████░░░░░░░░ Standard (Google)            │
+│   Cost:     $ (Generous free tier!)                           │
+│   Speed:    Fast                                              │
+│   Quality:  ██████████████████░░ Very Good                    │
+│   Privacy:  ████████████░░░░░░░░ Standard (Google)            │
 │  Transcription + summarization (no speaker detection)        │
 │                                                                 │
 │  Models:                                                        │
-│  ├── Gemini 2.0 Flash  $0.10/$0.40  │ ⭐ Dev/test              │
-│  ├── Gemini 1.5 Pro    $1.25/$5.00  │ ⭐ Production            │
+│  ├── Gemini 2.0 Flash  $0.10/$0.40  │  Dev/test              │
+│  ├── Gemini 1.5 Pro    $1.25/$5.00  │  Production            │
 │  └── Gemini 1.5 Flash  $0.075/$0.30 │ Budget                   │
 │                                                                 │
-│  🔥 2 MILLION TOKEN CONTEXT - Process entire seasons!          │
+│   2 MILLION TOKEN CONTEXT - Process entire seasons!          │
 │                                                                 │
 │  FREE TIER: 15 RPM, 1M TPM, 1500 RPD                           │
 │                                                                 │
@@ -198,17 +198,17 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  GROK                                          Real-Time Info   │
 │  ════                                                           │
 │                                                                 │
-│  💰 Cost:     $ (Affordable)                                    │
-│  🌐 Feature:  ████████████████████ Real-time X/Twitter access  │
-│  🏆 Quality:  ██████████████░░░░░░ Good (xAI models)           │
-│  🔒 Privacy:  ████████████░░░░░░░░ Standard (US)                │
-│  ⚠️  Summarization only (no transcription or speaker detection) │
+│   Cost:     $ (Affordable)                                    │
+│   Feature:  ████████████████████ Real-time X/Twitter access  │
+│   Quality:  ██████████████░░░░░░ Good (xAI models)           │
+│   Privacy:  ████████████░░░░░░░░ Standard (US)                │
+│    Summarization only (no transcription or speaker detection) │
 │                                                                 │
 │  Models (xAI's Grok):                                           │
-│  ├── grok-3-mini                │ ⭐ Eval/acceptance (use this) │
+│  ├── grok-3-mini                │  Eval/acceptance (use this) │
 │  └── grok-2                     │ 400 model not found           │
 │                                                                 │
-│  🌐 Access real-time information via X/Twitter integration!   │
+│   Access real-time information via X/Twitter integration!   │
 │                                                                 │
 │  FREE TIER: grok-beta available                                │
 │                                                                 │
@@ -229,18 +229,18 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  OLLAMA                                        Self-Hosted      │
 │  ══════                                                         │
 │                                                                 │
-│  💰 Cost:     $0 per request (hardware only)                    │
-│  ⚡ Speed:    Slow-Medium (hardware dependent, ~30 tok/s)        │
-│  🏆 Quality:  ██████████████░░░░░░ Good (model dependent)       │
-│  🔒 Privacy:  ████████████████████ 100% Complete                │
+│   Cost:     $0 per request (hardware only)                    │
+│   Speed:    Slow-Medium (hardware dependent, ~30 tok/s)        │
+│   Quality:  ██████████████░░░░░░ Good (model dependent)       │
+│   Privacy:  ████████████████████ 100% Complete                │
 │  Full-stack: transcription, speaker detection, summarization │
 │                                                                 │
 │  Recommended Models (by Use Case):                             │
-│  ├── qwen2.5:7b        8 GB+ RAM  │ ⭐ Best JSON, GIL          │
-│  ├── llama3.1:8b       8 GB+ RAM  │ ⭐ General purpose          │
-│  ├── mistral:7b        8 GB+ RAM  │ ⭐ Fastest inference        │
-│  ├── gemma2:9b         12 GB+ RAM │ ⭐ Balanced quality/speed   │
-│  └── phi3:mini         4 GB+ RAM  │ ⭐ Dev/test, lightweight   │
+│  ├── qwen2.5:7b        8 GB+ RAM  │  Best JSON, GIL          │
+│  ├── llama3.1:8b       8 GB+ RAM  │  General purpose          │
+│  ├── mistral:7b        8 GB+ RAM  │  Fastest inference        │
+│  ├── gemma2:9b         12 GB+ RAM │  Balanced quality/speed   │
+│  └── phi3:mini         4 GB+ RAM  │  Dev/test, lightweight   │
 │                                                                 │
 │  Setup Requirements:                                           │
 │  ├── Install Ollama:   brew install ollama (macOS)            │
@@ -252,12 +252,12 @@ performance numbers, see the [Evaluation Reports](eval-reports/index.md).
 │  ├── 8 GB+ RAM:        qwen2.5:7b, llama3.1:8b, mistral:7b    │
 │  └── 12 GB+ RAM:       gemma2:9b (balanced quality/speed)     │
 │                                                                 │
-│  💡 Zero API costs, unlimited usage, complete data privacy      │
+│   Zero API costs, unlimited usage, complete data privacy      │
 │                                                                 │
 │  Best For: Privacy-critical, offline/air-gapped, unlimited    │
 │            processing, enterprises, cost optimization           │
 │                                                                 │
-│  📖 See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md)      │
+│   See [Ollama Provider Guide](OLLAMA_PROVIDER_GUIDE.md)      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -292,9 +292,9 @@ High │    CHALLENGERS     │      LEADERS
              │                    │   └─────────────┘
              │   ┌─────────┐      │          ▲
              │   │  Grok   │──────┼──────────┤
-             │   │  🌐Real │      │   ┌──────┴──────┐
+             │   │  Real │      │   ┌──────┴──────┐
              │   └─────────┘      │   │   Mistral   │ ← EU summarization
-             │       ▲            │   │     🇪🇺      │
+             │       ▲            │   │           │
              │   Speed champion   │   └─────────────┘
              │                    │
       ───────┼────────────────────┼──────────────────────────────►
@@ -304,7 +304,7 @@ High │    CHALLENGERS     │      LEADERS
              │                    │
              │   ┌───────────┐    │   ┌─────────────┐
              │   │  Ollama   │    │   │  Local ML   │ ← Zero cost + full stack
-             │   │    🏠     │    │   │   (Default) │
+             │   │         │    │   │   (Default) │
              │   └───────────┘    │   └─────────────┘
              │       ▲            │          ▲
              │   Offline/private  │   Hardware required
@@ -312,7 +312,7 @@ High │    CHALLENGERS     │      LEADERS
              │                    │
              │   ┌───────────┐    │
              │   │ DeepSeek  │────┼───► Extreme value
-             │   │   💰97%   │    │      but China-based
+             │   │   97%   │    │      but China-based
              │   └───────────┘    │
         Low  │                    │
              │                    │
@@ -432,7 +432,7 @@ OpenAI       $0.55 │████
                    └────────────────────────────────────────────────────────
                    $0                                                   $0.60
 
-💡 DeepSeek is 97% cheaper than OpenAI for text processing!
+ DeepSeek is 97% cheaper than OpenAI for text processing!
 ```
 
 ### Speed Comparison (Relative Performance)
@@ -452,7 +452,7 @@ Ollama        30  │███                                                 0
               0   └────────────────────────────────────────────────────────
                   0                     100                            150
 
-🌐 Grok provides real-time information access via X/Twitter integration!
+ Grok provides real-time information access via X/Twitter integration!
 ```
 
 ### Quality Ranking (Subjective)
@@ -472,7 +472,7 @@ Local BART        │███████████████████�
                   └────────────────────────────────────────────────────────
                   0                    5                              10
 
-🏆 OpenAI remains the quality leader, but alternatives close the gap!
+ OpenAI remains the quality leader, but alternatives close the gap!
 ```
 
 ### Privacy Level
@@ -481,17 +481,17 @@ Local BART        │███████████████████�
 Privacy Scale (Higher = More Private)
 ═══════════════════════════════════════════════════════════════════════════
 
-Local ML    🔒🔒🔒🔒🔒 │████████████████████████████████████████████████│ Complete
-Ollama      🔒🔒🔒🔒🔒 │████████████████████████████████████████████████│ Complete
-Mistral     🔒🔒🔒🔒   │███████████████████████████████████████         │ EU Servers
-OpenAI      🔒🔒🔒     │██████████████████████████████                  │ US Servers
-Anthropic   🔒🔒🔒     │██████████████████████████████                  │ US Servers
-Google      🔒🔒🔒     │██████████████████████████████                  │ Google Cloud
-Grok        🔒🔒🔒     │██████████████████████████████                  │ US Servers
-DeepSeek    🔒🔒       │████████████████████                            │ China Servers
+Local ML     │████████████████████████████████████████████████│ Complete
+Ollama       │████████████████████████████████████████████████│ Complete
+Mistral        │███████████████████████████████████████         │ EU Servers
+OpenAI           │██████████████████████████████                  │ US Servers
+Anthropic        │██████████████████████████████                  │ US Servers
+Google           │██████████████████████████████                  │ Google Cloud
+Grok             │██████████████████████████████                  │ US Servers
+DeepSeek           │████████████████████                            │ China Servers
                       └────────────────────────────────────────────────────
 
-🔒 For maximum privacy, use Local ML or Ollama - data never leaves your device!
+ For maximum privacy, use Local ML or Ollama - data never leaves your device!
 ```
 
 ---
@@ -502,7 +502,7 @@ DeepSeek    🔒🔒       │████████████████�
                     ┌─────────────────────────────────────────────────┐
                     │           CAPABILITY SUPPORT MATRIX              │
                     ├─────────────────────────────────────────────────┤
-                    │  Provider      │ Status   │ 🎙️ Trans │ 👤 Speaker │ 📝 Summary │
+                    │  Provider      │ Status   │  Trans │  Speaker │  Summary │
                     ├────────────────┼──────────┼──────────┼────────────┼────────────┤
                     │  Local ML      │ Impl  │       │         │         │
                     │  Hybrid ML     │ Impl  │       │         │         │

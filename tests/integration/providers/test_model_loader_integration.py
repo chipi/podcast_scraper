@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Integration tests for podcast_scraper.providers.ml.model_loader module.
 
-These tests verify that the centralized model loader functions work correctly
-in an integration context with real dependencies (when available).
+These tests verify imports, cache path wiring, and workflow hooks without loading
+real model weights. Cached preload exercises live in ``tests/e2e/test_ml_models_e2e.py``.
 """
 
 import os
@@ -20,7 +20,6 @@ if PACKAGE_ROOT not in sys.path:
 # Import test utilities
 from pathlib import Path
 
-from podcast_scraper import config
 from podcast_scraper.cache import (
     get_transformers_cache_dir,
     get_whisper_cache_dir,
@@ -91,33 +90,6 @@ class TestModelLoaderWhisperIntegration(unittest.TestCase):
         # Cache directory should exist or be creatable
         self.assertTrue(whisper_cache.parent.exists() or whisper_cache.parent.parent.exists())
 
-    @pytest.mark.critical_path
-    def test_preload_whisper_models_with_cached_model(self):
-        """Test that preload_whisper_models works with already-cached models."""
-        from tests.integration.ml_model_cache_helpers import require_whisper_model_cached
-
-        # Require model to be cached (skip if not)
-        require_whisper_model_cached(config.TEST_DEFAULT_WHISPER_MODEL)
-
-        from podcast_scraper.providers.ml.model_loader import preload_whisper_models
-
-        # Call with cached model - should succeed (loads from cache, doesn't download)
-        # This exercises the function logic even though we're in test environment
-        # The function will check cache and load from it
-        try:
-            preload_whisper_models([config.TEST_DEFAULT_WHISPER_MODEL])
-            # If we get here, the function executed successfully
-            # (it loads from cache, which is allowed in test environment)
-        except Exception as e:
-            # If network is blocked, we might get an error, but the function was called
-            # This still increases coverage by executing the function body
-            error_msg = str(e).lower()
-            if "network" in error_msg or "socket" in error_msg or "connection" in error_msg:
-                # Expected in test environment with network blocking
-                pass
-            else:
-                raise
-
 
 @pytest.mark.integration
 @pytest.mark.critical_path
@@ -154,30 +126,6 @@ class TestModelLoaderTransformersIntegration(unittest.TestCase):
         self.assertTrue(
             transformers_cache.parent.exists() or transformers_cache.parent.parent.exists()
         )
-
-    @pytest.mark.critical_path
-    def test_preload_transformers_models_with_cached_model(self):
-        """Test that preload_transformers_models works with already-cached models."""
-        from tests.integration.ml_model_cache_helpers import require_transformers_model_cached
-
-        # Require model to be cached (skip if not)
-        require_transformers_model_cached(config.TEST_DEFAULT_SUMMARY_MODEL, None)
-
-        from podcast_scraper.providers.ml.model_loader import preload_transformers_models
-
-        # Call with cached model - should succeed (loads from cache, doesn't download)
-        # This exercises the function logic
-        try:
-            preload_transformers_models([config.TEST_DEFAULT_SUMMARY_MODEL])
-            # If we get here, the function executed successfully
-        except Exception as e:
-            # If network is blocked, we might get an error, but the function was called
-            error_msg = str(e).lower()
-            if "network" in error_msg or "socket" in error_msg or "connection" in error_msg:
-                # Expected in test environment with network blocking
-                pass
-            else:
-                raise
 
 
 @pytest.mark.integration
