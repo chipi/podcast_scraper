@@ -1,8 +1,15 @@
-# Bundled OpenAI output scored on paragraph only — for apples-to-apples comparison
-# with autoresearch_prompt_openai_smoke_paragraph_v1.
+# Autoresearch bundled prompt tuning — paragraph track, OpenAI, smoke scale.
 #
-# Uses scoring_output_field: summary to extract only the prose paragraph before ROUGE.
-# Pair with silver: silver_sonnet46_smoke_v1
+# Ratchet design: scores paragraph/summary only (scoring_output_field: summary) vs
+# silver_sonnet46_smoke_v1. Shares bundled prompt templates with the bullets ratchet
+# (autoresearch_prompt_openai_bundled_smoke_bullets_v1.yaml) — experiments targeting
+# paragraphs may regress bullets; run both ratchets per experiment.
+#
+# Templates under tuning:
+#   src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_system_v1.j2
+#   src/podcast_scraper/prompts/openai/summarization/bundled_clean_summary_user_v1.j2
+#
+# Results log: autoresearch/bundled_prompt_tuning/results/results_openai_paragraph_r1.tsv
 #
 # Requires: OPENAI_API_KEY
 
@@ -11,7 +18,7 @@ task: "summarization"
 
 backend:
   type: "openai"
-  model: "gpt-4o-mini"
+  model: "gpt-4o"
 
 llm_pipeline_mode: "bundled"
 

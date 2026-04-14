@@ -1,0 +1,2 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+baseline-p-r1	0.455919	—	baseline	Paragraph track baseline: gpt-4o + 4-6 para + r7 bullets champion prompts; ROUGE-L=26.2% (summary vs silver_sonnet46_smoke_v1); 0/5 contested; judge_mean=0.909	gpt-4o	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_smoke_v1
