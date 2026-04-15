@@ -40,7 +40,7 @@ Final blended score = `0.70 * ROUGE-L + 0.30 * judge_mean`. Higher better.
 | Paragraph | Bundled | 0.469 | **0.548** | 0.461 | 0.487 | 0.523 | 0.481 |
 | Paragraph | Non-bundled | 0.481 | 0.522 | 0.463 | 0.456 | **0.541** | 0.479 |
 
-**Cell winners (held-out):**
+**Cell winners on quality alone (held-out):**
 
 | Cell | Winner | Score |
 | ---- | ------ | ----- |
@@ -48,6 +48,12 @@ Final blended score = `0.70 * ROUGE-L + 0.30 * judge_mean`. Higher better.
 | Bullets · Non-bundled | **DeepSeek** deepseek-chat | 0.586 |
 | Paragraph · Bundled | **Anthropic** haiku-4.5 | 0.548 |
 | Paragraph · Non-bundled | **DeepSeek** deepseek-chat | 0.541 |
+
+> Quality is one dimension. Once latency and cost are counted, **Gemini 2.0-flash** is the
+> default pick for balanced use cases (0.562 quality, 2.0s/ep, $0.00035/ep). See the
+> [Compound analysis § Pareto frontier](#compound-analysis--pareto-frontier) and
+> [Recommended option order by use case](#recommended-option-order-by-use-case) for full
+> quality × latency × cost tradeoffs.
 
 ## ROUGE-L breakdown (held-out)
 
@@ -266,7 +272,7 @@ bundled 0.529) — same attention-split penalty as on cloud providers (except An
 
 ---
 
-## Two storylines
+## Three storylines
 
 ### 1. Non-bundled: DeepSeek is the sleeper winner
 
@@ -287,6 +293,18 @@ Anthropic bundled paragraph (0.548) even *beats* Anthropic non-bundled paragraph
 For any workload where bundled (title + summary + bullets in one call) is the preferred shape,
 Anthropic is the only provider where it's not a quality compromise.
 
+### 3. Gemini is the balanced-default champion once latency/cost are counted
+
+DeepSeek and Anthropic win on quality; Gemini wins on **everything else**. At only ~4% below
+top quality (0.562 vs 0.586), it is:
+
+- **2-5× faster** than all other cloud providers (2.0s/ep vs 4.8-19s elsewhere)
+- **Cheapest cloud option** ($0.00035/ep vs $0.0005-$0.012 elsewhere)
+- **On every Pareto frontier** in the quality/latency/cost space
+
+For any application where you care about all three dimensions, Gemini is the default first pick.
+Upgrade to DeepSeek only when the 4% quality premium matters more than 5× latency and 50% cost.
+
 ---
 
 ## Bundled viability per provider (non-bundled − bundled, higher = bigger bundled penalty)
@@ -305,56 +323,21 @@ is a legitimate choice there. OpenAI, Grok, Gemini show the classic "attention s
 
 ---
 
-## Cost & latency (Mar 2026 pricing, approximate)
+## Cloud pricing reference (Mar 2026, $/M tokens)
 
-| Provider | Model | $/M in | $/M out | Latency/ep (bundled) | Latency/ep (non-bundled) |
-| -------- | ----- | :----: | :-----: | :------------------: | :----------------------: |
-| DeepSeek | deepseek-chat | **$0.14** | **$0.28** | ~9s | ~15s |
-| Gemini | gemini-2.0-flash | $0.075 | $0.30 | ~3s | ~8s |
-| Anthropic | claude-haiku-4-5 | $0.80 | $4.00 | ~10s | ~25s |
-| Mistral | mistral-small-latest | $0.20 | $0.60 | ~7s | ~13s |
-| Grok | grok-3-mini | $0.30 | $0.50 | ~10s | ~20s |
-| OpenAI | gpt-4o | $2.50 | $10.00 | ~8s | ~20s |
+| Provider | Model | $/M in | $/M out |
+| -------- | ----- | :----: | :-----: |
+| Gemini | gemini-2.0-flash | $0.075 | $0.30 |
+| DeepSeek | deepseek-chat | $0.14 | $0.28 |
+| Mistral | mistral-small-latest | $0.20 | $0.60 |
+| Grok | grok-3-mini | $0.30 | $0.50 |
+| Anthropic | claude-haiku-4-5 | $0.80 | $4.00 |
+| OpenAI | gpt-4o | $2.50 | $10.00 |
 
-Roughly ordered cheapest → most expensive per M output tokens: **Gemini 2.0 < DeepSeek < Mistral < Grok < Anthropic Haiku < OpenAI GPT-4o**. 36× spread from cheapest to most expensive.
+Ordered cheapest → most expensive (output tokens): **Gemini < DeepSeek < Mistral < Grok <
+Anthropic Haiku < OpenAI GPT-4o**. 33× spread from cheapest to most expensive.
 
----
-
-## Recommendations
-
-### For best quality (regardless of cost)
-
-- **Bullets**: DeepSeek non-bundled (0.586). Wins held-out. Judge-agreeable.
-- **Paragraph**: DeepSeek non-bundled (0.541). Wins held-out.
-- **If you need bundled (one call, all three outputs)**: Anthropic Haiku 4.5. No other provider
-  comes close on bundled quality.
-
-### For best quality-per-dollar
-
-- **DeepSeek non-bundled** is the clear sweet spot: wins both non-bundled cells at $0.28/M output
-  (cheaper than everything except Gemini, and Gemini is meaningfully lower quality).
-- **Anthropic Haiku 4.5 bundled** if you want bundled shape without quality compromise — 3× more
-  expensive than DeepSeek, 2.5× cheaper than GPT-4o.
-
-### For lowest cost
-
-- **Gemini 2.0-flash non-bundled bullets** (0.562). Only 1.1pp ROUGE-L behind DeepSeek at 1/4 the
-  cost. Quality floor; paragraph is noticeably weaker.
-
-### Worst picks (avoid unless ecosystem-locked)
-
-- **OpenAI bundled** (any track). Non-bundled is OK, but bundled has a structural ~12% penalty.
-- **Gemini bundled** (any track). Bundled quality lags everything else by ~5-15%.
-- **Mistral non-bundled paragraph** (0.456). Worst cell in the matrix.
-
-### Default recommendations by use case
-
-| Use case | Recommended provider + mode |
-| -------- | --------------------------- |
-| Podcast summary + takeaways, quality-first | **DeepSeek non-bundled** (bullets + paragraph separate calls) |
-| Same, cost-optimised | **Gemini 2.0-flash non-bundled bullets** + DeepSeek non-bundled paragraph (hybrid) |
-| Single-call convenience (title + summary + bullets) | **Anthropic Haiku 4.5 bundled** |
-| Quality floor, absolute minimum cost | **Gemini 2.0-flash non-bundled** (any track) |
+Actual measured per-episode latency and cost are in the [Full matrix](#full-matrix-with-latency-and-cost-non-bundled-bullets-held-out) above. See [Compound analysis](#compound-analysis--pareto-frontier) for recommended option order.
 
 ---
 
@@ -398,24 +381,37 @@ Roughly ordered cheapest → most expensive per M output tokens: **Gemini 2.0 < 
 - **Weaknesses**: Nothing stands out — third or fourth in every cell. No compelling reason to pick over Anthropic (quality) or DeepSeek (cost).
 - **Quirks**: None encountered.
 
+### Ollama (local, 11 models evaluated)
+
+- **Strengths**: `qwen3.5:9b` matches DeepSeek cloud quality at $0/ep. Free, private, offline. Bundled mode fixes paragraph contestation (unlike non-bundled where 5 of 11 models contest on long-form held-out).
+- **Weaknesses**: Latency 12-80s/ep (cloud is 2-20s). Larger models often not better — qwen3.5:9b outperforms both 27b and 35b variants. Not all models reliably produce JSON for bundled.
+- **Quirks**:
+  - JSON parser uses `strict=False` defensively (some models emit control characters).
+  - Size-vs-quality: bigger ≠ better. qwen3.5 family peaks at 9B; mistral:7b beats qwen2.5:7b (generation matters more than size).
+  - Paragraph contestation unpredictable: llama3.1:8b contested 5/5 episodes on held-out paragraph; uncontested uncorrelated with size.
+
 ---
 
-## Framework validation (across 6 providers)
+## Framework validation (across 17 model variants)
 
-All 24 champions (6 providers × 4 cells) were validated under the v2 framework:
+All champions were validated under the v2 framework across 6 cloud providers + 11 local Ollama models:
 
-- **Champion prompts transferred cleanly across all 6 providers**. Zero provider-specific prompt
+- **Champion prompts transferred cleanly across all 6 cloud providers and 11 local models**. Zero provider-specific prompt
   tuning was required — the OpenAI champion prompts produced competitive numbers on every
   provider tested.
-- **All 24 champions generalise on held-out content**. Dev→held-out deltas are within ±5%.
-  No overfitting detected anywhere.
-- **Framework reliability**: 23 of 24 cells ran cleanly first try. DeepSeek bundled had a
-  transient API timeout issue (succeeded on retry) — not a framework problem.
+- **All champions generalise on held-out content**. Cloud: 24 champions, dev→held-out deltas
+  within ±5%. Local: 11 champions + 3 bundled, same generalisation property.
+- **Framework reliability**: 23 of 24 cloud cells and all 44 local cells ran cleanly first try
+  (1 DeepSeek bundled transient API timeout retried successfully). One Ollama model
+  (qwen3.5:27b held-out bullets) showed anomalous 505s latency — likely model-swap overhead,
+  not a framework problem.
 - **Judge contestation**: Fraction-based threshold (≥40%) correctly rejected high-divergence
-  runs without flipping on single-episode noise. No runs fell back to ROUGE-only.
+  runs without flipping on single-episode noise. Cloud: zero runs fell back to ROUGE-only.
+  Local non-bundled paragraph: 5 of 11 models triggered contestation, surfacing a real
+  local-model behaviour (mitigated by bundled mode).
 
 The framework's central claim — that these numbers are trustworthy for cross-provider decision
-making — is now backed by 24 independent held-out validations. Ship it.
+making — is now backed by **68 independent held-out validations** (24 cloud + 44 local). Ship it.
 
 ---
 

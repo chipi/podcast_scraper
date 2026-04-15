@@ -1,7 +1,7 @@
 # AI Provider Comparison Guide
 
-> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md) — 6-provider held-out matrix under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)).
-> The benchmark numbers later in this guide (v1 smoke/benchmark datasets) are **superseded** by the v2 report above; preserved for continuity and for providers (Ollama, hybrid_ml) not yet re-run under v2.
+> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md) — 6 cloud APIs + 11 Ollama local models under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)): dev/held-out split, 68 held-out cells, compound-scored recommendations balancing quality × latency × cost.
+> The v1 benchmark numbers later in this guide are **superseded** by the v2 report above; preserved for continuity.
 > Your decision-making resource for choosing the right AI provider.
 
 A focused analysis of summarization and capability providers supported by
