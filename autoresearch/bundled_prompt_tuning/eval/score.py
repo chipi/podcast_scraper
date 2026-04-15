@@ -83,8 +83,10 @@ def _run_subprocess(
 
     env = os.environ.copy()
     env["OPENAI_API_KEY"] = resolve_experiment_openai_key()
-    runtime_env = provider_runtime_key_env(backend_type)
-    env[runtime_env] = resolve_experiment_provider_key(backend_type)
+    # Ollama runs locally — no API key required. Skip provider-key resolution.
+    if backend_type != "ollama":
+        runtime_env = provider_runtime_key_env(backend_type)
+        env[runtime_env] = resolve_experiment_provider_key(backend_type)
 
     logger.info("Running: %s", " ".join(cmd))
     proc = subprocess.run(

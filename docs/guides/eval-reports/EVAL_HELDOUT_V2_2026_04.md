@@ -71,6 +71,67 @@ All 24 champions generalise within ±5% dev→held-out. No overfitting caught.
 
 ---
 
+## Local models (Ollama) — non-bundled only
+
+Four local models added as an initial local-vs-cloud comparison. Non-bundled only (bundled
+requires JSON-mode reliability that local models handle inconsistently; deferred to follow-up).
+Same champion prompts ported from OpenAI r7.
+
+### Held-out (5 ep e03)
+
+| Model | Bullets ROUGE-L | Bullets final | Paragraph ROUGE-L | Paragraph final |
+| ----- | :-------------: | :-----------: | :---------------: | :-------------: |
+| **qwen3.5:9b** | **42.8%** | **0.580** | 34.8% | 0.505 |
+| qwen3.5:35b | 41.3% | 0.576 | 32.5% | 0.325 (contested) |
+| mistral-small3.2 | 36.1% | 0.536 | 28.8% | 0.288 (contested) |
+| llama3.2:3b | 33.0% | 0.501 | 27.0% | 0.270 (contested) |
+
+### Dev (10 ep e01+e02)
+
+| Model | Bullets final | Paragraph final |
+| ----- | :-----------: | :-------------: |
+| qwen3.5:9b | 0.571 | 0.493 |
+| qwen3.5:35b | 0.560 | 0.491 |
+| mistral-small3.2 | 0.551 | 0.497 |
+| llama3.2:3b | 0.533 | 0.441 |
+
+### Local vs cloud (non-bundled bullets held-out, ROUGE-L sorted)
+
+| Rank | Provider+model | ROUGE-L | Final | Cost |
+| :--: | -------------- | :-----: | :---: | :--: |
+| 1 | DeepSeek (deepseek-chat) | 43.1% | 0.586 | $0.28/M out |
+| **2** | **Ollama qwen3.5:9b** | **42.8%** | **0.580** | **$0 (local)** |
+| 3 | Ollama qwen3.5:35b | 41.3% | 0.576 | $0 (local) |
+| 4 | Anthropic (haiku-4.5) | 40.7% | 0.570 | $4.00/M out |
+| 5 | Gemini (2.0-flash) | 40.1% | 0.562 | $0.30/M out |
+| 6 | OpenAI (gpt-4o) | 39.6% | 0.566 | $10.00/M out |
+| 7 | Grok (grok-3-mini) | 38.6% | 0.553 | $0.50/M out |
+| 8 | Mistral (mistral-small-latest) | 37.3% | 0.537 | $0.60/M out |
+| 9 | Ollama mistral-small3.2 | 36.1% | 0.536 | $0 (local) |
+| 10 | Ollama llama3.2:3b | 33.0% | 0.501 | $0 (local) |
+
+**Headline finding**: `qwen3.5:9b` (open-weights, local, free) lands **2nd in the whole matrix
+for bullets held-out**, 0.3pp ROUGE-L behind DeepSeek. On-prem / offline deployments can
+essentially match the best cloud option on bullets quality.
+
+### Local paragraph contestation is the notable failure mode
+
+Three of four local models **contested** on held-out paragraph (judges diverged >40%
+of episodes). Not the case for cloud providers on the same held-out. Interpretation:
+
+- Held-out episodes are ~32 min each — much longer than dev's ~10 min.
+- Local models produce less *consistent* paragraph structure across long transcripts;
+  judges agree on the content but disagree on coverage/efficiency dimension scores.
+- Not a framework bug; the fraction-based contestation is correctly flagging high-variance
+  output. The local paragraph track needs either (a) targeted per-model tuning, (b)
+  smaller transcript chunks, or (c) accepting the ROUGE-only score for now (0.27-0.33
+  range, below cloud baselines).
+
+**Practical takeaway**: for paragraph summaries on long content, cloud is still the
+reliable pick. For bullets, local (qwen3.5:9b) is production-viable.
+
+---
+
 ## Two storylines
 
 ### 1. Non-bundled: DeepSeek is the sleeper winner
