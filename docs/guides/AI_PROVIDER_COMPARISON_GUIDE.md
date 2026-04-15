@@ -38,16 +38,28 @@ silver on `curated_5feeds_benchmark_v2` (5 unseen episodes, ~32 min each):
 - **Bundled (either track):** Anthropic (`claude-haiku-4-5`). Only provider where bundled
   is competitive with non-bundled; bundled paragraph even beats non-bundled paragraph.
 
-### Local (Ollama) — v2 held-out
+### Local (Ollama) — v2 held-out, 11 models evaluated
 
-**Bullets non-bundled (ROUGE-L):**
+**Top 6 local bullets non-bundled (held-out):**
 
-| Rank | Provider+model | ROUGE-L | Final |
-| :--: | -------------- | :-----: | :---: |
-| 1 | DeepSeek (cloud) | 43.1% | 0.586 |
-| **2** | **Ollama qwen3.5:9b (local, free)** | **42.8%** | **0.580** |
-| 3 | Ollama qwen3.5:35b | 41.3% | 0.576 |
-| 4 | Anthropic haiku-4.5 | 40.7% | 0.570 |
+| Rank | Model | Size | Bullets final |
+| :--: | ----- | :--: | :-----------: |
+| **1** | **qwen3.5:9b** | 9B | **0.580** |
+| 2 | qwen3.5:35b | 35B | 0.576 |
+| 3 | qwen3.5:27b | 27B | 0.543 |
+| 4 | mistral-small3.2 | ~22B | 0.536 |
+| 5 | mistral:7b | 7B | 0.526 |
+| 6 | llama3.1:8b | 8B | 0.518 |
+
+**Cross-matrix ranking (bullets non-bundled held-out):**
+
+| Rank | Provider+model | Final |
+| :--: | -------------- | :---: |
+| 1 | DeepSeek (cloud) | 0.586 |
+| **2** | **Ollama qwen3.5:9b (local, free)** | **0.580** |
+| 3 | Ollama qwen3.5:35b | 0.576 |
+| 4 | Anthropic haiku-4.5 | 0.570 |
+| 5 | OpenAI gpt-4o | 0.566 |
 
 **Paragraph — use bundled on local** (big finding):
 

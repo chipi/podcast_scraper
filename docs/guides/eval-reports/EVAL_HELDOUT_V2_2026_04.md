@@ -73,19 +73,43 @@ All 24 champions generalise within ±5% dev→held-out. No overfitting caught.
 
 ## Local models (Ollama)
 
-Four local models added as a local-vs-cloud comparison. Same champion prompts ported from OpenAI r7.
-Non-bundled for all four; bundled also evaluated for the three larger models (qwen3.5:9b,
-qwen3.5:35b, mistral-small3.2) — llama3.2:3b bundled skipped given small-model JSON reliability
-concerns.
+Eleven local models evaluated as a full local-vs-cloud comparison. Same champion prompts ported
+from OpenAI r7. Non-bundled for all eleven; bundled also evaluated for the three 9B-35B models
+with reliable JSON mode (qwen3.5:9b, qwen3.5:35b, mistral-small3.2). qwen2.5:32b v2 not
+evaluated — qwen3.5 generation (9b, 27b, 35b) covers the Qwen family; qwen2.5:32b would not
+change recommendations.
 
-### Held-out non-bundled (5 ep e03)
+### Held-out non-bundled (5 ep e03) — sorted by bullets final
 
-| Model | Bullets ROUGE-L | Bullets final | Paragraph ROUGE-L | Paragraph final |
-| ----- | :-------------: | :-----------: | :---------------: | :-------------: |
-| **qwen3.5:9b** | **42.8%** | **0.580** | 34.8% | 0.505 |
-| qwen3.5:35b | 41.3% | 0.576 | 32.5% | 0.325 (contested) |
-| mistral-small3.2 | 36.1% | 0.536 | 28.8% | 0.288 (contested) |
-| llama3.2:3b | 33.0% | 0.501 | 27.0% | 0.270 (contested) |
+| Model | Size | Bullets ROUGE-L | Bullets final | Paragraph ROUGE-L | Paragraph final |
+| ----- | :--: | :-------------: | :-----------: | :---------------: | :-------------: |
+| **qwen3.5:9b** | 9B | **42.8%** | **0.580** | 34.8% | 0.505 |
+| qwen3.5:35b | 35B | 41.3% | 0.576 | 32.5% | 0.325 (contested) |
+| qwen3.5:27b | 27B | 36.3% | 0.543 | 35.0% | 0.499 |
+| mistral-small3.2 | ~22B | 36.1% | 0.536 | 28.8% | 0.288 (contested) |
+| mistral:7b | 7B | 36.2% | 0.526 | 31.2% | 0.475 |
+| llama3.1:8b | 8B | 33.8% | 0.518 | 30.5% | 0.305 (contested 5/5) |
+| llama3.2:3b | 3B | 33.0% | 0.501 | 27.0% | 0.270 (contested) |
+| mistral-nemo:12b | 12B | 30.4% | 0.497 | 27.1% | 0.445 |
+| gemma2:9b | 9B | 30.3% | 0.492 | 28.0% | 0.453 |
+| qwen2.5:7b | 7B | 29.6% | 0.477 | 28.6% | 0.463 |
+| phi3:mini | 3.8B | 31.9% | 0.475 | 19.6% | 0.196 (contested) |
+
+### Dev non-bundled (10 ep e01+e02)
+
+| Model | Bullets | Paragraph |
+| ----- | :-----: | :-------: |
+| qwen3.5:9b | 0.571 | 0.493 |
+| qwen3.5:35b | 0.560 | 0.491 |
+| qwen3.5:27b | 0.545 | 0.512 |
+| mistral-small3.2 | 0.551 | 0.497 |
+| mistral:7b | 0.512 | 0.472 |
+| llama3.2:3b | 0.533 | 0.441 |
+| llama3.1:8b | 0.497 | 0.455 |
+| mistral-nemo:12b | 0.505 | 0.450 |
+| gemma2:9b | 0.495 | 0.459 |
+| qwen2.5:7b | 0.461 | 0.443 |
+| phi3:mini | 0.483 | 0.209 (contested) |
 
 ### Held-out bundled (5 ep e03)
 
@@ -108,7 +132,7 @@ across judges.
 | mistral-small3.2 | 0.551 | 0.497 |
 | llama3.2:3b | 0.533 | 0.441 |
 
-### Local vs cloud (non-bundled bullets held-out, ROUGE-L sorted)
+### Local vs cloud (non-bundled bullets held-out, final-score sorted)
 
 | Rank | Provider+model | ROUGE-L | Final | Cost |
 | :--: | -------------- | :-----: | :---: | :--: |
@@ -116,23 +140,44 @@ across judges.
 | **2** | **Ollama qwen3.5:9b** | **42.8%** | **0.580** | **$0 (local)** |
 | 3 | Ollama qwen3.5:35b | 41.3% | 0.576 | $0 (local) |
 | 4 | Anthropic (haiku-4.5) | 40.7% | 0.570 | $4.00/M out |
-| 5 | Gemini (2.0-flash) | 40.1% | 0.562 | $0.30/M out |
-| 6 | OpenAI (gpt-4o) | 39.6% | 0.566 | $10.00/M out |
+| 5 | OpenAI (gpt-4o) | 39.6% | 0.566 | $10.00/M out |
+| 6 | Gemini (2.0-flash) | 40.1% | 0.562 | $0.30/M out |
 | 7 | Grok (grok-3-mini) | 38.6% | 0.553 | $0.50/M out |
-| 8 | Mistral (mistral-small-latest) | 37.3% | 0.537 | $0.60/M out |
-| 9 | Ollama mistral-small3.2 | 36.1% | 0.536 | $0 (local) |
-| 10 | Ollama llama3.2:3b | 33.0% | 0.501 | $0 (local) |
+| 8 | Ollama qwen3.5:27b | 36.3% | 0.543 | $0 (local) |
+| 9 | Mistral (mistral-small-latest) | 37.3% | 0.537 | $0.60/M out |
+| 10 | Ollama mistral-small3.2 | 36.1% | 0.536 | $0 (local) |
+| 11 | Ollama mistral:7b | 36.2% | 0.526 | $0 (local) |
+| 12 | Ollama llama3.1:8b | 33.8% | 0.518 | $0 (local) |
+| 13 | Ollama llama3.2:3b | 33.0% | 0.501 | $0 (local) |
+| 14 | Ollama mistral-nemo:12b | 30.4% | 0.497 | $0 (local) |
+| 15 | Ollama gemma2:9b | 30.3% | 0.492 | $0 (local) |
+| 16 | Ollama qwen2.5:7b | 29.6% | 0.477 | $0 (local) |
+| 17 | Ollama phi3:mini | 31.9% | 0.475 | $0 (local) |
 
 **Headline finding**: `qwen3.5:9b` (open-weights, local, free) lands **2nd in the whole matrix
 for bullets held-out**, 0.3pp ROUGE-L behind DeepSeek. On-prem / offline deployments can
-essentially match the best cloud option on bullets quality.
+essentially match the best cloud option on bullets quality. Seven of the top 11 entries are
+local — local models are fully competitive with cloud APIs on this workload.
 
-### Non-bundled paragraph contests locally; bundled fixes it
+**Size vs quality** for Qwen3.5 family: 9B (0.580) > 35B (0.576) > 27B (0.543). The smallest
+is the strongest — suggests the 9B is the pareto-optimal choice and the larger models add cost
+without proportional gain. Similar pattern at 7B size: `mistral:7b` (0.526) noticeably beats
+`qwen2.5:7b` (0.477) — family generation matters more than size at this scale.
 
-Three of four local models **contested** on held-out non-bundled paragraph (judges diverged
->40% of episodes). When the **same models** are run in bundled mode (same prompt content,
-but wrapped in the bundled JSON schema), all three produce **uncontested** paragraph output
-at meaningfully higher final scores:
+### Non-bundled paragraph contests on several local models; bundled fixes it
+
+Five of eleven local models **contested** on held-out non-bundled paragraph (judges
+diverged >40% of episodes): llama3.2:3b, llama3.1:8b (5/5!), qwen3.5:35b, mistral-small3.2,
+phi3:mini. Six models were uncontested: qwen3.5:9b (2/5 under threshold), qwen3.5:27b,
+mistral:7b, mistral-nemo:12b, gemma2:9b, qwen2.5:7b.
+
+**Pattern**: contestation is not strictly tied to size or generation. Contestation correlates
+with structural inconsistency across episodes, which is somewhat model-specific and hard to
+predict.
+
+When the 3 largest bundled-evaluated models are run in bundled mode (same prompt content,
+wrapped in the JSON schema), all three produce **uncontested** paragraph output at
+meaningfully higher final scores:
 
 | Model | Non-bundled paragraph final | Bundled paragraph final | Gain |
 | ----- | :-------------------------: | :---------------------: | :--: |
