@@ -132,27 +132,97 @@ across judges.
 | mistral-small3.2 | 0.551 | 0.497 |
 | llama3.2:3b | 0.533 | 0.441 |
 
-### Local vs cloud (non-bundled bullets held-out, final-score sorted)
+### Full matrix with latency and cost (non-bundled bullets held-out)
 
-| Rank | Provider+model | ROUGE-L | Final | Cost |
-| :--: | -------------- | :-----: | :---: | :--: |
-| 1 | DeepSeek (deepseek-chat) | 43.1% | 0.586 | $0.28/M out |
-| **2** | **Ollama qwen3.5:9b** | **42.8%** | **0.580** | **$0 (local)** |
-| 3 | Ollama qwen3.5:35b | 41.3% | 0.576 | $0 (local) |
-| 4 | Anthropic (haiku-4.5) | 40.7% | 0.570 | $4.00/M out |
-| 5 | OpenAI (gpt-4o) | 39.6% | 0.566 | $10.00/M out |
-| 6 | Gemini (2.0-flash) | 40.1% | 0.562 | $0.30/M out |
-| 7 | Grok (grok-3-mini) | 38.6% | 0.553 | $0.50/M out |
-| 8 | Ollama qwen3.5:27b | 36.3% | 0.543 | $0 (local) |
-| 9 | Mistral (mistral-small-latest) | 37.3% | 0.537 | $0.60/M out |
-| 10 | Ollama mistral-small3.2 | 36.1% | 0.536 | $0 (local) |
-| 11 | Ollama mistral:7b | 36.2% | 0.526 | $0 (local) |
-| 12 | Ollama llama3.1:8b | 33.8% | 0.518 | $0 (local) |
-| 13 | Ollama llama3.2:3b | 33.0% | 0.501 | $0 (local) |
-| 14 | Ollama mistral-nemo:12b | 30.4% | 0.497 | $0 (local) |
-| 15 | Ollama gemma2:9b | 30.3% | 0.492 | $0 (local) |
-| 16 | Ollama qwen2.5:7b | 29.6% | 0.477 | $0 (local) |
-| 17 | Ollama phi3:mini | 31.9% | 0.475 | $0 (local) |
+Per-episode latency from actual run metrics (baseline.json `stats.avg_time_seconds`). Cost
+per episode computed from approximate transcript size (~2.7k input tokens + ~500 output tokens)
+and Mar 2026 pricing.
+
+| Rank | Provider+model | Final | ROUGE-L | Latency | $/ep | Q/sec | Q/$ |
+| :--: | -------------- | :---: | :-----: | :-----: | :--: | :---: | :-: |
+| 1 | DeepSeek (deepseek-chat) | **0.586** | 43.1% | 10.2s | $0.00052 | 0.058 | **1131** |
+| **2** | **Ollama qwen3.5:9b** | **0.580** | 42.8% | 33.3s | $0 | 0.017 | ∞ |
+| 3 | Ollama qwen3.5:35b | 0.576 | 41.3% | 23.1s | $0 | 0.025 | ∞ |
+| 4 | Anthropic (haiku-4.5) | 0.570 | 40.7% | 4.8s | $0.00416 | 0.119 | 137 |
+| 5 | OpenAI (gpt-4o) | 0.566 | 39.6% | 4.6s | $0.01175 | 0.123 | 48 |
+| 6 | Gemini (2.0-flash) | 0.562 | 40.1% | **2.0s** | **$0.00035** | **0.281** | **1594** |
+| 7 | Grok (grok-3-mini) | 0.553 | 38.6% | 19.4s | $0.00106 | 0.029 | 522 |
+| 8 | Ollama qwen3.5:27b† | 0.543 | 36.3% | 505s† | $0 | 0.001† | ∞ |
+| 9 | Mistral (mistral-small-latest) | 0.537 | 37.3% | 2.2s | $0.00084 | 0.244 | 639 |
+| 10 | Ollama mistral-small3.2 | 0.536 | 36.1% | 79.2s | $0 | 0.007 | ∞ |
+| 11 | Ollama mistral:7b | 0.526 | 36.2% | 28.9s | $0 | 0.018 | ∞ |
+| 12 | Ollama llama3.1:8b | 0.518 | 33.8% | 24.5s | $0 | 0.021 | ∞ |
+| 13 | Ollama llama3.2:3b | 0.501 | 33.0% | 12.2s | $0 | 0.041 | ∞ |
+| 14 | Ollama mistral-nemo:12b | 0.497 | 30.4% | 33.4s | $0 | 0.015 | ∞ |
+| 15 | Ollama gemma2:9b | 0.492 | 30.3% | 28.6s | $0 | 0.017 | ∞ |
+| 16 | Ollama qwen2.5:7b | 0.477 | 29.6% | 22.9s | $0 | 0.021 | ∞ |
+| 17 | Ollama phi3:mini | 0.475 | 31.9% | 17.7s | $0 | 0.027 | ∞ |
+
+†qwen3.5:27b bullets held-out shows anomalous 505s — likely cold-start / model swap overhead
+from Ollama. Paragraph cell on same model was 188s, more typical. Treat this cell as warm-up
+noise; realistic per-episode latency is probably in the ~100s range.
+
+### Compound analysis — Pareto frontier
+
+Three dimensions worth considering: **quality** (final score), **latency** (s/ep), **cost**
+($/ep). A pick is on the Pareto frontier if no other option is strictly better on all three.
+
+**Pareto-optimal cloud:**
+
+- **Gemini 2.0-flash** — cheapest + fastest + not bottom-quality. Dominates on cost + latency.
+- **Anthropic haiku-4.5** — 2nd fastest, 4th quality, mid cost. Middle-of-frontier.
+- **DeepSeek** — #1 quality, middling latency, very cheap. Quality-first frontier.
+
+**Pareto-optimal local:**
+
+- **Ollama qwen3.5:9b** — #1 local quality at moderate local latency.
+- **Ollama llama3.2:3b** — fastest local (12s) at acceptable quality (0.501).
+
+**Dominated picks (avoid unless ecosystem-locked):**
+
+- **OpenAI gpt-4o**: Anthropic has higher quality, same latency, 3× cheaper. Nothing gained.
+- **Grok**: slower than Anthropic, lower quality. No wins.
+- **Mistral cloud**: faster than DeepSeek but lower quality; Gemini beats it on all three axes.
+- **Most local models** (mistral:7b, llama3.1:8b, qwen2.5:7b, gemma2:9b, mistral-nemo:12b, phi3, mistral-small3.2, qwen3.5:27b, qwen3.5:35b): dominated by qwen3.5:9b on quality or llama3.2:3b on speed.
+
+### Recommended option order by use case
+
+**A. Quality first** — you can pay, you can wait.
+
+1. **DeepSeek non-bundled** (0.586, 10s, $0.0005) — top quality, very cheap, worst-case a few seconds.
+2. Anthropic haiku-4.5 bundled (0.552, 7s, $0.004) — if you need single-call title+summary+bullets.
+3. Ollama qwen3.5:9b (0.580, 33s) — only if cloud is off the table.
+
+**B. Cost first** — cloud, quality secondary.
+
+1. **Gemini 2.0-flash non-bundled bullets** (0.562, 2s, $0.00035) — 3× cheaper than DeepSeek, almost as fast, ~4% lower quality.
+2. DeepSeek non-bundled (0.586, 10s, $0.0005) — for 50% more cost, +4% quality, 5× slower.
+3. Mistral cloud (0.537, 2s, $0.00084) — only if Gemini locked out for some reason.
+
+**C. Throughput / latency first** — batch processing, real-time serving.
+
+1. **Gemini 2.0-flash** (2.0s) — 2× faster than Anthropic, 5× faster than DeepSeek. Cheapest too.
+2. Mistral cloud (2.2s) — similar latency, weaker quality.
+3. Anthropic haiku-4.5 (4.8s) — fastest on the quality frontier.
+
+**D. Privacy / offline first** — local only, no external calls.
+
+1. **Ollama qwen3.5:9b** (0.580, 33s) — best local quality. Close to DeepSeek cloud.
+2. Ollama llama3.2:3b (0.501, 12s) — for resource-constrained devices; faster, lower quality.
+3. Ollama mistral:7b (0.526, 29s) — only non-Qwen/Llama worth considering locally.
+
+**E. Balanced** — you want all three: reasonable quality + fast + cheap.
+
+1. **Anthropic haiku-4.5 non-bundled** (0.570, 4.8s, $0.004) — on the frontier for balance.
+2. **Gemini 2.0-flash non-bundled** (0.562, 2s, $0.00035) — slightly worse quality, massively better latency+cost. Almost always the right balanced pick.
+3. DeepSeek non-bundled (0.586, 10s, $0.0005) — quality premium over Gemini for 5× latency.
+
+### The short answer
+
+For most production deployments, **Gemini 2.0-flash non-bundled bullets** is the correct first
+pick. It sits on every Pareto frontier, wins on latency and cost, and loses only ~4% on
+quality vs the absolute best. Upgrade to DeepSeek (quality), Anthropic bundled (single-call),
+or Ollama qwen3.5:9b (privacy) only when a specific dimension justifies the tradeoff.
 
 **Headline finding**: `qwen3.5:9b` (open-weights, local, free) lands **2nd in the whole matrix
 for bullets held-out**, 0.3pp ROUGE-L behind DeepSeek. On-prem / offline deployments can

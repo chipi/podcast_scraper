@@ -80,13 +80,23 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
 - **Single call, title+summary+bullets** → `qwen3.5:9b` bundled. Loses ~9% on bullets vs
   non-bundled but gains reliability and cost efficiency.
 
-**Default picks for new work:**
+**Default picks by use case** (compound-scored across quality, latency, cost — see
+[Held-out v2 report §Compound analysis](eval-reports/EVAL_HELDOUT_V2_2026_04.md#compound-analysis--pareto-frontier)):
 
-- **Most use cases → DeepSeek non-bundled**. Best quality + lowest cloud cost ($0.28/M output tokens).
-- **Single-call bundled output (title + summary + bullets) → Anthropic Haiku 4.5 bundled**.
-- **On-prem / offline → Ollama qwen3.5:9b**. Non-bundled for bullets (0.580, matches DeepSeek); bundled for paragraph (0.509, avoids contestation). Free, private, production-viable.
-- **Absolute-minimum cost cloud → Gemini 2.0-flash non-bundled bullets** (1.1pp ROUGE-L behind DeepSeek at ~half the cost).
-- **Avoid**: OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph, local paragraph on long transcripts. Structural weak spots visible in the matrix.
+| Priority | Best pick | Why |
+| :------- | :-------- | :-- |
+| **Balanced default** | **Gemini 2.0-flash non-bundled** | 0.562, 2.0s, $0.00035/ep. On every Pareto frontier; only ~4% behind #1 quality. |
+| **Quality first** | DeepSeek non-bundled | 0.586 (#1), 10s, $0.0005/ep. Top quality at near-bottom cost. |
+| **Single-call bundled** | Anthropic haiku-4.5 bundled | 0.552 bullets / 0.548 paragraph, 7s, $0.006/ep. Only provider where bundled is competitive. |
+| **Throughput / real-time** | Gemini 2.0-flash | 2.0s/ep, 2× faster than Anthropic, 5× faster than DeepSeek. |
+| **Privacy / offline** | Ollama qwen3.5:9b | 0.580 (local #1), 33s/ep, free. Matches DeepSeek quality offline. |
+
+**Avoid / dominated (unless ecosystem-locked):**
+
+- **OpenAI gpt-4o**: Anthropic haiku-4.5 is better on quality AND ~3× cheaper.
+- **Grok**: slower than Anthropic/Gemini without compensating quality.
+- **OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph, local paragraph on long transcripts**: structural weak spots visible in the matrix.
+- **Ollama qwen3.5:27b / qwen3.5:35b**: larger but not better than qwen3.5:9b.
 
 See [v2 eval report](eval-reports/EVAL_HELDOUT_V2_2026_04.md) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
 
