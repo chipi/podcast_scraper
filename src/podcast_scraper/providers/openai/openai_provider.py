@@ -1989,4 +1989,5 @@ class OpenAIProvider:
             supports_system_prompt=True,  # GPT models support system prompts
             supports_streaming=True,  # OpenAI API supports streaming
             provider_name="openai",
+            supports_gi_segment_timing=True,
         )

@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from fastapi.testclient import TestClient
 
 pytest.importorskip("fastapi")
 
@@ -62,3 +63,14 @@ def test_create_app_true_static_uses_default_when_present(tmp_path: Path) -> Non
         app = create_app(None, static_dir=True)
     names = [getattr(r, "name", None) for r in app.routes]
     assert "viewer" in names
+
+
+def test_api_corpus_text_file_not_shadowed_by_static_mount(tmp_path: Path) -> None:
+    """Regression: ``mount('/', StaticFiles)`` must not swallow ``/api/corpus/text-file``."""
+    with patch("podcast_scraper.server.app._default_static_dir", return_value=tmp_path):
+        app = create_app(tmp_path, static_dir=True)
+    (tmp_path / "t.txt").write_text("hi", encoding="utf-8")
+    client = TestClient(app)
+    r = client.get("/api/corpus/text-file", params={"relpath": "t.txt"})
+    assert r.status_code == 200
+    assert r.text == "hi"

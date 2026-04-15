@@ -1877,4 +1877,5 @@ class OllamaProvider:
             supports_system_prompt=True,  # Ollama supports system prompts
             supports_streaming=True,  # Ollama API supports streaming
             provider_name="ollama",
+            supports_gi_segment_timing=False,
         )

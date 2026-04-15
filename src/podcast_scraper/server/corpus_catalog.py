@@ -425,6 +425,18 @@ def index_rows_by_feed_episode(
     return out
 
 
+def index_rows_by_episode_id(
+    rows: Iterable[CatalogEpisodeRow],
+) -> dict[str, CatalogEpisodeRow]:
+    """Map ``episode_id`` to a catalog row (first row wins if duplicates)."""
+    out: dict[str, CatalogEpisodeRow] = {}
+    for row in rows:
+        eid = row.episode_id
+        if eid and eid not in out:
+            out[eid] = row
+    return out
+
+
 def aggregate_feeds(rows: Iterable[CatalogEpisodeRow]) -> list[dict[str, Any]]:
     """Distinct feeds with optional display title, image URL, and episode counts."""
     by_id: dict[str, dict[str, Any]] = {}

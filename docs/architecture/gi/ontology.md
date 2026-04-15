@@ -63,14 +63,14 @@ The grounding contract is what makes GIL trustworthy:
 
 ### Node Types (v1)
 
-| Node Type    | Description                                          |
-| ------------ | ---------------------------------------------------- |
-| Podcast      | A podcast feed                                       |
-| Episode      | A single podcast episode                             |
-| Speaker      | A person speaking (optional if no diarization)       |
-| Topic        | An abstract subject discussed (lightweight)          |
-| **Insight**  | A key takeaway / conclusion extracted from content   |
-| **Quote**    | Verbatim transcript span used as evidence            |
+| Node Type    | Description                                                 |
+| ------------ | ----------------------------------------------------------- |
+| Podcast      | A podcast feed                                              |
+| Episode      | A single podcast episode                                    |
+| Person       | Diarized speaker identity (optional if no diarization)      |
+| Topic        | An abstract subject discussed (lightweight)                 |
+| **Insight**  | A key takeaway / conclusion extracted from content          |
+| **Quote**    | Verbatim transcript span used as evidence                   |
 
 ### Node Types (v1.1 - Deferred)
 
@@ -80,15 +80,15 @@ The grounding contract is what makes GIL trustworthy:
 
 ### Edge Types (v1)
 
-| Edge             | From -> To         | Description                         |
-| ---------------- | ------------------ | ----------------------------------- |
-| HAS_EPISODE      | Podcast -> Episode | Podcast contains episode            |
-| SPOKE_IN         | Speaker -> Episode | Speaker participated                |
-| **HAS_INSIGHT**  | Episode -> Insight | Episode contains insight            |
-| **SUPPORTED_BY** | Insight -> Quote   | Quote provides evidence for insight |
-| **SPOKEN_BY**    | Quote -> Speaker   | Speaker said the quote              |
-| ABOUT            | Insight -> Topic   | Insight is about topic              |
-| RELATED_TO       | Topic <-> Topic    | Semantic relationship (optional)    |
+| Edge             | From -> To         | Description                          |
+| ---------------- | ------------------ | ------------------------------------ |
+| HAS_EPISODE      | Podcast -> Episode | Podcast contains episode             |
+| SPOKE_IN         | Person -> Episode  | Person participated in episode       |
+| **HAS_INSIGHT**  | Episode -> Insight | Episode contains insight             |
+| **SUPPORTED_BY** | Insight -> Quote   | Quote provides evidence for insight  |
+| **SPOKEN_BY**    | Quote -> Person    | Quote attributed to that person      |
+| ABOUT            | Insight -> Topic   | Insight is about topic               |
+| RELATED_TO       | Topic <-> Topic    | Semantic relationship (optional)     |
 
 ---
 
@@ -126,7 +126,7 @@ The root `gi.json` file MUST include:
 - **Episode** node: `episode:{episode_id}` — same `episode_id` string as the artifact root field and as KG (RSS GUID family).
 - **Insight** node: `insight:{16-hex}` — SHA-256 over `(episode_id, index, insight_text prefix)`; `properties.episode_id` anchors the episode.
 - **Quote** node: `quote:{16-hex}` — SHA-256 over `(episode_id, quote_index, text prefix, char_start, char_end)`; `properties.episode_id` anchors the episode.
-- **Speaker** node: `speaker:{slug(name)}` — global by normalized name slug (merged across episodes in combined graphs).
+- **Person** node: `person:{slug(name)}` — global by normalized name slug (merged across episodes in combined graphs). **Legacy (pre-migration):** **`Speaker`** / **`speaker:{slug}`** — same role; see `scripts/migrate_gi_speaker_to_person.py`.
 
 **Topic** / **ABOUT** (when enriched): `topic:{slug(label)}` — global, same family as KG topics.
 
@@ -166,9 +166,13 @@ Optional:
 
 ---
 
-### Speaker
+### Person
 
-**Definition:** A person speaking in the episode.
+**Definition:** Canonical identity for someone who speaks in the corpus when diarization is
+available (RFC-072 **`person:{slug}`**).
+
+**Legacy:** Pre-migration artifacts may use **`type`: `"Speaker"`** and **`speaker:{slug}`**
+node ids with the same meaning until rewritten.
 
 Required properties:
 
@@ -239,7 +243,8 @@ Required properties:
 
 Optional:
 
-- `speaker_id` (string, nullable) - Speaker who said the quote (if diarization available)
+- `speaker_id` (string, nullable) - **`person:{slug}`** when diarization aligns (legacy
+  **`speaker:{slug}`** until migration; see [Development Guide — GI quote `speaker_id`](../../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id))
 
 ---
 
@@ -264,7 +269,7 @@ Optional:
 
 **Required properties:** none
 
-### SPOKE_IN (Speaker → Episode)
+### SPOKE_IN (Person → Episode)
 
 **Required properties:** none
 
@@ -280,9 +285,9 @@ Optional:
 
 **Semantics:** If an Insight has ≥1 `SUPPORTED_BY` edge, it is `grounded=true`.
 
-### SPOKEN_BY (Quote → Speaker) (NEW)
+### SPOKEN_BY (Quote → Person) (NEW)
 
-**Definition:** Links a Quote to the Speaker who said it.
+**Definition:** Links a Quote to the **Person** who said it (RFC-072 **`person:{slug}`**).
 
 **Required properties:** none
 
@@ -322,7 +327,7 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
 ### Guidance
 
 - Episode-local Insight and Quote nodes live here
-- Global nodes (Topic, Speaker) may be referenced or introduced
+- Global nodes (Topic, Person) may be referenced or introduced
 - The logical full GIL is the union of all episode `gi.json` files
 - Every Insight must have `grounded` field set explicitly
 
@@ -355,8 +360,8 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
       }
     },
     {
-      "id": "speaker:sam-altman",
-      "type": "Speaker",
+      "id": "person:sam-altman",
+      "type": "Person",
       "properties": {
         "name": "Sam Altman"
       }
@@ -384,7 +389,7 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
       "properties": {
         "text": "Regulation will lag innovation by 3–5 years. That's my prediction.",
         "episode_id": "episode:abc123",
-        "speaker_id": "speaker:sam-altman",
+        "speaker_id": "person:sam-altman",
         "char_start": 10234,
         "char_end": 10302,
         "timestamp_start_ms": 120000,
@@ -398,7 +403,7 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
       "properties": {
         "text": "We'll see laws that are already outdated when they pass.",
         "episode_id": "episode:abc123",
-        "speaker_id": "speaker:sam-altman",
+        "speaker_id": "person:sam-altman",
         "char_start": 10890,
         "char_end": 10945,
         "timestamp_start_ms": 142000,
@@ -415,7 +420,7 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
     },
     {
       "type": "SPOKE_IN",
-      "from": "speaker:sam-altman",
+      "from": "person:sam-altman",
       "to": "episode:abc123"
     },
     {
@@ -436,12 +441,12 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
     {
       "type": "SPOKEN_BY",
       "from": "quote:episode:abc123:e5f6g7h8",
-      "to": "speaker:sam-altman"
+      "to": "person:sam-altman"
     },
     {
       "type": "SPOKEN_BY",
       "from": "quote:episode:abc123:i9j0k1l2",
-      "to": "speaker:sam-altman"
+      "to": "person:sam-altman"
     },
     {
       "type": "ABOUT",
@@ -454,6 +459,8 @@ Each episode output folder contains a `gi.json` capturing nodes/edges for the ep
   ]
 }
 ```
+
+**Shape note:** Current corpora use **Person** / **`person:`** ids and **SPOKEN_BY** targets as above. Legacy **`Speaker`** / **`speaker:`** nodes and ids may still appear until migration (`scripts/migrate_gi_speaker_to_person.py`).
 
 ---
 

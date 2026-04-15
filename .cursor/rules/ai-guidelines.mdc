@@ -26,6 +26,16 @@
 - Acknowledge what you read
 - Then proceed with the task
 
+## End-of-session review (Rule 18)
+
+**When:** User says **done** / **wrap up**, natural session end, or the same **cadence** as a closing
+**`.metrics/rule-adherence.jsonl`** append (before commit) — but **not inside** that file.
+
+**Do:** Brief retrospective (silent OK): faster path next time? false "fixed"? wrong validation channel?
+
+**Output:** **Do not** write lessons into JSONL. **Promote** durable lessons into `docs/guides/`,
+`.cursorrules`, or `.cursor/rules/*.mdc` (or `docs/wip/` for drafts). Full wording: **`.cursorrules` Rule 18**.
+
 ## CRITICAL: Git Commit Workflow - MANDATORY CHECKLIST
 
 **For the procedure:** Use the **commit-with-approval** skill.

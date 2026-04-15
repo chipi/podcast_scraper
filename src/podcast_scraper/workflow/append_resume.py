@@ -57,6 +57,8 @@ def episode_complete_for_append_resume(
     - Resolved metadata file on disk
     - ``episode.episode_id`` matches the ID derived from the RSS episode
     - ``content.transcript_file_path`` exists under *effective_output_dir*
+    - When ``backfill_transcript_segments`` and ``generate_gi`` are true, a sibling
+      ``.segments.json`` next to a ``.txt`` transcript is also required (GitHub #542).
     - Optional stages enabled in *cfg* (summary / GI / KG) have corresponding artifacts
 
     Args:
@@ -94,6 +96,15 @@ def episode_complete_for_append_resume(
     tpath = os.path.join(effective_output_dir, trel)
     if not os.path.isfile(tpath):
         return False
+
+    if (
+        getattr(cfg, "backfill_transcript_segments", False)
+        and getattr(cfg, "generate_gi", False)
+        and trel.strip().lower().endswith(".txt")
+    ):
+        seg_path = os.path.splitext(tpath)[0] + ".segments.json"
+        if not os.path.isfile(seg_path):
+            return False
 
     if cfg.generate_summaries and not _summary_looks_present(doc.get("summary")):
         return False

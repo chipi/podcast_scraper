@@ -5,9 +5,16 @@ import { truncate } from '../../utils/formatting'
 import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
   SEARCH_RESULT_GRAPH_BUTTON_CLASS,
+  SEARCH_RESULT_LIBRARY_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { quoteAttributionDisplayFromId } from '../../utils/parsing'
+import {
+  GI_QUOTE_SPEAKER_UNAVAILABLE_HINT,
+  liftedQuotePayloadHasUsableTiming,
+  SEARCH_LIFTED_QUOTE_SPEAKER_UNAVAILABLE_TESTID,
+  SUPPORTING_QUOTE_SPEAKER_UNAVAILABLE_TESTID,
+} from '../../utils/transcriptSourceDisplay'
 import { isKgSurfaceMultiEpisodeDedupe } from '../../utils/searchHitKgDedupe'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
 
@@ -24,6 +31,19 @@ const emit = defineEmits<{
 }>()
 
 const docType = computed(() => String(props.hit.metadata?.doc_type ?? '?'))
+
+/** RFC-075: one line when server joined ``topic_clusters.json`` for this ``kg_topic`` row. */
+const topicClusterSummary = computed((): string | null => {
+  const tc = props.hit.metadata?.topic_cluster
+  if (tc == null || typeof tc !== 'object') return null
+  const o = tc as Record<string, unknown>
+  const label = o.canonical_label
+  const gpid = o.graph_compound_parent_id
+  const bits: string[] = []
+  if (typeof label === 'string' && label.trim()) bits.push(label.trim())
+  if (typeof gpid === 'string' && gpid.trim()) bits.push(gpid.trim())
+  return bits.length ? bits.join(' · ') : null
+})
 
 const episodeId = computed(() => {
   const e = props.hit.metadata?.episode_id
@@ -129,6 +149,13 @@ function liftedEntityLabel(block: unknown, fallback: string): string {
   return fallback
 }
 
+/** True when **lifted** payload includes a non-empty speaker display block. */
+function liftedHasUsableSpeaker(L: Record<string, unknown>): boolean {
+  const s = L.speaker
+  if (s == null || typeof s !== 'object') return false
+  return liftedEntityLabel(s, '').trim().length > 0
+}
+
 const liftedQuoteTimeLabel = computed((): string => {
   const L = lifted.value
   if (!L) return '—'
@@ -194,7 +221,7 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
         <button
           v-if="openLibrary"
           type="button"
-          class="flex size-6 shrink-0 items-center justify-center rounded-sm bg-primary text-[11px] font-semibold leading-none text-primary-foreground hover:opacity-90"
+          :class="SEARCH_RESULT_LIBRARY_BUTTON_CLASS"
           aria-label="Open episode in Library"
           title="Open in Library"
           @click="onLibraryClick"
@@ -223,6 +250,12 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
         </button>
       </div>
     </div>
+    <p
+      v-if="topicClusterSummary"
+      class="mt-1 text-[10px] leading-snug text-muted"
+    >
+      Topic cluster: {{ topicClusterSummary }}
+    </p>
     <p class="leading-snug text-surface-foreground">
       {{ truncate(hit.text || '(no text)', 320) }}
     </p>
@@ -272,6 +305,18 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
         >
           Quote time: {{ liftedQuoteTimeLabel }}
         </p>
+        <p
+          v-if="
+            lifted.quote &&
+            typeof lifted.quote === 'object' &&
+            !liftedHasUsableSpeaker(lifted) &&
+            liftedQuotePayloadHasUsableTiming(lifted.quote)
+          "
+          class="mt-0.5 text-[10px] leading-snug text-muted/80"
+          :data-testid="SEARCH_LIFTED_QUOTE_SPEAKER_UNAVAILABLE_TESTID"
+        >
+          {{ GI_QUOTE_SPEAKER_UNAVAILABLE_HINT }}
+        </p>
       </div>
     </div>
 
@@ -315,6 +360,13 @@ function onEpisodeIdChipClick(ev: MouseEvent): void {
             >
               ({{ (Number(q.timestamp_start_ms) / 1000).toFixed(1) }}s{{ q.timestamp_end_ms != null ? ` – ${(Number(q.timestamp_end_ms) / 1000).toFixed(1)}s` : '' }})
             </span>
+          </p>
+          <p
+            v-else-if="String(q.text ?? '').trim()"
+            class="mt-0.5 text-[10px] leading-snug text-muted/80"
+            :data-testid="SUPPORTING_QUOTE_SPEAKER_UNAVAILABLE_TESTID"
+          >
+            {{ GI_QUOTE_SPEAKER_UNAVAILABLE_HINT }}
           </p>
         </blockquote>
       </div>

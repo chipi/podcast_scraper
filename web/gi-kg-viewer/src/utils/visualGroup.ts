@@ -6,6 +6,7 @@ import type { RawGraphNode } from '../types/artifact'
 export function visualGroupForNode(n: RawGraphNode | null | undefined): string {
   if (!n || typeof n !== 'object') return '?'
   const t = typeof n.type === 'string' ? n.type : '?'
+  if (t === 'TopicCluster') return 'TopicCluster'
   if (t === 'Person') return 'Entity_person'
   if (t !== 'Entity') return t
   const p = n.properties || {}

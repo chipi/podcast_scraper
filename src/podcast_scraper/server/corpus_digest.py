@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import calendar
 import re
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
+from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.corpus_scope import normalize_feed_id
 from podcast_scraper.server.corpus_catalog import (
     CatalogEpisodeRow,
@@ -85,10 +87,27 @@ def utc_bounds_for_window(
 ) -> tuple[datetime, datetime]:
     """Return inclusive-ish window [start, end] in UTC (end = now)."""
     end = now_utc.astimezone(timezone.utc)
-    if window == "24h":
+    if window == "all":
+        start = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    elif window == "24h":
         start = end - timedelta(hours=24)
     elif window == "7d":
         start = end - timedelta(days=7)
+    elif window == "1mo":
+        # Previous calendar month in UTC (first day 00:00 through last day end).
+        d = end.date()
+        first_this_month = date(d.year, d.month, 1)
+        last_day_prev = first_this_month - timedelta(days=1)
+        first_prev = date(last_day_prev.year, last_day_prev.month, 1)
+        start = datetime(
+            first_prev.year,
+            first_prev.month,
+            first_prev.day,
+            tzinfo=timezone.utc,
+        )
+        y, m = last_day_prev.year, last_day_prev.month
+        last_dom = calendar.monthrange(y, m)[1]
+        end = datetime(y, m, last_dom, 23, 59, 59, 999999, tzinfo=timezone.utc)
     elif window == "since":
         if not since or not re.match(r"^\d{4}-\d{2}-\d{2}$", since.strip()):
             raise ValueError("since_required")
@@ -173,6 +192,9 @@ def digest_row_dict(
 ) -> dict[str, Any]:
     """JSON-serializable digest row for API responses (glance and full digest)."""
     bullets = list(row.summary_bullets[:4])
+    bullet_graph_topic_ids = [
+        topic_node_id_from_slug(slugify_label(str(b) if b is not None else "")) for b in bullets
+    ]
     titles = feed_titles_by_feed_id or {}
     rss_by = feed_rss_urls_by_feed_id or {}
     desc_by = feed_descriptions_by_feed_id or {}
@@ -188,6 +210,7 @@ def digest_row_dict(
         "publish_date": row.publish_date,
         "summary_title": row.summary_title,
         "summary_bullets_preview": bullets,
+        "summary_bullet_graph_topic_ids": bullet_graph_topic_ids,
         "summary_preview": episode_list_summary_preview(row),
         "has_gi": row.has_gi,
         "has_kg": row.has_kg,

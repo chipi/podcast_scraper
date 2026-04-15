@@ -36,6 +36,7 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.exploreApiAvailable).toBe(true)
     expect(shell.indexRoutesApiAvailable).toBe(true)
     expect(shell.corpusMetricsApiAvailable).toBe(true)
+    expect(shell.cilQueriesApiAvailable).toBe(true)
   })
 
   it('infers digest when corpus_digest_api is omitted but catalog is available', async () => {
@@ -90,6 +91,26 @@ describe('useShellStore /api/health discovery flags', () => {
     expect(shell.exploreApiAvailable).toBe(false)
     expect(shell.indexRoutesApiAvailable).toBe(false)
     expect(shell.corpusMetricsApiAvailable).toBe(false)
+    expect(shell.cilQueriesApiAvailable).toBe(false)
+  })
+
+  it('disables CIL queries when cil_queries_api is explicitly false', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'ok',
+          corpus_library_api: true,
+          corpus_digest_api: true,
+          cil_queries_api: false,
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.cilQueriesApiAvailable).toBe(false)
+    expect(shell.searchApiAvailable).toBe(true)
   })
 
   it('disables artifacts when artifacts_api is explicitly false', async () => {

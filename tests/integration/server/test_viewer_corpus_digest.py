@@ -84,6 +84,7 @@ def test_digest_compact_diversity_and_omit_topics(tmp_path: Path) -> None:
     assert len(rows) == 4
     for row in rows:
         assert len(row["summary_bullets_preview"]) <= 4
+        assert len(row["summary_bullet_graph_topic_ids"]) == len(row["summary_bullets_preview"])
 
 
 def test_digest_full_window_and_topics_no_index(tmp_path: Path) -> None:
@@ -113,6 +114,31 @@ def test_digest_full_window_and_topics_no_index(tmp_path: Path) -> None:
     assert body["rows"][0]["episode_title"] == "Hello"
     assert body["topics"] == []
     assert body.get("topics_unavailable_reason") == "no_index"
+
+
+def test_digest_window_1mo_ok(tmp_path: Path) -> None:
+    today = date.today().isoformat()
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    (meta / "one.metadata.json").write_text(
+        json.dumps(
+            _episode_doc(
+                published=f"{today}T12:00:00Z",
+            ),
+        ),
+        encoding="utf-8",
+    )
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get(
+        "/api/corpus/digest",
+        params={"path": str(tmp_path), "window": "1mo"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["window"] == "1mo"
+    assert "window_start_utc" in body
+    assert "window_end_utc" in body
 
 
 def test_digest_since_requires_param(tmp_path: Path) -> None:
@@ -150,6 +176,7 @@ def test_digest_rows_include_visual_metadata(tmp_path: Path) -> None:
     assert row["episode_number"] == 5
     assert row["feed_display_title"] == "Show"
     assert row["summary_preview"] == "Sum — a · b"
+    assert len(row["summary_bullet_graph_topic_ids"]) == len(row["summary_bullets_preview"])
 
 
 def test_digest_feed_display_title_from_sibling_when_feed_title_omitted(

@@ -13,6 +13,60 @@ export interface GraphNeighborRow {
   visualType: string
   edgeType: string
   direction: 'in' | 'out'
+  /**
+   * When rows are merged from a TopicCluster, graph ids of member **Topic** nodes that had an
+   * edge to this neighbor.
+   */
+  viaMemberTopicIds?: string[]
+}
+
+/**
+ * Merge neighbor rows that point at the same graph id (e.g. two topics in one cluster both
+ * link to the same episode).
+ */
+export function mergeNeighborRowsByNeighborId(rows: GraphNeighborRow[]): GraphNeighborRow[] {
+  const map = new Map<string, GraphNeighborRow>()
+  for (const r of rows) {
+    const ex = map.get(r.id)
+    if (!ex) {
+      map.set(r.id, {
+        ...r,
+        viaMemberTopicIds: r.viaMemberTopicIds ? [...r.viaMemberTopicIds] : undefined,
+      })
+      continue
+    }
+    const a = String(ex.edgeType ?? '').trim()
+    const b = String(r.edgeType ?? '').trim()
+    if (a && b && a !== b) {
+      ex.edgeType = `${a} · ${b}`
+    } else if (!a && b) {
+      ex.edgeType = b
+    }
+    const via = new Set<string>([
+      ...(ex.viaMemberTopicIds ?? []),
+      ...(r.viaMemberTopicIds ?? []),
+    ])
+    if (via.size > 0) {
+      ex.viaMemberTopicIds = [...via]
+    }
+  }
+  return [...map.values()]
+}
+
+/**
+ * Union of incident edges for several topic (or other) nodes — used for TopicCluster rail detail.
+ */
+export function graphNeighborsForMemberGraphIds(
+  art: ParsedArtifact | null,
+  memberGraphNodeIds: string[],
+): GraphNeighborRow[] {
+  const acc: GraphNeighborRow[] = []
+  for (const memberId of memberGraphNodeIds) {
+    for (const row of graphNeighborsForNode(art, memberId)) {
+      acc.push({ ...row, viaMemberTopicIds: [memberId] })
+    }
+  }
+  return mergeNeighborRowsByNeighborId(acc)
 }
 
 export function graphNeighborsForNode(

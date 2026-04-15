@@ -1,0 +1,139 @@
+# WIP reference only — not loaded by CI, tests, or product defaults.
+#
+# Use when tuning corpus topic clustering (RFC-075): copy this file to any path you prefer, or
+# pass it directly to:
+#   python -m podcast_scraper.cli topic-clusters --output-dir <corpus_root> \
+#     --validate-config docs/wip/wip-topic-clusters-validation-reference.yaml
+#
+# Derived from a Planet Money + The Journal acceptance-style run (topic ids as in *.kg.json).
+# Example session path when notes were taken (may be gone locally):
+#   .test_outputs/acceptance/sessions/session_20260415_122755/runs/run_20260415_122755_124/
+#
+# Semantics:
+# - expected_merge_pairs / expected_distinct: constraints for --validate-config (RFC-075).
+# - episode_sources: optional backtracking — fill episode_id lists from metadata next to *.kg.json.
+#
+# Human “story” groups often do **not** all pairwise-clear at 0.75 with MiniLM; merge_pairs are
+# the machine-checkable subset; tune threshold or algorithm separately.
+#
+schema_version: "1"
+description: >
+  WIP reference — Planet Money + Journal style corpus; topic ids match KG Topic nodes.
+
+expected_merge_pairs:
+  - id: strait_hormuz_strait_control
+    topic_ids:
+      - topic:strait-of-hormuz
+      - topic:strait-of-hormuz-control
+    episode_sources:
+      topic:strait-of-hormuz: []
+      topic:strait-of-hormuz-control: []
+  - id: strait_hormuz_strait_conflict
+    topic_ids:
+      - topic:strait-of-hormuz
+      - topic:strait-of-hormuz-conflict
+    episode_sources:
+      topic:strait-of-hormuz: []
+      topic:strait-of-hormuz-conflict: []
+  - id: strait_conflict_control
+    topic_ids:
+      - topic:strait-of-hormuz-conflict
+      - topic:strait-of-hormuz-control
+    episode_sources:
+      topic:strait-of-hormuz-conflict: []
+      topic:strait-of-hormuz-control: []
+  - id: negotiation_wording
+    topic_ids:
+      - topic:negotiation-efforts
+      - topic:negotiation-proposals
+    episode_sources:
+      topic:negotiation-efforts: []
+      topic:negotiation-proposals: []
+  - id: business_economic_impact
+    topic_ids:
+      - topic:business-impact
+      - topic:economic-impact
+    episode_sources:
+      topic:business-impact: []
+      topic:economic-impact: []
+  - id: cuba_crisis_history
+    topic_ids:
+      - topic:cuban-economic-crisis
+      - topic:cubas-economic-history
+    episode_sources:
+      topic:cuban-economic-crisis: []
+      topic:cubas-economic-history: []
+  - id: iran_crisis_struggles
+    topic_ids:
+      - topic:economic-crisis-in-iran
+      - topic:economic-struggles
+    episode_sources:
+      topic:economic-crisis-in-iran: []
+      topic:economic-struggles: []
+  - id: immigration_policy_enforcement
+    topic_ids:
+      - topic:immigration-enforcement-issues
+      - topic:immigration-policy
+    episode_sources:
+      topic:immigration-enforcement-issues: []
+      topic:immigration-policy: []
+  - id: ceasefire_status_tensions
+    topic_ids:
+      - topic:ceasefire-status
+      - topic:ceasefire-tensions
+    episode_sources:
+      topic:ceasefire-status: []
+      topic:ceasefire-tensions: []
+  - id: us_embargo_cuba_journal
+    topic_ids:
+      - topic:impact-of-us-embargo
+      - topic:us-embargo-impact
+    episode_sources:
+      topic:impact-of-us-embargo: []
+      topic:us-embargo-impact: []
+
+expected_distinct:
+  - id: cuba_vs_iran_economic_crisis
+    topic_ids:
+      - topic:cuban-economic-crisis
+      - topic:economic-crisis-in-iran
+    reason: Different countries; similar crisis wording
+    episode_sources:
+      topic:cuban-economic-crisis: []
+      topic:economic-crisis-in-iran: []
+
+  - id: cuba_vs_generic_economic_crisis
+    topic_ids:
+      - topic:cuban-economic-crisis
+      - topic:economic-crisis
+    reason: Generic vs Cuba-specific crisis labels
+    episode_sources:
+      topic:cuban-economic-crisis: []
+      topic:economic-crisis: []
+
+  - id: academic_vs_trade_publishing
+    topic_ids:
+      - topic:academic-publishing-issues
+      - topic:book-publishing-process
+    reason: Research publishing vs trade book industry
+    episode_sources:
+      topic:academic-publishing-issues: []
+      topic:book-publishing-process: []
+
+  - id: iran_protests_vs_cuba_protests
+    topic_ids:
+      - topic:iranian-protests
+      - topic:cuban-protests
+    reason: Shared protests theme, different countries
+    episode_sources:
+      topic:iranian-protests: []
+      topic:cuban-protests: []
+
+  - id: automation_vs_ice
+    topic_ids:
+      - topic:job-displacement
+      - topic:ice-deployment
+    reason: Unrelated domains
+    episode_sources:
+      topic:job-displacement: []
+      topic:ice-deployment: []

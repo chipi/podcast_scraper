@@ -152,3 +152,70 @@ class TestTranscriptCache(unittest.TestCase):
         self.assertEqual(cache_data["provider"], "whisper")
         # Model should be converted to string representation
         self.assertEqual(cache_data["model"], "<MockModel object>")
+
+    def test_get_cached_transcript_entry_without_segments(self):
+        """Entry API returns transcript and None segments when key absent."""
+        import json
+
+        audio_hash = "entry_no_seg"
+        cache_path = Path(self.cache_dir) / f"{audio_hash}.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps({"transcript": "hello"}),
+            encoding="utf-8",
+        )
+        entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir=self.cache_dir)
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        self.assertEqual(entry[0], "hello")
+        self.assertIsNone(entry[1])
+
+    def test_save_and_load_segments_round_trip(self):
+        """Optional segments persist and reload for GI timestamp sidecar parity."""
+        audio_hash = "seg_roundtrip"
+        text = "Hello world"
+        segs = [{"start": 0.0, "end": 1.0, "text": "Hello world"}]
+        transcript_cache.save_transcript_to_cache(
+            audio_hash, text, cache_dir=self.cache_dir, segments=segs
+        )
+        entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir=self.cache_dir)
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        self.assertEqual(entry[0], text)
+        self.assertEqual(entry[1], segs)
+        self.assertEqual(transcript_cache.get_cached_transcript(audio_hash, self.cache_dir), text)
+
+    def test_malformed_segments_in_cache_file_ignored(self):
+        """Invalid segments payload must not break transcript read."""
+        import json
+
+        audio_hash = "bad_seg"
+        cache_path = Path(self.cache_dir) / f"{audio_hash}.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps({"transcript": "ok", "segments": "not-a-list"}),
+            encoding="utf-8",
+        )
+        entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir=self.cache_dir)
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        self.assertEqual(entry[0], "ok")
+        self.assertIsNone(entry[1])
+
+    def test_segments_with_non_dict_item_ignored(self):
+        import json
+
+        audio_hash = "bad_seg_item"
+        cache_path = Path(self.cache_dir) / f"{audio_hash}.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(
+            json.dumps(
+                {"transcript": "ok", "segments": [{"start": 0, "end": 1, "text": "a"}, "x"]}
+            ),
+            encoding="utf-8",
+        )
+        entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir=self.cache_dir)
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        self.assertEqual(entry[0], "ok")
+        self.assertIsNone(entry[1])

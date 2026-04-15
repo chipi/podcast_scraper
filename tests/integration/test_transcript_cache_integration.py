@@ -74,3 +74,32 @@ class TestTranscriptCacheIntegration(unittest.TestCase):
         # Retrieve with same provider/model
         cached = transcript_cache.get_cached_transcript(audio_hash, cache_dir=self.cache_dir)
         self.assertEqual(cached, transcript_text)
+
+    def test_cache_segments_round_trip_for_gi_sidecar(self):
+        """Transcript cache stores optional segments for GI quote timing (issue #540)."""
+        audio_path = os.path.join(self.temp_dir, "seg.mp3")
+        with open(audio_path, "wb") as f:
+            f.write(b"fake audio content" * 1000)
+
+        audio_hash = transcript_cache.get_audio_hash(audio_path)
+        transcript_text = "One two three."
+        segs = [
+            {"start": 0.0, "end": 1.0, "text": "One "},
+            {"start": 1.0, "end": 2.0, "text": "two "},
+            {"start": 2.0, "end": 3.0, "text": "three."},
+        ]
+        transcript_cache.save_transcript_to_cache(
+            audio_hash,
+            transcript_text,
+            provider_name="whisper",
+            model="base",
+            cache_dir=self.cache_dir,
+            segments=segs,
+        )
+
+        entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir=self.cache_dir)
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        t, loaded = entry
+        self.assertEqual(t, transcript_text)
+        self.assertEqual(loaded, segs)

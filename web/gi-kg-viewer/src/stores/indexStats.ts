@@ -4,6 +4,7 @@ import type { IndexStatsEnvelope } from '../api/indexStatsApi'
 import { fetchIndexStats, postIndexRebuild } from '../api/indexStatsApi'
 import { formatBytes } from '../utils/formatting'
 import type { MetricRow } from '../utils/metrics'
+import { StaleGeneration } from '../utils/staleGeneration'
 import { useShellStore } from './shell'
 
 const INDEX_REASON_LABELS: Record<string, string> = {
@@ -45,6 +46,8 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
   const indexError = ref<string | null>(null)
   const rebuildSubmitting = ref(false)
   let rebuildPollTimer: ReturnType<typeof setInterval> | null = null
+  const indexStatsRefreshGate = new StaleGeneration()
+  const indexRebuildGate = new StaleGeneration()
 
   function stopRebuildPoll(): void {
     if (rebuildPollTimer !== null) {
@@ -112,19 +115,30 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
   )
 
   async function requestIndexRebuild(full: boolean): Promise<void> {
+    const seq = indexRebuildGate.bump()
     indexError.value = null
     rebuildSubmitting.value = true
     try {
       const path = shell.hasCorpusPath ? shell.corpusPath.trim() : undefined
       await postIndexRebuild({ corpusPath: path, rebuild: full })
+      if (indexRebuildGate.isStale(seq)) {
+        return
+      }
       await refreshIndexStats()
+      if (indexRebuildGate.isStale(seq)) {
+        return
+      }
       if (indexEnvelope.value?.rebuild_in_progress) {
         startRebuildPoll()
       }
     } catch (e) {
-      indexError.value = e instanceof Error ? e.message : String(e)
+      if (indexRebuildGate.isCurrent(seq)) {
+        indexError.value = e instanceof Error ? e.message : String(e)
+      }
     } finally {
-      rebuildSubmitting.value = false
+      if (indexRebuildGate.isCurrent(seq)) {
+        rebuildSubmitting.value = false
+      }
     }
   }
 
@@ -134,15 +148,25 @@ export const useIndexStatsStore = defineStore('indexStats', () => {
       indexEnvelope.value = null
       return
     }
+    const seq = indexStatsRefreshGate.bump()
     indexLoading.value = true
     try {
       const path = shell.hasCorpusPath ? shell.corpusPath.trim() : undefined
-      indexEnvelope.value = await fetchIndexStats(path)
+      const env = await fetchIndexStats(path)
+      if (indexStatsRefreshGate.isStale(seq)) {
+        return
+      }
+      indexEnvelope.value = env
     } catch (e) {
+      if (indexStatsRefreshGate.isStale(seq)) {
+        return
+      }
       indexEnvelope.value = null
       indexError.value = e instanceof Error ? e.message : String(e)
     } finally {
-      indexLoading.value = false
+      if (indexStatsRefreshGate.isCurrent(seq)) {
+        indexLoading.value = false
+      }
     }
   }
 

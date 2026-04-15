@@ -95,7 +95,9 @@ routes/
   explore.py         # viewer — GI explore + UC4 NL query
   cil.py             # viewer — CIL position arc, person profile, topic timeline (#527 / RFC-072)
   corpus_library.py  # viewer — /corpus/* catalog + similar episodes (RFC-067)
+  corpus_text_file.py # viewer — GET /corpus/text-file (transcript / caption files under corpus root)
   corpus_digest.py   # viewer — GET /corpus/digest (RFC-068)
+  corpus_topic_clusters.py   # viewer — GET /corpus/topic-clusters (RFC-075)
   platform/          # placeholder stubs (feeds, episodes, jobs, status)
 ```
 
@@ -133,18 +135,22 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
 | GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
 | POST | `/api/index/rebuild` | index | Queue background `index_corpus` (202); mutex per corpus. Poll `GET /api/index/stats`. | `path`, `rebuild`, `embedding_model`, `vector_index_path`, `vector_faiss_index_mode`, `vector_index_types` (comma-separated) |
-| GET | `/api/search` | search | Semantic corpus search via FAISS + sentence embeddings. **Transcript** hits may include optional **`lifted`**: overlapping **Quote** → **Insight** plus **speaker** / **topic** display names from **`bridge.json`** when present ([Semantic Search Guide — lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528)). Successful responses include optional **`lift_stats`**: **`transcript_hits_returned`** and **`lift_applied`** for the returned page (after `top_k`). | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model`, `dedupe_kg_surfaces` (default `true`: merge same-text `kg_entity` / `kg_topic` rows) |
-| GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
+| GET | `/api/search` | search | Semantic corpus search via FAISS + sentence embeddings. **Transcript** hits may include optional **`lifted`**: overlapping **Quote** → **Insight** plus **speaker** / **topic** display names from **`bridge.json`** when present ([Semantic Search Guide — lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528)). **Insight** hits may include **`supporting_quotes`** (from indexer enrichment): quote **`speaker_id`** / **`speaker_name`** mirror **`.gi.json`** — often **`null`** / absent when segments lack diarization labels (GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); canonical rules: [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)). Successful responses include optional **`lift_stats`**: **`transcript_hits_returned`** and **`lift_applied`** for the returned page (after `top_k`). | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model`, `dedupe_kg_surfaces` (default `true`: merge same-text `kg_entity` / `kg_topic` rows) |
+| GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. Insight rows may include **`supporting_quotes`** with **`speaker_id`** / **`speaker_name`** mirroring **`.gi.json`** (often absent without diarization — GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)). | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
 | GET | `/api/persons/{person_id}/positions` | cil | Position arc — chronological insights for a **person** and **topic** across episodes (RFC-072 Pattern A). Scans `**/*.bridge.json` with sibling GI/KG. | `topic` (required), `path`, `insight_types` (comma-separated; omit → `claim` only; `all` / `*` → no filter) |
 | GET | `/api/persons/{person_id}/brief` | cil | Person profile — insights grouped by topic plus quotes for that person (RFC-072 Pattern B). | `path` |
 | GET | `/api/persons/{person_id}/topics` | cil | Distinct topic ids for that person (from brief keys). | `path` |
-| GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode (RFC-072 Pattern C). | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
+| GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode (RFC-072 Pattern C). Each episode may include `episode_title`, `feed_title`, `episode_number`, and artwork fields (`episode_image_url`, `episode_image_local_relpath`, `feed_image_url`, `feed_image_local_relpath`) from sibling `*.metadata.json`. | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
+| POST | `/api/topics/timeline` | cil | **Merged** topic timeline — same Pattern C rules as GET, but **one** corpus scan for **multiple** `topic_ids` in the JSON body (cluster scope). Response includes `topic_ids` (deduped, canonical order) and `episodes` (merged per `episode_id`, insight nodes deduped). | JSON body: `topic_ids` (required), `path` (optional if default output dir), `insight_types` (optional; same semantics as GET) |
 | GET | `/api/topics/{topic_id}/persons` | cil | Distinct `person:` ids that discuss the topic via grounded quotes. | `path` |
+| POST | `/api/corpus/resolve-episode-artifacts` | corpus | Map logical **`episode_id`** values (from metadata) to corpus-relative **`gi_relative_path`** / **`kg_relative_path`** / **`bridge_relative_path`** from one catalog scan. Rows without GI on disk are listed in **`missing_episode_ids`**. The GI/KG viewer’s topic-cluster **sibling auto-load** builds candidate ids from RFC-075 **`topic_clusters.json`** → **`clusters[].members[].episode_ids`** (union per touched cluster). | JSON body: `episode_ids` (required), `path` (optional if server default set) |
 | GET | `/api/corpus/feeds` | corpus | Aggregate feeds from episode metadata under the corpus root. | `path` (optional if server default set) |
 | GET | `/api/corpus/episodes` | corpus | Paginated episode list (newest-first scan); optional filters. | `path`, `feed_id`, `q` (title substring), `since` (`YYYY-MM-DD`), `limit` (1–200), `cursor` |
 | GET | `/api/corpus/episodes/detail` | corpus | Episode row + summary bullets + GI/KG relative paths. | `path`, `metadata_relpath` (required) |
 | GET | `/api/corpus/episodes/similar` | corpus | FAISS semantic peers for an episode; **200** with `error` when index missing. | `path`, `metadata_relpath` (required), `top_k` (1–25) |
-| GET | `/api/corpus/digest` | corpus | Feed-diverse **recent episodes** (metadata + GI/KG flags) and optional **semantic topic** bands (RFC-068). `compact=true` forces 24h, smaller cap, no topics (Library glance). | `path`, `window` (`24h` / `7d` / `since`), `since` (required if `window=since`), `compact`, `include_topics`, `max_rows` |
+| GET | `/api/corpus/digest` | corpus | Feed-diverse **recent episodes** (metadata + GI/KG flags) and optional **semantic topic** bands (RFC-068). `compact=true` forces 24h, smaller cap, no topics (Library glance). | `path`, `window` (`24h` / `7d` / `1mo` / `since`), `since` (required if `window=since`; `1mo` = previous **calendar month**, UTC), `compact`, `include_topics`, `max_rows` |
+| GET | `/api/corpus/topic-clusters` | corpus | RFC-075 **topic clustering** artifact: returns `search/topic_clusters.json` when present (**404** with `available: false` when missing). | `path` (optional if server default set) |
+| GET | `/api/corpus/text-file` | corpus | Inline file under the corpus root for browser viewing (`.txt`, `.md`, `.vtt`, `.srt`, `.json`). Graph **Quote** node detail uses this for the in-app transcript viewer and the **Open raw transcript in new tab** header link. Pipeline runs that **direct-download** WebVTT/SubRip normalize to **`transcripts/… .txt`** (plus `*.segments.json` for GI timing); metadata usually points at that `.txt`. If `relpath` ends with `.txt` (and is not already `*.cleaned.txt`) and that file is missing, the server tries the sibling `stem.cleaned.txt` (metadata often still references the raw Whisper path). | `path` (optional if server default set), `relpath` (required) |
 | GET | `/api/corpus/stats` | corpus | **Publish-month** histogram (`YYYY-MM` → episode count) from one catalog scan; GI/KG Dashboard. | `path` |
 | GET | `/api/corpus/documents/manifest` | corpus | Return `corpus_manifest.json` at corpus root (**404** if missing). | `path` |
 | GET | `/api/corpus/documents/run-summary` | corpus | Return `corpus_run_summary.json` at corpus root (**404** if missing). | `path` |
@@ -160,14 +166,17 @@ Pydantic response schemas are defined in
 - `HealthResponse`
 - `ArtifactListResponse` / `ArtifactItem`
 - `IndexStatsEnvelope` / `IndexStatsBody` / `IndexRebuildAccepted`
-- `CorpusSearchApiResponse` / `SearchHitModel` (optional **`lifted`** on transcript rows when lift applies)
-- `ExploreApiResponse`
-- `CilArcEpisodeBlock` / `CilPositionArcResponse` / `CilPersonProfileInsightRow` / `CilPersonProfileQuoteRow` / `CilPersonProfileResponse` / `CilTopicTimelineResponse` / `CilIdListResponse`
+- `CorpusSearchApiResponse` / `SearchHitModel` (optional **`lifted`** on transcript rows when lift applies; optional **`supporting_quotes`** on insight rows — quote speaker fields follow GI segment/diarization rules, issue **#541**)
+- `ExploreApiResponse` (insight **`supporting_quotes`** speaker fields follow GI segment/diarization rules, issue **#541**)
+- `CilArcEpisodeBlock` / `CilPositionArcResponse` / `CilPersonProfileInsightRow` / `CilPersonProfileQuoteRow` / `CilPersonProfileResponse` / `CilTopicTimelineResponse` / `CilTopicTimelineMergeRequest` / `CilTopicTimelineMergedResponse` / `CilIdListResponse`
+- `CorpusResolveEpisodesRequest` / `CorpusResolveEpisodesResponse` / `CorpusResolvedEpisodeArtifact`
 - `CorpusFeedsResponse` / `CorpusFeedItem`
 - `CorpusEpisodesResponse` / `CorpusEpisodeListItem`
 - `CorpusEpisodeDetailResponse`
 - `CorpusSimilarEpisodesResponse` / `CorpusSimilarEpisodeItem`
 - `CorpusDigestResponse` / `CorpusDigestRow` / `CorpusDigestTopicBand` / `CorpusDigestTopicHit`
+  (digest rows: **`summary_bullet_graph_topic_ids`** parallel to **`summary_bullets_preview`**;
+  topic bands: **`graph_topic_id`** — `topic:{slug}` from the band label for Graph focus)
 - `CorpusStatsResponse` / `CorpusRunsSummaryResponse` / `CorpusRunSummaryItem`
 
 [schemas-py]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/schemas.py

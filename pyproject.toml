@@ -183,6 +183,10 @@ ignore_missing_imports = true
 
 [tool.coverage.run]
 branch = true
+# Measure the installed ``podcast_scraper`` package (editable install: ``src/podcast_scraper``).
+# Unit, integration, and **pytest E2E** all use this config. E2E measures the full ``podcast_scraper``
+# tree (no subtree ``omit``); the E2E job’s percentage is expected in the mid-30s until more E2E
+# exercises server, search, GI, and related paths. Threshold: ``COVERAGE_THRESHOLD_E2E`` in the Makefile / CI.
 source = ["podcast_scraper"]
 # pytest-cov 7+ / coverage.py: measure code run inside ``subprocess.run([python, -m, ...])``.
 # Many E2E tests invoke ``python -m podcast_scraper.cli`` in a child process; without this
@@ -203,8 +207,8 @@ ignore_errors = true
 # - Integration tests: ~40-60% (component interactions, lower coverage)
 # - E2E tests: ~30-50% (happy paths only)
 # Per-test-type thresholds are enforced via --cov-fail-under in Makefile and CI:
-# - Integration: 40% (COVERAGE_THRESHOLD_INTEGRATION)
-# - E2E: 40% (COVERAGE_THRESHOLD_E2E)
+# - Integration: 42% (COVERAGE_THRESHOLD_INTEGRATION)
+# - E2E: 40% (COVERAGE_THRESHOLD_E2E; full package denominator)
 # - Combined: 70% (COVERAGE_THRESHOLD_COMBINED) - enforced in make ci coverage-enforce
 # See .github/workflows/python-app.yml for CI enforcement.
 

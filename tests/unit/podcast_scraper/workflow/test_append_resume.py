@@ -210,6 +210,70 @@ class TestEpisodeCompleteForAppendResume(unittest.TestCase):
             episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
         )
 
+    def test_false_when_backfill_gi_and_segments_sidecar_missing(self) -> None:
+        trel = self._write_transcript()
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-gi-backfill-miss")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        gi_rel = "metadata/x.gi.json"
+        gi_path = os.path.join(self.tmp, gi_rel)
+        os.makedirs(os.path.dirname(gi_path), exist_ok=True)
+        with open(gi_path, "w", encoding="utf-8") as handle:
+            handle.write("{}")
+        self._write_metadata(
+            eid,
+            trel,
+            grounded_insights={"artifact_path": gi_rel},
+        )
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            generate_gi=True,
+            backfill_transcript_segments=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertFalse(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
+    def test_true_when_backfill_gi_and_segments_sidecar_present(self) -> None:
+        trel = self._write_transcript()
+        txt_path = os.path.join(self.tmp, trel)
+        seg_path = os.path.splitext(txt_path)[0] + ".segments.json"
+        with open(seg_path, "w", encoding="utf-8") as handle:
+            handle.write("[]")
+        from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+        ep = _episode("g-gi-backfill-ok")
+        eid, _ = get_episode_id_from_episode(ep, self.feed_url)
+        gi_rel = "metadata/x.gi.json"
+        gi_path = os.path.join(self.tmp, gi_rel)
+        os.makedirs(os.path.dirname(gi_path), exist_ok=True)
+        with open(gi_path, "w", encoding="utf-8") as handle:
+            handle.write("{}")
+        self._write_metadata(
+            eid,
+            trel,
+            grounded_insights={"artifact_path": gi_rel},
+        )
+        cfg = Config(
+            rss=self.feed_url,
+            output_dir=self.tmp,
+            generate_metadata=True,
+            generate_summaries=False,
+            generate_gi=True,
+            backfill_transcript_segments=True,
+            transcribe_missing=False,
+            auto_speakers=False,
+        )
+        self.assertTrue(
+            episode_complete_for_append_resume(cfg, ep, self.feed_url, self.tmp, self.run_suffix)
+        )
+
     def test_false_when_kg_enabled_but_artifact_missing(self) -> None:
         trel = self._write_transcript()
         from podcast_scraper.workflow.helpers import get_episode_id_from_episode

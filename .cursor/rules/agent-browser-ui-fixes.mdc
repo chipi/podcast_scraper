@@ -1,0 +1,33 @@
+---
+description: >-
+  User asks to fix or validate something in the GI/KG web viewer (Vue), graph or detail
+  panels, Open transcript / corpus links, Digest or Library UI, or viewer-facing FastAPI
+  routes; use Chrome DevTools MCP or Playwright to reproduce and prove fixes.
+globs:
+  - web/gi-kg-viewer/**/*
+  - src/podcast_scraper/server/**/*.py
+alwaysApply: false
+---
+
+# Viewer UI bugfixes — closed loop
+
+**When this rule applies**, do **not** treat `.cursorrules` item 4 as a vague hint. **Read the
+full workflow** in:
+
+- `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` — section **Obligatory validation when fixing a reported UI bug**
+- Same file — **Live co-development mode** if you use **Chrome DevTools MCP** (setup, `list_pages`, `new_page` for new-tab URLs, network).
+
+**Symmetry (mandatory):** If you reproduced the bug with **Chrome DevTools MCP** (or Playwright MCP), you
+**must** confirm the fix with that **same** MCP flow after restart if needed. **Do not** treat passing
+pytest / `make test-ui` as a substitute for that browser confirmation. Tests run **in addition**, for
+regression.
+
+**Order of operations:** reproduce (MCP) → change code → **repeat same MCP checks** → then `make test-ui` /
+`tests/integration/server/` / `make test-ui-e2e` as appropriate → report what you verified in **both**
+channels (or state you were blocked from MCP).
+
+**If MCP is unavailable** for reproduction, say so up front; then automated tests may be the primary proof.
+Do not ask the user to be the default tester.
+
+**Version:** 1.1
+**Updated:** 2026-04-16

@@ -1632,4 +1632,5 @@ class MistralProvider:
             supports_system_prompt=True,  # Mistral supports system prompts
             supports_streaming=True,  # Mistral API supports streaming
             provider_name="mistral",
+            supports_gi_segment_timing=False,
         )

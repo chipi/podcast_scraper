@@ -153,8 +153,8 @@ because it:
 - **FR3.4**: `--format json|pretty` (default `pretty`) for output format
 - **FR3.5**: Results include: rank, similarity score, document text, document type,
   episode title, episode_id, feed, publish_date, and source references
-- **FR3.6**: For Insight results, include `grounded` status and `supporting_quotes` summary
-- **FR3.7**: For transcript chunk results, include `timestamp_start_ms` and `char_start`
+- **FR3.6**: For Insight results, include `grounded` status and `supporting_quotes` summary. Per-quote **`speaker_id`** / **`speaker_name`** mirror **`.gi.json`** and segment/diarization rules (often absent without diarization — GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)).
+- **FR3.7**: For transcript chunk results, include `timestamp_start_ms` and `char_start`. Optional RFC-072 **`lifted`** enrichment follows the same GI speaker contract for **`lifted.speaker`** / **`lifted.quote`** (see [Semantic Search Guide — quote speaker fields](../guides/SEMANTIC_SEARCH_GUIDE.md) and **#541** link above).
 
 ### FR4: Index Management CLI
 

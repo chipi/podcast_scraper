@@ -198,6 +198,11 @@ still derive from the tokens above.
   practical.
 - **Max content width:** **960px** for primary column content; graph area may be
   full viewport width.
+- **Right shell rail** (Search, Explore, Episode detail, graph node detail): fixed
+  width uses the default Tailwind scale — **`w-96`** (**24rem** / **384px** at
+  **16px** root) on the collapsible right column in `App.vue` when expanded (was
+  **`w-80`** / **20rem**). To tune further, change that class to another Tailwind
+  width (e.g. **`w-[28rem]`**) on the same element (desktop-only layout).
 - **Regions:** Header + lede + panel stack; graph pages use full-height canvas with
   overlays/panels that respect `surface` and `border`.
 

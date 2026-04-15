@@ -508,6 +508,25 @@ python -m podcast_scraper.cli index --output-dir ./output --rebuild
 python -m podcast_scraper.cli index --output-dir ./output --stats
 ```
 
+## Topic clusters (`topic-clusters`)
+
+Corpus-wide clustering of **KG topic** embeddings already stored as `kg_topic` rows in the FAISS
+index (RFC-075). Writes **`topic_clusters.json`** next to the index (default:
+`<output-dir>/search/topic_clusters.json`). Requires an indexed corpus with `kg_topic` included.
+The JSON **`schema_version`** is **`"2"`** for new writes: **`graph_compound_parent_id`** / **`cil_alias_target_topic_id`**
+separate viewer compound ids (`tc:`) from CIL merge targets (`topic:`). See [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) §3.
+
+```bash
+python -m podcast_scraper.cli topic-clusters --output-dir ./output
+python -m podcast_scraper.cli topic-clusters --output-dir ./output --threshold 0.8
+python -m podcast_scraper.cli topic-clusters --output-dir ./output \
+  --validate-config ./path/to/my_topic_cluster_validation.yaml
+python -m podcast_scraper.cli topic-clusters --output-dir ./output --merge-cil-overrides
+```
+
+**`--merge-cil-overrides`** merges auto **`topic_id_aliases`** into **`cil_lift_overrides.json`**
+(existing alias keys in that file take precedence). Run after indexing when **`kg_topic`** rows exist.
+
 ## Corpus status (`corpus-status`)
 
 Offline summary for a **corpus parent** (multi-feed: directory containing `feeds/`): whether

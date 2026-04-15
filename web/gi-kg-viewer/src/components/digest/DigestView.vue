@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import {
   fetchCorpusDigest,
   type CorpusDigestResponse,
@@ -11,20 +12,24 @@ import { fetchCorpusFeeds, type CorpusFeedItem } from '../../api/corpusLibraryAp
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useCorpusLensStore } from '../../stores/corpusLens'
 import { useEpisodeRailStore } from '../../stores/episodeRail'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import {
   digestRowFeedLabelWithCatalog,
   digestRowSummaryPreview,
+  libraryEpisodeSummaryLine,
 } from '../../utils/digestRowDisplay'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
 import { formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
+import { handleVerticalListArrowKeydown } from '../../utils/listRowArrowNav'
+import { StaleGeneration } from '../../utils/staleGeneration'
 
 const emit = defineEmits<{
-  'switch-main-tab': [tab: 'library' | 'graph' | 'dashboard']
+  'switch-main-tab': [tab: 'graph' | 'dashboard']
   'focus-search': [payload: { feed: string; query: string; since?: string }]
   'open-library-episode': [payload: { metadata_relative_path: string }]
 }>()
@@ -33,13 +38,38 @@ const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const graphNav = useGraphNavigationStore()
 const episodeRail = useEpisodeRailStore()
+const corpusLens = useCorpusLensStore()
+const { sinceYmd, activePreset } = storeToRefs(corpusLens)
 
-const windowChoice = ref<'24h' | '7d' | 'since'>('7d')
-const sinceInput = ref('')
+const CORPUS_LENS_DEBOUNCE_MS = 400
+let digestLensDebounceTimer: ReturnType<typeof setTimeout> | null = null
+
+function scheduleLoadDigestFromCorpusLens(): void {
+  if (digestLensDebounceTimer) {
+    clearTimeout(digestLensDebounceTimer)
+  }
+  digestLensDebounceTimer = setTimeout(() => {
+    digestLensDebounceTimer = null
+    void loadDigest()
+  }, CORPUS_LENS_DEBOUNCE_MS)
+}
+
+function applyDigestDateNow(): void {
+  if (digestLensDebounceTimer) {
+    clearTimeout(digestLensDebounceTimer)
+    digestLensDebounceTimer = null
+  }
+  void loadDigest()
+}
 const digest = ref<CorpusDigestResponse | null>(null)
 const error = ref<string | null>(null)
 const loading = ref(false)
 const graphActionError = ref<string | null>(null)
+
+const digestLoadGate = new StaleGeneration()
+const digestCatalogGate = new StaleGeneration()
+/** ``Open in graph`` from topic rows: stale loads must not focus/highlight after a newer click. */
+const digestGraphOpenGate = new StaleGeneration()
 
 /** Same source as Library feed list — human titles when metadata rows only have opaque ``feed_id``. */
 const feedsCatalog = ref<CorpusFeedItem[]>([])
@@ -73,6 +103,63 @@ function episodeFeedInlineVisible(row: CorpusDigestRow | CorpusDigestTopicHit): 
   return lab !== 'Unknown feed' && Boolean(lab.trim())
 }
 
+/** Match Library episode list topic pills (visible cap; full string on `title`). */
+const RECENT_TOPIC_PILL_CHARS = 24
+
+function digestRecentTopicPills(row: CorpusDigestRow): string[] {
+  const preview = row.summary_bullets_preview
+  if (preview?.length) {
+    return preview
+  }
+  return []
+}
+
+function recentTopicPillShort(label: string): string {
+  const s = label.trim()
+  if (s.length <= RECENT_TOPIC_PILL_CHARS) {
+    return s
+  }
+  return `${s.slice(0, RECENT_TOPIC_PILL_CHARS - 1)}…`
+}
+
+async function openDigestRecentTopicPillInGraph(row: CorpusDigestRow, bulletIndex: number): Promise<void> {
+  const seq = digestGraphOpenGate.bump()
+  graphActionError.value = null
+  const paths: string[] = []
+  if (row.has_gi) {
+    paths.push((row.gi_relative_path || '').trim())
+  }
+  if (row.has_kg) {
+    paths.push((row.kg_relative_path || '').trim())
+  }
+  const cleaned = paths.filter(Boolean)
+  if (cleaned.length === 0) {
+    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
+    return
+  }
+  const ids = row.summary_bullet_graph_topic_ids
+  const topicHint = ids?.[bulletIndex]?.trim() ?? ''
+
+  await artifacts.loadRelativeArtifacts(cleaned)
+  if (digestGraphOpenGate.isStale(seq)) {
+    return
+  }
+  graphNav.clearLibraryEpisodeHighlights()
+  const eid = row.episode_id?.trim()
+  if (topicHint && eid) {
+    graphNav.requestFocusNode(topicHint, eid)
+    graphNav.setLibraryEpisodeHighlights([eid])
+  } else if (eid) {
+    graphNav.requestFocusNode(eid)
+    graphNav.setLibraryEpisodeHighlights([eid])
+  } else if (topicHint) {
+    graphNav.requestFocusNode(topicHint)
+  } else {
+    graphNav.clearPendingFocus()
+  }
+  emit('switch-main-tab', 'graph')
+}
+
 /** Shown on hover for topic-hit similarity numbers (vector search). */
 const TOPIC_HIT_SCORE_TOOLTIP =
   'Search similarity from the corpus vector index for this topic query (higher = closer match). ' +
@@ -80,19 +167,7 @@ const TOPIC_HIT_SCORE_TOOLTIP =
 
 /** Distinct from **Recent** digest cards (same episode can appear in both lists). */
 function topicHitAriaLabel(h: CorpusDigestTopicHit): string {
-  return `${h.episode_title || '(episode)'}, ${episodeFeedLabel(h)} — topic band hit`
-}
-
-function digestCardHoverTitle(row: CorpusDigestRow): string {
-  const parts: string[] = []
-  const label = episodeFeedLabel(row)
-  const fid = row.feed_id?.trim()
-  if (label && label !== 'Unknown feed') {
-    parts.push(fid && label !== fid ? `${label} (${fid})` : label)
-  } else if (fid) {
-    parts.push(`Feed: ${fid}`)
-  }
-  return parts.join(' · ')
+  return `Open graph: ${h.episode_title || '(episode)'}, ${episodeFeedLabel(h)}`
 }
 
 /** Same accessible name pattern as Library episode rows (`episode_title`, `feed`). */
@@ -124,6 +199,7 @@ function topicsReasonLabel(code: string | null): string {
 }
 
 async function loadFeedsCatalog(): Promise<void> {
+  const seq = digestCatalogGate.bump()
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus || !shell.corpusLibraryApiAvailable) {
     feedsCatalog.value = []
@@ -131,8 +207,14 @@ async function loadFeedsCatalog(): Promise<void> {
   }
   try {
     const body = await fetchCorpusFeeds(root)
+    if (digestCatalogGate.isStale(seq)) {
+      return
+    }
     feedsCatalog.value = body.feeds
   } catch {
+    if (digestCatalogGate.isStale(seq)) {
+      return
+    }
     feedsCatalog.value = []
   }
 }
@@ -159,47 +241,57 @@ function digestCoversMetadataPath(path: string): boolean {
 }
 
 async function loadDigest(): Promise<void> {
+  const seq = digestLoadGate.bump()
   error.value = null
   digest.value = null
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus || !shell.corpusDigestApiAvailable) {
     return
   }
-  const w = windowChoice.value
-  if (w === 'since' && !/^\d{4}-\d{2}-\d{2}$/.test(sinceInput.value.trim())) {
-    error.value = 'Enter a since date as YYYY-MM-DD.'
+  const s = sinceYmd.value.trim()
+  if (s && !/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    error.value = 'Enter a publish date as YYYY-MM-DD (or clear the field for all time).'
     return
   }
   loading.value = true
   try {
-    digest.value = await fetchCorpusDigest(root, {
-      window: w,
-      since: w === 'since' ? sinceInput.value.trim() : undefined,
+    const digestWindow = s ? 'since' : 'all'
+    const d = await fetchCorpusDigest(root, {
+      window: digestWindow,
+      since: s || undefined,
       includeTopics: true,
     })
+    if (digestLoadGate.isStale(seq)) {
+      return
+    }
+    digest.value = d
     const path = episodeRail.metadataRelativePath?.trim()
     if (path && !digestCoversMetadataPath(path)) {
       episodeRail.clearEpisodeContext()
     }
   } catch (e) {
+    if (digestLoadGate.isStale(seq)) {
+      return
+    }
     error.value = e instanceof Error ? e.message : String(e)
   } finally {
-    loading.value = false
+    if (digestLoadGate.isCurrent(seq)) {
+      loading.value = false
+    }
   }
 }
 
-/** YYYY-MM-DD from digest ``window_start_utc`` (ISO) for Search ``since`` filter. */
-function digestWindowStartDateForSearch(): string | undefined {
-  const raw = digest.value?.window_start_utc?.trim()
-  if (!raw || raw.length < 10) {
-    return undefined
+/** Same lower bound as Library / digest date field (omit when all time). */
+function corpusSinceForSearchEmit(): string | undefined {
+  const s = sinceYmd.value.trim()
+  if (s && /^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return s
   }
-  const day = raw.slice(0, 10)
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : undefined
+  return undefined
 }
 
 function searchTopic(band: CorpusDigestTopicBand): void {
-  const since = digestWindowStartDateForSearch()
+  const since = corpusSinceForSearchEmit()
   emit('focus-search', {
     feed: '',
     query: band.query.trim(),
@@ -215,21 +307,33 @@ function openRowInLibrary(row: CorpusDigestRow): void {
   emit('open-library-episode', { metadata_relative_path: p })
 }
 
-function openTopicHitInLibrary(h: CorpusDigestTopicHit): void {
-  const p = h.metadata_relative_path?.trim()
-  if (!p) {
+const digestRecentListScrollRef = ref<HTMLElement | null>(null)
+const DIGEST_RECENT_ROW_SELECTOR = '[data-digest-recent-row]'
+
+function onDigestRecentRowKeydown(e: KeyboardEvent, index: number): void {
+  const rows = digest.value?.rows
+  if (!rows?.length) {
     return
   }
-  emit('open-library-episode', { metadata_relative_path: p })
+  handleVerticalListArrowKeydown(e, index, {
+    itemCount: rows.length,
+    scrollRoot: digestRecentListScrollRef.value,
+    rowSelector: DIGEST_RECENT_ROW_SELECTOR,
+    activateIndex: (i) => openRowInLibrary(rows[i]!),
+  })
 }
 
-function onTopicHitRowActivate(h: CorpusDigestTopicHit): void {
+function onTopicHitRowActivate(h: CorpusDigestTopicHit, band: CorpusDigestTopicBand): void {
   if (h.metadata_relative_path?.trim()) {
-    openTopicHitInLibrary(h)
+    void openTopicHitInGraph(h, { graphTopicNodeId: band.graph_topic_id?.trim() })
   }
 }
 
-async function openTopicHitInGraph(h: CorpusDigestTopicHit): Promise<void> {
+async function openTopicHitInGraph(
+  h: CorpusDigestTopicHit,
+  opts?: { graphTopicNodeId?: string | null },
+): Promise<void> {
+  const seq = digestGraphOpenGate.bump()
   graphActionError.value = null
   const paths: string[] = []
   if (h.has_gi) {
@@ -244,9 +348,18 @@ async function openTopicHitInGraph(h: CorpusDigestTopicHit): Promise<void> {
     return
   }
   await artifacts.loadRelativeArtifacts(cleaned)
+  if (digestGraphOpenGate.isStale(seq)) {
+    return
+  }
   graphNav.clearLibraryEpisodeHighlights()
+  const topicFocus = opts?.graphTopicNodeId?.trim()
   const eid = h.episode_id?.trim()
-  if (eid) {
+  if (topicFocus && eid) {
+    graphNav.requestFocusNode(topicFocus, eid)
+    graphNav.setLibraryEpisodeHighlights([eid])
+  } else if (topicFocus) {
+    graphNav.requestFocusNode(topicFocus)
+  } else if (eid) {
     graphNav.requestFocusNode(eid)
     graphNav.setLibraryEpisodeHighlights([eid])
   } else {
@@ -256,9 +369,10 @@ async function openTopicHitInGraph(h: CorpusDigestTopicHit): Promise<void> {
 }
 
 async function openTopicBandInGraph(band: CorpusDigestTopicBand): Promise<void> {
+  const gid = band.graph_topic_id?.trim()
   for (const h of band.hits) {
     if (h.has_gi || h.has_kg) {
-      await openTopicHitInGraph(h)
+      await openTopicHitInGraph(h, { graphTopicNodeId: gid })
       return
     }
   }
@@ -274,14 +388,22 @@ watch(
       shell.corpusDigestApiAvailable,
     ] as const,
   () => {
+    digestGraphOpenGate.invalidate()
     void loadFeedsCatalog()
     void loadDigest()
   },
   { immediate: true },
 )
 
-watch(windowChoice, () => {
-  void loadDigest()
+watch(sinceYmd, () => {
+  scheduleLoadDigestFromCorpusLens()
+})
+
+onBeforeUnmount(() => {
+  if (digestLensDebounceTimer) {
+    clearTimeout(digestLensDebounceTimer)
+    digestLensDebounceTimer = null
+  }
 })
 </script>
 
@@ -308,46 +430,54 @@ watch(windowChoice, () => {
         class="flex flex-wrap items-center justify-end gap-2 sm:shrink-0"
         :class="digest ? '' : 'ml-auto'"
       >
-        <label class="text-[10px] font-medium text-muted">Window</label>
-        <select
-          v-model="windowChoice"
-          class="rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground"
-          aria-label="Digest time window"
-        >
-          <option value="24h">
-            Last 24 hours
-          </option>
-          <option value="7d">
-            Last 7 days
-          </option>
-          <option value="since">
-            Since date…
-          </option>
-        </select>
+        <label
+          class="text-[10px] font-medium text-muted"
+          for="digest-filter-since"
+        >Published on or after</label>
         <input
-          v-if="windowChoice === 'since'"
-          v-model="sinceInput"
+          id="digest-filter-since"
+          v-model="sinceYmd"
           type="text"
+          inputmode="numeric"
           placeholder="YYYY-MM-DD"
-          class="w-32 rounded border border-border bg-elevated px-2 py-1 text-xs"
-          aria-label="Since date"
-          @keydown.enter="loadDigest()"
+          class="w-32 rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground"
+          aria-label="Published on or after date"
+          @keydown.enter="applyDigestDateNow()"
         >
-        <button
-          v-if="windowChoice === 'since'"
-          type="button"
-          class="rounded bg-primary px-2 py-1 text-[10px] font-medium text-primary-foreground"
-          @click="loadDigest()"
-        >
-          Load
-        </button>
-        <button
-          type="button"
-          class="rounded border border-border bg-surface px-2 py-1 text-xs hover:bg-overlay"
-          @click="emit('switch-main-tab', 'library')"
-        >
-          Open Library
-        </button>
+        <div class="flex flex-wrap gap-1">
+          <button
+            type="button"
+            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
+            :class="activePreset === 'all' ? 'ring-2 ring-primary' : ''"
+            @click="corpusLens.setPreset('all')"
+          >
+            All time
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
+            :class="activePreset === '7' ? 'ring-2 ring-primary' : ''"
+            @click="corpusLens.setPreset(7)"
+          >
+            7d
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
+            :class="activePreset === '30' ? 'ring-2 ring-primary' : ''"
+            @click="corpusLens.setPreset(30)"
+          >
+            30d
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border bg-surface px-2 py-0.5 text-[10px] text-surface-foreground hover:bg-overlay/40"
+            :class="activePreset === '90' ? 'ring-2 ring-primary' : ''"
+            @click="corpusLens.setPreset(90)"
+          >
+            90d
+          </button>
+        </div>
       </div>
     </div>
 
@@ -378,21 +508,20 @@ watch(windowChoice, () => {
       {{ error }}
     </p>
     <template v-else-if="digest">
+      <div class="flex min-h-0 flex-1 flex-col gap-2">
       <p class="text-[10px] leading-snug text-muted">
         <strong class="font-medium text-surface-foreground/90">Topic bands</strong>
-        — click the <strong class="font-medium text-surface-foreground/90">topic title</strong> to open the
-        <strong class="font-medium text-surface-foreground/90">top</strong> hit in the
-        <strong class="font-medium text-surface-foreground/90">Graph</strong> (focus + highlight); click a
+        — click the <strong class="font-medium text-surface-foreground/90">topic title</strong> or a
         <strong class="font-medium text-surface-foreground/90">hit row</strong> to open the
-        <strong class="font-medium text-surface-foreground/90">Episode</strong> panel on the right (stay on
-        <strong class="font-medium text-surface-foreground/90">Digest</strong>; same as
-        <strong class="font-medium text-surface-foreground/90">Recent</strong> below).
+        <strong class="font-medium text-surface-foreground/90">Graph</strong> for that episode, focus the
+        <strong class="font-medium text-surface-foreground/90">digest topic node</strong> when it exists in the
+        slice (otherwise the episode node), and show details in the graph panel.
         <strong class="font-medium text-surface-foreground/90">Search topic</strong>
         prefills semantic search. Hover the score for what it means.
-        <strong class="font-medium text-surface-foreground/90">Episode cards</strong>
-        — click for <strong class="font-medium text-surface-foreground/90">Episode</strong> detail on the right; use
-        <strong class="font-medium text-surface-foreground/90">Open in graph</strong>
-        / <strong class="font-medium text-surface-foreground/90">Prefill semantic search</strong> there.
+        <strong class="font-medium text-surface-foreground/90">Recent</strong>
+        — row click opens the <strong class="font-medium text-surface-foreground/90">Episode</strong> rail; a
+        <strong class="font-medium text-surface-foreground/90">summary topic pill</strong> opens the graph with
+        a matching <span class="font-mono text-[9px]">topic:…</span> hint when GI/KG lists that node.
       </p>
       <p
         v-if="digest.topics_unavailable_reason"
@@ -418,7 +547,7 @@ watch(windowChoice, () => {
               <button
                 type="button"
                 class="min-w-0 flex-1 rounded px-0.5 py-0.5 text-left hover:bg-overlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                :aria-label="`Open top hit for topic ${band.label} in graph`"
+                :aria-label="`Open graph for topic ${band.label} (top hit with GI or KG)`"
                 @click="void openTopicBandInGraph(band)"
               >
                 <span class="text-xs font-semibold text-surface-foreground">{{
@@ -446,9 +575,9 @@ watch(windowChoice, () => {
                     isTopicHitSelected(h) ? 'bg-overlay' : '',
                   ]"
                   :aria-label="h.metadata_relative_path ? topicHitAriaLabel(h) : undefined"
-                  @click="onTopicHitRowActivate(h)"
-                  @keydown.enter.prevent="onTopicHitRowActivate(h)"
-                  @keydown.space.prevent="onTopicHitRowActivate(h)"
+                  @click="onTopicHitRowActivate(h, band)"
+                  @keydown.enter.prevent="onTopicHitRowActivate(h, band)"
+                  @keydown.space.prevent="onTopicHitRowActivate(h, band)"
                 >
                   <PodcastCover
                     :corpus-path="shell.corpusPath"
@@ -502,58 +631,90 @@ watch(windowChoice, () => {
         </div>
       </div>
 
+      <!-- Match Library: collapsible/filters above, then `flex min-h-0 flex-1 flex-col gap-2` + Episodes panel. -->
+      <div class="flex min-h-0 flex-1 flex-col gap-2">
+      <!-- Same panel chrome + list structure as Library **Episodes** (`LibraryView.vue`). -->
       <div
-        class="mt-4 border-t border-border pt-3"
+        class="flex min-h-52 min-w-0 flex-1 flex-col rounded border border-border bg-surface lg:min-h-0"
         role="region"
-        aria-label="Recent episodes"
+        :aria-label="
+          digest.rows.length === 1
+            ? 'Recent episodes, 1 item'
+            : `Recent episodes, ${digest.rows.length} items`
+        "
       >
-        <div class="flex items-center gap-1.5">
-          <h3 class="text-xs font-semibold text-surface-foreground">
-            Recent
-          </h3>
-          <HelpTip
-            class="shrink-0"
-            :pref-width="304"
-            button-aria-label="About the Recent digest list"
-          >
-            <p class="mb-2 font-sans text-[11px] font-semibold text-surface-foreground">
-              Recent (diverse)
-            </p>
-            <p class="mb-2 font-sans text-[10px] text-muted">
-              This list is <strong class="font-medium text-surface-foreground/90">not</strong> the same as
-              <strong class="font-medium text-surface-foreground/90">topic bands</strong> above. Those run
-              separate <strong class="font-medium text-surface-foreground/90">semantic searches</strong> (one per
-              configured topic); the same episode can rank high in several topics.
-            </p>
-            <p class="font-sans text-[10px] text-muted">
-              <strong class="font-medium text-surface-foreground/90">Recent</strong> is built from episodes whose
-              publish date falls in the digest window, then <strong class="font-medium text-surface-foreground/90">diversified</strong>
-              so one feed cannot fill the list (round-robin style with a per-feed cap and a total row cap on the server).
-              It is a sample of what is new, spread across feeds — not every episode in the window.
-            </p>
-          </HelpTip>
-        </div>
-        <p v-if="digest.rows.length === 0" class="mt-2 text-sm text-muted">
-          No episodes in this window.
-        </p>
-        <ul v-else class="mt-2 space-y-2">
-          <li
-            v-for="row in digest.rows"
-            :key="row.metadata_relative_path"
-            class="overflow-hidden rounded border border-border bg-elevated"
-          >
-            <div
-              role="button"
-              tabindex="0"
-              class="cursor-pointer px-2 py-1.5 outline-none ring-offset-1 hover:bg-overlay focus-visible:ring-2 focus-visible:ring-primary"
-              :class="isDigestRowSelected(row) ? 'bg-overlay' : ''"
-              :title="digestCardHoverTitle(row)"
-              :aria-label="digestCardAriaLabel(row)"
-              @click="openRowInLibrary(row)"
-              @keydown.enter.prevent="openRowInLibrary(row)"
-              @keydown.space.prevent="openRowInLibrary(row)"
+        <div class="border-b border-border p-2">
+          <div class="flex items-center gap-1.5">
+            <h2
+              id="digest-recent-heading"
+              class="flex flex-wrap items-baseline gap-x-1 text-xs font-semibold text-surface-foreground"
             >
-              <div class="flex gap-2">
+              <span>Recent</span>
+              <span class="font-normal tabular-nums text-muted">({{ digest.rows.length }})</span>
+            </h2>
+            <HelpTip
+              class="shrink-0"
+              :pref-width="304"
+              button-aria-label="About the Recent digest list"
+            >
+              <p class="mb-2 font-sans text-[11px] font-semibold text-surface-foreground">
+                Recent (diverse)
+              </p>
+              <p class="mb-2 font-sans text-[10px] text-muted">
+                This list is <strong class="font-medium text-surface-foreground/90">not</strong> the same as
+                <strong class="font-medium text-surface-foreground/90">topic bands</strong> above. Those run
+                separate <strong class="font-medium text-surface-foreground/90">semantic searches</strong> (one per
+                configured topic); the same episode can rank high in several topics.
+              </p>
+              <p class="mb-2 font-sans text-[10px] text-muted">
+                <strong class="font-medium text-surface-foreground/90">Arrow up/down</strong>
+                and <strong class="font-medium text-surface-foreground/90">Home</strong> /
+                <strong class="font-medium text-surface-foreground/90">End</strong>
+                move between rows; the
+                <strong class="font-medium text-surface-foreground/90">Episode</strong>
+                panel updates as you move.
+              </p>
+              <p class="font-sans text-[10px] text-muted">
+                <strong class="font-medium text-surface-foreground/90">Recent</strong> is built from episodes whose
+                publish date falls in the digest window, then <strong class="font-medium text-surface-foreground/90">diversified</strong>
+                so one feed cannot fill the list (round-robin style with a per-feed cap and a total row cap on the server).
+                It is a sample of what is new, spread across feeds — not every episode in the window.
+              </p>
+            </HelpTip>
+          </div>
+        </div>
+        <div
+          ref="digestRecentListScrollRef"
+          class="min-h-0 flex-1 overflow-y-auto p-1"
+        >
+          <p
+            v-if="digest.rows.length === 0"
+            class="px-1 text-xs text-muted"
+          >
+            No episodes in this window.
+          </p>
+          <ul
+            v-else
+            class="space-y-0.5 text-sm"
+          >
+            <li
+              v-for="(row, ri) in digest.rows"
+              :key="row.metadata_relative_path"
+            >
+              <div
+                role="button"
+                tabindex="0"
+                data-digest-recent-row
+                class="flex w-full gap-2 rounded px-2 py-1.5 text-left outline-none ring-offset-1 focus-visible:ring-2 focus-visible:ring-primary"
+                :class="
+                  isDigestRowSelected(row) ? 'bg-overlay' : 'hover:bg-overlay/35'
+                "
+                :aria-label="digestCardAriaLabel(row)"
+                @click="openRowInLibrary(row)"
+                @keydown="onDigestRecentRowKeydown($event, ri)"
+                @keydown.enter.prevent="openRowInLibrary(row)"
+                @keydown.space.prevent="openRowInLibrary(row)"
+              >
                 <PodcastCover
                   :corpus-path="shell.corpusPath"
                   :episode-image-local-relpath="row.episode_image_local_relpath"
@@ -593,16 +754,34 @@ watch(windowChoice, () => {
                     </div>
                   </div>
                   <p
-                    v-if="digestRowSummaryPreview(row)"
+                    v-if="libraryEpisodeSummaryLine(row)"
                     class="mt-1 break-words whitespace-pre-wrap text-[11px] leading-snug text-muted"
                   >
-                    {{ digestRowSummaryPreview(row) }}
+                    {{ libraryEpisodeSummaryLine(row) }}
                   </p>
+                  <div
+                    v-if="digestRecentTopicPills(row).length"
+                    class="mt-1 flex flex-wrap gap-1"
+                  >
+                    <button
+                      v-for="(t, ti) in digestRecentTopicPills(row)"
+                      :key="ti"
+                      type="button"
+                      class="max-w-[11rem] shrink-0 truncate rounded-full border border-border bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-surface-foreground hover:bg-overlay"
+                      :title="t.trim() || undefined"
+                      :aria-label="`Open graph for summary line as topic (topic node when present): ${t}`"
+                      @click.stop="void openDigestRecentTopicPillInGraph(row, ti)"
+                    >
+                      {{ recentTopicPillShort(t) }}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </li>
-        </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+      </div>
       </div>
       <p v-if="graphActionError" class="text-xs text-danger">
         {{ graphActionError }}

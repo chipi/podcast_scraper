@@ -21,6 +21,7 @@ from podcast_scraper.server.corpus_catalog import (
     feed_display_title_by_feed_id,
     feed_rss_url_by_feed_id,
     filter_rows,
+    index_rows_by_episode_id,
     index_rows_by_feed_episode,
     resolve_feed_description,
     resolve_feed_display_title,
@@ -34,6 +35,9 @@ from podcast_scraper.server.schemas import (
     CorpusEpisodesResponse,
     CorpusFeedItem,
     CorpusFeedsResponse,
+    CorpusResolvedEpisodeArtifact,
+    CorpusResolveEpisodesRequest,
+    CorpusResolveEpisodesResponse,
     CorpusSimilarEpisodeItem,
     CorpusSimilarEpisodesResponse,
 )
@@ -108,6 +112,44 @@ def _resolve_corpus_root(path: str | None, fallback: Path | None) -> Path:
             "path query parameter is required when the server has no default output_dir "
             "(set PODCAST_SERVE_OUTPUT_DIR or pass output_dir to create_app)."
         ),
+    )
+
+
+@router.post("/corpus/resolve-episode-artifacts", response_model=CorpusResolveEpisodesResponse)
+async def corpus_resolve_episode_artifacts(
+    request: Request,
+    body: CorpusResolveEpisodesRequest,
+) -> CorpusResolveEpisodesResponse:
+    """Map logical episode ids to corpus-relative GI/KG/bridge paths (catalog scan)."""
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(body.path, anchor)
+    rows = build_catalog_rows(root)
+    by_eid = index_rows_by_episode_id(rows)
+    resolved: list[CorpusResolvedEpisodeArtifact] = []
+    missing: list[str] = []
+    seen_req: set[str] = set()
+    for raw in body.episode_ids:
+        eid = str(raw).strip()
+        if not eid or eid in seen_req:
+            continue
+        seen_req.add(eid)
+        row = by_eid.get(eid)
+        if row is None or not row.has_gi:
+            missing.append(eid)
+            continue
+        resolved.append(
+            CorpusResolvedEpisodeArtifact(
+                episode_id=eid,
+                publish_date=row.publish_date,
+                gi_relative_path=row.gi_relative_path or None,
+                kg_relative_path=row.kg_relative_path if row.has_kg else None,
+                bridge_relative_path=row.bridge_relative_path if row.has_bridge else None,
+            )
+        )
+    return CorpusResolveEpisodesResponse(
+        path=str(root),
+        resolved=resolved,
+        missing_episode_ids=missing,
     )
 
 

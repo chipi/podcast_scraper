@@ -19,6 +19,8 @@ from podcast_scraper.server.routes import (
     corpus_digest,
     corpus_library,
     corpus_metrics,
+    corpus_text_file,
+    corpus_topic_clusters,
     explore,
     health,
     index_rebuild,
@@ -80,8 +82,10 @@ def create_app(
     app.include_router(explore.router, prefix="/api")
     app.include_router(corpus_library.router, prefix="/api")
     app.include_router(corpus_binary.router, prefix="/api")
+    app.include_router(corpus_text_file.router, prefix="/api")
     app.include_router(corpus_metrics.router, prefix="/api")
     app.include_router(corpus_digest.router, prefix="/api")
+    app.include_router(corpus_topic_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")
 
     resolved_output = Path(output_dir).expanduser().resolve() if output_dir is not None else None

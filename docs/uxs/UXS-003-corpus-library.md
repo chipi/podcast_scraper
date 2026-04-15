@@ -33,16 +33,30 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - **Layout (desktop):** Library main column (`canvas` / `surface`) plus the right
   shell rail:
 
-1. **Episode filters** -- one collapsible: on wide viewports, a three-column row --
-   **published on or after** (compact presets + custom `YYYY-MM-DD`, aligned with
-   Search **since**) on the left; **title** and **summary / topic** plus
-   **Apply** / **Clear text and date** in the center; **feed** list on the right;
-   stacks vertically on narrow widths. Feed rows use display title when present
-   (stable `feed_id`, plus RSS and description in `title` hover when
-   `GET /api/corpus/feeds` includes them), `border` dividers, and `overlay` for the
-   selected feed row.
+1. **Episode filters** -- one collapsible: **subtitle** row explains narrowing and holds
+   primary **Apply** (reloads using title and summary filters; same as **Enter** in those
+   fields). On wide viewports, a three-column row -- **published on or after** (date +
+   presets, aligned with Search **since**; **same Pinia `corpusLens` state as Digest**) on
+   the left (column heading **Dates**); **Title** and **summary / topic** in the center
+   as **two rows**, each **label left** + **field right** (same idea as the date row);
+   header **Title & summary** plus small **Clear text**; **feed** list on the right;
+   stacks vertically on narrow widths. The **Feed** column uses a **scrollable**
+   list with a capped height (taller on large viewports) so catalogs with many feeds
+   (for example ~20) get a **vertical scrollbar** instead of stretching the panel.
+   With no row selected, episodes include **all** feeds; choosing a feed narrows the list.
+   **Clear feed filter** stays next to the **Feed** label at all times: **disabled** when
+   no feed is selected, **enabled** when a feed is selected; click restores the all-feeds
+   episode list.
+   Feed rows use display title when present (stable `feed_id`, plus RSS and description in
+   `title` hover when `GET /api/corpus/feeds` includes them), `border` dividers, and `overlay`
+   for the selected feed row.
 
-2. **Episode column** -- scrollable list of episodes: cursor pagination from
+2. **Episode column** -- **`h2` Episodes** with a muted tabular count: **`(N)`** for the
+   loaded page set, **`(N+)`** when **`next_cursor`** indicates more pages (native **`title`**
+   on the count explains scroll / **Load more**), plus a **?** **HelpTip** (same control as
+   Digest **Recent**) holding the short guide to filters, infinite scroll / **Load more**,
+   and the right **Episode** rail. List **`region`** **`aria-label`** includes the count and
+   whether more episodes are available. Scrollable list: cursor pagination from
    `GET /api/corpus/episodes` (`limit` ~20 per page + `next_cursor`); **Load more**
    at the bottom plus scroll-to-load when the user nears the end. Title row is
    episode title (left) and right column: feed display name (truncated, left) and
@@ -95,7 +109,8 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - **Vector index awareness (RFC-067 Phase 3):** Optional **Indexed** chip on feed rows
   when that `feed_id` appears in `GET /api/index/stats` -> `feeds_indexed`.
   Episode rail exposes Episode and feed diagnostics (help control -> tooltip) with
-  paths, ids, Feed in vector index, and index stats when loaded. **Similar episodes**
+  paths, ids, Feed in vector index, and index stats when loaded; **E** and **`?`** sit
+  in a vertical stack beside the episode title (**E** above **`?`**) to widen the title. **Similar episodes**
   loads automatically after episode detail succeeds and lists peer episodes; empty
   successful responses show a short no peers state; loading shows
   "Searching similar episodes..." (`aria-live="polite"`). **Prefill semantic search**

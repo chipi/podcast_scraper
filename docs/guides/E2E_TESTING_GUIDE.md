@@ -27,6 +27,17 @@ file remains **pytest** E2E.
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
 
+### Debugging UI issues and interpreting failures
+
+The surface map is the shared **contract for accessible names, regions, and user entry paths**. When
+a Playwright assertion fails, when you reproduce a bug manually, or when an agent drives the app
+via **Chrome DevTools MCP** or Playwright MCP (a11y snapshots), use
+[E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+to see what label or region should appear, which spec owns the surface, and how to disambiguate
+controls that share a visible name. It does not replace UXS for visual design. For the full
+agent-browser workflow (symmetry between reproduction and fix validation), see
+[Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md).
+
 ### When you change viewer UX (required workflow)
 
 Applies to **humans and AI agents** editing `web/gi-kg-viewer/` (Vue UI: copy, layout, routes,
@@ -471,3 +482,7 @@ USE_REAL_GEMINI_API=1 pytest tests/e2e/test_gemini_provider_integration_e2e.py
 
 - **Total tests:** ~230
 - **Focus:** Complete user workflows, production-like scenarios
+- **Line coverage (pytest E2E):** Full `podcast_scraper` package in the coverage denominator (same
+  `pyproject.toml` `[tool.coverage.run]` as other tiers; no subtree `omit` file). Threshold and CI
+  wiring: [Testing Guide — coverage thresholds](TESTING_GUIDE.md#coverage-thresholds). Roles of
+  pytest E2E vs HTTP integration vs Playwright: [Testing Strategy — layer roles](../architecture/TESTING_STRATEGY.md#pytest-e2e-vs-http-integration-vs-browser-e2e-playwright).

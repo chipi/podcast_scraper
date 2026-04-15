@@ -565,6 +565,15 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--skip-existing", action="store_true", help="Skip episodes whose output already exists"
     )
     parser.add_argument(
+        "--backfill-transcript-segments",
+        action="store_true",
+        dest="backfill_transcript_segments",
+        help=(
+            "With --generate-gi: re-transcribe when a Whisper transcript .txt exists but "
+            ".segments.json is missing (GI quote audio timing; GitHub #542). Off by default."
+        ),
+    )
+    parser.add_argument(
         "--append",
         action="store_true",
         help=(
@@ -3064,6 +3073,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         index_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_index_argv(index_argv)
 
+    if argv and len(argv) > 0 and argv[0] == "topic-clusters":
+        from .search.cli_handlers import parse_topic_clusters_argv
+
+        tc_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_topic_clusters_argv(tc_argv)
+
     if argv and len(argv) > 0 and argv[0] == "verify-gil-chunk-offsets":
         from .search.cli_handlers import parse_verify_gil_chunk_offsets_argv
 
@@ -3180,6 +3195,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "fail_fast": getattr(args, "fail_fast", False),
         "max_failures": getattr(args, "max_failures", None),
         "skip_existing": args.skip_existing,
+        "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
         "reuse_media": args.reuse_media,
         "clean_output": args.clean_output,
@@ -3512,6 +3528,8 @@ def _log_configuration_summary(cfg: config.Config, logger: logging.Logger) -> No
     flag_parts = []
     if cfg.skip_existing:
         flag_parts.append("skip_existing")
+    if getattr(cfg, "backfill_transcript_segments", False):
+        flag_parts.append("backfill_transcript_segments")
     if getattr(cfg, "append", False):
         flag_parts.append("append")
     if cfg.reuse_media:
@@ -3871,6 +3889,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "pricing-assumptions",
             "search",
             "serve",
+            "topic-clusters",
             "verify-gil-chunk-offsets",
         )
     ):
@@ -3943,6 +3962,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_index_cli
 
         return run_index_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "topic-clusters":
+        from .search.cli_handlers import run_topic_clusters_cli
+
+        return run_topic_clusters_cli(args, log)
 
     if hasattr(args, "command") and args.command == "verify-gil-chunk-offsets":
         from .search.cli_handlers import run_verify_gil_chunk_offsets_cli

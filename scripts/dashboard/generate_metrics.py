@@ -444,7 +444,6 @@ _PYTEST_SHARD_JSON = (
     "pytest-unit.json",
     "pytest-integration.json",
     "pytest-e2e.json",
-    "pytest-e2e-serial.json",
     "pytest-nightly.json",
 )
 
@@ -501,7 +500,6 @@ def extract_slowest_tests(reports_dir: Path, top_n: int = 10) -> list:
             "pytest-integration.json",
             "pytest-e2e.json",
             "pytest-nightly.json",
-            "pytest-e2e-serial.json",
         ]
         for pattern in pytest_json_patterns:
             json_path = reports_dir / pattern

@@ -1,3 +1,6 @@
+import { dedupeInFlight } from './inFlightDedupe'
+import { fetchWithTimeout } from './httpClient'
+
 function raiseCorpusHttpError(res: Response, bodyText: string): never {
   if (res.status === 404) {
     throw new Error(
@@ -82,12 +85,15 @@ export type CorpusEpisodeDetailResponse = {
 
 export async function fetchCorpusFeeds(corpusPath: string): Promise<CorpusFeedsResponse> {
   const q = new URLSearchParams({ path: corpusPath.trim() })
-  const res = await fetch(`/api/corpus/feeds?${q.toString()}`)
-  if (!res.ok) {
-    const t = await res.text()
-    raiseCorpusHttpError(res, t)
-  }
-  return (await res.json()) as CorpusFeedsResponse
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/feeds?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/feeds?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusFeedsResponse
+  })
 }
 
 export type FetchEpisodesOptions = {
@@ -114,12 +120,15 @@ export async function fetchCorpusEpisodes(
   if (options.since?.trim()) q.set('since', options.since.trim())
   if (options.limit != null) q.set('limit', String(options.limit))
   if (options.cursor) q.set('cursor', options.cursor)
-  const res = await fetch(`/api/corpus/episodes?${q.toString()}`)
-  if (!res.ok) {
-    const t = await res.text()
-    raiseCorpusHttpError(res, t)
-  }
-  return (await res.json()) as CorpusEpisodesResponse
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/episodes?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/episodes?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusEpisodesResponse
+  })
 }
 
 export async function fetchCorpusEpisodeDetail(
@@ -130,12 +139,15 @@ export async function fetchCorpusEpisodeDetail(
     path: corpusPath.trim(),
     metadata_relpath: metadataRelpath,
   })
-  const res = await fetch(`/api/corpus/episodes/detail?${q.toString()}`)
-  if (!res.ok) {
-    const t = await res.text()
-    raiseCorpusHttpError(res, t)
-  }
-  return (await res.json()) as CorpusEpisodeDetailResponse
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/episodes/detail?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/episodes/detail?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusEpisodeDetailResponse
+  })
 }
 
 export type CorpusSimilarEpisodeItem = {
@@ -180,10 +192,51 @@ export async function fetchCorpusSimilarEpisodes(
   if (options.topK != null) {
     q.set('top_k', String(options.topK))
   }
-  const res = await fetch(`/api/corpus/episodes/similar?${q.toString()}`)
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/episodes/similar?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/episodes/similar?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusSimilarEpisodesResponse
+  })
+}
+
+export type CorpusResolvedEpisodeArtifact = {
+  episode_id: string
+  publish_date: string | null
+  gi_relative_path: string | null
+  kg_relative_path: string | null
+  bridge_relative_path: string | null
+}
+
+export type CorpusResolveEpisodesResponse = {
+  path: string
+  resolved: CorpusResolvedEpisodeArtifact[]
+  missing_episode_ids: string[]
+}
+
+export async function fetchResolveEpisodeArtifacts(
+  corpusPath: string,
+  episodeIds: string[],
+): Promise<CorpusResolveEpisodesResponse> {
+  const root = corpusPath.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  const ids = episodeIds.map((e) => String(e).trim()).filter(Boolean)
+  if (ids.length === 0) {
+    throw new Error('At least one episode id is required')
+  }
+  const res = await fetchWithTimeout('/api/corpus/resolve-episode-artifacts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path: root, episode_ids: ids }),
+  })
   if (!res.ok) {
     const t = await res.text()
     raiseCorpusHttpError(res, t)
   }
-  return (await res.json()) as CorpusSimilarEpisodesResponse
+  return (await res.json()) as CorpusResolveEpisodesResponse
 }

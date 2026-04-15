@@ -47,6 +47,26 @@ export function humanizeSlug(slug: string): string {
  * Pretty-print an ISO-8601 instant in UTC for the digest window header (no sub-second noise).
  * Unparseable input is returned unchanged.
  */
+/**
+ * Calendar-style date for episode / timeline rails (no time-of-day).
+ * Uses the viewer locale. Unparseable input is truncated when very long, else returned as-is.
+ */
+export function formatCalendarDateForDisplay(raw: string): string {
+  const s = String(raw ?? '').trim()
+  if (!s) {
+    return ''
+  }
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) {
+    return s.length > 40 ? `${s.slice(0, 39)}…` : s
+  }
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(d)
+}
+
 export function formatUtcDateTimeForDisplay(iso: string): string {
   const raw = String(iso ?? '').trim()
   if (!raw) {

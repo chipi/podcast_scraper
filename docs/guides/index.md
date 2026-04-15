@@ -84,6 +84,6 @@ Practical guides for using and developing Podcast Scraper.
 | Guide | Description |
 | ------- | ------------- |
 | [Cursor AI Best Practices](CURSOR_AI_BEST_PRACTICES_GUIDE.md) | AI-assisted development |
-| [Agent-Browser Closed Loop](AGENT_BROWSER_LOOP_GUIDE.md) | Browser loops: automated E2E (`make test-ui-e2e`) + live co-development (Chrome DevTools MCP) |
+| [Agent-Browser Closed Loop](AGENT_BROWSER_LOOP_GUIDE.md) | Browser loops: automated E2E (`make test-ui-e2e`) + live co-development (Chrome DevTools MCP); **user-reported UI bugs:** **symmetry** — re-validate in the same channel you used to reproduce (MCP ≠ replaced by pytest alone); plus tests ([obligatory validation](AGENT_BROWSER_LOOP_GUIDE.md#obligatory-validation-when-fixing-a-reported-ui-bug)) |
 | [Agent-Pipeline Feedback Loop](AGENT_PIPELINE_LOOP_GUIDE.md) | Python pipeline loops: CI diagnosis, acceptance testing, `--monitor` real-time feedback, `metrics.json` post-mortem |
 | [Documentation Agent Guide](DOCUMENTATION_AGENT_GUIDE.md) | Documentation workflows |

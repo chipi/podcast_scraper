@@ -809,3 +809,151 @@ def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) ->
         logger.error("strict: overlap_rate %s below %s", rate, min_r)
         return EXIT_INVALID_ARGS
     return EXIT_SUCCESS
+
+
+def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
+    """Parse argv after ``topic-clusters`` (RFC-075)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast_scraper topic-clusters",
+        description=(
+            "Cluster KG topics from FAISS kg_topic embeddings; write topic_clusters.json (RFC-075)."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Pipeline output directory (contains search/ index)",
+    )
+    parser.add_argument(
+        "--index-path",
+        dest="vector_index_path",
+        default=None,
+        help="Vector index directory (default: <output-dir>/search)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.75,
+        help="Minimum cosine similarity to link topics in the same cluster (default: 0.75)",
+    )
+    parser.add_argument(
+        "--output-file",
+        default=None,
+        help="Write JSON here (default: <index-dir>/topic_clusters.json)",
+    )
+    parser.add_argument(
+        "--validate-config",
+        default=None,
+        metavar="PATH",
+        help=(
+            "After clustering, load a validation YAML (path you choose; see RFC-075) "
+            "and exit non-zero if constraints fail"
+        ),
+    )
+    parser.add_argument(
+        "--merge-cil-overrides",
+        action="store_true",
+        help=(
+            "After writing topic_clusters.json, merge derived topic_id_aliases into "
+            "cil_lift_overrides.json (existing file entries take precedence over auto)"
+        ),
+    )
+    ns = cast(Namespace, parser.parse_args(list(argv)))
+    ns.command = "topic-clusters"
+    return ns
+
+
+def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
+    """Build ``topic_clusters.json`` for a corpus; optional validation YAML check."""
+    from podcast_scraper.search.topic_clusters import (
+        build_topic_clusters_for_corpus,
+        evaluate_validation_against_topics,
+        load_validation_yaml,
+    )
+
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("topic-clusters: --output-dir is required")
+        return EXIT_INVALID_ARGS
+
+    index_dir = _resolve_index_dir(Path(output_dir), getattr(args, "vector_index_path", None))
+    out_file = getattr(args, "output_file", None)
+    out_path = Path(out_file).resolve() if out_file else None
+    threshold = float(getattr(args, "threshold", 0.75) or 0.75)
+
+    try:
+        payload = build_topic_clusters_for_corpus(
+            output_dir,
+            index_dir=index_dir,
+            threshold=threshold,
+            out_path=out_path,
+        )
+    except FileNotFoundError as exc:
+        logger.error("topic-clusters: %s", exc)
+        return EXIT_NO_ARTIFACTS
+    except Exception as exc:
+        logger.error("topic-clusters: %s", format_exception_for_log(exc))
+        return EXIT_INVALID_ARGS
+
+    vcfg = getattr(args, "validate_config", None)
+    if vcfg:
+        spec_path = Path(vcfg).resolve()
+        if not spec_path.is_file():
+            logger.error("topic-clusters: --validate-config not found: %s", spec_path)
+            return EXIT_INVALID_ARGS
+        spec = load_validation_yaml(spec_path)
+        import numpy as np
+
+        from podcast_scraper.search.topic_clusters import (
+            cluster_indices_by_threshold,
+            collect_topic_rows_from_faiss,
+            cosine_similarity_matrix,
+            load_kg_topic_labels_from_corpus,
+        )
+
+        store = FaissVectorStore.load(index_dir)
+        rows = collect_topic_rows_from_faiss(
+            store,
+            load_kg_topic_labels_from_corpus(Path(output_dir).resolve()),
+        )
+        if not rows:
+            logger.error("topic-clusters: validate: no kg_topic rows in index")
+            return EXIT_INVALID_ARGS
+        ids = [r.topic_id for r in rows]
+        mat = np.stack([r.vector for r in rows], axis=0)
+        sim = cosine_similarity_matrix(mat)
+        labels = cluster_indices_by_threshold(sim, threshold)
+        ok, errors = evaluate_validation_against_topics(spec, ids, labels.tolist())
+        if not ok:
+            for err in errors:
+                logger.error("validation: %s", err)
+            return EXIT_INVALID_ARGS
+        logger.info("topic-clusters: validation OK")
+
+    if getattr(args, "merge_cil_overrides", False):
+        from podcast_scraper.search.cil_lift_overrides import (
+            write_cil_lift_overrides_merged_topic_id_aliases,
+        )
+        from podcast_scraper.search.topic_clusters import topic_id_aliases_from_clusters_payload
+
+        root = Path(output_dir).resolve()
+        auto = topic_id_aliases_from_clusters_payload(payload)
+        try:
+            merged = write_cil_lift_overrides_merged_topic_id_aliases(root, auto)
+        except ValueError as exc:
+            logger.error("topic-clusters: %s", exc)
+            return EXIT_INVALID_ARGS
+        logger.info(
+            "topic-clusters: cil_lift_overrides.json topic_id_aliases=%s keys (auto=%s)",
+            len(merged),
+            len(auto),
+        )
+
+    logger.info(
+        "topic-clusters: schema_version=%s topics=%s clusters=%s singleton_topic_rows=%s",
+        payload.get("schema_version"),
+        payload.get("topic_count"),
+        payload.get("cluster_count"),
+        payload.get("singletons"),
+    )
+    return EXIT_SUCCESS

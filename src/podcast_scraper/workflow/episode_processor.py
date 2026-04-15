@@ -22,6 +22,7 @@ else:
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..rss import choose_transcript_url, downloader
+from ..transcript_formats import parse_srt, parse_webvtt
 from ..utils import filesystem
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
@@ -199,6 +200,30 @@ def _download_or_reuse_media(
     return True, total_bytes, dl_elapsed
 
 
+def transcript_txt_missing_segments(full_txt_path: str) -> bool:
+    """Return True if *full_txt_path* is an existing ``.txt`` with no sibling ``.segments.json``.
+
+    Whisper-style outputs use a sidecar for GI quote audio timestamps. When only the ``.txt``
+    exists (for example after an older ``--skip-existing`` run), GI timing stays at zero until
+    segments exist (GitHub #542).
+    """
+    if not full_txt_path.endswith(".txt"):
+        return False
+    if not os.path.isfile(full_txt_path):
+        return False
+    seg_path = os.path.splitext(full_txt_path)[0] + ".segments.json"
+    return not os.path.isfile(seg_path)
+
+
+def _should_retranscribe_for_gi_segments(cfg: config.Config, whisper_txt_path: str) -> bool:
+    """Whether to bypass skip/reuse so transcription can populate ``.segments.json`` for GI."""
+    if not cfg.backfill_transcript_segments:
+        return False
+    if not cfg.generate_gi:
+        return False
+    return transcript_txt_missing_segments(whisper_txt_path)
+
+
 def download_media_for_transcription(
     episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -224,9 +249,18 @@ def download_media_for_transcription(
         episode.idx, episode.title_safe, run_suffix, effective_output_dir
     )
     if cfg.skip_existing and os.path.exists(final_out_path):
+        if _should_retranscribe_for_gi_segments(cfg, final_out_path):
+            logger.info(
+                "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
+                "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
+                "carry speaker labels (backfill_transcript_segments + generate_gi): %s",
+                episode.idx,
+                final_out_path,
+            )
+            # Fall through: do not return — schedule download/transcribe to populate sidecar (#542).
         # If generate_summaries is enabled, still return a job so transcript path can be used
         # for summarization (even though we won't re-transcribe)
-        if cfg.generate_summaries:
+        elif cfg.generate_summaries:
             logger.debug(
                 "[%s] Transcript exists, but will use for summarization: %s",
                 episode.idx,
@@ -244,14 +278,15 @@ def download_media_for_transcription(
                 detected_speaker_names=speaker_names_copy,
                 episode=episode,
             )
-        prefix = "[dry-run] " if cfg.dry_run else ""
-        logger.info(
-            "[%s] %stranscript already exists; skipping (--skip-existing): %s",
-            episode.idx,
-            prefix,
-            final_out_path,
-        )
-        return None
+        else:
+            prefix = "[dry-run] " if cfg.dry_run else ""
+            logger.info(
+                "[%s] %stranscript already exists; skipping (--skip-existing): %s",
+                episode.idx,
+                prefix,
+                final_out_path,
+            )
+            return None
 
     if not episode.media_url:
         logger.debug("[%s] Episode missing media_url; cannot schedule transcription", episode.idx)
@@ -462,6 +497,8 @@ def _check_and_reuse_existing_transcript(
     # If temp_media is empty and transcript exists, we're reusing existing transcript
     # (happens when skip_existing=True and generate_summaries=True)
     if not job.temp_media and cfg.skip_existing and os.path.exists(final_out_path):
+        if _should_retranscribe_for_gi_segments(cfg, final_out_path):
+            return None
         rel_path = os.path.relpath(final_out_path, effective_output_dir)
         logger.debug(
             "[%s] Reusing existing Whisper transcript for summarization: %s",
@@ -507,8 +544,9 @@ def _check_transcript_cache(
 
     cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
     audio_hash = transcript_cache.get_audio_hash(temp_media)
-    cached_transcript = transcript_cache.get_cached_transcript(audio_hash, cache_dir)
-    if cached_transcript:
+    cached_entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir)
+    if cached_entry:
+        cached_transcript, cached_segments = cached_entry
         # Save cached transcript to output file
         rel_path = _save_transcript_file(
             cached_transcript,
@@ -517,6 +555,8 @@ def _check_transcript_cache(
             effective_output_dir,
             pipeline_metrics=pipeline_metrics,
         )
+        if isinstance(cached_segments, list) and len(cached_segments) > 0:
+            _save_transcript_segments_file(cached_segments, rel_path, effective_output_dir)
         logger.info(
             "[%s] Transcript cache hit (hash=%s) -> %s",
             job.idx,
@@ -788,6 +828,7 @@ def _save_transcript_to_cache_if_needed(
     temp_media: str,
     text: str,
     transcription_provider: Any,
+    segments: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Save transcript to cache if caching is enabled.
 
@@ -797,6 +838,7 @@ def _save_transcript_to_cache_if_needed(
         temp_media: Path to temporary media file
         text: Transcribed text
         transcription_provider: Transcription provider instance
+        segments: Optional provider segments for GI ``.segments.json`` parity on cache hit
     """
     if not (cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media)):
         return
@@ -815,7 +857,12 @@ def _save_transcript_to_cache_if_needed(
     model = _get_provider_model_name(transcription_provider, cfg)
     try:
         transcript_cache.save_transcript_to_cache(
-            audio_hash, text, provider_name=provider_name, model=model, cache_dir=cache_dir
+            audio_hash,
+            text,
+            provider_name=provider_name,
+            model=model,
+            cache_dir=cache_dir,
+            segments=segments,
         )
         logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
     except Exception as exc:
@@ -1001,7 +1048,14 @@ def transcribe_media_to_text(
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)
 
         # Save transcript to cache for future use (enables fast multi-provider experimentation)
-        _save_transcript_to_cache_if_needed(job, cfg, temp_media, text, transcription_provider)
+        _save_transcript_to_cache_if_needed(
+            job,
+            cfg,
+            temp_media,
+            text,
+            transcription_provider,
+            segments=segments if isinstance(segments, list) else None,
+        )
 
         # Record transcription time if metrics available
         _record_transcription_metrics(job, cfg, tc_elapsed, call_metrics, pipeline_metrics)
@@ -1221,14 +1275,17 @@ def process_transcript_download(
     )
 
     if cfg.dry_run:
+        dry_path = out_path
+        if planned_ext in (".vtt", ".srt"):
+            dry_path = os.path.splitext(out_path)[0] + ".txt"
         logger.info(
             "[%s] (dry-run) transcript available: %s -> %s",
             episode.idx,
             episode.title,
             transcript_url,
         )
-        logger.info(f"    [dry-run] would save as: {out_path}")
-        return True, out_path, "direct_download", 0
+        logger.info(f"    [dry-run] would save as: {dry_path}")
+        return True, dry_path, "direct_download", 0
 
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
 
@@ -1246,7 +1303,36 @@ def process_transcript_download(
             episode, transcript_url, transcript_type, effective_output_dir, run_suffix, ext
         )
 
-    # Write transcript file
+    if ext in (".vtt", ".srt"):
+        try:
+            body = data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            body = data.decode("utf-8", errors="replace")
+        if ext == ".vtt":
+            plain, segments = parse_webvtt(body)
+        else:
+            plain, segments = parse_srt(body)
+        if plain.strip() and segments:
+            txt_path = os.path.splitext(out_path)[0] + ".txt"
+            rel_path_result = _write_transcript_file(
+                plain.encode("utf-8"), txt_path, cfg, episode, effective_output_dir
+            )
+            if rel_path_result is None:
+                return False, None, None, bytes_downloaded
+            _save_transcript_segments_file(segments, rel_path_result, effective_output_dir)
+            logger.info(
+                "[%s] normalized %s to .txt with %d segment(s) for GI timing",
+                episode.idx,
+                ext,
+                len(segments),
+            )
+            return True, rel_path_result, "direct_download", bytes_downloaded
+        logger.warning(
+            "[%s] %s parse yielded no usable cues; saving raw caption bytes",
+            episode.idx,
+            ext,
+        )
+
     rel_path_result = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
     if rel_path_result is None:
         return False, None, None, bytes_downloaded

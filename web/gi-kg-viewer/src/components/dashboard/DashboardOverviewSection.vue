@@ -5,8 +5,10 @@ import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
 import { computeArtifactMetrics } from '../../utils/metrics'
+import { StaleGeneration } from '../../utils/staleGeneration'
 import type { MetricRow } from '../../utils/metrics'
 import MetricsPanel from './MetricsPanel.vue'
+import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
@@ -21,6 +23,8 @@ const artifactMetrics = computed(() => {
 const corpusStats = ref<CorpusStatsResponse | null>(null)
 const corpusStatsLoading = ref(false)
 const corpusStatsError = ref<string | null>(null)
+const corpusCatalogStatsGate = new StaleGeneration()
+const graphPanelRefreshGate = new StaleGeneration()
 
 const canFetchCorpusStats = computed(
   () =>
@@ -30,19 +34,32 @@ const canFetchCorpusStats = computed(
 )
 
 async function refreshCorpusCatalogStats(): Promise<void> {
+  const seq = corpusCatalogStatsGate.bump()
   corpusStatsError.value = null
   if (!canFetchCorpusStats.value) {
     corpusStats.value = null
+    if (corpusCatalogStatsGate.isCurrent(seq)) {
+      corpusStatsLoading.value = false
+    }
     return
   }
   corpusStatsLoading.value = true
   try {
-    corpusStats.value = await fetchCorpusStats(shell.corpusPath.trim())
+    const stats = await fetchCorpusStats(shell.corpusPath.trim())
+    if (corpusCatalogStatsGate.isStale(seq)) {
+      return
+    }
+    corpusStats.value = stats
   } catch (e) {
+    if (corpusCatalogStatsGate.isStale(seq)) {
+      return
+    }
     corpusStatsError.value = e instanceof Error ? e.message : String(e)
     corpusStats.value = null
   } finally {
-    corpusStatsLoading.value = false
+    if (corpusCatalogStatsGate.isCurrent(seq)) {
+      corpusStatsLoading.value = false
+    }
   }
 }
 
@@ -104,14 +121,20 @@ const graphPanelRefreshing = ref(false)
 
 async function refreshGraphPanel(): Promise<void> {
   if (!shell.healthStatus || !shell.hasCorpusPath) return
+  const seq = graphPanelRefreshGate.bump()
   graphPanelRefreshing.value = true
   try {
     await shell.fetchArtifactList()
+    if (graphPanelRefreshGate.isStale(seq)) {
+      return
+    }
     if (artifacts.selectedRelPaths.length > 0) {
       await artifacts.loadSelected()
     }
   } finally {
-    graphPanelRefreshing.value = false
+    if (graphPanelRefreshGate.isCurrent(seq)) {
+      graphPanelRefreshing.value = false
+    }
   }
 }
 
@@ -140,6 +163,8 @@ const corpusCatalogRefreshDisabled = computed(
       <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/corpus/stats</code>,
       merged graph metrics from loaded GI/KG, and vector index (same path as Dashboard charts).
     </p>
+
+    <TopicClustersStatusBlock />
 
     <div class="rounded border border-border bg-elevated p-2 text-[10px]">
       <h3 class="text-xs font-semibold text-surface-foreground">

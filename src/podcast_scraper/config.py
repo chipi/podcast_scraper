@@ -596,6 +596,8 @@ class Config(BaseModel):
         log_file: Optional log file path for file output.
         workers: Number of parallel download workers.
         skip_existing: Skip episodes with existing output files.
+        backfill_transcript_segments: Re-transcribe when ``.segments.json`` missing (#542);
+            ``speaker_id`` when segment rows carry speaker labels (#541).
         clean_output: Remove output directory before processing.
         reuse_media: Reuse existing media files instead of re-downloading.
         dry_run: Preview planned work without saving files.
@@ -895,6 +897,19 @@ class Config(BaseModel):
         description="Stop after N episode failures (Issue #379). None = no limit.",
     )
     skip_existing: bool = Field(default=False, alias="skip_existing")
+    backfill_transcript_segments: bool = Field(
+        default=False,
+        alias="backfill_transcript_segments",
+        description=(
+            "When True with generate_gi: if an existing Whisper ``transcripts/*.txt`` "
+            "has no sibling ``.segments.json``, do not treat transcription as complete "
+            "under ``skip_existing`` — re-run transcription so GI quote "
+            "``timestamp_*_ms`` can be populated (GitHub #542); ``speaker_id`` is set only "
+            "when segment rows include speaker labels (GitHub #541). Append mode also "
+            "treats episodes as incomplete until the sidecar exists. Default False "
+            "preserves legacy skip behavior."
+        ),
+    )
     append: bool = Field(
         default=False,
         alias="append",

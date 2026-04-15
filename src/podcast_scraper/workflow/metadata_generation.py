@@ -1701,6 +1701,11 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
         return None
 
     provider_info: Dict[str, Any] = {"provider": str(cfg.transcription_provider)}
+    from ..providers.capabilities import gi_segment_timing_expected_for_transcription_provider
+
+    provider_info["gi_segment_timing_expected"] = (
+        gi_segment_timing_expected_for_transcription_provider(str(cfg.transcription_provider))
+    )
 
     if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
         provider_info["whisper_model"] = cfg.whisper_model

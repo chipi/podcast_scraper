@@ -395,6 +395,10 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Note on Transcription**: Anthropic does NOT support native audio transcription. If you set `transcription_provider=anthropic`, you will get a clear error message suggesting alternatives (`whisper` or `openai`).
 
+**GI quote audio timing (issue #543):** For **grounded insights** with non-zero quote **`timestamp_*_ms`**, prefer **`transcription_provider: whisper`** or **`openai`** (segment-capable paths). **`gemini`** and **`mistral`** return transcript text in our integration but **do not** currently populate timed **segments** for GI audio seek. Episode metadata records an expectation flag under **`processing.config_snapshot.ml_providers.transcription.gi_segment_timing_expected`**. Full matrix: [Development Guide — Transcript hash cache](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json).
+
+**GI quote `speaker_id` (issue #541):** **`speaker_id`** on **Quote** nodes is set only when timed segments align with the GI transcript **and** segment rows include **`speaker`** or **`speaker_id`** (typical Whisper/OpenAI chunks often omit these). Same segment gate as **`timestamp_*_ms`**. When non-null, values are normally **`person:{slug}`**; legacy **`speaker:{slug}`** may appear until migration ([GI ontology — Person / Quote](../architecture/gi/ontology.md)). Canonical rules: [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
+
 #### Gemini Model Configuration
 
 Gemini providers support configurable model selection for dev/test vs production environments.
@@ -1018,6 +1022,7 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 | Field | CLI Flag | Default | Description |
 | --- | --- | --- | --- |
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
+| `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
 | `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
 | `gi_max_insights` | `--gi-max-insights` | `20` | Max insights when using `provider` or `summary_bullets` (`1`–`50`). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
@@ -1505,7 +1510,7 @@ cfg = Config(
 
 ## Append / resume (GitHub #444)
 
-Set **`append: true`** in YAML (or CLI **`--append`**) to reuse a **stable** `run_append_*` directory per feed and **skip** episodes that already have valid on-disk metadata (`episode_id` aligned with RSS) plus transcript and any enabled downstream artifacts (summary, GI, KG when those flags are on). Mutually exclusive with **`clean_output`**. `index.json` uses schema **`1.1.0`** and may include **`pipeline_append: true`**. See [PIPELINE_AND_WORKFLOW.md — Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429).
+Set **`append: true`** in YAML (or CLI **`--append`**) to reuse a **stable** `run_append_*` directory per feed and **skip** episodes that already have valid on-disk metadata (`episode_id` aligned with RSS) plus transcript and any enabled downstream artifacts (summary, GI, KG when those flags are on). When **`backfill_transcript_segments`** and **`generate_gi`** are both true, completeness also requires a **`*.segments.json`** file next to a **`*.txt`** transcript path in metadata (GitHub #542). Mutually exclusive with **`clean_output`**. `index.json` uses schema **`1.1.0`** and may include **`pipeline_append: true`**. See [PIPELINE_AND_WORKFLOW.md — Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429).
 
 **YAML (single-feed or multi-feed):**
 

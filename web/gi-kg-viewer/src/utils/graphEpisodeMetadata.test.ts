@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtifactData } from '../types/artifact'
 import {
+  graphCyIdRepresentsEpisodeNode,
   guessMetadataRelPathFromArtifactRelPath,
   logicalEpisodeIdFromGraphNodeId,
   logicalEpisodeIdsForLibraryGraphSync,
@@ -10,6 +11,28 @@ import {
 import { parseArtifact } from './parsing'
 
 describe('graphEpisodeMetadata', () => {
+  it('graphCyIdRepresentsEpisodeNode uses id when raw node is missing', () => {
+    expect(graphCyIdRepresentsEpisodeNode('episode:abc', null)).toBe(true)
+    expect(graphCyIdRepresentsEpisodeNode('g:topic:x', null)).toBe(false)
+  })
+
+  it('graphCyIdRepresentsEpisodeNode trusts raw type when present', () => {
+    expect(
+      graphCyIdRepresentsEpisodeNode('x', {
+        id: 'x',
+        type: 'Episode',
+        properties: {},
+      }),
+    ).toBe(true)
+    expect(
+      graphCyIdRepresentsEpisodeNode('episode:ignored', {
+        id: 'g:topic:t',
+        type: 'Topic',
+        properties: {},
+      }),
+    ).toBe(false)
+  })
+
   it('logicalEpisodeIdFromGraphNodeId strips known prefixes', () => {
     expect(logicalEpisodeIdFromGraphNodeId('episode:abc')).toBe('abc')
     expect(logicalEpisodeIdFromGraphNodeId('g:episode:abc')).toBe('abc')

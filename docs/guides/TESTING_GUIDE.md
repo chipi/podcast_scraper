@@ -88,12 +88,14 @@ and [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md).
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md).
 
 **E2E surface map:** [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) lists
-viewer surfaces, entry paths, and stable selectors. **Whenever you change viewer UX** (labels,
+viewer surfaces, entry paths, and stable selectors. Use it when **debugging** Playwright failures,
+manual repros, or **agent-driven** browser tools (same a11y vocabulary as the tests). **Whenever you change viewer UX** (labels,
 layout, routes, tokens, a11y names, or E2E flows), update artifacts in this order: **(1)** the
 surface map, **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**,
 **(3)** [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) if the visual/experience contract changed.
 Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
-([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)).
+([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)). Agent-browser loop:
+[Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md).
 
 #### How it fits next to pytest
 
@@ -152,8 +154,8 @@ indexing**, or **search response shape**.
 
 | Change area | Suggested checks |
 | ----------- | ---------------- |
-| GIL pipeline, `gi.json`, `gi` CLI | `make test-unit -k gi` (or scoped paths), `tests/e2e/test_gi_cli_e2e.py`; see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
-| KG pipeline, `kg` CLI | `tests/unit/kg/`, `tests/e2e/test_kg_cli_e2e.py` |
+| GIL pipeline, `gi.json`, `gi` CLI | `make test-unit -k gi` (or scoped paths), `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`gi validate` smoke); see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
+| KG pipeline, `kg` CLI | `tests/unit/kg/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`kg validate` / `kg inspect`) |
 | `bridge.json` builder | `tests/unit/builders/test_bridge_builder.py`, `tests/integration/test_bridge_integration.py` |
 | CIL query helpers / HTTP | `tests/unit/podcast_scraper/server/test_cil_queries.py`, `tests/integration/server/test_cil_api.py` |
 | Transcript search + **lift** + offset math | `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`, `tests/integration/server/test_viewer_search.py` |
@@ -645,15 +647,40 @@ Per-tier thresholds enforced in CI (prevents regression):
 | ---- | --------- | ------- |
 | **Unit** | 70% | ~74% |
 | **Integration** | 40% | ~42% |
-| **E2E** | 40% | ~50% |
+| **E2E** | 40% | Full `podcast_scraper` tree in denominator; add pytest E2E until this gate passes |
 | **Combined** | 70% | ~71%+ |
+
+### Pytest E2E coverage (full package, no subtree omit)
+
+**pytest E2E** jobs use the same **`pyproject.toml`** **`[tool.coverage.run]`** settings as unit and
+integration (**`COVERAGE_THRESHOLD_E2E`** in the Makefile; **`--cov-fail-under`** in CI). There is
+**no** separate `coverage-e2e.ini` that removes `server/`, `search/`, `gi/`, or other subtrees from
+the fraction. The reported percentage is: lines hit by **`tests/e2e/`** divided by **all**
+measurable lines under **`podcast_scraper`**.
+
+**Why the E2E percentage is lower than unit/integration:** many modules (FastAPI app, FAISS
+indexer, large GI helpers, eval harness) are **not** exercised on every pytest E2E run. That is
+visible in the number: it is a **signal to add pytest E2E** (or subprocess workflows) for **key
+capabilities**, not a reason to shrink the denominator.
+
+**pytest E2E vs HTTP integration vs Playwright** (short):
+
+- **pytest E2E** — Python workflows from CLI / pipeline / E2E server client; this is the tier this
+  row’s threshold applies to.
+- **HTTP integration** — FastAPI and routes via **TestClient** (and similar); fast boundary tests;
+  does **not** replace maintainer pytest E2E obligations for capabilities that must be proven from
+  the **real user entry point** you care about.
+- **Playwright** — Browser UI only; **additive**; **not** an excuse to lower pytest E2E coverage or
+  to skip pytest E2E for Python-only surfaces.
+
+Authoritative narrative: [Testing Strategy — Pytest E2E vs HTTP integration vs browser E2E](../architecture/TESTING_STRATEGY.md#pytest-e2e-vs-http-integration-vs-browser-e2e-playwright).
 
 **Note:** Local make targets now run with coverage:
 
 ```bash
 make test-unit          # includes --cov
 make test-integration   # includes --cov
-make test-e2e           # includes --cov
+make test-e2e           # includes --cov (E2E config)
 ```
 
 ## Test Count Targets

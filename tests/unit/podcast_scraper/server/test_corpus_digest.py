@@ -73,6 +73,8 @@ def test_digest_row_dict_includes_visual_fields() -> None:
     assert d["episode_number"] == 12
     assert d["feed_display_title"] == "S"
     assert d["summary_preview"] == "b1"
+    assert d["summary_bullets_preview"] == ["b1"]
+    assert d["summary_bullet_graph_topic_ids"] == ["topic:b1"]
 
 
 def test_digest_row_dict_includes_feed_rss_url_and_description() -> None:
@@ -150,6 +152,13 @@ def test_digest_row_dict_resolves_feed_rss_from_sibling_index() -> None:
     assert d["feed_description"] == "Sibling desc"
 
 
+def test_utc_bounds_all() -> None:
+    now = datetime(2024, 6, 15, 12, 0, tzinfo=timezone.utc)
+    s, e = utc_bounds_for_window("all", since=None, now_utc=now)
+    assert s == datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+    assert e == now
+
+
 def test_utc_bounds_24h_and_7d() -> None:
     now = datetime(2024, 6, 15, 12, 0, tzinfo=timezone.utc)
     s, e = utc_bounds_for_window("24h", since=None, now_utc=now)
@@ -172,6 +181,18 @@ def test_utc_bounds_since() -> None:
     s, e = utc_bounds_for_window("since", since="2024-06-01", now_utc=now)
     assert s == datetime(2024, 6, 1, 0, 0, tzinfo=timezone.utc)
     assert e == now
+
+
+def test_utc_bounds_1mo_previous_calendar_month() -> None:
+    now = datetime(2024, 3, 15, 12, 0, tzinfo=timezone.utc)
+    s, e = utc_bounds_for_window("1mo", since=None, now_utc=now)
+    assert s == datetime(2024, 2, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert e == datetime(2024, 2, 29, 23, 59, 59, 999999, tzinfo=timezone.utc)
+
+    now_jan = datetime(2025, 1, 10, 8, 0, tzinfo=timezone.utc)
+    s2, e2 = utc_bounds_for_window("1mo", since=None, now_utc=now_jan)
+    assert s2 == datetime(2024, 12, 1, 0, 0, 0, tzinfo=timezone.utc)
+    assert e2 == datetime(2024, 12, 31, 23, 59, 59, 999999, tzinfo=timezone.utc)
 
 
 def test_episode_in_window_midnight_compare() -> None:

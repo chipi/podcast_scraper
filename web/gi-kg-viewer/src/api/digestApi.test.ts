@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fetchCorpusDigest } from './digestApi'
 
+function expectFetchCalledWithUrl(expectedUrl: string): void {
+  expect(fetch).toHaveBeenCalledWith(
+    expectedUrl,
+    expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }),
+  )
+}
+
 function mockFetchJson(
   ok: boolean,
   body: unknown,
@@ -38,7 +47,7 @@ describe('digestApi', () => {
     }
     mockFetchJson(true, payload)
     await expect(fetchCorpusDigest('  /c  ')).resolves.toEqual(payload)
-    expect(fetch).toHaveBeenCalledWith('/api/corpus/digest?path=%2Fc')
+    expectFetchCalledWithUrl('/api/corpus/digest?path=%2Fc')
   })
 
   it('passes window, since, compact, include_topics, max_rows when set', async () => {
@@ -60,7 +69,7 @@ describe('digestApi', () => {
       includeTopics: false,
       maxRows: 12,
     })
-    expect(fetch).toHaveBeenCalledWith(
+    expectFetchCalledWithUrl(
       '/api/corpus/digest?path=%2Fc&window=since&since=2024-01-15&compact=true&include_topics=false&max_rows=12',
     )
   })

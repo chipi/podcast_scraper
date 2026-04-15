@@ -419,6 +419,76 @@ make preload-ml-models-production
 - HuggingFace: `.cache/huggingface/hub/` (e.g., `facebook/bart-base`, `allenai/led-base-16384`)
 - spaCy: `.cache/spacy/` (if using local cache)
 
+#### Transcript hash cache (JSON)
+
+When `transcript_cache_enabled` is on, transcripts are keyed by a hash of the episode audio file
+under `transcript_cache_dir` (default: `.cache/transcripts/`). Each entry is a JSON file containing
+the transcript text plus metadata (`cached_at`, optional `provider` / `model`). If the transcription
+provider returned timed **segments** (Whisper-style `start` / `end` / `text` per item), those are
+also stored in the same JSON under an optional `segments` array. On a **cache hit**, the pipeline
+writes the transcript file and, when segments are present, the sibling **`*.segments.json`** file
+next to it so GI quote audio timestamps match a fresh transcription run. Cache files created before
+segments were stored omit `segments`; re-transcribe or clear that cache entry to populate them.
+
+**GI segment alignment:** Quote audio timestamps (`timestamp_*_ms`) map character offsets using
+`*.segments.json` only when the concatenation of segment `text` fields matches the GI transcript
+string within **50 characters** (`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA` in
+`src/podcast_scraper/gi/pipeline.py`). Screenplay formatting or edited transcripts without
+regenerated segments can trip this guard; the pipeline logs **one warning per episode artifact**
+when it skips segment-based timestamps and segment-derived speakers (GitHub issue #545).
+
+**Direct RSS transcript download (`transcript_source=direct_download`):** Plain `.txt` or `.html`
+transcript URLs do not carry timed cues, so GI quote **audio** timestamps stay at zero unless you add
+a compatible `*.segments.json` by other means. When the feed serves **WebVTT (`.vtt`) or SubRip
+(`.srt`)**, the downloader normalizes to **`transcripts/… .txt`** plus a sibling **`… .segments.json`**
+(parsed cues; GitHub issue #544) so metadata and GI use plain text with the same segment shape as
+Whisper. If parsing yields no cues, the raw caption file is stored as before. Whisper runs and
+transcript cache behavior are separate (GitHub issue #540).
+
+**`--skip-existing` and missing `.segments.json` (GitHub issue #542):** With
+`skip_existing: true`, the pipeline treats an existing Whisper transcript **`.txt`** as “done” for
+transcription even when there is **no** sibling **`basename.segments.json`**. Summaries and GI still
+run, but **GI quote audio timestamps** (`timestamp_*_ms`) stay at **0** until a compatible segment
+sidecar exists (same alignment rules as above). **Recovery without changing defaults:** delete or
+rename the transcript `.txt` (or run once with `skip_existing: false`) so the episode is
+re-transcribed with a segment-capable provider, or clear the relevant transcript cache entry if you
+use `transcript_cache_enabled`. **Opt-in automation:** set **`backfill_transcript_segments: true`**
+(YAML / env) or **`--backfill-transcript-segments`** (CLI) together with **`generate_gi`**: the
+workflow will **not** skip transcription solely because the `.txt` exists when the sidecar is
+missing, and **`append`** will not mark the episode complete until **`transcript_file_path.txt`** and
+**`transcript_file_path.segments.json`** (sibling of the `.txt`) both exist. Default is **`false`** so
+existing skip behavior and API cost stay unchanged.
+
+**Scope:** **`backfill_transcript_segments`** hooks **`download_media_for_transcription`** for **Whisper-style** outputs under **`transcripts/`**. It does **not** override **`skip_existing`** on other transcript persistence paths (for example **direct RSS transcript** downloads that hit a separate save helper): those still skip when the target file already exists unless you remove or replace the file.
+
+**Transcription provider vs GI quote audio timing (GitHub issue #543):** GI **`timestamp_*_ms`** on quotes
+needs either a populated **`.segments.json`** (from the pipeline) or **non-empty `segments`** from
+**`transcribe_with_segments`**. If the provider returns **text but an empty `segments` list**, behavior
+matches missing sidecar: quotes keep **character offsets**, but **audio times stay 0**. This is
+**independent of transcript cache** ([#540](https://github.com/chipi/podcast_scraper/issues/540)): the
+cache cannot invent timings the API did not return.
+
+| `transcription_provider` | Transcription | Timed segments for GI audio seek |
+| --- | --- | --- |
+| **`whisper`** (local **MLProvider**) | Yes | **Yes** when the model returns segments |
+| **`openai`** | Yes | **Yes** when the API returns segment-style alignment (Whisper API path) |
+| **`gemini`** | Yes (text) | **No** — integration returns empty `segments` (no native timed chunks in our path) |
+| **`mistral`** | Yes (text) | **No for now** — returns empty `segments` until Voxtral (or API) exposes a mapped shape |
+| **`anthropic`** | **Not supported** for audio (`NotImplementedError` on transcribe) | N/A — use **whisper** or **openai** for audio + GI timing |
+
+For **GI + audio seek in the viewer**, prefer **`whisper`** or **`openai`** as `transcription_provider`.
+Programmatic checks: **`ProviderCapabilities.supports_gi_segment_timing`** and per-episode metadata
+**`processing.config_snapshot.ml_providers.transcription.gi_segment_timing_expected`** (written when
+transcription provider info is recorded).
+
+<a id="gi-quote-speaker-id"></a>
+
+**GI quote `speaker_id` (GitHub issue [#541](https://github.com/chipi/podcast_scraper/issues/541)):** On each **Quote** node, **`speaker_id`** is set only when **`_speaker_id_for_char_range`** in `src/podcast_scraper/gi/pipeline.py` can map the quote’s character span to timed **segments** (from **`.segments.json`** or non-empty in-memory **`transcript_segments`**) that carry **`speaker`** or **`speaker_id`**, and the same **concatenated segment `text`** vs GI transcript alignment gate applies as for **`timestamp_*_ms`** (**`SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA`**; see **GI segment alignment** above — on failure, segment-based speakers and timestamps are skipped and the pipeline logs **one warning per episode**, [#545](https://github.com/chipi/podcast_scraper/issues/545)). **`speaker_id`** is **`null`** when segments are **time + text only** (common **Whisper** / **OpenAI** paths), when segments are missing ([#540](https://github.com/chipi/podcast_scraper/issues/540), [#542](https://github.com/chipi/podcast_scraper/issues/542)), when the provider returns empty **`segments`** ([#543](https://github.com/chipi/podcast_scraper/issues/543)), or for stub artifacts. Episode **NER** host/guest lists and **screenplay** rotation heuristics do **not** populate **`quote.speaker_id`**. When **`speaker_id`** is non-null, it is normally a **`person:{slug}`** id (RFC-072 **Person** node); legacy corpora may still use **`speaker:{slug}`** until migrated ([GI ontology — Person / Quote properties](../architecture/gi/ontology.md)).
+
+**Future adapters:** When a vendor exposes **word- or chunk-level timestamps** in a stable API shape, a
+normalizer can map them to `{start, end, text}` and write **`.segments.json`** like Whisper paths.
+Ship only with fixtures and unit tests; no adapter is implied until that shape exists.
+
 **See also:** `.cache/README.md` for detailed cache structure and usage.
 
 #### Backup and Restore
@@ -576,6 +646,25 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
   **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**, **(3)**
   [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
   Checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
+
+### Debugging viewer UI
+
+When something looks wrong in the GI/KG viewer (wrong panel, missing control, failed navigation,
+Playwright or MCP clicking the wrong **Search**):
+
+- Use the browser’s **Network** and **Console** (and Vue DevTools if you use them) for requests,
+  errors, and component state.
+- Use [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+  as the **automation and accessibility contract**: stable roles and labels, entry paths, and notes
+  on ambiguous names. It applies to **Playwright failures**, **manual reproduction**, and
+  **agent-driven** Chrome / DevTools MCP sessions, not only to writing new specs.
+- **Insight** graph node detail (`NodeDetail.vue`): meta line (**grounded**, **insight_type**, **position_hint**, optional **confidence**), **Prefill semantic search**, **Set Explore filters**, **Supporting quotes** (**SUPPORTED_BY**), **Episode on graph** when resolvable — see [UXS-004 Graph exploration](../uxs/UXS-004-graph-exploration.md).
+- For the agent-assisted loop (live Chrome + MCP, headless Playwright, validation symmetry), see
+  [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md). For the Playwright change checklist,
+  see [E2E Testing Guide — Browser E2E](E2E_TESTING_GUIDE.md#browser-e2e-playwright).
+
+**More contributor notes:**
+
 - UI E2E uses **Firefox** (see `web/gi-kg-viewer/playwright.config.ts`).
 - Pytest coverage for the same APIs lives under `tests/unit/podcast_scraper/server/`
   and `tests/integration/server/` (e.g. `test_server_api.py` — wired app + real filesystem;

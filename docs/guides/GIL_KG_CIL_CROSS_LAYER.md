@@ -17,6 +17,7 @@ stays in the linked guides and RFCs.
 | **`bridge.json`** (per episode) | Joins GI and KG surfaces under **one** canonical id per real-world person/topic/org; **`display_name`** for UI. Emitted next to `gi.json` / `kg.json` stems. | [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) |
 | **CIL HTTP API** | Read-only queries over on-disk **bridge + gi + kg** (position arc, person profile, topic timeline, id lists). | [Server Guide](SERVER_GUIDE.md) (`/api/persons/*`, `/api/topics/*`) |
 | **Semantic search lift** | For **transcript** FAISS hits, optional **`lifted`** block (insight, speaker, topic, quote times) when chunk spans overlap a **Quote** and `bridge.json` resolves names. | [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) |
+| **Corpus topic clustering (RFC-075)** | Optional **`search/topic_clusters.json`**: viewer **TopicCluster** compound parents (`tc:` **`graph_compound_parent_id`**); optional CIL **`topic_id_aliases`** from **`cil_alias_target_topic_id`**. Does not replace **`bridge.json`**. | [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md), [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md) |
 | **Offset verification** | Confirms **Quote** char ranges overlap **transcript chunk** metadata in the index (same coordinate space). | [Semantic Search Guide — lift and verification](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528) |
 
 **Viewer:** The GI/KG SPA loads artifacts via **`GET /api/artifacts`** and merges GI+KG (and bridge-backed dedupe where implemented). See [Development Guide — GI / KG browser viewer](DEVELOPMENT_GUIDE.md#gi-kg-browser-viewer-local-prototype), [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
@@ -63,12 +64,15 @@ OpenAPI: **`/docs`** when the server is running.
 
 | Area | Layer | Location / command |
 | ---- | ----- | ------------------- |
-| GIL pipeline, schema, CLI | Unit + integration + E2E | `tests/unit/gi/`, `tests/integration/`, `tests/e2e/test_gi_cli_e2e.py`; see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
-| KG | Unit + E2E | `tests/unit/kg/`, `tests/e2e/test_kg_cli_e2e.py` |
+| GIL pipeline, schema, CLI | Unit + integration + E2E | `tests/unit/gi/`, `tests/integration/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`gi validate`); see [Testing Strategy — GIL Testing](../architecture/TESTING_STRATEGY.md#gil-testing-implemented--prd-017-rfc-049050) |
+| KG | Unit + E2E | `tests/unit/kg/`, `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` (`kg validate`, `kg inspect`) |
 | Bridge builder | Unit | `tests/unit/builders/test_bridge_builder.py` |
 | CIL query logic | Unit | `tests/unit/podcast_scraper/server/test_cil_queries.py` |
 | CIL HTTP | Integration | `tests/integration/server/test_cil_api.py` |
 | Search lift + offset verify | Unit | `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py` |
+| Corpus topic clusters (RFC-075) | Unit | `tests/unit/podcast_scraper/search/test_topic_clusters.py` |
+| `GET /api/corpus/topic-clusters` | Unit + integration | `tests/unit/podcast_scraper/server/test_corpus_topic_clusters.py`, `tests/integration/server/test_corpus_topic_clusters_route.py` |
+| Viewer topic cluster fetch + overlay | Vitest + Playwright | `make test-ui` (`corpusTopicClustersApi`, `topicClustersOverlay`); `e2e/search-to-graph-mocks.spec.ts` (mocked API) |
 | Bridge integration (pipeline-shaped) | Integration | `tests/integration/test_bridge_integration.py` |
 | FastAPI viewer (search, health, library, …) | Integration | `tests/integration/server/test_server_api.py`, `test_viewer_search.py`, … |
 | Viewer TS merge / bridge types | Vitest | `make test-ui` |

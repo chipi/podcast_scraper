@@ -103,7 +103,7 @@ via query params with server-enforced maxima).
 | Param            | Type    | Description |
 | ---------------- | ------- | ----------- |
 | `path`           | string  | Corpus root (optional if server default set) |
-| `window`         | enum    | `24h` \| `7d` \| `since` |
+| `window`         | enum    | `24h` \| `7d` \| `1mo` \| `since` (`1mo` = previous calendar month, UTC bounds) |
 | `since`          | date    | Required when `window=since` (`YYYY-MM-DD`) |
 | `compact`        | bool    | Default `false`. When `true`: force **24h** window, **smaller** row cap, **omit** `topics` regardless of `include_topics` |
 | `include_topics` | bool    | Default `true` when `compact=false`; ignored when `compact=true` |

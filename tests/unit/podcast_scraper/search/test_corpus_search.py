@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -97,6 +98,68 @@ def test_run_corpus_search_success_mocked(
     assert out.results[0]["doc_id"] == "d1"
     assert out.lift_stats is not None
     assert "transcript_hits_returned" in out.lift_stats
+
+
+@patch("podcast_scraper.search.corpus_search.embedding_loader.encode")
+@patch("podcast_scraper.search.corpus_search.FaissVectorStore.load")
+def test_run_corpus_search_attaches_topic_cluster_metadata(
+    mock_load: MagicMock,
+    mock_encode: MagicMock,
+    tmp_path: Path,
+) -> None:
+    search_dir = tmp_path / "search"
+    search_dir.mkdir()
+    (search_dir / VECTORS_FILE).write_bytes(b"")
+    (search_dir / "topic_clusters.json").write_text(
+        json.dumps(
+            {
+                "clusters": [
+                    {
+                        "graph_compound_parent_id": "tc:cam",
+                        "canonical_label": "Cam Label",
+                        "members": [{"topic_id": "topic:leaf1"}],
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    mock_encode.return_value = [0.1] * 8
+
+    store = MagicMock()
+    store.ntotal = 2
+    store.stats.return_value = IndexStats(
+        total_vectors=2,
+        doc_type_counts={"kg_topic": 2},
+        feeds_indexed=[],
+        embedding_model="test-model",
+        embedding_dim=8,
+        last_updated="",
+        index_size_bytes=0,
+    )
+    store.search.return_value = [
+        SearchResult(
+            doc_id="d1",
+            score=0.99,
+            metadata={
+                "doc_type": "kg_topic",
+                "episode_id": "e1",
+                "source_id": "topic:leaf1",
+                "text": "surface",
+            },
+        ),
+    ]
+    mock_load.return_value = store
+
+    out = run_corpus_search(tmp_path, "q", top_k=5, dedupe_kg_surfaces=False)
+    assert out.error is None
+    assert len(out.results) == 1
+    meta = out.results[0]["metadata"]
+    tc = meta.get("topic_cluster")
+    assert isinstance(tc, dict)
+    assert tc.get("graph_compound_parent_id") == "tc:cam"
+    assert tc.get("canonical_label") == "Cam Label"
 
 
 @patch("podcast_scraper.search.corpus_search.embedding_loader.encode")

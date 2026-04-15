@@ -64,6 +64,7 @@ nav:
       - Non-Functional Requirements: architecture/NON_FUNCTIONAL_REQUIREMENTS.md
       - Testing Strategy: architecture/TESTING_STRATEGY.md
       - Platform Blueprint: architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md
+      - Viewer Frontend: architecture/VIEWER_FRONTEND_ARCHITECTURE.md
       - GI Ontology: architecture/gi/ontology.md
       - KG Ontology:
           - architecture/kg/README.md
@@ -275,6 +276,7 @@ nav:
       - RFC-072 Canonical Identity Layer (CIL) & Cross-Layer Bridge: rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md
       - RFC-073 Enrichment Layer Architecture: rfc/RFC-073-enrichment-layer-architecture.md
       - RFC-074 Process Safety for ML Workloads (macOS): rfc/RFC-074-process-safety-ml-workloads-macos.md
+      - RFC-075 Corpus Topic Clustering Layer: rfc/RFC-075-corpus-topic-clustering.md
       - RFC Template: rfc/RFC_TEMPLATE.md
   - API:
       - API Overview: api/index.md

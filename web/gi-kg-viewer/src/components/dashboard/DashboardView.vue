@@ -20,6 +20,7 @@ import {
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import { formatBytes, formatUtcDateTimeForDisplay } from '../../utils/formatting'
 import { computeArtifactMetrics } from '../../utils/metrics'
+import { StaleGeneration } from '../../utils/staleGeneration'
 import CategoryLineChart from './CategoryLineChart.vue'
 import MultiSeriesLineChart from './MultiSeriesLineChart.vue'
 import SimpleDoughnutChart from './SimpleDoughnutChart.vue'
@@ -40,8 +41,8 @@ const digestGlance = ref<CorpusDigestResponse | null>(null)
 const digestGlanceError = ref<string | null>(null)
 const dashLoading = ref(false)
 const dashError = ref<string | null>(null)
-/** Bumps on each refresh so stale async work cannot leave `dashLoading` stuck or clobber state. */
-let dashboardRefreshGeneration = 0
+/** Overlapping dashboard refreshes: only the latest run may write metrics state. */
+const dashRefreshGate = new StaleGeneration()
 
 /** Sub-views: pipeline execution vs content intelligence (corpus / graph / index). */
 const dashboardPanel = ref<'pipeline' | 'contentIntelligence'>('pipeline')
@@ -575,7 +576,7 @@ const displaySummaryInsights = computed(() => {
 })
 
 async function refreshDashboardMetrics(): Promise<void> {
-  const gen = (dashboardRefreshGeneration += 1)
+  const gen = dashRefreshGate.bump()
   dashError.value = null
   corpusStats.value = null
   manifestDoc.value = null
@@ -590,18 +591,18 @@ async function refreshDashboardMetrics(): Promise<void> {
   dashLoading.value = true
   try {
     await shell.fetchArtifactList()
-    if (gen !== dashboardRefreshGeneration) {
+    if (dashRefreshGate.isStale(gen)) {
       return
     }
     const p = shell.corpusPath.trim()
     if (shell.corpusDigestApiAvailable) {
       try {
         const d = await fetchCorpusDigest(p, { compact: true, includeTopics: false })
-        if (gen === dashboardRefreshGeneration) {
+        if (dashRefreshGate.isCurrent(gen)) {
           digestGlance.value = d
         }
       } catch (e) {
-        if (gen === dashboardRefreshGeneration) {
+        if (dashRefreshGate.isCurrent(gen)) {
           digestGlanceError.value = e instanceof Error ? e.message : String(e)
         }
       }
@@ -611,38 +612,38 @@ async function refreshDashboardMetrics(): Promise<void> {
         fetchCorpusStats(p),
         fetchCorpusRunsSummary(p),
       ])
-      if (gen !== dashboardRefreshGeneration) {
+      if (dashRefreshGate.isStale(gen)) {
         return
       }
       corpusStats.value = stats
       runsSummary.value = runs
       try {
         const fr = await fetchCorpusFeeds(p)
-        if (gen === dashboardRefreshGeneration) {
+        if (dashRefreshGate.isCurrent(gen)) {
           feedsCatalog.value = fr.feeds
         }
       } catch {
-        if (gen === dashboardRefreshGeneration) {
+        if (dashRefreshGate.isCurrent(gen)) {
           feedsCatalog.value = []
         }
       }
       try {
         const doc = await fetchCorpusManifest(p)
-        if (gen === dashboardRefreshGeneration) {
+        if (dashRefreshGate.isCurrent(gen)) {
           manifestDoc.value = doc
         }
       } catch {
-        if (gen === dashboardRefreshGeneration) {
+        if (dashRefreshGate.isCurrent(gen)) {
           manifestDoc.value = null
         }
       }
     }
   } catch (e) {
-    if (gen === dashboardRefreshGeneration) {
+    if (dashRefreshGate.isCurrent(gen)) {
       dashError.value = e instanceof Error ? e.message : String(e)
     }
   } finally {
-    if (gen === dashboardRefreshGeneration) {
+    if (dashRefreshGate.isCurrent(gen)) {
       dashLoading.value = false
     }
   }

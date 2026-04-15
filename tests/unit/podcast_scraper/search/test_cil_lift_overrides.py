@@ -9,6 +9,7 @@ from podcast_scraper.search.cil_lift_overrides import (
     CilLiftOverrides,
     load_cil_lift_overrides,
     resolve_id_alias,
+    write_cil_lift_overrides_merged_topic_id_aliases,
 )
 
 
@@ -71,3 +72,30 @@ def test_load_invalid_shift_coerces_to_zero(tmp_path: Path) -> None:
     )
     o = load_cil_lift_overrides(tmp_path)
     assert o.transcript_char_shift == 0
+
+
+def test_write_merged_topic_id_aliases_creates_file(tmp_path: Path) -> None:
+    merged = write_cil_lift_overrides_merged_topic_id_aliases(tmp_path, {"topic:x": "topic:y"})
+    assert merged == {"topic:x": "topic:y"}
+    o = load_cil_lift_overrides(tmp_path)
+    assert o.topic_id_aliases == {"topic:x": "topic:y"}
+
+
+def test_write_merged_topic_id_aliases_existing_file_wins(tmp_path: Path) -> None:
+    (tmp_path / "cil_lift_overrides.json").write_text(
+        json.dumps(
+            {
+                "transcript_char_shift": 5,
+                "entity_id_aliases": {"person:a": "person:b"},
+                "topic_id_aliases": {"topic:x": "topic:manual"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    auto = {"topic:x": "topic:auto", "topic:z": "topic:w"}
+    merged = write_cil_lift_overrides_merged_topic_id_aliases(tmp_path, auto)
+    assert merged["topic:x"] == "topic:manual"
+    assert merged["topic:z"] == "topic:w"
+    o = load_cil_lift_overrides(tmp_path)
+    assert o.transcript_char_shift == 5
+    assert o.entity_id_aliases == {"person:a": "person:b"}

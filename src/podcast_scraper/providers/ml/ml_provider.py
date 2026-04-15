@@ -1792,4 +1792,5 @@ class MLProvider:
             supports_system_prompt=False,  # ML models don't use system prompts
             supports_streaming=False,
             provider_name="ml",
+            supports_gi_segment_timing=True,
         )

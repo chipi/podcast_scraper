@@ -341,7 +341,7 @@ class TestIntegrationMain(unittest.TestCase):
                     return_value=({"text": transcribed_text, "segments": []}, 1.0),
                 ) as mock_transcribe:
                     with patch(
-                        "podcast_scraper.cache.transcript_cache.get_cached_transcript",
+                        "podcast_scraper.cache.transcript_cache.get_cached_transcript_entry",
                         return_value=None,
                     ):  # Disable cache to ensure transcription is called
                         with tempfile.TemporaryDirectory() as tmpdir:

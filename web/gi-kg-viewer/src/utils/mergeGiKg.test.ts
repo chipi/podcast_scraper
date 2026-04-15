@@ -70,6 +70,19 @@ describe('mergeParsedArtifacts', () => {
     const supportedBy = edgeTypes.filter((t) => t === 'supported_by')
     expect(supportedBy).toHaveLength(1)
   })
+
+  it('aggregates sourceCorpusRelPathByEpisodeId for multi-file GI merge', () => {
+    const p1 = 'feeds/show/run_a/metadata/e1.gi.json'
+    const p2 = 'feeds/show/run_b/metadata/e2.gi.json'
+    const a = parseArtifact('e1.gi.json', giArt('ep1').data, p1)
+    const b = parseArtifact('e2.gi.json', giArt('ep2').data, p2)
+    const merged = mergeParsedArtifacts([a, b])!
+    expect(merged.sourceCorpusRelPath).toBeNull()
+    expect(merged.sourceCorpusRelPathByEpisodeId).toEqual({
+      ep1: p1,
+      ep2: p2,
+    })
+  })
 })
 
 // ── combineGiKgParsedArtifacts ──
@@ -96,6 +109,19 @@ describe('combineGiKgParsedArtifacts', () => {
   it('preserves KG extraction metadata', () => {
     const combined = combineGiKgParsedArtifacts(giArt(), kgArt())!
     expect(combined.data.extraction).toBeTruthy()
+  })
+
+  it('passes through sourceCorpusRelPathByEpisodeId from merged GI', () => {
+    const p1 = 'feeds/x/run1/metadata/a.gi.json'
+    const p2 = 'feeds/x/run2/metadata/b.gi.json'
+    const g1 = parseArtifact('a.gi.json', giArt('ep1').data, p1)
+    const g2 = parseArtifact('b.gi.json', giArt('ep2').data, p2)
+    const mergedGi = mergeParsedArtifacts([g1, g2])!
+    const combined = combineGiKgParsedArtifacts(mergedGi, kgArt('ep1'))!
+    expect(combined.sourceCorpusRelPathByEpisodeId).toEqual({
+      ep1: p1,
+      ep2: p2,
+    })
   })
 
   it('prefixes node ids with g:/k:', () => {

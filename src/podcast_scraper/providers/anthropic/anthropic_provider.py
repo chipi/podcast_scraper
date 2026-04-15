@@ -1587,4 +1587,5 @@ class AnthropicProvider:
             supports_system_prompt=True,  # Anthropic supports system prompts
             supports_streaming=True,  # Anthropic API supports streaming
             provider_name="anthropic",
+            supports_gi_segment_timing=False,
         )

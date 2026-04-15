@@ -31,6 +31,9 @@
   - Existing: `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` (rail
     host)
   - Existing: `web/gi-kg-viewer/src/stores/artifacts.ts` (enrichment data fetch)
+  - MVP slice (GitHub **#548**): `web/gi-kg-viewer/src/components/shared/TopicTimelineDialog.vue`
+    from graph **Topic** node detail — CIL **`/api/topics/.../timeline`** only; full
+    Topic Entity View layout (charts, enrichers, shared **InsightCard**) remains future work.
 
 ---
 

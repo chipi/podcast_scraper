@@ -74,6 +74,41 @@ Until you rebuild, search may return hits that no longer map cleanly to current 
 episodes. See [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md) for manifest /
 summary contracts.
 
+## Corpus topic clustering (RFC-075)
+
+After **`kg_topic`** rows exist in the FAISS index, you can build **`search/topic_clusters.json`**
+with **`topic-clusters`** (see [CLI reference](../api/CLI.md) — section **Topic clusters**).
+Optional **`--merge-cil-overrides`** writes merged **`topic_id_aliases`** into
+**`cil_lift_overrides.json`** (see **Optional corpus overrides** below). The GI/KG viewer loads
+clusters via **`GET /api/corpus/topic-clusters`** when serving the same corpus root. Details:
+[RFC-075](../rfc/RFC-075-corpus-topic-clustering.md).
+
+New CLI runs emit **`schema_version`: `"2"`** with distinct ids: **`graph_compound_parent_id`**
+(`tc:`…, viewer **TopicCluster** parents only) and **`cil_alias_target_topic_id`** (`topic:`…,
+**`topic_id_aliases`** merge target). Older **`topic_clusters.json`** files may still use v1
+keys (`cluster_id`, `canonical_topic_id`); readers accept both.
+
+**Search responses:** Membership is **not** copied into FAISS metadata at index time. On each
+**`GET /api/search`** (and CLI search), the server **joins** **`search/topic_clusters.json`**
+by **`metadata.source_id`** for **`doc_type`: `kg_topic`** rows and attaches
+**`metadata.topic_cluster`** with **`graph_compound_parent_id`**, **`canonical_label`**, and
+optional **`cil_alias_target_topic_id`** when present. If the JSON file is missing or the topic
+is not in any cluster, the field is omitted.
+
+### Id spaces (mental model)
+
+The stack uses **several parallel id systems**; they stay aligned by convention, not by a single
+global ontology:
+
+| Lens | Role |
+| ---- | ---- |
+| **Embedding / FAISS** | Similarity search over chunk vectors; **`kg_topic`** rows use **`topic:{slug}`** as **`metadata.source_id`** (episode-local KG identity). |
+| **`topic:…` (KG)** | Canonical **Topic** node ids in **`*.kg.json`** and in the index; CIL **aliases** can merge variants for lift and timelines. |
+| **`tc:…` (TopicCluster)** | **Viewer-only** compound parent ids from **`graph_compound_parent_id`** in **`topic_clusters.json`** — grouping in Cytoscape, **not** a FAISS key and **not** the same field as **`cil_alias_target_topic_id`**. |
+| **Overrides** | **`cil_lift_overrides.json`** (and optional **`topic_id_aliases`** from **`topic-clusters --merge-cil-overrides`**) tune identity without rewriting KG files. |
+
+Details and field renames (v1 vs v2): [RFC-075 § Artifact schema](../rfc/RFC-075-corpus-topic-clustering.md#3-artifact-schema-topic_clustersjson).
+
 ## Query
 
 ```bash
@@ -94,8 +129,17 @@ pipeline output directory. See
 (*GI / KG Viewer*).
 
 Response hits are **JSON objects** with `doc_id`, `score`, `metadata`, `text`, optional
-`supporting_quotes` (insight rows), and optional **`lifted`** on **transcript** rows when
-RFC-072 lift applies (see below).
+`supporting_quotes` (insight rows), optional **`lifted`** on **transcript** rows when
+RFC-072 lift applies (see below), and optional **`metadata.topic_cluster`** on **kg_topic**
+rows when **`topic_clusters.json`** exists (RFC-075 join; see **Corpus topic clustering** above).
+
+**Quote speaker fields (GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541)):** On
+**insight** hits, each entry in **`supporting_quotes`** may include **`speaker_id`** /
+**`speaker_name`** mirroring **`.gi.json`**; both are often absent when transcription segments
+lack diarization labels. On **transcript** hits, **`lifted.speaker`** / **`lifted.topic`**
+carry **`display_name`** from **`bridge.json`** when the graph id resolves; the matched
+**`lifted.quote`** may still have audio timestamps while speaker display is missing. Canonical
+rules: [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
 
 ## Chunk-to-Insight lift and offset verification (RFC-072 / #528) {#chunk-to-insight-lift-and-offset-verification-rfc-072--528}
 
@@ -121,6 +165,9 @@ the paginated **`top_k`** slice after server-side KG surface dedupe.
 - **`entity_id_aliases`** / **`topic_id_aliases`** — string-to-string maps; **speaker** /
   **topic** ids from the graph are resolved through the map before **`bridge.json`**
   **`display_name`** lookup and before emitting **`lifted.speaker.id`** / **`lifted.topic.id`**.
+  After **RFC-075** clustering, **`topic-clusters --merge-cil-overrides`** can append
+  **`topic_id_aliases`** derived from **`topic_clusters.json`**; keys already in the file
+  keep their values (hand overrides win).
 
 **Prerequisite:** **Quote** offsets and **index** transcript chunk offsets must refer to the
 **same normalised transcript text**. Validate on a real indexed corpus with:

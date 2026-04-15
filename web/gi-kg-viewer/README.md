@@ -21,6 +21,8 @@ Use this when you want **list files**, **semantic search**, **explore**, and **d
 
 **Graph-only, no API:** If you skip the server (or health check fails), use **Choose .gi.json / .kg.json files** under the API panel. You still get the graph (and can use the Dashboard for the loaded graph), but not server-backed list/search/index stats.
 
+**Offline vs API corpus path:** File-picker loads do **not** fetch `search/topic_clusters.json` or run the **topic-cluster sibling auto-load** (catalog resolve). **Cluster timeline** (`POST /api/topics/timeline`) and related CIL calls also require a healthy API and a **Corpus path** pointing at your pipeline output. For full RFC-075 overlay + sibling merge + merged timelines, use **`make serve`** / **`make serve-api`** with the same `--output-dir` you paste into **Corpus path**.
+
 **Full-stack dev (hot reload):** `make serve SERVE_OUTPUT_DIR=/path/to/output` — API on port **8000**, Vite on **5173** with `/api` proxied. Open **5173** while developing the UI.
 
 ---
@@ -72,7 +74,7 @@ should still point at that parent so list/search/explore see the whole corpus.
 
 ## Optional env
 
-Copy `.env.example` to `.env` and set `VITE_DEFAULT_CORPUS_PATH` to pre-fill that folder in the UI.
+Copy `.env.example` to `.env` and set `VITE_DEFAULT_CORPUS_PATH` to pre-fill that folder in the UI. Optional **`VITE_CLUSTER_SIBLING_EPISODE_CAP`** caps how many extra sibling episodes the Graph tab loads when **`topic_clusters.json`** lists **`members[].episode_ids`** (API mode only). The status line uses a short form: `+N new · M in cluster · cap C` (see [Polyglot guide](../../docs/guides/POLYGLOT_REPO_GUIDE.md)).
 
 ## Production build
 
@@ -85,6 +87,8 @@ Static files go to `dist/`. When `dist/` exists, `podcast serve` mounts it at `/
 ## Graph (M2)
 
 After loading one or more `.gi.json` / `.kg.json` files, the **Cytoscape** graph supports type filters, hide-ungrounded-insights (GI), legend click-to-solo, **Shift+double-click** 1-hop neighborhood focus, **double-click** for the node detail panel (single-click selects), and a node detail panel. Styling matches v1 hex palette for now; UXS-001 token parity is tracked on GitHub #489.
+
+**Topic cluster overlay (RFC-075):** When the server can read **`search/topic_clusters.json`** under the corpus root, the app calls **`GET /api/corpus/topic-clusters`** after artifact load and may add **TopicCluster** compound parents for grouped **Topic** nodes. Build the file with `python -m podcast_scraper.cli topic-clusters --output-dir /path/to/corpus` (requires a **`kg_topic`** vector index). Details: [RFC-075](../../docs/rfc/RFC-075-corpus-topic-clustering.md).
 
 ## Dashboard (M3)
 

@@ -7,6 +7,7 @@ import {
 } from '../api/searchApi'
 import { useGraphNavigationStore } from './graphNavigation'
 import { normalizeFeedIdForViewer } from '../utils/feedId'
+import { StaleGeneration } from '../utils/staleGeneration'
 
 export const useSearchStore = defineStore('search', () => {
   const query = ref('')
@@ -15,6 +16,8 @@ export const useSearchStore = defineStore('search', () => {
   const apiError = ref<string | null>(null)
   const results = ref<SearchHit[]>([])
   const liftStats = ref<CorpusSearchLiftStats | null>(null)
+
+  const searchRunGate = new StaleGeneration()
 
   /**
    * When set with ``feedFilterHandoffPristine``, Advanced feed input shows this title while
@@ -87,6 +90,7 @@ export const useSearchStore = defineStore('search', () => {
       error.value = 'Set corpus root first (same folder as List files).'
       return
     }
+    const seq = searchRunGate.bump()
     loading.value = true
     results.value = []
     liftStats.value = null
@@ -102,6 +106,9 @@ export const useSearchStore = defineStore('search', () => {
         embeddingModel: filters.embeddingModel.trim() || undefined,
         dedupeKgSurfaces: filters.dedupeKgSurfaces,
       })
+      if (searchRunGate.isStale(seq)) {
+        return
+      }
       if (body.error) {
         apiError.value = body.detail
           ? `${body.error}: ${body.detail}`
@@ -113,11 +120,16 @@ export const useSearchStore = defineStore('search', () => {
       results.value = body.results
       liftStats.value = body.lift_stats ?? null
     } catch (e) {
+      if (searchRunGate.isStale(seq)) {
+        return
+      }
       error.value = e instanceof Error ? e.message : String(e)
       results.value = []
       liftStats.value = null
     } finally {
-      loading.value = false
+      if (searchRunGate.isCurrent(seq)) {
+        loading.value = false
+      }
     }
   }
 

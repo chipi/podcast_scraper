@@ -4,6 +4,8 @@ import unittest
 from unittest.mock import Mock
 
 from podcast_scraper.kg.llm_extract import (
+    build_kg_from_bullets_system_prompt,
+    build_kg_transcript_system_prompt,
     normalize_bullet_labels_for_kg,
     parse_kg_graph_response,
     resolve_kg_model_id,
@@ -76,3 +78,14 @@ class TestKgLlmExtract(unittest.TestCase):
     def test_normalize_bullet_labels_strips_ml_prefixes(self) -> None:
         out = normalize_bullet_labels_for_kg(["Unden- topic one", "plain"])
         self.assertEqual(out, ["topic one", "plain"])
+
+    def test_transcript_system_prompt_nudges_short_stable_topic_labels(self) -> None:
+        s = build_kg_transcript_system_prompt(5, 10)
+        self.assertIn("2–8 words", s)
+        self.assertIn("noun-phrase", s)
+        self.assertIn("description", s)
+
+    def test_bullets_system_prompt_nudges_short_stable_topic_labels(self) -> None:
+        s = build_kg_from_bullets_system_prompt(5, 10)
+        self.assertIn("2–8 words", s)
+        self.assertIn("noun-phrase", s)

@@ -34,7 +34,11 @@ def build_kg_transcript_system_prompt(max_topics: int, max_entities: int) -> str
         'or relevance here"}]}\n'
         "Omit description keys when not useful. "
         'entity_kind must be "person" or "organization" only. '
-        "Use concise topic labels (under 200 characters each). "
+        "Each topic label should be a compact heading: prefer about 2–8 words, "
+        "noun-phrase style (hard cap 200 characters). Avoid long sentences, "
+        'comma stacks, leading clauses ("How …", "Why …"), or pasting raw '
+        "transcript lines as the label — put nuance in description instead. "
+        "Short stable headings align better across episodes in later tooling. "
         f"Hard limits: at most {mt} objects in topics and at most {me} in entities — "
         "never exceed these array lengths. Order by importance (strongest first); "
         "extras are truncated if you exceed the limit."
@@ -54,8 +58,10 @@ def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> s
         '"description":"optional context"}]}\n'
         "Omit description when not useful. "
         'entity_kind must be "person" or "organization" only. '
-        "Topic labels must be short thematic phrases "
-        "(not full bullet sentences pasted as one label). "
+        "Topic labels must be short thematic headings: about 2–8 words, "
+        "noun-phrase style — never a full bullet sentence pasted as one label. "
+        "Prefer one stable phrase per theme so the same subject reads similarly "
+        "across episodes; use description for extra nuance. "
         f"Hard limits: at most {mt} topic objects and at most {me} entity objects — "
         "never exceed these array lengths. Order topics by importance (strongest first). "
         "Prefer fewer, broader themes that still cover the bullets over many "

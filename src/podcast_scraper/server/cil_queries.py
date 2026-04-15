@@ -16,11 +16,47 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Any, Iterator
+from pathlib import Path
+from typing import Any, Iterator, Sequence
 
 from podcast_scraper.gi.edge_normalization import normalize_gil_edge_type
+from podcast_scraper.server.corpus_catalog import (
+    _optional_image_url,
+    _optional_relpath_field,
+    _verified_artwork_relpath,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def canonical_cil_entity_id(viewer_graph_id: str) -> str:
+    """Map merged-graph node ids to bridge identity ids (``topic:…``, ``person:…``).
+
+    The viewer may emit ``g:topic:…``, ``k:topic:…``, or stacked prefixes such as
+    ``g:k:topic:…`` (``mergeGiKg.ts``). Bridge files list bare ``topic:…``. Use the
+    same stripping loop as GI ABOUT endpoints (``_strip_layer_prefixes_for_cil``)
+    so cluster timelines and topic queries match disk.
+    """
+    return _strip_layer_prefixes_for_cil(viewer_graph_id.strip())
+
+
+def _strip_layer_prefixes_for_cil(raw: str) -> str:
+    """Normalize ``g:`` / ``k:`` / ``kg:`` layer prefixes on edge endpoints.
+
+    Matches ``web/gi-kg-viewer`` ``stripLayerPrefixesForCil`` so ABOUT ``to`` ids agree
+    with bridge ``topic:…`` / ``person:…`` rows when GI files still use prefixed refs.
+    """
+    s = raw.strip()
+    prev = None
+    while s != prev:
+        prev = s
+        if s.startswith("g:"):
+            s = s[2:]
+        elif s.startswith("k:") and not s.startswith("kg:"):
+            s = s[2:]
+        elif s.startswith("kg:"):
+            s = s[3:]
+    return s
 
 
 def _read_json(path_str: str) -> dict[str, Any] | None:
@@ -41,8 +77,8 @@ def _read_json(path_str: str) -> dict[str, Any] | None:
 def iter_cil_episode_bundles(
     root_path: str,
     anchor_path: str,
-) -> Iterator[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]:
-    """Yield ``(bridge, gi, kg)`` dicts for each sibling triple.
+) -> Iterator[tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]]]:
+    """Yield ``(safe_bridge_path, bridge, gi, kg)`` for each sibling triple.
 
     Only *anchor_path* (the **untainted** server ``output_dir``) is used for
     ``os.walk`` and ``os.path.isdir``.  The user-supplied *root_path* is
@@ -97,7 +133,7 @@ def iter_cil_episode_bundles(
         kg = _read_json(kg_j)
         if bridge is None or gi is None or kg is None:
             continue
-        yield bridge, gi, kg
+        yield safe_bridge, bridge, gi, kg
 
 
 def _bridge_gi_ids(bridge: dict[str, Any]) -> set[str]:
@@ -121,6 +157,25 @@ def _bridge_all_ids(bridge: dict[str, Any]) -> set[str]:
             continue
         rid = row.get("id")
         if isinstance(rid, str) and rid.strip():
+            out.add(rid.strip())
+    return out
+
+
+def _bridge_gi_topic_ids(bridge: dict[str, Any]) -> set[str]:
+    """Topic ids with ``sources.gi == true`` — these are the ids that appear as
+    GI ABOUT edge targets.  Used to expand KG-only cluster topic ids to their
+    GI equivalents so timeline lookups find insights."""
+    out: set[str] = set()
+    for row in bridge.get("identities") or []:
+        if not isinstance(row, dict):
+            continue
+        rid = row.get("id")
+        if not isinstance(rid, str) or not rid.strip():
+            continue
+        if not rid.startswith("topic:"):
+            continue
+        srcs = row.get("sources")
+        if isinstance(srcs, dict) and srcs.get("gi"):
             out.add(rid.strip())
     return out
 
@@ -215,6 +270,65 @@ def _episode_id_from_bridge(bridge: dict[str, Any]) -> str:
     return str(eid).strip() if isinstance(eid, str) and eid.strip() else ""
 
 
+def _cil_episode_metadata_fields(
+    safe_bridge: str,
+    root_prefix: str,
+    corpus_root_norm: str,
+) -> dict[str, Any]:
+    """Read sibling ``*.metadata.json`` for CIL episode display (RFC-072 UI).
+
+    Artwork local paths match **Corpus Library** (``corpus_catalog``): only emit
+    ``*_image_local_relpath`` when the file exists under ``corpus_root_norm`` and
+    lies under ``.podcast_scraper/corpus-art/``. Otherwise the client falls back
+    to remote ``*_image_url`` (avoids ``PodcastCover`` 404 + empty tile).
+    """
+    out: dict[str, Any] = {
+        "episode_title": None,
+        "feed_title": None,
+        "episode_number": None,
+        "episode_image_url": None,
+        "episode_image_local_relpath": None,
+        "feed_image_url": None,
+        "feed_image_local_relpath": None,
+    }
+    corpus_root = Path(os.path.normpath(corpus_root_norm))
+    parent = os.path.dirname(safe_bridge)
+    name = os.path.basename(safe_bridge)
+    if not name.endswith(".bridge.json"):
+        return out
+    stem = name[: -len(".bridge.json")]
+    meta_j = os.path.normpath(os.path.join(parent, f"{stem}.metadata.json"))
+    if not meta_j.startswith(root_prefix):
+        return out
+    if not os.path.isfile(meta_j):
+        return out
+    data = _read_json(meta_j)
+    if data is None:
+        return out
+    feed = data.get("feed")
+    if isinstance(feed, dict):
+        ft = feed.get("title")
+        if isinstance(ft, str) and ft.strip():
+            out["feed_title"] = ft.strip()
+        out["feed_image_url"] = _optional_image_url(feed.get("image_url"))
+        feed_loc_raw = _optional_relpath_field(feed.get("image_local_relpath"))
+        out["feed_image_local_relpath"] = _verified_artwork_relpath(corpus_root, feed_loc_raw)
+    ep = data.get("episode")
+    if isinstance(ep, dict):
+        title = ep.get("title")
+        if isinstance(title, str) and title.strip():
+            out["episode_title"] = title.strip()
+        en = ep.get("episode_number")
+        if isinstance(en, int):
+            out["episode_number"] = en
+        elif isinstance(en, str) and en.strip().isdigit():
+            out["episode_number"] = int(en.strip())
+        out["episode_image_url"] = _optional_image_url(ep.get("image_url"))
+        ep_loc_raw = _optional_relpath_field(ep.get("image_local_relpath"))
+        out["episode_image_local_relpath"] = _verified_artwork_relpath(corpus_root, ep_loc_raw)
+    return out
+
+
 def position_arc(
     root_path: str,
     anchor_path: str,
@@ -223,10 +337,11 @@ def position_arc(
     insight_types: tuple[str, ...] | None = ("claim",),
 ) -> list[dict[str, Any]]:
     """RFC-072 Pattern A — chronological insights for person + topic."""
-    person = target_person.strip()
-    topic = target_topic.strip()
+    person = canonical_cil_entity_id(target_person)
+    topic = canonical_cil_entity_id(target_topic)
+    root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids or topic not in gi_ids:
             continue
@@ -239,7 +354,7 @@ def position_arc(
                 continue
             if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
-            if str(e.get("to")) != topic:
+            if _strip_layer_prefixes_for_cil(str(e.get("to"))) != topic:
                 continue
             iid = e.get("from")
             if iid is not None:
@@ -268,13 +383,18 @@ def position_arc(
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
-        results.append(
-            {
-                "episode_id": episode_id,
-                "publish_date": _kg_publish_date(kg),
-                "insights": insights,
-            }
+        meta = _cil_episode_metadata_fields(
+            safe_bridge,
+            root_prefix,
+            os.path.normpath(root_path),
         )
+        row: dict[str, Any] = {
+            "episode_id": episode_id,
+            "publish_date": _kg_publish_date(kg),
+            "insights": insights,
+        }
+        row.update(meta)
+        results.append(row)
 
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
@@ -299,7 +419,7 @@ def _person_profile_append_for_episode(
             continue
         if str(e.get("from")) not in supported_insights:
             continue
-        topic_id = str(e.get("to"))
+        topic_id = _strip_layer_prefixes_for_cil(str(e.get("to")))
         ins_id = str(e.get("from"))
         insight_node = _node_by_id(gi, ins_id)
         if insight_node is None:
@@ -324,11 +444,11 @@ def _person_profile_append_for_episode(
 
 def person_profile(root_path: str, anchor_path: str, target_person: str) -> dict[str, Any]:
     """RFC-072 Pattern B — insights by topic + quotes for a person (Person Profile)."""
-    person = target_person.strip()
+    person = canonical_cil_entity_id(target_person)
     by_topic: dict[str, list[dict[str, Any]]] = {}
     all_quotes: list[dict[str, Any]] = []
 
-    for bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         gi_ids = _bridge_gi_ids(bridge)
         if person not in gi_ids:
             continue
@@ -348,11 +468,18 @@ def topic_timeline(
     insight_types: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """RFC-072 Pattern C — insights about a topic across episodes."""
-    topic = target_topic.strip()
+    topic = canonical_cil_entity_id(target_topic)
+    root_prefix = os.path.normpath(root_path) + os.sep
     results: list[dict[str, Any]] = []
-    for bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
         if topic not in _bridge_all_ids(bridge):
             continue
+
+        # Expand to include GI-sourced topic ids from this episode's bridge.
+        # KG-only topics (e.g. ``topic:economic-struggles``) have no GI ABOUT
+        # edges; the GI counterparts (sentence-style slugs) do.  The bridge
+        # establishes they belong to the same episode scope.
+        match_ids = {topic} | _bridge_gi_topic_ids(bridge)
 
         about_insights: set[str] = set()
         for e in gi.get("edges") or []:
@@ -360,7 +487,7 @@ def topic_timeline(
                 continue
             if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
-            if str(e.get("to")) != topic:
+            if _strip_layer_prefixes_for_cil(str(e.get("to"))) not in match_ids:
                 continue
             iid = e.get("from")
             if iid is not None:
@@ -386,13 +513,108 @@ def topic_timeline(
         episode_id = _episode_id_from_bridge(bridge)
         if not episode_id:
             continue
-        results.append(
-            {
-                "episode_id": episode_id,
-                "publish_date": _kg_publish_date(kg),
-                "insights": insights,
-            }
+        meta = _cil_episode_metadata_fields(
+            safe_bridge,
+            root_prefix,
+            os.path.normpath(root_path),
         )
+        row_tl: dict[str, Any] = {
+            "episode_id": episode_id,
+            "publish_date": _kg_publish_date(kg),
+            "insights": insights,
+        }
+        row_tl.update(meta)
+        results.append(row_tl)
+
+    return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
+
+
+def topic_timeline_merged(
+    root_path: str,
+    anchor_path: str,
+    target_topics: Sequence[str],
+    insight_types: tuple[str, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """RFC-072 Pattern C for multiple topics — one scan of episode bundles.
+
+    For each episode, includes insights ABOUT any of the canonical topic ids in
+    ``target_topics`` (bridge intersection + GI ABOUT edges). Insight nodes are
+    deduped by id within an episode. Sorting matches ``topic_timeline`` per row
+    and across rows.
+    """
+    topics_set: set[str] = set()
+    for t in target_topics:
+        if t is None or not str(t).strip():
+            continue
+        topics_set.add(canonical_cil_entity_id(str(t)))
+    if not topics_set:
+        return []
+
+    root_prefix = os.path.normpath(root_path) + os.sep
+    results: list[dict[str, Any]] = []
+    for safe_bridge, bridge, gi, kg in iter_cil_episode_bundles(root_path, anchor_path):
+        bridge_ids = _bridge_all_ids(bridge)
+        active = topics_set & bridge_ids
+        if not active:
+            continue
+
+        # Expand: when a requested topic is in the bridge (KG or GI), also
+        # accept all GI-sourced topic ids from this bridge.  GI ABOUT edges
+        # only reference GI topic ids (long sentence-style slugs); KG-only
+        # topics (short slugs from topic_clusters.json) never appear as ABOUT
+        # targets.  The bridge proves both belong to this episode.
+        match_ids = active | _bridge_gi_topic_ids(bridge)
+
+        about_insights: set[str] = set()
+        for e in gi.get("edges") or []:
+            if not isinstance(e, dict):
+                continue
+            if normalize_gil_edge_type(e.get("type")) != "ABOUT":
+                continue
+            to_id = _strip_layer_prefixes_for_cil(str(e.get("to")))
+            if to_id not in match_ids:
+                continue
+            iid = e.get("from")
+            if iid is not None:
+                about_insights.add(str(iid))
+
+        insights: list[dict[str, Any]] = []
+        seen_nid: set[str] = set()
+        for n in gi.get("nodes") or []:
+            if not isinstance(n, dict):
+                continue
+            nid = n.get("id")
+            if nid is None or str(nid) not in about_insights:
+                continue
+            ns = str(nid)
+            if ns in seen_nid:
+                continue
+            seen_nid.add(ns)
+            insights.append(n)
+
+        if insight_types is not None:
+            allowed = {x.strip().lower() for x in insight_types if x.strip()}
+            if allowed:
+                insights = [it for it in insights if _insight_type(it).lower() in allowed]
+
+        insights.sort(key=_position_hint)
+        if not insights:
+            continue
+        episode_id = _episode_id_from_bridge(bridge)
+        if not episode_id:
+            continue
+        meta = _cil_episode_metadata_fields(
+            safe_bridge,
+            root_prefix,
+            os.path.normpath(root_path),
+        )
+        row_tl: dict[str, Any] = {
+            "episode_id": episode_id,
+            "publish_date": _kg_publish_date(kg),
+            "insights": insights,
+        }
+        row_tl.update(meta)
+        results.append(row_tl)
 
     return sorted(results, key=lambda r: (r.get("publish_date") or "", r.get("episode_id") or ""))
 
@@ -408,9 +630,9 @@ def person_topic_ids(root_path: str, anchor_path: str, target_person: str) -> li
 
 def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> list[str]:
     """Distinct person ids that speak (via quotes) to insights about ``target_topic``."""
-    topic = target_topic.strip()
+    topic = canonical_cil_entity_id(target_topic)
     persons: set[str] = set()
-    for bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
+    for _safe_bridge, bridge, gi, _kg in iter_cil_episode_bundles(root_path, anchor_path):
         if topic not in _bridge_all_ids(bridge):
             continue
 
@@ -420,7 +642,7 @@ def topic_person_ids(root_path: str, anchor_path: str, target_topic: str) -> lis
                 continue
             if normalize_gil_edge_type(e.get("type")) != "ABOUT":
                 continue
-            if str(e.get("to")) != topic:
+            if _strip_layer_prefixes_for_cil(str(e.get("to"))) != topic:
                 continue
             iid = e.get("from")
             if iid is not None:

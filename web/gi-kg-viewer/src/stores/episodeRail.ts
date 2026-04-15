@@ -4,7 +4,8 @@ import { ref } from 'vue'
 export type EpisodeRailPaneKind = 'tools' | 'episode' | 'graph-node'
 
 /**
- * Right sidebar: Search/Explore, Library episode detail, or graph node detail (unified `w-80`).
+ * Right sidebar: Search/Explore, Library episode detail, or graph node detail
+ * (shell column: Tailwind ``w-96`` when expanded in ``App.vue``).
  * Only one mode is visible at a time.
  */
 export const useEpisodeRailStore = defineStore('episodeRail', () => {

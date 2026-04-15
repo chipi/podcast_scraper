@@ -4,6 +4,27 @@
 import type { ArtifactData, ParsedArtifact, RawGraphEdge, RawGraphNode } from '../types/artifact'
 import { ensureEpisodeToInsightEdges } from './parsing'
 
+/**
+ * Build per-episode ``.gi.json`` corpus paths for merged graphs (multi-file GI or GI+KG).
+ */
+function mergeEpisodeSourcePathsFromParsed(arts: ParsedArtifact[]): Record<string, string> | null {
+  const out: Record<string, string> = {}
+  for (const a of arts) {
+    if (a.sourceCorpusRelPathByEpisodeId) {
+      Object.assign(out, a.sourceCorpusRelPathByEpisodeId)
+    }
+    const rel = a.sourceCorpusRelPath
+    const eid = a.episodeId
+    if (rel && eid) {
+      const k = String(eid)
+      if (!out[k]) {
+        out[k] = rel
+      }
+    }
+  }
+  return Object.keys(out).length ? out : null
+}
+
 function deepClone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x)) as T
 }
@@ -26,7 +47,8 @@ function entityCanonicalKey(node: RawGraphNode): string | null {
 
 export type EntityDedupMode = 'name-based' | 'cil-first'
 
-function stripLayerPrefixesForCil(rawId: string): string {
+/** Strip ``g:`` / ``k:`` / ``kg:`` layer prefixes for RFC-072 id comparison (exported for topic cluster overlay). */
+export function stripLayerPrefixesForCil(rawId: string): string {
   let s = String(rawId).trim()
   let prev = ''
   while (s !== prev) {
@@ -175,6 +197,8 @@ export function mergeParsedArtifacts(arts: ParsedArtifact[]): ParsedArtifact | n
     edges: mergedData.edges!.length,
     nodeTypes,
     data: mergedData,
+    sourceCorpusRelPath: null,
+    sourceCorpusRelPathByEpisodeId: mergeEpisodeSourcePathsFromParsed(arts),
   }
 }
 
@@ -384,6 +408,8 @@ export function combineGiKgParsedArtifacts(
     edges: mergedData.edges!.length,
     nodeTypes,
     data: mergedData,
+    sourceCorpusRelPath: giArt.sourceCorpusRelPath ?? null,
+    sourceCorpusRelPathByEpisodeId: mergeEpisodeSourcePathsFromParsed([giArt]),
   }
 }
 

@@ -1725,4 +1725,5 @@ class GeminiProvider:
             supports_system_prompt=True,  # Gemini supports system prompts
             supports_streaming=True,  # Gemini API supports streaming
             provider_name="gemini",
+            supports_gi_segment_timing=False,
         )

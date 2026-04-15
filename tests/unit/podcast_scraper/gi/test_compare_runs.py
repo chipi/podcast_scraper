@@ -50,7 +50,7 @@ class TestCompareGilRuns(unittest.TestCase):
 
         ref = collect_gil_stats_from_run_root(root)
         self.assertEqual(len(ref), 2)
-        self.assertEqual(ref["ci-fixture"].n_quotes, 1)
+        self.assertEqual(ref["ci-fixture"].n_quotes, 2)
         self.assertEqual(ref["ep-b"].n_quotes, 0)
 
         rows = paired_episode_rows(ref, ref)

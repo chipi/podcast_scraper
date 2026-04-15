@@ -97,6 +97,7 @@ describe('insightRows', () => {
     expect(quotes[0]).toMatchObject({
       text: 'a quote',
       speaker_name: 'Alice',
+      speaker_id: 's1',
       start_ms: 1000,
       end_ms: 2000,
     })
@@ -115,7 +116,25 @@ describe('insightRows', () => {
         },
       ],
     })
-    expect(ex.insightRows[0].supporting_quotes![0].speaker_name).toBe('spk42')
+    const row = ex.insightRows[0].supporting_quotes![0]
+    expect(row.speaker_name).toBeUndefined()
+    expect(row.speaker_id).toBe('spk42')
+  })
+
+  it('uses flat speaker_id when nested speaker object is absent', () => {
+    const ex = useExploreStore()
+    ex.last = exploreBody({
+      insights: [
+        {
+          insight_id: 'i5',
+          text: 'y',
+          supporting_quotes: [{ text: 'flat', speaker_id: 'person:bob' }],
+        },
+      ],
+    })
+    const row = ex.insightRows[0].supporting_quotes![0]
+    expect(row.speaker_name).toBeUndefined()
+    expect(row.speaker_id).toBe('person:bob')
   })
 })
 

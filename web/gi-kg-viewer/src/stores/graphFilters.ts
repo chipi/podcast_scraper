@@ -5,9 +5,9 @@ import { useArtifactsStore } from './artifacts'
 import {
   applyGraphFilters,
   defaultFilterState,
-  filterArtifactEgoOneHop,
   filtersActive,
 } from '../utils/parsing'
+import { expandFilteredArtifactEgoWithTopicClusterNeighbors } from '../utils/topicClustersOverlay'
 
 export const useGraphFilterStore = defineStore('graphFilters', () => {
   const artifacts = useArtifactsStore()
@@ -37,7 +37,11 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
   function viewWithEgo(focusId: string | null): ParsedArtifact | null {
     const base = filteredArtifact.value
     if (!base) return null
-    return filterArtifactEgoOneHop(base, focusId)
+    return expandFilteredArtifactEgoWithTopicClusterNeighbors(
+      base,
+      focusId,
+      artifacts.topicClustersDoc,
+    )
   }
 
   function setHideUngrounded(v: boolean): void {

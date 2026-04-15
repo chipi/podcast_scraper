@@ -147,6 +147,22 @@ test.describe('Corpus Library tab', () => {
     ).toBeVisible()
   })
 
+  test('feed filter: Clear feed filter resets to all feeds', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    await expandLibraryEpisodeFilters(page)
+    const clearFeed = page.getByRole('button', { name: /Clear feed filter/ })
+    await expect(clearFeed).toBeVisible()
+    await expect(clearFeed).toBeDisabled()
+    await page.getByRole('button', { name: 'Mock Show, feed id f1, 1 episodes' }).click()
+    await expect(clearFeed).toBeEnabled()
+    await clearFeed.click()
+    await expect(clearFeed).toBeDisabled()
+  })
+
   test('lists mocked feeds and episodes; search handoff fills query and feed filter', async ({
     page,
   }) => {

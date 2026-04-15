@@ -25,6 +25,7 @@ import {
   SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
+import { StaleGeneration } from '../../utils/staleGeneration'
 
 const emit = defineEmits<{
   'focus-search': [
@@ -51,6 +52,8 @@ const similarLoading = ref(false)
 const similarError = ref<string | null>(null)
 const similarQueryUsed = ref('')
 const similarRanOk = ref(false)
+
+const detailLoadGate = new StaleGeneration()
 
 const feedDisplayTitleById = computed(() => {
   const m: Record<string, string> = {}
@@ -166,28 +169,44 @@ function detailFeedHoverTitle(): string {
   )
 }
 
-async function loadFeedsAndIndex(): Promise<void> {
+async function loadFeedsAndIndex(seq: number): Promise<void> {
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) {
-    feeds.value = []
-    indexStatsEnvelope.value = null
+    if (detailLoadGate.isCurrent(seq)) {
+      feeds.value = []
+      indexStatsEnvelope.value = null
+    }
     return
   }
   try {
     const body = await fetchCorpusFeeds(root)
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
     feeds.value = body.feeds
     try {
-      indexStatsEnvelope.value = await fetchIndexStats(root)
+      const env = await fetchIndexStats(root)
+      if (detailLoadGate.isStale(seq)) {
+        return
+      }
+      indexStatsEnvelope.value = env
     } catch {
+      if (detailLoadGate.isStale(seq)) {
+        return
+      }
       indexStatsEnvelope.value = null
     }
   } catch {
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
     feeds.value = []
     indexStatsEnvelope.value = null
   }
 }
 
 async function loadDetail(metaPath: string): Promise<void> {
+  const seq = detailLoadGate.bump()
   detailError.value = null
   detail.value = null
   similarItems.value = []
@@ -201,13 +220,28 @@ async function loadDetail(metaPath: string): Promise<void> {
   }
   detailLoading.value = true
   try {
-    await loadFeedsAndIndex()
-    detail.value = await fetchCorpusEpisodeDetail(root, metaPath)
-    void loadSimilarEpisodes()
+    await loadFeedsAndIndex(seq)
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
+    const d = await fetchCorpusEpisodeDetail(root, metaPath)
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
+    if (metadataRelativePath.value?.trim() !== metaPath) {
+      return
+    }
+    detail.value = d
+    void loadSimilarEpisodes(seq, metaPath)
   } catch (e) {
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
     detailError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    detailLoading.value = false
+    if (detailLoadGate.isCurrent(seq)) {
+      detailLoading.value = false
+    }
   }
 }
 
@@ -224,12 +258,15 @@ function mapSimilarError(code: string, detailMsg: string | null): string {
   return detailMsg || code
 }
 
-async function loadSimilarEpisodes(): Promise<void> {
+async function loadSimilarEpisodes(forSeq: number, forMetaPath: string): Promise<void> {
   similarError.value = null
   similarItems.value = []
   similarQueryUsed.value = ''
   similarRanOk.value = false
-  if (!detail.value) {
+  if (detailLoadGate.isStale(forSeq)) {
+    return
+  }
+  if (!detail.value || detail.value.metadata_relative_path !== forMetaPath) {
     return
   }
   const root = shell.corpusPath.trim()
@@ -238,7 +275,13 @@ async function loadSimilarEpisodes(): Promise<void> {
   }
   similarLoading.value = true
   try {
-    const body = await fetchCorpusSimilarEpisodes(root, detail.value.metadata_relative_path)
+    const body = await fetchCorpusSimilarEpisodes(root, forMetaPath)
+    if (detailLoadGate.isStale(forSeq)) {
+      return
+    }
+    if (metadataRelativePath.value?.trim() !== forMetaPath) {
+      return
+    }
     similarQueryUsed.value = body.query_used || ''
     if (body.error) {
       similarError.value = mapSimilarError(body.error, body.detail)
@@ -247,9 +290,14 @@ async function loadSimilarEpisodes(): Promise<void> {
     similarItems.value = body.items
     similarRanOk.value = true
   } catch (e) {
+    if (detailLoadGate.isStale(forSeq)) {
+      return
+    }
     similarError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    similarLoading.value = false
+    if (detailLoadGate.isCurrent(forSeq)) {
+      similarLoading.value = false
+    }
   }
 }
 
@@ -306,6 +354,7 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
 watch(
   () => [shell.corpusPath, shell.healthStatus] as const,
   () => {
+    detailLoadGate.invalidate()
     feeds.value = []
     indexStatsEnvelope.value = null
     detail.value = null
@@ -323,6 +372,7 @@ watch(
     if (p?.trim()) {
       void loadDetail(p.trim())
     } else {
+      detailLoadGate.invalidate()
       detail.value = null
       detailError.value = null
       detailLoading.value = false
@@ -366,7 +416,7 @@ watch(
             <h3 class="min-w-0 flex-1 text-base font-semibold text-surface-foreground">
               {{ detail.episode_title }}
             </h3>
-            <div class="flex shrink-0 items-start gap-0.5 pt-0.5">
+            <div class="flex shrink-0 flex-col items-end gap-0.5 pt-0.5">
               <button
                 v-if="detail.episode_id?.trim()"
                 type="button"

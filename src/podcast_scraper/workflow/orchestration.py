@@ -1944,49 +1944,53 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
             )
         )
 
-        # Wrap all processing in try-finally to ensure cleanup always happens
-        # This prevents memory leaks if exceptions occur during processing
+        # Wrap processing + finalize: JSONL must stay open until _finalize_pipeline
+        # calls emit_run_finished (see _finalize_emit_and_save). Closing the emitter in
+        # the inner finally was too early and broke run_finished emission.
         try:
-            saved = _process_episodes_with_threading(
+            try:
+                saved = _process_episodes_with_threading(
+                    cfg=cfg,
+                    episodes=episodes,
+                    feed=feed,
+                    effective_output_dir=effective_output_dir,
+                    run_suffix=run_suffix,
+                    feed_metadata=feed_metadata,
+                    host_detection_result=host_detection_result,
+                    transcription_resources=transcription_resources,
+                    processing_resources=processing_resources,
+                    pipeline_metrics=pipeline_metrics,
+                    summary_provider=summary_provider,
+                    transcription_provider=transcription_provider,
+                    normalizing_start=normalizing_start,
+                )
+
+            finally:
+                # Step 9.5: Unload models to free memory
+                _cleanup_providers(transcription_resources, summary_provider)
+
+            # Step 10-15: Finalize pipeline (metrics, JSONL run_finished, index, …)
+            result = _finalize_pipeline(
                 cfg=cfg,
-                episodes=episodes,
-                feed=feed,
+                saved=saved,
+                transcription_resources=transcription_resources,
                 effective_output_dir=effective_output_dir,
                 run_suffix=run_suffix,
-                feed_metadata=feed_metadata,
-                host_detection_result=host_detection_result,
-                transcription_resources=transcription_resources,
-                processing_resources=processing_resources,
                 pipeline_metrics=pipeline_metrics,
+                episodes=episodes,
+                jsonl_emitter=jsonl_emitter,
+                run_manifest=run_manifest,
                 summary_provider=summary_provider,
                 transcription_provider=transcription_provider,
-                normalizing_start=normalizing_start,
             )
-
-        finally:
-            # Step 9.5: Unload models to free memory
-            # This runs even if exceptions occur above, preventing memory leaks
-            _cleanup_providers(transcription_resources, summary_provider)
+        except BaseException:
             if jsonl_emitter is not None:
                 try:
                     jsonl_emitter.__exit__(None, None, None)
                 except Exception:
                     pass
+            raise
 
-        # Step 10-15: Finalize pipeline (cleanup, save metrics, generate reports)
-        result = _finalize_pipeline(
-            cfg=cfg,
-            saved=saved,
-            transcription_resources=transcription_resources,
-            effective_output_dir=effective_output_dir,
-            run_suffix=run_suffix,
-            pipeline_metrics=pipeline_metrics,
-            episodes=episodes,
-            jsonl_emitter=jsonl_emitter,
-            run_manifest=run_manifest,
-            summary_provider=summary_provider,
-            transcription_provider=transcription_provider,
-        )
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
         return result
     finally:
