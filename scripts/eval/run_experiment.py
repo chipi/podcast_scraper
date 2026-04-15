@@ -919,12 +919,17 @@ def run_experiment(  # noqa: C901
 
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
-            if cfg.prompts is None:
+            if cfg.llm_pipeline_mode == "bundled":
+                # Bundled path hardcodes prompt template paths inside the provider.
+                user_prompt = "gemini/summarization/bundled_clean_summary_user_v1"
+                system_prompt = "gemini/summarization/bundled_clean_summary_system_v1"
+            elif cfg.prompts is None:
                 raise ValueError("Gemini backend requires prompts (see ExperimentConfig).")
-            user_prompt = cfg.prompts.user
-            system_prompt = (
-                cfg.prompts.system if cfg.prompts.system else "gemini/summarization/system_v1"
-            )
+            else:
+                user_prompt = cfg.prompts.user
+                system_prompt = (
+                    cfg.prompts.system if cfg.prompts.system else "gemini/summarization/system_v1"
+                )
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="gemini",

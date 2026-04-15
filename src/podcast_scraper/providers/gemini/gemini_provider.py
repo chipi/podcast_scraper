@@ -889,7 +889,7 @@ class GeminiProvider:
             )
 
             def _make_api_call():
-                generation_config = {
+                generation_config: Dict[str, Any] = {
                     "temperature": self.summary_temperature,
                     "max_output_tokens": max_length,
                     "system_instruction": system_prompt,
@@ -1068,7 +1068,7 @@ class GeminiProvider:
         call_metrics.set_provider_name("gemini")
 
         def _make_api_call() -> Any:
-            generation_config = {
+            generation_config: Dict[str, Any] = {
                 "temperature": self.summary_temperature,
                 "max_output_tokens": max_out,
                 "response_mime_type": "application/json",
@@ -1100,7 +1100,7 @@ class GeminiProvider:
             raise ValueError("Gemini bundled call returned empty content")
 
         try:
-            data = json.loads(raw)
+            data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
             raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
 
