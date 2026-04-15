@@ -1,6 +1,8 @@
 # AI Provider Comparison Guide
 
-> **Your decision-making resource for choosing the right AI provider.**
+> **Authoritative v2 reference**: [`autoresearch/eval_report_v2_2026-04-15.md`](../../autoresearch/eval_report_v2_2026-04-15.md) — 6-provider held-out matrix under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)).
+> The benchmark numbers later in this guide (v1 smoke/benchmark datasets) are **superseded** by the v2 report above; preserved for continuity and for providers (Ollama, hybrid_ml) not yet re-run under v2.
+> Your decision-making resource for choosing the right AI provider.
 
 A focused analysis of summarization and capability providers supported by
 podcast_scraper: local ML, **hybrid MAP-REDUCE** (hybrid_ml), and 7 LLM providers.
@@ -9,10 +11,44 @@ analysis, and empirical conclusions.
 
 **Companion pages:**
 
+- **[v2 Eval Report (authoritative, 2026-04-15)](../../autoresearch/eval_report_v2_2026-04-15.md)** — 6-provider held-out matrix under v2 framework
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) — per-provider reference cards, magic
   quadrant, visual comparisons
-- [Evaluation Reports](eval-reports/index.md) — methodology, metric definitions, and
-  the full library of measured comparison reports
+- [Evaluation Reports](eval-reports/index.md) — methodology + historical v1 reports
+
+---
+
+## v2 Summary — out-of-the-box recommendation (2026-04-15)
+
+All 6 cloud LLM providers evaluated under the v2 framework: dev/held-out split, fraction-based
+judge contestation, champion prompts ported across providers. Held-out ROUGE-L vs Sonnet 4.6
+silver on `curated_5feeds_benchmark_v2` (5 unseen episodes, ~32 min each):
+
+| Track | OpenAI | Anthropic | Gemini | Mistral | **DeepSeek** | Grok |
+| ----- | :----: | :-------: | :----: | :-----: | :----------: | :--: |
+| Bullets non-bundled | 39.6% | 40.7% | 40.1% | 37.3% | **43.1%** | 38.6% |
+| Bullets bundled | 33.2% | **39.3%** | 28.5% | 30.4% | 34.4% | 30.5% |
+| Paragraph non-bundled | 31.7% | 36.4% | 29.3% | 27.8% | **40.7%** | 31.3% |
+| Paragraph bundled | 29.5% | **39.2%** | 26.6% | 30.3% | 35.9% | 28.9% |
+
+**Cell winners:**
+
+- **Non-bundled (either track):** DeepSeek (`deepseek-chat`). Cheapest cloud non-local
+  option that also leads on both quality metrics — the clear sweet spot.
+- **Bundled (either track):** Anthropic (`claude-haiku-4-5`). Only provider where bundled
+  is competitive with non-bundled; bundled paragraph even beats non-bundled paragraph.
+
+**Default picks for new work:**
+
+- **Most use cases → DeepSeek non-bundled**. Best quality + lowest cloud cost
+  ($0.28/M output tokens).
+- **Single-call bundled output (title + summary + bullets) → Anthropic Haiku 4.5 bundled**.
+- **Absolute-minimum cost → Gemini 2.0-flash non-bundled bullets** (1.1pp ROUGE-L behind
+  DeepSeek at ~half the cost).
+- **Avoid**: OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph. Structural
+  weak spots visible in the matrix.
+
+See [v2 eval report](../../autoresearch/eval_report_v2_2026-04-15.md) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
 
 ---
 

@@ -1,0 +1,16 @@
+# Autoresearch v2 non-bundled paragraph — HELD-OUT benchmark validation (deepseek).
+id: "autoresearch_prompt_deepseek_benchmark_paragraph_v2"
+task: "summarization"
+backend:
+  type: "deepseek"
+  model: "deepseek-chat"
+prompts:
+  system: "deepseek/summarization/system_v1"
+  user: "deepseek/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

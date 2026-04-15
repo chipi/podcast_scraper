@@ -1,0 +1,16 @@
+# Autoresearch v2 non-bundled paragraph — HELD-OUT benchmark validation (grok).
+id: "autoresearch_prompt_grok_benchmark_paragraph_v2"
+task: "summarization"
+backend:
+  type: "grok"
+  model: "grok-3-mini"
+prompts:
+  system: "grok/summarization/system_v1"
+  user: "grok/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

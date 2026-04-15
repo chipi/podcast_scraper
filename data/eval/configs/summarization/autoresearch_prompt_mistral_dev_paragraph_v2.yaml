@@ -1,0 +1,16 @@
+# Autoresearch v2 non-bundled paragraph — mistral, dev dataset.
+id: "autoresearch_prompt_mistral_dev_paragraph_v2"
+task: "summarization"
+backend:
+  type: "mistral"
+  model: "mistral-small-latest"
+prompts:
+  system: "mistral/summarization/system_v1"
+  user: "mistral/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"
