@@ -1,11 +1,27 @@
-# AI Provider Summarization Quality — Autoresearch v2 Eval Report
+# Evaluation Report: Held-out v2 (April 2026)
 
-**Date:** 2026-04-15
-**Framework:** autoresearch v2 ([RFC-073](../docs/rfc/RFC-073-autoresearch-v2-framework.md))
-**Silver reference:** Claude Sonnet 4.6 (via existing `silver_sonnet46_*` references)
-**Held-out dataset:** `curated_5feeds_benchmark_v2` (5 episodes, ~32 min each)
-**Dev dataset:** `curated_5feeds_dev_v1` (10 episodes, e01+e02)
-**Judges:** gpt-4o-mini + claude-haiku-4-5-20251001 (dual, fraction-based contestation)
+> **Authoritative 6-provider comparison under the autoresearch v2 framework.** Dev/held-out
+> dataset split, champion prompts ported across providers, dual-judge scoring.
+> Supersedes the [v1 benchmark report](EVAL_BENCHMARK_V1_2026_04.md) and
+> [v1 smoke report](EVAL_SMOKE_V1_2026_04.md) for cloud API providers;
+> v1 reports remain authoritative for Ollama and hybrid_ml pending v2 re-run.
+
+| Field | Value |
+| ----- | ----- |
+| **Date** | April 2026 (2026-04-15) |
+| **Framework** | autoresearch v2 ([RFC-073](../../rfc/RFC-073-autoresearch-v2-framework.md)) |
+| **Dev dataset** | `curated_5feeds_dev_v1` (10 ep, e01+e02 per feed) — iteration only |
+| **Held-out dataset** | `curated_5feeds_benchmark_v2` (5 ep, e03 per feed, ~32 min each) — never used during tuning |
+| **Silver (paragraphs)** | `silver_sonnet46_dev_v1_paragraph`, `silver_sonnet46_benchmark_v2_paragraph` |
+| **Silver (bullets)** | `silver_sonnet46_dev_v1_bullets`, `silver_sonnet46_benchmark_v2_bullets` |
+| **Judges** | gpt-4o-mini + claude-haiku-4-5-20251001 (dual, fraction-based contestation) |
+| **Providers evaluated** | OpenAI, Anthropic, Gemini, Mistral, DeepSeek, Grok |
+
+For metric definitions and interpretation guidance, see the [Evaluation Reports index](index.md).
+For the framework design rationale (why dev/held-out split, why fraction-based contestation, etc.),
+see [RFC-073](../../rfc/RFC-073-autoresearch-v2-framework.md).
+
+---
 
 Six API providers evaluated end-to-end under the same framework with the same champion prompts
 (ported from OpenAI r7 champion). All champions validated on held-out content they were never

@@ -1,6 +1,6 @@
 # AI Provider Comparison Guide
 
-> **Authoritative v2 reference**: [`autoresearch/eval_report_v2_2026-04-15.md`](../../autoresearch/eval_report_v2_2026-04-15.md) — 6-provider held-out matrix under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)).
+> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md) — 6-provider held-out matrix under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)).
 > The benchmark numbers later in this guide (v1 smoke/benchmark datasets) are **superseded** by the v2 report above; preserved for continuity and for providers (Ollama, hybrid_ml) not yet re-run under v2.
 > Your decision-making resource for choosing the right AI provider.
 
@@ -11,7 +11,7 @@ analysis, and empirical conclusions.
 
 **Companion pages:**
 
-- **[v2 Eval Report (authoritative, 2026-04-15)](../../autoresearch/eval_report_v2_2026-04-15.md)** — 6-provider held-out matrix under v2 framework
+- **[v2 Eval Report (authoritative, 2026-04-15)](eval-reports/EVAL_HELDOUT_V2_2026_04.md)** — 6-provider held-out matrix under v2 framework
 - [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) — per-provider reference cards, magic
   quadrant, visual comparisons
 - [Evaluation Reports](eval-reports/index.md) — methodology + historical v1 reports
@@ -48,7 +48,7 @@ silver on `curated_5feeds_benchmark_v2` (5 unseen episodes, ~32 min each):
 - **Avoid**: OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph. Structural
   weak spots visible in the matrix.
 
-See [v2 eval report](../../autoresearch/eval_report_v2_2026-04-15.md) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
+See [v2 eval report](eval-reports/EVAL_HELDOUT_V2_2026_04.md) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
 
 ---
 
