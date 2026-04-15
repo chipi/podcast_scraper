@@ -1,0 +1,13 @@
+# Autoresearch v2 bundled paragraph — ollama/mistral_small3_2.
+id: "autoresearch_prompt_ollama_mistral_small3_2_bundled_dev_paragraph_v2"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "mistral-small3.2:latest"
+llm_pipeline_mode: "bundled"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "summary"

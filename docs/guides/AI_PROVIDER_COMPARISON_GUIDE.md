@@ -38,24 +38,41 @@ silver on `curated_5feeds_benchmark_v2` (5 unseen episodes, ~32 min each):
 - **Bundled (either track):** Anthropic (`claude-haiku-4-5`). Only provider where bundled
   is competitive with non-bundled; bundled paragraph even beats non-bundled paragraph.
 
-### Local (Ollama) — v2 held-out, bullets non-bundled
+### Local (Ollama) — v2 held-out
 
-| Rank in bullets | Provider+model | ROUGE-L | Final |
-| :-------------: | -------------- | :-----: | :---: |
+**Bullets non-bundled (ROUGE-L):**
+
+| Rank | Provider+model | ROUGE-L | Final |
+| :--: | -------------- | :-----: | :---: |
 | 1 | DeepSeek (cloud) | 43.1% | 0.586 |
 | **2** | **Ollama qwen3.5:9b (local, free)** | **42.8%** | **0.580** |
 | 3 | Ollama qwen3.5:35b | 41.3% | 0.576 |
 | 4 | Anthropic haiku-4.5 | 40.7% | 0.570 |
 
-**Headline**: `qwen3.5:9b` local essentially matches the best cloud option on bullets.
-For on-prem/offline: **use qwen3.5:9b**. Paragraph summaries on long content are less reliable
-locally (contestation on 3 of 4 local models held-out) — use cloud for paragraphs.
+**Paragraph — use bundled on local** (big finding):
+
+| Model | Non-bundled paragraph | Bundled paragraph |
+| ----- | :-------------------: | :---------------: |
+| qwen3.5:9b | 0.505 (2/5 contested) | **0.509** (uncontested) |
+| qwen3.5:35b | 0.325 (contested → ROUGE-only) | **0.492** |
+| mistral-small3.2 | 0.288 (contested → ROUGE-only) | **0.468** |
+
+Non-bundled paragraph contests on 3 of 4 local models (long transcripts → inconsistent
+structure → judge disagreement). **Bundled paragraph doesn't contest at all** — the JSON
+schema stabilises output. Bundled is the correct local-deployment choice for paragraph.
+
+**Local picks**:
+
+- **Bullets (either mode)** → `qwen3.5:9b` non-bundled (0.580).
+- **Paragraph** → `qwen3.5:9b` **bundled** (0.509). Same single call produces both.
+- **Single call, title+summary+bullets** → `qwen3.5:9b` bundled. Loses ~9% on bullets vs
+  non-bundled but gains reliability and cost efficiency.
 
 **Default picks for new work:**
 
 - **Most use cases → DeepSeek non-bundled**. Best quality + lowest cloud cost ($0.28/M output tokens).
 - **Single-call bundled output (title + summary + bullets) → Anthropic Haiku 4.5 bundled**.
-- **On-prem / offline bullets → Ollama qwen3.5:9b non-bundled**. ~match with DeepSeek for free.
+- **On-prem / offline → Ollama qwen3.5:9b**. Non-bundled for bullets (0.580, matches DeepSeek); bundled for paragraph (0.509, avoids contestation). Free, private, production-viable.
 - **Absolute-minimum cost cloud → Gemini 2.0-flash non-bundled bullets** (1.1pp ROUGE-L behind DeepSeek at ~half the cost).
 - **Avoid**: OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph, local paragraph on long transcripts. Structural weak spots visible in the matrix.
 

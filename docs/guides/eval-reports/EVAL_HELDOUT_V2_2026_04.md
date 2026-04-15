@@ -71,13 +71,14 @@ All 24 champions generalise within ±5% dev→held-out. No overfitting caught.
 
 ---
 
-## Local models (Ollama) — non-bundled only
+## Local models (Ollama)
 
-Four local models added as an initial local-vs-cloud comparison. Non-bundled only (bundled
-requires JSON-mode reliability that local models handle inconsistently; deferred to follow-up).
-Same champion prompts ported from OpenAI r7.
+Four local models added as a local-vs-cloud comparison. Same champion prompts ported from OpenAI r7.
+Non-bundled for all four; bundled also evaluated for the three larger models (qwen3.5:9b,
+qwen3.5:35b, mistral-small3.2) — llama3.2:3b bundled skipped given small-model JSON reliability
+concerns.
 
-### Held-out (5 ep e03)
+### Held-out non-bundled (5 ep e03)
 
 | Model | Bullets ROUGE-L | Bullets final | Paragraph ROUGE-L | Paragraph final |
 | ----- | :-------------: | :-----------: | :---------------: | :-------------: |
@@ -85,6 +86,18 @@ Same champion prompts ported from OpenAI r7.
 | qwen3.5:35b | 41.3% | 0.576 | 32.5% | 0.325 (contested) |
 | mistral-small3.2 | 36.1% | 0.536 | 28.8% | 0.288 (contested) |
 | llama3.2:3b | 33.0% | 0.501 | 27.0% | 0.270 (contested) |
+
+### Held-out bundled (5 ep e03)
+
+| Model | Bullets ROUGE-L | Bullets final | Paragraph ROUGE-L | Paragraph final |
+| ----- | :-------------: | :-----------: | :---------------: | :-------------: |
+| **qwen3.5:9b** | **35.8%** | **0.529** | **33.1%** | **0.509** |
+| qwen3.5:35b | 33.3% | 0.514 | 30.8% | 0.492 |
+| mistral-small3.2 | 30.3% | 0.488 | 27.5% | 0.468 |
+
+All 12 bundled cells ran cleanly with **zero contestation** — a stark contrast to the non-bundled
+paragraph track where 3 of 4 models contested. The structured JSON schema stabilises output
+across judges.
 
 ### Dev (10 ep e01+e02)
 
@@ -114,21 +127,27 @@ Same champion prompts ported from OpenAI r7.
 for bullets held-out**, 0.3pp ROUGE-L behind DeepSeek. On-prem / offline deployments can
 essentially match the best cloud option on bullets quality.
 
-### Local paragraph contestation is the notable failure mode
+### Non-bundled paragraph contests locally; bundled fixes it
 
-Three of four local models **contested** on held-out paragraph (judges diverged >40%
-of episodes). Not the case for cloud providers on the same held-out. Interpretation:
+Three of four local models **contested** on held-out non-bundled paragraph (judges diverged
+>40% of episodes). When the **same models** are run in bundled mode (same prompt content,
+but wrapped in the bundled JSON schema), all three produce **uncontested** paragraph output
+at meaningfully higher final scores:
 
-- Held-out episodes are ~32 min each — much longer than dev's ~10 min.
-- Local models produce less *consistent* paragraph structure across long transcripts;
-  judges agree on the content but disagree on coverage/efficiency dimension scores.
-- Not a framework bug; the fraction-based contestation is correctly flagging high-variance
-  output. The local paragraph track needs either (a) targeted per-model tuning, (b)
-  smaller transcript chunks, or (c) accepting the ROUGE-only score for now (0.27-0.33
-  range, below cloud baselines).
+| Model | Non-bundled paragraph final | Bundled paragraph final | Gain |
+| ----- | :-------------------------: | :---------------------: | :--: |
+| qwen3.5:9b | 0.505 (2/5 contested) | **0.509** | +0.8% (and stable) |
+| qwen3.5:35b | 0.325 (contested, ROUGE-only) | **0.492** | +51% |
+| mistral-small3.2 | 0.288 (contested, ROUGE-only) | **0.468** | +63% |
 
-**Practical takeaway**: for paragraph summaries on long content, cloud is still the
-reliable pick. For bullets, local (qwen3.5:9b) is production-viable.
+The JSON schema appears to force local models into more consistent paragraph structure that
+judges score reliably. This mirrors the Anthropic cloud finding (bundled paragraph ≥ non-bundled
+paragraph) and inverts the assumption that bundled always has an attention-split penalty.
+
+**Practical takeaway for local deployment**: use **bundled mode** for paragraph output on
+local models. The single-call cost is lower AND the quality is higher (or equal) than
+non-bundled. For bullets, **non-bundled is still better** (qwen3.5:9b non-bundled 0.580 vs
+bundled 0.529) — same attention-split penalty as on cloud providers (except Anthropic).
 
 ---
 

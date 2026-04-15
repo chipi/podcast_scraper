@@ -1255,7 +1255,7 @@ class OllamaProvider:
             raise ValueError("Ollama bundled call returned empty content")
 
         try:
-            data = json.loads(raw)
+            data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
             raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
 

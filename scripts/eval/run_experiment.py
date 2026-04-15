@@ -1076,12 +1076,17 @@ def run_experiment(  # noqa: C901
 
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
-            if cfg.prompts is None:
+            if cfg.llm_pipeline_mode == "bundled":
+                # Bundled path hardcodes prompt template paths inside the provider.
+                user_prompt = "ollama/summarization/bundled_clean_summary_user_v1"
+                system_prompt = "ollama/summarization/bundled_clean_summary_system_v1"
+            elif cfg.prompts is None:
                 raise ValueError("Ollama backend requires prompts (see ExperimentConfig).")
-            user_prompt = cfg.prompts.user
-            system_prompt = (
-                cfg.prompts.system if cfg.prompts.system else "ollama/summarization/system_v1"
-            )
+            else:
+                user_prompt = cfg.prompts.user
+                system_prompt = (
+                    cfg.prompts.system if cfg.prompts.system else "ollama/summarization/system_v1"
+                )
             # Longer read timeout for large local models (27B+). Default CLI ollama_timeout is 120s.
             _ollama_read = os.environ.get("EXPERIMENT_OLLAMA_READ_TIMEOUT", "").strip()
             _ollama_timeout_kw: Dict[str, int] = {}
