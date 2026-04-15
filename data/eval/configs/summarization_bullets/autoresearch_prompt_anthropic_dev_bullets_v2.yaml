@@ -1,0 +1,28 @@
+# Autoresearch v2 non-bundled bullets ratchet — Anthropic, dev dataset (10 episodes).
+#
+# Templates (shared, already at OpenAI champion level):
+#   src/podcast_scraper/prompts/shared/summarization/system_bullets_v1.j2
+#   src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
+#
+# Paired silver: silver_sonnet46_dev_v1_bullets
+
+id: "autoresearch_prompt_anthropic_dev_bullets_v2"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5-20251001"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
