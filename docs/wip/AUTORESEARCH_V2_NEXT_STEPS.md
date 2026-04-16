@@ -82,14 +82,22 @@ from Ollama 0.19.0 release notes + 2025-2026 community guides. Refined findings:
 - gemma2 still structurally capped at 8192 (model spec, not Ollama)
 - **Recommendation**: explicit `num_ctx=32768` per request (current code sets 8192 — bump it)
 
-**Finding #2: Qwen3.5 template IS a real bug**
+**~~Finding #2: Qwen3.5 template IS a real bug~~ → Tested, does NOT affect our workload (2026-04-16)**
 
-- Ollama-shipped qwen3.5:9b/27b/35b have `TEMPLATE {{ .Prompt }}` — no ChatML role tokens
-- OpenAI-compat layer merges system+user as flat text, loses `<|im_start|>`/`<|im_end|>` structure
-- Model sees "System: ...\nUser: ..." prose instead of ChatML-tagged messages
-- Qwen3.5 instruction-following on system-prompt-heavy tasks is measurably degraded
-- Referenced bug reports: ollama/ollama#10980, huggingface Qwen3.5-27B discussion #28
-- **Recommendation**: custom Modelfile with proper ChatML template for qwen3.5:9b at minimum
+Research predicted "measurable quality jump" from fixing the ChatML template.
+**Tested with custom Modelfile; reality = no material effect.**
+
+- Created `qwen3.5:9b-chatml` with canonical ChatML template (copied from qwen2.5:7b)
+- Ran 4 cells (dev + held-out × bullets + paragraph); all within ±0.3% of baseline
+- Ollama's prompt-flattening for `{{ .Prompt }}` templates preserves enough signal that
+  Qwen3.5 handles it fine on long-form summarisation
+- Cleaned up the custom variant and configs; no action taken
+- **The template is still technically incorrect per Qwen spec**, but on this workload
+  it doesn't matter. May matter on:
+  - Shorter prompts (less context for model to recover from flat format)
+  - Multi-turn conversations (ChatML structure matters more across turns)
+  - Tool-use / function-calling (structural role markers critical)
+- For summarisation, skip this fix. Don't chase "technically correct" over "empirically equivalent".
 
 **Finding #3: Q4_0 quant upgrades are free quality**
 

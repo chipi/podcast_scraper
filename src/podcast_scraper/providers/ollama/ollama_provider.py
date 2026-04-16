@@ -243,10 +243,11 @@ class OllamaProvider:
             self.summary_model,
         )
         self.summary_temperature = getattr(cfg, "ollama_temperature", 0.3)
-        # Ollama defaults num_ctx to 2048 (silently truncates beyond); our transcripts
-        # are ~3k-4k tokens so we must set this explicitly. 8192 is a safe default
-        # that fits on every model we run (smallest max is gemma2 at 8192).
-        self.summary_num_ctx: int = int(getattr(cfg, "ollama_num_ctx", 8192) or 8192)
+        # Ollama 0.19.0 tiers num_ctx by VRAM (48GB → 32k default). But silent
+        # truncation still happens when prompt+output exceed the set limit, so we
+        # set explicitly. 32768 is the research-recommended safe default on 48GB.
+        # gemma2 is structurally capped at 8192 regardless; Ollama silently clamps.
+        self.summary_num_ctx: int = int(getattr(cfg, "ollama_num_ctx", 32768) or 32768)
         # Modern Ollama models support 128k context window
         self.max_context_tokens = 128000  # Conservative estimate
 
