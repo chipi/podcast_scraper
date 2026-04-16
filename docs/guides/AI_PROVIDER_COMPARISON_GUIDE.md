@@ -85,10 +85,11 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
 
 | Priority | Best pick | Why |
 | :------- | :-------- | :-- |
-| **Balanced default** | **Gemini 2.0-flash non-bundled** | 0.562, 2.0s, $0.00035/ep. On every Pareto frontier; only ~4% behind #1 quality. |
+| **Balanced default** | **Gemini 2.5-flash-lite non-bundled** | 0.564 / 0.479, 1.5s, ~$0.00047/ep. New 2026-04-16 — strict upgrade over 2.0-flash. |
 | **Quality first** | DeepSeek non-bundled | 0.586 (#1), 10s, $0.0005/ep. Top quality at near-bottom cost. |
 | **Single-call bundled** | Anthropic haiku-4.5 bundled | 0.552 bullets / 0.548 paragraph, 7s, $0.006/ep. Only provider where bundled is competitive. |
-| **Throughput / real-time** | Gemini 2.0-flash | 2.0s/ep, 2× faster than Anthropic, 5× faster than DeepSeek. |
+| **Throughput / real-time** | Gemini 2.5-flash-lite | 1.5s/ep — fastest in the matrix. 2× faster than Gemini 2.0-flash at same quality tier. |
+| **OpenAI-ecosystem (cost-sensitive)** | gpt-4o-mini | 0.540 / 0.469, 6.6s, ~$0.00074/ep. 16× cheaper than gpt-4o for 4% quality hit. |
 | **Privacy / offline** | Ollama qwen3.5:9b | 0.580 (local #1), 33s/ep, free. Matches DeepSeek quality offline. |
 
 **Avoid / dominated (unless ecosystem-locked):**

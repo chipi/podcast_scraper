@@ -151,18 +151,21 @@ and Mar 2026 pricing.
 | 3 | Ollama qwen3.5:35b | 0.576 | 41.3% | 23.1s | $0 | 0.025 | ∞ |
 | 4 | Anthropic (haiku-4.5) | 0.570 | 40.7% | 4.8s | $0.00416 | 0.119 | 137 |
 | 5 | OpenAI (gpt-4o) | 0.566 | 39.6% | 4.6s | $0.01175 | 0.123 | 48 |
-| 6 | Gemini (2.0-flash) | 0.562 | 40.1% | **2.0s** | **$0.00035** | **0.281** | **1594** |
-| 7 | Grok (grok-3-mini) | 0.553 | 38.6% | 19.4s | $0.00106 | 0.029 | 522 |
-| 8 | Ollama qwen3.5:27b† | 0.543 | 36.3% | 505s† | $0 | 0.001† | ∞ |
-| 9 | Mistral (mistral-small-latest) | 0.537 | 37.3% | 2.2s | $0.00084 | 0.244 | 639 |
-| 10 | Ollama mistral-small3.2 | 0.536 | 36.1% | 79.2s | $0 | 0.007 | ∞ |
-| 11 | Ollama mistral:7b | 0.526 | 36.2% | 28.9s | $0 | 0.018 | ∞ |
-| 12 | Ollama llama3.1:8b | 0.518 | 33.8% | 24.5s | $0 | 0.021 | ∞ |
-| 13 | Ollama llama3.2:3b | 0.501 | 33.0% | 12.2s | $0 | 0.041 | ∞ |
-| 14 | Ollama mistral-nemo:12b | 0.497 | 30.4% | 33.4s | $0 | 0.015 | ∞ |
-| 15 | Ollama gemma2:9b | 0.492 | 30.3% | 28.6s | $0 | 0.017 | ∞ |
-| 16 | Ollama qwen2.5:7b | 0.477 | 29.6% | 22.9s | $0 | 0.021 | ∞ |
-| 17 | Ollama phi3:mini | 0.475 | 31.9% | 17.7s | $0 | 0.027 | ∞ |
+| **6** | **Gemini 2.5-flash-lite (new)** | **0.564** | 39.6% | **1.5s** | **~$0.00047** | **0.376** | **1200** |
+| 7 | Gemini 2.0-flash | 0.562 | 40.1% | 2.0s | $0.00035 | 0.281 | 1606 |
+| 8 | Grok (grok-3-mini) | 0.553 | 38.6% | 19.4s | $0.00106 | 0.029 | 522 |
+| 9 | Ollama qwen3.5:27b† | 0.543 | 36.3% | 505s† | $0 | 0.001† | ∞ |
+| **10** | **gpt-4o-mini (new)** | **0.540** | 37.1% | 6.6s | **~$0.00074** | 0.082 | 730 |
+| 11 | Mistral (mistral-small-latest) | 0.537 | 37.3% | 2.2s | $0.00084 | 0.244 | 639 |
+| 12 | Ollama mistral-small3.2 | 0.536 | 36.1% | 79.2s | $0 | 0.007 | ∞ |
+| 13 | Ollama mistral:7b | 0.526 | 36.2% | 28.9s | $0 | 0.018 | ∞ |
+| 14 | Ollama llama3.1:8b | 0.518 | 33.8% | 24.5s | $0 | 0.021 | ∞ |
+| 15 | Ollama llama3.2:3b | 0.501 | 33.0% | 12.2s | $0 | 0.041 | ∞ |
+| 16 | Ollama mistral-nemo:12b | 0.497 | 30.4% | 33.4s | $0 | 0.015 | ∞ |
+| 17 | Ollama gemma2:9b | 0.492 | 30.3% | 28.6s | $0 | 0.017 | ∞ |
+| 18 | **Mistral-medium (new, surprisingly weak)** | **0.488** | 29.1% | 5.9s | ~higher | — | worse |
+| 19 | Ollama qwen2.5:7b | 0.477 | 29.6% | 22.9s | $0 | 0.021 | ∞ |
+| 20 | Ollama phi3:mini | 0.475 | 31.9% | 17.7s | $0 | 0.027 | ∞ |
 
 †qwen3.5:27b bullets held-out shows anomalous 505s — likely cold-start / model swap overhead
 from Ollama. Paragraph cell on same model was 188s, more typical. Treat this cell as warm-up
@@ -292,6 +295,21 @@ Anthropic bundled paragraph (0.548) even *beats* Anthropic non-bundled paragraph
 
 For any workload where bundled (title + summary + bullets in one call) is the preferred shape,
 Anthropic is the only provider where it's not a quality compromise.
+
+### 4. Cheaper-tier variants added 2026-04-16
+
+Three cheaper-tier variants tested after the initial sweep:
+
+| Model | Bullets | Paragraph | vs comparable existing | Verdict |
+| ----- | :-----: | :-------: | ---------------------- | ------- |
+| **gemini-2.5-flash-lite** | **0.564** | **0.479** | 2.0-flash: 0.562 / 0.463 | **Strict upgrade** — better on both tracks, same cost tier |
+| gpt-4o-mini | 0.540 | 0.469 | gpt-4o: 0.566 / 0.481 (16× more expensive) | Viable cost-tier pick; 4% quality hit buys 16× cost savings |
+| mistral-medium | 0.488 | 0.421 | mistral-small: 0.537 / 0.456 | **Don't use** — unexpectedly worse than small; paragraph even contests 2/5 |
+
+**Practical consequence**: gemini-2.5-flash-lite should replace 2.0-flash as the cheap-tier
+Gemini pick in the recommendations. gpt-4o-mini is a defensible OpenAI pick for cost-sensitive
+deployments; note that champion prompts were tuned for gpt-4o specifically — dedicated prompt
+tuning for gpt-4o-mini could close some of the 4% quality gap.
 
 ### 3. Gemini is the balanced-default champion once latency/cost are counted
 
