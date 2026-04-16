@@ -92,6 +92,7 @@ export function graphNeighborsForNode(
       direction = 'in'
     }
     if (!neighborId) continue
+    if (String(e.type ?? '') === '_tc_cohesion') continue
     const key = `${neighborId}:${direction}:${e.type ?? ''}`
     if (seen.has(key)) continue
     seen.add(key)

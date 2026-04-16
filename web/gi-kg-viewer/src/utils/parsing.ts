@@ -566,6 +566,7 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
   for (const e of rawEdges) {
     if (!e || typeof e !== 'object') continue
     const k = e.type != null && String(e.type).trim() !== '' ? String(e.type) : '(unknown)'
+    if (k === '_tc_cohesion') continue
     if (!seenE.has(k)) {
       seenE.add(k)
       allowedEdgeTypes[k] = true
@@ -724,6 +725,7 @@ export function applyGraphFilters(
     }
     const et =
       e.type != null && String(e.type).trim() !== '' ? String(e.type) : '(unknown)'
+    if (et === '_tc_cohesion') return true
     return aet[et] !== false
   })
   const nodeTypes: Record<string, number> = {}

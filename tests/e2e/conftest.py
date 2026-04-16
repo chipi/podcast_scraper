@@ -721,6 +721,8 @@ def configure_e2e_feed_limiting(request):
                 "podcast1_with_transcript",
                 "podcast1_multi_episode",
                 "podcast1_episode_selection",
+                # GitHub #560 — multi-feed RSS error injection (resilience E2E)
+                "podcast2",
                 "podcast9_solo",
                 "podcast7_sustainability",  # Issue #283: threshold testing
                 "podcast8_solar",  # Issue #283: threshold testing

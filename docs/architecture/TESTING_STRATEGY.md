@@ -120,8 +120,8 @@ The testing strategy follows a three-tier pyramid:
     parent + feeds indexing; composite fingerprint keys (`index_fingerprint_scope_key`).
   - `tests/unit/podcast_scraper/workflow/test_corpus_operations.py` — manifest/summary JSON,
     `finished_at`, `finalize_multi_feed_batch` return value.
-  - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success and
-    partial failure).
+  - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success,
+    partial failure, **GitHub #559** ``multi_feed_strict`` when failures are soft-only).
   - `tests/unit/podcast_scraper/test_cli.py` — `corpus-status` parse/smoke; multi-feed CLI with
     injected `run_pipeline_fn`; **`gi inspect` / `kg inspect`** multi-feed **`--feed-id`** and
     ambiguous **`episode_id`** error paths (`TestGiSubcommand`, `TestKgSubcommandMultiFeed`).
@@ -138,6 +138,17 @@ The testing strategy follows a three-tier pyramid:
   still writes both artifacts with `overall_ok: false` (CLI + service).
 - **E2E:** `tests/e2e/test_service_api_e2e.py` — YAML `feeds:` + `multi_feed_summary`;
   `tests/e2e/test_basic_e2e.py` / `test_cli_subprocess_e2e.py` — multi-feed smoke where marked #440.
+- **Multi-feed resilience E2E (#559 / #560):** **`multi_feed_strict`** (default lenient) and CLI
+  **`--multi-feed-strict`** / **`--no-multi-feed-strict`** are covered in
+  **`tests/e2e/test_multi_feed_resilience_e2e.py`** (corpus batch **`corpus_run_summary.json`**,
+  per-feed **`failure_kind`**, strict vs lenient exit codes, transient RSS, corpus lock,
+  multi-episode transcript skip + per-feed **`run.json`** metrics). HTTP/transcript retry and
+  **`failure_summary`** in **`run.json`** where the pipeline records episode failures live in
+  **`tests/e2e/test_download_resilience_e2e.py`**. Narrative and fast vs **`multi_episode`** mode:
+  [E2E_TESTING_GUIDE.md — Download resilience E2E](../guides/E2E_TESTING_GUIDE.md#download-resilience-e2e).
+- **Config note (#559):** Deprecated YAML/JSON key **`multi_feed_soft_fail_exit_zero`** is mapped
+  during **`Config.model_validate`** on a dict only. Call **`Config(multi_feed_strict=...)`** in
+  code; the legacy name is not a constructor keyword (model **`extra=forbid`**). No env alias.
 - **Docs:** [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md), RFC-063 §5–§7,
   [CONFIGURATION.md](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440),
   [SEMANTIC_SEARCH_GUIDE.md](../guides/SEMANTIC_SEARCH_GUIDE.md).

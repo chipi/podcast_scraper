@@ -71,6 +71,15 @@ class LLMBasedCleaner:
             if input_len >= _MIN_INPUT_CHARS_FOR_LENGTH_GUARD and input_len > 0:
                 ratio = len(stripped) / input_len
                 if ratio < _MIN_OUTPUT_TO_INPUT_RATIO:
+                    out_len = len(stripped)
+                    logger.debug(
+                        "LLM cleaning length guard: input_len=%d output_len=%d ratio=%.4f "
+                        "threshold=%.2f (reject LLM output, keep pattern-cleaned text)",
+                        input_len,
+                        out_len,
+                        ratio,
+                        _MIN_OUTPUT_TO_INPUT_RATIO,
+                    )
                     logger.warning(
                         "LLM cleaning shortened transcript excessively "
                         "(output/input length ratio=%.3f); using pattern-cleaned text",

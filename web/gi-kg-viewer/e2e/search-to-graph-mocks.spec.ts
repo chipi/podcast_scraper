@@ -298,11 +298,6 @@ test.describe('Search → graph (mocked API)', () => {
     await transcriptDlg.getByRole('button', { name: 'Close' }).click()
     await expect(transcriptDlg).toBeHidden()
 
-    const episodeConnRow = page.locator('[data-connection-node-id="episode:ci-fixture"]')
-    await expect(episodeConnRow.getByTestId('graph-connection-open-library')).toBeEnabled()
-    await expect(episodeConnRow.getByTestId('graph-connection-focus-graph')).toBeEnabled()
-    await expect(episodeConnRow.getByTestId('graph-connection-prefill-search')).toBeEnabled()
-
     const insightTipBody = page.getByTestId('node-detail-insight-details-tooltip-body')
     if (await insightTipBody.isVisible()) {
       await page
@@ -311,6 +306,17 @@ test.describe('Search → graph (mocked API)', () => {
         .click()
     }
     await expect(page.getByRole('tooltip')).toHaveCount(0)
+
+    // Connections list (L/G/S) lives on the rail **Neighbourhood** tab, not **Details**.
+    await page.getByTestId('node-detail-rail-tab-neighbourhood').click()
+    await expect(page.getByTestId('graph-connections-section')).toBeVisible()
+
+    const episodeConnRow = page.locator('[data-connection-node-id="episode:ci-fixture"]')
+    await expect(episodeConnRow.getByTestId('graph-connection-open-library')).toBeEnabled()
+    await expect(episodeConnRow.getByTestId('graph-connection-focus-graph')).toBeEnabled()
+    await expect(episodeConnRow.getByTestId('graph-connection-prefill-search')).toBeEnabled()
+
+    await page.getByTestId('node-detail-rail-tab-details').click()
 
     await page.getByTestId('node-detail-insight-explore-filters').click()
     await expect(
@@ -351,6 +357,9 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.getByRole('region', { name: 'Graph node: Insight' })).toBeVisible({
       timeout: 15_000,
     })
+    await page.getByTestId('node-detail-rail-tab-neighbourhood').click()
+    await expect(page.getByTestId('graph-connections-section')).toBeVisible()
+
     const episodeRowAgain = page.locator('[data-connection-node-id="episode:ci-fixture"]')
     await expect(episodeRowAgain.getByTestId('graph-connection-open-library')).toBeEnabled()
 

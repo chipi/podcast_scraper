@@ -30,7 +30,7 @@
   - `docs/architecture/ARCHITECTURE.md` — multi-feed outer loop documented (GitHub #440)
   - `docs/architecture/TESTING_STRATEGY.md` — new test tiers as needed
   - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` — full-pipeline acceptance preset (Planet Money + The Journal, OpenAI; local under `config/acceptance/`); `USE_FIXTURES=1` rewrites `feeds:` to local E2E fixture URLs
-  - `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` — manual validation preset (same feeds, `max_episodes: 1`)
+  - `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` — manual validation preset (OpenAI Whisper + Gemini text; same feeds)
 
 ## Abstract
 

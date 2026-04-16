@@ -109,10 +109,14 @@ podcast-scraper --rss https://example.com/feed.xml \
 
 **Custom OpenAI Base URL (for E2E testing):**
 
+The FastAPI app from **`make serve-api`** listens on **8000** by default. Point
+provider `*_api_base` at your **mock** URL instead (for example
+**`make serve-e2e-mock`**, default port **18765**).
+
 ```bash
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider openai \
-  --openai-api-base http://localhost:8000/v1 \
+  --openai-api-base http://localhost:18765/v1 \
   --openai-api-key sk-test123
 ```
 
@@ -127,7 +131,7 @@ podcast-scraper --rss https://example.com/feed.xml \
 ```bash
 podcast-scraper --rss https://example.com/feed.xml \
   --transcription-provider gemini \
-  --gemini-api-base http://localhost:8000/v1beta \
+  --gemini-api-base http://localhost:18765/v1beta \
   --gemini-api-key test123
 ```
 
@@ -194,18 +198,18 @@ summary_provider: transformers  # or "hybrid_ml", "openai", "gemini", "anthropic
 # OpenAI configuration (required if using OpenAI providers)
 
 openai_api_key: sk-your-key-here  # Optional: can use OPENAI_API_KEY env var instead
-openai_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
+openai_api_base: null  # Optional: custom base URL (e.g., "http://localhost:18765/v1" for E2E mock)
 
 # Gemini configuration (required if using Gemini providers)
 
 gemini_api_key: your-key-here  # Optional: can use GEMINI_API_KEY env var instead
-gemini_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1beta" for E2E testing)
+gemini_api_base: null  # Optional: custom base URL (e.g., "http://localhost:18765/v1beta" for E2E mock)
 
 # Mistral configuration (required if using Mistral provider)
 # Mistral supports summarization only, with EU data residency
 
 mistral_api_key: your-key-here  # Optional: can use MISTRAL_API_KEY env var instead
-mistral_api_base: null  # Optional: custom base URL (e.g., "http://localhost:8000/v1" for E2E testing)
+mistral_api_base: null  # Optional: custom base URL (e.g., "http://localhost:18765/v1" for E2E mock)
 
 # Transcription settings (for whisper provider)
 
@@ -390,7 +394,7 @@ count, summary = run_pipeline(cfg)
 cfg = Config(
     rss_url="https://example.com/feed.xml",
     transcription_provider="openai",
-    openai_api_base="http://localhost:8000/v1",  # E2E server
+    openai_api_base="http://localhost:18765/v1",  # E2E mock (see make serve-e2e-mock)
     openai_api_key="sk-test123",
 )
 ```
@@ -427,7 +431,7 @@ export OPENAI_API_KEY=sk-your-key-here
 
 # OpenAI API base URL (for E2E testing)
 
-export OPENAI_API_BASE=http://localhost:8000/v1
+export OPENAI_API_BASE=http://localhost:18765/v1
 
 # Gemini API key
 
@@ -435,7 +439,7 @@ export GEMINI_API_KEY=your-key-here
 
 # Gemini API base URL (for E2E testing)
 
-export GEMINI_API_BASE=http://localhost:8000/v1beta
+export GEMINI_API_BASE=http://localhost:18765/v1beta
 
 # Mistral API key
 
@@ -443,7 +447,7 @@ export MISTRAL_API_KEY=your-key-here
 
 # Mistral API base URL (for E2E testing)
 
-export MISTRAL_API_BASE=http://localhost:8000/v1
+export MISTRAL_API_BASE=http://localhost:18765/v1
 
 # Then use in CLI or config
 

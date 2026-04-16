@@ -387,7 +387,7 @@ class TestE2EServerGeminiEndpoints:
         import requests
 
         gemini_api_base = e2e_server.urls.gemini_api_base()
-        url = f"{gemini_api_base}/v1beta/models/gemini-2.0-flash:generateContent"
+        url = f"{gemini_api_base}/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
         # Create an audio transcription request (multimodal with audio)
         request_data = {
@@ -425,7 +425,7 @@ class TestE2EServerGeminiEndpoints:
         import requests
 
         gemini_api_base = e2e_server.urls.gemini_api_base()
-        url = f"{gemini_api_base}/v1beta/models/gemini-2.0-flash:generateContent"
+        url = f"{gemini_api_base}/v1beta/models/gemini-2.5-flash-lite:generateContent"
 
         # Create a speaker detection request (with response_mime_type="application/json")
         request_data = {

@@ -26,18 +26,26 @@ import GraphNeighborhoodMiniMap from './GraphNeighborhoodMiniMap.vue'
 
 const SEMANTIC_PREFILL_MAX_CHARS = 240
 
-const props = defineProps<{
-  viewArtifact: ParsedArtifact | null
-  nodeId: string | null
-  /** When set, use merged neighbor rows (e.g. TopicCluster selects all member topics’ edges). */
-  aggregatedNeighborRows?: GraphNeighborRow[] | undefined
-  /** Minimap center when aggregating (first member topic id). */
-  miniMapCenterId?: string | null
-  /** Override empty-state copy (aggregate mode). */
-  connectionsEmptyHint?: string | null
-  /** Minimap: compound + members + 1-hop from members (TopicCluster selection). */
-  topicClusterNeighborhood?: { compoundId: string; memberIds: string[] } | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    viewArtifact: ParsedArtifact | null
+    nodeId: string | null
+    /** When set, use merged neighbor rows (e.g. TopicCluster selects all member topics’ edges). */
+    aggregatedNeighborRows?: GraphNeighborRow[] | undefined
+    /** Minimap center when aggregating (first member topic id). */
+    miniMapCenterId?: string | null
+    /** Override empty-state copy (aggregate mode). */
+    connectionsEmptyHint?: string | null
+    /** Minimap: compound + members + 1-hop from members (TopicCluster selection). */
+    topicClusterNeighborhood?: { compoundId: string; memberIds: string[] } | null
+    /**
+     * When true (default), neighbor rows use a capped inner scroll. When false, the list grows
+     * with the parent scroll (e.g. graph rail **Neighbourhood** tab).
+     */
+    denseNeighborList?: boolean
+  }>(),
+  { denseNeighborList: true },
+)
 
 const emit = defineEmits<{
   'go-graph': []
@@ -72,6 +80,12 @@ const connectionsEmptyMessage = computed((): string => {
   return 'No edges in this view (isolated node or filtered out).'
 })
 
+const neighborListUlClass = computed((): string =>
+  props.denseNeighborList
+    ? 'max-h-48 space-y-1.5 overflow-y-auto text-xs leading-snug'
+    : 'space-y-1.5 text-xs leading-snug',
+)
+
 /** Show rail neighborhood UI when the center node exists in the current merged view. */
 const centerInView = computed(() => {
   const a = props.viewArtifact
@@ -86,7 +100,7 @@ const libraryButtonTooltip =
   'Open episode in Library — same as semantic search L when metadata path resolves.'
 
 const semanticPrefillButtonTooltip =
-  'Prefill semantic search with this node’s primary text (truncated); switch to Search and run Search to query the index.'
+  "Prefill semantic search with this node's primary text (truncated); switch to Search and run Search to query the index."
 
 function neighborAvatarStyle(vt: string): Record<string, string> {
   const c = graphNodeTypeChrome(vt)
@@ -198,7 +212,7 @@ function neighborViaLine(nb: GraphNeighborRow): string {
     </h4>
     <ul
       v-if="neighbors.length"
-      class="max-h-48 space-y-1.5 overflow-y-auto text-xs leading-snug"
+      :class="neighborListUlClass"
     >
       <li
         v-for="nb in neighbors"

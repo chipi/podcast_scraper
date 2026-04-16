@@ -29,8 +29,55 @@ const dateSortOrder = ref<'asc' | 'desc'>('desc')
 
 const isClusterTimeline = computed(() => timelineMode.value === 'cluster')
 
-const dialogTitle = computed(() =>
-  isClusterTimeline.value ? 'Cluster timeline' : 'Topic timeline',
+/** Single-topic modal heading: `{Entity} timeline` or plain `Timeline` (see `open` title arg). */
+type TopicTimelineSingleTitle =
+  | { variant: 'entity'; entityLabel: string }
+  | { variant: 'plain' }
+
+const singleTitleSpec = ref<TopicTimelineSingleTitle>({
+  variant: 'entity',
+  entityLabel: 'Topic',
+})
+
+function singleTimelineHeadingFromEntityLabel(raw: string): string {
+  const t = raw.trim()
+  if (!t || t === '?') {
+    return 'Timeline'
+  }
+  const display = t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()
+  return `${display} timeline`
+}
+
+const dialogTitle = computed((): string => {
+  if (isClusterTimeline.value) {
+    return 'Cluster timeline'
+  }
+  const spec = singleTitleSpec.value
+  if (spec.variant === 'plain') {
+    return 'Timeline'
+  }
+  return singleTimelineHeadingFromEntityLabel(spec.entityLabel)
+})
+
+const topicTimelineHelpAria = computed((): string => {
+  if (isClusterTimeline.value) {
+    return 'About cluster timeline, list legend, and topic ids'
+  }
+  const t = dialogTitle.value
+  if (t === 'Timeline') {
+    return 'About timeline, list legend, and topic id'
+  }
+  return `About ${t}, list legend, and topic id`
+})
+
+/** Teleport HelpTip into this dialog so the popover stays above the modal (top layer). */
+const timelineHelpTeleportTarget = computed(
+  (): HTMLDialogElement | 'body' => dialogRef.value ?? 'body',
+)
+
+const hasTimelineEpisodes = computed(
+  (): boolean =>
+    Boolean(payload.value && payload.value.episodes && payload.value.episodes.length > 0),
 )
 
 const topicIdsForA11y = computed((): string => {
@@ -195,10 +242,14 @@ async function load(): Promise<void> {
   }
 }
 
-async function open(topicId: string): Promise<void> {
+async function open(
+  topicId: string,
+  title?: TopicTimelineSingleTitle,
+): Promise<void> {
   timelineMode.value = 'single'
   clusterTopicIdsOpen.value = []
   topicIdOpen.value = topicId.trim()
+  singleTitleSpec.value = title ?? { variant: 'entity', entityLabel: 'Topic' }
   resetForOpen()
   dialogRef.value?.showModal()
   await load()
@@ -209,6 +260,7 @@ async function openCluster(topicIds: string[]): Promise<void> {
   timelineMode.value = 'cluster'
   topicIdOpen.value = ''
   clusterTopicIdsOpen.value = ids
+  singleTitleSpec.value = { variant: 'entity', entityLabel: 'Topic' }
   resetForOpen()
   dialogRef.value?.showModal()
   await load()
@@ -238,11 +290,8 @@ defineExpose({ open, openCluster, close })
             <HelpTip
               class="shrink-0 self-center"
               :pref-width="400"
-              :button-aria-label="
-                isClusterTimeline
-                  ? 'About cluster timeline and topic ids'
-                  : 'About topic timeline and topic id'
-              "
+              :teleport-to="timelineHelpTeleportTarget"
+              :button-aria-label="topicTimelineHelpAria"
             >
               <p
                 v-if="isClusterTimeline"
@@ -257,7 +306,10 @@ defineExpose({ open, openCluster, close })
                 <strong class="font-medium text-elevated-foreground">empty, one episode, or many</strong>
                 — that is how many episodes match, not a bug. It is
                 <strong class="font-medium text-elevated-foreground">not limited</strong> to nodes
-                visible in the current graph. The How to read line explains the dots.
+                visible in the current graph. When episodes load,
+                <strong class="font-medium text-elevated-foreground">Where we looked</strong> and
+                <strong class="font-medium text-elevated-foreground">How to read</strong> appear in this
+                panel.
               </p>
               <p
                 v-else
@@ -270,9 +322,38 @@ defineExpose({ open, openCluster, close })
                 <strong class="font-medium text-elevated-foreground">empty, one episode, or many</strong>
                 — that is how many episodes match, not a bug. It is <strong
                   class="font-medium text-elevated-foreground"
-                >not limited</strong> to nodes visible in the current graph. The How to read line
-                explains the dots.
+                >not limited</strong> to nodes visible in the current graph. When episodes load,
+                <strong class="font-medium text-elevated-foreground">Where we looked</strong> and
+                <strong class="font-medium text-elevated-foreground">How to read</strong> appear in this
+                panel.
               </p>
+              <div
+                v-if="hasTimelineEpisodes && payload"
+                class="mt-2.5 space-y-2 border-t border-border pt-2.5"
+                data-testid="topic-timeline-legend"
+              >
+                <p class="text-[10px] leading-snug text-muted">
+                  <span class="font-medium text-surface-foreground">Where we looked:</span>
+                  <span data-testid="topic-timeline-episode-count">{{
+                    payload.episodes.length === 1 ? '1' : payload.episodes.length
+                  }}</span>
+                  {{
+                    payload.episodes.length === 1
+                      ? 'episode in your saved library includes insights about '
+                      : 'episodes in your saved library include insights about '
+                  }}{{
+                    isClusterTimeline
+                      ? 'at least one topic in this cluster'
+                      : 'this topic'
+                  }}.
+                  The search uses every episode in your library folder, not only what you see on the
+                  graph.
+                </p>
+                <p class="text-[10px] leading-snug text-muted">
+                  <span class="font-medium text-surface-foreground">How to read:</span>
+                  Each block is one episode. Lines under a block are separate insights.
+                </p>
+              </div>
               <p
                 v-if="topicIdsForA11y"
                 class="mt-2.5 border-t border-border pt-2.5 text-[11px] leading-snug text-muted"
@@ -328,7 +409,7 @@ defineExpose({ open, openCluster, close })
           data-testid="topic-timeline-empty"
         >
           <p>
-            No matching episodes in this corpus for
+            No matching episodes in your saved library for
             {{ isClusterTimeline ? 'these cluster topics' : 'this topic' }}.
           </p>
           <p class="text-[11px] leading-snug">
@@ -349,25 +430,7 @@ defineExpose({ open, openCluster, close })
           class="space-y-0"
           data-testid="topic-timeline-episodes"
         >
-          <div
-            class="mb-3 space-y-2 border-b border-border pb-3"
-            data-testid="topic-timeline-legend"
-          >
-            <p class="text-[10px] leading-snug text-muted">
-              <span class="font-medium text-surface-foreground">Corpus scan:</span>
-              <span data-testid="topic-timeline-episode-count">
-                {{
-                  payload.episodes.length === 1
-                    ? '1 episode in this corpus'
-                    : `${payload.episodes.length} episodes in this corpus`
-                }}
-              </span>
-              with insights about
-              {{ isClusterTimeline ? 'any member topic in this cluster' : 'this topic' }}
-              (whole path, not just the graph).
-              <span class="font-medium text-surface-foreground">How to read:</span>
-              each block is one episode; lines below are separate insights.
-            </p>
+          <div class="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
             <div
               class="flex flex-wrap items-center gap-2"
               role="group"

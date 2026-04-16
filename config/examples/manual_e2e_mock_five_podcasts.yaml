@@ -1,0 +1,44 @@
+# Manual multi-feed preset: five primary E2E mock podcasts (p01–p05) plus three
+# long-form fixture feeds (p07–p09). Skips p06 (`edgecases` / edge-case harness).
+#
+# Feed URL slugs match ``tests/e2e/fixtures/e2e_http_server.py``:
+#   podcast1 … podcast5, podcast7_sustainability, podcast8_solar, podcast9_solo
+#
+# Prerequisite: run the fixture HTTP server on the same port as below (default 18765):
+#   make serve-e2e-mock
+#   # or: E2E_MOCK_PORT=19000 make serve-e2e-mock
+#
+# Then (from repo root):
+#   python -m podcast_scraper.cli --config config/examples/manual_e2e_mock_five_podcasts.yaml
+#
+# Tracked copy lives here; you may copy to `config/manual/` for local-only tweaks (that path
+# is gitignored except README.md — see `config/manual/README.md`).
+#
+# Stack: local Whisper + spaCy + small transformers defaults — no cloud API keys required for
+# transcription. Tune `max_episodes` before wide runs (p07/p08 episodes are very long).
+
+feeds:
+  - http://127.0.0.1:18765/feeds/podcast1/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast2/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast3/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast4/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast5/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast7_sustainability/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast8_solar/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast9_solo/feed.xml
+
+output_dir: .test_outputs/manual/e2e_mock_fixture_multi_feed
+max_episodes: 2
+
+transcription_provider: whisper
+speaker_detector_provider: spacy
+summary_provider: transformers
+
+transcribe_missing: true
+preload_models: true
+generate_metadata: true
+generate_summaries: false
+screenplay: false
+
+workers: 4
+log_level: INFO

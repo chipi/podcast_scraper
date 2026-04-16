@@ -218,13 +218,16 @@ class TestIntegrationMain(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(corpus, "corpus_manifest.json")))
             with open(summary_path, encoding="utf-8") as fh:
                 blob = json.load(fh)
-            self.assertEqual(blob.get("schema_version"), "1.0.0")
+            self.assertEqual(blob.get("schema_version"), "1.1.0")
             self.assertIs(blob.get("overall_ok"), False)
             feeds = blob.get("feeds") or []
             self.assertEqual(len(feeds), 2)
             by_url = {row["feed_url"]: row for row in feeds}
             self.assertTrue(by_url[rss_a].get("ok"))
             self.assertFalse(by_url[rss_b].get("ok"))
+            bi = blob.get("batch_incidents") or {}
+            self.assertGreaterEqual(bi.get("lines_in_window", 0), 1)
+            self.assertEqual((bi.get("feed_incidents_unique") or {}).get("hard"), 1)
 
     def test_integration_service_run_multi_feed_corpus_layout_440(self):
         """GitHub #440: ``service.run`` with ``rss_urls`` matches CLI corpus layout (mocked HTTP)."""
@@ -309,6 +312,9 @@ class TestIntegrationMain(unittest.TestCase):
             with open(summary_path, encoding="utf-8") as fh:
                 blob = json.load(fh)
             self.assertIs(blob.get("overall_ok"), False)
+            self.assertEqual(blob.get("schema_version"), "1.1.0")
+            bi = blob.get("batch_incidents") or {}
+            self.assertGreaterEqual(bi.get("lines_in_window", 0), 1)
 
     def test_integration_main_whisper_fallback(self):
         rss_url = "https://example.com/feed.xml"

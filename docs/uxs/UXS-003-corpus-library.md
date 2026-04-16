@@ -87,9 +87,14 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - With the Episode rail already open from Library or Digest, switching the main tab
   to Graph highlights that episode's node and centers/zooms the canvas when the node
   is present in the merged graph.
-- Below the scrollable episode body, a **Graph neighborhood and connections** strip
-  (only when the main tab is Graph) shows a read-only Local neighborhood mini
-  Cytoscape (1-hop ego around the node) then the Connections list with `G` per row.
+- On the **Graph** main tab, when the rail holds a graph center id for that episode,
+  **Details** vs **Neighbourhood** tabs (same shell pattern as graph-node rail) sit
+  **under** the episode hero (cover **left**, title + feed meta **right**, same row as other
+  detail rails) and **above**
+  the **Details** scroll body; the **Graph neighborhood and connections** strip is on
+  **Neighbourhood** only: read-only Local neighborhood mini Cytoscape (1-hop ego around
+  the node) then the Connections list with `G` per row. Digest/Library episode rail has
+  no tablist when that strip does not apply (hero + body still stack like the graph rail).
 - When RFC-072 bridge.json is available, **Appears in (bridge):** shows whether the
   node's canonical id appears in Grounded Insights, the Knowledge graph, or both.
 - Technical ids: `E` uses the same Episode blue as the graph legend / Cytoscape
@@ -109,8 +114,9 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - **Vector index awareness (RFC-067 Phase 3):** Optional **Indexed** chip on feed rows
   when that `feed_id` appears in `GET /api/index/stats` -> `feeds_indexed`.
   Episode rail exposes Episode and feed diagnostics (help control -> tooltip) with
-  paths, ids, Feed in vector index, and index stats when loaded; **E** and **`?`** sit
-  in a vertical stack beside the episode title (**E** above **`?`**) to widen the title. **Similar episodes**
+  paths, ids, Feed in vector index, and index stats when loaded; **E**, **`?`**, and **C**
+  (copy episode title, same chip pattern as graph node detail) sit in a vertical stack
+  beside the episode title (**E** above **`?`** above **`C`**) to widen the title. **Similar episodes**
   loads automatically after episode detail succeeds and lists peer episodes; empty
   successful responses show a short no peers state; loading shows
   "Searching similar episodes..." (`aria-live="polite"`). **Prefill semantic search**
@@ -155,3 +161,6 @@ the E2E Testing Guide.
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-10 | Initial content (in UXS-001)                                   |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-003                 |
+| 2026-04-16 | Episode rail (Graph): Details / Neighbourhood for connections  |
+| 2026-04-16 | Episode rail: hero, tabs, Details scroll (parity)              |
+| 2026-04-16 | Episode rail: **C** copy title chip                            |

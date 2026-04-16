@@ -1352,7 +1352,7 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
         )
     elif transcription_provider == "gemini":
         provider_info["transcription_model"] = config_dict.get(
-            "gemini_transcription_model", "gemini-1.5-pro"
+            "gemini_transcription_model", "gemini-2.5-flash-lite"
         )
     elif transcription_provider == "mistral":
         provider_info["transcription_model"] = config_dict.get(
@@ -1367,7 +1367,9 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
     elif speaker_provider == "openai":
         provider_info["speaker_model"] = config_dict.get("openai_speaker_model", "gpt-4o-mini")
     elif speaker_provider == "gemini":
-        provider_info["speaker_model"] = config_dict.get("gemini_speaker_model", "gemini-1.5-pro")
+        provider_info["speaker_model"] = config_dict.get(
+            "gemini_speaker_model", "gemini-2.5-flash-lite"
+        )
     elif speaker_provider == "anthropic":
         provider_info["speaker_model"] = config_dict.get(
             "anthropic_speaker_model", "claude-haiku-4-5"
@@ -1394,7 +1396,9 @@ def _extract_provider_info(config_path: Path) -> Dict[str, Any]:
     elif summary_provider == "openai":
         provider_info["summary_model"] = config_dict.get("openai_summary_model", "gpt-4o-mini")
     elif summary_provider == "gemini":
-        provider_info["summary_model"] = config_dict.get("gemini_summary_model", "gemini-1.5-pro")
+        provider_info["summary_model"] = config_dict.get(
+            "gemini_summary_model", "gemini-2.5-flash-lite"
+        )
     elif summary_provider == "anthropic":
         provider_info["summary_model"] = config_dict.get(
             "anthropic_summary_model", "claude-haiku-4-5"

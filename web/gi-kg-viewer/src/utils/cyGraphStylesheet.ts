@@ -228,6 +228,17 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
+  style.push({
+    selector: 'edge[edgeType = "_tc_cohesion"]',
+    style: {
+      'line-opacity': 0,
+      'target-arrow-shape': 'none',
+      width: 0,
+      label: '',
+      'events': 'no',
+    },
+  })
+
   if (options?.includeSearchHit) {
     const hitStyle: Record<string, unknown> = {
       'border-width': 4,

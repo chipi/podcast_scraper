@@ -8,6 +8,11 @@
 #
 # For real RSS + API acceptance presets, use tracked files under config/acceptance/
 # (e.g. acceptance_multi_feed_planet_money_journal_openai.yaml), not this generic template.
+#
+# GitHub #559: multi_feed_strict defaults to false (lenient: exit 0 / success when every
+# failed feed is soft-classified). For strict CI, set multi_feed_strict: true or run the
+# CLI with --multi-feed-strict. Deprecated: multi_feed_soft_fail_exit_zero maps to
+# multi_feed_strict = not that value.
 
 feeds:
   - https://example.com/podcast-feed-a.xml

@@ -7,7 +7,7 @@
 > - **[Unit Testing Guide](UNIT_TESTING_GUIDE.md)** - Unit test mocking patterns and isolation
 > - **[Integration Testing Guide](INTEGRATION_TESTING_GUIDE.md)** - Integration test mocking guidelines
 > - **[RSS and feed ingestion](RSS_GUIDE.md)** - How RSS is fetched and parsed (helps when testing scraping vs transcript download)
-> - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes; **browser E2E** for the GI/KG Vue viewer (`make test-ui-e2e`)
+> - **[E2E Testing Guide](E2E_TESTING_GUIDE.md)** - E2E server, real ML models, OpenAI mocking; **E2E feeds and server options** (feeds per mode, error injection, URLs); chaos tests (e.g. 404 audio) assert run index records failed episodes; **download vs multi-feed resilience** split ([Download resilience E2E](E2E_TESTING_GUIDE.md#download-resilience-e2e)); **browser E2E** for the GI/KG Vue viewer (`make test-ui-e2e`)
 > - **[Critical Path Testing Guide](CRITICAL_PATH_TESTING_GUIDE.md)** - What to test and prioritization
 
 ## Quick Reference

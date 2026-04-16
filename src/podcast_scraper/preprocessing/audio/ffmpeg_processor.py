@@ -1,4 +1,8 @@
-"""FFmpeg-based audio preprocessor implementation."""
+"""FFmpeg-based audio preprocessor implementation.
+
+GitHub #561 tightens MP3 output for API transcription size limits; if a file is still
+over the cap after stepped re-encodes, upload chunking is tracked separately (GitHub #286).
+"""
 
 import hashlib
 import json
@@ -7,11 +11,32 @@ import os
 import shutil
 import subprocess
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from podcast_scraper.utils.log_redaction import format_exception_for_log
 
 logger = logging.getLogger(__name__)
+
+
+def _run_text_subprocess(
+    cmd: List[str],
+    *,
+    timeout: float,
+    check: bool,
+) -> "subprocess.CompletedProcess[str]":
+    """Run subprocess with text mode and UTF-8 replace (GitHub #558).
+
+    Avoids UnicodeDecodeError when ffmpeg/ffprobe write non-UTF-8 bytes to pipes.
+    """
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+        check=check,
+    )
 
 
 def _check_ffmpeg_available() -> bool:
@@ -63,7 +88,7 @@ def extract_audio_metadata(audio_path: str) -> Optional[Dict[str, Any]]:
             audio_path,
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=True)
+        result = _run_text_subprocess(cmd, timeout=10.0, check=True)
 
         data = json.loads(result.stdout)
         streams = data.get("streams", [])
@@ -100,6 +125,7 @@ def extract_audio_metadata(audio_path: str) -> Optional[Dict[str, Any]]:
         subprocess.TimeoutExpired,
         json.JSONDecodeError,
         FileNotFoundError,
+        UnicodeDecodeError,
     ) as exc:
         logger.debug("Failed to extract audio metadata: %s", exc)
         return None
@@ -114,6 +140,7 @@ class FFmpegAudioPreprocessor:
         silence_threshold: str = "-50dB",
         silence_duration: float = 2.0,
         target_loudness: int = -16,
+        mp3_bitrate_kbps: int = 64,
     ):
         """Initialize preprocessor with configuration.
 
@@ -123,6 +150,8 @@ class FFmpegAudioPreprocessor:
             silence_threshold: Silence detection threshold (default: -50dB)
             silence_duration: Minimum silence duration to remove in seconds (default: 2.0)
             target_loudness: Target loudness in LUFS for normalization (default: -16)
+            mp3_bitrate_kbps: libmp3lame constant bitrate for speech output (default: 64).
+                GitHub #561: lower values for API transcription size limits; see CONFIGURATION.md.
         """
         STANDARD_RATES = [8000, 12000, 16000, 24000, 48000]
         if sample_rate not in STANDARD_RATES:
@@ -139,6 +168,7 @@ class FFmpegAudioPreprocessor:
         self.silence_threshold = silence_threshold
         self.silence_duration = silence_duration
         self.target_loudness = target_loudness
+        self.mp3_bitrate_kbps = int(mp3_bitrate_kbps)
 
         # Check ffmpeg availability
         if not _check_ffmpeg_available():
@@ -155,7 +185,7 @@ class FFmpegAudioPreprocessor:
         2. Resample to configured sample rate (default: 16 kHz)
         3. Remove silence (VAD)
         4. Normalize loudness to configured target (default: -16 LUFS)
-        5. Encode to MP3 @ 64 kbps (widely supported by all providers)
+        5. Encode to MP3 via libmp3lame at ``mp3_bitrate_kbps`` (default 64; GitHub #561).
 
         Args:
             input_path: Path to raw audio file
@@ -177,7 +207,8 @@ class FFmpegAudioPreprocessor:
         # -af silenceremove: remove silence (conservative thresholds)
         # -af loudnorm: normalize loudness to configured target
         # -c:a libmp3lame: MP3 codec (widely supported by OpenAI API)
-        # -b:a 64k: 64 kbps bitrate (good quality for speech, still compact)
+        # -b:a <n>k: constant bitrate for speech (GitHub #561 tunes this for API caps)
+        br = int(self.mp3_bitrate_kbps)
         cmd = [
             "ffmpeg",
             "-i",
@@ -201,19 +232,13 @@ class FFmpegAudioPreprocessor:
             "-c:a",
             "libmp3lame",  # MP3 codec (widely supported, reliable)
             "-b:a",
-            "64k",  # 64 kbps (good quality for speech)
+            f"{br}k",
             "-y",  # Overwrite output
             output_path,
         ]
 
         try:
-            subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,  # 5 minute timeout
-                check=True,
-            )
+            _run_text_subprocess(cmd, timeout=300.0, check=True)
             elapsed = time.time() - start_time
             logger.debug("Audio preprocessing completed in %.1fs", elapsed)
             return True, elapsed
@@ -224,8 +249,69 @@ class FFmpegAudioPreprocessor:
         except subprocess.TimeoutExpired:
             logger.error("FFmpeg preprocessing timed out after 300s")
             return False, time.time() - start_time
+        except UnicodeDecodeError as exc:
+            logger.error(
+                "FFmpeg preprocessing decode error: %s",
+                format_exception_for_log(exc),
+            )
+            return False, time.time() - start_time
         except FileNotFoundError:
             logger.error("FFmpeg not found. Install ffmpeg to use audio preprocessing.")
+            return False, 0.0
+
+    def reencode_mp3_to_bitrate(
+        self, input_path: str, output_path: str, bitrate_kbps: int
+    ) -> Tuple[bool, float]:
+        """Re-encode an existing MP3 to a lower constant bitrate (GitHub #561 phase 2).
+
+        Skips silenceremove/loudnorm; used when the full preprocess output is still over
+        the API file-size budget. If still over after minimum bitrate, upload chunking may
+        apply (GitHub #286 — not implemented here).
+
+        Args:
+            input_path: Path to source audio (typically already mono MP3 from preprocess).
+            output_path: Destination path for re-encoded MP3.
+            bitrate_kbps: Target libmp3lame bitrate in kbps.
+
+        Returns:
+            Tuple of (success, elapsed seconds).
+        """
+        if not _check_ffmpeg_available():
+            logger.error("FFmpeg not available. Cannot re-encode audio.")
+            return False, 0.0
+        br = int(bitrate_kbps)
+        start_time = time.time()
+        cmd = [
+            "ffmpeg",
+            "-i",
+            input_path,
+            "-vn",
+            "-ac",
+            "1",
+            "-c:a",
+            "libmp3lame",
+            "-b:a",
+            f"{br}k",
+            "-y",
+            output_path,
+        ]
+        try:
+            _run_text_subprocess(cmd, timeout=300.0, check=True)
+            return True, time.time() - start_time
+        except subprocess.CalledProcessError as exc:
+            logger.error("FFmpeg re-encode failed: %s", exc.stderr)
+            return False, time.time() - start_time
+        except subprocess.TimeoutExpired:
+            logger.error("FFmpeg re-encode timed out after 300s")
+            return False, time.time() - start_time
+        except UnicodeDecodeError as exc:
+            logger.error(
+                "FFmpeg re-encode decode error: %s",
+                format_exception_for_log(exc),
+            )
+            return False, time.time() - start_time
+        except FileNotFoundError:
+            logger.error("FFmpeg not found during re-encode.")
             return False, 0.0
 
     def get_cache_key(self, input_path: str) -> str:
@@ -256,7 +342,8 @@ class FFmpegAudioPreprocessor:
             f"{self.sample_rate}|"
             f"{self.silence_threshold}|"
             f"{self.silence_duration}|"
-            f"{self.target_loudness}"
+            f"{self.target_loudness}|"
+            f"mp3={self.mp3_bitrate_kbps}"
         )
         hasher.update(config_str.encode("utf-8"))
 

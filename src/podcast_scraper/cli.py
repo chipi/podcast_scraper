@@ -582,6 +582,17 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         ),
     )
     parser.add_argument(
+        "--multi-feed-strict",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        dest="multi_feed_strict",
+        help=(
+            "Multi-feed only (GitHub #559). Default off (lenient): exit 0 when every failed feed "
+            "is soft-classified. Use --multi-feed-strict for CI: exit 1 on any feed failure even "
+            "when soft. Hard failures always exit 1."
+        ),
+    )
+    parser.add_argument(
         "--reuse-media",
         action="store_true",
         help="Reuse existing media files instead of re-downloading (for faster testing)",
@@ -883,19 +894,19 @@ def _add_gemini_arguments(parser: argparse.ArgumentParser) -> None:
         "--gemini-transcription-model",
         type=str,
         default=None,
-        help="Gemini transcription model (default: gemini-2.0-flash)",
+        help="Gemini transcription model (default: gemini-2.5-flash-lite)",
     )
     parser.add_argument(
         "--gemini-speaker-model",
         type=str,
         default=None,
-        help="Gemini speaker detection model (default: gemini-2.0-flash)",
+        help="Gemini speaker detection model (default: gemini-2.5-flash-lite)",
     )
     parser.add_argument(
         "--gemini-summary-model",
         type=str,
         default=None,
-        help="Gemini summarization model (default: gemini-2.0-flash)",
+        help="Gemini summarization model (default: gemini-2.5-flash-lite)",
     )
     parser.add_argument(
         "--gemini-temperature",
@@ -915,7 +926,7 @@ def _add_gemini_arguments(parser: argparse.ArgumentParser) -> None:
         default=None,
         help=(
             "Gemini model for transcript cleaning "
-            "(default: gemini-2.0-flash; legacy gemini-1.5-flash is remapped)"
+            "(default: gemini-2.5-flash-lite; legacy gemini-1.5-flash is remapped)"
         ),
     )
     parser.add_argument(
@@ -1346,6 +1357,15 @@ def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=-16,
         help="Target loudness in LUFS for normalization (default: -16)",
+    )
+    preprocessing_group.add_argument(
+        "--preprocessing-mp3-bitrate-kbps",
+        type=int,
+        default=None,
+        help=(
+            "MP3 bitrate for preprocessed audio in kbps (24-128); omit for automatic "
+            "(GitHub #561: 64 for whisper, 48 for openai/gemini)"
+        ),
     )
 
 
@@ -1812,7 +1832,11 @@ def _load_and_merge_config(
             "Config file grok_summary_model: %s", config_data["grok_summary_model"]
         )
     valid_dests = {action.dest for action in parser._actions if action.dest}
-    valid_keys = valid_dests | _config_yaml_allowed_top_level_keys()
+    valid_keys = (
+        valid_dests
+        | _config_yaml_allowed_top_level_keys()
+        | config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS
+    )
     unknown_keys = [key for key in config_data.keys() if key not in valid_keys]
     if unknown_keys:
         raise ValueError("Unknown config option(s): " + ", ".join(sorted(unknown_keys)))
@@ -1970,6 +1994,8 @@ def _doctor_check_ffmpeg() -> bool:
             ["ffmpeg", "-version"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         if result.returncode == 0:
@@ -3194,6 +3220,7 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "workers": args.workers,
         "fail_fast": getattr(args, "fail_fast", False),
         "max_failures": getattr(args, "max_failures", None),
+        "multi_feed_strict": getattr(args, "multi_feed_strict", False),
         "skip_existing": args.skip_existing,
         "backfill_transcript_segments": getattr(args, "backfill_transcript_segments", False),
         "append": getattr(args, "append", False),
@@ -3257,6 +3284,8 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
         "preprocessing_target_loudness": getattr(args, "preprocessing_target_loudness", -16),
         "openai_api_base": args.openai_api_base,
     }
+    if getattr(args, "preprocessing_mp3_bitrate_kbps", None) is not None:
+        payload["preprocessing_mp3_bitrate_kbps"] = int(args.preprocessing_mp3_bitrate_kbps)
     # Hybrid ML provider args: only set when provided so Config defaults apply.
     if getattr(args, "hybrid_map_model", None) is not None:
         payload["hybrid_map_model"] = args.hybrid_map_model
@@ -4158,8 +4187,10 @@ def main(  # noqa: C901 - main function handles multiple command paths
             len(feed_urls),
         )
 
+        from .utils.corpus_incidents import append_corpus_incident
         from .utils.corpus_lock import corpus_parent_lock
         from .workflow.corpus_operations import (
+            classify_multi_feed_feed_exception,
             finalize_multi_feed_batch,
             MultiFeedFeedResult,
             utc_iso_now,
@@ -4167,15 +4198,28 @@ def main(  # noqa: C901 - main function handles multiple command paths
 
         try:
             with corpus_parent_lock(corpus_parent, logger=log):
-                any_failed = False
+                any_hard_failed = False
                 batch_results: List[MultiFeedFeedResult] = []
+                _inc_default = str(Path(corpus_parent) / "corpus_incidents.jsonl")
+                _inc_start = (
+                    Path(_inc_default).stat().st_size if Path(_inc_default).is_file() else 0
+                )
                 for url in feed_urls:
                     sub = filesystem.feed_workspace_dirname(url)
                     try:
                         out_path = filesystem.corpus_feed_output_dir(corpus_parent, url)
                     except ValueError as exc:
                         log.error("Invalid feed output path for %s: %s", url, exc)
-                        any_failed = True
+                        any_hard_failed = True
+                        append_corpus_incident(
+                            str(Path(corpus_parent) / "corpus_incidents.jsonl"),
+                            scope="feed",
+                            category="hard",
+                            message=format_exception_for_log(exc),
+                            exception_type=type(exc).__name__,
+                            stage="pipeline",
+                            feed_url=url,
+                        )
                         batch_results.append(
                             MultiFeedFeedResult(
                                 url,
@@ -4183,6 +4227,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
                                 format_exception_for_log(exc),
                                 0,
                                 finished_at=utc_iso_now(),
+                                failure_kind="hard",
                             )
                         )
                         continue
@@ -4193,9 +4238,25 @@ def main(  # noqa: C901 - main function handles multiple command paths
                         )
                     except ValidationError as exc:
                         log.error("Invalid configuration for feed %s: %s", url, exc)
-                        any_failed = True
+                        any_hard_failed = True
+                        append_corpus_incident(
+                            str(Path(corpus_parent) / "corpus_incidents.jsonl"),
+                            scope="feed",
+                            category="hard",
+                            message=str(exc),
+                            exception_type=type(exc).__name__,
+                            stage="config",
+                            feed_url=url,
+                        )
                         batch_results.append(
-                            MultiFeedFeedResult(url, False, str(exc), 0, finished_at=utc_iso_now())
+                            MultiFeedFeedResult(
+                                url,
+                                False,
+                                str(exc),
+                                0,
+                                finished_at=utc_iso_now(),
+                                failure_kind="hard",
+                            )
                         )
                         continue
                     if (
@@ -4203,6 +4264,14 @@ def main(  # noqa: C901 - main function handles multiple command paths
                         and getattr(cfg, "vector_backend", "faiss") == "faiss"
                     ):
                         cfg = cfg.model_copy(update={"skip_auto_vector_index": True})
+                    if not (cfg.incident_log_path or "").strip():
+                        cfg = cfg.model_copy(
+                            update={
+                                "incident_log_path": str(
+                                    Path(corpus_parent) / "corpus_incidents.jsonl"
+                                ),
+                            }
+                        )
                     _log_configuration(cfg, log)
                     try:
                         count, summary = run_pipeline_fn(cfg)
@@ -4212,7 +4281,21 @@ def main(  # noqa: C901 - main function handles multiple command paths
                             url,
                             format_exception_for_log(exc),
                         )
-                        any_failed = True
+                        kind = classify_multi_feed_feed_exception(exc)
+                        if kind == "hard":
+                            any_hard_failed = True
+                        _inc_path = (getattr(cfg, "incident_log_path", None) or "").strip() or str(
+                            Path(corpus_parent) / "corpus_incidents.jsonl"
+                        )
+                        append_corpus_incident(
+                            _inc_path,
+                            scope="feed",
+                            category=kind,
+                            message=format_exception_for_log(exc),
+                            exception_type=type(exc).__name__,
+                            stage="pipeline",
+                            feed_url=url,
+                        )
                         batch_results.append(
                             MultiFeedFeedResult(
                                 url,
@@ -4220,6 +4303,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
                                 format_exception_for_log(exc),
                                 0,
                                 finished_at=utc_iso_now(),
+                                failure_kind=kind,
                             )
                         )
                         continue
@@ -4234,14 +4318,32 @@ def main(  # noqa: C901 - main function handles multiple command paths
                     )
                 except ValidationError as exc:
                     log.error("Invalid configuration for corpus parent finalize: %s", exc)
-                    if any_failed:
+                    if any_hard_failed or any(not fr.ok for fr in batch_results):
                         return 1
                     return 0
-                finalize_multi_feed_batch(corpus_parent, base_cfg, batch_results)
+                finalize_multi_feed_batch(
+                    corpus_parent,
+                    base_cfg,
+                    batch_results,
+                    incident_log_path=_inc_default,
+                    incident_log_start_offset=_inc_start,
+                )
 
-                if any_failed:
+                has_feed_failure = any(not fr.ok for fr in batch_results)
+                strict = bool(getattr(base_cfg, "multi_feed_strict", False))
+                all_soft = bool(
+                    batch_results
+                    and has_feed_failure
+                    and all((fr.ok or fr.failure_kind == "soft") for fr in batch_results)
+                )
+                if has_feed_failure and (strict or not all_soft):
                     log.error("Multi-feed run finished with one or more feed failures")
                     return 1
+                if has_feed_failure and (not strict) and all_soft:
+                    log.warning(
+                        "Multi-feed run finished with soft failures only; exit 0 "
+                        "(multi_feed_strict=False)."
+                    )
                 return 0
         except RuntimeError as exc:
             log.error("%s", exc)

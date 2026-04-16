@@ -6,6 +6,7 @@ can be tested without I/O operations.
 """
 
 import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -38,6 +39,7 @@ _patch_openai = patch.dict(
 )
 _patch_openai.start()
 
+from podcast_scraper import config as podcast_config
 from podcast_scraper.utils import filesystem
 from podcast_scraper.workflow import episode_processor, metrics
 
@@ -1149,6 +1151,180 @@ class TestTranscribeMediaToText(unittest.TestCase):
             if os.path.exists(temp_media):
                 os.unlink(temp_media)
 
+    @patch("podcast_scraper.workflow.episode_processor._check_transcript_cache", return_value=None)
+    @patch(
+        "podcast_scraper.workflow.episode_processor._check_and_reuse_existing_transcript",
+        return_value=None,
+    )
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_payload_limit_writes_incident_and_skips_metrics(
+        self, mock_cleanup, mock_build_path, mock_reuse, mock_cache
+    ):
+        """GitHub #557: API payload limit -> policy incident JSONL + skipped episode metrics."""
+        import tempfile
+
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            f.write(b"audio-chunk" * 50)
+            temp_media = f.name
+        try:
+            job = Mock()
+            job.idx = 1
+            job.ep_title_safe = "Episode_1"
+            job.temp_media = temp_media
+            job.detected_speaker_names = None
+            job.episode = create_test_episode(idx=1, title="Ep")
+            job.episode_duration_seconds = None
+
+            with tempfile.TemporaryDirectory() as out_dir:
+                incident_path = os.path.join(out_dir, "corpus_incidents.jsonl")
+                cfg = create_test_config(
+                    dry_run=False,
+                    transcription_provider="openai",
+                    transcribe_missing=True,
+                    openai_api_key="sk-test",
+                    rss_url="https://example.com/feed.xml",
+                    preprocessing_enabled=False,
+                    transcript_cache_enabled=False,
+                    incident_log_path=incident_path,
+                )
+                mock_build_path.return_value = os.path.join(out_dir, "0001 - Episode_1.txt")
+                mock_provider = Mock()
+                mock_provider.transcribe_with_segments.side_effect = ProviderRuntimeError(
+                    message="Error code: 413 - Maximum content size limit (26214400 bytes)",
+                    provider="OpenAIProvider/Transcription",
+                )
+
+                pipeline_metrics = metrics.Metrics()
+                from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+                eid, enum = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.get_or_create_episode_status(eid, enum or job.idx)
+
+                success, transcript_path, _bd = episode_processor.transcribe_media_to_text(
+                    job=job,
+                    cfg=cfg,
+                    whisper_model=None,
+                    run_suffix=None,
+                    effective_output_dir=out_dir,
+                    transcription_provider=mock_provider,
+                    pipeline_metrics=pipeline_metrics,
+                )
+
+                self.assertFalse(success)
+                self.assertIsNone(transcript_path)
+                mock_provider.transcribe_with_segments.assert_called_once()
+                self.assertEqual(pipeline_metrics.episodes_skipped_total, 1)
+                self.assertTrue(os.path.isfile(incident_path))
+                lines = Path(incident_path).read_text(encoding="utf-8").strip().splitlines()
+                self.assertEqual(len(lines), 1)
+                row = json.loads(lines[0])
+                self.assertEqual(row["scope"], "episode")
+                self.assertEqual(row["category"], "policy")
+                self.assertEqual(row["stage"], "transcription")
+                self.assertIn("413", row["message"])
+        finally:
+            if os.path.exists(temp_media):
+                os.unlink(temp_media)
+
+    @patch("podcast_scraper.workflow.episode_processor._preprocess_audio_if_needed")
+    @patch("podcast_scraper.workflow.episode_processor._check_transcript_cache", return_value=None)
+    @patch(
+        "podcast_scraper.workflow.episode_processor._check_and_reuse_existing_transcript",
+        return_value=None,
+    )
+    @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
+    @patch("os.path.exists")
+    @patch("os.path.getsize")
+    @patch("podcast_scraper.workflow.episode_processor._cleanup_temp_media")
+    def test_transcribe_media_to_text_preprocessed_oversize_skips_before_provider(
+        self,
+        mock_cleanup,
+        mock_getsize,
+        mock_exists,
+        mock_build_path,
+        mock_reuse,
+        mock_cache,
+        mock_preprocess,
+    ):
+        """GitHub #557: post-preprocess stat over API cap skips before transcribe_with_segments."""
+        import tempfile
+
+        from podcast_scraper.rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
+
+        ghost_pre = "/tmp/nonexistent_preprocessed_557.wav"
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            f.write(b"small")
+            temp_media = f.name
+            small_bytes: int = len(b"small")
+        try:
+            job = Mock()
+            job.idx = 1
+            job.ep_title_safe = "Episode_1"
+            job.temp_media = temp_media
+            job.detected_speaker_names = None
+            job.episode = create_test_episode(idx=1, title="Ep")
+
+            with tempfile.TemporaryDirectory() as out_dir:
+                incident_path = os.path.join(out_dir, "corpus_incidents.jsonl")
+                cfg = create_test_config(
+                    dry_run=False,
+                    transcription_provider="openai",
+                    transcribe_missing=True,
+                    openai_api_key="sk-test",
+                    rss_url="https://example.com/feed.xml",
+                    transcript_cache_enabled=False,
+                    incident_log_path=incident_path,
+                )
+                mock_build_path.return_value = os.path.join(out_dir, "0001 - Episode_1.txt")
+                mock_preprocess.return_value = ghost_pre
+
+                def _exists(path: str) -> bool:
+                    return path in (temp_media, ghost_pre)
+
+                mock_exists.side_effect = _exists
+
+                def _gs(path: str) -> int:
+                    if path == ghost_pre:
+                        return int(OPENAI_MAX_FILE_SIZE_BYTES + 1)
+                    if path == temp_media:
+                        return int(small_bytes)
+                    return 0
+
+                mock_getsize.side_effect = _gs
+
+                mock_provider = Mock()
+                pipeline_metrics = metrics.Metrics()
+                from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+                eid, enum = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+                pipeline_metrics.get_or_create_episode_status(eid, enum or job.idx)
+
+                success, transcript_path, _bd = episode_processor.transcribe_media_to_text(
+                    job=job,
+                    cfg=cfg,
+                    whisper_model=None,
+                    run_suffix=None,
+                    effective_output_dir=out_dir,
+                    transcription_provider=mock_provider,
+                    pipeline_metrics=pipeline_metrics,
+                )
+
+                self.assertFalse(success)
+                self.assertIsNone(transcript_path)
+                mock_provider.transcribe_with_segments.assert_not_called()
+                self.assertEqual(pipeline_metrics.episodes_skipped_total, 1)
+                lines = Path(incident_path).read_text(encoding="utf-8").strip().splitlines()
+                self.assertEqual(len(lines), 1)
+                row = json.loads(lines[0])
+                self.assertEqual(row["category"], "policy")
+                self.assertEqual(row["exception_type"], "PolicySkip")
+        finally:
+            if os.path.exists(temp_media):
+                os.unlink(temp_media)
+
     @patch("podcast_scraper.workflow.episode_processor.filesystem.build_whisper_output_path")
     @patch("os.path.exists")
     @patch("os.path.getsize")
@@ -1783,6 +1959,7 @@ class TestFormatTranscriptIfNeeded(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        podcast_config.reset_screenplay_issue_562_gates()
         self.cfg = create_test_config(screenplay=False)
 
     def test_format_transcript_if_needed_plain_text(self):
@@ -1814,9 +1991,21 @@ class TestFormatTranscriptIfNeeded(unittest.TestCase):
 
         with patch("podcast_scraper.workflow.episode_processor.logger") as mock_logger:
             text = episode_processor._format_transcript_if_needed(result, cfg, None, None)
+            episode_processor._format_transcript_if_needed(result, cfg, None, None)
 
             self.assertEqual(text, "Hello world")
-            mock_logger.warning.assert_called()
+            self.assertEqual(mock_logger.warning.call_count, 1)
+
+    def test_format_screenplay_exception_warns_once(self):
+        """GitHub #562: ValueError from format_screenplay_from_segments dedupes WARNING."""
+        cfg = create_test_config(screenplay=True, screenplay_num_speakers=2)
+        result = {"text": "x", "segments": [{"start": 0.0, "end": 1.0, "text": "a"}]}
+        mock_provider = Mock()
+        mock_provider.format_screenplay_from_segments = Mock(side_effect=ValueError("boom"))
+        with patch("podcast_scraper.workflow.episode_processor.logger") as mock_logger:
+            episode_processor._format_transcript_if_needed(result, cfg, ["A"], mock_provider)
+            episode_processor._format_transcript_if_needed(result, cfg, ["A"], mock_provider)
+        self.assertEqual(mock_logger.warning.call_count, 1)
 
     def test_format_transcript_if_needed_empty_text(self):
         """Test formatting with empty text."""

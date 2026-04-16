@@ -1,6 +1,7 @@
 """Unit tests for audio preprocessing module."""
 
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,6 +55,7 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
         self.assertEqual(preprocessor.silence_threshold, "-50dB")
         self.assertEqual(preprocessor.silence_duration, 2.0)
         self.assertEqual(preprocessor.target_loudness, -16)
+        self.assertEqual(preprocessor.mp3_bitrate_kbps, 64)
 
     def test_init_custom(self):
         """Test FFmpegAudioPreprocessor initialization with custom values."""
@@ -63,7 +65,7 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
             silence_duration=1.5,
             target_loudness=-14,
         )
-        # Sample rate is adjusted to closest Opus-supported rate (22050 -> 24000)
+        # Sample rate is adjusted to closest FFmpeg standard speech rate (22050 -> 24000)
         self.assertEqual(preprocessor.sample_rate, 24000)
         self.assertEqual(preprocessor.silence_threshold, "-40dB")
         self.assertEqual(preprocessor.silence_duration, 1.5)
@@ -143,6 +145,43 @@ class TestFFmpegAudioPreprocessor(unittest.TestCase):
         cache_key2 = preprocessor2.get_cache_key(str(self.fixture_audio))
 
         self.assertNotEqual(cache_key1, cache_key2)
+
+    def test_get_cache_key_different_mp3_bitrate(self):
+        """GitHub #561: bitrate participates in cache key."""
+        if not self.fixture_audio.exists():
+            self.skipTest("Fixture audio file not found")
+
+        preprocessor1 = FFmpegAudioPreprocessor(mp3_bitrate_kbps=64)
+        preprocessor2 = FFmpegAudioPreprocessor(mp3_bitrate_kbps=48)
+
+        cache_key1 = preprocessor1.get_cache_key(str(self.fixture_audio))
+        cache_key2 = preprocessor2.get_cache_key(str(self.fixture_audio))
+
+        self.assertNotEqual(cache_key1, cache_key2)
+
+    @patch("podcast_scraper.preprocessing.audio.ffmpeg_processor._run_text_subprocess")
+    def test_preprocess_ffmpeg_bitrate_flag(self, mock_run):
+        """GitHub #561: full preprocess passes -b:a <n>k to ffmpeg."""
+        mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        preprocessor = FFmpegAudioPreprocessor(mp3_bitrate_kbps=40)
+        out = os.path.join(self.temp_dir, "x.mp3")
+        preprocessor.preprocess("/nonexistent/in.mp3", out)
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        self.assertIn("-b:a", cmd)
+        self.assertIn("40k", cmd)
+
+    @patch("podcast_scraper.preprocessing.audio.ffmpeg_processor._run_text_subprocess")
+    def test_reencode_mp3_to_bitrate_ffmpeg(self, mock_run):
+        """GitHub #561: re-encode uses a simple libmp3lame pass."""
+        mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+        preprocessor = FFmpegAudioPreprocessor()
+        out = os.path.join(self.temp_dir, "re.mp3")
+        ok, _elapsed = preprocessor.reencode_mp3_to_bitrate("/in.mp3", out, 32)
+        self.assertTrue(ok)
+        mock_run.assert_called_once()
+        cmd = mock_run.call_args[0][0]
+        self.assertIn("32k", cmd)
 
 
 class TestCache(unittest.TestCase):
@@ -242,11 +281,12 @@ class TestFactory(unittest.TestCase):
 
         self.assertIsNotNone(preprocessor)
         self.assertIsInstance(preprocessor, FFmpegAudioPreprocessor)
-        # Sample rate is adjusted to closest Opus-supported rate (22050 -> 24000)
+        # Sample rate is adjusted to closest FFmpeg standard speech rate (22050 -> 24000)
         self.assertEqual(preprocessor.sample_rate, 24000)
         self.assertEqual(preprocessor.silence_threshold, "-40dB")
         self.assertEqual(preprocessor.silence_duration, 1.5)
         self.assertEqual(preprocessor.target_loudness, -14)
+        self.assertEqual(preprocessor.mp3_bitrate_kbps, 64)
 
 
 if __name__ == "__main__":

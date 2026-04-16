@@ -288,15 +288,20 @@ any files” → **only** the Make variable override + restart processes; **no**
 **`VITE_DEFAULT_CORPUS_PATH`** (viewer `.env`) is **separate**: it pre-fills the shell corpus path in the
 browser; touch it only when they ask about that UI field, not as a substitute for **`SERVE_OUTPUT_DIR`**.
 
+**Agent default corpus root (when the agent starts servers):** If the **agent** runs **`make serve`**,
+**`make serve-api`**, or restarts the API/UI stack **without** the user naming an output directory, use
+**`SERVE_OUTPUT_DIR=.test_outputs`** (fixture / local dev corpus). If the user **does** name a path, or
+recent **`SERVE_OUTPUT_DIR`** / **`terminals`** metadata clearly shows another root, use that instead. If
+still **unknown and not inferable**, **ask once** before starting.
+
 **API restart discipline (agents):** When **`src/podcast_scraper/server/`** (or other loaded server code)
 changes mean a **running** Uvicorn process must reload to pick up behavior, **do not** only tell the user
 to restart. **Restart the API in-session** when the agent environment can run shell commands: free the
 listener (typically port **8000**), run **`make serve-api SERVE_OUTPUT_DIR=<root>`** in the **background**
 (Rule **9** exception for long-running servers), then verify **`GET http://127.0.0.1:8000/api/health`**
-returns **200**. Choose **`<root>`** from the user’s recent **`SERVE_OUTPUT_DIR`** / terminal history,
-their stated corpus root, or Cursor **`terminals`** metadata; if the pattern is clearly **fixture dev**,
-**`.test_outputs`** is a reasonable default. If the root is **unknown and not inferable**, **ask once**
-before starting. Close with **Ready for tests** and state **URL + `SERVE_OUTPUT_DIR`** (one line).
+returns **200**. Use **`<root>`** per **Agent default corpus root** above (typically **`.test_outputs`**
+when the agent started or restarted the stack). Close with **Ready for tests** and state **URL +
+`SERVE_OUTPUT_DIR`** (one line).
 
 **FastAPI `/api/*` JSON** (new or changed routes): extend **`tests/unit/podcast_scraper/server/`** and
 **`tests/integration/server/`** (not a root-level `tests/integration/test_server_api.py`).

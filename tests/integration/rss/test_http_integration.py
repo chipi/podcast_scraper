@@ -204,7 +204,7 @@ class MockHTTPServer:
             path: URL path (e.g., "/success")
 
         Returns:
-            Full URL (e.g., "http://127.0.0.1:8000/success")
+            Full URL (e.g., "http://127.0.0.1:<ephemeral-port>/success")
         """
         if not self.base_url:
             raise RuntimeError("Server not started")

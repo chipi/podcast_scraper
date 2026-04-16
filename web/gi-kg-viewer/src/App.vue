@@ -64,6 +64,30 @@ const searchPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{ clearInteractionState: () => void } | null>(null)
 const isGraphTab = computed(() => mainTab.value === 'graph')
 
+type EpisodeRailDetailTab = 'details' | 'neighbourhood'
+const episodeRailDetailTab = ref<EpisodeRailDetailTab>('details')
+
+/** Episode rail: **Neighbourhood** tab only on Graph when ``graphConnectionsCyId`` is set. */
+const episodeRailNeighbourhoodEnabled = computed(
+  () =>
+    mainTab.value === 'graph' &&
+    Boolean(episodeRail.graphConnectionsCyId?.trim()),
+)
+
+watch(
+  () => episodeRail.metadataRelativePath,
+  () => {
+    episodeRailDetailTab.value = 'details'
+  },
+)
+
+watch(
+  () => episodeRail.graphConnectionsCyId,
+  () => {
+    episodeRailDetailTab.value = 'details'
+  },
+)
+
 const leftOpen = ref(true)
 const leftTab = ref<'corpus' | 'api'>('corpus')
 const rightOpen = ref(true)
@@ -298,9 +322,10 @@ watch(
 
 watch(mainTab, (t) => {
   if (t !== 'graph' && episodeRail.paneKind === 'graph-node') {
-    episodeRail.showTools()
+    episodeRail.showTools({ preserveGraphNodeId: true })
   }
   if (t === 'graph') {
+    episodeRail.resumeDetailPanel()
     void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
   }
 })
@@ -944,19 +969,23 @@ watch(
             {{ railBackFromToolsLabel }}
           </button>
           <button
-            v-if="
-              episodeRail.paneKind === 'graph-node' && episodeRail.graphNodeCyId
-            "
+            v-if="mainTab === 'graph' && episodeRail.graphNodeCyId?.trim()"
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="rightOpen = true"
+            data-testid="rail-collapsed-graph-details"
+            @click="
+              rightOpen = true;
+              if (episodeRail.paneKind !== 'graph-node') {
+                episodeRail.resumeDetailPanel();
+              }
+            "
           >
             Details
           </button>
         </div>
         <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col" style="max-height: calc(100vh - 6rem)">
-          <template v-if="episodeRail.paneKind === 'graph-node'">
+          <template v-if="mainTab === 'graph' && episodeRail.paneKind === 'graph-node'">
             <GraphNodeRailPanel
               @go-graph="mainTab = 'graph'"
               @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
@@ -985,29 +1014,69 @@ watch(
                   Search & Explore
                 </button>
               </div>
-              <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <EpisodeDetailPanel
-                  class="min-h-0 min-w-0 flex-1"
-                  @focus-search="onLibraryFocusSearch"
-                  @switch-main-tab="mainTab = $event"
-                />
-                <!--
-                  Connections use the merged graph artifact + Cytoscape id — show only on **Graph**
-                  so Library/Digest context is not confused with stale ego view.
-                  Alternatives: always show (needs reliable artifact when off-graph), or a collapsible
-                  section remembered per session (more state).
-                -->
-                <GraphConnectionsSection
-                  v-if="
-                    episodeRail.graphConnectionsCyId && mainTab === 'graph'
-                  "
-                  :view-artifact="episodeConnectionsViewArtifact"
-                  :node-id="episodeRail.graphConnectionsCyId"
-                  @go-graph="mainTab = 'graph'"
-                  @open-library-episode="onSearchOpenLibraryEpisode"
-                  @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
-                />
-              </div>
+              <EpisodeDetailPanel
+                class="min-h-0 min-w-0 flex-1"
+                :rail-neighbourhood-enabled="episodeRailNeighbourhoodEnabled"
+                :rail-detail-tab="episodeRailDetailTab"
+                @focus-search="onLibraryFocusSearch"
+                @switch-main-tab="mainTab = $event"
+              >
+                <template #episode-rail-tabs>
+                  <nav
+                    v-if="episodeRailNeighbourhoodEnabled"
+                    class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
+                    role="tablist"
+                    aria-label="Episode detail sections"
+                  >
+                    <button
+                      id="episode-detail-rail-tab-details"
+                      type="button"
+                      role="tab"
+                      class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+                      :class="
+                        episodeRailDetailTab === 'details'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-elevated-foreground hover:bg-overlay'
+                      "
+                      :aria-selected="episodeRailDetailTab === 'details'"
+                      aria-controls="episode-detail-rail-panel-details"
+                      data-testid="episode-detail-rail-tab-details"
+                      :tabindex="episodeRailDetailTab === 'details' ? 0 : -1"
+                      @click="episodeRailDetailTab = 'details'"
+                    >
+                      Details
+                    </button>
+                    <button
+                      id="episode-detail-rail-tab-neighbourhood"
+                      type="button"
+                      role="tab"
+                      class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+                      :class="
+                        episodeRailDetailTab === 'neighbourhood'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-elevated-foreground hover:bg-overlay'
+                      "
+                      :aria-selected="episodeRailDetailTab === 'neighbourhood'"
+                      aria-controls="episode-detail-rail-panel-neighbourhood"
+                      data-testid="episode-detail-rail-tab-neighbourhood"
+                      :tabindex="episodeRailDetailTab === 'neighbourhood' ? 0 : -1"
+                      @click="episodeRailDetailTab = 'neighbourhood'"
+                    >
+                      Neighbourhood
+                    </button>
+                  </nav>
+                </template>
+                <template #episode-rail-neighbourhood>
+                  <GraphConnectionsSection
+                    :view-artifact="episodeConnectionsViewArtifact"
+                    :node-id="episodeRail.graphConnectionsCyId"
+                    :dense-neighbor-list="false"
+                    @go-graph="mainTab = 'graph'"
+                    @open-library-episode="onSearchOpenLibraryEpisode"
+                    @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
+                  />
+                </template>
+              </EpisodeDetailPanel>
             </div>
           </template>
           <template v-else>

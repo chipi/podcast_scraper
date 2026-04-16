@@ -11,7 +11,7 @@ Gemini E2E tests use a **fake SDK client** that routes calls to the E2E mock ser
 Instead of mocking individual SDK calls, we replace the Gemini SDK's `GenerativeModel` class with a fake client that:
 
 1. **Intercepts SDK calls** - When code calls `genai.GenerativeModel().generate_content()`
-2. **Routes to E2E server** - Makes HTTP POST requests to `http://127.0.0.1:8000/v1beta/models/{model}:generateContent`
+2. **Routes to E2E server** - Makes HTTP POST requests to `{mock_root}/v1beta/models/{model}:generateContent`, where `mock_root` comes from **`e2e_server`** (ephemeral port in pytest) or from **`make serve-e2e-mock`** (default `http://127.0.0.1:18765`, distinct from **`serve-api`** on port 8000)
 3. **Returns fake responses** - Converts E2E server responses back to SDK-compatible format
 
 ### E2E Server Endpoints

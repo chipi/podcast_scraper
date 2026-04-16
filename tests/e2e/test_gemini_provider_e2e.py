@@ -135,19 +135,19 @@ def _summarize_gemini_usage(metadata_content: dict) -> str:
     # Transcription
     transcription_info = ml_providers.get("transcription", {})
     if transcription_info.get("provider") == "gemini":
-        model = transcription_info.get("gemini_model", "gemini-2.0-flash")
+        model = transcription_info.get("gemini_model", "gemini-2.5-flash-lite")
         summary_parts.append(f"  • Transcription: Gemini API (model: {model})")
 
     # Speaker detection
     speaker_info = ml_providers.get("speaker_detection", {})
     if speaker_info.get("provider") == "gemini":
-        model = speaker_info.get("gemini_model", "gemini-2.0-flash")
+        model = speaker_info.get("gemini_model", "gemini-2.5-flash-lite")
         summary_parts.append(f"  • Speaker Detection: Gemini API (model: {model})")
 
     # Summarization
     summarization_info = ml_providers.get("summarization", {})
     if summarization_info.get("provider") == "gemini":
-        model = summarization_info.get("gemini_model", "gemini-2.0-flash")
+        model = summarization_info.get("gemini_model", "gemini-2.5-flash-lite")
         summary_parts.append(f"  • Summarization: Gemini API (model: {model})")
 
     if summary_parts:

@@ -15,15 +15,20 @@ const MAIN = {
   nodeRepulsionBase: 880_000,
   /** Stronger than root defaults so Episodes/Topics repel away from the compound node. */
   nodeRepulsionTopicClusterCompound: 1_450_000,
-  /** Weaker than base so member Topics pack tighter inside the compound. */
-  nodeRepulsionTopicClusterMember: 420_000,
+  /**
+   * Much weaker than base so member Topics pack tightly inside the compound.
+   * Previous 420k left 2–4 member clusters sprawled across ~1/4 of the canvas.
+   */
+  nodeRepulsionTopicClusterMember: 180_000,
   idealEdgeLengthBase: 96,
-  idealEdgeLengthIntraTopicCluster: 58,
+  /** Short intra-cluster edges pull connected members close together. */
+  idealEdgeLengthIntraTopicCluster: 36,
   edgeElasticity: 100,
-  gravity: 0.15,
+  gravity: 0.18,
   /** Default CoSE is 1.2; higher stretches cross-boundary edges vs intra-cluster edges. */
-  nestingFactor: 1.38,
+  nestingFactor: 1.52,
   nodeDimensionsIncludeLabels: true,
+  numIter: 2500,
 } as const
 
 /** Scaled to match prior minimap baseline (nodeRepulsion 120k, idealEdge 52). */
@@ -32,12 +37,12 @@ const COMPACT = {
   fit: false as const,
   nodeRepulsionBase: 120_000,
   nodeRepulsionTopicClusterCompound: 198_000,
-  nodeRepulsionTopicClusterMember: 57_000,
+  nodeRepulsionTopicClusterMember: 24_000,
   idealEdgeLengthBase: 52,
-  idealEdgeLengthIntraTopicCluster: 32,
+  idealEdgeLengthIntraTopicCluster: 20,
   edgeElasticity: 80,
-  gravity: 0.28,
-  nestingFactor: 1.38,
+  gravity: 0.32,
+  nestingFactor: 1.52,
   nodeDimensionsIncludeLabels: true,
 } as const
 
@@ -116,6 +121,7 @@ export function giKgCoseLayoutOptionsMain(): Record<string, unknown> {
     edgeElasticity: () => MAIN.edgeElasticity,
     gravity: MAIN.gravity,
     nestingFactor: MAIN.nestingFactor,
+    numIter: MAIN.numIter,
     nodeDimensionsIncludeLabels: MAIN.nodeDimensionsIncludeLabels,
   }
 }
@@ -134,6 +140,7 @@ export function giKgCoseLayoutOptionsMainFallback(): Record<string, unknown> {
     edgeElasticity: () => MAIN.edgeElasticity,
     gravity: MAIN.gravity,
     nestingFactor: MAIN.nestingFactor,
+    numIter: MAIN.numIter,
     nodeDimensionsIncludeLabels: MAIN.nodeDimensionsIncludeLabels,
   }
 }

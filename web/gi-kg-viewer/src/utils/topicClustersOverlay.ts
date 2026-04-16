@@ -288,6 +288,8 @@ export function applyTopicClustersOverlay(
   }
 
   const parents: RawGraphNode[] = []
+  /** Invisible layout-only edges that pull cluster members together (COSE cohesion). */
+  const cohesionEdges: { type: string; from: string; to: string }[] = []
 
   for (const cl of doc.clusters) {
     if (!cl || typeof cl !== 'object') {
@@ -302,7 +304,7 @@ export function applyTopicClustersOverlay(
       continue
     }
     const members = Array.isArray(cl.members) ? cl.members : []
-    let attached = 0
+    const attachedIds: string[] = []
     for (const n of nodes) {
       if (!n || n.type !== 'Topic' || n.id == null) {
         continue
@@ -312,12 +314,12 @@ export function applyTopicClustersOverlay(
         const tid = m && typeof m.topic_id === 'string' ? m.topic_id.trim() : ''
         if (tid && bareIdMatchesTopic(tid, gid)) {
           ;(n as RawGraphNode & { parent?: string }).parent = clusterId
-          attached += 1
+          attachedIds.push(gid)
           break
         }
       }
     }
-    if (attached === 0) {
+    if (attachedIds.length === 0) {
       continue
     }
     parents.push({
@@ -326,6 +328,16 @@ export function applyTopicClustersOverlay(
       properties: { label },
     })
     existingIds.add(clusterId)
+
+    for (let i = 0; i < attachedIds.length; i++) {
+      for (let j = i + 1; j < attachedIds.length; j++) {
+        cohesionEdges.push({
+          type: '_tc_cohesion',
+          from: attachedIds[i],
+          to: attachedIds[j],
+        })
+      }
+    }
   }
 
   if (parents.length === 0) {
@@ -335,7 +347,7 @@ export function applyTopicClustersOverlay(
   return {
     ...data,
     nodes: parents.concat(nodes),
-    edges,
+    edges: edges.concat(cohesionEdges),
   }
 }
 

@@ -446,8 +446,11 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui
+.PHONY: serve serve-api serve-ui serve-e2e-mock
 SERVE_OUTPUT_DIR ?= ./output
+# Fixed port for ``config/examples/manual_e2e_mock_five_podcasts.yaml`` (override when YAML edited).
+# Deliberately not 8000 so ``serve-e2e-mock`` can run alongside ``serve-api`` (FastAPI default).
+E2E_MOCK_PORT ?= 18765
 serve:
 	@echo "Running serve-api and serve-ui in parallel (Ctrl+C stops both)."
 	@$(MAKE) -j2 serve-api serve-ui
@@ -457,6 +460,10 @@ serve-api:
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
+
+# E2E fixture HTTP server (RSS + mock API paths) for manual multi-feed YAML (see config/examples/manual_e2e_mock_five_podcasts.yaml).
+serve-e2e-mock:
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
 
 # RFC-062: Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:

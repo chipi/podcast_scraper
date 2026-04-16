@@ -1882,10 +1882,24 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         - `service.run()`: Service API with structured error handling
         - `load_config_file()`: Load configuration from JSON/YAML file
     """
+    # GitHub #562: reset gates before setup (setup is outside try/finally below).
+    try:
+        config.reset_screenplay_issue_562_gates()
+    except Exception:  # pragma: no cover - defensive import/cleanup
+        logger.debug("reset_screenplay_issue_562_gates (startup) failed", exc_info=True)
+
     # Step 1: Setup pipeline environment
     effective_output_dir, run_suffix, full_config_string, pipeline_metrics = (
         _setup_pipeline_environment(cfg)
     )
+
+    # GitHub #557: structured incident log (episode/feed scope); default beside run artifacts.
+    if not (cfg.incident_log_path or "").strip():
+        cfg = cfg.model_copy(
+            update={
+                "incident_log_path": str(Path(effective_output_dir) / "corpus_incidents.jsonl"),
+            }
+        )
 
     monitor_proc: Optional[Any] = None
     py_spy_stop: Optional[Callable[[], None]] = None
@@ -1994,6 +2008,11 @@ def run_pipeline(cfg: config.Config) -> Tuple[int, str]:
         maybe_update_pipeline_status(cfg, effective_output_dir, stage="done")
         return result
     finally:
+        # GitHub #562: allow coercion INFO + screenplay warnings on the next Config / run.
+        try:
+            config.reset_screenplay_issue_562_gates()
+        except Exception:  # pragma: no cover - defensive import/cleanup
+            logger.debug("reset_screenplay_issue_562_gates failed", exc_info=True)
         if py_spy_stop is not None:
             py_spy_stop()
         if monitor_proc is not None:

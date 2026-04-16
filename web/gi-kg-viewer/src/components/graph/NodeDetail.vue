@@ -670,25 +670,25 @@ function focusNeighborOnGraph(nbId: string, ev: MouseEvent): void {
   emit('go-graph')
 }
 
+/** Shared gate for CIL timeline API (single-topic GET or merged cluster POST). */
+const cilTimelineApiUnavailable = computed(
+  (): boolean =>
+    !shell.healthStatus ||
+    shell.cilQueriesApiAvailable === false ||
+    !shell.hasCorpusPath,
+)
+
 const topicTimelineDisabled = computed((): boolean => {
   if (!isTopicNode.value) return true
   const id = props.nodeId
   if (id == null || !String(id).trim()) return true
-  return (
-    !shell.healthStatus ||
-    shell.cilQueriesApiAvailable === false ||
-    !shell.hasCorpusPath
-  )
+  return cilTimelineApiUnavailable.value
 })
 
 /** Merged CIL timeline for TopicCluster (member topic ids from JSON). */
 const clusterTimelineDisabled = computed((): boolean => {
   if (clusterTimelineTopicIds.value.length === 0) return true
-  return (
-    !shell.healthStatus ||
-    shell.cilQueriesApiAvailable === false ||
-    !shell.hasCorpusPath
-  )
+  return cilTimelineApiUnavailable.value
 })
 
 /** Single-topic rail button hidden when JSON-backed cluster uses merged timeline in-cluster. */
@@ -699,11 +699,24 @@ const showSingleTopicTimelineButton = computed(
 function openTopicTimeline(): void {
   const id = props.nodeId
   if (id == null) return
-  void topicTimelineRef.value?.open(String(id))
+  void topicTimelineRef.value?.open(String(id), {
+    variant: 'entity',
+    entityLabel: nodeType.value,
+  })
 }
 
 function openClusterTimeline(): void {
   void topicTimelineRef.value?.openCluster(clusterTimelineTopicIds.value)
+}
+
+/** One member row: single-topic CIL timeline for that topic id (not merged cluster). */
+function openClusterMemberTopicTimeline(topicId: string): void {
+  const id = String(topicId).trim()
+  if (!id) return
+  void topicTimelineRef.value?.open(id, {
+    variant: 'entity',
+    entityLabel: 'Topic',
+  })
 }
 
 type RailFullTextCopyUi = 'idle' | 'copied' | 'failed'
@@ -877,9 +890,20 @@ const showEntityKindSubtitle = computed(() => {
   return true
 })
 
-const showTypeSubtitleRow = computed(
+/** Graph type + entity kind — top of **Details** body, not under the rail title. */
+const showNodeKindRowInDetails = computed(
   () =>
-    (!props.embedInRail && Boolean(nodeType.value)) || showEntityKindSubtitle.value,
+    showEntityKindSubtitle.value ||
+    (!props.embedInRail && Boolean(nodeType.value?.trim())) ||
+    (props.embedInRail &&
+      isPersonEntityRailNode.value &&
+      Boolean(nodeType.value?.trim())),
+)
+
+const showNodeTypeChipInDetails = computed(
+  () =>
+    (!props.embedInRail && Boolean(nodeType.value?.trim())) ||
+    (props.embedInRail && isPersonEntityRailNode.value && Boolean(nodeType.value?.trim())),
 )
 
 const transcriptSourceSection = computed(() => {
@@ -1037,6 +1061,24 @@ const topicClusterContext = computed(() => {
   }
   return findTopicClusterContextForGraphNode(props.nodeId, artifacts.topicClustersDoc)
 })
+
+type GraphRailDetailTab = 'details' | 'neighbourhood'
+
+const graphRailDetailTab = ref<GraphRailDetailTab>('details')
+
+watch(
+  () => props.nodeId,
+  () => {
+    graphRailDetailTab.value = 'details'
+  },
+)
+
+/** Same gate as ``GraphConnectionsSection`` ``centerInView`` (minimap + list hidden when false). */
+const graphConnectionsCenterInView = computed((): boolean => {
+  const a = props.viewArtifact
+  const id = props.nodeId?.trim()
+  return Boolean(a && id && findRawNodeInArtifact(a, id))
+})
 </script>
 
 <template>
@@ -1132,19 +1174,6 @@ const topicClusterContext = computed(() => {
             </div>
           </div>
           <p
-            v-if="showTypeSubtitleRow"
-            class="mt-1 text-xs text-muted"
-          >
-            <span
-              v-if="!props.embedInRail"
-              class="inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
-            >{{ nodeType }}</span>
-            <template v-if="showEntityKindSubtitle">
-              <span v-if="!props.embedInRail" class="mx-1 text-muted">·</span>
-              <span>{{ entityKind }}</span>
-            </template>
-          </p>
-          <p
             v-if="(hasTopicClusterJson || isTopicClusterNode) && !props.embedInRail"
             class="mt-1.5 text-[10px] leading-snug text-muted"
           >
@@ -1157,11 +1186,77 @@ const topicClusterContext = computed(() => {
       </div>
     </div>
 
+    <nav
+      v-if="props.embedInRail"
+      class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
+      role="tablist"
+      aria-label="Graph node detail sections"
+    >
+      <button
+        id="node-detail-rail-tab-details"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'details'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'details'"
+        aria-controls="node-detail-rail-panel-details"
+        data-testid="node-detail-rail-tab-details"
+        :tabindex="graphRailDetailTab === 'details' ? 0 : -1"
+        @click="graphRailDetailTab = 'details'"
+      >
+        Details
+      </button>
+      <button
+        id="node-detail-rail-tab-neighbourhood"
+        type="button"
+        role="tab"
+        class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+        :class="
+          graphRailDetailTab === 'neighbourhood'
+            ? 'bg-primary text-primary-foreground'
+            : 'text-elevated-foreground hover:bg-overlay'
+        "
+        :aria-selected="graphRailDetailTab === 'neighbourhood'"
+        aria-controls="node-detail-rail-panel-neighbourhood"
+        data-testid="node-detail-rail-tab-neighbourhood"
+        :tabindex="graphRailDetailTab === 'neighbourhood' ? 0 : -1"
+        @click="graphRailDetailTab = 'neighbourhood'"
+      >
+        Neighbourhood
+      </button>
+    </nav>
+
     <div
       class="px-2 py-2"
       :class="props.embedInRail ? 'min-h-0 flex-1 overflow-y-auto' : 'overflow-y-auto px-3'"
       :style="props.embedInRail ? undefined : { maxHeight: 'calc(100vh - 12rem)' }"
     >
+      <div
+        v-show="!props.embedInRail || graphRailDetailTab === 'details'"
+        id="node-detail-rail-panel-details"
+        class="min-h-0"
+        :role="props.embedInRail ? 'tabpanel' : undefined"
+        :aria-labelledby="props.embedInRail ? 'node-detail-rail-tab-details' : undefined"
+        :tabindex="props.embedInRail ? -1 : undefined"
+      >
+        <p
+          v-if="showNodeKindRowInDetails"
+          class="mb-2 text-xs text-muted"
+          data-testid="node-detail-kind-row"
+        >
+          <span
+            v-if="showNodeTypeChipInDetails"
+            class="inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary"
+          >{{ nodeType }}</span>
+          <template v-if="showEntityKindSubtitle">
+            <span v-if="showNodeTypeChipInDetails" class="mx-1 text-muted">·</span>
+            <span>{{ entityKind }}</span>
+          </template>
+        </p>
       <template v-if="hasTopicClusterJson || isTopicClusterNode">
         <section
           class="mb-3 rounded border border-border bg-surface/40 p-2 text-[10px]"
@@ -1248,12 +1343,12 @@ const topicClusterContext = computed(() => {
               </div>
               <div class="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
                 <button
-                  v-if="clusterTimelineTopicIds.length"
+                  v-if="row.topicId.trim()"
                   type="button"
                   class="rounded border border-border bg-canvas px-1.5 py-0.5 text-[10px] font-medium text-surface-foreground hover:bg-elevated disabled:opacity-40"
                   data-testid="node-detail-cluster-member-timeline"
-                  :disabled="clusterTimelineDisabled"
-                  @click="openClusterTimeline"
+                  :disabled="cilTimelineApiUnavailable"
+                  @click="openClusterMemberTopicTimeline(row.topicId)"
                 >
                   Timeline
                 </button>
@@ -1723,22 +1818,44 @@ const topicClusterContext = computed(() => {
           </dd>
         </template>
       </dl>
+      </div>
 
-      <GraphConnectionsSection
-        class="mt-2"
-        :view-artifact="props.viewArtifact"
-        :node-id="props.nodeId"
-        :aggregated-neighbor-rows="
-          useTopicClusterAggregatedConnections ? topicClusterAggregatedNeighbors : undefined
+      <div
+        v-if="!props.embedInRail || graphRailDetailTab === 'neighbourhood'"
+        id="node-detail-rail-panel-neighbourhood"
+        class="min-h-0"
+        :role="props.embedInRail ? 'tabpanel' : undefined"
+        :aria-labelledby="
+          props.embedInRail ? 'node-detail-rail-tab-neighbourhood' : undefined
         "
-        :topic-cluster-neighborhood="topicClusterNeighborhoodForMap"
-        :connections-empty-hint="
-          useTopicClusterAggregatedConnections ? TOPIC_CLUSTER_CONNECTIONS_EMPTY : undefined
-        "
-        @go-graph="emit('go-graph')"
-        @open-library-episode="emit('open-library-episode', $event)"
-        @prefill-semantic-search="emit('prefill-semantic-search', $event)"
-      />
+        :tabindex="props.embedInRail ? -1 : undefined"
+      >
+        <p
+          v-if="props.embedInRail && !graphConnectionsCenterInView"
+          class="mb-2 text-[11px] leading-snug text-muted"
+          data-testid="node-detail-rail-neighbourhood-unavailable"
+        >
+          This node is not in the current merged graph slice, so the Neighbourhood preview and
+          connection list are hidden. Try another ego focus, clear filters, or load a graph that
+          includes this node.
+        </p>
+        <GraphConnectionsSection
+          class="mt-2"
+          :view-artifact="props.viewArtifact"
+          :node-id="props.nodeId"
+          :aggregated-neighbor-rows="
+            useTopicClusterAggregatedConnections ? topicClusterAggregatedNeighbors : undefined
+          "
+          :topic-cluster-neighborhood="topicClusterNeighborhoodForMap"
+          :connections-empty-hint="
+            useTopicClusterAggregatedConnections ? TOPIC_CLUSTER_CONNECTIONS_EMPTY : undefined
+          "
+          :dense-neighbor-list="!props.embedInRail"
+          @go-graph="emit('go-graph')"
+          @open-library-episode="emit('open-library-episode', $event)"
+          @prefill-semantic-search="emit('prefill-semantic-search', $event)"
+        />
+      </div>
     </div>
 
     <TranscriptViewerDialog ref="transcriptViewerRef" />

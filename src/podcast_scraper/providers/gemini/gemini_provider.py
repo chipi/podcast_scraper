@@ -136,8 +136,8 @@ class GeminiProvider:
             self.cleaning_processor = HybridCleaner()  # type: ignore[assignment]
 
         # Cleaning model settings (cheaper model for cost efficiency)
-        # Note: gemini-1.5-flash not available in new API, using gemini-2.0-flash
-        self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-2.0-flash")
+        # Note: gemini-1.5-flash not available in new API; default flash-tier model in config
+        self.cleaning_model = getattr(cfg, "gemini_cleaning_model", "gemini-2.5-flash-lite")
         self.cleaning_temperature = getattr(cfg, "gemini_cleaning_temperature", 0.2)
 
         # Suppress verbose Gemini SDK debug logs (if needed)
@@ -189,16 +189,18 @@ class GeminiProvider:
 
         # Transcription settings
         # Model validation happens at API call time - invalid models will raise clear errors
-        self.transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-2.0-flash")
+        self.transcription_model = getattr(
+            cfg, "gemini_transcription_model", "gemini-2.5-flash-lite"
+        )
 
         # Speaker detection settings
         # Model validation happens at API call time - invalid models will raise clear errors
-        self.speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-2.0-flash")
+        self.speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-2.5-flash-lite")
         self.speaker_temperature = getattr(cfg, "gemini_temperature", 0.3)
 
         # Summarization settings
         # Model validation happens at API call time - invalid models will raise clear errors
-        self.summary_model = getattr(cfg, "gemini_summary_model", "gemini-2.0-flash")
+        self.summary_model = getattr(cfg, "gemini_summary_model", "gemini-2.5-flash-lite")
         self.summary_temperature = getattr(cfg, "gemini_temperature", 0.3)
         # Gemini 1.5 Pro supports 2M context window
         self.max_context_tokens = 2000000  # Conservative estimate
@@ -218,7 +220,7 @@ class GeminiProvider:
         """Get pricing information for a specific model and capability.
 
         Args:
-            model: Model name (e.g., "gemini-1.5-pro", "gemini-2.0-flash")
+            model: Model name (e.g., "gemini-1.5-pro", "gemini-2.5-flash-lite")
             capability: Capability type ("transcription", "speaker_detection", "summarization")
 
         Returns:
@@ -232,7 +234,7 @@ class GeminiProvider:
             pricing["cost_per_hour"] = GEMINI_AUDIO_COST_PER_SECOND * 3600
         else:
             # Text-based pricing (speaker detection, summarization)
-            if "2.0-flash" in model.lower():
+            if "2.0-flash" in model.lower() or "flash-lite" in model.lower():
                 pricing["input_cost_per_1m_tokens"] = GEMINI_2_FLASH_INPUT_COST_PER_1M_TOKENS
                 pricing["output_cost_per_1m_tokens"] = GEMINI_2_FLASH_OUTPUT_COST_PER_1M_TOKENS
             elif "1.5-pro" in model.lower():

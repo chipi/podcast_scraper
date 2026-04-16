@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted, ref, toRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, toRef, watch } from 'vue'
 
 const DEFAULT_BUTTON_CLASS =
   'inline-flex h-4 w-4 items-center justify-center rounded-full border border-border text-[10px] font-bold leading-none text-muted hover:bg-overlay hover:text-surface-foreground'
@@ -16,15 +16,34 @@ const props = withDefaults(
      * When set (e.g. canvas chip next to **E**), replaces the default round **?** style.
      */
     buttonClass?: string
+    /**
+     * Where to mount the popover (Teleport ``to``). Default ``body``. Pass the parent
+     * ``<dialog>`` element when this trigger lives inside ``showModal()`` so the panel
+     * mounts inside the dialog subtree (top layer) instead of ``body`` (where it would
+     * sit behind the modal).
+     */
+    teleportTo?: string | Element | null
   }>(),
   {
     prefWidth: 256,
     buttonAriaLabel: 'Help',
     buttonText: '?',
+    teleportTo: null,
   },
 )
 
 const prefWidthPx = toRef(props, 'prefWidth')
+
+const teleportTarget = computed((): string | Element => {
+  const t = props.teleportTo
+  if (t == null) {
+    return 'body'
+  }
+  if (typeof t === 'string' && !t.trim()) {
+    return 'body'
+  }
+  return t
+})
 
 const open = ref(false)
 const triggerRef = ref<HTMLButtonElement | null>(null)
@@ -142,14 +161,13 @@ onUnmounted(() => {
     >
       {{ buttonText }}
     </button>
-    <Teleport to="body">
+    <Teleport :to="teleportTarget">
       <div
         v-if="open"
         ref="panelRef"
-        class="fixed z-[10000] min-w-0 overflow-y-auto break-words rounded border border-border bg-elevated p-2.5 text-xs leading-relaxed text-elevated-foreground shadow-xl box-border"
+        class="fixed z-[10000] min-w-0 select-text overflow-y-auto break-words rounded border border-border bg-elevated p-2.5 text-xs leading-relaxed text-elevated-foreground shadow-xl box-border"
         :style="panelStyle"
         role="tooltip"
-        @mousedown.prevent
       >
         <slot />
       </div>

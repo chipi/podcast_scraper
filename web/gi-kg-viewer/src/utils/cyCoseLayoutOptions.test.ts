@@ -51,7 +51,8 @@ describe('giKgCoseLayoutOptionsMain', () => {
   it('includes nestingFactor for cross-graph edges', () => {
     const o = giKgCoseLayoutOptionsMain()
     expect(o.name).toBe('cose')
-    expect(o.nestingFactor).toBe(1.38)
+    expect(o.nestingFactor).toBe(1.52)
+    expect(o.numIter).toBe(2500)
     expect(typeof o.nodeRepulsion).toBe('function')
     expect(typeof o.idealEdgeLength).toBe('function')
   })
@@ -61,7 +62,8 @@ describe('giKgCoseLayoutOptionsMainFallback', () => {
   it('uses flat repulsion/edge length (no per-node callbacks)', () => {
     const o = giKgCoseLayoutOptionsMainFallback()
     expect(o.name).toBe('cose')
-    expect(o.nestingFactor).toBe(1.38)
+    expect(o.nestingFactor).toBe(1.52)
+    expect(o.numIter).toBe(2500)
     expect(typeof o.nodeRepulsion).toBe('function')
     expect(typeof o.idealEdgeLength).toBe('function')
     expect((o.nodeRepulsion as () => number)()).toBe(880_000)
@@ -72,8 +74,8 @@ describe('giKgCoseLayoutOptionsMainFallback', () => {
 describe('giKgCoseLayoutOptionsCompact', () => {
   it('matches minimap gravity and disables animation', () => {
     const o = giKgCoseLayoutOptionsCompact()
-    expect(o.gravity).toBe(0.28)
+    expect(o.gravity).toBe(0.32)
     expect(o.animate).toBe(false)
-    expect(o.nestingFactor).toBe(1.38)
+    expect(o.nestingFactor).toBe(1.52)
   })
 })
