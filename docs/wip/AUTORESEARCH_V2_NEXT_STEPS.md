@@ -1,11 +1,16 @@
-# Autoresearch v2 — Next Steps WIP
+# Autoresearch v2 — Next Steps (Master Plan)
 
-Scratch note consolidating plans and open questions after the v2 provider-matrix sweep.
-Not a spec — a dump of intentions and hypotheses for the next work session.
+Consolidating plans and open questions after the v2 provider-matrix sweep. Not a spec — a
+prioritised plan for the next 1-3 work sessions.
 
-**Latest commit state:** `28f3222` on `feat/eval-benchmark-v2` (not yet pushed).
-**Authoritative eval report:** [`docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md`](../guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md)
-**Framework RFC:** [RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)
+**Latest commit state:** `3e6655d` on `feat/eval-benchmark-v2` (not yet pushed).
+
+**Related docs:**
+
+- [`docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md`](../guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md) — authoritative eval report
+- [`docs/rfc/RFC-073-autoresearch-v2-framework.md`](../rfc/RFC-073-autoresearch-v2-framework.md) — framework spec
+- [`LORA_HYBRID_PIPELINE_PLAN.md`](LORA_HYBRID_PIPELINE_PLAN.md) — companion WIP: LoRA
+  fine-tuning plan for hybrid_ml pipeline revival (gated on §3 outcome)
 
 ---
 
@@ -84,27 +89,45 @@ style. Podcasts are 10k-word conversational content. Structural mismatch.
 held-out), compare to v2 BART+LED baseline. If a specialist beats BART, it becomes the
 ML-track backbone for the ML/hybrid v2 runs.
 
-### 3. ML + hybrid_ml under v2 framework
+### 3. ML + hybrid_ml under v2 framework — **start with better base models, not v1 defaults**
 
 **Why:** ADR-073 closed these under v1 methodology (contaminated smoke/benchmark, binary-OR
 contestation, Conciseness rubric). Need v2 numbers to know where "old school" actually lands.
 
+**Critical insight from v2 data:** v1's hybrid used `llama3.2:3b` for REDUCE because that
+was the smallest Ollama model at the time — not because it was optimal. The v2 matrix shows
+llama3.2:3b (0.501) is **the weakest of the 7B+ class**. Running hybrid under v2 with the
+v1 base is measuring the wrong thing.
+
+**Right order: pick the best bases, THEN measure.**
+
+| Stage | v1 default | Better v2-informed choice | v2 evidence |
+|-------|-----------|---------------------------|-------------|
+| MAP | `bart-large-cnn` | `google/long-t5-tglobal-large` (from #2) | Long-context, summarisation specialist, not CNN-news-tuned |
+| REDUCE | `llama3.2:3b` | `qwen3.5:9b` or `mistral:7b` | qwen3.5:9b scored 0.580 non-bundled (vs llama3.2:3b at 0.501); mistral:7b (0.526) is a balanced middle pick |
+
 **Scope:**
 
-- `ml_bart_led_autoresearch_v1` (or specialist swap winner from #2) on dev + held-out ×
-  bullets + paragraph = 4 cells
-- `ml_hybrid_bart_llama32_3b_autoresearch_v1` — same 4 cells. Apply v2 champion prompt
-  to the Llama3.2:3b REDUCE stage.
+- Pure ML (MAP-only, no REDUCE): long-t5 → 4 cells
+- Hybrid (MAP + LLM REDUCE): long-t5 + qwen3.5:9b → 4 cells
+- Optionally, for comparison: hybrid with mistral:7b REDUCE → 4 cells (if time)
+- v1 configs (`ml_bart_led_autoresearch_v1`, `ml_hybrid_bart_llama32_3b_autoresearch_v1`):
+  keep as-is per reproducibility policy — don't re-run them under v2. Create new v2 configs
+  with the better bases.
 
-**Expected v2 numbers:**
+**Expected v2 numbers (with modernised bases):**
 
-- Pure BART+LED: 0.25-0.35 range. Will clearly land behind top LLMs, but maybe higher
-  than v1's 0.20 once Efficiency rubric stops penalising length and contestation stops
-  flipping to ROUGE-only.
-- Hybrid with champion REDUCE prompt: 0.40-0.50. Llama3.2:3b non-bundled alone was 0.501
-  bullets — hybrid combines BART structure with Llama REDUCE.
+- Pure long-t5 ML: 0.35-0.45 range (big jump from v1's bart-led 0.20 if long-t5's long
+  context genuinely helps on 10k-word podcasts).
+- Hybrid long-t5 + qwen3.5:9b: 0.50-0.60 range (un-tuned). Could be genuinely competitive
+  with top local LLM (qwen3.5:9b standalone at 0.580) since REDUCE gets structured input,
+  not raw transcript.
 
-**Real question:** is there a niche where ML/hybrid still wins? Candidates:
+**Real question:** can modernised-base hybrid match or beat qwen3.5:9b standalone? If yes,
+LoRA becomes optional rather than necessary. If no, LoRA is where the remaining gap lives —
+see [`LORA_HYBRID_PIPELINE_PLAN.md`](LORA_HYBRID_PIPELINE_PLAN.md).
+
+**Where hybrid still wins regardless:**
 
 - Fully deterministic (real `temperature=0`, no API variance)
 - Zero-API-key / single-binary deploy
@@ -143,50 +166,67 @@ Pareto-optimal and we missed them.
 - Third-party hosted open models (Groq, Together.ai for Llama) — different
   provider complicates the matrix
 
-### 5. LoRA fine-tuning on silver references (deferred — bigger project)
+### 5. LoRA fine-tuning on silvers — separate plan (deferred, multi-session project)
 
-**Not a one-day task.** Raised here because it's the biggest potential quality lift,
-especially for small local models.
+Dedicated plan lives in [`LORA_HYBRID_PIPELINE_PLAN.md`](LORA_HYBRID_PIPELINE_PLAN.md).
+Summary of the framing:
 
-**Idea:** fine-tune small models (BART, Llama3.2:3b, phi3:mini) using LoRA on the 20
-silver references we have. Could lift those models from 0.20-0.50 toward 0.55-0.65.
+- **Target**: lift the hybrid pipeline from v2 baseline to genuinely competitive status
+  (potentially matching qwen3.5:9b standalone). The hybrid is the only path with two
+  fine-tunable stages; cloud LLMs can't be trained, pure local LLMs are a dead end
+  relative to qwen3.5:9b.
+- **Feasibility on M4 48GB**: yes for 3B-9B models, via MLX (LLMs) + PyTorch PEFT (BART).
+  No QLoRA because bitsandbytes doesn't support Apple MPS.
+- **Real bottleneck**: 20 silver examples is below LoRA threshold. Pre-phase: generate
+  200+ new silvers using Sonnet 4.6 on non-eval podcasts (~$2 in credits, 1 day).
+- **Condition to start**: Phase 0 baseline from §3 must show remaining gap after bases
+  are modernised. If long-t5 + qwen3.5:9b un-tuned hybrid already hits 0.55+, LoRA may
+  not be worth the investment.
+- **Multi-session**: realistic 1 week of focused work (data gen + training infra +
+  experiments + evaluation).
 
-**Why deferred:**
-
-- Needs HF Trainer setup + hyperparameter search
-- Needs train/val split of the silvers (and we just built dev/held-out — reusing silvers
-  for training would contaminate the held-out)
-- Apple Silicon MPS training path untested; may need real GPU
-- Multi-day investigation, not one session
-- Returns diminish relative to "just use qwen3.5:9b" as the local default
-
-**Condition to revisit:** if a specific deployment constraint requires small models
-(edge device, <1GB memory, etc.) and quality matters.
+**Explicitly NOT tomorrow's work.** Gated on §3 results showing a gap worth closing.
 
 ---
 
 ## Suggested tomorrow sequencing
 
-Chain findings rather than doing things in parallel. Each step may invalidate/reshape
-the next.
+Chain findings rather than running in parallel. Each step's result may reshape the next.
+
+### Critical dependency: §2 → §3
+
+Don't evaluate ML/hybrid v2 before picking the right bases. §2 picks the MAP base; §3 should
+use that choice. Similarly, §3 uses the v2 data to pick the REDUCE base (qwen3.5:9b or
+mistral:7b, not v1's llama3.2:3b).
+
+### Tomorrow's realistic plan
 
 1. **Morning (2-3h): Model operating mode audit** (#1)
-   - One-page-per-model reference table
+   - Read model cards for all 11 Ollama + BART + LED
+   - One-page-per-model reference table (chat template, context window, temperature,
+     specialisation, chat-template handling)
    - Flag any "we're using it wrong" bugs
 2. **Late morning (~1h): Quick fixes from audit** (#1 fix)
-   - phi3 context, gemma2 system-prompt merge, etc.
+   - phi3 context truncation, gemma2 system-prompt merge, etc.
    - Re-run only the affected cells
-3. **Early afternoon (~1h): ML-track alternative backbone** (#2)
-   - Swap one summariser specialist, 4 cells
-   - Pick winning backbone for step 4
-4. **Mid afternoon (~2h): ML + hybrid v2 runs** (#3)
-   - Use winning backbone from step 3
-   - Apply champion REDUCE prompt to hybrid
-5. **Late afternoon (optional): new API variants** (#4 phase 1)
+3. **Early afternoon (~1.5h): ML-track alternative MAP backbone** (#2)
+   - Swap one summariser specialist (long-t5 recommended), 4 cells
+   - This picks the MAP base for step 4
+4. **Mid-late afternoon (~2h): ML + hybrid v2 with modernised bases** (#3)
+   - Pure ML: long-t5 MAP (from step 3) on 4 cells
+   - Hybrid: long-t5 MAP + **qwen3.5:9b REDUCE** (not v1's llama3.2:3b!) on 4 cells
+   - Apply v2 champion REDUCE prompt
+   - Record: ROUGE-L, final score, latency per stage
+5. **Decision point after step 4**: does modernised-base hybrid match qwen3.5:9b standalone?
+   - **Yes** → ML/hybrid revived; update guide; next session can pursue new API variants
+     (#4) or LoRA (#5)
+   - **No (gap remains)** → gap quantified; informs whether LoRA in #5 is worth the cost
+6. **Late afternoon (optional): new API variants** (#4 phase 1)
    - gpt-4o-mini, gemini-2.5-flash-lite, mistral-medium
    - Update matrix if any lands on Pareto frontier
 
-If steps 1-4 take the full day, defer step 5 to next session.
+Steps 1-4 alone justify a full day. Step 5 is optional. LoRA (#5 in §5) is explicitly
+NOT part of this day — it's gated on step 5 showing a gap worth closing.
 
 ---
 
@@ -207,12 +247,17 @@ If steps 1-4 take the full day, defer step 5 to next session.
 
 ## What NOT to do next session
 
+- **Don't evaluate ML/hybrid with v1 base models** (BART-large-cnn + llama3.2:3b).
+  Pick the v2-informed bases first (long-t5 + qwen3.5:9b). Evaluating with v1 defaults
+  is measuring the wrong question.
 - **Don't do multi-run averaging yet** — bigger infra change, not the highest leverage
 - **Don't tune per-provider prompts** — diminishing returns relative to model-specific
   fixes (which the audit will surface)
 - **Don't add more Ollama models** — we've saturated the local-model value
 - **Don't introduce third-party hosted open models** (Groq, Together, etc.) — muddies
   the matrix without clear quality signal
-- **Don't jump into LoRA fine-tuning** — defer as per #5
+- **Don't jump into LoRA fine-tuning** — gated on §3 result; see
+  [`LORA_HYBRID_PIPELINE_PLAN.md`](LORA_HYBRID_PIPELINE_PLAN.md). Multi-session project,
+  not tomorrow's work.
 - **Don't re-run v1 runs under v2 just to compare** — keep old artifacts as-is per
-  reproducibility policy
+  reproducibility policy. Create new v2 configs for the modernised pipelines.
