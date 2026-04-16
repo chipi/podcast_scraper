@@ -191,7 +191,7 @@ All four champions generalise cleanly on held-out (no overfitting detected). The
 
 To benchmark another provider (Anthropic, Gemini, Mistral, etc.) under v2:
 
-1. **Create 8 configs** mirroring OpenAI's structure (bundled + non-bundled × bullets + paragraph × dev + benchmark). Re-use the existing Sonnet 4.6 silvers — they're provider-neutral reference quality.
+1. **Create 8 configs** mirroring OpenAI's structure (bundled + non-bundled × bullets + paragraph × dev + benchmark). Reuse the existing Sonnet 4.6 silvers — they're provider-neutral reference quality.
 2. **Port the OpenAI champion prompts** as a starting point for the provider's prompts. OpenAI's accepted changes (style narration, few-shot examples, anti-patterns for bullets; 4-6 paragraphs + opening sentence + coverage + verbatim for paragraphs) transfer cleanly across models. Use those as the initial templates rather than starting from stock.
 3. **Establish baselines on dev, iterate on dev, validate on held-out.** Keep held-out sacred.
 4. **Fill in the same scorecard**. Compare across providers using held-out numbers.
