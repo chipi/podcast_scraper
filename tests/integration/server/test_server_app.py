@@ -74,3 +74,24 @@ def test_api_corpus_text_file_not_shadowed_by_static_mount(tmp_path: Path) -> No
     r = client.get("/api/corpus/text-file", params={"relpath": "t.txt"})
     assert r.status_code == 200
     assert r.text == "hi"
+
+
+def test_api_health_and_search_no_corpus(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    h = client.get("/api/health")
+    assert h.status_code == 200
+    assert h.json().get("status") == "ok"
+    s = client.get("/api/search?q=hello")
+    assert s.status_code == 200
+    body = s.json()
+    assert body.get("query") == "hello"
+
+
+def test_api_artifacts_lists_empty_corpus(tmp_path: Path) -> None:
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+    r = client.get("/api/artifacts", params={"path": str(tmp_path)})
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("artifacts") == []

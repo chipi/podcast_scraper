@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
@@ -18,6 +19,7 @@ from podcast_scraper.search.corpus_scope import (
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.indexer import _kg_path, _load_metadata_file
+from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
 
 logger = logging.getLogger(__name__)
 
@@ -90,13 +92,14 @@ def topic_cluster_enrichment_by_topic_id(
 
 def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, str]]:
     """Load ``search/topic_clusters.json`` and return enrichment map; empty if missing/invalid."""
-    path = corpus_root.resolve() / "search" / TOPIC_CLUSTERS_FILENAME
-    if not path.is_file():
+    rel = f"search/{TOPIC_CLUSTERS_FILENAME}"
+    safe = safe_relpath_under_corpus_root(corpus_root, rel)
+    if not safe or not os.path.isfile(safe):
         return {}
     try:
-        payload = cast(Dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
+        payload = cast(Dict[str, Any], json.loads(Path(safe).read_text(encoding="utf-8")))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("topic cluster enrichment: skip %s: %s", path, exc)
+        logger.warning("topic cluster enrichment: skip %s: %s", safe, exc)
         return {}
     if not isinstance(payload, dict):
         return {}

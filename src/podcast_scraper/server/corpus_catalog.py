@@ -14,7 +14,10 @@ from typing import Any, Iterable, Mapping, Optional
 from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 
 
 def _feed_and_episode_ids(doc: Optional[dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
@@ -265,7 +268,9 @@ class CatalogEpisodeRow:
 
 def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
     """Scan corpus for ``*.metadata.*`` and build catalog rows."""
-    root = corpus_root.resolve()
+    root = safe_resolve_directory(corpus_root)
+    if root is None:
+        return []
     root_s = os.path.normpath(str(root))
     safe_prefix = root_s + os.sep
     rows: list[CatalogEpisodeRow] = []

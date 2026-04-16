@@ -49,8 +49,11 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     sibling ``.cleaned.txt`` produced when ``save_cleaned_transcript`` is enabled (metadata
     and GI ``transcript_ref`` often still point at the raw path).
     """
+    root_s = os.path.normpath(str(root.resolve()))
+    safe_prefix = root_s + os.sep
+
     safe = safe_relpath_under_corpus_root(root, norm)
-    if not safe:
+    if not safe or (safe != root_s and not safe.startswith(safe_prefix)):
         return None
     basename = os.path.basename(safe)
     if not _suffix_allowed(basename):
@@ -62,7 +65,7 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     if alt_norm is None:
         return None
     safe_alt = safe_relpath_under_corpus_root(root, alt_norm)
-    if not safe_alt:
+    if not safe_alt or (safe_alt != root_s and not safe_alt.startswith(safe_prefix)):
         return None
     alt_base = os.path.basename(safe_alt)
     if not _suffix_allowed(alt_base):
@@ -116,6 +119,11 @@ async def corpus_text_file(
         raise HTTPException(status_code=404, detail="File not found.")
 
     safe_file, basename = resolved
+
+    root_s = os.path.normpath(str(root.resolve()))
+    safe_prefix = root_s + os.sep
+    if safe_file != root_s and not safe_file.startswith(safe_prefix):
+        raise HTTPException(status_code=400, detail="Invalid path.")
 
     # codeql[py/path-injection] -- ``safe_file`` from sanitizer under ``root``.
     return FileResponse(

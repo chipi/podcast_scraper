@@ -71,7 +71,7 @@ OpenAPI: **`/docs`** when the server is running.
 | CIL HTTP | Integration | `tests/integration/server/test_cil_api.py` |
 | Search lift + offset verify | Unit | `tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py` |
 | Corpus topic clusters (RFC-075) | Unit | `tests/unit/podcast_scraper/search/test_topic_clusters.py` |
-| `GET /api/corpus/topic-clusters` | Unit + integration | `tests/unit/podcast_scraper/server/test_corpus_topic_clusters.py`, `tests/integration/server/test_corpus_topic_clusters_route.py` |
+| `GET /api/corpus/topic-clusters` | Integration | `tests/integration/server/test_corpus_topic_clusters.py` |
 | Viewer topic cluster fetch + overlay | Vitest + Playwright | `make test-ui` (`corpusTopicClustersApi`, `topicClustersOverlay`); `e2e/search-to-graph-mocks.spec.ts` (mocked API) |
 | Bridge integration (pipeline-shaped) | Integration | `tests/integration/test_bridge_integration.py` |
 | FastAPI viewer (search, health, library, …) | Integration | `tests/integration/server/test_server_api.py`, `test_viewer_search.py`, … |

@@ -43,8 +43,11 @@ async def corpus_topic_clusters(
             detail="path query parameter is required when the server has no default output_dir.",
         )
 
-    root_safe = safe_relpath_under_corpus_root(Path(root), _TOPIC_CLUSTERS_REL)
-    if not root_safe or not os.path.isfile(root_safe):
+    root_s = os.path.normpath(str(root.resolve()))
+    safe_prefix = root_s + os.sep
+
+    root_safe = safe_relpath_under_corpus_root(root, _TOPIC_CLUSTERS_REL)
+    if not root_safe or not root_safe.startswith(safe_prefix) or not os.path.isfile(root_safe):
         return JSONResponse(
             status_code=404,
             content={
