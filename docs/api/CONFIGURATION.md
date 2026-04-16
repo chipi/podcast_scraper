@@ -1471,7 +1471,10 @@ cfg = Config(
 
 See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
 
-- `config/examples/config.example.multi-feed.yaml` / `config/examples/config.example.multi-feed.json` (generic placeholder feeds; same provider mix as `config.example.*`)
+- `config/examples/config.example.multi-feed.cloud-llm.yaml` / `config/examples/config.example.multi-feed.cloud-llm.json` (generic placeholder **feeds**; same option set as `config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml` — OpenAI **`whisper-1`** transcription + Gemini speaker/summary, GI/KG from **summary bullets**, **`vector_search`** / **faiss** — requires **`OPENAI_API_KEY`** and **`GEMINI_API_KEY`**)
+- `config/examples/config.example.multi-feed.ollama.yaml` / `config/examples/config.example.multi-feed.ollama.json` (same multi-feed + GI/KG + **`vector_search`** shape; **local Whisper** transcription + **Ollama** **`qwen3.5:9b`** speaker/summary, **`llm_pipeline_mode: bundled`**, **`ollama_temperature: 0.0`** — requires **Ollama** with the model pulled)
+- `config/examples/config.example.multi-feed.ml-dev.yaml` / `config/examples/config.example.multi-feed.ml-dev.json` (same shape; **Whisper + spaCy + transformers**; **`summary_mode_id: ml_small_authority`**, **`ner_model: en_core_web_sm`** — RFC-044 registry dev mode)
+- `config/examples/config.example.multi-feed.ml-prod.yaml` / `config/examples/config.example.multi-feed.ml-prod.json` (same shape; **`summary_mode_id: ml_bart_led_autoresearch_v1`**, **`ner_model: en_core_web_trf`** — RFC-044 registry prod tier)
 - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
 - `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
 

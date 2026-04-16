@@ -27,8 +27,8 @@ feeds:
   - http://127.0.0.1:18765/feeds/podcast8_solar/feed.xml
   - http://127.0.0.1:18765/feeds/podcast9_solo/feed.xml
 
-output_dir: .test_outputs/manual/e2e_mock_fixture_multi_feed
-max_episodes: 2
+output_dir: output
+max_episodes: 3
 
 transcription_provider: whisper
 speaker_detector_provider: spacy

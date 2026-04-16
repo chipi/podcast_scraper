@@ -7,9 +7,13 @@
 
 rss: https://example.com/feed.xml
 # Multi-feed corpus (GitHub #440): use `feeds` / `rss_urls` instead of `rss`. See
-# config.example.multi-feed.yaml and config.example.multi-feed.json in this folder.
-output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
-max_episodes: 10
+# config.example.multi-feed.cloud-llm.yaml / .json (OpenAI + Gemini + GI/KG + vector_search;
+# placeholder feeds — same option set as manual_multi_feed_corpus_rss_registry_openai_gemini.yaml),
+# config.example.multi-feed.ollama.yaml / .json (Whisper + Ollama qwen3.5:9b, bundled pipeline),
+# and config.example.multi-feed.ml-dev.yaml / .json plus ml-prod (Whisper + spaCy + transformers;
+# RFC-044 modes ml_small_authority vs ml_bart_led_autoresearch_v1; placeholder feeds).
+output_dir: output  # Can also be set via OUTPUT_DIR env var
+max_episodes: 3
 # Episode selection (GitHub #521): optional order, offset, publish-date window — see
 # docs/api/CONFIGURATION.md#episode-selection-github-521
 # episode_order: newest   # or oldest

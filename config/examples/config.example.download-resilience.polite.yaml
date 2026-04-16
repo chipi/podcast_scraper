@@ -12,7 +12,8 @@
 # CLI: docs/api/CLI.md — Control Options
 
 rss: https://feeds.example.com/podcast.xml
-output_dir: ./my_corpus
+output_dir: output
+max_episodes: 3
 
 # urllib3 retries: optional; omit to keep shipped defaults (http 8/1.0, rss 10/2.0)
 # http_retry_total: 8
