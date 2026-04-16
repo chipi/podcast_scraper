@@ -192,4 +192,66 @@ Option B if meta still appears after feed 1.
 
 ---
 
+## TD-004: Bandit `B615` Hugging Face Hub download suppressions
+
+**Status:** Managed (`# nosec B615` applied at every `from_pretrained()` call site)
+
+**Current state:**
+
+Bandit's `B615` rule flags every call to `AutoTokenizer.from_pretrained(...)` /
+`AutoModelForX.from_pretrained(...)` / `BartForConditionalGeneration.from_pretrained(...)`
+etc. that does not pin `revision=<sha>`. Without pinning, Hugging Face Hub
+returns whatever is currently at `main` on the repo — so in principle a model
+repo owner (or a Hub compromise) could change the downloaded weights or loader
+code under us.
+
+As of April 2026, the codebase has **18 `# nosec B615` suppressions** across:
+
+- `src/podcast_scraper/providers/ml/hybrid_ml_provider.py` (×4)
+- `src/podcast_scraper/providers/ml/model_loader.py` (×4)
+- `src/podcast_scraper/providers/ml/summarizer.py` (×6)
+- `scripts/eval/run_longt5xl_v2.py` (×2)
+- `scripts/eval/run_summllama_v2.py` (×2)
+
+Every production ML model load uses this pattern. Eval standalone scripts were
+added in the v2 sweep (PR #568) and were adjusted to match.
+
+**Why this is debt, not a bug:**
+
+- We rely on HF Hub's integrity for the model names we ship (`facebook/bart-large-cnn`,
+  `DISLab/SummLlama3.2-3B`, etc.). No evidence of any malicious updates on the
+  specific models we use.
+- Pinning `revision="main"` satisfies bandit but **does not actually fix the
+  concern** — it just names the same moving target. True pinning requires a
+  commit SHA per model, which adds maintenance burden and breaks users who want
+  to pull updates.
+- Loader code in HF transformers (`from_pretrained`) is the trusted path; we do
+  not do arbitrary-code loading with `trust_remote_code=True` anywhere.
+
+**Options to eliminate it:**
+
+| Option | Approach | Pros | Cons |
+| --- | --- | --- | --- |
+| A | Per-model SHA pin | Maintain a `HF_MODEL_REVISIONS` map keyed by model name to commit SHA; thread through every `from_pretrained()` call. | Reproducible loads; removes all suppressions. Maintenance burden — SHA must be updated whenever we want newer weights; first-boot requires network even with local cache. |
+| B | Trusted-model allowlist + cache-first loader | Centralise HF loads through `model_loader.py`, make it refuse to download models not in an allowlist, and pre-populate the HF cache in CI / Docker build. Suppressions stay but the risk surface is narrower. | Concentrates the suppressions in one place; CI/Docker builds become deterministic. Doesn't remove bandit findings. |
+| C | Accept bandit suppressions as policy | Keep the current pattern; document here so the decision is legible to audit. | Zero extra work. Doesn't improve posture. |
+
+**Recommendation:** Option C (this entry is the deliberate choice). Option B is
+the right upgrade if we ever do a security hardening sprint or need to prove
+supply-chain discipline to an auditor. Option A is the gold standard but
+out-of-proportion for the current risk profile.
+
+**Priority:** Low
+
+**Trigger to revisit:**
+
+- Any report of a malicious model on HF Hub with a name we depend on
+- Compliance/audit review that requires documented supply-chain controls
+- Introduction of `trust_remote_code=True` anywhere (then the threat model
+  changes materially)
+- A deployment target where we can't pre-cache models (e.g., short-lived
+  serverless) — Option B becomes valuable there
+
+---
+
 <!-- Add new TD-NNN entries above this line, following the same template. -->
