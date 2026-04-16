@@ -596,7 +596,7 @@ jobs:
         mkdir -p reports
         # Run all integration tests with coverage and network guard
         set +e  # Don't exit on non-zero return code yet
-        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(pytest tests/integration/ -v -m integration -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-integration.json --junitxml=reports/junit-integration.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-integration.xml --cov-report=term-missing --cov-fail-under=42 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -950,13 +950,8 @@ jobs:
         # Run tests with coverage and network guard: --disable-socket --allow-hosts=127.0.0.1,localhost
         # Critical path tests only for faster CI feedback
         # Note: Fast tests don't enforce coverage threshold (they're a subset, full suite enforces threshold)
-        # Serial tests first, then parallel tests (matches Makefile pattern)
         set +e  # Don't exit on non-zero return code yet
-        # Run serial tests first with coverage
-        OUTPUT_SERIAL=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and serial" --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1 || true)
-        echo "$OUTPUT_SERIAL"
-        # Run parallel tests with coverage (append to same file)
-        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=fast pytest tests/e2e/ -v -m "e2e and critical_path" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 --durations=20 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -1105,14 +1100,9 @@ jobs:
         export E2E_TEST_MODE=multi_episode
         # Create reports directory for coverage output
         mkdir -p reports
-        # Run all E2E tests with coverage and network guard
-        # Serial tests first, then parallel tests (matches Makefile pattern)
+        # Run all E2E tests with coverage and network guard (single xdist run; no @pytest.mark.serial in suite)
         set +e  # Don't exit on non-zero return code yet
-        # Run serial tests first with coverage
-        OUTPUT_SERIAL=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and serial" --json-report --json-report-file=reports/pytest-e2e-serial.json --junitxml=reports/junit-e2e-serial.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1 || true)
-        echo "$OUTPUT_SERIAL"
-        # Run parallel tests with coverage (append to same file)
-        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e and not serial" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e-parallel.xml --cov=podcast_scraper --cov-append --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
+        OUTPUT=$(E2E_TEST_MODE=multi_episode pytest tests/e2e/ -v -m "e2e" -n $(python3 -c "import os; print(max(1, (os.cpu_count() or 2) - 2))") --json-report --json-report-file=reports/pytest-e2e.json --junitxml=reports/junit-e2e.xml --cov=podcast_scraper --cov-report=xml:reports/coverage-e2e.xml --cov-report=term-missing --cov-fail-under=40 --disable-socket --allow-hosts=127.0.0.1,localhost --reruns 2 --reruns-delay 1 2>&1)
         PYTEST_EXIT_CODE=$?
         set -e  # Re-enable exit on error
         echo "$OUTPUT"
@@ -1153,8 +1143,7 @@ jobs:
         path: |
           reports/coverage-e2e.xml
           reports/coverage-data.e2e
-          reports/junit-e2e-serial.xml
-          reports/junit-e2e-parallel.xml
+          reports/junit-e2e.xml
         retention-days: 7
         if-no-files-found: ignore
     - name: Upload pytest JSON reports
@@ -1164,7 +1153,6 @@ jobs:
         name: pytest-e2e
         path: |
           reports/pytest-e2e.json
-          reports/pytest-e2e-serial.json
         retention-days: 7
         if-no-files-found: ignore
     - name: Post-build cleanup
@@ -1354,7 +1342,7 @@ jobs:
         # pytest-unit.json / pytest-integration.json / pytest-e2e*.json when present.
         find pytest-artifacts -type f \( \
           -name 'pytest-unit.json' -o -name 'pytest-integration.json' -o \
-          -name 'pytest-e2e.json' -o -name 'pytest-e2e-serial.json' \
+          -name 'pytest-e2e.json' \
         \) -exec cp -f {} reports/ \; 2>/dev/null || true
         ls -la reports/pytest-*.json 2>/dev/null || true
     - name: Combine coverage with coverage.py (matches local make coverage-enforce)

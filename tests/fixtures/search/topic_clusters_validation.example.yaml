@@ -1,0 +1,25 @@
+# Example validation YAML for unit tests only — not a product contract or canonical dataset.
+# Real work: create any path you want and pass it to `topic-clusters --validate-config`.
+# Schema: RFC-075 (expected_merge_pairs, expected_distinct, optional per-row episode_sources).
+#
+schema_version: "1"
+description: Minimal example for test_topic_clusters YAML shape checks.
+
+expected_merge_pairs:
+  - id: example_merge
+    topic_ids:
+      - topic:example-topic-a
+      - topic:example-topic-b
+    episode_sources:
+      topic:example-topic-a: []
+      topic:example-topic-b: []
+
+expected_distinct:
+  - id: example_distinct
+    topic_ids:
+      - topic:example-topic-c
+      - topic:example-topic-d
+    reason: Example must-not-merge pair for tests.
+    episode_sources:
+      topic:example-topic-c: []
+      topic:example-topic-d: []

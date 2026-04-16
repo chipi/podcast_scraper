@@ -16,6 +16,7 @@ hardware sizing, ML workload distribution, observability, and downstream digest 
 | [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) | **Current constraints** — performance, reliability, observability targets |
 | [Testing Strategy](TESTING_STRATEGY.md) | **Current testing** — test pyramid, patterns, CI integration |
 | **This document** | **Target state** — where we are going, what to build next |
+| [Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md) | **Content evolution** — generic core, pluggable content types and transports (v3.0) |
 
 **Last updated:** 2026-04-03.
 
@@ -38,6 +39,8 @@ hardware sizing, ML workload distribution, observability, and downstream digest 
   **AI agent with human-mirrored deploy workflow** (E.9.5).
 - **Part F** — Deployment lifecycle: CI/CD → release → deploy → restart → rollback. Compose vs
   K8s comparison. Configuration management, secrets, infrastructure-as-code.
+- **Part G** — Content extensibility: generic core with pluggable content types and transports.
+  Plugin architecture, registry, repo strategy, refactoring sequence, and timing (v3.0).
 - **Cross-cutting:** Unified graduation path in D.7 syncs topology (D), observability (E.10),
   deployment (F.10), and auth (A.12) stages.
 
@@ -107,6 +110,11 @@ same engine — not "CLI tool vs platform" as two implementations.
 
 **Ingestion** should be driven by **catalog + policy** (what is globally enabled, what has
 subscribers), not by "run this user's private config file" as the only source of truth.
+
+**v3.0 extension (Part G):** A fourth concept -- **content type** -- separates *what* the content
+is (podcast episode, news article, social post) from *how* it arrives (transport: RSS, web
+scrape, API) and *how* it is processed (pipeline stages). Catalog and subscriptions become
+content-type-aware.
 
 ### A.4 Process once, serve many (reuse)
 
@@ -182,14 +190,14 @@ out). Platform adds **queue, dedup, paths, post-run projection**.
 | **B** | Long-lived worker + cursors; feeds from catalog ∩ subscriptions. | Worker process, queue, Redis/PG jobs |
 | **C** | Projection to Postgres (RFC-051); API reads DB + blob pointers. | SQL projection, GIL/KG tables (ADR-054) |
 | **D** | Server + UI (RFC-062). `podcast serve` CLI. GI/KG Viewer as first UI. Semantic search panel. | FastAPI `server/` module (ADR-064), Vue 3 SPA (ADR-065), Playwright E2E (ADR-066) |
-| **E** | Second tenant + RLS; quotas / billing later. | RLS policies, API auth |
+| **E** | Second tenant + RLS; access controls. | RLS policies, API auth |
 
 **Phase D is now concrete** — RFC-062 defines the server module, route groups, frontend stack,
 and `podcast serve` CLI entry point. The viewer is the first consumer; platform CRUD routes
 (feeds, episodes, jobs) extend the same server via feature flags. See
 [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and [UXS-001](../uxs/UXS-001-gi-kg-viewer.md).
 
-Defer: billing, orgs, per-tenant pipeline overrides, legal review — but **name** shared-corpus /
+Defer: orgs, per-tenant pipeline overrides, legal review — but **name** shared-corpus /
 ToS risks in a threat model.
 
 ### A.10 Risks / watch (platform)
@@ -208,6 +216,11 @@ ToS risks in a threat model.
   "cron per feed"; Postgres = state + projections; reuse via **episode key + fingerprint**.
   RFC-062 server module is the **seed** — viewer routes land first, platform routes extend
   additively.
+
+- **v3.0 direction (Part G):** The pipeline core becomes generic; podcast + RSS become the
+  default bundled modules conforming to `ContentItem` / `ContentSource` protocols. External
+  content types (news, social) install as pip packages and auto-register via entry points.
+  See G.7 for prerequisites and timing.
 
 ### A.12 Authentication and authorization evolution
 
@@ -317,6 +330,12 @@ pools.
 This section defines two deployment tiers that coexist. The simple tier runs from day one; the
 distributed tier activates when metrics justify it. Both tiers share the same pipeline code
 (A.2 constraint #3).
+
+**Content-type-aware routing (v3.0, Part G):** In the distributed tier, queue routing gains a
+content-type dimension. Podcast episodes (audio-heavy) route to `heavy`/GPU queues. Text-only
+content types (news articles, social posts) route to `light`/CPU queues with higher
+concurrency, bypassing Whisper entirely. The `ContentTypeHandler` manifest declares which
+stages apply, and the scheduler uses this to select the right queue chain.
 
 #### Simple tier (v1 default)
 
@@ -710,11 +729,15 @@ Digest features should assume these layers are **stable and versioned** before h
 3. **Story clustering / dedup** — Same story across shows. Semantic search (RFC-061) embeddings
    can power cross-episode similarity for dedup.
 4. **Ranking / time budgets** — e.g. "30 minutes this week."
-5. **Change detection** — "What's new on topic X **this week**" vs cumulative KG.
-6. **Digest output contract** — Versioned JSON or doc (themes, GI-backed bullets, episode links).
-7. **Presentation** — HTML/email/Obsidian out of core unless scoped; **contract** first. The
+5. **Digest output contract** — Versioned JSON or doc (themes, GI-backed bullets, episode links).
+6. **Presentation** — HTML/email/Obsidian out of core unless scoped; **contract** first. The
    GI/KG Viewer (RFC-062) can serve as the first digest consumption UI.
-8. **Personalization** — Watchlists; **user config** + KG.
+7. **Personalization** — Watchlists; **user config** + KG.
+
+**Cross-content-type digest (v3.0, Part G):** When the generic core is in place, digest
+aggregation spans content types -- "what happened this week" across podcasts, news articles,
+and social posts. Cross-type story clustering uses the same embedding infrastructure
+(RFC-061). This requires the generic `ContentItem` pipeline to be operational (G.7).
 
 ### C.4 Sequencing (when core is stable)
 
@@ -744,7 +767,6 @@ not episode-level. This has implications for how it fits into Parts B and D.
 | **Cross-feed inbox / watermarks** | Postgres + episode identity (ADR-007) | `worker-io` | `projection` or `digest` | DB-bound |
 | **Story clustering / dedup** | Vector index (RFC-061) — pairwise similarity | `worker-ml` | `index` or `digest` | ML-compute (embedding comparison) |
 | **Ranking / time budgets** | Projected summaries + user config | `worker-io` | `digest` | DB-bound + light CPU |
-| **Change detection** ("new on topic X") | Vector index (RFC-061) — temporal query | `worker-ml` | `digest` | ML-compute |
 | **Digest output generation** | Aggregated data from above steps | `worker-io` | `digest` | IO-bound (JSON/HTML generation) |
 
 **New queue (distributed tier):** When digest features are non-trivial, add a **`digest`**
@@ -765,8 +787,6 @@ Digest features have modest resource requirements compared to the per-episode pi
 | Time-scoped aggregation | < 512 MB | None | Seconds | SQL queries on projected tables |
 | Cross-feed inbox | < 512 MB | None | Seconds | SQL + watermark logic |
 | Story clustering | 1–2 GB | Optional (faster with GPU) | 30s–5 min per corpus | Pairwise cosine similarity over embeddings; O(n²) on episode count |
-| LLM-powered digest (cloud) | < 512 MB + API | None | 10–30s per digest | Cloud LLM summarizes top stories |
-| LLM-powered digest (local) | 4–8 GB | Recommended | 1–5 min per digest | Local summarization model |
 
 **Impact on D.3 minimum specs:** Digest does not raise the minimum hardware bar. The most
 resource-intensive digest feature (story clustering) reuses the embedding model already
@@ -782,7 +802,6 @@ viewer extensions for digest:
 | --- | --- | --- | --- |
 | **Weekly digest** | Top stories, GI-highlighted bullets, episode links | `GET /api/digest/latest` | Digest v0 |
 | **Cross-feed timeline** | Episodes across feeds sorted by date, with delta markers | `GET /api/digest/timeline?since=7d` | Digest v0 |
-| **Topic trends** | "What's new on topic X this week" — KG diff view | `GET /api/digest/topics?since=7d` | Digest v1 |
 | **Story clusters** | Grouped episodes covering the same story | `GET /api/digest/clusters?since=7d` | Digest v1 |
 
 These are new viewer routes added in the same `server/routes/` structure from RFC-062, behind
@@ -796,8 +815,7 @@ Digest features align with the graduation path (D.7):
 | --- | --- |
 | **v0: CLI** | `podcast digest --since 7d` — prints a text summary of recent episodes. Uses existing summaries + file patterns. No clustering. |
 | **v1: Simple Compose** | Digest as a scheduled arq cron job. Output as JSON artifact. Viewable in viewer (C.8). |
-| **v2: Split workers** | `digest` queue on `worker-io`/`worker-ml`. Story clustering via embeddings. Delta detection via vector index. |
-| **v3: SaaS** | Per-tenant digest with personalization. Email/webhook delivery. |
+| **v2: Split workers** | `digest` queue on `worker-io`/`worker-ml`. Story clustering via embeddings. |
 
 ---
 
@@ -1050,6 +1068,11 @@ should alert on this.
 observability tier. Specifically: don't graduate D.v2 (split workers) without at least
 E.v2 (PLG stack with metrics from each worker). Distributed systems without distributed
 observability are invisible systems.
+
+**v3 and content-type mix (Part G):** The v3 tier also introduces content-type-aware worker
+sizing. A deployment processing mostly text (news, social) needs fewer GPU workers and more
+CPU workers than a podcast-heavy deployment. Capacity planning gains a content-type dimension
+-- see G.4 for impact mapping.
 
 ### D.8 Cloud LLM fallback (API providers reduce hardware needs)
 
@@ -2333,6 +2356,120 @@ Aligned with the unified graduation table in D.7.
 
 ---
 
+## Part G. Content extensibility and plugin architecture
+
+**Depends on:** Stable podcast capabilities (GIL, KG, bridge, enrichment, viewer, search,
+Postgres projection). Full specification in the
+[Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md).
+
+### G.1 Vision
+
+The pipeline core becomes **content-type-agnostic and transport-agnostic**. It processes
+content items through configurable stages (transcription, summarization, GI, KG, search
+indexing) without knowing where the content came from or what kind it is.
+
+Two concepts are separated cleanly:
+
+| Concept | Responsibility | Examples |
+| --- | --- | --- |
+| **Content type** | What the content is, which stages apply, what metadata it carries | Podcast episode (long audio), news article (medium text), social post (short text) |
+| **Transport** | How content is acquired -- fetching, parsing, normalizing | RSS feed polling, web scraping, social API, filesystem watcher |
+
+**Podcast** (content type) and **RSS** (transport) are the two default modules that ship with
+this repo. They are implemented against the same interfaces that any external module would
+use -- no privileged internal access.
+
+### G.2 Core abstractions
+
+| Protocol | Responsibility |
+| --- | --- |
+| `ContentItem` | A single piece of content to process (id, title, content type, text/media, metadata) |
+| `ContentSource` | A transport that fetches content and yields `ContentItem`s (e.g. RSS poller) |
+| `ContentTypeHandler` | Declares which pipeline stages apply to a content type and selects prompt profiles |
+| `ProcessingConfig` | Generic processing configuration independent of content source (providers, GI/KG flags, output) |
+
+The existing `Config` composes `ProcessingConfig` plus RSS/podcast-specific fields.
+External modules construct `ProcessingConfig` independently. Podcast `Episode` satisfies
+`ContentItem` via adapter or structural typing.
+
+### G.3 Registry and discovery
+
+Plugins are standard Python packages discovered via **entry points** -- the same mechanism
+used by pytest plugins, Flask extensions, and flake8 checkers.
+
+- **Registration:** Entry points in `pyproject.toml` (`content_engine.content_types`,
+  `content_engine.transports`).
+- **Discovery:** `pip install` registers the plugin; `pip uninstall` removes it.
+  No manual config listing required.
+- **Validation:** Each content type and transport provides a **manifest** declaring identity,
+  capabilities, compatible pairings, metadata schema, and config schema. The registry
+  validates wiring at config load time before any processing starts.
+- **CLI introspection:** `podcast-scraper plugins --list` shows installed content types
+  and transports; `podcast-scraper plugins --validate config.yaml` checks wiring.
+
+### G.4 Impact on existing Parts
+
+| Part | Extensibility impact |
+| --- | --- |
+| **A (Tenancy)** | Catalog holds feeds AND other sources. Subscriptions become content-type-aware. |
+| **B (Queues)** | Content-type-aware queue routing in the distributed tier. Podcasts to `heavy`/GPU queue; text-only types to `light`/CPU queue with higher concurrency. |
+| **C (Digest)** | Digest aggregation spans content types once the generic core is in place. Cross-type story clustering uses the same embedding infrastructure. |
+| **D (Hardware)** | Hardware sizing depends on content-type mix. Text-only workloads need fewer GPU workers. Capacity planning adds a content-type dimension. |
+| **E (Observability)** | Metrics and dashboards gain content-type labels. Processing time budgets differ per type. |
+| **F (Deployment)** | Private content-type modules deploy via the private module monorepo. Docker images install additional plugins at build time. |
+
+### G.5 Repo strategy
+
+| Repo | Visibility | Contains |
+| --- | --- | --- |
+| `podcast-scraper` (this repo) | Public / OSS | Generic core protocols, registry, podcast content type, RSS transport, full processing pipeline |
+| `content-modules` | Private | All private content-type modules (news, social, video, etc.) in a single monorepo |
+
+Two repos, not N. The private monorepo gets one CI, atomic cross-module changes, and shared
+tooling. `pip install -e ../podcast-scraper[dev]` links them for local development.
+
+### G.6 Refactoring sequence
+
+Each phase is independently shippable with all tests passing:
+
+| Phase | Scope |
+| --- | --- |
+| 1 | Define core protocols (`ContentItem`, `ContentSource`, `ContentTypeHandler`) and manifests |
+| 2 | Implement podcast + RSS as plugins conforming to the protocols; register via entry points |
+| 3 | Extract generic `run_pipeline(items, config, handler)` from current orchestration |
+| 4 | Reorganize modules (`core/`, `content_types/podcast/`, `transports/rss/`) |
+| 5 | Split `Config` into `ProcessingConfig` + podcast-specific; add `sources` config field |
+| 6 | CLI plugin commands (`podcast-scraper plugins --list`, `--validate`) |
+
+### G.7 Timing and prerequisites
+
+This is a **v3.0 effort** -- after podcast capabilities are fully solid:
+
+| Prerequisite | Status |
+| --- | --- |
+| GI/KG Viewer v2 (RFC-062) | Shipped |
+| Canonical Identity Layer + bridge (RFC-072) | Shipped |
+| Semantic search (RFC-061) | Shipped |
+| Enrichment layer (RFC-073) | In progress |
+| Postgres projection (RFC-051) | Next major infrastructure |
+| Adaptive routing (RFC-053) | Planned |
+| Platform blueprint v1 operational (workers, queues) | This document |
+
+**Parallel work during v2.x:** Keep module boundaries clean; design Postgres schema with
+generic `content_item_id` (not `episode_id`) in new tables; design adaptive routing to
+accept content type as an input dimension. RFC-072 and RFC-073 are already content-agnostic
+by design -- their protocols work for any content type producing GIL/KG/bridge artifacts.
+
+### G.8 Full specification
+
+The complete extensibility architecture -- core protocol code, manifest dataclasses, registry
+implementation, external module packaging examples (news-ingest, social-ingest), CI/CD for
+the private monorepo, local development workflow, and future design areas (storage layout,
+viewer v3, cross-content-type KG, prompt routing, scheduling) -- lives in the
+[Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md).
+
+---
+
 ## Related documents (unified)
 
 ### Architecture & guides
@@ -2341,18 +2478,27 @@ Aligned with the unified graduation table in D.7.
 - [Docker Service Guide](../guides/DOCKER_SERVICE_GUIDE.md) — current one-shot service mode
 - [CI/CD Overview](../ci/index.md) — workflows, metrics, quality trends
 - [Non-Functional Requirements](NON_FUNCTIONAL_REQUIREMENTS.md) — observability, performance
+- [Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md) — generic core, pluggable content types and transports (v3.0)
 
 ### Product requirements (PRDs)
 
 - [PRD-005: Episode summarization](../prd/PRD-005-episode-summarization.md)
 - [PRD-007: AI quality & experiment platform](../prd/PRD-007-ai-quality-experiment-platform.md)
+- [PRD-015: Engineering governance & productivity](../prd/PRD-015-engineering-governance-productivity.md)
+- [PRD-016: Operational observability & pipeline intelligence](../prd/PRD-016-operational-observability-pipeline-intelligence.md)
 - [PRD-017: Grounded Insight Layer](../prd/PRD-017-grounded-insight-layer.md)
 - [PRD-018: Database projection](../prd/PRD-018-database-projection-gil-kg.md)
 - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
 - [PRD-020: Audio-based speaker diarization](../prd/PRD-020-audio-speaker-diarization.md)
 - [PRD-021: Semantic corpus search](../prd/PRD-021-semantic-corpus-search.md)
-- [PRD-015: Engineering governance & productivity](../prd/PRD-015-engineering-governance-productivity.md)
-- [PRD-016: Operational observability & pipeline intelligence](../prd/PRD-016-operational-observability-pipeline-intelligence.md)
+- [PRD-022: Corpus Library & Episode Browser](../prd/PRD-022-corpus-library-episode-browser.md)
+- [PRD-023: Corpus Digest & Library Glance](../prd/PRD-023-corpus-digest-recap.md)
+- [PRD-024: Graph Exploration Toolkit](../prd/PRD-024-graph-exploration-toolkit.md)
+- [PRD-025: Corpus Intelligence Dashboard](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md)
+- [PRD-026: Topic Entity View](../prd/PRD-026-topic-entity-view.md)
+- [PRD-027: Enriched Search](../prd/PRD-027-enriched-search.md)
+- [PRD-028: Position Tracker](../prd/PRD-028-position-tracker.md)
+- [PRD-029: Person Profile](../prd/PRD-029-person-profile.md)
 
 ### Technical designs (RFCs)
 
@@ -2360,9 +2506,11 @@ Aligned with the unified graduation table in D.7.
 - [RFC-026: Metrics consumption and dashboards](../rfc/RFC-026-metrics-consumption-and-dashboards.md)
 - [RFC-027: Pipeline metrics improvements](../rfc/RFC-027-pipeline-metrics-improvements.md)
 - [RFC-028: ML model preloading and caching](../rfc/RFC-028-ml-model-preloading-and-caching.md)
+- [RFC-039: Development workflow with git worktrees and CI](../rfc/RFC-039-development-workflow-worktrees-ci.md)
 - [RFC-040: Audio preprocessing pipeline](../rfc/RFC-040-audio-preprocessing-pipeline.md)
 - [RFC-041: ML benchmarking framework](../rfc/RFC-041-podcast-ml-benchmarking-framework.md)
 - [RFC-042: Hybrid summarization pipeline](../rfc/RFC-042-hybrid-summarization-pipeline.md)
+- [RFC-043: Automated metrics alerts](../rfc/RFC-043-automated-metrics-alerts.md)
 - [RFC-044: Model registry](../rfc/RFC-044-model-registry.md)
 - [RFC-049: GIL core](../rfc/RFC-049-grounded-insight-layer-core.md)
 - [RFC-050: GIL use cases](../rfc/RFC-050-grounded-insight-layer-use-cases.md)
@@ -2375,10 +2523,19 @@ Aligned with the unified graduation table in D.7.
 - [RFC-059: Speaker detection refactor](../rfc/RFC-059-speaker-detection-refactor-test-audio.md)
 - [RFC-060: Diarization-aware commercial cleaning](../rfc/RFC-060-diarization-aware-commercial-cleaning.md)
 - [RFC-061: Semantic corpus search (FAISS)](../rfc/RFC-061-semantic-corpus-search.md)
-- [RFC-070: Semantic corpus search — platform & future](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
 - [RFC-062: GI/KG Viewer v2 & server architecture](../rfc/RFC-062-gi-kg-viewer-v2.md)
-- [RFC-039: Development workflow with git worktrees and CI](../rfc/RFC-039-development-workflow-worktrees-ci.md)
-- [RFC-043: Automated metrics alerts](../rfc/RFC-043-automated-metrics-alerts.md)
+- [RFC-063: Multi-feed corpus, append/resume, and unified discovery](../rfc/RFC-063-multi-feed-corpus-append-resume.md)
+- [RFC-064: Performance profiling and release freeze framework](../rfc/RFC-064-performance-profiling-release-freeze.md)
+- [RFC-065: Live pipeline monitor](../rfc/RFC-065-live-pipeline-monitor.md)
+- [RFC-066: Run comparison tool -- performance tab](../rfc/RFC-066-run-compare-performance-tab.md)
+- [RFC-067: Corpus Library -- catalog API & viewer](../rfc/RFC-067-corpus-library-api-viewer.md)
+- [RFC-068: Corpus Digest -- API & viewer](../rfc/RFC-068-corpus-digest-api-viewer.md)
+- [RFC-069: Graph Exploration Toolkit](../rfc/RFC-069-graph-exploration-toolkit.md)
+- [RFC-070: Semantic corpus search -- platform & future](../rfc/RFC-070-semantic-corpus-search-platform-future.md)
+- [RFC-071: Corpus Intelligence Dashboard](../rfc/RFC-071-corpus-intelligence-dashboard-viewer.md)
+- [RFC-072: Canonical Identity Layer & cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md)
+- [RFC-073: Enrichment Layer architecture](../rfc/RFC-073-enrichment-layer-architecture.md)
+- [RFC-074: Process safety for ML workloads on macOS](../rfc/RFC-074-process-safety-ml-workloads-macos.md)
 
 ### Architecture decisions (ADRs)
 
@@ -2398,6 +2555,15 @@ Aligned with the unified graduation table in D.7.
 ### UX specifications
 
 - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) — visual and token contract
+- [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md)
+- [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md)
+- [UXS-004: Graph Exploration](../uxs/UXS-004-graph-exploration.md)
+- [UXS-005: Semantic Search Panel](../uxs/UXS-005-semantic-search.md)
+- [UXS-006: Dashboard](../uxs/UXS-006-dashboard.md)
+- [UXS-007: Topic Entity View](../uxs/UXS-007-topic-entity-view.md)
+- [UXS-008: Enriched Search](../uxs/UXS-008-enriched-search.md)
+- [UXS-009: Position Tracker](../uxs/UXS-009-position-tracker.md)
+- [UXS-010: Person Profile](../uxs/UXS-010-person-profile.md)
 
 ### Guides
 
@@ -2422,7 +2588,7 @@ architecture, observability stack, deployment pipeline). This file remains **WIP
 | RFC: Compose reference architecture | Part B (B.4, B.9.2) + Part D (D.5, D.11) + Part F (F.3, F.9) | docker-compose.yml, image strategy, secrets, volumes, networking, deploy scripts |
 | RFC: Hardware reference architecture | Part D (D.1–D.4, D.10–D.16) | Minimum specs, model memory budget, graduation path, concrete configs, TCO analysis |
 | RFC: Database migrations | Part B (B.16) | Alembic setup, migration workflow, container startup order, rollback |
-| RFC: Corpus digest contract | Part C (C.3–C.9) | Digest artifact schema, time-scoped aggregation, pipeline integration, viewer routes |
+| RFC: Corpus digest contract | Part C (C.3–C.9) | Digest artifact schema, time-scoped aggregation, clustering, pipeline integration, viewer routes |
 | RFC: Observability stack | Part E (E.2–E.6) | PLG stack, metrics endpoints, dashboards, alerting rules |
 | RFC: Correlation ID & distributed tracing | Part E (E.4, E.7) | Request → queue → worker trace; structured log fields |
 | RFC: Control plane & admin API | Part E (E.7, E.8) | Admin routes, queue management, worker management |
@@ -2430,3 +2596,4 @@ architecture, observability stack, deployment pipeline). This file remains **WIP
 | RFC: Secrets & configuration management | Part F (F.5) | Environment contract, secrets strategy, config layers |
 | RFC: Per-service health checks & degradation model | Part E (E.6) | Health endpoint contract, degradation levels, Docker healthchecks |
 | RFC: AI agent on-call (actionable observability) | Part E (E.9) | Agent architecture, runbook engine, safety guardrails, human-mirrored deploy workflow |
+| RFC: Content extensibility protocols | Part G + [Content Evolution Blueprint](CONTENT_EVOLUTION_BLUEPRINT.md) | Core protocols (`ContentItem`, `ContentSource`, `ContentTypeHandler`), manifest schema, plugin registry, entry-point discovery, packaging |

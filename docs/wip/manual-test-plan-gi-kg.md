@@ -44,8 +44,9 @@ Feeds match **GI/KG acceptance**: NPR Planet Money
 | **B (recommended)** | OpenAI stack; **GI + KG from summary bullets** (fewer LLM calls than `provider`) | `config/manual/manual_planet_money_openai_gi_kg_summary_bullets.yaml` | `.test_outputs/manual/planet_money_openai_gi_kg_summary_bullets` |
 | **C** | OpenAI stack; **GI + KG via `provider`** (`generate_insights`, `extract_kg_graph`) | `config/manual/manual_planet_money_openai_gi_kg_provider.yaml` | `.test_outputs/manual/planet_money_openai_gi_kg_provider` |
 | **D (optional)** | **Local ML** summaries; GI+KG bullets (no API keys) | `config/manual/manual_planet_money_ml_gi_kg_summary_bullets.yaml` | `.test_outputs/manual/planet_money_ml_gi_kg_summary_bullets` |
-| **E (multi-feed)** | OpenAI stack; **two feeds in one corpus** (Planet Money + The Journal); GI+KG bullets | `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai` |
-| **F (multi-feed + append)** | Same as **E** with **`append: true`**; stable `run_append_*` per feed; re-run CLI to skip complete episodes | `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai_append` |
+| **E (multi-feed)** | **OpenAI Whisper + Gemini** (speaker + summary `gemini-2.5-flash-lite`); **two feeds in one corpus** (Planet Money + The Journal); GI+KG bullets | `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai_gemini` |
+| **F (multi-feed + append)** | Same as **E** with **`append: true`**; stable `run_append_*` per feed; re-run CLI to skip complete episodes | `config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml` | `.test_outputs/manual/multi_feed_pm_journal_openai_gemini_append` |
+| **G (multi-feed, fixtures)** | **Eight** E2E mock RSS feeds on **`127.0.0.1`**: primary **`podcast1`–`podcast5`** plus long-form **`podcast7_sustainability`**, **`podcast8_solar`**, **`podcast9_solo`** (p07–p09; **p06** edge-case feed omitted); OpenAI Whisper + Gemini preset (GI/KG on) | **`make serve-e2e-mock`** then `config/manual/manual_e2e_mock.yaml` | `output` (see YAML ``output_dir``) |
 
 **Multi-feed ergonomics (E/F):** Treat the YAML **`output_dir`** as the **corpus parent** (folder that contains **`feeds/`**). Offline batch summary: **`python -m podcast_scraper.cli corpus-status --output-dir <corpus_parent>`**. **`gi inspect`** / **`kg inspect`** with **`--output-dir`** pointing at that parent accept **`--feed-id`** (metadata **`feed.feed_id`**) when the same **`episode_id`** could match more than one feed — see [CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440). **Viewer / `serve`:** use the **same corpus parent** as **`--output-dir`** so **`/api/search`** finds **`<corpus>/search/`**; if you list artifacts from a path under **`feeds/...`** only, the UI may show a **Corpus path hint** pointing at the parent.
 
@@ -106,18 +107,18 @@ use **`config/manual/`** (see [Ready-made configs](#ready-made-configs-npr-feeds
 Use this when you assign or report a **manual multi-feed** validation (step **E** above). Replace placeholders in angle brackets.
 
 ```text
-Manual validation — multi-feed GI/KG (Planet Money + The Journal, OpenAI)
+Manual validation — multi-feed GI/KG (Planet Money + The Journal, OpenAI Whisper + Gemini)
 
 Command:
-  python -m podcast_scraper.cli --config config/manual/manual_multi_feed_planet_money_journal_openai.yaml
+  python -m podcast_scraper.cli --config config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml
 
-Prereqs: OPENAI_API_KEY set (see config/examples/.env.example).
+Prereqs: OPENAI_API_KEY and GEMINI_API_KEY (see config/examples/.env.example).
 
-Output root (from YAML): .test_outputs/manual/multi_feed_pm_journal_openai
+Output root (from YAML): .test_outputs/manual/multi_feed_pm_journal_openai_gemini
 Layout: <output_dir>/feeds/rss_<host>_<hash>/ per feed (transcripts, metadata, *.gi.json, *.kg.json).
 
 Optional acceptance-style session:
-  make test-acceptance CONFIGS="config/manual/manual_multi_feed_planet_money_journal_openai.yaml"
+  make test-acceptance CONFIGS="config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml"
 
 Docs: docs/wip/manual-test-plan-gi-kg.md (step E), docs/api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440
 
@@ -125,8 +126,8 @@ Docs: docs/wip/manual-test-plan-gi-kg.md (step E), docs/api/CONFIGURATION.md#rss
 ```
 
 **Append / resume (step F):** paste the same structure but point at
-`config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml`, output root
-`.test_outputs/manual/multi_feed_pm_journal_openai_append`, and note that a **second**
+`config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml`, output root
+`.test_outputs/manual/multi_feed_pm_journal_openai_gemini_append`, and note that a **second**
 identical run should skip work under each feed’s `run_append_*` directory. Docs:
 [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
 

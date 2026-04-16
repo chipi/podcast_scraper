@@ -30,14 +30,17 @@ import {
   emptyDegreeCounts,
 } from '../../utils/graphDegreeBuckets'
 import {
+  graphCyIdRepresentsEpisodeNode,
   logicalEpisodeIdFromGraphNodeId,
   metadataPathFromEpisodeProperties,
   resolveEpisodeMetadataFromLoadedArtifacts,
   resolveEpisodeMetadataViaCorpusCatalog,
 } from '../../utils/graphEpisodeMetadata'
-import { buildGiKgCyStylesheet } from '../../utils/cyGraphStylesheet'
+import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
+import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import { findRawNodeInArtifact, toCytoElements } from '../../utils/parsing'
 import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
+import { StaleGeneration } from '../../utils/staleGeneration'
 import { visualNodeTypeCounts } from '../../utils/visualGroup'
 
 registerNavigator(cytoscape)
@@ -52,24 +55,34 @@ const shell = useShellStore()
 const searchStore = useSearchStore()
 const themeStore = useThemeStore()
 
-/** Cancels stale async episode-metadata resolution when the user double-taps another node. */
-let graphEpisodeOpenGen = 0
+const graphEpisodeOpenGate = new StaleGeneration()
+
+/** Prefer ego slice (matches canvas); fall back to merged graph so Library-appended episodes resolve. */
+function rawNodeForRailInteraction(cyId: string): RawGraphNode | null {
+  const ego = gf.viewWithEgo(nav.graphEgoFocusCyId)
+  const fromEgo = ego ? findRawNodeInArtifact(ego, cyId) : null
+  if (fromEgo) {
+    return fromEgo
+  }
+  const full = gf.filteredArtifact
+  return full ? findRawNodeInArtifact(full, cyId) : null
+}
 
 async function openGraphEpisodeOrNodeRail(
   cyId: string,
   rawNode: RawGraphNode | null,
 ): Promise<void> {
-  const token = ++graphEpisodeOpenGen
-  if (rawNode?.type !== 'Episode') {
-    if (token !== graphEpisodeOpenGen) return
+  const token = graphEpisodeOpenGate.bump()
+  if (!graphCyIdRepresentsEpisodeNode(cyId, rawNode)) {
     episodeRail.openGraphNodePanel(cyId)
     return
   }
-  let meta = metadataPathFromEpisodeProperties(rawNode)?.trim() || null
+  const episodeRaw = rawNode?.type === 'Episode' ? rawNode : null
+  let meta = episodeRaw ? metadataPathFromEpisodeProperties(episodeRaw)?.trim() || null : null
   const eid =
     logicalEpisodeIdFromGraphNodeId(cyId) ||
-    (typeof rawNode.properties?.episode_id === 'string'
-      ? rawNode.properties.episode_id.trim()
+    (episodeRaw && typeof episodeRaw.properties?.episode_id === 'string'
+      ? episodeRaw.properties.episode_id.trim()
       : null)
   if (!meta && eid) {
     meta = resolveEpisodeMetadataFromLoadedArtifacts(
@@ -83,12 +96,14 @@ async function openGraphEpisodeOrNodeRail(
       meta = await resolveEpisodeMetadataViaCorpusCatalog(
         shell.corpusPath.trim(),
         eid,
+        8,
+        () => graphEpisodeOpenGate.isStale(token),
       )
     } catch {
       meta = null
     }
   }
-  if (token !== graphEpisodeOpenGen) return
+  if (graphEpisodeOpenGate.isStale(token)) return
   if (meta) {
     episodeRail.openEpisodePanel(meta, { graphConnectionsCyId: cyId })
   } else {
@@ -131,7 +146,7 @@ let boxListenersAttached = false
 /** In-flight element layout (e.g. COSE rAF). Must be stopped before starting another or positions revert. */
 let activeElesLayout: { stop: () => void } | null = null
 /** Bumps when a new layout run starts so stale layoutstop handlers from a stopped layout are ignored. */
-let graphLayoutGeneration = 0
+const graphLayoutGate = new StaleGeneration()
 
 /** Captured before relayout or ego exit; consumed in finishLayoutPass to avoid fit() jumping the view. */
 type ViewportPreserveSnap = {
@@ -344,23 +359,31 @@ const hint = computed(() => {
 })
 
 function buildCyStyle() {
-  return buildGiKgCyStylesheet({ includeSearchHit: true }) as never
+  return [
+    ...(buildGiKgCyStylesheet({ includeSearchHit: true }) as Record<string, unknown>[]),
+    {
+      selector: 'node',
+      style: {
+        'text-margin-x': cytoscapeSideLabelMarginXCallback(false),
+      },
+    },
+  ] as never
 }
 
 function layoutOptionsFor(name: string): Record<string, unknown> {
   if (name === 'cose') {
-    return {
-      name: 'cose',
-      padding: 36,
-      // Avoid cy.fit() on every COSE refresh tick; finishLayoutPass applies fit / viewport preserve once.
-      fit: false,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nodeRepulsion: () => 800000,
-      idealEdgeLength: () => 80,
-      edgeElasticity: () => 100,
-      gravity: 0.15,
-      nodeDimensionsIncludeLabels: true,
-    } as any
+    // Namespace import + fallback: avoids rare `ReferenceError` from named-import/HMR chunks.
+    try {
+      const fn = giKgCoseLayout.giKgCoseLayoutOptionsMain
+      if (typeof fn === 'function') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return fn() as any
+      }
+    } catch (e) {
+      console.warn('[GraphCanvas] giKgCoseLayoutOptionsMain failed, using fallback', e)
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return giKgCoseLayout.giKgCoseLayoutOptionsMainFallback() as any
   }
   return { name, padding: 36 }
 }
@@ -525,7 +548,27 @@ function finishLayoutPass(core: Core): void {
   attachZoomRecenter(core)
   tryApplyPendingFocus(core)
   applySearchHighlights(core)
+  applyTopicClusterMemberCollapse(core)
   releaseGraphPaintAfterLayout(core)
+}
+
+/** Hide member Topic nodes inside collapsed TopicCluster compounds (detail rail toggle). */
+function applyTopicClusterMemberCollapse(core: Core): void {
+  const collapsed = nav.topicClusterCanvasCollapsedIds
+  core.batch(() => {
+    core.nodes('[parent]').forEach((ele) => {
+      try {
+        const p = ele.data('parent')
+        if (typeof p !== 'string' || !p.trim()) {
+          return
+        }
+        const hide = collapsed.includes(p.trim())
+        ele.style('display', hide ? 'none' : 'element')
+      } catch {
+        /* ignore */
+      }
+    })
+  })
 }
 
 function destroyCy(): void {
@@ -552,7 +595,13 @@ function destroyCy(): void {
     }
     activeElesLayout = null
   }
-  graphLayoutGeneration += 1
+  graphLayoutGate.invalidate()
+  if (import.meta.env.DEV && cy) {
+    const w = window as unknown as { __GIKG_CY_DEV__?: Core }
+    if (w.__GIKG_CY_DEV__ === cy) {
+      delete w.__GIKG_CY_DEV__
+    }
+  }
   if (cy) {
     cy.destroy()
     cy = null
@@ -562,20 +611,39 @@ function destroyCy(): void {
 function tryApplyPendingFocus(core: Core): void {
   const rawId = nav.pendingFocusNodeId
   if (!rawId) return
-  const cyId = resolveCyNodeId(core, rawId)
-  if (!cyId) return
+  const fallbackRaw = nav.pendingFocusFallbackNodeId
+  let cyId = resolveCyNodeId(core, rawId)
+  if (!cyId && fallbackRaw) {
+    cyId = resolveCyNodeId(core, fallbackRaw)
+  }
+  if (!cyId) {
+    nav.clearPendingFocus()
+    return
+  }
   const n = core.$id(cyId)
   core.nodes().unselect()
   n.select()
   selectedNodeId.value = cyId
-  const viewArt = gf.viewWithEgo(nav.graphEgoFocusCyId)
-  const rawNode = findRawNodeInArtifact(viewArt, cyId)
+  const rawNode = rawNodeForRailInteraction(cyId)
   void openGraphEpisodeOrNodeRail(cyId, rawNode)
   suspendSelectedNodeZoomAnchorCorrection += 1
   try {
     const targetZoom = Math.max(core.zoom(), 1.6)
+    let centerEles = n
+    const extras = nav.pendingFocusCameraIncludeRawIds
+    if (Array.isArray(extras) && extras.length) {
+      for (const raw of extras) {
+        if (typeof raw !== 'string' || !raw.trim()) continue
+        const exId = resolveCyNodeId(core, raw.trim())
+        if (!exId) continue
+        const en = core.$id(exId)
+        if (!en.empty()) {
+          centerEles = centerEles.union(en)
+        }
+      }
+    }
     core.animate({
-      center: { eles: n },
+      center: { eles: centerEles },
       zoom: targetZoom,
       duration: 320,
       complete: () => {
@@ -869,8 +937,7 @@ function runRelayout(): void {
   const eles = c.elements(':visible')
   if (eles.length === 0) return
 
-  graphLayoutGeneration += 1
-  const gen = graphLayoutGeneration
+  const gen = graphLayoutGate.bump()
   if (activeElesLayout) {
     try {
       activeElesLayout.stop()
@@ -894,13 +961,14 @@ function runRelayout(): void {
   }
   activeElesLayout = lo
   lo.one('layoutstop', () => {
-    if (gen !== graphLayoutGeneration) {
+    if (graphLayoutGate.isStale(gen)) {
       return
     }
     if (activeElesLayout === lo) {
       activeElesLayout = null
     }
     if (!cy) {
+      graphContentHiddenUntilLayout.value = false
       return
     }
     finishLayoutPass(cy)
@@ -950,9 +1018,11 @@ function redraw(): void {
     wheelSensitivity: 0.35,
   })
   cy = core
+  if (import.meta.env.DEV) {
+    ;(window as unknown as { __GIKG_CY_DEV__?: Core }).__GIKG_CY_DEV__ = core
+  }
 
-  graphLayoutGeneration += 1
-  const layoutGen = graphLayoutGeneration
+  const layoutGen = graphLayoutGate.bump()
   let initialLo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
   try {
     initialLo = core.elements().layout({
@@ -967,13 +1037,15 @@ function redraw(): void {
   }
   activeElesLayout = initialLo
   initialLo.one('layoutstop', () => {
-    if (layoutGen !== graphLayoutGeneration) {
+    if (graphLayoutGate.isStale(layoutGen)) {
       return
     }
     if (activeElesLayout === initialLo) {
       activeElesLayout = null
     }
     if (!cy || cy !== core) {
+      // Stale stop after destroy/redraw — avoid leaving the canvas host frozen (pointer-events).
+      graphContentHiddenUntilLayout.value = false
       return
     }
     finishLayoutPass(core)
@@ -1063,8 +1135,7 @@ function redraw(): void {
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = id
-      const viewArt = gf.viewWithEgo(nav.graphEgoFocusCyId)
-      const rawNode = findRawNodeInArtifact(viewArt, id)
+      const rawNode = rawNodeForRailInteraction(id)
       void openGraphEpisodeOrNodeRail(id, rawNode)
       refreshSelectedNodeZoomAnchor(core)
       return
@@ -1123,6 +1194,15 @@ const showSourcesChromeRow = computed(
     gf.filtersAreActive,
 )
 
+/** Avoid Vue “unhandled error in watcher” / uncaught promise if cytoscape callbacks throw. */
+function safeGraphWatch(label: string, fn: () => void): void {
+  try {
+    fn()
+  } catch (e) {
+    console.warn(`[GraphCanvas] watcher (${label}):`, e)
+  }
+}
+
 function onLayoutSelectChange(): void {
   runRelayout()
 }
@@ -1130,8 +1210,10 @@ function onLayoutSelectChange(): void {
 watch(
   () => [searchStore.results, nav.libraryHighlightSourceIds] as const,
   () => {
-    const c = cy
-    if (c) applySearchHighlights(c)
+    safeGraphWatch('searchHighlights', () => {
+      const c = cy
+      if (c) applySearchHighlights(c)
+    })
   },
   { flush: 'post', deep: true },
 )
@@ -1139,7 +1221,9 @@ watch(
 watch(
   focusNodeId,
   (v) => {
-    nav.setGraphEgoFocusCyId(v)
+    safeGraphWatch('egoFocus', () => {
+      nav.setGraphEgoFocusCyId(v)
+    })
   },
   { immediate: true },
 )
@@ -1147,14 +1231,30 @@ watch(
 watch(
   () => gf.filteredArtifact,
   () => {
-    ge.resetForNewArtifact()
-    focusNodeId.value = null
-    selectedNodeId.value = null
-    episodeRail.showTools()
-    nav.clearLibraryEpisodeHighlights()
-    pendingViewportPreserve = null
-    egoPriorFullGraphViewportPreserve = null
-    redraw()
+    safeGraphWatch('filteredArtifact', () => {
+      ge.resetForNewArtifact()
+      focusNodeId.value = null
+      selectedNodeId.value = null
+      // Keep the right rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
+      // detail). Otherwise `showTools()` clears stashed ids and replaces detail with Search — bad
+      // when the graph reloads after **Load** on a cluster member (append artifacts) or
+      // **Open in graph**: user expects panels to stay and only the canvas to expand.
+      const keepDetailRailOpen =
+        episodeRail.paneKind === 'episode' || episodeRail.paneKind === 'graph-node'
+      if (!keepDetailRailOpen) {
+        episodeRail.showTools()
+      }
+      nav.clearLibraryEpisodeHighlights()
+      nav.clearTopicClusterCanvasCollapsed()
+      pendingViewportPreserve = null
+      egoPriorFullGraphViewportPreserve = null
+      const restoreGraphNodeId =
+        episodeRail.paneKind === 'graph-node' ? episodeRail.graphNodeCyId?.trim() || '' : ''
+      if (restoreGraphNodeId) {
+        nav.requestFocusNode(restoreGraphNodeId)
+      }
+      redraw()
+    })
   },
   { flush: 'post' },
 )
@@ -1162,51 +1262,93 @@ watch(
 watch(
   activeDegreeBucket,
   () => {
-    const c = cy
-    if (!c) return
-    const snap = captureSelectedViewportAnchor(c)
-    applyDegreeVisibility(c)
-    applyViewportPreserveOrFit(c, snap)
-    lastZoomLevel = c.zoom()
-    updateZoomPercentDisplay(c)
+    safeGraphWatch('degreeBucket', () => {
+      const c = cy
+      if (!c) return
+      const snap = captureSelectedViewportAnchor(c)
+      applyDegreeVisibility(c)
+      applyViewportPreserveOrFit(c, snap)
+      lastZoomLevel = c.zoom()
+      updateZoomPercentDisplay(c)
+    })
   },
 )
 
 watch(
   minimapOpen,
   (open) => {
-    const c = cy
-    if (!c) return
-    if (open) {
-      void nextTick(() => setupNavigator(c))
-    } else {
-      destroyNavigator()
-    }
+    safeGraphWatch('minimap', () => {
+      const c = cy
+      if (!c) return
+      if (open) {
+        void nextTick(() => {
+          try {
+            setupNavigator(c)
+          } catch (e) {
+            console.warn('[GraphCanvas] watcher (minimap nextTick):', e)
+          }
+        })
+      } else {
+        destroyNavigator()
+      }
+    })
   },
 )
 
 watch(
   () => themeStore.choice,
   () => {
-    pendingViewportPreserve = null
-    egoPriorFullGraphViewportPreserve = null
-    nextTick(() => redraw())
+    safeGraphWatch('theme', () => {
+      pendingViewportPreserve = null
+      egoPriorFullGraphViewportPreserve = null
+      void nextTick(() => {
+        try {
+          redraw()
+        } catch (e) {
+          console.warn('[GraphCanvas] watcher (theme nextTick):', e)
+        }
+      })
+    })
   },
+)
+
+watch(
+  () => [...nav.topicClusterCanvasCollapsedIds],
+  () => {
+    safeGraphWatch('topicClusterCollapse', () => {
+      const c = cy
+      if (c) {
+        applyTopicClusterMemberCollapse(c)
+      }
+    })
+  },
+  { deep: true },
 )
 
 watch(
   () => [nav.pendingFocusNodeId, gf.filteredArtifact] as const,
   () => {
-    nextTick(() => {
-      const c = cy
-      if (c) tryApplyPendingFocus(c)
+    void nextTick(() => {
+      try {
+        const c = cy
+        // While the first layout pass is running, skip: `finishLayoutPass` will call
+        // `tryApplyPendingFocus` after `layoutstop`. Otherwise we consume pending focus early and
+        // the post-layout pass sees nothing (broken restore after graph rebuild).
+        if (c && !graphContentHiddenUntilLayout.value) {
+          tryApplyPendingFocus(c)
+        }
+      } catch (e) {
+        console.warn('[GraphCanvas] watcher (pendingFocus nextTick):', e)
+      }
     })
   },
   { flush: 'post' },
 )
 
 onMounted(() => {
-  redraw()
+  safeGraphWatch('onMounted', () => {
+    redraw()
+  })
 })
 
 onActivated(() => {
@@ -1246,9 +1388,7 @@ defineExpose({
 </script>
 
 <template>
-  <div
-    class="flex min-h-[280px] flex-1 flex-col rounded border border-border bg-canvas sm:min-h-[420px]"
-  >
+  <div class="flex min-h-0 flex-1 flex-col rounded border border-border bg-canvas">
     <div class="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
       <span
         v-if="searchHighlightCount > 0"
@@ -1380,20 +1520,25 @@ defineExpose({
       </div>
     </div>
 
-    <div class="flex min-h-[240px] min-w-0 flex-1 sm:min-h-[380px]">
+    <div class="flex min-h-0 min-w-0 flex-1">
       <div
         ref="canvasHost"
-        class="relative isolate min-h-[240px] min-w-0 flex-1 overflow-hidden transition-opacity duration-150 sm:min-h-[380px]"
-        :class="
-          graphContentHiddenUntilLayout
-            ? 'pointer-events-none opacity-0'
-            : 'opacity-100'
-        "
+        class="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden"
         :aria-busy="graphContentHiddenUntilLayout ? 'true' : 'false'"
       >
+        <!--
+          Hide / block only the Cytoscape layer during layout — not the whole host.
+          pointer-events-none on the parent previously made the graph toolbar and zoom cluster
+          unreliable in some browsers while graphContentHiddenUntilLayout stayed true.
+        -->
         <div
           ref="container"
-          class="graph-canvas absolute inset-0 min-h-[240px] sm:min-h-[380px]"
+          class="graph-canvas absolute inset-0 min-h-0 transition-opacity duration-150"
+          :class="
+            graphContentHiddenUntilLayout
+              ? 'pointer-events-none opacity-0'
+              : 'opacity-100'
+          "
         />
         <div
           v-show="boxZoomRect.show"

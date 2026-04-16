@@ -72,7 +72,7 @@ Use **`Implemented (vX.Y.Z)`**, **`Partial`**, or **`Draft`** in PRD headers —
 [PRD-025](PRD-025-corpus-intelligence-dashboard-viewer.md)), GIL/KG cross-layer work (PRD-017/019
 Partial; Draft RFC-072), and several Draft PRDs not indexed: experiments (PRD-007), governance
 (PRD-015), Postgres projection (PRD-018), diarization (PRD-020), topic view (PRD-026), enriched
-search (PRD-027), position tracker (PRD-028), guest brief (PRD-029).
+search (PRD-027), position tracker (PRD-028), person profile (PRD-029).
 
 **Related:** [RFC gap analysis](../rfc/index.md#gaps) (technical backlog), [ADR gap analysis](../adr/index.md#gaps)
 (decisions and implementation state).

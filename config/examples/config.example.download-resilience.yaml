@@ -8,7 +8,8 @@
 # Copy and merge keys into your main YAML, or use CLI overrides for one-off runs.
 
 rss: https://feeds.example.com/podcast.xml
-output_dir: ./my_corpus
+output_dir: output
+max_episodes: 3
 
 # urllib3 retries for transcript/media downloads (not RSS; RSS uses rss_* below)
 http_retry_total: 8

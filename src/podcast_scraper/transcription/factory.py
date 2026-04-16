@@ -177,7 +177,7 @@ def create_transcription_provider(
                 rss="",  # Dummy, not used for transcription (use alias)
                 transcription_provider="gemini",
                 gemini_transcription_model=(
-                    params.model_name if params.model_name else "gemini-2.0-flash"
+                    params.model_name if params.model_name else "gemini-2.5-flash-lite"
                 ),
                 gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
             )

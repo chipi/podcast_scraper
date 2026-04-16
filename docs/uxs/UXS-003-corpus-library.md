@@ -33,16 +33,30 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - **Layout (desktop):** Library main column (`canvas` / `surface`) plus the right
   shell rail:
 
-1. **Episode filters** -- one collapsible: on wide viewports, a three-column row --
-   **published on or after** (compact presets + custom `YYYY-MM-DD`, aligned with
-   Search **since**) on the left; **title** and **summary / topic** plus
-   **Apply** / **Clear text and date** in the center; **feed** list on the right;
-   stacks vertically on narrow widths. Feed rows use display title when present
-   (stable `feed_id`, plus RSS and description in `title` hover when
-   `GET /api/corpus/feeds` includes them), `border` dividers, and `overlay` for the
-   selected feed row.
+1. **Episode filters** -- one collapsible: **subtitle** row explains narrowing and holds
+   primary **Apply** (reloads using title and summary filters; same as **Enter** in those
+   fields). On wide viewports, a three-column row -- **published on or after** (date +
+   presets, aligned with Search **since**; **same Pinia `corpusLens` state as Digest**) on
+   the left (column heading **Dates**); **Title** and **summary / topic** in the center
+   as **two rows**, each **label left** + **field right** (same idea as the date row);
+   header **Title & summary** plus small **Clear text**; **feed** list on the right;
+   stacks vertically on narrow widths. The **Feed** column uses a **scrollable**
+   list with a capped height (taller on large viewports) so catalogs with many feeds
+   (for example ~20) get a **vertical scrollbar** instead of stretching the panel.
+   With no row selected, episodes include **all** feeds; choosing a feed narrows the list.
+   **Clear feed filter** stays next to the **Feed** label at all times: **disabled** when
+   no feed is selected, **enabled** when a feed is selected; click restores the all-feeds
+   episode list.
+   Feed rows use display title when present (stable `feed_id`, plus RSS and description in
+   `title` hover when `GET /api/corpus/feeds` includes them), `border` dividers, and `overlay`
+   for the selected feed row.
 
-2. **Episode column** -- scrollable list of episodes: cursor pagination from
+2. **Episode column** -- **`h2` Episodes** with a muted tabular count: **`(N)`** for the
+   loaded page set, **`(N+)`** when **`next_cursor`** indicates more pages (native **`title`**
+   on the count explains scroll / **Load more**), plus a **?** **HelpTip** (same control as
+   Digest **Recent**) holding the short guide to filters, infinite scroll / **Load more**,
+   and the right **Episode** rail. List **`region`** **`aria-label`** includes the count and
+   whether more episodes are available. Scrollable list: cursor pagination from
    `GET /api/corpus/episodes` (`limit` ~20 per page + `next_cursor`); **Load more**
    at the bottom plus scroll-to-load when the user nears the end. Title row is
    episode title (left) and right column: feed display name (truncated, left) and
@@ -73,9 +87,14 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - With the Episode rail already open from Library or Digest, switching the main tab
   to Graph highlights that episode's node and centers/zooms the canvas when the node
   is present in the merged graph.
-- Below the scrollable episode body, a **Graph neighborhood and connections** strip
-  (only when the main tab is Graph) shows a read-only Local neighborhood mini
-  Cytoscape (1-hop ego around the node) then the Connections list with `G` per row.
+- On the **Graph** main tab, when the rail holds a graph center id for that episode,
+  **Details** vs **Neighbourhood** tabs (same shell pattern as graph-node rail) sit
+  **under** the episode hero (cover **left**, title + feed meta **right**, same row as other
+  detail rails) and **above**
+  the **Details** scroll body; the **Graph neighborhood and connections** strip is on
+  **Neighbourhood** only: read-only Local neighborhood mini Cytoscape (1-hop ego around
+  the node) then the Connections list with `G` per row. Digest/Library episode rail has
+  no tablist when that strip does not apply (hero + body still stack like the graph rail).
 - When RFC-072 bridge.json is available, **Appears in (bridge):** shows whether the
   node's canonical id appears in Grounded Insights, the Knowledge graph, or both.
 - Technical ids: `E` uses the same Episode blue as the graph legend / Cytoscape
@@ -95,7 +114,9 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - **Vector index awareness (RFC-067 Phase 3):** Optional **Indexed** chip on feed rows
   when that `feed_id` appears in `GET /api/index/stats` -> `feeds_indexed`.
   Episode rail exposes Episode and feed diagnostics (help control -> tooltip) with
-  paths, ids, Feed in vector index, and index stats when loaded. **Similar episodes**
+  paths, ids, Feed in vector index, and index stats when loaded; **E**, **`?`**, and **C**
+  (copy episode title, same chip pattern as graph node detail) sit in a vertical stack
+  beside the episode title (**E** above **`?`** above **`C`**) to widen the title. **Similar episodes**
   loads automatically after episode detail succeeds and lists peer episodes; empty
   successful responses show a short no peers state; loading shows
   "Searching similar episodes..." (`aria-live="polite"`). **Prefill semantic search**
@@ -140,3 +161,6 @@ the E2E Testing Guide.
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-10 | Initial content (in UXS-001)                                   |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-003                 |
+| 2026-04-16 | Episode rail (Graph): Details / Neighbourhood for connections  |
+| 2026-04-16 | Episode rail: hero, tabs, Details scroll (parity)              |
+| 2026-04-16 | Episode rail: **C** copy title chip                            |

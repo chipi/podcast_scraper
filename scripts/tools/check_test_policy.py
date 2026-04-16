@@ -6,6 +6,10 @@ Checks:
      Unit tests must only depend on [dev] extras. importorskip silently
      skips tests when an optional extra is missing, hiding failures in CI.
 
+  1b. No FastAPI (or ``import fastapi``) imports in unit tests
+     FastAPI lives in the ``[server]`` extra; PR / dev-venv unit jobs install
+     ``.[dev]`` only. Route tests belong under ``tests/integration/server/``.
+
   2. No @pytest.mark.ml_models in integration tests
      Real ML models belong in tests/e2e/ only. Integration tests must
      mock all ML/AI boundaries.
@@ -45,6 +49,12 @@ AVAILABLE_GUARD_RE = re.compile(
 )
 
 IMPORTORSKIP_RE = re.compile(r"pytest\.importorskip\s*\(")
+
+# FastAPI / TestClient require ``pip install -e '.[server]'`` — not ``[dev]`` alone.
+UNIT_FASTAPI_IMPORT_RE = re.compile(
+    r"^\s*(from fastapi\b|import fastapi\b)",
+    re.MULTILINE,
+)
 
 ML_MODELS_MARKER_RE = re.compile(r"@pytest\.mark\.ml_models")
 
@@ -90,6 +100,24 @@ def check_unit_importorskip(files: list[Path]) -> list[Violation]:
                     "U1-importorskip",
                     "pytest.importorskip() in unit test — unit tests must only "
                     "use [dev] extras; move to integration/ or mock the dependency",
+                )
+            )
+    return violations
+
+
+def check_unit_fastapi_imports(files: list[Path]) -> list[Violation]:
+    violations = []
+    for f in files:
+        text = f.read_text(encoding="utf-8")
+        for m in UNIT_FASTAPI_IMPORT_RE.finditer(text):
+            lineno = text[: m.start()].count("\n") + 1
+            violations.append(
+                Violation(
+                    f,
+                    lineno,
+                    "U3-fastapi-in-unit",
+                    "FastAPI import in unit test — move to tests/integration/server/ "
+                    "(unit CI uses .[dev] only; FastAPI is in .[server])",
                 )
             )
     return violations
@@ -177,6 +205,9 @@ def main() -> int:
     # Rule U1: No importorskip in unit tests
     violations.extend(check_unit_importorskip(unit_files))
 
+    # Rule U3: No FastAPI imports in unit tests ([server] extra)
+    violations.extend(check_unit_fastapi_imports(unit_files))
+
     # Rule U2: No *_AVAILABLE skip guards in unit tests
     violations.extend(check_unit_available_guards(unit_files))
 
@@ -202,6 +233,11 @@ def main() -> int:
                 print(
                     "  U1: Move test to tests/integration/ or mock the "
                     "dependency with unittest.mock.patch"
+                )
+            if "U3-fastapi-in-unit" in rule_counts:
+                print(
+                    "  U3: Move FastAPI / TestClient tests to "
+                    "tests/integration/server/ (see UNIT_TESTING_GUIDE.md)"
                 )
             if "U2-available-guard" in rule_counts:
                 print(

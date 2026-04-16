@@ -10,6 +10,7 @@ import type {
   RawGraphNode,
 } from '../types/artifact'
 import { humanizeSlug, shortPhrase, truncate } from './formatting'
+import { logicalEpisodeIdFromGraphNodeId } from './graphEpisodeMetadata'
 import { visualGroupForNode } from './visualGroup'
 
 export { visualGroupForNode, visualNodeTypeCounts } from './visualGroup'
@@ -29,12 +30,7 @@ export function ensureEpisodeToInsightEdges(
   }
 
   function episodeKeyFromNode(ep: RawGraphNode): string | null {
-    const id = String(ep.id)
-    if (id.startsWith('g:episode:')) return id.slice('g:episode:'.length)
-    if (id.startsWith('k:episode:')) return id.slice('k:episode:'.length)
-    if (id.startsWith('episode:')) return id.slice('episode:'.length)
-    if (id.startsWith('__unified_ep__:')) return id.slice('__unified_ep__:'.length)
-    return null
+    return logicalEpisodeIdFromGraphNodeId(String(ep.id ?? ''))
   }
 
   const seen = new Set<string>()
@@ -84,7 +80,28 @@ export function ensureEpisodeToInsightEdges(
   return { nodes: nList, edges: eList }
 }
 
-export function parseArtifact(filename: string, data: ArtifactData): ParsedArtifact {
+/**
+ * Episode graph node id in ``art`` whose logical id matches ``episodeKey`` (GI ``properties.episode_id``).
+ */
+export function findEpisodeGraphNodeIdForEpisodeKey(
+  art: ParsedArtifact | null,
+  episodeKey: string,
+): string | null {
+  const want = episodeKey.trim()
+  if (!want || !art?.data?.nodes) return null
+  for (const n of art.data.nodes) {
+    if (!n || n.type !== 'Episode' || n.id == null) continue
+    const logical = logicalEpisodeIdFromGraphNodeId(String(n.id))
+    if (logical === want) return String(n.id)
+  }
+  return null
+}
+
+export function parseArtifact(
+  filename: string,
+  data: ArtifactData,
+  sourceCorpusRelPath?: string | null,
+): ParsedArtifact {
   let nodes = Array.isArray(data.nodes) ? data.nodes.slice() : []
   let edges = Array.isArray(data.edges) ? data.edges.slice() : []
   const episodeId =
@@ -124,6 +141,15 @@ export function parseArtifact(filename: string, data: ArtifactData): ParsedArtif
   const dataOut =
     kind === 'gi' ? { ...data, nodes, edges } : { ...data }
 
+  const rel = sourceCorpusRelPath != null && String(sourceCorpusRelPath).trim()
+    ? String(sourceCorpusRelPath).trim().replace(/\\/g, '/').replace(/^\/+/, '')
+    : null
+
+  const sourceCorpusRelPathByEpisodeId =
+    rel && episodeId
+      ? { [episodeId]: rel }
+      : null
+
   return {
     name: filename,
     kind,
@@ -132,6 +158,8 @@ export function parseArtifact(filename: string, data: ArtifactData): ParsedArtif
     edges: edges.length,
     nodeTypes,
     data: dataOut,
+    sourceCorpusRelPath: rel,
+    sourceCorpusRelPathByEpisodeId,
   }
 }
 
@@ -176,6 +204,8 @@ const MAX_GRAPH_LABEL = 40
  * by checking common property names in priority order, then falling back to
  * humanising the node id.  All results are capped at ~40 chars via
  * `shortPhrase` (prefers natural break points like commas).
+ *
+ * For **node detail** / right-rail copy, use {@link fullPrimaryNodeLabel} instead so long quotes are not pre-truncated.
  */
 export function nodeLabel(n: RawGraphNode): string {
   const p = n.properties || {}
@@ -215,6 +245,25 @@ export function fullPrimaryNodeLabel(n: RawGraphNode): string {
   return typeStr + (idShort ? `: ${idShort}` : '')
 }
 
+/**
+ * Primary display string for a GI node object from JSON (e.g. CIL timeline ``insights[]``).
+ * Uses the same field order as ``fullPrimaryNodeLabel``.
+ */
+export function primaryTextFromLooseGiNode(node: Record<string, unknown>): string {
+  const rawProps = node.properties
+  const props =
+    rawProps != null &&
+    typeof rawProps === 'object' &&
+    !Array.isArray(rawProps)
+      ? (rawProps as Record<string, unknown>)
+      : {}
+  return fullPrimaryNodeLabel({
+    id: node.id,
+    type: node.type,
+    properties: props,
+  } as RawGraphNode)
+}
+
 function str(v: unknown): string {
   if (v == null) return ''
   const s = String(v).trim()
@@ -246,6 +295,264 @@ export function findRawNodeInArtifact(
   return null
 }
 
+/**
+ * Count GI-style incident edges for Person / Entity / Speaker nodes in the loaded graph slice.
+ * ``SPOKEN_BY`` (Quote → node): quotes attributed to this identity.
+ * ``SPOKE_IN`` (node → Episode): episode participation links.
+ */
+export function countPersonEntityIncidentEdges(
+  art: ParsedArtifact | null,
+  nodeId: string | null,
+): { spokenByQuotes: number; spokeInEpisodes: number } {
+  if (!art?.data?.edges || nodeId == null) {
+    return { spokenByQuotes: 0, spokeInEpisodes: 0 }
+  }
+  const id = String(nodeId).trim()
+  if (!id) return { spokenByQuotes: 0, spokeInEpisodes: 0 }
+  let spokenByQuotes = 0
+  let spokeInEpisodes = 0
+  for (const e of art.data.edges) {
+    if (!e || typeof e !== 'object') continue
+    const ty = normalizeGiEdgeType(e.type)
+    const from = e.from != null ? String(e.from).trim() : ''
+    const to = e.to != null ? String(e.to).trim() : ''
+    if (ty === 'spoken_by' && to === id) spokenByQuotes += 1
+    if (ty === 'spoke_in' && from === id) spokeInEpisodes += 1
+  }
+  return { spokenByQuotes, spokeInEpisodes }
+}
+
+export interface InsightSupportingQuoteRow {
+  id: string
+  preview: string
+  /** Sort key from quote ``char_start`` when finite. */
+  charStart: number | null
+  /** Fallback sort key from ``timestamp_start_ms`` when ``char_start`` ties or is absent. */
+  timestampStartMs: number | null
+}
+
+function normalizeGiEdgeType(type: string | undefined | null): string {
+  return String(type ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+}
+
+function quoteSortKeysFromNode(n: RawGraphNode | null): {
+  charStart: number | null
+  timestampStartMs: number | null
+} {
+  if (!n?.properties || typeof n.properties !== 'object') {
+    return { charStart: null, timestampStartMs: null }
+  }
+  const p = n.properties as Record<string, unknown>
+  const cs = p.char_start
+  const charStart =
+    typeof cs === 'number' && Number.isFinite(cs) ? cs : null
+  const ts = p.timestamp_start_ms
+  const timestampStartMs =
+    typeof ts === 'number' && Number.isFinite(ts) ? ts : null
+  return { charStart, timestampStartMs }
+}
+
+/** Quote targets of ``SUPPORTED_BY`` out-edges from this insight (GI). Sorted by ``char_start``, then ``timestamp_start_ms``. */
+export function insightSupportingQuoteRows(
+  art: ParsedArtifact | null,
+  insightGraphId: string | null,
+): InsightSupportingQuoteRow[] {
+  if (!art?.data?.edges || insightGraphId == null) return []
+  const sid = String(insightGraphId).trim()
+  if (!sid) return []
+  const toIds: string[] = []
+  for (const e of art.data.edges) {
+    if (!e) continue
+    const etNorm = normalizeGiEdgeType(e.type).replace(/_/g, '')
+    if (etNorm !== 'supportedby') continue
+    if (String(e.from) !== sid) continue
+    const to = String(e.to ?? '').trim()
+    if (!to) continue
+    const qn = findRawNodeInArtifact(art, to)
+    if (!qn || String(qn.type) !== 'Quote') continue
+    toIds.push(to)
+  }
+  const seen = new Set<string>()
+  const out: InsightSupportingQuoteRow[] = []
+  for (const id of toIds) {
+    if (seen.has(id)) continue
+    seen.add(id)
+    const n = findRawNodeInArtifact(art, id)
+    const raw =
+      n?.properties && typeof (n.properties as Record<string, unknown>).text === 'string'
+        ? (n.properties as Record<string, unknown>).text
+        : ''
+    const preview = truncate(String(raw).trim(), 120)
+    const { charStart, timestampStartMs } = quoteSortKeysFromNode(n)
+    out.push({
+      id,
+      preview: preview || id,
+      charStart,
+      timestampStartMs,
+    })
+  }
+  out.sort((a, b) => {
+    const ca = a.charStart ?? Number.POSITIVE_INFINITY
+    const cb = b.charStart ?? Number.POSITIVE_INFINITY
+    if (ca !== cb) return ca - cb
+    const ta = a.timestampStartMs ?? Number.POSITIVE_INFINITY
+    const tb = b.timestampStartMs ?? Number.POSITIVE_INFINITY
+    return ta - tb
+  })
+  return out
+}
+
+/** Resolved transcript + char ranges when every supporting quote shares one ``transcript_ref`` and finite GI offsets. */
+export type InsightSupportingTranscriptAggregate = {
+  transcriptRef: string
+  episodeId: string | null
+  charRanges: Array<{ charStart: unknown; charEnd: unknown }>
+}
+
+/**
+ * Collect ``SUPPORTED_BY`` quotes for an insight for a single-file transcript open.
+ * Returns null when there are no quotes, mixed ``transcript_ref`` values, or any supporting quote
+ * lacks a non-empty ``transcript_ref`` with both finite ``char_start`` and ``char_end``.
+ */
+export function insightSupportingTranscriptAggregate(
+  art: ParsedArtifact | null,
+  insightGraphId: string | null,
+): InsightSupportingTranscriptAggregate | null {
+  const rows = insightSupportingQuoteRows(art, insightGraphId)
+  if (rows.length === 0) {
+    return null
+  }
+  const insight = findRawNodeInArtifact(art, insightGraphId ?? '')
+  const iep = insight?.properties as Record<string, unknown> | undefined
+  const rawEp = iep?.episode_id
+  const episodeId =
+    typeof rawEp === 'string' && rawEp.trim()
+      ? rawEp.trim()
+      : typeof rawEp === 'number' && Number.isFinite(rawEp)
+        ? String(rawEp)
+        : null
+
+  const refs = new Set<string>()
+  const charRanges: Array<{ charStart: unknown; charEnd: unknown }> = []
+  for (const row of rows) {
+    const n = findRawNodeInArtifact(art, row.id)
+    const p = n?.properties as Record<string, unknown> | undefined
+    if (!p) {
+      continue
+    }
+    const ref = typeof p.transcript_ref === 'string' ? p.transcript_ref.trim() : ''
+    const cs = p.char_start
+    const ce = p.char_end
+    if (!ref) {
+      continue
+    }
+    if (typeof cs !== 'number' || !Number.isFinite(cs)) {
+      continue
+    }
+    if (typeof ce !== 'number' || !Number.isFinite(ce)) {
+      continue
+    }
+    refs.add(ref)
+    charRanges.push({ charStart: cs, charEnd: ce })
+  }
+  if (charRanges.length === 0 || refs.size !== 1 || charRanges.length !== rows.length) {
+    return null
+  }
+  return {
+    transcriptRef: [...refs][0],
+    episodeId,
+    charRanges,
+  }
+}
+
+export interface InsightRelatedTopicRow {
+  topicId: string
+  label: string
+}
+
+const INSIGHT_TOPIC_EDGE_TYPES = new Set(['about', 'related_to'])
+
+/**
+ * Topic neighbors of an insight linked by ``ABOUT`` / ``RELATED_TO`` (either direction).
+ */
+export function insightRelatedTopicRows(
+  art: ParsedArtifact | null,
+  insightGraphId: string | null,
+): InsightRelatedTopicRow[] {
+  if (!art?.data?.edges || insightGraphId == null) return []
+  const sid = String(insightGraphId).trim()
+  if (!sid) return []
+  const nodes = Array.isArray(art.data.nodes) ? art.data.nodes : []
+  const idSet = new Set(
+    nodes.map((n) => (n?.id != null ? String(n.id) : '')).filter(Boolean),
+  )
+  const topicIds: string[] = []
+  for (const e of art.data.edges) {
+    if (!e) continue
+    const t = normalizeGiEdgeType(e.type)
+    if (!INSIGHT_TOPIC_EDGE_TYPES.has(t)) continue
+    const from = String(e.from ?? '').trim()
+    const to = String(e.to ?? '').trim()
+    let topicId: string | null = null
+    if (from === sid && idSet.has(to)) {
+      topicId = to
+    } else if (to === sid && idSet.has(from)) {
+      topicId = from
+    } else {
+      continue
+    }
+    const tn = findRawNodeInArtifact(art, topicId)
+    if (!tn || String(tn.type) !== 'Topic') continue
+    topicIds.push(topicId)
+  }
+  const seen = new Set<string>()
+  const out: InsightRelatedTopicRow[] = []
+  for (const topicId of topicIds) {
+    if (seen.has(topicId)) continue
+    seen.add(topicId)
+    const n = findRawNodeInArtifact(art, topicId)
+    const p = n?.properties as Record<string, unknown> | undefined
+    const labelRaw =
+      (typeof p?.label === 'string' && p.label.trim()) ||
+      (typeof p?.name === 'string' && p.name.trim()) ||
+      ''
+    const label = labelRaw || topicId
+    out.push({ topicId, label })
+  }
+  return out
+}
+
+/** Compact provenance line from GI artifact root + optional ``extraction`` (viewer-only; may be absent in strict schema files). */
+export function insightProvenanceLine(art: ParsedArtifact | null): string | null {
+  if (!art?.data) return null
+  const d = art.data as Record<string, unknown>
+  const parts: string[] = []
+  const mv = d.model_version
+  if (typeof mv === 'string' && mv.trim()) {
+    parts.push(`model ${mv.trim()}`)
+  }
+  const pv = d.prompt_version
+  if (typeof pv === 'string' && pv.trim()) {
+    parts.push(`prompt ${pv.trim()}`)
+  }
+  const ex = d.extraction
+  if (ex && typeof ex === 'object' && !Array.isArray(ex)) {
+    const ext = (ex as Record<string, unknown>).extracted_at
+    if (typeof ext === 'string' && ext.trim()) {
+      parts.push(`extracted ${ext.trim()}`)
+    }
+  }
+  const nm = art.name?.trim()
+  if (nm) {
+    parts.push(`from ${nm}`)
+  }
+  if (parts.length === 0) return null
+  return parts.join(' · ')
+}
+
 function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
   const allowedEdgeTypes: Record<string, boolean> = {}
   let rawNodes = Array.isArray(art.data.nodes) ? art.data.nodes.slice() : []
@@ -259,6 +566,7 @@ function collectEdgeTypeKeys(art: ParsedArtifact): Record<string, boolean> {
   for (const e of rawEdges) {
     if (!e || typeof e !== 'object') continue
     const k = e.type != null && String(e.type).trim() !== '' ? String(e.type) : '(unknown)'
+    if (k === '_tc_cohesion') continue
     if (!seenE.has(k)) {
       seenE.add(k)
       allowedEdgeTypes[k] = true
@@ -287,6 +595,51 @@ export function defaultFilterState(art: ParsedArtifact | null): GraphFilterState
     showGiLayer: true,
     showKgLayer: true,
   }
+}
+
+function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
+  const clusterIds = new Set(
+    nodes
+      .filter((n) => n?.type === 'TopicCluster' && n.id != null)
+      .map((n) => String(n!.id)),
+  )
+  if (clusterIds.size === 0) {
+    return nodes
+  }
+
+  const childCount = new Map<string, number>()
+  for (const n of nodes) {
+    const p = typeof n.parent === 'string' ? n.parent.trim() : ''
+    if (p && clusterIds.has(p)) {
+      childCount.set(p, (childCount.get(p) || 0) + 1)
+    }
+  }
+
+  const keep = new Set<string>()
+  for (const cid of clusterIds) {
+    if ((childCount.get(cid) || 0) > 0) {
+      keep.add(cid)
+    }
+  }
+
+  let out = nodes.filter((n) => {
+    if (n?.type !== 'TopicCluster') {
+      return true
+    }
+    const id = String(n.id ?? '')
+    return keep.has(id)
+  })
+
+  out = out.map((n) => {
+    const p = typeof n.parent === 'string' ? n.parent.trim() : ''
+    if (!p || keep.has(p)) {
+      return n
+    }
+    const { parent: _removed, ...rest } = n
+    return rest
+  })
+
+  return out
 }
 
 export function filtersActive(
@@ -360,6 +713,7 @@ export function applyGraphFilters(
     const t = n.type || '?'
     return allowedTypes[t] !== false
   })
+  nodes = pruneOrphanTopicClusterParents(nodes)
   const ids = new Set<string>()
   for (const n of nodes) {
     if (n.id != null) ids.add(String(n.id))
@@ -371,6 +725,7 @@ export function applyGraphFilters(
     }
     const et =
       e.type != null && String(e.type).trim() !== '' ? String(e.type) : '(unknown)'
+    if (et === '_tc_cohesion') return true
     return aet[et] !== false
   })
   const nodeTypes: Record<string, number> = {}
@@ -386,6 +741,8 @@ export function applyGraphFilters(
     edges: edges.length,
     nodeTypes,
     data: { ...fullArt.data, nodes, edges },
+    sourceCorpusRelPath: fullArt.sourceCorpusRelPath,
+    sourceCorpusRelPathByEpisodeId: fullArt.sourceCorpusRelPathByEpisodeId,
   }
 }
 
@@ -429,11 +786,138 @@ export function filterArtifactEgoOneHop(
     edges: edgesOut.length,
     nodeTypes,
     data: { ...art.data, nodes: nodesOut, edges: edgesOut },
+    sourceCorpusRelPath: art.sourceCorpusRelPath,
+    sourceCorpusRelPathByEpisodeId: art.sourceCorpusRelPathByEpisodeId,
+  }
+}
+
+/**
+ * Subgraph for the neighborhood minimap when a **TopicCluster** compound is selected: the compound
+ * node, all member Topic nodes, every node adjacent to any member (one hop from the cluster), and
+ * edges between kept nodes. Matches treating the cluster as one collapsed logical unit.
+ */
+export function filterArtifactEgoAroundTopicCluster(
+  art: ParsedArtifact,
+  compoundId: string,
+  memberGraphIds: string[],
+): ParsedArtifact {
+  const cid = compoundId.trim()
+  const members = memberGraphIds.map((x) => String(x).trim()).filter(Boolean)
+  const nodes = Array.isArray(art.data.nodes) ? art.data.nodes : []
+  const edges = Array.isArray(art.data.edges) ? art.data.edges : []
+  const idSet = new Set<string>()
+  for (const n of nodes) {
+    if (n?.id != null) {
+      idSet.add(String(n.id))
+    }
+  }
+  const memberSet = new Set(members)
+  if (!memberSet.size && !idSet.has(cid)) {
+    return art
+  }
+
+  const keep = new Set<string>()
+  if (idSet.has(cid)) {
+    keep.add(cid)
+  }
+  for (const m of members) {
+    if (idSet.has(m)) {
+      keep.add(m)
+    }
+  }
+  for (const e of edges) {
+    if (!e) {
+      continue
+    }
+    const fr = String(e.from)
+    const to = String(e.to)
+    if (memberSet.has(fr) && idSet.has(to)) {
+      keep.add(to)
+    }
+    if (memberSet.has(to) && idSet.has(fr)) {
+      keep.add(fr)
+    }
+    if (fr === cid && idSet.has(to)) {
+      keep.add(to)
+    }
+    if (to === cid && idSet.has(fr)) {
+      keep.add(fr)
+    }
+  }
+
+  const nodesOut = nodes.filter((n) => n?.id != null && keep.has(String(n.id)))
+  const outIds = new Set(nodesOut.map((n) => String(n!.id)))
+  const edgesOut = edges.filter(
+    (e) => e && outIds.has(String(e.from)) && outIds.has(String(e.to)),
+  )
+  const nodeTypes: Record<string, number> = {}
+  for (const n of nodesOut) {
+    const t = n!.type || '?'
+    nodeTypes[t] = (nodeTypes[t] || 0) + 1
+  }
+  return {
+    name: art.name,
+    kind: art.kind,
+    episodeId: art.episodeId,
+    nodes: nodesOut.length,
+    edges: edgesOut.length,
+    nodeTypes,
+    data: { ...art.data, nodes: nodesOut, edges: edgesOut },
+    sourceCorpusRelPath: art.sourceCorpusRelPath,
+    sourceCorpusRelPathByEpisodeId: art.sourceCorpusRelPathByEpisodeId,
+  }
+}
+
+/**
+ * Union two graph views (dedupe nodes by id, edges by from+to+type). Used to merge ego slices.
+ */
+export function unionParsedArtifacts(a: ParsedArtifact, b: ParsedArtifact): ParsedArtifact {
+  const nodeById = new Map<string, RawGraphNode>()
+  for (const n of [...(a.data.nodes || []), ...(b.data.nodes || [])]) {
+    if (n && n.id != null) {
+      nodeById.set(String(n.id), n)
+    }
+  }
+  const nodes = Array.from(nodeById.values())
+  const edgeSeen = new Set<string>()
+  const edgesOut: RawGraphEdge[] = []
+  for (const e of [...(a.data.edges || []), ...(b.data.edges || [])]) {
+    if (!e || e.from == null || e.to == null) {
+      continue
+    }
+    const k = `${String(e.from)}\0${String(e.to)}\0${String(e.type || '')}`
+    if (edgeSeen.has(k)) {
+      continue
+    }
+    edgeSeen.add(k)
+    edgesOut.push(e)
+  }
+  const nodeTypes: Record<string, number> = {}
+  for (const n of nodes) {
+    const t = n.type || '?'
+    nodeTypes[t] = (nodeTypes[t] || 0) + 1
+  }
+  return {
+    name: a.name,
+    kind: a.kind,
+    episodeId: a.episodeId,
+    nodes: nodes.length,
+    edges: edgesOut.length,
+    nodeTypes,
+    data: { ...a.data, nodes, edges: edgesOut },
+    sourceCorpusRelPath: a.sourceCorpusRelPath,
+    sourceCorpusRelPathByEpisodeId: a.sourceCorpusRelPathByEpisodeId,
   }
 }
 
 export function toGraphElements(art: ParsedArtifact): {
-  visNodes: { id: string; label: string; group: string; title: string }[]
+  visNodes: {
+    id: string
+    label: string
+    group: string
+    title: string
+    parent?: string
+  }[]
   visEdges: { id: string; from: string; to: string; label: string }[]
   idSet: Set<string>
 } {
@@ -445,16 +929,32 @@ export function toGraphElements(art: ParsedArtifact): {
     rawNodes = aug.nodes
     rawEdges = aug.edges
   }
+  const nodesById = new Map<string, RawGraphNode>()
+  for (const n of rawNodes) {
+    if (n && n.id != null) {
+      nodesById.set(String(n.id), n)
+    }
+  }
   const visNodes = rawNodes.map((n, i) => {
     if (!n || typeof n !== 'object') {
       return { id: `n${i}`, label: '?', group: '?', title: '' }
     }
     const id = n.id != null ? String(n.id) : `n${i}`
+    const parentId =
+      typeof n.parent === 'string' && n.parent.trim() ? n.parent.trim() : undefined
+    let label = nodeLabel(n)
+    if (parentId && String(n.type) === 'Topic') {
+      const par = nodesById.get(parentId)
+      if (par && String(par.type) === 'TopicCluster' && label === nodeLabel(par)) {
+        label = ''
+      }
+    }
     return {
       id,
-      label: nodeLabel(n),
+      label,
       group: visualGroupForNode(n),
       title: buildNodeTitle(n),
+      ...(parentId ? { parent: parentId } : {}),
     }
   })
   const idSet = new Set(visNodes.map((x) => x.id))
@@ -475,9 +975,17 @@ export function toGraphElements(art: ParsedArtifact): {
 /** Cytoscape element list (nodes + edges). */
 export function toCytoElements(art: ParsedArtifact): import('cytoscape').ElementDefinition[] {
   const g = toGraphElements(art)
-  const nodes: import('cytoscape').ElementDefinition[] = g.visNodes.map((n) => ({
-    data: { id: n.id, label: n.label, type: n.group },
-  }))
+  const nodes: import('cytoscape').ElementDefinition[] = g.visNodes.map((n) => {
+    const data: Record<string, unknown> = {
+      id: n.id,
+      label: n.label,
+      type: n.group,
+    }
+    if (n.parent) {
+      data.parent = n.parent
+    }
+    return { data }
+  })
   const edges: import('cytoscape').ElementDefinition[] = g.visEdges
     .filter((e) => g.idSet.has(e.from) && g.idSet.has(e.to))
     .map((e) => ({

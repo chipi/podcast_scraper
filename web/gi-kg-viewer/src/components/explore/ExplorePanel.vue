@@ -5,6 +5,10 @@ import { useExploreStore } from '../../stores/explore'
 import { useShellStore } from '../../stores/shell'
 import { truncate } from '../../utils/formatting'
 import { quoteAttributionDisplayFromId } from '../../utils/parsing'
+import {
+  GI_QUOTE_SPEAKER_UNAVAILABLE_HINT,
+  SUPPORTING_QUOTE_SPEAKER_UNAVAILABLE_TESTID,
+} from '../../utils/transcriptSourceDisplay'
 import HelpTip from '../shared/HelpTip.vue'
 
 const emit = defineEmits<{ 'go-graph': [] }>()
@@ -460,6 +464,13 @@ function focusNode(id: string): void {
                   >
                     ({{ (q.start_ms / 1000).toFixed(1) }}s{{ q.end_ms != null ? ` – ${(q.end_ms / 1000).toFixed(1)}s` : '' }})
                   </span>
+                </p>
+                <p
+                  v-else-if="String(q.text ?? '').trim()"
+                  class="mt-0.5 text-[10px] leading-snug text-muted/80"
+                  :data-testid="SUPPORTING_QUOTE_SPEAKER_UNAVAILABLE_TESTID"
+                >
+                  {{ GI_QUOTE_SPEAKER_UNAVAILABLE_HINT }}
                 </p>
               </blockquote>
             </div>

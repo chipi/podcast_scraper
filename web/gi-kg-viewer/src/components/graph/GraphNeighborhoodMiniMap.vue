@@ -4,18 +4,34 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ParsedArtifact } from '../../types/artifact'
 import { useThemeStore } from '../../stores/theme'
-import { buildGiKgCyStylesheet } from '../../utils/cyGraphStylesheet'
-import { filterArtifactEgoOneHop, findRawNodeInArtifact, toCytoElements } from '../../utils/parsing'
+import { giKgCoseLayoutOptionsCompact } from '../../utils/cyCoseLayoutOptions'
+import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
+import {
+  filterArtifactEgoAroundTopicCluster,
+  filterArtifactEgoOneHop,
+  findRawNodeInArtifact,
+  toCytoElements,
+} from '../../utils/parsing'
 
 const props = defineProps<{
   viewArtifact: ParsedArtifact | null
   centerId: string | null
+  /** When set, minimap shows compound + members + 1-hop from members (not ego of compound only). */
+  topicClusterNeighborhood?: { compoundId: string; memberIds: string[] } | null
 }>()
 
 const showMini = computed(() => {
   const a = props.viewArtifact
+  if (!a) {
+    return false
+  }
+  const tc = props.topicClusterNeighborhood
+  if (tc?.compoundId?.trim() && tc.memberIds.length > 0) {
+    const sub = miniArtifact()
+    return Boolean(sub?.data?.nodes?.length)
+  }
   const id = props.centerId?.trim()
-  return Boolean(a && id && findRawNodeInArtifact(a, id))
+  return Boolean(id && findRawNodeInArtifact(a, id))
 })
 
 const host = ref<HTMLDivElement | null>(null)
@@ -46,8 +62,15 @@ function destroyCy(): void {
 
 function miniArtifact(): ParsedArtifact | null {
   const art = props.viewArtifact
+  if (!art) {
+    return null
+  }
+  const tc = props.topicClusterNeighborhood
+  if (tc?.compoundId?.trim() && tc.memberIds.length > 0) {
+    return filterArtifactEgoAroundTopicCluster(art, tc.compoundId.trim(), tc.memberIds)
+  }
   const id = props.centerId?.trim()
-  if (!art || !id || !findRawNodeInArtifact(art, id)) {
+  if (!id || !findRawNodeInArtifact(art, id)) {
     return null
   }
   return filterArtifactEgoOneHop(art, id)
@@ -68,7 +91,15 @@ function mountCy(): void {
     const core = cytoscape({
       container: el,
       elements,
-      style: buildGiKgCyStylesheet({ compact: true }) as never,
+      style: [
+        ...(buildGiKgCyStylesheet({ compact: true }) as Record<string, unknown>[]),
+        {
+          selector: 'node',
+          style: {
+            'text-margin-x': cytoscapeSideLabelMarginXCallback(true),
+          },
+        },
+      ] as never,
       userZoomingEnabled: false,
       userPanningEnabled: false,
       boxSelectionEnabled: false,
@@ -78,17 +109,13 @@ function mountCy(): void {
       wheelSensitivity: 0,
     })
     cy = core
-    const cid = props.centerId!.trim()
-    const root = core.$id(cid)
-    const layoutOpts: Record<string, unknown> = {
-      name: 'breadthfirst',
-      directed: true,
-      spacingFactor: 1.35,
-      padding: 18,
-      animate: false,
-      fit: false,
-      roots: root.empty() ? core.nodes() : root,
-    }
+    const tc = props.topicClusterNeighborhood
+    const layoutId =
+      tc?.compoundId?.trim() && !core.$id(tc.compoundId.trim()).empty()
+        ? tc.compoundId.trim()
+        : tc?.memberIds[0]?.trim() || props.centerId!.trim()
+    const cid = layoutId
+    const layoutOpts: Record<string, unknown> = giKgCoseLayoutOptionsCompact()
     const layout = core.elements().layout(layoutOpts as never)
     layout.one('layoutstop', () => {
       if (cy !== core) return
@@ -131,6 +158,8 @@ watch(
       showMini.value,
       props.viewArtifact,
       props.centerId,
+      props.topicClusterNeighborhood?.compoundId,
+      props.topicClusterNeighborhood?.memberIds?.slice(),
       themeChoice.value,
     ] as const,
   () => {
@@ -148,14 +177,19 @@ watch(
 <template>
   <div v-if="showMini" class="mb-3">
     <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
-      Local neighborhood
+      <template v-if="topicClusterNeighborhood?.compoundId">Cluster neighborhood</template>
+      <template v-else>Local neighborhood</template>
     </p>
     <div
       ref="host"
       class="h-36 w-full overflow-hidden rounded border border-border bg-canvas"
       data-testid="graph-neighborhood-mini"
       role="img"
-      :aria-label="`1-hop graph around selected node`"
+      :aria-label="
+        topicClusterNeighborhood?.compoundId
+          ? 'Graph around topic cluster compound and member topics'
+          : '1-hop graph around selected node'
+      "
     />
   </div>
 </template>

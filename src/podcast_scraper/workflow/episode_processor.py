@@ -10,7 +10,7 @@ import queue
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlparse
 
 from .. import config, config_constants, models
@@ -22,10 +22,38 @@ else:
     TranscriptionJob = models.TranscriptionJob  # type: ignore[assignment]
 from ..exceptions import ProviderError, ProviderRuntimeError
 from ..rss import choose_transcript_url, downloader
+from ..rss.downloader import OPENAI_MAX_FILE_SIZE_BYTES
+from ..transcript_formats import parse_srt, parse_webvtt
 from ..utils import filesystem
+from ..utils.audio_payload_limits import is_provider_audio_payload_limit_error
+from ..utils.corpus_incidents import append_corpus_incident
 from ..utils.log_redaction import format_exception_for_log, redact_for_log
 
 logger = logging.getLogger(__name__)
+
+# GitHub #561: stop stepping MP3 bitrate once under this size (headroom below API cap).
+_PREPROCESSING_API_REENCODE_TARGET_BYTES = OPENAI_MAX_FILE_SIZE_BYTES - (1024 * 1024)
+
+# GitHub #562: warn at most once if screenplay is requested but the provider has no formatter.
+_screenplay_unsupported_warn_lock = threading.Lock()
+_screenplay_unsupported_warn_state: dict[str, bool] = {"emitted": False}
+
+# GitHub #562: format_screenplay_from_segments raised — dedupe per process / per run reset.
+_screenplay_format_fail_warn_lock = threading.Lock()
+_screenplay_format_fail_warn_state: dict[str, bool] = {"emitted": False}
+
+
+def reset_screenplay_unsupported_provider_warning_for_tests() -> None:
+    """Reset #562 episode-level warning gate (unit tests only)."""
+    with _screenplay_unsupported_warn_lock:
+        _screenplay_unsupported_warn_state["emitted"] = False
+
+
+def reset_screenplay_format_failure_warning_for_tests() -> None:
+    """Reset #562 screenplay format exception warning gate (unit tests only)."""
+    with _screenplay_format_fail_warn_lock:
+        _screenplay_format_fail_warn_state["emitted"] = False
+
 
 MS_TO_SECONDS = 1000.0
 DEFAULT_MEDIA_EXTENSION = config_constants.DEFAULT_MEDIA_EXTENSION
@@ -199,6 +227,30 @@ def _download_or_reuse_media(
     return True, total_bytes, dl_elapsed
 
 
+def transcript_txt_missing_segments(full_txt_path: str) -> bool:
+    """Return True if *full_txt_path* is an existing ``.txt`` with no sibling ``.segments.json``.
+
+    Whisper-style outputs use a sidecar for GI quote audio timestamps. When only the ``.txt``
+    exists (for example after an older ``--skip-existing`` run), GI timing stays at zero until
+    segments exist (GitHub #542).
+    """
+    if not full_txt_path.endswith(".txt"):
+        return False
+    if not os.path.isfile(full_txt_path):
+        return False
+    seg_path = os.path.splitext(full_txt_path)[0] + ".segments.json"
+    return not os.path.isfile(seg_path)
+
+
+def _should_retranscribe_for_gi_segments(cfg: config.Config, whisper_txt_path: str) -> bool:
+    """Whether to bypass skip/reuse so transcription can populate ``.segments.json`` for GI."""
+    if not cfg.backfill_transcript_segments:
+        return False
+    if not cfg.generate_gi:
+        return False
+    return transcript_txt_missing_segments(whisper_txt_path)
+
+
 def download_media_for_transcription(
     episode: Episode,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -224,9 +276,18 @@ def download_media_for_transcription(
         episode.idx, episode.title_safe, run_suffix, effective_output_dir
     )
     if cfg.skip_existing and os.path.exists(final_out_path):
+        if _should_retranscribe_for_gi_segments(cfg, final_out_path):
+            logger.info(
+                "[%s] Transcript exists without .segments.json; will re-transcribe to populate "
+                "sidecar for GI quote timestamps and segment-backed speaker_id when segments "
+                "carry speaker labels (backfill_transcript_segments + generate_gi): %s",
+                episode.idx,
+                final_out_path,
+            )
+            # Fall through: do not return — schedule download/transcribe to populate sidecar (#542).
         # If generate_summaries is enabled, still return a job so transcript path can be used
         # for summarization (even though we won't re-transcribe)
-        if cfg.generate_summaries:
+        elif cfg.generate_summaries:
             logger.debug(
                 "[%s] Transcript exists, but will use for summarization: %s",
                 episode.idx,
@@ -244,14 +305,15 @@ def download_media_for_transcription(
                 detected_speaker_names=speaker_names_copy,
                 episode=episode,
             )
-        prefix = "[dry-run] " if cfg.dry_run else ""
-        logger.info(
-            "[%s] %stranscript already exists; skipping (--skip-existing): %s",
-            episode.idx,
-            prefix,
-            final_out_path,
-        )
-        return None
+        else:
+            prefix = "[dry-run] " if cfg.dry_run else ""
+            logger.info(
+                "[%s] %stranscript already exists; skipping (--skip-existing): %s",
+                episode.idx,
+                prefix,
+                final_out_path,
+            )
+            return None
 
     if not episode.media_url:
         logger.debug("[%s] Episode missing media_url; cannot schedule transcription", episode.idx)
@@ -340,19 +402,31 @@ def _format_transcript_if_needed(
                     cfg.screenplay_gap_s,
                 )
             else:
-                # Fallback: log warning and use plain text
-                logger.warning(
-                    "Screenplay formatting requested but provider doesn't support it. "
-                    "Using plain transcript."
-                )
+                # Fallback: log at most once per process (GitHub #562; config also coerces).
+                with _screenplay_unsupported_warn_lock:
+                    if not _screenplay_unsupported_warn_state["emitted"]:
+                        _screenplay_unsupported_warn_state["emitted"] = True
+                        logger.warning(
+                            "Screenplay formatting requested but provider doesn't support it. "
+                            "Using plain transcript (GitHub #562; see CONFIGURATION.md)."
+                        )
                 formatted = None
             if formatted and formatted.strip():
                 text = formatted
         except (ValueError, KeyError, TypeError) as exc:
-            logger.warning(
-                "    failed to format as screenplay, using plain transcript: %s",
-                format_exception_for_log(exc),
-            )
+            with _screenplay_format_fail_warn_lock:
+                if not _screenplay_format_fail_warn_state["emitted"]:
+                    _screenplay_format_fail_warn_state["emitted"] = True
+                    logger.warning(
+                        "    failed to format as screenplay, using plain transcript: %s "
+                        "(GitHub #562: repeats suppressed until pipeline gate reset)",
+                        format_exception_for_log(exc),
+                    )
+                else:
+                    logger.debug(
+                        "screenplay format failure suppressed (repeat; GitHub #562): %s",
+                        format_exception_for_log(exc),
+                    )
     return text
 
 
@@ -462,6 +536,8 @@ def _check_and_reuse_existing_transcript(
     # If temp_media is empty and transcript exists, we're reusing existing transcript
     # (happens when skip_existing=True and generate_summaries=True)
     if not job.temp_media and cfg.skip_existing and os.path.exists(final_out_path):
+        if _should_retranscribe_for_gi_segments(cfg, final_out_path):
+            return None
         rel_path = os.path.relpath(final_out_path, effective_output_dir)
         logger.debug(
             "[%s] Reusing existing Whisper transcript for summarization: %s",
@@ -507,8 +583,9 @@ def _check_transcript_cache(
 
     cache_dir = cfg.transcript_cache_dir or transcript_cache.TRANSCRIPT_CACHE_DIR
     audio_hash = transcript_cache.get_audio_hash(temp_media)
-    cached_transcript = transcript_cache.get_cached_transcript(audio_hash, cache_dir)
-    if cached_transcript:
+    cached_entry = transcript_cache.get_cached_transcript_entry(audio_hash, cache_dir)
+    if cached_entry:
+        cached_transcript, cached_segments = cached_entry
         # Save cached transcript to output file
         rel_path = _save_transcript_file(
             cached_transcript,
@@ -517,8 +594,11 @@ def _check_transcript_cache(
             effective_output_dir,
             pipeline_metrics=pipeline_metrics,
         )
+        if isinstance(cached_segments, list) and len(cached_segments) > 0:
+            _save_transcript_segments_file(cached_segments, rel_path, effective_output_dir)
         logger.info(
-            "[%s] Transcript cache hit (hash=%s) -> %s",
+            "[%s] Transcript cache hit: global cache entry audio_hash=%s "
+            "(no API transcribe; same file bytes can repeat across feeds in multi-feed) -> %s",
             job.idx,
             audio_hash,
             rel_path,
@@ -551,6 +631,97 @@ def _check_transcript_cache(
     return None
 
 
+def _preprocessing_probe_preprocessed_cache(
+    cfg: config.Config,
+    temp_media: str,
+    cache_dir: str,
+    cache_probe_bitrates: List[int],
+    transcription_provider: str,
+) -> Tuple[Optional[str], str, float]:
+    """Return cached preprocessed path, cache key, and cache check duration (GitHub #561)."""
+    from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
+    from podcast_scraper.preprocessing.audio.factory import build_ffmpeg_preprocessor_with_bitrate
+
+    cache_check_start = time.time()
+    cached_path: Optional[str] = None
+    cache_key = ""
+    for kb in cache_probe_bitrates:
+        probe_pre = build_ffmpeg_preprocessor_with_bitrate(cfg, kb)
+        ck = probe_pre.get_cache_key(temp_media)
+        hit = preprocessing_cache.get_cached_audio_path(ck, cache_dir)
+        if not hit:
+            continue
+        if transcription_provider in ("openai", "gemini"):
+            try:
+                hit_sz = os.path.getsize(hit)
+            except OSError:
+                hit_sz = 0
+            # Shared upload-style cap (constant name says OpenAI; same check for Gemini).
+            if hit_sz > OPENAI_MAX_FILE_SIZE_BYTES:
+                continue
+        cached_path = hit
+        cache_key = ck
+        break
+    return cached_path, cache_key, time.time() - cache_check_start
+
+
+def _preprocessing_reencode_mp3_until_target(
+    job_idx: int,
+    audio_preprocessor: Any,
+    temp_media: str,
+    preprocessed_path: str,
+    transcription_provider: str,
+    preprocess_elapsed: float,
+) -> Tuple[str, int, float]:
+    """GitHub #561 phase 2: step MP3 bitrate down until under target size or floor."""
+    from podcast_scraper.preprocessing.audio.factory import next_lower_mp3_bitrate_kbps
+
+    working_path = preprocessed_path
+    final_kbps = int(audio_preprocessor.mp3_bitrate_kbps)
+    total_preprocess_elapsed = float(preprocess_elapsed)
+    if transcription_provider not in ("openai", "gemini"):
+        return working_path, final_kbps, total_preprocess_elapsed
+
+    while True:
+        try:
+            sz_now = os.path.getsize(working_path)
+        except OSError:
+            break
+        if sz_now <= _PREPROCESSING_API_REENCODE_TARGET_BYTES:
+            break
+        nxt = next_lower_mp3_bitrate_kbps(final_kbps)
+        if nxt is None:
+            break
+        out_next = f"{temp_media}.re_encode.{nxt}.mp3"
+        ok_re, step_elapsed = audio_preprocessor.reencode_mp3_to_bitrate(
+            working_path, out_next, nxt
+        )
+        total_preprocess_elapsed += float(step_elapsed)
+        if not ok_re or not os.path.exists(out_next):
+            break
+        if working_path != preprocessed_path and os.path.abspath(working_path) != os.path.abspath(
+            temp_media
+        ):
+            try:
+                os.remove(working_path)
+            except OSError:
+                pass
+        working_path = out_next
+        final_kbps = int(nxt)
+        logger.info(
+            "[%s] Preprocess re-encode (GitHub #561): %d kbps MP3, %.2fs",
+            job_idx,
+            final_kbps,
+            step_elapsed,
+        )
+    if working_path != preprocessed_path and os.path.exists(preprocessed_path):
+        try:
+            os.remove(preprocessed_path)
+        except OSError:
+            pass
+    return working_path, final_kbps, total_preprocess_elapsed
+
+
 def _preprocess_audio_if_needed(
     job: TranscriptionJob,  # type: ignore[valid-type]
     cfg: config.Config,
@@ -573,7 +744,12 @@ def _preprocess_audio_if_needed(
         return media_for_transcription
 
     from podcast_scraper.preprocessing.audio import cache as preprocessing_cache
-    from podcast_scraper.preprocessing.audio.factory import create_audio_preprocessor
+    from podcast_scraper.preprocessing.audio.factory import (
+        build_ffmpeg_preprocessor_with_bitrate,
+        create_audio_preprocessor,
+        mp3_bitrates_to_probe_for_cache,
+        resolve_preprocessing_mp3_bitrate_kbps,
+    )
 
     # Log before preprocessing
     try:
@@ -597,7 +773,12 @@ def _preprocess_audio_if_needed(
         pipeline_metrics.record_preprocessing_attempt()
 
     cache_dir = cfg.preprocessing_cache_dir or preprocessing_cache.PREPROCESSING_CACHE_DIR
-    cache_key = audio_preprocessor.get_cache_key(temp_media)
+    transcription_provider = str(cfg.transcription_provider or "").lower()
+    first_pass_kbps = resolve_preprocessing_mp3_bitrate_kbps(cfg)
+    if transcription_provider in ("openai", "gemini"):
+        cache_probe_bitrates = mp3_bitrates_to_probe_for_cache(first_pass_kbps)
+    else:
+        cache_probe_bitrates = [first_pass_kbps]
 
     # Track wall time for preprocessing (Issue #387)
     preprocessing_wall_start = time.time()
@@ -614,10 +795,14 @@ def _preprocess_audio_if_needed(
             channels=audio_metadata.get("channels"),
         )
 
-    # Check cache first
-    cache_check_start = time.time()
-    cached_path = preprocessing_cache.get_cached_audio_path(cache_key, cache_dir)
-    cache_check_elapsed = time.time() - cache_check_start
+    # Check cache first (GitHub #561: probe lower bitrates for API transcription)
+    cached_path, cache_key, cache_check_elapsed = _preprocessing_probe_preprocessed_cache(
+        cfg,
+        temp_media,
+        cache_dir,
+        cache_probe_bitrates,
+        transcription_provider,
+    )
 
     if cached_path:
         logger.debug(
@@ -663,9 +848,26 @@ def _preprocess_audio_if_needed(
         preprocessing_wall_elapsed = time.time() - preprocessing_wall_start
 
         if success and os.path.exists(preprocessed_path):
-            # Save to cache
-            cached_path = preprocessing_cache.save_to_cache(preprocessed_path, cache_key, cache_dir)
+            working_path, final_kbps, total_preprocess_elapsed = (
+                _preprocessing_reencode_mp3_until_target(
+                    job.idx,
+                    audio_preprocessor,
+                    temp_media,
+                    preprocessed_path,
+                    transcription_provider,
+                    preprocess_elapsed,
+                )
+            )
+
+            cache_save_pre = build_ffmpeg_preprocessor_with_bitrate(cfg, final_kbps)
+            cache_key = cache_save_pre.get_cache_key(temp_media)
+            cached_path = preprocessing_cache.save_to_cache(working_path, cache_key, cache_dir)
             media_for_transcription = cached_path
+            if os.path.abspath(working_path) != os.path.abspath(cached_path):
+                try:
+                    os.remove(working_path)
+                except OSError:
+                    pass
 
             # Log after preprocessing with metrics
             try:
@@ -678,7 +880,7 @@ def _preprocess_audio_if_needed(
                     "[%s] Audio preprocessing: completed in %.2fs, "
                     "preprocessed file size: %.2f MB (%.1f%% reduction from %.2f MB)",
                     job.idx,
-                    preprocess_elapsed,
+                    total_preprocess_elapsed,
                     preprocessed_size_mb,
                     reduction,
                     original_size_mb,
@@ -689,12 +891,12 @@ def _preprocess_audio_if_needed(
                     reduction,
                     original_size_mb,
                     preprocessed_size_mb,
-                    preprocess_elapsed,
+                    total_preprocess_elapsed,
                 )
 
                 # Record metrics (Issue #387)
                 if pipeline_metrics is not None:
-                    pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                    pipeline_metrics.record_preprocessing_time(total_preprocess_elapsed)
                     pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
                     pipeline_metrics.record_preprocessing_cache_miss_time(
                         preprocessing_wall_elapsed
@@ -707,11 +909,11 @@ def _preprocess_audio_if_needed(
                 logger.debug(
                     "[%s] Audio preprocessing: completed in %.2fs (size unknown)",
                     job.idx,
-                    preprocess_elapsed,
+                    total_preprocess_elapsed,
                 )
                 # Still record time even if size is unknown (Issue #387)
                 if pipeline_metrics is not None:
-                    pipeline_metrics.record_preprocessing_time(preprocess_elapsed)
+                    pipeline_metrics.record_preprocessing_time(total_preprocess_elapsed)
                     pipeline_metrics.record_preprocessing_wall_time(preprocessing_wall_elapsed)
                     pipeline_metrics.record_preprocessing_cache_miss_time(
                         preprocessing_wall_elapsed
@@ -720,6 +922,14 @@ def _preprocess_audio_if_needed(
         else:
             # Preprocessing failed, use original audio
             logger.warning("[%s] Audio preprocessing failed, using original audio", job.idx)
+            _append_preprocessing_incident(
+                cfg,
+                job,
+                message=(
+                    "Audio preprocessing failed (ffmpeg); using original audio for transcription "
+                    "(GitHub #558)"
+                ),
+            )
             media_for_transcription = temp_media
             # Still record wall time even on failure (Issue #387)
             if pipeline_metrics is not None:
@@ -761,7 +971,7 @@ def _get_provider_model_name(transcription_provider: Any, cfg: config.Config) ->
             elif cfg.transcription_provider == "openai":
                 return getattr(cfg, "openai_transcription_model", "whisper-1")
             elif cfg.transcription_provider == "gemini":
-                return getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+                return getattr(cfg, "gemini_transcription_model", "gemini-2.5-flash-lite")
             elif cfg.transcription_provider == "mistral":
                 return getattr(cfg, "mistral_transcription_model", None)
             elif cfg.transcription_provider == "anthropic":
@@ -788,6 +998,7 @@ def _save_transcript_to_cache_if_needed(
     temp_media: str,
     text: str,
     transcription_provider: Any,
+    segments: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """Save transcript to cache if caching is enabled.
 
@@ -797,6 +1008,7 @@ def _save_transcript_to_cache_if_needed(
         temp_media: Path to temporary media file
         text: Transcribed text
         transcription_provider: Transcription provider instance
+        segments: Optional provider segments for GI ``.segments.json`` parity on cache hit
     """
     if not (cfg.transcript_cache_enabled and temp_media and os.path.exists(temp_media)):
         return
@@ -815,7 +1027,12 @@ def _save_transcript_to_cache_if_needed(
     model = _get_provider_model_name(transcription_provider, cfg)
     try:
         transcript_cache.save_transcript_to_cache(
-            audio_hash, text, provider_name=provider_name, model=model, cache_dir=cache_dir
+            audio_hash,
+            text,
+            provider_name=provider_name,
+            model=model,
+            cache_dir=cache_dir,
+            segments=segments,
         )
         logger.debug("[%s] Saved transcript to cache (hash=%s)", job.idx, audio_hash)
     except Exception as exc:
@@ -871,6 +1088,90 @@ def _record_transcription_metrics(
             completion_tokens=call_metrics.completion_tokens,
             estimated_cost=call_metrics.estimated_cost,
         )
+
+
+def _episode_id_and_idx_for_incident(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+) -> tuple[Optional[str], int]:
+    if job.episode is None:
+        return None, int(job.idx)
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode
+
+    episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+    return episode_id, int(job.idx)
+
+
+def _append_transcription_incident(
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    *,
+    category: str,
+    message: str,
+    exception_type: str,
+    stage: str = "transcription",
+) -> None:
+    path = getattr(cfg, "incident_log_path", None)
+    if not path:
+        return
+    episode_id, episode_idx = _episode_id_and_idx_for_incident(job, cfg)
+    append_corpus_incident(
+        path,
+        scope="episode",
+        category=category,  # type: ignore[arg-type]
+        message=message,
+        exception_type=exception_type,
+        stage=stage,
+        feed_url=cfg.rss_url,
+        episode_id=episode_id,
+        episode_idx=episode_idx,
+    )
+
+
+def _append_preprocessing_incident(
+    cfg: config.Config,
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    *,
+    message: str,
+    exception_type: str = "PreprocessFailed",
+) -> None:
+    """Append episode-scoped row when preprocessing fails and we fall back (GitHub #558)."""
+    path = getattr(cfg, "incident_log_path", None)
+    if not path:
+        return
+    episode_id, episode_idx = _episode_id_and_idx_for_incident(job, cfg)
+    append_corpus_incident(
+        path,
+        scope="episode",
+        category="policy",
+        message=message,
+        exception_type=exception_type,
+        stage="preprocessing",
+        feed_url=cfg.rss_url,
+        episode_id=episode_id,
+        episode_idx=episode_idx,
+    )
+
+
+def _mark_episode_skipped_policy(
+    job: TranscriptionJob,  # type: ignore[valid-type]
+    cfg: config.Config,
+    pipeline_metrics: Any,
+    reason: str,
+) -> None:
+    if pipeline_metrics is None or job.episode is None:
+        return
+    from podcast_scraper.workflow.helpers import get_episode_id_from_episode, update_metric_safely
+
+    episode_id, _ = get_episode_id_from_episode(job.episode, cfg.rss_url or "")
+    pipeline_metrics.update_episode_status(
+        episode_id=episode_id,
+        status="skipped",
+        stage="transcription",
+        error_type="PolicySkip",
+        error_message=redact_for_log(reason, max_len=500),
+    )
+    update_metric_safely(pipeline_metrics, "episodes_skipped_total", 1)
 
 
 def transcribe_media_to_text(
@@ -960,6 +1261,30 @@ def transcribe_media_to_text(
     # All providers receive optimized audio (Whisper, OpenAI, future providers)
     media_for_transcription = _preprocess_audio_if_needed(job, cfg, temp_media, pipeline_metrics)
 
+    if (
+        cfg.transcription_provider in ("openai", "gemini")
+        and media_for_transcription
+        and os.path.exists(media_for_transcription)
+    ):
+        try:
+            preprocessed_bytes = os.path.getsize(media_for_transcription)
+        except OSError:
+            preprocessed_bytes = None
+        # OPENAI_MAX_FILE_SIZE_BYTES names the historical constant; both OpenAI and Gemini
+        # transcription paths use this same post-preprocess ceiling (GitHub #557 / #561).
+        if preprocessed_bytes is not None and preprocessed_bytes > OPENAI_MAX_FILE_SIZE_BYTES:
+            msg = (
+                f"Preprocessed audio ({preprocessed_bytes} B) exceeds API limit "
+                f"({OPENAI_MAX_FILE_SIZE_BYTES} B); skipping transcription (GitHub #557)"
+            )
+            logger.warning("[%s] %s", job.idx, msg)
+            _append_transcription_incident(
+                cfg, job, category="policy", message=msg, exception_type="PolicySkip"
+            )
+            _mark_episode_skipped_policy(job, cfg, pipeline_metrics, msg)
+            _cleanup_temp_media(temp_media, cfg)
+            return False, None, bytes_downloaded
+
     try:
         # Stage 2: Use provider's transcribe_with_segments method for full result with segments
         # This supports both plain text and screenplay formatting
@@ -1001,31 +1326,55 @@ def transcribe_media_to_text(
             _save_transcript_segments_file(segments, rel_path, effective_output_dir)
 
         # Save transcript to cache for future use (enables fast multi-provider experimentation)
-        _save_transcript_to_cache_if_needed(job, cfg, temp_media, text, transcription_provider)
+        _save_transcript_to_cache_if_needed(
+            job,
+            cfg,
+            temp_media,
+            text,
+            transcription_provider,
+            segments=segments if isinstance(segments, list) else None,
+        )
 
         # Record transcription time if metrics available
         _record_transcription_metrics(job, cfg, tc_elapsed, call_metrics, pipeline_metrics)
 
         return True, rel_path, bytes_downloaded
     except (ValueError, ProviderRuntimeError) as exc:
-        # Handle file size validation errors gracefully
-        error_msg = str(exc)
-        if "exceeds" in error_msg and "limit" in error_msg:
+        if is_provider_audio_payload_limit_error(exc):
             logger.warning(
-                "[%s] Skipping episode due to file size limit: %s",
+                "[%s] Skipping episode due to provider payload / file size limit: %s",
                 job.idx,
-                redact_for_log(error_msg),
+                redact_for_log(str(exc)),
             )
-            # Return False to indicate episode was skipped (not failed)
-            return False, None, bytes_downloaded
-        else:
-            # Re-raise if it's a different ValueError
-            logger.error(
-                "    Transcription validation failed: %s",
-                format_exception_for_log(exc),
+            _append_transcription_incident(
+                cfg,
+                job,
+                category="policy",
+                message=str(exc),
+                exception_type=type(exc).__name__,
             )
+            _mark_episode_skipped_policy(job, cfg, pipeline_metrics, str(exc))
             return False, None, bytes_downloaded
+        logger.error(
+            "    Transcription validation failed: %s",
+            format_exception_for_log(exc),
+        )
+        _append_transcription_incident(
+            cfg,
+            job,
+            category="hard",
+            message=str(exc),
+            exception_type=type(exc).__name__,
+        )
+        return False, None, bytes_downloaded
     except (RuntimeError, OSError, ProviderError) as exc:
+        _append_transcription_incident(
+            cfg,
+            job,
+            category="hard",
+            message=str(exc),
+            exception_type=type(exc).__name__,
+        )
         logger.error(
             "    Whisper transcription failed: %s",
             format_exception_for_log(exc),
@@ -1221,14 +1570,17 @@ def process_transcript_download(
     )
 
     if cfg.dry_run:
+        dry_path = out_path
+        if planned_ext in (".vtt", ".srt"):
+            dry_path = os.path.splitext(out_path)[0] + ".txt"
         logger.info(
             "[%s] (dry-run) transcript available: %s -> %s",
             episode.idx,
             episode.title,
             transcript_url,
         )
-        logger.info(f"    [dry-run] would save as: {out_path}")
-        return True, out_path, "direct_download", 0
+        logger.info(f"    [dry-run] would save as: {dry_path}")
+        return True, dry_path, "direct_download", 0
 
     logger.info(f"[{episode.idx}] downloading transcript: {episode.title} -> {transcript_url}")
 
@@ -1246,7 +1598,36 @@ def process_transcript_download(
             episode, transcript_url, transcript_type, effective_output_dir, run_suffix, ext
         )
 
-    # Write transcript file
+    if ext in (".vtt", ".srt"):
+        try:
+            body = data.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            body = data.decode("utf-8", errors="replace")
+        if ext == ".vtt":
+            plain, segments = parse_webvtt(body)
+        else:
+            plain, segments = parse_srt(body)
+        if plain.strip() and segments:
+            txt_path = os.path.splitext(out_path)[0] + ".txt"
+            rel_path_result = _write_transcript_file(
+                plain.encode("utf-8"), txt_path, cfg, episode, effective_output_dir
+            )
+            if rel_path_result is None:
+                return False, None, None, bytes_downloaded
+            _save_transcript_segments_file(segments, rel_path_result, effective_output_dir)
+            logger.info(
+                "[%s] normalized %s to .txt with %d segment(s) for GI timing",
+                episode.idx,
+                ext,
+                len(segments),
+            )
+            return True, rel_path_result, "direct_download", bytes_downloaded
+        logger.warning(
+            "[%s] %s parse yielded no usable cues; saving raw caption bytes",
+            episode.idx,
+            ext,
+        )
+
     rel_path_result = _write_transcript_file(data, out_path, cfg, episode, effective_output_dir)
     if rel_path_result is None:
         return False, None, None, bytes_downloaded

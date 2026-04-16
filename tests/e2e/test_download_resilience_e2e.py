@@ -169,11 +169,12 @@ class TestMultiFeedIsolation:
                 http_backoff_factor=0.0,
                 rss_retry_total=2,
                 rss_backoff_factor=0.0,
+                multi_feed_strict=True,
             )
             result = service.run(cfg)
 
             assert result.episodes_processed >= 1, "At least one feed should succeed"
-            assert result.success is False, "Overall success should be False (one feed failed)"
+            assert result.success is False, "Strict mode: success False (one feed failed)"
             assert result.error is not None, "Error should be reported for the failed feed"
 
 

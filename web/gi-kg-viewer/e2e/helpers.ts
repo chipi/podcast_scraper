@@ -4,7 +4,7 @@ import { GI_SAMPLE_FIXTURE } from './fixtures'
 /** Shell `<h1>` product title; v2 lives in a child span (accessible name includes it). */
 export const SHELL_HEADING_RE = /Podcast Intelligence Platform/i
 
-/** Header nav (Digest / Library / Graph / Dashboard) — scope clicks to avoid substring clashes (e.g. “Open Library”, “Load into graph”). */
+/** Header nav (Digest / Library / Graph / Dashboard) — scope clicks to avoid substring clashes (e.g. main-tab Library vs “Load into graph”). */
 export function mainViewsNav(page: Page) {
   return page.getByRole('navigation', { name: 'Main views' })
 }

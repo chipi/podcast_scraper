@@ -22,6 +22,7 @@ from podcast_scraper.search.cli_handlers import (
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.protocol import SearchResult
+from podcast_scraper.search.topic_clusters import load_topic_cluster_enrichment_map
 from podcast_scraper.search.transcript_chunk_lift import (
     lift_row_if_transcript,
     TranscriptLiftGiCache,
@@ -104,6 +105,25 @@ class CorpusSearchOutcome:
     """Per-response lift counters (RFC-072 #528); set on success after ``top_k`` slice."""
 
 
+def _attach_topic_cluster_metadata(rows: List[Dict[str, Any]], corpus_root: Path) -> None:
+    """Join RFC-075 ``topic_clusters.json`` into ``kg_topic`` metadata (query-time join)."""
+    m = load_topic_cluster_enrichment_map(corpus_root)
+    if not m:
+        return
+    for row in rows:
+        meta = row.get("metadata")
+        if not isinstance(meta, dict):
+            continue
+        if meta.get("doc_type") != "kg_topic":
+            continue
+        sid = meta.get("source_id")
+        if not isinstance(sid, str) or not sid.strip():
+            continue
+        info = m.get(sid.strip())
+        if info:
+            meta["topic_cluster"] = dict(info)
+
+
 def _lift_stats_for_page(enriched: List[Dict[str, Any]]) -> Dict[str, int]:
     transcript_returned = 0
     lift_applied = 0
@@ -159,6 +179,7 @@ def _enrich_lift_and_slice(
             )
     if dedupe_kg_surfaces:
         enriched = dedupe_kg_surface_rows(enriched)
+    _attach_topic_cluster_metadata(enriched, output_dir)
     page = enriched[:top_k]
     return page, _lift_stats_for_page(page)
 

@@ -36,6 +36,27 @@
         "timestamp_end_ms": 0,
         "transcript_ref": "transcript.txt"
       }
+    },
+    {
+      "id": "quote:second-ci-line",
+      "type": "Quote",
+      "properties": {
+        "text": "Extra line for scroll.",
+        "episode_id": "ci-fixture",
+        "speaker_id": null,
+        "char_start": 62,
+        "char_end": 84,
+        "timestamp_start_ms": 0,
+        "timestamp_end_ms": 0,
+        "transcript_ref": "transcript.txt"
+      }
+    },
+    {
+      "id": "topic:ci-policy",
+      "type": "Topic",
+      "properties": {
+        "label": "Climate policy"
+      }
     }
   ],
   "edges": [
@@ -48,6 +69,16 @@
       "type": "SUPPORTED_BY",
       "from": "insight:b72dafa3f874480d",
       "to": "quote:4729aa32a95c9ca1"
+    },
+    {
+      "type": "SUPPORTED_BY",
+      "from": "insight:b72dafa3f874480d",
+      "to": "quote:second-ci-line"
+    },
+    {
+      "type": "ABOUT",
+      "from": "insight:b72dafa3f874480d",
+      "to": "topic:ci-policy"
     }
   ]
 }

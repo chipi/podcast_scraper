@@ -6,6 +6,7 @@ defaults, equality, and string representation. These tests don't require
 HTTP mocking or E2E server - they're pure unit tests.
 """
 
+import json
 import os
 import sys
 import tempfile
@@ -69,6 +70,7 @@ class TestServiceResult(unittest.TestCase):
         self.assertTrue(result.success)  # Default is True
         self.assertIsNone(result.error)  # Default is None
         self.assertIsNone(result.multi_feed_summary)
+        self.assertIsNone(result.soft_failures)
 
     def test_service_result_equality(self):
         """ServiceResult should support equality comparison."""
@@ -249,7 +251,7 @@ class TestServiceRunMultiFeed440(unittest.TestCase):
             {"https://a.example/feed.xml", "https://b.example/feed.xml"},
         )
         self.assertIsNotNone(result.multi_feed_summary)
-        self.assertEqual(result.multi_feed_summary.get("schema_version"), "1.0.0")
+        self.assertEqual(result.multi_feed_summary.get("schema_version"), "1.1.0")
         self.assertTrue(result.multi_feed_summary.get("overall_ok"))
         self.assertEqual(len(result.multi_feed_summary.get("feeds") or []), 2)
         mock_apply_log.assert_called_once()
@@ -281,6 +283,127 @@ class TestServiceRunMultiFeed440(unittest.TestCase):
         self.assertIn("feed b failed", result.error)
         self.assertIsNotNone(result.multi_feed_summary)
         self.assertFalse(result.multi_feed_summary.get("overall_ok"))
+
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_multi_feed_default_success_with_soft_failures_only(
+        self, mock_apply_log, mock_run_pipeline
+    ):
+        """GitHub #559: default success when all failed feeds are soft-classified."""
+
+        def _side_effect(cfg):
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise ValueError("Failed to fetch RSS feed.")
+            return (1, "ok")
+
+        mock_run_pipeline.side_effect = _side_effect
+        from podcast_scraper import config as cfg_mod
+
+        with tempfile.TemporaryDirectory() as corpus:
+            cfg = cfg_mod.Config(
+                rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                output_dir=corpus,
+                max_episodes=1,
+                user_agent="test",
+                timeout=30,
+            )
+            result = service_module.run(cfg)
+
+        self.assertTrue(result.success)
+        self.assertEqual(result.episodes_processed, 1)
+        self.assertIsNone(result.error)
+        self.assertIsNotNone(result.soft_failures)
+        self.assertIn("Failed to fetch RSS feed", result.soft_failures)
+        self.assertIsNotNone(result.multi_feed_summary)
+        self.assertFalse(result.multi_feed_summary.get("overall_ok"))
+
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_multi_feed_strict_true_fails_when_feed_failures_are_soft_only(
+        self, mock_apply_log, mock_run_pipeline
+    ):
+        """GitHub #559: strict mode fails the run even when every failed feed is soft-classified."""
+
+        def _side_effect(cfg):
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise ValueError("Failed to fetch RSS feed.")
+            return (1, "ok")
+
+        mock_run_pipeline.side_effect = _side_effect
+        from podcast_scraper import config as cfg_mod
+
+        with tempfile.TemporaryDirectory() as corpus:
+            cfg = cfg_mod.Config(
+                rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                output_dir=corpus,
+                max_episodes=1,
+                user_agent="test",
+                timeout=30,
+                multi_feed_strict=True,
+            )
+            result = service_module.run(cfg)
+
+        self.assertFalse(result.success)
+        self.assertIsNotNone(result.error)
+        self.assertIsNone(result.soft_failures)
+        self.assertIsNotNone(result.multi_feed_summary)
+        self.assertFalse(result.multi_feed_summary.get("overall_ok"))
+
+    @patch("podcast_scraper.service.workflow.run_pipeline")
+    @patch("podcast_scraper.service.workflow.apply_log_level")
+    def test_run_multi_feed_soft_failure_appends_corpus_incidents_jsonl(
+        self, mock_apply_log, mock_run_pipeline
+    ):
+        """GitHub #557: soft feed failure appends one feed-scoped row to corpus_incidents.jsonl."""
+
+        from podcast_scraper import config as cfg_mod
+        from podcast_scraper.exceptions import ProviderRuntimeError
+
+        def _side_effect(cfg):
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise ProviderRuntimeError(
+                    message="Error code: 413 - Maximum content size limit (26214400 bytes)",
+                    provider="OpenAIProvider/Transcription",
+                )
+            return (1, "ok")
+
+        mock_run_pipeline.side_effect = _side_effect
+        with tempfile.TemporaryDirectory() as corpus:
+            cfg = cfg_mod.Config(
+                rss_urls=["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                output_dir=corpus,
+                max_episodes=1,
+                user_agent="test",
+                timeout=30,
+            )
+            result = service_module.run(cfg)
+
+            self.assertTrue(result.success)
+            self.assertIsNotNone(result.soft_failures)
+            incident_path = os.path.join(corpus, "corpus_incidents.jsonl")
+            self.assertTrue(os.path.isfile(incident_path))
+            lines = open(incident_path, encoding="utf-8").read().strip().splitlines()
+            self.assertEqual(len(lines), 1)
+            row = json.loads(lines[0])
+            self.assertEqual(row["scope"], "feed")
+            self.assertEqual(row["category"], "soft")
+            self.assertEqual(row["stage"], "pipeline")
+            self.assertIn("b.example", row["feed_url"])
+            self.assertIn("413", row["message"])
+
+            first_cfg = mock_run_pipeline.call_args_list[0].args[0]
+            self.assertEqual(first_cfg.incident_log_path, incident_path)
+
+            mfs = result.multi_feed_summary or {}
+            self.assertEqual(mfs.get("schema_version"), "1.1.0")
+            bi = mfs.get("batch_incidents") or {}
+            self.assertEqual(bi.get("lines_in_window"), 1)
+            self.assertEqual((bi.get("feed_incidents_unique") or {}).get("soft"), 1)
+            self.assertEqual(bi.get("episodes_documented_skips_unique"), 0)
+            feeds = mfs.get("feeds") or []
+            by_url = {str(r["feed_url"]): r for r in feeds if isinstance(r, dict)}
+            b_row = by_url.get("https://b.example/feed.xml") or {}
+            self.assertEqual((b_row.get("episode_incidents_unique") or {}).get("policy"), 0)
 
 
 class TestServiceRunFromConfigFile(unittest.TestCase):

@@ -1462,4 +1462,5 @@ class GrokProvider:
             supports_system_prompt=True,  # Grok supports system prompts
             supports_streaming=True,  # Grok API supports streaming
             provider_name="grok",
+            supports_gi_segment_timing=False,
         )

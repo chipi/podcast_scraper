@@ -27,6 +27,25 @@ export function logicalEpisodeIdFromGraphNodeId(cyId: string): string | null {
   return null
 }
 
+/**
+ * Whether a graph tap should open **Episode** rail (metadata detail) vs graph node detail.
+ * When ``rawNode`` is missing — e.g. ``findRawNodeInArtifact`` used only the ego slice while
+ * the episode exists on the merged graph — fall back to episode-shaped ``cyId`` so catalog
+ * resolution still runs.
+ */
+export function graphCyIdRepresentsEpisodeNode(
+  cyId: string,
+  rawNode: RawGraphNode | null,
+): boolean {
+  if (rawNode?.type === 'Episode') {
+    return true
+  }
+  if (rawNode != null) {
+    return false
+  }
+  return logicalEpisodeIdFromGraphNodeId(cyId) != null
+}
+
 export function metadataPathFromEpisodeProperties(node: RawGraphNode | null): string | null {
   if (!node?.properties || typeof node.properties !== 'object') return null
   const p = node.properties as Record<string, unknown>
@@ -83,15 +102,23 @@ export async function resolveEpisodeMetadataViaCorpusCatalog(
   corpusPath: string,
   logicalEpisodeId: string,
   maxPages = 8,
+  /** When true (e.g. graph node focus changed), stop paging and return null. */
+  shouldCancel?: () => boolean,
 ): Promise<string | null> {
   const want = logicalEpisodeId.trim()
   if (!want || !corpusPath.trim()) return null
   let cursor: string | null = null
   for (let page = 0; page < maxPages; page++) {
+    if (shouldCancel?.()) {
+      return null
+    }
     const body = await fetchCorpusEpisodes(corpusPath.trim(), {
       limit: 200,
       cursor,
     })
+    if (shouldCancel?.()) {
+      return null
+    }
     const hit = body.items.find(
       (it) => it.episode_id === want && it.metadata_relative_path?.trim(),
     )

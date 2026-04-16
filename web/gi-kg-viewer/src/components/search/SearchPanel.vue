@@ -122,10 +122,19 @@ function toggleType(v: string): void {
   }
 }
 
+/** RFC-075: optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
+function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
+  const tc = hit.metadata?.topic_cluster
+  if (tc == null || typeof tc !== 'object') return null
+  const g = (tc as Record<string, unknown>).graph_compound_parent_id
+  return typeof g === 'string' && g.trim() ? g.trim() : null
+}
+
 function onFocusHit(hit: SearchHit): void {
   const id = graphNodeIdFromSearchHit(hit)
   if (!id) return
-  nav.requestFocusNode(id)
+  const tcParent = topicClusterCompoundIdForCamera(hit)
+  nav.requestFocusNode(id, undefined, tcParent ? [tcParent] : undefined)
   emit('go-graph')
 }
 

@@ -1,3 +1,6 @@
+import { dedupeInFlight } from './inFlightDedupe'
+import { fetchWithTimeout } from './httpClient'
+
 export interface IndexStatsBody {
   total_vectors: number
   doc_type_counts: Record<string, number>
@@ -33,12 +36,14 @@ export async function fetchIndexStats(corpusPath?: string): Promise<IndexStatsEn
   const url = p
     ? `/api/index/stats?${new URLSearchParams({ path: p })}`
     : '/api/index/stats'
-  const res = await fetch(url)
-  if (!res.ok) {
-    const t = await res.text()
-    throw new Error(t || `HTTP ${res.status}`)
-  }
-  return (await res.json()) as IndexStatsEnvelope
+  return dedupeInFlight(`GET|${url}`, async () => {
+    const res = await fetchWithTimeout(url)
+    if (!res.ok) {
+      const t = await res.text()
+      throw new Error(t || `HTTP ${res.status}`)
+    }
+    return (await res.json()) as IndexStatsEnvelope
+  })
 }
 
 export async function postIndexRebuild(opts: {
@@ -54,7 +59,7 @@ export async function postIndexRebuild(opts: {
   }
   const qs = q.toString()
   const url = qs ? `/api/index/rebuild?${qs}` : '/api/index/rebuild'
-  const res = await fetch(url, { method: 'POST' })
+  const res = await fetchWithTimeout(url, { method: 'POST' })
   if (res.status === 409) {
     const t = await res.text()
     throw new Error(t || 'Index rebuild already running for this corpus.')

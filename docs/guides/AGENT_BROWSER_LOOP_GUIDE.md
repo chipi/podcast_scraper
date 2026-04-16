@@ -2,7 +2,7 @@
 
 **Status:** Reference Guide
 **Applies to:** Local development, agent-assisted UI debugging, E2E test workflows
-**Last updated:** April 2026
+**Last updated:** April 2026 (obligatory MCP validation + symmetry rule: re-validate in the same channel as reproduction)
 
 ---
 
@@ -255,6 +255,19 @@ not replace it. Use MCP when:
 - A test failure is confusing and you want the agent to **step through the flow**
   with console and network visibility
 
+### E2E surface map as a debugging aid (not only Playwright)
+
+[`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+is the **Playwright automation contract**, but it is also the best single reference for **expected
+accessible names, regions, entry paths, and disambiguation** (for example, scoping the semantic
+**Search** submit under the **Semantic search** section so it does not collide with the right-panel
+**Search** tab). Playwright MCP, Chrome DevTools MCP, and human manual repro all read essentially the
+same **accessibility tree** as the test suite. When a spec fails, when an agent mis-clicks in a
+snapshot, or when you need a checklist for “what should appear next,” start from the surface map,
+then open the owning spec listed there. It does **not** replace UXS for visual design or the
+[Server Guide](SERVER_GUIDE.md) for HTTP; it complements Network / Console / Vue DevTools for **label
+and flow** ground truth.
+
 ---
 
 ## Live co-development mode
@@ -291,12 +304,44 @@ alias chrome-dev='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome
   --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug-profile'
 ```
 
+### Connect DevTools MCP to this Chrome (Chrome 136+ / macOS)
+
+From **Chrome 136** onward, remote debugging with the **default** user data directory is
+restricted for security. Chrome may **not** create `DevToolsActivePort` under
+`~/Library/Application Support/Google/Chrome/`, and nothing may listen on port **9222**
+if you only pass `--remote-debugging-port` on your normal profile.
+
+**`chrome-devtools-mcp`** with **`--autoConnect`** often discovers the browser by reading
+that default path. On a hardened macOS Chrome, you then see errors like
+`Could not find DevToolsActivePort` even when Chrome is running.
+
+**What works reliably here:** always launch **`chrome-dev`** (non-default
+`--user-data-dir` **and** `--remote-debugging-port=9222`), then point the MCP server at the
+HTTP debug endpoint with **`--browserUrl`** **`http://127.0.0.1:9222`** and **omit**
+**`--autoConnect`**. After editing MCP config, **restart the devtools MCP server** (or
+reload Cursor) so the new args take effect.
+
+Quick check before relying on the agent:
+
+```bash
+curl -s http://127.0.0.1:9222/json/version
+```
+
+You should get JSON including `webSocketDebuggerUrl`. If `curl` fails, the agent cannot
+attach either.
+
+**Alternative:** **`--autoConnect`** plus one-time enablement at
+`chrome://inspect/#remote-debugging` can work on some setups (browser approval flow).
+If you use it and still see `DevToolsActivePort` errors, switch to **`chrome-dev`** +
+**`--browserUrl`** as above.
+
 ### How the loop works
 
 ```text
 1. You open Chrome (chrome-dev), navigate to http://127.0.0.1:5174
 2. Vite dev server is running (make serve or npm run dev in web/gi-kg-viewer)
-3. Agent attaches via Chrome DevTools MCP — now shares your session
+3. DevTools MCP is configured with --browserUrl http://127.0.0.1:9222 (see IDE setup);
+   agent attaches — now shares your session
 4. You direct: "The episode metadata row is too cramped — add spacing
    between the feed name and the publish date"
 5. Agent sees:
@@ -312,6 +357,86 @@ alias chrome-dev='/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome
 11. Agent edits again → hot-reload → agent verifies → you confirm
 12. When satisfied: agent runs make test-ui-e2e to catch regressions
 ```
+
+### Obligatory validation when fixing a reported UI bug
+
+When the user says something in the **GI/KG viewer** (or any dev-server UI you can reach) is **broken**
+— wrong data, broken link, 404 in a new tab, console errors — treat **“I fixed it”** as a claim that
+requires **evidence**. Do **not** hand the proof obligation back to the user unless you are **blocked**
+(see below).
+
+**Symmetry rule (non-negotiable):** Whatever channel you use to **reproduce** the bug is the same channel
+you must use to **confirm the fix**, unless that channel becomes impossible after the fix (say so explicitly).
+If you reproduced with **Chrome DevTools MCP** (snapshot, `new_page` on the failing URL, network row),
+you **must** re-run that same MCP flow after the fix (and after any required **API restart**). Passing
+**pytest** or **`make test-ui`** alone does **not** replace that check; tests are **additional** regression
+locks, not a substitute for re-checking the reproduction you already ran.
+
+**Standard sequence (agent runs this, not the user):**
+
+1. **Attach and inspect** — Use **Chrome DevTools MCP** with the user’s live session when available:
+   `list_pages` → `select_page` → `take_snapshot` to see the relevant control, link `url`, and layout.
+   Read the tool schema in the MCP descriptor folder before the first call (project policy). For
+   **expected** control names, regions, and multi-step entry paths (and known duplicate labels),
+   cross-check [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+   — same contract as Playwright and a11y snapshots.
+2. **Reproduce the failure** — For **same-tab** behavior: interact via snapshot `uid`s (`click`, etc.)
+   if needed; use `list_network_requests` / `get_network_request` for status codes and response bodies.
+   For **“open in new tab”** links: use `new_page` with the **exact** `href` (or `navigate_page` on the
+   selected tab) and read the resulting snapshot (e.g. raw JSON error) and network row (e.g. **404** vs
+   **400**). This removes guesswork about encoding, proxy path, or server validation.
+3. **Fix** — Change **viewer** (`web/gi-kg-viewer/`) and/or **API** (`src/podcast_scraper/server/`) as
+   needed. Prefer **automated tests** as the durable proof: Vitest (`make test-ui`) for URL builders /
+   pure TS; **FastAPI** `TestClient` tests under `tests/integration/server/` (and unit tests under
+   `tests/unit/podcast_scraper/server/`) for HTTP behavior. Add or extend **Playwright** specs when the
+   surface is E2E-stable (`e2e/E2E_SURFACE_MAP.md`).
+4. **Re-validate** — **First:** repeat the **same reproduction path as step 2** (same MCP tools, same
+   URL or clicks, same tab vs new tab). Restart long-lived processes you changed (e.g. **API** after
+   Python edits) before this repeat. **Then:** run Makefile targets that cover your edits (e.g.
+   `make test-ui`, targeted integration pytest). Treat automated tests as **required extras**, not as
+   replacing the MCP/browser confirmation when you used MCP/browser to reproduce. **Do not** say “all
+   good” from tests alone if you reproduced the bug in Chrome and never re-checked Chrome afterward.
+5. **Report** — Summarize what you **verified** (MCP observation and/or command output), not only what
+   you **changed**.
+
+**When you are blocked**
+
+- DevTools MCP is not enabled, Chrome is not on the debugging port, or **no** reproducible URL/state —
+  state that explicitly and say what the user must enable or provide.
+- The bug requires credentials or production data you cannot access — say so; narrow the claim to what
+   tests prove.
+
+**Relationship to E2E**
+
+This subsection is the **interactive** half of the loop; **`make test-ui-e2e`** remains the regression
+gate before commit. MCP validation catches issues that specs do not yet cover; new or updated specs
+lock the behavior in CI.
+
+### Pipeline and environment pitfalls (viewer bugs)
+
+Lessons from fixing **merged-graph / filtered-graph** behavior (e.g. transcript links, corpus-relative
+paths):
+
+1. **Agent `curl` to `localhost` is not proof the app is down.** The agent environment may not reach
+   your machine’s loopback. If the user says the dev server is up, prefer **Chrome DevTools MCP**
+   (`list_pages`, `select_page`) attached to their session instead of declaring “nothing listening”
+   from a sandbox probe alone.
+
+2. **Reproduce the same *data shape* as the user.** Single-file load, **merged multi-file** load,
+   **filter toggles**, and **ego / one-hop focus** can hit different code paths. A fix that works for
+   one shape can still fail for another; extend the reproduction (and Vitest) to match how the user
+   loads the graph.
+
+3. **Trace the full prop/store pipeline before closing.** Example: `displayArtifact` →
+   `applyGraphFilters` → `viewWithEgo` / `filterArtifactEgoOneHop` → rail `NodeDetail`. If any step
+   **rebuilds** a model object (new `ParsedArtifact`, cloned graph state), grep for constructors that
+   copy only a subset of fields. New metadata fields (paths, maps, ids) must be **passed through** on
+   every rebuild, or the UI will look “fixed” in unit tests on the raw parse while the rail still sees
+   stripped data.
+
+4. **Ground-truth the broken URL in the browser.** For API-backed links, read the actual `href` or
+   `new_page` URL and decode `relpath` (e.g. must start with `feeds/…` when the artifact lives under a
+   feed run). That catches encoding issues and **wrong-relative** paths in one step.
 
 ### What makes this work
 
@@ -667,7 +792,12 @@ interact with elements, fill forms, and take screenshots. This is available in a
 mode without additional MCP configuration.
 
 For Playwright MCP and Chrome DevTools MCP, add them to your project or user MCP
-config (`.cursor/mcp.json`):
+config (`.cursor/mcp.json`).
+
+**Recommended (live co-development with `chrome-dev`, Chrome 136+ on macOS):** use
+**`--browserUrl`** so the server talks to port **9222** instead of scanning the default
+profile for `DevToolsActivePort`. Start **`chrome-dev`** before the agent uses DevTools
+MCP. After changing `mcp.json`, restart the devtools MCP server or Cursor.
 
 ```json
 {
@@ -681,7 +811,12 @@ config (`.cursor/mcp.json`):
     },
     "devtools": {
       "command": "npx",
-      "args": ["-y", "@chrome-devtools/mcp@latest", "--autoConnect"]
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--browserUrl",
+        "http://127.0.0.1:9222"
+      ]
     }
   }
 }
@@ -690,21 +825,27 @@ config (`.cursor/mcp.json`):
 Console level options: `error` | `warning` | `info` | `debug` (each includes more
 severe levels).
 
-**autoConnect** (Chrome 144+) requests attachment to your running Chrome session with
-your explicit approval in the browser — no need to relaunch Chrome with a debug port.
-For older Chrome versions, use the explicit port approach:
+**Alternative — autoConnect:** some setups can use **`--autoConnect`** instead of
+**`--browserUrl`**. Enable remote debugging in Chrome at
+`chrome://inspect/#remote-debugging` and approve when prompted. If you use **Chrome Dev
+channel** as your daily browser, add `"--channel=dev"` to the `args` array so the
+server matches the correct channel. On **macOS with recent stable Chrome**, autoConnect
+often still fails with `DevToolsActivePort` unless you use **`chrome-dev`** +
+**`--browserUrl`** as above.
 
 ```json
 {
   "mcpServers": {
     "devtools": {
       "command": "npx",
-      "args": ["-y", "@chrome-devtools/mcp@latest",
-               "--ws-endpoint", "ws://localhost:9222"]
+      "args": ["-y", "chrome-devtools-mcp@latest", "--autoConnect"]
     }
   }
 }
 ```
+
+Use the **npm package name `chrome-devtools-mcp`** (unscoped). The name
+`@chrome-devtools/mcp` is not published and will make `npx` fail.
 
 ### Claude Code
 
@@ -714,12 +855,12 @@ Add MCP servers via the CLI:
 # Playwright MCP with devtools capability
 claude mcp add playwright -- npx @playwright/mcp@latest --caps devtools
 
-# Chrome DevTools MCP (autoConnect — Chrome 144+)
-claude mcp add devtools -- npx @chrome-devtools/mcp@latest --autoConnect
+# Chrome DevTools MCP (recommended: chrome-dev + browserUrl on Chrome 136+ / macOS)
+claude mcp add devtools -- npx -y chrome-devtools-mcp@latest \
+  --browserUrl http://127.0.0.1:9222
 
-# Or with explicit debug port
-claude mcp add devtools -- npx @chrome-devtools/mcp@latest \
-  --ws-endpoint ws://localhost:9222
+# Alternative: autoConnect (chrome://inspect/#remote-debugging) when it works for you
+claude mcp add devtools -- npx -y chrome-devtools-mcp@latest --autoConnect
 
 # Verify
 claude mcp list
@@ -775,4 +916,4 @@ make run-compare
 - [Chrome DevTools MCP vs Playwright MCP vs CLI — test-lab.ai](https://www.test-lab.ai/blog/chrome-devtools-mcp-vs-playwright-mcp-cli) — decision guide
 - [Playwright MCP vs CLI — Shipyard](https://shipyard.build/blog/playwright-mcp-vs-cli/) — token efficiency tradeoffs
 - [Playwright MCP official docs](https://playwright.dev/docs/getting-started-mcp)
-- [Chrome DevTools MCP — GitHub](https://github.com/ChromeDevTools/devtools-mcp)
+- [Chrome DevTools MCP — GitHub](https://github.com/ChromeDevTools/chrome-devtools-mcp)

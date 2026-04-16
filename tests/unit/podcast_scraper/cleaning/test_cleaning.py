@@ -153,6 +153,33 @@ class TestLLMBasedCleaner(unittest.TestCase):
         result = cleaner.clean(long_input, mock_provider)
         self.assertEqual(result, long_input)
 
+    def test_clean_rejects_llm_output_at_ratio_0179_issue_564(self):
+        """Borderline real-world ratio under 20% (e.g. ~0.179) still falls back (GitHub #564)."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        long_input = "a" * 5000
+        self.assertGreaterEqual(len(long_input), 2000)
+        out_len = int(len(long_input) * 0.179)
+        llm_out = "x" * out_len
+        self.assertLess(len(llm_out) / len(long_input), 0.20)
+        mock_provider.clean_transcript.return_value = llm_out
+        result = cleaner.clean(long_input, mock_provider)
+        self.assertEqual(result, long_input)
+
+    def test_clean_accepts_llm_output_at_exact_twenty_percent_ratio_issue_564(self):
+        """Output length exactly 20% of input passes (guard uses strictly below 0.20)."""
+        cleaner = LLMBasedCleaner()
+        mock_provider = Mock()
+        long_input = "a" * 5000
+        self.assertGreaterEqual(len(long_input), 2000)
+        out_len = int(len(long_input) * 0.20)
+        self.assertEqual(out_len, 1000)
+        llm_out = "x" * out_len
+        self.assertEqual(len(llm_out) / len(long_input), 0.20)
+        mock_provider.clean_transcript.return_value = llm_out
+        result = cleaner.clean(long_input, mock_provider)
+        self.assertEqual(result, llm_out)
+
 
 class TestHybridCleaner(unittest.TestCase):
     """Tests for HybridCleaner."""

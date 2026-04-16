@@ -955,6 +955,12 @@ class TestGeminiProviderPricing(unittest.TestCase):
         self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.10)
         self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.40)
 
+    def test_get_pricing_2_5_flash_lite_speaker_detection(self):
+        """Test pricing lookup for default Gemini 2.5 Flash-Lite (flash-tier estimate)."""
+        pricing = GeminiProvider.get_pricing("gemini-2.5-flash-lite", "speaker_detection")
+        self.assertEqual(pricing["input_cost_per_1m_tokens"], 0.10)
+        self.assertEqual(pricing["output_cost_per_1m_tokens"], 0.40)
+
     def test_get_pricing_1_5_pro_summarization(self):
         """Test pricing lookup for Gemini 1.5 Pro summarization."""
         pricing = GeminiProvider.get_pricing("gemini-1.5-pro", "summarization")

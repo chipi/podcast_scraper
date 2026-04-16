@@ -50,9 +50,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev,ml,llm]
-          # Clean up pip cache after installation to save space
-          pip cache purge || true
+          # Retry: spaCy model wheels are direct GitHub release URLs; transient 502s happen.
+          for n in 1 2 3 4 5; do
+            if pip install -e .[dev,ml,llm]; then
+              pip cache purge || true
+              exit 0
+            fi
+            echo "pip install failed (attempt $n/5), retry in 45s..."
+            sleep 45
+          done
+          exit 1
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/python@master
@@ -170,9 +177,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev,ml,llm]
-          # Clean up pip cache after installation to save space
-          pip cache purge || true
+          # Retry: spaCy model wheels are direct GitHub release URLs; transient 502s happen.
+          for n in 1 2 3 4 5; do
+            if pip install -e .[dev,ml,llm]; then
+              pip cache purge || true
+              exit 0
+            fi
+            echo "pip install failed (attempt $n/5), retry in 45s..."
+            sleep 45
+          done
+          exit 1
 
       - name: Run Snyk to monitor project
         uses: snyk/actions/python@master

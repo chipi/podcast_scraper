@@ -119,9 +119,10 @@ config/acceptance/*
 !config/acceptance/sample_acceptance_e2e_fixture_multi_ollama_qwen3_5_35b.yaml
 !config/acceptance/sample_acceptance_e2e_fixture_multi_openai.yaml
 
-# Manual: track README only; keep *.yaml local (not committed)
+# Manual: track README + E2E mock preset; keep other *.yaml local (not committed)
 config/manual/*
 !config/manual/README.md
+!config/manual/manual_e2e_mock.yaml
 
 # CI-related local files under config/ci (optional stem lists, etc.); not committed
 config/ci/*

@@ -38,9 +38,11 @@ from typing import Any, Dict, List, Optional
 
 from . import __version__, config
 from .utils import filesystem
+from .utils.corpus_incidents import append_corpus_incident
 from .utils.log_redaction import redact_for_log
 from .workflow import orchestration as workflow
 from .workflow.corpus_operations import (
+    classify_multi_feed_feed_exception,
     finalize_multi_feed_batch,
     MultiFeedFeedResult,
     utc_iso_now,
@@ -63,6 +65,10 @@ class ServiceResult:
             the same JSON-shaped dict as ``corpus_run_summary.json`` at the corpus parent
             (GitHub #506). ``None`` for single-feed runs and for top-level failures before
             multi-feed finalize.
+        soft_failures: When ``success`` is True but some feeds failed with **soft**
+            classifications only (GitHub #559; default ``multi_feed_strict`` is False),
+            holds the same aggregated detail that would have been in ``error`` under **strict**
+            mode (``multi_feed_strict=True``). ``None`` when there were no soft-only failures.
     """
 
     episodes_processed: int
@@ -70,14 +76,19 @@ class ServiceResult:
     success: bool = True
     error: Optional[str] = None
     multi_feed_summary: Optional[Dict[str, Any]] = None
+    soft_failures: Optional[str] = None
 
 
 def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
     """Run one pipeline per feed under ``output_dir/feeds/…`` (GitHub #440).
 
-    Per-feed failures are isolated: other feeds still run; ``success`` is False if any fail.
-    After the batch, writes manifest/summary (#506) and builds a parent vector index when
-    ``vector_search`` and FAISS are enabled (#505).
+    Per-feed failures are isolated: other feeds still run. When ``cfg.multi_feed_strict`` is
+    False (default) and **every** failed feed is classified as **soft** (see
+    ``classify_multi_feed_feed_exception``), ``success`` stays True with details on
+    ``ServiceResult.soft_failures``. If ``multi_feed_strict`` is True (strict CI), or any
+    failure is **hard**, ``success`` is False if any feed fails.
+    After the batch, writes manifest/summary (#506) and builds a parent vector
+    index when ``vector_search`` and FAISS are enabled (#505).
     """
     from podcast_scraper.utils.corpus_lock import corpus_parent_lock
 
@@ -87,17 +98,25 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
     parent = cfg.output_dir or ""
     batch: List[MultiFeedFeedResult] = []
     skip_auto = cfg.vector_search is True and getattr(cfg, "vector_backend", "faiss") == "faiss"
+    incident_log_default = str(Path(parent) / "corpus_incidents.jsonl")
+    incident_log_start = (
+        Path(incident_log_default).stat().st_size if Path(incident_log_default).is_file() else 0
+    )
 
     try:
         with corpus_parent_lock(Path(parent), logger=logger):
             for url in feed_urls:
                 child_dir = filesystem.corpus_feed_output_dir(parent, url)
+                incident_log = (cfg.incident_log_path or "").strip()
+                if not incident_log:
+                    incident_log = str(Path(parent) / "corpus_incidents.jsonl")
                 sub_cfg = cfg.model_copy(
                     update={
                         "rss_url": url,
                         "output_dir": child_dir,
                         "rss_urls": None,
                         "skip_auto_vector_index": skip_auto,
+                        "incident_log_path": incident_log,
                     },
                 )
                 try:
@@ -109,9 +128,28 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
                     )
                 except Exception as exc:
                     msg = redact_for_log(str(exc))
+                    kind = classify_multi_feed_feed_exception(exc)
                     logger.error("Multi-feed: feed failed url=%s err=%s", url, msg, exc_info=True)
+                    append_corpus_incident(
+                        sub_cfg.incident_log_path,
+                        scope="feed",
+                        category=kind,
+                        message=msg,
+                        exception_type=type(exc).__name__,
+                        stage="pipeline",
+                        feed_url=url,
+                    )
                     err_parts.append(f"{url}: {msg}")
-                    batch.append(MultiFeedFeedResult(url, False, msg, 0, finished_at=utc_iso_now()))
+                    batch.append(
+                        MultiFeedFeedResult(
+                            url,
+                            False,
+                            msg,
+                            0,
+                            finished_at=utc_iso_now(),
+                            failure_kind=kind,
+                        )
+                    )
 
             template = cfg.model_copy(
                 update={
@@ -121,7 +159,13 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
                     "skip_auto_vector_index": False,
                 }
             )
-            summary_doc = finalize_multi_feed_batch(parent, template, batch)
+            summary_doc = finalize_multi_feed_batch(
+                parent,
+                template,
+                batch,
+                incident_log_path=incident_log_default,
+                incident_log_start_offset=incident_log_start,
+            )
     except RuntimeError as exc:
         return ServiceResult(
             episodes_processed=0,
@@ -133,11 +177,31 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
 
     if err_parts:
         summary_text = "\n".join(ok_parts + ["", "Failures:", *err_parts])
+        joined = "; ".join(err_parts)
+        soft_only = bool(
+            (not cfg.multi_feed_strict)
+            and batch
+            and all((fr.ok or fr.failure_kind == "soft") for fr in batch)
+        )
+        if soft_only:
+            logger.warning(
+                "Multi-feed: %d feed(s) failed with soft-classified errors; "
+                "treating run as success (multi_feed_strict=False).",
+                sum(1 for fr in batch if not fr.ok),
+            )
+            return ServiceResult(
+                episodes_processed=total,
+                summary=summary_text,
+                success=True,
+                error=None,
+                multi_feed_summary=summary_doc,
+                soft_failures=joined,
+            )
         return ServiceResult(
             episodes_processed=total,
             summary=summary_text,
             success=False,
-            error="; ".join(err_parts),
+            error=joined,
             multi_feed_summary=summary_doc,
         )
     return ServiceResult(

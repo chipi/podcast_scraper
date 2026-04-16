@@ -250,7 +250,7 @@ This document analyzes the gaps between implemented features (issues #138, #139,
 ```text
        # Run a minimal pipeline with a test feed
        python -m podcast_scraper.cli \
-         --rss http://127.0.0.1:8000/podcast1/feed.xml \
+         --rss http://127.0.0.1:18765/feeds/podcast1/feed.xml \
          --output-dir /tmp/pipeline-metrics \
          --max-episodes 1 \
          --metrics-output reports/output/pipeline_metrics.json

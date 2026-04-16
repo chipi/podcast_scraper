@@ -1,3 +1,6 @@
+import { dedupeInFlight } from './inFlightDedupe'
+import { fetchWithTimeout } from './httpClient'
+
 export interface CorpusStatsResponse {
   path: string
   publish_month_histogram: Record<string, number>
@@ -49,23 +52,33 @@ async function readJson<T>(res: Response): Promise<T> {
 }
 
 export async function fetchCorpusStats(corpusPath: string): Promise<CorpusStatsResponse> {
-  const q = new URLSearchParams({ path: corpusPath.trim() })
-  const res = await fetch(`/api/corpus/stats?${q.toString()}`)
-  return readJson<CorpusStatsResponse>(res)
+  const key = corpusPath.trim()
+  const q = new URLSearchParams({ path: key })
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/stats?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/stats?${qs}`)
+    return readJson<CorpusStatsResponse>(res)
+  })
 }
 
 export async function fetchCorpusRunsSummary(
   corpusPath: string,
 ): Promise<CorpusRunsSummaryResponse> {
   const q = new URLSearchParams({ path: corpusPath.trim() })
-  const res = await fetch(`/api/corpus/runs/summary?${q.toString()}`)
-  return readJson<CorpusRunsSummaryResponse>(res)
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/runs/summary?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/runs/summary?${qs}`)
+    return readJson<CorpusRunsSummaryResponse>(res)
+  })
 }
 
 export async function fetchCorpusManifest(
   corpusPath: string,
 ): Promise<CorpusManifestDocument> {
   const q = new URLSearchParams({ path: corpusPath.trim() })
-  const res = await fetch(`/api/corpus/documents/manifest?${q.toString()}`)
-  return readJson<CorpusManifestDocument>(res)
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/documents/manifest?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/documents/manifest?${qs}`)
+    return readJson<CorpusManifestDocument>(res)
+  })
 }

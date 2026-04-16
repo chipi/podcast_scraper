@@ -30,6 +30,11 @@ export const graphNodeTypeStyles = Object.freeze({
     border: '#862e9c',
     labelColor: '#0d1117',
   },
+  TopicCluster: {
+    background: '#9775fa',
+    border: '#5f3dc4',
+    labelColor: '#e9ecef',
+  },
   Entity_person: {
     background: '#9775fa',
     border: '#5f3dc4',
@@ -58,6 +63,7 @@ export const graphNodeTypesOrdered = Object.freeze([
   'Quote',
   'Speaker',
   'Topic',
+  'TopicCluster',
   'Entity_person',
   'Entity_organization',
   'Podcast',
@@ -68,6 +74,7 @@ export type GraphVisualType = (typeof graphNodeTypesOrdered)[number] | '?' | 'En
 export function graphNodeLegendLabel(key: string): string {
   if (key === 'Entity_person') return 'Entity (person)'
   if (key === 'Entity_organization') return 'Entity (organization)'
+  if (key === 'TopicCluster') return 'Topic cluster'
   return key
 }
 

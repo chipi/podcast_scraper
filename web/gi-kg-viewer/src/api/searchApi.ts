@@ -1,3 +1,12 @@
+import { fetchWithTimeout } from './httpClient'
+
+/** RFC-075 query-time join from ``search/topic_clusters.json`` (``kg_topic`` hits only). */
+export interface TopicClusterHitMeta {
+  graph_compound_parent_id: string
+  canonical_label: string
+  cil_alias_target_topic_id?: string
+}
+
 export interface SearchHit {
   doc_id: string
   score: number
@@ -56,7 +65,7 @@ export async function searchCorpus(
   if (options.dedupeKgSurfaces === false) {
     params.set('dedupe_kg_surfaces', 'false')
   }
-  const res = await fetch(`/api/search?${params.toString()}`)
+  const res = await fetchWithTimeout(`/api/search?${params.toString()}`)
   if (!res.ok) {
     const t = await res.text()
     throw new Error(t || `HTTP ${res.status}`)

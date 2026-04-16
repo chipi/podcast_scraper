@@ -48,7 +48,7 @@ PYTEST_WORKERS ?= 2
 # Parallel execution via pytest-xdist caused double-runs on CI (exit-code mismatch
 # triggered fallback, doubling wall time).
 
-.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-q verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e verify-gil-offsets-strict
+.PHONY: help init init-no-ml venv-dev-init test-unit-dev-venv download-spacy-wheels format format-check lint lint-markdown lint-markdown-docs fix-md strip-doc-checkmarks strip-doc-emoji strip-docs type security security-bandit security-audit complexity complexity-track deadcode docstrings spelling spelling-docs quality check-unit-imports check-test-policy check-pricing-assumptions validate-gi-schema validate-kg-schema gil-quality-metrics compare-gil-runs kg-quality-metrics quality-metrics-ci fetch-ci-metrics fetch-ci-metrics-validate fetch-nightly-metrics validate-metrics-bundle build-metrics-dashboard-preview metrics-preview-check serve-metrics-dashboard metrics-dashboard-live deps-analyze deps-check deps-graph deps-graph-full call-graph flowcharts visualize release-docs-prep pre-release bump analyze-test-memory cleanup-processes check-zombie check-spotlight test-unit test-unit-sequential test-unit-no-ml test-integration test-integration-sequential test-integration-fast test-ci test-ci-fast test-e2e test-e2e-sequential test-e2e-fast test-e2e-data-q verify-gil-offsets-after-acceptance preload-transformers-integration-summariesuality test-nightly test test-sequential test-fast test-reruns test-track test-track-view test-openai test-openai-multi test-openai-all-feeds test-openai-real test-openai-real-multi test-openai-real-all-feeds test-openai-real-feed coverage coverage-check coverage-check-unit coverage-check-integration coverage-check-e2e coverage-check-combined merge-cov-fragments coverage-report coverage-enforce docs docs-check build _ci_body ci ci-fast ci-sequential ci-clean ci-nightly clean clean-cache clean-model-cache clean-all docker-build docker-build-fast docker-build-full docker-test docker-clean install-hooks preload-ml-models preload-ml-models-production hf-hub-smoke-test backup-cache backup-cache-dry-run backup-cache-list backup-cache-cleanup restore-cache restore-cache-dry-run metadata-generate source-index dataset-create dataset-smoke dataset-benchmark dataset-raw dataset-materialize run-promote baseline-create experiment-run ml-param-sweep autoresearch-score silver-pairwise runs-list baselines-list run-compare runs-compare benchmark profile-freeze profile-diff profile-promote serve-gi-kg-viz test-ui test-ui-e2e verify-gil-offsets-strict
 
 help:
 	@echo "Common developer commands:"
@@ -100,6 +100,8 @@ help:
 	@echo "  make flowcharts          Generate flowcharts for orchestration and service (code2flow)"
 	@echo "  make visualize           Generate all architecture visualizations (deps, call graph, flowcharts)"
 	@echo "  make release-docs-prep   Regenerate diagrams + create release notes draft (then commit)"
+	@echo "  make pre-release         ADR-031: pre_release_check.py (version + release notes) then make ci"
+	@echo "  make bump VERSION=X.Y.Z  Bump pyproject.toml + __init__.py (optional ALLOW_DIRTY=1 FORCE_TAG=1)"
 	@echo "  make test-ui             Vitest unit tests for TypeScript utils in $(WEB_VIEWER_DIR) (fast, no browser)"
 	@echo "  make test-ui-e2e         Playwright E2E for $(WEB_VIEWER_DIR) (RFC-062; needs npm install in that dir)"
 	@echo ""
@@ -403,8 +405,10 @@ docs-check: lint-markdown-docs spelling-docs docs
 # These are ambitious but achievable targets based on current coverage levels
 # Combined threshold is enforced in CI; per-layer thresholds ensure no layer is neglected
 COVERAGE_THRESHOLD_UNIT := 70          # Current: ~74% local, ~70% CI
-COVERAGE_THRESHOLD_INTEGRATION := 40   # Current: ~54% local, ~42% CI
-COVERAGE_THRESHOLD_E2E := 40           # Current: ~53% local, ~50% CI
+COVERAGE_THRESHOLD_INTEGRATION := 42   # Raised 2026-04: integration-only line cov ~43% local
+# E2E: full ``podcast_scraper`` tree in coverage denominator (``pyproject.toml`` only; no subtree omit).
+# Target 40%; if local ``make coverage-check-e2e`` is below this, add pytest E2E until the gate passes.
+COVERAGE_THRESHOLD_E2E := 40
 COVERAGE_THRESHOLD_COMBINED := 70      # Combined line coverage (make ci + coverage-enforce); align with CI workflow
 
 check-unit-imports:
@@ -442,8 +446,11 @@ validate-kg-schema:
 	fi
 
 # GI/KG viewer v2 (RFC-062 / #489): FastAPI + Vite. Install: pip install -e '.[server]'; cd $(WEB_VIEWER_DIR) && npm install
-.PHONY: serve serve-api serve-ui
+.PHONY: serve serve-api serve-ui serve-e2e-mock
 SERVE_OUTPUT_DIR ?= ./output
+# Fixed port for ``config/manual/manual_e2e_mock.yaml`` (override when YAML edited).
+# Deliberately not 8000 so ``serve-e2e-mock`` can run alongside ``serve-api`` (FastAPI default).
+E2E_MOCK_PORT ?= 18765
 serve:
 	@echo "Running serve-api and serve-ui in parallel (Ctrl+C stops both)."
 	@$(MAKE) -j2 serve-api serve-ui
@@ -453,6 +460,10 @@ serve-api:
 
 serve-ui:
 	@cd $(WEB_VIEWER_DIR) && npm run dev
+
+# E2E fixture HTTP server (RSS + mock API paths) for manual multi-feed YAML (see config/manual/manual_e2e_mock.yaml).
+serve-e2e-mock:
+	@export PYTHONPATH="${PYTHONPATH}:$(PWD)/src:$(PWD)" && $(PYTHON) scripts/tools/run_e2e_mock_server.py --port "$(E2E_MOCK_PORT)"
 
 # RFC-062: Vitest unit tests for TypeScript utility logic (no browser needed)
 test-ui:
@@ -1516,6 +1527,24 @@ release-docs-prep: visualize
 	@echo "✓ Release docs prep complete"
 	@echo "Review: git status docs/architecture/ docs/releases/ && git diff docs/architecture/ docs/releases/"
 	@echo "Then commit: git add docs/architecture/diagrams/*.svg docs/releases/RELEASE_*.md && git commit -m 'docs: release docs prep (visualizations and release notes)'"
+
+# ADR-031: fast version/release-doc checks, then full CI (long; avoid concurrent make ci).
+pre-release:
+	@echo "Running scripts/pre_release_check.py …"
+	@$(PYTHON) scripts/pre_release_check.py
+	@echo "Running make ci (preload + tests + docs + build) …"
+	@$(MAKE) ci
+
+# Bump [project].version and __version__ (no v). Optional: ALLOW_DIRTY=1, FORCE_TAG=1
+bump:
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Usage: make bump VERSION=X.Y.Z   [ALLOW_DIRTY=1] [FORCE_TAG=1]"; \
+		exit 1; \
+	fi
+	@cmd="$(PYTHON) scripts/tools/bump_version.py $(VERSION)"; \
+	if [ "$(ALLOW_DIRTY)" = "1" ]; then cmd="$$cmd --allow-dirty"; fi; \
+	if [ "$(FORCE_TAG)" = "1" ]; then cmd="$$cmd --force"; fi; \
+	eval $$cmd
 
 analyze-test-memory:
 	# Analyze test suite memory usage and resource consumption

@@ -1,0 +1,40 @@
+{
+  "feeds": [
+    "https://example.com/podcast-feed-a.xml",
+    "https://example.com/podcast-feed-b.xml"
+  ],
+  "output_dir": "output",
+  "max_episodes": 3,
+
+  "transcription_provider": "whisper",
+  "speaker_detector_provider": "ollama",
+  "summary_provider": "ollama",
+
+  "ollama_speaker_model": "qwen3.5:9b",
+  "ollama_summary_model": "qwen3.5:9b",
+  "ollama_temperature": 0.0,
+  "llm_pipeline_mode": "bundled",
+
+  "preprocessing_enabled": true,
+
+  "transcribe_missing": true,
+  "generate_metadata": true,
+  "generate_summaries": true,
+  "generate_gi": true,
+  "gi_insight_source": "summary_bullets",
+  "gi_max_insights": 5,
+  "generate_kg": true,
+  "kg_extraction_source": "summary_bullets",
+  "kg_max_topics": 5,
+  "vector_search": true,
+  "vector_backend": "faiss",
+
+  "delay_ms": 250,
+  "language": "en",
+  "auto_speakers": true,
+  "cache_detected_hosts": true,
+  "screenplay": true,
+  "speaker_names": ["Host", "Guest"],
+  "workers": 4,
+  "log_level": "INFO"
+}

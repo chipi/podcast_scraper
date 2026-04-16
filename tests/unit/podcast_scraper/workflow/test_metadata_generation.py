@@ -756,6 +756,9 @@ class TestBuildProcessingMetadata(unittest.TestCase):
             result.config_snapshot["ml_providers"]["transcription"]["whisper_model"],
             config.TEST_DEFAULT_WHISPER_MODEL.replace(".en", ""),
         )
+        self.assertTrue(
+            result.config_snapshot["ml_providers"]["transcription"]["gi_segment_timing_expected"]
+        )
         self.assertEqual(result.config_snapshot["auto_speakers"], True)
         self.assertEqual(result.config_snapshot["screenplay"], True)
         self.assertEqual(result.config_snapshot["max_episodes"], 10)
@@ -776,6 +779,17 @@ class TestBuildProcessingMetadata(unittest.TestCase):
             self.assertNotIn(
                 "whisper_model", result.config_snapshot["ml_providers"]["transcription"]
             )
+
+    def test_build_processing_metadata_gi_segment_timing_expected_gemini(self):
+        """Gemini transcription records gi_segment_timing_expected false (GitHub #543)."""
+        cfg = create_test_config(
+            transcription_provider="gemini",
+            gemini_api_key="test-key-for-metadata",
+        )
+        result = metadata._build_processing_metadata(cfg, "/output")
+        tinfo = result.config_snapshot["ml_providers"]["transcription"]
+        self.assertEqual(tinfo["provider"], "gemini")
+        self.assertFalse(tinfo["gi_segment_timing_expected"])
 
 
 class TestSerializeMetadata(unittest.TestCase):

@@ -7,9 +7,13 @@
 
 rss: https://example.com/feed.xml
 # Multi-feed corpus (GitHub #440): use `feeds` / `rss_urls` instead of `rss`. See
-# config.example.multi-feed.yaml and config.example.multi-feed.json in this folder.
-output_dir: output_podcast_example  # Can also be set via OUTPUT_DIR env var
-max_episodes: 10
+# config.example.multi-feed.cloud-llm.yaml / .json (OpenAI + Gemini + GI/KG + vector_search;
+# placeholder feeds — same option set as manual_multi_feed_corpus_rss_registry_openai_gemini.yaml),
+# config.example.multi-feed.ollama.yaml / .json (Whisper + Ollama qwen3.5:9b, bundled pipeline),
+# and config.example.multi-feed.ml-dev.yaml / .json plus ml-prod (Whisper + spaCy + transformers;
+# RFC-044 modes ml_small_authority vs ml_bart_led_autoresearch_v1; placeholder feeds).
+output_dir: output  # Can also be set via OUTPUT_DIR env var
+max_episodes: 3
 # Episode selection (GitHub #521): optional order, offset, publish-date window — see
 # docs/api/CONFIGURATION.md#episode-selection-github-521
 # episode_order: newest   # or oldest
@@ -142,12 +146,10 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # openai_temperature: 0.3  # Default: 0.3 (0.0-2.0)
 
 # Gemini model configuration (optional - defaults are used if not specified)
-# Environment-based defaults:
-#   Test/Dev: gemini-1.5-flash (fast, cheap)
-#   Production: gemini-1.5-pro (higher quality)
-# gemini_transcription_model: gemini-1.5-pro  # Default: environment-based (gemini-1.5-flash for test, gemini-1.5-pro for prod)
-# gemini_speaker_model: gemini-1.5-pro  # Default: environment-based
-# gemini_summary_model: gemini-1.5-pro  # Default: environment-based
+# Default (test and production): gemini-2.5-flash-lite (GA flash-tier; override for quality)
+# gemini_transcription_model: gemini-1.5-pro  # Example: higher-quality transcription
+# gemini_speaker_model: gemini-1.5-pro  # Example: higher-quality speaker detection
+# gemini_summary_model: gemini-1.5-pro  # Example: higher-quality summaries
 # gemini_temperature: 0.3  # Default: 0.3 (0.0-2.0, lower = more deterministic)
 # gemini_max_tokens: null  # Default: null (use model default)
 
@@ -262,7 +264,7 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 # openai_cleaning_max_tokens: null  # Default: null (80-90% of input length)
 # openai_cleaning_llm_threshold: 0.10  # Default: 0.10 (use LLM if pattern reduces < 10%)
 
-# gemini_cleaning_model: gemini-2.0-flash  # Default: gemini-2.0-flash (gemini-1.5-flash not available in new API)
+# gemini_cleaning_model: gemini-2.5-flash-lite  # Default: gemini-2.5-flash-lite (gemini-1.5-flash remapped)
 # gemini_cleaning_temperature: 0.2
 # gemini_cleaning_max_tokens: null
 # gemini_cleaning_llm_threshold: 0.10

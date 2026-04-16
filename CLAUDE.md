@@ -33,8 +33,13 @@
   **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
   and/or the relevant **feature UXS** (`docs/uxs/index.md`) if the visual/token experience contract changes.
   See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section).
+- **User-reported viewer bugs:** reproduce and re-validate with **Chrome DevTools MCP** (or Playwright MCP); **validate the fix in the same channel you used to reproduce** (symmetry rule — tests alone are not a substitute if you reproduced in the browser). Also run **`make test-ui`** / integration server tests / **`make test-ui-e2e`** as appropriate. Workflow: **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (*Obligatory validation* + *Symmetry rule*).
 - **FastAPI `/api/*`**: tests in **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; reference **`docs/guides/SERVER_GUIDE.md`**.
 - **Local serve from a chosen output dir:** interpret “use this folder as root” as **`make serve SERVE_OUTPUT_DIR=…`** / **`make serve-api SERVE_OUTPUT_DIR=…`**; do **not** edit the Makefile default unless the user explicitly wants the repo default changed. **`VITE_DEFAULT_CORPUS_PATH`** is only for pre-filling the viewer shell path (see `.cursorrules` GI/KG section).
+- **Agent-started servers:** when the agent starts **`make serve`** / **`make serve-api`** without the user naming a root, use **`SERVE_OUTPUT_DIR=.test_outputs`** unless another path is clearly implied (see `.cursorrules` GI/KG section).
+- **FastAPI reload after server edits:** **Restart `make serve-api`** in-session with the same **`SERVE_OUTPUT_DIR`** rule (default **`.test_outputs`** for agent-initiated restarts when no path is given); verify **`/api/health`**; say **Ready for tests** with URL + root — **do not** only instruct the user to restart. Background **`serve-api`** is allowed under `.cursorrules` Rule **9**.
+- **`.metrics/rule-adherence.jsonl`**: append at milestones and before commit/push (see `.cursorrules`) — rules/skills/subagents self-audit **only**; no retrospective fields.
+- **Rule 18** (session review): same closing **cadence** often as the last metrics line, but **separate** — brief reflection; promote durable lessons into guides or `.cursor/rules` (not JSONL).
 
 ## COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)
 

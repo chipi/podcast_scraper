@@ -18,6 +18,28 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def gi_segment_timing_expected_for_transcription_provider(provider_name: str) -> bool:
+    """Whether ``transcription_provider`` typically yields timed segments for GI audio timestamps.
+
+    The same segment lists (when non-empty and aligned) gate **GI quote ``speaker_id``** when
+    chunk rows include ``speaker`` / ``speaker_id`` (GitHub #541); this helper only answers the
+    **timing** expectation for config/metadata (GitHub #543).
+
+    ``transcribe_with_segments`` may still return empty ``segments`` for some APIs (e.g. Gemini,
+    Mistral today); this flag matches the documented matrix for **config / metadata** hints
+    (GitHub #543). Only **whisper** and **openai** are treated as segment-capable until adapters
+    exist for other backends.
+
+    Args:
+        provider_name: Value of ``Config.transcription_provider`` (case-insensitive).
+
+    Returns:
+        True for whisper and openai; False otherwise (including unknown strings).
+    """
+    n = (provider_name or "").strip().lower()
+    return n in ("whisper", "openai")
+
+
 @dataclass(frozen=True)
 class ProviderCapabilities:
     """Provider capability contract.
@@ -37,6 +59,9 @@ class ProviderCapabilities:
         supports_system_prompt: Whether provider supports system prompts
         supports_streaming: Whether provider supports streaming responses
         provider_name: Human-readable provider name for logging/debugging
+        supports_gi_segment_timing: Transcription usually yields timed segments for GI
+            ``timestamp_*_ms``; the same segments enable ``speaker_id`` when rows carry
+            speaker labels (Whisper-style / ``.segments.json``; GitHub #543 / #541).
     """
 
     supports_transcription: bool
@@ -50,6 +75,7 @@ class ProviderCapabilities:
     supports_system_prompt: bool = True  # Most modern LLMs support this
     supports_streaming: bool = False  # Not currently used, but available
     provider_name: str = "unknown"
+    supports_gi_segment_timing: bool = False
 
     def __str__(self) -> str:
         """Human-readable string representation."""
@@ -64,6 +90,8 @@ class ProviderCapabilities:
             capabilities.append("audio_input")
         if self.supports_json_mode:
             capabilities.append("json_mode")
+        if self.supports_gi_segment_timing:
+            capabilities.append("gi_segment_timing")
         return (
             f"{self.provider_name}({', '.join(capabilities)}, max_tokens={self.max_context_tokens})"
         )
@@ -170,6 +198,8 @@ def _infer_capabilities(provider: Any) -> ProviderCapabilities:
     # Semantic cleaning is only supported by LLM providers (not MLProvider)
     supports_semantic_cleaning = has_clean_transcript and provider_type != "MLProvider"
 
+    supports_gi_segment_timing = provider_type in ("OpenAIProvider", "MLProvider")
+
     return ProviderCapabilities(
         supports_transcription=has_transcribe,
         supports_speaker_detection=has_detect_speakers,
@@ -182,4 +212,5 @@ def _infer_capabilities(provider: Any) -> ProviderCapabilities:
         supports_system_prompt=supports_system,
         supports_streaming=False,  # Not currently used
         provider_name=provider_name,
+        supports_gi_segment_timing=supports_gi_segment_timing,
     )

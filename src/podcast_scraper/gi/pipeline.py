@@ -35,6 +35,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Max |len(transcript) - sum(segment text)| before skipping segment-based timestamps (FR2.2).
+# Avoids mapping quote char offsets to wrong audio after reformatting or edited transcripts.
+SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA = 50
+
 # Stub insight text used when no real insights (single stub)
 _STUB_INSIGHT_TEXT = "Summary insight (stub)."
 
@@ -148,6 +152,36 @@ def _safe_iso_date(s: Optional[str]) -> str:
     return "2020-01-01T00:00:00Z"
 
 
+def _segment_text_cumulative_length(segments: List[Dict[str, Any]]) -> int:
+    """Sum of len(segment['text']) over dict segments (same rules as timestamp mapping)."""
+    pos = 0
+    for seg in segments:
+        if not isinstance(seg, dict):
+            continue
+        text = seg.get("text") or ""
+        pos += len(text)
+    return pos
+
+
+def _transcript_segments_alignment_delta(
+    transcript: str, segments: List[Dict[str, Any]]
+) -> Tuple[int, int, int]:
+    """Return ``(len(transcript), reconstructed_segment_len, abs_delta)``."""
+    recon = _segment_text_cumulative_length(segments)
+    lt = len(transcript)
+    return lt, recon, abs(lt - recon)
+
+
+def _transcript_segments_aligned(
+    transcript: str,
+    segments: List[Dict[str, Any]],
+    max_delta: int = SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA,
+) -> bool:
+    """True if concatenated segment text length matches transcript within ``max_delta``."""
+    _, _, delta = _transcript_segments_alignment_delta(transcript, segments)
+    return delta <= max_delta
+
+
 def _char_range_to_ms(
     transcript: str,
     char_start: int,
@@ -186,7 +220,7 @@ def _char_range_to_ms(
     if not seg_list:
         return 0, 0
     # Only map when segment text length matches transcript (no heavy reformatting)
-    if abs(len(transcript) - pos) > 50:
+    if abs(len(transcript) - pos) > SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA:
         return 0, 0
     # Find segments overlapping [char_start, char_end]; use first overlap for start, last for end
     start_ms = 0
@@ -240,7 +274,7 @@ def _speaker_id_for_char_range(
         pos = seg_end
     if not seg_list:
         return None
-    if abs(len(transcript) - pos) > 50:
+    if abs(len(transcript) - pos) > SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA:
         return None
     for seg_start, seg_end, seg in seg_list:
         if seg_start <= char_start < seg_end:
@@ -744,7 +778,29 @@ def _artifact_from_multi_insight(
     edges: list = []
     quote_global_idx = 0
     persons_added: Set[str] = set()
-    use_segments = bool(transcript_text and transcript_segments and len(transcript_segments) > 0)
+    use_segments_raw = bool(
+        transcript_text and transcript_segments and len(transcript_segments) > 0
+    )
+    if use_segments_raw and transcript_segments is not None:
+        aligned = _transcript_segments_aligned(transcript_text or "", transcript_segments)
+        if not aligned:
+            lt, recon, delta = _transcript_segments_alignment_delta(
+                transcript_text or "", transcript_segments
+            )
+            logger.warning(
+                "GIL: episode %s transcript vs segment text length mismatch (%s): "
+                "len(transcript)=%d concatenated_segment_len=%d abs_delta=%d (max_delta=%d); "
+                "skipping segment-based quote timestamps and segment speakers (issue #545).",
+                episode_id,
+                transcript_ref or "",
+                lt,
+                recon,
+                delta,
+                SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA,
+            )
+        use_segments = aligned
+    else:
+        use_segments = False
     topic_node_specs = _dedupe_topic_node_specs(topic_labels)
     for tid, display_label in topic_node_specs:
         nodes.append(

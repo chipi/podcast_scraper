@@ -181,7 +181,9 @@ def create_speaker_detector(  # noqa: C901
             cfg = Config(
                 rss="",  # Dummy, not used for speaker detection (use alias)
                 speaker_detector_provider="gemini",
-                gemini_speaker_model=params.model_name if params.model_name else "gemini-2.0-flash",
+                gemini_speaker_model=(
+                    params.model_name if params.model_name else "gemini-2.5-flash-lite"
+                ),
                 gemini_temperature=params.temperature if params.temperature is not None else 0.3,
                 gemini_api_key=os.getenv("GEMINI_API_KEY"),  # Load from env
             )

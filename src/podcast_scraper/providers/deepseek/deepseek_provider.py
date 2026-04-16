@@ -1360,4 +1360,5 @@ class DeepSeekProvider:
             supports_system_prompt=True,  # DeepSeek supports system prompts
             supports_streaming=True,  # DeepSeek API supports streaming
             provider_name="deepseek",
+            supports_gi_segment_timing=False,
         )

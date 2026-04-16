@@ -7,6 +7,15 @@ import {
   fetchCorpusSimilarEpisodes,
 } from './corpusLibraryApi'
 
+function expectFetchCalledWithUrl(expectedUrl: string): void {
+  expect(fetch).toHaveBeenCalledWith(
+    expectedUrl,
+    expect.objectContaining({
+      signal: expect.any(AbortSignal),
+    }),
+  )
+}
+
 function mockFetchJson(
   ok: boolean,
   body: unknown,
@@ -36,7 +45,7 @@ describe('corpusLibraryApi', () => {
       const payload = { path: '/resolved', feeds: [] }
       mockFetchJson(true, payload)
       await expect(fetchCorpusFeeds('  /my/corpus  ')).resolves.toEqual(payload)
-      expect(fetch).toHaveBeenCalledWith('/api/corpus/feeds?path=%2Fmy%2Fcorpus')
+      expectFetchCalledWithUrl('/api/corpus/feeds?path=%2Fmy%2Fcorpus')
     })
 
     it('throws with response text when not ok', async () => {
@@ -53,6 +62,23 @@ describe('corpusLibraryApi', () => {
       mockFetchJson(false, {}, '{"detail":"Not Found"}', 404)
       await expect(fetchCorpusFeeds('/x')).rejects.toThrow(/Corpus Library endpoint not found/)
     })
+
+    it('dedupes concurrent fetchCorpusFeeds for the same path into one HTTP call', async () => {
+      const payload = { path: '/c', feeds: [] }
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+          ok: true,
+          status: 200,
+          text: async () => '',
+          json: async () => payload,
+        })) as unknown as typeof fetch,
+      )
+      const [a, b] = await Promise.all([fetchCorpusFeeds('/c'), fetchCorpusFeeds('/c')])
+      expect(a).toEqual(payload)
+      expect(b).toEqual(payload)
+      expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
+    })
   })
 
   describe('fetchCorpusEpisodes', () => {
@@ -60,16 +86,14 @@ describe('corpusLibraryApi', () => {
       const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
       mockFetchJson(true, payload)
       await fetchCorpusEpisodes('/c', {})
-      expect(fetch).toHaveBeenCalledWith('/api/corpus/episodes?path=%2Fc')
+      expectFetchCalledWithUrl('/api/corpus/episodes?path=%2Fc')
     })
 
     it('includes feed_id for empty string (ungrouped filter)', async () => {
       const payload = { path: '/r', feed_id: '', items: [], next_cursor: null }
       mockFetchJson(true, payload)
       await fetchCorpusEpisodes('/c', { feedId: '' })
-      expect(fetch).toHaveBeenCalledWith(
-        '/api/corpus/episodes?path=%2Fc&feed_id=',
-      )
+      expectFetchCalledWithUrl('/api/corpus/episodes?path=%2Fc&feed_id=')
     })
 
     it('passes q, since, limit, cursor when set', async () => {
@@ -130,7 +154,7 @@ describe('corpusLibraryApi', () => {
       await expect(
         fetchCorpusEpisodeDetail('/root', 'metadata/a.metadata.json'),
       ).resolves.toEqual(payload)
-      expect(fetch).toHaveBeenCalledWith(
+      expectFetchCalledWithUrl(
         '/api/corpus/episodes/detail?path=%2Froot&metadata_relpath=metadata%2Fa.metadata.json',
       )
     })
@@ -148,7 +172,7 @@ describe('corpusLibraryApi', () => {
       }
       mockFetchJson(true, payload)
       await fetchCorpusSimilarEpisodes('/root', 'metadata/a.metadata.json', { topK: 5 })
-      expect(fetch).toHaveBeenCalledWith(
+      expectFetchCalledWithUrl(
         '/api/corpus/episodes/similar?path=%2Froot&metadata_relpath=metadata%2Fa.metadata.json&top_k=5',
       )
     })

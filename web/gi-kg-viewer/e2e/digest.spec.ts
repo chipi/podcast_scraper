@@ -121,13 +121,20 @@ test.describe('Corpus Digest tab', () => {
       })
     })
     await page.route('**/api/corpus/digest**', async (route) => {
+      const url = new URL(route.request().url())
+      const win = url.searchParams.get('window') || 'all'
+      const since = (url.searchParams.get('since') ?? '').trim()
+      let windowStartUtc = '1970-01-01T00:00:00Z'
+      if (win === 'since' && /^\d{4}-\d{2}-\d{2}$/.test(since)) {
+        windowStartUtc = `${since}T00:00:00Z`
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           path: '/mock/corpus',
-          window: '7d',
-          window_start_utc: '2024-06-01T00:00:00Z',
+          window: win,
+          window_start_utc: windowStartUtc,
           window_end_utc: '2024-06-08T00:00:00Z',
           compact: false,
           rows: [
@@ -140,6 +147,7 @@ test.describe('Corpus Digest tab', () => {
               publish_date: '2024-06-05',
               summary_title: 'Digest summary',
               summary_bullets_preview: ['First bullet'],
+              summary_bullet_graph_topic_ids: ['topic:first-bullet'],
               summary_preview: 'Digest summary — First bullet',
               gi_relative_path: 'metadata/ep1.gi.json',
               kg_relative_path: 'metadata/ep1.kg.json',
@@ -152,6 +160,7 @@ test.describe('Corpus Digest tab', () => {
               topic_id: 't1',
               label: 'Mock Topic Band',
               query: 'climate science',
+              graph_topic_id: 'topic:mock-topic-band',
               hits: [
                 {
                   metadata_relative_path: 'metadata/ep1.metadata.json',
@@ -190,16 +199,20 @@ test.describe('Corpus Digest tab', () => {
     await expect(digestRecentCard).toBeVisible()
     await expect(digestRecentCard.getByText('Digest summary — First bullet')).toBeVisible()
     await expect(
-      page.getByTestId('digest-root').getByRole('button', { name: 'First bullet' }),
+      page
+        .getByTestId('digest-root')
+        .getByRole('button', { name: 'First bullet', exact: true }),
     ).toHaveCount(0)
     await expect(
-      page.getByRole('button', { name: 'Open top hit for topic Mock Topic Band in graph' }),
+      page.getByRole('button', {
+        name: 'Open graph for topic Mock Topic Band (top hit with GI or KG)',
+      }),
     ).toBeVisible()
     await page.getByRole('button', { name: 'Search topic' }).first().click()
     await expect(page.locator('#search-q')).toHaveValue('climate science')
     await expect(
       page.getByRole('textbox', { name: 'Since (date)' }),
-    ).toHaveValue('2024-06-01')
+    ).toHaveValue('')
   })
 
   test('digest episode cards omit graph/search actions (Episode rail has them)', async ({
@@ -214,14 +227,6 @@ test.describe('Corpus Digest tab', () => {
     await expect(
       digestRoot.getByRole('button', { name: 'Prefill semantic search' }),
     ).toHaveCount(0)
-  })
-
-  test('Open Library switches to Library tab', async ({ page }) => {
-    await page.goto('/')
-    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
-    await page.getByRole('button', { name: 'Open Library' }).click()
-    await expect(page.getByTestId('library-root')).toBeVisible()
   })
 
   test('click digest Recent row opens Episode rail; stays on Digest', async ({
@@ -290,6 +295,11 @@ test.describe('Corpus Digest tab', () => {
             publish_date: '2020-01-01T00:00:00Z',
           },
         },
+        {
+          id: 'topic:mock-topic-band',
+          type: 'Topic',
+          properties: { label: 'Mock Topic Band' },
+        },
       ],
       edges: [],
     })
@@ -305,7 +315,95 @@ test.describe('Corpus Digest tab', () => {
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
-      .getByRole('button', { name: 'Open top hit for topic Mock Topic Band in graph' })
+      .getByRole('button', {
+        name: 'Open graph for topic Mock Topic Band (top hit with GI or KG)',
+      })
+      .click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await expect(page.locator('.graph-canvas')).toBeVisible()
+  })
+
+  test('digest Recent summary pill opens graph with mocked GI', async ({ page }) => {
+    const ep1Gi = JSON.stringify({
+      schema_version: '1.0',
+      model_version: 'stub',
+      prompt_version: 'v1',
+      episode_id: 'e1',
+      nodes: [
+        {
+          id: 'episode:e1',
+          type: 'Episode',
+          properties: {
+            podcast_id: 'podcast:unknown',
+            title: 'Digest Episode Alpha',
+            publish_date: '2020-01-01T00:00:00Z',
+          },
+        },
+        {
+          id: 'topic:first-bullet',
+          type: 'Topic',
+          properties: { label: 'First bullet' },
+        },
+      ],
+      edges: [],
+    })
+    await page.route('**/api/artifacts/metadata/ep1.gi.json**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: ep1Gi,
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await page
+      .getByRole('button', {
+        name: 'Open graph for summary line as topic (topic node when present): First bullet',
+      })
+      .click()
+    await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
+    await expect(page.locator('.graph-canvas')).toBeVisible()
+  })
+
+  test('digest topic hit row opens graph with mocked GI', async ({ page }) => {
+    const ep1Gi = JSON.stringify({
+      schema_version: '1.0',
+      model_version: 'stub',
+      prompt_version: 'v1',
+      episode_id: 'e1',
+      nodes: [
+        {
+          id: 'episode:e1',
+          type: 'Episode',
+          properties: {
+            podcast_id: 'podcast:unknown',
+            title: 'Digest Episode Alpha',
+            publish_date: '2020-01-01T00:00:00Z',
+          },
+        },
+        {
+          id: 'topic:mock-topic-band',
+          type: 'Topic',
+          properties: { label: 'Mock Topic Band' },
+        },
+      ],
+      edges: [],
+    })
+    await page.route('**/api/artifacts/metadata/ep1.gi.json**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: ep1Gi,
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await expect(page.getByTestId('digest-root')).toBeVisible()
+    await page
+      .getByRole('button', { name: 'Open graph: Digest Episode Alpha, Mock Feed Show' })
       .click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('.graph-canvas')).toBeVisible()

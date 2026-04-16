@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for GIL pipeline build_artifact, _resolve_insight_specs, _artifact_from_multi_insight."""
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,6 +14,7 @@ from podcast_scraper.gi.pipeline import (
     _resolve_insight_specs,
     _speaker_id_for_char_range,
     build_artifact,
+    SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA,
 )
 
 
@@ -474,6 +476,60 @@ class TestGILPipeline:
         assert start_ms == 0
         assert end_ms == 3000
 
+    def test_char_range_to_ms_accepts_delta_at_max_threshold(self):
+        """When abs_delta == SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA, mapping still runs."""
+        recon_len = 50
+        segments = [{"start": 0.0, "end": 1.0, "text": "x" * recon_len}]
+        transcript = "x" * (recon_len + SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA)
+        assert len(transcript) - recon_len == SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA
+        start_ms, end_ms = _char_range_to_ms(transcript, 0, 4, segments)
+        assert start_ms == 0
+        assert end_ms == 1000
+
+    def test_char_range_to_ms_rejects_delta_over_threshold(self):
+        """When abs_delta > SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA, return (0, 0)."""
+        recon_len = 50
+        segments = [{"start": 0.0, "end": 1.0, "text": "x" * recon_len}]
+        transcript = "x" * (recon_len + SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA + 1)
+        assert _char_range_to_ms(transcript, 0, 4, segments) == (0, 0)
+
+    def test_speaker_id_for_char_range_none_when_misaligned(self):
+        """Speaker-from-segments is skipped under the same alignment guard as timestamps."""
+        segments = [{"start": 0.0, "end": 1.0, "text": "a" * 5, "speaker": "Host"}]
+        transcript = "a" * (5 + SEGMENT_TRANSCRIPT_ALIGNMENT_MAX_DELTA + 1)
+        assert _speaker_id_for_char_range(transcript, 0, 3, segments) is None
+
+    def test_artifact_from_multi_insight_logs_once_when_segments_misaligned(self, caplog):
+        """Misaligned transcript vs segments emits one warning per artifact (issue #545)."""
+        transcript = "a" * 60
+        segments = [{"start": 0.0, "end": 1.0, "text": "a" * 5}]
+        gq = GroundedQuote(char_start=0, char_end=3, text="aaa", qa_score=0.9, nli_score=0.85)
+        with caplog.at_level(logging.WARNING, logger="podcast_scraper.gi.pipeline"):
+            out = _artifact_from_multi_insight(
+                "ep:1",
+                [("Insight one", "unknown")],
+                [[gq]],
+                model_version="m",
+                prompt_version="v1",
+                podcast_id="p",
+                episode_title="T",
+                date_str="2025-01-01T00:00:00Z",
+                transcript_ref="t.txt",
+                transcript_text=transcript,
+                transcript_segments=segments,
+            )
+        quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
+        assert len(quote_nodes) == 1
+        assert quote_nodes[0]["properties"]["timestamp_start_ms"] == 0
+        assert quote_nodes[0]["properties"]["timestamp_end_ms"] == 0
+        mismatch_records = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+            and "transcript vs segment text length mismatch" in r.message
+        ]
+        assert len(mismatch_records) == 1
+
     def test_artifact_from_multi_insight_with_segments_fills_timestamps(self):
         """Quote nodes get timestamp_start_ms/end_ms from transcript_text/segments."""
         transcript = "First segment. Second segment."
@@ -501,6 +557,41 @@ class TestGILPipeline:
         assert len(quote_nodes) == 1
         assert quote_nodes[0]["properties"]["timestamp_start_ms"] == 0
         assert quote_nodes[0]["properties"]["timestamp_end_ms"] == 1500
+
+    def test_artifact_from_multi_insight_segments_without_speaker_speaker_id_null(self):
+        """Segments with time+text only: timestamps OK, speaker_id null (issue #541)."""
+        transcript = "First segment. Second segment."
+        segments = [
+            {"start": 0.0, "end": 1.5, "text": "First segment. "},
+            {"start": 1.5, "end": 3.0, "text": "Second segment."},
+        ]
+        gq = GroundedQuote(
+            char_start=0,
+            char_end=14,
+            text="First segment.",
+            qa_score=0.9,
+            nli_score=0.85,
+        )
+        out = _artifact_from_multi_insight(
+            "ep:1",
+            [("Insight", "unknown")],
+            [[gq]],
+            model_version="m",
+            prompt_version="v1",
+            podcast_id="p",
+            episode_title="T",
+            date_str="2025-01-01T00:00:00Z",
+            transcript_ref="t.txt",
+            transcript_text=transcript,
+            transcript_segments=segments,
+        )
+        quote_nodes = [n for n in out["nodes"] if n["type"] == "Quote"]
+        assert len(quote_nodes) == 1
+        assert quote_nodes[0]["properties"]["speaker_id"] is None
+        assert quote_nodes[0]["properties"]["timestamp_start_ms"] == 0
+        assert quote_nodes[0]["properties"]["timestamp_end_ms"] == 1500
+        assert not [e for e in out["edges"] if e["type"] == "SPOKEN_BY"]
+        validate_artifact(out, strict=True)
 
     def test_artifact_position_hint_uses_episode_duration_ms(self):
         """position_hint is mean(ts_start)/duration when duration known (ts_start > 0 only)."""

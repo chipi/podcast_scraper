@@ -140,11 +140,21 @@ class SearchHitModel(BaseModel):
     score: float
     metadata: dict[str, Any] = Field(default_factory=dict)
     text: str = ""
-    supporting_quotes: list[dict[str, Any]] | None = None
+    supporting_quotes: list[dict[str, Any]] | None = Field(
+        default=None,
+        description=(
+            "Insight hits only: optional supporting quote rows from indexer enrichment. "
+            "Each entry may include speaker_id / speaker_name mirroring .gi.json; both are "
+            "often null or absent when transcript segments lack diarization labels (GitHub #541)."
+        ),
+    )
     lifted: dict[str, Any] | None = Field(
         default=None,
         description=(
-            "RFC-072 chunk-to-Insight lift for transcript hits when GI/bridge align (#528)."
+            "Transcript hits only: RFC-072 chunk-to-Insight lift when GI offsets and bridge "
+            "align (#528). Shape is loosely typed; typical keys include insight, speaker, "
+            "topic, and quote (e.g. timestamp_start_ms / timestamp_end_ms). Speaker display "
+            "and quote speaker fields follow the same .gi.json / segment rules as #541."
         ),
     )
 
@@ -441,6 +451,13 @@ class CorpusDigestRow(BaseModel):
     publish_date: str | None = None
     summary_title: str | None = None
     summary_bullets_preview: list[str] = Field(default_factory=list)
+    summary_bullet_graph_topic_ids: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Parallel to summary_bullets_preview: topic:{slug} hints from each bullet text "
+            "(graph_id_utils.slugify_label), for Digest → Graph topic focus."
+        ),
+    )
     summary_preview: str | None = Field(
         default=None,
         description="Compact recap for list cards (aligned with Library episode list).",
@@ -507,6 +524,12 @@ class CorpusDigestTopicBand(BaseModel):
     topic_id: str
     label: str
     query: str
+    graph_topic_id: str = Field(
+        description=(
+            "Suggested GI/KG topic node id (topic:{slug}) from the band label; "
+            "may be absent in a given episode graph."
+        ),
+    )
     hits: list[CorpusDigestTopicHit] = Field(default_factory=list)
 
 
@@ -514,7 +537,7 @@ class CorpusDigestResponse(BaseModel):
     """Response for GET /api/corpus/digest (RFC-068)."""
 
     path: str
-    window: Literal["24h", "7d", "since"]
+    window: Literal["all", "24h", "7d", "1mo", "since"]
     window_start_utc: str
     window_end_utc: str
     compact: bool
@@ -573,6 +596,37 @@ class CorpusRunsSummaryResponse(BaseModel):
     runs: list[CorpusRunSummaryItem] = Field(default_factory=list)
 
 
+class CorpusResolveEpisodesRequest(BaseModel):
+    """Body for POST /api/corpus/resolve-episode-artifacts."""
+
+    episode_ids: list[str] = Field(
+        min_length=1,
+        description="Logical episode ids from metadata (same as catalog episode_id).",
+    )
+    path: str | None = Field(
+        default=None,
+        description="Corpus root. Omit when server default output_dir is set.",
+    )
+
+
+class CorpusResolvedEpisodeArtifact(BaseModel):
+    """Resolved GI/KG/bridge relative paths for one episode."""
+
+    episode_id: str
+    publish_date: str | None = None
+    gi_relative_path: str | None = None
+    kg_relative_path: str | None = None
+    bridge_relative_path: str | None = None
+
+
+class CorpusResolveEpisodesResponse(BaseModel):
+    """Response for POST /api/corpus/resolve-episode-artifacts."""
+
+    path: str
+    resolved: list[CorpusResolvedEpisodeArtifact] = Field(default_factory=list)
+    missing_episode_ids: list[str] = Field(default_factory=list)
+
+
 # --- RFC-072 cross-layer queries (GitHub #527) ---
 
 
@@ -581,6 +635,13 @@ class CilArcEpisodeBlock(BaseModel):
 
     episode_id: str
     publish_date: str | None = None
+    episode_title: str | None = None
+    feed_title: str | None = None
+    episode_number: int | None = None
+    episode_image_url: str | None = None
+    episode_image_local_relpath: str | None = None
+    feed_image_url: str | None = None
+    feed_image_local_relpath: str | None = None
     insights: list[dict[str, Any]] = Field(default_factory=list)
 
 
@@ -593,8 +654,8 @@ class CilPositionArcResponse(BaseModel):
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
 
 
-class CilGuestBriefInsightRow(BaseModel):
-    """One insight row inside ``CilGuestBriefResponse.topics``."""
+class CilPersonProfileInsightRow(BaseModel):
+    """One insight row inside ``CilPersonProfileResponse.topics``."""
 
     episode_id: str
     insight: dict[str, Any]
@@ -602,20 +663,20 @@ class CilGuestBriefInsightRow(BaseModel):
     position_hint: float | None = None
 
 
-class CilGuestBriefQuoteRow(BaseModel):
-    """Quote evidence row for a guest brief."""
+class CilPersonProfileQuoteRow(BaseModel):
+    """Quote evidence row for a person profile."""
 
     episode_id: str
     quote: dict[str, Any]
 
 
-class CilGuestBriefResponse(BaseModel):
-    """Response for GET /api/persons/{person_id}/brief."""
+class CilPersonProfileResponse(BaseModel):
+    """Response for GET /api/persons/{person_id}/brief (RFC-072 Pattern B, Person Profile)."""
 
     path: str
     person_id: str
-    topics: dict[str, list[CilGuestBriefInsightRow]] = Field(default_factory=dict)
-    quotes: list[CilGuestBriefQuoteRow] = Field(default_factory=list)
+    topics: dict[str, list[CilPersonProfileInsightRow]] = Field(default_factory=dict)
+    quotes: list[CilPersonProfileQuoteRow] = Field(default_factory=list)
 
 
 class CilTopicTimelineResponse(BaseModel):
@@ -623,6 +684,31 @@ class CilTopicTimelineResponse(BaseModel):
 
     path: str
     topic_id: str
+    episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
+
+
+class CilTopicTimelineMergeRequest(BaseModel):
+    """Body for POST /api/topics/timeline — merged topic timeline (cluster scope)."""
+
+    topic_ids: list[str] = Field(
+        min_length=1,
+        description="Topic ids (e.g. topic:…); same normalization as GET single-topic timeline.",
+    )
+    path: str | None = Field(
+        default=None,
+        description="Corpus root. Omit when server default output_dir is set.",
+    )
+    insight_types: str | None = Field(
+        default=None,
+        description="Comma-separated insight_type filter; omit for all; ``all`` or ``*`` for all.",
+    )
+
+
+class CilTopicTimelineMergedResponse(BaseModel):
+    """Response for POST /api/topics/timeline."""
+
+    path: str
+    topic_ids: list[str]
     episodes: list[CilArcEpisodeBlock] = Field(default_factory=list)
 
 

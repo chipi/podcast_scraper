@@ -7,7 +7,7 @@ import logging
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Set, Tuple
 
 import numpy as np
 
@@ -204,9 +204,38 @@ class FaissVectorStore:
             )
         return inst
 
+    def export_vectors_by_doc_id(self) -> Dict[str, np.ndarray]:
+        """Export L2-normalized embedding vectors keyed by FAISS ``doc_id``.
+
+        Used by corpus topic clustering (RFC-075) to read ``kg_topic`` rows without
+        a separate vector pass. Rows align with the index's internal ordering.
+
+        Returns:
+            Mapping from ``doc_id`` string to a length-``embedding_dim`` float32 vector.
+        """
+        xb, faiss_ids = _extract_idmap_vectors(self._index)
+        out: Dict[str, np.ndarray] = {}
+        for i in range(int(faiss_ids.shape[0])):
+            fid = int(faiss_ids[i])
+            doc_id = self._faiss_to_doc.get(fid)
+            if doc_id is None:
+                continue
+            out[doc_id] = np.asarray(xb[i], dtype=np.float32).copy()
+        return out
+
     @property
     def embedding_dim(self) -> int:
         return self._embedding_dim
+
+    @property
+    def metadata_by_doc_id(self) -> Mapping[str, Dict[str, Any]]:
+        """Read-only view of per-document metadata (doc_id → meta dict)."""
+        return self._metadata
+
+    @property
+    def embedding_model(self) -> str:
+        """Sentence-transformers model id recorded in ``index_meta.json``."""
+        return self._embedding_model
 
     @property
     def index_dir(self) -> Optional[Path]:

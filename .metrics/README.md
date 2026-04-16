@@ -13,6 +13,10 @@ One JSON object per line (JSONL). Each line records a **checkpoint**: rules appl
 - Also append **before commit/push**, on "done"/"wrap up", or at **session end** if you have not logged the latest milestone.
 - **Do not ask** the user whether to append; write when `.metrics/` exists. A verbal announcement is optional (silent OK).
 
+**Rule 18** (session review) uses the **same closing cadence** as a final append sometimes does, but it is
+**not** stored in this JSONL. See **`.cursorrules` Rule 18** — promote durable lessons into guides or
+`.cursor/rules` instead; do not add extra keys or retrospective prose here.
+
 ### Schema
 
 See **SCHEMA.md** in this folder for the schema (fields, types, examples).

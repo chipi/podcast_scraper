@@ -10,6 +10,7 @@ The service API is designed to:
 - Provide structured return values and error handling
 - Be suitable for process management tools
 - Maintain clean separation from CLI concerns
+- Use the same validated **`Config`** model as the CLI: **`service.run`** builds **`Config(**config_dict)`** from the merged configuration. There is **no** separate allowlist of keys in the service layer, so documented fields such as **`preprocessing_mp3_bitrate_kbps`** are accepted whenever they are valid on **`Config`** (GitHub #561).
 
 ## Quick Start
 
@@ -33,7 +34,9 @@ else:
 result = service.run_from_config_file("config.yaml")
 ```
 
-**Multi-feed (GitHub #440):** If the loaded config has **two or more** URLs in `rss_urls` (from YAML `feeds` / `rss_urls` or a promoted `rss` list), `service.run` / `run_from_config_file` runs **one pipeline per feed** under `<output_dir>/feeds/<stable_feed_id>/`, matching the CLI. `output_dir` must be set in that case. After the batch, **#506** writes **`corpus_manifest.json`** and **`corpus_run_summary.json`** at the corpus parent; with **`vector_search`** and FAISS, **#505** builds one **`<output_dir>/search`** index. The return value’s **`multi_feed_summary`** field holds the same JSON-shaped dict as **`corpus_run_summary.json`** (or `None` on single-feed runs). Field tables: [CORPUS_MULTI_FEED_ARTIFACTS.md](CORPUS_MULTI_FEED_ARTIFACTS.md). See also [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440).
+**Multi-feed (GitHub #440):** If the loaded config has **two or more** URLs in `rss_urls` (from YAML `feeds` / `rss_urls` or a promoted `rss` list), `service.run` / `run_from_config_file` runs **one pipeline per feed** under `<output_dir>/feeds/<stable_feed_id>/`, matching the CLI. `output_dir` must be set in that case. After the batch, **#506** writes **`corpus_manifest.json`** and **`corpus_run_summary.json`** at the corpus parent; with **`vector_search`** and FAISS, **#505** builds one **`<output_dir>/search`** index. The return value’s **`multi_feed_summary`** field holds the same JSON-shaped dict as **`corpus_run_summary.json`** (or `None` on single-feed runs), including **`batch_incidents`** and per-feed **`episode_incidents_unique`** (schema **1.1.0**). Field tables: [CORPUS_MULTI_FEED_ARTIFACTS.md](CORPUS_MULTI_FEED_ARTIFACTS.md). See also [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440).
+
+**Soft-only multi-feed success (GitHub #559):** **`multi_feed_strict`** defaults to **false** (lenient). A multi-feed run can then return **`success=True`** with **`error=None`** if every failed feed is classified as **soft** (same rules as in [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). In that case the aggregated per-feed messages are on **`ServiceResult.soft_failures`** (non-empty string). If **`success`** is false because of a hard failure or **strict** mode (`multi_feed_strict: true`), **`soft_failures`** stays **`None`**. **`multi_feed_summary`** / **`corpus_run_summary.json`** still report **`overall_ok: false`** when any feed failed. In Python, pass **`multi_feed_strict=`** into **`Config`**; deprecated YAML-only keys are documented in the same CONFIGURATION section.
 
 **Episode selection (GitHub #521):** The same `episode_order`, `episode_since`, `episode_until`, `episode_offset`, and `max_episodes` fields in YAML/JSON apply to **each** inner single-feed run. See [CONFIGURATION.md — Episode selection](CONFIGURATION.md#episode-selection-github-521).
 
@@ -112,7 +115,10 @@ if not result.success:
     print(f"Service failed: {result.error}", file=sys.stderr)
     sys.exit(1)
 
-# Continue with success
+# success is True; multi-feed may still have soft-classified feed failures
+if result.soft_failures:
+    print(f"Warning (soft-only feed failures): {result.soft_failures}", file=sys.stderr)
+
 print(f"Success: {result.summary}")
 sys.exit(0)
 ```

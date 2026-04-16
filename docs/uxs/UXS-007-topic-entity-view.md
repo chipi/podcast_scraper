@@ -24,13 +24,16 @@
     handoff; topic pills in enriched sources open this view
   - [UXS-009: Position Tracker](UXS-009-position-tracker.md) -- person chip click
     can open Person Landing with Position Tracker
-  - [UXS-010: Guest Intelligence Brief](UXS-010-guest-intelligence-brief.md) --
-    person chip click can open Person Landing with Guest Brief
+  - [UXS-010: Person Profile](UXS-010-person-profile.md) --
+    person chip click can open Person Landing with Person Profile
 - **Implementation paths**:
   - New: `web/gi-kg-viewer/src/components/topic/TopicEntityView.vue`
   - Existing: `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue` (rail
     host)
   - Existing: `web/gi-kg-viewer/src/stores/artifacts.ts` (enrichment data fetch)
+  - MVP slice (GitHub **#548**): `web/gi-kg-viewer/src/components/shared/TopicTimelineDialog.vue`
+    from graph **Topic** node detail — CIL **`/api/topics/.../timeline`** only; full
+    Topic Entity View layout (charts, enrichers, shared **InsightCard**) remains future work.
 
 ---
 
@@ -127,7 +130,7 @@ vertically with `border` dividers between them:
   `muted` for 50-79%, `warning` for < 50%. Hidden when enricher has not run.
 - Clicking a person chip filters the Insights section. A secondary action (e.g.
   dedicated link icon or long-press) opens the Person Landing (UXS-010) for that
-  person, giving access to their Guest Brief and Position Tracker.
+  person, giving access to their Person Profile and Position Tracker.
 - Sorted by Insight count descending.
 - When diarization is unavailable: `muted` note, "Speaker attribution requires
   diarization. Enable pyannote in pipeline config."

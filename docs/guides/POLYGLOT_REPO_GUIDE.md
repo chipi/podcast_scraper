@@ -26,7 +26,7 @@ Treat them as two toolchains that share one git tree, not one unified `npm` work
 | File | Purpose |
 | ---- | ------- |
 | **`config/examples/.env.example`** | Copy to **repo root** `.env` for **Python**: API keys, `CACHE_DIR`, logging, optional `PODCAST_SCRAPER_*`, etc. ([CONFIGURATION.md](../api/CONFIGURATION.md); [twelve-factor config](../api/CONFIGURATION.md#twelve-factor-app-alignment-config)). |
-| **`web/gi-kg-viewer/.env.example`** | Copy to **`web/gi-kg-viewer/.env`** for **Vite** only (e.g. `VITE_DEFAULT_CORPUS_PATH`). Vite loads `.env*` next to the app by default. |
+| **`web/gi-kg-viewer/.env.example`** | Copy to **`web/gi-kg-viewer/.env`** for **Vite** only (e.g. `VITE_DEFAULT_CORPUS_PATH`, optional `VITE_CLUSTER_SIBLING_EPISODE_CAP` for Graph tab topic-cluster sibling auto-load — **API corpus path** only; offline file-picker loads skip `topic_clusters.json` fetch and sibling merge). Vite loads `.env*` next to the app by default. |
 
 Root `.gitignore` already ignores `.env`, `.env.local`, and similar patterns so secrets are not
 committed from either location.
@@ -55,6 +55,7 @@ The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://gi
 | `make serve SERVE_OUTPUT_DIR=…` | **Parallel:** FastAPI (`serve-api`) + Vite dev (`serve-ui`); UI usually on **5173**, API on **8000**. |
 | `make serve-api SERVE_OUTPUT_DIR=…` | FastAPI only. |
 | `make serve-ui` | Vite only in `web/gi-kg-viewer` (proxies `/api` → **8000**). |
+| `make serve-e2e-mock` | **E2E fixture HTTP server** (RSS + mock API paths) on **`127.0.0.1`**; default port **18765** (**`E2E_MOCK_PORT`**). Pairs with **`config/manual/manual_e2e_mock.yaml`** (primary p01–p05 + long-form p07–p09; skips p06 edge cases) ([E2E Testing Guide](E2E_TESTING_GUIDE.md#manual-cli-runs-against-the-fixture-server)). |
 | `make test-ui` | Vitest unit tests for TS utils under `web/gi-kg-viewer` (no browser). |
 | `make test-ui-e2e` | Playwright E2E (Firefox); installs npm deps and browsers as needed. |
 | `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets against **FAISS transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |

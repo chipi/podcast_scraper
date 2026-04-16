@@ -64,8 +64,9 @@ Selection order: **`--episode-order`** → optional **`--since` / `--until`** �
 - **`--rss URL`** — Repeatable. Each occurrence adds another feed URL (merged with config `feeds` / `rss_urls` and optional `--rss-file`).
 - **`--rss-file PATH`** — Text file with one RSS URL per line (comments and blank lines allowed); URLs are merged with other sources.
 - **Multi-feed** — When **two or more** distinct feed URLs are in effect, **`--output-dir` is required** (corpus parent). Outputs are written under `<output_dir>/feeds/<stable_feed_id>/` per feed. Single-feed runs do not add the `feeds/` segment.
+- **`--multi-feed-strict` / `--no-multi-feed-strict`** — Multi-feed only (GitHub #559). **Default:** lenient (exit **0** if every failed feed is a **soft** failure: RSS fetch/parse `ValueError`, FFmpeg stderr UTF-8 decode, Whisper 413 / payload size). **`--multi-feed-strict`** turns on **strict** mode for CI: exit **1** on any feed failure even when soft-classified. Hard failures (for example `RuntimeError`, invalid per-feed path) always exit **1**. Same behavior is on `Config` as **`multi_feed_strict`** for `service.run()`.
 
-Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Generic shape: `config/examples/config.example.multi-feed.yaml` / `config.example.multi-feed.json`. Full-pipeline presets: `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (and `config/manual/manual_multi_feed_planet_money_journal_*.yaml`). For **append / resume**, see `acceptance_multi_feed_planet_money_journal_openai_append.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek_append.yaml` under `config/acceptance/` and [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
+Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGURATION.md — RSS and multi-feed](CONFIGURATION.md#rss-and-multi-feed-corpus-github-440)). Generic multi-feed templates with placeholder feeds: **OpenAI + Gemini** (GI/KG + **`vector_search`**) — `config/examples/config.example.multi-feed.cloud-llm.yaml` / `config/examples/config.example.multi-feed.cloud-llm.json` (aligned with `config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml` except **`feeds`**); **local Whisper + Ollama** (`qwen3.5:9b`, **`llm_pipeline_mode: bundled`**) — `config/examples/config.example.multi-feed.ollama.yaml` / `config/examples/config.example.multi-feed.ollama.json`; **local ML** (registry **`ml_small_authority`** / **`ml_bart_led_autoresearch_v1`**) — `config/examples/config.example.multi-feed.ml-dev.yaml` / `config/examples/config.example.multi-feed.ml-dev.json` and `config/examples/config.example.multi-feed.ml-prod.yaml` / `config/examples/config.example.multi-feed.ml-prod.json`. Full-pipeline presets: `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (and `config/manual/manual_multi_feed_planet_money_journal_*.yaml`). For **append / resume**, see `acceptance_multi_feed_planet_money_journal_openai_append.yaml` and `acceptance_multi_feed_planet_money_journal_deepseek_append.yaml` under `config/acceptance/` and [CONFIGURATION.md — Append / resume](CONFIGURATION.md#append-resume-github-444).
 
 ### Provider Selection (v2.4.0+)
 
@@ -81,7 +82,7 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGUR
 - `--whisper-device DEVICE` - Device for Whisper (cuda/mps/cpu/auto, default: auto-detect)
 - `--mps-exclusive` - Serialize GPU work on MPS to prevent memory contention (default: enabled)
 - `--no-mps-exclusive` - Allow concurrent GPU operations on MPS (for systems with sufficient GPU memory)
-- `--screenplay` - Format Whisper output as screenplay
+- `--screenplay` - Request screenplay-style transcript layout (only honored for **`--transcription-provider whisper`**; for OpenAI / Gemini / Mistral audio transcription truthy values are coerced off at validation with one INFO per gate cycle — GitHub **#562**). Set **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** to **error** instead of coerce when screenplay is requested with a non-Whisper transcription provider.
 - `--num-speakers N` - Number of speakers (default: 2)
 - `--speaker-names NAMES` - Comma-separated speaker names
 
@@ -89,7 +90,7 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGUR
 
 - `--enable-preprocessing` - Enable audio preprocessing before transcription (experimental)
 - `--preprocessing-cache-dir DIR` - Custom cache directory for preprocessed audio (default: `.cache/preprocessing`)
-- `--preprocessing-sample-rate RATE` - Target sample rate in Hz (default: 16000, must be Opus-supported: 8000, 12000, 16000, 24000, 48000)
+- `--preprocessing-sample-rate RATE` - Target sample rate in Hz before MP3 encode (default: 16000; use rates FFmpeg accepts for `-ar`, e.g. 8000, 16000, 22050, 44100, 48000)
 - `--preprocessing-silence-threshold THRESHOLD` - Silence detection threshold (default: `-50dB`)
 - `--preprocessing-silence-duration DURATION` - Minimum silence duration to remove in seconds (default: `2.0`)
 - `--preprocessing-target-loudness LOUDNESS` - Target loudness in LUFS for normalization (default: `-16`)
@@ -103,7 +104,7 @@ Config file equivalent: YAML **`feeds:`** or **`rss_urls:`** list (see [CONFIGUR
 - `--transcript-cleaning-strategy {pattern,llm,hybrid}` - How transcripts are cleaned before summarization (`pattern` = regex/rules; `llm` = LLM-only; `hybrid` = pattern then conditional LLM when using LLM-oriented cleaners). Applies to **LLM summarization providers** and **`hybrid_ml`** (same `cleaning_processor` wiring as API providers).
 - `--hybrid-internal-preprocessing-after-pattern PROFILE_ID` - When `--summary-provider hybrid_ml` and `--transcript-cleaning-strategy pattern`, selects the **registered preprocessing profile** applied inside `HybridMLProvider.summarize` after workflow pattern cleaning (default in config: `cleaning_hybrid_after_pattern`). Omit to use the Config default; YAML/config file field: `hybrid_internal_preprocessing_after_pattern`.
 
-See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419), [CONFIGURATION.md](CONFIGURATION.md#transcript-cleaning-configuration-issue-418), and [Preprocessing Profiles Guide](../guides/PREPROCESSING_PROFILES_GUIDE.md).
+See [RFC-042 — Layered transcript cleaning](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419), [CONFIGURATION.md](CONFIGURATION.md#transcript-cleaning-configuration-issue-418), [CONFIGURATION.md — LLM cleaning length guard](CONFIGURATION.md#llm-cleaning-length-guard-issue-564), and [Preprocessing Profiles Guide](../guides/PREPROCESSING_PROFILES_GUIDE.md).
 
 ### OpenAI Provider Options
 
@@ -507,6 +508,25 @@ python -m podcast_scraper.cli index --output-dir ./output
 python -m podcast_scraper.cli index --output-dir ./output --rebuild
 python -m podcast_scraper.cli index --output-dir ./output --stats
 ```
+
+## Topic clusters (`topic-clusters`)
+
+Corpus-wide clustering of **KG topic** embeddings already stored as `kg_topic` rows in the FAISS
+index (RFC-075). Writes **`topic_clusters.json`** next to the index (default:
+`<output-dir>/search/topic_clusters.json`). Requires an indexed corpus with `kg_topic` included.
+The JSON **`schema_version`** is **`"2"`** for new writes: **`graph_compound_parent_id`** / **`cil_alias_target_topic_id`**
+separate viewer compound ids (`tc:`) from CIL merge targets (`topic:`). See [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) §3.
+
+```bash
+python -m podcast_scraper.cli topic-clusters --output-dir ./output
+python -m podcast_scraper.cli topic-clusters --output-dir ./output --threshold 0.8
+python -m podcast_scraper.cli topic-clusters --output-dir ./output \
+  --validate-config ./path/to/my_topic_cluster_validation.yaml
+python -m podcast_scraper.cli topic-clusters --output-dir ./output --merge-cil-overrides
+```
+
+**`--merge-cil-overrides`** merges auto **`topic_id_aliases`** into **`cil_lift_overrides.json`**
+(existing alias keys in that file take precedence). Run after indexing when **`kg_topic`** rows exist.
 
 ## Corpus status (`corpus-status`)
 

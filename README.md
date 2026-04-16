@@ -439,7 +439,7 @@ See the [Basic Usage with Example Config](#basic-usage-with-example-config-recom
 
 **Output:** Files are organized in `output/` with subdirectories:
 
-- `transcripts/` — Transcript files
+- `transcripts/` — Transcript files (RSS may serve `.vtt`/`.srt`; the pipeline normalizes those to `.txt` plus `*.segments.json` for GI quote audio timing when cues parse cleanly; plain `.txt`/`.html` feeds have no segment timing unless you add a sidecar)
 - `metadata/` — JSON/YAML metadata, plus `gi.json` (GIL) and `kg.json` (KG) when enabled
 - `search/` — FAISS vector index (when `vector_search` is enabled)
 - `run.json`, `index.json`, `metrics.json` — Run tracking artifacts

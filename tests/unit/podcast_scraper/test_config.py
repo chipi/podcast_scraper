@@ -1118,6 +1118,107 @@ class TestMultiFeedConfig440(unittest.TestCase):
         )
         self.assertEqual(len(cfg.rss_urls or []), 2)
 
+    def test_deprecated_multi_feed_soft_fail_exit_zero_maps_to_multi_feed_strict(self):
+        with warnings.catch_warnings(record=True) as wrec:
+            warnings.simplefilter("always")
+            cfg = Config.model_validate(
+                {
+                    "rss": ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                    "output_dir": "/tmp/corpus_dep",
+                    "multi_feed_soft_fail_exit_zero": True,
+                }
+            )
+        self.assertFalse(cfg.multi_feed_strict)
+        self.assertTrue(any("multi_feed_soft_fail_exit_zero" in str(w.message) for w in wrec))
+
+    def test_deprecated_multi_feed_soft_fail_exit_zero_false_maps_strict_true(self):
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            cfg = Config.model_validate(
+                {
+                    "rss": ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                    "output_dir": "/tmp/corpus_dep2",
+                    "multi_feed_soft_fail_exit_zero": False,
+                }
+            )
+        self.assertTrue(cfg.multi_feed_strict)
+
+    def test_multi_feed_strict_and_deprecated_legacy_key_rejected(self):
+        with self.assertRaises(ValidationError) as ctx:
+            Config.model_validate(
+                {
+                    "rss": ["https://a.example/feed.xml", "https://b.example/feed.xml"],
+                    "output_dir": "/tmp/corpus_both",
+                    "multi_feed_strict": False,
+                    "multi_feed_soft_fail_exit_zero": True,
+                }
+            )
+        self.assertIn("multi_feed_strict", str(ctx.exception))
+
+
+@pytest.mark.unit
+class TestScreenplayApiTranscriptionCoerce562(unittest.TestCase):
+    """GitHub #562: screenplay only for whisper; coerce for API transcription."""
+
+    def tearDown(self) -> None:
+        config.reset_screenplay_issue_562_gates()
+
+    def test_openai_transcription_coerces_screenplay_false(self) -> None:
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="openai",
+            openai_api_key="sk-test",
+            screenplay=True,
+        )
+        self.assertFalse(cfg.screenplay)
+
+    def test_whisper_keeps_screenplay_true(self) -> None:
+        cfg = Config(
+            rss="https://example.com/feed.xml",
+            transcription_provider="whisper",
+            screenplay=True,
+        )
+        self.assertTrue(cfg.screenplay)
+
+    def test_coerce_info_emitted_once_per_process(self) -> None:
+        with self.assertLogs("podcast_scraper.config", level="INFO") as cm:
+            Config(
+                rss="https://example.com/f1.xml",
+                transcription_provider="openai",
+                openai_api_key="sk-test",
+                screenplay=True,
+            )
+            Config(
+                rss="https://example.com/f2.xml",
+                transcription_provider="gemini",
+                gemini_api_key="g-test",
+                screenplay=True,
+            )
+        matched = [x for x in cm.output if "562" in x and "screenplay" in x.lower()]
+        self.assertEqual(len(matched), 1, msg=str(cm.output))
+
+    def test_screenplay_integer_one_coerced_for_openai(self) -> None:
+        cfg = Config.model_validate(
+            {
+                "rss": "https://example.com/feed.xml",
+                "transcription_provider": "openai",
+                "openai_api_key": "sk-test",
+                "screenplay": 1,
+            }
+        )
+        self.assertFalse(cfg.screenplay)
+
+    @patch.dict(os.environ, {"PODCAST_SCRAPER_SCREENPLAY_STRICT": "1"}, clear=False)
+    def test_screenplay_strict_env_rejects_api_transcription(self) -> None:
+        with self.assertRaises(ValidationError) as ctx:
+            Config(
+                rss="https://example.com/feed.xml",
+                transcription_provider="openai",
+                openai_api_key="sk-test",
+                screenplay=True,
+            )
+        self.assertIn("PODCAST_SCRAPER_SCREENPLAY_STRICT", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

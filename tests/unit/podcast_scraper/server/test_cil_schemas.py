@@ -6,10 +6,10 @@ import pytest
 
 from podcast_scraper.server.schemas import (
     CilArcEpisodeBlock,
-    CilGuestBriefInsightRow,
-    CilGuestBriefQuoteRow,
-    CilGuestBriefResponse,
     CilIdListResponse,
+    CilPersonProfileInsightRow,
+    CilPersonProfileQuoteRow,
+    CilPersonProfileResponse,
     CilPositionArcResponse,
     CilTopicTimelineResponse,
 )
@@ -34,13 +34,13 @@ def test_cil_position_arc_response_round_trip() -> None:
     assert CilPositionArcResponse.model_validate(d).episodes[0].episode_id == "ep:1"
 
 
-def test_cil_guest_brief_response_round_trip() -> None:
-    m = CilGuestBriefResponse(
+def test_cil_person_profile_response_round_trip() -> None:
+    m = CilPersonProfileResponse(
         path="/c",
         person_id="person:p",
         topics={
             "topic:t": [
-                CilGuestBriefInsightRow(
+                CilPersonProfileInsightRow(
                     episode_id="ep:1",
                     insight={"id": "i"},
                     insight_type="claim",
@@ -48,9 +48,9 @@ def test_cil_guest_brief_response_round_trip() -> None:
                 )
             ]
         },
-        quotes=[CilGuestBriefQuoteRow(episode_id="ep:1", quote={"id": "q"})],
+        quotes=[CilPersonProfileQuoteRow(episode_id="ep:1", quote={"id": "q"})],
     )
-    assert CilGuestBriefResponse.model_validate(m.model_dump()).person_id == "person:p"
+    assert CilPersonProfileResponse.model_validate(m.model_dump()).person_id == "person:p"
 
 
 def test_cil_topic_timeline_and_id_list() -> None:

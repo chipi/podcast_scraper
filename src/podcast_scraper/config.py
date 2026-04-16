@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import threading
 import warnings
 from datetime import date
 from pathlib import Path
@@ -15,6 +17,56 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from . import config_constants
+
+logger = logging.getLogger(__name__)
+
+# GitHub #562: one INFO per process when coercing screenplay off for API transcription.
+_screenplay_tx_api_coerce_lock = threading.Lock()
+_screenplay_tx_api_coerce_state: dict[str, bool] = {"logged": False}
+
+
+def reset_screenplay_transcription_api_coerce_log_for_tests() -> None:
+    """Reset #562 process-wide log gate (unit tests only)."""
+    with _screenplay_tx_api_coerce_lock:
+        _screenplay_tx_api_coerce_state["logged"] = False
+
+
+def reset_screenplay_issue_562_gates() -> None:
+    """Reset all GitHub #562 gates (unit tests and between ``run_pipeline`` invocations)."""
+    reset_screenplay_transcription_api_coerce_log_for_tests()
+    from .workflow import episode_processor as _ep562
+
+    _ep562.reset_screenplay_unsupported_provider_warning_for_tests()
+    _ep562.reset_screenplay_format_failure_warning_for_tests()
+
+
+def _raw_screenplay_requested(value: Any) -> bool:
+    """Whether raw input should be treated as screenplay enabled (GitHub #562 follow-up).
+
+    Accepts common YAML/JSON shapes (bool, 1/0, yes/no strings). Unknown non-empty strings
+    are treated as **not** requested so we do not guess.
+    """
+    if value is True:
+        return True
+    if value is False or value is None:
+        return False
+    if isinstance(value, (int, float)) and int(value) == 1:
+        return True
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ("false", "no", "off", "0", "", "none"):
+            return False
+        if v in ("true", "yes", "on", "1"):
+            return True
+        return False
+    return False
+
+
+def _screenplay_strict_env_enabled() -> bool:
+    """When set, invalid screenplay + API transcription is an error instead of coercion."""
+    v = os.environ.get("PODCAST_SCRAPER_SCREENPLAY_STRICT", "")
+    return str(v).strip().lower() in ("1", "true", "yes", "on")
+
 
 if TYPE_CHECKING:
     from podcast_scraper.evaluation.experiment_config import GenerationParams, TokenizeConfig
@@ -384,9 +436,9 @@ def _get_default_gemini_cleaning_model() -> str:
     """Get default Gemini cleaning model (cheaper than summary model).
 
     Returns:
-        ``gemini-2.0-flash`` (``gemini-1.5-flash`` is not available on current Generative API)
+        ``gemini-2.5-flash-lite`` (``gemini-1.5-flash`` is not available on current Generative API)
     """
-    return "gemini-2.0-flash"
+    return "gemini-2.5-flash-lite"
 
 
 def _get_default_mistral_cleaning_model() -> str:
@@ -533,6 +585,10 @@ GIL_EVIDENCE_ALIGN_SUMMARY_PROVIDERS: frozenset[str] = frozenset(
     }
 )
 
+# Top-level keys still allowed in CLI YAML merge before ``Config.model_validate``;
+# stripped or mapped in ``Config._handle_deprecated_fields``.
+DEPRECATED_CONFIG_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"multi_feed_soft_fail_exit_zero"})
+
 
 class Config(BaseModel):
     """Configuration model for podcast scraping pipeline.
@@ -587,7 +643,8 @@ class Config(BaseModel):
             (default: True). Set to False to only download existing transcripts.
         whisper_model: Whisper model name (e.g., "base", "small", "medium").
         whisper_device: Device for Whisper execution ("cpu", "cuda", "mps", or None for auto).
-        screenplay: Format transcripts as screenplay with speaker labels.
+        screenplay: Format transcripts as screenplay with speaker labels (Whisper-only;
+            see Field description / GitHub #562 for API transcription).
         screenplay_gap_s: Minimum gap in seconds between speaker segments.
         screenplay_num_speakers: Number of speakers for Whisper diarization.
         screenplay_speaker_names: Manual speaker names list (overrides auto-detection).
@@ -596,6 +653,8 @@ class Config(BaseModel):
         log_file: Optional log file path for file output.
         workers: Number of parallel download workers.
         skip_existing: Skip episodes with existing output files.
+        backfill_transcript_segments: Re-transcribe when ``.segments.json`` missing (#542);
+            ``speaker_id`` when segment rows carry speaker labels (#541).
         clean_output: Remove output directory before processing.
         reuse_media: Reuse existing media files instead of re-downloading.
         dry_run: Preview planned work without saving files.
@@ -670,6 +729,29 @@ class Config(BaseModel):
         description=(
             "Multiple RSS feed URLs (GitHub #440). When two or more are set, output_dir must "
             "be the corpus parent; each feed is written under output_dir/feeds/<stable_name>/."
+        ),
+    )
+    multi_feed_strict: bool = Field(
+        default=False,
+        description=(
+            "Multi-feed only (two or more rss_urls; GitHub #559). When False (default), a run "
+            "counts as successful if every failed feed is a **soft** failure; aggregated text "
+            "is on ``ServiceResult.soft_failures``. When True, **strict** CI semantics: any feed "
+            "failure yields ``success=False`` / non-zero exit even when failures are "
+            "soft-classified. Hard failures are always failures. In YAML/JSON dicts passed to "
+            "``Config.model_validate``, deprecated key ``multi_feed_soft_fail_exit_zero`` is "
+            "accepted and mapped to ``multi_feed_strict = not`` that legacy boolean. "
+            "Programmatic ``Config(...)`` must use ``multi_feed_strict`` only (the legacy name "
+            "is not a model field; ``extra=forbid``)."
+        ),
+    )
+    incident_log_path: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional absolute path to ``corpus_incidents.jsonl`` (GitHub #557). When unset, "
+            "``run_pipeline`` defaults to ``<effective_output_dir>/corpus_incidents.jsonl``. "
+            "Multi-feed ``service.run`` sets this to the corpus parent so all feeds append to "
+            "one log."
         ),
     )
     output_dir: Optional[str] = Field(
@@ -857,7 +939,16 @@ class Config(BaseModel):
     transcribe_missing: bool = Field(default=True, alias="transcribe_missing")
     whisper_model: str = Field(default="base.en", alias="whisper_model")
     whisper_device: Optional[str] = Field(default=None, alias="whisper_device")
-    screenplay: bool = Field(default=False, alias="screenplay")
+    screenplay: bool = Field(
+        default=False,
+        alias="screenplay",
+        description=(
+            "Format transcripts as screenplay with speaker labels. Only "
+            "`transcription_provider='whisper'` applies screenplay; OpenAI / Gemini / "
+            "Mistral audio paths emit plain text, so `screenplay: true` is coerced to "
+            "`false` at validation with a single INFO (GitHub #562)."
+        ),
+    )
     screenplay_gap_s: float = Field(default=DEFAULT_SCREENPLAY_GAP_SECONDS, alias="screenplay_gap")
     screenplay_num_speakers: int = Field(default=DEFAULT_NUM_SPEAKERS, alias="num_speakers")
     screenplay_speaker_names: List[str] = Field(default_factory=list, alias="speaker_names")
@@ -895,6 +986,19 @@ class Config(BaseModel):
         description="Stop after N episode failures (Issue #379). None = no limit.",
     )
     skip_existing: bool = Field(default=False, alias="skip_existing")
+    backfill_transcript_segments: bool = Field(
+        default=False,
+        alias="backfill_transcript_segments",
+        description=(
+            "When True with generate_gi: if an existing Whisper ``transcripts/*.txt`` "
+            "has no sibling ``.segments.json``, do not treat transcription as complete "
+            "under ``skip_existing`` — re-run transcription so GI quote "
+            "``timestamp_*_ms`` can be populated (GitHub #542); ``speaker_id`` is set only "
+            "when segment rows include speaker labels (GitHub #541). Append mode also "
+            "treats episodes as incomplete until the sidecar exists. Default False "
+            "preserves legacy skip behavior."
+        ),
+    )
     append: bool = Field(
         default=False,
         alias="append",
@@ -1154,7 +1258,7 @@ class Config(BaseModel):
         alias="gemini_cleaning_model",
         description=(
             "Gemini model for transcript cleaning "
-            "(default: gemini-2.0-flash, cheaper than summary model)"
+            "(default: gemini-2.5-flash-lite, cheaper than summary model)"
         ),
     )
     gemini_cleaning_temperature: float = Field(
@@ -2313,6 +2417,17 @@ class Config(BaseModel):
         alias="preprocessing_target_loudness",
         description="Target loudness in LUFS for normalization (default: -16).",
     )
+    preprocessing_mp3_bitrate_kbps: Optional[int] = Field(
+        default=None,
+        alias="preprocessing_mp3_bitrate_kbps",
+        description=(
+            "libmp3lame bitrate (kbps) for FFmpeg preprocessing output; null = auto "
+            "(64 kbps for local transcription e.g. whisper, 48 kbps for openai/gemini — "
+            "GitHub #561). Allowed range 24–128 when set. After the first pass, "
+            "openai/gemini may re-encode to lower standard rungs until under the API cap; "
+            "if still too large, upload chunking is tracked separately (GitHub #286)."
+        ),
+    )
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True, frozen=True)
 
@@ -2387,6 +2502,21 @@ class Config(BaseModel):
     def _handle_deprecated_fields(cls, data: Any) -> Any:
         """Handle deprecated field names for backward compatibility."""
         if isinstance(data, dict):
+            if "multi_feed_soft_fail_exit_zero" in data and "multi_feed_strict" in data:
+                raise ValueError(
+                    "Use only multi_feed_strict; remove deprecated multi_feed_soft_fail_exit_zero"
+                )
+            if "multi_feed_soft_fail_exit_zero" in data:
+                import warnings
+
+                warnings.warn(
+                    "multi_feed_soft_fail_exit_zero is deprecated; use multi_feed_strict "
+                    "(strict means fail the run on any feed failure, including soft-only)",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                legacy = data.pop("multi_feed_soft_fail_exit_zero")
+                data["multi_feed_strict"] = not bool(legacy)
             # Map deprecated speaker_detector_type to speaker_detector_provider
             if "speaker_detector_type" in data and "speaker_detector_provider" not in data:
                 import warnings
@@ -2408,6 +2538,44 @@ class Config(BaseModel):
                 # Remove deprecated field
                 del data["speaker_detector_type"]
         return data
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_screenplay_for_api_transcription_before(cls, data: Any) -> Any:
+        """Screenplay applies only to local Whisper; coerce YAML/CLI for API paths (GitHub #562).
+
+        Implemented as ``mode='before'`` so ``Config(**kwargs)`` applies: frozen Config ignores
+        non-``self`` returns from ``mode='after'`` validators under ``__init__`` (see
+        ``_align_gil_evidence_with_summary_provider`` docstring).
+        """
+        if not isinstance(data, dict):
+            return data
+        merged = dict(data)
+        tp = merged.get("transcription_provider", "whisper")
+        if not _raw_screenplay_requested(merged.get("screenplay")):
+            return merged
+        if tp == "whisper":
+            return merged
+        if _screenplay_strict_env_enabled():
+            raise ValueError(
+                "screenplay is only supported with transcription_provider='whisper' "
+                f"(got transcription_provider={tp!r}). Remove screenplay or switch to "
+                "whisper. To allow automatic coercion to screenplay=false, unset "
+                "PODCAST_SCRAPER_SCREENPLAY_STRICT (GitHub #562)."
+            )
+        merged["screenplay"] = False
+        with _screenplay_tx_api_coerce_lock:
+            should_log = not _screenplay_tx_api_coerce_state["logged"]
+            if should_log:
+                _screenplay_tx_api_coerce_state["logged"] = True
+        if should_log:
+            logger.info(
+                "screenplay applies only to transcription_provider='whisper'; "
+                "with transcription_provider=%r screenplay has no effect — "
+                "coercing screenplay=false (GitHub #562).",
+                tp,
+            )
+        return merged
 
     @model_validator(mode="before")
     @classmethod
@@ -3102,7 +3270,7 @@ class Config(BaseModel):
     def _migrate_legacy_gemini_cleaning_model(cls, v: str) -> str:
         """Remap deprecated model IDs that 404 on current Generative API."""
         if v == "gemini-1.5-flash":
-            return "gemini-2.0-flash"
+            return "gemini-2.5-flash-lite"
         return v
 
     @field_validator("openai_api_key", mode="before")
@@ -3930,6 +4098,28 @@ class Config(BaseModel):
     @classmethod
     def _validate_preprocessing_cache_dir_traversal(cls, v: Optional[str]) -> Optional[str]:
         return cls._validate_path_no_traversal(v, "preprocessing_cache_dir")
+
+    @field_validator("preprocessing_mp3_bitrate_kbps", mode="before")
+    @classmethod
+    def _coerce_preprocessing_mp3_bitrate_kbps(cls, v: Any) -> Optional[int]:
+        """Allow null / unset; coerce ints from YAML strings."""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str) and not str(v).strip():
+            return None
+        return int(v)
+
+    @field_validator("preprocessing_mp3_bitrate_kbps", mode="after")
+    @classmethod
+    def _validate_preprocessing_mp3_bitrate_kbps(cls, v: Optional[int]) -> Optional[int]:
+        if v is None:
+            return None
+        if v < 24 or v > 128:
+            raise ValueError(
+                "preprocessing_mp3_bitrate_kbps must be between 24 and 128 inclusive, "
+                "or null for automatic bitrate (GitHub #561)."
+            )
+        return v
 
     @model_validator(mode="after")
     def _validate_cross_field_settings(self) -> "Config":

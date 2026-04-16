@@ -25,9 +25,9 @@ For a **live** view during a single dev run (stage + RSS + CPU on **stderr**, or
 
 **Cache Strategy:**
 
-- Cache key: SHA256 hash of first 1MB of audio + preprocessing configuration
+- Cache key: SHA256 hash of the first 1 MB of audio plus preprocessing configuration (including **MP3 bitrate**; GitHub #561)
 - Cache location: `.cache/preprocessing/`
-- Cache invalidation: Automatic when preprocessing settings change
+- Cache invalidation: Automatic when preprocessing settings change (bitrate, sample rate, VAD, loudness, and related fields)
 
 **Optimization Opportunities:**
 

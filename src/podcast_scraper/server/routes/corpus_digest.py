@@ -9,6 +9,7 @@ from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
+from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.corpus_search import run_corpus_search
 from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows,
@@ -158,16 +159,27 @@ def _topic_band_for_query(
     hits = [h for _, h in ranked[:_MAX_HITS_PER_TOPIC]]
     if not hits:
         return None
-    return CorpusDigestTopicBand(topic_id=topic_id, label=label, query=query, hits=hits)
+    graph_topic_id = topic_node_id_from_slug(slugify_label(label))
+    return CorpusDigestTopicBand(
+        topic_id=topic_id,
+        label=label,
+        query=query,
+        graph_topic_id=graph_topic_id,
+        hits=hits,
+    )
 
 
 @router.get("/corpus/digest", response_model=CorpusDigestResponse)
 async def corpus_digest(
     request: Request,
     path: str | None = Query(default=None, description="Corpus root."),
-    window: Literal["24h", "7d", "since"] = Query(
-        default="7d",
-        description="Time window (UTC, rolling). Ignored when compact=true (forces 24h).",
+    window: Literal["all", "24h", "7d", "1mo", "since"] = Query(
+        default="all",
+        description=(
+            "Time window (UTC). all = no lower bound (publish dates from 1970-01-01). "
+            "Rolling: 24h, 7d. 1mo = previous calendar month. since = from YYYY-MM-DD. "
+            "Ignored when compact=true (forces 24h)."
+        ),
     ),
     since: str | None = Query(
         default=None,
@@ -191,7 +203,7 @@ async def corpus_digest(
     root = _resolve_corpus_root(path, anchor)
     now_utc = datetime.now(timezone.utc)
 
-    eff_window: Literal["24h", "7d", "since"] = "24h" if compact else window
+    eff_window: Literal["all", "24h", "7d", "1mo", "since"] = "24h" if compact else window
     try:
         start, end = utc_bounds_for_window(eff_window, since=since, now_utc=now_utc)
     except ValueError as exc:

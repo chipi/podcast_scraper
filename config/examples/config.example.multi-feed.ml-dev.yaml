@@ -1,0 +1,56 @@
+# Multi-feed corpus example (GitHub #440) — local ML dev stack (RFC-044 registry)
+#
+# Same **feeds** / GI/KG / **vector_search** shape as ``config.example.multi-feed.cloud-llm.yaml``,
+# but **Whisper + spaCy + transformers** only (no cloud API keys). Summarization uses promoted
+# registry mode **`ml_small_authority`** (``baseline_ml_dev_authority_smoke_v1``): MAP
+# ``bart-small``, REDUCE ``long-fast``, with that mode's map/reduce params and chunking.
+#
+# Whisper model, spaCy **``ner_model``**, and **``summary_device``** are omitted — they follow
+# normal ``Config`` defaults unless you set them explicitly (unset **``ner_model``** defaults to
+# **``en_core_web_trf``**; use **``en_core_web_sm``** for a lighter NER install).
+#
+# JSON twin: config.example.multi-feed.ml-dev.json
+#
+# Requires: local ML deps (Whisper, spaCy, sentence-transformers stack as for other ML runs).
+#
+# GitHub #559: ``multi_feed_strict`` defaults to false (lenient). For strict CI, set
+# ``multi_feed_strict: true`` or ``--multi-feed-strict``.
+
+feeds:
+  - https://example.com/podcast-feed-a.xml
+  - https://example.com/podcast-feed-b.xml
+
+output_dir: output
+max_episodes: 3
+
+transcription_provider: whisper
+speaker_detector_provider: spacy
+summary_provider: transformers
+
+summary_mode_id: ml_small_authority
+summary_mode_precedence: mode
+
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss
+
+delay_ms: 250
+language: en
+auto_speakers: true
+cache_detected_hosts: true
+screenplay: true
+speaker_names:
+  - Host
+  - Guest
+workers: 4
+log_level: INFO

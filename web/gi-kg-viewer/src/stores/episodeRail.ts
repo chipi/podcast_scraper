@@ -4,7 +4,8 @@ import { ref } from 'vue'
 export type EpisodeRailPaneKind = 'tools' | 'episode' | 'graph-node'
 
 /**
- * Right sidebar: Search/Explore, Library episode detail, or graph node detail (unified `w-80`).
+ * Right sidebar: Search/Explore, Library episode detail, or graph node detail
+ * (shell column: Tailwind ``w-96`` when expanded in ``App.vue``).
  * Only one mode is visible at a time.
  */
 export const useEpisodeRailStore = defineStore('episodeRail', () => {
@@ -45,8 +46,10 @@ export const useEpisodeRailStore = defineStore('episodeRail', () => {
 
   /**
    * Switch right rail to Search / Explore.
-   * By default clears stashed graph node id (canvas clear, filter reset, leaving graph tab).
-   * From **Graph node** rail, pass ``preserveGraphNodeId: true`` so **Back to details** can restore.
+   * By default clears stashed graph node id (canvas clear, filter reset, explicit tools open).
+   * Pass ``preserveGraphNodeId: true`` when leaving **Graph node** detail temporarily (e.g. **Search &
+   * Explore**, or switching the main tab away from **Graph**) so **Back to details** / tab return can
+   * restore.
    */
   function showTools(opts?: { preserveGraphNodeId?: boolean }): void {
     paneKind.value = 'tools'

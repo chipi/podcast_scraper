@@ -14,7 +14,10 @@ from typing import Any, Iterable, Mapping, Optional
 from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 
 
 def _feed_and_episode_ids(doc: Optional[dict[str, Any]]) -> tuple[Optional[str], Optional[str]]:
@@ -265,7 +268,9 @@ class CatalogEpisodeRow:
 
 def build_catalog_rows(corpus_root: Path) -> list[CatalogEpisodeRow]:
     """Scan corpus for ``*.metadata.*`` and build catalog rows."""
-    root = corpus_root.resolve()
+    root = safe_resolve_directory(corpus_root)
+    if root is None:
+        return []
     root_s = os.path.normpath(str(root))
     safe_prefix = root_s + os.sep
     rows: list[CatalogEpisodeRow] = []
@@ -422,6 +427,18 @@ def index_rows_by_feed_episode(
     for row in rows:
         if row.episode_id:
             out[(row.feed_id, row.episode_id)] = row
+    return out
+
+
+def index_rows_by_episode_id(
+    rows: Iterable[CatalogEpisodeRow],
+) -> dict[str, CatalogEpisodeRow]:
+    """Map ``episode_id`` to a catalog row (first row wins if duplicates)."""
+    out: dict[str, CatalogEpisodeRow] = {}
+    for row in rows:
+        eid = row.episode_id
+        if eid and eid not in out:
+            out[eid] = row
     return out
 
 

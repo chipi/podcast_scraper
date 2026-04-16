@@ -2,7 +2,7 @@
 
 All releases of the Podcast Scraper project.
 
-Before tagging a release, follow the [Release checklist](../guides/DEVELOPMENT_GUIDE.md) in the Development Guide (search for "Release checklist"). In particular, run **`make release-docs-prep`** so architecture diagrams and release notes are up to date; the docs site uses committed diagrams only, and CI fails if they are stale.
+Before tagging a release, follow the [Release Playbook](../guides/RELEASE_PLAYBOOK.md) for **what to validate and in what order**, then the [Release checklist](../guides/DEVELOPMENT_GUIDE.md) in the Development Guide for **step-by-step** tasks (search for "Release checklist"). In particular, run **`make release-docs-prep`** so architecture diagrams and release notes are up to date; the docs site uses committed diagrams only, and CI fails if they are stale.
 
 ## Latest Release
 

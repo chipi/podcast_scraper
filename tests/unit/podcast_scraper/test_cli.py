@@ -665,6 +665,82 @@ class TestMainMultiFeed440(unittest.TestCase):
             )
         self.assertEqual(code, 1)
 
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_multi_feed_default_exit_zero_when_only_soft_failures(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise ValueError("Failed to fetch RSS feed.")
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            code = cli.main(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                ],
+                run_pipeline_fn=fake_run,
+            )
+        self.assertEqual(code, 0)
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_multi_feed_strict_exit_1_when_only_soft_failures(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise ValueError("Failed to fetch RSS feed.")
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            code = cli.main(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                    "--multi-feed-strict",
+                ],
+                run_pipeline_fn=fake_run,
+            )
+        self.assertEqual(code, 1)
+
+    @patch.object(cli, "_validate_ffmpeg")
+    @patch.object(cli, "_validate_python_version")
+    def test_main_multi_feed_lenient_still_fails_on_hard_failure(
+        self, _mock_py: object, _mock_ff: object
+    ) -> None:
+        def fake_run(cfg: config.Config) -> tuple[int, str]:
+            if cfg.rss_url and "b.example" in cfg.rss_url:
+                raise RuntimeError("hard failure")
+            return (1, "ok")
+
+        with tempfile.TemporaryDirectory() as corpus:
+            code = cli.main(
+                [
+                    "https://a.example/feed.xml",
+                    "--rss",
+                    "https://b.example/feed.xml",
+                    "--output-dir",
+                    corpus,
+                    "--max-episodes",
+                    "1",
+                ],
+                run_pipeline_fn=fake_run,
+            )
+        self.assertEqual(code, 1)
+
 
 class TestCorpusStatus506(unittest.TestCase):
     """corpus-status subcommand (GitHub #506)."""
@@ -2896,6 +2972,28 @@ class TestLoadAndMergeConfig(unittest.TestCase):
             ["https://a.example/feed.xml", "https://b.example/feed.xml"],
         )
         self.assertEqual(args.output_dir, "/tmp/corpus_multi")
+
+    @patch("podcast_scraper.cli.config.load_config_file")
+    def test_load_and_merge_config_accepts_deprecated_multi_feed_soft_fail_key(
+        self, mock_load
+    ) -> None:
+        """Deprecated YAML key is allowed in merge and maps to multi_feed_strict."""
+        mock_load.return_value = {
+            "feeds": [
+                "https://a.example/feed.xml",
+                "https://b.example/feed.xml",
+            ],
+            "output_dir": "/tmp/corpus_dep",
+            "max_episodes": 1,
+            "user_agent": "test",
+            "timeout": 30,
+            "multi_feed_soft_fail_exit_zero": True,
+        }
+        parser = argparse.ArgumentParser()
+        cli._add_common_arguments(parser)
+
+        args = cli._load_and_merge_config(parser, "config.yaml", [])
+        self.assertFalse(getattr(args, "multi_feed_strict", True))
 
     @patch("podcast_scraper.cli.config.load_config_file")
     def test_load_and_merge_config_speaker_names_list(self, mock_load):

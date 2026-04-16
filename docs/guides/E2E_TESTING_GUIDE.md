@@ -27,6 +27,17 @@ file remains **pytest** E2E.
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
 
+### Debugging UI issues and interpreting failures
+
+The surface map is the shared **contract for accessible names, regions, and user entry paths**. When
+a Playwright assertion fails, when you reproduce a bug manually, or when an agent drives the app
+via **Chrome DevTools MCP** or Playwright MCP (a11y snapshots), use
+[E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
+to see what label or region should appear, which spec owns the surface, and how to disambiguate
+controls that share a visible name. It does not replace UXS for visual design. For the full
+agent-browser workflow (symmetry between reproduction and fix validation), see
+[Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md).
+
 ### When you change viewer UX (required workflow)
 
 Applies to **humans and AI agents** editing `web/gi-kg-viewer/` (Vue UI: copy, layout, routes,
@@ -65,6 +76,20 @@ Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browse
 | **Filesystem** | Real file operations |
 | **ML Models** | Real (Whisper, spaCy, Transformers) - NO mocks |
 
+## Manual CLI runs against the fixture server
+
+For **human** multi-feed checks without real RSS, use the same HTTP handler as pytest’s **`e2e_server`**:
+
+1. From repo root (venv on **`PYTHONPATH`** includes repo root so **`tests.e2e`** resolves): **`make serve-e2e-mock`** (default port **18765**; override with **`E2E_MOCK_PORT`**).
+2. In another terminal: **`python -m podcast_scraper.cli --config config/manual/manual_e2e_mock.yaml`**
+
+That YAML lists the five primary mock feeds (**`podcast1`**–**`podcast5`**) plus long-form
+fixtures **`podcast7_sustainability`**, **`podcast8_solar`**, and **`podcast9_solo`** (p07–p09;
+**p06** edge-case feed is intentionally omitted). Tracked path is **`config/manual/manual_e2e_mock.yaml`**
+(OpenAI Whisper + Gemini, GI/KG + **`vector_search`**; see **`.gitignore`** for `config/manual`
+un-ignore rules). This is **not** the same contract as CI pytest E2E (no network guard, you
+choose ML cost); it reuses fixture XML/audio only.
+
 ## Core Principle: No Mocking
 
 E2E tests use **real implementations throughout**:
@@ -78,6 +103,12 @@ E2E tests use **real implementations throughout**:
 - No ML model mocks
 
 ## E2E Server
+
+**Ports:** Pytest’s **`e2e_server`** binds an **ephemeral** port (not fixed). The
+FastAPI app from **`make serve-api`** defaults to **8000**. For manual runs, the
+same fixture HTTP handler is exposed on a **fixed** port via
+**`make serve-e2e-mock`**, default **18765** (**`E2E_MOCK_PORT`** in the Makefile),
+so the RSS/mock API server can run alongside **`serve-api`** without colliding.
 
 The `e2e_server` fixture provides a local HTTP server serving test fixtures:
 
@@ -109,9 +140,27 @@ def test_basic_workflow(e2e_server):
 | `e2e_server.urls.ollama_api_base()` | Ollama mock API base (`/v1`) |
 | `e2e_server.urls.anthropic_api_base()` | Anthropic mock API base (base URL, no `/v1`) |
 
-### Download resilience E2E
+### Download resilience E2E {#download-resilience-e2e}
 
-`tests/e2e/test_download_resilience_e2e.py` covers transient HTTP responses (fail-then-succeed), configurable retry totals, multi-feed isolation when one feed returns errors, and `failure_summary` in `run.json`. The handler supports `E2EHTTPRequestHandler.set_transient_error(path, status=..., fail_count=...)` in addition to permanent `set_error_behavior`. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience).
+**`tests/e2e/test_download_resilience_e2e.py`**
+
+- Transient HTTP on transcript URLs (`set_transient_error` with `fail_count`), plus permanent `set_error_behavior`.
+- `fetch_url` / downloader retry totals (`configure_downloader`, `http_retry_total` on `Config`).
+- Single-feed pipeline: `run.json` may include **`failure_summary`** when some episodes fail (see `test_partial_failure_produces_summary`).
+- Multi-feed isolation when one RSS feed is broken: second feed still runs; with **`multi_feed_strict=True`** the batch reports failure (`test_one_feed_down_others_continue`).
+
+**`tests/e2e/test_multi_feed_resilience_e2e.py` (GitHub #560, offline only)**
+
+- **`corpus_run_summary.json`** at the corpus parent: per-feed **`ok`**, **`error`**, **`failure_kind`** (soft vs hard, #559), **`overall_ok`**, schema **`1.1.0`** with **`batch_incidents`** (rollup of `corpus_incidents.jsonl` for that batch) and per-feed **`episode_incidents_unique`** so **`episodes_processed: 0`** with **`ok: true`** is not read as “no issues.”
+- Lenient default vs **`multi_feed_strict`** / **`--multi-feed-strict`**: service and CLI exit semantics when all failures are soft-classified (RSS HTTP errors, unknown slug 404, wrong path under `/feeds/...`).
+- **Unknown slug** and **wrong filename** under a known feed (both 404 on the mock server, no DNS).
+- **Transient RSS 503** on one feed’s `feed.xml` with RSS retries; batch **`overall_ok`** true when retries succeed.
+- **Corpus lock**: pre-acquire `LOCK_BASENAME`, assert a blocked `service.run`, then success after release.
+- **Multi_episode mode** (`E2E_TEST_MODE=multi_episode`, not fast): two feeds, `max_episodes` greater than 1, transcript 404 on a shared fixture path; asserts per-feed **`metrics.json`** skipped counts and matching **`run.json`** **`metrics.episodes_skipped_total`** (skipped transcript is not always a run-index **failure**, so **`failure_summary`** may be absent).
+
+Handler API: `E2EHTTPRequestHandler.set_transient_error(path, status=..., fail_count=...)` and `set_error_behavior(path, status=...)`. See [CONFIGURATION.md — Download resilience](../api/CONFIGURATION.md#download-resilience).
+
+**Fast vs multi_episode:** tests marked **`critical_path`** run under `make test-e2e-fast` (`E2E_TEST_MODE=fast`). The multi-episode partial-failure case above skips when `E2E_TEST_MODE=fast`; run `make test-e2e` (multi_episode) for full coverage.
 
 ### E2E Feeds (RSS)
 
@@ -471,3 +520,7 @@ USE_REAL_GEMINI_API=1 pytest tests/e2e/test_gemini_provider_integration_e2e.py
 
 - **Total tests:** ~230
 - **Focus:** Complete user workflows, production-like scenarios
+- **Line coverage (pytest E2E):** Full `podcast_scraper` package in the coverage denominator (same
+  `pyproject.toml` `[tool.coverage.run]` as other tiers; no subtree `omit` file). Threshold and CI
+  wiring: [Testing Guide — coverage thresholds](TESTING_GUIDE.md#coverage-thresholds). Roles of
+  pytest E2E vs HTTP integration vs Playwright: [Testing Strategy — layer roles](../architecture/TESTING_STRATEGY.md#pytest-e2e-vs-http-integration-vs-browser-e2e-playwright).

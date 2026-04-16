@@ -38,6 +38,9 @@ transformers), see [ML Provider Reference](ML_PROVIDER_REFERENCE.md) and
 `transcript_cleaning_strategy` like API providers; with **`pattern`**, use
 `hybrid_internal_preprocessing_after_pattern` (CLI: `--hybrid-internal-preprocessing-after-pattern`)
 to control internal MAP preprocessing after workflow cleaning ([RFC-042](../rfc/RFC-042-hybrid-summarization-pipeline.md#layered-transcript-cleaning-issue-419)).
+**LLM / hybrid LLM stage:** long transcripts can hit the **length-ratio guard** (pattern-cleaned
+input ≥2000 chars and LLM output **below 20%** of that length is discarded); see
+[CONFIGURATION — LLM cleaning length guard](../api/CONFIGURATION.md#llm-cleaning-length-guard-issue-564).
 
 ---
 
@@ -93,6 +96,16 @@ to control internal MAP preprocessing after workflow cleaning ([RFC-042](../rfc/
 | **Huge Context** | Gemini | 2 million token window (RFC-035) |
 | **Free Development** | Gemini / Grok | Generous free tiers (RFC-035, RFC-036) |
 | **Self-Hosted** | Ollama | Offline/air-gapped (RFC-037) |
+
+### Screenplay formatting vs transcription (GitHub #562)
+
+| `transcription_provider` | `screenplay: true` in transcript body |
+| :----------------------- | :------------------------------------ |
+| **`whisper`** (local) | Yes — gap-based speaker labels via `MLProvider` |
+| **`openai`** (`whisper-1` API) | No — plain text transcript; segment JSON may still exist |
+| **`gemini`** / **`mistral`** | No — plain text in **our** integration (provider wiring here) |
+
+Validation coerces truthy **`screenplay`** to **`false`** when the transcription provider is not **`whisper`**, with a **single** INFO while a process gate is set (the gate resets when each **`run_pipeline`** finishes so another **`Config`** build can log again). Details: [CONFIGURATION.md — Screenplay vs transcription](../api/CONFIGURATION.md).
 
 ---
 

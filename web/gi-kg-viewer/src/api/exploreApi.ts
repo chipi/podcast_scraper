@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './httpClient'
+
 export type ExploreKind = 'explore' | 'natural_language'
 
 export interface ExploreApiBody {
@@ -38,7 +40,7 @@ export async function fetchExploreFiltered(
   params.set('sort_by', options.sortBy ?? 'confidence')
   params.set('limit', String(Math.min(500, Math.max(1, options.limit ?? 50))))
   if (options.strict) params.set('strict', 'true')
-  const res = await fetch(`/api/explore?${params}`)
+  const res = await fetchWithTimeout(`/api/explore?${params}`)
   if (!res.ok) {
     const t = await res.text()
     throw new Error(t || `HTTP ${res.status}`)
@@ -55,7 +57,7 @@ export async function fetchExploreNaturalLanguage(
   params.set('q', question.trim())
   params.set('limit', String(Math.min(500, Math.max(1, options.limit ?? 50))))
   if (options.strict) params.set('strict', 'true')
-  const res = await fetch(`/api/explore?${params}`)
+  const res = await fetchWithTimeout(`/api/explore?${params}`)
   if (!res.ok) {
     const t = await res.text()
     throw new Error(t || `HTTP ${res.status}`)

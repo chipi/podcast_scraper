@@ -7,5 +7,6 @@ describe('graphTypeAvatarLetter', () => {
     expect(graphTypeAvatarLetter('Entity_organization')).toBe('O')
     expect(graphTypeAvatarLetter('Insight')).toBe('I')
     expect(graphTypeAvatarLetter('Episode')).toBe('E')
+    expect(graphTypeAvatarLetter('TopicCluster')).toBe('TC')
   })
 })

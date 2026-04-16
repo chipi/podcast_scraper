@@ -209,6 +209,7 @@
 
   | Situation | Load This File | When to Load |
   | --------- | -------------- | ------------ |
+  | **User-reported bug or “fix UI” in GI/KG viewer** (`web/gi-kg-viewer`), graph/detail/transcript links, or proving a viewer fix | `docs/guides/AGENT_BROWSER_LOOP_GUIDE.md` (**Obligatory validation** + **Symmetry rule**: validate in the same way you reproduced, e.g. MCP after fix); optional `.cursor/rules/agent-browser-ui-fixes.mdc` | **BEFORE** reproducing, editing viewer/server code for that bug, or claiming the fix works |
   | Writing/modifying Python code | `coding-standards.mdc` | BEFORE writing first line |
   | Writing or modifying tests | `testing-strategy.mdc` | BEFORE writing test |
   | Running tests or validating | `testing-strategy.mdc` | BEFORE running `make test` |
@@ -218,6 +219,7 @@
   | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
   | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
   | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
+  | Session end / "done" / wrap-up | `.cursorrules` Rule **18** | Retrospective (separate from metrics JSONL); promote durable lessons into guides/rules |
 
   All files in `.cursor/rules/`.
 
@@ -227,6 +229,23 @@
   `.ai-coding-guidelines.md`, and `.cursor/rules/*.mdc`. Full rule in `.cursor/rules/documentation.mdc`.
   **PRD vs RFC status words:** PRDs use **Implemented** / Partial / Draft; **Completed** is for **RFC**
   and **ADR** headers, not PRDs.
+
+### Session review — process reflection (Rule 18)
+
+- **When:** At **natural session end**, when the user says **"done"** / **"wrap up"**, or after a
+  **major milestone** — use the **same cadence** as the final **`.metrics/rule-adherence.jsonl`** append
+  (see REMEMBER), but **do not** mix reflection into that file or its schema.
+- **Do:** Run a short **retrospective** (silent is OK): what would have closed the work **faster** or
+  avoided a false **"fixed"**? Examples: wrong validation channel, tests that did not match user data
+  shape, model objects rebuilt without passing new fields, assuming localhost from the agent sandbox.
+- **Not metrics:** **Never** put retrospective text, lesson lists, or extra keys into
+  **`rule-adherence.jsonl`**. That log stays a **rule/skills/subagents** self-audit only.
+- **Promote into repo instructions:** When a lesson is **durable and project-wide**, update the right
+  canonical doc in-session when reasonable — e.g. **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (browser
+  / UI loop), **`.cursorrules`** / **`.cursor/rules/*.mdc`** (always-on agent rules),
+  **`docs/guides/DEVELOPMENT_GUIDE.md`** (dev workflow). For half-baked notes, use **`docs/wip/`** only.
+  **Do not** pad guides with one-off noise. **User intent beats this:** if the user says to skip
+  reflection, comply.
 
 ## PROJECT CONTEXT
 
@@ -254,6 +273,12 @@ or accessible names used by tests):
    **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
    **surface-specific** visual contract changes, not only when tests break.
 
+4. **User-reported UI bugs** — Do not claim a fix without proof: reproduce with **Chrome DevTools MCP**
+   (or Playwright MCP) when available; capture network / new-tab response; implement fix; **re-validate in
+   the same channel** (same MCP flow / same URL or clicks) after any required process restart — **not**
+   only pytest or `make test-ui` if you reproduced in the browser. Tests are **additional** locks. See
+   **Symmetry rule** in **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** → **Obligatory validation when fixing a reported UI bug**.
+
 **Local `make serve` / “use X as root” (interpretation):** When the user points at a directory as the
 **root** for local API + viewer dev (e.g. `.test_outputs`, `./output`, a manual run path), treat that as
 **`SERVE_OUTPUT_DIR`** — run **`make serve SERVE_OUTPUT_DIR=<path>`** (or **`make serve-api …`**). Do
@@ -262,6 +287,21 @@ change the project default for everyone. Wording like “temporary”, “for no
 any files” → **only** the Make variable override + restart processes; **no** repo edits.
 **`VITE_DEFAULT_CORPUS_PATH`** (viewer `.env`) is **separate**: it pre-fills the shell corpus path in the
 browser; touch it only when they ask about that UI field, not as a substitute for **`SERVE_OUTPUT_DIR`**.
+
+**Agent default corpus root (when the agent starts servers):** If the **agent** runs **`make serve`**,
+**`make serve-api`**, or restarts the API/UI stack **without** the user naming an output directory, use
+**`SERVE_OUTPUT_DIR=.test_outputs`** (fixture / local dev corpus). If the user **does** name a path, or
+recent **`SERVE_OUTPUT_DIR`** / **`terminals`** metadata clearly shows another root, use that instead. If
+still **unknown and not inferable**, **ask once** before starting.
+
+**API restart discipline (agents):** When **`src/podcast_scraper/server/`** (or other loaded server code)
+changes mean a **running** Uvicorn process must reload to pick up behavior, **do not** only tell the user
+to restart. **Restart the API in-session** when the agent environment can run shell commands: free the
+listener (typically port **8000**), run **`make serve-api SERVE_OUTPUT_DIR=<root>`** in the **background**
+(Rule **9** exception for long-running servers), then verify **`GET http://127.0.0.1:8000/api/health`**
+returns **200**. Use **`<root>`** per **Agent default corpus root** above (typically **`.test_outputs`**
+when the agent started or restarted the stack). Close with **Ready for tests** and state **URL +
+`SERVE_OUTPUT_DIR`** (one line).
 
 **FastAPI `/api/*` JSON** (new or changed routes): extend **`tests/unit/podcast_scraper/server/`** and
 **`tests/integration/server/`** (not a root-level `tests/integration/test_server_api.py`).
@@ -292,7 +332,7 @@ make fix-md        # Auto-fix markdown
 - Respect module boundaries
 - Default: `make ci-fast` before committing (exceptions: workflow-only changes; recent green CI on current tree in-session; user waives; **incremental / tiny follow-up** — see rules **5** and **5c**)
 - ALL analysis/plans → `docs/wip/`
-- Auto-load `.mdc` files for detailed guidance (Rule 17)
+- Auto-load `.mdc` files for detailed guidance (Rule 17); session review at close (Rule 18), **separate from** metrics JSONL
 - NEVER commit secrets
 -  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
@@ -301,15 +341,16 @@ make fix-md        # Auto-fix markdown
 
   - Append **a new JSON line** whenever a **meaningful chunk of work finishes** (e.g. tests pass for a change, a feature slice is done, docs/lint fixed, CI unblocked) — **not only** at session end. **Multiple lines per session are normal** (often **~2–10**; more is OK for long sessions).
   - Also append **before commit/push**, when the user says "done"/"wrap up", or at **natural session end** if nothing was logged recently.
-  - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`.
+  - Each line: short self-audit (rules applied/missed, `.mdc` loaded/skipped, **skills** / **subagents** if any). See `.metrics/README.md` + **SCHEMA.md**. Optional `skills_used` / `subagents_used`. **Do not** add retrospective or lesson fields here (Rule **18** is separate).
   - **Do not ask** permission; **do not** wait for the user to remind you. Announcement optional (silent OK).
 
 - **BEFORE any commit/push OR when user says "done"/"wrap up" OR at natural task completion** (in addition to incremental logs above):
 
   - If you have **not** appended since the last major milestone, perform self-audit and **append** (catch missed checkpoints)
+  - On that **same beat** (right after logging or if you already logged the milestone), run **Rule 18** **separately**: retrospective + promote durable lessons into guides/rules when appropriate — **not** inside JSONL
 
 ---
 
-**Version:** 2.3
-**Updated:** 2026-04-13
+**Version:** 2.5
+**Updated:** 2026-04-15
 **Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`

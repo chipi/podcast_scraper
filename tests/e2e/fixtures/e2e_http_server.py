@@ -12,6 +12,11 @@ Key Features:
 - URL mapping for flat fixture structure
 - Configurable error scenarios
 - Mock OpenAI API endpoints for E2E testing
+
+Port notes:
+- The ``e2e_server`` pytest fixture binds an ephemeral port (``0``), not a fixed port.
+- Docstring examples use **18765**, matching ``make serve-e2e-mock`` default
+  (**E2E_MOCK_PORT**), so they are not confused with FastAPI ``serve-api`` (**8000**).
 """
 
 from __future__ import annotations
@@ -192,7 +197,7 @@ class E2EServerURLs:
         """Initialize URL helper.
 
         Args:
-            base_url: Base URL of the E2E server (e.g., "http://127.0.0.1:8000")
+            base_url: Base URL of the E2E server (e.g., "http://127.0.0.1:18765")
         """
         self.base_url = base_url.rstrip("/")
 
@@ -203,7 +208,7 @@ class E2EServerURLs:
             podcast_name: Podcast name (e.g., "podcast1")
 
         Returns:
-            Full RSS feed URL (e.g., "http://127.0.0.1:8000/feeds/podcast1/feed.xml")
+            Full RSS feed URL (e.g., "http://127.0.0.1:18765/feeds/podcast1/feed.xml")
         """
         return f"{self.base_url}/feeds/{podcast_name}/feed.xml"
 
@@ -214,7 +219,7 @@ class E2EServerURLs:
             episode_id: Episode ID (e.g., "p01_e01")
 
         Returns:
-            Full audio URL (e.g., "http://127.0.0.1:8000/audio/p01_e01.mp3")
+            Full audio URL (e.g., "http://127.0.0.1:18765/audio/p01_e01.mp3")
         """
         return f"{self.base_url}/audio/{episode_id}.mp3"
 
@@ -225,7 +230,7 @@ class E2EServerURLs:
             episode_id: Episode ID (e.g., "p01_e01")
 
         Returns:
-            Full transcript URL (e.g., "http://127.0.0.1:8000/transcripts/p01_e01.txt")
+            Full transcript URL (e.g., "http://127.0.0.1:18765/transcripts/p01_e01.txt")
         """
         return f"{self.base_url}/transcripts/{episode_id}.txt"
 
@@ -233,7 +238,7 @@ class E2EServerURLs:
         """Get base URL of the server.
 
         Returns:
-            Base URL (e.g., "http://127.0.0.1:8000")
+            Base URL (e.g., "http://127.0.0.1:18765")
         """
         return self.base_url
 
@@ -241,7 +246,7 @@ class E2EServerURLs:
         """Get OpenAI API base URL (points to E2E server).
 
         Returns:
-            OpenAI API base URL (e.g., "http://127.0.0.1:8000/v1")
+            OpenAI API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
 
@@ -252,7 +257,7 @@ class E2EServerURLs:
         append ``/v1beta`` here or requests hit ``.../v1beta/v1beta/models/...`` (404).
 
         Returns:
-            Server root (e.g., ``http://127.0.0.1:8000``)
+            Server root (e.g., ``http://127.0.0.1:18765``)
         """
         return self.base_url
 
@@ -265,7 +270,7 @@ class E2EServerURLs:
         Mock server paths: ``/v1/chat/completions``, ``/v1/audio/transcriptions``.
 
         Returns:
-            Server root (e.g., ``http://127.0.0.1:8000``)
+            Server root (e.g., ``http://127.0.0.1:18765``)
         """
         return self.base_url
 
@@ -277,7 +282,7 @@ class E2EServerURLs:
         - Note: Grok does NOT support audio transcription
 
         Returns:
-            Grok API base URL (e.g., "http://127.0.0.1:8000/v1")
+            Grok API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
 
@@ -289,7 +294,7 @@ class E2EServerURLs:
         - Note: DeepSeek does NOT support audio transcription
 
         Returns:
-            DeepSeek API base URL (e.g., "http://127.0.0.1:8000/v1")
+            DeepSeek API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
 
@@ -301,7 +306,7 @@ class E2EServerURLs:
         - Note: Ollama does NOT support audio transcription
 
         Returns:
-            Ollama API base URL (e.g., "http://127.0.0.1:8000/v1")
+            Ollama API base URL (e.g., "http://127.0.0.1:18765/v1")
         """
         return f"{self.base_url}/v1"
 
@@ -314,7 +319,7 @@ class E2EServerURLs:
         - Note: Anthropic SDK appends /v1/messages, so base URL should NOT include /v1
 
         Returns:
-            Anthropic API base URL (e.g., "http://127.0.0.1:8000")
+            Anthropic API base URL (e.g., "http://127.0.0.1:18765")
         """
         return self.base_url
 

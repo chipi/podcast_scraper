@@ -22,9 +22,23 @@ import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
 import {
+  SEARCH_RESULT_COPY_TITLE_CHIP_CLASS,
   SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS,
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
+import { StaleGeneration } from '../../utils/staleGeneration'
+
+const props = withDefaults(
+  defineProps<{
+    /** When true, **Details** / **Neighbourhood** slot sits under hero (graph rail parity). */
+    railNeighbourhoodEnabled?: boolean
+    railDetailTab?: 'details' | 'neighbourhood'
+  }>(),
+  {
+    railNeighbourhoodEnabled: false,
+    railDetailTab: 'details',
+  },
+)
 
 const emit = defineEmits<{
   'focus-search': [
@@ -51,6 +65,8 @@ const similarLoading = ref(false)
 const similarError = ref<string | null>(null)
 const similarQueryUsed = ref('')
 const similarRanOk = ref(false)
+
+const detailLoadGate = new StaleGeneration()
 
 const feedDisplayTitleById = computed(() => {
   const m: Record<string, string> = {}
@@ -142,6 +158,72 @@ const episodeIdChipTooltip = computed((): string => {
   )
 })
 
+const episodeTitleForCopy = computed(() => detail.value?.episode_title?.trim() ?? '')
+
+type EpisodeTitleCopyUi = 'idle' | 'copied' | 'failed'
+
+const episodeTitleCopyUi = ref<EpisodeTitleCopyUi>('idle')
+let episodeTitleCopyResetTimer: ReturnType<typeof setTimeout> | null = null
+
+function resetEpisodeTitleCopyUi(): void {
+  if (episodeTitleCopyResetTimer !== null) {
+    clearTimeout(episodeTitleCopyResetTimer)
+    episodeTitleCopyResetTimer = null
+  }
+  episodeTitleCopyUi.value = 'idle'
+}
+
+watch(
+  () => [metadataRelativePath.value, episodeTitleForCopy.value] as const,
+  () => {
+    resetEpisodeTitleCopyUi()
+  },
+)
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    try {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      ta.setAttribute('readonly', '')
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      ta.style.left = '-9999px'
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(ta)
+      return ok
+    } catch {
+      return false
+    }
+  }
+}
+
+async function copyEpisodeTitle(): Promise<void> {
+  const text = episodeTitleForCopy.value
+  if (!text) return
+  resetEpisodeTitleCopyUi()
+  const ok = await copyTextToClipboard(text)
+  episodeTitleCopyUi.value = ok ? 'copied' : 'failed'
+  episodeTitleCopyResetTimer = setTimeout(() => {
+    episodeTitleCopyUi.value = 'idle'
+    episodeTitleCopyResetTimer = null
+  }, 2000)
+}
+
+const episodeTitleCopyAriaLabel = computed((): string => {
+  if (episodeTitleCopyUi.value === 'copied') return 'Copied to clipboard'
+  if (episodeTitleCopyUi.value === 'failed') return 'Copy failed; try again'
+  return 'Copy title'
+})
+
+const episodeTitleCopyTitleTooltip = computed((): string => episodeTitleCopyAriaLabel.value)
+
 function detailFeedLine(): string {
   const d = detail.value
   if (!d?.feed_id?.trim()) {
@@ -166,28 +248,44 @@ function detailFeedHoverTitle(): string {
   )
 }
 
-async function loadFeedsAndIndex(): Promise<void> {
+async function loadFeedsAndIndex(seq: number): Promise<void> {
   const root = shell.corpusPath.trim()
   if (!root || !shell.healthStatus) {
-    feeds.value = []
-    indexStatsEnvelope.value = null
+    if (detailLoadGate.isCurrent(seq)) {
+      feeds.value = []
+      indexStatsEnvelope.value = null
+    }
     return
   }
   try {
     const body = await fetchCorpusFeeds(root)
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
     feeds.value = body.feeds
     try {
-      indexStatsEnvelope.value = await fetchIndexStats(root)
+      const env = await fetchIndexStats(root)
+      if (detailLoadGate.isStale(seq)) {
+        return
+      }
+      indexStatsEnvelope.value = env
     } catch {
+      if (detailLoadGate.isStale(seq)) {
+        return
+      }
       indexStatsEnvelope.value = null
     }
   } catch {
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
     feeds.value = []
     indexStatsEnvelope.value = null
   }
 }
 
 async function loadDetail(metaPath: string): Promise<void> {
+  const seq = detailLoadGate.bump()
   detailError.value = null
   detail.value = null
   similarItems.value = []
@@ -201,13 +299,28 @@ async function loadDetail(metaPath: string): Promise<void> {
   }
   detailLoading.value = true
   try {
-    await loadFeedsAndIndex()
-    detail.value = await fetchCorpusEpisodeDetail(root, metaPath)
-    void loadSimilarEpisodes()
+    await loadFeedsAndIndex(seq)
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
+    const d = await fetchCorpusEpisodeDetail(root, metaPath)
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
+    if (metadataRelativePath.value?.trim() !== metaPath) {
+      return
+    }
+    detail.value = d
+    void loadSimilarEpisodes(seq, metaPath)
   } catch (e) {
+    if (detailLoadGate.isStale(seq)) {
+      return
+    }
     detailError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    detailLoading.value = false
+    if (detailLoadGate.isCurrent(seq)) {
+      detailLoading.value = false
+    }
   }
 }
 
@@ -224,12 +337,15 @@ function mapSimilarError(code: string, detailMsg: string | null): string {
   return detailMsg || code
 }
 
-async function loadSimilarEpisodes(): Promise<void> {
+async function loadSimilarEpisodes(forSeq: number, forMetaPath: string): Promise<void> {
   similarError.value = null
   similarItems.value = []
   similarQueryUsed.value = ''
   similarRanOk.value = false
-  if (!detail.value) {
+  if (detailLoadGate.isStale(forSeq)) {
+    return
+  }
+  if (!detail.value || detail.value.metadata_relative_path !== forMetaPath) {
     return
   }
   const root = shell.corpusPath.trim()
@@ -238,7 +354,13 @@ async function loadSimilarEpisodes(): Promise<void> {
   }
   similarLoading.value = true
   try {
-    const body = await fetchCorpusSimilarEpisodes(root, detail.value.metadata_relative_path)
+    const body = await fetchCorpusSimilarEpisodes(root, forMetaPath)
+    if (detailLoadGate.isStale(forSeq)) {
+      return
+    }
+    if (metadataRelativePath.value?.trim() !== forMetaPath) {
+      return
+    }
     similarQueryUsed.value = body.query_used || ''
     if (body.error) {
       similarError.value = mapSimilarError(body.error, body.detail)
@@ -247,9 +369,14 @@ async function loadSimilarEpisodes(): Promise<void> {
     similarItems.value = body.items
     similarRanOk.value = true
   } catch (e) {
+    if (detailLoadGate.isStale(forSeq)) {
+      return
+    }
     similarError.value = e instanceof Error ? e.message : String(e)
   } finally {
-    similarLoading.value = false
+    if (detailLoadGate.isCurrent(forSeq)) {
+      similarLoading.value = false
+    }
   }
 }
 
@@ -306,6 +433,7 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
 watch(
   () => [shell.corpusPath, shell.healthStatus] as const,
   () => {
+    detailLoadGate.invalidate()
     feeds.value = []
     indexStatsEnvelope.value = null
     detail.value = null
@@ -323,6 +451,7 @@ watch(
     if (p?.trim()) {
       void loadDetail(p.trim())
     } else {
+      detailLoadGate.invalidate()
       detail.value = null
       detailError.value = null
       detailLoading.value = false
@@ -338,103 +467,142 @@ watch(
 
 <template>
   <div
-    class="min-h-0 flex-1 overflow-y-auto p-2 text-sm text-surface-foreground"
+    class="flex min-h-0 flex-1 flex-col overflow-hidden text-sm text-surface-foreground"
     data-testid="episode-detail-rail-body"
   >
-    <p v-if="detailLoading" class="text-xs text-muted">
+    <p
+      v-if="detailLoading"
+      class="shrink-0 border-b border-border px-2 py-2 text-xs text-muted"
+    >
       Loading…
     </p>
-    <p v-else-if="detailError" class="text-xs text-danger">
+    <p
+      v-else-if="detailError"
+      class="shrink-0 border-b border-border px-2 py-2 text-xs text-danger"
+    >
       {{ detailError }}
     </p>
-    <p v-else-if="!detail" class="text-xs text-muted">
+    <p
+      v-else-if="!detail"
+      class="shrink-0 border-b border-border px-2 py-2 text-xs text-muted"
+    >
       No episode selected.
     </p>
     <template v-else>
-      <div class="flex gap-3">
-        <PodcastCover
-          :corpus-path="shell.corpusPath"
-          :episode-image-local-relpath="detail.episode_image_local_relpath"
-          :feed-image-local-relpath="detail.feed_image_local_relpath"
-          :episode-image-url="detail.episode_image_url"
-          :feed-image-url="detail.feed_image_url"
-          :alt="`Cover for ${detail.episode_title}`"
-          size-class="h-20 w-20 sm:h-24 sm:w-24"
-        />
-        <div class="min-w-0 flex-1">
-          <div class="flex items-start justify-between gap-1.5">
-            <h3 class="min-w-0 flex-1 text-base font-semibold text-surface-foreground">
-              {{ detail.episode_title }}
-            </h3>
-            <div class="flex shrink-0 items-start gap-0.5 pt-0.5">
-              <button
-                v-if="detail.episode_id?.trim()"
-                type="button"
-                :class="SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS"
-                :aria-label="episodeIdChipTooltip"
-                :title="episodeIdChipTooltip"
-                @click.stop.prevent
-              >
-                E
-              </button>
-              <HelpTip
-                :pref-width="300"
-                :button-class="SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS"
-                button-aria-label="Episode and feed diagnostics"
-              >
-              <p class="mb-2 font-sans text-[11px] font-semibold text-surface-foreground">
-                Troubleshooting
-              </p>
-              <p class="mb-2 font-sans text-[10px] text-muted">
-                Paths and ids for support — same data the viewer uses for search, similar episodes,
-                and graph loads.
-              </p>
-              <dl class="space-y-1.5 font-mono text-[10px] leading-snug">
-                <template v-for="(row, di) in detailDiagnosticsEntries" :key="di">
-                  <dt class="font-sans font-medium text-muted">
-                    {{ row.label }}
-                  </dt>
-                  <dd class="break-words text-elevated-foreground">
-                    {{ row.value }}
-                  </dd>
-                </template>
-              </dl>
-              </HelpTip>
-            </div>
-          </div>
-          <div
-            v-if="
-              detail.publish_date ||
-                detail.episode_number != null ||
-                formatDurationSeconds(detail.duration_seconds) ||
-                detail.feed_id
-            "
-            class="mt-0.5 text-xs text-muted"
-          >
-            <div class="flex min-w-0 flex-col items-start gap-1 text-left">
-              <span
-                class="w-full min-w-0 cursor-help break-words font-medium text-surface-foreground"
-                :title="detailFeedHoverTitle() || undefined"
-              >{{ detailFeedLine() }}</span>
-              <span
-                v-if="
-                  detail.publish_date ||
-                    detail.episode_number != null ||
-                    formatDurationSeconds(detail.duration_seconds)
-                "
-                class="inline-flex w-full min-w-0 flex-wrap items-baseline gap-x-1.5 text-left text-[10px] tabular-nums leading-tight text-muted"
-              >
-                <span v-if="detail.publish_date">{{ detail.publish_date }}</span>
-                <span v-if="detail.episode_number != null">E{{ detail.episode_number }}</span>
-                <span v-if="formatDurationSeconds(detail.duration_seconds)">{{
-                  formatDurationSeconds(detail.duration_seconds)
-                }}</span>
-              </span>
+      <div class="shrink-0 border-b border-border px-2 py-2">
+        <div class="flex min-w-0 items-start gap-3">
+          <PodcastCover
+            class="shrink-0"
+            :corpus-path="shell.corpusPath"
+            :episode-image-local-relpath="detail.episode_image_local_relpath"
+            :feed-image-local-relpath="detail.feed_image_local_relpath"
+            :episode-image-url="detail.episode_image_url"
+            :feed-image-url="detail.feed_image_url"
+            :alt="`Cover for ${detail.episode_title}`"
+            size-class="h-[4.5rem] w-[4.5rem]"
+          />
+          <div class="min-h-0 min-w-0 flex-1">
+            <div class="flex min-w-0 items-start gap-x-1.5">
+              <div class="flex min-h-0 min-w-0 flex-1 flex-col gap-y-1">
+                <h3
+                  class="node-detail-primary-title min-w-0 select-text text-base font-semibold leading-snug text-surface-foreground"
+                >
+                  {{ detail.episode_title }}
+                </h3>
+                <div
+                  v-if="
+                    detail.publish_date ||
+                      detail.episode_number != null ||
+                      formatDurationSeconds(detail.duration_seconds) ||
+                      detail.feed_id
+                  "
+                  class="min-w-0 text-xs text-muted"
+                >
+                  <div class="flex min-w-0 flex-col items-start gap-1 text-left">
+                    <span
+                      class="w-full min-w-0 cursor-help break-words font-medium text-surface-foreground"
+                      :title="detailFeedHoverTitle() || undefined"
+                    >{{ detailFeedLine() }}</span>
+                    <span
+                      v-if="
+                        detail.publish_date ||
+                          detail.episode_number != null ||
+                          formatDurationSeconds(detail.duration_seconds)
+                      "
+                      class="inline-flex w-full min-w-0 flex-wrap items-baseline gap-x-1.5 text-left text-[10px] tabular-nums leading-tight text-muted"
+                    >
+                      <span v-if="detail.publish_date">{{ detail.publish_date }}</span>
+                      <span v-if="detail.episode_number != null">E{{ detail.episode_number }}</span>
+                      <span v-if="formatDurationSeconds(detail.duration_seconds)">{{
+                        formatDurationSeconds(detail.duration_seconds)
+                      }}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex shrink-0 flex-col items-end gap-0.5 self-start pt-0.5">
+                <button
+                  v-if="detail.episode_id?.trim()"
+                  type="button"
+                  :class="SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS"
+                  :aria-label="episodeIdChipTooltip"
+                  :title="episodeIdChipTooltip"
+                  @click.stop.prevent
+                >
+                  E
+                </button>
+                <HelpTip
+                  :pref-width="300"
+                  :button-class="SEARCH_RESULT_DIAGNOSTICS_HELP_CHIP_CLASS"
+                  button-aria-label="Episode and feed diagnostics"
+                >
+                  <p class="mb-2 font-sans text-[11px] font-semibold text-surface-foreground">
+                    Troubleshooting
+                  </p>
+                  <p class="mb-2 font-sans text-[10px] text-muted">
+                    Paths and ids for support — same data the viewer uses for search, similar
+                    episodes, and graph loads.
+                  </p>
+                  <dl class="space-y-1.5 font-mono text-[10px] leading-snug">
+                    <template v-for="(row, di) in detailDiagnosticsEntries" :key="di">
+                      <dt class="font-sans font-medium text-muted">
+                        {{ row.label }}
+                      </dt>
+                      <dd class="break-words text-elevated-foreground">
+                        {{ row.value }}
+                      </dd>
+                    </template>
+                  </dl>
+                </HelpTip>
+                <button
+                  v-if="episodeTitleForCopy"
+                  type="button"
+                  :class="SEARCH_RESULT_COPY_TITLE_CHIP_CLASS"
+                  :aria-label="episodeTitleCopyAriaLabel"
+                  :title="episodeTitleCopyTitleTooltip"
+                  data-testid="episode-detail-header-title-copy"
+                  @click="copyEpisodeTitle"
+                >
+                  C
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <p v-if="detail.summary_title" class="mt-2 text-xs font-medium text-surface-foreground">
+      <slot name="episode-rail-tabs" />
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <div
+          v-show="!railNeighbourhoodEnabled || railDetailTab === 'details'"
+          id="episode-detail-rail-panel-details"
+          class="min-h-0 flex-1 overflow-y-auto p-2"
+          :role="railNeighbourhoodEnabled ? 'tabpanel' : undefined"
+          :aria-labelledby="
+            railNeighbourhoodEnabled ? 'episode-detail-rail-tab-details' : undefined
+          "
+          :tabindex="railNeighbourhoodEnabled ? -1 : undefined"
+        >
+      <p v-if="detail.summary_title" class="mt-0 text-xs font-medium text-surface-foreground">
         {{ detail.summary_title }}
       </p>
       <p
@@ -576,6 +744,18 @@ watch(
       <p v-if="graphActionError" class="mt-1 text-xs text-danger">
         {{ graphActionError }}
       </p>
+        </div>
+        <div
+          v-if="railNeighbourhoodEnabled && railDetailTab === 'neighbourhood'"
+          id="episode-detail-rail-panel-neighbourhood"
+          class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
+          role="tabpanel"
+          aria-labelledby="episode-detail-rail-tab-neighbourhood"
+          tabindex="-1"
+        >
+          <slot name="episode-rail-neighbourhood" />
+        </div>
+      </div>
     </template>
   </div>
 </template>

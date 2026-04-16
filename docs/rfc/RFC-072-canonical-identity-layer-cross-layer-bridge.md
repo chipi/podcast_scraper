@@ -23,9 +23,6 @@
   - `docs/rfc/RFC-073-enrichment-layer-architecture.md` -- enrichment layer; provides
     `grounding_rate`, `topic_cooccurrence`, `temporal_velocity`, and
     `nli_contradiction` enrichers that feed PRDs 026--029
-  - `docs/rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md` --
-    analysis layer (formerly "Phase 6"); position change detection, contradiction
-    detection, stance summarisation. Operates on data collected by this RFC
 - **Related Documents**:
   - `docs/architecture/gi/ontology.md`
   - `docs/architecture/kg/ontology.md`
@@ -76,15 +73,15 @@ stack:
 
 1. **Position Tracker** — how a person's thinking on a topic evolved across episodes,
    grounded in timestamped quotes.
-2. **Guest Intelligence Brief** — a structured pre-interview dossier on a guest's known
-   positions, best quotes, and potential challenge points.
+2. **Person Profile** — a structured overview of a guest's corpus presence: topics
+   discussed, Insight counts per topic, episode appearances, and cross-navigation.
 
 Alongside the CIL, this RFC introduces two additive GIL v1.1 fields:
 
 - **`insight_type`** — an optional classification on every Insight node (`claim`,
   `recommendation`, `observation`, `question`, `unknown`) that makes the flagship
-  query patterns type-aware: the Position Tracker can filter to claims, and the Guest
-  Brief can rank positions by statement type.
+  query patterns type-aware: the Position Tracker can filter to claims, and the Person
+  Profile can surface positions by statement type.
 - **`position_hint`** — a normalised float (`0.0`-`1.0`) derived from supporting Quote
   timestamps and episode duration, giving each Insight a temporal position within its
   episode. No extraction change needed — pure arithmetic on existing data.
@@ -132,10 +129,9 @@ This siloing blocks the most valuable use cases the current stack is capable of:
    episodes, chronologically?" Requires `topic:{slug}` anchoring both KG MENTIONS edges
    (which episodes) and GIL ABOUT/Insight nodes (what was actually said).
 
-4. **Guest intelligence** — "Before I interview person X, what have they said publicly
-   across all episodes in my corpus, and where might they get challenged?" Requires
-   `person:{slug}` as a corpus-wide anchor joining Insights, Quotes, Topics, and
-   episode metadata.
+4. **Person profile** — "What has person X talked about across all episodes in my
+   corpus, and how deeply?" Requires `person:{slug}` as a corpus-wide anchor joining
+   Insights, Quotes, Topics, and episode metadata.
 
 None of these require a database. They require **a shared identity contract** and a
 **lightweight bridge artifact** that makes the join explicit at write time rather than
@@ -250,117 +246,67 @@ in the corpus. With the bridge, the scan is a fast filter on small files.
 
 **Current boundary — what the bridge does NOT do:**
 
-Position *change detection* — recognising that the 2025 Insight contradicts the 2023
-Insight — is a separate capability defined in
-[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md). The
-bridge makes the *collection* possible; RFC-075 adds the *analysis*.
+Position *change detection* -- recognising that the 2025 Insight contradicts the 2023
+Insight -- is a separate capability for a future analysis layer. The bridge makes the
+*collection* possible; the analysis layer adds the *intelligence*.
 
-### Flagship 2: Guest Intelligence Brief
+### Flagship 2: Person Profile
 
-**The question it answers:** "Before I interview person X, what should I know about
-their publicly stated positions, their best quotes, and where they might get
-challenged?"
+**The question it answers:** "What has person X talked about across this corpus, and
+how deeply?"
 
-**Target users:** Podcast producers prepping for a recording session. The guest
-themselves (a smart person wants to know what they have said publicly before and where
-they might get challenged — that is a different brief with different emphasis).
+**Target users:** Podcast listeners and researchers exploring a guest's corpus
+footprint. Producers prepping for a recording session who want to see what a guest
+has discussed publicly across all episodes.
 
-**Why it matters:** Producers currently prep by skimming past episodes or Googling.
-A structured brief generated from the corpus is faster, more complete, and surfaces
-things a manual scan would miss — especially cross-episode patterns and contradictions
-with other guests.
+**Why it matters:** Without a person-anchored view, users must search episode by
+episode or scan graph nodes to understand a guest's presence. A structured profile
+generated from the corpus shows the full picture instantly: which topics they discuss,
+how many Insights exist per topic, and where to drill deeper.
 
 **What each layer contributes:**
 
 | Layer | Contribution |
 | --- | --- |
-| CIL | `person:` as the anchor for the entire brief |
-| GIL | All Insights and Quotes attributed to this person across all episodes — the substance of the brief. `insight_type` (Section 2a) enables surfacing `claim` and `recommendation` types as known positions. `position_hint` (Section 2b) serves as a tiebreaker — later statements on a topic are more likely to represent the guest's settled position. |
+| CIL | `person:` as the anchor for the entire profile |
+| GIL | All Insights and Quotes attributed to this person across all episodes. `insight_type` (Section 2a) enables surfacing `claim` and `recommendation` types as known positions. `position_hint` (Section 2b) serves as a tiebreaker -- later statements on a topic are more likely to represent the guest's settled position. |
 | KG | Entity relationships (org affiliation, co-appearances), topic associations, episode metadata |
-| Semantic Search | Optional — "find episodes where this guest was discussed but was not present" (mentions without appearance) |
+| Semantic Search | Optional -- "find episodes where this guest was discussed but was not present" (mentions without appearance) |
 | Bridge | The join that makes "everything person X has said across 50 episodes" a single query |
 
 **Target output shape:**
 
 ```json
 {
-  "person": {
-    "id": "person:sam-altman",
-    "display_name": "Sam Altman",
-    "appearances": 8,
-    "date_range": {
-      "earliest": "2023-01-10",
-      "latest": "2026-03-15"
-    }
+  "path": "/path/to/corpus",
+  "person_id": "person:sam-altman",
+  "person_display_name": "Sam Altman",
+  "appearances": 8,
+  "date_range": {
+    "earliest": "2023-01-10",
+    "latest": "2026-03-15"
   },
-  "known_positions": [
-    {
-      "topic": {
-        "id": "topic:ai-regulation",
-        "display_name": "AI Regulation"
-      },
+  "topic_display_names": {
+    "topic:ai-regulation": "AI Regulation",
+    "topic:open-source": "Open Source"
+  },
+  "topics": {
+    "topic:ai-regulation": {
       "insight_count": 5,
-      "strongest_insight": {
-        "id": "insight:x1y2z3",
-        "text": "AI regulation will significantly lag behind the pace of innovation",
-        "insight_type": "claim",
-        "position_hint": 0.78,
-        "confidence": 0.92,
-        "grounded": true,
-        "episode_id": "episode:abc123",
-        "publish_date": "2024-03-10T00:00:00Z"
-      }
+      "insights": []
+    },
+    "topic:open-source": {
+      "insight_count": 3,
+      "insights": []
     }
-  ],
-  "best_quotes": [
-    {
-      "text": "We need guardrails, not bans. The difference matters.",
-      "topic_id": "topic:ai-regulation",
-      "episode_id": "episode:abc123",
-      "timestamp_start_ms": 225000,
-      "timestamp_end_ms": 231000
-    }
-  ],
-  "potential_challenges": [
-    // Phase 6 scope (analysis layer, separate RFC).
-    // Phase 4 returns this as an empty array.
-    // Shown here to illustrate the full brief vision.
-    {
-      "topic": {
-        "id": "topic:ai-regulation",
-        "display_name": "AI Regulation"
-      },
-      "this_guest_position": "AI regulation will lag innovation; self-regulation preferred",
-      "conflicting_guest": {
-        "id": "person:timnit-gebru",
-        "display_name": "Timnit Gebru"
-      },
-      "conflicting_position": "Voluntary safety commitments are insufficient; binding regulation is essential",
-      "episodes": ["episode:ghi789"]
-    }
-  ],
-  "topic_summary": {
-    "total_topics": 12,
-    "total_insights": 34,
-    "total_quotes": 89,
-    "grounding_rate": 0.85
   }
 }
 ```
 
-**Current boundary — what the bridge does NOT do:**
-
-The `potential_challenges` section requires comparing Insights across different
-persons on the same topic. Contradiction detection is defined in
-[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md). The
-bridge makes the collection possible; RFC-075 adds the analysis.
-
-The `best_quotes` ranking requires a scoring signal (quote length, specificity,
-grounding strength, or a learned quality score). The bridge provides access to all
-quotes; ranking is a query-time concern.
+**Current boundary -- what the bridge does NOT do:**
 
 Cross-podcast coverage (what the guest said on *other* shows) requires the corpus to
-contain multiple podcasts. The CIL design supports this — slugs are feed-independent —
+contain multiple podcasts. The CIL design supports this -- slugs are feed-independent --
 but the value scales with corpus breadth.
 
 ### Use Cases Enabled but Not Flagshipped
@@ -368,10 +314,8 @@ but the value scales with corpus breadth.
 The CIL and bridge also enable these use cases, which are not detailed here but become
 straightforward once the foundation is in place:
 
-- **Controversy radar** — surface topic + person pairs where Insights from different
-  persons contradict each other. See
-  [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md) for
-  the analysis mechanism.
+- **Controversy radar** -- surface topic + person pairs where Insights from different
+  persons contradict each other. Requires a future analysis layer.
 - **Follow-the-thread** — chronological topic evolution across episodes. A simpler
   variant of the Position Tracker without the person filter.
 - **Gap analysis** — topics that appear in audience questions (if captured) but have
@@ -410,7 +354,7 @@ straightforward once the foundation is in place:
    the same transcript text), making structured enrichment of search results possible
    without pipeline changes to FAISS.
 
-7. **Provide the data foundation for the Position Tracker and Guest Brief** — the
+7. **Provide the data foundation for the Position Tracker and Person Profile** — the
    bridge makes the cross-layer, cross-episode joins these features require possible
    with the current architecture.
 
@@ -431,10 +375,8 @@ straightforward once the foundation is in place:
   enables lifting at query time; FAISS metadata alignment is a follow-up (see Known
   Limitations).
 - Slugifier must be deterministic, idempotent, and produce non-empty strings.
-- The flagship use cases (Position Tracker, Guest Brief) define the *data foundation*
-  and *query patterns*. The analysis layer (contradiction detection, position change
-  detection) is in
-  [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
+- The flagship use cases (Position Tracker, Person Profile) define the *data foundation*
+  and *query patterns*. Advanced analysis capabilities are a future extension.
 - `insight_type` and `position_hint` are additive (GIL v1.1). Existing `gi.json`
   artifacts without these fields remain valid — consumers treat missing `insight_type`
   as `"unknown"` and missing `position_hint` as `null`. No migration script needed for
@@ -567,12 +509,9 @@ artifacts remain valid (missing `insight_type` is treated as `"unknown"`).
   jobs" (question) carries different weight than "AI will replace 40% of jobs by 2030"
   (claim) when tracking how a person's *stated positions* evolve. Without `insight_type`,
   the consumer must mentally classify every Insight in the arc.
-- **Guest Brief**: The `known_positions` section should surface `claim` and
-  `recommendation` type Insights most prominently — those are the positions.
-  `potential_challenges` (RFC-075) becomes more tractable when comparing `claim`
-  Insights specifically.
-- **Analysis layer (RFC-075)**: Contradiction detection is more precise when scoped
-  to `claim` vs `claim` pairs on the same topic.
+- **Person Profile**: The topic overview benefits from distinguishing `claim` and
+  `recommendation` type Insights -- those are the positions a user wants to see when
+  exploring a person's corpus footprint.
 
 **Enum values:**
 
@@ -639,11 +578,8 @@ progression of their argument, and here is the conclusion."
   progression. A `claim` Insight at `position_hint: 0.85` (late in the episode) is
   likely a conclusion; one at `0.12` (early) is likely framing or setup. This adds
   intra-episode narrative structure to the inter-episode timeline.
-- **Guest Brief**: The `strongest_insight` selection for a topic can use `position_hint`
-  as a tiebreaker — later statements on a topic are more likely to represent the guest's
-  settled position than early exploratory remarks.
-- **Analysis layer (RFC-075)**: Position change detection within a single episode
-  becomes detectable when Insights have temporal ordering.
+- **Person Profile**: When exploring a person's topic footprint, `position_hint`
+  helps identify later, more settled statements vs early exploratory remarks.
 
 **Computation:**
 
@@ -925,16 +861,15 @@ def position_arc(
     return sorted(results, key=lambda r: r["publish_date"] or "")
 ```
 
-**Pattern B: Guest Brief query — all Insights by a person, grouped by topic**
+**Pattern B: Person Profile query — all Insights by a person, grouped by topic**
 
 Insights are grouped by topic and annotated with `insight_type` and `position_hint`.
-The brief consumer uses `insight_type` to rank: `claim` and `recommendation` types
-surface as `known_positions`; `observation` and `question` types provide supporting
-context. `position_hint` serves as a tiebreaker — later statements are more likely to
-represent the guest's settled position.
+The profile consumer uses `insight_type` to distinguish statement types: `claim` and
+`recommendation` are the positions a user wants to see; `observation` and `question`
+provide supporting context. `position_hint` identifies later, more settled statements.
 
 ```python
-def guest_brief(corpus_dir: Path, target_person: str) -> dict:
+def person_profile(corpus_dir: Path, target_person: str) -> dict:
     by_topic: dict[str, list] = {}
     all_quotes: list[dict] = []
 
@@ -1156,10 +1091,8 @@ diverge, a mapping layer is needed before this enrichment is available.
      building the flagship use cases inform the merge decision.
 
 7. **Flagship use cases define the data foundation, not the analysis layer**
-   - **Decision**: Position Tracker and Guest Brief define the query patterns and output
-     shapes. Contradiction detection, stance comparison, and position change detection
-     are defined in
-     [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
+   - **Decision**: Position Tracker and Person Profile define the query patterns and
+     output shapes. Advanced analysis capabilities are future extensions.
    - **Rationale**: The bridge is the prerequisite. Building the collection and
      assembly layer first, then layering analysis on top, avoids coupling the
      foundation to a specific analysis approach.
@@ -1168,13 +1101,13 @@ diverge, a mapping layer is needed before this enrichment is available.
    - **Decision**: Add an optional `insight_type` enum (`claim`, `recommendation`,
      `observation`, `question`, `unknown`) to every Insight node in `gi.json`. Default
      `unknown` so existing artifacts remain valid without migration.
-   - **Rationale**: The Position Tracker and Guest Brief are qualitatively better when
+   - **Rationale**: The Position Tracker and Person Profile are qualitatively better when
      they can distinguish claims from observations and questions. Without `insight_type`,
      the consumer must mentally classify every Insight — which defeats the purpose of
      structured data. The field is additive (no breakage), the extraction prompt change
      is small and measurable, and emitting it now means new pipeline runs accumulate
-     typed Insights before Phase 4 implementation. Deferring it to Phase 4 or to
-     RFC-075 would require re-extracting all artifacts.
+     typed Insights before Phase 4 implementation. Deferring it to Phase 4 or to a
+     future analysis layer would require re-extracting all artifacts.
 
 9. **`position_hint` as a derived GIL v1.1 field, computed from existing data**
    - **Decision**: Add an optional `position_hint` float (`0.0`-`1.0`) to every Insight
@@ -1183,7 +1116,7 @@ diverge, a mapping layer is needed before this enrichment is available.
    - **Rationale**: Insights within a single episode are temporally flat — a framing
      remark at minute 2 and a concluding claim at minute 55 look identical. The Position
      Tracker needs intra-episode ordering to show argumentative progression, and the
-     Guest Brief needs a tiebreaker for "strongest insight" selection. Unlike
+     Person Profile benefits from distinguishing settled positions. Unlike
      `insight_type`, this requires no extraction change — it is pure arithmetic on data
      already present at build time (Quote timestamps + Episode duration). Zero cost to
      emit, meaningful improvement to both flagships.
@@ -1253,7 +1186,7 @@ If offsets diverge, a mapping layer that re-normalises one coordinate space to t
 other is needed.
 
 **Blast radius:** Blocks the semantic search entry point for Position Tracker and
-Guest Brief. The filesystem-based query patterns (Sections 5A-5C) are unaffected.
+Person Profile. The filesystem-based query patterns (Sections 5A-5C) are unaffected.
 
 ### 2. Name variation across episodes (degrades cross-episode joins)
 
@@ -1270,7 +1203,7 @@ future capability — the bridge's per-episode `aliases` field provides the raw 
 for building it.
 
 **Blast radius:** Proportional to how often names vary across episodes. Position
-Tracker and Guest Brief degrade gracefully — they return partial results rather than
+Tracker and Person Profile degrade gracefully — they return partial results rather than
 wrong results. The user sees Insights for "Sam Altman" but misses Insights attributed
 to "Samuel Altman."
 
@@ -1305,23 +1238,22 @@ without a hint sort to the beginning rather than disappearing.
 
 **Blast radius:** Proportional to how many episodes lack duration metadata. Position
 Tracker loses intra-episode ordering for those episodes but still shows the
-inter-episode chronological arc. Guest Brief loses the `position_hint` tiebreaker but
-still ranks by confidence and type.
+inter-episode chronological arc. Person Profile loses the `position_hint` signal but
+still ranks by topic Insight count.
 
 ### 5. Analysis layer not included (limits flagship use case depth)
 
 The Position Tracker can assemble a chronological arc of Insights. It cannot
-automatically detect that the 2025 Insight contradicts the 2023 Insight. The Guest
-Brief can list all positions and quotes. It cannot automatically identify which
-positions conflict with other guests.
+automatically detect that a later Insight contradicts an earlier one. The Person
+Profile lists topics and Insight counts but does not rank or curate them
+analytically.
 
-**Mitigation:** The analysis layer is defined in
-[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md). This
-RFC ensures the data is joinable; RFC-075 ensures it is interpreted.
+**Mitigation:** A future analysis layer may add automated interpretation. This
+RFC ensures the data is joinable; interpretation is a separate concern.
 
-**Blast radius:** The flagship use cases deliver value without the analysis layer —
-a chronological position arc is useful even without automated change detection. But
-the "wow" moment (automatically flagging the shift) requires RFC-075.
+**Blast radius:** The flagship use cases deliver value without analysis --
+a chronological position arc is useful even without automated change detection,
+and a topic overview is useful without analytical ranking.
 
 ---
 
@@ -1362,12 +1294,12 @@ patterns defined here are where the product value lives.
 - **Migration script tests**: Assert idempotency and correctness of
   `migrate_gi_speaker_to_person.py` and `migrate_kg_entity_ids.py` against fixture
   artifacts.
-- **Cross-layer query tests**: Assert that Position Tracker and Guest Brief query
+- **Cross-layer query tests**: Assert that Position Tracker and Person Profile query
   patterns return correct results against a synthetic multi-episode corpus with known
   identities.
 - **Insight type tests**: Assert that `insight_type` is emitted on Insight nodes in
   new pipeline runs. Assert that the Position Tracker `insight_types` filter correctly
-  includes/excludes Insights by type. Assert that the Guest Brief annotates each
+  includes/excludes Insights by type. Assert that the Person Profile annotates each
   Insight with its type. Assert backward compatibility: `gi.json` artifacts without
   `insight_type` are treated as `"unknown"` by all query patterns.
 - **Position hint tests**: Assert that `position_hint` is computed correctly from
@@ -1389,8 +1321,8 @@ patterns defined here are where the product value lives.
    calls it.
 6. Position Tracker query returns a chronologically ordered arc of Insights for a
    given person + topic across a multi-episode test corpus.
-7. Guest Brief query returns all Insights grouped by topic for a given person across a
-   multi-episode test corpus.
+7. Person Profile query returns all Insights grouped by topic for a given person across
+   a multi-episode test corpus.
 8. New pipeline runs emit `insight_type` and `position_hint` on every Insight node
    (where data is available). Pre-existing artifacts without these fields are handled
    gracefully (`insight_type` defaults to `"unknown"`, `position_hint` defaults to
@@ -1423,11 +1355,12 @@ Implement `bridge_builder.py`. Wire into pipeline after GI and KG build passes. 
 
 **Phase 4 — Flagship query patterns and API:**
 
-Implement Position Tracker and Guest Brief query patterns. Expose via API:
+Implement Position Tracker and Person Profile query patterns. Expose via API:
 
 - `GET /persons/{person_id}/positions?topic={topic_id}` — position arc for a person
   on a topic.
-- `GET /persons/{person_id}/brief` — guest intelligence brief.
+- `GET /persons/{person_id}/brief` — person profile (topics, Insight counts,
+  appearances).
 - `GET /topics/{topic_id}/timeline` — topic evolution across episodes.
 - `GET /topics/{topic_id}/persons` — all persons who discuss a topic.
 - `GET /persons/{person_id}/topics` — all topics a person discusses.
@@ -1437,20 +1370,9 @@ Implement Position Tracker and Guest Brief query patterns. Expose via API:
 After verifying char offset alignment (Known Limitations, section 1), add
 chunk-to-Insight lift to search result enrichment. No FAISS rebuild required.
 
-**Phase 6 — Analysis layer:**
-
-Extracted to
-[RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
-Covers contradiction detection, stance comparison, position-change flagging, and
-stance summarisation. Uses RFC-073's `nli_contradiction` enricher as the batch base
-layer; adds query-time LLM refinement. Populates the field contracts defined in
-PRD-028 (`position_change_detected`, `stance_summary`) and PRD-029
-(`potential_challenges`).
-
 **`grounding_rate` source note:** The `grounding_rate` statistic used in PRD-026
-(Topic Entity View, person chip badge) and PRD-029 (Guest Brief, `topic_summary`)
-comes from RFC-073's `grounding_rate` corpus enricher, not from an RFC-075 analysis
-pass.
+(Topic Entity View, person chip badge) and PRD-029 (Person Profile) comes from
+RFC-073's `grounding_rate` corpus enricher, not from an analysis layer pass.
 
 ---
 
@@ -1468,9 +1390,9 @@ behaviour.
 
 1. **Cross-episode person intelligence**: Query all Insights, quotes, and topics for
    any guest across the entire corpus — the foundation for the Position Tracker and
-   Guest Brief.
+   Person Profile.
 2. **Topic threading**: Follow any topic chronologically across episodes, grounded in
-   verbatim quotes — enables follow-the-thread and controversy detection.
+   verbatim quotes — enables follow-the-thread navigation.
 3. **Richer semantic search**: Search results lift from raw chunks to structured,
    attributed, timestamped Insights — a qualitatively different user experience.
 4. **DB-free**: Full value delivered on the current filesystem artifact stack. Postgres
@@ -1483,13 +1405,13 @@ behaviour.
    alone.
 7. **Deferred merge**: GIL and KG remain separate (per ADR-052) while the bridge
    provides the join. Real usage informs whether to merge later.
-8. **Type-aware Insights**: `insight_type` makes the Position Tracker and Guest Brief
-   qualitatively better by distinguishing claims from observations and questions — the
-   difference between a structured position arc and a noisy quote dump.
+8. **Type-aware Insights**: `insight_type` makes the Position Tracker and Person
+   Profile qualitatively better by distinguishing claims from observations and
+   questions — the difference between a structured position arc and a noisy quote dump.
 9. **Intra-episode ordering**: `position_hint` adds temporal structure within episodes
    so the Position Tracker can show argumentative progression (setup to conclusion) and
-   the Guest Brief can prefer later, more settled statements as the "strongest insight."
-   Zero extraction cost — derived from existing Quote timestamps.
+   the Person Profile can identify later, more settled statements. Zero extraction
+   cost — derived from existing Quote timestamps.
 
 ---
 
@@ -1506,8 +1428,6 @@ behaviour.
 4. **Phase 4**: Implement flagship query patterns. Expose API endpoints. Update
    Cytoscape viewer (ADR-065) to navigate by canonical ID.
 5. **Phase 5**: Enable search result lifting post char-offset verification.
-6. **Phase 6**: Analysis layer --
-   [RFC-075](RFC-075-analysis-layer-position-change-contradiction-detection.md).
 
 ---
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   escapeHtml,
   formatBytes,
+  formatCalendarDateForDisplay,
   formatUtcDateTimeForDisplay,
   humanizeSlug,
   shortPhrase,
@@ -114,6 +115,34 @@ describe('humanizeSlug', () => {
 
   it('handles empty string', () => {
     expect(humanizeSlug('')).toBe('')
+  })
+})
+
+describe('formatCalendarDateForDisplay', () => {
+  it('formats ISO instants like a calendar date in en-US (locale-aware)', () => {
+    const raw = '2024-06-15T15:00:00.000Z'
+    const d = new Date(raw)
+    const expected = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(d)
+    expect(formatCalendarDateForDisplay(raw)).toBe(expected)
+  })
+
+  it('returns empty for blank', () => {
+    expect(formatCalendarDateForDisplay('')).toBe('')
+    expect(formatCalendarDateForDisplay('   ')).toBe('')
+  })
+
+  it('truncates very long unparseable strings', () => {
+    const s = 'x'.repeat(50)
+    expect(formatCalendarDateForDisplay(s)).toHaveLength(40)
+    expect(formatCalendarDateForDisplay(s).endsWith('…')).toBe(true)
+  })
+
+  it('returns short garbage unchanged', () => {
+    expect(formatCalendarDateForDisplay('not-a-date')).toBe('not-a-date')
   })
 })
 

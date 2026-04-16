@@ -1,10 +1,14 @@
 import { defineStore } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import { fetchExploreFiltered, fetchExploreNaturalLanguage, type ExploreApiBody } from '../api/exploreApi'
+import { StaleGeneration } from '../utils/staleGeneration'
 
 export interface ExploreQuote {
   text: string
+  /** Display name when the API provides ``speaker.name``. */
   speaker_name?: string
+  /** Raw ``speaker.speaker_id`` or flat ``speaker_id`` when no separate display name. */
+  speaker_id?: string
   start_ms?: number
   end_ms?: number
 }
@@ -46,6 +50,9 @@ export const useExploreStore = defineStore('explore', () => {
   const error = ref<string | null>(null)
   const last = ref<ExploreApiBody | null>(null)
 
+  /** Shared so filtered vs NL runs do not clobber a newer in-flight response. */
+  const exploreRunGate = new StaleGeneration()
+
   const filters = reactive({
     topic: '',
     speaker: '',
@@ -85,12 +92,30 @@ export const useExploreStore = defineStore('explore', () => {
           .filter((q): q is Record<string, unknown> => q != null && typeof q === 'object')
           .map((q) => {
             const spk = q.speaker as Record<string, unknown> | undefined
+            const flatSid =
+              typeof q.speaker_id === 'string' && q.speaker_id.trim() ? q.speaker_id.trim() : ''
+            let speaker_name: string | undefined
+            let speaker_id: string | undefined
+            if (spk && typeof spk === 'object') {
+              const nm = spk.name
+              const sid =
+                typeof spk.speaker_id === 'string' && spk.speaker_id.trim()
+                  ? spk.speaker_id.trim()
+                  : ''
+              if (typeof nm === 'string' && nm.trim()) {
+                speaker_name = nm.trim()
+              }
+              if (sid) {
+                speaker_id = sid
+              }
+            }
+            if (flatSid && !speaker_id) {
+              speaker_id = flatSid
+            }
             return {
               text: typeof q.text === 'string' ? q.text : '',
-              speaker_name:
-                spk && typeof spk === 'object'
-                  ? (typeof spk.name === 'string' ? spk.name : String(spk.speaker_id ?? ''))
-                  : undefined,
+              speaker_name,
+              speaker_id,
               start_ms: typeof q.timestamp_start_ms === 'number' ? q.timestamp_start_ms : undefined,
               end_ms: typeof q.timestamp_end_ms === 'number' ? q.timestamp_end_ms : undefined,
             }
@@ -181,6 +206,7 @@ export const useExploreStore = defineStore('explore', () => {
       error.value = 'Set corpus root first.'
       return
     }
+    const seq = exploreRunGate.bump()
     loading.value = true
     try {
       const minRaw = filters.minConfidence.trim()
@@ -189,7 +215,7 @@ export const useExploreStore = defineStore('explore', () => {
         const n = Number(minRaw)
         if (Number.isFinite(n)) minConfidence = n
       }
-      last.value = await fetchExploreFiltered(root, {
+      const body = await fetchExploreFiltered(root, {
         topic: filters.topic,
         speaker: filters.speaker,
         groundedOnly: filters.groundedOnly,
@@ -198,10 +224,19 @@ export const useExploreStore = defineStore('explore', () => {
         limit: filters.limit,
         strict: filters.strict,
       })
+      if (exploreRunGate.isStale(seq)) {
+        return
+      }
+      last.value = body
     } catch (e) {
+      if (exploreRunGate.isStale(seq)) {
+        return
+      }
       error.value = e instanceof Error ? e.message : String(e)
     } finally {
-      loading.value = false
+      if (exploreRunGate.isCurrent(seq)) {
+        loading.value = false
+      }
     }
   }
 
@@ -218,16 +253,26 @@ export const useExploreStore = defineStore('explore', () => {
       error.value = 'Enter a question.'
       return
     }
+    const seq = exploreRunGate.bump()
     loading.value = true
     try {
-      last.value = await fetchExploreNaturalLanguage(root, q, {
+      const body = await fetchExploreNaturalLanguage(root, q, {
         limit: filters.limit,
         strict: filters.strict,
       })
+      if (exploreRunGate.isStale(seq)) {
+        return
+      }
+      last.value = body
     } catch (e) {
+      if (exploreRunGate.isStale(seq)) {
+        return
+      }
       error.value = e instanceof Error ? e.message : String(e)
     } finally {
-      loading.value = false
+      if (exploreRunGate.isCurrent(seq)) {
+        loading.value = false
+      }
     }
   }
 

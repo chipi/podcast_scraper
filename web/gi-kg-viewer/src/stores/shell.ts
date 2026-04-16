@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { fetchWithTimeout } from '../api/httpClient'
+import { StaleGeneration } from '../utils/staleGeneration'
 
 export const useShellStore = defineStore('shell', () => {
   const corpusPath = ref(
@@ -24,6 +26,8 @@ export const useShellStore = defineStore('shell', () => {
   const exploreApiAvailable = ref(true)
   const indexRoutesApiAvailable = ref(true)
   const corpusMetricsApiAvailable = ref(true)
+  /** True when /api/health reports CIL query routes (RFC-072 / GitHub #527). */
+  const cilQueriesApiAvailable = ref(true)
   const artifactsLoading = ref(false)
   const artifactsError = ref<string | null>(null)
   const artifactCount = ref<number | null>(null)
@@ -47,7 +51,16 @@ export const useShellStore = defineStore('shell', () => {
    */
   const pendingLibraryMetadataRelpath = ref<string | null>(null)
 
+  /**
+   * Digest topic pills set this before switching to Library; Library consumes once into
+   * **Summary / topic** filter and reloads the list.
+   */
+  const pendingLibraryTopicQ = ref<string | null>(null)
+
   const hasCorpusPath = computed(() => corpusPath.value.trim().length > 0)
+
+  const healthFetchGate = new StaleGeneration()
+  const artifactListFetchGate = new StaleGeneration()
 
   /** API may send lowercase `ok`; show **OK** in the shell UI. */
   const healthStatusDisplay = computed(() => {
@@ -74,16 +87,22 @@ export const useShellStore = defineStore('shell', () => {
     return v
   }
 
+  function setPendingLibraryTopicQ(q: string): void {
+    const t = q.trim()
+    pendingLibraryTopicQ.value = t || null
+  }
+
+  function takePendingLibraryTopicQ(): string | null {
+    const v = pendingLibraryTopicQ.value
+    pendingLibraryTopicQ.value = null
+    return v
+  }
+
   async function fetchHealth(): Promise<void> {
+    const seq = healthFetchGate.bump()
     healthError.value = null
-    corpusBinaryApiAvailable.value = true
-    artifactsApiAvailable.value = true
-    searchApiAvailable.value = true
-    exploreApiAvailable.value = true
-    indexRoutesApiAvailable.value = true
-    corpusMetricsApiAvailable.value = true
     try {
-      const res = await fetch('/api/health')
+      const res = await fetchWithTimeout('/api/health')
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`)
       }
@@ -97,6 +116,10 @@ export const useShellStore = defineStore('shell', () => {
         explore_api?: boolean
         index_routes_api?: boolean
         corpus_metrics_api?: boolean
+        cil_queries_api?: boolean
+      }
+      if (healthFetchGate.isStale(seq)) {
+        return
       }
       healthStatus.value = body.status ?? 'unknown'
       corpusLibraryApiAvailable.value = body.corpus_library_api === true
@@ -114,7 +137,11 @@ export const useShellStore = defineStore('shell', () => {
       exploreApiAvailable.value = healthAdvertisesRoute(body.explore_api)
       indexRoutesApiAvailable.value = healthAdvertisesRoute(body.index_routes_api)
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
+      cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
     } catch (e) {
+      if (healthFetchGate.isStale(seq)) {
+        return
+      }
       healthStatus.value = null
       corpusLibraryApiAvailable.value = false
       corpusDigestApiAvailable.value = false
@@ -124,11 +151,13 @@ export const useShellStore = defineStore('shell', () => {
       exploreApiAvailable.value = false
       indexRoutesApiAvailable.value = false
       corpusMetricsApiAvailable.value = false
+      cilQueriesApiAvailable.value = false
       healthError.value = e instanceof Error ? e.message : String(e)
     }
   }
 
   async function fetchArtifactList(): Promise<void> {
+    const seq = artifactListFetchGate.bump()
     artifactsError.value = null
     artifactCount.value = null
     artifactList.value = []
@@ -136,12 +165,13 @@ export const useShellStore = defineStore('shell', () => {
     corpusHints.value = []
     if (!hasCorpusPath.value) {
       artifactsError.value = 'Set a corpus directory path (local output folder).'
+      artifactsLoading.value = false
       return
     }
     artifactsLoading.value = true
     try {
       const q = new URLSearchParams({ path: corpusPath.value.trim() })
-      const res = await fetch(`/api/artifacts?${q.toString()}`)
+      const res = await fetchWithTimeout(`/api/artifacts?${q.toString()}`)
       if (!res.ok) {
         const detail = await res.text()
         throw new Error(detail || `HTTP ${res.status}`)
@@ -157,6 +187,9 @@ export const useShellStore = defineStore('shell', () => {
           mtime_utc: string
         }[]
       }
+      if (artifactListFetchGate.isStale(seq)) {
+        return
+      }
       const list = Array.isArray(body.artifacts) ? body.artifacts : []
       artifactList.value = list
       artifactCount.value = list.length
@@ -165,9 +198,14 @@ export const useShellStore = defineStore('shell', () => {
       }
       corpusHints.value = Array.isArray(body.hints) ? body.hints.filter((h) => h.trim()) : []
     } catch (e) {
+      if (artifactListFetchGate.isStale(seq)) {
+        return
+      }
       artifactsError.value = e instanceof Error ? e.message : String(e)
     } finally {
-      artifactsLoading.value = false
+      if (artifactListFetchGate.isCurrent(seq)) {
+        artifactsLoading.value = false
+      }
     }
   }
 
@@ -184,6 +222,7 @@ export const useShellStore = defineStore('shell', () => {
     exploreApiAvailable,
     indexRoutesApiAvailable,
     corpusMetricsApiAvailable,
+    cilQueriesApiAvailable,
     artifactsLoading,
     artifactsError,
     artifactCount,
@@ -191,10 +230,13 @@ export const useShellStore = defineStore('shell', () => {
     resolvedCorpusPath,
     corpusHints,
     pendingLibraryMetadataRelpath,
+    pendingLibraryTopicQ,
     hasCorpusPath,
     fetchHealth,
     fetchArtifactList,
     setPendingLibraryEpisode,
     takePendingLibraryEpisode,
+    setPendingLibraryTopicQ,
+    takePendingLibraryTopicQ,
   }
 })

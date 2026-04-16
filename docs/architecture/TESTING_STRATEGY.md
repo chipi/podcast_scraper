@@ -120,8 +120,8 @@ The testing strategy follows a three-tier pyramid:
     parent + feeds indexing; composite fingerprint keys (`index_fingerprint_scope_key`).
   - `tests/unit/podcast_scraper/workflow/test_corpus_operations.py` — manifest/summary JSON,
     `finished_at`, `finalize_multi_feed_batch` return value.
-  - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success and
-    partial failure).
+  - `tests/unit/podcast_scraper/test_service.py` — `ServiceResult.multi_feed_summary` (success,
+    partial failure, **GitHub #559** ``multi_feed_strict`` when failures are soft-only).
   - `tests/unit/podcast_scraper/test_cli.py` — `corpus-status` parse/smoke; multi-feed CLI with
     injected `run_pipeline_fn`; **`gi inspect` / `kg inspect`** multi-feed **`--feed-id`** and
     ambiguous **`episode_id`** error paths (`TestGiSubcommand`, `TestKgSubcommandMultiFeed`).
@@ -138,6 +138,17 @@ The testing strategy follows a three-tier pyramid:
   still writes both artifacts with `overall_ok: false` (CLI + service).
 - **E2E:** `tests/e2e/test_service_api_e2e.py` — YAML `feeds:` + `multi_feed_summary`;
   `tests/e2e/test_basic_e2e.py` / `test_cli_subprocess_e2e.py` — multi-feed smoke where marked #440.
+- **Multi-feed resilience E2E (#559 / #560):** **`multi_feed_strict`** (default lenient) and CLI
+  **`--multi-feed-strict`** / **`--no-multi-feed-strict`** are covered in
+  **`tests/e2e/test_multi_feed_resilience_e2e.py`** (corpus batch **`corpus_run_summary.json`**,
+  per-feed **`failure_kind`**, strict vs lenient exit codes, transient RSS, corpus lock,
+  multi-episode transcript skip + per-feed **`run.json`** metrics). HTTP/transcript retry and
+  **`failure_summary`** in **`run.json`** where the pipeline records episode failures live in
+  **`tests/e2e/test_download_resilience_e2e.py`**. Narrative and fast vs **`multi_episode`** mode:
+  [E2E_TESTING_GUIDE.md — Download resilience E2E](../guides/E2E_TESTING_GUIDE.md#download-resilience-e2e).
+- **Config note (#559):** Deprecated YAML/JSON key **`multi_feed_soft_fail_exit_zero`** is mapped
+  during **`Config.model_validate`** on a dict only. Call **`Config(multi_feed_strict=...)`** in
+  code; the legacy name is not a constructor keyword (model **`extra=forbid`**). No env alias.
 - **Docs:** [CORPUS_MULTI_FEED_ARTIFACTS.md](../api/CORPUS_MULTI_FEED_ARTIFACTS.md), RFC-063 §5–§7,
   [CONFIGURATION.md](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440),
   [SEMANTIC_SEARCH_GUIDE.md](../guides/SEMANTIC_SEARCH_GUIDE.md).
@@ -567,6 +578,27 @@ and coverage, see [Integration Testing Guide](../guides/INTEGRATION_TESTING_GUID
 
 **For detailed E2E test execution commands and implementation, see [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md).**
 
+### Pytest E2E vs HTTP integration vs browser E2E (Playwright)
+
+This section is about **roles**, so future changes do not confuse “we have a test” with “we closed
+the loop at the right layer.”
+
+| Layer | What it is | What it proves |
+| ----- | ---------- | -------------- |
+| **pytest E2E** (`tests/e2e/`, `pytest`, `@pytest.mark.e2e`) | Full workflows from **user-facing Python entry points** (CLI subprocess, `run_pipeline`, service-style runs, E2E HTTP **client** against the **E2E fixture server**). | That the **Python product path** from entry to artifacts behaves end-to-end for the scenarios we care about. **Coverage** for this job uses the **full** `podcast_scraper` package (see `pyproject.toml` `[tool.coverage.run]`); there is **no** subtree `omit` file tuned to make the percentage look higher. |
+| **HTTP integration** (`tests/integration/server/`, FastAPI **TestClient** or similar) | Request/response and route wiring **in the Python process**, often without a separate long-lived server or browser. | Server modules, auth/middleware shapes, and API contracts **efficiently**. It is **not** a substitute for **pytest E2E** when the requirement is “operator/user ran the real CLI or full pipeline and this capability fired.” |
+| **Browser UI E2E (Playwright)** | Real browser against the **Vue** dev server; specs under `web/gi-kg-viewer/e2e/`. | **UI** behavior (a11y strings, graph shell, client-side merge). It does **not** execute the pytest suite and does **not** give a pass on **pytest E2E** obligations for Python-only capabilities. |
+
+**Policy (Python focus):** **Playwright is not an excuse** to skip pytest E2E or to shrink pytest E2E
+coverage expectations for Python packages such as `server/`, `search/`, or `gi/`. If a **key
+capability** must be proven at the **pytest E2E** layer, add or extend **`tests/e2e/`** (and expect
+the **full-tree** E2E coverage percentage to rise as those paths execute). The **combined**
+coverage gate (~70%) and integration jobs still matter; they complement E2E rather than replacing
+it for that bar.
+
+See also [Testing Guide — coverage thresholds](../guides/TESTING_GUIDE.md#coverage-thresholds) and
+[Browser UI E2E (Playwright)](#browser-ui-e2e-playwright).
+
 ### E2E Test Tiers (Code Quality vs Data Quality)
 
 E2E tests are organized into three tiers to balance fast CI feedback with comprehensive validation:
@@ -981,13 +1013,13 @@ The CI/CD pipeline (GitHub Actions) implements a multi-layered validation strate
 - [x] `gi/schema.py` — `gi.json` validation (unit: `test_schema.py`)
 - [x] `gi/io.py` — gi.json read/write (unit: `test_io.py`)
 - [x] Standalone schema validation: `scripts/tools/validate_gi_schema.py` and `make validate-gi-schema [ARTIFACTS_DIR=path]`; E2E tests that produce gi.json run strict validation inline (ci-fast gates on it).
-- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E `test_kg_cli_e2e.py` (fixture + pipeline stub + provider mocks: OpenAI, Anthropic, Gemini, Grok, DeepSeek); acceptance `config/acceptance/*.yaml` (including `acceptance_planet_money_grok.yaml` for Grok in the full pipeline).
+- [x] KG artifacts: `scripts/tools/validate_kg_schema.py` and `make validate-kg-schema [ARTIFACTS_DIR=path]`; unit tests `test_kg_pipeline.py`, `test_kg_llm_extract.py`, `test_kg_schema.py`, `test_kg_contracts.py`; integration `test_kg_integration.py`, `test_kg_metadata_integration.py`; E2E subprocess smoke `test_gi_kg_cli_subprocess_e2e.py` (`kg validate`, `kg inspect`); acceptance `config/acceptance/*.yaml` (including `acceptance_planet_money_grok.yaml` for Grok in the full pipeline).
 - [x] `gi/load.py` — load artifact, evidence spans, find by episode/insight id (unit: `test_load.py`)
 - [x] `gi/explore.py` — scan, collect, topic filter (unit: `test_explore.py`)
 - [x] `gi/pipeline.py` — build_artifact stub and grounded (unit: `test_pipeline.py`)
 - [x] `gi/grounding.py` — find_grounded_quotes (unit: `test_grounding.py`; optional integration with real models)
-- [x] GIL in workflow: metadata_generation writes gi.json when generate_gi true (unit: test_metadata_generation; E2E: test_gi_cli_e2e)
-- [x] CLI `gi inspect`, `gi show-insight`, `gi explore` (unit: test_cli TestGiSubcommand; E2E: test_gi_cli_e2e)
+- [x] GIL in workflow: metadata_generation writes gi.json when generate_gi true (unit: test_metadata_generation; integration/E2E pipeline tests as marked)
+- [x] CLI `gi inspect`, `gi show-insight`, `gi explore` (unit: test_cli TestGiSubcommand; E2E subprocess: `test_gi_kg_cli_subprocess_e2e.py` for `gi validate`)
 - [x] Three-tier extraction (ML-only, Hybrid, Cloud) — implemented (transformers, hybrid_ml, LLM providers)
 - [ ] GIL extraction latency per tier — benchmarking planned
 
@@ -1190,7 +1222,7 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - **`make quality-metrics-ci`** — Runs `gil_quality_metrics.py` and `kg_quality_metrics.py` with **`--enforce`** (and strict schema flags) on `tests/fixtures/gil_kg_ci_enforce`. Listed in **`make help`**; depended on by **`make ci-fast`** in the repository `Makefile`.
 - **GitHub Actions** — The `test-unit` job includes **GIL and KG quality metrics on CI fixtures (PRD-017 / PRD-019)** (same fixture tree; see `.github/workflows/python-app.yml`).
 - **Optional local gates** — `make gil-quality-metrics DIR=<run_root>` and `make kg-quality-metrics DIR=<run_root>` with `ARGS='--enforce …'` for release or regression checks over a real run directory.
-- **Critical-path E2E** — `tests/e2e/test_gi_cli_e2e.py` and `tests/e2e/test_kg_cli_e2e.py` carry **`@pytest.mark.critical_path`** on GI/KG CLI scenarios (included in `make test-fast` / `make ci-fast` per project defaults).
+- **Critical-path E2E** — `tests/e2e/test_gi_kg_cli_subprocess_e2e.py` carries **`@pytest.mark.critical_path`** on GI/KG CLI subprocess smoke (included in `make test-fast` / `make ci-fast` per project defaults).
 
 **Integration Tests:**
 
@@ -1200,9 +1232,8 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 
 **E2E Tests:**
 
-- [x] Full pipeline with generate_gi true → gi inspect, show-insight, explore (`test_gi_cli_e2e.py`)
-- [x] Pre-built artifact dir → gi inspect, show-insight, explore (exit 0)
-- [x] Invalid args: gi explore without --output-dir (exit 2); gi show-insight without --id (exit 2)
+- [x] Subprocess GI/KG CLI smoke: `gi validate --strict`, `kg validate --strict`, `kg inspect --format json` on repo fixtures (`tests/e2e/test_gi_kg_cli_subprocess_e2e.py`, `critical_path`)
+- [ ] Full pipeline E2E with `generate_gi` true → gi inspect, show-insight, explore (optional future; invalid-arg and inspect behaviors covered in unit `test_cli` today)
 
 **Quality Evaluation (Planned):**
 

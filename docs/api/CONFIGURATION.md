@@ -395,6 +395,12 @@ Anthropic providers support configurable model selection for dev/test vs product
 
 **Note on Transcription**: Anthropic does NOT support native audio transcription. If you set `transcription_provider=anthropic`, you will get a clear error message suggesting alternatives (`whisper` or `openai`).
 
+**Screenplay vs transcription provider (GitHub #562):** **`screenplay: true`** (or **`--screenplay`**) only changes transcript layout when **`transcription_provider` is `whisper`**. For **`openai`**, **`gemini`**, or **`mistral`** audio transcription, screenplay-style formatting is **not** implemented in this codebase: a **`mode='before'`** validator coerces truthy values (including **`1`**, **`"yes"`**, **`"on"`**, and boolean **`true`**) to **`screenplay: false`** and emits **one** INFO line while a process-wide gate is set; **`workflow.orchestration.run_pipeline`** clears that gate (and related screenplay warning gates) in **`finally`** so a later **`Config(...)`** or another pipeline run can log again. **`PODCAST_SCRAPER_SCREENPLAY_STRICT=1`** (or **`true`** / **`yes`**) makes the invalid combination a **validation error** instead of coercion. In **our** OpenAI integration, **`whisper-1`** still writes **plain dialogue text** in the main transcript file even when segment metadata exists for sidecars.
+
+**GI quote audio timing (issue #543):** For **grounded insights** with non-zero quote **`timestamp_*_ms`**, prefer **`transcription_provider: whisper`** or **`openai`** (segment-capable paths). **`gemini`** and **`mistral`** return transcript text in our integration but **do not** currently populate timed **segments** for GI audio seek. Episode metadata records an expectation flag under **`processing.config_snapshot.ml_providers.transcription.gi_segment_timing_expected`**. Full matrix: [Development Guide — Transcript hash cache](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json).
+
+**GI quote `speaker_id` (issue #541):** **`speaker_id`** on **Quote** nodes is set only when timed segments align with the GI transcript **and** segment rows include **`speaker`** or **`speaker_id`** (typical Whisper/OpenAI chunks often omit these). Same segment gate as **`timestamp_*_ms`**. When non-null, values are normally **`person:{slug}`**; legacy **`speaker:{slug}`** may appear until migration ([GI ontology — Person / Quote](../architecture/gi/ontology.md)). Canonical rules: [Development Guide — GI quote `speaker_id`](../guides/DEVELOPMENT_GUIDE.md#gi-quote-speaker-id).
+
 #### Gemini Model Configuration
 
 Gemini providers support configurable model selection for dev/test vs production environments.
@@ -841,10 +847,11 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 | ------- | ---------- | --------- | ------------- |
 | `preprocessing_enabled` | `--enable-preprocessing` | `false` | Enable audio preprocessing before transcription |
 | `preprocessing_cache_dir` | `--preprocessing-cache-dir` | `.cache/preprocessing` | Custom cache directory for preprocessed audio |
-| `preprocessing_sample_rate` | `--preprocessing-sample-rate` | `16000` | Target sample rate in Hz (must be Opus-supported: 8000, 12000, 16000, 24000, 48000) |
+| `preprocessing_sample_rate` | `--preprocessing-sample-rate` | `16000` | Target sample rate in Hz before MP3 encode (default `16000`; use values FFmpeg accepts for `-ar`, e.g. 8000, 16000, 22050, 44100, 48000) |
 | `preprocessing_silence_threshold` | `--preprocessing-silence-threshold` | `-50dB` | Silence detection threshold for VAD |
 | `preprocessing_silence_duration` | `--preprocessing-silence-duration` | `2.0` | Minimum silence duration to remove in seconds |
 | `preprocessing_target_loudness` | `--preprocessing-target-loudness` | `-16` | Target loudness in LUFS for normalization |
+| `preprocessing_mp3_bitrate_kbps` | `--preprocessing-mp3-bitrate-kbps` | `null` (auto) | MP3 encode bitrate in kbps (`24`–`128`). **Auto** (unset): `64` for local transcription (for example `whisper`), `48` for `openai` / `gemini` (GitHub #561). Other cloud STT providers (for example `mistral`) use the same **auto** rule as Whisper unless you set this field explicitly (they are not in the `openai` / `gemini` re-encode ladder). **Explicit `24`** is the minimum rung: there are **no further** phase-2 re-encode steps below it; if the file is still too large, upload **chunking** remains separate (GitHub #286). When the first pass is still over the API budget, `openai` / `gemini` runs extra FFmpeg re-encodes at lower standard rungs until under a target size or that floor. |
 
 **Preprocessing Pipeline**:
 
@@ -852,12 +859,12 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 2. Resamples to configured sample rate (default: 16 kHz)
 3. Removes silence using Voice Activity Detection (VAD)
 4. Normalizes loudness to configured target (default: -16 LUFS)
-5. Compresses using Opus codec at 24 kbps
+5. Encodes to **MP3** with **`libmp3lame`** at a configurable constant bitrate (default **auto**: `64` kbps for local transcribe, `48` kbps for `openai` / `gemini`; see `preprocessing_mp3_bitrate_kbps` and GitHub **#561**). [ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md) discusses historical Opus exploration; the shipped preprocessor uses **MP3** for broad API compatibility.
 
 **Benefits**:
 
 - **File Size Reduction**: Typically 10-25× smaller (50 MB → 2-5 MB)
-- **API Compatibility**: Ensures files fit within 25 MB limit for OpenAI/Grok
+- **API Compatibility**: Helps keep uploads under the shared **25 MB** post-preprocess ceiling used for **OpenAI** and **Gemini** transcription (constant name in code: `OPENAI_MAX_FILE_SIZE_BYTES`)
 - **Cost Savings**: Reduces API costs by processing less audio (30-60% reduction)
 - **Performance**: Faster transcription for both local and API providers
 - **Caching**: Preprocessed audio is cached to avoid reprocessing
@@ -866,6 +873,7 @@ Audio preprocessing optimizes audio files before transcription, reducing file si
 
 - `ffmpeg` must be installed and available in PATH
 - If `ffmpeg` is not available, preprocessing is automatically disabled with a warning
+- **GitHub #558:** `ffmpeg` / `ffprobe` subprocess pipes are decoded as **UTF-8 with replacement**, so malformed multibyte stderr/stdout cannot raise `UnicodeDecodeError` and abort a run. When preprocessing fails and the pipeline **falls back to the original media**, an episode-scoped **`corpus_incidents.jsonl`** row may be written (`stage=preprocessing`, `category=policy`) if **`incident_log_path`** is set (same artifact as GitHub #557).
 
 **Example** (config file):
 
@@ -995,6 +1003,12 @@ summary_provider: transformers
 transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support LLM cleaning)
 ```
 
+<a id="llm-cleaning-length-guard-issue-564"></a>
+
+**LLM cleaning length guard (GitHub #564):** When `transcript_cleaning_strategy` is `llm` or the LLM stage of `hybrid`, `LLMBasedCleaner` in `src/podcast_scraper/cleaning/llm_based.py` compares the LLM output to the **pattern-cleaned** transcript (not the raw file). If the pattern-cleaned string is at least **2000** characters and the stripped LLM output length divided by that length is **strictly below 0.20** (20%), the pipeline **discards the LLM output** and keeps the pattern-cleaned text. A **warning** is logged (`LLM cleaning shortened transcript excessively (output/input length ratio=…)`). At **debug** log level, the same decision also logs input length, output length, ratio, and threshold.
+
+This guard targets model **collapse** (a short unrelated paragraph instead of a full cleaned transcript). It is a **hard cliff**: for example, ratio **0.179** is rejected and **0.20** is accepted, so dense shows that legitimately remove most boilerplate can still fall slightly below 20% and trigger fallback. Mitigations without code changes: use **`pattern`** only for those feeds, or try a different **`{provider}_cleaning_model`** / temperature. There are **no** YAML knobs for the 2000 / 0.20 constants in the current release (Path A for #564).
+
 **Note**: LLM-based cleaning runs when the selected `cleaning_processor` uses LLM calls (`llm` or `hybrid` strategy with an LLM provider). **`transformers`** summarization uses pattern-oriented cleaning in typical setups. **`hybrid_ml`** uses the same strategy-driven cleaners as API providers; internal MAP preprocessing defaults to **`cleaning_v4`** except for the layered **`pattern`** path (Issue #419).
 
 **Note**: Preprocessing happens at the pipeline level before any transcription provider receives the audio. All providers (Whisper, OpenAI, future providers) benefit from optimized audio.
@@ -1018,6 +1032,7 @@ transcript_cleaning_strategy: pattern  # Pattern-based only (ML doesn't support 
 | Field | CLI Flag | Default | Description |
 | --- | --- | --- | --- |
 | `generate_gi` | `--generate-gi` | `false` | Write per-episode `*.gi.json` during metadata generation. Requires `generate_metadata=true`. |
+| `backfill_transcript_segments` | `--backfill-transcript-segments` | `false` | With `generate_gi`: when `skip_existing` would skip Whisper output because only a `.txt` exists under `transcripts/`, re-transcribe if sibling `.segments.json` is missing (GI quote **`timestamp_*_ms`**; **`speaker_id`** only when segments later include speaker labels — issues [#542](https://github.com/chipi/podcast_scraper/issues/542), [#541](https://github.com/chipi/podcast_scraper/issues/541)). Also requires the sidecar for `append` completeness when both flags are on. Does not change every transcript write path (e.g. direct RSS transcript saves use separate skip rules; see [Development Guide](../guides/DEVELOPMENT_GUIDE.md#transcript-hash-cache-json)). |
 | `gi_insight_source` | `--gi-insight-source` | `stub` | Insight text source: `stub` (placeholder), `summary_bullets` (needs summaries + bullets), or `provider` (LLM `generate_insights`; ML providers do not implement it). See [GROUNDED_INSIGHTS_GUIDE](../guides/GROUNDED_INSIGHTS_GUIDE.md#ml-summarization-and-gil-insight-wording). |
 | `gi_max_insights` | `--gi-max-insights` | `20` | Max insights when using `provider` or `summary_bullets` (`1`–`50`). |
 | `gi_require_grounding` | (config) | `true` | When true, run QA/NLI (or provider evidence) to attach quotes; when false, insights without evidence stack. |
@@ -1402,6 +1417,12 @@ else:
 
 You can target **one** feed with `rss` (string) or **multiple** feeds with **`feeds`** or **`rss_urls`** (YAML list of URL strings). Both list keys normalize to the same internal field (`rss_urls`).
 
+**Soft failures and exit semantics (GitHub #559):** **`multi_feed_strict`** defaults to **`false`** (lenient). On multi-feed runs, when it is **false**, **`service.run()`** / the CLI report **`success=True`** (and leave **`error`** empty) **only if** every feed that failed was classified as a **soft** failure (RSS fetch/parse `ValueError`, `UnicodeDecodeError` from FFmpeg capture, Whisper **413** / content size messages). Aggregated soft-failure text is then on **`ServiceResult.soft_failures`**. **`corpus_run_summary.json`** still sets **`overall_ok`** to false when any feed failed. Set **`multi_feed_strict: true`** (or CLI **`--multi-feed-strict`**) for **strict** CI: any feed failure yields **`success=False`** / non-zero exit even when failures are soft-classified.
+
+**Incident log (GitHub #557 / #558):** Optional config field **`incident_log_path`** points at **`corpus_incidents.jsonl`** (append-only JSONL: scope, category, message, feed URL, optional episode id/index). When unset, **`run_pipeline`** defaults to **`<effective_output_dir>/corpus_incidents.jsonl`**. Multi-feed **`service.run`** and the CLI set the default to **`<corpus_parent>/corpus_incidents.jsonl`** so every feed appends to one corpus-level file unless you override **`incident_log_path`** in YAML. Episode-level rows include predictable skips (oversize / payload limit after preprocessing), **preprocessing fallback** after ffmpeg failure (#558), and hard transcription errors.
+
+**Deprecated key (file and dict validation only):** In YAML/JSON (and in dicts passed to **`Config.model_validate`**), **`multi_feed_soft_fail_exit_zero`** is still accepted and mapped to **`multi_feed_strict = not`** that boolean. Do not set both **`multi_feed_strict`** and the deprecated key. There is **no** environment variable for this flag; use YAML, JSON, or **`Config(multi_feed_strict=...)`**. **`Config(multi_feed_soft_fail_exit_zero=...)`** is **not** supported as a keyword argument because the legacy name is not a field on the model (**`extra=forbid`**).
+
 **Rules:**
 
 - **Two or more feeds** require an explicit **`output_dir`** (corpus parent). The CLI and service run **one full pipeline per feed**; each feed’s artifacts live under:
@@ -1450,9 +1471,12 @@ cfg = Config(
 
 See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [CLI.md — RSS and multi-feed](CLI.md#rss-and-multi-feed), [SERVICE.md](SERVICE.md), [RFC-063 — Multi-feed corpus](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and checked-in examples:
 
-- `config/examples/config.example.multi-feed.yaml` / `config/examples/config.example.multi-feed.json` (generic placeholder feeds; same provider mix as `config.example.*`)
+- `config/examples/config.example.multi-feed.cloud-llm.yaml` / `config/examples/config.example.multi-feed.cloud-llm.json` (generic placeholder **feeds**; same option set as `config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml` — OpenAI **`whisper-1`** transcription + Gemini speaker/summary, GI/KG from **summary bullets**, **`vector_search`** / **faiss** — requires **`OPENAI_API_KEY`** and **`GEMINI_API_KEY`**)
+- `config/examples/config.example.multi-feed.ollama.yaml` / `config/examples/config.example.multi-feed.ollama.json` (same multi-feed + GI/KG + **`vector_search`** shape; **local Whisper** transcription + **Ollama** **`qwen3.5:9b`** speaker/summary, **`llm_pipeline_mode: bundled`**, **`ollama_temperature: 0.0`** — requires **Ollama** with the model pulled)
+- `config/examples/config.example.multi-feed.ml-dev.yaml` / `config/examples/config.example.multi-feed.ml-dev.json` (same shape; **Whisper + spaCy + transformers**; **`summary_mode_id: ml_small_authority`** with **`summary_mode_precedence: mode`** — MAP/REDUCE models and params from RFC-044 registry dev mode; optional **`whisper_model`**, **`ner_model`**, **`summary_device`** omitted so defaults apply)
+- `config/examples/config.example.multi-feed.ml-prod.yaml` / `config/examples/config.example.multi-feed.ml-prod.json` (same shape; **`summary_mode_id: ml_bart_led_autoresearch_v1`** with **`summary_mode_precedence: mode`** — RFC-044 registry prod tier; Whisper/NER/summary device omitted as above)
 - `config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml` / `acceptance_multi_feed_planet_money_journal_deepseek.yaml` (full-pipeline acceptance presets)
-- `config/manual/manual_multi_feed_planet_money_journal_openai.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
+- `config/manual/manual_multi_feed_planet_money_journal_openai_gemini.yaml` / `manual_multi_feed_planet_money_journal_deepseek.yaml`
 
 <a id="episode-selection-github-521"></a>
 
@@ -1505,7 +1529,7 @@ cfg = Config(
 
 ## Append / resume (GitHub #444)
 
-Set **`append: true`** in YAML (or CLI **`--append`**) to reuse a **stable** `run_append_*` directory per feed and **skip** episodes that already have valid on-disk metadata (`episode_id` aligned with RSS) plus transcript and any enabled downstream artifacts (summary, GI, KG when those flags are on). Mutually exclusive with **`clean_output`**. `index.json` uses schema **`1.1.0`** and may include **`pipeline_append: true`**. See [PIPELINE_AND_WORKFLOW.md — Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429).
+Set **`append: true`** in YAML (or CLI **`--append`**) to reuse a **stable** `run_append_*` directory per feed and **skip** episodes that already have valid on-disk metadata (`episode_id` aligned with RSS) plus transcript and any enabled downstream artifacts (summary, GI, KG when those flags are on). When **`backfill_transcript_segments`** and **`generate_gi`** are both true, completeness also requires a **`*.segments.json`** file next to a **`*.txt`** transcript path in metadata (GitHub #542). Mutually exclusive with **`clean_output`**. `index.json` uses schema **`1.1.0`** and may include **`pipeline_append: true`**. See [PIPELINE_AND_WORKFLOW.md — Run tracking files](../guides/PIPELINE_AND_WORKFLOW.md#run-tracking-files-issue-379-429).
 
 **YAML (single-feed or multi-feed):**
 
@@ -1525,7 +1549,7 @@ append: true
 
 **Checked-in presets (Planet Money + The Journal, full pipeline):**
 
-- **OpenAI:** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai_append.yaml` (use with `make test-acceptance` / CLI)
+- **OpenAI / hybrid:** `config/acceptance/acceptance_multi_feed_planet_money_journal_openai_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_openai_gemini_append.yaml` (OpenAI Whisper + Gemini speaker/summary; use with `make test-acceptance` / CLI)
 - **DeepSeek (Whisper + DeepSeek LLM):** `config/acceptance/acceptance_multi_feed_planet_money_journal_deepseek_append.yaml`, `config/manual/manual_multi_feed_planet_money_journal_deepseek_append.yaml`
 
 Re-run the **same** command twice to validate resume: the second run should skip complete episodes under each feed’s `run_append_*` tree.

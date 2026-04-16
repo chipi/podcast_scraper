@@ -13,6 +13,9 @@ One JSON object per line. All keys are strings; list values are arrays of string
 | `skills_used` | list of strings | No | Skills invoked (e.g. `["commit-with-approval"]`) |
 | `subagents_used` | list of strings | No | Subagents delegated to (e.g. `["verifier"]`) |
 
+**Session reflection (Rule 18)** is **not** part of this schema. Do not add extra keys or free-form
+retrospective text to `rule-adherence.jsonl`; keep this log to rule/skills/subagent self-audit only.
+
 ## Example (full)
 
 ```json

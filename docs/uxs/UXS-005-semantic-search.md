@@ -10,6 +10,7 @@
   - [RFC-061: Semantic Corpus Search](../rfc/RFC-061-semantic-corpus-search.md)
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-072: Canonical identity + cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (chunk-to-Insight **lift** on transcript hits)
+  - [RFC-075: Corpus Topic Clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **Show on graph** / cluster follow-ups)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/search/SearchPanel.vue`
   - `web/gi-kg-viewer/src/components/search/ResultCard.vue`
@@ -25,6 +26,21 @@ The semantic search panel provides FAISS-based corpus search within the viewer's
 right rail. This UXS defines the visual contract for the search form, advanced
 filters, result cards, and the search result insights modal. All tokens reference
 [UXS-001](UXS-001-gi-kg-viewer.md).
+
+**RFC-075:** When corpus clustering JSON is available, **Show on graph** from search still selects the
+**leaf** node id (e.g. `topic:…`) as today. The **graph node rail** shows **Topic cluster:** for Topic
+nodes (Phase 1; see [UXS-004](UXS-004-graph-exploration.md)). **Search result cards** may show a
+**Topic cluster:** line when the API joined **`metadata.topic_cluster`** (canonical label and compound
+id). **Show on graph** may widen the camera to include the **`tc:`** compound parent while keeping
+selection on the leaf.
+
+**API · Data (left rail):** Under the **Data** heading, the **first** card is **Topic clusters**.
+It reflects **`GET /api/corpus/topic-clusters`**
+as soon as **Corpus path** is set and **health** is OK — you do **not** need to wait for GI/KG
+artifacts to finish loading into the graph. While the request is in flight, **Status** shows **Checking…**.
+Then: **Loaded**, **Not built** (404 — optional
+`topic-clusters` CLI), **request error**, or **Local files only** when the graph came from the file
+picker (no API fetch for clustering). Unknown **`schema_version`** values get a non-blocking warning line.
 
 ---
 
@@ -86,7 +102,13 @@ Each hit can expose:
   episode
 - **Transcript** hits may include a collapsible **`region` Lifted GI insight** (linked
   insight id/text, speaker/topic labels, quote time range) when the server attaches
-  **`lifted`** (#528)
+  **`lifted`** (#528). When **`lifted.quote`** has at least one finite **`timestamp_*_ms`**
+  but **`lifted.speaker`** has no usable display label, a muted line shows the same visible
+  copy as supporting quotes — **No speaker detected** (**`GI_QUOTE_SPEAKER_UNAVAILABLE_HINT`**;
+  **#541**). **`data-testid="search-lifted-quote-speaker-unavailable"`**.
+- **Supporting quotes** (Show / Hide *N* supporting quote(s)): when the API returns
+  **`supporting_quotes`** and a quote has **no** **`speaker_name`** / **`speaker_id`**, a
+  muted line shows **No speaker detected** (same **`GI_QUOTE_SPEAKER_UNAVAILABLE_HINT`** as the graph Quote rail; **#541**). **`data-testid="supporting-quote-speaker-unavailable"`**.
 
 ---
 
@@ -99,8 +121,13 @@ search panel surfaces and selectors.
 
 ## Revision history
 
-| Date       | Change                                                         |
-| ---------- | -------------------------------------------------------------- |
-| 2026-04-06 | Initial content (in UXS-001)                                   |
-| 2026-04-13 | Extracted from UXS-001 into standalone UXS-005                 |
-| 2026-04-13 | Document lift_stats summary line + Lifted GI insight region    |
+| Date       | Change                                                                                 |
+| ---------- | -------------------------------------------------------------------------------------- |
+| 2026-04-06 | Initial content (in UXS-001)                                                           |
+| 2026-04-13 | Extracted from UXS-001 into standalone UXS-005                                         |
+| 2026-04-13 | Document lift_stats summary line + Lifted GI insight region                            |
+| 2026-04-15 | Supporting quotes: muted hint when speaker missing (#541)                              |
+| 2026-04-15 | Lifted GI: muted hint + testid when speaker display missing (#541)                     |
+| 2026-04-15 | Lifted hint only when **`lifted.quote`** has finite **`timestamp_*_ms`** (matches E2E) |
+| 2026-04-15 | #541: **No speaker detected** (graph + Search + Explore; semantics unchanged)          |
+| 2026-04-16 | Lifted GI: explicit same visible string as supporting quotes (**No speaker detected**) |

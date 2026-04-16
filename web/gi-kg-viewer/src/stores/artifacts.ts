@@ -1,11 +1,23 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { fetchArtifactJson } from '../api/artifactsApi'
+import type { TopicClustersDocument, TopicClustersFetchResult } from '../api/corpusTopicClustersApi'
+import { fetchTopicClustersFromApi } from '../api/corpusTopicClustersApi'
 import type { BridgeDocument } from '../types/bridge'
 import type { ArtifactData, ParsedArtifact } from '../types/artifact'
 import { parseBridgeDocument } from '../utils/bridgeDocument'
 import { parseArtifact } from '../utils/parsing'
+import { fetchResolveEpisodeArtifacts } from '../api/corpusLibraryApi'
 import { buildDisplayArtifact } from '../utils/mergeGiKg'
+import {
+  artifactRelPathsForResolvedRow,
+  clusterSiblingEpisodeCap,
+  clusterSiblingEpisodeIdCandidates,
+  episodeIdsFromParsedArtifacts,
+  sortResolvedArtifactsNewestFirst,
+} from '../utils/clusterSiblingMerge'
+import { withTopicClustersOnDisplay } from '../utils/topicClustersOverlay'
+import { StaleGeneration } from '../utils/staleGeneration'
 
 /** Relative paths selected from /api/artifacts list (basename or full relative path). */
 export const useArtifactsStore = defineStore('artifacts', () => {
@@ -14,15 +26,75 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const parsedList = ref<ParsedArtifact[]>([])
   /** RFC-072 bridge.json for the current corpus selection (optional). */
   const bridgeDocument = ref<BridgeDocument | null>(null)
+  /** RFC-075 ``topic_clusters.json`` from the API when present (API load only). */
+  const topicClustersDoc = ref<TopicClustersDocument | null>(null)
+  /**
+   * How the last load obtained topic clusters: API success, 404, error, local file picker (no API JSON),
+   * or idle (cleared / not yet loaded).
+   */
+  const topicClustersLoadState = ref<
+    'idle' | 'ok' | 'missing' | 'error' | 'local_files'
+  >('idle')
+  const topicClustersErrorDetail = ref<string | null>(null)
+  /** Soft schema warning (unknown ``schema_version``); non-blocking. */
+  const topicClustersSchemaWarning = ref<string | null>(null)
   const loadError = ref<string | null>(null)
   const loading = ref(false)
+  const loadGate = new StaleGeneration()
+  /** Inline status after cluster sibling auto-merge (graph tab); errors use ``siblingMergeError`` + banner. */
+  const siblingMergeLine = ref<string | null>(null)
+  /** True when ``siblingMergeLine`` is from a failed resolve/load (shown as a top alert). */
+  const siblingMergeError = ref(false)
+  let siblingMergeInFlight: Promise<void> | null = null
 
   const giArts = computed(() => parsedList.value.filter((p) => p.kind === 'gi'))
   const kgArts = computed(() => parsedList.value.filter((p) => p.kind === 'kg'))
 
   const displayArtifact = computed(() =>
-    buildDisplayArtifact(giArts.value, kgArts.value),
+    withTopicClustersOnDisplay(
+      buildDisplayArtifact(giArts.value, kgArts.value),
+      topicClustersDoc.value,
+    ),
   )
+
+  function applyTopicClustersFetchResult(tc: TopicClustersFetchResult): void {
+    if (tc.status === 'ok') {
+      topicClustersDoc.value = tc.document
+      topicClustersLoadState.value = 'ok'
+      topicClustersErrorDetail.value = null
+      topicClustersSchemaWarning.value = tc.schemaWarning ?? null
+    } else if (tc.status === 'missing') {
+      topicClustersDoc.value = null
+      topicClustersLoadState.value = 'missing'
+      topicClustersErrorDetail.value = null
+      topicClustersSchemaWarning.value = null
+    } else {
+      topicClustersDoc.value = null
+      topicClustersLoadState.value = 'error'
+      topicClustersErrorDetail.value = tc.message
+      topicClustersSchemaWarning.value = null
+    }
+  }
+
+  /**
+   * Fetch ``/api/corpus/topic-clusters`` for the current ``corpusPath`` (no artifact load required).
+   * Safe to call as soon as corpus root + healthy API are known so **API · Data** can show status.
+   */
+  async function syncTopicClustersForCurrentCorpus(): Promise<void> {
+    const root = corpusPath.value.trim()
+    if (!root) {
+      return
+    }
+    try {
+      const tc = await fetchTopicClustersFromApi(root)
+      applyTopicClustersFetchResult(tc)
+    } catch (e) {
+      topicClustersDoc.value = null
+      topicClustersLoadState.value = 'error'
+      topicClustersErrorDetail.value = e instanceof Error ? e.message : String(e)
+      topicClustersSchemaWarning.value = null
+    }
+  }
 
   /** Offline / no-backend: parse selected .gi.json / .kg.json files in the browser. */
   async function loadFromLocalFiles(files: FileList | null): Promise<void> {
@@ -30,11 +102,19 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     loadError.value = null
     parsedList.value = []
     bridgeDocument.value = null
+    topicClustersDoc.value = null
+    topicClustersLoadState.value = 'idle'
+    topicClustersErrorDetail.value = null
+    topicClustersSchemaWarning.value = null
     selectedRelPaths.value = []
+    const seq = loadGate.bump()
     loading.value = true
     try {
       const out: ParsedArtifact[] = []
       for (const file of Array.from(files)) {
+        if (loadGate.isStale(seq)) {
+          return
+        }
         const lower = file.name.toLowerCase()
         if (lower.endsWith('.bridge.json')) {
           try {
@@ -52,16 +132,28 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         const data = JSON.parse(text) as ArtifactData
         out.push(parseArtifact(file.name, data))
       }
+      if (loadGate.isStale(seq)) {
+        return
+      }
       if (out.length === 0) {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
         return
       }
       parsedList.value = out
       selectedRelPaths.value = out.map((p) => p.name)
+      topicClustersDoc.value = null
+      topicClustersLoadState.value = 'local_files'
+      topicClustersErrorDetail.value = null
+      topicClustersSchemaWarning.value = null
     } catch (e) {
+      if (loadGate.isStale(seq)) {
+        return
+      }
       loadError.value = e instanceof Error ? e.message : String(e)
     } finally {
-      loading.value = false
+      if (loadGate.isCurrent(seq)) {
+        loading.value = false
+      }
     }
   }
 
@@ -84,10 +176,14 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       loadError.value = 'Set corpus path and select at least one artifact file.'
       return
     }
+    const seq = loadGate.bump()
     loading.value = true
     try {
       const out: ParsedArtifact[] = []
       for (const rel of selectedRelPaths.value) {
+        if (loadGate.isStale(seq)) {
+          return
+        }
         const lower = rel.toLowerCase()
         if (lower.endsWith('.bridge.json')) {
           try {
@@ -100,7 +196,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
         }
         const data = await fetchArtifactJson(root, rel)
         const base = rel.includes('/') ? rel.split('/').pop() || rel : rel
-        out.push(parseArtifact(base, data))
+        out.push(parseArtifact(base, data, rel))
+      }
+      if (loadGate.isStale(seq)) {
+        return
       }
       if (out.length === 0) {
         loadError.value = 'No .gi.json or .kg.json files in selection.'
@@ -113,7 +212,13 @@ export const useArtifactsStore = defineStore('artifacts', () => {
           const br = giRel.replace(/\.gi\.json$/i, '.bridge.json')
           if (br !== giRel) {
             try {
+              if (loadGate.isStale(seq)) {
+                return
+              }
               const data = await fetchArtifactJson(root, br)
+              if (loadGate.isStale(seq)) {
+                return
+              }
               bridgeDocument.value = parseBridgeDocument(data)
             } catch {
               /* sibling bridge is optional */
@@ -121,10 +226,19 @@ export const useArtifactsStore = defineStore('artifacts', () => {
           }
         }
       }
+      if (loadGate.isStale(seq)) {
+        return
+      }
+      await syncTopicClustersForCurrentCorpus()
     } catch (e) {
+      if (loadGate.isStale(seq)) {
+        return
+      }
       loadError.value = e instanceof Error ? e.message : String(e)
     } finally {
-      loading.value = false
+      if (loadGate.isCurrent(seq)) {
+        loading.value = false
+      }
     }
   }
 
@@ -145,6 +259,10 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     selectedRelPaths.value = []
     parsedList.value = []
     bridgeDocument.value = null
+    topicClustersDoc.value = null
+    topicClustersLoadState.value = 'idle'
+    topicClustersErrorDetail.value = null
+    topicClustersSchemaWarning.value = null
     loadError.value = null
   }
 
@@ -158,13 +276,134 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     selectedRelPaths.value = []
   }
 
+  async function appendRelativeArtifacts(extraRelPaths: string[]): Promise<void> {
+    const root = corpusPath.value.trim()
+    if (!root || extraRelPaths.length === 0) {
+      return
+    }
+    const have = new Set(selectedRelPaths.value.map((p) => p.replace(/\\/g, '/')))
+    const add: string[] = []
+    for (const raw of extraRelPaths) {
+      const p = raw.trim().replace(/\\/g, '/')
+      if (!p || have.has(p)) {
+        continue
+      }
+      have.add(p)
+      add.push(p)
+    }
+    if (add.length === 0) {
+      return
+    }
+    selectedRelPaths.value = [...selectedRelPaths.value, ...add]
+    await loadSelected()
+  }
+
+  /**
+   * After a successful graph artifact load: pull in sibling episodes from ``topic_clusters.json``
+   * (catalog-backed), newest first, up to cap. No-op off-graph or without topic clusters.
+   */
+  function clearSiblingMergeBanner(): void {
+    siblingMergeLine.value = null
+    siblingMergeError.value = false
+  }
+
+  async function maybeMergeClusterSiblingEpisodes(graphTabActive: boolean): Promise<void> {
+    siblingMergeLine.value = null
+    siblingMergeError.value = false
+    if (!graphTabActive) {
+      return
+    }
+    const root = corpusPath.value.trim()
+    if (!root || !topicClustersDoc.value) {
+      return
+    }
+    const cap = clusterSiblingEpisodeCap()
+    if (cap === 0) {
+      return
+    }
+    if (siblingMergeInFlight) {
+      await siblingMergeInFlight
+      return
+    }
+
+    const loadedIds = episodeIdsFromParsedArtifacts(parsedList.value)
+    const { candidateIds, mTotal } = clusterSiblingEpisodeIdCandidates(
+      topicClustersDoc.value,
+      loadedIds,
+    )
+    if (candidateIds.length === 0) {
+      return
+    }
+
+    const run = async (): Promise<void> => {
+      try {
+        const res = await fetchResolveEpisodeArtifacts(root, candidateIds)
+        const sorted = sortResolvedArtifactsNewestFirst(res.resolved)
+        const selected = new Set(selectedRelPaths.value.map((p) => p.replace(/\\/g, '/')))
+        const pathsToAdd: string[] = []
+        let addedEpisodes = 0
+        for (const row of sorted) {
+          if (addedEpisodes >= cap) {
+            break
+          }
+          const rels = artifactRelPathsForResolvedRow(row)
+          if (rels.length === 0) {
+            continue
+          }
+          let anyNew = false
+          for (const rel of rels) {
+            const norm = rel.replace(/\\/g, '/')
+            if (!selected.has(norm)) {
+              anyNew = true
+              break
+            }
+          }
+          if (!anyNew) {
+            continue
+          }
+          for (const rel of rels) {
+            const norm = rel.replace(/\\/g, '/')
+            if (!selected.has(norm)) {
+              selected.add(norm)
+              pathsToAdd.push(rel)
+            }
+          }
+          addedEpisodes += 1
+        }
+        const z = res.missing_episode_ids.length
+        siblingMergeError.value = false
+        const miss = z > 0 ? ` · ${z} miss${z === 1 ? '' : 'es'}` : ''
+        siblingMergeLine.value =
+          `+${addedEpisodes} new · ${mTotal} in cluster · cap ${cap}${miss}`
+        if (pathsToAdd.length > 0) {
+          await appendRelativeArtifacts(pathsToAdd)
+        }
+      } catch (e) {
+        siblingMergeError.value = true
+        siblingMergeLine.value = e instanceof Error ? e.message : String(e)
+      }
+    }
+
+    siblingMergeInFlight = run().finally(() => {
+      siblingMergeInFlight = null
+    })
+    await siblingMergeInFlight
+  }
+
   return {
     corpusPath,
     selectedRelPaths,
     parsedList,
     bridgeDocument,
+    topicClustersDoc,
+    topicClustersLoadState,
+    topicClustersErrorDetail,
+    topicClustersSchemaWarning,
     loadError,
     loading,
+    siblingMergeLine,
+    siblingMergeError,
+    clearSiblingMergeBanner,
     giArts,
     kgArts,
     displayArtifact,
@@ -176,5 +415,8 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     clearSelection,
     selectAllListed,
     deselectAllListed,
+    syncTopicClustersForCurrentCorpus,
+    appendRelativeArtifacts,
+    maybeMergeClusterSiblingEpisodes,
   }
 })

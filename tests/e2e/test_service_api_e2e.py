@@ -134,7 +134,7 @@ class TestServiceAPIConfigFile:
 
             assert result.success is True, f"service multi-feed failed: {result.error!r}"
             assert result.multi_feed_summary is not None
-            assert result.multi_feed_summary.get("schema_version") == "1.0.0"
+            assert result.multi_feed_summary.get("schema_version") == "1.1.0"
             assert len(result.multi_feed_summary.get("feeds") or []) == 2
             feeds = Path(tmpdir) / "feeds"
             assert feeds.is_dir(), f"expected {feeds}"

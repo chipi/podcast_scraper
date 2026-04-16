@@ -32,6 +32,13 @@ if PACKAGE_ROOT not in sys.path:
 
 from podcast_scraper import config, workflow
 
+
+def _saved_transcript_text_files(output_dir: str | os.PathLike[str]) -> list[Path]:
+    """List saved transcript ``.txt`` files (under ``run_*/transcripts/``, not source ``.vtt``)."""
+    root = Path(output_dir)
+    return [p for p in root.rglob("*.txt") if "transcripts" in p.parts]
+
+
 # Add tests directory to path for conftest import
 tests_dir = Path(__file__).parent.parent
 if str(tests_dir) not in sys.path:
@@ -262,7 +269,7 @@ class TestPipelineErrorRecoveryE2E:
         assert count >= 1, "Should process at least one successful episode"
 
         # Verify that successful episodes were processed
-        transcript_files = list(Path(self.output_dir).rglob("*.vtt"))
+        transcript_files = _saved_transcript_text_files(self.output_dir)
         assert len(transcript_files) >= 1, "Should create transcript files for successful episodes"
 
         # Verify metadata files were created for successful episodes
@@ -298,9 +305,9 @@ class TestPipelineErrorRecoveryE2E:
         assert count == 0, "Should process 0 episodes from empty feed"
         assert "episode" in summary.lower() or "0" in summary or "empty" in summary.lower()
 
-        # Verify no files were created
-        transcript_files = list(Path(self.output_dir).rglob("*.vtt"))
-        assert len(transcript_files) == 0, "Should not create files for empty feed"
+        # Verify no transcript outputs were created
+        transcript_files = _saved_transcript_text_files(self.output_dir)
+        assert len(transcript_files) == 0, "Should not create transcript files for empty feed"
 
     def test_pipeline_handles_malformed_rss_feed(self):
         """Test that pipeline handles malformed RSS feed gracefully.
@@ -397,7 +404,7 @@ class TestPipelineErrorRecoveryE2E:
         assert count >= 1, "Should save at least one successful episode"
 
         # Verify files exist for successful episodes
-        transcript_files = list(Path(self.output_dir).rglob("*.vtt"))
+        transcript_files = _saved_transcript_text_files(self.output_dir)
         metadata_files = list(Path(self.output_dir).rglob("*.metadata.json"))
 
         # Should have files for successful episodes
@@ -433,8 +440,8 @@ class TestPipelineErrorRecoveryE2E:
         assert os.path.exists(output_dir), "Pipeline should create output directory"
 
         # Verify that files were created in the new directory
-        transcript_files = list(Path(output_dir).rglob("*.vtt"))
-        assert len(transcript_files) >= 0, "Should be able to create files in new directory"
+        transcript_files = _saved_transcript_text_files(output_dir)
+        assert len(transcript_files) >= 1, "Should create transcript files in new output directory"
 
     def test_pipeline_handles_invalid_config_gracefully(self):
         """Test that pipeline handles invalid configuration gracefully."""

@@ -16,16 +16,19 @@ import { useArtifactsStore } from './stores/artifacts'
 import { useEpisodeRailStore } from './stores/episodeRail'
 import { useGraphFilterStore } from './stores/graphFilters'
 import { useGraphNavigationStore } from './stores/graphNavigation'
+import { useExploreStore } from './stores/explore'
 import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
 import type { SearchHit } from './api/searchApi'
 import { logicalEpisodeIdsForLibraryGraphSync } from './utils/graphEpisodeMetadata'
 import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { useThemeStore } from './stores/theme'
+import { StaleGeneration } from './utils/staleGeneration'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const search = useSearchStore()
+const explore = useExploreStore()
 const theme = useThemeStore()
 const episodeRail = useEpisodeRailStore()
 const graphFilters = useGraphFilterStore()
@@ -60,6 +63,30 @@ const localFileInput = ref<HTMLInputElement | null>(null)
 const searchPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{ clearInteractionState: () => void } | null>(null)
 const isGraphTab = computed(() => mainTab.value === 'graph')
+
+type EpisodeRailDetailTab = 'details' | 'neighbourhood'
+const episodeRailDetailTab = ref<EpisodeRailDetailTab>('details')
+
+/** Episode rail: **Neighbourhood** tab only on Graph when ``graphConnectionsCyId`` is set. */
+const episodeRailNeighbourhoodEnabled = computed(
+  () =>
+    mainTab.value === 'graph' &&
+    Boolean(episodeRail.graphConnectionsCyId?.trim()),
+)
+
+watch(
+  () => episodeRail.metadataRelativePath,
+  () => {
+    episodeRailDetailTab.value = 'details'
+  },
+)
+
+watch(
+  () => episodeRail.graphConnectionsCyId,
+  () => {
+    episodeRailDetailTab.value = 'details'
+  },
+)
 
 const leftOpen = ref(true)
 const leftTab = ref<'corpus' | 'api'>('corpus')
@@ -102,6 +129,17 @@ onMounted(() => {
   void shell.fetchHealth()
 })
 
+/** Run sibling merge when Graph is visible and load finished (covers tab switch during load). */
+watch(
+  () => [mainTab.value, artifacts.loading, artifacts.loadError] as const,
+  async ([tab, loading, err]) => {
+    if (tab !== 'graph' || loading || err) {
+      return
+    }
+    await artifacts.maybeMergeClusterSiblingEpisodes(true)
+  },
+)
+
 watch(
   () => shell.corpusPath,
   (p) => {
@@ -110,8 +148,7 @@ watch(
   { immediate: true },
 )
 
-/** Bumps when corpus path or health changes; stale async sync steps bail out. */
-let corpusGraphSyncGen = 0
+const corpusGraphSyncGate = new StaleGeneration()
 
 /**
  * When the API is healthy and a corpus path is set, list GI/KG via ``GET /api/artifacts``
@@ -119,7 +156,7 @@ let corpusGraphSyncGen = 0
  * Offline / failed health: skip so file-picker loads stay intact.
  */
 async function syncMergedGraphFromCorpusApi(): Promise<void> {
-  const gen = ++corpusGraphSyncGen
+  const gen = corpusGraphSyncGate.bump()
   artifacts.setCorpusPath(shell.corpusPath)
   const root = shell.corpusPath.trim()
   if (!root) {
@@ -129,8 +166,9 @@ async function syncMergedGraphFromCorpusApi(): Promise<void> {
   if (!shell.healthStatus) {
     return
   }
+  await artifacts.syncTopicClustersForCurrentCorpus()
   await shell.fetchArtifactList()
-  if (gen !== corpusGraphSyncGen) {
+  if (corpusGraphSyncGate.isStale(gen)) {
     return
   }
   const giKgRelPaths = shell.artifactList
@@ -138,6 +176,7 @@ async function syncMergedGraphFromCorpusApi(): Promise<void> {
     .map((a) => a.relative_path)
   if (giKgRelPaths.length === 0) {
     artifacts.clearSelection()
+    await artifacts.syncTopicClustersForCurrentCorpus()
     return
   }
   artifacts.selectAllListed(giKgRelPaths)
@@ -168,6 +207,61 @@ function onLibraryFocusSearch(payload: {
   void nextTick(() => {
     searchPanelRef.value?.focusQuery()
   })
+}
+
+/** Graph Topic node detail: Search tab + query, keep graph node for Back to details. */
+function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
+  const q = payload.query.trim()
+  if (!q) return
+  episodeRail.showTools({ preserveGraphNodeId: true })
+  rightOpen.value = true
+  episodeRail.toolsTab = 'search'
+  search.applyLibrarySearchHandoff('', q)
+  void nextTick(() => {
+    searchPanelRef.value?.focusQuery()
+  })
+}
+
+/** Graph Topic node detail: Explore tab + Topic contains filter (user runs explore). */
+function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
+  const t = payload.topic.trim()
+  if (!t) return
+  episodeRail.showTools({ preserveGraphNodeId: true })
+  rightOpen.value = true
+  episodeRail.toolsTab = 'explore'
+  explore.filters.topic = t
+  explore.filters.speaker = ''
+  explore.clearOutput()
+}
+
+/** Graph Person / Entity (person) detail: Explore tab + Speaker contains (topic cleared). */
+function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void {
+  const s = payload.speaker.trim()
+  if (!s) return
+  episodeRail.showTools({ preserveGraphNodeId: true })
+  rightOpen.value = true
+  episodeRail.toolsTab = 'explore'
+  explore.filters.topic = ''
+  explore.filters.speaker = s
+  explore.clearOutput()
+}
+
+/** Graph Insight node detail: Explore tab + grounded/min-confidence filters (user runs explore). */
+function onGraphNodeInsightOpenExploreFilters(payload: {
+  groundedOnly: boolean
+  minConfidence: number | null
+}): void {
+  episodeRail.showTools({ preserveGraphNodeId: true })
+  rightOpen.value = true
+  episodeRail.toolsTab = 'explore'
+  explore.filters.topic = ''
+  explore.filters.speaker = ''
+  explore.filters.groundedOnly = payload.groundedOnly
+  explore.filters.minConfidence =
+    payload.minConfidence != null && Number.isFinite(payload.minConfidence)
+      ? String(payload.minConfidence)
+      : ''
+  explore.clearOutput()
 }
 
 /** Digest row / topic hit: episode detail in the right rail; stay on Digest. */
@@ -228,9 +322,10 @@ watch(
 
 watch(mainTab, (t) => {
   if (t !== 'graph' && episodeRail.paneKind === 'graph-node') {
-    episodeRail.showTools()
+    episodeRail.showTools({ preserveGraphNodeId: true })
   }
   if (t === 'graph') {
+    episodeRail.resumeDetailPanel()
     void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
   }
 })
@@ -369,6 +464,25 @@ watch(
         </div>
       </div>
     </header>
+
+    <div
+      v-if="artifacts.siblingMergeError && artifacts.siblingMergeLine"
+      class="shrink-0 border-b border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+      role="alert"
+      data-testid="sibling-merge-error-banner"
+    >
+      <div class="flex flex-wrap items-start justify-between gap-2">
+        <span class="min-w-0 flex-1 leading-snug">{{ artifacts.siblingMergeLine }}</span>
+        <button
+          type="button"
+          class="shrink-0 rounded border border-destructive/50 px-2 py-0.5 text-[10px] font-medium hover:bg-destructive/10"
+          data-testid="sibling-merge-error-dismiss"
+          @click="artifacts.clearSiblingMergeBanner()"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
 
     <div class="flex min-h-0 flex-1">
       <!-- LEFT SIDEBAR (collapsible) -->
@@ -739,16 +853,18 @@ watch(
       </div>
 
       <!-- CENTER -->
-      <div class="flex min-w-0 flex-1 flex-col overflow-x-hidden">
-        <!-- Graph / Dashboard -->
-        <div class="min-h-0 flex-1">
-          <DigestView
-            v-if="mainTab === 'digest'"
-            class="h-full"
-            @switch-main-tab="mainTab = $event"
-            @focus-search="onLibraryFocusSearch"
-            @open-library-episode="onDigestOpenEpisodeInRail"
-          />
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden">
+        <!-- Graph / Dashboard — flex column so tab roots (h-full / flex-1) receive height -->
+        <div class="flex min-h-0 flex-1 flex-col">
+          <keep-alive>
+            <DigestView
+              v-if="mainTab === 'digest'"
+              class="h-full"
+              @switch-main-tab="mainTab = $event"
+              @focus-search="onLibraryFocusSearch"
+              @open-library-episode="onDigestOpenEpisodeInRail"
+            />
+          </keep-alive>
           <keep-alive>
             <LibraryView
               v-if="mainTab === 'library'"
@@ -764,22 +880,34 @@ watch(
           >
             <DashboardView />
           </div>
-          <keep-alive>
-            <GraphCanvas
-              v-if="mainTab === 'graph' && artifacts.displayArtifact"
-              ref="graphCanvasRef"
-              class="h-full"
-            />
-          </keep-alive>
           <div
-            v-if="mainTab === 'graph' && !artifacts.displayArtifact"
-            class="flex h-full min-h-[280px] items-center justify-center rounded border border-dashed border-border bg-surface p-8 text-sm text-muted"
+            v-if="mainTab === 'graph'"
+            class="flex min-h-0 min-h-[280px] flex-1 flex-col overflow-hidden"
           >
-            <span class="max-w-md text-center">
-              With a healthy API, set <strong>Corpus path</strong> to auto-load all GI/KG; or use
-              <strong>List</strong> and <strong>Load into graph</strong>. Offline: <strong>Choose
-              files…</strong> on <strong>API · Data</strong>.
-            </span>
+            <p
+              v-if="artifacts.siblingMergeLine && !artifacts.siblingMergeError"
+              class="shrink-0 border-b border-border bg-elevated/40 px-2 py-1 text-[10px] leading-snug text-muted"
+              data-testid="graph-sibling-merge-line"
+            >
+              {{ artifacts.siblingMergeLine }}
+            </p>
+            <keep-alive class="flex min-h-0 flex-1 flex-col">
+              <GraphCanvas
+                v-if="artifacts.displayArtifact"
+                ref="graphCanvasRef"
+                class="min-h-0 flex-1"
+              />
+            </keep-alive>
+            <div
+              v-if="!artifacts.displayArtifact"
+              class="flex min-h-[280px] flex-1 items-center justify-center rounded border border-dashed border-border bg-surface p-8 text-sm text-muted"
+            >
+              <span class="max-w-md text-center">
+                With a healthy API, set <strong>Corpus path</strong> to auto-load all GI/KG; or use
+                <strong>List</strong> and <strong>Load into graph</strong>. Offline: <strong>Choose
+                files…</strong> on <strong>API · Data</strong>.
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -787,7 +915,7 @@ watch(
       <!-- RIGHT SIDEBAR (collapsible) -->
       <div
         class="relative shrink-0 border-l border-border bg-canvas transition-all"
-        :class="rightOpen ? 'w-80' : 'w-8'"
+        :class="rightOpen ? 'w-96' : 'w-8'"
       >
         <button
           type="button"
@@ -841,24 +969,35 @@ watch(
             {{ railBackFromToolsLabel }}
           </button>
           <button
-            v-if="
-              episodeRail.paneKind === 'graph-node' && episodeRail.graphNodeCyId
-            "
+            v-if="mainTab === 'graph' && episodeRail.graphNodeCyId?.trim()"
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="rightOpen = true"
+            data-testid="rail-collapsed-graph-details"
+            @click="
+              rightOpen = true;
+              if (episodeRail.paneKind !== 'graph-node') {
+                episodeRail.resumeDetailPanel();
+              }
+            "
           >
             Details
           </button>
         </div>
         <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col" style="max-height: calc(100vh - 6rem)">
-          <template v-if="episodeRail.paneKind === 'graph-node'">
-            <GraphNodeRailPanel @go-graph="mainTab = 'graph'" />
+          <template v-if="mainTab === 'graph' && episodeRail.paneKind === 'graph-node'">
+            <GraphNodeRailPanel
+              @go-graph="mainTab = 'graph'"
+              @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
+              @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
+              @open-explore-speaker-filter="onGraphNodeSpeakerOpenExploreFilter"
+              @open-explore-insight-filters="onGraphNodeInsightOpenExploreFilters"
+              @open-library-episode="onSearchOpenLibraryEpisode"
+            />
           </template>
           <template v-else-if="episodeRail.paneKind === 'episode'">
             <div
-              class="mx-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+              class="mx-3 flex min-h-0 flex-1 flex-col overflow-hidden"
               role="region"
               aria-label="Episode"
               data-testid="episode-detail-rail"
@@ -875,33 +1014,75 @@ watch(
                   Search & Explore
                 </button>
               </div>
-              <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <EpisodeDetailPanel
-                  class="min-h-0 min-w-0 flex-1"
-                  @focus-search="onLibraryFocusSearch"
-                  @switch-main-tab="mainTab = $event"
-                />
-                <!--
-                  Connections use the merged graph artifact + Cytoscape id — show only on **Graph**
-                  so Library/Digest context is not confused with stale ego view.
-                  Alternatives: always show (needs reliable artifact when off-graph), or a collapsible
-                  section remembered per session (more state).
-                -->
-                <GraphConnectionsSection
-                  v-if="
-                    episodeRail.graphConnectionsCyId && mainTab === 'graph'
-                  "
-                  :view-artifact="episodeConnectionsViewArtifact"
-                  :node-id="episodeRail.graphConnectionsCyId"
-                  @go-graph="mainTab = 'graph'"
-                />
-              </div>
+              <EpisodeDetailPanel
+                class="min-h-0 min-w-0 flex-1"
+                :rail-neighbourhood-enabled="episodeRailNeighbourhoodEnabled"
+                :rail-detail-tab="episodeRailDetailTab"
+                @focus-search="onLibraryFocusSearch"
+                @switch-main-tab="mainTab = $event"
+              >
+                <template #episode-rail-tabs>
+                  <nav
+                    v-if="episodeRailNeighbourhoodEnabled"
+                    class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
+                    role="tablist"
+                    aria-label="Episode detail sections"
+                  >
+                    <button
+                      id="episode-detail-rail-tab-details"
+                      type="button"
+                      role="tab"
+                      class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+                      :class="
+                        episodeRailDetailTab === 'details'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-elevated-foreground hover:bg-overlay'
+                      "
+                      :aria-selected="episodeRailDetailTab === 'details'"
+                      aria-controls="episode-detail-rail-panel-details"
+                      data-testid="episode-detail-rail-tab-details"
+                      :tabindex="episodeRailDetailTab === 'details' ? 0 : -1"
+                      @click="episodeRailDetailTab = 'details'"
+                    >
+                      Details
+                    </button>
+                    <button
+                      id="episode-detail-rail-tab-neighbourhood"
+                      type="button"
+                      role="tab"
+                      class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
+                      :class="
+                        episodeRailDetailTab === 'neighbourhood'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-elevated-foreground hover:bg-overlay'
+                      "
+                      :aria-selected="episodeRailDetailTab === 'neighbourhood'"
+                      aria-controls="episode-detail-rail-panel-neighbourhood"
+                      data-testid="episode-detail-rail-tab-neighbourhood"
+                      :tabindex="episodeRailDetailTab === 'neighbourhood' ? 0 : -1"
+                      @click="episodeRailDetailTab = 'neighbourhood'"
+                    >
+                      Neighbourhood
+                    </button>
+                  </nav>
+                </template>
+                <template #episode-rail-neighbourhood>
+                  <GraphConnectionsSection
+                    :view-artifact="episodeConnectionsViewArtifact"
+                    :node-id="episodeRail.graphConnectionsCyId"
+                    :dense-neighbor-list="false"
+                    @go-graph="mainTab = 'graph'"
+                    @open-library-episode="onSearchOpenLibraryEpisode"
+                    @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
+                  />
+                </template>
+              </EpisodeDetailPanel>
             </div>
           </template>
           <template v-else>
             <div
               v-if="railBackFromToolsEnabled"
-              class="mx-2 mt-1 flex shrink-0 justify-end border-b border-border pb-2"
+              class="mx-3 mt-1 flex shrink-0 justify-end border-b border-border pb-2"
             >
               <button
                 type="button"
@@ -913,7 +1094,7 @@ watch(
               </button>
             </div>
             <nav
-              class="mx-2 mt-1 flex shrink-0 gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
+              class="mx-3 mt-1 flex shrink-0 gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
               aria-label="Right panel tabs"
             >
               <button
@@ -941,7 +1122,7 @@ watch(
                 Explore
               </button>
             </nav>
-            <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
+            <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-2">
               <SearchPanel
                 v-show="episodeRail.toolsTab === 'search'"
                 ref="searchPanelRef"

@@ -20,6 +20,7 @@ This architecture document is the central hub for understanding the system. For 
   - [E2E Testing Guide](../guides/E2E_TESTING_GUIDE.md) — E2E server, real ML models
   - [Critical Path Testing Guide](../guides/CRITICAL_PATH_TESTING_GUIDE.md) — What to test, prioritization
 - **[Server Guide](../guides/SERVER_GUIDE.md)** — FastAPI server, REST API, viewer, development workflow
+- **[Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md)** — Vue SPA internals: component tree, Pinia stores, API layer, async correctness
 - **[CI/CD](../ci/index.md)** — Continuous integration and deployment pipeline
 
 ### API Documentation
@@ -104,7 +105,7 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 **Programmatic use:** Import `config.load_config_file`, `Config`, and either `workflow.run_pipeline` (returns count + summary) or `service.run` / `service.run_from_config_file` (returns `ServiceResult`). See [API Reference](../api/REFERENCE.md) and [Service API](../api/SERVICE.md).
 
-**Server / viewer:** `src/podcast_scraper/server/` is the canonical **read-oriented** HTTP layer. **Mounted viewer routers** expose artifacts, search, explore, **CIL** cross-layer routes (`/api/persons/*`, `/api/topics/*`, RFC-072), **FAISS index stats**, **background index rebuild**, and **`/api/corpus/*`** (Corpus Library); the Vue `dist/` is optional static mounting. **`routes/platform/*`** remains **stub-only** (not registered in `create_app`) until ADR-064 platform routes land (#50, #347). OpenAPI: **`/docs`**, **`/openapi.json`**. See [Server Guide](../guides/SERVER_GUIDE.md), [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md), [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md), [GIL / KG / CIL cross-layer](../guides/GIL_KG_CIL_CROSS_LAYER.md).
+**Server / viewer:** `src/podcast_scraper/server/` is the canonical **read-oriented** HTTP layer exposing REST endpoints for the Vue SPA. **`routes/platform/*`** remains **stub-only** (not registered in `create_app`) until ADR-064 platform routes land (#50, #347). OpenAPI: **`/docs`**, **`/openapi.json`**. See [Server Guide](../guides/SERVER_GUIDE.md) for the API contract and [Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md) for the SPA internals.
 
 ## GIL, KG, and canonical cross-layer (CIL) {#gil-kg-and-canonical-cross-layer-cil}
 
@@ -121,6 +122,18 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 **Operational gate:** Before relying on lift in production-shaped corpora, run **Quote vs chunk offset** verification (`verify-gil-chunk-offsets` or **`make verify-gil-offsets-strict`**) on an indexed run. Details: [Semantic Search Guide — lift and verification](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528), [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
 
 **Full spec:** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md).
+
+## Corpus Topic Clustering Layer (RFC-075) {#corpus-topic-clustering-layer-rfc-075}
+
+**Purpose:** Group **semantically similar KG topic nodes** across episodes when LLMs assign different `topic:{slug}` ids for the same real-world subject. This is a **corpus-level, optional** step that sits **beside** per-episode KG extraction and **beside** CIL: it **reads** KG topic labels and embeddings produced for semantic search (RFC-061), writes a small filesystem artifact **`topic_clusters.json`** under `<corpus>/search/`, and can feed **auto-generated** `topic_id_aliases` for CIL (RFC-072). The GI/KG viewer may render clusters as **Cytoscape compound parent nodes** without rewriting raw `*.kg.json`.
+
+**Boundaries:**
+
+- **In scope:** Build-time or CLI-triggered clustering; optional operator-authored YAML for `topic-clusters --validate-config` (no committed canonical file); HTTP surface to serve the JSON artifact; viewer overlay only.
+- **Out of scope:** Replacing KG extraction, replacing FAISS, or requiring a database. No query-time external embedding APIs.
+
+**Design:** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) (Draft) — current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL). Holistic review notes:
+[docs/wip/rfc-075-holistic-review.md](../wip/rfc-075-holistic-review.md).
 
 **Providers:** Nine providers (1 local ML + 1 hybrid ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
 
@@ -165,241 +178,34 @@ The following architectural principles govern this system. For the full history 
 
 ## Pipeline and Workflow
 
-1. **Entry**: `podcast_scraper.cli.main` parses CLI args (optionally merging JSON/YAML configs) into a validated `Config` object and applies global logging preferences.
-2. **Multi-feed outer loop (GitHub #440)**: When `Config.rss_urls` contains **two or more** feeds, `cli.main` and `service.run` iterate feeds sequentially: for each URL they derive a child `output_dir` under `<corpus_parent>/feeds/<stable_feed_id>/` and invoke the same inner pipeline with a single-feed sub-config. With **`vector_search`** and FAISS, inner runs set **`skip_auto_vector_index`** so **one** parent **`index_corpus`** pass builds **`<corpus_parent>/search`** (#505). The batch writes **`corpus_manifest.json`**, **`corpus_run_summary.json`**, and structured logs (#506). See [RSS and feed ingestion guide](../guides/RSS_GUIDE.md), [RFC-063](../rfc/RFC-063-multi-feed-corpus-append-resume.md), and [CONFIGURATION.md — RSS and multi-feed](../api/CONFIGURATION.md#rss-and-multi-feed-corpus-github-440).
+The pipeline processes podcast feeds through a sequence of stages: RSS
+acquisition, episode selection, transcript download (or Whisper transcription),
+optional metadata generation, optional summarization, optional GIL/KG
+extraction, and optional FAISS vector indexing. Multi-feed corpora run the inner
+pipeline per feed with a single parent index pass. Append/resume mode skips
+already-processed episodes.
 
-   **Append / resume (GitHub #444)**: When `Config.append` is true, filesystem setup under each feed root chooses a **stable** `run_append_*` workspace (instead of a new `run_*` suffix each invocation). The inner pipeline skips episodes whose on-disk metadata matches RSS `episode_id` and that already satisfy transcript plus optional summary / GI / KG requirements. Run index files use `index.json` schema `1.1.0` with optional `pipeline_append`. Mutually exclusive with `clean_output`. See [CONFIGURATION.md — Append / resume](../api/CONFIGURATION.md#append-resume-github-444).
+For the **full stage-by-stage walkthrough**, pipeline flow diagram, module roles,
+multi-feed semantics, and behavioral details see the
+[Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md).
 
-3. **Run orchestration**: `workflow.orchestration.run_pipeline` coordinates the end-to-end job for **one** feed at a time: output setup, RSS acquisition, **episode selection** (`episode_order`, optional `episode_since` / `episode_until`, `episode_offset`, `max_episodes`; [CONFIGURATION.md](../api/CONFIGURATION.md#episode-selection-github-521)), episode materialization, transcript download, optional Whisper transcription, optional metadata generation, optional summarization, and cleanup. RSS ingress detail: [RSS and feed ingestion guide](../guides/RSS_GUIDE.md).
-4. **Episode handling**: For each `Episode`, `workflow.episode_processor.process_episode_download` either saves an existing transcript or enqueues media for Whisper.
-5. **Speaker detection** (RFC-010): When automatic speaker detection is enabled, host names are extracted from RSS author tags (channel-level `<author>`, `<itunes:author>`, `<itunes:owner>`) as the primary source, falling back to NER extraction from feed metadata if no author tags exist. Guest names are extracted from episode-specific metadata (titles and descriptions) using Named Entity Recognition (NER) with spaCy. Manual speaker names are only used as fallback when detection fails. Note: The pipeline logs debug messages when transcription parallelism is ignored due to provider limitations (e.g., Whisper always uses sequential processing).
-6. **Audio Preprocessing** (RFC-040): When preprocessing is enabled, audio files are optimized before transcription: converted to mono, resampled to 16 kHz, silence removed via VAD, loudness normalized, and compressed with Opus codec. This reduces file size (typically 10-25× smaller) and ensures API compatibility (e.g., OpenAI 25 MB limit). Preprocessing happens at the pipeline level in `workflow.episode_processor.transcribe_media_to_text` before any provider receives the audio. All providers benefit from optimized audio.
-7. **Transcription**: When Whisper fallback is enabled, `workflow.episode_processor.download_media_for_transcription` downloads media to a temp area and `workflow.episode_processor.transcribe_media_to_text` persists Whisper output using deterministic naming. Detected speaker names are integrated into screenplay formatting when enabled.
-8. **Metadata generation** (PRD-004/RFC-011): When enabled, per-episode metadata documents are generated alongside transcripts, capturing feed-level and episode-level information, detected speaker names, and processing metadata in JSON/YAML format.
-9. **Summarization** (PRD-005/RFC-012): When enabled,
-   episode transcripts are summarized using the
-   configured provider — local transformer models
-   (BART, PEGASUS, LED) via `MLProvider`; the
-   **hybrid_ml** provider (MAP with LongT5 + REDUCE
-   via Ollama, llama.cpp, or transformers); or any
-   of 7 LLM providers (OpenAI, Gemini, Anthropic,
-   Mistral, DeepSeek, Grok, Ollama) via prompt
-   templates. See
-   [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md)
-   for ML architecture details.
-10. **Run Tracking** (Issue #379): Run manifests
-   capture system state at pipeline start. Per-episode
-   stage timings track processing duration. Run
-   summaries combine manifest and metrics. Episode
-   index files list all processed episodes with
-   status.
-11. **Progress/UI**: All long-running operations
-    report progress through the pluggable factory in
-    `utils.progress`, defaulting to `rich` in the CLI.
-12. **GIL Extraction** (PRD-017): When enabled,
-    the Grounded Insight Layer extracts structured
-    insights and verbatim quotes from transcripts,
-    links them via grounding relationships, and
-    writes a `gi.json` file per episode. This step
-    runs after summarization and uses the same
-    multi-provider architecture. See `gi/` module.
-13. **KG Extraction**: When enabled, Knowledge Graph
-    extraction produces structured topic graphs from
-    transcripts and summaries, writing `kg.json` per
-    episode. See `kg/` module.
-14. **Vector Indexing** (PRD-021/RFC-061): When
-    `vector_search` is enabled, the pipeline builds or
-    updates a FAISS vector index over transcript
-    chunks using sentence-transformers embeddings.
-    In multi-feed mode, inner per-feed runs set
-    `skip_auto_vector_index` so a single parent
-    `index_corpus` pass builds the unified
-    `<corpus_parent>/search/` index. The index
-    supports semantic search and episode similarity
-    queries via the server API.
+### Module map (summary)
 
-### Pipeline Flow Diagram
-
-```mermaid
-flowchart TD
-    Start([CLI Entry]) --> Parse[Parse CLI Args & Config Files]
-    Parse --> Validate[Validate & Normalize Config]
-    Validate --> Setup[Setup Output Directory]
-    Setup --> FetchRSS[Fetch & Parse RSS Feed]
-    FetchRSS --> ExtractEpisodes[Extract Episode Metadata]
-    ExtractEpisodes --> DetectSpeakers{Speaker Detection Enabled?}
-    DetectSpeakers -->|Yes| ExtractHosts[Extract Host Names from RSS]
-    ExtractHosts --> ExtractGuests[Extract Guest Names via NER]
-    DetectSpeakers -->|No| ProcessEpisodes[Process Episodes]
-    ExtractGuests --> ProcessEpisodes
-    ProcessEpisodes --> CheckTranscript{Transcript Available?}
-    CheckTranscript -->|Yes| DownloadTranscript[Download Transcript]
-    CheckTranscript -->|No| QueueWhisper[Queue for Whisper]
-    DownloadTranscript --> SaveTranscript[Save Transcript File]
-    QueueWhisper --> DownloadMedia[Download Media File]
-    DownloadMedia --> Preprocess{Preprocessing Enabled?}
-    Preprocess -->|Yes| PreprocessAudio[Preprocess Audio: Mono, 16kHz, VAD, Normalize, Opus]
-    Preprocess -->|No| Transcribe
-    PreprocessAudio --> Transcribe[Whisper Transcription]
-    Transcribe --> FormatScreenplay[Format with Speaker Names]
-    FormatScreenplay --> SaveTranscript
-    SaveTranscript --> GenerateMetadata{Metadata Generation?}
-    GenerateMetadata -->|Yes| CreateMetadata[Generate Metadata JSON/YAML]
-    GenerateMetadata -->|No| Cleanup
-    CreateMetadata --> GenerateSummary{Summarization Enabled?}
-    GenerateSummary -->|Yes| Summarize[Generate Summary]
-    GenerateSummary -->|No| GILCheck
-    Summarize --> AddSummaryToMetadata[Add Summary to Metadata]
-    AddSummaryToMetadata --> GILCheck{GIL Extraction?}
-    GILCheck -->|Yes| ExtractGIL[Extract Insights + Quotes]
-    GILCheck -->|No| KGCheck
-    ExtractGIL --> GroundInsights[Ground Insights with Quotes]
-    GroundInsights --> WriteGI[Write gi.json]
-    WriteGI --> KGCheck{KG Extraction?}
-    KGCheck -->|Yes| ExtractKG[Extract Topic Graph]
-    KGCheck -->|No| Cleanup
-    ExtractKG --> WriteKG[Write kg.json]
-    WriteKG --> VectorCheck{Vector Search Enabled?}
-    KGCheck -->|No, from GIL| VectorCheck
-    VectorCheck -->|Yes| IndexCorpus[Build/Update FAISS Index]
-    VectorCheck -->|No| Cleanup
-    IndexCorpus --> Cleanup[Cleanup Temp Files]
-    Cleanup --> End([Complete])
-
-    style Start fill:#e1f5ff
-    style End fill:#d4edda
-    style ProcessEpisodes fill:#fff3cd
-    style Transcribe fill:#f8d7da
-    style GenerateMetadata fill:#d1ecf1
-    style ExtractGIL fill:#e8daef
-    style ExtractKG fill:#d5f5e3
-    style IndexCorpus fill:#fce4ec
-```
-
-- `cli.py`: Parse/validate CLI arguments, integrate config files, set up progress reporting; when `rss_urls` has one feed, calls `run_pipeline` once; when it has two or more (GitHub #440), runs `run_pipeline` per feed under `<output_dir>/feeds/<stable_feed_id>/`. Optimized for interactive command-line use.
-- `service.py`: Service API for programmatic/daemon use. Provides `service.run()` and `service.run_from_config_file()` functions that return structured `ServiceResult` objects; **multi-feed** uses the same outer loop as the CLI. Works exclusively with configuration files (no CLI arguments), optimized for non-interactive use (supervisor, systemd, etc.). Entry point: `python -m podcast_scraper.service --config config.yaml`.
-- `config.py`: Immutable Pydantic model representing all runtime options; JSON/YAML loader with strict validation and normalization helpers. Includes language configuration, NER settings, and speaker detection flags (RFC-010).
-- `workflow.orchestration`: Pipeline coordinator that orchestrates directory prep, RSS parsing, download concurrency, Whisper lifecycle, speaker detection coordination, and cleanup.
-- `rss.parser`: Safe RSS/XML parsing using `defusedxml` ([ADR-002](../adr/ADR-002-security-first-xml-processing.md)), discovery of transcript/enclosure URLs, and creation of `Episode` models.
-- `rss.downloader`: HTTP session pooling with retry-enabled adapters (configurable via `Config` retry fields), streaming downloads, and shared progress hooks. `configure_downloader()` applies runtime retry settings from `Config` at pipeline start.
-
-- `rss.feed_cache`: Optional on-disk cache for RSS
-  feed XML (reduces repeated HTTP fetches). Enabled
-  via `PODCAST_SCRAPER_RSS_CACHE_DIR`; used by
-  acceptance test runners so sequential configs
-  sharing the same feed URL reuse one download.
-- `workflow.episode_processor`: Episode-level decision logic, transcript storage, Whisper job management, delay handling, and file naming rules. Integrates detected speaker names into Whisper screenplay formatting.
-- `utils.filesystem`: Filename sanitization, output directory derivation based on feed hash ([ADR-003](../adr/ADR-003-deterministic-feed-storage.md)), run suffix logic, and helper utilities for Whisper output paths.
-- **Provider System** (RFC-013, RFC-029): Protocol-based provider architecture for transcription, speaker detection, and summarization ([ADR-020](../adr/ADR-020-protocol-based-provider-discovery.md)). Each capability has a protocol interface (`TranscriptionProvider`, `SpeakerDetector`, `SummarizationProvider`) and factory functions that create provider instances based on configuration. Providers implement `initialize()`, protocol methods (e.g., `transcribe()`, `summarize()`), and `cleanup()`. See [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) for details.
-- **Unified Providers** (RFC-029): Nine unified
-  provider classes implement protocol combinations
-  ([ADR-024](../adr/ADR-024-unified-provider-pattern.md)):
-
-  | Provider | Transcription | Speaker Detection | Summarization | Notes |
-  | --- | --- | --- | --- | --- |
-  | `MLProvider` | Whisper | spaCy NER | Transformers | Local, no API cost |
-  | `HybridMLProvider` | No | | MAP-REDUCE | LongT5 MAP + Ollama/llama_cpp/transformers REDUCE (RFC-042) |
-  | `OpenAIProvider` | Whisper API | GPT API | GPT API | Cloud, prompt-managed |
-  | `GeminiProvider` | Gemini API | Gemini API | Gemini API | 2M context, native audio |
-  | `AnthropicProvider` | No | Claude API | Claude API | High quality reasoning |
-  | `MistralProvider` | No | Mistral API | Mistral API | OpenAI alternative |
-  | `DeepSeekProvider` | No | DeepSeek API | DeepSeek API | Ultra low-cost |
-  | `GrokProvider` | No | Grok API | Grok API | Real-time info (xAI) |
-  | `OllamaProvider` | No | Ollama API | Ollama API | Local LLM, zero cost |
-
-  - **Factories**: Factory functions in
-    `transcription/factory.py`,
-    `speaker_detectors/factory.py`, and
-    `summarization/factory.py` create the appropriate
-    unified provider based on configuration.
-  - **Capabilities**: `providers/capabilities.py`
-    defines `ProviderCapabilities` — a dataclass
-    describing what each provider supports (JSON mode,
-    tool calls, streaming, etc.). Used by factories
-    and orchestration to select appropriate providers.
-  - **Prompt Management** (RFC-017):
-    `prompts/store.py` implements versioned Jinja2
-    prompt templates organized by
-    `<provider>/<task>/<version>.j2` (e.g.,
-    `openai/summarization/long_v1.j2`). Each of the
-    9 providers has tuned templates for summarization
-    and NER. LLM providers load prompts via
-    `PromptStore.render()` ensuring consistent,
-    version-tracked prompt engineering.
-- `providers/ml/whisper_utils.py`: Lazy loading of the third-party `openai-whisper` library, transcription invocation with language-aware model selection (preferring `.en` variants for English), and screenplay formatting helpers that use detected speaker names. Accessed via `MLProvider` (unified provider pattern).
-- `providers/ml/speaker_detection.py` (RFC-010): Named Entity Recognition using spaCy to extract PERSON entities from episode metadata, distinguish hosts from guests, and provide speaker names for Whisper screenplay formatting. spaCy is a required dependency. Accessed via `MLProvider` (unified provider pattern).
-- `providers/ml/summarizer.py` (PRD-005/RFC-012): Episode summarization using local transformer models (BART, PEGASUS, LED) to generate concise summaries from transcripts. Implements a hybrid map-reduce strategy. Accessed via `MLProvider` (unified provider pattern). See [ML Provider Reference](../guides/ML_PROVIDER_REFERENCE.md) for details.
-- `providers/ml/model_registry.py` (RFC-044): Centralized model metadata registry (`ModelRegistry` class) with `ModelCapabilities` dataclass for all models (summarization, embedding, QA, NLI).
-- `gi/` (PRD-017): Grounded Insight Layer — structured insight and quote extraction with evidence grounding. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `grounding.py` (insight↔quote linking), `contracts.py` (grounding contract), `explore.py` (CLI exploration), `corpus.py` (cross-episode operations).
-- `kg/` (RFC-055): Knowledge Graph extraction — structured topic graphs from transcripts and summaries. Key modules: `pipeline.py` (orchestration), `schema.py` (validation), `llm_extract.py` (LLM-based extraction), `cli_handlers.py` (CLI subcommands).
-- `server/` (RFC-062, RFC-067, RFC-068): FastAPI HTTP
-  layer. App factory in `app.py`, Pydantic schemas in
-  `schemas.py`, route modules in `routes/` (health,
-  artifacts, search, explore, index_stats,
-  index_rebuild, corpus_library, corpus_binary,
-  corpus_metrics, corpus_digest). Supporting modules:
-  `corpus_catalog.py` (filesystem-backed episode
-  catalog), `corpus_digest.py` (time-window digest
-  selection and topic config), `index_rebuild.py`
-  (background FAISS rebuild coordination),
-  `index_staleness.py` (vector index freshness
-  heuristics), `pathutil.py` (safe corpus path
-  resolution). CLI integration via `cli_handlers.py`
-  (`podcast serve`). Serves the Vue SPA
-  (`web/gi-kg-viewer/dist/`) as static files. Platform
-  route stubs in `routes/platform/` for future
-  #50/#347 work.
-- `search/` (PRD-021, RFC-061): Semantic corpus search
-  via FAISS vector indexing. Key modules:
-  `chunker.py` (transcript chunking for embedding),
-  `faiss_store.py` (`FaissVectorStore` implementation),
-  `indexer.py` (corpus-wide index build with
-  `index_corpus` / `maybe_index_corpus`),
-  `protocol.py` (`VectorStore` / `SearchResult` /
-  `IndexStats` protocols), `corpus_search.py` (shared
-  search logic for CLI and HTTP), `corpus_similar.py`
-  (episode-level similarity, RFC-067 Phase 3),
-  `corpus_scope.py` (multi-feed episode identity
-  helpers), `index_source_mtime.py` (staleness
-  fingerprinting), `cli_handlers.py` (CLI
-  subcommands). Uses sentence-transformers for
-  embeddings and faiss-cpu for vector storage.
-- `utils.progress`: Minimal global progress publishing API so callers can swap in alternative UIs.
-- `models/` (package): Simple dataclasses (`RssFeed`, `Episode`, `TranscriptionJob` in `entities.py`) shared across modules.
-- `workflow/stages/` (extracted from monolithic
-  `workflow.py`): Stage-specific modules for pipeline
-  orchestration — `setup.py` (output directory
-  preparation), `scraping.py` (RSS fetch and episode
-  materialization), `processing.py` (transcript
-  download and Whisper dispatch), `transcription.py`
-  (Whisper transcription and formatting),
-  `metadata.py` (metadata generation stage),
-  `summarization.py` (summarization stage).
-- `workflow.corpus_operations` (RFC-063 §7): Multi-feed
-  corpus artifacts — `corpus_manifest.json`,
-  `corpus_run_summary.json`, and structured logs for
-  batch runs.
-- `workflow.degradation`: Graceful degradation policies
-  for non-critical stage failures, allowing the
-  pipeline to continue when optional stages (GIL, KG,
-  metadata) fail.
-- `workflow.jsonl_emitter`: Streaming JSONL metrics
-  output during pipeline execution for real-time
-  monitoring and analysis.
-- `monitor/` (RFC-065): Optional **live** dev tooling — child **`runner`** (RSS/CPU/stage on
-  **stderr** or **`.monitor.log`**), **`status`** (atomic **`.pipeline_status.json`**),
-  **`sampler`**, **`dashboard`**, **`memray_util`** (helpers used by CLI/service for **memray**
-  re-exec), **`py_spy_listener`** (optional **`f`** → **py-spy**, started from orchestration when
-  **`Config.monitor`**). **`memray`** re-exec itself runs in **`cli.main`** and
-  **`service.run_from_config_file`**, not inside **`run_pipeline`**. Guide:
-  [Live Pipeline Monitor](../guides/LIVE_PIPELINE_MONITOR.md).
-- `workflow.run_manifest` / `workflow.run_summary`:
-  Run-level manifest capture (system state, config
-  hash, git SHA) and combined run summary generation.
-- `workflow.types`: Shared type definitions for
-  workflow modules (`FeedMetadata`, `ProcessingJob`,
-  etc.).
-- `workflow.metadata_generation` (PRD-004/RFC-011): Per-episode metadata document generation, capturing feed-level and episode-level information, detected speaker names, transcript sources, processing metadata, and optional summaries in structured JSON/YAML format. Opt-in feature for backwards compatibility.
+| Package / module | Responsibility | Detail link |
+| ---------------- | -------------- | ----------- |
+| `cli.py` | CLI entry, arg parsing, multi-feed outer loop | [CLI Reference](../api/CLI.md) |
+| `service.py` | Daemon/programmatic entry, `ServiceResult` | [Service API](../api/SERVICE.md) |
+| `config.py` | Immutable `Config` model, YAML/JSON loader | [Configuration](../api/CONFIGURATION.md) |
+| `workflow/` | Orchestration, stages, degradation, corpus ops, run tracking | [Pipeline Guide](../guides/PIPELINE_AND_WORKFLOW.md) |
+| `rss/` | RSS parsing (`defusedxml`), HTTP downloads, feed cache | [RSS Guide](../guides/RSS_GUIDE.md) |
+| `providers/` | 9 unified providers (ML, Hybrid, 7 LLM); factories, capabilities, prompts | [Provider Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md) |
+| `gi/` | Grounded Insight Layer extraction (PRD-017) | [GI Guide](../guides/GROUNDED_INSIGHTS_GUIDE.md) |
+| `kg/` | Knowledge Graph extraction (RFC-055) | [KG Guide](../guides/KNOWLEDGE_GRAPH_GUIDE.md) |
+| `search/` | FAISS vector indexing, semantic search, episode similarity; **corpus topic clustering** (`topic_clusters.json`, RFC-075) | [Search Guide](../guides/SEMANTIC_SEARCH_GUIDE.md), [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) |
+| `server/` | FastAPI HTTP layer, corpus catalog, digest, index rebuild | [Server Guide](../guides/SERVER_GUIDE.md), [Viewer Frontend](VIEWER_FRONTEND_ARCHITECTURE.md) |
+| `monitor/` | Live pipeline monitor (RFC-065) | [Monitor Guide](../guides/LIVE_PIPELINE_MONITOR.md) |
+| `models/` | Shared dataclasses (`RssFeed`, `Episode`, etc.) | |
+| `utils/` | Filesystem helpers, progress reporting | |
 
 ### Module Dependencies Diagram
 
@@ -467,12 +273,17 @@ graph TB
         CorpusScope[search/corpus_scope.py]
     end
 
+    subgraph "Corpus Topic Clustering (RFC-075)"
+        TopicClusters[search/topic_clusters.py]
+    end
+
     subgraph "Server Layer"
         ServerApp[server/app.py]
         ServerRoutes[server/routes/]
         ServerSchemas[server/schemas.py]
         CorpusCatalog[server/corpus_catalog.py]
         CorpusDigest[server/corpus_digest.py]
+        CorpusTopicClusters[server/routes/corpus_topic_clusters.py]
         IndexRebuild[server/index_rebuild.py]
         IndexStaleness[server/index_staleness.py]
     end
@@ -513,6 +324,7 @@ graph TB
     ServerRoutes --> ServerSchemas
     ServerRoutes --> CorpusCatalog
     ServerRoutes --> CorpusDigest
+    ServerRoutes --> CorpusTopicClusters
     ServerRoutes --> CorpusSearch
     ServerRoutes --> IndexRebuild
     ServerRoutes --> IndexStaleness
@@ -524,6 +336,7 @@ graph TB
     SearchIndexer --> Chunker
     CorpusSearch --> FaissStore
     CorpusSimilar --> CorpusSearch
+    FaissStore -. optional read .-> TopicClusters
     Workflow --> RSSParser
     Workflow --> EpisodeProc
     Workflow --> Downloader
@@ -796,30 +609,12 @@ podcasts to interviews, lectures, panels, etc.
 **Status**: **Implemented** (M1–M7)
 
 FastAPI server in `src/podcast_scraper/server/` with
-Vue 3 SPA in `web/gi-kg-viewer/`. Core endpoints:
-`/api/health`, `/api/artifacts`, `/api/index/stats`,
-`/api/search`, `/api/explore`. CLI: `podcast serve`.
-Playwright E2E tests. Platform route stubs for
-future #50/#347 work.
-
-**Modules (implemented):**
-
-- `server/app.py` — App factory, CORS, static file
-  mounting
-- `server/schemas.py` — Pydantic response models
-- `server/routes/` — Route modules (health, artifacts,
-  search, explore, index_stats, index_rebuild,
-  corpus_library, corpus_binary, corpus_metrics,
-  corpus_digest)
-- `server/cli_handlers.py` — CLI integration
-  (`podcast serve`)
-- `server/corpus_catalog.py` — Filesystem-backed
-  episode catalog
-- `server/corpus_digest.py` — Digest selection logic
-- `server/index_rebuild.py` — Background FAISS rebuild
-- `server/index_staleness.py` — Index freshness
-  heuristics
-- `server/pathutil.py` — Safe corpus path resolution
+Vue 3 SPA in `web/gi-kg-viewer/`. CLI: `podcast serve`.
+See [Server Guide](../guides/SERVER_GUIDE.md) for the
+API route table and
+[Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md)
+for the SPA internals (component tree, Pinia stores,
+API client layer, async correctness).
 
 ### Phase 5a: Semantic Corpus Search (RFC-061)
 
@@ -849,12 +644,10 @@ Phase 2 (Qdrant migration) is planned.
 **Status**: **Implemented** (Phases 1–3)
 
 Filesystem-backed corpus catalog exposed via
-`/api/corpus/library` (feed list, episode list,
-episode detail), `/api/corpus/binary` (artwork
-serving), `/api/corpus/metrics` (quality metrics).
-Episode similarity via search handoff (Phase 3).
-Vue Library tab with feed cards, episode table,
-detail panel.
+`/api/corpus/*` endpoints. Episode similarity via
+search handoff (Phase 3). Viewer Library tab
+documented in
+[Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md).
 
 ### Phase 5c: Corpus Digest (RFC-068)
 
@@ -862,18 +655,18 @@ detail panel.
 
 Time-windowed episode digest with topic-band
 classification. `/api/corpus/digest` endpoint.
-Vue Digest tab with topic bands, 24h Library
-glance, and search handoff. Configurable via
-`config/digest_topics.yaml`.
+Configurable via `config/digest_topics.yaml`. Viewer
+Digest tab documented in
+[Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md).
 
 ### Phase 5d: Graph Exploration Toolkit (RFC-069)
 
 **Status**: **In progress**
 
 Extends the viewer graph canvas with zoom controls,
-minimap, degree filter, and alternative layouts
-(force, radial, hierarchical). Builds on the
-RFC-062 `GraphCanvas.vue` component.
+minimap, degree filter, and alternative layouts.
+Viewer graph internals documented in
+[Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md).
 
 ### Execution Order Summary
 
@@ -1162,9 +955,8 @@ For detailed error handling patterns and implementation guidelines, see [Develop
   `server/` exposes REST endpoints wrapping existing
   Python APIs. New route groups can be added by
   creating a router in `routes/` and including it in
-  `app.py`. Platform routes (#50, #347) follow this
-  pattern. See
-  [Server Guide](../guides/SERVER_GUIDE.md).
+  `app.py`. See [Server Guide](../guides/SERVER_GUIDE.md)
+  and [Viewer Frontend Architecture](VIEWER_FRONTEND_ARCHITECTURE.md).
 
 ## Operational Tooling
 

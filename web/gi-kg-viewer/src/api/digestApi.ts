@@ -1,3 +1,6 @@
+import { dedupeInFlight } from './inFlightDedupe'
+import { fetchWithTimeout } from './httpClient'
+
 function raiseDigestHttpError(res: Response, bodyText: string): never {
   if (res.status === 404) {
     throw new Error(
@@ -7,7 +10,7 @@ function raiseDigestHttpError(res: Response, bodyText: string): never {
   throw new Error(bodyText || `HTTP ${res.status}`)
 }
 
-export type DigestWindow = '24h' | '7d' | 'since'
+export type DigestWindow = 'all' | '24h' | '7d' | '1mo' | 'since'
 
 export type CorpusDigestRow = {
   metadata_relative_path: string
@@ -20,6 +23,8 @@ export type CorpusDigestRow = {
   publish_date: string | null
   summary_title: string | null
   summary_bullets_preview: string[]
+  /** Same length as summary_bullets_preview when from current API; topic:{slug} graph hints. */
+  summary_bullet_graph_topic_ids?: string[]
   summary_preview?: string | null
   gi_relative_path: string
   kg_relative_path: string
@@ -60,6 +65,8 @@ export type CorpusDigestTopicBand = {
   topic_id: string
   label: string
   query: string
+  /** From API; when missing (older server), Digest falls back to episode-only graph focus. */
+  graph_topic_id?: string
   hits: CorpusDigestTopicHit[]
 }
 
@@ -102,10 +109,13 @@ export async function fetchCorpusDigest(
   if (options.maxRows != null) {
     q.set('max_rows', String(options.maxRows))
   }
-  const res = await fetch(`/api/corpus/digest?${q.toString()}`)
-  if (!res.ok) {
-    const t = await res.text()
-    raiseDigestHttpError(res, t)
-  }
-  return (await res.json()) as CorpusDigestResponse
+  const qs = q.toString()
+  return dedupeInFlight(`GET|/api/corpus/digest?${qs}`, async () => {
+    const res = await fetchWithTimeout(`/api/corpus/digest?${qs}`)
+    if (!res.ok) {
+      const t = await res.text()
+      raiseDigestHttpError(res, t)
+    }
+    return (await res.json()) as CorpusDigestResponse
+  })
 }

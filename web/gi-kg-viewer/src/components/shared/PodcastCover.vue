@@ -22,7 +22,8 @@ const props = withDefaults(
   },
 )
 
-const broken = ref(false)
+/** After ``@error``, try the next candidate (e.g. local binary 404 → remote URL). */
+const fallbackStep = ref(0)
 
 watch(
   () =>
@@ -34,7 +35,7 @@ watch(
       props.corpusPath,
     ] as const,
   () => {
-    broken.value = false
+    fallbackStep.value = 0
   },
 )
 
@@ -46,29 +47,45 @@ function binaryUrl(relpath: string): string {
   return `/api/corpus/binary?${q.toString()}`
 }
 
-const src = computed(() => {
-  if (broken.value) {
-    return ''
-  }
+const candidateSrcs = computed((): string[] => {
   const cp = (props.corpusPath ?? '').trim()
   const epLoc = props.episodeImageLocalRelpath?.trim()
-  if (cp && epLoc) {
-    return binaryUrl(epLoc)
-  }
   const e = props.episodeImageUrl?.trim()
-  if (e) {
-    return e
-  }
   const fdLoc = props.feedImageLocalRelpath?.trim()
-  if (cp && fdLoc) {
-    return binaryUrl(fdLoc)
-  }
   const f = props.feedImageUrl?.trim()
-  return f || ''
+  const raw: string[] = []
+  if (cp && epLoc) {
+    raw.push(binaryUrl(epLoc))
+  }
+  if (e) {
+    raw.push(e)
+  }
+  if (cp && fdLoc) {
+    raw.push(binaryUrl(fdLoc))
+  }
+  if (f) {
+    raw.push(f)
+  }
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const u of raw) {
+    if (u && !seen.has(u)) {
+      seen.add(u)
+      out.push(u)
+    }
+  }
+  return out
 })
 
+const src = computed(() => candidateSrcs.value[fallbackStep.value] ?? '')
+
 function onError(): void {
-  broken.value = true
+  const list = candidateSrcs.value
+  if (fallbackStep.value < list.length - 1) {
+    fallbackStep.value += 1
+  } else {
+    fallbackStep.value = list.length
+  }
 }
 </script>
 

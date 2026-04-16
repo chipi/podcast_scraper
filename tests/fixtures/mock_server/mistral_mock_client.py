@@ -257,7 +257,7 @@ class FakeMistral:
         if root:
             self.base_url = root
         else:
-            self.base_url = "http://127.0.0.1:8000/v1"
+            self.base_url = "http://127.0.0.1:18765/v1"
 
         # Create fake sub-objects
         self.audio = type("obj", (object,), {})()

@@ -4,6 +4,8 @@ export interface RawGraphNode {
   id?: string | number
   type?: string
   properties?: Record<string, unknown>
+  /** Cytoscape compound parent id (RFC-075 topic cluster overlay). */
+  parent?: string
 }
 
 export interface RawGraphEdge {
@@ -32,6 +34,17 @@ export interface ParsedArtifact {
   edges: number
   nodeTypes: Record<string, number>
   data: ArtifactData
+  /**
+   * Corpus-root-relative path to the loaded `.gi.json` / `.kg.json` (API load only).
+   * Used to resolve bare `transcript_ref` filenames next to the artifact on disk.
+   */
+  sourceCorpusRelPath?: string | null
+  /**
+   * When multiple GI files are merged, ``sourceCorpusRelPath`` is null; map each
+   * ``episode_id`` (from GI JSON) to that episode's ``.gi.json`` corpus-relative path
+   * so Quote nodes can resolve ``transcript_ref`` per episode.
+   */
+  sourceCorpusRelPathByEpisodeId?: Record<string, string> | null
 }
 
 export interface GraphFilterState {

@@ -29,6 +29,20 @@ model cross-function sanitisation for this pattern, so every new file that
 touches the filesystem with a request-derived path triggers the same false
 positive.
 
+**When alerts persist after ``safe_relpath_under_corpus_root``:** re-verify the
+path string with ``normpath_if_under_root(path, root_s)`` immediately before
+each ``open`` / ``os.path.isfile`` / ``FileResponse`` sink, or build the target
+from ``safe_resolve_directory(corpus_root)`` plus **constant** path segments
+with an inline ``os.path.normpath`` + ``str.startswith(safe_prefix)`` guard in
+the same function. CodeQL does not always propagate sanitiser state out of
+helpers.
+
+**Inline pragma (same Type 1):** if sinks still alert after the above, add the
+same ``# codeql[py/path-injection] -- …`` line used elsewhere under
+``src/podcast_scraper/server/routes/`` (see ``corpus_binary.py``), documenting
+the sanitizer chain. Prefer fixing taint flow first; use the pragma when CodeQL
+cannot close the query.
+
 **Sanitiser chain (reference):**
 
 All user-supplied corpus paths flow through one of:
@@ -39,6 +53,7 @@ All user-supplied corpus paths flow through one of:
 | `resolved_corpus_root_str` | pathutil.py | `normpath` + `startswith(anchor)` -- falls back to anchor on escape |
 | `normpath_if_under_root` | path_validation.py | `normpath` + `startswith(root)` -- returns `None` on escape |
 | `safe_relpath_under_corpus_root` | path_validation.py | `normpath` + `startswith` + no `..` -- returns `None` on escape |
+| `safe_resolve_directory` | path_validation.py | ``realpath`` + rejects ``..`` -- use before joins from a ``Path`` root |
 
 ---
 
@@ -115,12 +130,20 @@ number, file, line, date, and a short comment.
 | 1 | #165 | server/pathutil.py | 63 | 2026-04-10 | normpath+startswith via resolve_corpus_path_param |
 | 1 | #206 | server/cil_queries.py | 59 | 2026-04-14 | anchor_s from server output_dir; root_path only in startswith filters |
 | 1 | #207 | server/cil_queries.py | 63 | 2026-04-14 | anchor_s from server output_dir; root_path only in startswith filters |
+| 1 | #166 | server/routes/index_stats.py | 89 | 2026-04-17 | normpath+startswith via resolve_corpus_path_param |
+| 1 | #208 | server/corpus_catalog.py | 268 | 2026-04-17 | normpath+startswith via safe_resolve_directory |
+| 1 | #209 | server/corpus_catalog.py | 345 | 2026-04-17 | normpath+startswith via safe_resolve_directory |
+| 1 | #224 | server/routes/corpus_text_file.py | 68 | 2026-04-17 | normpath_if_under_root inline before isfile |
+| 1 | #225 | server/routes/corpus_text_file.py | 82 | 2026-04-17 | normpath_if_under_root inline before isfile |
+| 1 | #226 | server/routes/corpus_topic_clusters.py | 65 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
+| 1 | #227 | server/routes/corpus_topic_clusters.py | 76 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
+| 1 | #228 | server/routes/corpus_text_file.py | 144 | 2026-04-17 | normpath_if_under_root inline before FileResponse |
+| 1 | #230 | search/topic_clusters.py | 108 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
+| 1 | #231 | search/topic_clusters.py | 104 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
 
 ## Still open (not yet dismissed)
 
-| Type | Alert | File | Line | Notes |
-| --- | --- | --- | --- | --- |
-| 1 | #166 | server/routes/index_stats.py | 89 | On main branch; same pattern, needs dismissal |
+None.
 
 ---
 

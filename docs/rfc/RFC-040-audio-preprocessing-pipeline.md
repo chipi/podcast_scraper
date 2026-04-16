@@ -229,10 +229,10 @@ class FFmpegAudioPreprocessor:
 
         Pipeline stages:
         1. Convert to mono
-        2. Resample to 16 kHz
+        2. Resample to configured sample rate (default 16 kHz)
         3. Remove silence (VAD)
         4. Normalize loudness to -16 LUFS
-        5. Compress using speech-optimized codec
+        5. Encode to MP3 (libmp3lame @ 64 kbps)
 
         Args:
             input_path: Path to raw audio file
@@ -248,13 +248,13 @@ class FFmpegAudioPreprocessor:
         # -ar 16000: resample to 16 kHz
         # -af silenceremove: remove silence (conservative thresholds)
         # -af loudnorm: normalize loudness to -16 LUFS
-        # -c:a libopus: speech-optimized codec
-        # -b:a 24k: 24 kbps bitrate
+        # -c:a libmp3lame: MP3 encoder (wide provider support)
+        # -b:a 64k: 64 kbps bitrate (matches implementation)
         cmd = [
             "ffmpeg",
             "-i", input_path,
             "-ac", "1",  # Mono
-            "-ar", str(self.sample_rate),  # 16 kHz
+            "-ar", str(self.sample_rate),  # e.g. 16000 Hz
             "-af", (
                 f"silenceremove="
                 f"start_periods=1:"
@@ -265,8 +265,8 @@ class FFmpegAudioPreprocessor:
                 f"stop_duration={self.silence_duration},"
                 f"loudnorm=I={self.target_loudness}:LRA=11:TP=-1.5"
             ),
-            "-c:a", "libopus",  # Speech-optimized codec
-            "-b:a", "24k",  # 24 kbps
+            "-c:a", "libmp3lame",  # MP3
+            "-b:a", "64k",  # 64 kbps
             "-y",  # Overwrite output
             output_path,
         ]
@@ -553,9 +553,9 @@ def _add_preprocessing_arguments(parser: argparse.ArgumentParser) -> None:
    - **Decision**: Use conservative silence detection thresholds by default
    - **Rationale**: Preserves meaningful pauses and prevents removing legitimate speech. Users can tune thresholds if needed.
 
-6. **Opus Codec for Preprocessed Audio**
-   - **Decision**: Use Opus codec at 24 kbps for preprocessed audio
-   - **Rationale**: Opus is optimized for speech, provides excellent quality at low bitrates, and is widely supported. 24 kbps provides good speech quality while reducing file size significantly.
+6. **MP3 (`libmp3lame`) for preprocessed audio**
+   - **Decision**: Encode preprocessed audio as **MP3** at **64 kbps** CBR using **`libmp3lame`** (see `src/podcast_scraper/preprocessing/audio/ffmpeg_processor.py`).
+   - **Rationale**: Reliable support across transcription APIs and fewer container issues than Opus-in-OGG for uploads; speech remains usable at 64 kbps. **[ADR-039](../adr/ADR-039-speech-optimized-codec-opus.md)** records why Opus was considered and rejected. Older text in this RFC assumed Opus at 24 kbps; **implementation and ADR supersede** that sketch.
 
 ## Alternatives Considered
 
@@ -701,8 +701,8 @@ python3 -m podcast_scraper.cli https://feed.xml --enable-preprocessing
 1. **FFmpeg Availability Check**: Should we fail fast if ffmpeg is not available, or silently disable preprocessing?
    - **Proposed**: Warn and disable preprocessing if ffmpeg not found, log clear error message
 
-2. **Codec Selection**: Should we support multiple output codecs (Opus, AAC, MP3) or standardize on Opus?
-   - **Proposed**: Start with Opus only, add codec selection in future if users request it
+2. **Codec selection**: Should we support multiple output codecs (Opus, AAC, MP3) or standardize on one?
+   - **Resolved in code**: Single path — **MP3** (`libmp3lame` @ **64 kbps**). Optional multi-codec configuration remains a future enhancement if operators request it.
 
 3. **VAD Threshold Tuning**: Should we provide presets (conservative, balanced, aggressive) or expect users to tune manually?
    - **Proposed**: Start with single conservative default, add presets in Phase 2 based on feedback
@@ -717,6 +717,6 @@ python3 -m podcast_scraper.cli https://feed.xml --enable-preprocessing
 
 - **Related RFC**: `docs/rfc/RFC-005-whisper-integration.md` (transcription pipeline)
 - **Related RFC**: `docs/rfc/RFC-029-provider-refactoring-consolidation.md` (unified providers)
-- **Source Code**: `podcast_scraper/episode_processor.py` (transcription orchestration)
+- **Source Code**: `podcast_scraper/preprocessing/audio/ffmpeg_processor.py` (FFmpeg pipeline), `podcast_scraper/workflow/episode_processor.py` (orchestration)
 - **External Tools**: FFmpeg documentation ([https://ffmpeg.org/](https://ffmpeg.org/))
 - **VAD Reference**: FFmpeg silenceremove filter ([https://ffmpeg.org/ffmpeg-filters.html#silenceremove](https://ffmpeg.org/ffmpeg-filters.html#silenceremove))

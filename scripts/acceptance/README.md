@@ -78,7 +78,7 @@ Run with E2E fixtures (no real RSS or API keys):
 make test-acceptance CONFIGS="config/acceptance/acceptance_planet_money_ml_dev.yaml" USE_FIXTURES=1
 ```
 
-Multi-feed acceptance (two feeds in one YAML): preset YAMLs under **`config/acceptance/`** (gitignored). Generic placeholder feeds for copy-paste: **`config/examples/config.example.multi-feed.yaml`** / **`.json`**.
+Multi-feed acceptance (two feeds in one YAML): preset YAMLs under **`config/acceptance/`** (gitignored). Generic placeholder **feeds** with OpenAI + Gemini + GI/KG + **`vector_search`** (same option set as **`config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml`**): **`config/examples/config.example.multi-feed.cloud-llm.yaml`** / **`config/examples/config.example.multi-feed.cloud-llm.json`**. Local **Whisper + Ollama** (`qwen3.5:9b`, **`llm_pipeline_mode: bundled`**): **`config/examples/config.example.multi-feed.ollama.yaml`** / **`config/examples/config.example.multi-feed.ollama.json`**. Local **ML** (RFC-044 **`ml_small_authority`** / **`ml_bart_led_autoresearch_v1`**): **`config/examples/config.example.multi-feed.ml-dev.yaml`** / **`.json`** and **`config/examples/config.example.multi-feed.ml-prod.yaml`** / **`.json`**.
 
 ```bash
 make test-acceptance CONFIGS="config/acceptance/acceptance_multi_feed_planet_money_journal_openai.yaml" USE_FIXTURES=1

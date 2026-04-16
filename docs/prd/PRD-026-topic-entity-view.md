@@ -22,8 +22,8 @@
     results open this view
   - `docs/prd/PRD-028-position-tracker.md` -- Position Tracker links back via
     "View topic"; person chips here can open Position Tracker
-  - `docs/prd/PRD-029-guest-intelligence-brief.md` -- Guest Brief links back via
-    "View topic"; person chips here can open Guest Brief
+  - `docs/prd/PRD-029-person-profile.md` -- Person Profile links back via
+    "View topic"; person chips here can open Person Profile
 - **Related UX specs**:
   - `docs/uxs/UXS-007-topic-entity-view.md` -- visual contract for Topic Entity View
     panel layout, sections, degradation states
@@ -189,7 +189,7 @@ topic), showing display name, Insight count, and most recent episode date.
 
 **FR5.3** -- Clicking a person chip filters the Insights section (FR4) to that person.
 A secondary action (e.g. long-press or dedicated link) opens the Person Landing
-(PRD-029) for that person, giving access to their Guest Brief and Position Tracker.
+(PRD-029) for that person, giving access to their Person Profile and Position Tracker.
 
 **FR5.4** -- When the `grounding_rate` corpus enricher has run, each person chip
 shows a small grounding quality badge: the percentage of their Insights that are

@@ -1701,6 +1701,11 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
         return None
 
     provider_info: Dict[str, Any] = {"provider": str(cfg.transcription_provider)}
+    from ..providers.capabilities import gi_segment_timing_expected_for_transcription_provider
+
+    provider_info["gi_segment_timing_expected"] = (
+        gi_segment_timing_expected_for_transcription_provider(str(cfg.transcription_provider))
+    )
 
     if cfg.transcription_provider == "whisper" and cfg.transcribe_missing:
         provider_info["whisper_model"] = cfg.whisper_model
@@ -1708,7 +1713,7 @@ def _build_transcription_provider_info(cfg: config.Config) -> Optional[Dict[str,
         transcription_model = getattr(cfg, "openai_transcription_model", "whisper-1")
         provider_info["openai_model"] = transcription_model
     elif cfg.transcription_provider == "gemini":
-        transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-1.5-pro")
+        transcription_model = getattr(cfg, "gemini_transcription_model", "gemini-2.5-flash-lite")
         provider_info["gemini_model"] = transcription_model
 
     return provider_info
@@ -1734,7 +1739,7 @@ def _build_speaker_detection_provider_info(cfg: config.Config) -> Optional[Dict[
         speaker_model = getattr(cfg, "openai_speaker_model", "gpt-4o-mini")
         provider_info["openai_model"] = speaker_model
     elif cfg.speaker_detector_provider == "gemini":
-        speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-1.5-pro")
+        speaker_model = getattr(cfg, "gemini_speaker_model", "gemini-2.5-flash-lite")
         provider_info["gemini_model"] = speaker_model
     elif cfg.speaker_detector_provider == "anthropic":
         speaker_model = getattr(cfg, "anthropic_speaker_model", "claude-haiku-4-5")
@@ -1813,7 +1818,9 @@ def _append_external_llm_summary_models(provider_info: Dict[str, Any], cfg: conf
     if sp == "openai":
         provider_info["openai_model"] = getattr(cfg, "openai_summary_model", "gpt-4o-mini")
     elif sp == "gemini":
-        provider_info["gemini_model"] = getattr(cfg, "gemini_summary_model", "gemini-1.5-pro")
+        provider_info["gemini_model"] = getattr(
+            cfg, "gemini_summary_model", "gemini-2.5-flash-lite"
+        )
     elif sp == "anthropic":
         provider_info["anthropic_model"] = getattr(
             cfg, "anthropic_summary_model", "claude-haiku-4-5"

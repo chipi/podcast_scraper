@@ -11,11 +11,13 @@ from podcast_scraper.server import cil_queries
 from podcast_scraper.server.pathutil import resolve_corpus_path_param, resolved_corpus_root_str
 from podcast_scraper.server.schemas import (
     CilArcEpisodeBlock,
-    CilGuestBriefInsightRow,
-    CilGuestBriefQuoteRow,
-    CilGuestBriefResponse,
     CilIdListResponse,
+    CilPersonProfileInsightRow,
+    CilPersonProfileQuoteRow,
+    CilPersonProfileResponse,
     CilPositionArcResponse,
+    CilTopicTimelineMergedResponse,
+    CilTopicTimelineMergeRequest,
     CilTopicTimelineResponse,
 )
 
@@ -101,40 +103,81 @@ async def person_positions(
     )
 
 
-@router.get("/persons/{person_id}/brief", response_model=CilGuestBriefResponse)
-async def person_brief(
+@router.get("/persons/{person_id}/brief", response_model=CilPersonProfileResponse)
+async def person_profile(
     request: Request,
     person_id: str,
     path: str | None = Query(
         default=None,
         description="Corpus root. Omit when server default output_dir is set.",
     ),
-) -> CilGuestBriefResponse:
-    """Guest intelligence brief — insights grouped by topic (RFC-072 Pattern B)."""
+) -> CilPersonProfileResponse:
+    """Person profile — insights grouped by topic (RFC-072 Pattern B)."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
-    brief = cil_queries.guest_brief(root_safe, anchor_safe, person_id)
-    topics_raw = brief.get("topics") or {}
-    topics_out: dict[str, list[CilGuestBriefInsightRow]] = {}
+    raw = cil_queries.person_profile(root_safe, anchor_safe, person_id)
+    topics_raw = raw.get("topics") or {}
+    topics_out: dict[str, list[CilPersonProfileInsightRow]] = {}
     if isinstance(topics_raw, dict):
         for tid, rows in topics_raw.items():
             if not isinstance(rows, list):
                 continue
-            out_rows: list[CilGuestBriefInsightRow] = []
+            out_rows: list[CilPersonProfileInsightRow] = []
             for row in rows:
                 if isinstance(row, dict):
-                    out_rows.append(CilGuestBriefInsightRow.model_validate(row))
+                    out_rows.append(CilPersonProfileInsightRow.model_validate(row))
             topics_out[str(tid)] = out_rows
-    quotes_raw = brief.get("quotes") or []
-    quotes: list[CilGuestBriefQuoteRow] = []
+    quotes_raw = raw.get("quotes") or []
+    quotes: list[CilPersonProfileQuoteRow] = []
     if isinstance(quotes_raw, list):
         for row in quotes_raw:
             if isinstance(row, dict):
-                quotes.append(CilGuestBriefQuoteRow.model_validate(row))
-    return CilGuestBriefResponse(
+                quotes.append(CilPersonProfileQuoteRow.model_validate(row))
+    return CilPersonProfileResponse(
         path=root_safe,
-        person_id=str(brief.get("person_id") or person_id.strip()),
+        person_id=str(raw.get("person_id") or person_id.strip()),
         topics=topics_out,
         quotes=quotes,
+    )
+
+
+@router.post("/topics/timeline", response_model=CilTopicTimelineMergedResponse)
+async def topic_timeline_merge(
+    request: Request,
+    body: CilTopicTimelineMergeRequest,
+) -> CilTopicTimelineMergedResponse:
+    """Merged topic timeline — one corpus scan for multiple topic ids (cluster scope)."""
+    root_safe, anchor_safe = _require_root_and_anchor(request, body.path)
+    types = _parse_insight_types(body.insight_types, default=None)
+    seen: set[str] = set()
+    ordered_ids: list[str] = []
+    for raw_tid in body.topic_ids:
+        tid = cil_queries.canonical_cil_entity_id(str(raw_tid))
+        if tid in seen:
+            continue
+        seen.add(tid)
+        ordered_ids.append(tid)
+    raw = cil_queries.topic_timeline_merged(
+        root_safe, anchor_safe, ordered_ids, insight_types=types
+    )
+    episodes = [
+        CilArcEpisodeBlock(
+            episode_id=str(b["episode_id"]),
+            publish_date=b.get("publish_date"),
+            episode_title=b.get("episode_title"),
+            feed_title=b.get("feed_title"),
+            episode_number=b.get("episode_number"),
+            episode_image_url=b.get("episode_image_url"),
+            episode_image_local_relpath=b.get("episode_image_local_relpath"),
+            feed_image_url=b.get("feed_image_url"),
+            feed_image_local_relpath=b.get("feed_image_local_relpath"),
+            insights=list(b.get("insights") or []),
+        )
+        for b in raw
+    ]
+    return CilTopicTimelineMergedResponse(
+        path=root_safe,
+        topic_ids=ordered_ids,
+        episodes=episodes,
     )
 
 
@@ -155,18 +198,26 @@ async def topic_timeline(
     """Topic evolution across episodes (RFC-072 Pattern C)."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
     types = _parse_insight_types(insight_types, default=None)
-    raw = cil_queries.topic_timeline(root_safe, anchor_safe, topic_id, insight_types=types)
+    tid = cil_queries.canonical_cil_entity_id(topic_id)
+    raw = cil_queries.topic_timeline(root_safe, anchor_safe, tid, insight_types=types)
     episodes = [
         CilArcEpisodeBlock(
             episode_id=str(b["episode_id"]),
             publish_date=b.get("publish_date"),
+            episode_title=b.get("episode_title"),
+            feed_title=b.get("feed_title"),
+            episode_number=b.get("episode_number"),
+            episode_image_url=b.get("episode_image_url"),
+            episode_image_local_relpath=b.get("episode_image_local_relpath"),
+            feed_image_url=b.get("feed_image_url"),
+            feed_image_local_relpath=b.get("feed_image_local_relpath"),
             insights=list(b.get("insights") or []),
         )
         for b in raw
     ]
     return CilTopicTimelineResponse(
         path=root_safe,
-        topic_id=topic_id.strip(),
+        topic_id=tid,
         episodes=episodes,
     )
 
@@ -182,10 +233,11 @@ async def topic_persons(
 ) -> CilIdListResponse:
     """Person ids that discuss this topic (via grounded GI quotes)."""
     root_safe, anchor_safe = _require_root_and_anchor(request, path)
-    ids = cil_queries.topic_person_ids(root_safe, anchor_safe, topic_id)
+    tid = cil_queries.canonical_cil_entity_id(topic_id)
+    ids = cil_queries.topic_person_ids(root_safe, anchor_safe, tid)
     return CilIdListResponse(
         path=root_safe,
-        anchor_id=topic_id.strip(),
+        anchor_id=tid,
         ids=ids,
     )
 

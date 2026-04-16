@@ -14,7 +14,7 @@ Releasing a version with a broken docs build, a missing entry in the changelog, 
 We enforce **Mandatory Pre-Release Validation**.
 
 - All official releases MUST pass the automated `scripts/pre_release_check.py` script.
-- The check is accessible via `make pre-release` and validates:
+- The check is accessible via `make pre-release` (runs `scripts/pre_release_check.py` then `make ci`) and validates:
   - All tests passing.
   - Zero linting/type-check errors.
   - Successful `mkdocs` build.

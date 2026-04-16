@@ -13,8 +13,6 @@
   - `docs/rfc/RFC-055-knowledge-graph-layer-core.md` -- KG Episode and Entity nodes
   - `docs/rfc/RFC-061-semantic-corpus-search.md` -- FAISS search and chunk-to-Insight
     lift (Phase 5)
-  - `docs/rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md` --
-    analysis layer; implements `position_change_detected` and `stance_summary`
 - **Related PRDs**:
   - `docs/prd/PRD-017-grounded-insight-layer.md` -- GIL artifact foundation
   - `docs/prd/PRD-019-knowledge-graph-layer.md` -- KG artifact foundation
@@ -22,9 +20,9 @@
     from Position Tracker topic selector
   - `docs/prd/PRD-027-enriched-search.md` -- enriched search entry point; speaker
     names in enriched sources can open Position Tracker via Person Landing
-  - `docs/prd/PRD-029-guest-intelligence-brief.md` -- companion flagship; Guest Brief
-    links to Position Tracker for per-topic drill-down; **owns the shared Person
-    Landing component** that hosts both Guest Brief and Position Tracker
+  - `docs/prd/PRD-029-person-profile.md` -- **owns the shared Person Landing
+    component** that hosts both Person Profile and Position Tracker; provides
+    identity header, topic overview, and cross-navigation
 - **Related UX specs**:
   - `docs/uxs/UXS-009-position-tracker.md` -- visual contract for Position Tracker
     panel layout, timeline, quote cards, degradation states
@@ -39,24 +37,18 @@
 ## Summary
 
 The **Position Tracker** answers: "How has person X's thinking on topic Y evolved
-across episodes -- and when did it change?"
+across episodes?"
 
 It is a dedicated viewer panel where `person:{slug}` + `topic:{slug}` are the
 subject. The user navigates to a person, selects a topic, and sees a chronological
 arc of grounded Insights with verbatim quotes and timestamps -- one entry per
 episode, ordered by publish date. The difference between a quote search and a
 Position Tracker is *narrative structure over time*: not "here are 5 things Satya
-Nadella said about AI" but "here is how his thinking shifted from 2023 to 2025, and
-here is the moment it changed, grounded in his own words."
+Nadella said about AI" but "here is how his thinking shifted from 2023 to 2025,
+grounded in his own words."
 
-The full product vision includes automated **position-change detection** (Phase 6):
-the system flags episodes where a person's stated position on a topic contradicts or
-evolves from their earlier position, and produces a human-readable stance summary.
-Until Phase 6 ships, the arc is assembled but change detection fields are empty.
-
-No LLM and no database are required for the base arc. All data comes from the CIL
-bridge artifact, GIL Insights and Quotes, and KG episode metadata. Phase 6 analysis
-requires an LLM or NLI model for stance comparison.
+No LLM and no database are required. All data comes from the CIL bridge artifact,
+GIL Insights and Quotes, and KG episode metadata.
 
 ---
 
@@ -70,11 +62,11 @@ pattern (`position_arc`) is implemented in `cil_queries.py` and exposed via
 
 Today the API returns structured data but there is no viewer surface. The user must
 call the API directly or use the CLI. This PRD adds the viewer panel, tightens the
-API response to include display names and Phase 6 placeholder fields, and defines
-acceptance criteria for the complete product experience.
+API response to include display names and summary fields, and defines acceptance
+criteria for the complete product experience.
 
-PRD-029 (Guest Intelligence Brief) is the companion flagship. The Guest Brief shows
-all topics a person discusses; clicking a topic group in the brief navigates to the
+PRD-029 (Person Profile) is the companion flagship. The Person Profile shows all
+topics a person discusses; clicking a topic group in the profile navigates to the
 Position Tracker for that person + topic combination.
 
 ---
@@ -90,19 +82,16 @@ Position Tracker for that person + topic combination.
 4. Provide multiple entry points: graph Person node click, search result speaker click,
    and a dedicated person browse.
 5. Cross-link to PRD-026 Topic Entity View from the topic selector.
-6. Define the analysis contract: `position_change_detected` and `stance_summary`
-   fields that `docs/rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md`
-   must implement.
-7. Work entirely from core artifacts (bridge, GIL, KG) for the base arc -- no LLM, no
-   database, no new extraction.
+6. Work entirely from core artifacts (bridge, GIL, KG) -- no LLM, no database, no
+   new extraction.
 
 ---
 
 ## Non-Goals
 
+- **Not** automated position-change detection or stance summarisation -- out of scope.
 - **Not** automated contradiction detection or stance comparison across persons --
-  that is the Guest Brief's `potential_challenges` (PRD-029 Phase 6), not Position
-  Tracker.
+  out of scope.
 - **Not** a cross-corpus view -- single corpus only.
 - **Not** audio playback -- timestamps are displayed as text (e.g. "14:23 -- 14:35"),
   not as playable clips.
@@ -131,8 +120,6 @@ Position Tracker for that person + topic combination.
   types) so that I can focus on the signal that matters for my research._
 - _As a user, I can click a topic in the selector to navigate to the Topic Entity View
   (PRD-026) so that I can see the full corpus picture for that concept._
-- _As a user, I can see when a person's position changed (Phase 6) so that I can
-  identify the pivotal episode without reading every Insight manually._
 
 ---
 
@@ -156,19 +143,10 @@ The Position Tracker API builds on the existing CIL endpoints. Requirements mark
 - **FR1.5** (new): The `CilPositionArcResponse` must include summary fields:
   `position_count` (total Insights across all episodes), `episode_count`, and
   `date_range` (`earliest` and `latest` publish dates).
-- **FR1.6** (new): Each `CilArcEpisodeBlock` must include a
-  `position_change_detected: bool` field, defaulting to `false`. Phase 6 analysis
-  will populate this when it detects that the person's stance in this episode
-  contradicts or evolves from their stance in a prior episode.
-- **FR1.7** (new): The `CilPositionArcResponse` must include a
-  `stance_summary: string | null` field, defaulting to `null`. Phase 6 analysis will
-  populate this with a human-readable summary of how the person's position evolved
-  (e.g. "Shifted from pro-innovation to pro-regulation between June 2023 and
-  February 2025").
-- **FR1.8** (new): The `CilIdListResponse` for `/persons/{id}/topics` must include
+- **FR1.6** (new): The `CilIdListResponse` for `/persons/{id}/topics` must include
   `display_names: dict[str, str]` mapping each topic ID to its display name from the
   bridge, so the topic selector can show human-readable labels.
-- **FR1.9** (existing): The `insight_types` query parameter on the positions endpoint
+- **FR1.7** (existing): The `insight_types` query parameter on the positions endpoint
   filters Insights by type. Default is `claim` only; `all` or `*` disables the
   filter.
 
@@ -180,10 +158,10 @@ The Position Tracker API builds on the existing CIL endpoints. Requirements mark
   - Clicking a speaker name in a search result card (including lifted results).
   - A dedicated person browse (accessible from the viewer navigation).
 
-  All entry points navigate to the Person Landing, which defaults to the Guest Brief
-  tab (PRD-029). The user toggles to Position Tracker from there. When the entry
-  point is topic-specific (e.g. a topic link from PRD-026), the Position Tracker tab
-  is preselected with that topic active.
+  All entry points navigate to the Person Landing, which defaults to the Person
+  Profile tab (PRD-029). The user toggles to Position Tracker from there. When the
+  entry point is topic-specific (e.g. a topic link from PRD-026), the Position
+  Tracker tab is preselected with that topic active.
 - **FR2.2**: Person header section shows:
   - Person display name (`text-lg font-semibold`).
   - Canonical `person:{slug}` ID (`muted`, `text-xs`, monospace).
@@ -191,7 +169,7 @@ The Position Tracker API builds on the existing CIL endpoints. Requirements mark
   - Date range of first and last appearance.
 - **FR2.3**: Topic selector:
   - A searchable dropdown populated from `GET /api/persons/{id}/topics` with display
-    names (FR1.8).
+    names (FR1.6).
   - Selecting a topic loads the position arc from
     `GET /api/persons/{id}/positions?topic={id}`.
   - A "View topic" link next to the selected topic navigates to the PRD-026 Topic
@@ -223,15 +201,7 @@ The Position Tracker API builds on the existing CIL endpoints. Requirements mark
 - **FR2.8**: Cross-navigation:
   - "View in graph" button navigates to the Graph tab and focuses on this person's
     node.
-  - "Open brief" button navigates to the Guest Brief (PRD-029) for this person.
-- **FR2.9**: Phase 6 UI (placeholder until analysis layer ships):
-  - Position-change markers: when `position_change_detected: true` on an episode
-    block, a visual marker (e.g. a "Position shifted" badge with `warning` token)
-    appears on that episode card in the timeline.
-  - Stance summary banner: when `stance_summary` is non-null, a banner at the top of
-    the arc displays the summary text. Uses `surface` background with `gi` domain
-    token left border.
-  - Until Phase 6 ships, these elements are hidden (not shown as empty placeholders).
+  - "Open profile" button navigates to the Person Profile (PRD-029) for this person.
 
 ### FR3: Empty and Degraded States
 
@@ -294,7 +264,7 @@ Viewer renders timeline with Insight and Quote cards
 
 ## API Response Shape
 
-The enriched `CilPositionArcResponse` (FR1.3 -- FR1.7):
+The enriched `CilPositionArcResponse` (FR1.3 -- FR1.5):
 
 ```json
 {
@@ -309,13 +279,11 @@ The enriched `CilPositionArcResponse` (FR1.3 -- FR1.7):
     "earliest": "2023-06-15",
     "latest": "2025-02-20"
   },
-  "stance_summary": null,
   "episodes": [
     {
       "episode_id": "episode:abc123",
       "publish_date": "2023-06-15T00:00:00Z",
       "podcast_title": "Lex Fridman Podcast",
-      "position_change_detected": false,
       "insights": [
         {
           "id": "insight:a1b2c3d4",
@@ -338,7 +306,6 @@ The enriched `CilPositionArcResponse` (FR1.3 -- FR1.7):
       "episode_id": "episode:def456",
       "publish_date": "2025-02-20T00:00:00Z",
       "podcast_title": "Hard Fork",
-      "position_change_detected": false,
       "insights": [
         {
           "id": "insight:e5f6g7h8",
@@ -371,17 +338,12 @@ The enriched `CilPositionArcResponse` (FR1.3 -- FR1.7):
    human-readable timestamp.
 3. The `insight_type` filter correctly narrows the arc to the selected types.
 4. The topic selector shows human-readable display names, not raw IDs.
-5. Cross-navigation to Topic Entity View (PRD-026) and Guest Brief (PRD-029) works
+5. Cross-navigation to Topic Entity View (PRD-026) and Person Profile (PRD-029) works
    from the Position Tracker panel.
 6. All five empty/degraded states (FR3.1 -- FR3.5) render correctly with honest
    messaging and no broken UI.
-7. The `position_change_detected` and `stance_summary` fields are present in the API
-   response (defaulting to `false` / `null`) and the viewer hides Phase 6 UI when
-   they are empty.
-8. When Phase 6 analysis populates these fields, the viewer renders position-change
-   markers and the stance summary banner without code changes to the viewer.
-9. Playwright E2E coverage for: populated arc, empty person, empty topic, and Phase 6
-   placeholder behavior.
+7. Playwright E2E coverage for: populated arc, empty person, empty topic, and
+   insight type filtering.
 
 ---
 
@@ -390,9 +352,8 @@ The enriched `CilPositionArcResponse` (FR1.3 -- FR1.7):
 - **RFC-072** (Phases 1--4): CIL identity, bridge artifact, `position_arc` query
   pattern, and CIL API endpoints.
 - **PRD-026** (Topic Entity View): cross-linked from the topic selector.
-- **PRD-029** (Guest Brief): companion flagship; "Open brief" button navigates there.
-- **RFC-075** (Analysis Layer): implements `position_change_detected` and
-  `stance_summary` analysis. This PRD defines the contract; RFC-075 implements it.
+- **PRD-029** (Person Profile): companion flagship; "Open profile" button navigates
+  there. Owns the shared Person Landing component.
 
 ---
 
@@ -433,47 +394,6 @@ The enriched `CilPositionArcResponse` (FR1.3 -- FR1.7):
   the user reads them in the order they appeared in the conversation. This preserves
   the argumentative progression (setup before conclusion).
 
-### Phase 6 Field Placement
-
-- `position_change_detected` is per-episode (on `CilArcEpisodeBlock`) because change
-  is relative to the *previous* episode in the arc.
-- `stance_summary` is per-arc (on `CilPositionArcResponse`) because it summarises the
-  entire evolution, not a single episode.
-
----
-
-## Phase 6 Analysis Contract
-
-This section defines what
-[RFC-075](../rfc/RFC-075-analysis-layer-position-change-contradiction-detection.md)
-must implement to fulfil the Position Tracker's full vision.
-
-### Position Change Detection
-
-- **Input**: The assembled position arc (list of episodes with Insights).
-- **Output**: For each episode after the first, a boolean
-  `position_change_detected` and an optional `change_description: string` explaining
-  what changed.
-- **Mechanism options** (to be decided in RFC-075):
-  - LLM-as-judge: prompt an LLM with the previous and current episode's Insights,
-    ask whether the position changed.
-  - NLI-based: entailment/contradiction scoring between Insight pairs from
-    consecutive episodes.
-  - Embedding + stance: compute stance embeddings and flag when cosine distance
-    exceeds a threshold.
-- **Eval requirement**: A golden eval set of Insight pairs with human-labelled
-  "changed" / "unchanged" / "nuanced" verdicts. Placeholder directory:
-  `tests/fixtures/cil_phase6_golden/`.
-
-### Stance Summary
-
-- **Input**: The full arc with change detection results.
-- **Output**: A 1--3 sentence human-readable summary of the position evolution.
-- **Mechanism**: LLM pass over the arc's Insights, constrained to cite specific
-  episodes and dates.
-- **Trust**: The summary carries `derived: true` and the LLM provider is attributed
-  in the response.
-
 ---
 
 ## Known Limitations
@@ -481,9 +401,6 @@ must implement to fulfil the Position Tracker's full vision.
 - **Single-episode corpus**: The arc shows one data point. No evolution is possible.
   The viewer does not show a special state for this -- it simply displays one episode
   card.
-- **Analysis layer not yet available**: `position_change_detected` is always `false`
-  and `stance_summary` is always `null` until RFC-075 is implemented. The viewer
-  hides analysis UI elements when these fields are empty.
 
 ---
 
@@ -503,7 +420,7 @@ must implement to fulfil the Position Tracker's full vision.
 
 - Issue #527: CIL query API implementation
 - PRD-026: Topic Entity View
-- PRD-029: Guest Intelligence Brief
+- PRD-029: Person Profile
 - RFC-072: Canonical Identity Layer
 - UXS-009: `docs/uxs/UXS-009-position-tracker.md` -- visual contract
 
@@ -512,12 +429,11 @@ must implement to fulfil the Position Tracker's full vision.
 ## Release Checklist
 
 - [ ] PRD reviewed and approved
-- [ ] RFC-075 technical design reviewed for change detection and stance summary
-- [ ] API enrichments implemented (FR1.3 -- FR1.8)
-- [ ] Viewer panel implemented with all entry points (FR2.1 -- FR2.9)
+- [ ] API enrichments implemented (FR1.3 -- FR1.6)
+- [ ] Viewer panel implemented with all entry points (FR2.1 -- FR2.8)
 - [ ] Empty/degraded states implemented and tested (FR3.1 -- FR3.5)
 - [ ] UXS-009 tokens implemented in viewer styles
-- [ ] Playwright E2E coverage for populated, empty, and Phase 6 states
+- [ ] Playwright E2E coverage for populated, empty, and filter states
 - [ ] Documentation updated (SERVER_GUIDE, E2E_SURFACE_MAP)
 - [ ] Integration with PRD-026 (Topic Entity View) verified
-- [ ] Integration with PRD-029 (Guest Brief) verified
+- [ ] Integration with PRD-029 (Person Profile) verified
