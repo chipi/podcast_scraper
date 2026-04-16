@@ -4,7 +4,8 @@ Next phase after v2 closure. v2 gave us a trusted matrix on **one** corpus
 (`curated_5feeds_benchmark_v2`, 5 podcast feeds). Tier-2 asks: **do these findings hold
 on different corpora?**
 
-Not started yet. This note exists so the scope is pinned down before the session begins.
+**Phase 2.1 (next session): QMSum first.** Plan below is concrete around QMSum; DialogSum
+and additional podcast corpus deferred to Phase 2.2 / 2.3 based on what QMSum shows.
 
 **Predecessor:** [held-out v2 eval report](../guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md)
 + [v2-closed header in AUTORESEARCH_V2_NEXT_STEPS.md](AUTORESEARCH_V2_NEXT_STEPS.md).
@@ -27,64 +28,156 @@ strongest v2 findings to patterns (or knocks them down) with 2-3 additional corp
 
 ---
 
-## Datasets to add (shortlist)
+## Phase 2.1 — QMSum (next session, half-day)
 
-Pick 2-3 from this list. Each chosen for a distinct shape.
+**Dataset:** QMSum — Query-based Multi-domain Meeting Summarization benchmark
+(Zhong et al., NAACL 2021).
 
-### Primary candidates
+- **Source (primary):** `pszemraj/qmsum-cleaned` on Hugging Face —
+  [huggingface.co/datasets/pszemraj/qmsum-cleaned](https://huggingface.co/datasets/pszemraj/qmsum-cleaned)
+  — pre-cleaned transcripts + reference summaries, one `datasets.load_dataset(...)` call.
+- **Source (raw):** `microsoft/QMSum` —
+  [github.com/Yale-LILY/QMSum](https://github.com/Yale-LILY/QMSum) — query-focused variant
+  if needed; more setup, not recommended for Phase 2.1.
+- **Paper:** [arxiv.org/abs/2104.05938](https://arxiv.org/abs/2104.05938) (canonical citation).
+- **Size:** 232 meetings total; sample **20 meetings** for Phase 2.1 (mirrors v2 held-out
+  scale of 5 for fast iteration, plus dev margin).
+- **Shape:** academic + product meetings with multiple speakers; transcripts typically
+  1-10k words (our podcast transcripts are 5-8k — similar enough to avoid re-tuning plumbing).
+- **Why QMSum first:** (a) **human-written gold references** ship with the dataset — no
+  silver generation needed, saves $10-20 and ~2 hrs; (b) closest shape analogue to podcasts
+  (spoken, long-form); (c) structural contrast (multi-speaker dialog vs podcast monologue)
+  is the useful cross-domain signal.
 
-1. **QMSum** (meetings, 232 → 20-30 sample)
-   - Academic / product meetings with multiple speakers
-   - Human-annotated queries + reference summaries
-   - Shape: structured dialog, 1k-10k words, different from podcast monologue
-   - Access: HF `pszemraj/qmsum-cleaned` or the original `microsoft/QMSum`
-   - **Why pick:** closest analogue to podcast (spoken, long-form) but different
-     structure. If our numbers don't hold here, they likely don't generalise to
-     meeting-style audio at all.
+### Champions to port (Phase 2.1 only — keep it tight)
 
-2. **DialogSum** (chitchat / task-oriented dialogs, 13k training → sample 20)
-   - Short two-party dialogs with reference summaries
-   - Shape: 300-1500 words — much shorter than our podcasts
-   - Access: HF `knkarthick/dialogsum`
-   - **Why pick:** stress-tests the opposite end of the length spectrum. Our current
-     pipeline is tuned for 30-min transcripts. If SummLlama / qwen3.5:9b lose on short
-     dialog, the tuning is length-coupled.
+Three champions, not six. Pick the load-bearing ones and treat it as a "does the ordering
+hold?" test, not a full re-measurement.
 
-3. **One additional podcast corpus** (to de-risk podcast-specific overfit)
-   - Options: Lex Fridman podcast scraped archive, Huberman Lab archive, or
-     a curated academic podcast dataset (sample 10-20 episodes)
-   - Shape: same as ours but different hosts / topics / pacing
-   - **Why pick:** if our findings collapse on a different podcast source, the "podcast
-     generalisation" claim was fragile.
+| Pick | Champion | Rationale |
+|------|----------|-----------|
+| 1 | `gemini-2.5-flash-lite` non-bundled | v2 balanced default (Pareto-optimal cloud pick) |
+| 2 | `qwen3.5:9b` bundled | v2 local top; tests whether bundled-is-fine holds off-podcast |
+| 3 | `DISLab/SummLlama3.2-3B` standalone | Tier 2.5; tests whether DPO-on-rubric-axes generalises beyond its training distribution |
 
-### Deferred / skip for first pass
+Three champions × 2 tracks (bullets + paragraph) = **6 runs total** for Phase 2.1. All
+numbers go into a first tier-2 report.
 
-- **XSum / CNN-DM** — news articles, not spoken. Keep for validation of the ML track's
-  BART-tuning only if relevant.
-- **ArXiv-summarization** — academic papers. Wrong modality.
-- **SummScreen / ScreenSum** — TV/movie transcripts. Interesting but narrower value
-  than QMSum.
+Explicitly **deferred to Phase 2.2+** (after we see if the ordering holds):
+
+- DeepSeek non-bundled (quality-first) — only revisit if champions 1-3 reveal a cell where
+  DeepSeek might matter.
+- Anthropic Haiku 4.5 bundled — only revisit if the "bundled > non-bundled on Anthropic"
+  finding becomes contested.
+- bart-led pure ML — sanity reference, add if we have time at end of Phase 2.1.
+- All hybrid pipelines — demoted under v2, don't retest unless a specific hypothesis calls
+  for it.
+
+### The one gotcha: reference length asymmetry
+
+**QMSum's gold references are short — typically 100-300 words.** Our v2 champion prompts
+produce 300-600-word summaries. This will depress ROUGE-L on first run (10-20 pp lower
+than v2), **even if semantic quality is fine**.
+
+Handling:
+
+- **Do not panic at absolute scores.** Compare relative ordering between champions
+  (which is the actual cross-dataset question).
+- If judge_mean stays above ~0.75 while ROUGE-L tanks, the finding is "our summaries are
+  longer than QMSum refs but as good" — expected and documentable.
+- **Optional mitigation:** add a per-dataset length constraint to the paragraph prompt
+  (`"in 150-250 words"`), re-score. Only if first run looks uninterpretable.
+
+### Concrete tomorrow-session checklist
+
+```text
+1. Load + materialize QMSum sample                              ~20 min
+   - `datasets.load_dataset("pszemraj/qmsum-cleaned")`
+   - sample 20 meetings (random seed for reproducibility)
+   - write to `data/eval/materialized/qmsum_phase21_v1/`
+   - generate `meta.json` matching v2 format (so existing harness loads it)
+   - reference summaries become `data/eval/references/gold/qmsum_phase21_gold/`
+     (new kind: gold instead of silver; scorer already supports generic references)
+
+2. Port champion prompts to QMSum                               ~15 min
+   - No changes for Phase 2.1 — ported verbatim from v2
+   - Create 3 configs under `data/eval/configs/summarization/qmsum/` and
+     `data/eval/configs/summarization_bullets/qmsum/`
+
+3. Run champions                                                ~2-3 hrs wall-clock
+   - gemini-2.5-flash-lite non-bundled (bullets + paragraph): ~5 min each via API
+   - qwen3.5:9b bundled (single call produces both): ~15 min
+   - SummLlama3.2-3B standalone paragraph: ~60 min; bullets: ~60 min
+
+4. Score against QMSum gold                                     ~30 min
+   - `score_run()` with gold reference path
+   - Run dual-judge for each of the 6 runs (~10 min each)
+   - Compute blended 0.70·ROUGE-L + 0.30·judge_mean
+
+5. Write up                                                     ~45 min
+   - New file: `docs/guides/eval-reports/EVAL_TIER2_QMSUM_2026_04.md`
+   - One table: 3 champions × 2 tracks, with v2 held-out numbers side-by-side for delta
+   - "Did ordering hold?" verdict + next-phase decision
+```
+
+**Total wall-clock: ~4-5 hours.** Most of that is SummLlama (the only local MPS workload
+with material per-episode latency).
+
+### Decision points after Phase 2.1
+
+- **Ordering holds** (same champion ranks #1 on QMSum as v2): high confidence in v2 picks;
+  move to Phase 2.2 = DialogSum for the short-dialog stress test.
+- **Ordering flips** (e.g., SummLlama drops below Gemini on QMSum): dig in — is it DPO
+  distribution mismatch? Length asymmetry artifact? Structural (multi-speaker)?
+- **All scores collapse** (all three <0.35 blended): prompt-format issue; likely need
+  per-dataset prompt tuning, which changes the scope of tier-2.
 
 ---
 
-## Shortlist of champions to port
+## Phase 2.2+ (later sessions, shape depends on 2.1 outcome)
+
+### DialogSum — short-dialog stress test
+
+- `knkarthick/dialogsum` on Hugging Face (13k training, sample 20)
+- Shape: 300-1500 words, two-party task-oriented / chitchat dialogs
+- Tests whether our length-tuned pipeline breaks on short input
+- Human-gold references (same as QMSum — no silver needed)
+- **Trigger to run:** QMSum ordering holds (then we test opposite end of spectrum)
+
+### Second podcast corpus — podcast-overfit test
+
+- Candidates: Lex Fridman scraped archive, Huberman Lab archive, academic podcast dataset
+- Sample 10-20 episodes, same 3 champions
+- Needs silver generation (no gold refs available) — ~$5-10 in Sonnet credits
+- **Trigger to run:** Phase 2.1 reveals any podcast-specific signal we want to de-risk
+
+### Deferred / skip
+
+- **XSum / CNN-DM** — news articles, not spoken. Keep for BART-tuning validation only.
+- **ArXiv-summarization** — academic papers. Wrong modality.
+- **SummScreen / ScreenSum** — TV/movie transcripts. Interesting but narrower value than QMSum.
+
+---
+
+## Full champion shortlist (reference — expand beyond Phase 2.1 as needed)
 
 We have **a lot** of v2 champions. Cross-dataset measurement doesn't need to repeat all
 100+ cells. Pick the **load-bearing ones** — if they replicate, the whole matrix probably
 replicates. If they break, we know what to look at next.
 
-Priority order:
+Phase 2.1 uses only the first three. The rest are for Phase 2.2+ or specific hypothesis
+testing:
 
-1. **Balanced default** — `gemini-2.5-flash-lite` non-bundled bullets + paragraph
-2. **Quality first** — `deepseek-chat` non-bundled bullets + paragraph
-3. **Bundled alternative** — `claude-haiku-4-5` bundled (single-call, bullets + paragraph)
-4. **Local top** — `qwen3.5:9b` bundled (bullets + paragraph)
-5. **Local no-daemon** — `DISLab/SummLlama3.2-3B` standalone (paragraph; bullets if A.1 adds it)
-6. **Pure-ML floor** — `ml_bart_led_autoresearch_v1` paragraph (sanity reference)
+1. **Balanced default** — `gemini-2.5-flash-lite` non-bundled bullets + paragraph ✅ Phase 2.1
+2. **Local top** — `qwen3.5:9b` bundled (bullets + paragraph) ✅ Phase 2.1
+3. **Local no-daemon** — `DISLab/SummLlama3.2-3B` standalone (bullets + paragraph) ✅ Phase 2.1
+4. **Quality first** — `deepseek-chat` non-bundled bullets + paragraph — Phase 2.2+
+5. **Bundled alternative** — `claude-haiku-4-5` bundled (single-call) — Phase 2.2+
+6. **Pure-ML floor** — `ml_bart_led_autoresearch_v1` paragraph (sanity reference) — optional
 
-That's 6 champions × 2 tracks × 2-3 datasets = **24-36 cells per champion round**. Manageable.
+Full Phase 2.1+2.2 upper bound: 6 champions × 2 tracks × 2-3 datasets = **24-36 cells**.
 
-Explicitly **not** in tier-2 first pass:
+Explicitly **not** in tier-2:
 
 - All non-winning Ollama models (v1 left them as reference; v2 is the authoritative test)
 - All the cheaper-tier variants that didn't win their cell (gpt-4o-mini, mistral-medium
@@ -95,16 +188,19 @@ Explicitly **not** in tier-2 first pass:
 
 ## Methodology (reuse v2 framework where possible)
 
-- **Framework**: same v2 harness (dev/held-out split, dual-judge, fraction-based contestation,
-  Efficiency rubric, blended `0.70 * ROUGE-L + 0.30 * judge_mean`). No changes.
-- **Silvers**: each new dataset needs a Sonnet-4.6 silver to score against. Generate per-dataset:
-  - `silver_sonnet46_qmsum_paragraph`, `silver_sonnet46_qmsum_bullets`
-  - ditto DialogSum, additional podcast
-  - Estimated cost: ~$1-3/dataset in Sonnet-4.6 credits
-- **Dev/held-out split**: same pattern. 60-70% for dev (only if iteration happens); 30-40%
-  held-out (scored once). Smaller datasets may skip the split and use single held-out subset.
-- **Run orchestration**: extend `scripts/eval/run_benchmark.py` to accept cross-dataset
-  configs; no framework changes expected.
+- **Framework**: same v2 harness (dual-judge, fraction-based contestation, Efficiency
+  rubric, blended `0.70 * ROUGE-L + 0.30 * judge_mean`). No changes.
+- **References**:
+  - **QMSum (Phase 2.1):** human-written gold references ship with the dataset — no silver
+    generation needed. Scorer's `reference_paths` accepts arbitrary reference dirs; create
+    `data/eval/references/gold/qmsum_phase21_gold/` with one ref per meeting.
+  - **DialogSum (Phase 2.2):** also has human gold — same path, no silver needed.
+  - **Second podcast corpus (Phase 2.3, if run):** needs a Sonnet-4.6 silver. ~$5-10 credits.
+- **Dev/held-out split:** for small Phase 2.1 samples (20 meetings), treat whole sample as
+  held-out — we're not iterating against QMSum, just measuring. Full split only if a
+  campaign expands past ~50 episodes.
+- **Run orchestration:** existing harness loads datasets from `data/eval/materialized/<id>/`.
+  Materialize QMSum into that shape and no framework changes are needed.
 
 ---
 
@@ -124,22 +220,43 @@ For each v2 finding that tier-2 can validate or break:
 
 ## Estimated budget
 
-- **Silvers**: 3 datasets × 2 tracks = 6 silver sets. ~$10-20 in Sonnet-4.6 credits.
-- **Champion runs**: 6 champions × 2 tracks × 3 datasets × 2 splits = 72 runs. Most are
-  fast-cheap API calls (DeepSeek, Gemini); ~$5-15 total API. Ollama/SummLlama on local
-  hardware; few hours of wall-clock.
-- **Judging**: dual-judge across 72 runs. ~$5-10 in judge API costs.
-- **Wall-clock**: 1-2 focused days (datasets + silvers + runs + scoring + report).
-- **Total $**: under $50, probably under $30.
+### Phase 2.1 only (QMSum)
+
+- **References**: gold ships with dataset — $0.
+- **Champion runs**: 3 champions × 2 tracks × 20 meetings = 6 runs. Gemini API ~$0.50;
+  Ollama qwen3.5:9b local; SummLlama local (MPS). Total cloud API: **~$1**.
+- **Judging**: dual-judge (gpt-4o-mini + claude-haiku-4.5) × 6 runs × 20 eps. Total: **~$3-5**.
+- **Wall-clock**: **4-5 hours** focused (see Phase 2.1 checklist above).
+- **Phase 2.1 total $: under $10.**
+
+### Phase 2.2+ (if run — DialogSum, additional podcast corpus)
+
+- DialogSum has gold refs, same cost profile as Phase 2.1: ~$10 each.
+- Second podcast corpus needs silvers (~$10) + runs (~$10) = ~$20.
+- **Full tier-2 program (all phases): under $50, probably under $30.**
 
 ---
 
 ## Deliverables
 
-1. **New report**: `docs/guides/eval-reports/EVAL_TIER2_CROSSDATASET_2026_<MM>.md`
+### After Phase 2.1 (QMSum)
+
+1. **First tier-2 report**: `docs/guides/eval-reports/EVAL_TIER2_QMSUM_2026_04.md`
+   - Table: 3 champions × 2 tracks, QMSum scores vs v2 held-out side-by-side
+   - "Did ordering hold?" verdict
+   - Decision: go to Phase 2.2 (DialogSum), branch into prompt-per-dataset, or widen the champion set
+2. **Note in provider guide**: add a "cross-dataset validation" subsection citing
+   EVAL_TIER2_QMSUM, whether v2 picks replicated on meetings
+3. **Update `TIER2_CROSSDATASET_PLAN.md`**: mark Phase 2.1 done, annotate Phase 2.2 scope
+   based on what 2.1 revealed
+
+### After full tier-2 program
+
+1. **Consolidated tier-2 report**: `EVAL_TIER2_CROSSDATASET_2026_<MM>.md`
    - Structure mirrors held-out v2 report
-   - Per-dataset matrix for the 6 champions
-   - "Did v2 findings generalise?" table
+   - Per-dataset matrix for all evaluated champions
+   - "Did v2 findings generalise?" table, classified as: general / podcast-specific /
+     domain-broken
 2. **Updated provider guide**: call out which picks are **general** vs **domain-specific**
 3. **Updated config_constants.py**: if defaults change per domain, add domain-aware
    selection (or document that picks are podcast-tuned)
