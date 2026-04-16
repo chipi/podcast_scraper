@@ -1,24 +1,63 @@
 # AI Provider Comparison Guide
 
-> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md) — 6 cloud APIs + 11 Ollama local models under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)): dev/held-out split, 68 held-out cells, compound-scored recommendations balancing quality × latency × cost.
-> The v1 benchmark numbers later in this guide are **superseded** by the v2 report above; preserved for continuity.
-> Your decision-making resource for choosing the right AI provider.
-
-A focused analysis of summarization and capability providers supported by
-podcast_scraper: local ML, **hybrid MAP-REDUCE** (hybrid_ml), and 7 LLM providers.
-This guide answers **"which provider should I pick?"** with decision matrices, cost
-analysis, and empirical conclusions.
-
-**Companion pages:**
-
-- **[v2 Eval Report (authoritative, 2026-04-15)](eval-reports/EVAL_HELDOUT_V2_2026_04.md)** — 6-provider held-out matrix under v2 framework
-- [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) — per-provider reference cards, magic
-  quadrant, visual comparisons
-- [Evaluation Reports](eval-reports/index.md) — methodology + historical v1 reports
+> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md) — 6 cloud APIs + 11 Ollama local models, 100+ held-out cells under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)), compound-scored on quality × latency × cost.
+> v1 benchmark numbers later in this guide are **superseded** by the v2 report above.
 
 ---
 
-## v2 Summary — out-of-the-box recommendation (2026-04-15)
+## ⭐ Use these two. Everything else is a tradeoff
+
+After evaluating 20 model variants across 100+ held-out cells, two picks cover ~95% of real podcast_scraper deployments. Pick one based on whether you need cloud or local.
+
+### 🌐 Cloud / dev / prod / corpus building → `gemini-2.5-flash-lite` **non-bundled**
+
+```yaml
+backend:
+  type: "gemini"
+  model: "gemini-2.5-flash-lite"
+prompts:
+  system: "shared/summarization/system_bullets_v1"   # for bullets
+  user: "shared/summarization/bullets_json_v1"
+  # (or gemini/summarization/{system_v1,long_v1} for paragraph)
+params:
+  temperature: 0.0
+```
+
+**Use this for dev, test, corpus building, and most production traffic.**
+
+- Quality: 0.564 bullets / 0.479 paragraph held-out (within 4% of the absolute best)
+- Latency: **1.5s per episode** — 2-7× faster than any alternative
+- Cost: **~$0.00047 per episode** — ~$0.47 per 1,000 episodes
+- Why non-bundled: bundled mode costs 5-12% quality on Gemini and OpenAI for no real gain. Just make two API calls (one for bullets, one for paragraph) — still only 3s and $0.00094 total per episode.
+
+**Upgrade to `deepseek-chat` non-bundled only if** quality matters more than throughput (0.586/0.541 vs 0.564/0.479, but ~7× slower at 10s/ep). **Switch to `claude-haiku-4-5` bundled only if** you specifically need title+summary+bullets in a single API call (bundled is viable on Anthropic; it's the only cloud provider where that's true).
+
+### 🏠 Local / offline / privacy → `qwen3.5:9b` **bundled**
+
+```yaml
+backend:
+  type: "ollama"
+  model: "qwen3.5:9b"
+llm_pipeline_mode: "bundled"
+params:
+  temperature: 0.0
+```
+
+**Use this for any fully-local, offline, or privacy-constrained deployment.**
+
+- Quality: 0.529 bullets / 0.509 paragraph held-out (free, matches mid-tier cloud)
+- Latency: ~44s per episode for BOTH outputs (vs ~72s for two separate non-bundled calls)
+- Cost: $0 (your hardware)
+- Why bundled: local paragraph contests on 5 of 11 Ollama models non-bundled; bundled mode's JSON schema stabilises structure and makes paragraph output reliable. Single call returns title + summary + bullets.
+
+**Upgrade to `qwen3.5:9b` non-bundled for bullets only** if you need absolute max bullets quality locally (0.580 vs 0.529, +10%). **Fallback to `llama3.2:3b` non-bundled bullets** if latency matters more than quality (12s vs 33s, quality drops to 0.501).
+
+---
+
+## Full reference — v2 matrix details
+
+The two picks above cover most deployments. Everything below is the detailed reference for
+edge cases and the data that backs those recommendations.
 
 All 6 cloud LLM providers evaluated under the v2 framework: dev/held-out split, fraction-based
 judge contestation, champion prompts ported across providers. Held-out ROUGE-L vs Sonnet 4.6
