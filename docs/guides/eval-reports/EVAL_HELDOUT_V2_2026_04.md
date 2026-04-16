@@ -298,13 +298,29 @@ Anthropic is the only provider where it's not a quality compromise.
 
 ### 4. Cheaper-tier variants added 2026-04-16
 
-Three cheaper-tier variants tested after the initial sweep:
+Three cheaper-tier variants tested after the initial sweep, both non-bundled and bundled:
+
+**Non-bundled (held-out):**
 
 | Model | Bullets | Paragraph | vs comparable existing | Verdict |
 | ----- | :-----: | :-------: | ---------------------- | ------- |
 | **gemini-2.5-flash-lite** | **0.564** | **0.479** | 2.0-flash: 0.562 / 0.463 | **Strict upgrade** — better on both tracks, same cost tier |
 | gpt-4o-mini | 0.540 | 0.469 | gpt-4o: 0.566 / 0.481 (16× more expensive) | Viable cost-tier pick; 4% quality hit buys 16× cost savings |
-| mistral-medium | 0.488 | 0.421 | mistral-small: 0.537 / 0.456 | **Don't use** — unexpectedly worse than small; paragraph even contests 2/5 |
+| mistral-medium | 0.488 | 0.421 | mistral-small: 0.537 / 0.456 | Poor on non-bundled; but see bundled below |
+
+**Bundled (held-out):**
+
+| Model | Bullets | Paragraph | Δ vs its own non-bundled | Verdict |
+| ----- | :-----: | :-------: | ------------------------ | ------- |
+| gemini-2.5-flash-lite | 0.536 | 0.462 | bullets −5%, paragraph −4% | Same "bundled < non-bundled" pattern as other Geminis/OpenAIs |
+| gpt-4o-mini | 0.483 | 0.459 | bullets −10.6% | Classic OpenAI bundled attention-split penalty |
+| **mistral-medium** | **0.533** | **0.480** | **bullets +9%, paragraph +14%!** | **Flip: good in bundled, bad non-bundled.** Joins Anthropic/Ollama-Qwen as "bundled > non-bundled" |
+
+**Practical consequences**:
+
+- gemini-2.5-flash-lite non-bundled becomes the new "balanced default" pick — replacing gemini-2.0-flash
+- gpt-4o-mini non-bundled is a reasonable 16×-cheaper gpt-4o alternative; bundled is not
+- mistral-medium is **only viable in bundled mode** — a genuine surprise that adds a 4th provider to the "bundled is fine" club (Anthropic, Ollama Qwen, now mistral-medium)
 
 **Practical consequence**: gemini-2.5-flash-lite should replace 2.0-flash as the cheap-tier
 Gemini pick in the recommendations. gpt-4o-mini is a defensible OpenAI pick for cost-sensitive

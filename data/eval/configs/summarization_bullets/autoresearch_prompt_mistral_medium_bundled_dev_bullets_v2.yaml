@@ -1,0 +1,14 @@
+# Autoresearch v2 bundled bullets — mistral/mistral-medium-latest (dev).
+id: "autoresearch_prompt_mistral_medium_bundled_dev_bullets_v2"
+task: "summarization"
+backend:
+  type: "mistral"
+  model: "mistral-medium-latest"
+llm_pipeline_mode: "bundled"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  temperature: 0.0
+  
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "bullets"
