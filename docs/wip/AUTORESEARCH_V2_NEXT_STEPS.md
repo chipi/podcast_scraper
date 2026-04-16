@@ -69,21 +69,66 @@ Initial pass of the audit surfaced three issues, ranked by leverage. These are
 quirks. Blocks §3 (ML/hybrid v2) meaningfully, since re-measuring hybrid REDUCE baselines
 on broken Ollama is wasted work.
 
-**~~Bug #1: `num_ctx=2048` truncation~~ (CORRECTED — was not a real bug)**
+### Findings from deep research pass (2026-04-16, post-correction)
 
-Initial claim was based on outdated Ollama documentation. Ollama 0.19.0 probes show:
+After my initial audit made outdated claims, a dedicated research pass returned evidence
+from Ollama 0.19.0 release notes + 2025-2026 community guides. Refined findings:
 
-- Ollama auto-scales context to model max when no `num_ctx` is given
-- Dev size (~2.7k tokens) and held-out size (~9k tokens) fit without truncation on
-  all models except gemma2 (structurally capped at 8192 — model architecture limit)
-- Our existing v2 local numbers are **correct**, not truncated
+**Finding #1: `num_ctx` — VRAM-tiered defaults, but silent truncation still real**
 
-We still added `ollama_num_ctx=8192` (client-side) as defensive engineering — guarantees
-behaviour across Ollama versions, costs nothing. But NO re-run needed; numbers won't change.
+- Ollama 0.19.0 picks defaults by VRAM tier: <24GB→4k, 24-48GB→32k, ≥48GB→256k
+- On our 48GB M4, default is ~32k — explains why our earlier probes didn't show 2048
+- **But silent truncation still happens** when prompt+output exceeds set limit
+- gemma2 still structurally capped at 8192 (model spec, not Ollama)
+- **Recommendation**: explicit `num_ctx=32768` per request (current code sets 8192 — bump it)
 
-**Genuine finding from this investigation: gemma2 is architecturally capped at 8k context.**
-Held-out episodes (~9k token prompts) will always truncate on gemma2 — not fixable via
-settings. Explains why gemma2:9b underperforms qwen3.5:9b on held-out despite similar size.
+**Finding #2: Qwen3.5 template IS a real bug**
+
+- Ollama-shipped qwen3.5:9b/27b/35b have `TEMPLATE {{ .Prompt }}` — no ChatML role tokens
+- OpenAI-compat layer merges system+user as flat text, loses `<|im_start|>`/`<|im_end|>` structure
+- Model sees "System: ...\nUser: ..." prose instead of ChatML-tagged messages
+- Qwen3.5 instruction-following on system-prompt-heavy tasks is measurably degraded
+- Referenced bug reports: ollama/ollama#10980, huggingface Qwen3.5-27B discussion #28
+- **Recommendation**: custom Modelfile with proper ChatML template for qwen3.5:9b at minimum
+
+**Finding #3: Q4_0 quant upgrades are free quality**
+
+- Three of our models are on Q4_0, which is strictly worse than Q4_K_M at same size:
+  - phi3:mini (Q4_0)
+  - gemma2:9b (Q4_0)
+  - mistral-nemo:12b (Q4_0)
+- **Recommendation**: repull as `<model>:<size>-instruct-q4_K_M` tags. No memory/latency cost,
+  measurable quality. Likely explains phi3:mini's 0.475 bullets and gemma2:9b's 0.492.
+- Small models (phi3, llama3.2:3b) could additionally go Q6_K/Q8_0 for marginal further gain,
+  but Q4_K_M → Q6_K is task-dependent (do later if worth it).
+
+**Finding #4: Per-model sampler quirks**
+
+- `mistral-small3.2` should run at **temp=0.15**, not 0.0 (Mistral's own guidance; we've been
+  forcing 0.0 for our whole matrix)
+- `mistral-nemo:12b` needs `repetition_penalty=1.05` — known to get repetitive
+- `gemma2:9b` has a known runaway-generation bug (ollama/ollama#5341) — needs `num_predict`
+  + stop tokens. May partially explain held-out paragraph quality issues.
+- `phi3:mini`: stick to 4k variant (128k variant produces gibberish > 4k tokens)
+- `llama3.1:8b`: Meta defaults temp=0.8, we use 0.0 ✓ (correct for bullet lists)
+
+**Finding #5: Ollama MLX backend preview available on 0.19.0**
+
+- Apple Silicon native backend, ~1.6x prefill / 2x decode on M4
+- Currently only ships MLX-optimised weights for `qwen3.5:35b-a3b-coding-nvfp4`
+- Sampler is tuned for code, needs override for summarisation
+- Maybe worth exploring later; not a priority
+
+**Verified OK (no change needed):**
+
+- Gemma2 system-prompt merging works correctly
+- phi3:mini template is proper ChatML
+- llama3.2:3b / llama3.1:8b / qwen2.5:7b / mistral:7b / mistral-small3.2 templates all
+  OK with current OpenAI-compat layer
+
+**Our existing v2 local numbers are still basically correct** (not truncated as I feared).
+Findings #3 and #4 could lift specific models; #2 could lift qwen3.5 family. #1 is
+defensive.
 
 **Bug #2: Qwen3.5 template is literally `{{ .Prompt }}`**
 
