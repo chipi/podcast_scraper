@@ -1,0 +1,63 @@
+# E2E mock: multi-feed preset using local fixture HTTP (RSS on 127.0.0.1) with the same options as
+# manual_multi_feed_corpus_rss_registry_openai_gemini.yaml except **feeds** (mock URLs below).
+#
+# Prerequisite: fixture HTTP server on the same port as the URLs (default 18765):
+#   make serve-e2e-mock
+#   # or: E2E_MOCK_PORT=19000 make serve-e2e-mock
+#
+# Feed URL slugs match ``tests/e2e/fixtures/e2e_http_server.py``:
+#   podcast1 … podcast5, podcast7_sustainability, podcast8_solar, podcast9_solo (p06 edge cases omitted).
+#
+# Stack: OpenAI Whisper transcription + Gemini speaker + Gemini summary (gemini-2.5-flash-lite),
+# GI/KG from summary bullets, FAISS vector_search — same toggles as the corpus RSS registry preset.
+#
+# Requires: OPENAI_API_KEY, GEMINI_API_KEY
+#
+# Run:
+#   python -m podcast_scraper.cli --config config/manual/manual_e2e_mock.yaml
+#   python -m podcast_scraper.cli --config config/manual/manual_e2e_mock.yaml --output-dir /path/to/corpus_parent
+
+feeds:
+  - http://127.0.0.1:18765/feeds/podcast1/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast2/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast3/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast4/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast5/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast7_sustainability/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast8_solar/feed.xml
+  - http://127.0.0.1:18765/feeds/podcast9_solo/feed.xml
+
+output_dir: output
+max_episodes: 3
+
+transcription_provider: openai
+speaker_detector_provider: gemini
+summary_provider: gemini
+
+openai_transcription_model: whisper-1
+gemini_speaker_model: gemini-2.5-flash-lite
+gemini_summary_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+
+transcribe_missing: true
+generate_metadata: true
+generate_summaries: true
+generate_gi: true
+gi_insight_source: summary_bullets
+gi_max_insights: 5
+generate_kg: true
+kg_extraction_source: summary_bullets
+kg_max_topics: 5
+vector_search: true
+vector_backend: faiss
+
+delay_ms: 250
+language: en
+auto_speakers: true
+cache_detected_hosts: true
+screenplay: true
+speaker_names:
+  - Host
+  - Guest
+workers: 4
+log_level: INFO

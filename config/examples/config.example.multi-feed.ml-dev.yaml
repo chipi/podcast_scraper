@@ -5,7 +5,9 @@
 # registry mode **`ml_small_authority`** (``baseline_ml_dev_authority_smoke_v1``): MAP
 # ``bart-small``, REDUCE ``long-fast``, with that mode's map/reduce params and chunking.
 #
-# Dev NER default: ``en_core_web_sm``. Whisper: ``base.en`` (``config_constants.PROD_DEFAULT_WHISPER_MODEL``).
+# Whisper model, spaCy **``ner_model``**, and **``summary_device``** are omitted — they follow
+# normal ``Config`` defaults unless you set them explicitly (unset **``ner_model``** defaults to
+# **``en_core_web_trf``**; use **``en_core_web_sm``** for a lighter NER install).
 #
 # JSON twin: config.example.multi-feed.ml-dev.json
 #
@@ -25,12 +27,8 @@ transcription_provider: whisper
 speaker_detector_provider: spacy
 summary_provider: transformers
 
-whisper_model: base.en
-whisper_device: cpu
 summary_mode_id: ml_small_authority
 summary_mode_precedence: mode
-summary_device: cpu
-ner_model: en_core_web_sm
 
 preprocessing_enabled: true
 

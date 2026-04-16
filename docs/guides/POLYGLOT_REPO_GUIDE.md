@@ -55,7 +55,7 @@ The viewer directory is **`WEB_VIEWER_DIR`** in the root [`Makefile`](https://gi
 | `make serve SERVE_OUTPUT_DIR=…` | **Parallel:** FastAPI (`serve-api`) + Vite dev (`serve-ui`); UI usually on **5173**, API on **8000**. |
 | `make serve-api SERVE_OUTPUT_DIR=…` | FastAPI only. |
 | `make serve-ui` | Vite only in `web/gi-kg-viewer` (proxies `/api` → **8000**). |
-| `make serve-e2e-mock` | **E2E fixture HTTP server** (RSS + mock API paths) on **`127.0.0.1`**; default port **18765** (**`E2E_MOCK_PORT`**). Pairs with **`config/examples/manual_e2e_mock_five_podcasts.yaml`** (primary p01–p05 + long-form p07–p09; skips p06 edge cases) ([E2E Testing Guide](E2E_TESTING_GUIDE.md#manual-cli-runs-against-the-fixture-server)). |
+| `make serve-e2e-mock` | **E2E fixture HTTP server** (RSS + mock API paths) on **`127.0.0.1`**; default port **18765** (**`E2E_MOCK_PORT`**). Pairs with **`config/manual/manual_e2e_mock.yaml`** (primary p01–p05 + long-form p07–p09; skips p06 edge cases) ([E2E Testing Guide](E2E_TESTING_GUIDE.md#manual-cli-runs-against-the-fixture-server)). |
 | `make test-ui` | Vitest unit tests for TS utils under `web/gi-kg-viewer` (no browser). |
 | `make test-ui-e2e` | Playwright E2E (Firefox); installs npm deps and browsers as needed. |
 | `make verify-gil-offsets-strict` | Validates **GIL Quote** offsets against **FAISS transcript** chunk spans on disk (**`GIL_OFFSET_VERIFY_DIR`**). See [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528). |

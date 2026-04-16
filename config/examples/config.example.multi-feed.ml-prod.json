@@ -10,12 +10,8 @@
   "speaker_detector_provider": "spacy",
   "summary_provider": "transformers",
 
-  "whisper_model": "base.en",
-  "whisper_device": "cpu",
   "summary_mode_id": "ml_bart_led_autoresearch_v1",
   "summary_mode_precedence": "mode",
-  "summary_device": "cpu",
-  "ner_model": "en_core_web_trf",
 
   "preprocessing_enabled": true,
 

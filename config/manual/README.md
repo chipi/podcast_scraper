@@ -3,8 +3,9 @@
 YAML files here are for **human manual testing** (see
 [`docs/wip/manual-test-plan-gi-kg.md`](../../docs/wip/manual-test-plan-gi-kg.md)), not CI.
 
-**Git:** `*.yaml` under this folder is **gitignored** (like `config/acceptance/`). Only this
-`README.md` is versioned—keep your own copies or backups of presets you rely on.
+**Git:** Most `*.yaml` here stays **gitignored** (local-only presets). **Versioned** in Git:
+this `README.md` and **`manual_e2e_mock.yaml`** (E2E mock HTTP feeds + OpenAI + Gemini full
+pipeline). See `.gitignore` under `config/manual` for the exact `!` exception.
 
 Most presets use the same **NPR Planet Money** RSS as most GI/KG acceptance configs:
 `https://feeds.npr.org/510289/podcast.xml`. **Multi-feed** presets add **The Journal** (WSJ) in one corpus; see the table below.
@@ -13,7 +14,7 @@ Most presets use the same **NPR Planet Money** RSS as most GI/KG acceptance conf
 
 | File | Stack | GI / KG | Notes |
 | --- | --- | --- | --- |
-| `manual_e2e_mock_five_podcasts.yaml` (tracked: `../examples/manual_e2e_mock_five_podcasts.yaml`) | **Tracked example:** Whisper + spaCy + transformers. **Gitignored copy** in this folder may use OpenAI + Gemini (same option set as **`manual_multi_feed_corpus_rss_registry_openai_gemini.yaml`**, mock **`feeds` only). | **Tracked:** Off. **Manual copy:** On (`summary_bullets`) + **`vector_search`** when aligned to the registry preset. | **Feeds:** primary **`podcast1`–`podcast5`** plus **`podcast7_sustainability`**, **`podcast8_solar`**, **`podcast9_solo`** (p07–p09; **p06** omitted). **Start the fixture server first:** `make serve-e2e-mock` (default **18765**, **`E2E_MOCK_PORT`**). URLs **`http://127.0.0.1:<port>/feeds/<slug>/feed.xml`**. **Tracked** path needs no API keys. **Manual OpenAI+Gemini copy** needs **`OPENAI_API_KEY`** and **`GEMINI_API_KEY`** (see registry row). Run **`--config config/examples/...`** for tracked, **`--config config/manual/...`** for a local copy. |
+| `manual_e2e_mock.yaml` | OpenAI Whisper + Gemini | On (`summary_bullets`) + **`vector_search`** | **Tracked.** Eight mock feeds on **`127.0.0.1:18765`** (p01–p05 + p07–p09; p06 omitted). Run **`make serve-e2e-mock`** first. Option set aligned with **`manual_multi_feed_corpus_rss_registry_openai_gemini.yaml`**. Needs **`OPENAI_API_KEY`** and **`GEMINI_API_KEY`**. |
 | `manual_multi_feed_planet_money_journal_openai_gemini.yaml` | OpenAI Whisper + Gemini | On (`summary_bullets`) | **Multi-feed (GitHub #440):** Planet Money + The Journal under one `output_dir` (`feeds/rss_*/*` per feed). **`openai` + `whisper-1`** for transcription; **`gemini`** + **`gemini-2.5-flash-lite`** for speaker + summary. With `vector_search`, parent **`search/`** + **`corpus_manifest.json`** / **`corpus_run_summary.json`** (#505/#506). Requires **`OPENAI_API_KEY`** and **`GEMINI_API_KEY`**; use **`corpus-status`** for offline inspection. **GitHub #562:** **`screenplay: true`** with non-Whisper **`transcription_provider`** is coerced to **`false`** at validation (one INFO); keep YAML **`screenplay: false`** for clarity when using OpenAI audio transcription. |
 | `manual_multi_feed_planet_money_journal_openai_gemini_append.yaml` | OpenAI Whisper + Gemini | On (`summary_bullets`) | Same feeds as above with **`append: true`** (GitHub #444): stable `run_append_*` per feed; re-run the same CLI to skip complete episodes. Header includes **handoff text** for LLM ops channels. |
 | `manual_multi_feed_planet_money_journal_openai_gemini_monitor.yaml` | OpenAI Whisper + Gemini | On (`summary_bullets`) | Same multi-feed hybrid stack as the first row with **`monitor: true`** (RFC-065: live RSS/CPU/stage + **`.pipeline_status.json`** per feed; **`log_file`** keeps stderr clean). Optional commented **`memray`** lines for **`.[monitor]`** installs. |
@@ -58,7 +59,7 @@ python -m podcast_scraper.cli --config config/manual/manual_planet_money_openai_
 
 ```bash
 make serve-e2e-mock
-python -m podcast_scraper.cli --config config/examples/manual_e2e_mock_five_podcasts.yaml
+python -m podcast_scraper.cli --config config/manual/manual_e2e_mock.yaml
 ```
 
 **Acceptance runner** (session under `.test_outputs/acceptance/…` unless you set `OUTPUT_DIR`):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the pytest E2E HTTP mock (RSS + API stubs) on a fixed port for manual YAML configs.
 
-Default port **18765** matches ``config/examples/manual_e2e_mock_five_podcasts.yaml``.
+Default port **18765** matches ``config/manual/manual_e2e_mock.yaml``.
 
 Usage::
     make serve-e2e-mock

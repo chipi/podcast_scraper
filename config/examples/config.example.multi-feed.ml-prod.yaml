@@ -6,7 +6,9 @@
 # ``long-fast``, with that mode's map/reduce params (differs from ``ml_small_authority`` on beams
 # and token budgets — use ``summary_mode_precedence: mode`` so the registry wins).
 #
-# Prod NER default: ``en_core_web_trf``. Whisper: ``base.en``.
+# Whisper model, spaCy **``ner_model``**, and **``summary_device``** are omitted — they follow
+# normal ``Config`` defaults unless you set them explicitly (unset **``ner_model``** defaults to
+# **``en_core_web_trf``**).
 #
 # JSON twin: config.example.multi-feed.ml-prod.json
 #
@@ -26,12 +28,8 @@ transcription_provider: whisper
 speaker_detector_provider: spacy
 summary_provider: transformers
 
-whisper_model: base.en
-whisper_device: cpu
 summary_mode_id: ml_bart_led_autoresearch_v1
 summary_mode_precedence: mode
-summary_device: cpu
-ner_model: en_core_web_trf
 
 preprocessing_enabled: true
 
