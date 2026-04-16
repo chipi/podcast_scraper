@@ -62,16 +62,57 @@ tests from other plans.
   mistral:7b, mistral-nemo:12b, mistral-small3.2, gemma2:9b, phi3:mini
 - ML: bart-large-cnn, LED, hybrid's REDUCE stage (llama3.2:3b)
 
-**Expected quick fixes:**
+### §1a: Ollama provider corrections (audit findings, 2026-04-16)
 
-1. **phi3:mini context truncation** — verify 4k token limit isn't silently cutting our
-   ~3.8k total (prompt + transcript + output). If yes, either bump via Ollama params or
-   accept it as the floor.
-2. **Gemma2 system-prompt handling** — verify Ollama's OpenAI-compat layer is merging
-   our system prompt into the user message correctly (Gemma2 schema doesn't accept
-   separate system). Current score 0.492 — may be a handling issue, not model ceiling.
-3. **Chat template verification** per Ollama model — the `template` field in Modelfile
-   should be inspected for each installed model.
+Initial pass of the audit surfaced three issues, ranked by leverage. These are
+**framework-level** fixes — they affect all 11 local model numbers, not just per-model
+quirks. Blocks §3 (ML/hybrid v2) meaningfully, since re-measuring hybrid REDUCE baselines
+on broken Ollama is wasted work.
+
+**Bug #1: `num_ctx=2048` truncation (universal, all 11 Ollama models)**
+
+- Our Ollama provider never sets `num_ctx`; Ollama defaults to 2048 tokens
+- Our transcripts are ~2,750 tokens + ~600 prompt + expected ~500 output ≈ 3,850 tokens
+- **Every Ollama cell we've run has silently truncated ~45% of transcript content**
+- Likely explains: lower-than-expected local scores, paragraph contestation on long
+  content, and counter-intuitive "bigger ≠ better" among Qwen3.5 variants
+- Fix: pass `options.num_ctx=8192` (or model-max) in the Ollama OpenAI-compat call
+- Re-run impact: all 11 × 4 cells (non-bundled) + 3 × 4 cells (bundled) = 56 local cells
+
+**Bug #2: Qwen3.5 template is literally `{{ .Prompt }}`**
+
+- All three Qwen3.5 variants (9b, 27b, 35b) ship with a no-op template — no ChatML
+  role tokens, no system-prompt structure
+- Ollama's OpenAI-compat layer concatenates system+user as raw text
+- Qwen3.5 was trained with ChatML format (`<|im_start|>...`)
+- qwen3.5:9b still scored 0.580 despite this — suggests Qwen is robust to wrong template
+- **Expected fix impact**: unclear, but worth a ~2 hour investigation. Build custom
+  Modelfile for qwen3.5:9b with correct ChatML template, re-run 1 cell, see if lift.
+
+**Opportunity #3: quantization upgrade for small models**
+
+- All 11 models currently at Q4 (mostly Q4_K_M). Defaults pulled by Ollama.
+- M4 48GB has plenty of headroom for Q8_0 on everything up to ~13B
+- Small models (3B, 7B) are more sensitive to precision loss; benefit most from Q8
+- Pull `Q8_0` / `F16` variants of: phi3:mini, llama3.2:3b, mistral:7b
+- Re-run 3 × 4 cells = 12 cells
+- Expected lift: 1-5% per small model (smaller = more sensitive to quant)
+
+**Not bugs (verified OK):**
+
+- **Gemma2 system-prompt merging**: template correctly merges system→user with a space
+  separator. Gemma2's native format; nothing to fix.
+- **phi3:mini template**: proper ChatML-style (`<|system|>`, `<|user|>`, `<|assistant|>`,
+  `<|end|>`). Fine.
+
+### Expected cloud-side audit items (not yet checked)
+
+- Provider-level max_tokens / response_format settings per cloud backend
+- ML models (bart-large-cnn, LED) — chunking behaviour, max-input-tokens, decoding params
+- Default temperature mismatches:
+  - mistral-small3.2 default temp=0.15 (we override to 0 ✓)
+  - qwen3.5 family default temp=1, top_p=0.95, top_k=20, presence_penalty=1.5 — our
+    temperature=0 override works but other params may still leak through Modelfile defaults
 
 ### 2. Summarisation-specialist model swap for ML track
 
@@ -201,32 +242,36 @@ mistral:7b, not v1's llama3.2:3b).
 
 ### Tomorrow's realistic plan
 
-1. **Morning (2-3h): Model operating mode audit** (#1)
-   - Read model cards for all 11 Ollama + BART + LED
-   - One-page-per-model reference table (chat template, context window, temperature,
-     specialisation, chat-template handling)
-   - Flag any "we're using it wrong" bugs
-2. **Late morning (~1h): Quick fixes from audit** (#1 fix)
-   - phi3 context truncation, gemma2 system-prompt merge, etc.
-   - Re-run only the affected cells
-3. **Early afternoon (~1.5h): ML-track alternative MAP backbone** (#2)
-   - Swap one summariser specialist (long-t5 recommended), 4 cells
-   - This picks the MAP base for step 4
-4. **Mid-late afternoon (~2h): ML + hybrid v2 with modernised bases** (#3)
-   - Pure ML: long-t5 MAP (from step 3) on 4 cells
-   - Hybrid: long-t5 MAP + **qwen3.5:9b REDUCE** (not v1's llama3.2:3b!) on 4 cells
-   - Apply v2 champion REDUCE prompt
-   - Record: ROUGE-L, final score, latency per stage
-5. **Decision point after step 4**: does modernised-base hybrid match qwen3.5:9b standalone?
-   - **Yes** → ML/hybrid revived; update guide; next session can pursue new API variants
-     (#4) or LoRA (#5)
-   - **No (gap remains)** → gap quantified; informs whether LoRA in #5 is worth the cost
-6. **Late afternoon (optional): new API variants** (#4 phase 1)
-   - gpt-4o-mini, gemini-2.5-flash-lite, mistral-medium
-   - Update matrix if any lands on Pareto frontier
+Audit findings (§1a) changed the priority ordering — num_ctx fix blocks everything
+downstream. Fix it before any further Ollama or ML/hybrid evaluation.
 
-Steps 1-4 alone justify a full day. Step 5 is optional. LoRA (#5 in §5) is explicitly
-NOT part of this day — it's gated on step 5 showing a gap worth closing.
+1. **Fix #1 (~1h incl. re-run): num_ctx=8192 in Ollama provider**
+   - Single-line fix in provider + thread through via cfg / params
+   - Re-run 11 local models × 4 non-bundled cells (~45 min wall-clock)
+   - Update matrix with corrected numbers
+   - **Decision point**: if local rankings shift meaningfully, pause to re-think
+     REDUCE base pick for §3 (qwen3.5:9b may no longer be the clear winner)
+2. **Fix #2 (~1h): quantization upgrade for small models**
+   - Pull Q8_0 or F16 variants of phi3:mini, llama3.2:3b, mistral:7b
+   - Re-run 3 × 4 non-bundled cells (~30 min)
+   - Small-models-only; skip large-model quant upgrades (diminishing returns)
+3. **Fix #3 (optional, ~2h): Qwen3.5 ChatML template**
+   - Build custom Modelfile with proper ChatML for qwen3.5:9b only (the current winner)
+   - Re-run 4 non-bundled cells, compare to post-Fix-#1 numbers
+   - Skip if Fix #1 already changed rankings enough that Qwen isn't the focus
+4. **(remainder of day) Proceed with original §2 → §3 plan**
+   - Summarisation-specialist MAP swap (long-t5)
+   - ML + hybrid v2 with corrected-numbers-informed REDUCE base (likely still qwen3.5:9b
+     but verify post-Fix #1)
+5. **Decision point after §3**: modernised hybrid vs qwen3.5:9b standalone, informs LoRA
+   go/no-go (see [`LORA_HYBRID_PIPELINE_PLAN.md`](LORA_HYBRID_PIPELINE_PLAN.md))
+6. **Optional: new API variants** (#4 phase 1)
+   - gpt-4o-mini, gemini-2.5-flash-lite, mistral-medium
+   - Only if steps 1-4 finish with time remaining
+
+Sequencing rationale: fix #1 universally affects local numbers, so doing it first means
+every downstream comparison (§2, §3, LoRA base pick) uses accurate data. Doing it later
+wastes any measurement taken before it. Fix #2 and #3 are additive lifts on top.
 
 ---
 
@@ -247,9 +292,11 @@ NOT part of this day — it's gated on step 5 showing a gap worth closing.
 
 ## What NOT to do next session
 
+- **Don't run any Ollama evaluation before fixing `num_ctx`** — current numbers are
+  measured on 45%-truncated transcripts. Fix first, then measure.
 - **Don't evaluate ML/hybrid with v1 base models** (BART-large-cnn + llama3.2:3b).
-  Pick the v2-informed bases first (long-t5 + qwen3.5:9b). Evaluating with v1 defaults
-  is measuring the wrong question.
+  Pick the v2-informed bases first (long-t5 + qwen3.5:9b-post-num_ctx-fix). Evaluating
+  with v1 defaults is measuring the wrong question.
 - **Don't do multi-run averaging yet** — bigger infra change, not the highest leverage
 - **Don't tune per-provider prompts** — diminishing returns relative to model-specific
   fixes (which the audit will surface)
