@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +43,25 @@ async def corpus_topic_clusters(
             detail="path query parameter is required when the server has no default output_dir.",
         )
 
-    root_s = os.path.normpath(str(root.resolve()))
-    safe_prefix = root_s + os.sep
+    root_dir = safe_resolve_directory(root)
+    if root_dir is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
 
-    root_safe = safe_relpath_under_corpus_root(root, _TOPIC_CLUSTERS_REL)
-    if not root_safe or not root_safe.startswith(safe_prefix) or not os.path.isfile(root_safe):
+    root_s = os.path.normpath(str(root_dir))
+    safe_prefix = root_s + os.sep
+    parts = [p for p in _TOPIC_CLUSTERS_REL.replace("\\", "/").split("/") if p and p != "."]
+    if any(p == ".." for p in parts):
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    joined = os.path.normpath(os.path.join(root_s, *parts))
+    if joined != root_s and not joined.startswith(safe_prefix):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": "topic_clusters.json not found under corpus search/",
+                "available": False,
+            },
+        )
+    if not os.path.isfile(joined):
         return JSONResponse(
             status_code=404,
             content={
@@ -57,10 +71,10 @@ async def corpus_topic_clusters(
         )
 
     try:
-        with open(root_safe, encoding="utf-8") as fh:
+        with open(joined, encoding="utf-8") as fh:
             payload = json.loads(fh.read())
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("corpus_topic_clusters: failed to read %s: %s", root_safe, exc)
+        logger.warning("corpus_topic_clusters: failed to read %s: %s", joined, exc)
         raise HTTPException(
             status_code=500,
             detail="topic_clusters.json is unreadable or invalid JSON.",

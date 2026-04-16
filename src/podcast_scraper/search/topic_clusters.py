@@ -19,7 +19,7 @@ from podcast_scraper.search.corpus_scope import (
 )
 from podcast_scraper.search.faiss_store import FaissVectorStore, VECTORS_FILE
 from podcast_scraper.search.indexer import _kg_path, _load_metadata_file
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import safe_resolve_directory
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +92,21 @@ def topic_cluster_enrichment_by_topic_id(
 
 def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, str]]:
     """Load ``search/topic_clusters.json`` and return enrichment map; empty if missing/invalid."""
-    rel = f"search/{TOPIC_CLUSTERS_FILENAME}"
-    safe = safe_relpath_under_corpus_root(corpus_root, rel)
-    if not safe or not os.path.isfile(safe):
+    root_p = safe_resolve_directory(corpus_root)
+    if root_p is None:
+        return {}
+    root_s = os.path.normpath(str(root_p))
+    safe_prefix = root_s + os.sep
+    joined = os.path.normpath(os.path.join(root_s, "search", TOPIC_CLUSTERS_FILENAME))
+    if joined != root_s and not joined.startswith(safe_prefix):
+        return {}
+    if not os.path.isfile(joined):
         return {}
     try:
-        payload = cast(Dict[str, Any], json.loads(Path(safe).read_text(encoding="utf-8")))
+        with open(joined, encoding="utf-8") as fh:
+            payload = cast(Dict[str, Any], json.loads(fh.read()))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("topic cluster enrichment: skip %s: %s", safe, exc)
+        logger.warning("topic cluster enrichment: skip %s: %s", joined, exc)
         return {}
     if not isinstance(payload, dict):
         return {}

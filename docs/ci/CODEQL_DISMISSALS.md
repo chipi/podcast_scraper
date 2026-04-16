@@ -29,6 +29,14 @@ model cross-function sanitisation for this pattern, so every new file that
 touches the filesystem with a request-derived path triggers the same false
 positive.
 
+**When alerts persist after ``safe_relpath_under_corpus_root``:** re-verify the
+path string with ``normpath_if_under_root(path, root_s)`` immediately before
+each ``open`` / ``os.path.isfile`` / ``FileResponse`` sink, or build the target
+from ``safe_resolve_directory(corpus_root)`` plus **constant** path segments
+with an inline ``os.path.normpath`` + ``str.startswith(safe_prefix)`` guard in
+the same function. CodeQL does not always propagate sanitiser state out of
+helpers.
+
 **Sanitiser chain (reference):**
 
 All user-supplied corpus paths flow through one of:
@@ -39,6 +47,7 @@ All user-supplied corpus paths flow through one of:
 | `resolved_corpus_root_str` | pathutil.py | `normpath` + `startswith(anchor)` -- falls back to anchor on escape |
 | `normpath_if_under_root` | path_validation.py | `normpath` + `startswith(root)` -- returns `None` on escape |
 | `safe_relpath_under_corpus_root` | path_validation.py | `normpath` + `startswith` + no `..` -- returns `None` on escape |
+| `safe_resolve_directory` | path_validation.py | ``realpath`` + rejects ``..`` -- use before joins from a ``Path`` root |
 
 ---
 

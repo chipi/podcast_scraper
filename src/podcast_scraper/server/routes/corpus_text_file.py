@@ -12,7 +12,11 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse
 
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
-from podcast_scraper.utils.path_validation import safe_relpath_under_corpus_root
+from podcast_scraper.utils.path_validation import (
+    normpath_if_under_root,
+    safe_relpath_under_corpus_root,
+    safe_resolve_directory,
+)
 
 router = APIRouter(tags=["corpus"])
 
@@ -48,30 +52,33 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     If the requested path is missing but looks like a raw Whisper ``.txt``, tries the
     sibling ``.cleaned.txt`` produced when ``save_cleaned_transcript`` is enabled (metadata
     and GI ``transcript_ref`` often still point at the raw path).
+
+    *root* must already be ``safe_resolve_directory`` output (caller responsibility).
     """
-    root_s = os.path.normpath(str(root.resolve()))
-    safe_prefix = root_s + os.sep
+    root_s = os.path.normpath(str(root))
 
     safe = safe_relpath_under_corpus_root(root, norm)
-    if not safe or (safe != root_s and not safe.startswith(safe_prefix)):
+    verified = normpath_if_under_root(safe, root_s) if safe else None
+    if not verified:
         return None
-    basename = os.path.basename(safe)
+    basename = os.path.basename(verified)
     if not _suffix_allowed(basename):
         return None
-    if os.path.isfile(safe):
-        return safe, basename
+    if os.path.isfile(verified):
+        return verified, basename
 
     alt_norm = _cleaned_txt_fallback_relpath(norm)
     if alt_norm is None:
         return None
     safe_alt = safe_relpath_under_corpus_root(root, alt_norm)
-    if not safe_alt or (safe_alt != root_s and not safe_alt.startswith(safe_prefix)):
+    verified_alt = normpath_if_under_root(safe_alt, root_s) if safe_alt else None
+    if not verified_alt:
         return None
-    alt_base = os.path.basename(safe_alt)
+    alt_base = os.path.basename(verified_alt)
     if not _suffix_allowed(alt_base):
         return None
-    if os.path.isfile(safe_alt):
-        return safe_alt, alt_base
+    if os.path.isfile(verified_alt):
+        return verified_alt, alt_base
     return None
 
 
@@ -103,6 +110,11 @@ async def corpus_text_file(
     if not norm:
         raise HTTPException(status_code=400, detail="relpath is required.")
 
+    root_sd = safe_resolve_directory(root)
+    if root_sd is None:
+        raise HTTPException(status_code=400, detail="Invalid corpus path.")
+    root = root_sd
+
     safe = safe_relpath_under_corpus_root(root, norm)
     if not safe:
         raise HTTPException(status_code=400, detail="Invalid path.")
@@ -120,14 +132,13 @@ async def corpus_text_file(
 
     safe_file, basename = resolved
 
-    root_s = os.path.normpath(str(root.resolve()))
-    safe_prefix = root_s + os.sep
-    if safe_file != root_s and not safe_file.startswith(safe_prefix):
+    root_s = os.path.normpath(str(root))
+    verified_path = normpath_if_under_root(safe_file, root_s)
+    if not verified_path:
         raise HTTPException(status_code=400, detail="Invalid path.")
 
-    # codeql[py/path-injection] -- ``safe_file`` from sanitizer under ``root``.
     return FileResponse(
-        path=safe_file,
+        path=verified_path,
         media_type=_inline_media_type(basename),
         filename=basename,
         content_disposition_type="inline",
