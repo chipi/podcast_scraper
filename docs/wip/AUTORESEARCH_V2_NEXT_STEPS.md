@@ -3,7 +3,50 @@
 Consolidating plans and open questions after the v2 provider-matrix sweep. Not a spec — a
 prioritised plan for the next 1-3 work sessions.
 
-**Latest commit state:** `3e6655d` on `feat/eval-benchmark-v2` (not yet pushed).
+**Latest commit state:** `afb0f38` on `feat/eval-benchmark-v2` (not yet pushed).
+
+---
+
+## ✅ v2 CLOSED (2026-04-16) — current-dataset line drawn
+
+Everything on the "tomorrow's candidate work" list below is now **done** (with outcomes
+either merged to docs or explicitly ruled out). The authoritative reference is
+[`EVAL_HELDOUT_V2_2026_04.md`](../guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md). This
+document is now historical; see the close-out summary below and defer further work to
+the tier-2 cross-dataset phase.
+
+**What got done this session set:**
+
+| Plan § | Work | Outcome |
+|--------|------|---------|
+| §1 + §1a | Ollama audit, num_ctx fix, Qwen3.5 template test | num_ctx plumbed through provider; ChatML template change = null result; findings recorded |
+| §2 | Summarisation-specialist MAP swap | Long-T5-XL tested standalone — 0.192 held-out, not viable; didn't propagate to MAP |
+| §3 | ML + hybrid_ml under v2 | bart-led 0.206 held-out; hybrid bart+llama3.2:3b 0.430; hybrid bart+qwen3.5:9b 0.448 (swap didn't help past qwen3.5:9b standalone 0.509) |
+| §4 phase 1 | Cheaper API variants | gemini-2.5-flash-lite (strict upgrade), gpt-4o-mini (viable), mistral-medium (bundled-only) — all merged to matrix |
+| Ollama Q4_K_M | Quant-upgrade hypothesis | Null-to-negative across phi3/gemma2/mistral-nemo; configs kept but not recommended |
+| +extra | SummLlama3.2-3B standalone | Paragraph 0.485 held-out (0/5 contested, +80% over same-base llama3.2:3b). Bullets 0.416 (DPO is prose-shaped, list-weaker). Added as Tier 2.5 documented option; proper ML-provider integration still to do before flipping Tier 2 default. |
+| §5 LoRA | — | Still deferred; plan in [`LORA_HYBRID_PIPELINE_PLAN.md`](LORA_HYBRID_PIPELINE_PLAN.md). Gated on future decision, not immediate next step |
+
+**Final defaults (unchanged from mid-session):**
+
+- Cloud top pick: **`gemini-2.5-flash-lite` non-bundled** (balanced default), `deepseek-chat` for quality first, `claude-haiku-4-5` bundled for single-call
+- Local top pick: **`qwen3.5:9b` bundled** (paragraph + bullets in one call, uncontested)
+- Alternative no-Ollama local path: **`DISLab/SummLlama3.2-3B`** via HF transformers
+- Hybrid demoted: standalone qwen3.5:9b beats hybrid bart+qwen3.5:9b on our workload
+
+**Next phase (separate work, not this line):**
+
+- **Tier-2 cross-dataset validation** — repeat the matrix on QMSum / DialogSum / one
+  additional podcast dataset to see which findings are dataset-specific vs general.
+  User's explicit framing: "finish original plan and all we wanted to conclude
+  ml/hybrid and then publish those results and draw the line on v2 with current
+  dataset, and after that we see how to go to tier2 across portfolio."
+- LoRA fine-tuning (if/when a real gap worth closing is identified on tier-2).
+
+Everything below this line is the **historical plan** used to drive the session; keep for
+reference, don't re-execute.
+
+---
 
 **Related docs:**
 

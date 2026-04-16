@@ -7,9 +7,31 @@ hybrid_ml pipeline so it competes with top cloud/local LLMs under v2 framework.
 a fully-local, fully-deterministic, zero-API pipeline viable for production deployments where
 that matters.
 
+## ⚠️ Status 2026-04-16: GATED ON TIER-2, NOT ACTIVE
+
+v2 closed (see [held-out v2 eval report](../guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md)).
+What we learned changes the premise of this plan:
+
+1. **Hybrid's v2 ceiling is visible.** hybrid bart+llama3.2:3b = 0.430, hybrid bart+qwen3.5:9b
+   = 0.448 held-out paragraph. Standalone qwen3.5:9b bundled = 0.509. **BART MAP hurts capable
+   REDUCE stages more than it helps them** — the premise that "lift the hybrid" is the right
+   unit to optimize needs rechecking.
+2. **SummLlama3.2-3B proves DPO-on-rubric-axes works for 3B models.** Same Llama-3.2-3B base
+   jumped 0.270 → 0.485 held-out paragraph (+80%) via DPO alone. That's a cheaper, more
+   direct lift than LoRA on the hybrid.
+3. **Tier-2 cross-dataset validation is the real next gate.** If SummLlama / qwen3.5:9b
+   defaults still win on QMSum / DialogSum / other podcast datasets, LoRA is solving a
+   problem we don't have. If gaps open up, LoRA target may be the standalone base, not the
+   hybrid pipeline at all.
+
+**Don't start this plan until tier-2 measurement is complete.** Revisit after tier-2 with
+two questions: (a) is there still a gap worth closing? (b) is the hybrid pipeline still the
+right fine-tuning surface, or is the answer now "LoRA on SummLlama-style standalone"?
+
+Everything below this line is the original plan, retained for reference.
+
 **Relation to other WIP**: paired with [`AUTORESEARCH_V2_NEXT_STEPS.md`](AUTORESEARCH_V2_NEXT_STEPS.md)
-(ML/hybrid v2 base numbers). Run that first to establish the baseline; then this note is the
-plan to lift it via LoRA.
+(v2-closed header + ML/hybrid v2 base numbers).
 
 ---
 

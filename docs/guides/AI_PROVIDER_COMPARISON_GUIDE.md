@@ -118,6 +118,16 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
 - **Paragraph** → `qwen3.5:9b` **bundled** (0.509). Same single call produces both.
 - **Single call, title+summary+bullets** → `qwen3.5:9b` bundled. Loses ~9% on bullets vs
   non-bundled but gains reliability and cost efficiency.
+- **No-Ollama-daemon alternative** → `DISLab/SummLlama3.2-3B` via HF transformers directly.
+  v2 held-out **paragraph 0.485** (uncontested 0/5, dev 0.442), **bullets 0.416** (uncontested
+  0/5, dev 0.467). Runs via `run_summllama_v2.py` (HF `transformers` + MPS / CUDA). DPO-tuned
+  on faithfulness/completeness/conciseness — the same Llama-3.2-3B base that scores only
+  0.270 paragraph standalone lifts to 0.485 with alignment. **Paragraph-strong, bullets-
+  weaker** (DPO was prose-shaped, not list-shaped). Latency 60-156s/ep on Apple MPS, slower
+  than Ollama but operationally simpler (no daemon, one Python process). **Pick this for
+  paragraph-first deployments or when Ollama can't be run.** For bullet-heavy workloads,
+  qwen3.5:9b bundled stays the better local pick. See
+  [Held-out v2 report §6a](eval-reports/EVAL_HELDOUT_V2_2026_04.md#6a-ml-transformers-standalone-hf-not-ollama--2026-04-16).
 
 **Default picks by use case** (compound-scored across quality, latency, cost — see
 [Held-out v2 report §Compound analysis](eval-reports/EVAL_HELDOUT_V2_2026_04.md#compound-analysis--pareto-frontier)):
@@ -218,6 +228,7 @@ input ≥2000 chars and LLM output **below 20%** of that length is discarded); s
 | **On-prem, quality first** | **Ollama `qwen3.5:9b` bundled** | Best local quality (0.509 paragraph, uncontested) |
 | **On-prem, speed first** | Ollama (`llama3.2:3b`) | 12s/ep, quality floor 0.501 bullets |
 | **On-prem, bullets-only max quality** | Ollama (`qwen3.5:9b` non-bundled) | 0.580 held-out (2nd overall, beats most cloud) |
+| **On-prem, no Ollama daemon, paragraph-first** | HF transformers (`DISLab/SummLlama3.2-3B`) | 0.485 held-out paragraph / 0.416 bullets — DPO-tuned 3B via HF transformers on MPS/CUDA directly; operationally simpler than Ollama. Paragraph-strong, bullets-weaker (DPO was prose-shaped). |
 | **Full Capabilities** | OpenAI / Local ML | All 3 capabilities (transcription + speaker + summary) |
 | **Hybrid MAP-REDUCE** | Hybrid ML (Ollama/llama_cpp) | Retained as niche option (RFC-042); not recommended as default — see v2 findings |
 | **Real-Time Info** | Grok | Real-time information access (RFC-036) |

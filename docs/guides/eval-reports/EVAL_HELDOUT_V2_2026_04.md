@@ -335,6 +335,73 @@ exist as a default recommendation. Retained in docs for narrow niches (truly
 memory-constrained, explainability, etc.) but `qwen3.5:9b` standalone bundled is the
 new Tier 3 pick.
 
+### 6a. ML transformers standalone (HF, not Ollama) — 2026-04-16
+
+Two Hugging Face transformer models evaluated as "pure ML, no Ollama daemon" alternatives,
+run via `scripts/eval/run_summllama_v2.py` and `scripts/eval/run_longt5xl_v2.py` on Apple
+MPS. Scored with the same v2 harness (ROUGE-L + dual-judge blended scalar).
+
+**Paragraph:**
+
+| Model | Params | Dev final | Held-out final | Held-out ROUGE-L | Held-out judge | Contested | Avg s/ep (held-out) |
+| ----- | :----: | :-------: | :------------: | :--------------: | :------------: | :-------: | :-----------------: |
+| **SummLlama3.2-3B** (DISLab, DPO-tuned) | 3B | **0.442** | **0.485** | 32.6% | 0.856 | **0/5** | 66s |
+| Long-T5-XL book-summary (pszemraj) | ~3B | — | 0.192 (contested) | 19.2% | 0.527 | 3/5 | 1096s |
+
+**Bullets (SummLlama only; Long-T5-XL skipped after paragraph null result):**
+
+| Model | Dev final | Held-out final | Held-out ROUGE-L | Held-out judge | Contested | Avg s/ep (held-out) |
+| ----- | :-------: | :------------: | :--------------: | :------------: | :-------: | :-----------------: |
+| SummLlama3.2-3B | 0.467 | **0.416** | 26.6% | 0.764 | 0/5 | 156s |
+
+**SummLlama3.2-3B is the headline finding — for paragraph.** Same Llama-3.2-3B base that
+scored 0.270 (standalone, contested 5/5) — with DPO fine-tuning on
+faithfulness/completeness/conciseness preferences, it lifts to **0.485 held-out paragraph,
+zero contestation, 0.856 judge mean**. That's **+80% over the same-base standalone** and
+within 5% of qwen3.5:9b bundled (0.509, the top local pick).
+
+**Bullets is weaker (0.416 held-out, -14% vs paragraph).** DPO was aligned on prose
+summarization preferences, not list structure. Judge_mean drops from 0.856 (paragraph) to
+0.764 (bullets) — judges see paragraphs as genuinely good, bullets as merely acceptable.
+Still uncontested (0/5) and above all pure-ML baselines, but below Ollama `llama3.2:3b`
+bullets (0.501). **Practical rule**: prefer SummLlama for paragraph-first deployments; if
+bullets are equally important, qwen3.5:9b bundled remains the better local pick (0.529
+bullets / 0.509 paragraph).
+
+Notable properties (both tracks):
+
+- **No Ollama daemon required** — runs via HF `transformers` on MPS directly. Smaller
+  operational footprint than Ollama (no server, no model swap).
+- **Zero contestation on both dev (0/10) and held-out (0/5).** The DPO alignment on the
+  rubric axes our judges score against removes the instability that plagues same-size
+  Llama/Qwen standalone paragraph runs.
+- **Latency 31-66s/ep on MPS** — slower than Ollama on the same laptop (llama3.2:3b via
+  Ollama is ~12s) but operationally simpler for deployments that already use HF transformers
+  for BART.
+
+**Long-T5-XL is a clear null result.** The `pszemraj/long-t5-tglobal-xl-16384-book-summary`
+checkpoint produces 870-2800 char summaries (BART produces ~2000-4000 chars; SummLlama
+produces ~3000-5000 chars) — far shorter than our target. ROUGE-L 19%, judge 0.53, 3/5
+contested. The book-summary domain transfer does not hold on podcast transcripts. Paired
+with prohibitive MPS beam-search latency (1096s/ep), this is unsuitable for our workload
+regardless of how predictions are scored. Run artifacts kept; no config created (run
+was driven directly by `scripts/eval/run_longt5xl_v2.py`).
+
+**Practical consequences:**
+
+1. **SummLlama3.2-3B is a Tier 2.5 paragraph pick.** 0.485 held-out paragraph from a 3B
+   model via HF transformers alone — massively above bart-led (0.206) and within 5% of
+   qwen3.5:9b bundled (0.509). Bullets is weaker (0.416) — the DPO alignment is prose-
+   shaped. Use it when paragraph is the primary output or when Ollama can't be run.
+2. **Pure HF-transformers paragraph pipeline is viable** for deployments that don't want
+   Ollama dependency (e.g. strict airgapped environments, embedded services). Trade-off:
+   slower per-episode latency vs Ollama on the same hardware (~60-150s vs 12-33s).
+3. **Tier 2 prod default (`ml_bart_led_autoresearch_v1`) unchanged this session.** Flipping
+   to SummLlama requires real ML-provider integration (registry entry, factory wiring,
+   `ml_summllama32_standalone_v1` mode) — that's a follow-up. The eval data justifies the
+   flip when that work is done.
+4. **Long-T5-XL is not competitive** — do not recommend for podcast summarisation.
+
 ### 5. Q4_0 → Q4_K_M quant upgrade tested 2026-04-16 (null-to-negative result)
 
 Research predicted Q4_K_M would give "free quality" on phi3:mini, gemma2:9b, and
