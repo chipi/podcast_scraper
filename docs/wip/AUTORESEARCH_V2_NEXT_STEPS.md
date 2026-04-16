@@ -69,15 +69,21 @@ Initial pass of the audit surfaced three issues, ranked by leverage. These are
 quirks. Blocks §3 (ML/hybrid v2) meaningfully, since re-measuring hybrid REDUCE baselines
 on broken Ollama is wasted work.
 
-**Bug #1: `num_ctx=2048` truncation (universal, all 11 Ollama models)**
+**~~Bug #1: `num_ctx=2048` truncation~~ (CORRECTED — was not a real bug)**
 
-- Our Ollama provider never sets `num_ctx`; Ollama defaults to 2048 tokens
-- Our transcripts are ~2,750 tokens + ~600 prompt + expected ~500 output ≈ 3,850 tokens
-- **Every Ollama cell we've run has silently truncated ~45% of transcript content**
-- Likely explains: lower-than-expected local scores, paragraph contestation on long
-  content, and counter-intuitive "bigger ≠ better" among Qwen3.5 variants
-- Fix: pass `options.num_ctx=8192` (or model-max) in the Ollama OpenAI-compat call
-- Re-run impact: all 11 × 4 cells (non-bundled) + 3 × 4 cells (bundled) = 56 local cells
+Initial claim was based on outdated Ollama documentation. Ollama 0.19.0 probes show:
+
+- Ollama auto-scales context to model max when no `num_ctx` is given
+- Dev size (~2.7k tokens) and held-out size (~9k tokens) fit without truncation on
+  all models except gemma2 (structurally capped at 8192 — model architecture limit)
+- Our existing v2 local numbers are **correct**, not truncated
+
+We still added `ollama_num_ctx=8192` (client-side) as defensive engineering — guarantees
+behaviour across Ollama versions, costs nothing. But NO re-run needed; numbers won't change.
+
+**Genuine finding from this investigation: gemma2 is architecturally capped at 8k context.**
+Held-out episodes (~9k token prompts) will always truncate on gemma2 — not fixable via
+settings. Explains why gemma2:9b underperforms qwen3.5:9b on held-out despite similar size.
 
 **Bug #2: Qwen3.5 template is literally `{{ .Prompt }}`**
 

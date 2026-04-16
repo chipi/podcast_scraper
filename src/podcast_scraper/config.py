@@ -1407,6 +1407,17 @@ class Config(BaseModel):
         alias="ollama_temperature",
         description="Temperature for Ollama generation (0.0-2.0, lower = more deterministic)",
     )
+    ollama_num_ctx: int = Field(
+        default=8192,
+        alias="ollama_num_ctx",
+        ge=512,
+        description=(
+            "Ollama context window (num_ctx) passed to the /v1/chat/completions call. "
+            "Ollama's own default is 2048 tokens, which silently truncates longer prompts. "
+            "8192 is a safe default that fits every model we use (smallest max is gemma2 = 8192). "
+            "Increase if transcripts regularly exceed ~3k tokens; decrease if memory-constrained."
+        ),
+    )
     ollama_reduce_temperature: Optional[float] = Field(
         default=None,
         alias="ollama_reduce_temperature",
