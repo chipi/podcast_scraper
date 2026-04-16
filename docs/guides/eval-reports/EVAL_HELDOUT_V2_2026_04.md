@@ -296,6 +296,32 @@ Anthropic bundled paragraph (0.548) even *beats* Anthropic non-bundled paragraph
 For any workload where bundled (title + summary + bullets in one call) is the preferred shape,
 Anthropic is the only provider where it's not a quality compromise.
 
+### 5. Q4_0 → Q4_K_M quant upgrade tested 2026-04-16 (null-to-negative result)
+
+Research predicted Q4_K_M would give "free quality" on phi3:mini, gemma2:9b, and
+mistral-nemo:12b (all currently Q4_0 in Ollama's defaults). Tested; not supported.
+
+| Model | Q4_0 held-out (B/P) | Q4_K_M held-out (B/P) | Result |
+| ----- | :-----------------: | :-------------------: | :----: |
+| phi3:mini | 0.475 / 0.196 | 0.069 / 0.079 | **BROKEN** — 4k variant truncates; judge_mean=0 |
+| gemma2:9b | 0.492 / 0.453 | 0.473 / 0.270 (contested 3/5) | Bullets slightly worse; paragraph worse |
+| mistral-nemo:12b | 0.497 / 0.445 | 0.509 / 0.292 (contested 3/5) | Bullets slightly better; paragraph contests |
+
+**Notes**:
+
+- phi3:mini has two Ollama variants: 4k context (`phi3:3.8b-mini-4k-instruct-q4_K_M`)
+  and 128k context. Research recommended the 4k variant because 128k "produces gibberish
+  above 4k tokens," but held-out prompts are ~9k tokens, so 4k truncates silently.
+  phi3:mini is structurally too small for our workload regardless of quant.
+- Mistral-nemo and gemma2 show paragraph contestation appearing where Q4_0 was uncontested
+  — at least part of the "measurement" is judge variance, not model quality. Possibly
+  different quants tickle different judge disagreements.
+- Net: **don't chase Q4 quant upgrades** on these specific models for this workload.
+  If re-quantising, go straight to Q6_K / Q8_0 for the small models and use the
+  128k-context phi3 variant to at least avoid truncation.
+
+Quant upgrade configs kept (traceable as `_q4km` variants) but not recommended for use.
+
 ### 4. Cheaper-tier variants added 2026-04-16
 
 Three cheaper-tier variants tested after the initial sweep, both non-bundled and bundled:
