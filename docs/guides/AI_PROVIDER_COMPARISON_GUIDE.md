@@ -203,21 +203,25 @@ input ≥2000 chars and LLM output **below 20%** of that length is discarded); s
 
 ## Quick Decision Matrix
 
+> **Updated picks (v2 data, 2026-04-16)**: Default local-LLM is now **qwen3.5:9b** (not llama3.2:3b).
+> Hybrid ML is **demoted** from default recommendation to narrow niche — v2 showed standalone
+> qwen3.5:9b (0.509 paragraph held-out) beats hybrid bart+qwen3.5:9b (0.448) for our workload.
+
 | If you need... | Choose | Why |
 | :------------- | :----: | :-- |
-| **Complete Privacy** | Local ML / Hybrid ML / Ollama | Data never leaves your device |
-| **Lowest Cost** | Local ML / Hybrid ML / Ollama | $0 (just electricity) |
-| **Air-gapped (no Ollama)** | Local ML (`ml_bart_led_autoresearch_v1`) | 20.4% ROUGE-L, zero deps, prod default |
-| **Air-gapped + Ollama** | Hybrid ML (`ml_hybrid_bart_llama32_3b`) | 23.7% ROUGE-L, only 3B model needed |
-| **Highest Quality (cloud)** | Anthropic | Leads cloud ROUGE-L (33.7% benchmark) vs Sonnet 4.6 silver ([measured](eval-reports/EVAL_BENCHMARK_V1_2026_04.md#cloud-providers-sorted-by-rouge-l)) |
-| **Fastest Cloud** | Gemini | 2.7s/ep paragraphs, 1.6s/ep bullets |
-| **On-prem, quality first** | Ollama (qwen3.5:35b) | 31.9% ROUGE-L, above cloud median (benchmark) |
-| **On-prem, speed/quality** | Ollama (llama3.2:3b) | 8.5s/ep paragraphs, 5.2s/ep bullets, only 2GB |
-| **On-prem, low resource** | Ollama (llama3.2:3b) | Same as above — smallest useful model |
-| **Full Capabilities** | OpenAI / Local ML | All 3 capabilities |
-| **Local MAP + LLM REDUCE** | Hybrid ML (Ollama/llama_cpp) | LongT5 MAP + local LLM synthesis (RFC-042) |
+| **Complete Privacy** | Local ML / Ollama | Data never leaves your device |
+| **Lowest Cost** | Local ML / Ollama | $0 (just electricity) |
+| **Air-gapped (no Ollama)** | Local ML (`ml_bart_led_autoresearch_v1`) | v2 held-out 0.206 (weak but zero-deps floor) |
+| **Air-gapped + Ollama** | **Ollama (`qwen3.5:9b` bundled)** | v2 held-out 0.509 paragraph / 0.529 bullets — the recommended local pick |
+| **Highest Quality (cloud)** | DeepSeek (non-bundled) | v2 held-out 0.586 bullets / 0.541 paragraph — top of matrix |
+| **Fastest Cloud** | Gemini 2.5-flash-lite | 1.5s/ep — fastest in v2 matrix |
+| **On-prem, quality first** | **Ollama `qwen3.5:9b` bundled** | Best local quality (0.509 paragraph, uncontested) |
+| **On-prem, speed first** | Ollama (`llama3.2:3b`) | 12s/ep, quality floor 0.501 bullets |
+| **On-prem, bullets-only max quality** | Ollama (`qwen3.5:9b` non-bundled) | 0.580 held-out (2nd overall, beats most cloud) |
+| **Full Capabilities** | OpenAI / Local ML | All 3 capabilities (transcription + speaker + summary) |
+| **Hybrid MAP-REDUCE** | Hybrid ML (Ollama/llama_cpp) | Retained as niche option (RFC-042); not recommended as default — see v2 findings |
 | **Real-Time Info** | Grok | Real-time information access (RFC-036) |
-| **Lowest Cloud Cost** | DeepSeek | 95% cheaper than OpenAI (RFC-034) |
+| **Lowest Cloud Cost** | Gemini 2.5-flash-lite / DeepSeek | ~$0.0005/ep both — comparable |
 | **EU Data Residency** | Mistral | European servers (RFC-033) |
 | **Huge Context** | Gemini | 2 million token window (RFC-035) |
 | **Free Development** | Gemini / Grok | Generous free tiers (RFC-035, RFC-036) |

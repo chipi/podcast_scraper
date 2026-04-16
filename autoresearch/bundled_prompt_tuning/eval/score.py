@@ -83,8 +83,10 @@ def _run_subprocess(
 
     env = os.environ.copy()
     env["OPENAI_API_KEY"] = resolve_experiment_openai_key()
-    # Ollama runs locally — no API key required. Skip provider-key resolution.
-    if backend_type != "ollama":
+    # Local backends (Ollama, hf_local, hybrid_ml) don't need a cloud provider key.
+    # (hybrid_ml's REDUCE stage may use Ollama, also local.)
+    _LOCAL_BACKENDS = {"ollama", "hf_local", "hybrid_ml"}
+    if backend_type not in _LOCAL_BACKENDS:
         runtime_env = provider_runtime_key_env(backend_type)
         env[runtime_env] = resolve_experiment_provider_key(backend_type)
 

@@ -296,6 +296,45 @@ Anthropic bundled paragraph (0.548) even *beats* Anthropic non-bundled paragraph
 For any workload where bundled (title + summary + bullets in one call) is the preferred shape,
 Anthropic is the only provider where it's not a quality compromise.
 
+### 6. ML and hybrid_ml pipelines under v2 (2026-04-16)
+
+Historical v1 ML champions re-run under the v2 framework to isolate framework effect from
+model effect.
+
+**Paragraph held-out (v1 results vs v2 under same configs):**
+
+| Config | v1 ROUGE-L | v2 Dev final | v2 Held-out final | v2 Held-out ROUGE-L | v2 judge_mean |
+| ------ | :--------: | :----------: | :---------------: | :-----------------: | :-----------: |
+| bart-led (pure ML) | 20.5% | 0.230 | 0.206 | 19.4% | **0.23** |
+| hybrid bart + llama3.2:3b | 21.1% | 0.402 | 0.430 | 25.4% | 0.84 |
+| **hybrid bart + qwen3.5:9b (new v2 swap)** | — | **0.421** | **0.448** | 26.9% | 0.87 |
+
+**Findings:**
+
+1. **Framework alone doesn't save bart-led.** v1 → v2 on same config = essentially
+   flat ROUGE-L (20.5% → 19.4%). Judge-mean 0.23 tells the story: Sonnet-4.6 silver's
+   standard applied rigorously scores BART's output as genuinely poor, and no rubric
+   change recovers that.
+
+2. **Hybrid's REDUCE stage does most of the work.** Swapping llama3.2:3b → qwen3.5:9b
+   as REDUCE only lifted hybrid by +4% (0.430 → 0.448). Most of hybrid's score comes
+   from the LLM REDUCE, not from BART MAP.
+
+3. **Surprising: BART MAP helps a weak REDUCE, but hurts a capable one.**
+
+   | Scenario | Standalone | Hybrid | Winner |
+   | -------- | :--------: | :----: | :----: |
+   | Weak REDUCE (llama3.2:3b) | 0.270 (contested) | 0.430 | **Hybrid** (BART preprocessing stabilises output) |
+   | Capable REDUCE (qwen3.5:9b) | **0.509** bundled | 0.448 | **Standalone** (BART chunking loses information) |
+
+   The hybrid pipeline's value is tied to the weakness of the REDUCE model. With
+   qwen3.5:9b now available, standalone beats hybrid.
+
+**Practical consequence**: the hybrid pipeline (`ml_hybrid_bart_*`) loses its reason to
+exist as a default recommendation. Retained in docs for narrow niches (truly
+memory-constrained, explainability, etc.) but `qwen3.5:9b` standalone bundled is the
+new Tier 3 pick.
+
 ### 5. Q4_0 → Q4_K_M quant upgrade tested 2026-04-16 (null-to-negative result)
 
 Research predicted Q4_K_M would give "free quality" on phi3:mini, gemma2:9b, and

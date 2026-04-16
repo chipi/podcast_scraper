@@ -91,17 +91,32 @@ PROD_DEFAULT_NER_MODEL = "en_core_web_trf"  # Prod: Transformer-based, higher qu
 # content — architectural mismatch (see model_registry.py deprecation_reason).
 # It will be re-evaluated when news is added as a content type.
 #
-# Four-tier summarization strategy (ADR-071):
-#   Tier 1 — ML Dev:    ml_small_authority       (~14% ROUGE-L, fast, no GPU)
-#   Tier 2 — ML Prod:   ml_bart_led_autoresearch_v1  (20.4%, 30.6s, zero deps)
-#   Tier 3 — LLM Local: llama3.2:3b direct Ollama    (24.3%, 7.9s, Ollama required)
-#   Tier 4 — LLM Cloud: Anthropic Claude Sonnet 4.6  (~32.6%, ~3s, API key required)
+# Four-tier summarization strategy (ADR-071, updated with v2 eval data 2026-04-16):
+#   Tier 1 — ML Dev:    ml_small_authority             (~14% ROUGE-L; fast, no GPU, no Ollama)
+#   Tier 2 — ML Prod:   ml_bart_led_autoresearch_v1    (v2 held-out: 0.206 final / 19.4% ROUGE-L;
+#                                                       weak but genuine zero-dependency floor)
+#   Tier 3 — LLM Local: qwen3.5:9b bundled via Ollama  (v2 held-out: 0.509 para / 0.529 bullets;
+#                                                       Ollama required; best local quality)
+#   Tier 4 — LLM Cloud: gemini-2.5-flash-lite          (v2 held-out: 0.564 bullets / 0.479 para;
+#                                                       1.5s/ep, ~$0.00047/ep; best balance of
+#                                                       quality × latency × cost)
+#
+# See: docs/guides/AI_PROVIDER_COMPARISON_GUIDE.md for the two absolute picks and
+# docs/guides/eval-reports/EVAL_HELDOUT_V2_2026_04.md for the full 20-model matrix.
 #
 # PROD_DEFAULT points to Tier 2 (pure ML): guaranteed to work with no external daemons.
 # For best local quality when Ollama is available, use OLLAMA_DEFAULT_SUMMARY_MODEL (Tier 3).
+#
+# Hybrid ML pipeline (ml_hybrid_bart_*) is retained and documented but NOT a default
+# recommendation — v2 eval showed hybrid is only useful when the REDUCE model is weak
+# (3B range). With capable REDUCE (9B+), standalone LLM beats hybrid. See RFC-073.
 DEV_DEFAULT_SUMMARY_MODE_ID = "ml_small_authority"
 PROD_DEFAULT_SUMMARY_MODE_ID = "ml_bart_led_autoresearch_v1"
-OLLAMA_DEFAULT_SUMMARY_MODEL = "llama3.2:3b"  # Tier 3: direct, temp=0.5, max_tokens=1000
+# Tier 3 default (requires Ollama). v2 champion: qwen3.5:9b in bundled mode delivers
+# title + summary + bullets in a single call at 0.509 paragraph / 0.529 bullets
+# (held-out). Previous default (llama3.2:3b direct) was 0.270 paragraph (contested) —
+# the upgrade is substantial. Prefer bundled mode when llm_pipeline_mode supports it.
+OLLAMA_DEFAULT_SUMMARY_MODEL = "qwen3.5:9b"
 
 PROD_DEFAULT_WHISPER_MODEL = "base.en"  # Better quality than tiny.en, English-only
 try:
