@@ -100,9 +100,11 @@ def load_topic_cluster_enrichment_map(corpus_root: Path) -> Dict[str, Dict[str, 
     joined = os.path.normpath(os.path.join(root_s, "search", TOPIC_CLUSTERS_FILENAME))
     if joined != root_s and not joined.startswith(safe_prefix):
         return {}
+    # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
         return {}
     try:
+        # codeql[py/path-injection] -- joined sanitized above.
         with open(joined, encoding="utf-8") as fh:
             payload = cast(Dict[str, Any], json.loads(fh.read()))
     except (OSError, json.JSONDecodeError) as exc:

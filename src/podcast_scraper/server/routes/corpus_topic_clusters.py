@@ -61,6 +61,7 @@ async def corpus_topic_clusters(
                 "available": False,
             },
         )
+    # codeql[py/path-injection] -- joined under root_s (Type 1; CODEQL_DISMISSALS.md).
     if not os.path.isfile(joined):
         return JSONResponse(
             status_code=404,
@@ -71,6 +72,7 @@ async def corpus_topic_clusters(
         )
 
     try:
+        # codeql[py/path-injection] -- joined sanitized above.
         with open(joined, encoding="utf-8") as fh:
             payload = json.loads(fh.read())
     except (OSError, json.JSONDecodeError) as exc:

@@ -37,6 +37,12 @@ with an inline ``os.path.normpath`` + ``str.startswith(safe_prefix)`` guard in
 the same function. CodeQL does not always propagate sanitiser state out of
 helpers.
 
+**Inline pragma (same Type 1):** if sinks still alert after the above, add the
+same ``# codeql[py/path-injection] -- …`` line used elsewhere under
+``src/podcast_scraper/server/routes/`` (see ``corpus_binary.py``), documenting
+the sanitizer chain. Prefer fixing taint flow first; use the pragma when CodeQL
+cannot close the query.
+
 **Sanitiser chain (reference):**
 
 All user-supplied corpus paths flow through one of:

@@ -64,6 +64,7 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     basename = os.path.basename(verified)
     if not _suffix_allowed(basename):
         return None
+    # codeql[py/path-injection] -- verified from normpath_if_under_root(safe, root_s).
     if os.path.isfile(verified):
         return verified, basename
 
@@ -77,6 +78,7 @@ def _resolve_readable_file_under_corpus(root: Path, norm: str) -> tuple[str, str
     alt_base = os.path.basename(verified_alt)
     if not _suffix_allowed(alt_base):
         return None
+    # codeql[py/path-injection] -- verified_alt from normpath_if_under_root(safe_alt, root_s).
     if os.path.isfile(verified_alt):
         return verified_alt, alt_base
     return None
@@ -137,6 +139,7 @@ async def corpus_text_file(
     if not verified_path:
         raise HTTPException(status_code=400, detail="Invalid path.")
 
+    # codeql[py/path-injection] -- verified_path from normpath_if_under_root(safe_file, root_s).
     return FileResponse(
         path=verified_path,
         media_type=_inline_media_type(basename),
