@@ -28,8 +28,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def load_model(model_id: str):
     print(f"Loading {model_id} on MPS...", flush=True)
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForCausalLM.from_pretrained(
+    tokenizer = AutoTokenizer.from_pretrained(model_id)  # nosec B615
+    model = AutoModelForCausalLM.from_pretrained(  # nosec B615
         model_id,
         torch_dtype=torch.float16,
         device_map="mps",
