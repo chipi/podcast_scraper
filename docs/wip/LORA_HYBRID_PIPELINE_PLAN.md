@@ -150,17 +150,58 @@ It pays off regardless of LoRA outcome.
 
 ## Phase plan for hybrid pipeline LoRA
 
-### Phase 0: Baseline (before touching LoRA)
+### Pre-phase 0: Pick the right base models FIRST
 
-**Goal**: establish un-tuned hybrid numbers under v2 framework. Without this, we can't
-measure LoRA improvement.
+**Important realisation from v2 data**: the hybrid's default REDUCE (llama3.2:3b, 0.501)
+is the **weakest of the 7B+ class we've evaluated**. It was chosen in v1 because it was
+the smallest available Ollama model, not because it was optimal.
 
-- Run `ml_hybrid_bart_llama32_3b_autoresearch_v1` with v2 champion REDUCE prompt on
-  dev + held-out (covered in `AUTORESEARCH_V2_NEXT_STEPS.md` §3)
+Before investing any training time, swap the base to a stronger starting point. Empirical
+LoRA pattern: stronger base → stronger fine-tune. LoRA'd 3B won't reach un-tuned 9B.
+
+### REDUCE base candidates (by v2 bullets held-out)
+
+| Candidate | v2 score | Size | Why consider |
+|-----------|:--------:|:----:|--------------|
+| **qwen3.5:9b** | **0.580** | 9B | Highest local quality; excellent LoRA support; likely ceiling 0.60+ |
+| mistral:7b | 0.526 | 7B | Surprise v2 winner at 7B; huge LoRA ecosystem; balanced pick |
+| llama3.1:8b | 0.518 | 8B | Well-supported in LoRA literature; solid mid-option |
+| llama3.2:3b (current v1 default) | 0.501 | 3B | Smallest; keep only if memory-constrained |
+| phi3:mini | 0.475 | 3.8B | Skip — weak base, less LoRA community support |
+
+### MAP base candidates
+
+Current `facebook/bart-large-cnn` is CNN-news tuned, 1024-token input limit. Same
+"pick the right base before LoRA-tuning it" logic applies. See
+`AUTORESEARCH_V2_NEXT_STEPS.md` §2 for alternatives. Don't LoRA-tune BART if you're about
+to swap it.
+
+### Resulting combinations to evaluate
+
+| # | MAP | REDUCE | Rough target | Resource cost |
+|---|-----|--------|:------------:|:-------------:|
+| 1 | bart-large-cnn (LoRA'd) | llama3.2:3b (LoRA'd) | 0.45 | Lowest |
+| 2 | long-t5 (LoRA'd) | mistral:7b (LoRA'd) | 0.55 | Medium |
+| 3 | long-t5 (LoRA'd) | qwen3.5:9b (LoRA'd) | 0.60+ | Highest |
+| 4 | long-t5 (un-tuned) | qwen3.5:9b (un-tuned) | baseline | Medium |
+
+**Run combo #4 first as Phase 0.** It might already be competitive, in which case LoRA
+becomes optional. Combo #3 is the ambitious target. Combos #1-2 are fallbacks if
+memory/training time constrains.
+
+### Phase 0: Baseline with right base models
+
+**Goal**: establish un-tuned hybrid numbers with the RIGHT base models under v2 framework.
+Not with v1's llama3.2:3b — with the chosen base (combo #4 above).
+
+- Set up hybrid config with long-t5 MAP + qwen3.5:9b REDUCE
+- Apply v2 champion REDUCE prompt
+- Run on dev + held-out × bullets + paragraph
 - Record: ROUGE-L, final score, latency per stage (MAP vs REDUCE)
-- Identify bottleneck: is MAP's extraction or REDUCE's synthesis the weak link?
+- Identify bottleneck: is MAP extraction or REDUCE synthesis the weak link?
 
-**Output**: baseline numbers + bottleneck identification.
+**Output**: baseline numbers with modern bases + bottleneck identification. Already
+meaningful — this alone may lift the hybrid pipeline substantially without any training.
 
 ### Phase 1: Data generation
 
