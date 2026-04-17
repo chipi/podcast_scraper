@@ -14,7 +14,7 @@ _CIL_PREFIXES = ("person:", "org:", "topic:")
 # identities whose exact IDs don't match.  Only applied to identities of the
 # same CIL type (person↔person, topic↔topic) where one is GI-only and the
 # other is KG-only.
-_FUZZY_MERGE_THRESHOLD = 0.85
+_FUZZY_MERGE_THRESHOLD = 0.75
 
 
 def _strip_layer_prefixes(raw_id: str) -> str:
