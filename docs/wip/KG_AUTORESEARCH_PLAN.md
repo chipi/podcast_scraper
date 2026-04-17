@@ -129,7 +129,27 @@ Silver KG refs generated: 48 topics + 15 entities across 5 held-out episodes.
 
 ---
 
-## Phase 2: Provider comparison
+## Phase 2 results: Provider comparison (2026-04-17)
+
+All 7 providers at n=10 direct extraction:
+
+| Provider | Coverage | Avg sim | Latency |
+|----------|----------|---------|---------|
+| **deepseek-chat** | **81%** (39/48) | 0.838 | 24s |
+| grok-3-mini | 77% (37/48) | 0.782 | 71s |
+| gemini-2.5-flash-lite | 75% (36/48) | 0.773 | 7s |
+| anthropic haiku-4.5 | 75% (36/48) | 0.764 | 10s |
+| gpt-4o-mini | 71% (34/48) | 0.741 | 14s |
+| mistral-small | 71% (34/48) | 0.765 | 6s |
+| qwen3.5:9b (local) | 67% (32/48) | 0.725 | 862s |
+
+**DeepSeek leads KG** (81%) — different from GI where Grok led (88%).
+Provider strengths vary by task. DeepSeek is best all-round for GI+KG combined.
+Local model (qwen3.5:9b) pays ~8pp tax vs best cloud.
+
+---
+
+## Phase 2 (original): Provider comparison
 
 Run all 7 LLM providers at the optimal count. GI showed provider variance (78-88%);
 KG may show similar or different ranking.
