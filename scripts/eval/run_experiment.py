@@ -1593,6 +1593,32 @@ def run_experiment(  # noqa: C901
                             else:
                                 ins_texts = None
                                 ins_prov = None
+
+                            # Create evidence providers (QA + NLI) for
+                            # grounding — mirrors metadata_generation.py.
+                            # Without these, build_artifact produces Insight
+                            # nodes but no Quote/SUPPORTED_BY/Person/Topic.
+                            from podcast_scraper.gi.deps import (
+                                create_gil_evidence_providers,
+                            )
+
+                            gi_require = getattr(cfg_obj, "gi_require_grounding", True)
+                            if gi_require:
+                                (
+                                    qa_prov,
+                                    nli_prov,
+                                ) = create_gil_evidence_providers(
+                                    cfg_obj, summary_provider=provider
+                                )
+                                # Track for cleanup
+                                if qa_prov is not provider:
+                                    gil_extra.append(qa_prov)
+                                if nli_prov is not provider and nli_prov is not qa_prov:
+                                    gil_extra.append(nli_prov)
+                            else:
+                                qa_prov = None
+                                nli_prov = None
+
                             gil_payload = build_artifact(
                                 episode_id,
                                 text,
@@ -1603,9 +1629,12 @@ def run_experiment(  # noqa: C901
                                 cfg=cfg_obj,
                                 insight_texts=ins_texts,
                                 insight_provider=ins_prov,
+                                quote_extraction_provider=qa_prov,
+                                entailment_provider=nli_prov,
                                 summary_provider=provider,
                                 pipeline_metrics=None,
                                 gil_created_evidence_providers=gil_extra,
+                                topic_labels=bullets or None,
                             )
                             _cleanup_gil_evidence_extras(gil_extra)
                         dt = time.time() - t0

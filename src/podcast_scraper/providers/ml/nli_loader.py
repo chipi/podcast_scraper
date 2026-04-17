@@ -10,7 +10,7 @@ import contextlib
 import logging
 import math
 import os
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ...cache import get_transformers_cache_dir
 from .model_registry import ModelRegistry
@@ -212,12 +212,16 @@ def load_nli_model(
     cache_dir = str(get_transformers_cache_dir().resolve())
     # ST 3+: local_files_only on CrossEncoder only (not inside tokenizer/model kwargs — duplicate
     # key error). ST 5.3+: prefer cache_folder + tokenizer_kwargs/model_kwargs over *_args.
-    model = CrossEncoder(
-        resolved,
-        device=dev,
-        local_files_only=True,
-        cache_folder=cache_dir,
-    )
+    # ST 2.x: CrossEncoder doesn't accept local_files_only or cache_folder at all.
+    import inspect
+
+    ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
+    ce_kwargs: Dict[str, Any] = {"device": dev}
+    if "local_files_only" in ce_params:
+        ce_kwargs["local_files_only"] = True
+    if "cache_folder" in ce_params:
+        ce_kwargs["cache_folder"] = cache_dir
+    model = CrossEncoder(resolved, **ce_kwargs)
     return model
 
 

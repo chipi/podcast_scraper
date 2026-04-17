@@ -1,0 +1,24 @@
+# KG on held-out: Gemini provider mode (direct topic/entity extraction from transcript).
+# Optimized settings from autoresearch: max_topics=10, source=provider.
+id: kg_gemini_benchmark_v2_provider
+task: knowledge_graph
+
+backend:
+  type: gemini
+  model: gemini-2.5-flash-lite
+
+prompts:
+  user: gemini/summarization/long_v1
+
+data:
+  dataset_id: curated_5feeds_benchmark_v2
+
+preprocessing_profile: cleaning_v4
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  kg_extraction_source: provider
+  kg_max_topics: 10
+  kg_max_entities: 15
