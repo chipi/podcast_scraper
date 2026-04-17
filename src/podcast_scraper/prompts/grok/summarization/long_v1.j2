@@ -8,11 +8,11 @@ Transcript:
 {{ transcript }}
 
 Guidelines:
-- Write a detailed summary with {{ paragraphs_min }}-{{ paragraphs_max }} paragraphs
-- Begin the first paragraph with a sentence that states the episode's central thesis or main topic
-- Focus on key decisions, arguments, and lessons learned
+- Write a detailed summary with {{ paragraphs_min | default(4) }}-{{ paragraphs_max | default(6) }} paragraphs
+- Begin the first paragraph with a single sentence naming the episode's domain and its central argument or premise
+- Cover ALL major discussion segments in the order they appear in the transcript
+- Preserve key technical terms, concept names, product names, and specific vocabulary from the transcript verbatim — do not paraphrase or substitute synonyms for named concepts
+- Anchor each paragraph in specific claims, data points, or named entities from the transcript
 - Ignore sponsorships, ads, and housekeeping
 - Do not use quotes or speaker names
 - Do not invent information not implied by the transcript
-- Prefer the transcript's own terminology and phrasing where it aids clarity
-- Anchor each paragraph in specific claims, data points, or named entities from the transcript

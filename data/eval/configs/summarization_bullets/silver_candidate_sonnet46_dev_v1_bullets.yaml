@@ -1,0 +1,28 @@
+# Silver candidate: Sonnet 4.6 bullets on dev_v1 (10 episodes).
+#
+# After running, promote with:
+#   python scripts/eval/promote_run.py --run-id silver_candidate_sonnet46_dev_v1_bullets \
+#     --as reference --promoted-id silver_sonnet46_dev_v1_bullets \
+#     --reason "Dev silver (v2 framework): Sonnet 4.6 bullets on dev_v1 dataset" \
+#     --reference-quality silver
+
+id: "silver_candidate_sonnet46_dev_v1_bullets"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-sonnet-4-6"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

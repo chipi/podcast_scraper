@@ -1,0 +1,22 @@
+# Silver candidate: Sonnet 4.6 bullets on benchmark_v2 (5 held-out e03 episodes, ~32 min each).
+
+id: "silver_candidate_sonnet46_benchmark_v2_bullets"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-sonnet-4-6"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

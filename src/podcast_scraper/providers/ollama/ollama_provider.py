@@ -59,19 +59,30 @@ from ...workflow import metrics
 logger = logging.getLogger(__name__)
 
 
-def _ollama_openai_chat_extra_kwargs(model: str) -> Dict[str, Any]:
+def _ollama_openai_chat_extra_kwargs(model: str, num_ctx: Optional[int] = None) -> Dict[str, Any]:
     """Extra kwargs for Ollama's OpenAI-compatible ``/v1/chat/completions``.
 
-    Qwen 3.5 uses chain-of-thought in the ``reasoning`` field unless disabled.
-    Without ``reasoning_effort: none``, ``message.content`` can stay empty while
-    the model consumes ``max_tokens`` on thinking (finish_reason ``length``).
+    Two Ollama-specific concerns handled here:
 
-    See: https://docs.ollama.com/capabilities/thinking
+    1. **Context window (num_ctx)** — Ollama defaults to 2048 tokens, which silently
+       truncates any prompt longer than that. For summarisation we need the full
+       transcript, so we pass ``num_ctx`` explicitly via ``extra_body``. Models have
+       different maximums (e.g. gemma2 = 8k, qwen3.5 = 256k); pick a value large
+       enough for your expected prompt length but within the model's range.
+
+    2. **Qwen 3.5 chain-of-thought** — Qwen 3.5 uses the ``reasoning`` field unless
+       disabled. Without ``reasoning_effort: none``, ``message.content`` can stay
+       empty while the model consumes ``max_tokens`` on thinking (finish_reason
+       ``length``). See: https://docs.ollama.com/capabilities/thinking
     """
     m = (model or "").lower()
+    extra_body: Dict[str, Any] = {}
+    if num_ctx is not None:
+        # Ollama's OpenAI-compat endpoint accepts native Ollama options via extra_body.
+        extra_body["options"] = {"num_ctx": int(num_ctx)}
     if "qwen3.5" in m:
-        return {"extra_body": {"reasoning_effort": "none"}}
-    return {}
+        extra_body["reasoning_effort"] = "none"
+    return {"extra_body": extra_body} if extra_body else {}
 
 
 def _flatten_json_speaker_names(value: Any) -> List[str]:
@@ -232,6 +243,11 @@ class OllamaProvider:
             self.summary_model,
         )
         self.summary_temperature = getattr(cfg, "ollama_temperature", 0.3)
+        # Ollama 0.19.0 tiers num_ctx by VRAM (48GB → 32k default). But silent
+        # truncation still happens when prompt+output exceed the set limit, so we
+        # set explicitly. 32768 is the research-recommended safe default on 48GB.
+        # gemma2 is structurally capped at 8192 regardless; Ollama silently clamps.
+        self.summary_num_ctx: int = int(getattr(cfg, "ollama_num_ctx", 32768) or 32768)
         # Modern Ollama models support 128k context window
         self.max_context_tokens = 128000  # Conservative estimate
 
@@ -1053,7 +1069,9 @@ class OllamaProvider:
                     temperature=effective_temperature,
                     max_tokens=max_length,
                     **optional_kwargs,
-                    **_ollama_openai_chat_extra_kwargs(self.summary_model),
+                    **_ollama_openai_chat_extra_kwargs(
+                        self.summary_model, num_ctx=self.summary_num_ctx
+                    ),
                 )
 
             try:
@@ -1227,7 +1245,9 @@ class OllamaProvider:
                 temperature=self.summary_temperature,
                 max_tokens=max_out,
                 response_format={"type": "json_object"},
-                **_ollama_openai_chat_extra_kwargs(self.summary_model),
+                **_ollama_openai_chat_extra_kwargs(
+                    self.summary_model, num_ctx=self.summary_num_ctx
+                ),
             )
 
         try:
@@ -1255,7 +1275,7 @@ class OllamaProvider:
             raise ValueError("Ollama bundled call returned empty content")
 
         try:
-            data = json.loads(raw)
+            data = json.loads(raw, strict=False)
         except json.JSONDecodeError as exc:
             raise ValueError(f"Bundled response is not valid JSON: {exc}") from exc
 

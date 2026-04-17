@@ -1,0 +1,4 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+baseline	0.526119	—	baseline	Non-bundled bullets v2 baseline: gpt-4o + shared/summarization prompts (stock); ROUGE-L=34.5%; 0/10 contested; judge_mean=0.950	gpt-4o-mini	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_dev_v1
+exp-nb-r1-1	0.564087	+0.037968	accepted	style narration + few-shot bullets + anti-patterns (ported from bundled r7-1 champion); ROUGE-L=40.4% (+5.9pp); judge_mean=0.938; 0/10 contested	gpt-4o-mini	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_dev_v1
+exp-nb-r1-2	0.564456	+0.000369	rejected	user prompt: coverage + verbatim terminology rules; ROUGE-L=40.2% (-0.2pp); +0.07% below +1% threshold	gpt-4o-mini	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_dev_v1

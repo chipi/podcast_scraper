@@ -105,6 +105,9 @@ ROUGE_WEIGHT_ENV = "AUTORESEARCH_SCORE_ROUGE_WEIGHT"
 DEFAULT_ROUGE_WEIGHT = 0.4
 MAX_TRANSCRIPT_CHARS = 28_000
 DIVERGENCE_THRESHOLD = 0.25
+# Fraction of episodes that must individually contest before the run is considered contested.
+# Binary OR (any single episode) was too brittle at small dataset scales.
+CONTEST_FRACTION_THRESHOLD = 0.40
 
 
 class AutoresearchConfigError(RuntimeError):
@@ -259,7 +262,18 @@ def load_judge_config(path: Path) -> Dict[str, Any]:
 
 
 def parse_judge_score_json(text: str) -> float:
-    """Parse assistant text that should contain JSON with a ``score`` field (0..1)."""
+    """Parse assistant text containing judge JSON; supports both legacy and per-dimension formats.
+
+    Legacy format: ``{"score": 0.85, "notes": "..."}``
+    Per-dimension format: ``{"coverage": 0.9, "accuracy": 1.0, "efficiency": 0.8,
+                             "score": 0.9, "notes": "..."}``
+
+    When per-dimension fields are present they are logged for visibility. ``score`` is always the
+    authoritative value; if absent it is computed as the mean of the three dimension scores.
+    """
+    import logging as _logging
+
+    _log = _logging.getLogger(__name__)
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = re.sub(r"^```[a-zA-Z0-9]*\s*", "", cleaned)
@@ -267,17 +281,68 @@ def parse_judge_score_json(text: str) -> float:
     data = json.loads(cleaned)
     if not isinstance(data, dict):
         raise ValueError("Judge JSON must be an object")
+
+    # Log per-dimension breakdown when available.
+    dims = {k: data.get(k) for k in ("coverage", "accuracy", "efficiency")}
+    if any(v is not None for v in dims.values()):
+        _log.debug(
+            "Judge dimensions — coverage=%.3f accuracy=%.3f efficiency=%.3f",
+            float(dims["coverage"] or 0),
+            float(dims["accuracy"] or 0),
+            float(dims["efficiency"] or 0),
+        )
+
     score = data.get("score")
     if score is None:
-        raise ValueError("Judge JSON missing 'score'")
+        # Fall back to mean of dimensions if all three are present.
+        if all(dims[k] is not None for k in ("coverage", "accuracy", "efficiency")):
+            dim_vals = [float(dims[k] or 0) for k in ("coverage", "accuracy", "efficiency")]
+            score = sum(dim_vals) / 3.0  # type: ignore[assignment]
+    if score is None:
+        raise ValueError("Judge JSON missing 'score' and not all dimension scores present")
     f = float(score)
     if f < 0.0 or f > 1.0:
         raise ValueError(f"score out of range [0,1]: {f}")
     return f
 
 
+def _extract_summary_prose(summary: str) -> str:
+    """Return human-readable prose from ``summary``.
+
+    Bundled-mode predictions store ``summary_final`` as a JSON string
+    ``{"title": "...", "summary": "...", "bullets": [...]}``.  Passing raw JSON
+    to a judge model is ambiguous — one model may treat length of the JSON blob
+    as a conciseness signal while another focuses on the prose inside.  Extract
+    and format the prose fields so both judges evaluate the same content.
+
+    Falls back to the original string if it is not parseable JSON or lacks the
+    expected shape.
+    """
+    try:
+        data = json.loads(summary)
+        if not isinstance(data, dict):
+            return summary
+        parts: List[str] = []
+        title = data.get("title")
+        if title:
+            parts.append(f"Title: {title}")
+        prose = data.get("summary") or data.get("text")
+        if prose:
+            parts.append(f"Summary:\n{prose}")
+        bullets = data.get("bullets")
+        if bullets and isinstance(bullets, list):
+            bullet_lines = "\n".join(f"- {b}" for b in bullets if b)
+            parts.append(f"Key takeaways:\n{bullet_lines}")
+        if parts:
+            return "\n\n".join(parts)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    return summary
+
+
 def _judge_user_message(*, rubric: str, transcript: str, summary: str) -> str:
     t = transcript if len(transcript) <= MAX_TRANSCRIPT_CHARS else transcript[:MAX_TRANSCRIPT_CHARS]
+    formatted_summary = _extract_summary_prose(summary)
     return (
         "You evaluate podcast episode summaries against the transcript.\n\n"
         "### Rubric\n"
@@ -285,10 +350,12 @@ def _judge_user_message(*, rubric: str, transcript: str, summary: str) -> str:
         "### Transcript (may be truncated)\n"
         f"{t}\n\n"
         "### Candidate summary\n"
-        f"{summary}\n\n"
-        "Reply with a single JSON object only, no markdown: "
-        '{"score": <float 0.0-1.0>, "notes": "<one short sentence>"}\n'
-        "score 1.0 = fully satisfies rubric; 0.0 = fails badly."
+        f"{formatted_summary}\n\n"
+        "Reply with a single JSON object only, no markdown:\n"
+        '{"coverage": <float 0.0-1.0>, "accuracy": <float 0.0-1.0>, '
+        '"efficiency": <float 0.0-1.0>, "score": <mean of the three>, '
+        '"notes": "<one short sentence>"}\n'
+        "score 1.0 = fully satisfies all rubric dimensions; 0.0 = fails badly."
     )
 
 
@@ -308,7 +375,11 @@ def call_openai_judge(*, api_key: str, model: str, user_content: str) -> float:
 
 def call_anthropic_judge(*, api_key: str, model: str, user_content: str) -> float:
     """Run one Anthropic messages call and parse ``score`` from the assistant JSON reply."""
+    import logging
+
     import anthropic
+
+    logger = logging.getLogger(__name__)
 
     client = anthropic.Anthropic(api_key=api_key)
     msg = client.messages.create(
@@ -317,11 +388,27 @@ def call_anthropic_judge(*, api_key: str, model: str, user_content: str) -> floa
         temperature=0.0,
         messages=[{"role": "user", "content": user_content}],
     )
-    parts: List[str] = []
-    for block in msg.content:
-        if hasattr(block, "text"):
-            parts.append(block.text)
-    content = "".join(parts).strip()
+    # Handle both Message object and string responses
+    if isinstance(msg, str):
+        content = msg.strip()
+    else:
+        logger.debug(
+            "Message type: %s, stop_reason: %s, content blocks: %d",
+            type(msg),
+            getattr(msg, "stop_reason", "N/A"),
+            len(msg.content),
+        )
+        parts: List[str] = []
+        for i, block in enumerate(msg.content):
+            logger.debug(
+                "  Block %d: type=%s, has_text=%s",
+                i,
+                type(block).__name__,
+                hasattr(block, "text"),
+            )
+            if hasattr(block, "text"):
+                parts.append(block.text)
+        content = "".join(parts).strip()
     return parse_judge_score_json(content)
 
 
@@ -407,7 +494,7 @@ def mean_judge_scores(
     )
     mids: List[float] = []
     outcomes: List[JudgeOutcome] = []
-    any_contested = False
+    contested_count = 0
     for pred in predictions:
         eid = pred.get("episode_id")
         if not eid:
@@ -431,9 +518,19 @@ def mean_judge_scores(
         outcomes.append(o)
         mids.append((o.judge_a + o.judge_b) / 2.0)
         if o.contested:
-            any_contested = True
+            contested_count += 1
     if not mids:
         raise RuntimeError("No episodes scored by judges")
+    # Contested when a meaningful fraction of episodes diverge — not just one.
+    # A single outlier episode should not collapse the entire run to ROUGE-only.
+    any_contested = (contested_count / len(mids)) > CONTEST_FRACTION_THRESHOLD
+    logger.info(
+        "Judge contestation: %d/%d episodes contested (threshold %.0f%%) → contested=%s",
+        contested_count,
+        len(mids),
+        CONTEST_FRACTION_THRESHOLD * 100,
+        any_contested,
+    )
     return sum(mids) / len(mids), any_contested, outcomes
 
 

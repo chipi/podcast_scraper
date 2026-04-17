@@ -1,0 +1,47 @@
+# Hybrid ML (BART+qwen3.5:9b) — v2 framework, dev dataset.
+# Swaps REDUCE model from llama3.2:3b to qwen3.5:9b to isolate REDUCE effect.
+# MAP + params otherwise identical to baseline_ml_hybrid_bart_llama32_3b_autoresearch_dev_v2.
+# Pair with: silver_sonnet46_dev_v1_paragraph
+
+id: "baseline_ml_hybrid_bart_qwen35_9b_dev_v2"
+task: "summarization"
+
+backend:
+  type: "hybrid_ml"
+  map_model: "bart-small"
+  reduce_model: "qwen3.5:9b"
+  reduce_backend: "ollama"
+  reduce_instruction_style: "paragraph"
+
+map_params:
+  do_sample: false
+  num_beams: 6
+  max_new_tokens: 200
+  min_new_tokens: 80
+  no_repeat_ngram_size: 3
+  repetition_penalty: 1.10
+  length_penalty: 1.0
+  early_stopping: true
+
+# REDUCE on qwen3.5:9b: temp=0 to match the standalone v2 champion setting
+# (qwen3.5:9b at temp=0 scored 0.580 bullets held-out non-bundled standalone).
+ollama_reduce_params:
+  max_tokens: 1000
+  temperature: 0.0
+  top_p: 1.0
+  frequency_penalty: 0.0
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+preprocessing_profile: "cleaning_v4"
+
+tokenize:
+  map_max_input_tokens: 1024
+  reduce_max_input_tokens: 4096
+  truncation: true
+
+chunking:
+  strategy: "word_chunking"
+  word_chunk_size: 900
+  word_overlap: 150

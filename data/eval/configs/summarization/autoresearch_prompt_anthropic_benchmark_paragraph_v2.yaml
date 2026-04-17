@@ -1,0 +1,22 @@
+# Autoresearch v2 non-bundled paragraph — HELD-OUT benchmark validation (Anthropic).
+
+id: "autoresearch_prompt_anthropic_benchmark_paragraph_v2"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5-20251001"
+
+prompts:
+  system: "anthropic/summarization/system_v1"
+  user: "anthropic/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

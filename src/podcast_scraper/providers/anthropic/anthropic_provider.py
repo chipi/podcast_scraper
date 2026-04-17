@@ -920,7 +920,10 @@ class AnthropicProvider:
                 max_tokens=max_out,
                 temperature=self.summary_temperature,
                 system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
+                messages=[
+                    {"role": "user", "content": user_prompt},
+                    {"role": "assistant", "content": "{"},
+                ],
             )
 
         try:
@@ -948,6 +951,7 @@ class AnthropicProvider:
         raw = (summary or "").strip()
         if not raw:
             raise ValueError("Anthropic bundled call returned empty content")
+        raw = "{" + raw if not raw.startswith("{") else raw
 
         try:
             data = json.loads(raw)

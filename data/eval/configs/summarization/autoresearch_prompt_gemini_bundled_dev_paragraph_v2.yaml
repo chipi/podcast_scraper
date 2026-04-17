@@ -1,0 +1,19 @@
+# Autoresearch v2 bundled paragraph ratchet — Gemini, dev dataset.
+
+id: "autoresearch_prompt_gemini_bundled_dev_paragraph_v2"
+task: "summarization"
+
+backend:
+  type: "gemini"
+  model: "gemini-2.0-flash"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "summary"

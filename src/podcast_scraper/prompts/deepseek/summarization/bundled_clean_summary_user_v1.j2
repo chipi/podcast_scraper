@@ -1,0 +1,25 @@
+Podcast episode transcript (mentally clean pattern-based noise first; base your output on the cleaned content only):
+
+{% if title %}
+Episode Title: {{ title }}
+{% endif %}
+
+Transcript:
+{{ transcript }}
+
+Output rules (strict):
+- Return ONLY valid JSON. Your response must start with `{` and end with `}`. No markdown, no code fences, no prose.
+- Required shape: {"title": null or string, "summary": "...", "bullets": ["...", ...]}
+- "summary" must be a focused prose summary of {{ paragraphs_min | default(4) }}-{{ paragraphs_max | default(6) }} paragraphs. Begin the first paragraph with a single sentence naming the episode's domain and its central argument or premise. Cover major topics in the order they appear; no filler. Separate paragraphs with \n\n.
+- Include at least {{ bullet_min | default(3) }} distinct takeaway(s) when the transcript has enough substance; fewer only for very short or sparse content.
+- Aim for 6-8 bullets for a typical episode; fewer only if content is genuinely sparse.
+{% if bullet_max is defined and bullet_max %}
+- Do not exceed {{ bullet_max }} bullets total.
+{% endif %}
+- Write each bullet as a single, complete sentence; lead with the most specific claim, finding, or data point from that beat; cap roughly {{ max_words_per_bullet | default(45) }} words per bullet.
+- Cover distinct beats from across the episode; avoid repeating the same point; each bullet must reflect a different topic or segment.
+- Ignore sponsorships, ads, and housekeeping.
+- Do not use speaker names or quoted dialogue.
+- Do not invent facts not supported by the transcript.
+- Use precise terminology from the transcript; do not paraphrase technical terms, named frameworks, tools, or concepts.
+- Do NOT include the cleaned transcript in your response.

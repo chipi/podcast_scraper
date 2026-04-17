@@ -1,0 +1,16 @@
+# Autoresearch v2 non-bundled paragraph — ollama/gemma2_9b (dev).
+id: "autoresearch_prompt_ollama_gemma2_9b_dev_paragraph_v2"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "gemma2:9b"
+prompts:
+  system: "ollama/summarization/system_v1"
+  user: "ollama/summarization/long_v1"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"

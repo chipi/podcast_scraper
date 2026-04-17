@@ -1,0 +1,4 @@
+experiment_id	score	delta	status	notes	judge_a_model	judge_b_model	rubric_hash	eval_dataset_ref
+baseline	0.460011	—	baseline	Non-bundled paragraph v2 baseline: gpt-4o + openai/summarization prompts (stock); ROUGE-L=27.1%; 0/10 contested; judge_mean=0.902	gpt-4o-mini	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_dev_v1
+exp-nb-r1-3	0.463930	+0.003919	rejected	paragraph: opening sentence pattern + 4-6 para default; ROUGE-L=27.4% (+0.3pp); +0.9% below +1% threshold	gpt-4o-mini	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_dev_v1
+exp-nb-r1-4	0.481733	+0.021722	accepted	paragraph stacked: 4-6 para default + opening sentence + coverage + verbatim terminology; ROUGE-L=29.7% (+2.6pp); judge_mean=0.914; 0/10 contested	gpt-4o-mini	claude-haiku-4-5-20251001	new-rubric	curated_5feeds_dev_v1

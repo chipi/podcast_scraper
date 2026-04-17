@@ -618,6 +618,7 @@ def run_experiment(  # noqa: C901
                 generate_gi=False,
                 openai_summary_model=model_name,
                 openai_temperature=params_dict_raw.get("temperature", 0.0),
+                openai_summary_seed=params_dict_raw.get("seed"),
                 openai_max_tokens=params_dict_raw.get("max_length", 800),
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
                 openai_summary_user_prompt=user_prompt,
@@ -918,12 +919,17 @@ def run_experiment(  # noqa: C901
 
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
-            if cfg.prompts is None:
+            if cfg.llm_pipeline_mode == "bundled":
+                # Bundled path hardcodes prompt template paths inside the provider.
+                user_prompt = "gemini/summarization/bundled_clean_summary_user_v1"
+                system_prompt = "gemini/summarization/bundled_clean_summary_system_v1"
+            elif cfg.prompts is None:
                 raise ValueError("Gemini backend requires prompts (see ExperimentConfig).")
-            user_prompt = cfg.prompts.user
-            system_prompt = (
-                cfg.prompts.system if cfg.prompts.system else "gemini/summarization/system_v1"
-            )
+            else:
+                user_prompt = cfg.prompts.user
+                system_prompt = (
+                    cfg.prompts.system if cfg.prompts.system else "gemini/summarization/system_v1"
+                )
             cfg_obj = config.Config(
                 rss_url="",
                 summary_provider="gemini",
@@ -1070,12 +1076,17 @@ def run_experiment(  # noqa: C901
 
             params_dict = cfg.params or {}
             model_name = cfg.backend.model
-            if cfg.prompts is None:
+            if cfg.llm_pipeline_mode == "bundled":
+                # Bundled path hardcodes prompt template paths inside the provider.
+                user_prompt = "ollama/summarization/bundled_clean_summary_user_v1"
+                system_prompt = "ollama/summarization/bundled_clean_summary_system_v1"
+            elif cfg.prompts is None:
                 raise ValueError("Ollama backend requires prompts (see ExperimentConfig).")
-            user_prompt = cfg.prompts.user
-            system_prompt = (
-                cfg.prompts.system if cfg.prompts.system else "ollama/summarization/system_v1"
-            )
+            else:
+                user_prompt = cfg.prompts.user
+                system_prompt = (
+                    cfg.prompts.system if cfg.prompts.system else "ollama/summarization/system_v1"
+                )
             # Longer read timeout for large local models (27B+). Default CLI ollama_timeout is 120s.
             _ollama_read = os.environ.get("EXPERIMENT_OLLAMA_READ_TIMEOUT", "").strip()
             _ollama_timeout_kw: Dict[str, int] = {}
@@ -1820,15 +1831,55 @@ def run_experiment(  # noqa: C901
     if cfg.params and "scoring" in cfg.params:
         scoring_params = cfg.params["scoring"]
 
-    metrics = score_run(
-        predictions_path=predictions_path,
-        dataset_id=dataset_id,
-        run_id=run_id,
-        reference_paths=reference_paths if reference_paths else None,
-        metadata_map=metadata_map if metadata_map else None,
-        scoring_params=scoring_params,
-        task=cfg.task,
-    )
+    # If scoring_output_field is set, extract that field from JSON summary_final before scoring.
+    # This allows apples-to-apples comparison for bundled outputs (e.g. extract "bullets" only).
+    scoring_predictions_path = predictions_path
+    _extracted_tmp: Optional[Path] = None
+    if getattr(cfg, "scoring_output_field", None):
+        import tempfile
+
+        field = cfg.scoring_output_field
+        extracted = []
+        for line in predictions_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            pred = json.loads(line)
+            out = pred.get("output", {})
+            sf = out.get("summary_final", "") if isinstance(out, dict) else str(out)
+            try:
+                parsed = json.loads(sf)
+                if field == "bullets" and isinstance(parsed.get("bullets"), list):
+                    sf = " ".join(str(b) for b in parsed["bullets"])
+                elif field == "summary" and isinstance(parsed.get("summary"), str):
+                    sf = parsed["summary"]
+            except (json.JSONDecodeError, AttributeError):
+                pass  # keep original sf if not valid JSON
+            new_pred = dict(pred)
+            new_pred["output"] = {"summary_final": sf}
+            extracted.append(new_pred)
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".jsonl", delete=False, dir=results_dir, prefix="scoring_extract_"
+        )
+        for p in extracted:
+            tmp.write(json.dumps(p) + "\n")
+        tmp.close()
+        _extracted_tmp = Path(tmp.name)
+        scoring_predictions_path = _extracted_tmp
+        logger.info("scoring_output_field=%r: scoring against extracted field only", field)
+
+    try:
+        metrics = score_run(
+            predictions_path=scoring_predictions_path,
+            dataset_id=dataset_id,
+            run_id=run_id,
+            reference_paths=reference_paths if reference_paths else None,
+            metadata_map=metadata_map if metadata_map else None,
+            scoring_params=scoring_params,
+            task=cfg.task,
+        )
+    finally:
+        if _extracted_tmp and _extracted_tmp.exists():
+            _extracted_tmp.unlink()
 
     # Save metrics.json
     metrics_path = results_dir / "metrics.json"

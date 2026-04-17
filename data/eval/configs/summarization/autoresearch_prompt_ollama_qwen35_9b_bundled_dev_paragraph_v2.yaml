@@ -1,0 +1,13 @@
+# Autoresearch v2 bundled paragraph — ollama/qwen35_9b.
+id: "autoresearch_prompt_ollama_qwen35_9b_bundled_dev_paragraph_v2"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "qwen3.5:9b"
+llm_pipeline_mode: "bundled"
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+params:
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "summary"

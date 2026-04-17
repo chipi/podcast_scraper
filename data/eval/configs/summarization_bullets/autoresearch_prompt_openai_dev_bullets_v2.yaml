@@ -1,0 +1,32 @@
+# Autoresearch v2 non-bundled bullets ratchet — OpenAI, dev dataset (10 episodes).
+#
+# Templates under tuning (shared across providers):
+#   src/podcast_scraper/prompts/shared/summarization/system_bullets_v1.j2
+#   src/podcast_scraper/prompts/shared/summarization/bullets_json_v1.j2
+#
+# Paired silver: silver_sonnet46_dev_v1_bullets
+# Validate champions on benchmark_v2 before committing.
+#
+# Results log: autoresearch/prompt_tuning/results/results_openai_bullets_dev_v2.tsv
+
+id: "autoresearch_prompt_openai_dev_bullets_v2"
+task: "summarization"
+
+backend:
+  type: "openai"
+  model: "gpt-4o"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+  seed: 42
+
+preprocessing_profile: "cleaning_v4"

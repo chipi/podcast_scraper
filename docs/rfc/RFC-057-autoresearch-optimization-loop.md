@@ -1,6 +1,14 @@
 # RFC-057: AutoResearch Optimization Loop — Prompt & ML Parameter Tuning
 
-- **Status**: Completed
+> **Track A (prompt tuning) superseded by [RFC-073](RFC-073-autoresearch-v2-framework.md) (v2 framework).**
+> Track A methodology is now defined by RFC-073: dev/held-out dataset split, fraction-based
+> judge contestation, Efficiency rubric dimension, OpenAI seed plumbing, and prose extraction
+> before judging. The smoke/benchmark dataset model and binary-OR contestation described
+> below are **v1 historical** — preserved for reproducibility of v1 runs and champions.
+> Track B (ML parameter tuning) remains under this RFC and is closed per
+> [ADR-073](../adr/ADR-073-rfc057-autoresearch-closure.md).
+
+- **Status**: Completed (v1); Track A superseded by RFC-073
 - **Authors**: Podcast Scraper Team
 - **Stakeholders**: Core team
 - **Related PRDs**:

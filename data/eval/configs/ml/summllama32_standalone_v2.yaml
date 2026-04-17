@@ -1,0 +1,15 @@
+# SummLlama3.2-3B standalone (DPO-tuned on faithfulness/completeness/conciseness).
+# Config is minimal — actual inference runs via scripts/eval/run_summllama_v2.py
+# which writes predictions directly to data/eval/runs/<id>/. This config exists so
+# the scoring harness can be invoked with --score-only against the run dir.
+
+id: "summllama32_standalone_benchmark_v2_paragraph"
+task: "summarization"
+
+backend:
+  type: "eval_stub"  # skip inference; predictions already on disk
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+
+preprocessing_profile: "cleaning_v4"

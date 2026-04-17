@@ -1,0 +1,22 @@
+# Autoresearch v2 non-bundled bullets — HELD-OUT benchmark validation (Gemini).
+
+id: "autoresearch_prompt_gemini_benchmark_bullets_v2"
+task: "summarization"
+
+backend:
+  type: "gemini"
+  model: "gemini-2.0-flash"
+
+prompts:
+  system: "shared/summarization/system_bullets_v1"
+  user: "shared/summarization/bullets_json_v1"
+
+data:
+  dataset_id: "curated_5feeds_benchmark_v2"
+
+params:
+  max_length: 4000
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

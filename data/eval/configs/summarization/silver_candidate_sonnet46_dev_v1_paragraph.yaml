@@ -1,0 +1,22 @@
+# Silver candidate: Sonnet 4.6 paragraph summaries on dev_v1 (10 episodes).
+
+id: "silver_candidate_sonnet46_dev_v1_paragraph"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-sonnet-4-6"
+
+prompts:
+  system: "anthropic/summarization/system_v1"
+  user: "anthropic/summarization/long_v1"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

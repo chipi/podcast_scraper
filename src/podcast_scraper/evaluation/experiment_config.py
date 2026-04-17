@@ -538,6 +538,14 @@ class ExperimentConfig(BaseModel):
             "(Issue #477: bundled clean+summary+bullets vs staged)."
         ),
     )
+    scoring_output_field: Optional[Literal["bullets", "summary"]] = Field(
+        default=None,
+        description=(
+            "When set, extract this field from a JSON summary_final before computing ROUGE. "
+            "Use 'bullets' or 'summary' to score only that component of bundled outputs, "
+            "enabling apples-to-apples comparison against non-bundled runs."
+        ),
+    )
     params: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(
@@ -557,6 +565,10 @@ class ExperimentConfig(BaseModel):
     def validate_prompts_for_backend(self) -> "ExperimentConfig":
         """Validate that prompts are provided for OpenAI backend."""
         if self.backend.type == "eval_stub":
+            return self
+        if self.llm_pipeline_mode == "bundled":
+            # Bundled path hardcodes prompt template paths inside the provider;
+            # no prompts section is needed in the eval config.
             return self
         if self.backend.type in ("openai", "gemini") and not self.prompts:
             raise ValueError(

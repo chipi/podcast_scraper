@@ -1159,6 +1159,16 @@ class Config(BaseModel):
         alias="openai_temperature",
         description="Temperature for OpenAI generation (0.0-2.0, lower = more deterministic)",
     )
+    openai_summary_seed: Optional[int] = Field(
+        default=None,
+        alias="openai_summary_seed",
+        description=(
+            "Optional deterministic-sampling seed for OpenAI summarization calls. "
+            "Combined with temperature=0, yields approximately reproducible outputs "
+            "(same seed + prompt + model → near-identical output). Primarily used "
+            "by the autoresearch ratchet to stabilise smoke-scale scoring."
+        ),
+    )
     openai_cleaning_model: str = Field(
         default_factory=_get_default_openai_cleaning_model,
         alias="openai_cleaning_model",
@@ -1396,6 +1406,20 @@ class Config(BaseModel):
         default=0.3,
         alias="ollama_temperature",
         description="Temperature for Ollama generation (0.0-2.0, lower = more deterministic)",
+    )
+    ollama_num_ctx: int = Field(
+        default=32768,
+        alias="ollama_num_ctx",
+        ge=512,
+        description=(
+            "Ollama context window (num_ctx) passed to the /v1/chat/completions call. "
+            "Ollama 0.19.0 tiers defaults by VRAM (48GB → 32k), but silent truncation "
+            "still happens when prompt + output exceed the set limit. 32768 is the "
+            "research-recommended safe default on 48GB hardware. Note: gemma2 is "
+            "structurally capped at 8192 regardless of this setting (model spec limit); "
+            "Ollama will silently clamp. Reduce this value to save memory if all prompts "
+            "are small, but monitor for held-out-size silent truncation."
+        ),
     )
     ollama_reduce_temperature: Optional[float] = Field(
         default=None,

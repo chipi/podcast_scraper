@@ -1,18 +1,154 @@
 # AI Provider Comparison Guide
 
-> **Your decision-making resource for choosing the right AI provider.**
+> **Authoritative v2 reference**: [`eval-reports/EVAL_HELDOUT_V2_2026_04.md`](eval-reports/EVAL_HELDOUT_V2_2026_04.md) — 6 cloud APIs + 11 Ollama local models, 100+ held-out cells under the v2 framework ([RFC-073](../rfc/RFC-073-autoresearch-v2-framework.md)), compound-scored on quality × latency × cost.
+> v1 benchmark numbers later in this guide are **superseded** by the v2 report above.
 
-A focused analysis of summarization and capability providers supported by
-podcast_scraper: local ML, **hybrid MAP-REDUCE** (hybrid_ml), and 7 LLM providers.
-This guide answers **"which provider should I pick?"** with decision matrices, cost
-analysis, and empirical conclusions.
+---
 
-**Companion pages:**
+## ⭐ Use these two. Everything else is a tradeoff
 
-- [Provider Deep Dives](PROVIDER_DEEP_DIVES.md) — per-provider reference cards, magic
-  quadrant, visual comparisons
-- [Evaluation Reports](eval-reports/index.md) — methodology, metric definitions, and
-  the full library of measured comparison reports
+After evaluating 20 model variants across 100+ held-out cells, two picks cover ~95% of real podcast_scraper deployments. Pick one based on whether you need cloud or local.
+
+### 🌐 Cloud / dev / prod / corpus building → `gemini-2.5-flash-lite` **non-bundled**
+
+```yaml
+backend:
+  type: "gemini"
+  model: "gemini-2.5-flash-lite"
+prompts:
+  system: "shared/summarization/system_bullets_v1"   # for bullets
+  user: "shared/summarization/bullets_json_v1"
+  # (or gemini/summarization/{system_v1,long_v1} for paragraph)
+params:
+  temperature: 0.0
+```
+
+**Use this for dev, test, corpus building, and most production traffic.**
+
+- Quality: 0.564 bullets / 0.479 paragraph held-out (within 4% of the absolute best)
+- Latency: **1.5s per episode** — 2-7× faster than any alternative
+- Cost: **~$0.00047 per episode** — ~$0.47 per 1,000 episodes
+- Why non-bundled: bundled mode costs 5-12% quality on Gemini and OpenAI for no real gain. Just make two API calls (one for bullets, one for paragraph) — still only 3s and $0.00094 total per episode.
+
+**Upgrade to `deepseek-chat` non-bundled only if** quality matters more than throughput (0.586/0.541 vs 0.564/0.479, but ~7× slower at 10s/ep). **Switch to `claude-haiku-4-5` bundled only if** you specifically need title+summary+bullets in a single API call (bundled is viable on Anthropic; it's the only cloud provider where that's true).
+
+### 🏠 Local / offline / privacy → `qwen3.5:9b` **bundled**
+
+```yaml
+backend:
+  type: "ollama"
+  model: "qwen3.5:9b"
+llm_pipeline_mode: "bundled"
+params:
+  temperature: 0.0
+```
+
+**Use this for any fully-local, offline, or privacy-constrained deployment.**
+
+- Quality: 0.529 bullets / 0.509 paragraph held-out (free, matches mid-tier cloud)
+- Latency: ~44s per episode for BOTH outputs (vs ~72s for two separate non-bundled calls)
+- Cost: $0 (your hardware)
+- Why bundled: local paragraph contests on 5 of 11 Ollama models non-bundled; bundled mode's JSON schema stabilises structure and makes paragraph output reliable. Single call returns title + summary + bullets.
+
+**Upgrade to `qwen3.5:9b` non-bundled for bullets only** if you need absolute max bullets quality locally (0.580 vs 0.529, +10%). **Fallback to `llama3.2:3b` non-bundled bullets** if latency matters more than quality (12s vs 33s, quality drops to 0.501).
+
+---
+
+## Full reference — v2 matrix details
+
+The two picks above cover most deployments. Everything below is the detailed reference for
+edge cases and the data that backs those recommendations.
+
+All 6 cloud LLM providers evaluated under the v2 framework: dev/held-out split, fraction-based
+judge contestation, champion prompts ported across providers. Held-out ROUGE-L vs Sonnet 4.6
+silver on `curated_5feeds_benchmark_v2` (5 unseen episodes, ~32 min each):
+
+| Track | OpenAI | Anthropic | Gemini | Mistral | **DeepSeek** | Grok |
+| ----- | :----: | :-------: | :----: | :-----: | :----------: | :--: |
+| Bullets non-bundled | 39.6% | 40.7% | 40.1% | 37.3% | **43.1%** | 38.6% |
+| Bullets bundled | 33.2% | **39.3%** | 28.5% | 30.4% | 34.4% | 30.5% |
+| Paragraph non-bundled | 31.7% | 36.4% | 29.3% | 27.8% | **40.7%** | 31.3% |
+| Paragraph bundled | 29.5% | **39.2%** | 26.6% | 30.3% | 35.9% | 28.9% |
+
+**Cell winners:**
+
+- **Non-bundled (either track):** DeepSeek (`deepseek-chat`). Cheapest cloud non-local
+  option that also leads on both quality metrics — the clear sweet spot.
+- **Bundled (either track):** Anthropic (`claude-haiku-4-5`). Only provider where bundled
+  is competitive with non-bundled; bundled paragraph even beats non-bundled paragraph.
+
+### Local (Ollama) — v2 held-out, 11 models evaluated
+
+**Top 6 local bullets non-bundled (held-out):**
+
+| Rank | Model | Size | Bullets final |
+| :--: | ----- | :--: | :-----------: |
+| **1** | **qwen3.5:9b** | 9B | **0.580** |
+| 2 | qwen3.5:35b | 35B | 0.576 |
+| 3 | qwen3.5:27b | 27B | 0.543 |
+| 4 | mistral-small3.2 | ~22B | 0.536 |
+| 5 | mistral:7b | 7B | 0.526 |
+| 6 | llama3.1:8b | 8B | 0.518 |
+
+**Cross-matrix ranking (bullets non-bundled held-out):**
+
+| Rank | Provider+model | Final |
+| :--: | -------------- | :---: |
+| 1 | DeepSeek (cloud) | 0.586 |
+| **2** | **Ollama qwen3.5:9b (local, free)** | **0.580** |
+| 3 | Ollama qwen3.5:35b | 0.576 |
+| 4 | Anthropic haiku-4.5 | 0.570 |
+| 5 | OpenAI gpt-4o | 0.566 |
+
+**Paragraph — use bundled on local** (big finding):
+
+| Model | Non-bundled paragraph | Bundled paragraph |
+| ----- | :-------------------: | :---------------: |
+| qwen3.5:9b | 0.505 (2/5 contested) | **0.509** (uncontested) |
+| qwen3.5:35b | 0.325 (contested → ROUGE-only) | **0.492** |
+| mistral-small3.2 | 0.288 (contested → ROUGE-only) | **0.468** |
+
+Non-bundled paragraph contests on 3 of 4 local models (long transcripts → inconsistent
+structure → judge disagreement). **Bundled paragraph doesn't contest at all** — the JSON
+schema stabilises output. Bundled is the correct local-deployment choice for paragraph.
+
+**Local picks**:
+
+- **Bullets (either mode)** → `qwen3.5:9b` non-bundled (0.580).
+- **Paragraph** → `qwen3.5:9b` **bundled** (0.509). Same single call produces both.
+- **Single call, title+summary+bullets** → `qwen3.5:9b` bundled. Loses ~9% on bullets vs
+  non-bundled but gains reliability and cost efficiency.
+- **No-Ollama-daemon alternative** → `DISLab/SummLlama3.2-3B` via HF transformers directly.
+  v2 held-out **paragraph 0.485** (uncontested 0/5, dev 0.442), **bullets 0.416** (uncontested
+  0/5, dev 0.467). Runs via `run_summllama_v2.py` (HF `transformers` + MPS / CUDA). DPO-tuned
+  on faithfulness/completeness/conciseness — the same Llama-3.2-3B base that scores only
+  0.270 paragraph standalone lifts to 0.485 with alignment. **Paragraph-strong, bullets-
+  weaker** (DPO was prose-shaped, not list-shaped). Latency 60-156s/ep on Apple MPS, slower
+  than Ollama but operationally simpler (no daemon, one Python process). **Pick this for
+  paragraph-first deployments or when Ollama can't be run.** For bullet-heavy workloads,
+  qwen3.5:9b bundled stays the better local pick. See
+  [Held-out v2 report §6a](eval-reports/EVAL_HELDOUT_V2_2026_04.md#6a-ml-transformers-standalone-hf-not-ollama--2026-04-16).
+
+**Default picks by use case** (compound-scored across quality, latency, cost — see
+[Held-out v2 report §Compound analysis](eval-reports/EVAL_HELDOUT_V2_2026_04.md#compound-analysis--pareto-frontier)):
+
+| Priority | Best pick | Why |
+| :------- | :-------- | :-- |
+| **Balanced default** | **Gemini 2.5-flash-lite non-bundled** | 0.564 / 0.479, 1.5s, ~$0.00047/ep. New 2026-04-16 — strict upgrade over 2.0-flash. |
+| **Quality first** | DeepSeek non-bundled | 0.586 (#1), 10s, $0.0005/ep. Top quality at near-bottom cost. |
+| **Single-call bundled** | Anthropic haiku-4.5 bundled | 0.552 bullets / 0.548 paragraph, 7s, $0.006/ep. Only provider where bundled is competitive. |
+| **Throughput / real-time** | Gemini 2.5-flash-lite | 1.5s/ep — fastest in the matrix. 2× faster than Gemini 2.0-flash at same quality tier. |
+| **OpenAI-ecosystem (cost-sensitive)** | gpt-4o-mini | 0.540 / 0.469, 6.6s, ~$0.00074/ep. 16× cheaper than gpt-4o for 4% quality hit. |
+| **Privacy / offline** | Ollama qwen3.5:9b | 0.580 (local #1), 33s/ep, free. Matches DeepSeek quality offline. |
+
+**Avoid / dominated (unless ecosystem-locked):**
+
+- **OpenAI gpt-4o**: Anthropic haiku-4.5 is better on quality AND ~3× cheaper.
+- **Grok**: slower than Anthropic/Gemini without compensating quality.
+- **OpenAI bundled, Gemini bundled, Mistral non-bundled paragraph, local paragraph on long transcripts**: structural weak spots visible in the matrix.
+- **Ollama qwen3.5:27b / qwen3.5:35b**: larger but not better than qwen3.5:9b.
+
+See [v2 eval report](eval-reports/EVAL_HELDOUT_V2_2026_04.md) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
 
 ---
 
@@ -77,21 +213,26 @@ input ≥2000 chars and LLM output **below 20%** of that length is discarded); s
 
 ## Quick Decision Matrix
 
+> **Updated picks (v2 data, 2026-04-16)**: Default local-LLM is now **qwen3.5:9b** (not llama3.2:3b).
+> Hybrid ML is **demoted** from default recommendation to narrow niche — v2 showed standalone
+> qwen3.5:9b (0.509 paragraph held-out) beats hybrid bart+qwen3.5:9b (0.448) for our workload.
+
 | If you need... | Choose | Why |
 | :------------- | :----: | :-- |
-| **Complete Privacy** | Local ML / Hybrid ML / Ollama | Data never leaves your device |
-| **Lowest Cost** | Local ML / Hybrid ML / Ollama | $0 (just electricity) |
-| **Air-gapped (no Ollama)** | Local ML (`ml_bart_led_autoresearch_v1`) | 20.4% ROUGE-L, zero deps, prod default |
-| **Air-gapped + Ollama** | Hybrid ML (`ml_hybrid_bart_llama32_3b`) | 23.7% ROUGE-L, only 3B model needed |
-| **Highest Quality (cloud)** | Anthropic | Leads cloud ROUGE-L (33.7% benchmark) vs Sonnet 4.6 silver ([measured](eval-reports/EVAL_BENCHMARK_V1_2026_04.md#cloud-providers-sorted-by-rouge-l)) |
-| **Fastest Cloud** | Gemini | 2.7s/ep paragraphs, 1.6s/ep bullets |
-| **On-prem, quality first** | Ollama (qwen3.5:35b) | 31.9% ROUGE-L, above cloud median (benchmark) |
-| **On-prem, speed/quality** | Ollama (llama3.2:3b) | 8.5s/ep paragraphs, 5.2s/ep bullets, only 2GB |
-| **On-prem, low resource** | Ollama (llama3.2:3b) | Same as above — smallest useful model |
-| **Full Capabilities** | OpenAI / Local ML | All 3 capabilities |
-| **Local MAP + LLM REDUCE** | Hybrid ML (Ollama/llama_cpp) | LongT5 MAP + local LLM synthesis (RFC-042) |
+| **Complete Privacy** | Local ML / Ollama | Data never leaves your device |
+| **Lowest Cost** | Local ML / Ollama | $0 (just electricity) |
+| **Air-gapped (no Ollama)** | Local ML (`ml_bart_led_autoresearch_v1`) | v2 held-out 0.206 (weak but zero-deps floor) |
+| **Air-gapped + Ollama** | **Ollama (`qwen3.5:9b` bundled)** | v2 held-out 0.509 paragraph / 0.529 bullets — the recommended local pick |
+| **Highest Quality (cloud)** | DeepSeek (non-bundled) | v2 held-out 0.586 bullets / 0.541 paragraph — top of matrix |
+| **Fastest Cloud** | Gemini 2.5-flash-lite | 1.5s/ep — fastest in v2 matrix |
+| **On-prem, quality first** | **Ollama `qwen3.5:9b` bundled** | Best local quality (0.509 paragraph, uncontested) |
+| **On-prem, speed first** | Ollama (`llama3.2:3b`) | 12s/ep, quality floor 0.501 bullets |
+| **On-prem, bullets-only max quality** | Ollama (`qwen3.5:9b` non-bundled) | 0.580 held-out (2nd overall, beats most cloud) |
+| **On-prem, no Ollama daemon, paragraph-first** | HF transformers (`DISLab/SummLlama3.2-3B`) | 0.485 held-out paragraph / 0.416 bullets — DPO-tuned 3B via HF transformers on MPS/CUDA directly; operationally simpler than Ollama. Paragraph-strong, bullets-weaker (DPO was prose-shaped). |
+| **Full Capabilities** | OpenAI / Local ML | All 3 capabilities (transcription + speaker + summary) |
+| **Hybrid MAP-REDUCE** | Hybrid ML (Ollama/llama_cpp) | Retained as niche option (RFC-042); not recommended as default — see v2 findings |
 | **Real-Time Info** | Grok | Real-time information access (RFC-036) |
-| **Lowest Cloud Cost** | DeepSeek | 95% cheaper than OpenAI (RFC-034) |
+| **Lowest Cloud Cost** | Gemini 2.5-flash-lite / DeepSeek | ~$0.0005/ep both — comparable |
 | **EU Data Residency** | Mistral | European servers (RFC-033) |
 | **Huge Context** | Gemini | 2 million token window (RFC-035) |
 | **Free Development** | Gemini / Grok | Generous free tiers (RFC-035, RFC-036) |
@@ -126,11 +267,14 @@ and metric definitions, see the [Evaluation Reports](eval-reports/index.md).
 Every summarization option in one view, ordered by ROUGE-L. ML/hybrid numbers are
 smoke-scale (5 eps); cloud and Ollama numbers are benchmark-scale (10 eps).
 
+All numbers benchmark-scale (10 eps, `curated_5feeds_benchmark_v1` vs
+`silver_sonnet46_benchmark_v1`).
+
 | Tier | Mode | ROUGE-L | Embed | Lat/ep | Dependencies |
 | :--- | :--- | ------: | ----: | -----: | :----------- |
-| 1 — ML Dev | `ml_small_authority` | ~14% | ~65% | fast | None (CI safe) |
-| 2 — ML Prod | `ml_bart_led_autoresearch_v1` | 20.4% | 70.1% | 26s | None (air-gap safe) |
-| — Hybrid | `ml_hybrid_bart_llama32_3b_autoresearch_v1` | 23.7% | 72.9% | 15s | Ollama (3B only) |
+| 1 — ML Dev | `ml_small_authority` | 19.1% | 70.0% | fast | None (CI safe) |
+| 2 — ML Prod | `ml_bart_led_autoresearch_v1` | 20.5% | 68.2% | 26s | None (air-gap safe) |
+| — Hybrid | `ml_hybrid_bart_llama32_3b_autoresearch_v1` | 21.1% | 76.6% | 15s | Ollama (3B only) |
 | 3 — LLM Local (small) | `llama3.2:3b` direct | 24.4% | 78.6% | 8.5s | Ollama |
 | 3 — LLM Local (large) | `qwen3.5:35b` direct | 31.9% | 81.5% | 21s | Ollama |
 | 4 — LLM Cloud (mid) | Gemini 2.0 Flash | 28.7% | 82.5% | 2.7s | API key |
@@ -139,14 +283,16 @@ smoke-scale (5 eps); cloud and Ollama numbers are benchmark-scale (10 eps).
 
 **Key observations:**
 
-- The jump from ML-prod (20.4%) to direct-LLM (24.4%+) is roughly 4 ROUGE-L points —
-  meaningful but not dramatic. The hybrid tier (23.7%) covers most of that gap with
-  only a 3B model.
-- qwen3.5:35b (31.9%) exceeds every cloud provider except Anthropic. It is the only
-  on-prem model in the cloud quality range.
-- The hybrid is the right choice when: transcripts exceed LLM context windows (BART MAP
-  chunks arbitrary-length input), Ollama is available but a large model is not, or
-  quality must improve over ML-prod without paying for cloud.
+- The jump from ML-prod (20.5%) to direct-LLM (24.4%) is ~4 ROUGE-L points. The hybrid
+  (21.1%) closes only ~1.5 of those points at benchmark scale — less than smoke
+  suggested (23.7%). The gap exists because temperature=0.5 sampling variance averages
+  down over 10 episodes. The hybrid is still valuable for long transcripts (BART MAP
+  chunks arbitrary-length input).
+- qwen3.5:35b (31.9%) is the only on-prem model in the cloud quality range — it
+  exceeds Gemini, OpenAI, and Grok.
+- The hybrid is the right choice when: transcripts exceed LLM context windows, Ollama
+  is available but only a small model fits in VRAM, or quality must improve over
+  ML-prod without paying for cloud.
 
 ### Cloud providers — paragraphs (vs Sonnet 4.6 silver, April 2026)
 

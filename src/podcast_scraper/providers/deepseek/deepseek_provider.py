@@ -711,7 +711,8 @@ class DeepSeekProvider:
             retry_with_metrics,
         )
 
-        max_out = int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384)
+        # DeepSeek API caps max_tokens at 8192 for chat completions.
+        max_out = min(int(getattr(self.cfg, "llm_bundled_max_output_tokens", 16384) or 16384), 8192)
 
         tmpl_kwargs = dict(self.cfg.summary_prompt_params or {})
         system_prompt = render_prompt(

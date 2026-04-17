@@ -1,0 +1,29 @@
+# Autoresearch v2 bundled bullets ratchet — Anthropic, dev dataset (10 episodes).
+#
+# Templates (ported from OpenAI champions via RFC-073 replication template):
+#   src/podcast_scraper/prompts/anthropic/summarization/bundled_clean_summary_system_v1.j2
+#   src/podcast_scraper/prompts/anthropic/summarization/bundled_clean_summary_user_v1.j2
+#
+# Paired silver: silver_sonnet46_dev_v1_bullets
+# Validate champions on curated_5feeds_benchmark_v2 before committing.
+#
+# Requires: ANTHROPIC_API_KEY (or AUTORESEARCH_EXPERIMENT_ANTHROPIC_API_KEY).
+# No seed parameter (Anthropic API does not support it).
+
+id: "autoresearch_prompt_anthropic_bundled_dev_bullets_v2"
+task: "summarization"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5-20251001"
+
+llm_pipeline_mode: "bundled"
+
+data:
+  dataset_id: "curated_5feeds_dev_v1"
+
+params:
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "bullets"
