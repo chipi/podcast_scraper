@@ -1,0 +1,220 @@
+{
+  "dataset_id": "qmsum_phase21_v1",
+  "version": "1.0",
+  "description": "QMSum general-query validation split (35 meetings). Phase 2.1 cross-dataset validation. Human-written gold references. Source: pszemraj/qmsum-cleaned (HF), Zhong et al. NAACL 2021.",
+  "created_at": "2026-04-17T08:07:19.054475+00:00",
+  "content_regime": "meeting_transcript",
+  "num_episodes": 35,
+  "episodes": [
+    {
+      "episode_id": "va_gq_5",
+      "title": "QMSum meeting va_gq_5",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_5.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_12",
+      "title": "QMSum meeting va_gq_12",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_12.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_19",
+      "title": "QMSum meeting va_gq_19",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_19.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_27",
+      "title": "QMSum meeting va_gq_27",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_27.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_34",
+      "title": "QMSum meeting va_gq_34",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_34.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_44",
+      "title": "QMSum meeting va_gq_44",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_44.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_49",
+      "title": "QMSum meeting va_gq_49",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_49.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_59",
+      "title": "QMSum meeting va_gq_59",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_59.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_66",
+      "title": "QMSum meeting va_gq_66",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_66.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_73",
+      "title": "QMSum meeting va_gq_73",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_73.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_80",
+      "title": "QMSum meeting va_gq_80",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_80.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_93",
+      "title": "QMSum meeting va_gq_93",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_93.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_99",
+      "title": "QMSum meeting va_gq_99",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_99.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_106",
+      "title": "QMSum meeting va_gq_106",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_106.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_119",
+      "title": "QMSum meeting va_gq_119",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_119.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_132",
+      "title": "QMSum meeting va_gq_132",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_132.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_139",
+      "title": "QMSum meeting va_gq_139",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_139.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_146",
+      "title": "QMSum meeting va_gq_146",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_146.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_159",
+      "title": "QMSum meeting va_gq_159",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_159.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_166",
+      "title": "QMSum meeting va_gq_166",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_166.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_173",
+      "title": "QMSum meeting va_gq_173",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_173.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_181",
+      "title": "QMSum meeting va_gq_181",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_181.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_194",
+      "title": "QMSum meeting va_gq_194",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_194.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_203",
+      "title": "QMSum meeting va_gq_203",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_203.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_210",
+      "title": "QMSum meeting va_gq_210",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_210.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_217",
+      "title": "QMSum meeting va_gq_217",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_217.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_224",
+      "title": "QMSum meeting va_gq_224",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_224.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_228",
+      "title": "QMSum meeting va_gq_228",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_228.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_233",
+      "title": "QMSum meeting va_gq_233",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_233.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_240",
+      "title": "QMSum meeting va_gq_240",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_240.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_247",
+      "title": "QMSum meeting va_gq_247",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_247.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_255",
+      "title": "QMSum meeting va_gq_255",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_255.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_262",
+      "title": "QMSum meeting va_gq_262",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_262.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_265",
+      "title": "QMSum meeting va_gq_265",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_265.txt",
+      "preprocessing_profile": "cleaning_v4"
+    },
+    {
+      "episode_id": "va_gq_272",
+      "title": "QMSum meeting va_gq_272",
+      "transcript_path": "data/eval/materialized/qmsum_phase21_v1/va_gq_272.txt",
+      "preprocessing_profile": "cleaning_v4"
+    }
+  ]
+}

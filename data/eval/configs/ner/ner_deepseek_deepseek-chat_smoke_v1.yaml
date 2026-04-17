@@ -1,0 +1,17 @@
+# NER via deepseek deepseek-chat on smoke dataset.
+id: "ner_deepseek_deepseek-chat_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "deepseek"
+  model: "deepseek-chat"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

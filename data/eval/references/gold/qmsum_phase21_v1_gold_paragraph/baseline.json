@@ -1,0 +1,9 @@
+{
+  "run_id": "qmsum_phase21_v1_gold_paragraph",
+  "dataset_id": "qmsum_phase21_v1",
+  "task": "summarization",
+  "backend": {
+    "type": "human_gold",
+    "source": "qmsum"
+  }
+}

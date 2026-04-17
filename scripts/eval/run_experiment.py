@@ -592,9 +592,118 @@ def run_experiment(  # noqa: C901
             )
 
         # Create provider based on task and backend type
-        if cfg.task == "summarization":
+        # NER task is handled separately — must be checked BEFORE the
+        # backend-type chain so that e.g. "openai" + "ner_entities" doesn't
+        # fall through to the summarization provider creation.
+        if cfg.task == "ner_entities":
+            pass  # Handled below in the NER-specific block
+        elif cfg.task == "summarization":
             logger.info("Creating summarization provider...")
-        if cfg.task in ("grounded_insights", "knowledge_graph") and cfg.backend.type == "eval_stub":
+        if cfg.task == "ner_entities":
+            # Jump to NER-specific setup (next elif chain will skip to it)
+            provider = None
+            model_name = cfg.backend.model
+            device = None
+            nlp = None
+            params_dict = {
+                "model": model_name,
+                "labels": cfg.params.get("labels") if cfg.params else None,
+            }
+
+            if cfg.backend.type == "spacy_local":
+                from podcast_scraper.providers.ml.speaker_detection import _load_spacy_model
+
+                logger.info(f"Loading spaCy model: {model_name}")
+                nlp = _load_spacy_model(model_name)
+                if nlp is None:
+                    raise RuntimeError(
+                        f"Failed to load spaCy model: {model_name}. "
+                        f"Install with: python -m spacy download {model_name}"
+                    )
+                logger.info(f"✓ spaCy model loaded: {model_name}")
+            elif cfg.backend.type in (
+                "openai",
+                "gemini",
+                "ollama",
+                "anthropic",
+                "mistral",
+                "deepseek",
+                "grok",
+            ):
+                logger.info(f"Creating LLM NER provider: {cfg.backend.type}/{model_name}")
+                from podcast_scraper.config import Config as PodConfig
+
+                _ner_kw: Dict[str, Any] = {
+                    "rss": "",
+                    "generate_summaries": False,
+                    "generate_metadata": False,
+                    "auto_speakers": False,
+                    "transcribe_missing": False,
+                }
+                if cfg.backend.type == "openai":
+                    _ner_kw["openai_summary_model"] = model_name
+                    provider_cfg = PodConfig(**_ner_kw)
+                    from podcast_scraper.providers.openai.openai_provider import (
+                        OpenAIProvider,
+                    )
+
+                    provider = OpenAIProvider(provider_cfg)
+                elif cfg.backend.type == "gemini":
+                    _ner_kw["gemini_summary_model"] = model_name
+                    provider_cfg = PodConfig(**_ner_kw)
+                    from podcast_scraper.providers.gemini.gemini_provider import (
+                        GeminiProvider,
+                    )
+
+                    provider = GeminiProvider(provider_cfg)
+                elif cfg.backend.type == "ollama":
+                    provider = None  # Ollama NER creates its own client
+                elif cfg.backend.type == "anthropic":
+                    _ner_kw["anthropic_summary_model"] = model_name
+                    provider_cfg = PodConfig(**_ner_kw)
+                    from podcast_scraper.providers.anthropic.anthropic_provider import (
+                        AnthropicProvider,
+                    )
+
+                    provider = AnthropicProvider(provider_cfg)
+                elif cfg.backend.type == "deepseek":
+                    _ner_kw["deepseek_summary_model"] = model_name
+                    provider_cfg = PodConfig(**_ner_kw)
+                    from podcast_scraper.providers.deepseek.deepseek_provider import (
+                        DeepSeekProvider,
+                    )
+
+                    provider = DeepSeekProvider(provider_cfg)
+                elif cfg.backend.type == "mistral":
+                    _ner_kw["mistral_summary_model"] = model_name
+                    provider_cfg = PodConfig(**_ner_kw)
+                    from podcast_scraper.providers.mistral.mistral_provider import (
+                        MistralProvider,
+                    )
+
+                    provider = MistralProvider(provider_cfg)
+                elif cfg.backend.type == "grok":
+                    _ner_kw["grok_summary_model"] = model_name
+                    provider_cfg = PodConfig(**_ner_kw)
+                    from podcast_scraper.providers.grok.grok_provider import (
+                        GrokProvider,
+                    )
+
+                    provider = GrokProvider(provider_cfg)
+                else:
+                    raise ValueError(f"Unsupported LLM backend for NER: {cfg.backend.type}")
+
+                if provider is not None and hasattr(provider, "initialize"):
+                    provider.initialize()
+                logger.info(f"✓ LLM NER provider ready: {cfg.backend.type}/{model_name}")
+            else:
+                raise ValueError(
+                    f"NER task requires 'spacy_local' or an LLM backend. "
+                    f"Got: {cfg.backend.type}"
+                )
+        elif (
+            cfg.task in ("grounded_insights", "knowledge_graph") and cfg.backend.type == "eval_stub"
+        ):
             logger.info("Eval stub backend: skipping summarization provider (GIL/KG eval).")
             provider = None
             model_name = "eval_stub"
@@ -1121,34 +1230,6 @@ def run_experiment(  # noqa: C901
                 "system_prompt": system_prompt,
             }
             device = None
-        elif cfg.task == "ner_entities":
-            # NER task: load spaCy model
-            logger.info("Creating NER provider...")
-            if cfg.backend.type != "spacy_local":
-                raise ValueError(
-                    f"NER task requires 'spacy_local' backend. Got: {cfg.backend.type}"
-                )
-
-            # Load spaCy model
-            from podcast_scraper.providers.ml.speaker_detection import _load_spacy_model
-
-            model_name = cfg.backend.model
-            logger.info(f"Loading spaCy model: {model_name}")
-            nlp = _load_spacy_model(model_name)
-            if nlp is None:
-                raise RuntimeError(
-                    f"Failed to load spaCy model: {model_name}. "
-                    f"Install with: python -m spacy download {model_name}"
-                )
-            logger.info(f"✓ spaCy model loaded: {model_name}")
-
-            # Store nlp model for later use
-            provider = None  # NER doesn't use provider pattern
-            device = None  # spaCy handles device internally
-            params_dict = {
-                "model": model_name,
-                "labels": cfg.params.get("labels") if cfg.params else None,
-            }
         else:
             raise ValueError(f"Unsupported backend type: {cfg.backend.type}")
 
@@ -1405,15 +1486,32 @@ def run_experiment(  # noqa: C901
                             record["intermediate"] = intermediates
 
                     elif cfg.task == "ner_entities":
-                        # Extract entities using spaCy
-                        from podcast_scraper.providers.ml.ner_extraction import extract_all_entities
-
+                        # Extract entities using spaCy or LLM
                         # Get labels filter from params if specified
                         labels = None
                         if cfg.params and "labels" in cfg.params:
                             labels = cfg.params["labels"]
 
-                        entities = extract_all_entities(text, nlp, labels=labels)
+                        if nlp is not None:
+                            # spaCy path
+                            from podcast_scraper.providers.ml.ner_extraction import (
+                                extract_all_entities,
+                            )
+
+                            entities = extract_all_entities(text, nlp, labels=labels)
+                        else:
+                            # LLM path
+                            from podcast_scraper.providers.ml.ner_extraction import (
+                                extract_entities_via_llm,
+                            )
+
+                            entities = extract_entities_via_llm(
+                                text,
+                                provider,
+                                cfg.backend.type,
+                                model_name,
+                                labels=labels,
+                            )
 
                         dt = time.time() - t0
                         total_chars_out += len(str(entities))  # For compression stats

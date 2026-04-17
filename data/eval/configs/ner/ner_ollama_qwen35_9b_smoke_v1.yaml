@@ -1,0 +1,17 @@
+# NER via Ollama qwen3.5:9b on smoke dataset.
+id: "ner_ollama_qwen35_9b_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "ollama"
+  model: "qwen3.5:9b"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

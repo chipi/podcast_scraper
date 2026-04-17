@@ -1,0 +1,13 @@
+# Phase 2.1 QMSum — ollama qwen3.5:9b bundled (produces both paragraph + bullets).
+id: "ollama_qwen35_9b_bundled_qmsum_paragraph"
+task: "summarization"
+backend:
+  type: "ollama"
+  model: "qwen3.5:9b"
+llm_pipeline_mode: "bundled"
+data:
+  dataset_id: "qmsum_phase21_v1"
+params:
+  temperature: 0.0
+preprocessing_profile: "cleaning_v4"
+scoring_output_field: "summary"

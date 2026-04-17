@@ -1,0 +1,17 @@
+# NER via ollama mistral:7b on smoke dataset.
+id: "ner_ollama_mistral_7b_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "ollama"
+  model: "mistral:7b"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

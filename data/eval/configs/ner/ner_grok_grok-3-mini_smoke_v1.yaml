@@ -1,0 +1,17 @@
+# NER via grok grok-3-mini on smoke dataset.
+id: "ner_grok_grok-3-mini_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "grok"
+  model: "grok-3-mini"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

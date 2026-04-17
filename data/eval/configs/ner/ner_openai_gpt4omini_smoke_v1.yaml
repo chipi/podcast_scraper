@@ -1,0 +1,17 @@
+# NER via OpenAI gpt-4o-mini on smoke dataset.
+id: "ner_openai_gpt4omini_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "openai"
+  model: "gpt-4o-mini"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]
