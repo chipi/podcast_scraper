@@ -154,6 +154,10 @@ at varying insight counts + across providers:
 | **Direct (gemini) n=12** | 12 | **82%** | 0.800 |
 | Direct (gemini) n=15 | 15 | 85% | 0.800 |
 | Direct (gpt-4o-mini) n=12 | 12 | 82% | 0.812 |
+| Direct (anthropic haiku-4.5) n=12 | 12 | 82% | 0.795 |
+| Direct (deepseek-chat) n=12 | 12 | **85%** | 0.799 |
+| Direct (mistral-small) n=12 | 12 | 78% | 0.790 |
+| Direct (grok-3-mini) n=12 | 12 | **88%** | 0.825 |
 | Direct (qwen3.5:9b local) n=12 | 12 | 80% | — |
 
 **Finding 1:** Count matters more than provider. 5→12 insights = +27pp coverage.
@@ -162,8 +166,12 @@ All providers converge at 80-82% at n=12. Diminishing returns past 12 (n=15 = +3
 **Finding 2:** Direct extraction at n=12 beats summary-derived by ~10pp (82% vs 72%).
 The summary is lossy; direct extraction from full transcript captures more.
 
-**Finding 3:** ~18% ceiling is model-independent. The 7-8 uncovered insights are
-genuinely hard (too abstract or too specific for any single-pass extraction).
+**Finding 3:** Provider variance IS real for GI (unlike summarization where all
+converge). Grok-3-mini leads at 88%, mistral-small lags at 78% — a 10pp spread.
+Core cluster (OpenAI, Gemini, Anthropic, DeepSeek) at 82-85%.
+
+**Finding 4:** ~12-18% residual gap is model-dependent. The best provider (Grok 88%)
+leaves only 12% uncovered; weakest (Mistral 78%) leaves 22%.
 
 **Practical recommendation:**
 - Set `gi_max_insights=12` (done)
