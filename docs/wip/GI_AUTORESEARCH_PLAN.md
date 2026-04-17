@@ -110,6 +110,69 @@ Extend or create a scorer that compares pipeline GI output against silver:
 
 ---
 
+## Phase 1 results (2026-04-17)
+
+Silver GI refs generated: 40 insights across 5 held-out episodes, 37/41
+quotes verified verbatim (90%). Stored in
+`data/eval/references/silver/silver_sonnet46_gi_benchmark_v2/`.
+
+Insight coverage scored across 3 summary quality tiers:
+
+| Tier | Summary source | v2 score | **GI coverage** | Avg similarity |
+|------|---------------|----------|----------------|----------------|
+| Low | bart-led | 0.206 | **8%** (3/40) | 0.393 |
+| Mid | qwen3.5:9b bundled | 0.509 | **70%** (28/40) | 0.748 |
+| High | gemini-2.5-flash-lite | 0.479 | **72%** (29/40) | 0.762 |
+
+**Chain hypothesis confirmed:** summary quality dominates GI insight coverage
+up to a threshold (~0.45 blended score), then plateaus at ~70%.
+
+**Key implications:**
+1. bart-led should never feed GI (8% = functionally useless)
+2. qwen and gemini are interchangeable for GI quality (~70% coverage both)
+3. The remaining 30% gap is the GI pipeline's ceiling — further summarization
+   improvement won't close it
+
+**Next levers to investigate (Phase 3):**
+- QA/NLI threshold tuning (gi_qa_score_min, gi_nli_entailment_min)
+- `gi_insight_source="provider"` — skip bullets, generate insights directly from
+  transcript via LLM. May capture insights that summaries miss.
+- QA/NLI model swap (current: roberta-squad2, nli-deberta-base)
+
+## Phase 1b results: direct extraction + count scaling (2026-04-17)
+
+Tested direct insight extraction from transcript (bypassing summary bullets)
+at varying insight counts + across providers:
+
+| Source | N | Coverage | Avg sim |
+|--------|---|----------|---------|
+| Summary bullets (bart-led) | ~8 | 8% | 0.393 |
+| Summary bullets (qwen bundled) | ~9 | 70% | 0.748 |
+| Summary bullets (gemini) | ~7 | 72% | 0.762 |
+| **Direct (gemini) n=5** | 5 | 55% | 0.667 |
+| **Direct (gemini) n=8** | 8 | 68% | 0.729 |
+| **Direct (gemini) n=12** | 12 | **82%** | 0.800 |
+| Direct (gemini) n=15 | 15 | 85% | 0.800 |
+| Direct (gpt-4o-mini) n=12 | 12 | 82% | 0.812 |
+| Direct (qwen3.5:9b local) n=12 | 12 | 80% | — |
+
+**Finding 1:** Count matters more than provider. 5→12 insights = +27pp coverage.
+All providers converge at 80-82% at n=12. Diminishing returns past 12 (n=15 = +3pp).
+
+**Finding 2:** Direct extraction at n=12 beats summary-derived by ~10pp (82% vs 72%).
+The summary is lossy; direct extraction from full transcript captures more.
+
+**Finding 3:** ~18% ceiling is model-independent. The 7-8 uncovered insights are
+genuinely hard (too abstract or too specific for any single-pass extraction).
+
+**Practical recommendation:**
+- Set `gi_max_insights=12` (done)
+- Switch `gi_insight_source="provider"` for quality-sensitive deployments (+10pp)
+- Provider choice doesn't matter for GI — pick on cost/latency
+- The 18% residual gap would need multi-pass extraction to close
+
+---
+
 ## Phase 2: Baseline measurement
 
 ### Step 1 — Run GI pipeline on 3 summary quality tiers
