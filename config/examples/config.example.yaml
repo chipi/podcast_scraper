@@ -14,6 +14,7 @@ rss: https://example.com/feed.xml
 # RFC-044 modes ml_small_authority vs ml_bart_led_autoresearch_v1; placeholder feeds).
 output_dir: output  # Can also be set via OUTPUT_DIR env var
 max_episodes: 3
+append: true
 # Episode selection (GitHub #521): optional order, offset, publish-date window — see
 # docs/api/CONFIGURATION.md#episode-selection-github-521
 # episode_order: newest   # or oldest
@@ -30,7 +31,7 @@ summary_provider: transformers  # Options: transformers, openai, gemini, mistral
 transcribe_missing: true  # Enable automatic transcription of missing transcripts
 whisper_model: base.en  # Whisper model to use (tiny, tiny.en, base, base.en, small, small.en, medium, medium.en, large, large-v1, large-v2, large-v3)
 
-delay_ms: 250
+delay_ms: 1000
 # Download resilience (HTTP urllib3 retries, optional Issue #522 fair HTTP): defaults are
 # tuned for batch runs. Examples: config.example.download-resilience.yaml,
 # config.example.download-resilience.polite.yaml — docs/api/CONFIGURATION.md#download-resilience
@@ -63,11 +64,22 @@ log_level: INFO  # Can also be set via LOG_LEVEL env var (DEBUG, INFO, WARNING, 
 
 generate_metadata: true  # Generate metadata documents alongside transcripts
 generate_summaries: true  # Generate summaries for episodes
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
 # Default LLM summaries: JSON bullets (e.g. openai/summarization/bullets_json_v1 → shared templates).
 # summary_prompt_params defaults: bullet_min (3), max_words_per_bullet; optional bullet_max caps count.
 # Paragraph mode: <provider>_summary_user_prompt */long_v1 + system */system_v1.
 metadata_format: json  # json or yaml (json recommended for database ingestion)
 # metadata_subdirectory: metadata  # Optional: subdirectory for metadata files (null = same as transcripts)
+
+# --- GI / KG / vector index (copy from config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml) ---
+# (generate_gi / gi_insight_source / gi_max_insights / generate_kg / kg_* are set active above.)
+# vector_search: true
+# vector_backend: faiss
 
 # Grounded Insights (GIL) - optional; when enabled, writes gi.json per episode (see docs/guides/GROUNDED_INSIGHTS_GUIDE.md)
 # generate_gi: false  # Set true to run GIL extraction after transcript/speaker detection
@@ -94,6 +106,9 @@ metadata_format: json  # json or yaml (json recommended for database ingestion)
 #   is on (multi-feed runs set this per-feed and build one parent index after the batch — GitHub #505).
 # After a run: `python -m podcast_scraper.cli index --output-dir <out>` to rebuild; `... search ...`
 # for queries. With an index, `gi explore --topic` uses vectors first. Guide: docs/guides/SEMANTIC_SEARCH_GUIDE.md
+# Optional RFC-075 corpus topic clusters (not part of the main pipeline): after `vector_search` produced
+# `search/vectors.faiss`, run `python -m podcast_scraper.cli topic-clusters --output-dir <corpus_parent>`
+# to write `search/topic_clusters.json` for the viewer overlay. See docs/rfc/RFC-075-corpus-topic-clustering.md
 # Multi-feed corpus parent: point `index` / `search` / `gi explore` / `serve` at the same parent that
 # contains `feeds/`; discovery is recursive under each feed tree (GitHub #505).
 

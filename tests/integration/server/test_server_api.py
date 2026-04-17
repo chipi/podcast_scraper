@@ -124,6 +124,33 @@ class TestArtifacts:
         kinds = {a["name"]: a["kind"] for a in body["artifacts"]}
         assert kinds["ep1.bridge.json"] == "bridge"
 
+    def test_list_prefers_latest_feed_run_dir(self, tmp_path: Path) -> None:
+        """``feeds/<dir>/run_*`` siblings: only the lexicographically greatest run is listed."""
+        gi_payload = {
+            "grounded_insights": {
+                "version": "1.0",
+                "episode_id": "ep1",
+                "insights": [],
+                "quotes": [],
+                "edges": [],
+            }
+        }
+        text = json.dumps(gi_payload)
+        old_m = tmp_path / "feeds" / "ff" / "run_20260101-aa" / "metadata"
+        new_m = tmp_path / "feeds" / "ff" / "run_20260102-bb" / "metadata"
+        old_m.mkdir(parents=True, exist_ok=True)
+        new_m.mkdir(parents=True, exist_ok=True)
+        (old_m / "ep1.gi.json").write_text(text, encoding="utf-8")
+        (new_m / "ep1.gi.json").write_text(text, encoding="utf-8")
+
+        app = create_app(tmp_path, static_dir=False)
+        client = TestClient(app)
+        resp = client.get("/api/artifacts", params={"path": str(tmp_path)})
+        assert resp.status_code == 200
+        rels = [a["relative_path"] for a in resp.json()["artifacts"]]
+        assert not any("run_20260101-aa" in p for p in rels)
+        assert any("run_20260102-bb" in p for p in rels)
+
     def test_load_gi_artifact(self, client: TestClient, corpus: Path) -> None:
         resp = client.get(
             "/api/artifacts/metadata/ep1.gi.json",

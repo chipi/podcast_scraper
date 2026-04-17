@@ -98,7 +98,7 @@ export function cytoscapeSideLabelMarginXCallback(compact: boolean): (ele: NodeS
 
 function nodeLabelOffsetStyle(
   placement: GiKgNodeLabelPlacement,
-  nw: number,
+  _nw: number,
   nh: number,
   compact: boolean,
 ): {

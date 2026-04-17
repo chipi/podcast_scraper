@@ -240,3 +240,53 @@ export async function fetchResolveEpisodeArtifacts(
   }
   return (await res.json()) as CorpusResolveEpisodesResponse
 }
+
+export type CorpusNodeEpisodeItem = {
+  gi_relative_path: string
+  kg_relative_path: string
+  bridge_relative_path: string
+  episode_id?: string | null
+}
+
+export type CorpusNodeEpisodesResponse = {
+  path: string
+  node_id: string
+  episodes: CorpusNodeEpisodeItem[]
+  truncated: boolean
+  total_matched: number | null
+}
+
+/** Default cap for RFC-076 graph expand (Graph tab); server sorts then truncates. Pass ``null`` to omit. */
+export const RFC076_EXPAND_MAX_EPISODES = 2048
+
+export async function fetchNodeEpisodes(
+  corpusPath: string,
+  nodeId: string,
+  maxEpisodes?: number | null,
+): Promise<CorpusNodeEpisodesResponse> {
+  const root = corpusPath.trim()
+  if (!root) {
+    throw new Error('Corpus path is required')
+  }
+  const id = nodeId.trim()
+  if (!id) {
+    throw new Error('node_id is required')
+  }
+  const body: Record<string, unknown> = { path: root, node_id: id }
+  if (maxEpisodes != null && maxEpisodes > 0) {
+    body.max_episodes = maxEpisodes
+  }
+  const capKey = maxEpisodes != null && maxEpisodes > 0 ? String(maxEpisodes) : 'all'
+  return dedupeInFlight(`POST|/api/corpus/node-episodes|${root}|${id}|${capKey}`, async () => {
+    const res = await fetchWithTimeout('/api/corpus/node-episodes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const t = await res.text()
+      raiseCorpusHttpError(res, t)
+    }
+    return (await res.json()) as CorpusNodeEpisodesResponse
+  })
+}

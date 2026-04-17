@@ -264,6 +264,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     topicClustersErrorDetail.value = null
     topicClustersSchemaWarning.value = null
     loadError.value = null
+    void import('./graphExpansion').then((m) => {
+      m.useGraphExpansionStore().resetExpansionState()
+    })
   }
 
   /** Check every path from the current corpus list (does not fetch). */
@@ -274,6 +277,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   /** Uncheck all listed files (does not clear the graph until you load again). */
   function deselectAllListed(): void {
     selectedRelPaths.value = []
+    void import('./graphExpansion').then((m) => {
+      m.useGraphExpansionStore().resetExpansionState()
+    })
   }
 
   async function appendRelativeArtifacts(extraRelPaths: string[]): Promise<void> {
@@ -295,6 +301,24 @@ export const useArtifactsStore = defineStore('artifacts', () => {
       return
     }
     selectedRelPaths.value = [...selectedRelPaths.value, ...add]
+    await loadSelected()
+  }
+
+  /** Remove corpus-relative paths from the current selection and reload the graph. */
+  async function removeRelativeArtifacts(relpaths: string[]): Promise<void> {
+    const root = corpusPath.value.trim()
+    if (!root || relpaths.length === 0) {
+      return
+    }
+    const drop = new Set(relpaths.map((p) => p.trim().replace(/\\/g, '/')).filter(Boolean))
+    if (drop.size === 0) {
+      return
+    }
+    const next = selectedRelPaths.value.filter((p) => !drop.has(p.trim().replace(/\\/g, '/')))
+    if (next.length === selectedRelPaths.value.length) {
+      return
+    }
+    selectedRelPaths.value = next
     await loadSelected()
   }
 
@@ -417,6 +441,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
     deselectAllListed,
     syncTopicClustersForCurrentCorpus,
     appendRelativeArtifacts,
+    removeRelativeArtifacts,
     maybeMergeClusterSiblingEpisodes,
   }
 })
