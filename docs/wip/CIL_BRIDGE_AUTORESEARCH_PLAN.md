@@ -94,6 +94,40 @@ Test `resolve_id_alias()` with:
 
 ---
 
+## Baseline measurement (2026-04-17)
+
+Ran full GI + KG pipeline on 5 held-out episodes with Gemini provider mode,
+then built bridges. Results:
+
+| Episode | Total IDs | Exact merge | Fuzzy merge | GI-only | KG-only |
+|---------|-----------|:-----------:|:-----------:|:-------:|:-------:|
+| p01_e03 | 5 | 5 | 0 | 0 | 0 |
+| p02_e03 | 17 | 0 | 0 | 5 | 12 |
+| p03_e03 | 15 | 1 | 1 | 3 | 11 |
+| p04_e03 | 16 | 0 | 0 | 4 | 12 |
+| p05_e03 | 16 | 0 | 0 | 4 | 12 |
+| **Total** | **69** | **6 (9%)** | **1** | **16** | **47** |
+
+**Effective merge rate: 10%.** 90% of identities remain single-layer.
+
+**Root causes:**
+1. GI topics use insight-sentence text as labels → long slugs
+   (`topic:a-key-takeaway-is-the-importance-of-treating-failures-...`)
+2. KG topics use noun-phrase labels → short slugs
+   (`topic:threat-modeling-best-practices`)
+3. KG has person/org entities that GI doesn't produce at all
+   (GI only produces Topic nodes from ABOUT edges)
+
+**Fuzzy reconciliation helps marginally** — caught 1 merge at sim=0.76 —
+but the sentence-vs-noun-phrase gap is too wide for most pairs.
+
+**Conclusion: #585 (shared extraction context) is required** to make the
+bridge useful. Without it, GI and KG produce incompatible identity namespaces
+and the bridge merges almost nothing. This blocks meaningful CIL validation
+and downstream topic clustering.
+
+---
+
 ## Suggested experiment order
 
 ```
