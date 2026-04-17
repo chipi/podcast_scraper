@@ -96,6 +96,39 @@ Test `kg_max_topics` at 5, 10, 15, 20. Does coverage plateau like GI did at 12?
 
 ---
 
+## Phase 1 results (2026-04-17)
+
+Silver KG refs generated: 48 topics + 15 entities across 5 held-out episodes.
+100% entity name verification.
+
+### Summary-derived vs direct extraction
+
+| Source | N | Topic coverage | Avg sim |
+|--------|---|---------------|---------|
+| bart-led (summary sentences) | ~8 | **0%** (0/48) | — |
+| qwen bundled (summary bullets) | ~9 | **38%** (18/48) | 0.570 |
+| gemini (summary bullets) | ~7 | **31%** (15/48) | 0.565 |
+| **Direct extraction n=5** | 5 | **44%** | 0.582 |
+| **Direct extraction n=10** | 10 | **75%** | 0.773 |
+| **Direct extraction n=15** | 15 | **79%** | 0.798 |
+
+**Key findings:**
+
+1. **Summary bullets are terrible KG input** — 31-38% coverage. The semantic gap
+   between sentence-shaped bullets and noun-phrase-shaped topics kills matching.
+   Even worse than GI (which got 70% from bullets).
+2. **Direct extraction at n=10 doubles coverage** — 75% vs 38% from best summary.
+   `kg_extraction_source="provider"` is the clear winner.
+3. **Plateau at 10-15** — n=10 (75%) → n=15 (79%) = +4pp only.
+4. **bart-led is useless for KG** (0%) — same as for GI.
+
+**Practical recommendations:**
+- Switch `kg_extraction_source` from `"summary_bullets"` to `"provider"`
+- `kg_max_topics=10` is the sweet spot (plateau confirmed)
+- Direct extraction is even MORE important for KG than GI (+37pp vs +10pp)
+
+---
+
 ## Phase 2: Provider comparison
 
 Run all 7 LLM providers at the optimal count. GI showed provider variance (78-88%);
