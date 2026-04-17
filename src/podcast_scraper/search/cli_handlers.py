@@ -833,8 +833,8 @@ def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.75,
-        help="Minimum cosine similarity to link topics in the same cluster (default: 0.75)",
+        default=0.70,
+        help="Minimum cosine similarity to link topics in the same cluster (default: 0.70)",
     )
     parser.add_argument(
         "--output-file",
@@ -879,7 +879,7 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
     index_dir = _resolve_index_dir(Path(output_dir), getattr(args, "vector_index_path", None))
     out_file = getattr(args, "output_file", None)
     out_path = Path(out_file).resolve() if out_file else None
-    threshold = float(getattr(args, "threshold", 0.75) or 0.75)
+    threshold = float(getattr(args, "threshold", 0.70) or 0.70)
 
     try:
         payload = build_topic_clusters_for_corpus(

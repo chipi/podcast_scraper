@@ -84,6 +84,33 @@ right once input quality is fixed.
   non-centroid member to the centroid's canonical `topic:slug`. Merged into
   `cil_lift_overrides.json` with hand-edits taking precedence.
 
+### Threshold sweep results (2026-04-17)
+
+Tested on real 199-episode production corpus (1178 unique topics, 112 episodes,
+10 feeds). Includes Gemini sentence-length labels (#580).
+
+| Threshold | Clusters | Singletons | Singleton% | Max size | In clusters |
+|:---------:|:--------:|:----------:|:----------:|:--------:|:-----------:|
+| 0.50 | 225 | 249 | 21% | 89 | 929 |
+| 0.55 | 229 | 370 | 31% | 84 | 808 |
+| 0.60 | 208 | 504 | 43% | 47 | 674 |
+| 0.65 | 177 | 655 | 56% | 35 | 523 |
+| **0.70** | **129** | **809** | **69%** | **19** | **369** |
+| 0.75 (old) | 88 | 929 | 79% | 11 | 249 |
+| 0.80 | 56 | 1019 | 87% | 10 | 159 |
+| 0.85 | 33 | 1084 | 92% | 10 | 94 |
+| 0.90 | 20 | 1124 | 95% | 7 | 54 |
+
+**Sweet spot: 0.70.** Manual inspection of new clusters (vs 0.75) shows all
+legitimate: quantum computing topics cluster, geopolitical topics cluster,
+AI boom topics cluster. Max cluster size 19 is manageable for UI.
+
+**Default lowered from 0.75 → 0.70.** When KG labels are fixed to noun-phrase
+style (per KG autoresearch), re-sweep — optimal threshold may shift up since
+shorter labels have higher pairwise similarity.
+
+---
+
 ### 1. Threshold sweep — is 0.75 the right number?
 
 **Experiment:** run clustering at thresholds [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]
