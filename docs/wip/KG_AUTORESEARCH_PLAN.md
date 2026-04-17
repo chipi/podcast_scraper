@@ -166,6 +166,23 @@ KG may show similar or different ranking.
 
 ---
 
+## Connection to #580 (Gemini long labels + empty clusters)
+
+Issue #580 documents the real-world symptom of poor KG input:
+- Gemini produces **156-char sentence-length topic labels** (vs OpenAI's ~21-char noun phrases)
+- Long labels → poor embedding overlap → **90% singletons** at threshold 0.75
+- `topic:topic:...` double-prefix CIL bug from slugifying labels that already contain prefixes
+
+Our Phase 1 findings explain why: `kg_extraction_source="summary_bullets"` produces
+sentence-shaped bullets as labels (31-38% coverage). Switching to `"provider"` with
+proper noun-phrase prompting should fix the label length problem AND improve coverage.
+
+**Validation path:** after switching to `"provider"`, re-run topic clustering on the
+same corpus and measure: (a) label length distribution, (b) singleton rate, (c) cluster
+count. If the 90% singleton problem resolves, #580 is functionally closed.
+
+---
+
 ## Connection to topic clustering
 
 KG topics feed directly into the topic clustering pipeline

@@ -47,6 +47,15 @@ RFC-072 (CIL bridge)
 - No corpus-level quality metrics committed
 - No systematic threshold optimization
 
+### Known production issue (#580)
+
+Issue #580 documents the real-world problem: Gemini KG produces 156-char sentence
+labels (vs OpenAI's 21-char noun phrases). Result: 90% singletons at threshold 0.75.
+Root cause is poor KG input (sentence labels don't cluster well). Our KG autoresearch
+(switching to `kg_extraction_source="provider"` with noun-phrase prompting) should fix
+the input quality. The threshold sweep below validates whether the current 0.75 is
+right once input quality is fixed.
+
 ### Known risks (from RFC-075)
 
 - Geography-qualified topics may cluster incorrectly ("Cuban Economic Crisis" ↔
@@ -57,6 +66,23 @@ RFC-072 (CIL bridge)
 ---
 
 ## What needs validation
+
+### Implementation details (from code analysis)
+
+- **Algorithm:** greedy average-linkage in `cluster_indices_by_threshold()`
+  (topic_clusters.py:125-173). Repeatedly merges the pair of clusters with
+  highest **mean pairwise cosine similarity** while above threshold.
+- **Centroid selection:** `pick_centroid_closest_label()` picks the member
+  whose embedding has highest cosine to cluster mean — avoids picking
+  overly narrow labels.
+- **Vector aggregation:** `collect_topic_rows_from_faiss()` groups FAISS
+  `kg_topic` vectors by `source_id`, computes mean vector per topic across
+  episodes, L2-normalizes.
+- **Embedding text:** label + description concatenated (from `indexer.py:165-174`).
+  Long sentence labels (#580) dilute the embedding with surface-form noise.
+- **Auto-aliases:** `topic_id_aliases_from_clusters_payload()` maps each
+  non-centroid member to the centroid's canonical `topic:slug`. Merged into
+  `cil_lift_overrides.json` with hand-edits taking precedence.
 
 ### 1. Threshold sweep — is 0.75 the right number?
 
