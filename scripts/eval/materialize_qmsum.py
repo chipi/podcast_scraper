@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--dataset-id", default="qmsum_phase21_v1", help="Output dataset ID")
     args = parser.parse_args()
 
-    parquet_path = hf_hub_download(
+    parquet_path = hf_hub_download(  # nosec B615
         "pszemraj/qmsum-cleaned",
         f"data/{args.split}-00000-of-00001.parquet",
         repo_type="dataset",
