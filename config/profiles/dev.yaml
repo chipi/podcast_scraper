@@ -1,0 +1,40 @@
+# Profile: dev — fastest, cheapest, CI-friendly
+#
+# Minimum viable pipeline for development and testing.
+# No API calls, no Ollama, minimal quality — speed only.
+#
+# Research references:
+#   Summary:   bart-led is Tier 2 floor (v2 eval 0.206 paragraph)
+#   GI/KG:     stub mode (skip for speed)
+#   NER:       spaCy sm = 0.966 F1 (fast, no GPU)
+#
+# Usage:
+#   python -m podcast_scraper.cli --config config/profiles/dev.yaml \
+#     --rss <feed_url> --output-dir <output>
+
+# Transcription — smallest local Whisper
+transcription_provider: whisper
+whisper_model: tiny.en
+
+# Speaker detection — fast spaCy
+speaker_detector_provider: spacy
+auto_speakers: true
+
+# Summarization — pure ML, no deps
+summary_provider: transformers
+
+# Grounded Insights — skip for speed
+generate_gi: false
+
+# Knowledge Graph — skip for speed
+generate_kg: false
+
+# Vector search — skip for speed
+vector_search: false
+
+# General
+generate_metadata: true
+generate_summaries: true
+transcribe_missing: true
+language: en
+log_level: INFO

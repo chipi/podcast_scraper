@@ -1,0 +1,50 @@
+# Profile: cloud_balanced — production default
+#
+# Best compound score (quality × cost × latency) from v2 eval + autoresearch.
+# Use this for production deployments, corpus building, and general use.
+#
+# Research references:
+#   Summary:   EVAL_HELDOUT_V2_2026_04.md (gemini 0.564 bullets, 1.5s, $0.00047/ep)
+#   GI:        GI_AUTORESEARCH_PLAN.md (provider mode +10pp, n=12 sweet spot)
+#   KG:        KG_AUTORESEARCH_PLAN.md (provider mode +37pp, n=10 sweet spot)
+#   Clustering: 0.70 threshold from 1178-topic production sweep
+#   NER:       spaCy trf = 1.000 F1 with show-title fix
+#
+# Usage:
+#   python -m podcast_scraper.cli --config config/profiles/cloud_balanced.yaml \
+#     --rss <feed_url> --output-dir <output>
+
+# Transcription (TBD: #592 may change this)
+transcription_provider: openai
+openai_transcription_model: whisper-1
+
+# Speaker detection
+speaker_detector_provider: gemini
+auto_speakers: true
+
+# Summarization
+summary_provider: gemini
+gemini_summary_model: gemini-2.5-flash-lite
+preprocessing_enabled: true
+
+# Grounded Insights
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+
+# Knowledge Graph
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+log_level: INFO
