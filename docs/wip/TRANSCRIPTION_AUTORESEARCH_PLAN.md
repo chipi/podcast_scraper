@@ -21,15 +21,22 @@ Is Whisper API the right choice? Can we get equivalent quality cheaper/faster?
 
 ## Phase 1: Research — what's available (half day)
 
-### Providers to investigate
+### Providers to investigate (researched 2026-04-18)
 
-| Provider | Type | Cost | Notes |
-|----------|------|------|-------|
-| **OpenAI Whisper API** (current) | Cloud | $0.006/min | Our baseline |
-| **Local Whisper** (whisper.cpp / transformers) | Local | $0 | Already supported; models: tiny→large-v3 |
-| **Gemini** | Cloud | Cheap (per-token) | Already have provider; can it transcribe? |
-| **Deepgram** | Cloud | $0.0043/min (Nova-2) | Popular alternative; may need new provider |
-| **AssemblyAI** | Cloud | $0.002-0.006/min | Another alternative |
+| Provider | Type | Cost/min | Diarization | Timestamps | Fit |
+|----------|------|:--------:|:-----------:|:----------:|:---:|
+| **OpenAI Whisper API** (current) | Cloud | $0.006 | No (separate) | Segment | Baseline |
+| **Local Whisper** (transformers) | Local | $0 | No | Segment | Already supported; tiny→large-v3 |
+| **Deepgram Nova-3** | Cloud | $0.0043 | **Built-in, free** | **Word-level** | **#1 candidate** — 28% cheaper, better diarization |
+| **AssemblyAI Nano** | Cloud | $0.0065 | Built-in, free | Word-level | #2 — comparable price, excellent SDK |
+| **Gladia** | Cloud | $0.0061 | Built-in | Word-level | #3 — near Whisper price, newer entrant |
+| Gemini | Cloud | ~$0.01-0.04 | No API | No timestamps | **Skip** — no structured ASR output |
+| Google Chirp 2 | Cloud | $0.016 | Built-in | Word-level | Overpriced for podcast-only |
+| Rev.ai | Cloud | $0.02 | Built-in | Word-level | 3× current cost, skip |
+
+**Key insight:** Deepgram Nova-3 is cheaper than Whisper AND has built-in
+diarization + word-level timestamps — exactly what GI quote grounding needs.
+Would require a new provider implementation (`deepgram_provider.py`).
 
 ### What to research per provider
 
