@@ -94,7 +94,7 @@ def _ollama(model: str) -> Dict[str, str]:
 # mistral-small3.2 (22B for +1%), phi3:mini (4k context, structurally broken).
 LOCAL_PROVIDERS = {
     "ollama/qwen3.5:9b": _ollama("qwen3.5:9b"),  # Champion, best local
-    "ollama/llama3.2:3b": _ollama("llama3.2:3b"),  # Smallest viable, speed floor
+    "ollama/llama3.1:8b": _ollama("llama3.1:8b"),  # Llama family, full pipeline at 8B
     "ollama/mistral:7b": _ollama("mistral:7b"),  # Best non-Qwen mid-tier
     "ollama/gemma2:9b": _ollama("gemma2:9b"),  # Google arch, different strengths
     "ollama/qwen3.5:35b": _ollama("qwen3.5:35b"),  # "Does bigger help?" reference

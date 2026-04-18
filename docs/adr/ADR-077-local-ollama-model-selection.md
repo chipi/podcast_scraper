@@ -17,7 +17,7 @@ reference.
 | Model | Family | Size | v2 Bullets | Role |
 | ----- | ------ | :--: | :--------: | ---- |
 | **qwen3.5:9b** | Qwen 3.5 | 9B | 0.580 | **Champion** — best local quality, default pick |
-| **llama3.2:3b** | Llama | 3B | 0.501 | **Speed floor** — smallest viable, fastest |
+| **llama3.1:8b** | Llama | 8B | 0.518 | **Llama family** — full pipeline at 8B (llama3.2:3b demoted: KG unreliable at 3B) |
 | **mistral:7b** | Mistral | 7B | 0.526 | **Mid-tier** — best non-Qwen, balanced |
 | **gemma2:9b** | Gemma | 9B | 0.492 | **Diversity** — Google architecture |
 | **qwen3.5:35b** | Qwen 3.5 | 35B | 0.576 | **Scale reference** — "does bigger help?" |
@@ -61,6 +61,25 @@ This tells us whether pipeline fixes work across the full size spectrum.
 - Before: 11 models × 3 tasks × 5 episodes = ~4 hours
 - After: 5 models × 3 tasks × 5 episodes = ~1.5 hours
 - 60% time reduction while retaining all family + size signal.
+
+## Pipeline validation findings (2026-04-18, #591)
+
+Full pipeline validation (summary → GI → KG → bridge) on 5 held-out episodes:
+
+| Model | Summary | GI | Grounding | KG | Bridge |
+| ----- | :-----: | :-: | :-------: | :-: | :----: |
+| qwen3.5:9b | ✅ | ✅ | 100% | ✅ | ✅ |
+| llama3.1:8b | ✅ | ✅ | ✅ | ✅ | ✅ |
+| mistral:7b | ✅ | ✅ | 98% | ✅ | ✅ |
+| gemma2:9b | pending | | | | |
+| qwen3.5:35b | pending | | | | |
+
+**llama3.2:3b (3B) demoted:** KG entity extraction fails (0 entities on 2/5
+episodes). 3B params insufficient for structured JSON extraction. Replaced
+by llama3.1:8b (8B) which passes all stages.
+
+**Minimum viable size for full pipeline: 7-8B.** All 7B+ models pass.
+3B models are summary+GI only.
 
 ## Consequences
 
