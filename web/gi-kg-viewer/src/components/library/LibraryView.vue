@@ -29,6 +29,17 @@ defineOptions({ name: 'LibraryView' })
 /** ``GET /api/corpus/episodes`` page size (cursor pagination; scroll + Load more). */
 const LIBRARY_EPISODES_PAGE_SIZE = 20
 
+/**
+ * Feed picker in Episode filters: cap list height so the filter column stays compact.
+ * Approximate row: ``h-8`` cover + ``py-1`` + optional ``Indexed`` chip (use slightly generous rem).
+ */
+const LIBRARY_FEED_FILTER_VISIBLE_ROWS = 3
+const LIBRARY_FEED_FILTER_ROW_REM = 2.625
+const LIBRARY_FEED_FILTER_GAP_REM = 0.125
+const LIBRARY_FEED_FILTER_LIST_MAX_HEIGHT_REM =
+  LIBRARY_FEED_FILTER_VISIBLE_ROWS * LIBRARY_FEED_FILTER_ROW_REM +
+  (LIBRARY_FEED_FILTER_VISIBLE_ROWS - 1) * LIBRARY_FEED_FILTER_GAP_REM
+
 const emit = defineEmits<{
   'focus-search': [
     payload: { feed: string; query: string; since?: string; feedDisplayTitle?: string },
@@ -747,7 +758,8 @@ onBeforeUnmount(() => {
                 </button>
               </div>
               <div
-                class="max-h-40 min-h-0 flex-1 overflow-y-auto sm:max-h-48 lg:max-h-[min(50vh,20rem)]"
+                class="min-h-0 overflow-y-auto"
+                :style="{ maxHeight: `${LIBRARY_FEED_FILTER_LIST_MAX_HEIGHT_REM}rem` }"
                 role="region"
                 aria-label="Feeds"
               >

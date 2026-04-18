@@ -10,6 +10,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
 from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
@@ -90,6 +91,8 @@ async def list_artifacts(
                     mtime_utc=_mtime_utc_iso(st.st_mtime),
                 )
             )
+    allowed = latest_feed_run_allowed_relpaths(a.relative_path for a in items)
+    items = [a for a in items if a.relative_path in allowed]
     items.sort(key=lambda x: (x.relative_path, x.kind))
     hints = corpus_search_parent_hint(base)
     return ArtifactListResponse(path=str(base), artifacts=items, hints=hints)

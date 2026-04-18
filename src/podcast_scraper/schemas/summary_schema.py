@@ -109,6 +109,54 @@ class ParseResult:
     repair_attempted: bool = False
 
 
+def _structured_summary_json_parse_failed(unfenced: str) -> bool:
+    """True when *unfenced* is not valid JSON (strict parse).
+
+    Used to refuse prose heuristics on truncated Gemini-style blobs: if the model
+    clearly intended a ``title`` + ``bullets`` object but ``json.loads`` fails,
+    treating the tail as "sentences" produces a single toxic bullet and hides the
+    failure from callers that only check ``ParseResult.success``.
+    """
+    try:
+        json.loads(unfenced)
+    except json.JSONDecodeError:
+        return True
+    return False
+
+
+def _looks_like_structured_summary_json_contract(text: str) -> bool:
+    """Heuristic: model tried to return the normalized JSON summary object.
+
+    Matches prompts that ask for ``title`` + ``bullets`` / ``key_points`` / ``takeaways``.
+    Scoped to the opening of the payload to avoid scanning huge truncated blobs.
+    """
+    s = text.strip()
+    if not s.startswith("{"):
+        return False
+    head = s[:8000].lower()
+    return (
+        '"bullets"' in head
+        or '"key_points"' in head
+        or '"takeaways"' in head
+        or "'bullets'" in head
+    )
+
+
+def _strip_markdown_json_fence(text: str) -> str:
+    """Remove leading `` ```json `` / `` ``` `` and trailing `` ``` `` from LLM output.
+
+    Models often emit `` ```json { ... } ``` `` on **one line** (no newline after the
+    fence). Older repair logic only stripped `` ```json `` when followed by ``\\n``,
+    which left the fence in place and broke ``json.loads``.
+    """
+    t = text.strip()
+    if not t:
+        return t
+    t = re.sub(r"^```(?:json)?\s*", "", t, count=1, flags=re.IGNORECASE)
+    t = re.sub(r"\s*```\s*$", "", t)
+    return t.strip()
+
+
 def parse_summary_output(
     text: str, provider: Any, episode_title: Optional[str] = None
 ) -> ParseResult:
@@ -118,6 +166,12 @@ def parse_summary_output(
     1. Strict JSON parsing (for JSON mode providers)
     2. Best-effort JSON parsing (repair malformed JSON)
     3. Heuristic text parsing (extract bullets, quotes, etc.)
+
+    If (1) and (2) do not yield a schema but the text still looks like the
+    structured JSON summary contract (e.g. ``{"title":...,"bullets":[...``) and
+    strict JSON parse of the fence-stripped text still fails, (3) is skipped
+    and ``success=False`` is returned so callers can fail the episode instead
+    of storing a single degraded "bullet" of raw JSON.
 
     Args:
         text: Raw summary text from provider
@@ -134,9 +188,12 @@ def parse_summary_output(
             error="Empty summary text",
         )
 
+    text_stripped = text.strip()
+    unfenced = _strip_markdown_json_fence(text_stripped)
+
     # Strategy 1: Try strict JSON parsing
     try:
-        data = json.loads(text.strip())
+        data = json.loads(unfenced)
         schema = _validate_and_create_schema(data, text, episode_title)
         if schema:
             return ParseResult(schema=schema, success=True)
@@ -144,7 +201,7 @@ def parse_summary_output(
         pass  # Not JSON, try other strategies
 
     # Strategy 2: Try to repair malformed JSON
-    repaired_json = _repair_json(text)
+    repaired_json = _repair_json(text_stripped)
     if repaired_json:
         try:
             data = json.loads(repaired_json)
@@ -154,8 +211,20 @@ def parse_summary_output(
         except json.JSONDecodeError:
             pass  # Repair failed
 
-    # Strategy 3: Best-effort text parsing
-    schema = _parse_text_heuristics(text, episode_title)
+    if _looks_like_structured_summary_json_contract(
+        unfenced
+    ) and _structured_summary_json_parse_failed(unfenced):
+        return ParseResult(
+            schema=None,
+            success=False,
+            error=(
+                "Structured summary JSON was incomplete or invalid (e.g. truncated). "
+                "Skipping prose fallback; retry summarization for this episode."
+            ),
+        )
+
+    # Strategy 3: Best-effort text parsing (use fence-stripped text)
+    schema = _parse_text_heuristics(unfenced, episode_title)
     if schema:
         return ParseResult(
             schema=schema,
@@ -250,10 +319,7 @@ def _repair_json(text: str) -> Optional[str]:
     Returns:
         Repaired JSON string if possible, None otherwise
     """
-    # Remove markdown code fences
-    text = re.sub(r"^```json\s*\n", "", text, flags=re.MULTILINE)
-    text = re.sub(r"^```\s*\n", "", text, flags=re.MULTILINE)
-    text = re.sub(r"\n```\s*$", "", text, flags=re.MULTILINE)
+    text = _strip_markdown_json_fence(text)
 
     # Remove trailing commas (simple heuristic)
     text = re.sub(r",\s*}", "}", text)

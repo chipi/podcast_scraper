@@ -206,7 +206,11 @@ async function open(payload: TranscriptViewerOpenPayload): Promise<void> {
   const multi =
     Array.isArray(payload.charRanges) && payload.charRanges.length > 0
   if (multi) {
-    highlightSegments.value = buildTranscriptHighlightSegments(text, payload.charRanges)
+    const ranges = payload.charRanges as ReadonlyArray<{
+      charStart: unknown
+      charEnd: unknown
+    }>
+    highlightSegments.value = buildTranscriptHighlightSegments(text, ranges)
     highlightParts.value = null
   } else {
     highlightParts.value = splitTranscriptAroundHighlight(text, payload.charStart, payload.charEnd)

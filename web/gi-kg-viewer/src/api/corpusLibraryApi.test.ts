@@ -5,6 +5,8 @@ import {
   fetchCorpusEpisodes,
   fetchCorpusFeeds,
   fetchCorpusSimilarEpisodes,
+  fetchNodeEpisodes,
+  RFC076_EXPAND_MAX_EPISODES,
 } from './corpusLibraryApi'
 
 function expectFetchCalledWithUrl(expectedUrl: string): void {
@@ -175,6 +177,61 @@ describe('corpusLibraryApi', () => {
       expectFetchCalledWithUrl(
         '/api/corpus/episodes/similar?path=%2Froot&metadata_relpath=metadata%2Fa.metadata.json&top_k=5',
       )
+    })
+  })
+
+  describe('fetchNodeEpisodes', () => {
+    it('POSTs /api/corpus/node-episodes with path and node_id', async () => {
+      const payload = {
+        path: '/c',
+        node_id: 'topic:x',
+        episodes: [],
+        truncated: false,
+        total_matched: null,
+      }
+      mockFetchJson(true, payload)
+      await expect(fetchNodeEpisodes('/c', 'g:topic:x')).resolves.toEqual(payload)
+      expect(fetch).toHaveBeenCalledWith(
+        '/api/corpus/node-episodes',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: '/c', node_id: 'g:topic:x' }),
+          signal: expect.any(AbortSignal),
+        }),
+      )
+    })
+
+    it('includes max_episodes when set', async () => {
+      const payload = {
+        path: '/c',
+        node_id: 'topic:x',
+        episodes: [],
+        truncated: true,
+        total_matched: 5,
+      }
+      mockFetchJson(true, payload)
+      await fetchNodeEpisodes('/c', 'topic:x', 2)
+      expect(JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string)).toEqual(
+        { path: '/c', node_id: 'topic:x', max_episodes: 2 },
+      )
+    })
+
+    it('includes RFC076 default expand cap when passing RFC076_EXPAND_MAX_EPISODES', async () => {
+      const payload = {
+        path: '/c',
+        node_id: 'topic:x',
+        episodes: [],
+        truncated: false,
+        total_matched: null,
+      }
+      mockFetchJson(true, payload)
+      await fetchNodeEpisodes('/c', 'topic:x', RFC076_EXPAND_MAX_EPISODES)
+      expect(JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string)).toEqual({
+        path: '/c',
+        node_id: 'topic:x',
+        max_episodes: RFC076_EXPAND_MAX_EPISODES,
+      })
     })
   })
 })

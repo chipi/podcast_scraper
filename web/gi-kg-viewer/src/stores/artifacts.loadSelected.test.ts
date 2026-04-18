@@ -1,13 +1,14 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchArtifactJson } from '../api/artifactsApi'
+import type { ArtifactData } from '../types/artifact'
 import { useArtifactsStore } from './artifacts'
 
 vi.mock('../api/artifactsApi', () => ({
   fetchArtifactJson: vi.fn(),
 }))
 
-const emptyArtifact = { nodes: [] as unknown[], edges: [] as unknown[] }
+const emptyArtifact: ArtifactData = { nodes: [], edges: [] }
 
 describe('useArtifactsStore loadSelected single-flight', () => {
   beforeEach(() => {

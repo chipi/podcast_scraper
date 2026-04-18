@@ -10,6 +10,15 @@
 rss: https://feeds.example.com/podcast.xml
 output_dir: output
 max_episodes: 3
+append: true
+delay_ms: 1000
+
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
 
 # urllib3 retries for transcript/media downloads (not RSS; RSS uses rss_* below)
 http_retry_total: 8
@@ -37,3 +46,9 @@ episode_retry_delay_sec: 10.0
 # rss_retry_total: 1
 # rss_backoff_factor: 0.0
 # episode_retry_max: 0
+
+# When merging into a full pipeline YAML, add vector index (see
+# config/manual/manual_multi_feed_corpus_rss_registry_openai_gemini.yaml).
+# This file already sets GI + KG (generate_kg, kg_extraction_source, kg_max_topics) above.
+# vector_search: true
+# vector_backend: faiss

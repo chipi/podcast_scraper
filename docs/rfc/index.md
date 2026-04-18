@@ -87,11 +87,12 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | [RFC-068](RFC-068-corpus-digest-api-viewer.md) | Corpus Digest — API & Viewer | PRD-023 | v2.6.0 | `GET /api/corpus/digest`, Digest tab, Library 24h glance, feed diversity, semantic topic bands; `corpus_digest_api` on `/api/health` |
 | [RFC-069](RFC-069-graph-exploration-toolkit.md) | GI/KG Viewer — Graph Exploration Toolkit | PRD-024 | v2.6.0 | Zoom controls, % readout, Shift+drag box zoom, minimap v1, degree-bucket filter, built-in layouts, edge filters; extends RFC-062 |
 | [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) | Corpus Intelligence Dashboard (GI/KG Viewer) | PRD-025 | v2.6.0 | **Dashboard** tab: **`/api/corpus/*`** aggregates + Chart.js (**Pipeline** / **Content intelligence**); manifest + capped **`run.json`** discovery; index/digest/GI-KG timelines; [PRD-025](../prd/PRD-025-corpus-intelligence-dashboard-viewer.md) |
+| [RFC-076](RFC-076-progressive-graph-expansion.md) | Progressive graph expansion (cross-episode) | #581 | v2.6.0 | `POST /api/corpus/node-episodes`, `onetap` rail / `dbltap` expand-collapse, bridge-only scan; extends RFC-069 |
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **73** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-074**
-with **no RFC-014**. **2** open (in-flight, partial implementation), **58** completed, and **13** Draft
+**Counts (reconcile when moving RFCs):** **74** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-076**
+with **no RFC-014**. **2** open (in-flight, partial implementation), **59** completed, and **13** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
@@ -128,6 +129,7 @@ by filename under `docs/rfc/` but excluded from the index per the
 | [RFC-068](RFC-068-corpus-digest-api-viewer.md) | Digest API + tab, Library glance |
 | [RFC-069](RFC-069-graph-exploration-toolkit.md) | Graph exploration toolkit |
 | [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) | Dashboard tab, corpus intelligence panels |
+| [RFC-076](RFC-076-progressive-graph-expansion.md) | Progressive graph expansion (`/api/corpus/node-episodes`, graph `onetap`/`dbltap`) |
 
 Older **draft RFC audit** tables (pre-2026-04) are **archeology** — trust this index and each RFC’s
 **Status** block.

@@ -17,6 +17,16 @@
 # summary_provider: "transformers"
 # summary_model: "facebook/bart-large-cnn"
 # vector_search: false
+#
+# Full-stack presets (manual_multi_feed_corpus_rss_registry_openai_gemini.yaml) also set:
+# generate_gi: true
+# gi_insight_source: summary_bullets
+# gi_max_insights: 5
+# generate_kg: true
+# kg_extraction_source: summary_bullets
+# kg_max_topics: 5
+# vector_search: true
+# vector_backend: faiss
 
 rss_url: "https://example.com/replace-with-your-feed.xml"
 output_dir: ".tmp/profile_freeze_run"

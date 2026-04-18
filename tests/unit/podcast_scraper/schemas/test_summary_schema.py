@@ -10,6 +10,7 @@ from podcast_scraper.schemas.summary_schema import (
     _extract_entities_from_text,
     _extract_quotes_from_text,
     _repair_json,
+    _strip_markdown_json_fence,
     _validate_and_create_schema,
     parse_summary_output,
     SummarySchema,
@@ -123,6 +124,43 @@ class TestParseSummaryOutput(unittest.TestCase):
         self.assertEqual(len(result.schema.bullets), 2)
         self.assertEqual(len(result.schema.key_quotes), 1)
 
+    def test_json_fence_same_line_as_opening_brace(self):
+        """Gemini often returns `` ```json {`` with no newline before ``{``."""
+        json_text = '```json {"title": "Fence Title", "bullets": ["One", "Two"]} ```'
+        mock_provider = Mock()
+
+        result = parse_summary_output(json_text, mock_provider, episode_title="Ep")
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.schema)
+        self.assertEqual(result.schema.title, "Fence Title")
+        self.assertEqual(result.schema.bullets, ["One", "Two"])
+        self.assertEqual(result.schema.status, "valid")
+        self.assertIsNone(result.schema.raw_text)
+
+    def test_truncated_structured_json_skips_heuristic_fallback(self):
+        """Truncated title+bullets JSON must not become a single heuristic bullet."""
+        truncated = (
+            '{"title": "Physical Intelligence", "bullets": [ "First point about '
+            "robots and models that goes on long enough to look real."
+        )
+        mock_provider = Mock()
+        result = parse_summary_output(truncated, mock_provider)
+        self.assertFalse(result.success)
+        self.assertIsNone(result.schema)
+        self.assertIsNotNone(result.error)
+        self.assertIn("incomplete", result.error.lower())
+
+    def test_valid_json_with_missing_title_uses_episode_title(self):
+        """Missing title field falls back to episode_title; parse stays valid."""
+        json_text = '{"bullets": ["Only bullets", "Second"]}'
+        mock_provider = Mock()
+        result = parse_summary_output(json_text, mock_provider, episode_title="Ep Title")
+        self.assertTrue(result.success)
+        self.assertIsNotNone(result.schema)
+        self.assertEqual(result.schema.status, "valid")
+        self.assertEqual(result.schema.title, "Ep Title")
+        self.assertEqual(result.schema.bullets, ["Only bullets", "Second"])
+
 
 class TestRepairJson(unittest.TestCase):
     """Test JSON repair functions."""
@@ -133,6 +171,14 @@ class TestRepairJson(unittest.TestCase):
         repaired = _repair_json(text)
         self.assertIsNotNone(repaired)
         self.assertNotIn("```", repaired)
+
+    def test_strip_fence_json_on_same_line(self):
+        """Opening fence and ``{`` on one line must strip to valid JSON."""
+        raw = '```JSON {"title": "T", "bullets": ["a"]}```'
+        self.assertEqual(
+            _strip_markdown_json_fence(raw),
+            '{"title": "T", "bullets": ["a"]}',
+        )
 
     def test_remove_trailing_commas(self):
         """Test removing trailing commas."""

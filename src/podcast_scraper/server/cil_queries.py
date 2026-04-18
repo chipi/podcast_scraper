@@ -136,6 +136,129 @@ def iter_cil_episode_bundles(
         yield safe_bridge, bridge, gi, kg
 
 
+def iter_cil_bridge_bundles(
+    root_path: str,
+    anchor_path: str,
+) -> Iterator[tuple[str, dict[str, Any]]]:
+    """Yield ``(safe_bridge_path, bridge)`` reading only each ``*.bridge.json``.
+
+    Same traversal and prefix rules as ``iter_cil_episode_bundles`` but does not
+    read GI/KG JSON (RFC-076 progressive graph expansion).
+    """
+    anchor_s = os.path.normpath(anchor_path)
+    root_s = os.path.normpath(root_path)
+    if root_s != anchor_s and not root_s.startswith(anchor_s + os.sep):
+        return
+    root_prefix = root_s + os.sep
+    anchor_prefix = anchor_s + os.sep
+
+    if not os.path.isdir(anchor_s):
+        return
+
+    bridge_paths: list[str] = []
+    for dirpath, _dirnames, filenames in os.walk(anchor_s):
+        dnorm = os.path.normpath(dirpath)
+        if dnorm != anchor_s and not dnorm.startswith(anchor_prefix):
+            continue
+        if dnorm != root_s and not dnorm.startswith(root_prefix):
+            continue
+        for fn in filenames:
+            if not fn.endswith(".bridge.json"):
+                continue
+            joined = os.path.normpath(os.path.join(dnorm, fn))
+            if not joined.startswith(root_prefix):
+                continue
+            if os.path.isfile(joined):
+                bridge_paths.append(joined)
+    bridge_paths.sort()
+
+    for safe_bridge in bridge_paths:
+        if not safe_bridge.startswith(root_prefix):
+            continue
+        bridge = _read_json(safe_bridge)
+        if bridge is None:
+            continue
+        yield safe_bridge, bridge
+
+
+def _posix_relpath_under_corpus(corpus_root: str, abs_path: str) -> str | None:
+    """Return POSIX path relative to corpus root, or None if outside."""
+    try:
+        root_r = Path(os.path.normpath(corpus_root)).resolve()
+        file_r = Path(os.path.normpath(abs_path)).resolve()
+        rel = file_r.relative_to(root_r)
+    except (OSError, ValueError):
+        return None
+    return rel.as_posix()
+
+
+def episodes_for_bridge_node_id(
+    root_path: str,
+    anchor_path: str,
+    raw_node_id: str,
+    *,
+    max_episodes: int | None = None,
+) -> tuple[list[dict[str, Any]], bool, int | None]:
+    """Episodes whose bridge lists the canonical CIL id (RFC-076).
+
+    Returns:
+        ``(rows, truncated, total_matched)`` where each row has corpus-relative
+        ``gi_relative_path``, ``kg_relative_path``, ``bridge_relative_path``, and
+        optional ``episode_id``. Sorted by ``gi_relative_path``.
+        ``total_matched`` is the pre-cap count when ``truncated`` is True; else
+        ``None``.
+    """
+    canon = canonical_cil_entity_id(raw_node_id)
+    if not canon:
+        return [], False, None
+
+    root_prefix = os.path.normpath(root_path) + os.sep
+    matches: list[dict[str, Any]] = []
+    seen_gi: set[str] = set()
+
+    for safe_bridge, bridge in iter_cil_bridge_bundles(root_path, anchor_path):
+        if canon not in _bridge_all_ids(bridge):
+            continue
+        parent = os.path.dirname(safe_bridge)
+        name = os.path.basename(safe_bridge)
+        if not name.endswith(".bridge.json"):
+            continue
+        stem = name[: -len(".bridge.json")]
+        gi_j = os.path.normpath(os.path.join(parent, f"{stem}.gi.json"))
+        kg_j = os.path.normpath(os.path.join(parent, f"{stem}.kg.json"))
+        if not gi_j.startswith(root_prefix) or not kg_j.startswith(root_prefix):
+            continue
+        if not os.path.isfile(gi_j) or not os.path.isfile(kg_j):
+            continue
+        gi_rel = _posix_relpath_under_corpus(root_path, gi_j)
+        kg_rel = _posix_relpath_under_corpus(root_path, kg_j)
+        br_rel = _posix_relpath_under_corpus(root_path, safe_bridge)
+        if not gi_rel or not kg_rel or not br_rel:
+            continue
+        if gi_rel in seen_gi:
+            continue
+        seen_gi.add(gi_rel)
+        eid = _episode_id_from_bridge(bridge)
+        matches.append(
+            {
+                "gi_relative_path": gi_rel,
+                "kg_relative_path": kg_rel,
+                "bridge_relative_path": br_rel,
+                "episode_id": eid or None,
+            }
+        )
+
+    matches.sort(key=lambda r: str(r.get("gi_relative_path") or ""))
+    total = len(matches)
+    truncated = False
+    total_out: int | None = None
+    if max_episodes is not None and max_episodes > 0 and total > max_episodes:
+        truncated = True
+        total_out = total
+        matches = matches[:max_episodes]
+    return matches, truncated, total_out
+
+
 def _bridge_gi_ids(bridge: dict[str, Any]) -> set[str]:
     out: set[str] = set()
     for row in bridge.get("identities") or []:

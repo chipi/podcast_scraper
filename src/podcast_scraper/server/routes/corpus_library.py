@@ -9,6 +9,10 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
+from podcast_scraper.server.cil_queries import (
+    canonical_cil_entity_id,
+    episodes_for_bridge_node_id,
+)
 from podcast_scraper.server.corpus_catalog import (
     aggregate_feeds,
     build_catalog_rows,
@@ -35,6 +39,9 @@ from podcast_scraper.server.schemas import (
     CorpusEpisodesResponse,
     CorpusFeedItem,
     CorpusFeedsResponse,
+    CorpusNodeEpisodeItem,
+    CorpusNodeEpisodesRequest,
+    CorpusNodeEpisodesResponse,
     CorpusResolvedEpisodeArtifact,
     CorpusResolveEpisodesRequest,
     CorpusResolveEpisodesResponse,
@@ -150,6 +157,41 @@ async def corpus_resolve_episode_artifacts(
         path=str(root),
         resolved=resolved,
         missing_episode_ids=missing,
+    )
+
+
+@router.post("/corpus/node-episodes", response_model=CorpusNodeEpisodesResponse)
+async def corpus_node_episodes(
+    request: Request,
+    body: CorpusNodeEpisodesRequest,
+) -> CorpusNodeEpisodesResponse:
+    """List episodes whose bridge.json references a canonical CIL id (RFC-076)."""
+    anchor = getattr(request.app.state, "output_dir", None)
+    root = _resolve_corpus_root(body.path, anchor)
+    root_s = str(root.resolve())
+    anchor_path = str(Path(anchor).resolve()) if anchor is not None else root_s
+    canon = canonical_cil_entity_id(body.node_id)
+    rows, truncated, total_matched = episodes_for_bridge_node_id(
+        root_s,
+        anchor_path,
+        body.node_id,
+        max_episodes=body.max_episodes,
+    )
+    items = [
+        CorpusNodeEpisodeItem(
+            gi_relative_path=str(r["gi_relative_path"]),
+            kg_relative_path=str(r["kg_relative_path"]),
+            bridge_relative_path=str(r["bridge_relative_path"]),
+            episode_id=r.get("episode_id") if isinstance(r.get("episode_id"), str) else None,
+        )
+        for r in rows
+    ]
+    return CorpusNodeEpisodesResponse(
+        path=root_s,
+        node_id=canon,
+        episodes=items,
+        truncated=truncated,
+        total_matched=total_matched,
     )
 
 

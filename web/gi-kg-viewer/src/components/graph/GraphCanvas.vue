@@ -14,8 +14,10 @@ import {
   ref,
   watch,
 } from 'vue'
+import { fetchNodeEpisodes, RFC076_EXPAND_MAX_EPISODES } from '../../api/corpusLibraryApi'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
@@ -38,6 +40,7 @@ import {
 } from '../../utils/graphEpisodeMetadata'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
+import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
 import { findRawNodeInArtifact, toCytoElements } from '../../utils/parsing'
 import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
 import { StaleGeneration } from '../../utils/staleGeneration'
@@ -51,6 +54,7 @@ const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
 const episodeRail = useEpisodeRailStore()
 const artifacts = useArtifactsStore()
+const graphExpansion = useGraphExpansionStore()
 const shell = useShellStore()
 const searchStore = useSearchStore()
 const themeStore = useThemeStore()
@@ -111,6 +115,93 @@ async function openGraphEpisodeOrNodeRail(
   }
 }
 
+function graphNodeExpandableForRfc076(
+  core: Core,
+  cyId: string,
+  rawNode: RawGraphNode | null,
+): boolean {
+  if (graphCyIdRepresentsEpisodeNode(cyId, rawNode)) {
+    return false
+  }
+  const t = rawNode?.type
+  if (t !== 'Topic' && t !== 'Person' && t !== 'Entity') {
+    return false
+  }
+  const bare = stripLayerPrefixesForCil(cyId)
+  if (!/^(person|org|topic):/.test(bare)) {
+    return false
+  }
+  try {
+    const n = core.$id(cyId)
+    if (n.empty() || typeof n.isNode !== 'function' || !n.isNode()) {
+      return false
+    }
+    if (n.degree() <= 1) {
+      return false
+    }
+  } catch {
+    return false
+  }
+  return true
+}
+
+async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void> {
+  const id = cyId.trim()
+  if (!id) {
+    return
+  }
+  if (graphExpansion.isExpanded(id)) {
+    graphExpansion.clearTruncationLine()
+    await graphExpansion.collapseSeed(id)
+    return
+  }
+  const rawNode = rawNodeForRailInteraction(id)
+  if (!graphNodeExpandableForRfc076(core, id, rawNode)) {
+    return
+  }
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.healthStatus) {
+    graphExpansion.setTruncationLine('Set a healthy corpus path to expand across episodes.')
+    return
+  }
+  graphExpansion.setBusy(id)
+  graphExpansion.clearTruncationLine()
+  try {
+    const res = await fetchNodeEpisodes(root, id, RFC076_EXPAND_MAX_EPISODES)
+    const flat: string[] = []
+    for (const ep of res.episodes) {
+      const gi = ep.gi_relative_path?.trim()
+      const kg = ep.kg_relative_path?.trim()
+      if (gi) {
+        flat.push(gi)
+      }
+      if (kg) {
+        flat.push(kg)
+      }
+    }
+    if (flat.length === 0) {
+      graphExpansion.setTruncationLine('No other episodes in the corpus reference this node.')
+      return
+    }
+    const prevSel = new Set(artifacts.selectedRelPaths.map((p) => p.replace(/\\/g, '/')))
+    const CHUNK = 12
+    for (let i = 0; i < flat.length; i += CHUNK) {
+      await artifacts.appendRelativeArtifacts(flat.slice(i, i + CHUNK))
+    }
+    const added = artifacts.selectedRelPaths.filter((p) => !prevSel.has(p.replace(/\\/g, '/')))
+    graphExpansion.recordExpand(id, added)
+    if (res.truncated && res.total_matched != null) {
+      graphExpansion.setTruncationLine(
+        `Showing ${res.episodes.length} of ${res.total_matched} episodes (max_episodes cap).`,
+      )
+    }
+  } catch (e) {
+    graphExpansion.setTruncationLine(e instanceof Error ? e.message : String(e))
+  } finally {
+    graphExpansion.setBusy(null)
+  }
+}
+
 const container = ref<HTMLDivElement | null>(null)
 const canvasHost = ref<HTMLDivElement | null>(null)
 /** True while cytoscape is rebuilding (after redraw); hides default/square pre-layout frame. */
@@ -133,6 +224,9 @@ const boxZoomRect = reactive({
 })
 
 let cy: Core | null = null
+/** Prevents nested ``redraw()`` (e.g. artifact watcher during sync COSE ``run()``) from destroying the active instance mid-layout. */
+let redrawGateDepth = 0
+let redrawPending = false
 let resizeObs: ResizeObserver | null = null
 let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
 let lastZoomLevel = 1
@@ -145,6 +239,7 @@ let boxListenersAttached = false
 
 /** In-flight element layout (e.g. COSE rAF). Must be stopped before starting another or positions revert. */
 let activeElesLayout: { stop: () => void } | null = null
+
 /** Bumps when a new layout run starts so stale layoutstop handlers from a stopped layout are ignored. */
 const graphLayoutGate = new StaleGeneration()
 
@@ -527,6 +622,9 @@ function releaseGraphPaintAfterLayout(core: Core): void {
   void nextTick(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        if (!cy || cy !== core) {
+          return
+        }
         graphContentHiddenUntilLayout.value = false
         scheduleMinimapSetup(core)
       })
@@ -535,7 +633,9 @@ function releaseGraphPaintAfterLayout(core: Core): void {
 }
 
 function finishLayoutPass(core: Core): void {
-  if (!cy) return
+  if (!cy || cy !== core) {
+    return
+  }
   const snap = pendingViewportPreserve
   pendingViewportPreserve = null
 
@@ -574,6 +674,7 @@ function applyTopicClusterMemberCollapse(core: Core): void {
 function destroyCy(): void {
   // Do not clear pendingViewportPreserve here — it must survive destroy+redraw until the new cy's layoutstop
   // (ego exit to full graph, Re-layout). egoPriorFullGraphViewportPreserve must survive enter-ego redraw too.
+  graphLayoutGate.invalidate()
   clearSelectedNodeZoomAnchor()
   suspendSelectedNodeZoomAnchorCorrection = 0
   zoomPanListenerAttached = false
@@ -595,7 +696,6 @@ function destroyCy(): void {
     }
     activeElesLayout = null
   }
-  graphLayoutGate.invalidate()
   if (import.meta.env.DEV && cy) {
     const w = window as unknown as { __GIKG_CY_DEV__?: Core }
     if (w.__GIKG_CY_DEV__ === cy) {
@@ -603,7 +703,11 @@ function destroyCy(): void {
     }
   }
   if (cy) {
-    cy.destroy()
+    try {
+      cy.destroy()
+    } catch {
+      /* ignore */
+    }
     cy = null
   }
 }
@@ -967,7 +1071,7 @@ function runRelayout(): void {
     if (activeElesLayout === lo) {
       activeElesLayout = null
     }
-    if (!cy) {
+    if (!cy || cy !== c) {
       graphContentHiddenUntilLayout.value = false
       return
     }
@@ -981,111 +1085,125 @@ function runRelayout(): void {
 }
 
 function redraw(): void {
-  graphContentHiddenUntilLayout.value = true
-  destroyCy()
-  const el = container.value
-  if (!el) {
-    graphContentHiddenUntilLayout.value = false
+  if (redrawGateDepth > 0) {
+    redrawPending = true
     return
   }
-
-  const art = gf.viewWithEgo(focusNodeId.value)
-  if (!art) {
-    el.innerHTML =
-      '<p class="p-4 text-sm text-muted">Load artifacts and use “Load selected” to render the graph.</p>'
-    degreeHistogramCounts.value = {}
-    graphContentHiddenUntilLayout.value = false
-    return
-  }
-
-  const elements = toCytoElements(art)
-  const nodeCount = elements.filter((x) => !('source' in x.data)).length
-  if (nodeCount === 0) {
-    el.innerHTML =
-      '<p class="p-4 text-sm text-muted">No nodes in this view (adjust filters).</p>'
-    degreeHistogramCounts.value = {}
-    graphContentHiddenUntilLayout.value = false
-    return
-  }
-
-  el.innerHTML = ''
-  const layoutName = preferredLayout.value
-  const layoutOpts = layoutOptionsFor(layoutName)
-  const core = cytoscape({
-    container: el,
-    elements,
-    style: buildCyStyle(),
-    wheelSensitivity: 0.35,
-  })
-  cy = core
-  if (import.meta.env.DEV) {
-    ;(window as unknown as { __GIKG_CY_DEV__?: Core }).__GIKG_CY_DEV__ = core
-  }
-
-  const layoutGen = graphLayoutGate.bump()
-  let initialLo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
+  redrawGateDepth += 1
   try {
-    initialLo = core.elements().layout({
-      ...layoutOpts,
-      name: layoutName,
-    } as never) as typeof initialLo
-  } catch {
-    cy = null
-    core.destroy()
-    graphContentHiddenUntilLayout.value = false
-    return
-  }
-  activeElesLayout = initialLo
-  initialLo.one('layoutstop', () => {
-    if (graphLayoutGate.isStale(layoutGen)) {
-      return
-    }
-    if (activeElesLayout === initialLo) {
-      activeElesLayout = null
-    }
-    if (!cy || cy !== core) {
-      // Stale stop after destroy/redraw — avoid leaving the canvas host frozen (pointer-events).
+    graphContentHiddenUntilLayout.value = true
+    destroyCy()
+    const el = container.value
+    if (!el) {
       graphContentHiddenUntilLayout.value = false
       return
     }
-    finishLayoutPass(core)
-  })
-  try {
-    initialLo.run()
-  } catch {
-    activeElesLayout = null
-    cy = null
-    core.destroy()
-    graphContentHiddenUntilLayout.value = false
-    return
-  }
 
-  const sync = (): void => {
-    if (cy === core) core.resize()
-  }
-  if (typeof ResizeObserver !== 'undefined') {
-    resizeObs = new ResizeObserver(sync)
-    resizeObs.observe(el)
-  }
-  requestAnimationFrame(sync)
-  requestAnimationFrame(() => requestAnimationFrame(sync))
-
-  const sid = selectedNodeId.value
-  if (sid) {
-    const n = core.$id(sid)
-    if (n.empty()) {
-      selectedNodeId.value = null
-      episodeRail.showTools()
-      clearSelectedNodeZoomAnchor()
-    } else {
-      core.nodes().unselect()
-      n.select()
+    const art = gf.viewWithEgo(focusNodeId.value)
+    if (!art) {
+      el.innerHTML =
+        '<p class="p-4 text-sm text-muted">Load artifacts and use “Load selected” to render the graph.</p>'
+      degreeHistogramCounts.value = {}
+      graphContentHiddenUntilLayout.value = false
+      return
     }
-  }
 
-  setupBoxZoomListeners()
+    const elements = toCytoElements(art)
+    const nodeCount = elements.filter((x) => !('source' in x.data)).length
+    if (nodeCount === 0) {
+      el.innerHTML =
+        '<p class="p-4 text-sm text-muted">No nodes in this view (adjust filters).</p>'
+      degreeHistogramCounts.value = {}
+      graphContentHiddenUntilLayout.value = false
+      return
+    }
 
-  core.on('tap', (evt) => {
+    el.innerHTML = ''
+    const layoutName = preferredLayout.value
+    const layoutOpts = layoutOptionsFor(layoutName)
+    const core = cytoscape({
+      container: el,
+      elements,
+      style: buildCyStyle(),
+      wheelSensitivity: 0.35,
+    })
+    cy = core
+    if (import.meta.env.DEV) {
+      ;(window as unknown as { __GIKG_CY_DEV__?: Core }).__GIKG_CY_DEV__ = core
+    }
+
+    const layoutGen = graphLayoutGate.bump()
+    let initialLo: { stop: () => void; one: (ev: string, fn: () => void) => void; run: () => void }
+    try {
+      initialLo = core.elements().layout({
+        ...layoutOpts,
+        name: layoutName,
+      } as never) as typeof initialLo
+    } catch {
+      cy = null
+      try {
+        core.destroy()
+      } catch {
+        /* ignore */
+      }
+      graphContentHiddenUntilLayout.value = false
+      return
+    }
+    activeElesLayout = initialLo
+    initialLo.one('layoutstop', () => {
+      if (graphLayoutGate.isStale(layoutGen)) {
+        return
+      }
+      if (activeElesLayout === initialLo) {
+        activeElesLayout = null
+      }
+      if (!cy || cy !== core) {
+        // Stale stop after destroy/redraw — avoid leaving the canvas host frozen (pointer-events).
+        graphContentHiddenUntilLayout.value = false
+        return
+      }
+      finishLayoutPass(core)
+    })
+    try {
+      initialLo.run()
+    } catch {
+      activeElesLayout = null
+      cy = null
+      try {
+        core.destroy()
+      } catch {
+        /* ignore */
+      }
+      graphContentHiddenUntilLayout.value = false
+      return
+    }
+
+    const sync = (): void => {
+      if (cy === core) core.resize()
+    }
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObs = new ResizeObserver(sync)
+      resizeObs.observe(el)
+    }
+    requestAnimationFrame(sync)
+    requestAnimationFrame(() => requestAnimationFrame(sync))
+
+    const sid = selectedNodeId.value
+    if (sid) {
+      const n = core.$id(sid)
+      if (n.empty()) {
+        selectedNodeId.value = null
+        episodeRail.showTools()
+        clearSelectedNodeZoomAnchor()
+      } else {
+        core.nodes().unselect()
+        n.select()
+      }
+    }
+
+    setupBoxZoomListeners()
+
+    core.on('tap', (evt) => {
     const t = evt.target
     if (t === core) {
       core.nodes().unselect()
@@ -1104,6 +1222,16 @@ function redraw(): void {
     selectedNodeId.value = null
     episodeRail.showTools()
     clearSelectedNodeZoomAnchor()
+  })
+
+  /** Single-tap rail (RFC-076): ``onetap`` debounces so ``dbltap`` expand does not open rail first. */
+  core.on('onetap', (evt) => {
+    const t = evt.target
+    if (typeof t.isNode === 'function' && t.isNode()) {
+      const id = t.id()
+      const rawNode = rawNodeForRailInteraction(id)
+      void openGraphEpisodeOrNodeRail(id, rawNode)
+    }
   })
 
   core.on('dbltap', (evt) => {
@@ -1135,8 +1263,7 @@ function redraw(): void {
       core.nodes().unselect()
       t.select()
       selectedNodeId.value = id
-      const rawNode = rawNodeForRailInteraction(id)
-      void openGraphEpisodeOrNodeRail(id, rawNode)
+      void expandOrCollapseGraphNode(core, id)
       refreshSelectedNodeZoomAnchor(core)
       return
     }
@@ -1148,19 +1275,28 @@ function redraw(): void {
     }
   })
 
-  core.on('mousedown', (evt) => {
-    if (evt.target !== core) return
-    const o = evt.originalEvent as MouseEvent | undefined
-    if (!o?.shiftKey) return
-    o.preventDefault()
-    boxDragging = true
-    boxStartClient = { x: o.clientX, y: o.clientY }
-    try {
-      core.panningEnabled(false)
-    } catch {
-      /* ignore */
+    core.on('mousedown', (evt) => {
+      if (evt.target !== core) return
+      const o = evt.originalEvent as MouseEvent | undefined
+      if (!o?.shiftKey) return
+      o.preventDefault()
+      boxDragging = true
+      boxStartClient = { x: o.clientX, y: o.clientY }
+      try {
+        core.panningEnabled(false)
+      } catch {
+        /* ignore */
+      }
+    })
+  } finally {
+    redrawGateDepth -= 1
+    if (redrawPending) {
+      redrawPending = false
+      void nextTick(() => {
+        redraw()
+      })
     }
-  })
+  }
 }
 
 const typeHistogramCounts = computed(() => {
@@ -1208,6 +1344,15 @@ function onLayoutSelectChange(): void {
 }
 
 watch(
+  () => artifacts.selectedRelPaths.length,
+  (len) => {
+    if (len === 0) {
+      graphExpansion.resetExpansionState()
+    }
+  },
+)
+
+watch(
   () => [searchStore.results, nav.libraryHighlightSourceIds] as const,
   () => {
     safeGraphWatch('searchHighlights', () => {
@@ -1231,29 +1376,31 @@ watch(
 watch(
   () => gf.filteredArtifact,
   () => {
-    safeGraphWatch('filteredArtifact', () => {
-      ge.resetForNewArtifact()
-      focusNodeId.value = null
-      selectedNodeId.value = null
-      // Keep the right rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
-      // detail). Otherwise `showTools()` clears stashed ids and replaces detail with Search — bad
-      // when the graph reloads after **Load** on a cluster member (append artifacts) or
-      // **Open in graph**: user expects panels to stay and only the canvas to expand.
-      const keepDetailRailOpen =
-        episodeRail.paneKind === 'episode' || episodeRail.paneKind === 'graph-node'
-      if (!keepDetailRailOpen) {
-        episodeRail.showTools()
-      }
-      nav.clearLibraryEpisodeHighlights()
-      nav.clearTopicClusterCanvasCollapsed()
-      pendingViewportPreserve = null
-      egoPriorFullGraphViewportPreserve = null
-      const restoreGraphNodeId =
-        episodeRail.paneKind === 'graph-node' ? episodeRail.graphNodeCyId?.trim() || '' : ''
-      if (restoreGraphNodeId) {
-        nav.requestFocusNode(restoreGraphNodeId)
-      }
-      redraw()
+    void nextTick(() => {
+      safeGraphWatch('filteredArtifact', () => {
+        ge.resetForNewArtifact()
+        focusNodeId.value = null
+        selectedNodeId.value = null
+        // Keep the right rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
+        // detail). Otherwise `showTools()` clears stashed ids and replaces detail with Search — bad
+        // when the graph reloads after **Load** on a cluster member (append artifacts) or
+        // **Open in graph**: user expects panels to stay and only the canvas to expand.
+        const keepDetailRailOpen =
+          episodeRail.paneKind === 'episode' || episodeRail.paneKind === 'graph-node'
+        if (!keepDetailRailOpen) {
+          episodeRail.showTools()
+        }
+        nav.clearLibraryEpisodeHighlights()
+        nav.clearTopicClusterCanvasCollapsed()
+        pendingViewportPreserve = null
+        egoPriorFullGraphViewportPreserve = null
+        const restoreGraphNodeId =
+          episodeRail.paneKind === 'graph-node' ? episodeRail.graphNodeCyId?.trim() || '' : ''
+        if (restoreGraphNodeId) {
+          nav.requestFocusNode(restoreGraphNodeId)
+        }
+        redraw()
+      })
     })
   },
   { flush: 'post' },

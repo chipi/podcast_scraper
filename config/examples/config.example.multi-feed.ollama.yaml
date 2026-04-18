@@ -29,6 +29,7 @@ feeds:
 
 output_dir: output
 max_episodes: 3
+append: true
 
 transcription_provider: whisper
 speaker_detector_provider: ollama
@@ -45,15 +46,15 @@ transcribe_missing: true
 generate_metadata: true
 generate_summaries: true
 generate_gi: true
-gi_insight_source: summary_bullets
-gi_max_insights: 5
+gi_insight_source: provider
+gi_max_insights: 12
 generate_kg: true
-kg_extraction_source: summary_bullets
-kg_max_topics: 5
+kg_extraction_source: provider
+kg_max_topics: 10
 vector_search: true
 vector_backend: faiss
 
-delay_ms: 250
+delay_ms: 1000
 language: en
 auto_speakers: true
 cache_detected_hosts: true

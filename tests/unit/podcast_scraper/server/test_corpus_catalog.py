@@ -110,6 +110,45 @@ def test_aggregate_feeds_counts(tmp_path: Path) -> None:
     assert by["f1"] == 2 and by["f2"] == 1
 
 
+def test_build_catalog_rows_latest_feed_run_only(tmp_path: Path) -> None:
+    """Two ``run_*`` trees under the same feed dir: catalog sees the lexicographically last run."""
+    root = tmp_path
+    doc = {
+        "feed": {"feed_id": "feed_a", "title": "Show"},
+        "episode": {
+            "episode_id": "ep_dup",
+            "title": "Same episode",
+            "published_date": "2024-06-01T00:00:00",
+        },
+        "summary": {"title": "S", "bullets": ["a"]},
+    }
+    text = json.dumps(doc)
+    old = (
+        root
+        / "feeds"
+        / "rss_pod"
+        / "run_20260416-120000_x"
+        / "metadata"
+        / "0001 - Same_20260416-120000_x.metadata.json"
+    )
+    new = (
+        root
+        / "feeds"
+        / "rss_pod"
+        / "run_20260417-120000_y"
+        / "metadata"
+        / "0001 - Same_20260417-120000_y.metadata.json"
+    )
+    old.parent.mkdir(parents=True, exist_ok=True)
+    new.parent.mkdir(parents=True, exist_ok=True)
+    old.write_text(text, encoding="utf-8")
+    new.write_text(text, encoding="utf-8")
+
+    rows = build_catalog_rows(root)
+    assert len(rows) == 1
+    assert "run_20260417-120000_y" in rows[0].metadata_relative_path
+
+
 def test_build_catalog_rows_visual_metadata(tmp_path: Path) -> None:
     root = tmp_path
     mdir = root / "metadata"

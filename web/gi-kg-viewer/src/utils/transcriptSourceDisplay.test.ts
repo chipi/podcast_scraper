@@ -62,21 +62,21 @@ describe('resolveGiPathForTranscript', () => {
       sourceCorpusRelPathByEpisodeId: {
         ep1: 'feeds/x/run/metadata/a.gi.json',
       },
-    } as ParsedArtifact
+    } as unknown as ParsedArtifact
     expect(resolveGiPathForTranscript(art, 'ep1')).toBe('feeds/x/run/metadata/a.gi.json')
   })
   it('falls back to sourceCorpusRelPath when no map entry', () => {
     const art = {
       sourceCorpusRelPath: 'feeds/single/metadata/x.gi.json',
       sourceCorpusRelPathByEpisodeId: null,
-    } as ParsedArtifact
+    } as unknown as ParsedArtifact
     expect(resolveGiPathForTranscript(art, 'ep9')).toBe('feeds/single/metadata/x.gi.json')
   })
   it('map wins over global path for matching episode', () => {
     const art = {
       sourceCorpusRelPath: 'feeds/global/metadata/x.gi.json',
       sourceCorpusRelPathByEpisodeId: { ep2: 'feeds/other/metadata/y.gi.json' },
-    } as ParsedArtifact
+    } as unknown as ParsedArtifact
     expect(resolveGiPathForTranscript(art, 'ep2')).toBe('feeds/other/metadata/y.gi.json')
   })
 })

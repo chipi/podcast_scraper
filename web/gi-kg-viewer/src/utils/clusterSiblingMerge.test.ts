@@ -79,8 +79,20 @@ describe('episodeIdsFromParsedArtifacts', () => {
 describe('sortResolvedArtifactsNewestFirst', () => {
   it('sorts by publish_date descending', () => {
     const rows = sortResolvedArtifactsNewestFirst([
-      { episode_id: 'a', publish_date: '2024-01-01', gi_relative_path: 'a.gi.json' },
-      { episode_id: 'b', publish_date: '2024-06-01', gi_relative_path: 'b.gi.json' },
+      {
+        episode_id: 'a',
+        publish_date: '2024-01-01',
+        gi_relative_path: 'a.gi.json',
+        kg_relative_path: null,
+        bridge_relative_path: null,
+      },
+      {
+        episode_id: 'b',
+        publish_date: '2024-06-01',
+        gi_relative_path: 'b.gi.json',
+        kg_relative_path: null,
+        bridge_relative_path: null,
+      },
     ])
     expect(rows.map((r) => r.episode_id)).toEqual(['b', 'a'])
   })
@@ -91,6 +103,7 @@ describe('artifactRelPathsForResolvedRow', () => {
     expect(
       artifactRelPathsForResolvedRow({
         episode_id: 'e',
+        publish_date: null,
         gi_relative_path: 'm/a.gi.json',
         kg_relative_path: 'm/a.kg.json',
         bridge_relative_path: 'm/a.bridge.json',

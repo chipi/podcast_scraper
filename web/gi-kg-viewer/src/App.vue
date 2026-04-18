@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardOverviewSection from './components/dashboard/DashboardOverviewSection.vue'
@@ -13,6 +14,7 @@ import EpisodeDetailPanel from './components/episode/EpisodeDetailPanel.vue'
 import GraphConnectionsSection from './components/graph/GraphConnectionsSection.vue'
 import GraphNodeRailPanel from './components/graph/GraphNodeRailPanel.vue'
 import { useArtifactsStore } from './stores/artifacts'
+import { useGraphExpansionStore } from './stores/graphExpansion'
 import { useEpisodeRailStore } from './stores/episodeRail'
 import { useGraphFilterStore } from './stores/graphFilters'
 import { useGraphNavigationStore } from './stores/graphNavigation'
@@ -27,6 +29,8 @@ import { StaleGeneration } from './utils/staleGeneration'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+const graphExpansion = useGraphExpansionStore()
+const { truncationLine: graphExpansionTruncationLine } = storeToRefs(graphExpansion)
 const search = useSearchStore()
 const explore = useExploreStore()
 const theme = useThemeStore()
@@ -891,6 +895,21 @@ watch(
             >
               {{ artifacts.siblingMergeLine }}
             </p>
+            <div
+              v-if="graphExpansionTruncationLine"
+              class="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-border bg-elevated/30 px-2 py-1 text-[10px] leading-snug text-muted"
+              data-testid="graph-expansion-truncation-line"
+            >
+              <span class="min-w-0 flex-1">{{ graphExpansionTruncationLine }}</span>
+              <button
+                type="button"
+                class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[9px] font-medium hover:bg-overlay"
+                data-testid="graph-expansion-truncation-dismiss"
+                @click="graphExpansion.clearTruncationLine()"
+              >
+                Dismiss
+              </button>
+            </div>
             <keep-alive class="flex min-h-0 flex-1 flex-col">
               <GraphCanvas
                 v-if="artifacts.displayArtifact"

@@ -627,6 +627,43 @@ class CorpusResolveEpisodesResponse(BaseModel):
     missing_episode_ids: list[str] = Field(default_factory=list)
 
 
+class CorpusNodeEpisodesRequest(BaseModel):
+    """Body for POST /api/corpus/node-episodes (RFC-076)."""
+
+    node_id: str = Field(min_length=1, description="Viewer or canonical CIL node id.")
+    path: str | None = Field(
+        default=None,
+        description="Corpus root. Omit when server default output_dir is set.",
+    )
+    max_episodes: int | None = Field(
+        default=None,
+        ge=1,
+        description="Optional cap after stable sort by gi_relative_path; omit for all matches.",
+    )
+
+
+class CorpusNodeEpisodeItem(BaseModel):
+    """One episode whose bridge references the requested CIL id."""
+
+    gi_relative_path: str
+    kg_relative_path: str
+    bridge_relative_path: str
+    episode_id: str | None = None
+
+
+class CorpusNodeEpisodesResponse(BaseModel):
+    """Response for POST /api/corpus/node-episodes."""
+
+    path: str
+    node_id: str
+    episodes: list[CorpusNodeEpisodeItem] = Field(default_factory=list)
+    truncated: bool = False
+    total_matched: int | None = Field(
+        default=None,
+        description="Pre-cap match count when truncated is True; otherwise None.",
+    )
+
+
 # --- RFC-072 cross-layer queries (GitHub #527) ---
 
 

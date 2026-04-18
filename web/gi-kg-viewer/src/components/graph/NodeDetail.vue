@@ -600,14 +600,6 @@ const insightSupportingQuotesVisible = computed(() => {
   return all.slice(0, INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER)
 })
 
-const insightSupportingQuotesHiddenCount = computed(() => {
-  const n = insightSupportingQuotes.value.length
-  if (n <= INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER || insightQuotesExpanded.value) {
-    return 0
-  }
-  return n - INSIGHT_SUPPORTING_QUOTES_COLLAPSE_AFTER
-})
-
 function toggleInsightSupportingQuotesExpanded(): void {
   insightQuotesExpanded.value = !insightQuotesExpanded.value
 }

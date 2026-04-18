@@ -10,6 +10,7 @@
   - [RFC-069: Graph Exploration Toolkit](../rfc/RFC-069-graph-exploration-toolkit.md)
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
   - [RFC-075: Corpus Topic Clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **TopicCluster** overlay + rail context)
+  - [RFC-076: Progressive graph expansion](../rfc/RFC-076-progressive-graph-expansion.md) (`onetap` rail, `dbltap` expand/collapse, `POST /api/corpus/node-episodes`)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`
   - `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue`
@@ -23,6 +24,7 @@
   - `web/gi-kg-viewer/src/stores/graphExplorer.ts`
   - `web/gi-kg-viewer/src/stores/graphFilters.ts`
   - `web/gi-kg-viewer/src/stores/graphNavigation.ts`
+  - `web/gi-kg-viewer/src/stores/graphExpansion.ts` (RFC-076 seed → appended paths)
 
 ---
 
@@ -59,11 +61,21 @@ neighbors by id are merged.
 Later phases may extend **Show on graph** and search highlighting — see [UXS-005](UXS-005-semantic-search.md) and
 [`docs/wip/wip-rfc-075-open-questions-followup.md`](../wip/wip-rfc-075-open-questions-followup.md).
 
+**Progressive expansion (RFC-076):** With a healthy corpus path, **double-activation** (Cytoscape **`dbltap`**; mouse: **double-click**, touch: **double-tap**) without Shift on an
+eligible **Topic**, **Person**, or **Entity** node (canonical `topic:` / `person:` / `org:` id, degree
+greater than one) loads additional episodes whose `bridge.json` lists that identity via
+`POST /api/corpus/node-episodes`, appending GI/KG paths into the merged graph. A **second**
+double-activation on the same node **collapses** that expansion by removing those appended paths.
+**Single activation** uses Cytoscape **`onetap`** so the episode or graph-node rail opens after the
+`dbltap` debounce window and does not fire on an expand gesture. A thin **strip**
+above the graph (`data-testid="graph-expansion-truncation-line"`) shows truncation, empty-result,
+or error text when applicable, with **Dismiss**.
+
 ---
 
 ## Toolbar (primary row)
 
-A short hint for **Shift+dbl-click** (1-hop / neighborhood) and **Shift+drag** box
+A short hint for **Shift+double-activation** (**`dbltap`**, 1-hop / neighborhood) and **Shift+drag** box
 zoom (and search highlight chip when applicable).
 
 ---
