@@ -144,6 +144,11 @@ number, file, line, date, and a short comment.
 | 1 | #234 | server/cil_queries.py | 159 | 2026-04-18 | ``os.walk(anchor_s)`` in ``iter_cil_bridge_bundles``; same guards as #233 |
 | 1 | #235 | server/cil_queries.py | 187 | 2026-04-18 | ``_posix_relpath_under_corpus`` ``Path.resolve``; inputs from bridge paths already under ``root_prefix`` (RFC-076) |
 | 1 | #236 | server/routes/corpus_library.py | 171 | 2026-04-18 | ``corpus_node_episodes`` ``root.resolve()`` after ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` |
+| 1 | #237 | server/cil_digest_topics.py | 82 | 2026-04-18 | ``_read_json_object`` ``open``; callers pass ``joined`` after normpath+startswith under corpus root or ``safe_relpath_under_corpus_root`` bridge path (PR #602) |
+| 1 | #238 | server/cil_digest_topics.py | 102 | 2026-04-18 | ``corpus_root.resolve()`` + normpath join + ``startswith(safe_prefix)`` before cluster JSON access (PR #602) |
+| 1 | #239 | server/cil_digest_topics.py | 108 | 2026-04-18 | ``os.path.isfile(joined)`` same chain as #238 (PR #602) |
+| 1 | #240 | server/cil_digest_topics.py | 175 | 2026-04-18 | ``safe_relpath_under_corpus_root`` before ``isfile`` / ``_read_json_object`` on bridge (PR #602) |
+| 1 | #241 | server/cil_digest_topics.py | 219 | 2026-04-18 | same as #240 in ``row_matches_library_topic_cluster_filter`` (PR #602) |
 
 ## Still open (not yet dismissed)
 
