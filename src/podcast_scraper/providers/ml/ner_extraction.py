@@ -6,7 +6,6 @@ from text using spaCy models or LLM providers, for use in NER evaluation experim
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -34,12 +33,10 @@ Text:
 
 import re
 
+from ...utils.json_parsing import parse_llm_json, strip_code_fences
 
-def _strip_code_fences(text: str) -> str:
-    """Strip markdown code fences (```json ... ```) from LLM responses."""
-    stripped = re.sub(r"^```(?:json)?\s*\n?", "", text.strip(), flags=re.MULTILINE)
-    stripped = re.sub(r"\n?```\s*$", "", stripped.strip(), flags=re.MULTILINE)
-    return stripped.strip()
+# Keep _strip_code_fences as a local alias for backward compatibility
+_strip_code_fences = strip_code_fences
 
 
 def _extract_show_title_from_header(text: str) -> Optional[str]:
@@ -204,10 +201,7 @@ def _call_llm_ner(
             temperature=0.0,
             response_format={"type": "json_object"},
         )
-        result: Dict[str, Any] = json.loads(
-            response.choices[0].message.content  # type: ignore[arg-type]
-        )
-        return result
+        return parse_llm_json(response.choices[0].message.content or "{}")
 
     elif backend_type == "gemini":
         import google.genai as genai
@@ -221,17 +215,7 @@ def _call_llm_ner(
                 response_mime_type="application/json",
             ),
         )
-        # Gemini sometimes returns duplicate JSON objects on separate lines;
-        # parse only the first valid JSON object.
-        raw = str(response.text or "{}").strip()
-        try:
-            result = json.loads(raw, strict=False)
-        except json.JSONDecodeError:
-            # Try first line only (handles duplicate-object responses)
-            first_line = raw.split("\n")[0].strip()
-            result = json.loads(first_line, strict=False)
-        parsed: Dict[str, Any] = result
-        return parsed
+        return parse_llm_json(response.text or "{}")
 
     elif backend_type == "ollama":
         from openai import OpenAI
@@ -246,10 +230,7 @@ def _call_llm_ner(
             temperature=0.0,
             response_format={"type": "json_object"},
         )
-        result_ollama: Dict[str, Any] = json.loads(
-            response.choices[0].message.content  # type: ignore[arg-type]
-        )
-        return result_ollama
+        return parse_llm_json(response.choices[0].message.content or "{}")
 
     elif backend_type == "anthropic":
         response = provider.client.messages.create(
@@ -259,10 +240,7 @@ def _call_llm_ner(
             messages=[{"role": "user", "content": user_msg}],
             temperature=0.0,
         )
-        text_out = response.content[0].text if response.content else "{}"
-        text_out = _strip_code_fences(text_out)
-        result_ant: Dict[str, Any] = json.loads(text_out, strict=False)
-        return result_ant
+        return parse_llm_json(response.content[0].text if response.content else "{}")
 
     elif backend_type == "mistral":
         response = provider.client.chat.complete(
@@ -273,13 +251,9 @@ def _call_llm_ner(
             ],
             temperature=0.0,
         )
-        text_out = response.choices[0].message.content or "{}"
-        text_out = _strip_code_fences(text_out)
-        result_mis: Dict[str, Any] = json.loads(text_out, strict=False)
-        return result_mis
+        return parse_llm_json(response.choices[0].message.content or "{}")
 
     elif backend_type in ("deepseek", "grok"):
-        # OpenAI-compat path
         response = provider.client.chat.completions.create(
             model=model,
             messages=[
@@ -288,9 +262,7 @@ def _call_llm_ner(
             ],
             temperature=0.0,
         )
-        text_out = response.choices[0].message.content or "{}"
-        result_compat: Dict[str, Any] = json.loads(text_out, strict=False)
-        return result_compat
+        return parse_llm_json(response.choices[0].message.content or "")
 
     else:
         raise ValueError(f"Unsupported backend for LLM NER: {backend_type}")
