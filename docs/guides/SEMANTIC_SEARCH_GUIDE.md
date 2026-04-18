@@ -180,21 +180,30 @@ or **`make verify-gil-offsets-strict`** (override **`GIL_OFFSET_VERIFY_DIR`**). 
 walks discovered **`*.metadata.json`** paths (including **feed-nested** `feeds/.../metadata/`)
 so multi-feed outputs are included.
 
-**Verifier JSON:** The tool prints `verdict`, `overlap_rate`, per-episode breakdown, and
-`warnings`. Useful labels:
+**Verifier JSON:** The tool prints `verdict`, `overlap_rate`, `quotes_total` (all Quote nodes
+in scanned GI), `quotes_verifiable_against_index` (quotes in episodes that have at least one
+transcript chunk in the index), `quotes_skipped_no_transcript_index`, per-episode breakdown, and
+`warnings`. **`overlap_rate`** is **only** over verifiable quotes (episodes with no transcript
+vectors in the index are skipped for the ratio so partial indexing does not count as misalignment).
 
-- **`aligned`** — Overlap rate at least **0.99** and every scanned episode had at least one
-  transcript chunk row in the index (no “GI but no chunks” episodes).
+Useful labels:
+
+- **`aligned`** — Overlap rate at least **0.99** on the verifiable subset (episodes without
+  indexed transcript chunks may still appear in the report with
+  `quotes_skipped_no_transcript_index` on the row).
 - **`mostly_aligned`** — Overlap rate at least **0.85** but not meeting `aligned`.
 - **`divergent`** — Overlap rate below **0.85**; treat as blocking for lift until offsets or
   indexing are fixed.
 - **`no_quotes`** — No Quote nodes in the GI files that were scanned (empty or missing GIL).
+- **`no_indexed_transcript_for_quotes`** — GI has Quotes but no transcript chunk rows in the
+  index for those episodes (strict mode passes; nothing to compare).
 
 If transcript text normalisation (BOM, newlines, Unicode) differs between indexing and GIL
 generation, overlap drops; use the report to align pipelines (RFC-072 Known Limitations).
 
 **Flags:** `--index-path DIR` (default `<output-dir>/search`), `--strict` (non-zero exit when
-overlap is below `--min-overlap-rate`, verdict is `divergent`, or no quotes were found),
+overlap is below `--min-overlap-rate` or verdict is `divergent`; `no_quotes` and
+`no_indexed_transcript_for_quotes` exit zero),
 `--max-samples N` (cap sample quote ids listed per episode when there is no overlap). For
 **`make verify-gil-offsets-strict`**, set **`GIL_OFFSET_VERIFY_DIR`** for the corpus root and
 optionally **`GIL_OFFSET_MIN_RATE`** (default **0.95**).
