@@ -71,15 +71,20 @@ Full pipeline validation (summary → GI → KG → bridge) on 5 held-out episod
 | qwen3.5:9b | ✅ | ✅ | 100% | ✅ | ✅ |
 | llama3.1:8b | ✅ | ✅ | ✅ | ✅ | ✅ |
 | mistral:7b | ✅ | ✅ | 98% | ✅ | ✅ |
-| gemma2:9b | pending | | | | |
+| gemma2:9b | ✅ | ⚠️ 7.8/ep | 95% | ✅ | ✅ |
 | qwen3.5:35b | pending | | | | |
 
 **llama3.2:3b (3B) demoted:** KG entity extraction fails (0 entities on 2/5
 episodes). 3B params insufficient for structured JSON extraction. Replaced
 by llama3.1:8b (8B) which passes all stages.
 
-**Minimum viable size for full pipeline: 7-8B.** All 7B+ models pass.
-3B models are summary+GI only.
+**gemma2:9b instruction-following gap:** produces 7-8 insights when asked for
+12 (avg 7.8/ep, threshold 8). Not a pipeline bug — Gemma2 is concise by
+nature. Grounding (95%) and KG are fine. Keep in Core 5 for architecture
+diversity but note the GI limitation.
+
+**Minimum viable size for full pipeline: 7-8B.** All 7B+ models pass (gemma2
+borderline on insight count but functional).
 
 ## Consequences
 

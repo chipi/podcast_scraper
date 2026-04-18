@@ -188,6 +188,32 @@ Optional post-step: map each non-centroid member `topic_id` to the cluster’s *
 Completed **four** passes (data flow, edge cases, documentation, second consistency audit) — see
 [`docs/wip/rfc-075-holistic-review.md`](../wip/rfc-075-holistic-review.md).
 
+## Autoresearch Findings (2026-04-18, PR feat/pipeline-validation-591)
+
+### Threshold sweep on production corpus (1178 unique topics, 10 feeds)
+
+| Threshold | Clusters | Singletons | Singleton% |
+| :-------: | :------: | :--------: | :--------: |
+| 0.60 | 208 | 504 | 43% |
+| 0.65 | 177 | 655 | 56% |
+| **0.70** | **129** | **809** | **69%** |
+| 0.75 (old) | 88 | 929 | 79% |
+| 0.80 | 56 | 1019 | 87% |
+
+**Default lowered from 0.75 → 0.70**: +47% more clusters (88 → 129) with
+manageable max cluster size (19). Manual inspection confirms all new clusters
+are legitimate merges (quantum topics cluster, geopolitical topics cluster, etc.).
+
+### KG label quality is the biggest lever for clustering
+
+Issue #580 showed Gemini produces 156-char sentence labels → 90% singletons.
+Root cause: sentence-shaped labels have low pairwise embedding similarity.
+KG v2 prompt (#590) + label enforcement (#587, 50-char cap) address this.
+Recommend re-sweep after deploying v2 prompt on production corpus — optimal
+threshold may shift back to 0.75 with cleaner labels.
+
+---
+
 ## Open questions
 
 **Viewer / search (cluster parents vs hits):** Phase 1 shows **Topic cluster:** context (canonical

@@ -1457,6 +1457,35 @@ behaviour.
 
 ---
 
+## Autoresearch Findings (2026-04-17, PR #589)
+
+### Bridge merge rate: 10% → 100% (topics)
+
+Initial measurement on 5 held-out episodes: **10% merge rate** (6/69 identities).
+Root cause: GI used bullet-derived sentence-slug topic IDs while KG used
+noun-phrase-slug IDs. Same slugifier, different inputs → different IDs.
+
+**Fix:** GI/KG topic alignment in `metadata_generation.py` — after KG runs,
+GI's Topic nodes are replaced with KG's noun-phrase labels before bridge build.
+Result: **100% topic merge rate** (42/42 topics merge; 11 person/org nodes remain
+KG-only by design).
+
+### Fuzzy reconciliation added
+
+Post-pass in `build_bridge()`: single-layer identities compared by embedding
+cosine similarity (all-MiniLM-L6-v2) on display names. Pairs above 0.75
+threshold merged. Catches name variants ("Maya" ↔ "Maya Chen" at sim=0.77).
+
+Validated: zero false positives at 0.75 threshold (unrelated pairs score 0.04-0.26).
+
+### Known Limitation §2 (name variation) partially addressed
+
+The fuzzy reconciliation catches first-name ↔ full-name variants. Deeper
+fix (KG-aware-of-GI extraction context, #585) deferred — topic alignment
+solves the primary merge gap.
+
+---
+
 ## References
 
 - `docs/architecture/gi/ontology.md` — GIL ontology (Speaker to Person migration)
