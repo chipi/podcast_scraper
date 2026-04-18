@@ -109,6 +109,15 @@ def merge_eval_task_into_summarizer_config(
         }
         if max_insights is not None:
             updates["gi_max_insights"] = int(max_insights)
+        # Auto-align evidence providers to match summary_provider when the
+        # summarizer is an LLM (same logic as Config._auto_promote_evidence_providers
+        # which only runs at construction time, not on model_copy).
+        summary_prov = getattr(base, "summary_provider", "transformers")
+        if summary_prov != "transformers":
+            quote_prov = p.get("quote_extraction_provider", summary_prov)
+            entail_prov = p.get("entailment_provider", summary_prov)
+            updates["quote_extraction_provider"] = quote_prov
+            updates["entailment_provider"] = entail_prov
         return base.model_copy(update=updates)
     if task == _TASK_KG:
         raw_kg = p.get("kg_extraction_source", "summary_bullets")
