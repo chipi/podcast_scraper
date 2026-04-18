@@ -12,7 +12,9 @@
 #   python -m podcast_scraper.cli --config config/profiles/dev.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — smallest local Whisper
+# Transcription — smallest local Whisper (~13% WER, 40s/ep)
+# Fast feedback, errors exist but pipeline still runs.
+# See TRANSCRIPTION_AUTORESEARCH_PLAN.md for sweep data.
 transcription_provider: whisper
 whisper_model: tiny.en
 

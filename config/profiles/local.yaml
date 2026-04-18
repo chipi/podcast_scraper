@@ -12,9 +12,11 @@
 #   python -m podcast_scraper.cli --config config/profiles/local.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription — local Whisper (#592 will determine optimal model)
+# Transcription — local Whisper, small.en is the sweet spot
+# 9.5% WER, 148s/ep, 40% better than base.en, 2.5× faster than medium.en
+# See TRANSCRIPTION_AUTORESEARCH_PLAN.md for sweep data.
 transcription_provider: whisper
-whisper_model: base.en
+whisper_model: small.en
 
 # Speaker detection
 speaker_detector_provider: ollama
