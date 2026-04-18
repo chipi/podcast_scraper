@@ -641,6 +641,59 @@ logger = logging.getLogger(__name__)
 _preloaded_ml_provider: Optional[Any] = None
 _preloaded_ml_provider_lock = threading.Lock()
 
+# GitHub #539: defer tearing down the shared ML singleton between multi-feed iterations
+# so Whisper / torch are not reloaded in a poisoned HF state after feed 1.
+_multi_feed_defer_preloaded_ml_cleanup: bool = False
+
+
+def begin_multi_feed_ml_batch() -> None:
+    """Signal that sequential ``run_pipeline`` calls share one ML preload lifecycle (#539)."""
+    global _multi_feed_defer_preloaded_ml_cleanup
+    _multi_feed_defer_preloaded_ml_cleanup = True
+
+
+def end_multi_feed_ml_batch() -> None:
+    """End multi-feed batch: teardown shared ML singleton and reset defer flag."""
+    global _multi_feed_defer_preloaded_ml_cleanup
+    try:
+        finalize_deferred_multi_feed_ml_cleanup()
+    finally:
+        _multi_feed_defer_preloaded_ml_cleanup = False
+
+
+def multi_feed_ml_cleanup_deferred() -> bool:
+    """True while ``run_pipeline`` should not unload the shared ML preload singleton."""
+    return _multi_feed_defer_preloaded_ml_cleanup
+
+
+def finalize_deferred_multi_feed_ml_cleanup() -> None:
+    """Run ML singleton cleanup once after the last multi-feed ``run_pipeline`` (#539)."""
+    global _preloaded_ml_provider
+    with _preloaded_ml_provider_lock:
+        if _preloaded_ml_provider is not None:
+            try:
+                _preloaded_ml_provider.cleanup()
+            except Exception as e:
+                logger.warning(
+                    "Error cleaning up preloaded MLProvider after multi-feed batch: %s",
+                    format_exception_for_log(e),
+                )
+            finally:
+                _preloaded_ml_provider = None
+    try:
+        from .stages import setup as wf_setup
+
+        wf_setup._preloaded_ml_provider = None
+    except Exception:
+        logger.debug("Could not sync setup preloaded ML pointer", exc_info=True)
+    try:
+        from ..providers.ml import extractive_qa
+
+        extractive_qa.clear_qa_pipeline_cache()
+    except ImportError:
+        pass
+
+
 # Base timeout for thread joins (transcription / processing).
 # Scaled up for large episode counts — see _thread_join_timeout().
 _THREAD_JOIN_TIMEOUT_BASE = 600  # seconds
@@ -1088,26 +1141,31 @@ def _cleanup_providers(
         transcription_resources: Transcription resources (may contain provider)
         summary_provider: Optional summarization provider
     """
+    global _preloaded_ml_provider
+    defer = multi_feed_ml_cleanup_deferred()
+    with _preloaded_ml_provider_lock:
+        pre_snapshot = _preloaded_ml_provider
+
     # Stage 2: Cleanup transcription provider (which handles model unloading)
     if (
         transcription_resources is not None
         and transcription_resources.transcription_provider is not None
     ):
-        try:
-            provider = transcription_resources.transcription_provider
-            provider.cleanup()
-            logger.debug("Cleaned up transcription provider")
-        except Exception as e:
-            logger.warning(
-                "Failed to cleanup transcription provider: %s",
-                format_exception_for_log(e),
-            )
+        tp = transcription_resources.transcription_provider
+        skip_tp = bool(defer and pre_snapshot is not None and tp is pre_snapshot)
+        if not skip_tp:
+            try:
+                tp.cleanup()
+                logger.debug("Cleaned up transcription provider")
+            except Exception as e:
+                logger.warning(
+                    "Failed to cleanup transcription provider: %s",
+                    format_exception_for_log(e),
+                )
 
-    # Stage 4: Cleanup provider (which handles model unloading)
-    # Cleanup preloaded MLProvider instance
-    global _preloaded_ml_provider
+    # Stage 4: Cleanup preloaded MLProvider instance (skipped mid multi-feed batch; #539)
     with _preloaded_ml_provider_lock:
-        if _preloaded_ml_provider is not None:
+        if _preloaded_ml_provider is not None and not defer:
             try:
                 _preloaded_ml_provider.cleanup()
             except Exception as e:
@@ -1119,14 +1177,16 @@ def _cleanup_providers(
                 _preloaded_ml_provider = None
 
     if summary_provider is not None:
-        try:
-            summary_provider.cleanup()
-            logger.debug("Cleaned up summarization provider")
-        except Exception as e:
-            logger.warning(
-                "Failed to cleanup summarization provider: %s",
-                format_exception_for_log(e),
-            )
+        skip_sp = bool(defer and pre_snapshot is not None and summary_provider is pre_snapshot)
+        if not skip_sp:
+            try:
+                summary_provider.cleanup()
+                logger.debug("Cleaned up summarization provider")
+            except Exception as e:
+                logger.warning(
+                    "Failed to cleanup summarization provider: %s",
+                    format_exception_for_log(e),
+                )
 
     # Note: spaCy model cache was removed. Models are managed by providers
     # and cleaned up via provider.cleanup() method above.

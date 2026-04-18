@@ -75,6 +75,29 @@ GEMINI_1_5_FLASH_INPUT_COST_PER_1M_TOKENS = 0.075
 GEMINI_1_5_FLASH_OUTPUT_COST_PER_1M_TOKENS = 0.30
 
 
+def _should_disable_thinking_for_model(model: str) -> bool:
+    """True for Gemini 2.5 Flash (non-lite): default thinking consumes max_output_tokens."""
+    m = (model or "").lower()
+    if "flash-lite" in m:
+        return False
+    return "2.5-flash" in m
+
+
+def _merge_generate_content_config(
+    model: str, base: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Merge generation config; set thinking_budget=0 for 2.5-flash unless thinking_config set."""
+    merged: Dict[str, Any] = dict(base or ())
+    # Explicit None is treated as absent so callers do not block injection by mistake.
+    if merged.get("thinking_config") is None and "thinking_config" in merged:
+        del merged["thinking_config"]
+    if "thinking_config" in merged:
+        return merged
+    if _should_disable_thinking_for_model(model):
+        merged["thinking_config"] = {"thinking_budget": 0}
+    return merged
+
+
 class GeminiProvider:
     """Unified Gemini provider: TranscriptionProvider, SpeakerDetector, SummarizationProvider.
 
@@ -153,7 +176,7 @@ class GeminiProvider:
                 gemini_logger = logging.getLogger(logger_name)
                 gemini_logger.setLevel(logging.WARNING)
 
-        # Create Gemini client using new API (google-genai v0.1.0+)
+        # Create Gemini client using new API (google-genai 1.x; Issue #415 / #572)
         # New API uses Client instead of configure() + GenerativeModel
         client_kwargs: Dict[str, Any] = {"api_key": cfg.gemini_api_key}
         gemini_api_base = getattr(cfg, "gemini_api_base", None)
@@ -368,6 +391,10 @@ class GeminiProvider:
                 lambda: self.client.models.generate_content(
                     model=self.transcription_model,
                     contents=cast(Any, contents),
+                    config=cast(
+                        Any,
+                        _merge_generate_content_config(self.transcription_model, {}),
+                    ),
                 ),
                 max_retries=2,
                 initial_delay=1.0,
@@ -648,12 +675,15 @@ class GeminiProvider:
             # Request JSON response
             # Use dict format for generation config (more compatible with SDK versions)
             # Note: system_instruction is part of config in new API
-            generation_config = {
-                "temperature": self.speaker_temperature,
-                "max_output_tokens": 300,
-                "response_mime_type": "application/json",
-                "system_instruction": system_prompt,
-            }
+            generation_config = _merge_generate_content_config(
+                self.speaker_model,
+                {
+                    "temperature": self.speaker_temperature,
+                    "max_output_tokens": 300,
+                    "response_mime_type": "application/json",
+                    "system_instruction": system_prompt,
+                },
+            )
 
             from ...utils.provider_metrics import (
                 _safe_gemini_retryable,
@@ -889,11 +919,14 @@ class GeminiProvider:
             )
 
             def _make_api_call():
-                generation_config: Dict[str, Any] = {
-                    "temperature": self.summary_temperature,
-                    "max_output_tokens": max_length,
-                    "system_instruction": system_prompt,
-                }
+                generation_config = _merge_generate_content_config(
+                    self.summary_model,
+                    {
+                        "temperature": self.summary_temperature,
+                        "max_output_tokens": max_length,
+                        "system_instruction": system_prompt,
+                    },
+                )
 
                 return self.client.models.generate_content(
                     model=self.summary_model,
@@ -1068,12 +1101,15 @@ class GeminiProvider:
         call_metrics.set_provider_name("gemini")
 
         def _make_api_call() -> Any:
-            generation_config: Dict[str, Any] = {
-                "temperature": self.summary_temperature,
-                "max_output_tokens": max_out,
-                "response_mime_type": "application/json",
-                "system_instruction": system_prompt,
-            }
+            generation_config = _merge_generate_content_config(
+                self.summary_model,
+                {
+                    "temperature": self.summary_temperature,
+                    "max_output_tokens": max_out,
+                    "response_mime_type": "application/json",
+                    "system_instruction": system_prompt,
+                },
+            )
             return self.client.models.generate_content(
                 model=self.summary_model,
                 contents=user_prompt,
@@ -1276,11 +1312,14 @@ class GeminiProvider:
                 "Output only the list of key takeaways, one per line. "
                 "No numbering, bullets, or extra text."
             )
-            generation_config = {
-                "temperature": 0.3,
-                "max_output_tokens": min(1024, max_insights * 150),
-                "system_instruction": system_prompt,
-            }
+            generation_config = _merge_generate_content_config(
+                self.summary_model,
+                {
+                    "temperature": 0.3,
+                    "max_output_tokens": min(1024, max_insights * 150),
+                    "system_instruction": system_prompt,
+                },
+            )
             response = self.client.models.generate_content(
                 model=self.summary_model,
                 contents=user_prompt,
@@ -1346,11 +1385,14 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
-            generation_config = {
-                "temperature": 0.1,
-                "max_output_tokens": 2048,
-                "system_instruction": system_msg,
-            }
+            generation_config = _merge_generate_content_config(
+                model,
+                {
+                    "temperature": 0.1,
+                    "max_output_tokens": 2048,
+                    "system_instruction": system_msg,
+                },
+            )
 
             def _make_api_call():
                 return self.client.models.generate_content(
@@ -1415,11 +1457,14 @@ class GeminiProvider:
                 retry_with_metrics,
             )
 
-            generation_config = {
-                "temperature": 0.1,
-                "max_output_tokens": 2048,
-                "system_instruction": system_msg,
-            }
+            generation_config = _merge_generate_content_config(
+                model,
+                {
+                    "temperature": 0.1,
+                    "max_output_tokens": 2048,
+                    "system_instruction": system_msg,
+                },
+            )
 
             def _make_api_call():
                 return self.client.models.generate_content(
@@ -1482,11 +1527,14 @@ class GeminiProvider:
             call_metrics.set_provider_name("gemini")
             pm = kwargs.get("pipeline_metrics")
 
-            generation_config = {
-                "temperature": 0.0,
-                "max_output_tokens": 512,
-                "system_instruction": system,
-            }
+            generation_config = _merge_generate_content_config(
+                self.summary_model,
+                {
+                    "temperature": 0.0,
+                    "max_output_tokens": 512,
+                    "system_instruction": system,
+                },
+            )
 
             def _make_api_call():
                 return self.client.models.generate_content(
@@ -1561,11 +1609,14 @@ class GeminiProvider:
             call_metrics.set_provider_name("gemini")
             pm = kwargs.get("pipeline_metrics")
 
-            generation_config = {
-                "temperature": 0.0,
-                "max_output_tokens": 10,
-                "system_instruction": system,
-            }
+            generation_config = _merge_generate_content_config(
+                self.summary_model,
+                {
+                    "temperature": 0.0,
+                    "max_output_tokens": 10,
+                    "system_instruction": system,
+                },
+            )
 
             def _make_api_call():
                 return self.client.models.generate_content(
@@ -1647,14 +1698,17 @@ class GeminiProvider:
             call_metrics.set_provider_name("gemini")
 
             def _make_api_call():
-                generation_config = {
-                    "temperature": self.cleaning_temperature,
-                    "max_output_tokens": clamp_cleaning_max_tokens(
-                        estimate_cleaning_output_tokens(len(text.split())),
-                        GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
-                    ),
-                    "system_instruction": system_prompt,
-                }
+                generation_config = _merge_generate_content_config(
+                    self.cleaning_model,
+                    {
+                        "temperature": self.cleaning_temperature,
+                        "max_output_tokens": clamp_cleaning_max_tokens(
+                            estimate_cleaning_output_tokens(len(text.split())),
+                            GEMINI_CLEANING_MAX_OUTPUT_TOKENS,
+                        ),
+                        "system_instruction": system_prompt,
+                    },
+                )
 
                 return self.client.models.generate_content(
                     model=self.cleaning_model,

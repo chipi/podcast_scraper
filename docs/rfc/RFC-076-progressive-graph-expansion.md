@@ -72,6 +72,10 @@ Expand runs only when:
 
 `graphExpansion` records `seedCyId -> addedRelPaths[]`. Collapse calls **`removeRelativeArtifacts`** on those paths and clears the record. Full graph reload matches expand cost (accepted for v1).
 
+### Visual affordance (viewer)
+
+Topic / Person / Entity nodes that pass the same structural rules as **Eligibility (expand)** get a **teal** Cytoscape node border **only after** a debounced `POST /api/corpus/node-episodes` probe finds at least one matching episode whose GI/KG paths are **not** already in the viewer’s merged artifact selection (so the ring means “double-click can merge corpus material that is not on the graph yet,” not merely “degree &gt; 1”). The expansion **seed** after a successful expand shows a **blue** border until collapsed. Styling uses classes `rfc076-expandable` / `rfc076-expanded-seed`; the graph toolbar hint summarizes the rings.
+
 ### Performance
 
 Server cost is **O(number of bridge files)** with one JSON read per bridge. Viewer cost is dominated by **`loadSelected`** over all selected artifacts after each append chunk.

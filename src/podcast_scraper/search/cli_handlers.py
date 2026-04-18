@@ -802,6 +802,13 @@ def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) ->
             "see TD-002 in docs/architecture/TECH_DEBT.md)"
         )
         return EXIT_SUCCESS
+    if verdict == "no_indexed_transcript_for_quotes":
+        logger.warning(
+            "strict: GI has Quote nodes but no transcript chunks in the index for "
+            "those episodes (pass — overlap_rate is undefined; acceptance may omit "
+            "vector indexing for some fixtures)"
+        )
+        return EXIT_SUCCESS
     if verdict == "divergent":
         logger.error("strict: verdict divergent (overlap rate too low)")
         return EXIT_INVALID_ARGS

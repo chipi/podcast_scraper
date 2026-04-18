@@ -78,6 +78,12 @@
   - Before overwriting any local file with remote content: **show the diff** (`git diff HEAD origin/main -- <path>`) and **get explicit approval**
   - To inspect remote content without modifying files: `git show origin/main:<path>` or `git diff origin/main -- <path>`
 
+4e. **NEVER reset working-tree files from `HEAD` (or any ref) to drop uncommitted edits unless the user explicitly asked or confirmed**
+
+  - Forbidden without **explicit user instruction** (e.g. "discard my changes to X", "reset that file to main/HEAD") **or** without **asking first** and receiving **clear confirmation** (e.g. yes to "Revert `<path>` to last commit? This deletes uncommitted work.").
+  - Examples that discard local edits: `git checkout -- <path>` (same as restoring that path from **index/HEAD**), `git checkout HEAD -- <path>`, `git restore --source HEAD -- <path>`, `git restore <path>` when it would replace tracked content from the index/commit without the user having asked for that outcome.
+  - **Do not** use these to "narrow a PR", "clean up noise", or undo work the user did not ask to remove — **ask** or leave the files alone.
+
 ### Terminal Command Execution
 
 9. ** NEVER run commands in background — ALWAYS `is_background: false` **
@@ -216,6 +222,7 @@
   | Editing markdown or docs | `documentation.mdc` | BEFORE editing markdown |
   | Markdown linting errors | `documentation.mdc` | IMMEDIATELY when error appears |
   | Git worktree operations | `git-worktree.mdc` | BEFORE creating worktree |
+  | **About to run git commands that replace tracked file content** (`git checkout --`, `git restore`, `git checkout <ref> --`, `git reset --hard`, etc.) on paths that may hold **uncommitted** user work | `git-working-tree-safety.mdc` | **BEFORE** the command — or **ask** and get explicit confirmation (Rule **4e**) |
   | Refactoring / module boundaries | `module-boundaries.mdc` | BEFORE moving code |
   | About to commit or push | `ai-guidelines.mdc` | BEFORE `git commit` |
   | Need decision guidance | `ai-guidelines.mdc` | When unsure about approach |
@@ -336,6 +343,7 @@ make fix-md        # Auto-fix markdown
 - NEVER commit secrets
 -  NEVER `git stash` or `git checkout <ref> -- <file>` during an active merge — it **destroys all conflict resolutions** (Rules 4a–4c)
 - NEVER overwrite local files with remote content without showing the diff and getting approval (Rule 4d)
+- NEVER reset working-tree files from `HEAD`/a ref to drop uncommitted edits without explicit user ask or confirmed prompt (Rule 4e); includes **`git checkout -- <path>`** (same as restore from index/HEAD). Before such git: load **`git-working-tree-safety.mdc`** (Rule 17) or **ask first**
 - Before workarounds: look for similar examples elsewhere in the repo, compare, and reuse that pattern (Rule 5b).
 - **`.metrics/rule-adherence.jsonl` — write often (do not skip)**:
 
@@ -352,5 +360,5 @@ make fix-md        # Auto-fix markdown
 ---
 
 **Version:** 2.5
-**Updated:** 2026-04-15
+**Updated:** 2026-04-18
 **Source:** Trimmed from v1.0; details moved to `.cursor/rules/*.mdc`

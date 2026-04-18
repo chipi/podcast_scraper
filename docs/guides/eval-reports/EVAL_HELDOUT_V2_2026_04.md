@@ -527,7 +527,7 @@ Actual measured per-episode latency and cost are in the [Full matrix](#full-matr
 - **Weaknesses**: Weakest bundled quality. Paragraph lags.
 - **Quirks**:
   - Bundled JSON responses sometimes contain raw control characters — parser uses `json.loads(strict=False)`.
-  - **Gemini 2.5-flash blocked**: Thinking tokens on by default consume `max_output_tokens` before real output. Current `google-genai` SDK version lacks `thinking_budget` field in `ThinkingConfig`. Sticking with 2.0-flash; 2.5-flash-with-thinking-disabled tracked as follow-up.
+  - **Gemini 2.5-flash (non-lite)**: Older `google-genai` 0.x could not set `ThinkingConfig.thinking_budget`, so thinking tokens starved real output. The provider now depends on **`google-genai` 1.x** and sends **`thinking_budget=0`** for `gemini-2.5-flash` (excluding `…-flash-lite`). **This report’s numbers are still from 2.0-flash / 2.5-flash-lite** until the four-cell autoresearch re-run on `gemini-2.5-flash` (GitHub #572).
 
 ### Mistral (mistral-small-latest)
 

@@ -9,6 +9,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.search.corpus_similar import episode_scope_key, run_similar_episodes
+from podcast_scraper.server.cil_digest_topics import (
+    build_cil_digest_topics_for_row,
+    load_topic_cluster_index,
+    row_matches_library_topic_cluster_filter,
+)
 from podcast_scraper.server.cil_queries import (
     canonical_cil_entity_id,
     episodes_for_bridge_node_id,
@@ -234,6 +239,12 @@ async def corpus_episodes(
         description="Case-insensitive substring on summary title or any summary bullet.",
     ),
     since: str | None = Query(default=None, description="Publish date on/after YYYY-MM-DD."),
+    topic_cluster_only: bool = Query(
+        default=False,
+        description="When true, keep only episodes whose bridge topics appear on an RFC-075 "
+        "multi-member cluster member that lists this episode's id in episode_ids "
+        "(requires bridge.json + search/topic_clusters.json from topic clustering).",
+    ),
     limit: int = Query(default=50, ge=1, le=200),
     cursor: str | None = Query(default=None, description="Pagination cursor from previous page."),
 ) -> CorpusEpisodesResponse:
@@ -245,6 +256,11 @@ async def corpus_episodes(
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
     filtered = filter_rows(rows, feed_id=feed_id, title_q=q, topic_q=topic_q, since=since)
+    if topic_cluster_only:
+        cluster_index = load_topic_cluster_index(root)
+        filtered = [
+            r for r in filtered if row_matches_library_topic_cluster_filter(root, r, cluster_index)
+        ]
     offset = decode_catalog_cursor(cursor)
     page_rows, next_cur = slice_page(filtered, offset, limit)
     items = [
@@ -267,6 +283,11 @@ async def corpus_episodes(
             episode_number=r.episode_number,
             feed_image_local_relpath=r.feed_image_local_relpath,
             episode_image_local_relpath=r.episode_image_local_relpath,
+            cil_digest_topics=[],
+            gi_relative_path=r.gi_relative_path or "",
+            kg_relative_path=r.kg_relative_path or "",
+            has_gi=r.has_gi,
+            has_kg=r.has_kg,
         )
         for r in page_rows
     ]
@@ -311,6 +332,8 @@ async def corpus_episode_detail(
         raise HTTPException(status_code=404, detail="Metadata not in catalog scan.")
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
+    cluster_index = load_topic_cluster_index(root)
+    detail_pills = build_cil_digest_topics_for_row(root, r, cluster_index)
     return CorpusEpisodeDetailResponse(
         path=str(root),
         metadata_relative_path=r.metadata_relative_path,
@@ -335,6 +358,7 @@ async def corpus_episode_detail(
         episode_number=r.episode_number,
         feed_image_local_relpath=r.feed_image_local_relpath,
         episode_image_local_relpath=r.episode_image_local_relpath,
+        cil_digest_topics=detail_pills,
     )
 
 

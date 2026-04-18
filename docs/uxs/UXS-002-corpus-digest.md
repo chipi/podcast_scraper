@@ -29,14 +29,17 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 - **Main nav order:** Digest, Library, Graph, Dashboard (left to right).
   **Default selected tab:** Digest on first load.
 - **Digest tab:** A main nav item labeled **Digest** (same control pattern as other
-  main views). No duplicate in-column heading -- the nav label is the page title.
+  main views). The panel also shows an in-column **`h2` Digest** with a **`?`**
+  **About Digest** **`HelpTip`** (same pattern as **`h2` Recent** + help on this tab
+  and **`h2` Episodes** + help on **Library**).
   **Publish-date lens** is **shared with Library** (Pinia `corpusLens`): same
   **Published on or after** field and the same preset row (**All time**, **7d**,
   **30d**, **90d**) using local calendar days. Empty field means **all time**; the
   digest request uses `window=all`. A set date uses `window=since` with that
   **YYYY-MM-DD**. Changing the lens on either tab updates the other.
-- **Toolbar:** One row -- rolling bounds (start -> end, row count, left when digest is
-  loaded) and the date lens (right). Use the **Library** main tab to open the catalog;
+- **Toolbar:** First row -- **`h2` Digest** (left) with **`?`** help; **Published on or after**
+  plus presets on the **right**. When digest data is loaded, a second muted row shows rolling
+  bounds (start -> end, row count). Use the **Library** main tab to open the catalog;
   corpus path is unchanged.
 
 ---
@@ -45,43 +48,60 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
 - **Digest tab:** Single-column scroll on `canvas`; sections:
 
-1. **Date lens** -- top toolbar row: `muted` rolling bounds (start -> end, row count)
-   left (readable date + time, explicit UTC suffix, not raw ISO with fractional
-   seconds; `<time datetime="...">` for machine-readable instants) when digest data
-   is loaded; **Published on or after** (text + presets, same as Library)
-   right (`muted` labels, `surface` controls). When the digest is loading or unavailable,
-   controls stay end-aligned on that row. Active preset uses a **primary** ring on the
-   matching button.
+1. **Toolbar** -- stacked rows inside a **`flex`** column (`gap-1.5`): **(a)** first row
+   (`wrap`, `justify-between`) -- **`h2` Digest** (`#digest-main-heading`, **`text-sm`**
+   semibold) on the **left** with a **`HelpTip`** (**About Digest**) that explains **Topic
+   bands** (topic title -> **Graph**; hit row -> **Episode** rail + **Graph**; digest topic
+   focus; **Search topic**; hover **`title`** on hit rows lists publish date, **E#**,
+   duration, similarity, and feed hints), **Recent** (Episode
+   rail, CIL **topic pills** vs **Library** catalog); **Published
+   on or after** (`#digest-filter-since`, shared **`corpusLens`** with Library) plus the same
+   preset buttons (**All time**, **7d**, **30d**, **90d**) on the **right** (`muted` label,
+   `surface` controls). **(b)** when digest data is loaded, a second muted **`text-[10px]`**
+   row shows rolling window bounds (start -> end, episode count) with `<time datetime="...">`
+   for machine-readable instants (human-readable display includes explicit UTC). Active
+   preset uses a **primary** ring on the matching button.
 
-2. **Topic bands** -- outer `region` "Topic bands" with `max-height`
-   (`min(50vh, 24rem)`) and vertical scroll for the whole grid (single scrollbar;
-   per-topic lists do not scroll independently); inner responsive grid (`sm:2` /
-   `xl:3` columns); compact card padding; per-topic hit row is one clickable control
-   that opens the **Graph** tab for that episode's merged GI/KG slice and requests
-   focus on the digest **topic** node (`graph_topic_id` from `GET /api/corpus/digest`,
-   a `topic:{slug}` derived from the band label) when that node exists in the graph,
-   otherwise falls back to the **episode** node; `summary_preview` under the
-   title -- tight gap (`mt-0.5`), full wrap, no clamp; right column top to bottom:
-   similarity score as a small mono pill with native tooltip, publish date + duration
-   on one line when either is present, feed (truncated); hover on feed for RSS / id /
-   description (same as Library episode rows). The **topic title** control does the
-   same for the **top** hit that has GI or KG on disk. **Search topic** prefills semantic
-   search with the topic query and passes **Since (date)** only when the shared corpus
-   lens has a valid **YYYY-MM-DD** (omitted for all time). Selected hit row uses
-   `bg-overlay` when its path matches the Episode rail (for example after opening that
-   episode from **Recent**).
+2. **Topic bands** -- optional **`topics_unavailable_reason`** line when the server explains
+   missing bands.
 
-3. **Recent (diverse)** -- `h2` **Recent** (`#digest-recent-heading`) with a muted
-   tabular **`(N)`** count next to the title (same **N** as the digest toolbar line) + `?`
-   tooltip explaining diversification vs topic bands; `role="region"`
+   When bands exist: outer **`role="region"`** **`aria-label`** **Topic bands** wraps the
+   topic **grid** with **`max-height`** (`min(42vh, 21.5rem)`), **`overflow-y-auto`**, and
+   **`rounded-sm`** (one outer scrollbar; per-topic lists do not scroll independently).
+   Inner responsive grid (`sm:2` / `xl:3` columns); each topic is a compact bordered
+   **`section`** card. The **topic title** **`button`** shows the band label at
+   **`text-sm font-semibold`** and opens **Graph** for the top hit that has GI or KG on disk;
+   **Search topic** is a separate primary **`button`**. Per-topic **hit rows** are one
+   clickable control that also emits **open-library-episode** (same handoff as **Recent**)
+   so the **Episode** rail loads that row, then opens the **Graph** tab for that hit's merged
+   GI/KG slice and requests focus on the digest **topic** node (`graph_topic_id` from
+   `GET /api/corpus/digest`, a `topic:{slug}` derived from the band label) when that node
+   exists in the graph, otherwise falls back to the **episode** node. Layout: **grid** first
+   column is **`PodcastCover`** only (**`w-9`**, **`h-9`**, same tile size as **Recent**);
+   second column is **episode title** (**`minmax(0,1fr)`**). **`summary_preview`** spans
+   **both** columns on the row below. Publish date, **E#**, duration, similarity, human
+   **Feed:** label, optional short **About this feed** blurb, and **RSS** URL stay in the
+   native **`title`** tooltip only (readable lines; **no** metadata paths or raw feed ids
+   there). **Search topic** prefills semantic search with the topic
+   query and passes **Since (date)** only when the shared corpus lens has a valid
+   **YYYY-MM-DD** (omitted for all time). Selected hit row uses `bg-overlay` when its path
+   matches the Episode rail (for example after opening that episode from **Recent**).
+
+3. **Recent (diverse)** -- bordered panel (same list chrome pattern as Library **Episodes**):
+   `h2` **Recent** (`#digest-recent-heading`, **`text-sm font-semibold`**) with a muted
+   tabular **`(N)`** count next to the title (same **N** as the rolling-window toolbar line)
+   - `?` tooltip explaining diversification vs topic bands; `role="region"`
    `aria-label` **`Recent episodes, N items`** (or **`1 item`**);
-   episode rows use the **same list-row treatment as Library** (no separate bordered
-   elevated card; `hover:bg-overlay`, selected `bg-overlay`): cover `h-9`, title + right
-   column (feed left, publish date / E# / duration inline right on the same row),
-   full-wrap `summary_preview` / recap; row click opens Episode rail (Digest remains
-   the main tab). **Summary topic pills** (from `summary_bullets_preview`) open the
-   **Graph** tab with a per-bullet `topic:{slug}` hint (`summary_bullet_graph_topic_ids`
-   from the digest API), with episode fallback when that topic node is missing.
+   episode rows use the **same list-row treatment as Library** (`hover:bg-overlay`, selected
+   `bg-overlay`): cover `h-9`, title + right column with one **baseline-wrapping** meta line
+   (**feed** when shown, then publish date / **E#** / duration in reading order), tight gap
+   before full-wrap `summary_preview` / recap; row click opens
+   Episode rail (Digest remains the main tab).    **Topic pills:** when `GET /api/corpus/digest`
+   sends **`cil_digest_topics`** (CIL bridge `topic:` ids, cluster-first order; when
+   **`in_topic_cluster`**, pills use the same **amber / orange** fill and border as graph
+   **Quote** / **`search-hit`** emphasis — not the violet **TopicCluster** compound fill),
+   those chips open **Graph** with **`topic_id`** focus
+   (`digest-recent-cil-pills`). There are **no** summary-bullet pill chips on Recent rows.
    Accessible name matches Library rows: episode title, feed.
 
 ---
@@ -91,14 +111,15 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 - **Recent episode rows:** Episode rail handoff (row click); Digest tab stays
   selected. **Open in graph** / **Prefill semantic search** follow
   [UXS-003](UXS-003-corpus-library.md) on the Episode rail, not on the Digest card.
-- **Recent summary pills:** Navigate to **Graph** (topic focus with episode fallback
-  as above); not a Library topic filter.
+- **Recent CIL topic pills (when present):** Navigate to **Graph** (topic focus with episode fallback
+  as above); not a Library filter.
 - **Open GI / Open KG / Prefill semantic search (Episode rail):** Same domain and
   primary rules as [UXS-003](UXS-003-corpus-library.md) (GI/KG use `gi`/`kg`;
   search handoff uses `primary`).
 - **Topic band:** **Search topic** uses `primary`; opens the Search panel with the
-  topic query prefilled per RFC-068. **Topic title** and each **hit row** open **Graph**
-  for that hit with digest topic focus when the node exists.
+  topic query prefilled per RFC-068. **Topic title** opens **Graph** for the top GI/KG hit.
+  Each **hit row** opens the **Episode** rail for that episode, then **Graph** for that hit
+  with digest topic focus when the node exists.
 
 ---
 
@@ -107,7 +128,8 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 **Recent** row click opens the Episode rail on the right without switching away from
 Digest (same detail as selecting an episode in Library), so **Open in graph** and
 **Prefill semantic search** stay one click away on that rail. **Topic band** hit rows
-and **Recent** summary pills switch to **Graph** instead. Switching Digest to Library
+load the **Episode** rail then switch to **Graph**; **Recent** CIL pills (when present) switch
+to **Graph** only. Switching Digest to Library
 keeps the Episode rail selection when that episode is still in scope. Library no
 longer embeds a New (24h) digest strip so the two tabs do not compete -- users open
 Digest for "what's new," Library for catalog browse.
@@ -131,8 +153,9 @@ Digest for "what's new," Library for catalog browse.
 
 - `aria-label` on main nav matches visible Digest text.
 - Digest Recent rows use the same accessible name pattern as Library episode rows
-  (episode title, feed display label). Topic band hit rows use an **Open graph:** prefix
-  plus that pair so the name stays distinct from the Recent row for the same episode.
+  (episode title, feed display label). Topic band hit rows use an
+  **Open graph and episode details:** prefix plus that pair so the name stays distinct from
+  the Recent row for the same episode.
   Summary pills expose an accessible name that states graph navigation and the full
   bullet text.
 
@@ -157,3 +180,5 @@ before or with implementation. Dedicated Playwright coverage lives in
 | 2026-04-15 | Removed **Open Library** control; use main **Library** tab       |
 | 2026-04-15 | Topic bands + Recent pills: open Graph with topic focus          |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-002                   |
+| 2026-04-17 | Topic band rows: date, E#, duration in native title only         |
+| 2026-04-17 | Topic bands max-h min(42vh, 21.5rem); extra recap visibility     |

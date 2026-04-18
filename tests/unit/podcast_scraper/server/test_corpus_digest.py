@@ -65,6 +65,7 @@ def test_digest_row_dict_includes_visual_fields() -> None:
         episode_number=12,
     )
     d = digest_row_dict(row)
+    assert d.get("cil_digest_topics") == []
     assert d.get("feed_rss_url") is None
     assert d.get("feed_description") is None
     assert d["feed_image_url"] == "https://f.example/a.png"

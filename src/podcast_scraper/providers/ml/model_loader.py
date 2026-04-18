@@ -260,14 +260,20 @@ def build_huggingface_qa_pipeline(
 
     cache_dir = str(get_transformers_cache_dir().resolve())
     _hf_pipeline = cast(Any, pipeline)
+    # low_cpu_mem_usage=False avoids lazy meta-device init paths on some torch/transformers
+    # pairs that break a second Whisper load in the same process (GitHub #539).
     if not local_files_only:
         return _hf_pipeline(
             "question-answering",
             model=model_id,
             device=device,
-            model_kwargs={"cache_dir": cache_dir},
+            model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
         )
-    model_kw: dict[str, Any] = {"local_files_only": True, "cache_dir": cache_dir}
+    model_kw: dict[str, Any] = {
+        "local_files_only": True,
+        "cache_dir": cache_dir,
+        "low_cpu_mem_usage": False,
+    }
     try:
         return _hf_pipeline(
             "question-answering",
@@ -282,7 +288,7 @@ def build_huggingface_qa_pipeline(
             "question-answering",
             model=model_id,
             device=device,
-            model_kwargs={"cache_dir": cache_dir},
+            model_kwargs={"cache_dir": cache_dir, "low_cpu_mem_usage": False},
             local_files_only=True,
         )
 

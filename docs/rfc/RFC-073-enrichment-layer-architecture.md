@@ -44,6 +44,15 @@ what is already there, make it more navigable and more useful, but never alter t
 underlying ingredients. A missing or failed enricher degrades the experience gracefully;
 it never corrupts the core.
 
+**Clarification — "do not change":** enrichers must never **write** core artifacts.
+Operators and automation can still **replace** `*.gi.json`, `*.kg.json`, and
+`*.bridge.json` by re-running the core pipeline. After such a rebuild, canonical ids,
+cluster membership, and sibling paths may differ from an earlier run; enrichment outputs
+under `metadata/enrichments/` (or corpus-scope enrichments) may be **stale** until
+enrichers run again. Read paths (CIL HTTP, corpus library, viewer) always reflect **what
+is on disk now**. See [RFC-072 — Operational note: re-pipeline, enrichment, and read-path
+stance](RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance).
+
 The RFC defines what an enricher is, what it is not, the protocol every enricher must
 implement, the output directory structure, the registry mechanism, and two concrete
 enricher implementations that demonstrate the pattern. These enrichers directly serve

@@ -73,6 +73,8 @@ def test_build_offset_alignment_report_aligned(tmp_path: Path) -> None:
     gi_map = {"episode:x": gpath}
     rep = v.build_offset_alignment_report(gi_by_episode=gi_map, metadata_by_doc=meta)
     assert rep["quotes_total"] == 1
+    assert rep["quotes_verifiable_against_index"] == 1
+    assert rep["quotes_skipped_no_transcript_index"] == 0
     assert rep["quotes_with_chunk_overlap"] == 1
     assert rep["overlap_rate"] == 1.0
     assert rep["verdict"] == "aligned"
@@ -103,6 +105,7 @@ def test_build_offset_alignment_report_no_overlap(tmp_path: Path) -> None:
         metadata_by_doc=meta,
     )
     assert rep["quotes_total"] == 1
+    assert rep["quotes_verifiable_against_index"] == 1
     assert rep["quotes_with_chunk_overlap"] == 0
     assert rep["overlap_rate"] == 0.0
     assert rep["verdict"] == "divergent"
@@ -205,6 +208,54 @@ def test_build_offset_verdict_mostly_aligned(tmp_path: Path) -> None:
     )
     assert rep["verdict"] == "mostly_aligned"
     assert rep["overlap_rate"] == pytest.approx(17 / 20)
+    assert rep["quotes_verifiable_against_index"] == 20
+
+
+def test_build_offset_alignment_skipped_episodes_do_not_deflate_overlap_rate(
+    tmp_path: Path,
+) -> None:
+    """Quotes in episodes with no transcript index must not count as non-overlap."""
+    gi_skip = {
+        "nodes": [
+            {
+                "id": "q_skip",
+                "type": "Quote",
+                "properties": {"char_start": 0, "char_end": 5},
+            },
+        ],
+    }
+    p_skip = tmp_path / "skip.gi.json"
+    p_skip.write_text(__import__("json").dumps(gi_skip), encoding="utf-8")
+    gi_ok = {
+        "nodes": [
+            {
+                "id": "q_ok",
+                "type": "Quote",
+                "properties": {"char_start": 10, "char_end": 20},
+            },
+        ],
+    }
+    p_ok = tmp_path / "ok.gi.json"
+    p_ok.write_text(__import__("json").dumps(gi_ok), encoding="utf-8")
+    meta = {
+        "c0": {
+            "doc_type": "transcript",
+            "episode_id": "episode:ok",
+            "char_start": 0,
+            "char_end": 50,
+        },
+    }
+    rep = v.build_offset_alignment_report(
+        gi_by_episode={"episode:skip": p_skip, "episode:ok": p_ok},
+        metadata_by_doc=meta,
+    )
+    assert rep["quotes_total"] == 2
+    assert rep["quotes_verifiable_against_index"] == 1
+    assert rep["quotes_skipped_no_transcript_index"] == 1
+    assert rep["quotes_with_chunk_overlap"] == 1
+    assert rep["overlap_rate"] == 1.0
+    assert rep["verdict"] == "aligned"
+    assert rep["episodes_without_transcript_chunks"] == 1
 
 
 def test_merge_report_dict() -> None:

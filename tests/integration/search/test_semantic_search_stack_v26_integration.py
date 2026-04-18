@@ -358,7 +358,13 @@ def test_gil_chunk_offset_pure_and_report(tmp_path: Path) -> None:
         max_samples_per_episode=4,
     )
     assert rep["quotes_total"] == 1
-    assert rep["verdict"] in ("aligned", "mostly_aligned", "divergent", "no_quotes")
+    assert rep["verdict"] in (
+        "aligned",
+        "mostly_aligned",
+        "divergent",
+        "no_quotes",
+        "no_indexed_transcript_for_quotes",
+    )
 
 
 def test_faiss_store_metadata_matches_and_minimal_roundtrip() -> None:

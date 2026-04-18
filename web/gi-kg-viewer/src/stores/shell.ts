@@ -121,7 +121,10 @@ export const useShellStore = defineStore('shell', () => {
       if (healthFetchGate.isStale(seq)) {
         return
       }
-      healthStatus.value = body.status ?? 'unknown'
+      const rawStatus = body.status ?? 'unknown'
+      const st = typeof rawStatus === 'string' ? rawStatus.trim() : String(rawStatus)
+      /** Canonicalize so refetch / server casing does not spuriously notify watchers. */
+      healthStatus.value = st.toLowerCase() === 'ok' ? 'ok' : st || 'unknown'
       corpusLibraryApiAvailable.value = body.corpus_library_api === true
       const digestFlag = body.corpus_digest_api
       if (digestFlag === false) {

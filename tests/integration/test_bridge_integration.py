@@ -41,7 +41,7 @@ def test_build_bridge_identities_superset_of_gi_kg_cil_ids(tmp_path: Path) -> No
 
     loaded_gi = json.loads(gi_path.read_text(encoding="utf-8"))
     loaded_kg = json.loads(kg_path.read_text(encoding="utf-8"))
-    bridge_doc = build_bridge("ep:int", loaded_gi, loaded_kg)
+    bridge_doc = build_bridge("ep:int", loaded_gi, loaded_kg, fuzzy_reconcile=False)
     bridge_path.write_text(json.dumps(bridge_doc), encoding="utf-8")
 
     on_disk = json.loads(bridge_path.read_text(encoding="utf-8"))

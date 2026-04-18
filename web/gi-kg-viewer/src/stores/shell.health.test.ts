@@ -12,6 +12,22 @@ describe('useShellStore /api/health discovery flags', () => {
     vi.restoreAllMocks()
   })
 
+  it('normalizes status ok/OK/Ok to ok so watchers do not thrash on casing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          status: 'OK',
+          corpus_library_api: true,
+        }),
+      })) as unknown as typeof fetch,
+    )
+    const shell = useShellStore()
+    await shell.fetchHealth()
+    expect(shell.healthStatus).toBe('ok')
+  })
+
   it('sets corpusLibraryApiAvailable and corpusDigestApiAvailable from health JSON', async () => {
     vi.stubGlobal(
       'fetch',

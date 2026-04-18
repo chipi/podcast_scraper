@@ -128,11 +128,18 @@ def build_offset_alignment_report(
 
     Only episodes present in ``gi_by_episode`` are scanned for quotes. Chunk spans
     come from all transcript rows in the index metadata.
+
+    Episodes with **no** transcript chunks in the index do **not** contribute to
+    ``overlap_rate`` (quotes there cannot be verified yet); they are counted in
+    ``quotes_skipped_no_transcript_index`` and still listed per episode with
+    ``quotes_skipped_no_transcript_index`` on the row.
     """
     chunks_by_ep = transcript_chunk_spans_by_episode(metadata_by_doc)
     episodes: List[dict[str, Any]] = []
-    total_quotes = 0
+    quotes_total_gi = 0
+    quotes_verifiable = 0
     total_with_overlap = 0
+    quotes_skipped_no_transcript_index = 0
     episodes_no_chunks = 0
 
     for eid in sorted(gi_by_episode.keys()):
@@ -155,8 +162,24 @@ def build_offset_alignment_report(
             episodes.append({"episode_id": eid, "error": "gi_not_object"})
             continue
         qspans = quote_spans_from_gi(gi)
+        nq = len(qspans)
+        quotes_total_gi += nq
+        if not chunk_spans:
+            quotes_skipped_no_transcript_index += nq
+            episodes.append(
+                {
+                    "episode_id": eid,
+                    "transcript_chunks": 0,
+                    "quotes": nq,
+                    "quotes_with_chunk_overlap": 0,
+                    "quotes_without_chunk_overlap": 0,
+                    "quotes_skipped_no_transcript_index": nq,
+                    "sample_quote_ids_without_overlap": [],
+                },
+            )
+            continue
         st = _episode_report(eid, qspans, chunk_spans, max_samples=max_samples_per_episode)
-        total_quotes += st.quotes
+        quotes_verifiable += st.quotes
         total_with_overlap += st.quotes_with_overlap
         episodes.append(
             {
@@ -170,8 +193,8 @@ def build_offset_alignment_report(
         )
 
     overlap_rate: float | None
-    if total_quotes > 0:
-        overlap_rate = total_with_overlap / total_quotes
+    if quotes_verifiable > 0:
+        overlap_rate = total_with_overlap / quotes_verifiable
     else:
         overlap_rate = None
 
@@ -179,16 +202,18 @@ def build_offset_alignment_report(
     if episodes_no_chunks:
         warnings.append(
             f"{episodes_no_chunks} episode(s) have GI on disk but no transcript vectors "
-            "in the index (skipped chunk overlap for those quotes)."
+            "in the index (those Quote spans are not counted in overlap_rate)."
         )
-    if total_quotes == 0:
+    if quotes_total_gi == 0:
         warnings.append("No Quote nodes found in scanned GI files.")
 
-    if overlap_rate is None:
+    if quotes_total_gi == 0:
         verdict = "no_quotes"
-    elif overlap_rate >= 0.99 and episodes_no_chunks == 0:
+    elif quotes_verifiable == 0:
+        verdict = "no_indexed_transcript_for_quotes"
+    elif overlap_rate is not None and overlap_rate >= 0.99:
         verdict = "aligned"
-    elif overlap_rate >= 0.85:
+    elif overlap_rate is not None and overlap_rate >= 0.85:
         verdict = "mostly_aligned"
     else:
         verdict = "divergent"
@@ -196,7 +221,9 @@ def build_offset_alignment_report(
     return {
         "verdict": verdict,
         "overlap_rate": overlap_rate,
-        "quotes_total": total_quotes,
+        "quotes_total": quotes_total_gi,
+        "quotes_verifiable_against_index": quotes_verifiable,
+        "quotes_skipped_no_transcript_index": quotes_skipped_no_transcript_index,
         "quotes_with_chunk_overlap": total_with_overlap,
         "episodes_scanned": len(gi_by_episode),
         "episodes_without_transcript_chunks": episodes_no_chunks,

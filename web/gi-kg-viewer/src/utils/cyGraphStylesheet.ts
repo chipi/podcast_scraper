@@ -239,6 +239,28 @@ export function buildGiKgCyStylesheet(options?: {
     },
   })
 
+  /** RFC-076: eligible Topic / Person / Entity for plain dbl-click cross-episode expand. */
+  const rfc076Ring = compact ? 1.5 : 2
+  const rfc076ExpandedRing = compact ? 2.25 : 3
+  style.push({
+    selector: 'node.rfc076-expandable',
+    style: {
+      'border-width': rfc076Ring,
+      'border-style': 'solid',
+      'border-color': '#14b8a6',
+      'border-opacity': 0.92,
+    },
+  })
+  style.push({
+    selector: 'node.rfc076-expanded-seed',
+    style: {
+      'border-width': rfc076ExpandedRing,
+      'border-style': 'solid',
+      'border-color': '#748ffc',
+      'border-opacity': 0.95,
+    },
+  })
+
   if (options?.includeSearchHit) {
     const hitStyle: Record<string, unknown> = {
       'border-width': 4,

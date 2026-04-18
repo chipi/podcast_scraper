@@ -1,3 +1,4 @@
+import type { CilDigestTopicPill } from './digestApi'
 import { dedupeInFlight } from './inFlightDedupe'
 import { fetchWithTimeout } from './httpClient'
 
@@ -50,6 +51,11 @@ export type CorpusEpisodeListItem = {
   episode_number?: number | null
   feed_image_local_relpath?: string | null
   episode_image_local_relpath?: string | null
+  cil_digest_topics?: CilDigestTopicPill[]
+  gi_relative_path?: string
+  kg_relative_path?: string
+  has_gi?: boolean
+  has_kg?: boolean
 }
 
 export type CorpusEpisodesResponse = {
@@ -73,14 +79,17 @@ export type CorpusEpisodeDetailResponse = {
   summary_text: string | null
   gi_relative_path: string
   kg_relative_path: string
+  bridge_relative_path?: string
   has_gi: boolean
   has_kg: boolean
+  has_bridge?: boolean
   feed_image_url?: string | null
   episode_image_url?: string | null
   duration_seconds?: number | null
   episode_number?: number | null
   feed_image_local_relpath?: string | null
   episode_image_local_relpath?: string | null
+  cil_digest_topics?: CilDigestTopicPill[]
 }
 
 export async function fetchCorpusFeeds(corpusPath: string): Promise<CorpusFeedsResponse> {
@@ -102,6 +111,8 @@ export type FetchEpisodesOptions = {
   q?: string
   /** Case-insensitive match on summary title or any summary bullet. */
   topicQ?: string
+  /** When true, only episodes with at least one CIL topic in an RFC-075 cluster (bridge + topic_clusters.json). */
+  topicClusterOnly?: boolean
   since?: string
   limit?: number
   cursor?: string | null
@@ -117,6 +128,7 @@ export async function fetchCorpusEpisodes(
   }
   if (options.q?.trim()) q.set('q', options.q.trim())
   if (options.topicQ?.trim()) q.set('topic_q', options.topicQ.trim())
+  if (options.topicClusterOnly) q.set('topic_cluster_only', 'true')
   if (options.since?.trim()) q.set('since', options.since.trim())
   if (options.limit != null) q.set('limit', String(options.limit))
   if (options.cursor) q.set('cursor', options.cursor)

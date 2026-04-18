@@ -33,16 +33,27 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - **Layout (desktop):** Library main column (`canvas` / `surface`) plus the right
   shell rail:
 
-1. **Episode filters** -- one collapsible: **subtitle** row explains narrowing and holds
-   primary **Apply** (reloads using title and summary filters; same as **Enter** in those
-   fields). On wide viewports, a three-column row -- **published on or after** (date +
-   presets, aligned with Search **since**; **same Pinia `corpusLens` state as Digest**) on
-   the left (column heading **Dates**); **Title** and **summary / topic** in the center
-   as **two rows**, each **label left** + **field right** (same idea as the date row);
-   header **Title & summary** plus small **Clear text**; **feed** list on the right;
-   stacks vertically on narrow widths. The **Feed** column uses a **scrollable**
-   list with a capped height (taller on large viewports) so catalogs with many feeds
-   (for example ~20) get a **vertical scrollbar** instead of stretching the panel.
+1. **Filters** -- one collapsible titled **Filters**: **`?` HelpTip** immediately after the
+   section title (not separated to the far right; same control family as **Episodes**)
+   holds the narrowing blurb (publish date, title, summary topic, feed; same fields as
+   Search). **No** subtitle strip under the title row. **Left** stack (compact height): one
+   row for **Published on or after** (short date field) with preset chips (**All time** /
+   **7d** / …) **to the right** on the same row (single-row layout on desktop; horizontal
+   scroll if the viewport is too narrow); then a **three-column grid**: **Title** and
+   **Summary** inputs share the same middle column width (reference: title track); **Clear
+   all filters** and **Apply** sit in the third column (same compact control scale as **Clear
+   feed filter**: **`text-[10px]`**, **`px-2 py-0.5`**; column gap before inputs).
+   **Clear all filters** disabled when everything is already default; **Apply** reloads
+   using title/summary filters (same as **Enter** in those fields).    **Episodes with topic
+   cluster (CIL)** checkbox reloads the list immediately (adds ``topic_cluster_only=true`` to
+   ``GET /api/corpus/episodes`` when checked). The API keeps episodes that appear on a cluster
+   member's ``episode_ids`` for a bridge topic (narrows search; not every episode that shares a
+   clustered topic id without member provenance). **No** separate **Clear
+   text** button. On wide viewports, a **two-column** row
+   (~**60% / 40%**): **left** = that stack; **right** =
+   **Feed** list: **all** catalog feeds in a **scroll** region with a **short max-height**
+   (~two row heights); **two-line** labels when needed.
+   Stacks vertically on narrow widths.
    With no row selected, episodes include **all** feeds; choosing a feed narrows the list.
    **Clear feed filter** stays next to the **Feed** label at all times: **disabled** when
    no feed is selected, **enabled** when a feed is selected; click restores the all-feeds
@@ -59,12 +70,15 @@ rules for the Library tab and the shared Episode rail. All tokens reference
    whether more episodes are available. Scrollable list: cursor pagination from
    `GET /api/corpus/episodes` (`limit` ~20 per page + `next_cursor`); **Load more**
    at the bottom plus scroll-to-load when the user nears the end. Title row is
-   episode title (left) and right column: feed display name (truncated, left) and
-   publish date, E#, duration (inline, right, when each is present); native `title`
-   hover on the feed name shows RSS URL, feed id, and feed description when the API
-   provides them. Summary line under the title -- same recap rules as Digest, including
-   topics fallback -- then topic pills; recap wraps fully (no line clamp); selected
-   row uses `overlay`.
+   episode title (left, wraps) and right column: one compact meta line (**`text-[10px]`**)
+   with feed display name (when known), publish date, **E#**, and duration as
+   **baseline-aligned** inline pieces that **wrap** together when space is tight; native
+   `title` hover on the feed name shows RSS URL, feed id, and feed description when the API
+   provides them (feed filter rows use the same hover pattern with multi-line labels in
+   the filter column). Summary line sits **close** under the title row (tight top margin);
+   same recap rules as Digest (full wrap, no line clamp); **no** topic chips on list rows
+   (use **Digest** for CIL topic pills
+   that open **Graph**). Selected row uses `overlay`.
 
 3. **Episode rail** (right shell sidebar) -- `role="region"`
    `aria-label="Episode"` (use `exact: true` in automation so it does not match
@@ -111,9 +125,9 @@ rules for the Library tab and the shared Episode rail. All tokens reference
   badges that refer to artifact type.
 - Search handoff control uses `primary` (it is a navigation affordance to an existing
   panel, not a domain-colored insight).
-- **Vector index awareness (RFC-067 Phase 3):** Optional **Indexed** chip on feed rows
-  when that `feed_id` appears in `GET /api/index/stats` -> `feeds_indexed`.
-  Episode rail exposes Episode and feed diagnostics (help control -> tooltip) with
+- **Vector index awareness (RFC-067 Phase 3):** Feed filter rows do **not** show an index
+  chip; index coverage is surfaced from the **Episode** rail instead. Episode rail exposes
+  Episode and feed diagnostics (help control -> tooltip) with
   paths, ids, Feed in vector index, and index stats when loaded; **E**, **`?`**, and **C**
   (copy episode title, same chip pattern as graph node detail) sit in a vertical stack
   beside the episode title (**E** above **`?`** above **`C`**) to widen the title. **Similar episodes**

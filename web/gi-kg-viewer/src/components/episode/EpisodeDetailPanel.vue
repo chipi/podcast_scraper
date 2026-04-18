@@ -10,6 +10,7 @@ import {
   type CorpusFeedItem,
   type CorpusSimilarEpisodeItem,
 } from '../../api/corpusLibraryApi'
+import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
@@ -27,6 +28,10 @@ import {
   SEARCH_RESULT_EPISODE_ID_BUTTON_CLASS,
 } from '../../utils/searchResultActionStyles'
 import { StaleGeneration } from '../../utils/staleGeneration'
+import {
+  applyGraphFocusPlan,
+  graphFocusPlanFromCilPill,
+} from '../../utils/cilGraphFocus'
 
 const props = withDefaults(
   defineProps<{
@@ -408,6 +413,41 @@ async function openInGraph(): Promise<void> {
   emit('switch-main-tab', 'graph')
 }
 
+async function openDetailCilTopicInGraph(pillIndex: number): Promise<void> {
+  graphActionError.value = null
+  if (!detail.value) {
+    return
+  }
+  const pills = detail.value.cil_digest_topics ?? []
+  const pill = pills[pillIndex]
+  if (!pill) {
+    return
+  }
+  const paths: string[] = []
+  if (detail.value.has_gi) {
+    paths.push(detail.value.gi_relative_path)
+  }
+  if (detail.value.has_kg) {
+    paths.push(detail.value.kg_relative_path)
+  }
+  if (paths.length === 0) {
+    graphActionError.value = 'No GI/KG artifacts on disk for this episode.'
+    return
+  }
+  await artifacts.loadRelativeArtifacts(paths)
+  graphNav.clearLibraryEpisodeHighlights()
+  const plan = graphFocusPlanFromCilPill(pill, detail.value.episode_id)
+  applyGraphFocusPlan(graphNav, plan)
+  const eid = detail.value.episode_id?.trim()
+  if (
+    eid &&
+    (plan.kind === 'episode_only' || (plan.kind === 'topic' && plan.fallback))
+  ) {
+    graphNav.setLibraryEpisodeHighlights([eid])
+  }
+  emit('switch-main-tab', 'graph')
+}
+
 function openInSearch(): void {
   if (!detail.value) {
     return
@@ -605,6 +645,14 @@ watch(
       <p v-if="detail.summary_title" class="mt-0 text-xs font-medium text-surface-foreground">
         {{ detail.summary_title }}
       </p>
+      <div v-if="(detail.cil_digest_topics ?? []).length" class="mt-2">
+        <CilTopicPillsRow
+          :pills="detail.cil_digest_topics ?? []"
+          :max-pill-chars="28"
+          data-testid="episode-detail-cil-pills"
+          @pill-click="(i) => void openDetailCilTopicInGraph(i)"
+        />
+      </div>
       <p
         v-if="detail.summary_text"
         class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted"

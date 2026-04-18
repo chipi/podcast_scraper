@@ -4394,6 +4394,18 @@ def optimize_model_memory(model: SummaryModel) -> None:
             torch.mps.empty_cache()
 
 
+def _hf_module_has_meta_parameters(mod: Any) -> bool:
+    """True when any parameter lives on the meta device (lazy init shells; GitHub #539)."""
+    try:
+        for p in mod.parameters():
+            dev = getattr(p, "device", None)
+            if dev is not None and getattr(dev, "type", "") == "meta":
+                return True
+        return False
+    except Exception:
+        return False
+
+
 def unload_model(model: Optional[SummaryModel]) -> None:
     """Unload model to free memory and clean up resources.
 
@@ -4415,7 +4427,11 @@ def unload_model(model: Optional[SummaryModel]) -> None:
         if model.model is not None:
             # Move model to CPU before deletion
             try:
-                model.model = model.model.to("cpu")  # type: ignore[assignment,attr-defined]
+                if _hf_module_has_meta_parameters(model.model):
+                    # .to("cpu") on meta shells raises and can worsen global torch state (#539).
+                    pass
+                else:
+                    model.model = model.model.to("cpu")  # type: ignore[assignment,attr-defined]
             except Exception:
                 # Ignore errors (model might already be on CPU or in unexpected state)
                 pass

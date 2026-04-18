@@ -542,7 +542,8 @@ cleanup-processes:
 	# Covers pytest workers, ML model probe processes, and worker calculator
 	@echo "Cleaning up leftover test processes..."
 	@pkill -f "pytest" 2>/dev/null || true
-	@pkill -f "python.*podcast_scraper.*test" 2>/dev/null || true
+	# Dropped python.*podcast_scraper.*test: it matched cli serve when
+	# --output-dir was under .test_outputs (test in test_outputs).
 	@pkill -f "gw[0-9]" 2>/dev/null || true
 	@pkill -f "python.*ml_model_cache_helpers" 2>/dev/null || true
 	@pkill -f "python.*calculate_test_workers" 2>/dev/null || true

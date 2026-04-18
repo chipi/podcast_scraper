@@ -39,6 +39,28 @@ The vector index lives at **`<corpus_root>/search/`** (`vectors.faiss`, `metadat
 
 ---
 
+## When the corpus is re-built
+
+Core artifacts (`*.gi.json`, `*.kg.json`, `*.bridge.json`) and corpus-level helpers such
+as **`search/topic_clusters.json`** are **outputs** of the last pipeline run, not an
+immutable snapshot of history.
+
+- **Re-running** GIL/KG extraction, bridge emission, indexing, or topic clustering can
+  change canonical `person:` / `topic:` / `org:` strings, graph layout, and RFC-075
+  **`graph_compound_parent_id`** (`tc:`) values.
+- **RFC-073** enrichers never overwrite core files, but their derived outputs can become
+  **misaligned** until enrichers run again on the new core layer.
+
+**Practical stance for APIs and the viewer:** load and join using paths from the current
+catalog; treat CIL and digest **topic pills** as projections of **today’s** bridge + index.
+For reproducible research, record **tool versions** and **session / run identifiers** in
+metadata alongside the corpus path.
+
+Normative detail: [RFC-072 — Operational note: re-pipeline, enrichment, and read-path
+stance](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance).
+
+---
+
 ## CLI and Make targets
 
 | Command | Purpose |

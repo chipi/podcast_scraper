@@ -1710,6 +1710,13 @@ class MLProvider:
             self._reduce_model = None
             self._transformers_initialized = False
 
+        try:
+            from . import extractive_qa
+
+            extractive_qa.clear_qa_pipeline_cache()
+        except ImportError:
+            pass
+
     # ============================================================================
 
     @property

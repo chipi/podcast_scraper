@@ -241,6 +241,21 @@ class CorpusFeedsResponse(BaseModel):
     feeds: list[CorpusFeedItem] = Field(default_factory=list)
 
 
+class CilDigestTopicPill(BaseModel):
+    """One CIL topic chip for digest / library (bridge identity + optional RFC-075 cluster)."""
+
+    topic_id: str = Field(description="Canonical ``topic:…`` id from bridge.json.")
+    label: str = Field(description="Human label (bridge display_name or derived from id).")
+    in_topic_cluster: bool = Field(
+        default=False,
+        description="True when this topic_id is a member of a multi-topic cluster artifact.",
+    )
+    topic_cluster_compound_id: str | None = Field(
+        default=None,
+        description="Viewer compound parent ``tc:…`` when ``in_topic_cluster``.",
+    )
+
+
 class CorpusEpisodeListItem(BaseModel):
     """Summary row for GET /api/corpus/episodes."""
 
@@ -260,7 +275,7 @@ class CorpusEpisodeListItem(BaseModel):
     )
     topics: list[str] = Field(
         default_factory=list,
-        description="Topic pills from summary bullets (capped server-side).",
+        description="Summary-derived strings (capped); not used as list-row chips in the viewer.",
     )
     summary_title: str | None = Field(
         default=None,
@@ -306,6 +321,23 @@ class CorpusEpisodeListItem(BaseModel):
         default=None,
         description="Verified path under ``.podcast_scraper/corpus-art/`` when present.",
     )
+    cil_digest_topics: list[CilDigestTopicPill] = Field(
+        default_factory=list,
+        description=(
+            "Reserved on list responses (always empty); "
+            "CIL pills are on digest rows and episode detail."
+        ),
+    )
+    gi_relative_path: str = Field(
+        default="",
+        description="Corpus-relative GI artifact path (for graph loads from list rows).",
+    )
+    kg_relative_path: str = Field(
+        default="",
+        description="Corpus-relative KG artifact path (for graph loads from list rows).",
+    )
+    has_gi: bool = Field(default=False, description="True when GI artifact exists on disk.")
+    has_kg: bool = Field(default=False, description="True when KG artifact exists on disk.")
 
 
 class CorpusEpisodesResponse(BaseModel):
@@ -378,6 +410,10 @@ class CorpusEpisodeDetailResponse(BaseModel):
     episode_image_local_relpath: str | None = Field(
         default=None,
         description="Verified local artwork path when file exists on disk.",
+    )
+    cil_digest_topics: list[CilDigestTopicPill] = Field(
+        default_factory=list,
+        description="CIL topic pills from bridge (cluster-first order).",
     )
 
 
@@ -473,6 +509,10 @@ class CorpusDigestRow(BaseModel):
     feed_image_local_relpath: str | None = Field(default=None, description="Verified local path.")
     episode_image_local_relpath: str | None = Field(
         default=None, description="Verified local path."
+    )
+    cil_digest_topics: list[CilDigestTopicPill] = Field(
+        default_factory=list,
+        description="CIL topic pills from bridge (cluster-first order); empty when no bridge.",
     )
 
 

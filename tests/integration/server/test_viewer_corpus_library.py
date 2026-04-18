@@ -189,6 +189,115 @@ def test_corpus_episodes_topic_q_filters(tmp_path: Path) -> None:
     assert body["items"][0]["episode_id"] == "o1"
 
 
+def test_corpus_episodes_topic_cluster_only_filter(tmp_path: Path) -> None:
+    """``topic_cluster_only`` keeps rows listed on a cluster member for a bridge topic."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    search = tmp_path / "search"
+    search.mkdir()
+    clusters = {
+        "schema_version": "2",
+        "clusters": [
+            {
+                "graph_compound_parent_id": "tc:ab",
+                "canonical_label": "AB",
+                "member_count": 2,
+                "members": [
+                    {"topic_id": "topic:alpha", "episode_ids": ["e_cluster"]},
+                    {"topic_id": "topic:beta", "episode_ids": ["e_other"]},
+                ],
+            }
+        ],
+    }
+    (search / "topic_clusters.json").write_text(json.dumps(clusters), encoding="utf-8")
+
+    (meta / "clustered.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="e_cluster", episode_title="Clustered ep")),
+        encoding="utf-8",
+    )
+    (meta / "clustered.gi.json").write_text("{}", encoding="utf-8")
+    bridge = {"identities": [{"id": "topic:alpha", "display_name": "Alpha"}]}
+    (meta / "clustered.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+
+    (meta / "plain.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="e_plain", episode_title="Plain ep")),
+        encoding="utf-8",
+    )
+    (meta / "plain.gi.json").write_text("{}", encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    r_all = client.get("/api/corpus/episodes", params={"path": str(tmp_path), "limit": 10})
+    assert r_all.status_code == 200
+    assert len(r_all.json()["items"]) == 2
+
+    r_tc = client.get(
+        "/api/corpus/episodes",
+        params={"path": str(tmp_path), "limit": 10, "topic_cluster_only": True},
+    )
+    assert r_tc.status_code == 200
+    body = r_tc.json()
+    assert len(body["items"]) == 1
+    assert body["items"][0]["episode_title"] == "Clustered ep"
+
+
+def test_corpus_episodes_topic_cluster_only_respects_member_episode_ids(tmp_path: Path) -> None:
+    """Two episodes share a clustered bridge topic; only one is listed on the member row."""
+    meta = tmp_path / "metadata"
+    meta.mkdir()
+    search = tmp_path / "search"
+    search.mkdir()
+    clusters = {
+        "schema_version": "2",
+        "clusters": [
+            {
+                "graph_compound_parent_id": "tc:ab",
+                "canonical_label": "AB",
+                "member_count": 2,
+                "members": [
+                    {"topic_id": "topic:alpha", "episode_ids": ["e_listed"]},
+                    {"topic_id": "topic:beta", "episode_ids": ["e_other"]},
+                ],
+            }
+        ],
+    }
+    (search / "topic_clusters.json").write_text(json.dumps(clusters), encoding="utf-8")
+
+    bridge = {"identities": [{"id": "topic:alpha", "display_name": "Alpha"}]}
+    (meta / "listed.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="e_listed", episode_title="Listed on cluster member")),
+        encoding="utf-8",
+    )
+    (meta / "listed.gi.json").write_text("{}", encoding="utf-8")
+    (meta / "listed.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+
+    (meta / "absent.metadata.json").write_text(
+        json.dumps(_episode_doc(episode_id="e_absent", episode_title="Same topic not on member")),
+        encoding="utf-8",
+    )
+    (meta / "absent.gi.json").write_text("{}", encoding="utf-8")
+    (meta / "absent.bridge.json").write_text(json.dumps(bridge), encoding="utf-8")
+
+    app = create_app(tmp_path, static_dir=False)
+    client = TestClient(app)
+
+    r_all = client.get("/api/corpus/episodes", params={"path": str(tmp_path), "limit": 10})
+    assert r_all.status_code == 200
+    titles = {row["episode_title"] for row in r_all.json()["items"]}
+    assert titles == {"Listed on cluster member", "Same topic not on member"}
+
+    r_tc = client.get(
+        "/api/corpus/episodes",
+        params={"path": str(tmp_path), "limit": 10, "topic_cluster_only": True},
+    )
+    assert r_tc.status_code == 200
+    body = r_tc.json()
+    assert len(body["items"]) == 1
+    assert body["items"][0]["episode_id"] == "e_listed"
+    assert body["items"][0]["episode_title"] == "Listed on cluster member"
+
+
 def test_corpus_episodes_pagination_cursor(tmp_path: Path) -> None:
     meta = tmp_path / "metadata"
     meta.mkdir()

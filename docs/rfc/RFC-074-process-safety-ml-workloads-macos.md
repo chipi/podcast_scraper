@@ -255,13 +255,18 @@ Add patterns that match the ML probe and model-loading processes:
 cleanup-processes:
 	@echo "Cleaning up leftover test processes..."
 	@pkill -f "pytest" 2>/dev/null || true
-	@pkill -f "python.*podcast_scraper.*test" 2>/dev/null || true
 	@pkill -f "gw[0-9]" 2>/dev/null || true
 	@pkill -f "python.*ml_model_cache_helpers" 2>/dev/null || true
 	@pkill -f "python.*spacy.*load" 2>/dev/null || true
 	@pkill -f "python.*calculate_test_workers" 2>/dev/null || true
 	@echo "Process cleanup complete"
 ```
+
+**Note:** A historical pattern `python.*podcast_scraper.*test` was removed
+from the live `Makefile` because it false-positived on
+`python -m podcast_scraper.cli serve --output-dir …/.test_outputs` (the
+`.*` could bridge to `test` inside `test_outputs`), killing dev API
+servers whenever `cleanup-processes` ran (for example before `ci-fast`).
 
 **Change 4.2: Add `check-zombie` target.**
 
