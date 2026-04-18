@@ -20,7 +20,7 @@ def test_person_gi_only_org_kg_only_topic_both() -> None:
             {"id": "topic:climate", "type": "Topic", "properties": {"label": "Climate"}},
         ]
     }
-    out = build_bridge("episode:test", gi, kg)
+    out = build_bridge("episode:test", gi, kg, fuzzy_reconcile=False)
     assert out["schema_version"] == "1.0"
     assert out["episode_id"] == "episode:test"
     assert "emitted_at" in out
@@ -50,7 +50,7 @@ def test_aliases_and_display_merged_across_layers() -> None:
             }
         ]
     }
-    out = build_bridge("e1", gi, kg)
+    out = build_bridge("e1", gi, kg, fuzzy_reconcile=False)
     bob = next(i for i in out["identities"] if i["id"] == "person:bob")
     assert bob["sources"] == {"gi": True, "kg": True}
     assert set(bob["aliases"]) == {"Bobby", "Bob Smith"}
@@ -68,7 +68,7 @@ def test_strips_g_prefix_on_kg_entity_id() -> None:
             }
         ]
     }
-    out = build_bridge("e2", gi, kg)
+    out = build_bridge("e2", gi, kg, fuzzy_reconcile=False)
     ids = {i["id"] for i in out["identities"]}
     assert ids == {"person:zoe"}
 
@@ -83,7 +83,7 @@ def test_string_alias_on_person_node() -> None:
             }
         ]
     }
-    out = build_bridge("e3", gi, {})
+    out = build_bridge("e3", gi, {}, fuzzy_reconcile=False)
     sam = next(i for i in out["identities"] if i["id"] == "person:sam")
     assert sam["aliases"] == ["Sammy"]
 
@@ -91,5 +91,5 @@ def test_string_alias_on_person_node() -> None:
 def test_ignores_non_cil_nodes() -> None:
     gi = {"nodes": [{"id": "insight:1", "type": "Insight", "properties": {"text": "x"}}]}
     kg = {"nodes": [{"id": "kg:episode:u1", "type": "Episode", "properties": {}}]}
-    out = build_bridge("e1", gi, kg)
+    out = build_bridge("e1", gi, kg, fuzzy_reconcile=False)
     assert out["identities"] == []
