@@ -138,57 +138,25 @@ fallback if engineering bandwidth is tight.
 
 ---
 
-## TD-003: Multi-feed ML acceptance preset skipped in fast matrix (Whisper reload / PyTorch meta)
+## TD-003: Multi-feed ML acceptance (historical: Whisper reload / PyTorch meta in one process)
 
 **Tracking:** [#539](https://github.com/chipi/podcast_scraper/issues/539)
 
-**Status:** Managed (stem commented out in `FAST_CONFIGS.txt`)
+**Status:** Addressed (2026-04). Multi-feed batches defer shared ML singleton teardown between feeds;
+`preload_ml_models_if_needed` reuses matching ML fingerprints; HF QA cache cleared between feeds;
+QA pipelines pass `low_cpu_mem_usage=False`; `summarizer.unload_model` skips `.to("cpu")` on meta
+shells. `sample_acceptance_e2e_fixture_multi_ml` is back in `FAST_CONFIGS.txt`.
 
-**Current state:**
+**Historical (pre-fix):** five feeds in one process could leave HF QA / torch in a state where
+feed 2’s Whisper load failed with meta-tensor errors; CI weights were present (not a cache miss).
 
-The acceptance preset `sample_acceptance_e2e_fixture_multi_ml` runs five feeds in one
-Python process. After **feed 1** completes, pipeline cleanup runs and **feed 2**
-calls `preload_ml_models_if_needed` again. **Whisper** then fails to load with:
-
-`Cannot copy out of meta tensor; no data! Please use torch.nn.Module.to_empty()
-instead of torch.nn.Module.to() when moving module from meta to a different device.`
-
-During feed 1, **Hugging Face extractive QA** (`deepset/roberta-base-squad2`) logs
-`Device set to use meta` and failures on `Tensor.item()` for meta tensors. Vector
-embedding encode can hit the same error. CI already runs `preload-ml-models` and
-restores the `ml-models` artifact before `test-acceptance-fixtures`; this is **not**
-missing on-disk weights.
-
-**Mitigation (April 2026):** stem `sample_acceptance_e2e_fixture_multi_ml` is
-commented out in `config/acceptance/FAST_CONFIGS.txt`. The YAML preset remains;
-run locally with:
-
-`make test-acceptance CONFIGS=config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml USE_FIXTURES=1`
-
-**Why this is debt, not a dismissed flake:**
-
-- Multi-feed + local ML is a real integration path we want in the fast matrix.
-- Root cause is likely **process-wide PyTorch / Transformers state** after the first
-  feed (QA on `meta`, unload paths) combined with **per-feed ML preload + cleanup**.
-
-**Options to fix:**
-
-| Option | Approach | Pros | Cons |
-| --- | --- | --- | --- |
-| A | Multi-feed ML lifecycle | Preload ML once per batch or no-op `preload_ml_models_if_needed` when already loaded for an equivalent ML config; defer or soften cleanup between feeds. | Fixes second Whisper load without fighting HF quirks; needs clear ownership of singleton lifetime. |
-| B | Harden HF QA / unload | Force non-meta CPU load in `build_huggingface_qa_pipeline` / extractive QA; guard `summarizer.unload_model` when model is on `meta`; optionally clear `_qa_pipelines` on cleanup. | Addresses suspected trigger; may need torch/transformers version awareness. |
-| C | Dependency pin / upgrade | Align torch + transformers versions where QA pipelines do not default to `meta` on CPU CI. | Quick if a known-good pair exists; otherwise fragile. |
-
-**Recommendation:** Option A first (smallest behavioural change for acceptance), plus
-Option B if meta still appears after feed 1.
-
-**Priority:** Medium
+**Local smoke:** `make test-acceptance CONFIGS=config/acceptance/sample_acceptance_e2e_fixture_multi_ml.yaml USE_FIXTURES=1`
 
 **Trigger to revisit:**
 
-- Before re-enabling the stem in `FAST_CONFIGS.txt` (done when #539 closes)
-- Any change to `preload_ml_models_if_needed`, `_cleanup_providers`, or multi-feed
-  `run_pipeline` batching
+- Regression on `make test-acceptance-fixtures-fast` or multi-feed ML acceptance
+- Changes to `preload_ml_models_if_needed`, `_cleanup_providers`, multi-feed `service.run`,
+  or HF QA / Whisper init paths
 
 ---
 

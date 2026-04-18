@@ -14,7 +14,7 @@ test.describe('Offline graph (file picker)', () => {
     await expect(page.getByRole('button', { name: 'Zoom in' })).toBeVisible()
     await expect(page.getByRole('button', { name: '100%' })).toBeVisible()
     await expect(
-      page.getByText(/Shift\+drag|Shift\+dbl-click|Neighborhood/),
+      page.getByText(/Teal ring|Shift\+drag|Shift\+dbl-click|Neighborhood/),
     ).toBeVisible()
     await expect(page.getByRole('combobox', { name: 'Graph layout algorithm' })).toBeVisible()
     await expect(page.getByRole('checkbox', { name: 'Minimap' })).toBeVisible()

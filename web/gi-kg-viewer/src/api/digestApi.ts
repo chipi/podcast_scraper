@@ -12,6 +12,14 @@ function raiseDigestHttpError(res: Response, bodyText: string): never {
 
 export type DigestWindow = 'all' | '24h' | '7d' | '1mo' | 'since'
 
+/** CIL topic chip (bridge identity + optional RFC-075 cluster styling). */
+export type CilDigestTopicPill = {
+  topic_id: string
+  label: string
+  in_topic_cluster?: boolean
+  topic_cluster_compound_id?: string | null
+}
+
 export type CorpusDigestRow = {
   metadata_relative_path: string
   feed_id: string
@@ -36,6 +44,8 @@ export type CorpusDigestRow = {
   episode_number?: number | null
   feed_image_local_relpath?: string | null
   episode_image_local_relpath?: string | null
+  /** Cluster-first order; prefer over summary bullets when non-empty. */
+  cil_digest_topics?: CilDigestTopicPill[]
 }
 
 export type CorpusDigestTopicHit = {

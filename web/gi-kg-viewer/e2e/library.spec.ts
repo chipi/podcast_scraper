@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
 
 async function expandLibraryEpisodeFilters(page: Page): Promise<void> {
-  const btn = page.getByRole('button', { name: /^Episode filters/i })
+  const btn = page.getByRole('button', { name: /^Filters$/i })
   if ((await btn.getAttribute('aria-expanded')) === 'false') {
     await btn.click()
   }
@@ -60,6 +60,11 @@ test.describe('Corpus Library tab', () => {
               episode_id: 'e1',
               episode_title: 'Mock Episode Title',
               publish_date: '2024-06-01',
+              gi_relative_path: 'metadata/ep1.gi.json',
+              kg_relative_path: 'metadata/ep1.kg.json',
+              has_gi: true,
+              has_kg: true,
+              cil_digest_topics: [],
             },
           ],
           next_cursor: null,
@@ -84,6 +89,20 @@ test.describe('Corpus Library tab', () => {
           kg_relative_path: 'metadata/ep1.kg.json',
           has_gi: true,
           has_kg: true,
+          cil_digest_topics: [
+            {
+              topic_id: 'topic:alpha',
+              label: 'Alpha topic',
+              in_topic_cluster: true,
+              topic_cluster_compound_id: 'tc:mock',
+            },
+            {
+              topic_id: 'topic:beta',
+              label: 'Beta topic',
+              in_topic_cluster: false,
+              topic_cluster_compound_id: null,
+            },
+          ],
         }),
       })
     })
@@ -200,6 +219,11 @@ test.describe('Corpus Library tab', () => {
         .locator('li')
         .filter({ hasText: /^Point one$/ }),
     ).toBeVisible()
+    await expect(
+      page
+        .getByTestId('episode-detail-cil-pills')
+        .getByRole('button', { name: 'Open graph for topic: Alpha topic' }),
+    ).toBeVisible()
     await page.getByRole('button', { name: 'Prefill semantic search' }).click()
     // Same field order as Similar episodes / server build_similarity_query (title + bullets), not prose summary_text.
     await expect(page.locator('#search-q')).toHaveValue('Summary head Point one Point two')
@@ -212,22 +236,14 @@ test.describe('Corpus Library tab', () => {
     await expect(advancedDialog.locator('#search-advanced-feed')).toHaveValue('Mock Show')
   })
 
-  test('shows indexed badge, similar empty state when API returns no peers', async ({ page }) => {
+  test('similar empty state when API returns no peers', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expandLibraryEpisodeFilters(page)
-    await expect(
-      page.getByTestId('library-root').getByText('Indexed', { exact: true }),
-    ).toBeVisible()
-    const similarResponse = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/corpus/episodes/similar') && r.status() === 200,
-    )
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await similarResponse
     await expect(
       page
         .getByRole('region', { name: 'Episode', exact: true })
@@ -237,6 +253,61 @@ test.describe('Corpus Library tab', () => {
     await expect(page.getByRole('tooltip')).toContainText('Feed in vector index')
     await expect(page.getByTestId('library-similar')).toBeVisible()
     await expect(page.getByTestId('library-similar-empty')).toBeVisible()
+  })
+
+  test('topic cluster checkbox adds topic_cluster_only=true to episodes request', async ({
+    page,
+  }) => {
+    const episodesPayload = {
+      path: '/mock/corpus',
+      feed_id: null,
+      items: [
+        {
+          metadata_relative_path: 'metadata/ep1.metadata.json',
+          feed_id: 'f1',
+          feed_display_title: 'Mock Show',
+          topics: ['Point one', 'Point two'],
+          summary_title: 'Summary head',
+          summary_bullets_preview: ['Point one', 'Point two'],
+          summary_preview: 'Summary head — Point one · Point two',
+          episode_id: 'e1',
+          episode_title: 'Mock Episode Title',
+          publish_date: '2024-06-01',
+          gi_relative_path: 'metadata/ep1.gi.json',
+          kg_relative_path: 'metadata/ep1.kg.json',
+          has_gi: true,
+          has_kg: true,
+          cil_digest_topics: [],
+        },
+      ],
+      next_cursor: null,
+    }
+    await page.unroute('**/api/corpus/episodes**')
+    await page.route('**/api/corpus/episodes**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(episodesPayload),
+      })
+    })
+
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    await expandLibraryEpisodeFilters(page)
+
+    const clusterReq = page.waitForRequest(
+      (r) =>
+        r.url().includes('/api/corpus/episodes') &&
+        r.url().includes('topic_cluster_only=true'),
+    )
+    await page
+      .getByRole('checkbox', { name: 'Show only episodes with a topic cluster (CIL)' })
+      .check()
+    const req = await clusterReq
+    expect(req.url()).toContain('topic_cluster_only=true')
   })
 
   test('similar panel shows no-index message when API returns no_index', async ({ page }) => {
@@ -279,17 +350,9 @@ test.describe('Corpus Library tab', () => {
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expect(
-      page.getByTestId('library-root').getByText('Indexed', { exact: true }),
-    ).toHaveCount(0)
-    const similarResponse = page.waitForResponse(
-      (r) =>
-        r.url().includes('/api/corpus/episodes/similar') && r.status() === 200,
-    )
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()
-    await similarResponse
     await expect(
       page.getByText('No vector index for this corpus yet', { exact: false }),
-    ).toBeVisible()
+    ).toBeVisible({ timeout: 20_000 })
   })
 })

@@ -121,6 +121,8 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 
 **Operational gate:** Before relying on lift in production-shaped corpora, run **Quote vs chunk offset** verification (`verify-gil-chunk-offsets` or **`make verify-gil-offsets-strict`**) on an indexed run. Details: [Semantic Search Guide — lift and verification](../guides/SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528), [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md).
 
+**Re-pipeline stance:** Re-running extraction, the bridge builder, or RFC-075 clustering **replaces** on-disk artifacts under the corpus root. Canonical ids and `tc:` cluster parents are **not** frozen at first ingest. HTTP APIs and the viewer read **current** files for the configured path. See [RFC-072 — Operational note](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance) and [GIL / KG / CIL — When the corpus is re-built](../guides/GIL_KG_CIL_CROSS_LAYER.md#when-the-corpus-is-re-built).
+
 **Full spec:** [RFC-072](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md).
 
 ## Corpus Topic Clustering Layer (RFC-075) {#corpus-topic-clustering-layer-rfc-075}

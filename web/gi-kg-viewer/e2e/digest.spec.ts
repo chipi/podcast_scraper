@@ -153,6 +153,20 @@ test.describe('Corpus Digest tab', () => {
               kg_relative_path: 'metadata/ep1.kg.json',
               has_gi: true,
               has_kg: false,
+              cil_digest_topics: [
+                {
+                  topic_id: 'topic:cluster-x',
+                  label: 'Cluster topic X',
+                  in_topic_cluster: true,
+                  topic_cluster_compound_id: 'tc:cx',
+                },
+                {
+                  topic_id: 'topic:plain-y',
+                  label: 'Plain Y',
+                  in_topic_cluster: false,
+                  topic_cluster_compound_id: null,
+                },
+              ],
             },
           ],
           topics: [
@@ -198,6 +212,10 @@ test.describe('Corpus Digest tab', () => {
     })
     await expect(digestRecentCard).toBeVisible()
     await expect(digestRecentCard.getByText('Digest summary — First bullet')).toBeVisible()
+    await expect(page.getByTestId('digest-recent-cil-pills')).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Open graph for topic: Cluster topic X' }),
+    ).toBeVisible()
     await expect(
       page
         .getByTestId('digest-root')
@@ -323,7 +341,7 @@ test.describe('Corpus Digest tab', () => {
     await expect(page.locator('.graph-canvas')).toBeVisible()
   })
 
-  test('digest Recent summary pill opens graph with mocked GI', async ({ page }) => {
+  test('digest Recent CIL topic pill opens graph with mocked GI', async ({ page }) => {
     const ep1Gi = JSON.stringify({
       schema_version: '1.0',
       model_version: 'stub',
@@ -340,9 +358,9 @@ test.describe('Corpus Digest tab', () => {
           },
         },
         {
-          id: 'topic:first-bullet',
+          id: 'topic:cluster-x',
           type: 'Topic',
-          properties: { label: 'First bullet' },
+          properties: { label: 'Cluster topic X' },
         },
       ],
       edges: [],
@@ -360,7 +378,7 @@ test.describe('Corpus Digest tab', () => {
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
-        name: 'Open graph for summary line as topic (topic node when present): First bullet',
+        name: 'Open graph for topic: Cluster topic X',
       })
       .click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -403,7 +421,9 @@ test.describe('Corpus Digest tab', () => {
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
-      .getByRole('button', { name: 'Open graph: Digest Episode Alpha, Mock Feed Show' })
+      .getByRole('button', {
+        name: 'Open graph and episode details: Digest Episode Alpha, Mock Feed Show',
+      })
       .click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
     await expect(page.locator('.graph-canvas')).toBeVisible()

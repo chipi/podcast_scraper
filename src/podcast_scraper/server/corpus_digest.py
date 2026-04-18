@@ -7,7 +7,7 @@ import re
 from collections import defaultdict, deque
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.corpus_scope import normalize_feed_id
@@ -189,6 +189,7 @@ def digest_row_dict(
     feed_titles_by_feed_id: Optional[Mapping[str, str]] = None,
     feed_rss_urls_by_feed_id: Optional[Mapping[str, str]] = None,
     feed_descriptions_by_feed_id: Optional[Mapping[str, str]] = None,
+    cil_digest_topics: Optional[Sequence[Mapping[str, Any]]] = None,
 ) -> dict[str, Any]:
     """JSON-serializable digest row for API responses (glance and full digest)."""
     bullets = list(row.summary_bullets[:4])
@@ -222,6 +223,7 @@ def digest_row_dict(
         "episode_number": row.episode_number,
         "feed_image_local_relpath": row.feed_image_local_relpath,
         "episode_image_local_relpath": row.episode_image_local_relpath,
+        "cil_digest_topics": list(cil_digest_topics or []),
     }
 
 

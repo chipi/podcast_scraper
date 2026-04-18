@@ -87,6 +87,16 @@ export function graphNodeFill(type: string): string {
 type NodeChrome = { background: string; border: string; labelColor: string }
 
 /** Fill / border / label colors aligned with Cytoscape node styling (``visualGroupForNode`` keys). */
+/**
+ * RFC-075 CIL topic chips in Digest / Episode rail: same amber/orange as graph
+ * ``node.search-hit`` emphasis and ``Quote`` node chrome so cluster membership is obvious.
+ */
+export const cilClusteredTopicPillChrome = Object.freeze({
+  borderColor: graphNodeTypeStyles.Quote.border,
+  /** Translucent fill — readable on dark and light shells. */
+  backgroundColor: 'rgba(250, 176, 5, 0.38)',
+} as const)
+
 export function graphNodeTypeChrome(visualType: string): NodeChrome {
   const styles = graphNodeTypeStyles as Record<string, NodeChrome>
   let s = styles[visualType]

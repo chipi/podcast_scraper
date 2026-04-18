@@ -103,77 +103,97 @@ def _run_multi_feed(cfg: config.Config, feed_urls: List[str]) -> ServiceResult:
         Path(incident_log_default).stat().st_size if Path(incident_log_default).is_file() else 0
     )
 
+    summary_doc: Optional[Dict[str, Any]] = None
+    workflow.begin_multi_feed_ml_batch()
     try:
-        with corpus_parent_lock(Path(parent), logger=logger):
-            for url in feed_urls:
-                child_dir = filesystem.corpus_feed_output_dir(parent, url)
-                incident_log = (cfg.incident_log_path or "").strip()
-                if not incident_log:
-                    incident_log = str(Path(parent) / "corpus_incidents.jsonl")
-                sub_cfg = cfg.model_copy(
-                    update={
-                        "rss_url": url,
-                        "output_dir": child_dir,
-                        "rss_urls": None,
-                        "skip_auto_vector_index": skip_auto,
-                        "incident_log_path": incident_log,
-                    },
-                )
-                try:
-                    count, summary = workflow.run_pipeline(sub_cfg)
-                    total += count
-                    ok_parts.append(f"{url}: {summary}")
-                    batch.append(
-                        MultiFeedFeedResult(url, True, None, int(count), finished_at=utc_iso_now())
+        try:
+            with corpus_parent_lock(Path(parent), logger=logger):
+                n_feeds = len(feed_urls)
+                for idx, url in enumerate(feed_urls):
+                    child_dir = filesystem.corpus_feed_output_dir(parent, url)
+                    incident_log = (cfg.incident_log_path or "").strip()
+                    if not incident_log:
+                        incident_log = str(Path(parent) / "corpus_incidents.jsonl")
+                    sub_cfg = cfg.model_copy(
+                        update={
+                            "rss_url": url,
+                            "output_dir": child_dir,
+                            "rss_urls": None,
+                            "skip_auto_vector_index": skip_auto,
+                            "incident_log_path": incident_log,
+                        },
                     )
-                except Exception as exc:
-                    msg = redact_for_log(str(exc))
-                    kind = classify_multi_feed_feed_exception(exc)
-                    logger.error("Multi-feed: feed failed url=%s err=%s", url, msg, exc_info=True)
-                    append_corpus_incident(
-                        sub_cfg.incident_log_path,
-                        scope="feed",
-                        category=kind,
-                        message=msg,
-                        exception_type=type(exc).__name__,
-                        stage="pipeline",
-                        feed_url=url,
-                    )
-                    err_parts.append(f"{url}: {msg}")
-                    batch.append(
-                        MultiFeedFeedResult(
-                            url,
-                            False,
-                            msg,
-                            0,
-                            finished_at=utc_iso_now(),
-                            failure_kind=kind,
+                    try:
+                        count, summary = workflow.run_pipeline(sub_cfg)
+                        total += count
+                        ok_parts.append(f"{url}: {summary}")
+                        batch.append(
+                            MultiFeedFeedResult(
+                                url, True, None, int(count), finished_at=utc_iso_now()
+                            )
                         )
-                    )
+                    except Exception as exc:
+                        msg = redact_for_log(str(exc))
+                        kind = classify_multi_feed_feed_exception(exc)
+                        logger.error(
+                            "Multi-feed: feed failed url=%s err=%s", url, msg, exc_info=True
+                        )
+                        append_corpus_incident(
+                            sub_cfg.incident_log_path,
+                            scope="feed",
+                            category=kind,
+                            message=msg,
+                            exception_type=type(exc).__name__,
+                            stage="pipeline",
+                            feed_url=url,
+                        )
+                        err_parts.append(f"{url}: {msg}")
+                        batch.append(
+                            MultiFeedFeedResult(
+                                url,
+                                False,
+                                msg,
+                                0,
+                                finished_at=utc_iso_now(),
+                                failure_kind=kind,
+                            )
+                        )
+                    finally:
+                        # Drop HF QA pipeline cache between feeds so later feeds do not inherit
+                        # meta-tensor / lazy-init state from feed 1 (GitHub #539).
+                        if n_feeds > 1 and idx < n_feeds - 1:
+                            try:
+                                from podcast_scraper.providers.ml import extractive_qa
 
-            template = cfg.model_copy(
-                update={
-                    "output_dir": parent,
-                    "rss_url": feed_urls[0],
-                    "rss_urls": None,
-                    "skip_auto_vector_index": False,
-                }
+                                extractive_qa.clear_qa_pipeline_cache()
+                            except ImportError:
+                                pass
+
+                template = cfg.model_copy(
+                    update={
+                        "output_dir": parent,
+                        "rss_url": feed_urls[0],
+                        "rss_urls": None,
+                        "skip_auto_vector_index": False,
+                    }
+                )
+                summary_doc = finalize_multi_feed_batch(
+                    parent,
+                    template,
+                    batch,
+                    incident_log_path=incident_log_default,
+                    incident_log_start_offset=incident_log_start,
+                )
+        except RuntimeError as exc:
+            return ServiceResult(
+                episodes_processed=0,
+                summary=str(exc),
+                success=False,
+                error=str(exc),
+                multi_feed_summary=None,
             )
-            summary_doc = finalize_multi_feed_batch(
-                parent,
-                template,
-                batch,
-                incident_log_path=incident_log_default,
-                incident_log_start_offset=incident_log_start,
-            )
-    except RuntimeError as exc:
-        return ServiceResult(
-            episodes_processed=0,
-            summary=str(exc),
-            success=False,
-            error=str(exc),
-            multi_feed_summary=None,
-        )
+    finally:
+        workflow.end_multi_feed_ml_batch()
 
     if err_parts:
         summary_text = "\n".join(ok_parts + ["", "Failures:", *err_parts])

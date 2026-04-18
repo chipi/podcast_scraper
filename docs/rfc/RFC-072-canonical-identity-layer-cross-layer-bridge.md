@@ -397,6 +397,32 @@ straightforward once the foundation is in place:
   (e.g. "Sam Altman" not "Sam" or "Samuel Altman"). The slugifier is deterministic for
   identical inputs but does not perform fuzzy matching.
 
+### Operational note: re-pipeline, enrichment, and read-path stance
+
+The bridge and sibling artifacts describe the **corpus as it exists on disk after the
+last successful build**. None of the following freezes identity for all time:
+
+- **Re-running the core pipeline** (GIL/KG extraction, bridge emission, or RFC-075 topic
+  clustering) may change canonical `topic:` / `person:` / `org:` strings, merge graph
+  nodes, or regenerate **`topic_clusters.json`** and **`graph_compound_parent_id`**
+  (`tc:`) values.
+- **RFC-073 enrichers** must never mutate `*.gi.json`, `*.kg.json`, or `*.bridge.json`, but
+  they still **read** whatever version is current; enrichment outputs may need
+  **re-computation** after a core rebuild so derived files stay aligned with new core
+  content.
+
+**Consumer contract (HTTP APIs and viewer):** treat bridge-backed fields and CIL query
+results as **the current projection** of the selected output directory. Deep links,
+bookmarks, and cached client state that embed canonical ids or cluster compounds may
+**break or silently miss** after an operator replaces artifacts. Prefer stable **episode
+keys** (metadata paths, feed + episode identifiers recorded in catalog) where the
+product requires continuity; record **run id** / **tool versions** in session metadata when
+comparing analyses over time.
+
+See also: [GIL / KG / CIL cross-layer guide](../guides/GIL_KG_CIL_CROSS_LAYER.md),
+[RFC-073 enrichment layer](RFC-073-enrichment-layer-architecture.md),
+[Architecture — GIL, KG, CIL](../architecture/ARCHITECTURE.md#gil-kg-and-canonical-cross-layer-cil).
+
 ---
 
 ## Design & Implementation

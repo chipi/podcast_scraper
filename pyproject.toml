@@ -75,7 +75,8 @@ compare = [
 llm = [
   "openai>=1.0.0,<3.0.0",  # OpenAI API provider (RFC-013, Issue #405)
   # Google Gemini (GeminiProvider); no [gemini] extra — install via .[llm]
-  "google-genai>=0.1.0,<2.0.0",  # Dependabot PR #449; google.genai Client API (Issue #415)
+  # 1.x: ThinkingConfig.thinking_budget for gemini-2.5-flash (Issue #572); 0.x lacked the field
+  "google-genai>=1.0.0,<2.0.0",
   "google-api-core>=2.30.3,<3.0.0",  # Required by google-genai for some operations
   "anthropic>=0.34.0,<1.0.0",  # Anthropic API provider (Issue #106)
   # mistralai 2.x: client at mistralai.client.sdk (Dependabot PR #473)

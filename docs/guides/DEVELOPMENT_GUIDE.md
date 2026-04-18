@@ -626,6 +626,10 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
   [web/gi-kg-viewer/README.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md)
   and
   [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
+- **CIL pill to graph focus:** Digest Recent and Episode rail use
+  `web/gi-kg-viewer/src/utils/cilGraphFocus.ts` so clustered pills pass optional
+  `tc:…` ids into `pendingFocusCameraIncludeRawIds` (same idea as Search hits). Further
+  entry surfaces and audit notes: [graph focus entry points (WIP)](../wip/graph-focus-entrypoints.md).
 
 **Makefile targets (repository root):**
 

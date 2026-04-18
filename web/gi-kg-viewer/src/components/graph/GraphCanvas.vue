@@ -40,7 +40,11 @@ import {
 } from '../../utils/graphEpisodeMetadata'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
-import { stripLayerPrefixesForCil } from '../../utils/mergeGiKg'
+import {
+  graphNodeExpandableForRfc076,
+  syncRfc076ExpansionNodeClasses,
+} from '../../utils/rfc076GraphExpandable'
+import { wouldRfc076AppendNewArtifacts } from '../../utils/rfc076CorpusBeyondSelection'
 import { findRawNodeInArtifact, toCytoElements } from '../../utils/parsing'
 import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
 import { StaleGeneration } from '../../utils/staleGeneration'
@@ -55,6 +59,7 @@ const nav = useGraphNavigationStore()
 const episodeRail = useEpisodeRailStore()
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
+const { expandedBySeed } = storeToRefs(graphExpansion)
 const shell = useShellStore()
 const searchStore = useSearchStore()
 const themeStore = useThemeStore()
@@ -115,36 +120,6 @@ async function openGraphEpisodeOrNodeRail(
   }
 }
 
-function graphNodeExpandableForRfc076(
-  core: Core,
-  cyId: string,
-  rawNode: RawGraphNode | null,
-): boolean {
-  if (graphCyIdRepresentsEpisodeNode(cyId, rawNode)) {
-    return false
-  }
-  const t = rawNode?.type
-  if (t !== 'Topic' && t !== 'Person' && t !== 'Entity') {
-    return false
-  }
-  const bare = stripLayerPrefixesForCil(cyId)
-  if (!/^(person|org|topic):/.test(bare)) {
-    return false
-  }
-  try {
-    const n = core.$id(cyId)
-    if (n.empty() || typeof n.isNode !== 'function' || !n.isNode()) {
-      return false
-    }
-    if (n.degree() <= 1) {
-      return false
-    }
-  } catch {
-    return false
-  }
-  return true
-}
-
 async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void> {
   const id = cyId.trim()
   if (!id) {
@@ -153,6 +128,7 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
   if (graphExpansion.isExpanded(id)) {
     graphExpansion.clearTruncationLine()
     await graphExpansion.collapseSeed(id)
+    applyRfc076ExpansionHints(core)
     return
   }
   const rawNode = rawNodeForRailInteraction(id)
@@ -199,8 +175,19 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
     graphExpansion.setTruncationLine(e instanceof Error ? e.message : String(e))
   } finally {
     graphExpansion.setBusy(null)
+    applyRfc076ExpansionHints(core)
   }
 }
+
+watch(
+  expandedBySeed,
+  () => {
+    if (cy) {
+      applyRfc076ExpansionHints(cy)
+    }
+  },
+  { deep: true },
+)
 
 const container = ref<HTMLDivElement | null>(null)
 const canvasHost = ref<HTMLDivElement | null>(null)
@@ -226,6 +213,8 @@ const boxZoomRect = reactive({
 let cy: Core | null = null
 /** Prevents nested ``redraw()`` (e.g. artifact watcher during sync COSE ``run()``) from destroying the active instance mid-layout. */
 let redrawGateDepth = 0
+/** Debounce RFC-076 ``node-episodes`` probes that decide the teal ring (corpus beyond selection). */
+let rfc076CorpusBeyondDebounce: ReturnType<typeof setTimeout> | null = null
 let redrawPending = false
 let resizeObs: ResizeObserver | null = null
 let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
@@ -443,6 +432,9 @@ function applySearchHighlights(core: Core): void {
 
 const hint = computed(() => {
   const parts: string[] = []
+  parts.push(
+    'Teal ring: Topic/Person/Entity has GI/KG in other corpus episodes not merged into this graph yet — dbl-click (no Shift) to merge. Blue ring: expanded from here (dbl-click to collapse).',
+  )
   if (focusNodeId.value) {
     parts.push(
       'Neighborhood: dbl-click empty canvas for full graph. Shift+dbl-click toggles 1-hop.',
@@ -649,7 +641,83 @@ function finishLayoutPass(core: Core): void {
   tryApplyPendingFocus(core)
   applySearchHighlights(core)
   applyTopicClusterMemberCollapse(core)
+  applyRfc076ExpansionHints(core)
+  scheduleRfc076CorpusBeyondProbes()
   releaseGraphPaintAfterLayout(core)
+}
+
+function applyRfc076ExpansionHints(core: Core): void {
+  if (!cy || cy !== core) {
+    return
+  }
+  syncRfc076ExpansionNodeClasses(core, {
+    isExpandedSeed: (id) => graphExpansion.isExpanded(id),
+    rawNode: rawNodeForRailInteraction,
+    corpusWouldAppendOutsideGraph: (id) => graphExpansion.corpusBeyondAppendKnown(id),
+  })
+}
+
+async function runRfc076CorpusBeyondProbes(): Promise<void> {
+  const core = cy
+  if (!core) {
+    return
+  }
+  const waveGen = graphExpansion.peekCorpusBeyondProbeGen()
+  const root = shell.corpusPath.trim()
+  if (!root || !shell.corpusLibraryApiAvailable) {
+    return
+  }
+  const selected = artifacts.selectedRelPaths
+  const candidates: string[] = []
+  core.nodes().forEach((ele) => {
+    try {
+      if (!ele || typeof ele.isNode !== 'function' || !ele.isNode()) {
+        return
+      }
+      const id = ele.id()
+      if (graphExpansion.isExpanded(id)) {
+        return
+      }
+      const raw = rawNodeForRailInteraction(id)
+      if (!graphNodeExpandableForRfc076(core, id, raw)) {
+        return
+      }
+      if (graphExpansion.corpusBeyondAppendKnown(id) !== undefined) {
+        return
+      }
+      candidates.push(id)
+    } catch {
+      /* ignore */
+    }
+  })
+  for (const id of candidates) {
+    if (!cy || cy !== core) {
+      return
+    }
+    if (graphExpansion.peekCorpusBeyondProbeGen() !== waveGen) {
+      return
+    }
+    try {
+      const res = await fetchNodeEpisodes(root, id, RFC076_EXPAND_MAX_EPISODES)
+      const would = wouldRfc076AppendNewArtifacts(res.episodes, selected)
+      graphExpansion.commitCorpusBeyondProbe(waveGen, id, would)
+    } catch {
+      graphExpansion.commitCorpusBeyondProbe(waveGen, id, false)
+    }
+    if (cy === core) {
+      applyRfc076ExpansionHints(core)
+    }
+  }
+}
+
+function scheduleRfc076CorpusBeyondProbes(): void {
+  if (rfc076CorpusBeyondDebounce != null) {
+    clearTimeout(rfc076CorpusBeyondDebounce)
+  }
+  rfc076CorpusBeyondDebounce = setTimeout(() => {
+    rfc076CorpusBeyondDebounce = null
+    void runRfc076CorpusBeyondProbes()
+  }, 400)
 }
 
 /** Hide member Topic nodes inside collapsed TopicCluster compounds (detail rail toggle). */
@@ -1352,6 +1420,27 @@ watch(
   },
 )
 
+const corpusSelectionProbeKey = computed(() =>
+  [...artifacts.selectedRelPaths]
+    .map((p) => p.replace(/\\/g, '/').trim())
+    .filter(Boolean)
+    .sort()
+    .join('\n'),
+)
+
+watch(corpusSelectionProbeKey, () => {
+  graphExpansion.invalidateCorpusBeyondHints()
+  scheduleRfc076CorpusBeyondProbes()
+})
+
+watch(
+  () => [shell.corpusPath, shell.corpusLibraryApiAvailable] as const,
+  () => {
+    graphExpansion.invalidateCorpusBeyondHints()
+    scheduleRfc076CorpusBeyondProbes()
+  },
+)
+
 watch(
   () => [searchStore.results, nav.libraryHighlightSourceIds] as const,
   () => {
@@ -1520,6 +1609,10 @@ onActivated(() => {
 })
 
 onUnmounted(() => {
+  if (rfc076CorpusBeyondDebounce != null) {
+    clearTimeout(rfc076CorpusBeyondDebounce)
+    rfc076CorpusBeyondDebounce = null
+  }
   destroyCy()
   pendingViewportPreserve = null
   egoPriorFullGraphViewportPreserve = null

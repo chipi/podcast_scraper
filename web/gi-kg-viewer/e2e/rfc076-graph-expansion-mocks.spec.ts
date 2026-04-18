@@ -614,12 +614,14 @@ test.describe('RFC-076 graph expansion (mocked API)', () => {
     await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
   })
 
-  test('Shift double-activation on quote reduces ego slice node count', async ({ page }) => {
+  test('Shift double-activation on topic reduces ego slice node count', async ({ page }) => {
     await mockRfc076GraphBaseline(page)
     await gotoGraphWithMockCorpus(page)
     const before = await cyNodeCount(page)
     expect(before).toBeGreaterThan(2)
-    await shiftDblclickCyNode(page, 'quote:4729aa32a95c9ca1')
+    // Use **Topic** (not **Quote**): quote labels can overlap the hit target in COSE, so the
+    // gesture may miss the node and skip ego without changing the node count.
+    await shiftDblclickCyNode(page, 'topic:ci-policy')
     await expect.poll(async () => cyNodeCount(page)).toBeLessThan(before)
   })
 

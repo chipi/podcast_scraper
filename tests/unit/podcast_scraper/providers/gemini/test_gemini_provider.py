@@ -480,6 +480,42 @@ class TestGeminiProviderSpeakerDetection(unittest.TestCase):
         self.assertTrue(success)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch(
+        "podcast_scraper.providers.gemini.gemini_provider."
+        "GeminiProvider._build_speaker_detection_prompt"
+    )
+    @patch(
+        "podcast_scraper.providers.gemini.gemini_provider."
+        "GeminiProvider._parse_speakers_from_response"
+    )
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_detect_speakers_25_flash_merges_thinking_in_config(
+        self, mock_render, mock_parse, mock_build_prompt, mock_genai
+    ):
+        mock_build_prompt.return_value = "Prompt"
+        mock_render.side_effect = lambda name, **kwargs: "test prompt"
+        mock_parse.return_value = (["A"], {"A"}, True)
+        mock_response = Mock()
+        mock_response.text = "{}"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            speaker_detector_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            auto_speakers=True,
+            gemini_speaker_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        provider.detect_speakers("T", "D", {"A"})
+
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_detect_speakers_not_initialized(self, mock_genai):
         """Test detect_speakers raises RuntimeError if not initialized."""
         provider = GeminiProvider(self.cfg)
@@ -563,6 +599,50 @@ class TestGeminiProviderSummarization(unittest.TestCase):
         self.assertEqual(result["summary"], "This is a summary.")
         self.assertIn("metadata", result)
         self.assertEqual(result["metadata"]["model"], provider.summary_model)
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_summarize_25_flash_merges_thinking_in_config(self, mock_render_prompt, mock_genai):
+        """generate_content config sets thinking_budget=0 for gemini-2.5-flash."""
+        mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
+        mock_response = Mock()
+        mock_response.text = "Summary."
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            gemini_summary_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        provider.summarize("Long transcript text.")
+
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_summarize_default_lite_omits_thinking_config(self, mock_render_prompt, mock_genai):
+        """Default test summary model (lite) must not add thinking_config."""
+        mock_render_prompt.side_effect = ["System Prompt", "User Prompt"]
+        mock_response = Mock()
+        mock_response.text = "Summary."
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+
+        provider = GeminiProvider(self.cfg)
+        provider.initialize()
+        provider.summarize("Text.")
+
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertNotIn("thinking_config", call_kw["config"])
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_summarize_not_initialized(self, mock_genai):
@@ -678,6 +758,33 @@ class TestGeminiProviderSummarization(unittest.TestCase):
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_clean_transcript_25_flash_merges_thinking_in_config(
+        self, mock_genai, mock_render, mock_retry
+    ):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_resp = Mock()
+        mock_resp.text = "cleaned"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_resp
+        mock_genai.Client.return_value = mock_client
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            gemini_cleaning_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        provider.clean_transcript("word " * 25)
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="clean me")
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_clean_transcript_auth_error(self, mock_genai, mock_render, mock_retry):
         """clean_transcript maps API key errors to ProviderAuthError."""
         mock_retry.side_effect = lambda fn, **kwargs: fn()
@@ -724,6 +831,28 @@ class TestGeminiProviderGIL(unittest.TestCase):
         mock_client.models.generate_content.assert_called_once()
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch("podcast_scraper.prompts.store.render_prompt", return_value="prompt")
+    def test_generate_insights_25_flash_merges_thinking_in_config(self, mock_render, mock_genai):
+        mock_resp = Mock()
+        mock_resp.text = "One insight"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_resp
+        mock_genai.Client.return_value = mock_client
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            gemini_summary_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        provider.generate_insights("transcript", max_insights=3)
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     @patch("podcast_scraper.prompts.store.render_prompt", return_value="p")
     def test_generate_insights_error_returns_empty(self, mock_render, mock_genai):
         mock_client = Mock()
@@ -756,6 +885,29 @@ class TestGeminiProviderGIL(unittest.TestCase):
         self.assertEqual(len(r), 1)
         self.assertIsInstance(r[0], QuoteCandidate)
 
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_extract_quotes_25_flash_merges_thinking_in_config(self, mock_genai, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_resp = Mock()
+        mock_resp.text = '{"quote_text": "evidence"}'
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_resp
+        mock_genai.Client.return_value = mock_client
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            gemini_summary_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        provider.extract_quotes("We have evidence in the text.", "i")
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_extract_quotes_not_initialized_returns_empty(self, mock_genai):
         mock_genai.Client.return_value = Mock()
@@ -787,6 +939,29 @@ class TestGeminiProviderGIL(unittest.TestCase):
         provider = GeminiProvider(self.cfg)
         provider.initialize()
         self.assertEqual(provider.score_entailment("p", "h"), 0.88)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_score_entailment_25_flash_merges_thinking_in_config(self, mock_genai, mock_retry):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_resp = Mock()
+        mock_resp.text = "0.5"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_resp
+        mock_genai.Client.return_value = mock_client
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            generate_summaries=True,
+            generate_metadata=True,
+            gemini_summary_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        self.assertEqual(provider.score_entailment("premise text", "hypothesis text"), 0.5)
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
 
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
     def test_score_entailment_not_initialized_returns_zero(self, mock_genai):
@@ -910,6 +1085,47 @@ class TestGeminiProviderKG(unittest.TestCase):
             mock_client.models.generate_content.call_args[1]["model"],
             "gemini-2.0-flash-kg",
         )
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_extract_kg_graph_25_flash_params_merges_thinking_in_config(
+        self, mock_genai, mock_retry
+    ):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_resp = Mock()
+        mock_resp.text = self._KG_JSON
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_resp
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(self.cfg)
+        provider.initialize()
+        provider.extract_kg_graph(
+            "Asian economies transcript.",
+            params={"kg_extraction_model": "gemini-2.5-flash"},
+        )
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["model"], "gemini-2.5-flash")
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
+    @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    def test_extract_kg_from_summary_bullets_25_flash_params_merges_thinking(
+        self, mock_genai, mock_retry
+    ):
+        mock_retry.side_effect = lambda fn, **kwargs: fn()
+        mock_resp = Mock()
+        mock_resp.text = self._KG_JSON
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_resp
+        mock_genai.Client.return_value = mock_client
+        provider = GeminiProvider(self.cfg)
+        provider.initialize()
+        provider.extract_kg_from_summary_bullets(
+            ["Point"],
+            params={"kg_extraction_model": "gemini-2.5-flash"},
+        )
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
 
     @patch("podcast_scraper.utils.provider_metrics.retry_with_metrics")
     @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
@@ -1430,3 +1646,122 @@ class TestGeminiSummarizeBundled(unittest.TestCase):
             any("gemini/summarization/bundled" in c for c in calls),
             f"Expected gemini-prefixed prompt name, got: {calls}",
         )
+
+    @patch("podcast_scraper.prompts.store.get_prompt_metadata")
+    @patch("podcast_scraper.prompts.store.render_prompt")
+    def test_bundled_25_flash_merges_thinking_in_config(self, mock_render, mock_meta):
+        mock_render.side_effect = ["System", "User"]
+        mock_meta.return_value = {"name": "test", "sha256": "abc"}
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="gemini",
+            speaker_detector_provider="gemini",
+            summary_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            transcribe_missing=False,
+            auto_speakers=False,
+            generate_summaries=False,
+            llm_pipeline_mode="bundled",
+            gemini_summary_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider._summarization_initialized = True
+        mock_client = Mock()
+        provider.client = mock_client
+        mock_client.models.generate_content.return_value = self._mock_response(self.valid_json)
+        provider.summarize_bundled("transcript text")
+        call_kw = mock_client.models.generate_content.call_args[1]
+        self.assertEqual(call_kw["config"]["thinking_config"]["thinking_budget"], 0)
+
+
+@pytest.mark.unit
+class TestGeminiThinkingConfigMerge(unittest.TestCase):
+    """Issue #572: thinking_budget=0 for gemini-2.5-flash (non-lite)."""
+
+    def test_should_disable_gate(self):
+        from podcast_scraper.providers.gemini.gemini_provider import (
+            _should_disable_thinking_for_model,
+        )
+
+        self.assertTrue(_should_disable_thinking_for_model("gemini-2.5-flash"))
+        self.assertTrue(_should_disable_thinking_for_model("models/gemini-2.5-flash-preview"))
+        self.assertFalse(_should_disable_thinking_for_model("gemini-2.5-flash-lite"))
+        self.assertFalse(_should_disable_thinking_for_model("gemini-2.0-flash"))
+        self.assertFalse(_should_disable_thinking_for_model("gemini-2.5-pro"))
+
+    def test_merge_injects_thinking_budget(self):
+        from podcast_scraper.providers.gemini.gemini_provider import (
+            _merge_generate_content_config,
+        )
+
+        cfg = _merge_generate_content_config(
+            "gemini-2.5-flash",
+            {"temperature": 0.2, "max_output_tokens": 100},
+        )
+        self.assertEqual(cfg["thinking_config"]["thinking_budget"], 0)
+        self.assertEqual(cfg["temperature"], 0.2)
+
+    def test_merge_skips_lite(self):
+        from podcast_scraper.providers.gemini.gemini_provider import (
+            _merge_generate_content_config,
+        )
+
+        cfg = _merge_generate_content_config(
+            "gemini-2.5-flash-lite",
+            {"temperature": 0.2},
+        )
+        self.assertNotIn("thinking_config", cfg)
+
+    def test_merge_preserves_explicit_thinking_config(self):
+        from podcast_scraper.providers.gemini.gemini_provider import (
+            _merge_generate_content_config,
+        )
+
+        existing = {"thinking_config": {"thinking_budget": 128}}
+        cfg = _merge_generate_content_config("gemini-2.5-flash", existing)
+        self.assertEqual(cfg["thinking_config"]["thinking_budget"], 128)
+
+    def test_merge_treats_explicit_none_thinking_config_as_absent(self):
+        from podcast_scraper.providers.gemini.gemini_provider import (
+            _merge_generate_content_config,
+        )
+
+        cfg = _merge_generate_content_config(
+            "gemini-2.5-flash",
+            {"thinking_config": None, "temperature": 0.1},
+        )
+        self.assertEqual(cfg["thinking_config"]["thinking_budget"], 0)
+        self.assertEqual(cfg["temperature"], 0.1)
+
+    @patch("podcast_scraper.providers.gemini.gemini_provider.genai")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_transcribe_25_flash_passes_thinking_disabled_config(
+        self, mock_exists, mock_open, mock_genai
+    ):
+        mock_exists.return_value = True
+        mock_file = Mock()
+        mock_file.read.return_value = b"\x00audio"
+        mock_open.return_value.__enter__.return_value = mock_file
+        mock_open.return_value.__exit__.return_value = None
+
+        mock_response = Mock()
+        mock_response.text = "ok"
+        mock_client = Mock()
+        mock_client.models.generate_content.return_value = mock_response
+        mock_genai.Client.return_value = mock_client
+
+        cfg = config.Config(
+            rss_url="https://example.com/feed.xml",
+            transcription_provider="gemini",
+            gemini_api_key="test-api-key-123",
+            transcribe_missing=True,
+            gemini_transcription_model="gemini-2.5-flash",
+        )
+        provider = GeminiProvider(cfg)
+        provider.initialize()
+        provider.transcribe("/tmp/sample.mp3")
+
+        kw = mock_client.models.generate_content.call_args[1]
+        self.assertIn("config", kw)
+        self.assertEqual(kw["config"]["thinking_config"]["thinking_budget"], 0)

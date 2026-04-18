@@ -1,0 +1,18 @@
+# Git working tree safety (Rule 4e)
+
+**Authority:** `.cursorrules` **Rule 4e** — full wording and examples live there. This file is a **short gate** for agents before any command that would **replace** tracked file content from git.
+
+## CRITICAL — do not skip
+
+- **Never** use `git checkout -- <path>`, `git checkout HEAD -- <path>`, `git restore --source HEAD -- <path>`, or `git restore <path>` (when it reverts to index/HEAD) to “fix” a corrupted file, shrink a diff, or undo edits **unless** the user **explicitly** asked to discard work on that path **or** you **asked first** and they **clearly confirmed** (Rule 4e).
+- **Never** use these to recover from a **tool mistake** (e.g. formatter mangled a file) without approval — that is still discarding uncommitted truth.
+
+## Safe alternatives (use these first)
+
+1. **Editor:** Local History / Timeline on the file — restore a snapshot.
+2. **Read-only git:** `git show HEAD:<path>` or `git show <ref>:<path>` — copy into the editor or a temp file, then **manually** merge.
+3. **Diff then ask:** Show `git diff -- <path>` and ask: *“Revert `<path>` to last commit? This deletes uncommitted changes (Rule 4e).”*
+
+## When the user explicitly wants a revert
+
+They must say so in plain language (e.g. “discard my changes to `web/.../Foo.vue`”). Then one-shot revert is allowed; say what you ran and what was lost.

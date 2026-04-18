@@ -5,12 +5,16 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from podcast_scraper.graph_id_utils import slugify_label, topic_node_id_from_slug
 from podcast_scraper.search.corpus_search import run_corpus_search
+from podcast_scraper.server.cil_digest_topics import (
+    build_cil_digest_topics_for_row,
+    load_topic_cluster_index,
+)
 from podcast_scraper.server.corpus_catalog import (
     build_catalog_rows,
     CatalogEpisodeRow,
@@ -238,17 +242,25 @@ async def corpus_digest(
     titles_by_feed = feed_display_title_by_feed_id(catalog)
     rss_by_feed = feed_rss_url_by_feed_id(catalog)
     desc_by_feed = feed_description_by_feed_id(catalog)
-    row_models = [
-        CorpusDigestRow(
-            **digest_row_dict(
-                r,
-                feed_titles_by_feed_id=titles_by_feed,
-                feed_rss_urls_by_feed_id=rss_by_feed,
-                feed_descriptions_by_feed_id=desc_by_feed,
+    cluster_index = None if compact else load_topic_cluster_index(root)
+    row_models: list[CorpusDigestRow] = []
+    for r in picked:
+        cil_payload: list[dict[str, Any]] = []
+        if cluster_index is not None:
+            cil_payload = [
+                p.model_dump() for p in build_cil_digest_topics_for_row(root, r, cluster_index)
+            ]
+        row_models.append(
+            CorpusDigestRow(
+                **digest_row_dict(
+                    r,
+                    feed_titles_by_feed_id=titles_by_feed,
+                    feed_rss_urls_by_feed_id=rss_by_feed,
+                    feed_descriptions_by_feed_id=desc_by_feed,
+                    cil_digest_topics=cil_payload,
+                )
             )
         )
-        for r in picked
-    ]
 
     topics: list[CorpusDigestTopicBand] = []
     topics_reason: str | None = None

@@ -86,4 +86,30 @@ describe('buildGiKgCyStylesheet', () => {
     expect(rule.style['background-opacity']).toBeDefined()
     expect(rule.style['border-style']).toBe('dashed')
   })
+
+  it('includes RFC-076 expandable and expanded-seed ring rules (full graph)', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: false })
+    const expandable = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.rfc076-expandable',
+    ) as { style: Record<string, unknown> }
+    const seed = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.rfc076-expanded-seed',
+    ) as { style: Record<string, unknown> }
+    expect(expandable.style['border-color']).toBe('#14b8a6')
+    expect(expandable.style['border-width']).toBe(2)
+    expect(seed.style['border-color']).toBe('#748ffc')
+    expect(seed.style['border-width']).toBe(3)
+  })
+
+  it('includes RFC-076 ring rules with thinner borders for compact/minimap', () => {
+    const sheet = buildGiKgCyStylesheet({ compact: true })
+    const expandable = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.rfc076-expandable',
+    ) as { style: Record<string, unknown> }
+    const seed = sheet.find(
+      (r) => (r as { selector?: string }).selector === 'node.rfc076-expanded-seed',
+    ) as { style: Record<string, unknown> }
+    expect(expandable.style['border-width']).toBe(1.5)
+    expect(seed.style['border-width']).toBe(2.25)
+  })
 })

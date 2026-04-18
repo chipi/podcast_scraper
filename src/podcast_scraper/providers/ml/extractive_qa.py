@@ -20,6 +20,14 @@ logger = logging.getLogger(__name__)
 _qa_pipelines: Dict[Tuple[str, str], object] = {}
 
 
+def clear_qa_pipeline_cache() -> None:
+    """Drop cached HF QA pipelines (GitHub #539 multi-feed / meta-tensor hygiene).
+
+    Safe to call between feeds or after ML teardown; next use lazily rebuilds pipelines.
+    """
+    _qa_pipelines.clear()
+
+
 def _safe_score_float(value: Any, fallback: float = 0.0) -> float:
     """Convert pipeline score (tensor or scalar) to float; avoid .item() on meta tensors."""
     if isinstance(value, (int, float)):

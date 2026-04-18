@@ -374,6 +374,26 @@ def ensure_ml_models_cached(cfg: config.Config) -> None:
         logger.debug(f"Error checking model cache: {e}")
 
 
+def _configs_match_for_ml_preload(left: config.Config, right: config.Config) -> bool:
+    """True when ``right`` reuses the same ML preload fingerprint as ``left`` (GitHub #539)."""
+    fields = (
+        "transcription_provider",
+        "speaker_detector_provider",
+        "summary_provider",
+        "whisper_model",
+        "whisper_device",
+        "summary_model",
+        "summary_device",
+        "summary_reduce_model",
+        "ner_model",
+        "transcribe_missing",
+        "auto_speakers",
+        "generate_summaries",
+        "preload_models",
+    )
+    return all(getattr(left, f) == getattr(right, f) for f in fields)
+
+
 def preload_ml_models_if_needed(cfg: config.Config) -> None:
     """Preload ML models early in the pipeline if configured to use them.
 
@@ -397,6 +417,18 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
     if not should_preload_ml_models(cfg):
         return
 
+    # Reuse existing preload when ML fingerprint matches (multi-feed batch; GitHub #539).
+    from .. import orchestration
+
+    with orchestration._preloaded_ml_provider_lock:
+        cur = orchestration._preloaded_ml_provider
+        if cur is not None and _configs_match_for_ml_preload(cur.cfg, cfg):
+            _preloaded_ml_provider = cur
+            logger.debug(
+                "Reusing preloaded MLProvider for matching ML config (multi-feed / repeat)"
+            )
+            return
+
     # Ensure models are cached (download if needed, but only in production)
     ensure_ml_models_cached(cfg)
 
@@ -408,8 +440,6 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
         _preloaded_ml_provider.preload()
 
         # Also store in orchestration module so factories can find it
-        from .. import orchestration
-
         orchestration._preloaded_ml_provider = _preloaded_ml_provider
 
         # Also update workflow module's reference (for factories that import from workflow)
@@ -439,9 +469,11 @@ def preload_ml_models_if_needed(cfg: config.Config) -> None:
                 e,
             )
         _preloaded_ml_provider = None
+        orchestration._preloaded_ml_provider = None
     except Exception as e:
         logger.error("Failed to preload ML models: %s", format_exception_for_log(e))
         _preloaded_ml_provider = None
+        orchestration._preloaded_ml_provider = None
         # Re-raise to fail fast for required models
         raise
 

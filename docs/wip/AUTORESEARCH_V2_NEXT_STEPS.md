@@ -293,7 +293,9 @@ Pareto-optimal and we missed them.
 
 **Phase 2 (generation upgrades if SDK/API ready):**
 
-- `gemini-2.5-flash` — pending `google-genai` SDK upgrade for `thinking_budget` field
+- `gemini-2.5-flash` — safe to include in the eval matrix: the Gemini provider depends on
+  `google-genai` 1.x and merges `thinking_config` with `thinking_budget=0` for non-lite 2.5 Flash
+  (Issue #572). Remaining work is re-running held-out / autoresearch cells, not an SDK block.
 - `grok-4` — if reasonably priced vs grok-3-mini
 
 **Phase 3 (specialised, only if Phase 1 didn't find a new champion):**

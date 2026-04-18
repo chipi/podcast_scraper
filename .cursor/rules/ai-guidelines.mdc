@@ -71,6 +71,12 @@
 
 Run `git status --porcelain` first; if there is output, commit, stash, or discard. Then from latest main: `git checkout main`, `git pull origin main`, `git checkout -b feat/name`.
 
+### Never revert tracked files to `HEAD` / index without confirmation (Rule 4e)
+
+Do **not** run `git checkout -- <path>`, `git checkout HEAD -- <path>`, `git restore --source HEAD -- <path>`, or equivalent to throw away the user's uncommitted edits **unless** they explicitly asked (e.g. discard changes to X) **or** you asked first and they clearly confirmed. Do **not** do this to shrink a diff, “fix” a mangled file after a tool mistake, or “clean scope” on your own.
+
+**Before** any such command: load **`.cursor/rules/git-working-tree-safety.mdc`** (see `.cursorrules` Rule 17) or **stop and ask**. Prefer **editor Timeline**, **`git show HEAD:<path>`** into a temp buffer, or manual merge — not blind checkout/restore.
+
 ## DECISION TREES
 
 ### When to Ask User

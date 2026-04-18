@@ -133,6 +133,14 @@ describe('corpusLibraryApi', () => {
       const called = vi.mocked(fetch).mock.calls[0][0] as string
       expect(called).toContain('topic_q=climate')
     })
+
+    it('passes topic_cluster_only when topicClusterOnly is true', async () => {
+      const payload = { path: '/r', feed_id: null, items: [], next_cursor: null }
+      mockFetchJson(true, payload)
+      await fetchCorpusEpisodes('/c', { topicClusterOnly: true })
+      const called = vi.mocked(fetch).mock.calls[0][0] as string
+      expect(called).toContain('topic_cluster_only=true')
+    })
   })
 
   describe('fetchCorpusEpisodeDetail', () => {

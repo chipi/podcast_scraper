@@ -71,6 +71,8 @@ double-activation on the same node **collapses** that expansion by removing thos
 above the graph (`data-testid="graph-expansion-truncation-line"`) shows truncation, empty-result,
 or error text when applicable, with **Dismiss**.
 
+**RFC-076 rings on the canvas:** Eligible nodes show a **teal** border only when the corpus library reports at least one **other** episode’s GI/KG for that identity that is **not** already merged into the graph (plain **dbl-click** merges those paths). After expand, the **seed** node shows a **blue** border until you collapse; the graph toolbar hint line also mentions these rings (alongside Shift gestures).
+
 ---
 
 ## Toolbar (primary row)

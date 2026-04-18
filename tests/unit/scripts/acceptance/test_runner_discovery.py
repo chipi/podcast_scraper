@@ -19,12 +19,12 @@ def _load_run_acceptance_module():
 class TestAcceptanceRunnerDiscovery(unittest.TestCase):
     """``--from-fast-stems`` helpers (CI fixture matrix)."""
 
-    def test_load_fast_config_stems_includes_single_feed_ml_fixture(self):
-        """Fast stems include single-feed ML; multi_ml is omitted (see FAST_CONFIGS.txt)."""
+    def test_load_fast_config_stems_includes_single_and_multi_feed_ml_fixtures(self):
+        """Fast stems include single-feed ML and multi-feed ML (GitHub #539)."""
         mod = _load_run_acceptance_module()
         stems = mod.load_fast_config_stems()
         self.assertIn("sample_acceptance_e2e_fixture_single", stems)
-        self.assertNotIn("sample_acceptance_e2e_fixture_multi_ml", stems)
+        self.assertIn("sample_acceptance_e2e_fixture_multi_ml", stems)
 
     def test_load_fast_config_stems_includes_multi_feed_fixture(self):
         mod = _load_run_acceptance_module()

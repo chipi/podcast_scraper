@@ -140,6 +140,10 @@ number, file, line, date, and a short comment.
 | 1 | #228 | server/routes/corpus_text_file.py | 144 | 2026-04-17 | normpath_if_under_root inline before FileResponse |
 | 1 | #230 | search/topic_clusters.py | 108 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
 | 1 | #231 | search/topic_clusters.py | 104 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
+| 1 | #233 | server/cil_queries.py | 155 | 2026-04-18 | ``os.path.isdir(anchor_s)`` in ``iter_cil_bridge_bundles``; anchor/root normpath + prefix under server anchor (PR #588; same chain as #206/#207) |
+| 1 | #234 | server/cil_queries.py | 159 | 2026-04-18 | ``os.walk(anchor_s)`` in ``iter_cil_bridge_bundles``; same guards as #233 |
+| 1 | #235 | server/cil_queries.py | 187 | 2026-04-18 | ``_posix_relpath_under_corpus`` ``Path.resolve``; inputs from bridge paths already under ``root_prefix`` (RFC-076) |
+| 1 | #236 | server/routes/corpus_library.py | 171 | 2026-04-18 | ``corpus_node_episodes`` ``root.resolve()`` after ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` |
 
 ## Still open (not yet dismissed)
 
