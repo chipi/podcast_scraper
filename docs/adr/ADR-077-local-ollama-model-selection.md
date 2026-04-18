@@ -72,7 +72,7 @@ Full pipeline validation (summary → GI → KG → bridge) on 5 held-out episod
 | llama3.1:8b | ✅ | ✅ | ✅ | ✅ | ✅ |
 | mistral:7b | ✅ | ✅ | 98% | ✅ | ✅ |
 | gemma2:9b | ✅ | ⚠️ 7.8/ep | 95% | ✅ | ✅ |
-| qwen3.5:35b | pending | | | | |
+| qwen3.5:35b | ✅ | ✅ | 98% | ✅ | ✅ |
 
 **llama3.2:3b (3B) demoted:** KG entity extraction fails (0 entities on 2/5
 episodes). 3B params insufficient for structured JSON extraction. Replaced
