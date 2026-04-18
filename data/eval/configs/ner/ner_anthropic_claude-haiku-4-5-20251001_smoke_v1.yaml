@@ -1,0 +1,17 @@
+# NER via anthropic claude-haiku-4-5-20251001 on smoke dataset.
+id: "ner_anthropic_claude-haiku-4-5-20251001_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "anthropic"
+  model: "claude-haiku-4-5-20251001"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

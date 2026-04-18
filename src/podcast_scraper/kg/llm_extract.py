@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,28 @@ def build_kg_from_bullets_system_prompt(max_topics: int, max_entities: int) -> s
         "Prefer fewer, broader themes that still cover the bullets over many "
         "overlapping micro-topics."
     )
+
+
+_MAX_TOPIC_LABEL_CHARS = 50
+
+
+def _enforce_noun_phrase_label(label: str) -> Tuple[str, Optional[str]]:
+    """Enforce noun-phrase length on a topic label.
+
+    If *label* exceeds ``_MAX_TOPIC_LABEL_CHARS``, split at a word boundary:
+    the short part becomes the label, the overflow is returned separately
+    (caller should append it to ``description``).
+
+    Returns ``(truncated_label, overflow_or_None)``.
+    """
+    if len(label) <= _MAX_TOPIC_LABEL_CHARS:
+        return label, None
+    # Cut at word boundary
+    cut = label[:_MAX_TOPIC_LABEL_CHARS].rsplit(" ", 1)[0]
+    if not cut:
+        cut = label[:_MAX_TOPIC_LABEL_CHARS]
+    overflow = label[len(cut) :].strip()
+    return cut.rstrip(), overflow if overflow else None
 
 
 def _truncate_kg_description(text: Optional[str], limit: int = 2000) -> Optional[str]:
@@ -147,6 +169,38 @@ def _normalize_entity_kind(kind: Optional[str]) -> str:
     return "person"
 
 
+def _parse_topic_items(raw_topics: Any) -> List[Dict[str, str]]:
+    """Parse raw topic items with noun-phrase label enforcement."""
+    out: List[Dict[str, str]] = []
+    if not isinstance(raw_topics, list):
+        return out
+    for item in raw_topics:
+        if isinstance(item, str) and item.strip():
+            label, overflow = _enforce_noun_phrase_label(item.strip())
+            row: Dict[str, str] = {"label": label}
+            if overflow:
+                row["description"] = overflow
+            out.append(row)
+        elif isinstance(item, dict):
+            lab = item.get("label") or item.get("name") or item.get("topic")
+            if not isinstance(lab, str) or not lab.strip():
+                continue
+            label, overflow = _enforce_noun_phrase_label(lab.strip())
+            row = {"label": label}
+            desc_parts: List[str] = []
+            if overflow:
+                desc_parts.append(overflow)
+            desc = item.get("description")
+            if isinstance(desc, str):
+                td = _truncate_kg_description(desc)
+                if td:
+                    desc_parts.append(td)
+            if desc_parts:
+                row["description"] = ". ".join(desc_parts)
+            out.append(row)
+    return out
+
+
 def parse_kg_graph_response(
     raw: str,
     *,
@@ -179,21 +233,7 @@ def parse_kg_graph_response(
 
     raw_topics = obj.get("topics")
     raw_entities = obj.get("entities")
-    topics_out: List[Dict[str, str]] = []
-    if isinstance(raw_topics, list):
-        for item in raw_topics:
-            if isinstance(item, str) and item.strip():
-                topics_out.append({"label": item.strip()[:500]})
-            elif isinstance(item, dict):
-                lab = item.get("label") or item.get("name") or item.get("topic")
-                if isinstance(lab, str) and lab.strip():
-                    row: Dict[str, str] = {"label": lab.strip()[:500]}
-                    desc = item.get("description")
-                    if isinstance(desc, str):
-                        td = _truncate_kg_description(desc)
-                        if td:
-                            row["description"] = td
-                    topics_out.append(row)
+    topics_out = _parse_topic_items(raw_topics)
 
     entities_out: List[Dict[str, str]] = []
     if isinstance(raw_entities, list):

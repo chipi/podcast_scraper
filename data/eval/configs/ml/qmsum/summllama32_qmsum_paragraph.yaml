@@ -1,0 +1,12 @@
+# Phase 2.1 QMSum — SummLlama3.2-3B standalone (paragraph).
+# Inference runs via scripts/eval/run_summllama_v2.py; this config is for scoring only.
+id: "summllama32_qmsum_paragraph"
+task: "summarization"
+
+backend:
+  type: "eval_stub"
+
+data:
+  dataset_id: "qmsum_phase21_v1"
+
+preprocessing_profile: "cleaning_v4"

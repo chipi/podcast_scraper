@@ -126,7 +126,7 @@ with material per-episode latency).
 ### Decision points after Phase 2.1
 
 - **Ordering holds** (same champion ranks #1 on QMSum as v2): high confidence in v2 picks;
-  move to Phase 2.2 = DialogSum for the short-dialog stress test.
+  move to Phase 2.2 = Spotify Podcast Dataset (or alternative podcast corpus).
 - **Ordering flips** (e.g., SummLlama drops below Gemini on QMSum): dig in — is it DPO
   distribution mismatch? Length asymmetry artifact? Structural (multi-speaker)?
 - **All scores collapse** (all three <0.35 blended): prompt-format issue; likely need
@@ -134,28 +134,44 @@ with material per-episode latency).
 
 ---
 
-## Phase 2.2+ (later sessions, shape depends on 2.1 outcome)
+## Phase 2.2 — Spotify Podcast Dataset or alternative podcast corpus
 
-### DialogSum — short-dialog stress test
+**Primary candidate:** Spotify Podcast Dataset (TREC 2020, ~100k episodes).
 
-- `knkarthick/dialogsum` on Hugging Face (13k training, sample 20)
-- Shape: 300-1500 words, two-party task-oriented / chitchat dialogs
-- Tests whether our length-tuned pipeline breaks on short input
-- Human-gold references (same as QMSum — no silver needed)
-- **Trigger to run:** QMSum ordering holds (then we test opposite end of spectrum)
+- Exact domain match — actual podcasts with creator-written episode descriptions.
+- **Access-gated and possibly offline** since ~2023. Deep search in progress for mirrors.
+- If found: sample 20-30 episodes, same 3 champions.
+- If not found: source an alternative podcast corpus (Lex Fridman archive, Huberman Lab,
+  or curated academic podcast dataset) + generate Sonnet-4.6 silvers (~$10).
 
-### Second podcast corpus — podcast-overfit test
+**MeetingBank (dropped):** investigated `huuuyeah/MeetingBank` — turns out to be
+per-agenda-item (median 60-word gold summaries, not full-meeting summaries). Structural
+mismatch with our 300-600 word full-transcript pipeline. Not useful for tier-2.
 
-- Candidates: Lex Fridman scraped archive, Huberman Lab archive, academic podcast dataset
-- Sample 10-20 episodes, same 3 champions
-- Needs silver generation (no gold refs available) — ~$5-10 in Sonnet credits
-- **Trigger to run:** Phase 2.1 reveals any podcast-specific signal we want to de-risk
+## Phase 2.3 — Spotify Podcast Dataset (access-gated, exact domain match)
 
-### Deferred / skip
+**Dataset:** Spotify Podcast Dataset (TREC 2020 podcast summarization track).
 
-- **XSum / CNN-DM** — news articles, not spoken. Keep for BART-tuning validation only.
+- ~100k episodes with creator-written episode descriptions as gold summaries.
+- **Exact domain match** — actual podcasts, the closest possible test to our production use case.
+- **Access-gated:** requires a request (details TBD — researching access process separately).
+- **Gotcha:** gold "summaries" are episode descriptions (short, promotional, 50-200 words),
+  not analytical summaries. Judges may be more useful than ROUGE here.
+- **Trigger to run:** submit access request now; use the dataset when/if access is granted,
+  likely after Phase 2.2.
+
+## Deferred / skip
+
+- **DialogSum** (`knkarthick/dialogsum`) — 300-2k char dialogues. Too short for our 5-40k
+  char pipeline. Stress-tests the wrong dimension (length, not domain). Skip unless a
+  specific hypothesis demands short-input testing.
+- **AMI Corpus** (`edinburghcstr/ami`) — 137 design meetings. Overlaps QMSum's domain.
+  Small. Skip unless QMSum results are inconclusive and we need a tiebreaker.
+- **MediaSum** (`ccdv/mediasum`) — NPR/CNN interviews. Gold refs are 1-2 sentences — too
+  short for meaningful ROUGE against our 300-600w output. Skip.
+- **XSum / CNN-DM** — news articles, not spoken.
 - **ArXiv-summarization** — academic papers. Wrong modality.
-- **SummScreen / ScreenSum** — TV/movie transcripts. Interesting but narrower value than QMSum.
+- **SummScreen / ScreenSum** — TV/movie transcripts. Narrower value than MeetingBank.
 
 ---
 

@@ -1,0 +1,17 @@
+# NER via Gemini 2.5-flash-lite on smoke dataset.
+id: "ner_gemini_flash_lite_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "gemini"
+  model: "gemini-2.5-flash-lite"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

@@ -1,0 +1,17 @@
+# Phase 2.1 QMSum — gemini-2.5-flash-lite non-bundled paragraph.
+id: "gemini25_flash_lite_qmsum_paragraph"
+task: "summarization"
+backend:
+  type: "gemini"
+  model: "gemini-2.5-flash-lite"
+prompts:
+  system: "gemini/summarization/system_v1"
+  user: "gemini/summarization/long_v1"
+data:
+  dataset_id: "qmsum_phase21_v1"
+params:
+  max_length: 800
+  min_length: 200
+  temperature: 0.0
+
+preprocessing_profile: "cleaning_v4"

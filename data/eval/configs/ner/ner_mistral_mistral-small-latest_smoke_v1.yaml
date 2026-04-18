@@ -1,0 +1,17 @@
+# NER via mistral mistral-small-latest on smoke dataset.
+id: "ner_mistral_mistral-small-latest_smoke_v1"
+task: "ner_entities"
+
+backend:
+  type: "mistral"
+  model: "mistral-small-latest"
+
+data:
+  dataset_id: "curated_5feeds_smoke_v1"
+
+preprocessing_profile: "cleaning_v3"
+
+params:
+  labels: ["PERSON", "ORG"]
+  scoring:
+    mode: ["entity_set"]

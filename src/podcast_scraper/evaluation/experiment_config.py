@@ -566,6 +566,10 @@ class ExperimentConfig(BaseModel):
         """Validate that prompts are provided for OpenAI backend."""
         if self.backend.type == "eval_stub":
             return self
+        if self.task == "ner_entities":
+            # NER tasks use a hardcoded extraction prompt in ner_extraction.py;
+            # no prompts section needed in the eval config.
+            return self
         if self.llm_pipeline_mode == "bundled":
             # Bundled path hardcodes prompt template paths inside the provider;
             # no prompts section is needed in the eval config.
