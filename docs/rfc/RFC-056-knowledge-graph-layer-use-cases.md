@@ -214,6 +214,23 @@ symmetry with `gi/`).
 - Link RFC-056 from PRD-019 and RFC-055
 - When CLI is live, update `docs/api/CLI.md` and `docs/api/CONFIGURATION.md`
 
+## Autoresearch Findings (2026-04-18)
+
+- **Topic coverage:** `kg_extraction_source=provider` at n=10 captures 75%
+  of silver-quality topics (vs 31-38% from summary_bullets). UC1 (theme
+  exploration) benefits significantly.
+- **Label quality:** v2 prompt + 50-char enforcement produces 16-28 char
+  noun-phrase labels. Sentence-length labels (#580) are fixed. Topic
+  clustering improved from 79% to 69% singletons.
+- **Entity extraction:** all 7B+ models extract ≥2 entities/ep. 3B models
+  (llama3.2:3b) fail — minimum viable size is 7-8B.
+- **Provider ranking for KG:** DeepSeek 81% > Grok 77% > Gemini/Anthropic
+  75% > OpenAI/Mistral 71% > qwen3.5:9b 67%.
+- **Bridge merge rate:** 100% topic merge with GI/KG alignment fix. UC3
+  (parallel operation with GIL) works as designed.
+
+---
+
 ## References
 
 - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
