@@ -1,0 +1,52 @@
+# Profile: cloud_quality — maximum quality, cost secondary
+#
+# Uses the best provider per stage based on autoresearch findings.
+# ~2x cost of cloud_balanced but highest quality ceiling.
+#
+# Research references:
+#   Summary:   DeepSeek 0.586 bullets (#1 quality, v2 eval)
+#   GI:        Grok 88% insight coverage (#1 for GI, 7-provider matrix)
+#   KG:        DeepSeek 81% topic coverage (#1 for KG, 7-provider matrix)
+#
+# Usage:
+#   python -m podcast_scraper.cli --config config/profiles/cloud_quality.yaml \
+#     --rss <feed_url> --output-dir <output>
+
+# Transcription — Deepgram Nova-3 recommended (see cloud_balanced.yaml).
+# Until provider built, Whisper API as fallback:
+transcription_provider: openai
+openai_transcription_model: whisper-1
+
+# Speaker detection
+speaker_detector_provider: openai
+auto_speakers: true
+
+# Summarization — DeepSeek for quality
+summary_provider: deepseek
+deepseek_summary_model: deepseek-chat
+
+# Grounded Insights — Grok for best insight coverage
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+# Note: GI evidence uses summary_provider (DeepSeek) for quote extraction.
+# For Grok-quality insights, would need gi_insight_provider override (not yet
+# implemented — requires per-stage provider routing, tracked as future work).
+
+# Knowledge Graph — DeepSeek for best topic coverage
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+language: en
+grok_timeout: 3600  # Grok reasoning needs more time
+log_level: INFO

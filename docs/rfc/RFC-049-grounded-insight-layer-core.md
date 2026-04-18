@@ -684,6 +684,60 @@ recorded here for traceability.
 
 ---
 
+## Autoresearch Findings (2026-04-17, PR #589)
+
+Empirical validation of GI layer across 7 providers on 5 held-out episodes.
+
+### Insight source: provider mode is the right default
+
+| Source | Coverage vs silver | Recommended |
+| ------ | :----------------: | :---------: |
+| `summary_bullets` (n≈8) | 70-72% | No |
+| `provider` (n=12) | **82%** | **Yes** |
+| `provider` (n=15) | 85% (plateau) | Diminishing returns |
+
+Direct extraction from transcript beats bullet-derived by +10pp.
+Count sweet spot is n=12; beyond that, returns diminish.
+
+### Evidence provider alignment is critical
+
+The evidence stack (QA + NLI) must use the **same provider type** as
+summarization. Bug found (#576): `merge_eval_task_into_summarizer_config`
+used `model_copy()` which didn't trigger Config auto-alignment. Fix: explicitly
+set `quote_extraction_provider` and `entailment_provider` to match
+`summary_provider` when enabling GI.
+
+**Before fix:** 2% grounding rate (local roberta can't match abstractive insights).
+**After fix:** 100% grounding rate (LLM evidence provider understands paraphrasing).
+
+### Default thresholds are fine for LLM evidence path
+
+Grid search (QA threshold 0.01-0.30 × NLI threshold 0.10-0.50) with local
+roberta/deberta: NLI threshold has zero effect; bottleneck is entirely QA
+model capability. **Current defaults (QA=0.3, NLI=0.5) are correct for the
+LLM evidence path** — the LLM handles both QA and NLI internally.
+
+### Provider matrix for GI insight extraction (n=12)
+
+| Provider | GI coverage |
+| -------- | :---------: |
+| Grok | 88% |
+| DeepSeek | 85% |
+| OpenAI / Gemini / Anthropic | 82% |
+| qwen3.5:9b (local) | 80% |
+| Mistral | 78% |
+
+### Recommended settings (updated from RFC defaults)
+
+```yaml
+gi_insight_source: provider     # was: summary_bullets
+gi_max_insights: 12             # was: 5
+gi_require_grounding: true      # unchanged
+# quote_extraction_provider and entailment_provider auto-align to summary_provider
+```
+
+---
+
 ## Conclusion
 
 The Grounded Insight Layer represents a strategic shift

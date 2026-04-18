@@ -116,7 +116,7 @@ def build_kg_user_prompt(
     from ..prompts.store import render_prompt
 
     return render_prompt(
-        "shared/kg_graph_extraction/v1",
+        "shared/kg_graph_extraction/v2",
         transcript=transcript,
         title=title or "",
         max_topics=max_topics,

@@ -1209,6 +1209,24 @@ extraction) and RFC-051 (database projection). Together
 they provide: extraction (049) → consumption (050) →
 fast serving (051).**
 
+## Autoresearch Findings (2026-04-18)
+
+Empirical data now available for UC1-UC5 quality expectations:
+
+- **Grounding rate:** 95-100% with LLM evidence providers (was 0-2% with
+  local roberta — bug #576 fixed). All use cases that depend on
+  SUPPORTED_BY edges now have reliable evidence links.
+- **Insight coverage:** 82% of silver-quality insights captured at n=12
+  (`gi_insight_source=provider`). UC1 (topic research) and UC5 (explorer)
+  benefit from higher coverage; recommend n=12 as default.
+- **Cross-dataset:** QMSum meeting transcripts produce 0.77 judge mean
+  (vs 0.85+ on podcasts). UC1/UC5 work across domains but quality is
+  domain-dependent. Per-dataset prompt tuning would help.
+- **Provider matrix:** 9 of 11 tested providers pass the full pipeline
+  (summary → GI → KG → bridge). All cloud providers work. Local ≥7B works.
+
+---
+
 ## References
 
 - **Related PRD**: `docs/prd/PRD-017-grounded-insight-layer.md`

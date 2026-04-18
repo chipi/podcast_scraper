@@ -1,0 +1,51 @@
+# Profile: local — fully local, no API calls, $0 cost
+#
+# Privacy-first / offline deployment. Uses Ollama + local Whisper.
+# Requires: Ollama running with qwen3.5:9b pulled.
+#
+# Research references:
+#   Summary:   qwen3.5:9b bundled 0.529 bullets / 0.509 paragraph (v2 eval)
+#   GI/KG:     Same methodology via Ollama as provider
+#   NER:       spaCy trf = 1.000 F1
+#
+# Usage:
+#   python -m podcast_scraper.cli --config config/profiles/local.yaml \
+#     --rss <feed_url> --output-dir <output>
+
+# Transcription — local Whisper, small.en is the sweet spot
+# 9.5% WER, 148s/ep, 40% better than base.en, 2.5× faster than medium.en
+# See TRANSCRIPTION_AUTORESEARCH_PLAN.md for sweep data.
+transcription_provider: whisper
+whisper_model: small.en
+
+# Speaker detection
+speaker_detector_provider: ollama
+auto_speakers: true
+
+# Summarization — local champion
+summary_provider: ollama
+ollama_summary_model: qwen3.5:9b
+llm_pipeline_mode: bundled
+
+# Grounded Insights
+generate_gi: true
+gi_insight_source: provider
+gi_max_insights: 12
+gi_require_grounding: true
+
+# Knowledge Graph
+generate_kg: true
+kg_extraction_source: provider
+kg_max_topics: 10
+kg_max_entities: 15
+
+# Vector search + clustering
+vector_search: true
+vector_backend: faiss
+
+# General
+generate_metadata: true
+generate_summaries: true
+transcribe_missing: true
+language: en
+log_level: INFO

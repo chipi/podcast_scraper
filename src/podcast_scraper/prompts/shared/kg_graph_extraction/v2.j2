@@ -1,0 +1,30 @@
+{# Shared KG graph extraction prompt v2 — noun-phrase enforcement (#590). #}
+Episode title: {{ title | default("", true) }}
+
+Extract up to {{ max_topics }} distinct **topics** and up to {{ max_entities }} **named entities** (people or organizations) from the transcript.
+
+**Topic label rules (STRICT):**
+- Each label MUST be a **2–8 word noun phrase** (e.g., "mountain bike suspension tuning")
+- Labels MUST NOT be full sentences or clauses
+- Put detailed context in the **description** field, NOT in the label
+- If you cannot express the topic in 8 words, you are writing a description not a label
+
+**Examples:**
+✅ GOOD labels: "Quantum Computing Hardware Scaling", "On-Call Rotation Design", "Investment Fee Management"
+❌ BAD labels: "This episode discusses the importance of maintaining proper suspension settings for optimal trail performance"
+
+**Entity rules:**
+- Include all people mentioned by name (hosts, guests, experts)
+- Include organizations, companies, show/podcast names
+- Use "person" or "organization" for entity_kind
+
+Put the strongest items first. Do not exceed the counts.
+
+Return JSON:
+{
+  "topics": [{"label": "2-8 word noun phrase", "description": "1-2 sentence context"}],
+  "entities": [{"name": "Full Name", "entity_kind": "person", "description": "context"}]
+}
+
+Transcript:
+{{ transcript }}

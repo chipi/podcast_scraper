@@ -125,6 +125,57 @@ Cross-links between artifacts (e.g. KG node referencing a GIL `insight_id`) are 
 - Link PRD-019 and this RFC from `GROUNDED_INSIGHTS_GUIDE.md` and from
   **`docs/guides/KNOWLEDGE_GRAPH_GUIDE.md`** (see RFC-056 for consumption).
 
+## Autoresearch Findings (2026-04-17, PR #589)
+
+### Extraction source: provider mode is the right default
+
+| Source | Topic coverage vs silver |
+| ------ | :---------------------: |
+| `summary_bullets` (from bullets) | 31-38% |
+| `provider` (n=10) | **75%** |
+| `provider` (n=15) | 79% (plateau) |
+
+Direct extraction beats bullet-derived by +37pp (even larger gap than GI).
+Summary bullets are sentences; KG topics are noun phrases — semantic shape
+mismatch kills coverage when using bullets as KG input.
+
+### Label enforcement (#587): 50-char cap on topic labels
+
+Gemini and reasoning models produce sentence-length labels (150+ chars) despite
+prompt guidance. Post-parse truncation: labels > 50 chars split at word boundary,
+overflow moves to `description`. Preserves information for embeddings.
+
+### KG v2 prompt fixes Grok + improves all providers
+
+v2 prompt (`shared/kg_graph_extraction/v2.j2`) adds few-shot noun-phrase examples
+and stricter guidance. Fixes Grok's p05_e03 failure (0 entities → 3, sentence
+labels → 20-char noun phrases). Now the default.
+
+### Provider matrix for KG (n=10)
+
+| Provider | Topic coverage |
+| -------- | :------------: |
+| DeepSeek | 81% |
+| Grok | 77% |
+| Gemini / Anthropic | 75% |
+| OpenAI / Mistral | 71% |
+| qwen3.5:9b (local) | 67% |
+
+### Minimum model size for KG: 7-8B
+
+3B models (llama3.2:3b) cannot reliably produce structured JSON with topic
+labels + entity lists. All 7B+ models pass. See ADR-077.
+
+### Recommended settings
+
+```yaml
+kg_extraction_source: provider     # was: summary_bullets
+kg_max_topics: 10                  # sweet spot (plateau at 10-15)
+kg_max_entities: 15                # unchanged
+```
+
+---
+
 ## Alternatives Considered
 
 1. **Extend `gi.json` with KG nodes** — Rejected: blurs contracts and complicates GIL consumers.

@@ -77,7 +77,14 @@ silver on `curated_5feeds_benchmark_v2` (5 unseen episodes, ~32 min each):
 - **Bundled (either track):** Anthropic (`claude-haiku-4-5`). Only provider where bundled
   is competitive with non-bundled; bundled paragraph even beats non-bundled paragraph.
 
-### Local (Ollama) — v2 held-out, 11 models evaluated
+### Local (Ollama) — v2 held-out, 11 models evaluated → Core 5 standardized
+
+> **ADR-077 (2026-04-18):** Standardized on 5 models for regular sweeps and
+> pipeline validation. One per family + one large-scale reference:
+> **qwen3.5:9b** (champion), **llama3.2:3b** (speed), **mistral:7b** (mid-tier),
+> **gemma2:9b** (diversity), **qwen3.5:35b** (scale reference).
+> Dropped 6 models that were same-family duplicates or structurally unsuitable.
+> See [ADR-077](../adr/ADR-077-local-ollama-model-selection.md) for rationale.
 
 **Top 6 local bullets non-bundled (held-out):**
 
