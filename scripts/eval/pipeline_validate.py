@@ -92,22 +92,16 @@ def _ollama(model: str) -> Dict[str, str]:
     }
 
 
+# Core 5: one per family + size diversity (ADR-076 decision).
+# Dropped: qwen3.5:{27b,35b} (same family, worse or marginal), qwen2.5:7b
+# (prev gen), llama3.1:8b (same family), mistral-nemo:12b (worse than 7b),
+# mistral-small3.2 (22B for +1%), phi3:mini (4k context, structurally broken).
 LOCAL_PROVIDERS = {
-    # Qwen family (v2 champion + larger variants)
-    "ollama/qwen3.5:9b": _ollama("qwen3.5:9b"),
-    "ollama/qwen3.5:27b": _ollama("qwen3.5:27b"),
-    "ollama/qwen3.5:35b": _ollama("qwen3.5:35b"),
-    "ollama/qwen2.5:7b": _ollama("qwen2.5:7b"),
-    # Llama family
-    "ollama/llama3.2:3b": _ollama("llama3.2:3b"),
-    "ollama/llama3.1:8b": _ollama("llama3.1:8b"),
-    # Mistral family
-    "ollama/mistral:7b": _ollama("mistral:7b"),
-    "ollama/mistral-nemo:12b": _ollama("mistral-nemo:12b"),
-    "ollama/mistral-small3.2": _ollama("mistral-small3.2:latest"),
-    # Other families
-    "ollama/gemma2:9b": _ollama("gemma2:9b"),
-    "ollama/phi3:mini": _ollama("phi3:mini"),
+    "ollama/qwen3.5:9b": _ollama("qwen3.5:9b"),  # Champion, best local
+    "ollama/llama3.2:3b": _ollama("llama3.2:3b"),  # Smallest viable, speed floor
+    "ollama/mistral:7b": _ollama("mistral:7b"),  # Best non-Qwen mid-tier
+    "ollama/gemma2:9b": _ollama("gemma2:9b"),  # Google arch, different strengths
+    "ollama/qwen3.5:35b": _ollama("qwen3.5:35b"),  # "Does bigger help?" reference
 }
 
 
@@ -515,9 +509,17 @@ def main():
     parser.add_argument("--provider", help="Provider type (gemini, openai, ollama, ml, etc.)")
     parser.add_argument("--model", help="Model name")
     parser.add_argument("--all-cloud", action="store_true", help="Run all 6 cloud providers")
-    parser.add_argument("--all-local", action="store_true", help="Run all 3 Ollama models")
+    parser.add_argument("--all-local", action="store_true", help="Run all 11 Ollama models")
+    parser.add_argument(
+        "--local-fast",
+        action="store_true",
+        help="Run Ollama models ≤12B only (skip 27b, 35b — ~1hr vs ~4hrs)",
+    )
     parser.add_argument("--all", action="store_true", help="Run everything")
     args = parser.parse_args()
+
+    # Models >12B that are slow on MPS — skip in --local-fast mode
+    _HEAVY_MODELS = {"ollama/qwen3.5:27b", "ollama/qwen3.5:35b", "ollama/mistral-small3.2"}
 
     providers_to_run: Dict[str, Dict[str, str]] = {}
 
@@ -526,6 +528,10 @@ def main():
         providers_to_run.update(LOCAL_PROVIDERS)
     elif args.all_cloud:
         providers_to_run.update(CLOUD_PROVIDERS)
+    elif args.local_fast:
+        providers_to_run.update(
+            {k: v for k, v in LOCAL_PROVIDERS.items() if k not in _HEAVY_MODELS}
+        )
     elif args.all_local:
         providers_to_run.update(LOCAL_PROVIDERS)
     elif args.provider and args.model:
