@@ -1596,6 +1596,16 @@ class Config(BaseModel):
         alias="grok_cleaning_temperature",
         description="Temperature for Grok cleaning (0.0-2.0, default: 0.2, lower than summarization)",  # noqa: E501
     )
+    grok_timeout: int = Field(
+        default=1800,
+        alias="grok_timeout",
+        ge=30,
+        description=(
+            "HTTP read timeout in seconds for Grok API calls (default: 1800 = 30min). "
+            "Grok is a reasoning model — GI evidence grounding makes 60+ calls per "
+            "episode, each requiring thinking time. Default is 3x summarization_timeout."
+        ),
+    )
     grok_max_tokens: Optional[int] = Field(
         default=None,
         alias="grok_max_tokens",

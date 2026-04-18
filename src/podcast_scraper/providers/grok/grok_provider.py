@@ -147,8 +147,11 @@ class GrokProvider:
             "base_url": base_url,
         }
 
-        # Configure HTTP timeouts with separate connect/read timeouts
-        client_kwargs["timeout"] = get_http_timeout(cfg)
+        # Configure HTTP timeouts — Grok is a reasoning model that takes longer
+        # per call than other providers (thinking before responding). Use
+        # grok_timeout (default 1800s) as read timeout instead of generic timeout.
+        grok_read_timeout = float(getattr(cfg, "grok_timeout", 1800))
+        client_kwargs["timeout"] = get_http_timeout(cfg, read_timeout=grok_read_timeout)
 
         self.client = OpenAI(**client_kwargs)
 

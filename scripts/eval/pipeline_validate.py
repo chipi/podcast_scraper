@@ -42,44 +42,40 @@ CRITERIA = {
     "bridge_topic_merge": {"min_rate": 0.90},
 }
 
+
 # Provider configs: (backend_type, model, prompts_user, extra_params)
+def _cloud(backend_type: str, model: str, prompts_prefix: str) -> Dict[str, str]:
+    return {
+        "type": backend_type,
+        "model": model,
+        "prompts_user": f"{prompts_prefix}/summarization/long_v1",
+        "prompts_system": f"{prompts_prefix}/summarization/system_v1",
+    }
+
+
+# Provider-specific timeout tiers. Reasoning models (Grok) and large local
+# models need more time for evidence grounding (60+ LLM calls in GI stage).
+TIMEOUT_FAST = 600  # 10 min — Gemini, Mistral, small Ollama
+TIMEOUT_NORMAL = 1800  # 30 min — OpenAI, Anthropic, DeepSeek, mid Ollama
+TIMEOUT_SLOW = 3600  # 60 min — Grok (reasoning), qwen3.5:35b
+
+# Per-provider timeout override; defaults to TIMEOUT_NORMAL
+PROVIDER_TIMEOUTS: Dict[str, int] = {
+    "gemini/gemini-2.5-flash-lite": TIMEOUT_FAST,
+    "mistral/mistral-small": TIMEOUT_FAST,
+    "grok/grok-3-mini": TIMEOUT_SLOW,
+    "ollama/qwen3.5:35b": TIMEOUT_SLOW,
+    "ollama/llama3.2:3b": TIMEOUT_FAST,
+}
+
+
 CLOUD_PROVIDERS = {
-    "openai/gpt-4o-mini": {
-        "type": "openai",
-        "model": "gpt-4o-mini",
-        "prompts_user": "openai/summarization/long_v1",
-        "prompts_system": "openai/summarization/system_v1",
-    },
-    "gemini/gemini-2.5-flash-lite": {
-        "type": "gemini",
-        "model": "gemini-2.5-flash-lite",
-        "prompts_user": "gemini/summarization/long_v1",
-        "prompts_system": "gemini/summarization/system_v1",
-    },
-    "anthropic/claude-haiku-4-5": {
-        "type": "anthropic",
-        "model": "claude-haiku-4-5-20251001",
-        "prompts_user": "anthropic/summarization/long_v1",
-        "prompts_system": "anthropic/summarization/system_v1",
-    },
-    "deepseek/deepseek-chat": {
-        "type": "deepseek",
-        "model": "deepseek-chat",
-        "prompts_user": "deepseek/summarization/long_v1",
-        "prompts_system": "deepseek/summarization/system_v1",
-    },
-    "mistral/mistral-small": {
-        "type": "mistral",
-        "model": "mistral-small-latest",
-        "prompts_user": "mistral/summarization/long_v1",
-        "prompts_system": "mistral/summarization/system_v1",
-    },
-    "grok/grok-3-mini": {
-        "type": "grok",
-        "model": "grok-3-mini",
-        "prompts_user": "grok/summarization/long_v1",
-        "prompts_system": "grok/summarization/system_v1",
-    },
+    "openai/gpt-4o-mini": _cloud("openai", "gpt-4o-mini", "openai"),
+    "gemini/gemini-2.5-flash-lite": _cloud("gemini", "gemini-2.5-flash-lite", "gemini"),
+    "anthropic/claude-haiku-4-5": _cloud("anthropic", "claude-haiku-4-5-20251001", "anthropic"),
+    "deepseek/deepseek-chat": _cloud("deepseek", "deepseek-chat", "deepseek"),
+    "mistral/mistral-small": _cloud("mistral", "mistral-small-latest", "mistral"),
+    "grok/grok-3-mini": _cloud("grok", "grok-3-mini", "grok"),
 }
 
 
@@ -167,7 +163,7 @@ def _write_temp_config(
     return out_path
 
 
-def _run_experiment(config_path: Path) -> Tuple[bool, str]:
+def _run_experiment(config_path: Path, provider_label: str = "") -> Tuple[bool, str]:
     """Run make experiment-run and return (success, error_message)."""
     cmd = [
         "make",
@@ -175,14 +171,14 @@ def _run_experiment(config_path: Path) -> Tuple[bool, str]:
         f"CONFIG={config_path}",
         "FORCE=1",
     ]
-    # Run from repo root (parents[2] = scripts/eval -> scripts -> repo root)
+    timeout = PROVIDER_TIMEOUTS.get(provider_label, TIMEOUT_NORMAL)
     repo_root = Path(__file__).resolve().parents[2]
     try:
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=timeout,
             cwd=repo_root,
         )
         if result.returncode == 0:
@@ -414,7 +410,7 @@ def validate_provider(
     # Stage 1: Summary
     print(f"  [{provider_label}] Summary...", end="", flush=True)
     cfg_path = _write_temp_config(provider_label, provider_cfg, "summarization")
-    ok, err = _run_experiment(cfg_path)
+    ok, err = _run_experiment(cfg_path, provider_label)
     if ok:
         check = _check_summary(f"pv_{slug}_summarization")
         results["stages"]["summary"] = check
@@ -428,7 +424,7 @@ def validate_provider(
     # Stage 2: GI
     print(f"  [{provider_label}] GI...", end="", flush=True)
     cfg_path = _write_temp_config(provider_label, provider_cfg, "grounded_insights")
-    ok, err = _run_experiment(cfg_path)
+    ok, err = _run_experiment(cfg_path, provider_label)
     if ok:
         check = _check_gi(f"pv_{slug}_grounded_insights")
         results["stages"]["gi"] = check
@@ -440,7 +436,7 @@ def validate_provider(
     # Stage 3: KG
     print(f"  [{provider_label}] KG...", end="", flush=True)
     cfg_path = _write_temp_config(provider_label, provider_cfg, "knowledge_graph")
-    ok, err = _run_experiment(cfg_path)
+    ok, err = _run_experiment(cfg_path, provider_label)
     if ok:
         check = _check_kg(f"pv_{slug}_knowledge_graph")
         results["stages"]["kg"] = check
