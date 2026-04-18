@@ -14,7 +14,10 @@
 #   python -m podcast_scraper.cli --config config/profiles/cloud_balanced.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription (TBD: #592 may change this)
+# Transcription — Deepgram Nova-3 is the recommended cloud provider:
+# 7.8% WER (vs Whisper API ref), $0.003/ep (50% cheaper), 8.5s/ep,
+# built-in diarization + word timestamps. Requires deepgram provider (#596).
+# Until Deepgram provider is built, fall back to Whisper API:
 transcription_provider: openai
 openai_transcription_model: whisper-1
 

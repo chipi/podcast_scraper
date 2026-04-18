@@ -12,7 +12,8 @@
 #   python -m podcast_scraper.cli --config config/profiles/cloud_quality.yaml \
 #     --rss <feed_url> --output-dir <output>
 
-# Transcription
+# Transcription — Deepgram Nova-3 recommended (see cloud_balanced.yaml).
+# Until provider built, Whisper API as fallback:
 transcription_provider: openai
 openai_transcription_model: whisper-1
 
