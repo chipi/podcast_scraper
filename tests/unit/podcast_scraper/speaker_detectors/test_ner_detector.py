@@ -129,15 +129,12 @@ class TestNERSpeakerDetector(unittest.TestCase):
         self.assertEqual(speaker_names, ["Alice", "Bob"])
         self.assertEqual(detected_hosts, {"Alice"})
         self.assertTrue(success)
-        # Now nlp is required parameter (cache removal refactoring)
         mock_detect.assert_called_once_with(
             episode_title="Episode Title",
             episode_description="Episode Description",
-            nlp=mock_nlp,  # Required parameter
+            nlp=mock_nlp,
             cfg=self.cfg,
-            known_hosts=None,
             cached_hosts={"Alice"},
-            heuristics=None,
         )
 
     @patch("podcast_scraper.providers.ml.ml_provider.speaker_detection.detect_speaker_names")

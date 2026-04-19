@@ -378,111 +378,6 @@ class TestSpeakerDetectionHelpers(unittest.TestCase):
         self.assertEqual(len(segments), 1)
         self.assertIsNone(last)
 
-    def test_calculate_heuristic_score(self):
-        """Test calculating heuristic score for guest names."""
-        heuristics = {
-            "title_position_preference": "end",
-            "common_prefixes": ["with"],
-            "common_suffixes": [],
-        }
-
-        # Name at end of title (should get position bonus)
-        score = speaker_detection._calculate_heuristic_score(
-            "Guest Name", "Interview with Guest Name", heuristics
-        )
-        self.assertGreater(score, 0.0)
-
-        # Name not in title (should return 0)
-        score = speaker_detection._calculate_heuristic_score(
-            "Guest Name", "Different Title", heuristics
-        )
-        self.assertEqual(score, 0.0)
-
-        # No heuristics (should return 0)
-        score = speaker_detection._calculate_heuristic_score("Guest Name", "Title", None)
-        self.assertEqual(score, 0.0)
-
-    def test_build_guest_candidates(self):
-        """Test building guest candidates dictionary."""
-        title_guests = [("Guest1", 0.9), ("Guest2", 0.8)]
-        desc_guests = [("Guest1", 0.85)]  # Overlap with Guest1
-        heuristics = {"title_position_preference": "end"}
-
-        candidates = speaker_detection._build_guest_candidates(
-            title_guests, desc_guests, "Title with Guest1", heuristics
-        )
-
-        self.assertIn("Guest1", candidates)
-        self.assertIn("Guest2", candidates)
-        # Guest1 should have overlap=True
-        self.assertTrue(candidates["Guest1"][1])  # appears_in_both
-        # Guest2 should have overlap=False
-        self.assertFalse(candidates["Guest2"][1])
-
-    def test_select_best_guest(self):
-        """Test selecting best guest from candidates."""
-        candidates = {
-            "Guest1": (0.7, False, 0.2),  # Lower combined score
-            "Guest2": (0.8, True, 0.3),  # Higher combined score (overlap + heuristic)
-        }
-
-        guest, conf, overlap, heuristic = speaker_detection._select_best_guest(candidates)
-        self.assertEqual(guest, "Guest2")
-        self.assertEqual(conf, 0.8)
-        self.assertTrue(overlap)
-        self.assertEqual(heuristic, 0.3)
-
-    def test_analyze_title_position(self):
-        """Test analyzing guest name position in title."""
-        # Name at start
-        pos = speaker_detection._analyze_title_position("John", "John Doe Interview")
-        self.assertEqual(pos, "start")
-
-        # Name at end
-        pos = speaker_detection._analyze_title_position("John", "Interview with John")
-        self.assertEqual(pos, "end")
-
-        # Name in middle
-        pos = speaker_detection._analyze_title_position("John", "Interview with John Doe")
-        self.assertEqual(pos, "middle")
-
-        # Name not found
-        pos = speaker_detection._analyze_title_position("John", "Different Title")
-        self.assertIsNone(pos)
-
-    def test_extract_prefix_suffix(self):
-        """Test extracting prefix and suffix around guest name."""
-        prefix, suffix = speaker_detection._extract_prefix_suffix("John", "Interview with John Doe")
-        self.assertIsNotNone(prefix)
-        self.assertIsNotNone(suffix)
-
-        # Name not found
-        prefix, suffix = speaker_detection._extract_prefix_suffix("John", "Different Title")
-        self.assertIsNone(prefix)
-        self.assertIsNone(suffix)
-
-    def test_find_common_patterns(self):
-        """Test finding common patterns."""
-        patterns = ["with", "with", "featuring", "with", "featuring"]
-        common = speaker_detection._find_common_patterns(patterns, min_count=2)
-        self.assertIn("with", common)
-        self.assertIn("featuring", common)
-
-        # No patterns
-        common = speaker_detection._find_common_patterns([])
-        self.assertEqual(len(common), 0)
-
-    def test_determine_title_position_preference(self):
-        """Test determining title position preference."""
-        positions = ["end", "end", "end", "start"]
-        pref = speaker_detection._determine_title_position_preference(positions)
-        self.assertEqual(pref, "end")
-
-        # Not consistent enough
-        positions = ["end", "start", "middle"]
-        pref = speaker_detection._determine_title_position_preference(positions)
-        self.assertIsNone(pref)
-
     def test_build_speaker_names_list(self):
         """Test building speaker names list."""
         # Hosts and guests
@@ -798,11 +693,9 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
             speaker_detection.filter_default_speaker_names(names_no_defaults), names_no_defaults
         )
 
-    def test_has_guest_intent_cue(self):
-        """Test guest-intent cue detection (Issue #387)."""
-        # Test various guest-intent patterns
+    def test_has_interview_indicator(self):
+        """Test interview indicator detection (Issue #387)."""
         test_cases = [
-            # (name, text, expected)
             ("John Doe", "Interview with John Doe", True),
             ("Jane Smith", "We're joined by Jane Smith", True),
             ("Bob Guest", "Our guest Bob Guest", True),
@@ -814,8 +707,7 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
             ("Grace", "Sits down with Grace", True),
             ("Henry", "Chats with Henry", True),
             ("Iris", "Joining us Iris", True),
-            # Test without guest-intent cues (should return False)
-            ("Trump", "Who Is the New Fed Chair?", False),  # Real-world false positive case
+            ("Trump", "Who Is the New Fed Chair?", False),
             ("John Doe", "News about John Doe", False),
             ("Jane Smith", "Analysis of Jane Smith's policies", False),
             ("Bob", "The story covers Bob's decision", False),
@@ -823,7 +715,7 @@ class TestSpeakerDetectionCaching(unittest.TestCase):
 
         for name, text, expected in test_cases:
             with self.subTest(name=name, text=text):
-                result = speaker_detection._has_guest_intent_cue(name, text)
+                result = speaker_detection._has_interview_indicator(name, text)
                 self.assertEqual(
                     result,
                     expected,
