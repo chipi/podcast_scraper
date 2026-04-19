@@ -5,10 +5,10 @@ import { graphCyIdRepresentsEpisodeNode } from './graphEpisodeMetadata'
 import { stripLayerPrefixesForCil } from './mergeGiKg'
 
 /**
- * True when a graph node may run RFC-076 cross-episode expand (plain ``dbltap``).
+ * True when a graph node may run cross-episode expand (plain ``dbltap``).
  * Mirrors ``GraphCanvas`` gate: Topic / Person / Entity, canonical CIL id, degree &gt; 1.
  */
-export function graphNodeExpandableForRfc076(
+export function graphNodeExpandableForCrossEpisodeExpand(
   core: Core,
   cyId: string,
   rawNode: RawGraphNode | null,
@@ -38,17 +38,17 @@ export function graphNodeExpandableForRfc076(
   return true
 }
 
-const EXPANDABLE_CLASS = 'rfc076-expandable'
-const EXPANDED_SEED_CLASS = 'rfc076-expanded-seed'
+const EXPANDABLE_CLASS = 'graph-expand-eligible'
+const EXPANDED_SEED_CLASS = 'graph-expand-seed'
 
 /** Apply Cytoscape classes so the stylesheet can show expand / collapse affordance. */
-export function syncRfc076ExpansionNodeClasses(
+export function syncCrossEpisodeExpandNodeClasses(
   core: Core,
   deps: {
     isExpandedSeed: (cyId: string) => boolean
     rawNode: (cyId: string) => RawGraphNode | null
     /**
-     * When set, teal ``rfc076-expandable`` only if this returns ``true`` (corpus has GI/KG beyond
+     * When set, teal ``graph-expand-eligible`` only if this returns ``true`` (corpus has GI/KG beyond
      * the merged selection). ``undefined`` means probe not finished — no ring yet.
      */
     corpusWouldAppendOutsideGraph?: (cyId: string) => boolean | undefined
@@ -65,7 +65,7 @@ export function syncRfc076ExpansionNodeClasses(
         ele.removeClass(EXPANDED_SEED_CLASS)
         if (deps.isExpandedSeed(cyId)) {
           ele.addClass(EXPANDED_SEED_CLASS)
-        } else if (graphNodeExpandableForRfc076(core, cyId, deps.rawNode(cyId))) {
+        } else if (graphNodeExpandableForCrossEpisodeExpand(core, cyId, deps.rawNode(cyId))) {
           const corpus = deps.corpusWouldAppendOutsideGraph?.(cyId)
           const allowTeal =
             deps.corpusWouldAppendOutsideGraph == null ? true : corpus === true

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""E2E tests for hybrid MAP-REDUCE provider (RFC-042, Issue #352).
+"""E2E tests for hybrid MAP-REDUCE provider.
 
 Verifies HybridMLProvider with Tier 1 (LongT5 MAP + FLAN-T5 REDUCE via transformers)
 using real models. Uses same pattern as test_ml_models_e2e for transformers.

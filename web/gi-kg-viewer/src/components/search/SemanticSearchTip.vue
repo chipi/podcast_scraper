@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * Short prerequisites for vector search (RFC-062 / PRD-021 parity with CLI).
- * Uses semantic tokens only (UXS-001).
+ * Short prerequisites for vector search (CLI parity).
+ * Uses semantic tokens only (shared viewer shell tokens).
  */
 </script>
 
@@ -47,7 +47,8 @@
         <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
           .kg.json
         </code>
-        . <strong>L</strong> opens the episode in Library when the vector index stores
+        . <strong>L</strong> opens the episode in the <strong>subject panel</strong> (right
+        rail) when the vector index stores
         <code class="rounded bg-canvas px-1 py-0.5 font-mono text-[11px] text-canvas-foreground">
           source_metadata_relative_path
         </code>

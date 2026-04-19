@@ -1,4 +1,4 @@
-"""Unit tests for RFC-072 ``bridge_builder``."""
+"""Unit tests for ``bridge_builder``."""
 
 from __future__ import annotations
 

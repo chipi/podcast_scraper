@@ -1,4 +1,4 @@
-"""Pytest E2E: RFC-072 ``build_bridge`` on disk fixtures (``builders/`` package)."""
+"""Pytest E2E: ``build_bridge`` on disk fixtures (``builders/`` package)."""
 
 from __future__ import annotations
 

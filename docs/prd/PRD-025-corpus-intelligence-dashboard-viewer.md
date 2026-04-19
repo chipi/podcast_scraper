@@ -29,7 +29,7 @@
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
     — **Dashboard** row (Playwright contract)
-- **Updated**: 2026-04-11 (retrospective PRD)
+- **Updated**: 2026-04-19 (Dashboard workspace pointer; status bar corpus root wording)
 
 ## Summary
 
@@ -42,7 +42,9 @@ delivers Chart.js-based panels grouped under **Pipeline** vs **Content intellige
 
 ## Background
 
-Before the Dashboard tab, operators relied on **API · Data** cards, ad hoc **`cat`**, or external
+Before the Dashboard tab, operators relied on **API · Data** cards (the same **Health** + **Data**
+surfaces now live on **Dashboard** under **`CorpusDataWorkspace`**, `data-testid="corpus-data-workspace"`),
+or on ad hoc **`cat`**, or on external
 tools to correlate **run.json**, **corpus_manifest.json**, catalog stats, and index health. The
 Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit run compare; it answers
 **“what does this corpus root look like right now?”** inside the same session as graph and search.
@@ -56,7 +58,8 @@ Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit 
 3. **Content intelligence** — vector index glance (**`GET /api/index/stats`**), optional compact digest
    (**`GET /api/corpus/digest?compact=true`**), GI/KG mtime timelines (client-bucketed), publish-month
    catalog vs histogram insight, graph node-type vs index doc-type bars.
-4. **Trust and navigation** — blurbs point operators to **API · Data** for corrective actions (reindex,
+4. **Trust and navigation** — blurbs point operators to the **Dashboard** corpus workspace (artifacts,
+   API health, **Data** cards; historically the left **API · Data** tab) for corrective actions (reindex,
    refresh catalog).
 5. **Testable contract** — Playwright **`dashboard.spec.ts`** and [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md).
 
@@ -91,7 +94,8 @@ Dashboard does not replace **RFC-064** frozen profiles or **RFC-066** Streamlit 
 
 1. With a healthy server and corpus path, an operator can open **Dashboard** and see **Pipeline** and
    **Content intelligence** without loading the graph canvas.
-2. Charts use the same **corpus root** as **API · Data** and respect multi-feed layout where applicable.
+2. Charts use the same **corpus root** as the **status bar** field and **Dashboard** corpus workspace
+   (same logical root as the former **API · Data** cards) and respect multi-feed layout where applicable.
 3. **`make test-ui-e2e`** covers **Dashboard** surfaces per E2E map.
 4. Documentation chain: **PRD-025** (this) → **RFC-071** → **UXS-006**.
 

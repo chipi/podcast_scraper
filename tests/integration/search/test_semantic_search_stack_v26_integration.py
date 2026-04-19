@@ -1,4 +1,4 @@
-"""Integration: semantic search stack (PRD-021 / RFC-061) without E2E ML jobs.
+"""Integration: semantic search stack without E2E ML jobs.
 
 Exercises ``corpus_search``, ``indexer`` helpers, ``gil_chunk_offset_verify``, and
 optionally a tiny FAISS round-trip when ``faiss`` is importable.

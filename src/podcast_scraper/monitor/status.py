@@ -1,4 +1,4 @@
-"""Atomic read/write for ``.pipeline_status.json`` (RFC-065)."""
+"""Atomic read/write for ``.pipeline_status.json``."""
 
 from __future__ import annotations
 

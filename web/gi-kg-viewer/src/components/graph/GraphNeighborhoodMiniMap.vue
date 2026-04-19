@@ -5,6 +5,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { ParsedArtifact } from '../../types/artifact'
 import { useThemeStore } from '../../stores/theme'
 import { giKgCoseLayoutOptionsCompact } from '../../utils/cyCoseLayoutOptions'
+import { prefersReducedMotionQuery, syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
   filterArtifactEgoAroundTopicCluster,
@@ -92,7 +93,10 @@ function mountCy(): void {
       container: el,
       elements,
       style: [
-        ...(buildGiKgCyStylesheet({ compact: true }) as Record<string, unknown>[]),
+        ...(buildGiKgCyStylesheet({
+          compact: true,
+          prefersReducedMotion: prefersReducedMotionQuery(),
+        }) as Record<string, unknown>[]),
         {
           selector: 'node',
           style: {
@@ -126,6 +130,7 @@ function mountCy(): void {
         if (!cn.empty()) {
           cn.select()
         }
+        syncGraphLabelTierClasses(core)
       } catch {
         /* ignore */
       }

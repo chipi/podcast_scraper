@@ -23,7 +23,7 @@ pytest / `make test-ui` as a substitute for that browser confirmation. Tests run
 regression.
 
 **Order of operations:** reproduce (MCP) → change code → **repeat same MCP checks** → then `make test-ui` /
-`tests/integration/server/` / `make test-ui-e2e` as appropriate → report what you verified in **both**
+`tests/integration/server/` / `make test-ui-e2e` / **`make ci-ui-fast`** as appropriate → report what you verified in **both**
 channels (or state you were blocked from MCP).
 
 **If MCP is unavailable** for reproduction, say so up front; then automated tests may be the primary proof.

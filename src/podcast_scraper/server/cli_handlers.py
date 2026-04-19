@@ -1,4 +1,4 @@
-"""CLI for ``podcast serve`` (RFC-062)."""
+"""CLI for ``podcast serve``."""
 
 from __future__ import annotations
 

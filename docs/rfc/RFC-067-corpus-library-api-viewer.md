@@ -16,7 +16,7 @@
   - [RFC-004: Filesystem Layout](RFC-004-filesystem-layout.md) — output directory conventions
   - [RFC-068: Corpus Digest](RFC-068-corpus-digest-api-viewer.md) — digest API & viewer (PRD-023)
 - **Related UX specs**:
-  - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) — Library tab, Episode rail, catalog layout
+  - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) — Library tab, Episode subject rail, catalog layout
   - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
 - **Related Documents**:
   - [ADR-064: Canonical server layer](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) — route mounting pattern

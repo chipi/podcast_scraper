@@ -51,6 +51,25 @@ move into the RFC.
 | **Active**     | Authoritative; implementations should conform to this spec             |
 | **Superseded** | Replaced by a newer UXS (link the replacement in revision history)     |
 
+## Living documents and ship boundary
+
+UX specifications are **living documents** for product UI: they are created or extended
+**when building new surfaces**, then **updated whenever shipped behavior changes** so
+**Active** UXS stays aligned with what users see in the built app.
+
+**Draft versus Active:** **Draft** UXS may trail or lead `main` while work is in motion;
+temporary gaps between a branch and the index are normal. When a feature **merges**,
+resolve Draft work (promote, fold into an existing Active UXS, or supersede) so
+**Active** UXS does **not** stay authoritative for chrome that never shipped.
+
+**RFCs:** RFCs record technical design and often keep a longer historical arc (for example
+**Completed** viewer RFCs). UXS tracks the **current** visible and interaction contract
+for reviewers and E2E more tightly; keep both linked from issues and PRs.
+
+**Same delivery:** Prefer updating UXS in the **same PR** as viewer changes (or an
+immediate docs follow-up in the same release train). See [Conventions](#conventions)
+for the E2E surface map and UXS order.
+
 ## UXS architecture
 
 The viewer UXS is split into a **shared design system hub** (UXS-001) and
@@ -86,10 +105,10 @@ Authoritative specs; current implementations should conform
 | --- | ----- | ------------------- | ----------- |
 | [UXS-001](UXS-001-gi-kg-viewer.md) | GI/KG Viewer (Shared Design System) | PRD-003, PRD-017, PRD-019; RFC-062 | Shared tokens, typography, layout, states, accessibility, components |
 | [UXS-002](UXS-002-corpus-digest.md) | Corpus Digest | PRD-023; RFC-068 | Digest tab: topic bands, recent episodes, rolling window |
-| [UXS-003](UXS-003-corpus-library.md) | Corpus Library | PRD-022; RFC-067 | Library tab: feed/episode catalog, Episode rail, filters |
-| [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069 | Graph chrome: toolbar, minimap, degree filter, node detail |
+| [UXS-003](UXS-003-corpus-library.md) | Corpus Library | PRD-022; RFC-067 | Library tab: feed/episode catalog, Episode subject rail, filters |
+| [UXS-004](UXS-004-graph-exploration.md) | Graph Exploration | PRD-024; RFC-069, RFC-076 | Graph chrome: toolbar, gesture discovery overlay, minimap, degree filter, node detail |
 | [UXS-005](UXS-005-semantic-search.md) | Semantic Search | PRD-021; RFC-061 | Search panel: query, advanced filters, result cards, insights modal |
-| [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: Pipeline/Content charts, API/Data panel |
+| [UXS-006](UXS-006-dashboard.md) | Dashboard | PRD-025; RFC-071 | Dashboard tab: Pipeline/Content charts, corpus data workspace |
 
 ## Templates
 

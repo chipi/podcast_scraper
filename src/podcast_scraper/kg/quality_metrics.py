@@ -1,4 +1,4 @@
-"""PRD-019-oriented quality aggregates over per-episode ``kg.json`` (file-based, no DB).
+"""KG-oriented quality aggregates over per-episode ``kg.json`` (file-based, no DB).
 
 Use for operator reports and optional CI gates via ``scripts/tools/kg_quality_metrics.py``.
 """
@@ -63,7 +63,7 @@ def compute_kg_quality_metrics(
     *,
     strict_schema: bool = False,
 ) -> KgQualityMetrics:
-    """Load artifacts from paths (files or dirs), validate, and compute PRD-019-oriented metrics."""
+    """Load artifacts from paths (files or dirs), validate, and compute KG-oriented metrics."""
     raw_paths = [Path(p) for p in paths]
     try:
         kg_paths = collect_kg_paths_from_inputs(raw_paths)

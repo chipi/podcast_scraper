@@ -331,7 +331,7 @@ def _position_hint_from_timestamp_starts(
     *,
     duration_fallback_ms: Optional[int] = None,
 ) -> Optional[float]:
-    """RFC-072: mean quote start ms / episode duration, rounded (or None).
+    """Mean quote start ms / episode duration, rounded (or None).
 
     When ``episode_duration_ms`` is missing, ``duration_fallback_ms`` may be set to a
     positive value (e.g. max quote ``timestamp_end_ms`` for the insight) so arcs still get
@@ -450,7 +450,7 @@ def _resolve_insight_specs(
     episode_title: Optional[str] = None,
     pipeline_metrics: Optional[Any] = None,
 ) -> List[Tuple[str, str]]:
-    """Resolve (insight text, insight_type) pairs for GIL (RFC-072 v1.1).
+    """Resolve (insight text, insight_type) pairs for GIL.
 
     Order: use insight_texts if non-empty (type ``unknown``); else provider
     ``generate_insights`` (strings or dicts with ``text`` / ``insight_type``); else stub.
@@ -563,7 +563,7 @@ def build_artifact(
         topic_labels: Optional episode topic labels (e.g. from summary bullets); creates
             Topic nodes and ABOUT edges (Insight → Topic) aligned with KG ``topic:{slug}`` ids.
         episode_duration_ms: Optional episode length in ms for ``Episode.duration_ms`` and
-            ``Insight.position_hint`` (RFC-072); omit when unknown.
+            ``Insight.position_hint``; omit when unknown.
 
     Returns:
         Dict with schema_version, model_version, prompt_version, episode_id, nodes, edges.

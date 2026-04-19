@@ -569,7 +569,7 @@ def parse_search_argv(argv: Sequence[str]) -> Namespace:
     """Parse argv after ``search`` command name."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper search",
-        description="Semantic search over the corpus vector index (RFC-061).",
+        description="Semantic search over the corpus vector index.",
     )
     parser.add_argument(
         "query",
@@ -655,7 +655,7 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
     """Parse argv after ``index`` command name."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper index",
-        description="Build or inspect the semantic corpus vector index (RFC-061).",
+        description="Build or inspect the semantic corpus vector index.",
     )
     parser.add_argument(
         "--output-dir",
@@ -703,7 +703,7 @@ def parse_index_argv(argv: Sequence[str]) -> Namespace:
 
 
 def parse_verify_gil_chunk_offsets_argv(argv: Sequence[str]) -> Namespace:
-    """Parse argv after ``verify-gil-chunk-offsets`` (GitHub #528 / RFC-072 Phase 5)."""
+    """Parse argv after ``verify-gil-chunk-offsets`` (GitHub #528)."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper verify-gil-chunk-offsets",
         description=(
@@ -819,11 +819,11 @@ def run_verify_gil_chunk_offsets_cli(args: Namespace, logger: logging.Logger) ->
 
 
 def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
-    """Parse argv after ``topic-clusters`` (RFC-075)."""
+    """Parse argv after ``topic-clusters``."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper topic-clusters",
         description=(
-            "Cluster KG topics from FAISS kg_topic embeddings; write topic_clusters.json (RFC-075)."
+            "Cluster KG topics from FAISS kg_topic embeddings; write topic_clusters.json."
         ),
     )
     parser.add_argument(
@@ -853,7 +853,7 @@ def parse_topic_clusters_argv(argv: Sequence[str]) -> Namespace:
         default=None,
         metavar="PATH",
         help=(
-            "After clustering, load a validation YAML (path you choose; see RFC-075) "
+            "After clustering, load a validation YAML (path you choose; see topic clustering docs) "
             "and exit non-zero if constraints fail"
         ),
     )

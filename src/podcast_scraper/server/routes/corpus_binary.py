@@ -1,4 +1,4 @@
-"""GET /api/corpus/binary — serve downloaded podcast artwork (RFC-067 Phase 4)."""
+"""GET /api/corpus/binary — serve downloaded podcast artwork."""
 
 from __future__ import annotations
 

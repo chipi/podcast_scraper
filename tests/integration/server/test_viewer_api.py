@@ -1,4 +1,4 @@
-"""Viewer API: health + artifacts (RFC-062).
+"""Viewer API: health + artifacts.
 
 Requires ``fastapi`` (``pip install -e '.[server]'``).
 """

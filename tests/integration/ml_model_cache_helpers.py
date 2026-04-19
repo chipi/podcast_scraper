@@ -166,7 +166,7 @@ def _is_spacy_model_cached(model_name: str) -> bool:
 def _is_transformers_model_cached(model_name: str, cache_dir: Optional[str] = None) -> bool:
     """Check if a Hugging Face Transformers model is cached locally.
 
-    RFC-074: This function uses **filesystem checks only** -- no model or tokenizer
+    ML cache helpers: This function uses **filesystem checks only** -- no model or tokenizer
     loading.  The previous implementation called ``AutoTokenizer.from_pretrained()``
     which triggered heavy disk I/O (readdir, mmap) and contributed to APFS kernel
     lock contention on macOS.
@@ -477,7 +477,7 @@ def is_evidence_stack_cached() -> bool:
     Embedding uses the same hub layout as other HF repos; :func:`_is_transformers_model_cached`
     is unreliable for some sentence-transformers checkpoints, so we use
     :func:`podcast_scraper.providers.ml.model_loader.is_evidence_model_cached` for the
-    embedding ID. QA and NLI use the filesystem-only cache probe (RFC-074).
+    embedding ID. QA and NLI use the filesystem-only cache probe.
 
     Returns:
         True if embedding, QA, and NLI defaults are present and loadable offline.

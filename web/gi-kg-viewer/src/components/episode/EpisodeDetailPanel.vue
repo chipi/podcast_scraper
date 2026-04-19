@@ -14,8 +14,8 @@ import CilTopicPillsRow from '../shared/CilTopicPillsRow.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
+import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
 import { buildLibrarySearchHandoffQuery } from '../../utils/corpusSearchHandoff'
 import { digestRowFeedLabelWithCatalog } from '../../utils/digestRowDisplay'
@@ -55,8 +55,8 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const graphNav = useGraphNavigationStore()
-const episodeRail = useEpisodeRailStore()
-const { metadataRelativePath } = storeToRefs(episodeRail)
+const subject = useSubjectStore()
+const { episodeMetadataPath: metadataRelativePath } = storeToRefs(subject)
 
 const feeds = ref<CorpusFeedItem[]>([])
 const indexStatsEnvelope = ref<IndexStatsEnvelope | null>(null)
@@ -452,7 +452,6 @@ function openInSearch(): void {
   if (!detail.value) {
     return
   }
-  episodeRail.showTools()
   const fid = normalizeFeedIdForViewer(detail.value.feed_id)
   const catalogTitle = fid ? feedDisplayTitleById.value[fid]?.trim() : ''
   emit('focus-search', {
@@ -467,7 +466,7 @@ function openSimilarEpisode(row: CorpusSimilarEpisodeItem): void {
   if (!p) {
     return
   }
-  episodeRail.openEpisodePanel(p)
+  subject.focusEpisode(p)
 }
 
 watch(

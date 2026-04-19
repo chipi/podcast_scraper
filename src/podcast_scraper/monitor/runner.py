@@ -1,4 +1,4 @@
-"""Monitor subprocess entry point (RFC-065)."""
+"""Monitor subprocess entry point."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from .memray_util import MEMRAY_ACTIVE_ENV
 from .sampler import CrossProcessSampler
 from .status import read_pipeline_status
 
-# Env: force `.monitor.log` instead of `rich.Live` on stderr (profile freeze / RFC-065).
+# Env: force `.monitor.log` instead of `rich.Live` on stderr (profile freeze).
 MONITOR_FILE_LOG_ENV = "PODCAST_SCRAPER_MONITOR_FILE_LOG"
 
 SampleSeg = Tuple[float, float, float, float]  # wall_mono, peak_mb, avg_cpu, count

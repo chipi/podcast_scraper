@@ -1,4 +1,4 @@
-# Multi-feed corpus example (GitHub #440) — local ML dev stack (RFC-044 registry)
+# Multi-feed corpus example (GitHub #440) — local ML dev stack (model registry)
 #
 # Same **feeds** / GI/KG / **vector_search** shape as ``config.example.multi-feed.cloud-llm.yaml``,
 # but **Whisper + spaCy + transformers** only (no cloud API keys). Summarization uses promoted

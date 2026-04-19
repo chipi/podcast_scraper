@@ -270,6 +270,76 @@ function str(v: unknown): string {
   return s.length > 0 ? s : ''
 }
 
+/** Normalise raw GI/KG edge `type` strings for Cytoscape `edgeType` (case + hyphen). */
+export function canonicalArtifactEdgeType(raw: string | undefined): string {
+  const t = String(raw ?? '').trim()
+  if (!t) {
+    return '(unknown)'
+  }
+  return t.toUpperCase().replace(/-/g, '_')
+}
+
+/** WIP §3.5 — graph label truncation for the medium-zoom tier. */
+export function graphShortLabelFromDisplayLabel(label: string): string {
+  const s = String(label ?? '')
+  return s.length > 18 ? `${s.slice(0, 16)}…` : s
+}
+
+function parsePublishDateMs(value: unknown): number | null {
+  if (value == null) {
+    return null
+  }
+  const parsed = Date.parse(String(value).trim())
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function publishTimeMsForRawNode(
+  n: RawGraphNode | undefined,
+  nodesById: Map<string, RawGraphNode>,
+): number | null {
+  if (!n) {
+    return null
+  }
+  if (String(n.type) === 'Episode') {
+    return parsePublishDateMs(n.properties?.publish_date)
+  }
+  const eid = str((n.properties || {}).episode_id)
+  if (!eid) {
+    return null
+  }
+  for (const cand of nodesById.values()) {
+    if (!cand || String(cand.type) !== 'Episode') {
+      continue
+    }
+    if (logicalEpisodeIdFromGraphNodeId(String(cand.id ?? '')) === eid) {
+      return parsePublishDateMs(cand.properties?.publish_date)
+    }
+  }
+  return null
+}
+
+function recencyWeightFromPublishMs(ms: number | null): number {
+  if (ms == null || !Number.isFinite(ms)) {
+    return 1
+  }
+  const daysSince = (Date.now() - ms) / 86_400_000
+  return Math.max(0.4, 1.0 - (daysSince / 90) * 0.6)
+}
+
+function confidenceOpacityFromInsightProperties(
+  properties: Record<string, unknown> | undefined,
+): number {
+  const raw = properties?.confidence
+  let c = Number.NaN
+  if (typeof raw === 'number') {
+    c = raw
+  } else if (typeof raw === 'string' && raw.trim()) {
+    c = Number(raw)
+  }
+  const conf = Number.isFinite(c) ? Math.max(0, Math.min(1, c)) : 0.7
+  return 0.5 + conf * 0.5
+}
+
 export function buildNodeTitle(n: RawGraphNode): string {
   try {
     const disp = nodeLabel(n)
@@ -966,7 +1036,7 @@ export function toGraphElements(art: ParsedArtifact): {
       id: `e${i}`,
       from: e.from != null ? String(e.from) : '',
       to: e.to != null ? String(e.to) : '',
-      label: e.type ? String(e.type) : '',
+      label: canonicalArtifactEdgeType(e.type ? String(e.type) : undefined),
     }
   })
   return { visNodes, visEdges, idSet }
@@ -975,14 +1045,27 @@ export function toGraphElements(art: ParsedArtifact): {
 /** Cytoscape element list (nodes + edges). */
 export function toCytoElements(art: ParsedArtifact): import('cytoscape').ElementDefinition[] {
   const g = toGraphElements(art)
+  const nodesById = new Map<string, RawGraphNode>()
+  for (const n of art.data.nodes ?? []) {
+    if (n && n.id != null) {
+      nodesById.set(String(n.id), n)
+    }
+  }
   const nodes: import('cytoscape').ElementDefinition[] = g.visNodes.map((n) => {
+    const raw = nodesById.get(n.id)
+    const publishMs = publishTimeMsForRawNode(raw, nodesById)
     const data: Record<string, unknown> = {
       id: n.id,
       label: n.label,
+      shortLabel: graphShortLabelFromDisplayLabel(n.label),
       type: n.group,
+      recencyWeight: recencyWeightFromPublishMs(publishMs),
     }
     if (n.parent) {
       data.parent = n.parent
+    }
+    if (String(raw?.type) === 'Insight') {
+      data.confidenceOpacity = confidenceOpacityFromInsightProperties(raw?.properties)
     }
     return { data }
   })

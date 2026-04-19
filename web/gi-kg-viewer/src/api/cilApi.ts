@@ -1,5 +1,5 @@
 /**
- * RFC-072 CIL cross-layer HTTP helpers (viewer).
+ * CIL cross-layer HTTP helpers (viewer).
  */
 
 import { fetchWithTimeout } from './httpClient'

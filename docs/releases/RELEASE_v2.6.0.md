@@ -58,7 +58,7 @@ v2.6.0 ships the **retrieval** and **structured artifact** layers that the viewe
 - **FAISS** — `FaissVectorStore` implements the vector-store contract ([ADR-060](../adr/ADR-060-vectorstore-protocol-with-backend-abstraction.md)); embed, index, and query paths are specified in [RFC-061](../rfc/RFC-061-semantic-corpus-search.md) and [PRD-021](../prd/PRD-021-semantic-corpus-search.md).
 - **CLI** — `podcast index` and `podcast search` for building and querying the corpus index; semantic exploration hooks for **`gi explore`** where documented in the CLI and guides.
 - **HTTP** — **`GET /api/search`** for the viewer Search panel (same corpus root as the shell); index rebuild and stats under **`/api/index/*`** (see [Server Guide](../guides/SERVER_GUIDE.md)).
-- **Viewer** — Search tab wired to the API; **similar episodes** in Library depend on the same index when present.
+- **Viewer** — Semantic search wired to the API (**left** query column in the current shell; **similar episodes** in Library depend on the same index when present). Post–v2.6 viewer work moved corpus artifacts + **Data** cards onto **Dashboard** — see **RFC-062** and **UXS-006**.
 - **After v2.6.0** — Draft [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md) tracks optional backends (Qdrant, pgvector, and so on); **not** part of the v2.6.0 FAISS ship.
 
 ### Grounded Insight Layer (GIL)

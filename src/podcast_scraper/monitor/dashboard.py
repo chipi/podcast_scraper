@@ -1,4 +1,4 @@
-"""Rich layout for the live monitor (RFC-065)."""
+"""Rich layout for the live monitor."""
 
 from __future__ import annotations
 

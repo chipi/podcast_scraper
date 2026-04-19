@@ -1,4 +1,4 @@
-"""Integration tests for POST /api/corpus/node-episodes (RFC-076)."""
+"""Integration tests for POST /api/corpus/node-episodes."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 import { fetchWithTimeout } from './httpClient'
 
-/** RFC-075 query-time join from ``search/topic_clusters.json`` (``kg_topic`` hits only). */
+/** Query-time join from ``search/topic_clusters.json`` (``kg_topic`` hits only). */
 export interface TopicClusterHitMeta {
   graph_compound_parent_id: string
   canonical_label: string
@@ -13,7 +13,7 @@ export interface SearchHit {
   metadata: Record<string, unknown>
   text: string
   supporting_quotes?: Record<string, unknown>[] | null
-  /** RFC-072 chunk-to-Insight lift when the server enriches transcript rows (#528). */
+  /** Chunk-to-Insight lift when the server enriches transcript rows. */
   lifted?: Record<string, unknown> | null
 }
 

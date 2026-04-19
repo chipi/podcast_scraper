@@ -1,4 +1,4 @@
-"""Integration tests for FastAPI app factory (RFC-062).
+"""Integration tests for FastAPI app factory.
 
 Requires ``fastapi`` (``pip install -e '.[server]'``).
 """

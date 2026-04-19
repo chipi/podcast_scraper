@@ -1,4 +1,4 @@
-"""GET /api/index/stats — FAISS vector index metrics (RFC-062) + staleness (GitHub #507)."""
+"""GET /api/index/stats — FAISS vector index metrics + staleness (GitHub #507)."""
 
 from __future__ import annotations
 

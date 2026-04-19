@@ -1,4 +1,4 @@
-"""Unit tests for run_compare profile join helpers (RFC-066)."""
+"""Unit tests for run_compare profile join helpers."""
 
 from __future__ import annotations
 

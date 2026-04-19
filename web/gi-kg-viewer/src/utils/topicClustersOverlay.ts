@@ -1,5 +1,5 @@
 /**
- * RFC-075: apply ``topic_clusters.json`` as Cytoscape compound parents on Topic nodes.
+ * Apply ``topic_clusters.json`` as Cytoscape compound parents on Topic nodes.
  */
 import type { ArtifactData, ParsedArtifact, RawGraphNode } from '../types/artifact'
 import type { TopicClustersCluster, TopicClustersDocument } from '../api/corpusTopicClustersApi'

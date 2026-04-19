@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { leftPanelTabs, mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, openCorpusDataWorkspace, SHELL_HEADING_RE } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -175,7 +175,7 @@ test.describe('Search → graph (mocked API)', () => {
     })
   })
 
-  test('RFC-075: mocked topic-clusters v2 adds Topic cluster to Types row', async ({ page }) => {
+  test('mocked topic-clusters v2 adds Topic cluster to Types row', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
@@ -187,7 +187,7 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.getByText(/Topic cluster\s*\(\d+\)/)).toBeVisible()
   })
 
-  test('RFC-075: API Data tab shows topic clusters loaded and schema line', async ({ page }) => {
+  test('Dashboard corpus workspace shows topic clusters loaded and schema line', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
@@ -195,7 +195,7 @@ test.describe('Search → graph (mocked API)', () => {
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
+    await openCorpusDataWorkspace(page)
     const apiSection = page.locator('section').filter({
       has: page.getByRole('heading', { name: 'API', exact: true }),
     })
@@ -326,13 +326,12 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.getByRole('textbox', { name: 'Topic contains' })).toHaveValue('')
     await expect(page.getByRole('textbox', { name: 'Speaker contains' })).toHaveValue('')
 
-    await page.getByRole('button', { name: 'Back to details' }).click()
     await expect(page.getByTestId('node-detail-insight-details-tip')).toBeVisible()
 
     await page.getByTestId('node-detail-insight-prefill-search').click()
     await expect(page.locator('#search-q')).toHaveValue(/Summary insight \(stub\)/)
 
-    await page.getByRole('button', { name: 'Back to details' }).click()
+    await page.getByTestId('node-detail-rail-tab-details').click()
     await expect(page.getByTestId('node-detail-insight-related-topics')).toBeVisible()
 
     await page
@@ -344,7 +343,6 @@ test.describe('Search → graph (mocked API)', () => {
     })
     await expect(page.getByTestId('node-detail-full-topic')).toContainText('Climate policy')
 
-    await page.getByRole('button', { name: 'Search & Explore' }).click()
     await page.locator('#search-q').fill('climate insights')
     await page
       .locator('section')
@@ -364,9 +362,12 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(episodeRowAgain.getByTestId('graph-connection-open-library')).toBeEnabled()
 
     await episodeRowAgain.getByTestId('graph-connection-open-library').click()
-    await expect(mainViewsNav(page).getByRole('button', { name: 'Library' })).toHaveClass(
+    await expect(mainViewsNav(page).getByRole('button', { name: 'Graph' })).toHaveClass(
       /bg-primary/,
     )
+    await expect(page.getByRole('region', { name: 'Episode', exact: true })).toBeVisible({
+      timeout: 15_000,
+    })
     await expect(page.getByTestId('episode-detail-rail-body')).toContainText('CI fixture episode', {
       timeout: 15_000,
     })

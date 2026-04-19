@@ -181,7 +181,8 @@ const corpusCatalogRefreshDisabled = computed(
         v-else
         class="mt-1.5 text-muted leading-snug"
       >
-        Set the output folder on the <strong class="font-medium text-surface-foreground">Corpus</strong> tab.
+        Set the output folder on the <strong class="font-medium text-surface-foreground">status bar</strong>
+        corpus path field.
       </p>
       <p
         v-if="shell.resolvedCorpusPath && shell.resolvedCorpusPath !== shell.corpusPath.trim()"
@@ -218,7 +219,7 @@ const corpusCatalogRefreshDisabled = computed(
         v-else-if="!shell.hasCorpusPath"
         class="text-[10px] text-muted"
       >
-        Set corpus root on the Corpus tab.
+        Set corpus root on the status bar.
       </p>
       <p
         v-else-if="shell.corpusMetricsApiAvailable === false"

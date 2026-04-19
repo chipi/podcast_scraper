@@ -9,7 +9,7 @@ episode-scoped slugs from bullets, search hit payloads, and so on).
 - **Code:** `web/gi-kg-viewer/src/utils/cilGraphFocus.ts` — maps a `CilDigestTopicPill` +
   optional episode id to `graphNavigation.requestFocusNode` (primary `topic:…`, fallback
   episode id, optional `pendingFocusCameraIncludeRawIds` for `tc:…` when
-  `in_topic_cluster`). Used from **Digest Recent** (`DigestView.vue`) and **Episode rail**
+  `in_topic_cluster`). Used from **Digest Recent** (`DigestView.vue`) and **Episode subject rail**
   canonical topic pills (`EpisodeDetailPanel.vue`).
 - **Tests:** `web/gi-kg-viewer/src/utils/cilGraphFocus.test.ts` (Vitest).
 - **Docs:** [Development Guide — Viewer v2](../guides/DEVELOPMENT_GUIDE.md#viewer-v2-rfc-062-489) (bullet **CIL pill to graph focus**).
@@ -29,13 +29,13 @@ vertex.
 | Digest — CIL chip | `topic:` and/or `tc:` from `cil_digest_topics[]` | Server builds pills; viewer must pass compound when clustered. |
 | Digest — topic band / semantic row | Topic ids from digest API / GI load | Confirm same slugging as graph merge. |
 | Search — open graph from hit | Hit payload (`lifted`, anchors, …) | Transcript lift vs insight hit may differ. |
-| Library — Episode rail CIL | Same pill shape as digest detail | List rows omit pills; detail only. |
-| Graph — double-tap expand (RFC-076) | Canonical `node_id` from graph | Already constrained by API contract. |
+| Library — Episode subject rail CIL | Same pill shape as digest detail | List rows omit pills; detail only. |
+| Graph — double-tap cross-episode expand | Canonical `node_id` from graph | Already constrained by API contract. |
 | Person / org drill-ins | `person:` / `org:` | Less overlap with `tc:` but worth a row in tests. |
 
 ## Suggested engineering outcomes (remaining)
 
-1. ~~**Single helper** for CIL pills~~ — done for Digest + Episode rail (`cilGraphFocus.ts`).
+1. ~~**Single helper** for CIL pills~~ — done for Digest + Episode subject rail (`cilGraphFocus.ts`).
 2. **Extend or reuse** the same contract for other surfaces (topic band rows, explore,
    any future chips) and optionally dedupe SearchPanel’s `topic_cluster` camera logic
    with one shared primitive.

@@ -51,7 +51,7 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 1. **Toolbar** -- stacked rows inside a **`flex`** column (`gap-1.5`): **(a)** first row
    (`wrap`, `justify-between`) -- **`h2` Digest** (`#digest-main-heading`, **`text-sm`**
    semibold) on the **left** with a **`HelpTip`** (**About Digest**) that explains **Topic
-   bands** (topic title -> **Graph**; hit row -> **Episode** rail + **Graph**; digest topic
+   bands** (topic title -> **Graph**; hit row -> **Episode subject rail** + **Graph**; digest topic
    focus; **Search topic**; hover **`title`** on hit rows lists publish date, **E#**,
    duration, similarity, and feed hints), **Recent** (Episode
    rail, CIL **topic pills** vs **Library** catalog); **Published
@@ -85,7 +85,7 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    there). **Search topic** prefills semantic search with the topic
    query and passes **Since (date)** only when the shared corpus lens has a valid
    **YYYY-MM-DD** (omitted for all time). Selected hit row uses `bg-overlay` when its path
-   matches the Episode rail (for example after opening that episode from **Recent**).
+   matches the Episode subject rail (for example after opening that episode from **Recent**).
 
 3. **Recent (diverse)** -- bordered panel (same list chrome pattern as Library **Episodes**):
    `h2` **Recent** (`#digest-recent-heading`, **`text-sm font-semibold`**) with a muted
@@ -96,7 +96,7 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    `bg-overlay`): cover `h-9`, title + right column with one **baseline-wrapping** meta line
    (**feed** when shown, then publish date / **E#** / duration in reading order), tight gap
    before full-wrap `summary_preview` / recap; row click opens
-   Episode rail (Digest remains the main tab).    **Topic pills:** when `GET /api/corpus/digest`
+   Episode subject rail (Digest remains the main tab).    **Topic pills:** when `GET /api/corpus/digest`
    sends **`cil_digest_topics`** (CIL bridge `topic:` ids, cluster-first order; when
    **`in_topic_cluster`**, pills use the same **amber / orange** fill and border as graph
    **Quote** / **`search-hit`** emphasis — not the violet **TopicCluster** compound fill),
@@ -108,29 +108,29 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
 ## Actions and tokens
 
-- **Recent episode rows:** Episode rail handoff (row click); Digest tab stays
+- **Recent episode rows:** Episode subject rail handoff (row click); Digest tab stays
   selected. **Open in graph** / **Prefill semantic search** follow
-  [UXS-003](UXS-003-corpus-library.md) on the Episode rail, not on the Digest card.
+  [UXS-003](UXS-003-corpus-library.md) on the Episode subject rail, not on the Digest card.
 - **Recent CIL topic pills (when present):** Navigate to **Graph** (topic focus with episode fallback
   as above); not a Library filter.
-- **Open GI / Open KG / Prefill semantic search (Episode rail):** Same domain and
+- **Open GI / Open KG / Prefill semantic search (Episode subject rail):** Same domain and
   primary rules as [UXS-003](UXS-003-corpus-library.md) (GI/KG use `gi`/`kg`;
   search handoff uses `primary`).
 - **Topic band:** **Search topic** uses `primary`; opens the Search panel with the
   topic query prefilled per RFC-068. **Topic title** opens **Graph** for the top GI/KG hit.
-  Each **hit row** opens the **Episode** rail for that episode, then **Graph** for that hit
+  Each **hit row** opens the **Episode subject rail** for that episode, then **Graph** for that hit
   with digest topic focus when the node exists.
 
 ---
 
-## Digest and Episode rail interaction
+## Digest and Episode subject rail interaction
 
-**Recent** row click opens the Episode rail on the right without switching away from
+**Recent** row click opens the Episode subject rail on the right without switching away from
 Digest (same detail as selecting an episode in Library), so **Open in graph** and
 **Prefill semantic search** stay one click away on that rail. **Topic band** hit rows
-load the **Episode** rail then switch to **Graph**; **Recent** CIL pills (when present) switch
+load the **Episode subject rail** then switch to **Graph**; **Recent** CIL pills (when present) switch
 to **Graph** only. Switching Digest to Library
-keeps the Episode rail selection when that episode is still in scope. Library no
+keeps the Episode subject rail selection when that episode is still in scope. Library no
 longer embeds a New (24h) digest strip so the two tabs do not compete -- users open
 Digest for "what's new," Library for catalog browse.
 

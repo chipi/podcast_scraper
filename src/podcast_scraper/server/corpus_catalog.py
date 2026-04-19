@@ -1,4 +1,4 @@
-"""Filesystem-backed episode catalog for Corpus Library (RFC-067 Phase 1)."""
+"""Filesystem-backed episode catalog for Corpus Library."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional
 
-from podcast_scraper.builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
+from podcast_scraper.builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
 from podcast_scraper.search.corpus_scope import discover_metadata_files, normalize_feed_id
 from podcast_scraper.utils.corpus_artwork import CORPUS_ART_REL_PREFIX
 from podcast_scraper.utils.path_validation import (

@@ -1,4 +1,4 @@
-"""FastAPI application factory for the GI/KG viewer API (RFC-062)."""
+"""FastAPI application factory for the GI/KG viewer API."""
 
 from __future__ import annotations
 

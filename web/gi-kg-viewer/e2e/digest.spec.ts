@@ -233,7 +233,7 @@ test.describe('Corpus Digest tab', () => {
     ).toHaveValue('')
   })
 
-  test('digest episode cards omit graph/search actions (Episode rail has them)', async ({
+  test('digest episode cards omit graph/search actions (Episode subject rail has them)', async ({
     page,
   }) => {
     await page.goto('/')
@@ -247,7 +247,7 @@ test.describe('Corpus Digest tab', () => {
     ).toHaveCount(0)
   })
 
-  test('click digest Recent row opens Episode rail; stays on Digest', async ({
+  test('click digest Recent row opens Episode subject rail; stays on Digest', async ({
     page,
   }) => {
     await page.goto('/')
@@ -268,7 +268,7 @@ test.describe('Corpus Digest tab', () => {
     ).toBeVisible()
   })
 
-  test('Digest ↔ Library keeps Episode rail when episode is in catalog', async ({
+  test('Digest ↔ Library keeps Episode subject rail when episode is in catalog', async ({
     page,
   }) => {
     await page.goto('/')

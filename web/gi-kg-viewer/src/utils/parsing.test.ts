@@ -182,7 +182,7 @@ describe('entityDisplayNameFromId', () => {
     expect(entityDisplayNameFromId('g:entity:organization:acme-corp')).toBe('Acme Corp')
   })
 
-  it('humanises RFC-072 person: and org: ids', () => {
+  it('humanises CIL person: and org: ids', () => {
     expect(entityDisplayNameFromId('person:john-doe')).toBe('John Doe')
     expect(entityDisplayNameFromId('k:kg:org:acme-corp')).toBe('Acme Corp')
   })
@@ -837,6 +837,15 @@ describe('toCytoElements', () => {
     const nodeElem = elems.find((e) => e.data.id === 'i1')
     expect(nodeElem).toBeTruthy()
     expect(nodeElem!.data.type).toBe('Insight')
+    expect(typeof (nodeElem!.data as { shortLabel?: string }).shortLabel).toBe('string')
+    expect(Number((nodeElem!.data as { recencyWeight?: number }).recencyWeight)).toBe(1)
+  })
+
+  it('canonicalises edge types for Cytoscape edgeType', () => {
+    const elems = toCytoElements(parsedGi())
+    const edge = elems.find((e) => 'source' in e.data && e.data.source === 'i1')
+    expect(edge).toBeTruthy()
+    expect((edge!.data as { edgeType?: string }).edgeType).toBe('SUPPORTED_BY')
   })
 
   it('includes data.parent when RawGraphNode has parent', () => {

@@ -1,4 +1,4 @@
-"""RFC-050 output contracts for GIL inspection and explore.
+"""Output contracts for GIL inspection and explore.
 
 Dataclasses/Pydantic shapes: insight with supporting_quotes, evidence spans.
 JSON-serializable for CLI --format json.
@@ -23,7 +23,7 @@ class EvidenceSpan(BaseModel):
 
 
 class SupportingQuote(BaseModel):
-    """One supporting quote for an insight (RFC-050)."""
+    """One supporting quote for an insight."""
 
     quote_id: str = Field(description="Quote node ID")
     text: str = Field(description="Verbatim quote text")
@@ -38,7 +38,7 @@ class SupportingQuote(BaseModel):
 
 
 class InsightSummary(BaseModel):
-    """One insight with optional supporting quotes (RFC-050)."""
+    """One insight with optional supporting quotes."""
 
     insight_id: str = Field(description="Insight node ID")
     text: str = Field(description="Insight statement")
@@ -73,7 +73,7 @@ class InspectOutput(BaseModel):
 
 
 class TopSpeakerEntry(BaseModel):
-    """Aggregated speaker stats for explore (RFC-050 top_speakers)."""
+    """Aggregated speaker stats for explore."""
 
     speaker_id: str = Field(description="Speaker identifier from quotes")
     name: Optional[str] = Field(default=None, description="Display name when known")
@@ -112,7 +112,7 @@ class ExploreOutput(BaseModel):
     )
     top_speakers: List[TopSpeakerEntry] = Field(
         default_factory=list,
-        description="Speakers ranked by quote_count for this result set (RFC-050)",
+        description="Speakers ranked by quote_count for this result set",
     )
     topics: List[TopicEntry] = Field(
         default_factory=list,

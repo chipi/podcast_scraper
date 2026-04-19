@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migrate legacy GIL JSON: Speaker nodes and speaker: ids -> Person / person: (RFC-072).
+"""Migrate legacy GIL JSON: Speaker nodes and speaker: ids -> Person / person:.
 
 Idempotent. Back up your corpus before running. Example:
 
@@ -31,7 +31,7 @@ def main() -> int:
         print(f"Not found: {inp}", file=sys.stderr)
         return 2
     raw = json.loads(inp.read_text(encoding="utf-8"))
-    from podcast_scraper.migrations.rfc072 import migrate_gil_document
+    from podcast_scraper.migrations.gil_kg_identity_migrations import migrate_gil_document
 
     migrated = migrate_gil_document(raw)
     out_path.write_text(json.dumps(migrated, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

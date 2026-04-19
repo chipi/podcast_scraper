@@ -1,4 +1,4 @@
-"""Verify GIL Quote char offsets vs FAISS transcript chunk offsets (#528 / RFC-072 Phase 5)."""
+"""Verify GIL Quote char offsets vs FAISS transcript chunk offsets (#528)."""
 
 from __future__ import annotations
 

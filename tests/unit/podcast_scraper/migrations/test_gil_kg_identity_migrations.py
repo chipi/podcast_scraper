@@ -1,8 +1,11 @@
-"""Unit tests for RFC-072 GI/KG JSON migrations."""
+"""Unit tests for GI/KG identity JSON migrations."""
 
 import pytest
 
-from podcast_scraper.migrations.rfc072 import migrate_gil_document, migrate_kg_document
+from podcast_scraper.migrations.gil_kg_identity_migrations import (
+    migrate_gil_document,
+    migrate_kg_document,
+)
 
 pytestmark = pytest.mark.unit
 

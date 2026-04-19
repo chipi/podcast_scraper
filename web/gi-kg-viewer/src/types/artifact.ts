@@ -4,7 +4,7 @@ export interface RawGraphNode {
   id?: string | number
   type?: string
   properties?: Record<string, unknown>
-  /** Cytoscape compound parent id (RFC-075 topic cluster overlay). */
+  /** Cytoscape compound parent id (topic cluster overlay). */
   parent?: string
 }
 

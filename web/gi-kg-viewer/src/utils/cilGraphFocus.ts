@@ -1,7 +1,7 @@
 /**
  * Map a CIL digest topic pill to ``graphNavigation.requestFocusNode`` arguments.
  *
- * Mirrors SearchPanel RFC-075 behaviour: primary selection stays on the ``topic:…``
+ * Mirrors SearchPanel topic-cluster camera behaviour: primary selection stays on the ``topic:…``
  * node when present; optional ``tc:…`` compound ids widen the camera bbox only.
  */
 
@@ -32,7 +32,7 @@ export type CilPillGraphFocusPlan =
     }
 
 /**
- * Resolve how to focus the graph from a pill + optional episode id (Digest / Episode rail).
+ * Resolve how to focus the graph from a pill + optional episode id (Digest / Episode subject rail).
  */
 export function graphFocusPlanFromCilPill(
   pill: CilPillGraphFocusLike | null | undefined,

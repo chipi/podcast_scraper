@@ -1,4 +1,4 @@
-"""Unit tests for corpus digest selection (RFC-068)."""
+"""Unit tests for corpus digest selection."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""RFC-072 artifact filename rules: ``bridge.json`` next to metadata / GI / KG (single source)."""
+"""``bridge.json`` sibling path rules next to metadata / GI / KG (single source)."""
 
 from __future__ import annotations
 

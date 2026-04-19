@@ -171,7 +171,7 @@ export function logicalEpisodeIdsMatchingMetadataPath(
 }
 
 /**
- * Prefer the Cytoscape id already tied to the Episode rail (graph double-tap); else scan the artifact.
+ * Prefer the Cytoscape id already tied to the Episode subject rail (graph double-tap); else scan the artifact.
  */
 export function logicalEpisodeIdsForLibraryGraphSync(
   art: ParsedArtifact | null,

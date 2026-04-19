@@ -22,10 +22,13 @@ file remains **pytest** E2E.
 | ----- | ------ |
 | **Run from repo root** | `make test-ui-e2e` (`npm install`, `playwright install firefox`, `npm run test:e2e`) |
 | **Run in package** | `cd web/gi-kg-viewer && npm run test:e2e` |
-| **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** |
+| **Config** | `web/gi-kg-viewer/playwright.config.ts` — `testDir: ./e2e`, `webServer` runs **Vite** on **127.0.0.1:5174** with **`reuseExistingServer: true`** so a dev server already bound to that port is reused (helps when **`CI=true`** is set locally and would otherwise force a second **strictPort** bind) |
 | **Specs** | `web/gi-kg-viewer/e2e/*.spec.ts` (+ `fixtures.ts`, `helpers.ts`) |
 | **Surface map** | [E2E_SURFACE_MAP.md](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) — surfaces, fixtures, stable Playwright selectors (update with UI/E2E changes) |
 | **CI** | Workflow job **`viewer-e2e`** (same commands as `make test-ui-e2e`) |
+| **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
+| **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
+| **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
 ### Debugging UI issues and interpreting failures
 
@@ -50,13 +53,12 @@ without walking this list in order:
 3. **`docs/uxs/`** — Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
    or shell-wide rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
    Graph, Search, Dashboard, …) when a **surface-specific** visual contract changes, even if tests still pass.
+   After merge, **Active** UXS should describe the **shipped** viewer for that release (see
+   [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)).
 
 Also documented in [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md) (*GI / KG browser viewer*),
 [TESTING_GUIDE.md](TESTING_GUIDE.md) (*Browser E2E*), [UX specifications index](../uxs/index.md),
 `.cursorrules` (*GI/KG viewer UX*), and `.ai-coding-guidelines.md` (*GI/KG browser viewer*).
-| **vs pytest E2E** | pytest proves CLI/pipeline + `e2e_server`; Playwright proves **browser UX** (graph shell, search UI, a11y paths) |
-| **vs FastAPI unit tests** | `tests/unit/podcast_scraper/server/test_viewer_*.py` cover **`/api/*`** JSON contracts; use Playwright when behavior depends on the **SPA** |
-| **vs Vitest** | `web/gi-kg-viewer/src/utils/*.test.ts` cover **pure TS logic** (parsing, merge, metrics); `make test-ui` (~150 ms, no browser). Use Playwright for **rendered UI behavior** |
 
 **Further reading:** [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) (root vs `web/gi-kg-viewer/`),
 [Testing Guide — Browser E2E](TESTING_GUIDE.md#browser-e2e-gi-kg-viewer-v2),

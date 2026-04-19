@@ -99,7 +99,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(payload, indent=2))
     else:
-        print("GIL quality metrics (PRD-017 targets)")
+        print("GIL quality metrics")
         print("=" * 50)
         for k, v in payload.items():
             if k == "errors":

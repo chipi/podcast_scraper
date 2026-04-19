@@ -97,7 +97,7 @@ const graphButtonTooltip =
   'Show on graph — focus this node in the loaded merged graph (same as semantic search G).'
 
 const libraryButtonTooltip =
-  'Open episode in Library — same as semantic search L when metadata path resolves.'
+  'Open episode in the subject panel — same as semantic search L when metadata path resolves.'
 
 const semanticPrefillButtonTooltip =
   "Prefill semantic search with this node's primary text (truncated); switch to Search and run Search to query the index."

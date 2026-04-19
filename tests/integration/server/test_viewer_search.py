@@ -1,4 +1,4 @@
-"""Viewer API: GET /api/search (RFC-062).
+"""Viewer API: GET /api/search.
 
 Requires ``fastapi`` (``pip install -e '.[server]'``).
 """

@@ -17,7 +17,7 @@
   - [PRD-023: Corpus Digest & Library Glance](PRD-023-corpus-digest-recap.md) — 24h glance + Digest tab atop same catalog
 - **Related UX specs**:
   - [UXS-003: Corpus Library](../uxs/UXS-003-corpus-library.md) -- Library tab IA,
-    Episode rail, filters, graph integration
+    Episode subject rail, filters, graph integration
   - [UXS-001: GI/KG Viewer](../uxs/UXS-001-gi-kg-viewer.md) -- shared design system
 
 ## Summary

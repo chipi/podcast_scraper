@@ -1,4 +1,4 @@
-"""Live pipeline monitor (RFC-065, GitHub #512)."""
+"""Live pipeline monitor."""
 
 from __future__ import annotations
 

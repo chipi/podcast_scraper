@@ -1,21 +1,15 @@
 <script setup lang="ts">
-import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
-import DashboardOverviewSection from './components/dashboard/DashboardOverviewSection.vue'
 import DashboardView from './components/dashboard/DashboardView.vue'
-import GraphCanvas from './components/graph/GraphCanvas.vue'
-import ExplorePanel from './components/explore/ExplorePanel.vue'
-import SearchPanel from './components/search/SearchPanel.vue'
-import HelpTip from './components/shared/HelpTip.vue'
+import GraphTabPanel from './components/graph/GraphTabPanel.vue'
+import LeftPanel from './components/shell/LeftPanel.vue'
+import StatusBar from './components/shell/StatusBar.vue'
+import SubjectRail from './components/shell/SubjectRail.vue'
 import DigestView from './components/digest/DigestView.vue'
 import LibraryView from './components/library/LibraryView.vue'
-import EpisodeDetailPanel from './components/episode/EpisodeDetailPanel.vue'
-import GraphConnectionsSection from './components/graph/GraphConnectionsSection.vue'
-import GraphNodeRailPanel from './components/graph/GraphNodeRailPanel.vue'
 import { useArtifactsStore } from './stores/artifacts'
-import { useGraphExpansionStore } from './stores/graphExpansion'
-import { useEpisodeRailStore } from './stores/episodeRail'
+import { useSubjectStore } from './stores/subject'
 import { useGraphFilterStore } from './stores/graphFilters'
 import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useExploreStore } from './stores/explore'
@@ -29,79 +23,27 @@ import { StaleGeneration } from './utils/staleGeneration'
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
-const graphExpansion = useGraphExpansionStore()
-const { truncationLine: graphExpansionTruncationLine } = storeToRefs(graphExpansion)
 const search = useSearchStore()
 const explore = useExploreStore()
 const theme = useThemeStore()
-const episodeRail = useEpisodeRailStore()
+const subject = useSubjectStore()
 const graphFilters = useGraphFilterStore()
 const graphNav = useGraphNavigationStore()
 
-const episodeConnectionsViewArtifact = computed(() =>
-  graphFilters.viewWithEgo(graphNav.graphEgoFocusCyId),
-)
-
-/** Search / Explore is open and we can return to episode or graph node detail. */
-const railBackFromToolsEnabled = computed(
-  () =>
-    episodeRail.paneKind === 'tools' &&
-    Boolean(
-      episodeRail.metadataRelativePath?.trim() ||
-        episodeRail.graphNodeCyId?.trim(),
-    ),
-)
-
-const railBackFromToolsLabel = computed((): string => {
-  if (episodeRail.graphNodeCyId?.trim()) {
-    return 'Back to details'
-  }
-  if (episodeRail.metadataRelativePath?.trim()) {
-    return 'Back to episode'
-  }
-  return 'Back'
-})
-
 const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
-const localFileInput = ref<HTMLInputElement | null>(null)
-const searchPanelRef = ref<{ focusQuery: () => void } | null>(null)
+const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{ clearInteractionState: () => void } | null>(null)
 const isGraphTab = computed(() => mainTab.value === 'graph')
 
-type EpisodeRailDetailTab = 'details' | 'neighbourhood'
-const episodeRailDetailTab = ref<EpisodeRailDetailTab>('details')
-
-/** Episode rail: **Neighbourhood** tab only on Graph when ``graphConnectionsCyId`` is set. */
-const episodeRailNeighbourhoodEnabled = computed(
-  () =>
-    mainTab.value === 'graph' &&
-    Boolean(episodeRail.graphConnectionsCyId?.trim()),
-)
-
-watch(
-  () => episodeRail.metadataRelativePath,
-  () => {
-    episodeRailDetailTab.value = 'details'
-  },
-)
-
-watch(
-  () => episodeRail.graphConnectionsCyId,
-  () => {
-    episodeRailDetailTab.value = 'details'
-  },
-)
-
 const leftOpen = ref(true)
-const leftTab = ref<'corpus' | 'api'>('corpus')
 const rightOpen = ref(true)
 
 useViewerKeyboard({
   focusSearch: () => {
-    episodeRail.showTools()
-    rightOpen.value = true
-    episodeRail.toolsTab = 'search'
-    searchPanelRef.value?.focusQuery()
+    leftOpen.value = true
+    void nextTick(() => {
+      leftPanelRef.value?.focusQuery()
+    })
   },
   clearGraphFocus: () => {
     graphCanvasRef.value?.clearInteractionState()
@@ -109,24 +51,15 @@ useViewerKeyboard({
   isGraphTab,
 })
 
-function triggerLocalFilePick(): void {
-  localFileInput.value?.click()
-}
-
-async function onLocalFilesChange(ev: Event): Promise<void> {
-  const el = ev.target as HTMLInputElement
-  await artifacts.loadFromLocalFiles(el.files)
-  el.value = ''
-  if (artifacts.displayArtifact) {
+function onStatusBarLocalArtifactsLoaded(loaded: boolean): void {
+  if (loaded) {
     mainTab.value = 'graph'
   }
 }
 
-async function onLoadIntoGraphClick(): Promise<void> {
-  await artifacts.loadSelected()
-  if (artifacts.displayArtifact) {
-    mainTab.value = 'graph'
-  }
+function onCloseSubjectRail(): void {
+  subject.clearSubject()
+  graphCanvasRef.value?.clearInteractionState()
 }
 
 onMounted(() => {
@@ -147,6 +80,7 @@ watch(
 watch(
   () => shell.corpusPath,
   (p) => {
+    subject.clearSubject()
     artifacts.setCorpusPath(p)
   },
   { immediate: true },
@@ -201,63 +135,53 @@ function onLibraryFocusSearch(payload: {
   since?: string
   feedDisplayTitle?: string
 }): void {
-  episodeRail.showTools()
-  rightOpen.value = true
-  episodeRail.toolsTab = 'search'
+  leftOpen.value = true
   search.applyLibrarySearchHandoff(payload.feed, payload.query, {
     since: payload.since,
     feedDisplayTitle: payload.feedDisplayTitle,
   })
   void nextTick(() => {
-    searchPanelRef.value?.focusQuery()
+    leftPanelRef.value?.focusQuery()
   })
 }
 
-/** Graph Topic node detail: Search tab + query, keep graph node for Back to details. */
+/** Graph Topic node detail: prefill semantic search (subject rail unchanged). */
 function onGraphNodeTopicPrefillSearch(payload: { query: string }): void {
   const q = payload.query.trim()
   if (!q) return
-  episodeRail.showTools({ preserveGraphNodeId: true })
-  rightOpen.value = true
-  episodeRail.toolsTab = 'search'
+  leftOpen.value = true
   search.applyLibrarySearchHandoff('', q)
   void nextTick(() => {
-    searchPanelRef.value?.focusQuery()
+    leftPanelRef.value?.focusQuery()
   })
 }
 
-/** Graph Topic node detail: Explore tab + Topic contains filter (user runs explore). */
+/** Graph Topic node detail: Explore + Topic contains filter. */
 function onGraphNodeTopicOpenExploreFilter(payload: { topic: string }): void {
   const t = payload.topic.trim()
   if (!t) return
-  episodeRail.showTools({ preserveGraphNodeId: true })
-  rightOpen.value = true
-  episodeRail.toolsTab = 'explore'
+  leftOpen.value = true
   explore.filters.topic = t
   explore.filters.speaker = ''
   explore.clearOutput()
 }
 
-/** Graph Person / Entity (person) detail: Explore tab + Speaker contains (topic cleared). */
+/** Graph Person / Entity (person) detail: Explore + Speaker contains. */
 function onGraphNodeSpeakerOpenExploreFilter(payload: { speaker: string }): void {
   const s = payload.speaker.trim()
   if (!s) return
-  episodeRail.showTools({ preserveGraphNodeId: true })
-  rightOpen.value = true
-  episodeRail.toolsTab = 'explore'
+  leftOpen.value = true
   explore.filters.topic = ''
   explore.filters.speaker = s
   explore.clearOutput()
 }
 
-/** Graph Insight node detail: Explore tab + grounded/min-confidence filters (user runs explore). */
+/** Graph Insight node detail: Explore + grounded/min-confidence filters. */
 function onGraphNodeInsightOpenExploreFilters(payload: {
   groundedOnly: boolean
   minConfidence: number | null
 }): void {
-  episodeRail.showTools({ preserveGraphNodeId: true })
-  rightOpen.value = true
-  episodeRail.toolsTab = 'explore'
+  leftOpen.value = true
   explore.filters.topic = ''
   explore.filters.speaker = ''
   explore.filters.groundedOnly = payload.groundedOnly
@@ -268,21 +192,20 @@ function onGraphNodeInsightOpenExploreFilters(payload: {
   explore.clearOutput()
 }
 
-/** Digest row / topic hit: episode detail in the right rail; stay on Digest. */
+/** Digest row / topic hit: episode detail in the subject rail; stay on Digest. */
 function onDigestOpenEpisodeInRail(payload: { metadata_relative_path: string }): void {
-  episodeRail.openEpisodePanel(payload.metadata_relative_path)
+  subject.focusEpisode(payload.metadata_relative_path)
 }
 
-/** Search hit "Open episode in Library" (L): Library tab + pending episode selection. */
+/** Search hit **L**: open episode in the subject rail (main tab unchanged). */
 function onSearchOpenLibraryEpisode(payload: { metadata_relative_path: string }): void {
-  shell.setPendingLibraryEpisode(payload.metadata_relative_path)
-  mainTab.value = 'library'
+  subject.focusEpisode(payload.metadata_relative_path)
 }
 
 function onSearchOpenEpisodeSummary(hit: SearchHit): void {
   const rel = sourceMetadataRelativePathFromSearchHit(hit)
   if (rel) {
-    episodeRail.openEpisodePanel(rel)
+    subject.focusEpisode(rel)
   }
 }
 
@@ -292,13 +215,13 @@ function onSearchOpenEpisodeSummary(hit: SearchHit): void {
  */
 function syncGraphFocusFromOpenEpisodeRail(): void {
   if (mainTab.value !== 'graph') return
-  if (episodeRail.paneKind !== 'episode') return
-  const meta = episodeRail.metadataRelativePath?.trim()
+  if (subject.kind !== 'episode') return
+  const meta = subject.episodeMetadataPath?.trim()
   if (!meta) return
   const ids = logicalEpisodeIdsForLibraryGraphSync(
     graphFilters.filteredArtifact,
     meta,
-    episodeRail.graphConnectionsCyId?.trim() ?? null,
+    subject.graphConnectionsCyId?.trim() ?? null,
   )
   if (ids.length === 0) return
   graphNav.setLibraryEpisodeHighlights(ids)
@@ -307,40 +230,33 @@ function syncGraphFocusFromOpenEpisodeRail(): void {
 
 watch(
   () =>
-    [
-      episodeRail.paneKind,
-      episodeRail.metadataRelativePath,
-      episodeRail.graphNodeCyId,
-    ] as const,
+    [subject.kind, subject.episodeMetadataPath, subject.graphNodeCyId] as const,
   () => {
-    const ep = episodeRail.metadataRelativePath?.trim()
-    const gn = episodeRail.graphNodeCyId?.trim()
-    if (episodeRail.paneKind === 'episode' && ep) {
+    const ep = subject.episodeMetadataPath?.trim()
+    const gn = subject.graphNodeCyId?.trim()
+    if (subject.kind === 'episode' && ep) {
       rightOpen.value = true
     }
-    if (episodeRail.paneKind === 'graph-node' && gn) {
+    if (subject.kind === 'graph-node' && gn) {
       rightOpen.value = true
     }
   },
 )
 
 watch(mainTab, (t) => {
-  if (t !== 'graph' && episodeRail.paneKind === 'graph-node') {
-    episodeRail.showTools({ preserveGraphNodeId: true })
-  }
   if (t === 'graph') {
-    episodeRail.resumeDetailPanel()
     void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
   }
 })
 
 watch(
-  () => episodeRail.metadataRelativePath,
+  () => subject.episodeMetadataPath,
   () => {
-    if (mainTab.value !== 'graph' || episodeRail.paneKind !== 'episode') return
+    if (mainTab.value !== 'graph' || subject.kind !== 'episode') return
     void nextTick(() => syncGraphFocusFromOpenEpisodeRail())
   },
 )
+
 </script>
 
 <template>
@@ -488,7 +404,8 @@ watch(
       </div>
     </div>
 
-    <div class="flex min-h-0 flex-1">
+    <div class="flex min-h-0 flex-1 flex-col">
+      <div class="flex min-h-0 flex-1">
       <!-- LEFT SIDEBAR (collapsible) -->
       <div
         class="relative shrink-0 border-r border-border bg-canvas transition-all"
@@ -504,7 +421,6 @@ watch(
             <path d="M8 2L4 6l4 4z" />
           </svg>
         </button>
-        <!-- Vertical labels when collapsed -->
         <div
           v-if="!leftOpen"
           class="flex flex-col items-center gap-4 pt-2"
@@ -513,345 +429,21 @@ watch(
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
-            @click="leftOpen = true; leftTab = 'corpus'"
+            @click="leftOpen = true"
           >
-            Corpus
-          </button>
-          <button
-            type="button"
-            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
-            style="writing-mode: vertical-lr"
-            @click="leftOpen = true; leftTab = 'api'"
-          >
-            API+Data
+            Search
           </button>
         </div>
         <div v-show="leftOpen" class="flex flex-col" style="max-height: calc(100vh - 6rem)">
-          <nav
-            class="mx-2 mt-1 flex gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
-            aria-label="Left panel tabs"
-          >
-            <button
-              type="button"
-              class="flex-1 rounded px-2 py-1 text-center"
-              :class="
-                leftTab === 'corpus'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-elevated-foreground hover:bg-overlay'
-              "
-              @click="leftTab = 'corpus'"
-            >
-              Corpus
-            </button>
-            <button
-              type="button"
-              class="flex-1 rounded px-2 py-1 text-center"
-              :class="
-                leftTab === 'api'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-elevated-foreground hover:bg-overlay'
-              "
-              @click="leftTab = 'api'"
-            >
-              API · Data
-            </button>
-          </nav>
           <div class="min-h-0 flex-1 overflow-y-auto px-2 pb-3 pt-2">
-            <!-- Corpus tab -->
-            <section v-show="leftTab === 'corpus'">
-              <div class="mb-1.5 flex items-center gap-1">
-                <h2 class="text-xs font-medium text-kg">
-                  Corpus path
-                </h2>
-                <HelpTip>
-                  Set the same folder you pass as
-                  <code class="rounded bg-overlay px-0.5 text-[10px]">--output-dir</code>
-                  to the pipeline (contains
-                  <code class="text-[10px]">metadata/</code>
-                  with your
-                  <code class="text-[10px]">.gi.json</code> /
-                  <code class="text-[10px]">.kg.json</code>). When the API is healthy, the viewer
-                  lists artifacts and loads <strong>all</strong> GI/KG files into the merged graph
-                  automatically (same as <strong>List</strong> → <strong>All</strong> →
-                  <strong>Load into graph</strong>), like Digest/Library catalog refresh. Large
-                  corpora may take a while.
-                </HelpTip>
-              </div>
-              <input
-                v-model="shell.corpusPath"
-                type="text"
-                class="w-full rounded border border-border bg-elevated px-2 py-1 text-xs text-elevated-foreground placeholder:text-muted"
-                placeholder="/path/to/output"
-                autocomplete="off"
-              >
-              <div class="mt-1.5 flex flex-wrap gap-1">
-                <button
-                  type="button"
-                  class="rounded bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-                  :disabled="!shell.hasCorpusPath || shell.artifactsLoading"
-                  @click="shell.fetchArtifactList()"
-                >
-                  List
-                </button>
-              </div>
-              <p v-if="shell.artifactsLoading" class="mt-1 text-[10px] text-muted">
-                Loading…
-              </p>
-              <template v-else>
-                <div
-                  v-if="shell.corpusHints.length"
-                  class="mt-1.5 rounded border border-warning/40 bg-warning/10 px-2 py-1.5 text-[10px] text-surface-foreground"
-                  role="status"
-                >
-                  <p class="font-medium text-warning">
-                    Corpus path hint
-                  </p>
-                  <ul class="mt-0.5 list-inside list-disc text-muted">
-                    <li v-for="(h, i) in shell.corpusHints" :key="i">
-                      {{ h }}
-                    </li>
-                  </ul>
-                </div>
-                <div
-                  v-if="shell.artifactList.length"
-                  class="mt-1.5 space-y-1"
-                >
-                <div class="flex flex-wrap items-center gap-1">
-                  <button
-                    type="button"
-                    class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-                    @click="artifacts.selectAllListed(shell.artifactList.map((a) => a.relative_path))"
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
-                    @click="artifacts.deselectAllListed()"
-                  >
-                    None
-                  </button>
-                  <button
-                    type="button"
-                    class="rounded border border-border px-2 py-0.5 text-[10px] font-medium hover:bg-overlay disabled:opacity-40"
-                    :disabled="artifacts.selectedRelPaths.length === 0 || artifacts.loading"
-                    @click="onLoadIntoGraphClick()"
-                  >
-                    {{ artifacts.loading ? 'Loading…' : 'Load into graph' }}
-                  </button>
-                </div>
-                <div class="overflow-y-auto rounded border border-border bg-elevated p-1 text-[11px]">
-                  <label
-                    v-for="a in shell.artifactList"
-                    :key="a.relative_path"
-                    class="flex cursor-pointer items-start gap-1 py-0.5 hover:bg-overlay"
-                  >
-                    <input
-                      type="checkbox"
-                      class="mt-0.5 rounded border-border"
-                      :checked="artifacts.selectedRelPaths.includes(a.relative_path)"
-                      @change="artifacts.toggleSelection(a.relative_path)"
-                    >
-                    <span class="break-all">
-                      <span :class="a.kind === 'gi' ? 'text-gi' : 'text-kg'">{{ a.kind }}</span>
-                      {{ a.relative_path }}
-                    </span>
-                  </label>
-                </div>
-                </div>
-                <p
-                  v-else-if="shell.artifactCount !== null && shell.artifactCount === 0"
-                  class="mt-1 text-[10px] text-muted"
-                >
-                  No artifacts found.
-                </p>
-              </template>
-              <p v-if="shell.artifactsError" class="mt-1 text-[10px] text-danger">
-                {{ shell.artifactsError }}
-              </p>
-              <p v-if="artifacts.loadError" class="mt-1 text-[10px] text-danger">
-                {{ artifacts.loadError }}
-              </p>
-              <p v-if="artifacts.displayArtifact" class="mt-1 text-[10px] text-muted">
-                {{ artifacts.displayArtifact.name }} ({{ artifacts.displayArtifact.nodes }} nodes)
-              </p>
-            </section>
-
-            <!-- API · Data tab -->
-            <section
-              v-show="leftTab === 'api'"
-              class="space-y-2"
-            >
-              <h2 class="text-xs font-medium text-surface-foreground">
-                API
-              </h2>
-              <p class="text-[10px] leading-snug text-muted">
-                Capability flags from
-                <code class="rounded bg-overlay px-0.5 font-mono text-[9px]">GET /api/health</code>
-                (graph, search, index routes, catalog). FAISS availability is separate — see Data → Vector index.
-              </p>
-              <div class="rounded border border-border bg-elevated p-2 text-[10px]">
-                <dl class="space-y-1">
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Health
-                    </dt>
-                    <dd
-                      v-if="shell.healthStatus"
-                      class="font-medium text-success"
-                    >
-                      {{ shell.healthStatusDisplay }}
-                    </dd>
-                    <dd
-                      v-else-if="shell.healthError"
-                      class="font-medium text-danger"
-                    >
-                      {{ shell.healthError }}
-                    </dd>
-                    <dd
-                      v-else
-                      class="text-muted"
-                    >
-                      Checking…
-                    </dd>
-                  </div>
-                </dl>
-                <dl
-                  v-if="shell.healthStatus"
-                  class="mt-1.5 space-y-1 border-t border-border/60 pt-1.5"
-                >
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Artifacts (graph)
-                    </dt>
-                    <dd
-                      :class="
-                        shell.artifactsApiAvailable !== false ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ shell.artifactsApiAvailable !== false ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Semantic search
-                    </dt>
-                    <dd
-                      :class="shell.searchApiAvailable !== false ? 'text-success' : 'text-danger'"
-                    >
-                      {{ shell.searchApiAvailable !== false ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Graph explore
-                    </dt>
-                    <dd
-                      :class="shell.exploreApiAvailable !== false ? 'text-success' : 'text-danger'"
-                    >
-                      {{ shell.exploreApiAvailable !== false ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Index routes
-                    </dt>
-                    <dd
-                      :class="
-                        shell.indexRoutesApiAvailable !== false ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ shell.indexRoutesApiAvailable !== false ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Corpus metrics
-                    </dt>
-                    <dd
-                      :class="
-                        shell.corpusMetricsApiAvailable !== false ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ shell.corpusMetricsApiAvailable !== false ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Library API
-                    </dt>
-                    <dd
-                      :class="
-                        shell.corpusLibraryApiAvailable ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ shell.corpusLibraryApiAvailable ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Digest API
-                    </dt>
-                    <dd
-                      :class="
-                        shell.corpusDigestApiAvailable ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ shell.corpusDigestApiAvailable ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                  <div class="flex justify-between gap-2">
-                    <dt class="text-muted">
-                      Binary (covers)
-                    </dt>
-                    <dd
-                      :class="
-                        shell.corpusBinaryApiAvailable !== false ? 'text-success' : 'text-danger'
-                      "
-                    >
-                      {{ shell.corpusBinaryApiAvailable !== false ? 'Yes' : 'No' }}
-                    </dd>
-                  </div>
-                </dl>
-                <p
-                  v-if="shell.healthStatus && !shell.corpusLibraryApiAvailable"
-                  class="mt-1.5 text-[10px] leading-snug text-danger"
-                >
-                  Corpus Library API not advertised — upgrade/restart the Python server (Library tab).
-                </p>
-                <button
-                  type="button"
-                  class="mt-1.5 rounded border border-border px-2 py-0.5 hover:bg-overlay"
-                  @click="shell.fetchHealth()"
-                >
-                  Retry health
-                </button>
-              </div>
-              <div
-                v-if="shell.healthError"
-                class="rounded border border-border bg-overlay p-1.5 text-[10px]"
-              >
-                <p class="mb-1 text-muted">
-                  Load files directly (no API):
-                </p>
-                <input
-                  ref="localFileInput"
-                  type="file"
-                  class="sr-only"
-                  multiple
-                  accept=".gi.json,.kg.json,application/json"
-                  @change="onLocalFilesChange"
-                >
-                <button
-                  type="button"
-                  class="rounded border border-border px-2 py-0.5 hover:bg-canvas"
-                  @click="triggerLocalFilePick"
-                >
-                  Choose files…
-                </button>
-              </div>
-              <DashboardOverviewSection />
-            </section>
+            <div class="flex min-h-0 flex-1 flex-col">
+              <LeftPanel
+                ref="leftPanelRef"
+                @go-graph="mainTab = 'graph'"
+                @open-library-episode="onSearchOpenLibraryEpisode"
+                @open-episode-summary="onSearchOpenEpisodeSummary"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -882,56 +474,15 @@ watch(
             class="h-full max-w-full overflow-x-hidden overflow-y-auto p-3"
             style="max-height: calc(100vh - 5rem)"
           >
-            <DashboardView />
+            <DashboardView @go-graph="mainTab = 'graph'" />
           </div>
-          <div
-            v-if="mainTab === 'graph'"
-            class="flex min-h-0 min-h-[280px] flex-1 flex-col overflow-hidden"
-          >
-            <p
-              v-if="artifacts.siblingMergeLine && !artifacts.siblingMergeError"
-              class="shrink-0 border-b border-border bg-elevated/40 px-2 py-1 text-[10px] leading-snug text-muted"
-              data-testid="graph-sibling-merge-line"
-            >
-              {{ artifacts.siblingMergeLine }}
-            </p>
-            <div
-              v-if="graphExpansionTruncationLine"
-              class="flex shrink-0 flex-wrap items-start justify-between gap-2 border-b border-border bg-elevated/30 px-2 py-1 text-[10px] leading-snug text-muted"
-              data-testid="graph-expansion-truncation-line"
-            >
-              <span class="min-w-0 flex-1">{{ graphExpansionTruncationLine }}</span>
-              <button
-                type="button"
-                class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[9px] font-medium hover:bg-overlay"
-                data-testid="graph-expansion-truncation-dismiss"
-                @click="graphExpansion.clearTruncationLine()"
-              >
-                Dismiss
-              </button>
-            </div>
-            <keep-alive class="flex min-h-0 flex-1 flex-col">
-              <GraphCanvas
-                v-if="artifacts.displayArtifact"
-                ref="graphCanvasRef"
-                class="min-h-0 flex-1"
-              />
-            </keep-alive>
-            <div
-              v-if="!artifacts.displayArtifact"
-              class="flex min-h-[280px] flex-1 items-center justify-center rounded border border-dashed border-border bg-surface p-8 text-sm text-muted"
-            >
-              <span class="max-w-md text-center">
-                With a healthy API, set <strong>Corpus path</strong> to auto-load all GI/KG; or use
-                <strong>List</strong> and <strong>Load into graph</strong>. Offline: <strong>Choose
-                files…</strong> on <strong>API · Data</strong>.
-              </span>
-            </div>
-          </div>
+          <keep-alive>
+            <GraphTabPanel v-if="mainTab === 'graph'" ref="graphCanvasRef" />
+          </keep-alive>
         </div>
       </div>
 
-      <!-- RIGHT SIDEBAR (collapsible) -->
+      <!-- RIGHT SIDEBAR (collapsible) — subject rail only -->
       <div
         class="relative shrink-0 border-l border-border bg-canvas transition-all"
         :class="rightOpen ? 'w-96' : 'w-8'"
@@ -946,7 +497,6 @@ watch(
             <path d="M4 2l4 4-4 4z" />
           </svg>
         </button>
-        <!-- Vertical labels when collapsed -->
         <div
           v-if="!rightOpen"
           class="flex flex-col items-center gap-4 pt-2"
@@ -957,8 +507,8 @@ watch(
             style="writing-mode: vertical-lr"
             @click="
               rightOpen = true;
-              episodeRail.showTools();
-              episodeRail.toolsTab = 'search'
+              leftOpen = true;
+              void nextTick(() => leftPanelRef.value?.focusQuery())
             "
           >
             Search
@@ -969,194 +519,40 @@ watch(
             style="writing-mode: vertical-lr"
             @click="
               rightOpen = true;
-              episodeRail.showTools();
-              episodeRail.toolsTab = 'explore'
+              leftOpen = true
             "
           >
             Explore
           </button>
           <button
-            v-if="railBackFromToolsEnabled"
-            type="button"
-            class="text-[10px] font-medium text-muted hover:text-surface-foreground"
-            style="writing-mode: vertical-lr"
-            @click="
-              rightOpen = true;
-              episodeRail.resumeDetailPanel()
-            "
-          >
-            {{ railBackFromToolsLabel }}
-          </button>
-          <button
-            v-if="mainTab === 'graph' && episodeRail.graphNodeCyId?.trim()"
+            v-if="mainTab === 'graph' && subject.graphNodeCyId?.trim()"
             type="button"
             class="text-[10px] font-medium text-muted hover:text-surface-foreground"
             style="writing-mode: vertical-lr"
             data-testid="rail-collapsed-graph-details"
-            @click="
-              rightOpen = true;
-              if (episodeRail.paneKind !== 'graph-node') {
-                episodeRail.resumeDetailPanel();
-              }
-            "
+            @click="rightOpen = true"
           >
             Details
           </button>
         </div>
         <div v-show="rightOpen" class="flex min-h-0 flex-1 flex-col" style="max-height: calc(100vh - 6rem)">
-          <template v-if="mainTab === 'graph' && episodeRail.paneKind === 'graph-node'">
-            <GraphNodeRailPanel
-              @go-graph="mainTab = 'graph'"
-              @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
-              @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
-              @open-explore-speaker-filter="onGraphNodeSpeakerOpenExploreFilter"
-              @open-explore-insight-filters="onGraphNodeInsightOpenExploreFilters"
-              @open-library-episode="onSearchOpenLibraryEpisode"
-            />
-          </template>
-          <template v-else-if="episodeRail.paneKind === 'episode'">
-            <div
-              class="mx-3 flex min-h-0 flex-1 flex-col overflow-hidden"
-              role="region"
-              aria-label="Episode"
-              data-testid="episode-detail-rail"
-            >
-              <div class="mt-1 flex shrink-0 items-center justify-between gap-2 border-b border-border pb-2">
-                <h2 class="text-xs font-semibold text-surface-foreground">
-                  Episode
-                </h2>
-                <button
-                  type="button"
-                  class="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
-                  @click="episodeRail.showTools()"
-                >
-                  Search & Explore
-                </button>
-              </div>
-              <EpisodeDetailPanel
-                class="min-h-0 min-w-0 flex-1"
-                :rail-neighbourhood-enabled="episodeRailNeighbourhoodEnabled"
-                :rail-detail-tab="episodeRailDetailTab"
-                @focus-search="onLibraryFocusSearch"
-                @switch-main-tab="mainTab = $event"
-              >
-                <template #episode-rail-tabs>
-                  <nav
-                    v-if="episodeRailNeighbourhoodEnabled"
-                    class="flex shrink-0 gap-1 border-b border-border bg-elevated/50 px-2 py-1.5"
-                    role="tablist"
-                    aria-label="Episode detail sections"
-                  >
-                    <button
-                      id="episode-detail-rail-tab-details"
-                      type="button"
-                      role="tab"
-                      class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
-                      :class="
-                        episodeRailDetailTab === 'details'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-elevated-foreground hover:bg-overlay'
-                      "
-                      :aria-selected="episodeRailDetailTab === 'details'"
-                      aria-controls="episode-detail-rail-panel-details"
-                      data-testid="episode-detail-rail-tab-details"
-                      :tabindex="episodeRailDetailTab === 'details' ? 0 : -1"
-                      @click="episodeRailDetailTab = 'details'"
-                    >
-                      Details
-                    </button>
-                    <button
-                      id="episode-detail-rail-tab-neighbourhood"
-                      type="button"
-                      role="tab"
-                      class="flex-1 rounded px-2 py-1 text-center text-xs font-medium transition-colors"
-                      :class="
-                        episodeRailDetailTab === 'neighbourhood'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-elevated-foreground hover:bg-overlay'
-                      "
-                      :aria-selected="episodeRailDetailTab === 'neighbourhood'"
-                      aria-controls="episode-detail-rail-panel-neighbourhood"
-                      data-testid="episode-detail-rail-tab-neighbourhood"
-                      :tabindex="episodeRailDetailTab === 'neighbourhood' ? 0 : -1"
-                      @click="episodeRailDetailTab = 'neighbourhood'"
-                    >
-                      Neighbourhood
-                    </button>
-                  </nav>
-                </template>
-                <template #episode-rail-neighbourhood>
-                  <GraphConnectionsSection
-                    :view-artifact="episodeConnectionsViewArtifact"
-                    :node-id="episodeRail.graphConnectionsCyId"
-                    :dense-neighbor-list="false"
-                    @go-graph="mainTab = 'graph'"
-                    @open-library-episode="onSearchOpenLibraryEpisode"
-                    @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
-                  />
-                </template>
-              </EpisodeDetailPanel>
-            </div>
-          </template>
-          <template v-else>
-            <div
-              v-if="railBackFromToolsEnabled"
-              class="mx-3 mt-1 flex shrink-0 justify-end border-b border-border pb-2"
-            >
-              <button
-                type="button"
-                class="rounded border border-border px-2 py-1 text-[10px] font-medium text-elevated-foreground hover:bg-overlay"
-                :aria-label="railBackFromToolsLabel"
-                @click="episodeRail.resumeDetailPanel()"
-              >
-                {{ railBackFromToolsLabel }}
-              </button>
-            </div>
-            <nav
-              class="mx-3 mt-1 flex shrink-0 gap-1 rounded border border-border bg-elevated p-0.5 text-xs font-medium"
-              aria-label="Right panel tabs"
-            >
-              <button
-                type="button"
-                class="flex-1 rounded px-2 py-1 text-center"
-                :class="
-                  episodeRail.toolsTab === 'search'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-elevated-foreground hover:bg-overlay'
-                "
-                @click="episodeRail.toolsTab = 'search'"
-              >
-                Search
-              </button>
-              <button
-                type="button"
-                class="flex-1 rounded px-2 py-1 text-center"
-                :class="
-                  episodeRail.toolsTab === 'explore'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-elevated-foreground hover:bg-overlay'
-                "
-                @click="episodeRail.toolsTab = 'explore'"
-              >
-                Explore
-              </button>
-            </nav>
-            <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-2">
-              <SearchPanel
-                v-show="episodeRail.toolsTab === 'search'"
-                ref="searchPanelRef"
-                @go-graph="mainTab = 'graph'"
-                @open-library-episode="onSearchOpenLibraryEpisode"
-                @open-episode-summary="onSearchOpenEpisodeSummary"
-              />
-              <ExplorePanel
-                v-show="episodeRail.toolsTab === 'explore'"
-                @go-graph="mainTab = 'graph'"
-              />
-            </div>
-          </template>
+          <SubjectRail
+            :main-tab="mainTab"
+            @close-subject="onCloseSubjectRail"
+            @go-graph="mainTab = 'graph'"
+            @focus-search-handoff="onLibraryFocusSearch"
+            @prefill-semantic-search="onGraphNodeTopicPrefillSearch"
+            @open-explore-topic-filter="onGraphNodeTopicOpenExploreFilter"
+            @open-explore-speaker-filter="onGraphNodeSpeakerOpenExploreFilter"
+            @open-explore-insight-filters="onGraphNodeInsightOpenExploreFilters"
+            @open-library-episode="onSearchOpenLibraryEpisode"
+            @open-episode-summary="onSearchOpenEpisodeSummary"
+            @switch-main-tab="mainTab = $event"
+          />
         </div>
       </div>
+      </div>
+      <StatusBar @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded" />
     </div>
   </div>
 </template>

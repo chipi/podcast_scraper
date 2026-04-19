@@ -12,7 +12,7 @@ function raiseDigestHttpError(res: Response, bodyText: string): never {
 
 export type DigestWindow = 'all' | '24h' | '7d' | '1mo' | 'since'
 
-/** CIL topic chip (bridge identity + optional RFC-075 cluster styling). */
+/** CIL topic chip (bridge identity + optional topic-cluster styling). */
 export type CilDigestTopicPill = {
   topic_id: string
   label: string

@@ -1,4 +1,4 @@
-# Global fixed digest topics (RFC-068). Passed to semantic search as natural-language queries.
+# Global fixed digest topics. Passed to semantic search as natural-language queries.
 # Product-visible: review changes like other viewer defaults.
 topics:
   - id: science

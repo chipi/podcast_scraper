@@ -90,7 +90,7 @@ test.describe('Explore supporting quotes (mocked API)', () => {
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await page.getByRole('navigation', { name: 'Right panel tabs' }).getByRole('button', { name: 'Explore' }).click()
+    await page.getByRole('heading', { name: 'Explore', exact: true }).waitFor({ state: 'visible' })
 
     await page.getByRole('button', { name: 'Run explore' }).click()
 

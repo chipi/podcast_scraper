@@ -111,7 +111,7 @@ export type FetchEpisodesOptions = {
   q?: string
   /** Case-insensitive match on summary title or any summary bullet. */
   topicQ?: string
-  /** When true, only episodes with at least one CIL topic in an RFC-075 cluster (bridge + topic_clusters.json). */
+  /** When true, only episodes with at least one CIL topic in a corpus topic cluster (bridge + topic_clusters.json). */
   topicClusterOnly?: boolean
   since?: string
   limit?: number
@@ -268,8 +268,8 @@ export type CorpusNodeEpisodesResponse = {
   total_matched: number | null
 }
 
-/** Default cap for RFC-076 graph expand (Graph tab); server sorts then truncates. Pass ``null`` to omit. */
-export const RFC076_EXPAND_MAX_EPISODES = 2048
+/** Default max episodes for cross-episode graph expand (viewer → ``POST /api/corpus/node-episodes``). */
+export const GRAPH_NODE_EPISODES_EXPAND_MAX = 2048
 
 export async function fetchNodeEpisodes(
   corpusPath: string,

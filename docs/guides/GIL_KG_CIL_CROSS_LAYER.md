@@ -33,7 +33,7 @@ Typical episode workspace (paths vary for multi-feed; see [CORPUS_MULTI_FEED_ART
 - `*.kg.json` — KG graph (when `generate_kg` ran).
 - `*.bridge.json` — CIL identity map for that episode (when the pipeline emits it).
 
-**Path rules in code:** `src/podcast_scraper/builders/rfc072_artifact_paths.py` (bridge next to metadata; GI/KG siblings of bridge; bridge next to `gi.json`). **GIL edge `type` comparisons:** `src/podcast_scraper/gi/edge_normalization.py`.
+**Path rules in code:** `src/podcast_scraper/builders/bridge_artifact_paths.py` (bridge next to metadata; GI/KG siblings of bridge; bridge next to `gi.json`). **GIL edge `type` comparisons:** `src/podcast_scraper/gi/edge_normalization.py`.
 
 The vector index lives at **`<corpus_root>/search/`** (`vectors.faiss`, `metadata.json`, …) when `vector_search` / `index` has run at the **corpus parent** for multi-feed trees.
 

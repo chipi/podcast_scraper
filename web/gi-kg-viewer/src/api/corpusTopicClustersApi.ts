@@ -75,7 +75,7 @@ export function topicClustersSchemaWarning(doc: TopicClustersDocument): string |
 }
 
 /**
- * Fetch RFC-075 ``topic_clusters.json`` via the viewer API.
+ * Fetch corpus ``topic_clusters.json`` via the viewer API.
  * Prefer this over :func:`fetchTopicClustersDocument` when you need missing vs error vs schema warnings.
  */
 export async function fetchTopicClustersFromApi(corpusPath: string): Promise<TopicClustersFetchResult> {
@@ -107,7 +107,7 @@ export async function fetchTopicClustersFromApi(corpusPath: string): Promise<Top
 }
 
 /**
- * Fetch RFC-075 ``topic_clusters.json`` via the viewer API. Returns null on 404; throws on other errors.
+ * Fetch corpus ``topic_clusters.json`` via the viewer API. Returns null on 404; throws on other errors.
  * @deprecated Prefer :func:`fetchTopicClustersFromApi` for load status and schema warnings.
  */
 export async function fetchTopicClustersDocument(

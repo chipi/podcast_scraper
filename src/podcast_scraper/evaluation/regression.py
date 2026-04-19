@@ -4,7 +4,7 @@ This module implements regression rules for detecting quality regressions
 in experiments compared to baselines. It enforces quality gates based on
 configurable thresholds.
 
-This implements RFC-041 Phase 1: Regression Rules & Quality Gates.
+This implements regression rules and quality gates for evaluations.
 """
 
 from __future__ import annotations

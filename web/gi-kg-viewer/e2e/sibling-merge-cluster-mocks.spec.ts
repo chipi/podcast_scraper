@@ -6,7 +6,7 @@ import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
 /**
- * Mocks aligned with ``search-to-graph-mocks.spec.ts`` plus RFC-075
+ * Mocks aligned with ``search-to-graph-mocks.spec.ts`` plus topic-clusters API
  * ``members[].episode_ids`` so ``maybeMergeClusterSiblingEpisodes`` runs after graph load.
  */
 async function mockCorpusGraphBaseline(page: Page): Promise<void> {

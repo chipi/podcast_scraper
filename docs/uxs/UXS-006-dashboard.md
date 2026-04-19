@@ -11,6 +11,7 @@
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/dashboard/DashboardView.vue`
+  - `web/gi-kg-viewer/src/components/dashboard/CorpusDataWorkspace.vue`
   - `web/gi-kg-viewer/src/components/dashboard/DashboardOverviewSection.vue`
   - `web/gi-kg-viewer/src/components/dashboard/MetricsPanel.vue`
   - `web/gi-kg-viewer/src/components/dashboard/CategoryLineChart.vue`
@@ -25,61 +26,65 @@
 
 ## Summary
 
-The **Dashboard** tab provides Chart.js panels grouped under Pipeline vs Content
-intelligence. This UXS defines the visual contract for the dashboard layout, chart
-composition, and the API / Data left panel. All tokens reference
-[UXS-001](UXS-001-gi-kg-viewer.md).
+The **Dashboard** tab provides the **Corpus artifacts** workspace (API capability card,
+artifact list, **Load into graph**), then Chart.js panels grouped under **Pipeline**
+vs **Content intelligence**. The left shell column stays **query-only** (Search +
+Explore); corpus root, health, catalog, graph metrics, topic clusters, and vector
+index tooling live on **Dashboard** inside **`CorpusDataWorkspace`** (`data-testid="corpus-data-workspace"`).
+All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
 ---
 
 ## Dashboard tab (charts)
 
-- **Layout:** Corpus summary counts strip (when API + path), then an in-dashboard
-  tablist (Dashboard sections): **Pipeline** (runs, manifest throughput, cumulative
-  growth from `run.json`, latest run stage times + episode outcomes) vs **Content
-  intelligence** (Vector index and digest glance region, then GI mtime line,
-  publish-month catalog bars with gap insight, GI vs KG cumulative-by-write-day,
-  graph node-type and vector index doc-type bars).
-- **Copy:** Short blurb points to API / Data for corpus root, catalog snapshot, graph
-  metrics, and index tooling; a one-line hint under the tabs explains the active
-  section; optional "Loading corpus charts..." while dashboard fetches aggregate APIs.
+- **Layout:** **`CorpusDataWorkspace`** first (full main-column width, scrolls with the
+  tab): **Corpus artifacts** (List, All / None, Load into graph, hints), **API** health
+  card, **`DashboardOverviewSection`** (**Data** heading: Corpus root, Corpus catalog,
+  Graph, Vector index, topic clusters status). Then corpus summary counts strip (when
+  API + path), then an in-dashboard tablist (**Dashboard sections**): **Pipeline** vs
+  **Content intelligence** (charts as before).
+- **Copy:** Intro blurb points to the **Corpus artifacts** workspace for corpus root,
+  catalog snapshot, graph metrics, and index tooling; one-line hint under the section
+  tabs explains the active chart panel; optional **Loading corpus charts...** while
+  dashboard fetches aggregate APIs.
 - Multi-series lines use end-of-line labels instead of legends; optional insight line
   under each chart when the data supports a clear takeaway.
-- Full vector index actions remain in API / Data -> Data (elevated cards).
+- Full vector index actions remain on the **Vector index** card inside **Data** (same
+  elevated-card pattern as before).
 
 ---
 
-## API / Data (left panel)
+## Corpus data workspace (Dashboard)
+
+### Corpus artifacts block
+
+Same controls as the former left-rail data tab: **List**, **All** / **None**,
+**Load into graph**, checkbox list, corpus path hints, load errors. **Load into graph**
+switches the main view to **Graph** when a merged artifact is ready (emit from
+`CorpusDataWorkspace`).
 
 ### API section
 
-Neutral section title + muted blurb, then one elevated card: **Health** (label +
-value, e.g. OK from `/api/health`), then Yes/No rows for Artifacts (graph), Semantic
-search, Graph explore, Index routes, Corpus metrics, Library API, Digest API,
-Binary (covers) -- from the same health JSON (omit a flag on older servers -> treated
-as advertised except catalog flags). **Retry health**; when health fails, the offline
-Choose files affordance stays here.
+Neutral **API** heading + muted blurb (`GET /api/health` capability overview), then one
+elevated card: **Health** (label + value), then Yes/No rows for Artifacts (graph),
+Semantic search, Graph explore, Index routes, Corpus metrics, Library API, Digest API,
+Binary (covers). **Retry health**; when health fails, offline copy points to **Files**
+on the **status bar** (not inside this card).
 
 ### Data section
 
-Neutral section title + blurb; then sibling elevated cards (same depth as the API
-card):
+Rendered by **`DashboardOverviewSection`**: **Data** `h2`, blurb, **Topic clusters**
+status, then elevated cards — **Corpus root**, **Corpus catalog** (+ Refresh), **Graph**
+(+ Refresh), **Vector index** (`GET /api/index/stats` + **Update index** / **Full rebuild**).
 
-- **Corpus root** (Path / Resolved)
-- **Corpus catalog** (snapshot from `GET /api/corpus/stats` -- feeds, episodes,
-  digest topic bands, publish-month histogram rollups, optional GI/KG list counts
-  when the artifact list is loaded) + Refresh
-- **Graph** (merged GI/KG node/edge metrics from the loaded graph) + Refresh
-  (re-list `GET /api/artifacts` and reload selected GI/KG JSON)
-- **Vector index** (`GET /api/index/stats` + rebuild actions)
-
-Metric tables use the shared MetricsPanel pattern inside cards where a titled
-sub-block helps (e.g. "Index statistics" under Vector index).
+Metric tables use the shared **MetricsPanel** pattern inside cards where a titled
+sub-block helps (e.g. **Index statistics** under Vector index).
 
 ### Density
 
-Same `surface` / `border` cards; sidebar uses slightly smaller type (`text-[10px]` /
-`text-xs`) so the panel stays scannable at `w-72`.
+Same `surface` / `border` cards; workspace typography uses slightly smaller type
+(`text-[10px]` / `text-xs`) so the block stays scannable inside the scrollable Dashboard
+column.
 
 ### Intent colors
 
@@ -88,7 +93,7 @@ Same `surface` / `border` cards; sidebar uses slightly smaller type (`text-[10px
 
 ### Actions
 
-Corpus catalog and Graph each have Refresh (independent of Vector index).
+Corpus catalog and Graph each have **Refresh** (independent of Vector index).
 **Update index** and **Full rebuild** sit next to Refresh on Vector index; disabled
 while `rebuild_in_progress` or `faiss_unavailable`.
 
@@ -97,7 +102,8 @@ while `rebuild_in_progress` or `faiss_unavailable`.
 ## E2E contract
 
 [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) --
-API / Data tab, Data heading, corpus + graph + vector index controls.
+**Dashboard** tab, **`data-testid="corpus-data-workspace"`**, **Data** heading, corpus +
+graph + vector index controls (`openCorpusDataWorkspace` helper).
 
 ---
 
@@ -107,3 +113,4 @@ API / Data tab, Data heading, corpus + graph + vector index controls.
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-06 | Initial content (in UXS-001)                                   |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-006                 |
+| 2026-04-19 | Corpus workspace on Dashboard; left rail query-only IA         |

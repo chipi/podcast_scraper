@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 def _kg_entity_kind_display(props: Dict[str, Any]) -> str:
-    """Map ``kind`` (RFC-072) or legacy ``entity_kind`` to person|organization."""
+    """Map ``kind`` or legacy ``entity_kind`` to person|organization."""
     k = props.get("kind")
     if k == "org":
         return "organization"
@@ -205,7 +205,7 @@ def entity_rollup(
     min_episodes: int = 1,
     output_dir: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
-    """Aggregate Entity nodes across episodes (RFC-056 entity roll-up pattern)."""
+    """Aggregate Entity nodes across episodes."""
     # key -> {display, entity_kind, episode_ids set, paths, mention_count}
     agg: Dict[str, Dict[str, Any]] = {}
     for path, art in loaded:

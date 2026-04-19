@@ -1,4 +1,4 @@
-"""Integration: Library similar-episodes helpers (RFC-067) + ``run_similar_episodes``."""
+"""Integration: Library similar-episodes helpers + ``run_similar_episodes``."""
 
 from __future__ import annotations
 

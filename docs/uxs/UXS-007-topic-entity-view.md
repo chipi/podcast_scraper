@@ -14,7 +14,7 @@
     bridge artifact powering cross-episode topic queries
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
 - **Related UX specs**:
-  - [UXS-003: Corpus Library](UXS-003-corpus-library.md) -- Episode rail shared with
+  - [UXS-003: Corpus Library](UXS-003-corpus-library.md) -- Episode subject rail shared with
     Topic Entity View
   - [UXS-004: Graph Exploration](UXS-004-graph-exploration.md) -- "View in graph"
     handoff
@@ -65,8 +65,11 @@ KG identity coloring in UXS-001.
 - Clicking a Topic node in the Cytoscape graph opens the Topic Entity View in the
   right rail (same mechanism as existing node detail, expanded to full Topic Entity
   layout).
-- Topic pills in episode search results and Library episode rows are clickable and
-  open the Topic Entity View.
+- Topic pills on **Semantic Search** episode result cards are clickable and open the
+  Topic Entity View. **Corpus Library** episode **list** rows do **not** show topic
+  pills ([UXS-003](UXS-003-corpus-library.md) keeps that catalog dense; Digest carries
+  CIL topic pills that open **Graph**). From Library, reach this view via Graph topic
+  nodes, Digest/Dashboard entry points, or Search — not from list-row chips.
 - Topic rows in the Dashboard Content Intelligence section (from `temporal_velocity`
   enricher output) are clickable and open the Topic Entity View.
 
@@ -105,10 +108,10 @@ vertically with `border` dividers between them:
 ### Insights section
 
 - Scrollable list of grounded Insight cards on `surface` background. Insight cards
-  follow the **shared InsightCard component** defined in
-  [UXS-001](UXS-001-gi-kg-viewer.md). This view uses the following InsightCard
-  slots: insight text, grounding badge, speaker chip, episode attribution, and
-  supporting quote blockquote.
+  follow the **shared InsightCard** contract in
+  [UXS-001 — InsightCard (shared component)](UXS-001-gi-kg-viewer.md#insightcard-shared-component).
+  This view uses the following InsightCard slots: insight text, grounding badge,
+  speaker chip, episode attribution, and supporting quote blockquote.
 - Each card: insight text (`text-sm`), speaker name chip (`muted`), episode title +
   publish date (`muted`, `text-xs`), supporting verbatim quote in a `border`-left
   blockquote with a timestamp jump link (`link` token).
@@ -206,3 +209,4 @@ before or with implementation. Key surfaces:
 | Date       | Change                                                         |
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-13 | Initial draft (PRD-026 companion)                              |
+| 2026-04-19 | Entry points: Library rows per UXS-003; InsightCard anchor     |

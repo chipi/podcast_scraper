@@ -1,6 +1,6 @@
-"""RFC-072 Phase 2: migrate legacy GI/KG ids and property names in JSON documents.
+"""Migrate legacy GI/KG ids and property names in JSON documents (idempotent transforms).
 
-These transforms are idempotent. Callers should back up corpora before rewriting files.
+Callers should back up corpora before rewriting files.
 """
 
 from __future__ import annotations

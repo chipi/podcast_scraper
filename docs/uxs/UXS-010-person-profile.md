@@ -60,7 +60,8 @@ panel layout, section density, and graceful degradation states. All tokens refer
 **In scope:**
 
 - Person Profile right rail panel (graph and search entry points)
-- Person Profile full-width view (browse entry point)
+- Person Profile full-width layout when a **corpus-wide person browse** host exists
+  (placement undecided; see [Full-width browse](#person-landing-fullwidth-browse))
 - Person header (display name, slug, appearances, date range)
 - Topic Overview section (topic list with Insight counts and navigation)
 - Shared Person Landing component (tab bar hosting Profile and Position Tracker)
@@ -94,9 +95,11 @@ The Person Profile panel has two presentation modes:
 - **Right rail** (from graph or search entry point): same panel slot used for graph
   node detail and episode detail. Panel width follows the existing rail width
   (UXS-001).
-- **Full-width** (from browse entry point): occupies the main content area. Layout
-  is the same vertical stack but with wider cards and side-by-side topic rows when
-  space permits.
+- **Full-width** (only once browse ships; same contract as
+  [UXS-009](UXS-009-position-tracker.md) Placement): occupies the main content area
+  instead of the right rail. Layout is the same vertical stack but with wider cards
+  and side-by-side topic rows when space permits. **There is no browse host in the
+  v2 main tab strip today** (see [Full-width browse](#person-landing-fullwidth-browse)).
 
 The panel header shows "Person Profile" with the `gi` domain token color, reflecting
 that the primary data source is GIL Insights.
@@ -110,8 +113,34 @@ that the primary data source is GIL Insights.
 - Clicking a speaker name in a search result card (including lifted results with
   `lifted.speaker` or enriched sources from UXS-008) opens the Person Landing in
   the right rail.
-- A dedicated person browse (accessible from the viewer navigation) opens the
-  Person Landing in full-width mode.
+
+### Full-width browse (planned; shell gap) {#person-landing-fullwidth-browse}
+
+**Implemented today:** Person Landing opens in the **right rail** from Graph Person
+nodes, Semantic Search speaker affordances, and related handoffs from UXS-007 /
+UXS-008 when those surfaces ship. The v2 viewer **main** tabs remain **Digest**,
+**Library**, **Graph**, and **Dashboard** only; none of them hosts a corpus-wide
+person roster or “open Person Landing full-width” control yet.
+
+**Why this UXS still describes full-width:** Layout, density, and token rules for
+Person Landing in the main column are part of the visual contract so work is not
+blocked when browse exists.
+
+**Where browse should live (product decision before implementation):** Pick one
+primary host and record it in PRD-028, PRD-029, and the RFC-062 viewer checklist
+(selectors and `E2E_SURFACE_MAP.md` follow the real control). Representative options:
+
+1. **Fifth main tab** (working name **People**) -- corpus-wide list or search of
+   `person:{slug}` that opens Person Landing full-width.
+2. **Library drill-in** -- e.g. “People in this corpus” (or feed-scoped index) from
+   the catalog surface.
+3. **Graph- or shell-level affordance** -- e.g. filtered Person-node list, command
+   palette, or header action that navigates with the same Person Landing component
+   in `main` layout instead of the rail.
+
+Until one of these (or an equivalent) ships, **automated E2E** should target **rail**
+entry points only; do not add Playwright coverage for a top-level People tab that
+does not exist.
 
 ---
 
@@ -219,6 +248,7 @@ New visible labels and selectors require updates to the
 before or with implementation. Key surfaces:
 
 - Right rail panel with `aria-label="Person Profile"` (use `exact: true`)
+- Full-width Person Landing host (after browse placement is chosen and built)
 - Person header (display name, appearance count)
 - Topic Overview section: topic rows, Insight count badges, "Track positions" and
   "View topic" links
@@ -246,3 +276,4 @@ before or with implementation. Key surfaces:
 | ---------- | -------------------------------------------------------------- |
 | 2026-04-13 | Initial draft (PRD-029 companion)                              |
 | 2026-04-14 | Rewritten as Person Profile (commercial content extracted)     |
+| 2026-04-19 | Shell gap: full-width browse not in main tabs yet              |

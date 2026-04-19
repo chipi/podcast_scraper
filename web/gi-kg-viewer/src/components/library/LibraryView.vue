@@ -4,7 +4,6 @@ import {
   nextTick,
   onActivated,
   onBeforeUnmount,
-  onMounted,
   ref,
   watch,
 } from 'vue'
@@ -14,7 +13,7 @@ import CollapsibleSection from '../shared/CollapsibleSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useCorpusLensStore } from '../../stores/corpusLens'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
 import { digestRowFeedLabelWithCatalog, libraryEpisodeSummaryLine } from '../../utils/digestRowDisplay'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
@@ -33,7 +32,7 @@ const LIBRARY_EPISODES_PAGE_SIZE = 20
  * Feed picker in Library **Filters**: cap list height so the filter column stays compact.
  * Approximate row: ``h-8`` cover + ``py-1`` on the feed row button (~2.5rem).
  */
-/** UXS-003: show **two** feed rows before scroll (not a peek of a third). */
+/** Library filters: show **two** feed rows before scroll (not a peek of a third). */
 const LIBRARY_FEED_FILTER_VISIBLE_ROWS = 2
 const LIBRARY_FEED_FILTER_ROW_REM = 2.5
 const LIBRARY_FEED_FILTER_GAP_REM = 0.125
@@ -48,7 +47,7 @@ const emit = defineEmits<{
 }>()
 
 const shell = useShellStore()
-const episodeRail = useEpisodeRailStore()
+const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const { sinceYmd, activePreset } = storeToRefs(corpusLens)
 
@@ -62,7 +61,7 @@ function scheduleReloadEpisodesFromCorpusLens(): void {
   }
   corpusLensDebounceTimer = setTimeout(() => {
     corpusLensDebounceTimer = null
-    episodeRail.clearEpisodeContext()
+    subject.clearSubject()
     void loadEpisodes(false)
   }, CORPUS_LENS_DEBOUNCE_MS)
 }
@@ -72,7 +71,7 @@ function applySinceDateReloadEpisodesNow(): void {
     clearTimeout(corpusLensDebounceTimer)
     corpusLensDebounceTimer = null
   }
-  episodeRail.clearEpisodeContext()
+  subject.clearSubject()
   void loadEpisodes(false)
 }
 
@@ -136,7 +135,7 @@ const nextCursor = ref<string | null>(null)
 const titleQ = ref('')
 /** Substring filter on summary title or bullets (typed or cleared manually). */
 const topicQ = ref('')
-/** Only episodes whose bridge topics include at least one RFC-075 multi-member cluster member. */
+/** Only episodes whose bridge topics include at least one corpus multi-member cluster topic. */
 const topicClusterOnly = ref(false)
 
 /** Visible line in the feed list: title when present, else id (no redundant long id in parens). */
@@ -278,7 +277,7 @@ function episodeKey(e: CorpusEpisodeListItem): string {
 
 function isEpisodeSelected(e: CorpusEpisodeListItem): boolean {
   const p = e.metadata_relative_path?.trim()
-  const cur = episodeRail.metadataRelativePath?.trim()
+  const cur = subject.episodeMetadataPath?.trim()
   return Boolean(p && cur && p === cur)
 }
 
@@ -395,17 +394,17 @@ async function loadEpisodes(append: boolean): Promise<void> {
       episodesLoading.value = false
     }
     if (libraryEpisodesGate.isCurrent(seq) && !episodesError.value) {
-      const path = episodeRail.metadataRelativePath?.trim()
+      const path = subject.episodeMetadataPath?.trim()
       if (path && nextCursor.value === null) {
         const inList = episodes.value.some((e) => e.metadata_relative_path === path)
         if (!inList) {
-          episodeRail.clearEpisodeContext()
+          subject.clearSubject()
         }
       }
       if (
         !append &&
         episodes.value.length > 0 &&
-        episodeRail.metadataRelativePath == null
+        subject.episodeMetadataPath == null
       ) {
         void nextTick(() => {
           selectEpisode(episodes.value[0]!)
@@ -416,7 +415,7 @@ async function loadEpisodes(append: boolean): Promise<void> {
 }
 
 function selectEpisode(row: CorpusEpisodeListItem): void {
-  episodeRail.openEpisodePanel(row.metadata_relative_path)
+  subject.focusEpisode(row.metadata_relative_path)
 }
 
 const LIBRARY_EPISODE_ROW_SELECTOR = '[data-library-episode-row]'
@@ -431,7 +430,7 @@ function onLibraryEpisodeRowKeydown(e: KeyboardEvent, index: number): void {
 }
 
 function applyEpisodeFilters(): void {
-  episodeRail.clearEpisodeContext()
+  subject.clearSubject()
   void loadEpisodes(false)
 }
 
@@ -448,9 +447,7 @@ watch(
   async (newV, oldV) => {
     const pathChanged = oldV !== undefined && oldV[0] !== newV[0]
     if (pathChanged) {
-      shell.takePendingLibraryEpisode()
-      shell.takePendingLibraryTopicQ()
-      episodeRail.clearEpisodeContext()
+      subject.clearSubject()
       feedFilterId.value = null
       titleQ.value = ''
       topicQ.value = ''
@@ -469,7 +466,7 @@ watch(
 )
 
 watch(feedFilterId, () => {
-  episodeRail.clearEpisodeContext()
+  subject.clearSubject()
   void loadEpisodes(false)
 })
 
@@ -484,7 +481,7 @@ watch(
     if (!shell.corpusPath.trim() || !shell.healthStatus) {
       return
     }
-    episodeRail.clearEpisodeContext()
+    subject.clearSubject()
     void loadEpisodes(false)
   },
   { flush: 'post' },
@@ -504,31 +501,7 @@ watch(
   { flush: 'post' },
 )
 
-function applyPendingLibraryTopicFromShell(): void {
-  const t = shell.takePendingLibraryTopicQ()
-  if (!t) {
-    return
-  }
-  topicQ.value = t
-  applyEpisodeFilters()
-}
-
-function applyPendingLibraryFromShell(): void {
-  const p = shell.takePendingLibraryEpisode()
-  if (!p) {
-    return
-  }
-  episodeRail.openEpisodePanel(p)
-}
-
-onMounted(() => {
-  applyPendingLibraryTopicFromShell()
-  applyPendingLibraryFromShell()
-})
-
 onActivated(() => {
-  applyPendingLibraryTopicFromShell()
-  applyPendingLibraryFromShell()
   void nextTick(setupEpisodesInfiniteObserver)
 })
 
@@ -584,7 +557,7 @@ onBeforeUnmount(() => {
               <p class="mb-2 font-sans text-[10px] text-muted">
                 Narrow the episode list by publish date (shared with Digest and Search),
                 title substring, summary title or bullet substring, feed, and optionally
-                only episodes that have a CIL topic cluster (RFC-075).
+                only episodes that have a CIL topic cluster (multi-member cluster data).
               </p>
               <p class="font-sans text-[10px] text-muted">
                 <strong class="font-medium text-surface-foreground/90">Clear all filters</strong>
@@ -597,7 +570,7 @@ onBeforeUnmount(() => {
           <div
             class="grid grid-cols-1 gap-3 border-b border-border pb-3 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-4 lg:gap-y-2"
           >
-            <!-- Left (~60%): date row + title/summary grid (UXS-003) -->
+            <!-- Left (~60%): date row + title/summary grid (library filters layout) -->
             <div
               class="min-w-0 space-y-2 border-b border-border pb-3 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4"
             >

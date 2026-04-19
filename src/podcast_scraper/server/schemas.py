@@ -1,4 +1,4 @@
-"""Pydantic models for viewer API responses (RFC-062)."""
+"""Pydantic models for viewer API responses."""
 
 from __future__ import annotations
 
@@ -58,22 +58,22 @@ class HealthResponse(BaseModel):
     )
     corpus_library_api: bool = Field(
         default=True,
-        description="True when GET /api/corpus/* catalog routes are mounted (RFC-067).",
+        description="True when GET /api/corpus/* catalog routes are mounted.",
     )
     corpus_digest_api: bool = Field(
         default=True,
         description=(
-            "True when GET /api/corpus/digest is mounted (RFC-068). "
+            "True when GET /api/corpus/digest is mounted. "
             "Omit or false on older server builds without digest."
         ),
     )
     corpus_binary_api: bool = Field(
         default=True,
-        description="True when GET /api/corpus/binary is mounted (local artwork, RFC-067 Phase 4).",
+        description="True when GET /api/corpus/binary is mounted (local artwork, corpus library).",
     )
     cil_queries_api: bool = Field(
         default=True,
-        description="True when RFC-072 cross-layer CIL query routes are mounted (GitHub #527).",
+        description="True when cross-layer CIL query routes are mounted (GitHub #527).",
     )
 
 
@@ -151,7 +151,7 @@ class SearchHitModel(BaseModel):
     lifted: dict[str, Any] | None = Field(
         default=None,
         description=(
-            "Transcript hits only: RFC-072 chunk-to-Insight lift when GI offsets and bridge "
+            "Transcript hits only: chunk-to-Insight lift when GI offsets and bridge "
             "align (#528). Shape is loosely typed; typical keys include insight, speaker, "
             "topic, and quote (e.g. timestamp_start_ms / timestamp_end_ms). Speaker display "
             "and quote speaker fields follow the same .gi.json / segment rules as #541."
@@ -183,7 +183,7 @@ class CorpusSearchApiResponse(BaseModel):
     detail: str | None = None
     lift_stats: CorpusSearchLiftStatsModel | None = Field(
         default=None,
-        description="RFC-072 lift coverage for this response page (#528).",
+        description="Transcript lift coverage for this response page (#528).",
     )
 
 
@@ -195,7 +195,7 @@ class ExploreApiResponse(BaseModel):
     detail: str | None = None
     data: dict[str, Any] | None = Field(
         default=None,
-        description="RFC-050 explore JSON when ``kind`` is ``explore``.",
+        description="Explore-shaped GI JSON when ``kind`` is ``explore``.",
     )
     question: str | None = None
     answer: dict[str, Any] | None = Field(
@@ -220,9 +220,7 @@ class CorpusFeedItem(BaseModel):
     )
     image_local_relpath: str | None = Field(
         default=None,
-        description=(
-            "Corpus-relative path to downloaded feed art when file exists (RFC-067 Phase 4)."
-        ),
+        description=("Corpus-relative path to downloaded feed art when file exists."),
     )
     rss_url: str | None = Field(
         default=None,
@@ -242,7 +240,7 @@ class CorpusFeedsResponse(BaseModel):
 
 
 class CilDigestTopicPill(BaseModel):
-    """One CIL topic chip for digest / library (bridge identity + optional RFC-075 cluster)."""
+    """One CIL topic chip for digest / library (bridge identity + optional topic cluster)."""
 
     topic_id: str = Field(description="Canonical ``topic:…`` id from bridge.json.")
     label: str = Field(description="Human label (bridge display_name or derived from id).")
@@ -378,7 +376,7 @@ class CorpusEpisodeDetailResponse(BaseModel):
     gi_relative_path: str
     kg_relative_path: str
     bridge_relative_path: str = Field(
-        description="Sibling ``.bridge.json`` path (RFC-072) from metadata stem.",
+        description="Sibling ``.bridge.json`` path from metadata stem.",
     )
     has_gi: bool = False
     has_kg: bool = False
@@ -418,7 +416,7 @@ class CorpusEpisodeDetailResponse(BaseModel):
 
 
 class CorpusSimilarEpisodeItem(BaseModel):
-    """One deduped peer episode from GET /api/corpus/episodes/similar (RFC-067 Phase 3)."""
+    """One deduped peer episode from GET /api/corpus/episodes/similar."""
 
     score: float
     feed_id: str = Field(description="Normalized feed id (empty when unknown).")
@@ -466,7 +464,7 @@ class CorpusSimilarEpisodesResponse(BaseModel):
 
 
 class CorpusDigestRow(BaseModel):
-    """One ranked digest row (RFC-068 L0 + L2)."""
+    """One ranked digest row."""
 
     metadata_relative_path: str
     feed_id: str
@@ -517,7 +515,7 @@ class CorpusDigestRow(BaseModel):
 
 
 class CorpusDigestTopicHit(BaseModel):
-    """Semantic topic hit scoped to digest window (RFC-068 L1)."""
+    """Semantic topic hit scoped to digest window."""
 
     metadata_relative_path: str | None = None
     episode_title: str = ""
@@ -574,7 +572,7 @@ class CorpusDigestTopicBand(BaseModel):
 
 
 class CorpusDigestResponse(BaseModel):
-    """Response for GET /api/corpus/digest (RFC-068)."""
+    """Response for GET /api/corpus/digest."""
 
     path: str
     window: Literal["all", "24h", "7d", "1mo", "since"]
@@ -604,7 +602,7 @@ class CorpusStatsResponse(BaseModel):
     )
     digest_topics_configured: int = Field(
         0,
-        description="Digest topic bands from server config (RFC-068).",
+        description="Digest topic bands from server config.",
     )
 
 
@@ -668,7 +666,7 @@ class CorpusResolveEpisodesResponse(BaseModel):
 
 
 class CorpusNodeEpisodesRequest(BaseModel):
-    """Body for POST /api/corpus/node-episodes (RFC-076)."""
+    """Body for POST /api/corpus/node-episodes (cross-episode graph expand)."""
 
     node_id: str = Field(min_length=1, description="Viewer or canonical CIL node id.")
     path: str | None = Field(
@@ -704,7 +702,7 @@ class CorpusNodeEpisodesResponse(BaseModel):
     )
 
 
-# --- RFC-072 cross-layer queries (GitHub #527) ---
+# --- Cross-layer CIL queries (GitHub #527) ---
 
 
 class CilArcEpisodeBlock(BaseModel):
@@ -748,7 +746,7 @@ class CilPersonProfileQuoteRow(BaseModel):
 
 
 class CilPersonProfileResponse(BaseModel):
-    """Response for GET /api/persons/{person_id}/brief (RFC-072 Pattern B, Person Profile)."""
+    """Response for GET /api/persons/{person_id}/brief."""
 
     path: str
     person_id: str

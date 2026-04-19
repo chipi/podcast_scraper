@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { leftPanelTabs, SHELL_HEADING_RE } from './helpers'
+import { openCorpusDataWorkspace, SHELL_HEADING_RE } from './helpers'
 
 /** Minimal `GET /api/index/stats` body so Dashboard enables index actions (#507). */
 const INDEX_STATS_ENVELOPE = {
@@ -22,7 +22,7 @@ const INDEX_STATS_ENVELOPE = {
   rebuild_last_error: null as string | null,
 }
 
-test.describe('Index rebuild from API · Data panel (mocked API)', () => {
+test.describe('Index rebuild from Dashboard corpus workspace (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/api/health', async (route) => {
       await route.fulfill({
@@ -63,8 +63,8 @@ test.describe('Index rebuild from API · Data panel (mocked API)', () => {
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await openCorpusDataWorkspace(page)
     await expect(page.getByRole('heading', { name: 'Vector index' })).toBeVisible()
 
     const updateBtn = page.getByRole('button', { name: 'Update index' })
@@ -98,7 +98,8 @@ test.describe('Index rebuild from API · Data panel (mocked API)', () => {
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await openCorpusDataWorkspace(page)
     await expect(page.getByRole('heading', { name: 'Vector index' })).toBeVisible()
 
     const fullBtn = page.getByRole('button', { name: 'Full rebuild' })

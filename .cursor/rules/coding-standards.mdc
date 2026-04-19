@@ -2,6 +2,10 @@
 
 **For complete details:** `.ai-coding-guidelines.md`, `docs/guides/DEVELOPMENT_GUIDE.md`
 
+## Specification IDs (RFC / PRD / UXS)
+
+Do not put `RFC-*`, `PRD-*`, or `UXS-*` labels in code, comments, CSS classes, CLI help, test titles, or user-visible strings. Use neutral feature and API names; keep numbered spec references under `docs/rfc/`, `docs/prd/`, and `docs/uxs/` only. See `.ai-coding-guidelines.md` section **Specification IDs in product code**.
+
 ## Imports (isort-compatible)
 
 ```python

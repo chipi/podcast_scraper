@@ -30,7 +30,7 @@
 - **Related Documents**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
   - [Server guide](../guides/SERVER_GUIDE.md) (HTTP overview)
-- **Updated**: 2026-04-11 (authored retrospectively)
+- **Updated**: 2026-04-19 (Dashboard `CorpusDataWorkspace` vs former API · Data tab)
 
 ## Abstract
 
@@ -46,7 +46,8 @@ calling FastAPI **`corpus_metrics`** routes under **`/api/`** plus existing **in
 ## Problem Statement
 
 Operators needed **corpus-scale** answers (runs, feeds, index health, artifact freshness) without
-exporting data to separate BI tools or reading raw JSON trees. **API · Data** exposes the same facts as
+exporting data to separate BI tools or reading raw JSON trees. The former **API · Data** cards (now the
+**Dashboard** **`CorpusDataWorkspace`**, `data-testid="corpus-data-workspace"`) expose the same facts as
 **cards**; the **Dashboard** adds **time-series and distribution** views and ties **pipeline** vs
 **content** mental models. Without a written RFC, the split between **RFC-062** (monolithic viewer RFC)
 and **corpus_metrics** behavior was hard to navigate for contributors.
@@ -111,8 +112,8 @@ Mounted under the app **`/api`** prefix:
 
 **RFC-062** remains the **umbrella** viewer + server seed RFC. **RFC-071** is a **focused slice** for the
 **Dashboard** product surface so PRD/RFC indexes and cross-links stay precise. Prefer editing **RFC-071**
-for Dashboard-only API or chart-behavior notes; edit **RFC-062** when shell navigation, **API · Data**,
-or shared stores change across tabs.
+for Dashboard-only API or chart-behavior notes; edit **RFC-062** when shell navigation,
+**Dashboard corpus workspace** (successor to the left **API · Data** tab), or shared stores change across tabs.
 
 ## References
 

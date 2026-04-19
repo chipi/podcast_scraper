@@ -1,4 +1,4 @@
-"""Integration tests for ModelRegistry (RFC-044).
+"""Integration tests for ModelRegistry.
 
 Verifies the full alias resolution → capabilities lookup chain that all ML
 loaders depend on.  No optional dependencies required.

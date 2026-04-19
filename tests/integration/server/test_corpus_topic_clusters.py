@@ -1,4 +1,4 @@
-"""Integration tests for GET /api/corpus/topic-clusters (RFC-075).
+"""Integration tests for GET /api/corpus/topic-clusters.
 
 Requires ``fastapi`` (``pip install -e '.[server]'``).
 """

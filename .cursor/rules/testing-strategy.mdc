@@ -26,12 +26,12 @@ If you're unsure which tests are affected, run the full test suite and fix failu
 
 ### GI/KG viewer UI (`web/gi-kg-viewer`) + Playwright
 
-pytest does **not** run browser E2E — use **`make test-ui-e2e`**.
+pytest does **not** run browser E2E — use **`make test-ui-e2e`** or **`make ci-ui-fast`** for a **full local gate** (lint/type/unit/critical integration + Vitest + Playwright; skips Python **`tests/e2e/`**).
 
 When **viewer UX** changes (labels, routes, layout, theme tokens, accessible names, E2E flows):
 
 1. Update **`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`** if selectors or E2E-visible behavior changed.
-2. Update **`e2e/*.spec.ts`** / **`helpers.ts`** / **`fixtures.ts`**; run **`make test-ui-e2e`**.
+2. Update **`e2e/*.spec.ts`** / **`helpers.ts`** / **`fixtures.ts`**; run **`make test-ui-e2e`** (or **`make ci-ui-fast`** before commit when the diff is viewer-heavy).
 3. Update **`docs/uxs/UXS-001-gi-kg-viewer.md`** when the **visual or experience contract** changes.
 
 **FastAPI JSON contracts** (new or changed `/api/*` routes): add or extend tests under
@@ -202,7 +202,7 @@ See `docs/guides/INTEGRATION_TESTING_GUIDE.md` § Directory Organization for det
 
 ## Automated policy enforcement
 
-Two scripts guard the testing policy in CI (`ci` and `ci-fast` targets):
+Two scripts guard the testing policy in CI (`ci`, `ci-fast`, and `ci-ui-fast` targets):
 
 | Script | Make target | What it checks |
 |--------|-------------|----------------|
@@ -219,7 +219,7 @@ Two scripts guard the testing policy in CI (`ci` and `ci-fast` targets):
 | G1-empty-test-file | all `tests/` | Zero `test_` methods -- delete or add tests |
 
 Run `make check-test-policy` locally before committing test changes. Both scripts run
-automatically as part of `make ci` and `make ci-fast`.
+automatically as part of `make ci`, `make ci-fast`, and `make ci-ui-fast`.
 
 ## Mocking Requirements
 
@@ -269,6 +269,7 @@ def test_save_file():
 ```bash
 # Fast tests (default for development)
 make ci-fast               # No coverage, fastest (~6-10 min)
+make ci-ui-fast            # Like ci-fast but Playwright instead of Python tests/e2e (viewer-heavy)
 
 # Individual test suites
 make test-unit            # Unit tests only (~2-5 min)
@@ -298,6 +299,7 @@ pytest -k "test_whisper" -v  # Run tests matching pattern
 ```text
 Changed code?
 ├─ Docs only? → No tests needed
+├─ Viewer UI only (`web/gi-kg-viewer/`, no Python `tests/e2e`)? → make ci-ui-fast
 ├─ Unit tests only? → make ci-fast
 ├─ ML code changed?
 │  ├─ Integration ML? → make ci-fast + make test-integration-slow

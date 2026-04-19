@@ -1,4 +1,4 @@
-"""Hybrid MAP-REDUCE provider (RFC-042).
+"""Hybrid MAP-REDUCE provider.
 
 Implements issue #352: classic summarizer MAP phase (compression) and
 instruction-tuned REDUCE phase (abstraction + structure).
@@ -346,7 +346,7 @@ class LlamaCppReduceBackend:
 
 
 class HybridMLProvider:
-    """Hybrid MAP-REDUCE summarization provider (RFC-042)."""
+    """Hybrid MAP-REDUCE summarization provider."""
 
     cleaning_processor: TranscriptCleaningProcessor  # Type annotation for mypy
 

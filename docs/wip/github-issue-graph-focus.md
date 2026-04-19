@@ -16,7 +16,7 @@ note](https://github.com/chipi/podcast_scraper/blob/main/docs/rfc/RFC-072-canoni
 ## What landed (Phase 0)
 
 - Shared helper: `web/gi-kg-viewer/src/utils/cilGraphFocus.ts`
-- Wired from **Digest Recent** CIL pills and **Episode rail** canonical topic pills so
+- Wired from **Digest Recent** CIL pills and **Episode subject rail** canonical topic pills so
   clustered pills pass `tc:…` into `pendingFocusCameraIncludeRawIds` (same contract as
   Search transcript/KG hits that pass a compound for camera bbox).
 - Vitest: `web/gi-kg-viewer/src/utils/cilGraphFocus.test.ts`
@@ -38,5 +38,5 @@ note](https://github.com/chipi/podcast_scraper/blob/main/docs/rfc/RFC-072-canoni
 
 - [ ] Remaining entry surfaces documented or refactored through `cilGraphFocus` (or a
       single documented module family).
-- [ ] No regression: Digest CIL pill + Episode rail pill + Search “go graph” still work
+- [ ] No regression: Digest CIL pill + Episode subject rail pill + Search “go graph” still work
       on fixture corpora.

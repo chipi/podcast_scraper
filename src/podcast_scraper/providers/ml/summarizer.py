@@ -402,7 +402,7 @@ DEFAULT_SUMMARY_MODELS = {
     "long-large": "allenai/led-large-16384",
     # LED-base (long docs 16k tokens, ~1GB), NO chunking (production baseline reduce model)
     "long-fast": "allenai/led-base-16384",
-    # LongT5 (8k tokens, ~1GB/2.5GB), medium-long docs (RFC-042 MAP option)
+    # LongT5 (8k tokens, ~1GB/2.5GB), medium-long docs
     "longt5-base": "google/long-t5-tglobal-base",
     "longt5-large": "google/long-t5-tglobal-large",
 }
@@ -529,7 +529,7 @@ def remove_sponsor_blocks(text: str) -> str:
     Duplicate of preprocessing.core.remove_sponsor_blocks — this copy is
     called by cleaning_v4 profile in summarize_long_text. Hybrid ML with
     pattern workflow cleaning uses cleaning_hybrid_after_pattern to avoid
-    duplicate sponsor passes (Issue #419). RFC-060 Phase 1 will consolidate
+    duplicate sponsor passes (Issue #419). Future work will consolidate
     into a single CommercialDetector where duplication remains.
 
     Args:

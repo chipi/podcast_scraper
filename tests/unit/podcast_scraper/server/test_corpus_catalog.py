@@ -1,4 +1,4 @@
-"""Unit tests for Corpus Library catalog scan (RFC-067)."""
+"""Unit tests for Corpus Library catalog scan."""
 
 from __future__ import annotations
 

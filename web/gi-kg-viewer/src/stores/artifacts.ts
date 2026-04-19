@@ -24,9 +24,9 @@ export const useArtifactsStore = defineStore('artifacts', () => {
   const corpusPath = ref('')
   const selectedRelPaths = ref<string[]>([])
   const parsedList = ref<ParsedArtifact[]>([])
-  /** RFC-072 bridge.json for the current corpus selection (optional). */
+  /** bridge.json for the current corpus selection (optional). */
   const bridgeDocument = ref<BridgeDocument | null>(null)
-  /** RFC-075 ``topic_clusters.json`` from the API when present (API load only). */
+  /** ``topic_clusters.json`` from the API when present (API load only). */
   const topicClustersDoc = ref<TopicClustersDocument | null>(null)
   /**
    * How the last load obtained topic clusters: API success, 404, error, local file picker (no API JSON),
@@ -78,7 +78,7 @@ export const useArtifactsStore = defineStore('artifacts', () => {
 
   /**
    * Fetch ``/api/corpus/topic-clusters`` for the current ``corpusPath`` (no artifact load required).
-   * Safe to call as soon as corpus root + healthy API are known so **API · Data** can show status.
+   * Safe to call as soon as corpus root + healthy API are known so the Dashboard corpus workspace can show status.
    */
   async function syncTopicClustersForCurrentCorpus(): Promise<void> {
     const root = corpusPath.value.trim()

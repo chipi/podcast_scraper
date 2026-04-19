@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSearchStore } from '../../stores/search'
 import { useShellStore } from '../../stores/shell'
+import { useSubjectStore } from '../../stores/subject'
 import type { SearchHit } from '../../api/searchApi'
 import { graphNodeIdFromSearchHit } from '../../utils/searchFocus'
 import { sourceMetadataRelativePathFromSearchHit } from '../../utils/searchHitLibrary'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const search = useSearchStore()
 const nav = useGraphNavigationStore()
+const subject = useSubjectStore()
 
 const queryRef = ref<HTMLTextAreaElement | null>(null)
 const advancedDialogRef = ref<HTMLDialogElement | null>(null)
@@ -122,7 +124,7 @@ function toggleType(v: string): void {
   }
 }
 
-/** RFC-075: optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
+/** Optional ``tc:…`` compound to widen the graph camera bbox (selection stays on the leaf). */
 function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
   const tc = hit.metadata?.topic_cluster
   if (tc == null || typeof tc !== 'object') return null
@@ -133,6 +135,7 @@ function topicClusterCompoundIdForCamera(hit: SearchHit): string | null {
 function onFocusHit(hit: SearchHit): void {
   const id = graphNodeIdFromSearchHit(hit)
   if (!id) return
+  subject.focusGraphNode(id)
   const tcParent = topicClusterCompoundIdForCamera(hit)
   nav.requestFocusNode(id, undefined, tcParent ? [tcParent] : undefined)
   emit('go-graph')
@@ -219,11 +222,12 @@ const advancedFeedInputTitle = computed(() => {
             window. Run <strong>Search</strong> for vector hits.
           </li>
           <li>
-            <strong>G</strong> — show on graph (GI/KG node); <strong>L</strong> — open the episode in
-            <strong>Library</strong> when the corpus path is set, the API is healthy, and the hit
-            includes <code class="rounded bg-canvas px-0.5 text-[10px]">source_metadata_relative_path</code>
-            (stamp it with a vector index rebuild). If Library routes are off, the Library tab may show
-            an error after you click <strong>L</strong>.
+            <strong>G</strong> — focus the mapped GI/KG node and switch to <strong>Graph</strong> when
+            needed; <strong>L</strong> — open the episode in the <strong>subject panel</strong> (main tab
+            unchanged) when the corpus path is set, the API is healthy, and the hit includes
+            <code class="rounded bg-canvas px-0.5 text-[10px]">source_metadata_relative_path</code>
+            (stamp it with a vector index rebuild). Catalog errors for that episode still surface on the
+            <strong>Library</strong> tab if you open it separately.
           </li>
           <li>
             <strong>Search result insights</strong> (after a search) — one scrollable modal: dominant-type
@@ -457,7 +461,7 @@ const advancedFeedInputTitle = computed(() => {
         <p
           v-if="search.liftStats && search.liftStats.transcript_hits_returned > 0"
           class="text-[10px] text-muted"
-          title="RFC-072 lift coverage for this result page (transcript rows returned vs rows with a linked GI insight)."
+          title="Transcript lift coverage for this result page (rows returned vs rows with a linked GI insight)."
         >
           Lift:
           {{ search.liftStats.lift_applied }} /

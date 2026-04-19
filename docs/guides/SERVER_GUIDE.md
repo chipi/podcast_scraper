@@ -8,22 +8,21 @@ The FastAPI server layer for the GI/KG viewer and future platform APIs.
 the same Python library that powers the CLI, service API, and batch workflows
 also backs an HTTP server.
 The server exposes corpus artifacts, **semantic search**, **GI explore**,
-**RFC-072 CIL cross-layer queries** (person/topic arcs over `*.bridge.json` + GI/KG siblings),
+**Cross-layer CIL queries** (person/topic arcs over `*.bridge.json` + GI/KG siblings),
 **Corpus Library** catalog APIs, and **vector index** stats / rebuild controls
 through a JSON API consumed by the Vue 3 SPA
 ([`web/gi-kg-viewer/`][viewer-readme]).
 
 **Corpus lifecycle:** routes read **current** files under the configured corpus root.
-Re-running extraction, the bridge builder, or RFC-075 clustering can change canonical ids
-and cluster compounds; responses are not pinned to an older ingest. See [RFC-072 —
-Operational note](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance).
+Re-running extraction, the bridge builder, or corpus topic clustering can change canonical ids
+and cluster compounds; responses are not pinned to an older ingest. See [Operational note (canonical identity)](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md#operational-note-re-pipeline-enrichment-and-read-path-stance).
 
 **Repo layout:** Python at the root, Node UI in `web/gi-kg-viewer/`. See
 [Polyglot repository guide](POLYGLOT_REPO_GUIDE.md) for env files and Makefile targets (`make serve`,
 `make test-ui`, etc.).
 
-The server was introduced by
-[RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
+The server is described in
+[GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
 [`src/podcast_scraper/server/`][server-pkg].
 Route groups are additive: **viewer routes** ship in **v2.6.0** (artifacts,
 search, explore, index stats/rebuild, corpus library); **platform routes**
@@ -63,7 +62,7 @@ podcast serve --output-dir /path/to/corpus/output
 Navigate to <http://127.0.0.1:8000>.
 Set **Corpus root folder** in the UI to the same `--output-dir` path,
 then **List files**, select artifacts, and **Load selected into graph**.
-Use the **Library** tab to browse feeds and episodes (Corpus Library, RFC-067).
+Use the **Library** tab to browse feeds and episodes (Corpus Library).
 
 ## Architecture
 
@@ -98,11 +97,11 @@ routes/
   index_rebuild.py   # viewer — POST /index/rebuild (background job)
   search.py          # viewer — semantic corpus search
   explore.py         # viewer — GI explore + UC4 NL query
-  cil.py             # viewer — CIL position arc, person profile, topic timeline (#527 / RFC-072)
-  corpus_library.py  # viewer — /corpus/* catalog + similar episodes (RFC-067)
+  cil.py             # viewer — CIL position arc, person profile, topic timeline (#527)
+  corpus_library.py  # viewer — /corpus/* catalog + similar episodes
   corpus_text_file.py # viewer — GET /corpus/text-file (transcript / caption files under corpus root)
-  corpus_digest.py   # viewer — GET /corpus/digest (RFC-068)
-  corpus_topic_clusters.py   # viewer — GET /corpus/topic-clusters (RFC-075)
+  corpus_digest.py   # viewer — GET /corpus/digest
+  corpus_topic_clusters.py   # viewer — GET /corpus/topic-clusters
   platform/          # placeholder stubs (feeds, episodes, jobs, status)
 ```
 
@@ -135,34 +134,34 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 
 | Method | Path | Tag | Description | Key query params |
 | ------ | ---- | --- | ----------- | ---------------- |
-| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api` (RFC-067/068). Omit digest flag on older builds → clients treat digest as unavailable. | — |
+| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api`. Omit digest flag on older builds → clients treat digest as unavailable. | — |
 | GET | `/api/artifacts` | artifacts | List `*.gi.json` and `*.kg.json` (recursive); each item includes `mtime_utc` (#507). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
 | GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
 | POST | `/api/index/rebuild` | index | Queue background `index_corpus` (202); mutex per corpus. Poll `GET /api/index/stats`. | `path`, `rebuild`, `embedding_model`, `vector_index_path`, `vector_faiss_index_mode`, `vector_index_types` (comma-separated) |
 | GET | `/api/search` | search | Semantic corpus search via FAISS + sentence embeddings. **Transcript** hits may include optional **`lifted`**: overlapping **Quote** → **Insight** plus **speaker** / **topic** display names from **`bridge.json`** when present ([Semantic Search Guide — lift](SEMANTIC_SEARCH_GUIDE.md#chunk-to-insight-lift-and-offset-verification-rfc-072--528)). **Insight** hits may include **`supporting_quotes`** (from indexer enrichment): quote **`speaker_id`** / **`speaker_name`** mirror **`.gi.json`** — often **`null`** / absent when segments lack diarization labels (GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); canonical rules: [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)). Successful responses include optional **`lift_stats`**: **`transcript_hits_returned`** and **`lift_applied`** for the returned page (after `top_k`). | `q` (required), `path`, `type`, `feed`, `since`, `speaker`, `grounded_only`, `top_k`, `embedding_model`, `dedupe_kg_surfaces` (default `true`: merge same-text `kg_entity` / `kg_topic` rows) |
 | GET | `/api/explore` | explore | GI cross-episode explore (filter mode) or UC4 natural-language query. Insight rows may include **`supporting_quotes`** with **`speaker_id`** / **`speaker_name`** mirroring **`.gi.json`** (often absent without diarization — GitHub [#541](https://github.com/chipi/podcast_scraper/issues/541); [Development Guide — GI quote `speaker_id`](DEVELOPMENT_GUIDE.md#gi-quote-speaker-id)). | `path`, `question` / `q`, `topic`, `speaker`, `grounded_only`, `min_confidence`, `sort_by`, `limit`, `strict` |
-| GET | `/api/persons/{person_id}/positions` | cil | Position arc — chronological insights for a **person** and **topic** across episodes (RFC-072 Pattern A). Scans `**/*.bridge.json` with sibling GI/KG. | `topic` (required), `path`, `insight_types` (comma-separated; omit → `claim` only; `all` / `*` → no filter) |
-| GET | `/api/persons/{person_id}/brief` | cil | Person profile — insights grouped by topic plus quotes for that person (RFC-072 Pattern B). | `path` |
+| GET | `/api/persons/{person_id}/positions` | cil | Position arc — chronological insights for a **person** and **topic** across episodes. Scans `**/*.bridge.json` with sibling GI/KG. | `topic` (required), `path`, `insight_types` (comma-separated; omit → `claim` only; `all` / `*` → no filter) |
+| GET | `/api/persons/{person_id}/brief` | cil | Person profile — insights grouped by topic plus quotes for that person. | `path` |
 | GET | `/api/persons/{person_id}/topics` | cil | Distinct topic ids for that person (from brief keys). | `path` |
-| GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode (RFC-072 Pattern C). Each episode may include `episode_title`, `feed_title`, `episode_number`, and artwork fields (`episode_image_url`, `episode_image_local_relpath`, `feed_image_url`, `feed_image_local_relpath`) from sibling `*.metadata.json`. | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
+| GET | `/api/topics/{topic_id}/timeline` | cil | Topic timeline — insights about the topic per episode. Each episode may include `episode_title`, `feed_title`, `episode_number`, and artwork fields (`episode_image_url`, `episode_image_local_relpath`, `feed_image_url`, `feed_image_local_relpath`) from sibling `*.metadata.json`. | `path`, `insight_types` (omit → all types; `all` / `*` → all) |
 | POST | `/api/topics/timeline` | cil | **Merged** topic timeline — same Pattern C rules as GET, but **one** corpus scan for **multiple** `topic_ids` in the JSON body (cluster scope). Response includes `topic_ids` (deduped, canonical order) and `episodes` (merged per `episode_id`, insight nodes deduped). | JSON body: `topic_ids` (required), `path` (optional if default output dir), `insight_types` (optional; same semantics as GET) |
 | GET | `/api/topics/{topic_id}/persons` | cil | Distinct `person:` ids that discuss the topic via grounded quotes. | `path` |
-| POST | `/api/corpus/resolve-episode-artifacts` | corpus | Map logical **`episode_id`** values (from metadata) to corpus-relative **`gi_relative_path`** / **`kg_relative_path`** / **`bridge_relative_path`** from one catalog scan. Rows without GI on disk are listed in **`missing_episode_ids`**. The GI/KG viewer’s topic-cluster **sibling auto-load** builds candidate ids from RFC-075 **`topic_clusters.json`** → **`clusters[].members[].episode_ids`** (union per touched cluster). | JSON body: `episode_ids` (required), `path` (optional if server default set) |
-| POST | `/api/corpus/node-episodes` | corpus | RFC-076 **progressive graph expansion**: for a canonical **`node_id`** (`person:`, `org:`, or `topic:`), scan **`*.bridge.json`** bundles (no full triple-read), then resolve sibling **`*.gi.json`** / **`*.kg.json`** by stem. Returns **`episodes`** (metadata-relative paths when present, optional **`episode_id`**, GI/KG flags) and **`truncated`** when the cap is hit. The GI/KG viewer uses this on eligible nodes (**double-tap** expand). | JSON body: `node_id` (required), `path` (optional if server default set), `limit` (optional cap) |
+| POST | `/api/corpus/resolve-episode-artifacts` | corpus | Map logical **`episode_id`** values (from metadata) to corpus-relative **`gi_relative_path`** / **`kg_relative_path`** / **`bridge_relative_path`** from one catalog scan. Rows without GI on disk are listed in **`missing_episode_ids`**. The GI/KG viewer’s topic-cluster **sibling auto-load** builds candidate ids from **`topic_clusters.json`** → **`clusters[].members[].episode_ids`** (union per touched cluster). | JSON body: `episode_ids` (required), `path` (optional if server default set) |
+| POST | `/api/corpus/node-episodes` | corpus | **Progressive graph expansion** (cross-episode): for a canonical **`node_id`** (`person:`, `org:`, or `topic:`), scan **`*.bridge.json`** bundles (no full triple-read), then resolve sibling **`*.gi.json`** / **`*.kg.json`** by stem. Returns **`episodes`** (metadata-relative paths when present, optional **`episode_id`**, GI/KG flags) and **`truncated`** when the cap is hit. The GI/KG viewer uses this on eligible nodes (**double-tap** expand). | JSON body: `node_id` (required), `path` (optional if server default set), `limit` (optional cap) |
 | GET | `/api/corpus/feeds` | corpus | Aggregate feeds from episode metadata under the corpus root. | `path` (optional if server default set) |
-| GET | `/api/corpus/episodes` | corpus | Paginated episode list (newest-first scan); optional filters. Each item includes **`cil_digest_topics`** as an **empty** array (CIL pills are returned on **digest** rows and **episode detail** only, to avoid per-row bridge reads in the list). GI/KG path fields support graph loads after opening an episode. When **`topic_cluster_only=true`**, the server keeps rows whose **`bridge.json`** topic appears on an RFC-075 multi-member cluster **member** that lists this episode's **`episode_id`** in **`members[].episode_ids`** (reads **`search/topic_clusters.json`** per request; pipeline-built clusters include those ids). | `path`, `feed_id`, `q` (title substring), `topic_q`, `since` (`YYYY-MM-DD`), `topic_cluster_only` (boolean), `limit` (1–200), `cursor` |
+| GET | `/api/corpus/episodes` | corpus | Paginated episode list (newest-first scan); optional filters. Each item includes **`cil_digest_topics`** as an **empty** array (CIL pills are returned on **digest** rows and **episode detail** only, to avoid per-row bridge reads in the list). GI/KG path fields support graph loads after opening an episode. When **`topic_cluster_only=true`**, the server keeps rows whose **`bridge.json`** topic appears on a multi-member topic-cluster **member** that lists this episode's **`episode_id`** in **`members[].episode_ids`** (reads **`search/topic_clusters.json`** per request; pipeline-built clusters include those ids). | `path`, `feed_id`, `q` (title substring), `topic_q`, `since` (`YYYY-MM-DD`), `topic_cluster_only` (boolean), `limit` (1–200), `cursor` |
 | GET | `/api/corpus/episodes/detail` | corpus | Episode row + summary bullets + GI/KG/bridge paths + **`cil_digest_topics`** (same shape as list / digest). | `path`, `metadata_relpath` (required) |
 | GET | `/api/corpus/episodes/similar` | corpus | FAISS semantic peers for an episode; **200** with `error` when index missing. | `path`, `metadata_relpath` (required), `top_k` (1–25) |
-| GET | `/api/corpus/digest` | corpus | Feed-diverse **recent episodes** (metadata + GI/KG flags), optional **`cil_digest_topics`** per row (bridge + RFC-075 cluster order; omitted when `compact=true`), and optional **semantic topic** bands (RFC-068). `compact=true` forces 24h, smaller cap, no topic bands and no CIL pill enrichment. | `path`, `window` (`24h` / `7d` / `1mo` / `since`), `since` (required if `window=since`; `1mo` = previous **calendar month**, UTC), `compact`, `include_topics`, `max_rows` |
-| GET | `/api/corpus/topic-clusters` | corpus | RFC-075 **topic clustering** artifact: returns `search/topic_clusters.json` when present (**404** with `available: false` when missing). | `path` (optional if server default set) |
+| GET | `/api/corpus/digest` | corpus | Feed-diverse **recent episodes** (metadata + GI/KG flags), optional **`cil_digest_topics`** per row (bridge + topic-cluster order; omitted when `compact=true`), and optional **semantic topic** bands. `compact=true` forces 24h, smaller cap, no topic bands and no CIL pill enrichment. | `path`, `window` (`24h` / `7d` / `1mo` / `since`), `since` (required if `window=since`; `1mo` = previous **calendar month**, UTC), `compact`, `include_topics`, `max_rows` |
+| GET | `/api/corpus/topic-clusters` | corpus | **Topic clustering** artifact: returns `search/topic_clusters.json` when present (**404** with `available: false` when missing). | `path` (optional if server default set) |
 | GET | `/api/corpus/text-file` | corpus | Inline file under the corpus root for browser viewing (`.txt`, `.md`, `.vtt`, `.srt`, `.json`). Graph **Quote** node detail uses this for the in-app transcript viewer and the **Open raw transcript in new tab** header link. Pipeline runs that **direct-download** WebVTT/SubRip normalize to **`transcripts/… .txt`** (plus `*.segments.json` for GI timing); metadata usually points at that `.txt`. If `relpath` ends with `.txt` (and is not already `*.cleaned.txt`) and that file is missing, the server tries the sibling `stem.cleaned.txt` (metadata often still references the raw Whisper path). | `path` (optional if server default set), `relpath` (required) |
 | GET | `/api/corpus/stats` | corpus | **Publish-month** histogram (`YYYY-MM` → episode count) from one catalog scan; GI/KG Dashboard. | `path` |
 | GET | `/api/corpus/documents/manifest` | corpus | Return `corpus_manifest.json` at corpus root (**404** if missing). | `path` |
 | GET | `/api/corpus/documents/run-summary` | corpus | Return `corpus_run_summary.json` at corpus root (**404** if missing). | `path` |
 | GET | `/api/corpus/runs/summary` | corpus | Discover `run.json` under the tree (capped), compact metrics per file for Dashboard. | `path` |
 
-Design and response field semantics: [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
+Design and response field semantics: [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 
 ### Response models
 
@@ -357,7 +356,7 @@ NL modes), and app factory edge cases. Marked `@pytest.mark.integration`.
 
 Additional integration modules under `tests/integration/server/` include
 `test_viewer_corpus_library.py` (Corpus Library routes),
-`test_viewer_corpus_digest.py` (`GET /api/corpus/digest`, RFC-068),
+`test_viewer_corpus_digest.py` (`GET /api/corpus/digest`),
 `test_cil_api.py` (CIL `/api/persons/*` and `/api/topics/*` routes),
 `test_index_rebuild.py` (`POST /api/index/rebuild` gate and acceptance),
 `test_viewer_index_stats.py`, `test_viewer_api.py`, `test_server_app.py`, and
@@ -433,9 +432,9 @@ viewer routes.
 
 | Document | Description |
 | -------- | ----------- |
-| [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md) | GI/KG viewer v2 design (milestones, success criteria). |
-| [RFC-067](../rfc/RFC-067-corpus-library-api-viewer.md) | Corpus Library catalog API and viewer integration. |
-| [RFC-068](../rfc/RFC-068-corpus-digest-api-viewer.md) | Corpus Digest API & viewer (`GET /api/corpus/digest`, Digest tab, Library glance). |
+| [GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) | Viewer design (milestones, success criteria). |
+| [Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md) | Catalog API and viewer integration. |
+| [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) | Digest API & viewer (`GET /api/corpus/digest`, Digest tab, Library glance). |
 | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical server layer with feature-flagged route groups. |
 | [ADR-065](../adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md) | Vue 3 + Vite + Cytoscape.js frontend stack decision. |
 | [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) | Playwright for UI E2E testing. |
@@ -450,4 +449,4 @@ viewer routes.
 
 **Version:** 1.1
 **Created:** 2026-04-04
-**Updated:** 2026-04-10 — v2.6.0 Corpus Library routes, integration test paths, RFC-067/068 links
+**Updated:** 2026-04-10 — v2.6.0 Corpus Library routes, integration test paths, digest/library doc links

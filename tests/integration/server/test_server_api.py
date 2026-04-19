@@ -1,4 +1,4 @@
-"""Integration tests for the FastAPI server (RFC-062).
+"""Integration tests for the FastAPI server.
 
 These tests exercise the wired application with real filesystem artifacts
 (no mocking of route internals). Skipped when ``fastapi`` is not installed.

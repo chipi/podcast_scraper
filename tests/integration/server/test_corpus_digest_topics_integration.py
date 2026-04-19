@@ -1,4 +1,4 @@
-"""Integration: digest semantic topic bands (RFC-068) when search returns hits."""
+"""Integration: digest semantic topic bands when search returns hits."""
 
 from __future__ import annotations
 

@@ -6,7 +6,7 @@ import {
   fetchCorpusFeeds,
   fetchCorpusSimilarEpisodes,
   fetchNodeEpisodes,
-  RFC076_EXPAND_MAX_EPISODES,
+  GRAPH_NODE_EPISODES_EXPAND_MAX,
 } from './corpusLibraryApi'
 
 function expectFetchCalledWithUrl(expectedUrl: string): void {
@@ -225,7 +225,7 @@ describe('corpusLibraryApi', () => {
       )
     })
 
-    it('includes RFC076 default expand cap when passing RFC076_EXPAND_MAX_EPISODES', async () => {
+    it('includes default graph expand max when passing GRAPH_NODE_EPISODES_EXPAND_MAX', async () => {
       const payload = {
         path: '/c',
         node_id: 'topic:x',
@@ -234,11 +234,11 @@ describe('corpusLibraryApi', () => {
         total_matched: null,
       }
       mockFetchJson(true, payload)
-      await fetchNodeEpisodes('/c', 'topic:x', RFC076_EXPAND_MAX_EPISODES)
+      await fetchNodeEpisodes('/c', 'topic:x', GRAPH_NODE_EPISODES_EXPAND_MAX)
       expect(JSON.parse((vi.mocked(fetch).mock.calls[0][1] as RequestInit).body as string)).toEqual({
         path: '/c',
         node_id: 'topic:x',
-        max_episodes: RFC076_EXPAND_MAX_EPISODES,
+        max_episodes: GRAPH_NODE_EPISODES_EXPAND_MAX,
       })
     })
   })

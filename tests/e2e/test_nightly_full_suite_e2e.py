@@ -27,7 +27,7 @@ from tests.conftest import create_test_config
 def create_nightly_config(output_dir: str, rss_url: str):
     """Create config for nightly tests.
 
-    Mirrors production summarization via ``PROD_DEFAULT_SUMMARY_MODE_ID`` (RFC-044):
+    Mirrors production summarization via ``PROD_DEFAULT_SUMMARY_MODE_ID``:
     registry ``ml_prod_authority_v1`` supplies MAP/REDUCE models and generation defaults
     when ``summary_mode_precedence`` is ``mode``. Explicit ``summary_model`` /
     ``summary_reduce_model`` are omitted so tests do not fight mode resolution.

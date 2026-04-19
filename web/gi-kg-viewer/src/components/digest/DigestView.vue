@@ -14,7 +14,7 @@ import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useCorpusLensStore } from '../../stores/corpusLens'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useSubjectStore } from '../../stores/subject'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import {
@@ -42,7 +42,7 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
 const graphNav = useGraphNavigationStore()
-const episodeRail = useEpisodeRailStore()
+const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
 const { sinceYmd, activePreset } = storeToRefs(corpusLens)
 
@@ -209,16 +209,16 @@ function digestCardAriaLabel(row: CorpusDigestRow): string {
   return `${row.episode_title}, ${episodeFeedLabel(row)}`
 }
 
-/** Match Library list: `bg-overlay` when this episode is open in the Episode rail. */
+/** Match Library list: `bg-overlay` when this episode is open in the Episode subject rail. */
 function isDigestRowSelected(row: CorpusDigestRow): boolean {
   const p = row.metadata_relative_path?.trim()
-  const cur = episodeRail.metadataRelativePath?.trim()
+  const cur = subject.episodeMetadataPath?.trim()
   return Boolean(p && cur && p === cur)
 }
 
 function isTopicHitSelected(h: CorpusDigestTopicHit): boolean {
   const p = h.metadata_relative_path?.trim()
-  const cur = episodeRail.metadataRelativePath?.trim()
+  const cur = subject.episodeMetadataPath?.trim()
   return Boolean(p && cur && p === cur)
 }
 
@@ -299,9 +299,9 @@ async function loadDigest(): Promise<void> {
       return
     }
     digest.value = d
-    const path = episodeRail.metadataRelativePath?.trim()
+    const path = subject.episodeMetadataPath?.trim()
     if (path && !digestCoversMetadataPath(path)) {
-      episodeRail.clearEpisodeContext()
+      subject.clearSubject()
     }
   } catch (e) {
     if (digestLoadGate.isStale(seq)) {

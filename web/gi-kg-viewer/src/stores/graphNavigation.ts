@@ -9,7 +9,7 @@ export const useGraphNavigationStore = defineStore('graphNavigation', () => {
   /** Raw episode / node ids (e.g. metadata ``episode_id``) → yellow ``search-hit`` ring on graph. */
   const libraryHighlightSourceIds = ref<string[]>([])
   /**
-   * Optional extra graph ids (e.g. RFC-075 ``tc:…`` compound) to include in the camera ``center``
+   * Optional extra graph ids (e.g. topic-cluster ``tc:…`` compound) to include in the camera ``center``
    * bbox when applying pending focus; selection stays on the primary node only.
    */
   const pendingFocusCameraIncludeRawIds = ref<string[]>([])

@@ -3,7 +3,7 @@
 This module generates formatted, human-readable reports from metrics and comparisons.
 Reports can be printed to console or saved to files (Markdown, plain text).
 
-This implements RFC-015 Phase 2: Generate human-readable evaluation reports.
+This implements human-readable evaluation report generation.
 """
 
 from __future__ import annotations

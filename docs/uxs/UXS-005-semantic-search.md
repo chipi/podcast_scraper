@@ -22,10 +22,15 @@
 
 ## Summary
 
-The semantic search panel provides FAISS-based corpus search within the viewer's
-right rail. This UXS defines the visual contract for the search form, advanced
-filters, result cards, and the search result insights modal. All tokens reference
-[UXS-001](UXS-001-gi-kg-viewer.md).
+The semantic search panel provides FAISS-based corpus search in the **left** shell
+column (**Semantic search** form with **Explore** below it in the same query column). This UXS defines
+the visual contract for the search form, advanced filters, result cards, and the
+search result insights modal. All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
+
+**Shell (#606):** Corpus path + offline **Files** live on the **status bar**; episode and graph-node
+detail live in the **right subject column**. Track shell IA in [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606)
+and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, update this **Active** UXS in the same PR — see
+[Living documents and ship boundary](index.md#living-documents-and-ship-boundary).
 
 **RFC-075:** When corpus clustering JSON is available, **Show on graph** from search still selects the
 **leaf** node id (e.g. `topic:…`) as today. The **graph node rail** shows **Topic cluster:** for Topic
@@ -34,7 +39,7 @@ nodes (Phase 1; see [UXS-004](UXS-004-graph-exploration.md)). **Search result ca
 id). **Show on graph** may widen the camera to include the **`tc:`** compound parent while keeping
 selection on the leaf.
 
-**API · Data (left rail):** Under the **Data** heading, the **first** card is **Topic clusters**.
+**Dashboard corpus workspace:** Under the **Data** heading (inside **`CorpusDataWorkspace`** on the **Dashboard** tab), the **first** card is **Topic clusters**.
 It reflects **`GET /api/corpus/topic-clusters`**
 as soon as **Corpus path** is set and **health** is OK — you do **not** need to wait for GI/KG
 artifacts to finish loading into the graph. While the request is in flight, **Status** shows **Checking…**.
@@ -131,3 +136,4 @@ search panel surfaces and selectors.
 | 2026-04-15 | Lifted hint only when **`lifted.quote`** has finite **`timestamp_*_ms`** (matches E2E) |
 | 2026-04-15 | #541: **No speaker detected** (graph + Search + Explore; semantics unchanged)          |
 | 2026-04-16 | Lifted GI: explicit same visible string as supporting quotes (**No speaker detected**) |
+| 2026-04-19 | Shell IA: left query column copy; topic clusters card under Dashboard workspace (#606) |

@@ -260,8 +260,8 @@ not replace it. Use MCP when:
 [`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
 is the **Playwright automation contract**, but it is also the best single reference for **expected
 accessible names, regions, entry paths, and disambiguation** (for example, scoping the semantic
-**Search** submit under the **Semantic search** section so it does not collide with the right-panel
-**Search** tab). Playwright MCP, Chrome DevTools MCP, and human manual repro all read essentially the
+**Search** submit under the **Semantic search** `section` (or `#search-q`) so it does not collide with
+the collapsed-left-column **Search** shortcut button or other **Search**-labeled controls). Playwright MCP, Chrome DevTools MCP, and human manual repro all read essentially the
 same **accessibility tree** as the test suite. When a spec fails, when an agent mis-clicks in a
 snapshot, or when you need a checklist for “what should appear next,” start from the surface map,
 then open the owning spec listed there. It does **not** replace UXS for visual design or the
@@ -527,7 +527,7 @@ unfamiliar UI states, complex multi-step reproduction.
 
 ### UC-1: Feature done → write specs → green gate
 
-**Problem:** You finish a UI feature (new Episode rail, Dashboard chart, search
+**Problem:** You finish a UI feature (new Episode subject rail, Dashboard chart, search
 filter). You need to validate it works and doesn't break anything — the same way
 `make test` validates Python changes.
 
@@ -573,10 +573,10 @@ proper spec.
 **Scenario B — feature:** You want to add a "Prefill search" button to the Episode
 detail rail.
 
-1. You're in Chrome, looking at the Episode rail in the Library tab
+1. You're in Chrome, looking at the Episode subject rail in the Library tab
 2. "Add a 'Prefill search' button below the episode title. When clicked, it should
    fill the search box with the episode title."
-3. Agent sees the rail DOM, edits `EpisodeRail.vue`, adds the button + store wiring
+3. Agent sees the rail DOM, edits `EpisodeDetailPanel.vue`, adds the button + store wiring
 4. Vite reloads — button appears in your browser
 5. You click it — search box fills — "works, but put it next to 'Open in graph'"
 6. Agent moves it, reload, you confirm

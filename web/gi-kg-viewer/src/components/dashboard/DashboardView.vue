@@ -22,11 +22,16 @@ import { formatBytes, formatUtcDateTimeForDisplay } from '../../utils/formatting
 import { computeArtifactMetrics } from '../../utils/metrics'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import CategoryLineChart from './CategoryLineChart.vue'
+import CorpusDataWorkspace from './CorpusDataWorkspace.vue'
 import MultiSeriesLineChart from './MultiSeriesLineChart.vue'
 import SimpleDoughnutChart from './SimpleDoughnutChart.vue'
 import StackedStageBarChart from './StackedStageBarChart.vue'
 import TypeCountBarChart from './TypeCountBarChart.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
+
+const emit = defineEmits<{
+  'go-graph': []
+}>()
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
@@ -465,7 +470,7 @@ const indexRebuildNotes = computed((): string[] => {
     }
   } else if (env.reindex_recommended) {
     notes.push(
-      'Reindex recommended; open API · Data → Vector index for actions and detailed reason codes.',
+      'Reindex recommended; open Dashboard → Data → Vector index for actions and detailed reason codes.',
     )
   }
   return notes
@@ -520,7 +525,7 @@ const insightIndexFeedsVsCatalog = computed(() => {
   if (nIdx < cat) {
     return `Index lists fewer feeds (${nIdx}) than the catalog (${cat}) — some feeds may lack indexed chunks yet.`
   }
-  return `Index lists more feed ids (${nIdx}) than distinct catalog feeds (${cat}) — check id normalization in API · Data.`
+  return `Index lists more feed ids (${nIdx}) than distinct catalog feeds (${cat}) — check id normalization in the Dashboard corpus workspace.`
 })
 
 const digestGlanceLine = computed(() => {
@@ -667,9 +672,9 @@ watch(
 <template>
   <div class="space-y-4">
     <p class="text-xs text-muted">
-      Corpus root, catalog snapshot, graph metrics, and vector index live under
-      <span class="font-medium text-surface-foreground">API · Data</span>
-      in the left panel.
+      Set the corpus path on the status bar. Corpus root, catalog snapshot, graph metrics, and vector index are in the
+      <span class="font-medium text-surface-foreground">Corpus artifacts</span>
+      workspace below.
       <span class="font-medium text-surface-foreground">Pipeline</span>
       covers runs and throughput;
       <span class="font-medium text-surface-foreground">Content intelligence</span>
@@ -687,6 +692,8 @@ watch(
     >
       {{ dashError }}
     </p>
+
+    <CorpusDataWorkspace @go-graph="emit('go-graph')" />
 
     <div
       v-if="showCorpusSummaryStrip"

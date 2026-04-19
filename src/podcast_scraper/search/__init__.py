@@ -1,4 +1,4 @@
-"""Semantic corpus search: vector index layer (PRD-021 / RFC-061 / GitHub #484)."""
+"""Semantic corpus search: vector index layer."""
 
 from podcast_scraper.search.chunker import chunk_transcript, TranscriptChunk
 from podcast_scraper.search.faiss_store import FaissVectorStore

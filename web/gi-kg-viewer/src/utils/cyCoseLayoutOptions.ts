@@ -1,5 +1,5 @@
 /**
- * COSE layout tuning for RFC-075 topic clusters (`tc:…` compounds + member Topics).
+ * COSE layout tuning for corpus topic clusters (`tc:…` compounds + member Topics).
  *
  * Cytoscape CoSE lays out each compound child graph separately; we shorten ideal edge
  * length for edges whose endpoints share the same `tc:` parent (tighter members), raise
@@ -97,10 +97,52 @@ export function giKgCoseNodeRepulsion(node: NodeSingular, profile: 'main' | 'com
   )
 }
 
+/** Semantic ideal lengths (WIP §3.7); scaled down for compact profile vs main base. */
+function semanticIdealEdgeLengthPx(edgeType: string, profile: 'main' | 'compact'): number {
+  const mainBase = MAIN.idealEdgeLengthBase
+  const compactBase = COMPACT.idealEdgeLengthBase
+  const scale = profile === 'compact' ? compactBase / mainBase : 1
+  const scaled = (mainPx: number) => Math.max(24, Math.round(mainPx * scale))
+  switch (edgeType) {
+    case 'HAS_INSIGHT':
+      return scaled(60)
+    case 'ABOUT':
+      return scaled(80)
+    case 'SUPPORTED_BY':
+      return scaled(40)
+    case 'RELATED_TO':
+      return scaled(120)
+    case 'SPOKE_IN':
+      return scaled(100)
+    case 'MENTIONS':
+      return scaled(150)
+    default:
+      return profile === 'main' ? MAIN.idealEdgeLengthBase : COMPACT.idealEdgeLengthBase
+  }
+}
+
+function semanticEdgeElasticity(edgeType: string, profile: 'main' | 'compact'): number {
+  const mainMap: Record<string, number> = {
+    HAS_INSIGHT: 180,
+    ABOUT: 200,
+    SUPPORTED_BY: 150,
+    RELATED_TO: 100,
+    SPOKE_IN: 120,
+    MENTIONS: 60,
+  }
+  const v = mainMap[edgeType]
+  if (v == null) {
+    return profile === 'main' ? MAIN.edgeElasticity : COMPACT.edgeElasticity
+  }
+  if (profile === 'compact') {
+    return Math.max(40, Math.round(v * 0.8))
+  }
+  return v
+}
+
 export function giKgCoseIdealEdgeLength(edge: EdgeSingular, profile: 'main' | 'compact'): number {
   const s = edge.source()
   const t = edge.target()
-  const base = profile === 'main' ? MAIN.idealEdgeLengthBase : COMPACT.idealEdgeLengthBase
   const intra =
     profile === 'main'
       ? MAIN.idealEdgeLengthIntraTopicCluster
@@ -108,7 +150,18 @@ export function giKgCoseIdealEdgeLength(edge: EdgeSingular, profile: 'main' | 'c
   if (isIntraTopicClusterEdgeParents(normalizedParent(s), normalizedParent(t))) {
     return intra
   }
-  return base
+  const et = String(edge.data('edgeType') ?? '')
+  return semanticIdealEdgeLengthPx(et, profile)
+}
+
+export function giKgCoseEdgeElasticity(edge: EdgeSingular, profile: 'main' | 'compact'): number {
+  const s = edge.source()
+  const t = edge.target()
+  if (isIntraTopicClusterEdgeParents(normalizedParent(s), normalizedParent(t))) {
+    return profile === 'main' ? MAIN.edgeElasticity : COMPACT.edgeElasticity
+  }
+  const et = String(edge.data('edgeType') ?? '')
+  return semanticEdgeElasticity(et, profile)
 }
 
 export function giKgCoseLayoutOptionsMain(): Record<string, unknown> {
@@ -118,7 +171,7 @@ export function giKgCoseLayoutOptionsMain(): Record<string, unknown> {
     fit: MAIN.fit,
     nodeRepulsion: (node: NodeSingular) => giKgCoseNodeRepulsion(node, 'main'),
     idealEdgeLength: (edge: EdgeSingular) => giKgCoseIdealEdgeLength(edge, 'main'),
-    edgeElasticity: () => MAIN.edgeElasticity,
+    edgeElasticity: (edge: EdgeSingular) => giKgCoseEdgeElasticity(edge, 'main'),
     gravity: MAIN.gravity,
     nestingFactor: MAIN.nestingFactor,
     numIter: MAIN.numIter,
@@ -153,7 +206,7 @@ export function giKgCoseLayoutOptionsCompact(): Record<string, unknown> {
     animate: false,
     nodeRepulsion: (node: NodeSingular) => giKgCoseNodeRepulsion(node, 'compact'),
     idealEdgeLength: (edge: EdgeSingular) => giKgCoseIdealEdgeLength(edge, 'compact'),
-    edgeElasticity: () => COMPACT.edgeElasticity,
+    edgeElasticity: (edge: EdgeSingular) => giKgCoseEdgeElasticity(edge, 'compact'),
     gravity: COMPACT.gravity,
     nestingFactor: COMPACT.nestingFactor,
     nodeDimensionsIncludeLabels: COMPACT.nodeDimensionsIncludeLabels,

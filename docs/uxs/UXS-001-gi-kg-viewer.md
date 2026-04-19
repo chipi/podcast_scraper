@@ -37,6 +37,11 @@ Individual viewer surfaces (search, library, digest, graph, dashboard, topic ent
 view, enriched search) have their own UXS files for layout, density, and
 surface-specific rules. This file is the foundation they all build on.
 
+**InsightCard:** The reusable **InsightCard** layout for GIL insight rows (slots,
+tokens, accessibility) is specified below under **[Components → InsightCard (shared
+component)](#insightcard-shared-component)**. UXS-007, UXS-009, and UXS-010 reference
+that subsection instead of duplicating card rules.
+
 ---
 
 ## Principles
@@ -198,11 +203,13 @@ still derive from the tokens above.
   practical.
 - **Max content width:** **960px** for primary column content; graph area may be
   full viewport width.
-- **Right shell rail** (Search, Explore, Episode detail, graph node detail): fixed
-  width uses the default Tailwind scale — **`w-96`** (**24rem** / **384px** at
-  **16px** root) on the collapsible right column in `App.vue` when expanded (was
-  **`w-80`** / **20rem**). To tune further, change that class to another Tailwind
-  width (e.g. **`w-[28rem]`**) on the same element (desktop-only layout).
+- **Left query column** (Semantic search + Explore, stacked): collapsible **`w-72`**
+  rail in `App.vue` when expanded.
+- **Right subject column** (Episode detail, graph node detail, future topic/person): fixed
+  width **`w-96`** (**24rem** / **384px** at **16px** root) when expanded. To tune further,
+  change that class on the same element (desktop-only layout).
+- **Status bar** (corpus path, offline **Files**, health, index affordances): full-width footer
+  under the three-column row (`StatusBar.vue`, **`data-testid="app-status-bar"`**).
 - **Regions:** Header + lede + panel stack; graph pages use full-height canvas with
   overlays/panels that respect `surface` and `border`.
 
@@ -240,7 +247,7 @@ duration) belongs in RFC-062.
   Domain-specific success messages (e.g. "insights loaded") may lean on `gi` instead
   of generic `success`.
 
-### InsightCard (shared component)
+### InsightCard (shared component) {#insightcard-shared-component}
 
 The **InsightCard** is a reusable card component used across multiple feature UXSs
 (UXS-007, UXS-009, UXS-010) to display a GIL Insight with consistent visual
@@ -289,14 +296,29 @@ supplemented by text labels (colour is never the sole differentiator).
 
 ---
 
-## Corpus path (left Corpus tab)
+## Corpus path (status bar)
 
-- **Online (health ok):** Typing a corpus path triggers listing via
+- **Online (health ok):** Typing a corpus path in the **status bar** field triggers listing via
   `GET /api/artifacts` and loads every listed `.gi.json` / `.kg.json` into the merged
   graph automatically. **List** still refreshes the checkbox list; **Load into graph**
-  still applies the current selection.
-- **Offline:** Unchanged: **Choose files...** on **API / Data** loads local GI/KG
-  without the server.
+  still applies the current selection (same controls live on **Dashboard** inside
+  **`CorpusDataWorkspace`**, `data-testid="corpus-data-workspace"`).
+- **Offline:** **Files** on the **status bar** (or **Choose files…** inside the **Health** dialog)
+  loads local GI/KG without the server. The value persists in **`localStorage`** key **`ps_corpus_path`**.
+
+---
+
+## Shell keyboard shortcuts
+
+Implemented in `useViewerKeyboard.ts` (global handlers, not per-component ad hoc):
+
+- **Slash** — When focus is not in an editable control: expand the left query column if
+  needed and focus `#search-q`.
+- **Escape** — On the **Graph** main tab, when focus is not in an editable control: clear
+  graph interaction / transient selection state.
+- **G** / **L** on semantic search hits — Bound as **click targets on each result row**
+  (Show on graph / open episode in subject panel), **not** as document-level shortcuts, so
+  they do not fight the browser’s find shortcut or OS bindings.
 
 ---
 
@@ -332,6 +354,21 @@ DevTools; do not hard-code alternatives in component files.
 | Token names               | `canvas`, `surface`, `primary`, `gi`, etc. | Frozen | Names are the API; values are the theme        |
 | Pairing convention        | Every surface gets `-foreground`           | Frozen | Structural rule; not negotiable                |
 | Intent/domain separation  | Intent for UI; domain for GIL/KG           | Frozen | Structural rule; not negotiable                |
+
+**Graph canvas / layout (open, not in table above):** These ship in code today but are
+intentionally easy to tune without a UXS revision — see
+[`docs/wip/GRAPH-VISUAL-STYLING.md`](../wip/GRAPH-VISUAL-STYLING.md) and [UXS-004](UXS-004-graph-exploration.md).
+
+- **COSE semantic `idealEdgeLength`:** per `edgeType` in `cyCoseLayoutOptions.ts`, applied only
+  after the intra-`tc:` topic-cluster branch (that branch stays highest priority).
+- **COSE semantic `edgeElasticity`:** same file; inside `tc:` clusters the profile default applies.
+- **Label zoom thresholds:** `GraphCanvas.vue` — no labels when zoom is strictly below **0.5**;
+  short labels from **0.5** through **1.0**; full label above **1.0** (event-driven node classes,
+  not Cytoscape min-zoom stylesheet selectors).
+- **Topic degree heat `maxDegree`:** **30** in `GraphCanvas.vue` (WIP §4.3 cap).
+- **Rail minimap (`GraphNeighborhoodMiniMap.vue`):** Reuses **`buildGiKgCyStylesheet`**
+  **compact** + **`prefersReducedMotionQuery()`**, and **`syncGraphLabelTierClasses`**
+  after **`layoutstop`** / **fit** so label-tier rules match that instance’s zoom.
 
 ### How to experiment
 
@@ -387,3 +424,7 @@ search overlay.
 | 2026-04-06 | Status Active — viewer v2 implements this contract per RFC-062 |
 | 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs |
 | 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment) |
+| 2026-04-19 | Summary pointer to InsightCard subsection for discoverability |
+| 2026-04-17 | Open tunables for graph COSE semantics, label zoom tiers, Topic degree heat cap (GRAPH-VISUAL-STYLING) |
+| 2026-04-17 | Graph bullets: rail minimap shares reduced-motion + `syncGraphLabelTierClasses` with main canvas |
+| 2026-04-19 | Corpus path List/Load wording (Dashboard workspace); shell keyboard shortcuts (slash, Escape, row G/L) |

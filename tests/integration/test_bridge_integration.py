@@ -1,4 +1,4 @@
-"""Integration checks for RFC-072 bridge artifact assembly."""
+"""Integration checks for bridge artifact assembly."""
 
 from __future__ import annotations
 

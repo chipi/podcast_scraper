@@ -633,15 +633,13 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         "--monitor",
         action="store_true",
         dest="monitor",
-        help="Live resource/stage monitor subprocess (RFC-065; writes .pipeline_status.json)",
+        help="Live resource/stage monitor subprocess",
     )
     parser.add_argument(
         "--memray",
         action="store_true",
         dest="memray",
-        help=(
-            "Re-exec under memray for heap profiling (RFC-065 Phase 3; pip install -e '.[monitor]')"
-        ),
+        help=("Re-exec under memray for heap profiling"),
     )
     parser.add_argument(
         "--memray-output",
@@ -1255,7 +1253,7 @@ def _add_metadata_arguments(parser: argparse.ArgumentParser) -> None:
         "--vector-search",
         action=argparse.BooleanOptionalAction,
         default=None,
-        help="Enable/disable corpus vector indexing after pipeline finalize (RFC-061 / #484).",
+        help="Enable/disable corpus vector indexing after pipeline finalize.",
     )
     parser.add_argument(
         "--vector-backend",
@@ -1461,7 +1459,7 @@ def _add_summarization_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--summary-mode-id",
         default=None,
-        help="RFC-044 summarization mode ID (e.g., ml_prod_authority_v1). "
+        help="Summarization mode ID from the model registry (e.g., ml_prod_authority_v1). "
         "When set, providers can use promoted baseline defaults from the Model Registry.",
     )
     parser.add_argument(
@@ -1936,7 +1934,7 @@ def _parse_corpus_status_args(argv: Optional[Sequence[str]] = None) -> argparse.
     parser = argparse.ArgumentParser(
         description=(
             "Show corpus parent status: manifest, per-feed metadata counts, "
-            "index.json errors sample, unified search index (RFC-063 §7)."
+            "index.json errors sample, unified search index."
         ),
         prog="podcast_scraper corpus-status",
     )
@@ -2678,7 +2676,7 @@ def _run_gi_query(args: argparse.Namespace, logger: logging.Logger) -> int:
     result = run_uc4_semantic_qa(out_path, question.strip(), limit=limit, strict=strict)
     if result is None:
         logger.error(
-            "Question did not match a supported pattern (RFC-050 UC4). Examples: "
+            "Question did not match a supported pattern. Examples: "
             "'What insights about X?', 'What insights are there about X?', "
             "'What did Y say?', 'What did Y say about X?', "
             "'Which topics have the most insights?', 'Top topics'."
@@ -2994,7 +2992,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
     # gi query (UC4: tiny pattern map → explore RFC answer)
     query_parser = subparsers.add_parser(
         "query",
-        help="Natural-language question → matched explore result (RFC-050 UC4)",
+        help="Natural-language question → matched explore result",
     )
     query_parser.add_argument(
         "--question",
@@ -3032,7 +3030,7 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
 
     gi_exp = subparsers.add_parser(
         "export",
-        help="Export all gi.json under a run as NDJSON or merged JSON bundle (RFC-050 / kg parity)",
+        help="Export all gi.json under a run as NDJSON or merged JSON bundle",
     )
     gi_exp.add_argument(
         "--output-dir",
@@ -3069,7 +3067,7 @@ def _parse_kg_args(kg_argv: Sequence[str]) -> argparse.Namespace:
     """Parse 'kg' subcommand arguments (validate, inspect, export, entities, topics)."""
     parser = argparse.ArgumentParser(
         prog="podcast_scraper kg",
-        description="Knowledge Graph (KG) tools for per-episode kg.json (RFC-056).",
+        description="Knowledge Graph (KG) tools for per-episode kg.json.",
     )
     subparsers = parser.add_subparsers(dest="kg_subcommand", required=True, help="Command")
 
@@ -4166,13 +4164,13 @@ def main(  # noqa: C901 - main function handles multiple command paths
     if hasattr(args, "command") and args.command == "gi":
         return _run_gi(args, log=log)
 
-    # Handle kg subcommand (RFC-056)
+    # Handle kg subcommand
     if hasattr(args, "command") and args.command == "kg":
         from .kg.cli_handlers import run_kg
 
         return run_kg(args, log)
 
-    # Semantic corpus search / index (RFC-061 / #484)
+    # Semantic corpus search / index
     if hasattr(args, "command") and args.command == "search":
         from .search.cli_handlers import run_search_cli
 

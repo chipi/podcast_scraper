@@ -1,4 +1,4 @@
-/** RFC-072 per-episode bridge.json (canonical identity registry). */
+/** Per-episode bridge.json (canonical identity registry). */
 
 export interface BridgeIdentity {
   id: string

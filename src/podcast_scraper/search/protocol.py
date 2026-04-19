@@ -1,4 +1,4 @@
-"""Vector index contracts for semantic corpus search (PRD-021 / RFC-061 / #484)."""
+"""Vector index contracts for semantic corpus search."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class IndexStats:
 
 @runtime_checkable
 class VectorStore(Protocol):
-    """Backend-agnostic vector index (FAISS shipped; Qdrant — RFC-070)."""
+    """Backend-agnostic vector index (FAISS shipped; Qdrant optional)."""
 
     def upsert(self, doc_id: str, embedding: List[float], metadata: Dict[str, Any]) -> None:
         """Insert or replace one vector and its metadata."""

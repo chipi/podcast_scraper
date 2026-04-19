@@ -142,7 +142,7 @@ number, file, line, date, and a short comment.
 | 1 | #231 | search/topic_clusters.py | 104 | 2026-04-17 | safe_resolve_directory + normpath+startswith inline |
 | 1 | #233 | server/cil_queries.py | 155 | 2026-04-18 | ``os.path.isdir(anchor_s)`` in ``iter_cil_bridge_bundles``; anchor/root normpath + prefix under server anchor (PR #588; same chain as #206/#207) |
 | 1 | #234 | server/cil_queries.py | 159 | 2026-04-18 | ``os.walk(anchor_s)`` in ``iter_cil_bridge_bundles``; same guards as #233 |
-| 1 | #235 | server/cil_queries.py | 187 | 2026-04-18 | ``_posix_relpath_under_corpus`` ``Path.resolve``; inputs from bridge paths already under ``root_prefix`` (RFC-076) |
+| 1 | #235 | server/cil_queries.py | 187 | 2026-04-18 | ``_posix_relpath_under_corpus`` ``Path.resolve``; inputs from bridge paths already under ``root_prefix`` (node-episodes / bridge scan) |
 | 1 | #236 | server/routes/corpus_library.py | 171 | 2026-04-18 | ``corpus_node_episodes`` ``root.resolve()`` after ``_resolve_corpus_root`` → ``resolve_corpus_path_param`` |
 | 1 | #237 | server/cil_digest_topics.py | 82 | 2026-04-18 | ``_read_json_object`` ``open``; callers pass ``joined`` after normpath+startswith under corpus root or ``safe_relpath_under_corpus_root`` bridge path (PR #602) |
 | 1 | #238 | server/cil_digest_topics.py | 102 | 2026-04-18 | ``corpus_root.resolve()`` + normpath join + ``startswith(safe_prefix)`` before cluster JSON access (PR #602) |

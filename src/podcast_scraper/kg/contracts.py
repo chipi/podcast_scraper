@@ -1,4 +1,4 @@
-"""RFC-056 output contracts for KG inspect (machine-readable CLI JSON)."""
+"""Output contracts for KG inspect (machine-readable CLI JSON)."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class KgEntityRow(BaseModel):
 
 
 class KgInspectOutput(BaseModel):
-    """Output shape for kg inspect --format json (RFC-056)."""
+    """Output shape for kg inspect --format json."""
 
     episode_id: Optional[str] = Field(default=None, description="Episode id from artifact")
     schema_version: Optional[str] = Field(default=None, description="Artifact schema version")

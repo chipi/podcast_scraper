@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture a frozen performance profile (RFC-064, Issue #510).
+"""Capture a frozen performance profile.
 
 Runs the real pipeline with psutil sampling, then writes data/profiles/<version>.yaml.
 """
@@ -89,7 +89,7 @@ _METRICS_EXCERPT_KEYS: Tuple[str, ...] = (
     "cleaning_time_by_episode",
 )
 
-# Pipeline order for proportional sample attribution (RFC-064 stage model)
+# Pipeline order for proportional sample attribution
 _STAGE_ORDER = [
     "rss_feed_fetch",
     "media_download",
@@ -311,7 +311,7 @@ def build_stage_truth_document(
 
 
 def _machine_environment_block() -> Dict[str, Any]:
-    """Host-level fields to merge with ProviderFingerprint (RFC-064)."""
+    """Host-level fields to merge with ProviderFingerprint."""
     try:
         ram_gb = round(psutil.virtual_memory().total / (1024**3), 2)
     except Exception:
@@ -513,7 +513,7 @@ def _rss_is_e2e_placeholder(cfg: ps_config.Config) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Freeze a release performance profile (RFC-064).")
+    parser = argparse.ArgumentParser(description="Freeze a release performance profile.")
     parser.add_argument("--version", required=True, help='Release tag, e.g. "v2.6.0"')
     parser.add_argument(
         "--pipeline-config",
@@ -633,7 +633,7 @@ def main() -> None:
                 run_pipeline(warm)
 
         if monitor_for_measure:
-            logger.info("Measured run (RFC-065 monitor enabled) ...")
+            logger.info("Measured run ...")
         else:
             logger.info("Measured run ...")
         metrics, run_wall, res_by_stage, peak_rss_mb, metrics_path = _run_measured_pipeline(

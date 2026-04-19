@@ -1631,7 +1631,7 @@ class TestBuildConfig(unittest.TestCase):
         self.assertEqual(cfg.openai_temperature, 0.7)
 
     def test_build_config_vector_flags_from_cli_namespace(self):
-        """Vector / semantic corpus fields from argparse reach Config (RFC-061 / #484)."""
+        """Vector / semantic corpus fields from argparse reach Config."""
         args = Namespace(
             rss="https://example.com/feed.xml",
             output_dir=None,

@@ -1,4 +1,4 @@
-"""Unit tests for RFC-072 artifact path helpers (single source for bridge/GI/KG stems)."""
+"""Unit tests for bridge/GI/KG sibling path helpers."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from podcast_scraper.builders.rfc072_artifact_paths import (
+from podcast_scraper.builders.bridge_artifact_paths import (
     bridge_json_path_adjacent_to_metadata,
     bridge_path_next_to_gi_json,
     gi_and_kg_json_paths_next_to_bridge,

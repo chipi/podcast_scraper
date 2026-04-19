@@ -142,7 +142,9 @@ test.describe('Corpus Library tab', () => {
     })
   })
 
-  test('Episode rail: Search & Explore then Back to episode', async ({ page }) => {
+  test('Episode subject rail: slash focuses search; episode rail stays visible', async ({
+    page,
+  }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
@@ -155,10 +157,9 @@ test.describe('Corpus Library tab', () => {
         .getByRole('region', { name: 'Episode', exact: true })
         .getByRole('heading', { name: 'Mock Episode Title' }),
     ).toBeVisible()
-    await page.getByRole('button', { name: 'Search & Explore' }).click()
-    await expect(page.getByRole('button', { name: 'Back to episode' })).toBeVisible()
-    await expect(page.locator('#search-q')).toBeVisible()
-    await page.getByRole('button', { name: 'Back to episode' }).click()
+    await page.locator('body').click({ position: { x: 5, y: 5 } })
+    await page.keyboard.press('/')
+    await expect(page.locator('#search-q')).toBeFocused()
     await expect(
       page
         .getByRole('region', { name: 'Episode', exact: true })

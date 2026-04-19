@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { loadGraphViaFilePicker } from './helpers'
+import { dismissGraphGestureOverlayIfPresent, loadGraphViaFilePicker } from './helpers'
 
 test.describe('Keyboard shortcuts', () => {
   test('/ focuses semantic search when API is healthy', async ({ page }) => {
@@ -27,6 +27,7 @@ test.describe('Keyboard shortcuts', () => {
 
   test('Esc clears graph interaction on Graph tab (offline load)', async ({ page }) => {
     await loadGraphViaFilePicker(page)
+    await dismissGraphGestureOverlayIfPresent(page)
 
     await page.locator('.graph-canvas').click({ position: { x: 120, y: 120 } })
     await page.keyboard.press('Escape')

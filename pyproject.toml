@@ -280,6 +280,7 @@ markers = [
     "module_utils: tests for utils/*.py",
     "module_models: tests for models.py",
     "module_exceptions: tests for exceptions.py",
+    "module_prompts: tests for Jinja prompt templates under prompts/ (offline contract tests)",
 ]
 # Parallel execution configuration (pytest-xdist)
 # Use -n auto to automatically detect CPU count, or -n N for specific number

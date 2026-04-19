@@ -1,6 +1,6 @@
 import type { CorpusNodeEpisodeItem } from '../api/corpusLibraryApi'
 
-/** Normalize relative artifact paths the same way RFC-076 expand compares selections. */
+/** Normalize relative artifact paths the same way cross-episode expand compares selections. */
 export function normalizeArtifactRelPath(p: string): string {
   return p.trim().replace(/\\/g, '/').replace(/^\.\/+/, '')
 }
@@ -9,7 +9,7 @@ export function normalizeArtifactRelPath(p: string): string {
  * True when ``POST /api/corpus/node-episodes`` would yield at least one GI/KG file not already in
  * ``selectedRelPaths`` (so merging would add something beyond the current graph selection).
  */
-export function wouldRfc076AppendNewArtifacts(
+export function wouldCrossEpisodeExpandAppendNewArtifacts(
   episodes: CorpusNodeEpisodeItem[],
   selectedRelPaths: string[],
 ): boolean {

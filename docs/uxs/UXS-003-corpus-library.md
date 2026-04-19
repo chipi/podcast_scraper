@@ -12,7 +12,7 @@
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/library/LibraryView.vue`
   - `web/gi-kg-viewer/src/components/episode/EpisodeDetailPanel.vue`
-  - `web/gi-kg-viewer/src/stores/episodeRail.ts`
+  - `web/gi-kg-viewer/src/stores/subject.ts`
 
 ---
 
@@ -21,7 +21,7 @@
 The **Corpus Library** is a catalog view inside the same SPA: it answers "what feeds
 and episodes were processed?" and connects to Graph and Semantic search without a
 separate theme or product chrome. This UXS defines layout, density, and component
-rules for the Library tab and the shared Episode rail. All tokens reference
+rules for the Library tab and the shared Episode subject rail. All tokens reference
 [UXS-001](UXS-001-gi-kg-viewer.md).
 
 ---
@@ -66,7 +66,7 @@ rules for the Library tab and the shared Episode rail. All tokens reference
    loaded page set, **`(N+)`** when **`next_cursor`** indicates more pages (native **`title`**
    on the count explains scroll / **Load more**), plus a **?** **HelpTip** (same control as
    Digest **Recent**) holding the short guide to filters, infinite scroll / **Load more**,
-   and the right **Episode** rail. List **`region`** **`aria-label`** includes the count and
+   and the right **Episode** subject rail. List **`region`** **`aria-label`** includes the count and
    whether more episodes are available. Scrollable list: cursor pagination from
    `GET /api/corpus/episodes` (`limit` ~20 per page + `next_cursor`); **Load more**
    at the bottom plus scroll-to-load when the user nears the end. Title row is
@@ -77,28 +77,31 @@ rules for the Library tab and the shared Episode rail. All tokens reference
    provides them (feed filter rows use the same hover pattern with multi-line labels in
    the filter column). Summary line sits **close** under the title row (tight top margin);
    same recap rules as Digest (full wrap, no line clamp); **no** topic chips on list rows
-   (use **Digest** for CIL topic pills
-   that open **Graph**). Selected row uses `overlay`.
+   (use **Digest** for CIL topic pills that open **Graph**). This stays true for
+   [UXS-007 Topic Entity View](UXS-007-topic-entity-view.md) as well: Library list rows
+   are kept dense; topic navigation to the Topic rail uses **Search** result cards,
+   **Graph** topic nodes, **Digest** / **Dashboard** entry points, or other surfaces —
+   not pills on the episode list. Selected row uses `overlay`.
 
-3. **Episode rail** (right shell sidebar) -- `role="region"`
-   `aria-label="Episode"` (use `exact: true` in automation so it does not match
-   "Episodes"). Shown when the user selects a Library episode or opens one from
-   Digest; mutually exclusive with Search & Explore in that rail. Same content:
+3. **Episode subject rail** (right shell column) -- `role="region"`
+  `aria-label="Episode"` (use `exact: true` in automation so it does not match
+  "Episodes"). Shown when the user selects a Library episode or opens one from
+  Digest. **Search** and **Explore** stay in the **left** query column only. Same content:
    `surface` card styling, episode title (heading scale); meta block: feed on the
    first line (full width, wrap), then publish date, E#, duration on the line below
    (left, `muted`, list-scale meta); optional summary title and summary prose; when
    bullets follow that recap, a `border` separator plus `h4` "Key points" (`muted`,
    small caps scale) precedes summary bullets as a semantic list (`ul` / `li`).
-   From Search & Explore, **Back to episode** restores the Episode rail when a
-   library episode path is stashed; **Back to details** restores Graph node rail.
+   Subject selection persists across main tab switches until the user clears the
+   subject, selects a different subject, or changes the corpus path.
 
 ---
 
-## Graph integration (Episode rail)
+## Graph integration (Episode subject rail)
 
-- Double-tapping an Episode node opens the Episode rail when a corpus metadata path
+- Double-tapping an Episode node opens the Episode subject rail when a corpus metadata path
   resolves (node properties, loaded artifact path, or catalog episode_id lookup).
-- With the Episode rail already open from Library or Digest, switching the main tab
+- With the Episode subject rail already open from Library or Digest, switching the main tab
   to Graph highlights that episode's node and centers/zooms the canvas when the node
   is present in the merged graph.
 - On the **Graph** main tab, when the rail holds a graph center id for that episode,
@@ -107,7 +110,7 @@ rules for the Library tab and the shared Episode rail. All tokens reference
   detail rails) and **above**
   the **Details** scroll body; the **Graph neighborhood and connections** strip is on
   **Neighbourhood** only: read-only Local neighborhood mini Cytoscape (1-hop ego around
-  the node) then the Connections list with `G` per row. Digest/Library episode rail has
+  the node) then the Connections list with `G` per row. Digest/Library episode subject rail has
   no tablist when that strip does not apply (hero + body still stack like the graph rail).
 - When RFC-072 bridge.json is available, **Appears in (bridge):** shows whether the
   node's canonical id appears in Grounded Insights, the Knowledge graph, or both.
@@ -121,12 +124,12 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 
 - Reuse `surface`, `border`, `elevated`, `muted`, `primary` for lists, filters, and
   actions -- no new palette for the library.
-- GI / KG actions in the Episode rail use domain tokens (`gi`, `kg`) for buttons or
+- GI / KG actions in the Episode subject rail use domain tokens (`gi`, `kg`) for buttons or
   badges that refer to artifact type.
 - Search handoff control uses `primary` (it is a navigation affordance to an existing
   panel, not a domain-colored insight).
 - **Vector index awareness (RFC-067 Phase 3):** Feed filter rows do **not** show an index
-  chip; index coverage is surfaced from the **Episode** rail instead. Episode rail exposes
+  chip; index coverage is surfaced from the **Episode** subject rail instead. Episode subject rail exposes
   Episode and feed diagnostics (help control -> tooltip) with
   paths, ids, Feed in vector index, and index stats when loaded; **E**, **`?`**, and **C**
   (copy episode title, same chip pattern as graph node detail) sit in a vertical stack
@@ -144,8 +147,10 @@ rules for the Library tab and the shared Episode rail. All tokens reference
 - Feed and episode columns are keyboard navigable (`Tab` / arrow patterns as
   implemented per RFC-067); each selectable row exposes a clear accessible name
   (episode title + feed).
-- Topic pills are separate buttons with their own labels; they apply a topic filter
-  and reload the list.
+- Episode list rows do **not** host topic pills (see Episode column rules); keyboard
+  users reach [UXS-007](UXS-007-topic-entity-view.md) from **Search** results, **Graph**
+  topic nodes, **Digest** / **Dashboard**, or other documented entry points — not from
+  per-row topic chips in the Library catalog.
 - Selected list row and primary actions use the same focus ring convention as the
   rest of the viewer (UXS-001 Key states).
 - Summary bullets remain plain text list items; if any bullet is truncated, provide
@@ -171,10 +176,12 @@ the E2E Testing Guide.
 
 ## Revision history
 
-| Date       | Change                                                         |
-| ---------- | -------------------------------------------------------------- |
-| 2026-04-10 | Initial content (in UXS-001)                                   |
-| 2026-04-13 | Extracted from UXS-001 into standalone UXS-003                 |
-| 2026-04-16 | Episode rail (Graph): Details / Neighbourhood for connections  |
-| 2026-04-16 | Episode rail: hero, tabs, Details scroll (parity)              |
-| 2026-04-16 | Episode rail: **C** copy title chip                            |
+| Date       | Change                                                                  |
+| ---------- |-------------------------------------------------------------------------|
+| 2026-04-10 | Initial content (in UXS-001)                                            |
+| 2026-04-13 | Extracted from UXS-001 into standalone UXS-003                          |
+| 2026-04-16 | Episode subject rail (Graph): Details / Neighbourhood for connections   |
+| 2026-04-16 | Episode subject rail: hero, tabs, Details scroll (parity)               |
+| 2026-04-16 | Episode subject rail: **C** copy title chip                             |
+| 2026-04-19 | UXS-007/003: no topic chips on rows                                     |
+| 2026-04-19 | Shell IA: subject rail wording; remove obsolete back-navigation bullets |

@@ -72,7 +72,7 @@ const props = defineProps<{
   nodeId: string | null
   /** Embedded in App right rail: full width, no fixed 280px strip. */
   embedInRail?: boolean
-  /** RFC-072 bridge.json (optional) for cross-layer diagnostics. */
+  /** bridge.json (optional) for cross-layer diagnostics. */
   bridgeDocument?: BridgeDocument | null
 }>()
 
@@ -253,7 +253,7 @@ const topicClusterNeighborhoodForMap = computed((): {
   return { compoundId: cid, memberIds: topicClusterMemberGraphIds.value }
 })
 
-/** Always the corpus compound id when collapsing member topics on canvas (RFC-075). */
+/** Always the corpus compound id when collapsing member topics on canvas (topic clusters). */
 const topicClusterCollapseCyId = computed((): string => {
   const c = topicClusterCompoundId.value?.trim()
   if (c) {
@@ -267,7 +267,7 @@ const TOPIC_CLUSTER_CONNECTIONS_EMPTY =
 
 /**
  * Full quote/insight text in the rail — not ``nodeLabel`` (that caps at ~40 chars for on-canvas labels).
- * For RFC-075 clusters with JSON, the header matches the **cluster** (same for compound and member).
+ * For topic clusters with JSON, the header matches the **cluster** (same for compound and member).
  */
 const displayName = computed(() => {
   const cl = topicClusterDocEntry.value
@@ -1046,7 +1046,7 @@ const crossLayerBridgeLine = computed(() => {
   return crossLayerPresenceLabel(row.sources)
 })
 
-/** RFC-075: corpus topic cluster label when this Topic is a member (API-loaded clusters only). */
+/** Corpus topic cluster label when this Topic is a member (API-loaded clusters only). */
 const topicClusterContext = computed(() => {
   if (!isTopicNode.value || !props.nodeId) {
     return null
@@ -1722,7 +1722,7 @@ const graphConnectionsCenterInView = computed((): boolean => {
         >
           <p class="font-sans text-[10px] leading-snug text-muted">
             Opens a <strong class="font-medium text-surface-foreground">corpus-wide</strong> list:
-            every episode under your corpus path with RFC-072 bridge + GI that has insights about this
+            every episode under your corpus path with CIL bridge + GI that has insights about this
             topic. You may see <strong class="font-medium text-surface-foreground">no rows, one episode,
             or several</strong> — that is how many matched, not a limit of the graph view. Uses the node
             <strong class="font-medium text-surface-foreground/90">id</strong> (e.g.

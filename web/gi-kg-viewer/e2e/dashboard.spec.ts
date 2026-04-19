@@ -1,23 +1,23 @@
 import { expect, test } from '@playwright/test'
-import { leftPanelTabs, loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { loadGraphViaFilePicker, mainViewsNav, openCorpusDataWorkspace, SHELL_HEADING_RE } from './helpers'
 
 test.describe('Dashboard tab', () => {
-  test('shows charts row; data overview lives under API · Data', async ({ page }) => {
+  test('shows charts row; corpus workspace blurb mentions Corpus artifacts', async ({ page }) => {
     await loadGraphViaFilePicker(page)
 
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
 
     await expect(
       page.getByText(
-        /Corpus root, catalog snapshot, graph metrics, and vector index live under[\s\S]*API · Data[\s\S]*left panel/,
+        /Corpus root, catalog snapshot, graph metrics, and vector index are in the[\s\S]*Corpus artifacts[\s\S]*workspace below/,
       ),
     ).toBeVisible()
   })
 
-  test('shows Data section in left panel after graph is loaded', async ({ page }) => {
+  test('shows Data section in Dashboard corpus workspace after graph is loaded', async ({ page }) => {
     await loadGraphViaFilePicker(page)
 
-    await leftPanelTabs(page).getByRole('button', { name: 'API · Data' }).click()
+    await openCorpusDataWorkspace(page)
 
     await expect(
       page.getByRole('heading', { name: 'Data', exact: true }),

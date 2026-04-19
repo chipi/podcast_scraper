@@ -1256,7 +1256,7 @@ def transcribe_media_to_text(
             # Use default value of 0 if stat fails
             pass
 
-    # Audio preprocessing (RFC-040): Preprocess audio BEFORE passing to any provider
+    # Audio preprocessing: Preprocess audio BEFORE passing to any provider
     # This happens at the pipeline level, not within providers
     # All providers receive optimized audio (Whisper, OpenAI, future providers)
     media_for_transcription = _preprocess_audio_if_needed(job, cfg, temp_media, pipeline_metrics)

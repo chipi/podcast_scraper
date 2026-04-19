@@ -65,5 +65,5 @@ speaker_names:
 workers: 4
 log_level: INFO
 
-# Live pipeline monitor (RFC-065): monitor + optional memray / py-spy — see config.example.yaml
+# Live pipeline monitor: monitor + optional memray / py-spy — see config.example.yaml
 # monitor: false

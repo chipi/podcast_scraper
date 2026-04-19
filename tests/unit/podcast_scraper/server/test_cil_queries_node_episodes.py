@@ -1,4 +1,4 @@
-"""Unit tests for RFC-076 bridge node -> episode listing (``cil_queries``)."""
+"""Unit tests for bridge node -> episode listing (``cil_queries``, node-episodes)."""
 
 from __future__ import annotations
 

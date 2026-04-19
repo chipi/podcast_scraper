@@ -1,4 +1,4 @@
-"""Tests for pipeline status file I/O (RFC-065)."""
+"""Tests for pipeline status file I/O."""
 
 from __future__ import annotations
 

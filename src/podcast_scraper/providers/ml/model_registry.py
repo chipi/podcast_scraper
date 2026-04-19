@@ -1,6 +1,6 @@
 """Model Registry: single source of truth for model capabilities and architecture limits.
 
-Implements RFC-044: centralizes model metadata (max input tokens, chunk defaults,
+Centralizes model metadata (max input tokens, chunk defaults,
 model family) and provides get_capabilities() with fallback order: registry →
 dynamic detection → pattern-based guess → safe default. Keeps the codebase
 decoupled from hardcoded limits and supports future mode configurations
@@ -47,7 +47,7 @@ class ModelCapabilities:
 class ModeConfiguration:
     """Complete runtime configuration for a summarization mode.
 
-    Promoted from proven baseline configurations (see RFC-044). These modes can
+    Promoted from proven baseline configurations. These modes can
     become app defaults while keeping runtime code decoupled from `data/eval/`.
     """
 
@@ -250,7 +250,7 @@ class ModelRegistry:
         ),
     }
 
-    # Aliases for evidence stack (embedding, extractive QA, NLI) per RFC-042 §12.1
+    # Aliases for evidence stack (embedding, extractive QA, NLI) for hybrid MAP-REDUCE
     _evidence_aliases: Dict[str, str] = {
         "minilm-l6": "sentence-transformers/all-MiniLM-L6-v2",
         "minilm-l12": "sentence-transformers/all-MiniLM-L12-v2",

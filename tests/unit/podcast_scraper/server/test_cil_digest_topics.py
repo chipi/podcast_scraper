@@ -1,4 +1,4 @@
-"""Unit tests for CIL digest topic pills (bridge + RFC-075 clusters)."""
+"""Unit tests for CIL digest topic pills (bridge + topic clusters)."""
 
 from __future__ import annotations
 

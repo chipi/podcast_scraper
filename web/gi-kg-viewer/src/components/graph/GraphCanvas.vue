@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import cytoscape, { type Core } from 'cytoscape'
+import cytoscape, { type Core, type NodeSingular } from 'cytoscape'
 // @ts-expect-error — package has no TypeScript types (CommonJS extension)
 import registerNavigator from 'cytoscape-navigator'
 import 'cytoscape-navigator/cytoscape.js-navigator.css'
@@ -14,9 +14,9 @@ import {
   ref,
   watch,
 } from 'vue'
-import { fetchNodeEpisodes, RFC076_EXPAND_MAX_EPISODES } from '../../api/corpusLibraryApi'
+import { fetchNodeEpisodes, GRAPH_NODE_EPISODES_EXPAND_MAX } from '../../api/corpusLibraryApi'
 import { useArtifactsStore } from '../../stores/artifacts'
-import { useEpisodeRailStore } from '../../stores/episodeRail'
+import { useSubjectStore } from '../../stores/subject'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
 import { useGraphExplorerStore } from '../../stores/graphExplorer'
 import { useGraphFilterStore } from '../../stores/graphFilters'
@@ -39,16 +39,18 @@ import {
   resolveEpisodeMetadataViaCorpusCatalog,
 } from '../../utils/graphEpisodeMetadata'
 import * as giKgCoseLayout from '../../utils/cyCoseLayoutOptions'
+import { syncGraphLabelTierClasses } from '../../utils/cyGraphLabelTier'
 import { buildGiKgCyStylesheet, cytoscapeSideLabelMarginXCallback } from '../../utils/cyGraphStylesheet'
 import {
-  graphNodeExpandableForRfc076,
-  syncRfc076ExpansionNodeClasses,
-} from '../../utils/rfc076GraphExpandable'
-import { wouldRfc076AppendNewArtifacts } from '../../utils/rfc076CorpusBeyondSelection'
+  graphNodeExpandableForCrossEpisodeExpand,
+  syncCrossEpisodeExpandNodeClasses,
+} from '../../utils/graphCrossEpisodeExpand'
+import { wouldCrossEpisodeExpandAppendNewArtifacts } from '../../utils/graphCorpusBeyondSelection'
 import { findRawNodeInArtifact, toCytoElements } from '../../utils/parsing'
 import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFocus'
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { visualNodeTypeCounts } from '../../utils/visualGroup'
+import GraphGestureOverlay from './GraphGestureOverlay.vue'
 
 registerNavigator(cytoscape)
 
@@ -56,7 +58,7 @@ const gf = useGraphFilterStore()
 const ge = useGraphExplorerStore()
 const { preferredLayout, minimapOpen, activeDegreeBucket } = storeToRefs(ge)
 const nav = useGraphNavigationStore()
-const episodeRail = useEpisodeRailStore()
+const subject = useSubjectStore()
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
 const { expandedBySeed } = storeToRefs(graphExpansion)
@@ -83,7 +85,7 @@ async function openGraphEpisodeOrNodeRail(
 ): Promise<void> {
   const token = graphEpisodeOpenGate.bump()
   if (!graphCyIdRepresentsEpisodeNode(cyId, rawNode)) {
-    episodeRail.openGraphNodePanel(cyId)
+    subject.focusGraphNode(cyId)
     return
   }
   const episodeRaw = rawNode?.type === 'Episode' ? rawNode : null
@@ -114,9 +116,9 @@ async function openGraphEpisodeOrNodeRail(
   }
   if (graphEpisodeOpenGate.isStale(token)) return
   if (meta) {
-    episodeRail.openEpisodePanel(meta, { graphConnectionsCyId: cyId })
+    subject.focusEpisode(meta, { graphConnectionsCyId: cyId })
   } else {
-    episodeRail.openGraphNodePanel(cyId)
+    subject.focusGraphNode(cyId)
   }
 }
 
@@ -128,11 +130,11 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
   if (graphExpansion.isExpanded(id)) {
     graphExpansion.clearTruncationLine()
     await graphExpansion.collapseSeed(id)
-    applyRfc076ExpansionHints(core)
+    applyCrossEpisodeExpandHints(core)
     return
   }
   const rawNode = rawNodeForRailInteraction(id)
-  if (!graphNodeExpandableForRfc076(core, id, rawNode)) {
+  if (!graphNodeExpandableForCrossEpisodeExpand(core, id, rawNode)) {
     return
   }
   const root = shell.corpusPath.trim()
@@ -143,7 +145,7 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
   graphExpansion.setBusy(id)
   graphExpansion.clearTruncationLine()
   try {
-    const res = await fetchNodeEpisodes(root, id, RFC076_EXPAND_MAX_EPISODES)
+    const res = await fetchNodeEpisodes(root, id, GRAPH_NODE_EPISODES_EXPAND_MAX)
     const flat: string[] = []
     for (const ep of res.episodes) {
       const gi = ep.gi_relative_path?.trim()
@@ -175,7 +177,7 @@ async function expandOrCollapseGraphNode(core: Core, cyId: string): Promise<void
     graphExpansion.setTruncationLine(e instanceof Error ? e.message : String(e))
   } finally {
     graphExpansion.setBusy(null)
-    applyRfc076ExpansionHints(core)
+    applyCrossEpisodeExpandHints(core)
   }
 }
 
@@ -183,7 +185,7 @@ watch(
   expandedBySeed,
   () => {
     if (cy) {
-      applyRfc076ExpansionHints(cy)
+      applyCrossEpisodeExpandHints(cy)
     }
   },
   { deep: true },
@@ -197,7 +199,17 @@ const minimapHost = ref<HTMLDivElement | null>(null)
 
 const focusNodeId = ref<string | null>(null)
 const selectedNodeId = ref<string | null>(null)
+const graphPrefersReducedMotion = ref(false)
 const searchHighlightCount = ref(0)
+/** Node count for the active Cytoscape view (0 when empty or not mounted). */
+const graphCyNodeCount = ref(0)
+const gestureOverlayRef = ref<{ reopen: () => void } | null>(null)
+
+function focusCanvasHost(): void {
+  void nextTick(() => {
+    canvasHost.value?.focus()
+  })
+}
 
 const zoomPercent = ref(100)
 const degreeHistogramCounts = ref<Record<string, number>>({})
@@ -213,14 +225,16 @@ const boxZoomRect = reactive({
 let cy: Core | null = null
 /** Prevents nested ``redraw()`` (e.g. artifact watcher during sync COSE ``run()``) from destroying the active instance mid-layout. */
 let redrawGateDepth = 0
-/** Debounce RFC-076 ``node-episodes`` probes that decide the teal ring (corpus beyond selection). */
-let rfc076CorpusBeyondDebounce: ReturnType<typeof setTimeout> | null = null
+/** Debounce ``POST /api/corpus/node-episodes`` probes that decide the teal ring (corpus beyond selection). */
+let nodeEpisodesCorpusBeyondDebounce: ReturnType<typeof setTimeout> | null = null
 let redrawPending = false
 let resizeObs: ResizeObserver | null = null
 let zoomCenterTimer: ReturnType<typeof setTimeout> | null = null
 let lastZoomLevel = 1
 let navInstance: { destroy: () => void } | null = null
 let zoomPanListenerAttached = false
+let reducedMotionMql: MediaQueryList | null = null
+let reducedMotionMqlHandler: (() => void) | null = null
 
 let boxDragging = false
 let boxStartClient = { x: 0, y: 0 }
@@ -430,24 +444,12 @@ function applySearchHighlights(core: Core): void {
   searchHighlightCount.value = matched.size
 }
 
-const hint = computed(() => {
-  const parts: string[] = []
-  parts.push(
-    'Teal ring: Topic/Person/Entity has GI/KG in other corpus episodes not merged into this graph yet — dbl-click (no Shift) to merge. Blue ring: expanded from here (dbl-click to collapse).',
-  )
-  if (focusNodeId.value) {
-    parts.push(
-      'Neighborhood: dbl-click empty canvas for full graph. Shift+dbl-click toggles 1-hop.',
-    )
-  } else {
-    parts.push('Shift+dbl-click node: 1-hop. Shift+drag canvas: box zoom.')
-  }
-  return parts.join(' ')
-})
-
 function buildCyStyle() {
   return [
-    ...(buildGiKgCyStylesheet({ includeSearchHit: true }) as Record<string, unknown>[]),
+    ...(buildGiKgCyStylesheet({
+      includeSearchHit: true,
+      prefersReducedMotion: graphPrefersReducedMotion.value,
+    }) as Record<string, unknown>[]),
     {
       selector: 'node',
       style: {
@@ -455,6 +457,49 @@ function buildCyStyle() {
       },
     },
   ] as never
+}
+
+function clearGraphSelectionDim(core: Core): void {
+  core.batch(() => {
+    core.nodes().removeClass('graph-dimmed graph-focused graph-neighbour')
+    core.edges().removeClass('graph-edge-dimmed graph-edge-neighbour')
+  })
+}
+
+function applyGraphSelectionDimFromNode(core: Core, node: NodeSingular): void {
+  core.batch(() => {
+    core.nodes().addClass('graph-dimmed')
+    core.edges().addClass('graph-edge-dimmed')
+    node.removeClass('graph-dimmed').addClass('graph-focused')
+    const hood = node.closedNeighborhood()
+    hood.nodes().forEach((nn) => {
+      nn.addClass('graph-neighbour').removeClass('graph-dimmed')
+    })
+    hood.edges().forEach((ee) => {
+      ee.addClass('graph-edge-neighbour').removeClass('graph-edge-dimmed')
+    })
+  })
+}
+
+/** WIP §4.3 — Topic hub emphasis from graph degree (post-layout). */
+function applyTopicDegreeHeat(core: Core): void {
+  const maxDegree = 30
+  core.batch(() => {
+    core.nodes('[type = "Topic"]').forEach((n) => {
+      const d = n.degree(false)
+      const heat = Math.min(1, d / maxDegree)
+      try {
+        n.data('degreeHeat', heat)
+      } catch {
+        /* ignore */
+      }
+      if (heat > 0.7) {
+        n.addClass('graph-topic-heat-high')
+      } else {
+        n.removeClass('graph-topic-heat-high')
+      }
+    })
+  })
 }
 
 function layoutOptionsFor(name: string): Record<string, unknown> {
@@ -530,6 +575,7 @@ function attachZoomRecenter(core: Core): void {
     if (suspendSelectedNodeZoomAnchorCorrection > 0) {
       lastZoomLevel = z
       updateZoomPercentDisplay(c)
+      syncGraphLabelTierClasses(c)
       return
     }
 
@@ -560,6 +606,7 @@ function attachZoomRecenter(core: Core): void {
     const zoomedOut = z < prevZ - 1e-9
     lastZoomLevel = c.zoom()
     updateZoomPercentDisplay(c)
+    syncGraphLabelTierClasses(c)
     if (!zoomedOut) return
     if (selectedNodeId.value) {
       return
@@ -632,32 +679,34 @@ function finishLayoutPass(core: Core): void {
   pendingViewportPreserve = null
 
   recomputeDegreeHistogram(cy)
+  applyTopicDegreeHeat(cy)
   applyDegreeVisibility(cy)
   applyViewportPreserveOrFit(cy, snap)
 
   lastZoomLevel = cy.zoom()
   updateZoomPercentDisplay(cy)
+  syncGraphLabelTierClasses(cy)
   attachZoomRecenter(core)
   tryApplyPendingFocus(core)
   applySearchHighlights(core)
   applyTopicClusterMemberCollapse(core)
-  applyRfc076ExpansionHints(core)
-  scheduleRfc076CorpusBeyondProbes()
+  applyCrossEpisodeExpandHints(core)
+  scheduleNodeEpisodesCorpusBeyondProbes()
   releaseGraphPaintAfterLayout(core)
 }
 
-function applyRfc076ExpansionHints(core: Core): void {
+function applyCrossEpisodeExpandHints(core: Core): void {
   if (!cy || cy !== core) {
     return
   }
-  syncRfc076ExpansionNodeClasses(core, {
+  syncCrossEpisodeExpandNodeClasses(core, {
     isExpandedSeed: (id) => graphExpansion.isExpanded(id),
     rawNode: rawNodeForRailInteraction,
     corpusWouldAppendOutsideGraph: (id) => graphExpansion.corpusBeyondAppendKnown(id),
   })
 }
 
-async function runRfc076CorpusBeyondProbes(): Promise<void> {
+async function runNodeEpisodesCorpusBeyondProbes(): Promise<void> {
   const core = cy
   if (!core) {
     return
@@ -679,7 +728,7 @@ async function runRfc076CorpusBeyondProbes(): Promise<void> {
         return
       }
       const raw = rawNodeForRailInteraction(id)
-      if (!graphNodeExpandableForRfc076(core, id, raw)) {
+      if (!graphNodeExpandableForCrossEpisodeExpand(core, id, raw)) {
         return
       }
       if (graphExpansion.corpusBeyondAppendKnown(id) !== undefined) {
@@ -698,25 +747,25 @@ async function runRfc076CorpusBeyondProbes(): Promise<void> {
       return
     }
     try {
-      const res = await fetchNodeEpisodes(root, id, RFC076_EXPAND_MAX_EPISODES)
-      const would = wouldRfc076AppendNewArtifacts(res.episodes, selected)
+      const res = await fetchNodeEpisodes(root, id, GRAPH_NODE_EPISODES_EXPAND_MAX)
+      const would = wouldCrossEpisodeExpandAppendNewArtifacts(res.episodes, selected)
       graphExpansion.commitCorpusBeyondProbe(waveGen, id, would)
     } catch {
       graphExpansion.commitCorpusBeyondProbe(waveGen, id, false)
     }
     if (cy === core) {
-      applyRfc076ExpansionHints(core)
+      applyCrossEpisodeExpandHints(core)
     }
   }
 }
 
-function scheduleRfc076CorpusBeyondProbes(): void {
-  if (rfc076CorpusBeyondDebounce != null) {
-    clearTimeout(rfc076CorpusBeyondDebounce)
+function scheduleNodeEpisodesCorpusBeyondProbes(): void {
+  if (nodeEpisodesCorpusBeyondDebounce != null) {
+    clearTimeout(nodeEpisodesCorpusBeyondDebounce)
   }
-  rfc076CorpusBeyondDebounce = setTimeout(() => {
-    rfc076CorpusBeyondDebounce = null
-    void runRfc076CorpusBeyondProbes()
+  nodeEpisodesCorpusBeyondDebounce = setTimeout(() => {
+    nodeEpisodesCorpusBeyondDebounce = null
+    void runNodeEpisodesCorpusBeyondProbes()
   }, 400)
 }
 
@@ -926,7 +975,7 @@ function clearInteractionState(): void {
   }
   focusNodeId.value = null
   selectedNodeId.value = null
-  episodeRail.showTools()
+  subject.clearSubject()
   const c = cy
   if (c) {
     try {
@@ -1163,6 +1212,7 @@ function redraw(): void {
     destroyCy()
     const el = container.value
     if (!el) {
+      graphCyNodeCount.value = 0
       graphContentHiddenUntilLayout.value = false
       return
     }
@@ -1172,6 +1222,7 @@ function redraw(): void {
       el.innerHTML =
         '<p class="p-4 text-sm text-muted">Load artifacts and use “Load selected” to render the graph.</p>'
       degreeHistogramCounts.value = {}
+      graphCyNodeCount.value = 0
       graphContentHiddenUntilLayout.value = false
       return
     }
@@ -1182,10 +1233,12 @@ function redraw(): void {
       el.innerHTML =
         '<p class="p-4 text-sm text-muted">No nodes in this view (adjust filters).</p>'
       degreeHistogramCounts.value = {}
+      graphCyNodeCount.value = 0
       graphContentHiddenUntilLayout.value = false
       return
     }
 
+    graphCyNodeCount.value = nodeCount
     el.innerHTML = ''
     const layoutName = preferredLayout.value
     const layoutOpts = layoutOptionsFor(layoutName)
@@ -1214,6 +1267,7 @@ function redraw(): void {
       } catch {
         /* ignore */
       }
+      graphCyNodeCount.value = 0
       graphContentHiddenUntilLayout.value = false
       return
     }
@@ -1242,6 +1296,7 @@ function redraw(): void {
       } catch {
         /* ignore */
       }
+      graphCyNodeCount.value = 0
       graphContentHiddenUntilLayout.value = false
       return
     }
@@ -1261,7 +1316,7 @@ function redraw(): void {
       const n = core.$id(sid)
       if (n.empty()) {
         selectedNodeId.value = null
-        episodeRail.showTools()
+        subject.clearSubject()
         clearSelectedNodeZoomAnchor()
       } else {
         core.nodes().unselect()
@@ -1271,12 +1326,33 @@ function redraw(): void {
 
     setupBoxZoomListeners()
 
+    /** Single-select UX: tap flow clears other nodes; dimming assumes one focused node (see WIP §3.3). */
+    core.on('select', 'node', (e) => {
+      try {
+        applyGraphSelectionDimFromNode(core, e.target as NodeSingular)
+      } catch {
+        /* ignore */
+      }
+    })
+    core.on('unselect', 'node', () => {
+      try {
+        const sel = core.nodes(':selected')
+        if (sel.length === 0) {
+          clearGraphSelectionDim(core)
+        } else {
+          applyGraphSelectionDimFromNode(core, sel.first() as NodeSingular)
+        }
+      } catch {
+        /* ignore */
+      }
+    })
+
     core.on('tap', (evt) => {
     const t = evt.target
     if (t === core) {
       core.nodes().unselect()
       selectedNodeId.value = null
-      episodeRail.showTools()
+      subject.clearSubject()
       clearSelectedNodeZoomAnchor()
       return
     }
@@ -1288,11 +1364,11 @@ function redraw(): void {
       return
     }
     selectedNodeId.value = null
-    episodeRail.showTools()
+    subject.clearSubject()
     clearSelectedNodeZoomAnchor()
   })
 
-  /** Single-tap rail (RFC-076): ``onetap`` debounces so ``dbltap`` expand does not open rail first. */
+  /** Single-tap rail: ``onetap`` debounces so ``dbltap`` expand does not open rail first. */
   core.on('onetap', (evt) => {
     const t = evt.target
     if (typeof t.isNode === 'function' && t.isNode()) {
@@ -1430,14 +1506,14 @@ const corpusSelectionProbeKey = computed(() =>
 
 watch(corpusSelectionProbeKey, () => {
   graphExpansion.invalidateCorpusBeyondHints()
-  scheduleRfc076CorpusBeyondProbes()
+  scheduleNodeEpisodesCorpusBeyondProbes()
 })
 
 watch(
   () => [shell.corpusPath, shell.corpusLibraryApiAvailable] as const,
   () => {
     graphExpansion.invalidateCorpusBeyondHints()
-    scheduleRfc076CorpusBeyondProbes()
+    scheduleNodeEpisodesCorpusBeyondProbes()
   },
 )
 
@@ -1470,21 +1546,21 @@ watch(
         ge.resetForNewArtifact()
         focusNodeId.value = null
         selectedNodeId.value = null
-        // Keep the right rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
-        // detail). Otherwise `showTools()` clears stashed ids and replaces detail with Search — bad
+        // Keep the subject rail on **Episode** (Library / Digest) or **Graph node** (e.g. TopicCluster
+        // detail). Otherwise clearing the subject wipes ids and feels like Search replaced detail — bad
         // when the graph reloads after **Load** on a cluster member (append artifacts) or
         // **Open in graph**: user expects panels to stay and only the canvas to expand.
         const keepDetailRailOpen =
-          episodeRail.paneKind === 'episode' || episodeRail.paneKind === 'graph-node'
+          subject.kind === 'episode' || subject.kind === 'graph-node'
         if (!keepDetailRailOpen) {
-          episodeRail.showTools()
+          subject.clearSubject()
         }
         nav.clearLibraryEpisodeHighlights()
         nav.clearTopicClusterCanvasCollapsed()
         pendingViewportPreserve = null
         egoPriorFullGraphViewportPreserve = null
         const restoreGraphNodeId =
-          episodeRail.paneKind === 'graph-node' ? episodeRail.graphNodeCyId?.trim() || '' : ''
+          subject.kind === 'graph-node' ? subject.graphNodeCyId?.trim() || '' : ''
         if (restoreGraphNodeId) {
           nav.requestFocusNode(restoreGraphNodeId)
         }
@@ -1582,6 +1658,24 @@ watch(
 )
 
 onMounted(() => {
+  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+    reducedMotionMql = window.matchMedia('(prefers-reduced-motion: reduce)')
+    graphPrefersReducedMotion.value = reducedMotionMql.matches
+    reducedMotionMqlHandler = (): void => {
+      graphPrefersReducedMotion.value = reducedMotionMql!.matches
+      const c = cy
+      if (!c) {
+        return
+      }
+      try {
+        c.style().fromJson(buildCyStyle() as never).update()
+        syncGraphLabelTierClasses(c)
+      } catch {
+        /* ignore */
+      }
+    }
+    reducedMotionMql.addEventListener('change', reducedMotionMqlHandler)
+  }
   safeGraphWatch('onMounted', () => {
     redraw()
   })
@@ -1609,11 +1703,21 @@ onActivated(() => {
 })
 
 onUnmounted(() => {
-  if (rfc076CorpusBeyondDebounce != null) {
-    clearTimeout(rfc076CorpusBeyondDebounce)
-    rfc076CorpusBeyondDebounce = null
+  if (reducedMotionMql && reducedMotionMqlHandler) {
+    try {
+      reducedMotionMql.removeEventListener('change', reducedMotionMqlHandler)
+    } catch {
+      /* ignore */
+    }
+    reducedMotionMql = null
+    reducedMotionMqlHandler = null
+  }
+  if (nodeEpisodesCorpusBeyondDebounce != null) {
+    clearTimeout(nodeEpisodesCorpusBeyondDebounce)
+    nodeEpisodesCorpusBeyondDebounce = null
   }
   destroyCy()
+  graphCyNodeCount.value = 0
   pendingViewportPreserve = null
   egoPriorFullGraphViewportPreserve = null
   graphContentHiddenUntilLayout.value = false
@@ -1637,7 +1741,6 @@ defineExpose({
         {{ searchHighlightCount }}
         {{ searchHighlightCount === 1 ? 'highlight' : 'highlights' }}
       </span>
-      <span class="min-w-0 flex-1 text-xs text-muted">{{ hint }}</span>
     </div>
 
     <div
@@ -1763,7 +1866,8 @@ defineExpose({
     <div class="flex min-h-0 min-w-0 flex-1">
       <div
         ref="canvasHost"
-        class="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden"
+        tabindex="-1"
+        class="relative isolate min-h-0 min-w-0 flex-1 overflow-hidden outline-none"
         :aria-busy="graphContentHiddenUntilLayout ? 'true' : 'false'"
       >
         <!--
@@ -1779,6 +1883,11 @@ defineExpose({
               ? 'pointer-events-none opacity-0'
               : 'opacity-100'
           "
+        />
+        <GraphGestureOverlay
+          ref="gestureOverlayRef"
+          :has-nodes="graphCyNodeCount > 0"
+          @dismissed="focusCanvasHost"
         />
         <div
           v-show="boxZoomRect.show"
@@ -1866,7 +1975,7 @@ defineExpose({
         <div
           class="graph-zoom-controls pointer-events-auto absolute bottom-2 right-2 z-[12] flex items-center gap-1 rounded border border-border bg-surface/95 px-1 py-0.5 shadow-md backdrop-blur-sm"
           role="toolbar"
-          aria-label="Graph fit, zoom, and export"
+          aria-label="Graph fit, zoom, gestures, and export"
         >
           <button
             type="button"
@@ -1905,6 +2014,16 @@ defineExpose({
             @click="zoomReset100"
           >
             100%
+          </button>
+          <span class="text-[10px] text-muted opacity-60" aria-hidden="true">|</span>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-1 text-xs hover:bg-overlay"
+            data-testid="graph-gesture-overlay-reopen"
+            aria-label="Show graph gestures help"
+            @click="gestureOverlayRef?.reopen()"
+          >
+            Gestures
           </button>
           <span class="text-[10px] text-muted opacity-60" aria-hidden="true">|</span>
           <button

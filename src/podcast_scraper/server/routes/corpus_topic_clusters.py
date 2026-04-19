@@ -1,4 +1,4 @@
-"""GET /api/corpus/topic-clusters — RFC-075 ``topic_clusters.json`` overlay for the viewer."""
+"""GET /api/corpus/topic-clusters — ``topic_clusters.json`` overlay for the viewer."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ async def corpus_topic_clusters(
         description="Corpus output dir (contains search/). Omit to use server default output_dir.",
     ),
 ) -> JSONResponse:
-    """Return ``<corpus>/search/topic_clusters.json`` when present (RFC-075)."""
+    """Return ``<corpus>/search/topic_clusters.json`` when present."""
     fallback = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, fallback)
     if root is None:

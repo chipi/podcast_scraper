@@ -1,4 +1,4 @@
-"""Corpus-wide KG topic clustering from FAISS ``kg_topic`` embeddings (RFC-075)."""
+"""Corpus-wide KG topic clustering from FAISS ``kg_topic`` embeddings."""
 
 from __future__ import annotations
 
@@ -371,7 +371,7 @@ def build_topic_clusters_payload(
 def topic_id_aliases_from_clusters_payload(
     payload: Mapping[str, Any],
 ) -> Dict[str, str]:
-    """Map variant ``topic:…`` ids to each cluster's CIL merge target (RFC-075 Phase 2).
+    """Map variant ``topic:…`` ids to each cluster's CIL merge target.
 
     Built from the in-memory ``topic_clusters.json`` body. Uses
     ``cil_alias_target_topic_id`` (v2) or legacy ``canonical_topic_id`` (v1). Every

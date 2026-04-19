@@ -698,12 +698,12 @@ class OpenAIProvider:
         logger.debug("Detecting speakers via OpenAI API for episode: %s", episode_title[:50])
 
         try:
-            # Build prompt using prompt_store (RFC-017)
+            # Build prompt using prompt_store
             user_prompt = self._build_speaker_detection_prompt(
                 episode_title, episode_description, known_hosts
             )
 
-            # Get system prompt from prompt_store (RFC-017)
+            # Get system prompt from prompt_store
             from ...prompts.store import render_prompt
 
             system_prompt_name = self.cfg.openai_speaker_system_prompt or "openai/ner/system_ner_v1"
@@ -827,7 +827,7 @@ class OpenAIProvider:
         episode_description: str | None,
         known_hosts: Set[str],
     ) -> str:
-        """Build prompt for speaker detection using prompt_store (RFC-017).
+        """Build prompt for speaker detection using prompt_store.
 
         Args:
             episode_title: Episode title
@@ -839,7 +839,7 @@ class OpenAIProvider:
         """
         from ...prompts.store import render_prompt
 
-        # Use prompt_store to load versioned prompt template (RFC-017)
+        # Use prompt_store to load versioned prompt template
         prompt_name = self.cfg.openai_speaker_user_prompt
 
         # Merge config params with template params
@@ -1036,7 +1036,7 @@ class OpenAIProvider:
         )
 
         try:
-            # Build prompts using prompt_store (RFC-017)
+            # Build prompts using prompt_store
             (
                 system_prompt,
                 user_prompt,
@@ -1151,7 +1151,7 @@ class OpenAIProvider:
                 )
                 call_metrics.set_cost(cost)
 
-            # Get prompt metadata for tracking (RFC-017)
+            # Get prompt metadata for tracking
             from ...prompts.store import get_prompt_metadata
 
             prompt_metadata = {}
@@ -1957,7 +1957,7 @@ class OpenAIProvider:
         min_length: int,
         custom_prompt: Optional[str],
     ) -> tuple[str, str, Optional[str], str, int, int]:
-        """Build system and user prompts for summarization using prompt_store (RFC-017).
+        """Build system and user prompts for summarization using prompt_store.
 
         Args:
             text: Transcript text to summarize
@@ -1973,7 +1973,7 @@ class OpenAIProvider:
         """
         from ...prompts.store import render_prompt
 
-        # Use prompt_store to load versioned prompt templates (RFC-017)
+        # Use prompt_store to load versioned prompt templates
         system_prompt_name = (
             self.cfg.openai_summary_system_prompt or "openai/summarization/system_v1"
         )
@@ -2078,7 +2078,7 @@ class OpenAIProvider:
 
         from ...prompts.store import render_prompt
 
-        # Build cleaning prompt using prompt_store (RFC-017)
+        # Build cleaning prompt using prompt_store
         prompt_name = "openai/cleaning/v1"
         user_prompt = render_prompt(prompt_name, transcript=text)
 

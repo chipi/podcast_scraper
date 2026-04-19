@@ -1,4 +1,4 @@
-"""GET /api/corpus/* — Corpus Library catalog (RFC-067 Phases 1 & 3)."""
+"""GET /api/corpus/* — Corpus Library catalog."""
 
 from __future__ import annotations
 
@@ -170,7 +170,7 @@ async def corpus_node_episodes(
     request: Request,
     body: CorpusNodeEpisodesRequest,
 ) -> CorpusNodeEpisodesResponse:
-    """List episodes whose bridge.json references a canonical CIL id (RFC-076)."""
+    """List episodes whose bridge.json references a canonical CIL id (node-episodes API)."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(body.path, anchor)
     root_s = str(root.resolve())
@@ -241,8 +241,8 @@ async def corpus_episodes(
     since: str | None = Query(default=None, description="Publish date on/after YYYY-MM-DD."),
     topic_cluster_only: bool = Query(
         default=False,
-        description="When true, keep only episodes whose bridge topics appear on an RFC-075 "
-        "multi-member cluster member that lists this episode's id in episode_ids "
+        description="When true, keep only episodes whose bridge topics appear on a corpus "
+        "topic-cluster member that lists this episode's id in episode_ids "
         "(requires bridge.json + search/topic_clusters.json from topic clustering).",
     ),
     limit: int = Query(default=50, ge=1, le=200),
@@ -372,7 +372,7 @@ async def corpus_episodes_similar(
     ),
     top_k: int = Query(default=8, ge=1, le=25, description="Max peer episodes after dedupe."),
 ) -> CorpusSimilarEpisodesResponse:
-    """Semantic peers via FAISS (RFC-067 Phase 3); 200 with ``error`` when index missing."""
+    """Semantic peers via FAISS; 200 with ``error`` when index missing."""
     anchor = getattr(request.app.state, "output_dir", None)
     root = _resolve_corpus_root(path, anchor)
     target = _safe_metadata_path_str(root, metadata_relpath)

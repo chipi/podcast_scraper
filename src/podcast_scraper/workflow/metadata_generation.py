@@ -1,6 +1,6 @@
 """Metadata generation for podcast episodes.
 
-This module implements per-episode metadata document generation as per PRD-004 and RFC-011.
+This module implements per-episode metadata document generation.
 Metadata documents are structured JSON/YAML files that capture comprehensive feed and
 episode information for search, analytics, integration, and archival use cases.
 
@@ -431,7 +431,7 @@ class GroundedInsightsMetadata(BaseModel):
 class KnowledgeGraphMetadata(BaseModel):
     """Provenance and index for the KG artifact (kg.json).
 
-    Full graph stays in kg.json; metadata holds counts and path only (PRD-019 FR4.2).
+    Full graph stays in kg.json; metadata holds counts and path only.
     """
 
     artifact_path: str = Field(description="Path to kg.json relative to output directory")
@@ -3414,7 +3414,7 @@ def generate_episode_metadata(  # noqa: C901
         )
         return metadata_path
 
-    # Payloads reused for RFC-072 bridge.json when GI and/or KG run in this invocation.
+    # Payloads reused for bridge.json when GI and/or KG run in this invocation.
     bridge_gi_payload: Optional[Dict[str, Any]] = None
     bridge_kg_payload: Optional[Dict[str, Any]] = None
 
@@ -3803,8 +3803,8 @@ def generate_episode_metadata(  # noqa: C901
 
     if bridge_gi_payload is not None or bridge_kg_payload is not None:
         try:
+            from ..builders.bridge_artifact_paths import bridge_json_path_adjacent_to_metadata
             from ..builders.bridge_builder import build_bridge
-            from ..builders.rfc072_artifact_paths import bridge_json_path_adjacent_to_metadata
 
             bridge_path = bridge_json_path_adjacent_to_metadata(metadata_path)
             bridge_doc = build_bridge(

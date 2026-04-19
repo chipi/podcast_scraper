@@ -298,7 +298,7 @@ defineExpose({ open, openCluster, close })
                 class="font-sans text-[11px] leading-snug text-elevated-foreground"
               >
                 <strong class="font-medium text-elevated-foreground">Corpus-wide</strong> (CIL /
-                RFC-072): the server runs <strong class="font-medium text-elevated-foreground">one</strong>
+                bridge-backed): the server runs <strong class="font-medium text-elevated-foreground">one</strong>
                 scan for <strong class="font-medium text-elevated-foreground">all cluster topic
                 ids</strong> and merges episodes: each episode appears once, with insights about
                 <strong class="font-medium text-elevated-foreground">any</strong> of those topics. The
@@ -316,7 +316,7 @@ defineExpose({ open, openCluster, close })
                 class="font-sans text-[11px] leading-snug text-elevated-foreground"
               >
                 <strong class="font-medium text-elevated-foreground">Corpus-wide</strong> (CIL /
-                RFC-072): the server scans <strong class="font-medium text-elevated-foreground">every
+                bridge-backed): the server scans <strong class="font-medium text-elevated-foreground">every
                 episode</strong> under your corpus path that has bridge + GI on disk, and lists those
                 with at least one insight linked to this topic. The list can be
                 <strong class="font-medium text-elevated-foreground">empty, one episode, or many</strong>
