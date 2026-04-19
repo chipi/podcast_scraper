@@ -53,6 +53,13 @@ make test-integration          # Integration tests (parallel, reruns)
 make test-e2e                  # E2E tests (parallel, with reruns)
 make test                      # All tests
 make test-fast                 # Unit + critical path integration + critical path E2E
+
+# Manual validation (not CI — run from laptop when needed)
+make pipeline-validate                              # All providers × full pipeline
+make pipeline-validate PROVIDER=gemini MODEL=gemini-2.5-flash-lite  # Single provider
+make pipeline-validate PV_ARGS="--all-cloud"        # 6 cloud providers
+make pipeline-validate PV_ARGS="--all-local"        # Core 5 Ollama (ADR-077)
+make transcription-sweep                            # Local Whisper model comparison
 ```
 
 ### Fast Validation for Changed Files
