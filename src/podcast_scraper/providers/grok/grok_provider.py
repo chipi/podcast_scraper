@@ -1198,7 +1198,7 @@ class GrokProvider:
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
         system = (
-            "Extract 1-3 short verbatim quotes from the transcript that support "
+            "Extract all short verbatim quotes from the transcript that support "
             "the given insight. Quotes must be from different parts of the "
             "transcript. Reply with ONLY a JSON object: "
             '{"quotes": ["exact quote 1", "exact quote 2"]}'

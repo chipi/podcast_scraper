@@ -1504,7 +1504,7 @@ class GeminiProvider:
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
         system = (
-            "Extract 1-3 short verbatim quotes from the transcript that "
+            "Extract all short verbatim quotes from the transcript that "
             "support the given insight. CRITICAL: each quote must be a "
             "DIFFERENT passage — never repeat the same text. Find evidence "
             "from separate parts of the transcript. "
