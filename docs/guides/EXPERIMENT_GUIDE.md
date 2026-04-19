@@ -632,15 +632,34 @@ golden_ref: "data/eval"  # Path to golden references
 For **transcript-only** evaluation on a materialized dataset (no RSS run), use **separate**
 configs and runs—one task per YAML:
 
-- **`task: grounded_insights`** with **`backend.type: eval_stub`** → `predictions.jsonl` rows
-  include `output.gil` (GIL-shaped dict). Sample:
-  `data/eval/configs/gil_eval_stub_curated_5feeds_smoke_v1.yaml`.
-- **`task: knowledge_graph`** with **`backend.type: eval_stub`** → `output.kg`. Sample:
-  `data/eval/configs/kg_eval_stub_curated_5feeds_smoke_v1.yaml`.
+- **`task: grounded_insights`** — GI extraction + evidence grounding. Supports all backends:
+  `eval_stub` (skip inference), `openai`, `gemini`, `anthropic`, `deepseek`, `mistral`,
+  `grok`, `ollama`. With LLM backends, the evidence stack (QA + NLI) auto-aligns to the
+  summary provider for quote extraction and entailment scoring.
+  Sample: `data/eval/configs/gil_gemini_benchmark_v2_provider.yaml`.
+- **`task: knowledge_graph`** — KG topic/entity extraction. Same backend support.
+  Sample: `data/eval/configs/kg_gemini_benchmark_v2_provider.yaml`.
 
-Details, gold reference layout (`references/gold/gil/`, `references/gold/kg/`), and metrics
-schemas: `data/eval/README.md` and `data/eval/configs/README.md`. Provider/coupled-summary
-modes are **not** wired into `run_experiment` yet (only `eval_stub` is validated today).
+Key config params for GI/KG experiments:
+
+```yaml
+params:
+  gi_insight_source: provider     # "provider" (recommended) or "summary_bullets"
+  gi_max_insights: 12             # sweet spot from autoresearch
+  gi_require_grounding: true
+  kg_extraction_source: provider  # "provider" (recommended) or "summary_bullets"
+  kg_max_topics: 10               # sweet spot from autoresearch
+```
+
+### NER experiments
+
+**`task: ner_entities`** supports all backend types: `spacy_local` (original), `openai`,
+`gemini`, `anthropic`, `deepseek`, `mistral`, `grok`, `ollama`. LLM backends use a
+structured NER prompt to extract PERSON + ORG entities. Score against gold references
+in `data/eval/references/gold/ner_entities/`. Use `entity_set` scoring mode for
+name-level comparison (position-agnostic).
+
+Sample: `data/eval/configs/ner/ner_openai_gpt4omini_smoke_v1.yaml`.
 
 ### Data Configuration Modes
 
