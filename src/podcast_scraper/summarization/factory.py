@@ -82,6 +82,7 @@ def create_summarization_provider(  # noqa: C901
                 Literal[
                     "transformers",
                     "hybrid_ml",
+                    "summllama",
                     "openai",
                     "gemini",
                     "mistral",
@@ -95,6 +96,7 @@ def create_summarization_provider(  # noqa: C901
             if provider_type not in (
                 "transformers",
                 "hybrid_ml",
+                "summllama",
                 "openai",
                 "gemini",
                 "mistral",
@@ -114,6 +116,7 @@ def create_summarization_provider(  # noqa: C901
         if provider_type_str not in (
             "transformers",
             "hybrid_ml",
+            "summllama",
             "openai",
             "gemini",
             "mistral",
@@ -128,6 +131,7 @@ def create_summarization_provider(  # noqa: C901
             Literal[
                 "transformers",
                 "hybrid_ml",
+                "summllama",
                 "openai",
                 "gemini",
                 "mistral",
@@ -252,6 +256,11 @@ def create_summarization_provider(  # noqa: C901
             provider = HybridMLProvider(cfg)
 
         verify_protocol_compliance(provider, SummarizationProvider, "SummarizationProvider")
+        return provider
+    elif provider_type == "summllama":
+        from ..providers.ml.summllama_provider import SummLlamaProvider
+
+        provider = SummLlamaProvider(cfg)
         return provider
     elif provider_type == "openai":
         from ..providers.openai.openai_provider import OpenAIProvider

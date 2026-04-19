@@ -2096,6 +2096,7 @@ class Config(BaseModel):
     summary_provider: Literal[
         "transformers",
         "hybrid_ml",
+        "summllama",
         "openai",
         "gemini",
         "grok",
@@ -3405,6 +3406,7 @@ class Config(BaseModel):
     def _validate_summary_provider(cls, value: Any) -> Literal[
         "transformers",
         "hybrid_ml",
+        "summllama",
         "openai",
         "gemini",
         "grok",
@@ -3420,6 +3422,7 @@ class Config(BaseModel):
         if value_str not in (
             "transformers",
             "hybrid_ml",
+            "summllama",
             "openai",
             "gemini",
             "grok",
@@ -3429,8 +3432,8 @@ class Config(BaseModel):
             "ollama",
         ):
             raise ValueError(
-                "summary_provider must be 'transformers', 'hybrid_ml', 'openai', 'gemini', "
-                "'grok', 'mistral', 'deepseek', 'anthropic', or 'ollama'"
+                "summary_provider must be 'transformers', 'hybrid_ml', 'summllama', "
+                "'openai', 'gemini', 'grok', 'mistral', 'deepseek', 'anthropic', or 'ollama'"
             )
         return value_str  # type: ignore[return-value]
 
