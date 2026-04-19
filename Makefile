@@ -907,6 +907,7 @@ test-acceptance:
 		$(if $(SAVE_AS_BASELINE),--save-as-baseline $(SAVE_AS_BASELINE)) \
 		$(if $(FAST_ONLY),--fast-only) \
 		$(if $(TIMEOUT),--timeout $(TIMEOUT)) \
+		$(if $(ASSERT_ARTIFACTS),--assert-artifacts) \
 		--log-level INFO
 
 # Fixture smoke for the full *fast* acceptance matrix (offline E2E server + mock APIs).
