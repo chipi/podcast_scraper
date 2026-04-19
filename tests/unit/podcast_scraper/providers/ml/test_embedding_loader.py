@@ -275,7 +275,19 @@ class TestLoadEmbeddingModel:
             ModelRegistry.resolve_evidence_model_id("minilm-l6")
             == "sentence-transformers/all-MiniLM-L6-v2"
         )
-        assert captured[0].get("local_files_only") is True
+        # local_files_only is only passed when the SentenceTransformer constructor
+        # explicitly accepts it (sentence-transformers >= 3.x). The fake constructor
+        # uses **kwargs so introspection won't find the param — same as 2.x.
+        # On real 3.x installs this would be True; on 2.x / fake it's absent.
+        import inspect
+
+        from sentence_transformers import SentenceTransformer as _ST
+
+        _st_params = set(inspect.signature(_ST).parameters)
+        if "local_files_only" in _st_params:
+            assert captured[0].get("local_files_only") is True
+        else:
+            assert "local_files_only" not in captured[0]
         assert captured[0]["cache_folder"] == "/expected/huggingface/hub"
 
     def test_load_embedding_model_allow_download_omits_local_files_only(self, monkeypatch):

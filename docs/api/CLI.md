@@ -528,6 +528,26 @@ python -m podcast_scraper.cli topic-clusters --output-dir ./output --merge-cil-o
 **`--merge-cil-overrides`** merges auto **`topic_id_aliases`** into **`cil_lift_overrides.json`**
 (existing alias keys in that file take precedence). Run after indexing when **`kg_topic`** rows exist.
 
+## Insight clusters (`insight-clusters`)
+
+Cross-episode clustering of **GI insight** texts from `*.gi.json` artifacts (#599). Uses the same
+average-linkage algorithm as topic clustering (RFC-075). Writes **`insight_clusters.json`** to
+`<output-dir>/search/insight_clusters.json`. Requires a corpus with GI artifacts.
+
+```bash
+python -m podcast_scraper.cli insight-clusters --output-dir ./output
+python -m podcast_scraper.cli insight-clusters --output-dir ./output --threshold 0.8
+python -m podcast_scraper.cli insight-clusters --output-dir ./output --output-file ./custom_path.json
+```
+
+The **`gi explore --expand-clusters`** flag loads `insight_clusters.json` and adds cross-episode
+cluster context (supporting quotes from other episodes) to each matching insight:
+
+```bash
+python -m podcast_scraper.cli gi explore --topic "AI safety" --output-dir ./output --expand-clusters
+python -m podcast_scraper.cli gi explore --topic "index funds" --output-dir ./output --expand-clusters --format json
+```
+
 ## Corpus status (`corpus-status`)
 
 Offline summary for a **corpus parent** (multi-feed: directory containing `feeds/`): whether

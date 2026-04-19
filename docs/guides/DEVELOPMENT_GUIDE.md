@@ -53,6 +53,13 @@ make test-integration          # Integration tests (parallel, reruns)
 make test-e2e                  # E2E tests (parallel, with reruns)
 make test                      # All tests
 make test-fast                 # Unit + critical path integration + critical path E2E
+
+# Manual validation (not CI — run from laptop when needed)
+make pipeline-validate                              # All providers × full pipeline
+make pipeline-validate PROVIDER=gemini MODEL=gemini-2.5-flash-lite  # Single provider
+make pipeline-validate PV_ARGS="--all-cloud"        # 6 cloud providers
+make pipeline-validate PV_ARGS="--all-local"        # Core 5 Ollama (ADR-077)
+make transcription-sweep                            # Local Whisper model comparison
 ```
 
 ### Fast Validation for Changed Files
@@ -601,6 +608,25 @@ embed-and-index after finalize when enabled; you can also run **`podcast index`*
 **Qdrant** and other platform backends are **Draft** [RFC-070](../rfc/RFC-070-semantic-corpus-search-platform-future.md).
 
 **Full guide:** [Semantic Search Guide](SEMANTIC_SEARCH_GUIDE.md).
+
+### Insight clustering and multi-quote extraction (#599, #600, #601) {#insight-clustering}
+
+**Insight clustering** groups semantically similar GI insights across episodes using the same
+average-linkage algorithm as topic clustering. CLI: `podcast insight-clusters --output-dir ./output`.
+Writes `insight_clusters.json` to `<output-dir>/search/`. Module: `search/insight_clusters.py`.
+
+**Multi-quote extraction** (#600) changed all 8 providers from single-quote to multi-quote per
+insight (uncapped). Prompt: "Extract all short verbatim quotes." Parser handles both
+`{"quotes": [...]}` (new) and `{"quote_text": "..."}` (backward compat). ML provider uses
+`answer_candidates(top_k=3)`. Quote dedup by text prevents LLM repetition.
+
+**Cluster context expansion** (#601) adds cross-episode evidence to `gi explore` results.
+Flag: `gi explore --expand-clusters`. Loads `insight_clusters.json`, finds cluster members from
+other episodes, and displays their quotes alongside the matched insight. Module:
+`search/insight_cluster_context.py`.
+
+**Tests:** Unit: `test_insight_clusters.py` (11 tests), `test_insight_cluster_context.py`
+(12 tests). Integration: `tests/integration/search/test_insight_clusters_cli.py` (3 tests).
 
 ## GI / KG browser viewer {#gi-kg-browser-viewer-local-prototype}
 

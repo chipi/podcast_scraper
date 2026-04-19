@@ -2147,6 +2147,18 @@ def _run_gi(args: argparse.Namespace, log: Optional[logging.Logger] = None) -> i
         return _run_gi_show_insight(args, logger=logger)
     if sub == "explore":
         return _run_gi_explore(args, logger=logger)
+    if sub == "clusters":
+        from .search.cli_handlers import run_cluster_browse_cli
+
+        return run_cluster_browse_cli(args, logger)
+    if sub == "explore-quotes":
+        from .search.cli_handlers import run_explore_quotes_cli
+
+        return run_explore_quotes_cli(args, logger)
+    if sub == "topic-insights":
+        from .search.cli_handlers import run_topic_insights_cli
+
+        return run_topic_insights_cli(args, logger)
     if sub == "query":
         return _run_gi_query(args, logger=logger)
     if sub == "export":
@@ -2431,6 +2443,21 @@ def _run_gi_show_insight(args: argparse.Namespace, logger: logging.Logger) -> in
     return 0
 
 
+def _sort_by_evidence_density(insights: list, out_path: Path) -> list:
+    """Re-sort insights by evidence density (cluster_size × quote_count)."""
+    from .search.insight_cluster_context import load_insight_clusters
+
+    ic_index = load_insight_clusters(out_path / "search" / "insight_clusters.json")
+
+    def _density(ins: Any) -> float:
+        ic = ic_index.get(ins.insight_id, {})
+        cluster_size = ic.get("member_count", 1)
+        return float(cluster_size * max(len(ins.supporting_quotes), 1))
+
+    insights.sort(key=_density, reverse=True)
+    return insights
+
+
 def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     """Run gi explore: scan output_dir, filter by topic/speaker, print insights with quotes."""
     import json
@@ -2471,6 +2498,9 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     limit = getattr(args, "limit", 50)
     sort_by = getattr(args, "explore_sort", "confidence")
 
+    # evidence-density sort uses confidence as base, then re-sorts
+    resolve_sort = "confidence" if sort_by == "evidence-density" else sort_by
+
     try:
         insights, _semantic_ranked, loaded, ep_searched = explore_resolve_insights_and_loaded(
             out_path,
@@ -2479,7 +2509,7 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
             speaker=speaker,
             grounded_only=grounded_only,
             min_confidence=min_confidence,
-            sort_by=cast(Literal["confidence", "time"], sort_by),
+            sort_by=cast(Literal["confidence", "time"], resolve_sort),
             strict=strict,
         )
     except ExploreValidationError as e:
@@ -2490,8 +2520,30 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
         )
         return EXIT_STRICT_VALIDATION_FAILED
 
+    if sort_by == "evidence-density":
+        insights = _sort_by_evidence_density(insights, out_path)
+
     if limit and limit > 0:
         insights = insights[:limit]
+
+    # Build cluster lookup if requested
+    expand_clusters = getattr(args, "expand_clusters", False)
+    cluster_lookup: dict = {}
+    if expand_clusters:
+        from .search.insight_cluster_context import (
+            expand_with_cluster_context,
+            load_insight_clusters,
+        )
+
+        clusters_path = out_path / "search" / "insight_clusters.json"
+        cluster_index = load_insight_clusters(clusters_path)
+        if cluster_index:
+            # Convert InsightSummary objects to dicts for cluster expansion
+            ins_dicts = [{"insight_id": i.insight_id, "episode_id": i.episode_id} for i in insights]
+            expanded = expand_with_cluster_context(ins_dicts, cluster_index=cluster_index)
+            for ins_dict in expanded:
+                if "cluster" in ins_dict:
+                    cluster_lookup[ins_dict["insight_id"]] = ins_dict["cluster"]
 
     topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     explore_out = build_explore_output(
@@ -2505,7 +2557,14 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     out_format = getattr(args, "format", "pretty")
     out_file = getattr(args, "out", None)
     if out_format == "json":
-        payload = json.dumps(explore_output_to_rfc_dict(explore_out), indent=2)
+        rfc_dict = explore_output_to_rfc_dict(explore_out)
+        # Inject cluster context into JSON output
+        if expand_clusters and cluster_lookup:
+            for ins_entry in rfc_dict.get("insights", []):
+                iid = ins_entry.get("insight_id", "")
+                if iid in cluster_lookup:
+                    ins_entry["cluster"] = cluster_lookup[iid]
+        payload = json.dumps(rfc_dict, indent=2)
     else:
         lines = [
             f"Topic: {explore_out.topic or '(all)'}",
@@ -2539,6 +2598,13 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
                 lines.append(
                     f"    quote: {q.text[:80]}..." if len(q.text) > 80 else f"    quote: {q.text}"
                 )
+            # Show cluster context if expanded
+            if expand_clusters and ins.insight_id in cluster_lookup:
+                from .search.insight_cluster_context import format_cluster_context
+
+                ctx = format_cluster_context({"cluster": cluster_lookup[ins.insight_id]})
+                if ctx:
+                    lines.append(ctx)
         payload = "\n".join(lines)
 
     if out_file:
@@ -2819,10 +2885,13 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
     )
     explore_parser.add_argument(
         "--sort",
-        choices=("confidence", "time"),
+        choices=("confidence", "time", "evidence-density"),
         default="confidence",
         dest="explore_sort",
-        help="Sort insights by confidence (desc) or episode publish_date (desc; RFC-050)",
+        help=(
+            "Sort insights by confidence (desc), episode publish_date (desc), "
+            "or evidence-density (cluster size × quote count, desc)"
+        ),
     )
     explore_parser.add_argument(
         "--format",
@@ -2841,6 +2910,55 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         "--strict",
         action="store_true",
         help="Fail on first artifact that fails schema validation (exit 5)",
+    )
+    explore_parser.add_argument(
+        "--expand-clusters",
+        action="store_true",
+        help="Expand each insight with cross-episode cluster context (insight_clusters.json)",
+    )
+
+    # gi clusters (#601 3b: browse insight clusters)
+    clusters_parser = subparsers.add_parser(
+        "clusters",
+        help="Browse insight clusters sorted by member count",
+    )
+    clusters_parser.add_argument(
+        "--output-dir", type=str, required=True, help="Pipeline output directory"
+    )
+    clusters_parser.add_argument(
+        "--top", type=int, default=10, metavar="N", help="Top N clusters (default: 10)"
+    )
+    clusters_parser.add_argument(
+        "--format", choices=("pretty", "json"), default="pretty", help="Output format"
+    )
+
+    # gi explore-quotes (#601 3c: quote-level FAISS search)
+    eq_parser = subparsers.add_parser(
+        "explore-quotes",
+        help="Search quotes directly via FAISS semantic search",
+    )
+    eq_parser.add_argument("--query", type=str, required=True, help="Search query")
+    eq_parser.add_argument(
+        "--output-dir", type=str, required=True, help="Pipeline output directory"
+    )
+    eq_parser.add_argument(
+        "--top-k", type=int, default=10, metavar="N", help="Number of results (default: 10)"
+    )
+    eq_parser.add_argument(
+        "--format", choices=("pretty", "json"), default="pretty", help="Output format"
+    )
+
+    # gi topic-insights (#601 3d: topic × insight matrix)
+    ti_parser = subparsers.add_parser(
+        "topic-insights",
+        help="Show insight clusters associated with a topic via ABOUT edges",
+    )
+    ti_parser.add_argument("--topic", type=str, required=True, help="Topic label or substring")
+    ti_parser.add_argument(
+        "--output-dir", type=str, required=True, help="Pipeline output directory"
+    )
+    ti_parser.add_argument(
+        "--format", choices=("pretty", "json"), default="pretty", help="Output format"
     )
 
     # gi query (UC4: tiny pattern map → explore RFC answer)
@@ -3104,6 +3222,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
         tc_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_topic_clusters_argv(tc_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "insight-clusters":
+        from .search.cli_handlers import parse_insight_clusters_argv
+
+        ic_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_insight_clusters_argv(ic_argv)
 
     if argv and len(argv) > 0 and argv[0] == "verify-gil-chunk-offsets":
         from .search.cli_handlers import parse_verify_gil_chunk_offsets_argv
@@ -3914,6 +4038,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "doctor",
             "gi",
             "index",
+            "insight-clusters",
             "kg",
             "pricing-assumptions",
             "search",
@@ -3996,6 +4121,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_topic_clusters_cli
 
         return run_topic_clusters_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "insight-clusters":
+        from .search.cli_handlers import run_insight_clusters_cli
+
+        return run_insight_clusters_cli(args, log)
 
     if hasattr(args, "command") and args.command == "verify-gil-chunk-offsets":
         from .search.cli_handlers import run_verify_gil_chunk_offsets_cli

@@ -157,6 +157,31 @@ schema stabilises output. Bundled is the correct local-deployment choice for par
 
 See [v2 eval report](eval-reports/EVAL_HELDOUT_V2_2026_04.md) for blended scores, dev numbers, generalisation analysis, and provider-specific quirks.
 
+### Full pipeline validation (2026-04-18, PR #603)
+
+> All providers tested through the complete pipeline (summary → GI → KG →
+> bridge) on 5 held-out episodes. `make pipeline-validate` verifies each
+> stage produces valid output.
+
+| Provider | Summary | GI | Grounding | KG | Bridge |
+| -------- | :-----: | :-: | :-------: | :-: | :----: |
+| openai/gpt-4o-mini | ✅ | ✅ | 100% | ✅ | ✅ |
+| gemini/flash-lite | ✅ | ✅ | 98% | ✅ | ✅ |
+| anthropic/haiku-4.5 | ✅ | ✅ | 100% | ✅ | ✅ |
+| deepseek/deepseek-chat | ✅ | ✅ | 100% | ✅ | ✅ |
+| mistral/mistral-small | ✅ | ✅ | 100% | ✅ | ✅ |
+| grok/grok-3-mini | ✅ | ✅ | 100% | ✅ | ✅ |
+| ollama/qwen3.5:9b | ✅ | ✅ | 100% | ✅ | ✅ |
+| ollama/llama3.1:8b | ✅ | ✅ | ✅ | ✅ | ✅ |
+| ollama/mistral:7b | ✅ | ✅ | 98% | ✅ | ✅ |
+| ollama/gemma2:9b | ✅ | ⚠️ | 95% | ✅ | ✅ |
+| ollama/qwen3.5:35b | ✅ | ✅ | 98% | ✅ | ✅ |
+
+All 11 providers pass the full pipeline. gemma2:9b is borderline on GI
+insight count (7.8/ep vs 8 threshold, instruction-following gap). Minimum
+viable model size for full pipeline: **7-8B** (3B models fail on KG entity
+extraction). See [ADR-077](../adr/ADR-077-local-ollama-model-selection.md).
+
 ---
 
 ## Implementation Status

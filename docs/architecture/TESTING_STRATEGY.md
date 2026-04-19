@@ -228,6 +228,47 @@ The testing strategy follows a three-tier pyramid:
   with real implementations. NO mocks allowed — tests
   the system as users would use it.
 
+### Pipeline Validation (manual, `make pipeline-validate`)
+
+Full pipeline validation across all providers — runs summary → GI → KG →
+bridge for each provider on the held-out dataset and checks pass/fail at
+each stage. **Not CI-automated** (API costs + Ollama latency). Run manually
+from the laptop when confidence is needed (pre-release, after provider code
+changes, after dependency upgrades).
+
+```bash
+make pipeline-validate                              # all providers (cloud + local)
+make pipeline-validate PROVIDER=gemini MODEL=gemini-2.5-flash-lite  # single
+make pipeline-validate PV_ARGS="--all-cloud"        # 6 cloud providers
+make pipeline-validate PV_ARGS="--all-local"        # Core 5 Ollama (ADR-077)
+make pipeline-validate PV_ARGS="--local-fast"       # skip 35B model
+```
+
+**Pass/fail criteria per stage:**
+
+| Stage | Criteria |
+| ----- | -------- |
+| Summary | ≥5 episodes, ≥500 chars avg |
+| GI | ≥8 insights/ep, ≥50% grounding, ≥3 topics/ep |
+| KG | ≥5 topics/ep (≤50 chars), ≥2 entities/ep |
+| Bridge | ≥90% topic merge rate |
+
+**Providers covered:** 6 cloud APIs (OpenAI, Gemini, Anthropic, DeepSeek,
+Mistral, Grok) + Core 5 Ollama (qwen3.5:9b, llama3.1:8b, mistral:7b,
+gemma2:9b, qwen3.5:35b). See ADR-077 for model selection rationale.
+
+**When to run:**
+
+- Before releasing a new version
+- After touching provider code, GI/KG pipeline, bridge, or config wiring
+- After upgrading dependencies (sentence-transformers, google-genai, etc.)
+- When adding a new provider
+
+Results saved to `data/eval/runs/_pipeline_validation/`.
+
+Similarly, **`make transcription-sweep`** compares local Whisper models on
+quality (WER) and speed for transcription evaluation.
+
 ### Browser UI E2E (Playwright) {#browser-ui-e2e-playwright}
 
 The **GI/KG viewer v2** (`web/gi-kg-viewer/`) adds **browser-level** regression tests using
@@ -1216,6 +1257,9 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`); config logging warnings for GIL stub insights and API summary + local evidence hybrid (`TestLogConfigurationGiStubWarning`, `TestLogConfigurationGilHybridWarning`)
 - [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
 - [x] Bridge builder (`tests/unit/builders/test_bridge_builder.py`); CIL corpus logic (`test_cil_queries.py`); CIL HTTP (`tests/integration/server/test_cil_api.py`); search lift + offset verify (`tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`); bridge wiring integration (`tests/integration/test_bridge_integration.py`)
+- [x] Insight clustering (#599): unit tests for `collect_insight_rows_from_corpus`, `build_insight_clusters_payload` (`test_insight_clusters.py`); integration test for end-to-end corpus flow (`tests/integration/search/test_insight_clusters_cli.py`)
+- [x] Cluster context expansion (#601): unit tests for `load_insight_clusters`, `expand_with_cluster_context`, `format_cluster_context` (`test_insight_cluster_context.py`); integration test for artifact → expand flow
+- [x] Multi-quote extraction (#600): ML provider test updated for `answer_candidates(top_k=3)` mock; existing provider tests cover backward-compat `quote_text` fallback
 
 #### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}
 

@@ -215,7 +215,7 @@ After runs, compare with **`make compare-gil-runs REF=<ref_run_root> CAND=<cand_
 or **`python scripts/tools/compare_gil_runs.py <ref_run_root> <cand_run_root>`** — per-episode
 quote/grounded counts and a short agreement summary.
 
-Methodology and limits: [WIP: GIL ML vs OpenAI outcome benchmark](../wip/gil-ml-vs-openai-outcome-benchmark.md).
+Methodology and limits: GIL ML vs OpenAI outcome benchmark (superseded by autoresearch v2 provider matrix).
 
 ---
 

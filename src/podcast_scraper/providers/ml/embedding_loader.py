@@ -100,7 +100,12 @@ def load_embedding_model(
     )
     st_kw: dict[str, Any] = {}
     if not allow_download:
-        st_kw["local_files_only"] = True
+        # sentence-transformers >= 3.x accepts local_files_only; 2.x does not.
+        import inspect
+
+        _st_params = set(inspect.signature(SentenceTransformer.__init__).parameters)
+        if "local_files_only" in _st_params:
+            st_kw["local_files_only"] = True
     # Reduce spam from sentence_transformers (e.g. redundant model-name warnings per batch).
     _st_loggers = [
         logging.getLogger("sentence_transformers"),
