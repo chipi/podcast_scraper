@@ -53,30 +53,26 @@ MIN_SEGMENT_LENGTH = 2
 # Confidence score constants
 DEFAULT_CONFIDENCE_SCORE = 1.0
 PATTERN_BASED_CONFIDENCE_SCORE = 0.7
-MAX_HEURISTIC_SCORE = 1.0
 
-# Pattern analysis constants
-DEFAULT_SAMPLE_SIZE = 5
+# Guest detection
 DESCRIPTION_SNIPPET_LENGTH = 500
+DEFAULT_SAMPLE_SIZE = 5
+MIN_SPEAKERS_REQUIRED = 2
+
+# Legacy constants kept for backward compat with tests and analyze_episode_patterns
+MAX_HEURISTIC_SCORE = 1.0
 CONTEXT_WINDOW_SIZE = 20
 PREFIX_WORDS_COUNT = 3
 SUFFIX_WORDS_COUNT = 3
 MIN_PREFIX_SUFFIX_COUNT = 2
 TOP_PREFIXES_SUFFIXES_COUNT = 5
-
-# Position threshold constants
-START_POSITION_THRESHOLD = 0.3  # 30% of title length
-END_POSITION_THRESHOLD = 0.7  # 70% of title length
-POSITION_CONSISTENCY_THRESHOLD = 0.6  # 60% consistency required
-
-# Scoring constants
+START_POSITION_THRESHOLD = 0.3
+END_POSITION_THRESHOLD = 0.7
+POSITION_CONSISTENCY_THRESHOLD = 0.6
 POSITION_SCORE_BONUS = 0.3
 PREFIX_SUFFIX_SCORE_BONUS = 0.2
 OVERLAP_SCORE_BONUS = 0.5
 COMBINED_SCORE_DIVISOR = 2.0
-
-# Minimum speakers constant
-MIN_SPEAKERS_REQUIRED = 2
 
 # Context-aware filtering patterns (Issue #325)
 # These patterns help distinguish actual guests from merely mentioned people
@@ -796,15 +792,7 @@ def detect_hosts_from_feed(
 
 
 def _analyze_title_position(guest_name: str, title: str) -> Optional[str]:
-    """Analyze where a guest name appears in the title.
-
-    Args:
-        guest_name: Guest name to find
-        title: Episode title
-
-    Returns:
-        Position preference: "start", "end", "middle", or None
-    """
+    """Analyze where a guest name appears in the title."""
     guest_lower = guest_name.lower()
     title_lower = title.lower()
 
@@ -991,138 +979,78 @@ def detect_speaker_names(
     heuristics: Optional[Dict[str, Any]] = None,
     transcript_text: Optional[str] = None,
 ) -> Tuple[List[str], Set[str], bool, bool]:
-    """
-    Detect speaker names from episode title and description using NER.
+    """Detect guest names from episode title and description using NER.
 
-    IMPORTANT: Host names should be detected separately using detect_hosts_from_feed()
-    and passed via cached_hosts or known_hosts. This function ONLY extracts guests
-    from episode title and first DESCRIPTION_SNIPPET_LENGTH characters of description.
+    Host names should be detected separately via detect_hosts_from_feed()
+    and passed via cached_hosts or known_hosts.
+
+    Flow:
+      1. NER on title + first 500 chars of description → PERSON entities
+      2. Filter out known hosts
+      3. Keep only names with interview-intent context (Issue #325)
+      4. Deduplicate, build speaker list with hosts
 
     Args:
-        episode_title: Episode title (required for guest detection)
-        episode_description: Episode description (only first
-            DESCRIPTION_SNIPPET_LENGTH chars used for guest detection)
-        nlp: Pre-loaded spaCy model (required). Providers should load the model
-            once during initialization and pass it here to avoid redundant loads.
-        cfg: Configuration object (optional, used for validation)
-        known_hosts: Manually specified host names (optional)
-        cached_hosts: Previously detected hosts to reuse (optional)
-        heuristics: Pattern-based heuristics from sample episodes (optional)
+        episode_title: Episode title.
+        episode_description: Episode description (first 500 chars used).
+        nlp: Pre-loaded spaCy model.
+        cfg: Configuration (optional).
+        known_hosts: Manually specified host names (optional).
+        cached_hosts: Previously detected hosts to reuse (optional).
+        heuristics: Ignored (kept for backward compat, was pattern learner).
+        transcript_text: Full transcript for intro-fallback host detection.
 
     Returns:
-        Tuple of (speaker_names_list, detected_hosts_set, detection_succeeded, used_defaults)
-        - detection_succeeded: True if real names were detected, False if defaults were used
-        - used_defaults: True if default names were added to reach min speakers
-        Note: detected_hosts_set will be empty as hosts are not detected here
+        (speaker_names, detected_hosts, detection_succeeded, used_defaults)
     """
     if cfg and not cfg.auto_speakers:
-        logger.debug("Auto-speakers disabled, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
     if not nlp:
-        logger.debug("spaCy model not available, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
-    # Use cached/known hosts, but do NOT detect hosts from episode metadata
-    # Priority: known_hosts > cached_hosts
+    # Resolve hosts: known_hosts > cached_hosts > transcript intro fallback
     hosts: Set[str] = set()
     if known_hosts:
         hosts.update(known_hosts)
     elif cached_hosts:
         hosts.update(cached_hosts)
 
-    # Fallback: If no hosts detected from RSS metadata, try transcript intro
-    # This is a cheap fallback that scans first 60-90 seconds for intro patterns
     if not hosts and transcript_text and nlp:
-        transcript_hosts = detect_hosts_from_transcript_intro(
-            transcript_text, nlp, intro_duration_seconds=90, words_per_second=2.5
-        )
+        transcript_hosts = detect_hosts_from_transcript_intro(transcript_text, nlp)
         if transcript_hosts:
             hosts.update(transcript_hosts)
-            logger.info(
-                "  → Detected hosts from transcript intro (fallback): %s",
-                ", ".join(sorted(transcript_hosts)),
-            )
+            logger.info("  → Hosts from transcript intro: %s", sorted(transcript_hosts))
 
-    # Note: We intentionally do NOT detect hosts from episode title/description
-    # Hosts should only come from feed-level metadata, known_hosts config, or transcript fallback
+    # NER on title + description snippet
+    title_persons = extract_person_entities(episode_title, nlp)
 
-    # Extract PERSON entities from episode title and first
-    # DESCRIPTION_SNIPPET_LENGTH chars of description
-    # These are guests, not hosts
-    # Extract with confidence scores
-    title_persons_with_scores = extract_person_entities(episode_title, nlp)
-
-    # Limit description to first DESCRIPTION_SNIPPET_LENGTH characters for guest detection
     description_snippet = None
     if episode_description:
-        description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip()
-        if not description_snippet:
-            description_snippet = None
+        description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip() or None
 
-    description_persons_with_scores = (
-        extract_person_entities(description_snippet, nlp) if description_snippet else []
-    )
+    desc_persons = extract_person_entities(description_snippet, nlp) if description_snippet else []
 
-    # Filter out hosts from both sources (keep scores)
-    # Use case-insensitive matching to catch variations like "NPR" vs "npr"
-    # Also normalize whitespace for better matching
-    hosts_normalized = {h.lower().strip() for h in hosts}
-    title_guests_with_scores = [
-        (name, score)
-        for name, score in title_persons_with_scores
-        if name.lower().strip() not in hosts_normalized
-    ]
-    description_guests_with_scores = [
-        (name, score)
-        for name, score in description_persons_with_scores
-        if name.lower().strip() not in hosts_normalized
-    ]
+    # Filter out hosts, deduplicate
+    hosts_lower = {h.lower().strip() for h in hosts}
+    seen: Set[str] = set()
+    guests: List[str] = []
+    for name, _score in title_persons + desc_persons:
+        key = name.lower().strip()
+        if key in hosts_lower or key in seen:
+            continue
+        if not _is_likely_actual_guest(name, episode_title, episode_description):
+            continue
+        seen.add(key)
+        guests.append(name)
 
-    # Apply context-aware filtering to reduce false positives (Issue #325)
-    # Filter out people who are merely mentioned but not actual guests
-    title_guests_with_scores = [
-        (name, score)
-        for name, score in title_guests_with_scores
-        if _is_likely_actual_guest(name, episode_title, episode_description)
-    ]
-    description_guests_with_scores = [
-        (name, score)
-        for name, score in description_guests_with_scores
-        if _is_likely_actual_guest(name, episode_title, episode_description)
-    ]
+    if guests:
+        logger.info("  → Guest: %s", ", ".join(guests))
 
-    # Build guest candidates with confidence scores and heuristics
-    guest_candidates = _build_guest_candidates(
-        title_guests_with_scores, description_guests_with_scores, episode_title, heuristics
-    )
-
-    # Select best guest based on combined scores
-    selected_guest, selected_confidence, selected_has_overlap, selected_heuristic_score = (
-        _select_best_guest(guest_candidates)
-    )
-
-    # Collect all guest names for logging
-    all_guest_names = list(guest_candidates.keys())
-
-    # Log guest detection results
-    _log_guest_detection(
-        selected_guest,
-        selected_confidence,
-        selected_has_overlap,
-        selected_heuristic_score,
-        all_guest_names,
-        title_persons_with_scores,
-        description_persons_with_scores,
-    )
-
-    # Build final speaker names list
-    guests = [selected_guest] if selected_guest else []
-    screenplay_num_speakers = cfg.screenplay_num_speakers if cfg else 2
+    max_names = cfg.screenplay_num_speakers if cfg else 2
     speaker_names, detection_succeeded, used_defaults = _build_speaker_names_list(
-        hosts, guests, screenplay_num_speakers
+        hosts, guests, max_names
     )
-
     return speaker_names, hosts, detection_succeeded, used_defaults
 
 
