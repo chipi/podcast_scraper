@@ -57,7 +57,16 @@ class TestLoadEmbeddingModelIntegration:
         assert len(result) == 3
         assert captured[0]["model_id"] == "all-MiniLM-L6-v2"
         assert captured[0]["device"] == "cpu"
-        assert captured[0]["local_files_only"] is True
+        # local_files_only only passed when SentenceTransformer accepts it (ST 3.x)
+        import inspect
+
+        from sentence_transformers import SentenceTransformer as _ST
+
+        _st_params = set(inspect.signature(_ST).parameters)
+        if "local_files_only" in _st_params:
+            assert captured[0]["local_files_only"] is True
+        else:
+            assert "local_files_only" not in captured[0]
 
     def test_load_and_encode_batch(self, monkeypatch, tmp_path):
         """encode() with a list of texts returns one vector per text."""

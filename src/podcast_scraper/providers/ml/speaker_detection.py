@@ -53,29 +53,10 @@ MIN_SEGMENT_LENGTH = 2
 # Confidence score constants
 DEFAULT_CONFIDENCE_SCORE = 1.0
 PATTERN_BASED_CONFIDENCE_SCORE = 0.7
-MAX_HEURISTIC_SCORE = 1.0
 
-# Pattern analysis constants
+# Guest detection
+DESCRIPTION_SNIPPET_LENGTH = 500
 DEFAULT_SAMPLE_SIZE = 5
-DESCRIPTION_SNIPPET_LENGTH = 20
-CONTEXT_WINDOW_SIZE = 20
-PREFIX_WORDS_COUNT = 3
-SUFFIX_WORDS_COUNT = 3
-MIN_PREFIX_SUFFIX_COUNT = 2
-TOP_PREFIXES_SUFFIXES_COUNT = 5
-
-# Position threshold constants
-START_POSITION_THRESHOLD = 0.3  # 30% of title length
-END_POSITION_THRESHOLD = 0.7  # 70% of title length
-POSITION_CONSISTENCY_THRESHOLD = 0.6  # 60% consistency required
-
-# Scoring constants
-POSITION_SCORE_BONUS = 0.3
-PREFIX_SUFFIX_SCORE_BONUS = 0.2
-OVERLAP_SCORE_BONUS = 0.5
-COMBINED_SCORE_DIVISOR = 2.0
-
-# Minimum speakers constant
 MIN_SPEAKERS_REQUIRED = 2
 
 # Context-aware filtering patterns (Issue #325)
@@ -131,21 +112,6 @@ def _has_interview_indicator(name: str, text: str) -> bool:
         if re.search(full_pattern, text_lower, re.IGNORECASE):
             return True
     return False
-
-
-def _has_guest_intent_cue(name: str, text: str) -> bool:
-    """Check if name appears with guest-intent cues (alias for _has_interview_indicator).
-
-    This is an alias for backward compatibility with tests and existing code.
-
-    Args:
-        name: Person name to check
-        text: Text to search in (title or description)
-
-    Returns:
-        True if name appears after an interview indicator pattern
-    """
-    return _has_interview_indicator(name, text)
 
 
 def _has_mentioned_only_indicator(name: str, text: str) -> bool:
@@ -795,190 +761,18 @@ def detect_hosts_from_feed(
     return hosts
 
 
-def _analyze_title_position(guest_name: str, title: str) -> Optional[str]:
-    """Analyze where a guest name appears in the title.
-
-    Args:
-        guest_name: Guest name to find
-        title: Episode title
-
-    Returns:
-        Position preference: "start", "end", "middle", or None
-    """
-    guest_lower = guest_name.lower()
-    title_lower = title.lower()
-
-    if guest_lower not in title_lower:
-        return None
-
-    idx = title_lower.find(guest_lower)
-    title_len = len(title)
-
-    # Determine position: start (first START_POSITION_THRESHOLD%),
-    # end (last END_POSITION_THRESHOLD%), or middle
-    if idx < title_len * START_POSITION_THRESHOLD:
-        return "start"
-    elif idx > title_len * END_POSITION_THRESHOLD:
-        return "end"
-    else:
-        return "middle"
-
-
-def _extract_prefix_suffix(guest_name: str, title: str) -> Tuple[Optional[str], Optional[str]]:
-    """Extract prefix and suffix context around guest name in title.
-
-    Args:
-        guest_name: Guest name to find context for
-        title: Episode title
-
-    Returns:
-        Tuple of (prefix_text, suffix_text)
-    """
-    guest_lower = guest_name.lower()
-    title_lower = title.lower()
-
-    if guest_lower not in title_lower:
-        return None, None
-
-    idx = title_lower.find(guest_lower)
-    prefix_text = None
-    suffix_text = None
-
-    # Extract prefix
-    if idx > 0:
-        prefix_start = max(0, idx - CONTEXT_WINDOW_SIZE)
-        prefix_raw = title[prefix_start:idx].strip().lower()
-        # Extract last few words as prefix
-        prefix_words = prefix_raw.split()[-PREFIX_WORDS_COUNT:]
-        if prefix_words:
-            prefix_text = " ".join(prefix_words)
-
-    # Extract suffix
-    if idx + len(guest_name) < len(title):
-        suffix_end = min(len(title), idx + len(guest_name) + CONTEXT_WINDOW_SIZE)
-        suffix_raw = title[idx + len(guest_name) : suffix_end].strip().lower()
-        # Extract first few words as suffix
-        suffix_words = suffix_raw.split()[:SUFFIX_WORDS_COUNT]
-        if suffix_words:
-            suffix_text = " ".join(suffix_words)
-
-    return prefix_text, suffix_text
-
-
-def _find_common_patterns(
-    patterns: List[str], min_count: int = MIN_PREFIX_SUFFIX_COUNT
-) -> List[str]:
-    """Find common patterns that appear at least min_count times.
-
-    Args:
-        patterns: List of pattern strings
-        min_count: Minimum count threshold
-
-    Returns:
-        List of common patterns
-    """
-    if not patterns:
-        return []
-
-    from collections import Counter
-
-    pattern_counts = Counter(patterns)
-    return [p for p, count in pattern_counts.items() if count >= min_count]
-
-
-def _determine_title_position_preference(title_positions: List[str]) -> Optional[str]:
-    """Determine the most common title position preference.
-
-    Args:
-        title_positions: List of position strings ("start", "end", "middle")
-
-    Returns:
-        Most common position if consistent enough, None otherwise
-    """
-    if not title_positions:
-        return None
-
-    from collections import Counter
-
-    position_counts = Counter(title_positions)
-    most_common = position_counts.most_common(1)[0]
-    if most_common[1] >= len(title_positions) * POSITION_CONSISTENCY_THRESHOLD:
-        return most_common[0]
-    return None
-
-
 def analyze_episode_patterns(
     episodes: List[Any],
     nlp: Any,
     cached_hosts: Set[str],
     sample_size: int = DEFAULT_SAMPLE_SIZE,
 ) -> Dict[str, Any]:
-    """Analyze patterns from sample episodes to extract heuristics for guest selection.
+    """No-op — heuristic pattern learner removed in #598 simplification.
 
-    Analyzes episode titles and first DESCRIPTION_SNIPPET_LENGTH characters of descriptions.
-
-    Args:
-        episodes: List of Episode objects to analyze
-        nlp: spaCy NLP model
-        cached_hosts: Set of detected host names to filter out
-        sample_size: Number of episodes to sample (default DEFAULT_SAMPLE_SIZE)
-
-    Returns:
-        Dictionary with heuristics:
-        - title_position_preference: "start", "end", or None
-        - common_prefixes: List of common prefixes before guest names
-        - common_suffixes: List of common suffixes after guest names
+    Kept for backward compat with callers (ml_provider.analyze_patterns).
+    detect_speaker_names no longer uses heuristics.
     """
-    if not episodes or not nlp:
-        return {}
-
-    sample_episodes = episodes[:sample_size]
-    title_positions = []  # Track where guest names appear in titles
-    prefixes = []
-    suffixes = []
-
-    for episode in sample_episodes:
-        title = episode.title
-        # Extract persons from title
-        title_persons = extract_person_entities(title, nlp)
-
-        # Filter out hosts from title persons
-        title_guests = [name for name, _ in title_persons if name not in cached_hosts]
-
-        if not title_guests:
-            continue
-
-        # Analyze each guest name
-        for guest_name in title_guests:
-            # Analyze position
-            position = _analyze_title_position(guest_name, title)
-            if position:
-                title_positions.append(position)
-
-            # Extract prefix/suffix
-            prefix, suffix = _extract_prefix_suffix(guest_name, title)
-            if prefix:
-                prefixes.append(prefix)
-            if suffix:
-                suffixes.append(suffix)
-
-    # Determine most common title position
-    title_position_preference = _determine_title_position_preference(title_positions)
-
-    # Find common prefixes/suffixes
-    common_prefixes = _find_common_patterns(prefixes)[:TOP_PREFIXES_SUFFIXES_COUNT]
-    common_suffixes = _find_common_patterns(suffixes)[:TOP_PREFIXES_SUFFIXES_COUNT]
-
-    heuristics = {
-        "title_position_preference": title_position_preference,
-        "common_prefixes": common_prefixes,
-        "common_suffixes": common_suffixes,
-    }
-
-    logger.debug(
-        "Extracted heuristics from %d sample episodes: %s", len(sample_episodes), heuristics
-    )
-    return heuristics
+    return {}
 
 
 def detect_speaker_names(
@@ -991,328 +785,79 @@ def detect_speaker_names(
     heuristics: Optional[Dict[str, Any]] = None,
     transcript_text: Optional[str] = None,
 ) -> Tuple[List[str], Set[str], bool, bool]:
-    """
-    Detect speaker names from episode title and description using NER.
+    """Detect guest names from episode title and description using NER.
 
-    IMPORTANT: Host names should be detected separately using detect_hosts_from_feed()
-    and passed via cached_hosts or known_hosts. This function ONLY extracts guests
-    from episode title and first DESCRIPTION_SNIPPET_LENGTH characters of description.
+    Host names should be detected separately via detect_hosts_from_feed()
+    and passed via cached_hosts or known_hosts.
+
+    Flow:
+      1. NER on title + first 500 chars of description → PERSON entities
+      2. Filter out known hosts
+      3. Keep only names with interview-intent context (Issue #325)
+      4. Deduplicate, build speaker list with hosts
 
     Args:
-        episode_title: Episode title (required for guest detection)
-        episode_description: Episode description (only first
-            DESCRIPTION_SNIPPET_LENGTH chars used for guest detection)
-        nlp: Pre-loaded spaCy model (required). Providers should load the model
-            once during initialization and pass it here to avoid redundant loads.
-        cfg: Configuration object (optional, used for validation)
-        known_hosts: Manually specified host names (optional)
-        cached_hosts: Previously detected hosts to reuse (optional)
-        heuristics: Pattern-based heuristics from sample episodes (optional)
+        episode_title: Episode title.
+        episode_description: Episode description (first 500 chars used).
+        nlp: Pre-loaded spaCy model.
+        cfg: Configuration (optional).
+        known_hosts: Manually specified host names (optional).
+        cached_hosts: Previously detected hosts to reuse (optional).
+        heuristics: Ignored (kept for backward compat, was pattern learner).
+        transcript_text: Full transcript for intro-fallback host detection.
 
     Returns:
-        Tuple of (speaker_names_list, detected_hosts_set, detection_succeeded, used_defaults)
-        - detection_succeeded: True if real names were detected, False if defaults were used
-        - used_defaults: True if default names were added to reach min speakers
-        Note: detected_hosts_set will be empty as hosts are not detected here
+        (speaker_names, detected_hosts, detection_succeeded, used_defaults)
     """
     if cfg and not cfg.auto_speakers:
-        logger.debug("Auto-speakers disabled, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
     if not nlp:
-        logger.debug("spaCy model not available, detection failed")
         return DEFAULT_SPEAKER_NAMES.copy(), set(), False, True
 
-    # Use cached/known hosts, but do NOT detect hosts from episode metadata
-    # Priority: known_hosts > cached_hosts
+    # Resolve hosts: known_hosts > cached_hosts > transcript intro fallback
     hosts: Set[str] = set()
     if known_hosts:
         hosts.update(known_hosts)
     elif cached_hosts:
         hosts.update(cached_hosts)
 
-    # Fallback: If no hosts detected from RSS metadata, try transcript intro
-    # This is a cheap fallback that scans first 60-90 seconds for intro patterns
     if not hosts and transcript_text and nlp:
-        transcript_hosts = detect_hosts_from_transcript_intro(
-            transcript_text, nlp, intro_duration_seconds=90, words_per_second=2.5
-        )
+        transcript_hosts = detect_hosts_from_transcript_intro(transcript_text, nlp)
         if transcript_hosts:
             hosts.update(transcript_hosts)
-            logger.info(
-                "  → Detected hosts from transcript intro (fallback): %s",
-                ", ".join(sorted(transcript_hosts)),
-            )
+            logger.info("  → Hosts from transcript intro: %s", sorted(transcript_hosts))
 
-    # Note: We intentionally do NOT detect hosts from episode title/description
-    # Hosts should only come from feed-level metadata, known_hosts config, or transcript fallback
+    # NER on title + description snippet
+    title_persons = extract_person_entities(episode_title, nlp)
 
-    # Extract PERSON entities from episode title and first
-    # DESCRIPTION_SNIPPET_LENGTH chars of description
-    # These are guests, not hosts
-    # Extract with confidence scores
-    title_persons_with_scores = extract_person_entities(episode_title, nlp)
-
-    # Limit description to first DESCRIPTION_SNIPPET_LENGTH characters for guest detection
     description_snippet = None
     if episode_description:
-        description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip()
-        if not description_snippet:
-            description_snippet = None
+        description_snippet = episode_description[:DESCRIPTION_SNIPPET_LENGTH].strip() or None
 
-    description_persons_with_scores = (
-        extract_person_entities(description_snippet, nlp) if description_snippet else []
-    )
+    desc_persons = extract_person_entities(description_snippet, nlp) if description_snippet else []
 
-    # Filter out hosts from both sources (keep scores)
-    # Use case-insensitive matching to catch variations like "NPR" vs "npr"
-    # Also normalize whitespace for better matching
-    hosts_normalized = {h.lower().strip() for h in hosts}
-    title_guests_with_scores = [
-        (name, score)
-        for name, score in title_persons_with_scores
-        if name.lower().strip() not in hosts_normalized
-    ]
-    description_guests_with_scores = [
-        (name, score)
-        for name, score in description_persons_with_scores
-        if name.lower().strip() not in hosts_normalized
-    ]
+    # Filter out hosts, deduplicate
+    hosts_lower = {h.lower().strip() for h in hosts}
+    seen: Set[str] = set()
+    guests: List[str] = []
+    for name, _score in title_persons + desc_persons:
+        key = name.lower().strip()
+        if key in hosts_lower or key in seen:
+            continue
+        if not _is_likely_actual_guest(name, episode_title, episode_description):
+            continue
+        seen.add(key)
+        guests.append(name)
 
-    # Apply context-aware filtering to reduce false positives (Issue #325)
-    # Filter out people who are merely mentioned but not actual guests
-    title_guests_with_scores = [
-        (name, score)
-        for name, score in title_guests_with_scores
-        if _is_likely_actual_guest(name, episode_title, episode_description)
-    ]
-    description_guests_with_scores = [
-        (name, score)
-        for name, score in description_guests_with_scores
-        if _is_likely_actual_guest(name, episode_title, episode_description)
-    ]
+    if guests:
+        logger.info("  → Guest: %s", ", ".join(guests))
 
-    # Build guest candidates with confidence scores and heuristics
-    guest_candidates = _build_guest_candidates(
-        title_guests_with_scores, description_guests_with_scores, episode_title, heuristics
-    )
-
-    # Select best guest based on combined scores
-    selected_guest, selected_confidence, selected_has_overlap, selected_heuristic_score = (
-        _select_best_guest(guest_candidates)
-    )
-
-    # Collect all guest names for logging
-    all_guest_names = list(guest_candidates.keys())
-
-    # Log guest detection results
-    _log_guest_detection(
-        selected_guest,
-        selected_confidence,
-        selected_has_overlap,
-        selected_heuristic_score,
-        all_guest_names,
-        title_persons_with_scores,
-        description_persons_with_scores,
-    )
-
-    # Build final speaker names list
-    guests = [selected_guest] if selected_guest else []
-    screenplay_num_speakers = cfg.screenplay_num_speakers if cfg else 2
+    max_names = cfg.screenplay_num_speakers if cfg else 2
     speaker_names, detection_succeeded, used_defaults = _build_speaker_names_list(
-        hosts, guests, screenplay_num_speakers
+        hosts, guests, max_names
     )
-
     return speaker_names, hosts, detection_succeeded, used_defaults
-
-
-def _calculate_heuristic_score(
-    name: str, title: str, heuristics: Optional[Dict[str, Any]]
-) -> float:
-    """Calculate heuristic score based on position patterns.
-
-    Args:
-        name: Guest name to score
-        title: Episode title
-        heuristics: Pattern-based heuristics dictionary
-
-    Returns:
-        Heuristic score (0.0 to MAX_HEURISTIC_SCORE)
-    """
-    if not heuristics:
-        return 0.0  # type: ignore[return-value]
-
-    score = 0.0
-    name_lower = name.lower()
-    title_lower = title.lower()
-
-    if name_lower not in title_lower:
-        return score
-
-    idx = title_lower.find(name_lower)
-    title_len = len(title)
-
-    # Position-based scoring
-    title_pos_pref = heuristics.get("title_position_preference")
-    if title_pos_pref:
-        if title_pos_pref == "start" and idx < title_len * START_POSITION_THRESHOLD:
-            score += POSITION_SCORE_BONUS
-        elif title_pos_pref == "end" and idx > title_len * END_POSITION_THRESHOLD:
-            score += POSITION_SCORE_BONUS
-        elif (
-            title_pos_pref == "middle"
-            and START_POSITION_THRESHOLD <= (idx / title_len) <= END_POSITION_THRESHOLD
-        ):
-            score += POSITION_SCORE_BONUS
-
-    # Prefix/suffix pattern matching
-    common_prefixes = heuristics.get("common_prefixes", [])
-    common_suffixes = heuristics.get("common_suffixes", [])
-
-    if idx > 0:
-        prefix_start = max(0, idx - CONTEXT_WINDOW_SIZE)
-        prefix_text = title[prefix_start:idx].strip().lower()
-        for prefix in common_prefixes:
-            if prefix in prefix_text:
-                score += PREFIX_SUFFIX_SCORE_BONUS
-                break
-
-    if idx + len(name) < len(title):
-        suffix_end = min(len(title), idx + len(name) + CONTEXT_WINDOW_SIZE)
-        suffix_text = title[idx + len(name) : suffix_end].strip().lower()
-        for suffix in common_suffixes:
-            if suffix in suffix_text:
-                score += PREFIX_SUFFIX_SCORE_BONUS
-                break
-
-    return min(score, MAX_HEURISTIC_SCORE)
-
-
-def _build_guest_candidates(
-    title_guests_with_scores: List[Tuple[str, float]],
-    description_guests_with_scores: List[Tuple[str, float]],
-    episode_title: str,
-    heuristics: Optional[Dict[str, Any]],
-) -> Dict[str, Tuple[float, bool, float]]:
-    """Build guest candidates dictionary with confidence scores and heuristics.
-
-    Args:
-        title_guests_with_scores: List of (name, score) from title
-        description_guests_with_scores: List of (name, score) from description
-        episode_title: Episode title for heuristic scoring
-        heuristics: Pattern-based heuristics
-
-    Returns:
-        Dictionary mapping name -> (confidence, appears_in_both, heuristic_score)
-    """
-    guest_candidates: Dict[str, Tuple[float, bool, float]] = {}
-
-    # Process title guests
-    for name, score in title_guests_with_scores:
-        heuristic_score = _calculate_heuristic_score(name, episode_title, heuristics)
-        guest_candidates[name] = (score, False, heuristic_score)
-
-    # Process description guests (check for overlap)
-    for name, score in description_guests_with_scores:
-        if name in guest_candidates:
-            # Overlap found: boost confidence by averaging and mark as appearing in both
-            title_score, _, heuristic_score = guest_candidates[name]
-            combined_score = (title_score + score) / COMBINED_SCORE_DIVISOR
-            guest_candidates[name] = (combined_score, True, heuristic_score)
-        else:
-            guest_candidates[name] = (score, False, 0.0)
-
-    return guest_candidates
-
-
-def _select_best_guest(
-    guest_candidates: Dict[str, Tuple[float, bool, float]],
-) -> Tuple[Optional[str], float, bool, float]:
-    """Select the guest with the highest combined score.
-
-    Args:
-        guest_candidates: Dictionary mapping name -> (confidence, appears_in_both, heuristic_score)
-
-    Returns:
-        Tuple of (selected_guest, confidence, has_overlap, heuristic_score)
-    """
-    selected_guest = None
-    selected_confidence = 0.0
-    selected_has_overlap = False
-    selected_heuristic_score = 0.0
-
-    for name, (confidence, has_overlap, heuristic_score) in guest_candidates.items():
-        # Combined score: overlap bonus + confidence + heuristics
-        combined_score = (
-            confidence + (OVERLAP_SCORE_BONUS if has_overlap else 0.0) + heuristic_score
-        )
-
-        if not selected_guest:
-            selected_guest = name
-            selected_confidence = confidence
-            selected_has_overlap = has_overlap
-            selected_heuristic_score = heuristic_score
-        else:
-            # Calculate current selected guest's combined score
-            current_combined = (
-                selected_confidence
-                + (OVERLAP_SCORE_BONUS if selected_has_overlap else 0.0)
-                + selected_heuristic_score
-            )
-
-            if combined_score > current_combined:
-                selected_guest = name
-                selected_confidence = confidence
-                selected_has_overlap = has_overlap
-                selected_heuristic_score = heuristic_score
-
-    return selected_guest, selected_confidence, selected_has_overlap, selected_heuristic_score
-
-
-def _log_guest_detection(
-    selected_guest: Optional[str],
-    selected_confidence: float,
-    selected_has_overlap: bool,
-    selected_heuristic_score: float,
-    all_guest_names: List[str],
-    title_persons_with_scores: List[Tuple[str, float]],
-    description_persons_with_scores: List[Tuple[str, float]],
-) -> None:
-    """Log guest detection results.
-
-    Args:
-        selected_guest: Selected guest name (if any)
-        selected_confidence: Confidence score of selected guest
-        selected_has_overlap: Whether guest appears in both title and description
-        selected_heuristic_score: Heuristic score of selected guest
-        all_guest_names: All candidate guest names
-        title_persons_with_scores: Persons found in title
-        description_persons_with_scores: Persons found in description
-    """
-    if selected_guest:
-        if len(all_guest_names) > 1:
-            overlap_info = " (overlap)" if selected_has_overlap else ""
-            heuristic_info = (
-                f" (heuristic: +{selected_heuristic_score:.2f})"
-                if selected_heuristic_score > 0
-                else ""
-            )
-            logger.debug(
-                "  → Selected '%s' (confidence: %.3f%s%s) from %d candidates: %s",
-                selected_guest,
-                selected_confidence,
-                overlap_info,
-                heuristic_info,
-                len(all_guest_names),
-                ", ".join(all_guest_names),
-            )
-        # Always log the selected guest at INFO level
-        logger.info("  → Guest: %s", selected_guest)
-    elif title_persons_with_scores or description_persons_with_scores:
-        # All persons were hosts (filtered out)
-        logger.info("  → Guest: (none - all detected persons are hosts)")
-    else:
-        logger.info("  → Guest: (none detected in episode title/description)")
 
 
 def _build_speaker_names_list(
@@ -1378,12 +923,13 @@ def _build_speaker_names_list(
 
 
 __all__ = [
-    "detect_speaker_names",
-    "detect_hosts_from_feed",
-    "get_ner_model",
-    "extract_person_entities",
+    "analyze_episode_patterns",
     "DEFAULT_SPEAKER_NAMES",
-    "is_default_speaker_name",
+    "detect_hosts_from_feed",
+    "detect_hosts_from_transcript_intro",
+    "detect_speaker_names",
+    "extract_person_entities",
     "filter_default_speaker_names",
-    "_has_guest_intent_cue",
+    "get_ner_model",
+    "is_default_speaker_name",
 ]

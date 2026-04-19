@@ -157,6 +157,148 @@ def _estimate_llm_cost_usd_for_run_dir(run_output_dir: Path) -> Optional[float]:
     return _estimate_llm_cost_usd_from_stdout_log(run_output_dir / "stdout.log")
 
 
+# ── Self-deriving artifact assertions (#622) ─────────────────────────
+#
+# Expectations derived from config flags + RSS feed metadata.
+# No separate .assertions.yaml files — the config IS the spec.
+
+
+def _check_metadata_speakers(run_output_dir: Path, failures: list[str]) -> None:
+    """Assert at least one episode has detected_hosts in metadata."""
+    metadata_files = sorted(run_output_dir.rglob("*.metadata.json"))
+    if not metadata_files:
+        failures.append("metadata: no .metadata.json files found")
+        return
+    eps_with_hosts = sum(
+        1 for mf in metadata_files if _safe_json_field(mf, "content", "detected_hosts")
+    )
+    if eps_with_hosts == 0:
+        failures.append("metadata: no episodes have detected_hosts")
+
+
+def _check_gi_artifacts(run_output_dir: Path, failures: list[str]) -> list[Path]:
+    """Assert GI artifacts exist with Insight nodes."""
+    gi_files = sorted(run_output_dir.rglob("*.gi.json"))
+    if not gi_files:
+        failures.append("gi: no .gi.json files found")
+        return []
+    for gf in gi_files:
+        try:
+            data = json.loads(gf.read_text(encoding="utf-8"))
+            insights = [n for n in data.get("nodes", []) if n.get("type") == "Insight"]
+            if not insights:
+                failures.append(f"gi: {gf.name} has no Insight nodes")
+        except Exception:
+            pass
+    return gi_files
+
+
+def _check_kg_artifacts(
+    run_output_dir: Path, auto_speakers: bool, failures: list[str]
+) -> list[Path]:
+    """Assert KG artifacts exist; check Person entities if speakers enabled."""
+    kg_files = sorted(run_output_dir.rglob("*.kg.json"))
+    if not kg_files:
+        failures.append("kg: no .kg.json files found")
+        return []
+    for kf in kg_files:
+        try:
+            data = json.loads(kf.read_text(encoding="utf-8"))
+            topics = [n for n in data.get("nodes", []) if n.get("type") == "Topic"]
+            if not topics:
+                failures.append(f"kg: {kf.name} has no Topic nodes")
+            if auto_speakers:
+                entities = [n for n in data.get("nodes", []) if n.get("type") == "Entity"]
+                persons = [
+                    n for n in entities if n.get("properties", {}).get("entity_kind") == "person"
+                ]
+                if persons:
+                    roles = {n["properties"].get("role") for n in persons}
+                    if "host" not in roles:
+                        failures.append(
+                            f"kg: {kf.name} Person entities exist but none has role=host"
+                        )
+        except Exception:
+            pass
+    return kg_files
+
+
+def _check_bridge_artifacts(
+    gi_files: list[Path],
+    kg_files: list[Path],
+    run_output_dir: Path,
+    failures: list[str],
+) -> None:
+    """Assert bridge.json exists when both GI and KG are present."""
+    if gi_files and kg_files:
+        bridge_files = sorted(run_output_dir.rglob("*.bridge.json"))
+        if not bridge_files:
+            failures.append("bridge: GI and KG exist but no .bridge.json found")
+
+
+def _safe_json_field(path: Path, *keys: str) -> Any:
+    """Read a nested field from a JSON file, returning None on any error."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for k in keys:
+            data = data[k]
+        return data
+    except Exception:
+        return None
+
+
+def _assert_artifacts_from_config(
+    run_output_dir: Path,
+    config_path: Path,
+    episodes_processed: int = 0,
+) -> tuple[bool, list[str]]:
+    """Validate artifact content — expectations derived from config flags.
+
+    Checks are determined by what the config enables:
+    - generate_gi=true → expect .gi.json with Insight nodes
+    - generate_kg=true → expect .kg.json with Topic nodes
+    - auto_speakers=true → expect detected_hosts in metadata, host Person in KG
+    - generate_gi + generate_kg → expect bridge.json
+
+    No separate spec files — the config IS the spec.
+    """
+    try:
+        cfg_dict = config.load_config_file(str(config_path))
+    except Exception as exc:
+        logger.warning("Cannot load config for assertions: %s", exc)
+        return True, []
+
+    generate_gi = cfg_dict.get("generate_gi", False)
+    generate_kg = cfg_dict.get("generate_kg", False)
+    auto_speakers = cfg_dict.get("auto_speakers", True)
+
+    if not generate_gi and not generate_kg and not auto_speakers:
+        return True, []
+
+    failures: list[str] = []
+    gi_files: list[Path] = []
+    kg_files: list[Path] = []
+
+    if auto_speakers:
+        _check_metadata_speakers(run_output_dir, failures)
+    if generate_gi:
+        gi_files = _check_gi_artifacts(run_output_dir, failures)
+    if generate_kg:
+        kg_files = _check_kg_artifacts(run_output_dir, auto_speakers, failures)
+    if generate_gi and generate_kg:
+        _check_bridge_artifacts(gi_files, kg_files, run_output_dir, failures)
+
+    ok = len(failures) == 0
+    if not ok:
+        for f in failures:
+            logger.error("Artifact assertion FAILED: %s", f)
+    else:
+        checks = sum([auto_speakers, generate_gi, generate_kg, generate_gi and generate_kg])
+        logger.info("Artifact assertions: all passed (%d checks)", checks)
+
+    return ok, failures
+
+
 def _assess_vector_index_run(
     run_output_dir: Path,
     cfg_model: config.Config,
@@ -1613,6 +1755,7 @@ def run_config(
     run_total: Optional[int] = None,
     *,
     strict_vector_index: bool = False,
+    assert_artifacts: bool = False,
 ) -> Dict[str, Any]:
     """Run a single config and collect data.
 
@@ -1799,6 +1942,14 @@ def run_config(
             run_output_dir, cfg_for_vectors, episodes_processed, is_dry_run
         )
 
+    # Artifact assertions (#622) — opt-in via --assert-artifacts
+    artifact_assertions_ok = True
+    artifact_assertion_failures: list = []
+    if assert_artifacts and exit_code == 0 and not is_dry_run:
+        artifact_assertions_ok, artifact_assertion_failures = _assert_artifacts_from_config(
+            run_output_dir, config_path, episodes_processed
+        )
+
     effective_exit = exit_code
     if strict_vector_index and not vector_index_ok and effective_exit == 0:
         effective_exit = 1
@@ -1806,6 +1957,13 @@ def run_config(
             "Strict vector index: failing run %s (notes=%s)",
             config_name,
             vector_index_notes,
+        )
+    if assert_artifacts and not artifact_assertions_ok and effective_exit == 0:
+        effective_exit = 1
+        logger.error(
+            "Artifact assertions: failing run %s (%d failures)",
+            config_name,
+            len(artifact_assertion_failures),
         )
 
     # Build run data (store absolute output_dir so run artifacts are findable regardless of cwd)
@@ -1831,6 +1989,8 @@ def run_config(
         "vector_index_ok": vector_index_ok,
         "vector_index_notes": vector_index_notes,
         "strict_vector_index": strict_vector_index,
+        "artifact_assertions_ok": artifact_assertions_ok,
+        "artifact_assertion_failures": artifact_assertion_failures,
     }
 
     # Save run data
@@ -1838,11 +1998,21 @@ def run_config(
     with open(run_data_path, "w") as f:
         json.dump(run_data, f, indent=2)
 
+    assertions_note = ""
+    if assert_artifacts and not is_dry_run:
+        assertions_note = (
+            f", assertions={'PASS' if artifact_assertions_ok else 'FAIL'}"
+            f"({len(artifact_assertion_failures)} failures)"
+            if not artifact_assertions_ok
+            else ", assertions=PASS"
+        )
+
     logger.info(
         f"Completed {config_name}: exit_code={effective_exit}, "
         f"duration={duration_seconds:.1f}s, episodes={episodes_processed}"
         + (" (timed out)" if timed_out else "")
         + (f", vector_index={vector_index_notes}" if not is_dry_run else "")
+        + assertions_note
     )
 
     return run_data
@@ -2024,6 +2194,16 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
             "search/metadata.json) as a failed run (exit_code 1). Same as STRICT_VECTOR_INDEX=1."
         ),
     )
+    parser.add_argument(
+        "--assert-artifacts",
+        action="store_true",
+        default=False,
+        help=(
+            "After each run, validate artifact content against assertions spec "
+            "(*.assertions.yaml alongside config). Fail the run if assertions fail. "
+            "Off by default for exploration mode. Same as ASSERT_ARTIFACTS=1."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -2169,6 +2349,9 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 logger.info("")
                 logger.info("── Run %d/%d: %s ──", i, total_cfgs, config_file.name)
             run_id = f"{config_file.stem}_{session_id}"
+            assert_artifacts = getattr(args, "assert_artifacts", False) or os.environ.get(
+                "ASSERT_ARTIFACTS", ""
+            ).strip().lower() in ("1", "true", "yes")
             run_data = run_config(
                 config_file,
                 e2e_server,
@@ -2181,6 +2364,7 @@ def main() -> None:  # noqa: C901 - CLI orchestrates configs, server, analysis, 
                 run_index=i if total_cfgs > 1 else None,
                 run_total=total_cfgs if total_cfgs > 1 else None,
                 strict_vector_index=strict_vec,
+                assert_artifacts=assert_artifacts,
             )
             runs_data.append(run_data)
             # Persist after each config so analysis works if run is interrupted

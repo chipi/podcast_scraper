@@ -1082,16 +1082,13 @@ class MLProvider:
                 )
             self._initialize_spacy()
 
-        # Use detect_speaker_names with adapted parameters
         speaker_names, detected_hosts_set, detection_succeeded, used_defaults = (
             speaker_detection.detect_speaker_names(  # type: ignore[misc]
                 episode_title=episode_title,
                 episode_description=episode_description,
                 nlp=self._spacy_nlp,
                 cfg=self.cfg,
-                known_hosts=None,
                 cached_hosts=known_hosts,
-                heuristics=self._spacy_heuristics,
             )
         )
 
