@@ -188,52 +188,71 @@ cluster sizes.
 
 ---
 
-### Phase 3: Corpus Q&A via gi explore (#601) — 2-3 days + verification
+### Phase 3: Explore expansion via gi explore (#601) — ~1 day
 
-**Step 3a: Insight-cluster-aware search (1 day)**
+Phase 3 focuses on maximising value from existing infrastructure.
+No new ML models, no new LLM calls, no diarization — just wiring
+existing data + search infrastructure into the CLI.
 
-Extend `gi/explore.py`:
-- Load `insight_clusters.json` alongside `topic_clusters.json`
-- When a search matches an insight, expand to show full cluster
-- Group quotes by episode + speaker within cluster
-- `--cluster` flag to force cluster-level results
+Speaker profiles (3b), consensus detection (3c), and temporal tracking
+(3d) from the original plan are **parked** — they need diarization data
+(SPOKEN_BY edges) and a larger re-ingested production corpus. See
+`docs/wip/EXPLORE_EXPANSION_IDEAS.md` for the parked items table.
 
-Verify with eval set: write 10 test queries with expected insights/quotes.
-Score:
-- **Recall:** does cluster-aware search find all expected evidence?
-- **Precision:** does it return irrelevant evidence?
-- **Uplift:** how many MORE quotes does cluster-aware return vs single-insight?
+**Step 3a: Cluster-expanded explore (30 min) — ✅ DONE**
 
-Target: recall ≥ 80% on eval queries, uplift ≥ 2x quotes per query.
+`insight_cluster_context.py` wired into explore results.
+`expand_with_cluster_context()` adds cross-episode evidence to each
+matched insight.
 
-**Step 3b: Speaker profiles (half day)**
+**Step 3b: Cluster browse (1 hr)**
 
-- Index insights by speaker (via SPOKEN_BY edges)
-- Group by topic cluster
-- `--speaker` flag
+New `gi clusters` CLI command. Browse all insight clusters — top N
+by member count, each with canonical insight + episode list.
 
-Verify: pick 3 known speakers from production corpus. Do their profiles
-make sense? Are quotes attributed correctly?
+```bash
+gi clusters --output-dir corpus/ --top 10
+```
 
-**Step 3c: Consensus detection — MVP (1 day)**
+Reads `insight_clusters.json`, formats for terminal. No search needed.
 
-For each insight cluster:
-- Count unique speakers + episodes
-- Use NLI between cluster members to detect agreement vs disagreement
-  - entailment → agreement
-  - contradiction → dissent
-- `--consensus` flag
+**Step 3c: Quote-level search (2 hrs)**
 
-Verify: find one cluster where speakers disagree. Does the NLI-based
-detection catch it? Manual check on 5 clusters.
+New `gi explore-quotes` command. Search quotes directly via FAISS
+(already indexes `doc_type: "quote"`). Find verbatim evidence across
+the corpus.
 
-**Step 3d: Temporal tracking (half day)**
+```bash
+gi explore-quotes --query "92% of active managers" --output-dir corpus/
+```
 
-- Sort cluster members by episode publish_date
-- `--timeline` flag
+**Step 3d: Topic × Insight matrix (2 hrs)**
 
-Verify: find one topic that evolved over time in the production corpus.
-Does the timeline view show the narrative shift?
+Combine topic clusters and insight clusters into a structured map.
+For each topic cluster, show associated insight clusters via ABOUT edges.
+
+```bash
+gi topic-insights --topic "quantum computing" --output-dir corpus/
+```
+
+Cross-references `topic_clusters.json` + `insight_clusters.json` via
+ABOUT edges in gi.json.
+
+**Step 3e: Evidence density scoring (1 hr)**
+
+For each insight cluster, compute an "evidence density" score:
+- Number of unique episodes
+- Number of unique quotes
+- Average quote diversity (char distance)
+
+Surface as confidence signal in explore results.
+
+```bash
+gi explore --topic "AI safety" --sort-by evidence-density
+```
+
+**Viewer UI integration** for all 5 features is tracked separately
+(see GitHub issue for viewer integration).
 
 ---
 
@@ -246,8 +265,7 @@ Does the timeline view show the narrative shift?
 | Post-1 | Overlap rate | ≤ 5% | Phase 2 |
 | Post-2 | Cross-episode clusters | ≥ 10 | Phase 3 |
 | Post-2 | Cluster coherence (manual) | ≥ 80% | Phase 3 |
-| Post-3a | Cluster search improves evidence | Qualitative | Phase 3b |
-| Post-3c | NLI detects known disagreement | 1+ case | Ship |
+| Post-3 | Explore expansion features work on production corpus | Qualitative | Ship |
 
 ---
 
@@ -258,9 +276,12 @@ When all phases complete:
 ```
 Corpus (112 episodes) →
   646 insights (12/ep) →
-    ~1300 grounding quotes (2-3/insight) →
+    ~1300 grounding quotes (all per insight) →
       ~15 cross-episode insight clusters →
-        Queryable via: gi explore --query/--speaker/--consensus/--timeline
+        Queryable via: gi explore --topic/--expand-clusters
+                       gi explore-quotes --query
+                       gi clusters --top N
+                       gi topic-insights --topic
 ```
 
 Each query returns **multi-source evidence** — not summaries, not generated
@@ -284,11 +305,22 @@ aggregated across episodes that independently support the same claim.
 | 2c: Threshold sweep on production corpus | 1 hr | Optimal threshold with data |
 | 2d: Cluster coherence scoring | 1 hr | Data gate (≥80% coherent) |
 | 2e: Pipeline revalidation | 30 min | Integration pass |
-| 3a: Cluster-aware search | 1 day | gi explore extension |
-| 3b: Speaker profiles | half day | --speaker flag |
-| 3c: Consensus detection MVP | 1 day | --consensus flag |
-| 3d: Temporal tracking | half day | --timeline flag |
-| **Total** | **~5-6 days** | Full corpus knowledge base |
+| 3a: Cluster-expanded explore | 30 min | ✅ Done — `--expand-clusters` flag |
+| 3b: Cluster browse | 1 hr | `gi clusters` command |
+| 3c: Quote-level search | 2 hrs | `gi explore-quotes` command |
+| 3d: Topic × Insight matrix | 2 hrs | `gi topic-insights` command |
+| 3e: Evidence density scoring | 1 hr | `--sort-by evidence-density` |
+| **Total** | **~4-5 days** | Full corpus knowledge base |
+
+---
+
+## Parked: original Phase 3b-d (needs diarization + re-ingestion)
+
+| Feature | Blocker | Resume when |
+| ------- | ------- | ----------- |
+| Speaker profiles | SPOKEN_BY edges | Deepgram provider (#597) deployed |
+| Consensus detection | NLI between cluster members | Larger corpus with opposing views |
+| Temporal tracking | publish_date on cluster members | Production re-ingestion with provider-mode GI |
 
 ---
 
@@ -296,7 +328,6 @@ aggregated across episodes that independently support the same claim.
 
 | Dependency | Issue | Impact if missing |
 | ---------- | :---: | ----------------- |
-| Deepgram provider | #597 | Speaker profiles limited (no diarization on current transcripts) |
 | Profile loader | #593 | Users manually set gi_insight_source=provider (works, less elegant) |
 | KG label prompt tuning | #590 | Topic clusters slightly less clean (enforcement helps, prompt is better) |
 
