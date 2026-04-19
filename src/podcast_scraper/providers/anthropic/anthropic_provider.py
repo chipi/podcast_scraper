@@ -1431,9 +1431,10 @@ class AnthropicProvider:
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
         system = (
-            "You extract a single short quote from the transcript that best supports "
-            "the given insight. Reply with ONLY a JSON object: "
-            '{"quote_text": "exact quote from transcript"}'
+            "You extract 2-3 short verbatim quotes from the transcript that support "
+            "the given insight. Quotes must be from different parts of the "
+            "transcript. Reply with ONLY a JSON object: "
+            '{"quotes": ["exact quote 1", "exact quote 2"]}'
         )
         user = (
             f"Transcript (excerpt):\n{transcript.strip()[:50000]}\n\n"
@@ -1486,21 +1487,32 @@ class AnthropicProvider:
             if content.startswith("```"):
                 content = content.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
             obj = json.loads(content)
-            quote_text = (obj.get("quote_text") or "").strip()
-            if not quote_text:
-                return []
-            resolved = resolve_llm_quote_span(transcript, quote_text)
-            if resolved is None:
-                return []
-            start, end, verbatim = resolved
-            return [
-                QuoteCandidate(
-                    char_start=start,
-                    char_end=end,
-                    text=verbatim,
-                    qa_score=1.0,
+            quotes_raw = obj.get("quotes") or []
+            if isinstance(quotes_raw, str):
+                quotes_raw = [quotes_raw]
+            # Backward compat: fall back to single quote_text
+            if not quotes_raw:
+                qt = (obj.get("quote_text") or "").strip()
+                if qt:
+                    quotes_raw = [qt]
+            results_q: list = []
+            for qt_str in quotes_raw:
+                qt_clean = str(qt_str).strip()
+                if not qt_clean:
+                    continue
+                resolved = resolve_llm_quote_span(transcript, qt_clean)
+                if resolved is None:
+                    continue
+                r_start, r_end, r_verbatim = resolved
+                results_q.append(
+                    QuoteCandidate(
+                        char_start=r_start,
+                        char_end=r_end,
+                        text=r_verbatim,
+                        qa_score=1.0,
+                    )
                 )
-            ]
+            return results_q
         except Exception as e:
             logger.debug("Anthropic extract_quotes failed: %s", e, exc_info=True)
             return []

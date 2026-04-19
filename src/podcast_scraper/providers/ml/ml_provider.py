@@ -1630,28 +1630,34 @@ class MLProvider:
             return []
         question = f"What evidence supports: {insight_text.strip()}"
         try:
-            span = extractive_qa.answer(
+            spans = extractive_qa.answer_candidates(
                 context=transcript,
                 question=question,
                 model_id=getattr(self.cfg, "gi_qa_model", "roberta-squad2"),
                 device=getattr(self.cfg, "extractive_qa_device", None),
                 window_chars=int(getattr(self.cfg, "gi_qa_window_chars", 0)),
                 window_overlap_chars=int(getattr(self.cfg, "gi_qa_window_overlap_chars", 250)),
+                top_k=3,
             )
         except Exception as e:
             logger.warning(
                 "Extractive QA failed for extract_quotes: %s", format_exception_for_log(e)
             )
             return []
-        verbatim = transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
-        return [
-            QuoteCandidate(
-                char_start=span.start,
-                char_end=span.end,
-                text=verbatim,
-                qa_score=span.score,
+        results: list = []
+        for span in spans:
+            verbatim = (
+                transcript[span.start : span.end] if span.end <= len(transcript) else span.answer
             )
-        ]
+            results.append(
+                QuoteCandidate(
+                    char_start=span.start,
+                    char_end=span.end,
+                    text=verbatim,
+                    qa_score=span.score,
+                )
+            )
+        return results
 
     def score_entailment(
         self,
