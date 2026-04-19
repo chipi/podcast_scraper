@@ -2493,6 +2493,25 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     if limit and limit > 0:
         insights = insights[:limit]
 
+    # Build cluster lookup if requested
+    expand_clusters = getattr(args, "expand_clusters", False)
+    cluster_lookup: dict = {}
+    if expand_clusters:
+        from .search.insight_cluster_context import (
+            expand_with_cluster_context,
+            load_insight_clusters,
+        )
+
+        clusters_path = out_path / "search" / "insight_clusters.json"
+        cluster_index = load_insight_clusters(clusters_path)
+        if cluster_index:
+            # Convert InsightSummary objects to dicts for cluster expansion
+            ins_dicts = [{"insight_id": i.insight_id, "episode_id": i.episode_id} for i in insights]
+            expanded = expand_with_cluster_context(ins_dicts, cluster_index=cluster_index)
+            for ins_dict in expanded:
+                if "cluster" in ins_dict:
+                    cluster_lookup[ins_dict["insight_id"]] = ins_dict["cluster"]
+
     topic_rows = aggregate_topic_entries_for_insights(loaded, insights)
     explore_out = build_explore_output(
         insights,
@@ -2505,7 +2524,14 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
     out_format = getattr(args, "format", "pretty")
     out_file = getattr(args, "out", None)
     if out_format == "json":
-        payload = json.dumps(explore_output_to_rfc_dict(explore_out), indent=2)
+        rfc_dict = explore_output_to_rfc_dict(explore_out)
+        # Inject cluster context into JSON output
+        if expand_clusters and cluster_lookup:
+            for ins_entry in rfc_dict.get("insights", []):
+                iid = ins_entry.get("insight_id", "")
+                if iid in cluster_lookup:
+                    ins_entry["cluster"] = cluster_lookup[iid]
+        payload = json.dumps(rfc_dict, indent=2)
     else:
         lines = [
             f"Topic: {explore_out.topic or '(all)'}",
@@ -2539,6 +2565,13 @@ def _run_gi_explore(args: argparse.Namespace, logger: logging.Logger) -> int:
                 lines.append(
                     f"    quote: {q.text[:80]}..." if len(q.text) > 80 else f"    quote: {q.text}"
                 )
+            # Show cluster context if expanded
+            if expand_clusters and ins.insight_id in cluster_lookup:
+                from .search.insight_cluster_context import format_cluster_context
+
+                ctx = format_cluster_context({"cluster": cluster_lookup[ins.insight_id]})
+                if ctx:
+                    lines.append(ctx)
         payload = "\n".join(lines)
 
     if out_file:
@@ -2842,6 +2875,11 @@ def _parse_gi_args(gi_argv: Sequence[str]) -> argparse.Namespace:
         action="store_true",
         help="Fail on first artifact that fails schema validation (exit 5)",
     )
+    explore_parser.add_argument(
+        "--expand-clusters",
+        action="store_true",
+        help="Expand each insight with cross-episode cluster context (insight_clusters.json)",
+    )
 
     # gi query (UC4: tiny pattern map → explore RFC answer)
     query_parser = subparsers.add_parser(
@@ -3104,6 +3142,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 
         tc_argv = list(argv[1:]) if len(argv) > 1 else []
         return parse_topic_clusters_argv(tc_argv)
+
+    if argv and len(argv) > 0 and argv[0] == "insight-clusters":
+        from .search.cli_handlers import parse_insight_clusters_argv
+
+        ic_argv = list(argv[1:]) if len(argv) > 1 else []
+        return parse_insight_clusters_argv(ic_argv)
 
     if argv and len(argv) > 0 and argv[0] == "verify-gil-chunk-offsets":
         from .search.cli_handlers import parse_verify_gil_chunk_offsets_argv
@@ -3914,6 +3958,7 @@ def main(  # noqa: C901 - main function handles multiple command paths
             "doctor",
             "gi",
             "index",
+            "insight-clusters",
             "kg",
             "pricing-assumptions",
             "search",
@@ -3996,6 +4041,11 @@ def main(  # noqa: C901 - main function handles multiple command paths
         from .search.cli_handlers import run_topic_clusters_cli
 
         return run_topic_clusters_cli(args, log)
+
+    if hasattr(args, "command") and args.command == "insight-clusters":
+        from .search.cli_handlers import run_insight_clusters_cli
+
+        return run_insight_clusters_cli(args, log)
 
     if hasattr(args, "command") and args.command == "verify-gil-chunk-offsets":
         from .search.cli_handlers import run_verify_gil_chunk_offsets_cli

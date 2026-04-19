@@ -137,6 +137,19 @@ The system has **one pipeline** (`workflow.run_pipeline`) and **one configuratio
 **Design:** [RFC-075](../rfc/RFC-075-corpus-topic-clustering.md) (Draft) — current writers emit **`schema_version`: `"2"`** with distinct **`graph_compound_parent_id`** (viewer) vs **`cil_alias_target_topic_id`** (CIL). Holistic review notes:
 [docs/wip/rfc-075-holistic-review.md](../wip/rfc-075-holistic-review.md).
 
+## Insight Clustering Layer (#599) {#insight-clustering-layer}
+
+**Purpose:** Group **semantically similar GI insights** across episodes. While topic clustering groups KG topic labels, insight clustering groups the actual claims/findings extracted by the GI pipeline. Each cluster aggregates supporting quotes from multiple episodes, enabling cross-episode evidence queries.
+
+**Boundaries:**
+
+- **In scope:** CLI-triggered clustering via `insight-clusters` command; `--expand-clusters` flag on `gi explore` for cross-episode evidence; insight_clusters.json artifact.
+- **Out of scope:** Speaker profiles, consensus detection, temporal tracking (parked — need diarization data).
+
+**Design:** Same average-linkage algorithm as topic clustering (RFC-075). Reads insight texts from `*.gi.json` artifacts, embeds with sentence-transformers, clusters at configurable threshold (default 0.75). The cluster context expansion layer (`insight_cluster_context.py`) adds cross-episode quotes to explore results without modifying the core explore pipeline.
+
+**Multi-quote extraction (#600):** All 8 providers extract multiple verbatim quotes per insight (uncapped, typically 3-5 on real podcasts). Parser handles both new `{"quotes": [...]}` format and backward-compatible `{"quote_text": "..."}`. ML provider uses `answer_candidates(top_k=3)`. Quote deduplication by text prevents LLM repetition.
+
 **Providers:** Nine providers (1 local ML + 1 hybrid ML + 7 LLM) supply transcription, speaker detection, and summarization; capability matrix and selection are in [Pipeline and Workflow Guide](../guides/PIPELINE_AND_WORKFLOW.md). Adding or extending providers: [Provider Implementation Guide](../guides/PROVIDER_IMPLEMENTATION_GUIDE.md).
 
 ## Architectural Decisions (ADRs)

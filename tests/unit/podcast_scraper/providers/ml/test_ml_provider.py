@@ -1126,17 +1126,19 @@ class TestMLProviderGILEvidence(unittest.TestCase):
             generate_summaries=False,
         )
 
-    @patch("podcast_scraper.providers.ml.extractive_qa.answer")
-    def test_extract_quotes_returns_quote_candidates(self, mock_qa_answer):
+    @patch("podcast_scraper.providers.ml.extractive_qa.answer_candidates")
+    def test_extract_quotes_returns_quote_candidates(self, mock_qa_candidates):
         """extract_quotes returns list of QuoteCandidate from extractive_qa."""
         from podcast_scraper.gi.grounding import QuoteCandidate
 
-        # Provider uses transcript[span.start:span.end] for text; use indices so slice is "evidence"
-        mock_qa_answer.return_value = type(
-            "QASpan",
-            (),
-            {"start": 3, "end": 11, "answer": "evidence", "score": 0.88},
-        )()
+        # answer_candidates returns a list of QASpan objects (top_k=3)
+        mock_qa_candidates.return_value = [
+            type(
+                "QASpan",
+                (),
+                {"start": 3, "end": 11, "answer": "evidence", "score": 0.88},
+            )()
+        ]
         transcript = "We evidence here."
         provider = MLProvider(self.cfg)
         result = provider.extract_quotes(
@@ -1149,7 +1151,7 @@ class TestMLProviderGILEvidence(unittest.TestCase):
         self.assertEqual(result[0].char_end, 11)
         self.assertEqual(result[0].text, transcript[3:11])
         self.assertEqual(result[0].qa_score, 0.88)
-        mock_qa_answer.assert_called_once()
+        mock_qa_candidates.assert_called_once()
 
     @patch("podcast_scraper.providers.ml.extractive_qa.answer")
     def test_extract_quotes_empty_input_returns_empty(self, mock_qa_answer):

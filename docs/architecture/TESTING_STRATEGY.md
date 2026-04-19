@@ -1257,6 +1257,9 @@ Testing for the Grounded Insight Layer follows the established test pyramid. Cur
 - [x] CLI gi subcommand: parse, validate, export, inspect, show-insight, explore, query, exit codes (`test_cli.py`); config logging warnings for GIL stub insights and API summary + local evidence hybrid (`TestLogConfigurationGiStubWarning`, `TestLogConfigurationGilHybridWarning`)
 - [x] CI fixtures: `tests/fixtures/gil_kg_ci_enforce` — GIL + KG quality metrics enforce (GitHub Actions + `make quality-metrics-ci`)
 - [x] Bridge builder (`tests/unit/builders/test_bridge_builder.py`); CIL corpus logic (`test_cil_queries.py`); CIL HTTP (`tests/integration/server/test_cil_api.py`); search lift + offset verify (`tests/unit/podcast_scraper/search/test_transcript_chunk_lift.py`, `test_gil_chunk_offset_verify.py`); bridge wiring integration (`tests/integration/test_bridge_integration.py`)
+- [x] Insight clustering (#599): unit tests for `collect_insight_rows_from_corpus`, `build_insight_clusters_payload` (`test_insight_clusters.py`); integration test for end-to-end corpus flow (`tests/integration/search/test_insight_clusters_cli.py`)
+- [x] Cluster context expansion (#601): unit tests for `load_insight_clusters`, `expand_with_cluster_context`, `format_cluster_context` (`test_insight_cluster_context.py`); integration test for artifact → expand flow
+- [x] Multi-quote extraction (#600): ML provider test updated for `answer_candidates(top_k=3)` mock; existing provider tests cover backward-compat `quote_text` fallback
 
 #### GIL and KG CI quality gates {#gil-and-kg-ci-quality-gates}
 

@@ -964,3 +964,72 @@ def run_topic_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
         payload.get("singletons"),
     )
     return EXIT_SUCCESS
+
+
+# ── insight-clusters (#599) ──────────────────────────────────────────
+
+
+def parse_insight_clusters_argv(argv: Sequence[str]) -> Namespace:
+    """Parse argv after ``insight-clusters`` (#599)."""
+    parser = argparse.ArgumentParser(
+        prog="podcast_scraper insight-clusters",
+        description=(
+            "Cluster GI insights from gi.json artifacts across episodes; "
+            "write insight_clusters.json (#599)."
+        ),
+    )
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Pipeline output directory (contains metadata/*.gi.json)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.75,
+        help="Minimum cosine similarity to group insights (default: 0.75)",
+    )
+    parser.add_argument(
+        "--output-file",
+        default=None,
+        help="Write JSON here (default: <output-dir>/search/insight_clusters.json)",
+    )
+    ns = cast(Namespace, parser.parse_args(list(argv)))
+    ns.command = "insight-clusters"
+    return ns
+
+
+def run_insight_clusters_cli(args: Namespace, logger: logging.Logger) -> int:
+    """Build ``insight_clusters.json`` for a corpus (#599)."""
+    from podcast_scraper.search.insight_clusters import build_insight_clusters_for_corpus
+
+    output_dir = getattr(args, "output_dir", None)
+    if not output_dir:
+        logger.error("insight-clusters: --output-dir is required")
+        return EXIT_INVALID_ARGS
+
+    out_file = getattr(args, "output_file", None)
+    out_path = Path(out_file).resolve() if out_file else None
+    threshold = float(getattr(args, "threshold", 0.75) or 0.75)
+
+    try:
+        payload = build_insight_clusters_for_corpus(
+            output_dir,
+            threshold=threshold,
+            out_path=out_path,
+        )
+    except FileNotFoundError as exc:
+        logger.error("insight-clusters: %s", exc)
+        return EXIT_NO_ARTIFACTS
+    except Exception as exc:
+        logger.error("insight-clusters: %s", format_exception_for_log(exc))
+        return EXIT_INVALID_ARGS
+
+    logger.info(
+        "insight-clusters: insights=%s clusters=%s cross_episode=%s singletons=%s",
+        payload.get("insight_count"),
+        payload.get("cluster_count"),
+        payload.get("cross_episode_clusters"),
+        payload.get("singletons"),
+    )
+    return EXIT_SUCCESS

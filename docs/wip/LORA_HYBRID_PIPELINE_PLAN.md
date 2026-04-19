@@ -30,7 +30,7 @@ right fine-tuning surface, or is the answer now "LoRA on SummLlama-style standal
 
 Everything below this line is the original plan, retained for reference.
 
-**Relation to other WIP**: paired with [`AUTORESEARCH_V2_NEXT_STEPS.md`](AUTORESEARCH_V2_NEXT_STEPS.md)
+**Relation to other WIP**: paired with AUTORESEARCH_V2_NEXT_STEPS (superseded/deleted)
 (v2-closed header + ML/hybrid v2 base numbers).
 
 ---
