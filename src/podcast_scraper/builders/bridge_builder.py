@@ -113,12 +113,13 @@ def _fuzzy_reconcile(
     """
     if embedder is None:
         try:
-            from sentence_transformers import SentenceTransformer
+            from ..providers.ml.embedding_loader import load_embedding_model
 
-            embedder = SentenceTransformer("all-MiniLM-L6-v2")
-        except ImportError:
-            logger.debug("sentence-transformers not available; skipping fuzzy reconciliation")
+            embedder = load_embedding_model("minilm-l6", allow_download=False)
+        except Exception:  # noqa: BLE001
+            logger.debug("Embedding model unavailable; skip fuzzy reconciliation")
             return []
+    # embedder is a SentenceTransformer instance (type not importable at check time)
 
     # Partition single-layer identities by CIL type
     gi_only: Dict[str, Dict[str, Any]] = {}
@@ -150,8 +151,8 @@ def _fuzzy_reconcile(
 
         import numpy as np
 
-        gi_embs = embedder.encode(gi_names, normalize_embeddings=True)
-        kg_embs = embedder.encode(kg_names, normalize_embeddings=True)
+        gi_embs = embedder.encode(gi_names, normalize_embeddings=True)  # type: ignore[union-attr]
+        kg_embs = embedder.encode(kg_names, normalize_embeddings=True)  # type: ignore[union-attr]
         sim = np.dot(gi_embs, kg_embs.T)
 
         # Greedy best-match: for each GI identity, find best KG match
