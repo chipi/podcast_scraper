@@ -13,9 +13,14 @@ import CollapsibleSection from '../shared/CollapsibleSection.vue'
 import HelpTip from '../shared/HelpTip.vue'
 import PodcastCover from '../shared/PodcastCover.vue'
 import { useCorpusLensStore } from '../../stores/corpusLens'
+import { useDashboardNavStore } from '../../stores/dashboardNav'
 import { useSubjectStore } from '../../stores/subject'
 import { useShellStore } from '../../stores/shell'
-import { digestRowFeedLabelWithCatalog, libraryEpisodeSummaryLine } from '../../utils/digestRowDisplay'
+import {
+  digestRowFeedLabelWithCatalog,
+  libraryEpisodeSummaryLine,
+} from '../../utils/digestRowDisplay'
+import { isPublishDateWithin24hRolling, recencyDotHoverTitle } from '../../utils/digestRecency'
 import { feedNameHoverWithCatalogLookup } from '../../utils/feedHoverTitle'
 import { formatDurationSeconds } from '../../utils/formatDuration'
 import { normalizeFeedIdForViewer } from '../../utils/feedId'
@@ -28,17 +33,8 @@ defineOptions({ name: 'LibraryView' })
 /** ``GET /api/corpus/episodes`` page size (cursor pagination; scroll + Load more). */
 const LIBRARY_EPISODES_PAGE_SIZE = 20
 
-/**
- * Feed picker in Library **Filters**: cap list height so the filter column stays compact.
- * Approximate row: ``h-8`` cover + ``py-1`` on the feed row button (~2.5rem).
- */
-/** Library filters: show **two** feed rows before scroll (not a peek of a third). */
-const LIBRARY_FEED_FILTER_VISIBLE_ROWS = 2
-const LIBRARY_FEED_FILTER_ROW_REM = 2.5
-const LIBRARY_FEED_FILTER_GAP_REM = 0.125
-const LIBRARY_FEED_FILTER_LIST_MAX_HEIGHT_REM =
-  LIBRARY_FEED_FILTER_VISIBLE_ROWS * LIBRARY_FEED_FILTER_ROW_REM +
-  (LIBRARY_FEED_FILTER_VISIBLE_ROWS - 1) * LIBRARY_FEED_FILTER_GAP_REM
+/** When feed count exceeds this, show a client-side filter box above the feed list. */
+const LIBRARY_FEED_FILTER_SEARCH_THRESHOLD = 15
 
 const emit = defineEmits<{
   'focus-search': [
@@ -49,6 +45,12 @@ const emit = defineEmits<{
 const shell = useShellStore()
 const subject = useSubjectStore()
 const corpusLens = useCorpusLensStore()
+const dashboardNav = useDashboardNavStore()
+
+/** Optional upper bound (``YYYY-MM-DD``) from Dashboard handoff; cleared after load. */
+const libraryUntilYmd = ref('')
+/** When ``false``, request episodes missing GI from the API. */
+const libraryHasGiFilter = ref<boolean | undefined>(undefined)
 const { sinceYmd, activePreset } = storeToRefs(corpusLens)
 
 /** Debounce episode reload when the shared date field changes (keystrokes). */
@@ -100,7 +102,7 @@ const filtersSectionSummary = computed(() => {
     parts.push(`topic: ${truncateSummaryPart(topicQ.value, 18)}`)
   }
   if (topicClusterOnly.value) {
-    parts.push('topic cluster')
+    parts.push('clustered only')
   }
   return parts.join(' · ')
 })
@@ -108,6 +110,15 @@ const filtersSectionSummary = computed(() => {
 const feeds = ref<CorpusFeedItem[]>([])
 const feedsError = ref<string | null>(null)
 const feedsLoading = ref(false)
+const feedListSearch = ref('')
+
+const filteredFeeds = computed((): CorpusFeedItem[] => {
+  const q = feedListSearch.value.trim().toLowerCase()
+  if (!q) {
+    return feeds.value
+  }
+  return feeds.value.filter((f) => feedRowVisibleLabel(f).toLowerCase().includes(q))
+})
 
 const libraryFeedsGate = new StaleGeneration()
 const libraryEpisodesGate = new StaleGeneration()
@@ -230,6 +241,7 @@ function clearAllLibraryFilters(): void {
   titleQ.value = ''
   topicQ.value = ''
   topicClusterOnly.value = false
+  feedListSearch.value = ''
   corpusLens.setPreset('all')
   applySinceDateReloadEpisodesNow()
 }
@@ -364,6 +376,8 @@ async function loadEpisodes(append: boolean): Promise<void> {
       topicQ: topicQ.value.trim() || undefined,
       topicClusterOnly: topicClusterOnly.value || undefined,
       since: sinceYmd.value.trim() || undefined,
+      until: libraryUntilYmd.value.trim() || undefined,
+      hasGi: libraryHasGiFilter.value,
       limit: LIBRARY_EPISODES_PAGE_SIZE,
       cursor,
     }
@@ -502,6 +516,19 @@ watch(
 )
 
 onActivated(() => {
+  const nav = dashboardNav.consumeHandoff()
+  if (nav?.kind === 'library') {
+    if (nav.feedId !== undefined) {
+      feedFilterId.value = nav.feedId.trim() ? nav.feedId : null
+    }
+    if (nav.since !== undefined) {
+      corpusLens.sinceYmd = nav.since ?? ''
+    }
+    libraryUntilYmd.value = nav.until?.trim() ?? ''
+    libraryHasGiFilter.value = nav.missingGiOnly === true ? false : undefined
+    subject.clearSubject()
+    void loadEpisodes(false)
+  }
   void nextTick(setupEpisodesInfiniteObserver)
 })
 
@@ -556,12 +583,13 @@ onBeforeUnmount(() => {
               </p>
               <p class="mb-2 font-sans text-[10px] text-muted">
                 Narrow the episode list by publish date (shared with Digest and Search),
-                title substring, summary title or bullet substring, feed, and optionally
-                only episodes that have a CIL topic cluster (multi-member cluster data).
+                title substring, summary title or bullet substring, and feed. Use
+                <strong class="font-medium text-surface-foreground/90">Clustered episodes only</strong>
+                (below Filters) for corpus multi-member topic clusters.
               </p>
               <p class="font-sans text-[10px] text-muted">
                 <strong class="font-medium text-surface-foreground/90">Clear all filters</strong>
-                resets date, title, summary filter, feed, and cluster options.
+                resets date, title, summary filter, feed, feed search text, and cluster toggle.
                 <strong class="font-medium text-surface-foreground/90">Apply</strong>
                 reloads using the title and summary fields (same as Enter in those inputs).
               </p>
@@ -686,19 +714,6 @@ onBeforeUnmount(() => {
                   aria-label="Summary or topic filter"
                   @keydown.enter="applyEpisodeFilters()"
                 >
-                <div class="col-span-2 col-start-1 row-start-3 mt-1 flex min-w-0 items-center gap-2">
-                  <input
-                    id="lib-filter-topic-cluster-only"
-                    v-model="topicClusterOnly"
-                    type="checkbox"
-                    class="h-3.5 w-3.5 shrink-0 rounded border border-border accent-primary"
-                    aria-label="Show only episodes with a topic cluster (CIL)"
-                  >
-                  <label
-                    for="lib-filter-topic-cluster-only"
-                    class="min-w-0 cursor-pointer select-none text-[10px] leading-tight text-muted"
-                  >Episodes with topic cluster (CIL)</label>
-                </div>
               </div>
             </div>
             <!-- Right (~40%): feed -->
@@ -721,9 +736,17 @@ onBeforeUnmount(() => {
                   Clear feed filter
                 </button>
               </div>
+              <input
+                v-if="feeds.length > LIBRARY_FEED_FILTER_SEARCH_THRESHOLD"
+                v-model="feedListSearch"
+                type="search"
+                class="mb-1 w-full rounded border border-border bg-elevated px-2 py-1 text-xs text-surface-foreground"
+                placeholder="Filter feeds…"
+                aria-label="Filter feeds by display title"
+                data-testid="library-feed-filter-search"
+              >
               <div
-                class="min-h-0 overflow-y-auto"
-                :style="{ maxHeight: `${LIBRARY_FEED_FILTER_LIST_MAX_HEIGHT_REM}rem` }"
+                class="min-w-0"
                 role="region"
                 aria-label="Feeds"
               >
@@ -734,7 +757,7 @@ onBeforeUnmount(() => {
               {{ feedsError }}
             </p>
             <ul v-else class="space-y-0.5 text-sm">
-              <li v-for="f in feeds" :key="f.feed_id || '__empty__'">
+              <li v-for="f in filteredFeeds" :key="f.feed_id || '__empty__'">
                 <button
                   type="button"
                   class="flex w-full min-w-0 items-center gap-2 rounded px-2 py-1 text-left hover:bg-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -764,6 +787,29 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </CollapsibleSection>
+
+        <div class="flex flex-col gap-1 rounded border border-border bg-surface px-2 py-1.5">
+          <div class="flex min-w-0 items-center gap-2">
+            <input
+              id="library-topic-cluster-toggle"
+              v-model="topicClusterOnly"
+              type="checkbox"
+              data-testid="library-topic-cluster-toggle"
+              class="h-3.5 w-3.5 shrink-0 rounded border border-border accent-primary"
+              aria-label="Clustered episodes only"
+            >
+            <label
+              for="library-topic-cluster-toggle"
+              class="min-w-0 cursor-pointer select-none text-xs leading-tight text-muted"
+            >Clustered episodes only</label>
+          </div>
+          <p
+            v-if="topicClusterOnly"
+            class="m-0 pl-5 text-[10px] leading-snug text-muted"
+          >
+            Showing episodes in a topic cluster
+          </p>
+        </div>
 
         <div class="flex min-h-0 flex-1 flex-col gap-2">
         <!-- Episodes list (detail in right sidebar Episode panel) -->
@@ -862,9 +908,20 @@ onBeforeUnmount(() => {
                   />
                   <div class="min-w-0 flex-1">
                   <div class="flex items-baseline justify-between gap-2">
-                    <span class="min-w-0 flex-1 truncate font-medium text-surface-foreground">{{
-                      e.episode_title
-                    }}</span>
+                    <div class="flex min-w-0 flex-1 items-baseline gap-1.5">
+                      <span
+                        v-if="isPublishDateWithin24hRolling(e.publish_date)"
+                        role="img"
+                        class="mb-0.5 h-1.5 w-1.5 shrink-0 self-center rounded-full bg-success"
+                        :title="recencyDotHoverTitle(e.publish_date) || undefined"
+                        :aria-label="
+                          recencyDotHoverTitle(e.publish_date) || 'Recently published'
+                        "
+                      />
+                      <span class="min-w-0 flex-1 truncate font-medium text-surface-foreground">{{
+                        e.episode_title
+                      }}</span>
+                    </div>
                     <div
                       class="flex min-w-0 max-w-[min(100%,14rem)] shrink-0 items-baseline justify-end gap-2 text-[10px] text-muted"
                     >
@@ -891,7 +948,13 @@ onBeforeUnmount(() => {
                   </div>
                   <p
                     v-if="episodeListSummaryLine(e)"
-                    class="mt-1 break-words whitespace-pre-wrap text-[11px] leading-snug text-muted"
+                    class="mt-1 break-words text-[11px] leading-snug text-muted"
+                    :class="isEpisodeSelected(e) ? 'whitespace-pre-wrap' : 'line-clamp-2'"
+                    :title="
+                      isEpisodeSelected(e)
+                        ? undefined
+                        : episodeListSummaryLine(e) || undefined
+                    "
                   >
                     {{ episodeListSummaryLine(e) }}
                   </p>

@@ -19,6 +19,11 @@ import type { SearchHit } from './api/searchApi'
 import { logicalEpisodeIdsForLibraryGraphSync } from './utils/graphEpisodeMetadata'
 import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { useThemeStore } from './stores/theme'
+import { useGraphLensStore } from './stores/graphLens'
+import {
+  GRAPH_DEFAULT_EPISODE_CAP,
+  selectRelPathsForGraphLoad,
+} from './utils/graphEpisodeSelection'
 import { StaleGeneration } from './utils/staleGeneration'
 
 const shell = useShellStore()
@@ -29,6 +34,7 @@ const theme = useThemeStore()
 const subject = useSubjectStore()
 const graphFilters = useGraphFilterStore()
 const graphNav = useGraphNavigationStore()
+const graphLens = useGraphLensStore()
 
 const mainTab = ref<'digest' | 'library' | 'graph' | 'dashboard'>('digest')
 const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
@@ -79,21 +85,30 @@ watch(
 
 watch(
   () => shell.corpusPath,
-  (p) => {
+  (p, old) => {
     subject.clearSubject()
     artifacts.setCorpusPath(p)
+    const prev = old !== undefined ? String(old ?? '').trim() : null
+    const next = String(p ?? '').trim()
+    if (prev !== null && prev !== next) {
+      graphLens.resetForNewCorpus()
+      artifacts.clearManualGraphSelection()
+    }
   },
   { immediate: true },
 )
 
 const corpusGraphSyncGate = new StaleGeneration()
 
+let corpusGraphSyncRunning = false
+let corpusGraphSyncQueued = false
+
 /**
- * When the API is healthy and a corpus path is set, list GI/KG via ``GET /api/artifacts``
- * and load all of them into the merged graph (same end state as **List** → **All** → **Load into graph**).
- * Offline / failed health: skip so file-picker loads stay intact.
+ * When the API is healthy and a corpus path is set, list GI/KG via ``GET /api/artifacts``,
+ * apply ``graphLens`` + episode cap, then load the merged graph. Skipped until the user opens
+ * the Graph tab once (per GRAPH-INITIAL-LOAD). Offline / failed health: skip so file-picker loads stay intact.
  */
-async function syncMergedGraphFromCorpusApi(): Promise<void> {
+async function runCorpusGraphSyncBody(): Promise<void> {
   const gen = corpusGraphSyncGate.bump()
   artifacts.setCorpusPath(shell.corpusPath)
   const root = shell.corpusPath.trim()
@@ -104,25 +119,65 @@ async function syncMergedGraphFromCorpusApi(): Promise<void> {
   if (!shell.healthStatus) {
     return
   }
+  if (artifacts.manualGraphSelection) {
+    return
+  }
+  if (mainTab.value === 'graph') {
+    graphLens.markGraphTabOpenedOnce()
+  }
+  if (!graphLens.graphTabOpenedThisSession) {
+    return
+  }
+  graphLens.seedFromCorpusLensIfNeeded()
   await artifacts.syncTopicClustersForCurrentCorpus()
   await shell.fetchArtifactList()
   if (corpusGraphSyncGate.isStale(gen)) {
     return
   }
-  const giKgRelPaths = shell.artifactList
-    .filter((a) => a.kind === 'gi' || a.kind === 'kg')
-    .map((a) => a.relative_path)
-  if (giKgRelPaths.length === 0) {
+  const rows = shell.artifactList.map((a) => ({
+    relative_path: a.relative_path,
+    kind: a.kind,
+    publish_date: a.publish_date ?? '',
+  }))
+  const { selectedRelPaths, wasCapped } = selectRelPathsForGraphLoad(
+    rows,
+    graphLens.sinceYmd,
+    GRAPH_DEFAULT_EPISODE_CAP,
+  )
+  graphLens.setLastAutoLoadCapped(wasCapped)
+  if (selectedRelPaths.length === 0) {
     artifacts.clearSelection()
     await artifacts.syncTopicClustersForCurrentCorpus()
     return
   }
-  artifacts.selectAllListed(giKgRelPaths)
+  artifacts.selectAllListed(selectedRelPaths)
   await artifacts.loadSelected()
 }
 
+async function syncMergedGraphFromCorpusApi(): Promise<void> {
+  if (corpusGraphSyncRunning) {
+    corpusGraphSyncQueued = true
+    return
+  }
+  corpusGraphSyncRunning = true
+  try {
+    await runCorpusGraphSyncBody()
+  } finally {
+    corpusGraphSyncRunning = false
+    if (corpusGraphSyncQueued) {
+      corpusGraphSyncQueued = false
+      void syncMergedGraphFromCorpusApi()
+    }
+  }
+}
+
+async function onCorpusGraphLensReload(): Promise<void> {
+  artifacts.clearManualGraphSelection()
+  await syncMergedGraphFromCorpusApi()
+}
+
 watch(
-  () => [shell.corpusPath, shell.healthStatus] as const,
+  () => [shell.corpusPath, shell.healthStatus, mainTab.value] as const,
   () => {
     void syncMergedGraphFromCorpusApi()
   },
@@ -474,10 +529,18 @@ watch(
             class="h-full max-w-full overflow-x-hidden overflow-y-auto p-3"
             style="max-height: calc(100vh - 5rem)"
           >
-            <DashboardView @go-graph="mainTab = 'graph'" />
+            <DashboardView
+              @go-graph="mainTab = 'graph'"
+              @open-library="mainTab = 'library'"
+              @open-digest="mainTab = 'digest'"
+            />
           </div>
           <keep-alive>
-            <GraphTabPanel v-if="mainTab === 'graph'" ref="graphCanvasRef" />
+            <GraphTabPanel
+              v-if="mainTab === 'graph'"
+              ref="graphCanvasRef"
+              @request-corpus-graph-sync="onCorpusGraphLensReload"
+            />
           </keep-alive>
         </div>
       </div>
@@ -508,7 +571,7 @@ watch(
             @click="
               rightOpen = true;
               leftOpen = true;
-              void nextTick(() => leftPanelRef.value?.focusQuery())
+              void nextTick(() => leftPanelRef?.focusQuery())
             "
           >
             Search
@@ -552,7 +615,10 @@ watch(
         </div>
       </div>
       </div>
-      <StatusBar @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded" />
+      <StatusBar
+        @local-artifacts-loaded="onStatusBarLocalArtifactsLoaded"
+        @go-graph="mainTab = 'graph'"
+      />
     </div>
   </div>
 </template>

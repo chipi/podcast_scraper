@@ -62,6 +62,7 @@ export const useShellStore = defineStore('shell', () => {
       kind: string
       size_bytes: number
       mtime_utc: string
+      publish_date: string
     }[]
   >([])
   /** Server-resolved absolute corpus path (returned by /api/artifacts). */
@@ -178,6 +179,7 @@ export const useShellStore = defineStore('shell', () => {
           kind: string
           size_bytes: number
           mtime_utc: string
+          publish_date: string
         }[]
       }
       if (artifactListFetchGate.isStale(seq)) {

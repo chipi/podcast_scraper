@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from podcast_scraper.search.corpus_scope import latest_feed_run_allowed_relpaths
+from podcast_scraper.server.corpus_catalog import publish_calendar_date_for_artifact_listing
 from podcast_scraper.server.pathutil import resolve_corpus_path_param
 from podcast_scraper.server.schemas import ArtifactItem, ArtifactListResponse
 from podcast_scraper.utils.corpus_episode_paths import corpus_search_parent_hint
@@ -82,6 +83,9 @@ async def list_artifacts(
                 st = p.stat()
             except OSError:
                 continue
+            pub_day = publish_calendar_date_for_artifact_listing(
+                base, rel.as_posix(), float(st.st_mtime)
+            )
             items.append(
                 ArtifactItem(
                     name=p.name,
@@ -89,6 +93,7 @@ async def list_artifacts(
                     kind=kind,
                     size_bytes=int(st.st_size),
                     mtime_utc=_mtime_utc_iso(st.st_mtime),
+                    publish_date=pub_day,
                 )
             )
     allowed = latest_feed_run_allowed_relpaths(a.relative_path for a in items)

@@ -52,8 +52,8 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    (`wrap`, `justify-between`) -- **`h2` Digest** (`#digest-main-heading`, **`text-sm`**
    semibold) on the **left** with a **`HelpTip`** (**About Digest**) that explains **Topic
    bands** (topic title -> **Graph**; hit row -> **Episode subject rail** + **Graph**; digest topic
-   focus; **Search topic**; hover **`title`** on hit rows lists publish date, **E#**,
-   duration, similarity, and feed hints), **Recent** (Episode
+   focus; **Search topic**; hit rows show **semantic match strength** when a score exists and
+   hover **`title`** on hit rows lists publish date, **E#**, duration, and feed hints), **Recent** (Episode
    rail, CIL **topic pills** vs **Library** catalog); **Published
    on or after** (`#digest-filter-since`, shared **`corpusLens`** with Library) plus the same
    preset buttons (**All time**, **7d**, **30d**, **90d**) on the **right** (`muted` label,
@@ -66,11 +66,12 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    missing bands.
 
    When bands exist: outer **`role="region"`** **`aria-label`** **Topic bands** wraps the
-   topic **grid** with **`max-height`** (`min(42vh, 21.5rem)`), **`overflow-y-auto`**, and
-   **`rounded-sm`** (one outer scrollbar; per-topic lists do not scroll independently).
-   Inner responsive grid (`sm:2` / `xl:3` columns); each topic is a compact bordered
-   **`section`** card. The **topic title** **`button`** shows the band label at
-   **`text-sm font-semibold`** and opens **Graph** for the top hit that has GI or KG on disk;
+   topic **grid** without an outer **`max-height`** / nested scroll: show the **first three**
+   band cards by default; when the API returns more, a **`digest-topic-bands-show-more`**
+   control expands the rest inline. Inner responsive grid (`sm:2` / `xl:3` columns); each topic
+   is a compact bordered **`section`** card. The **first** band uses **`bg-elevated`** and a
+   **`border-primary/20`** border; its topic title **`button`** uses **`font-bold`**. Later bands
+   use **`bg-surface`**, **`border-border`**, and **`text-sm font-semibold`**. The **topic title** **`button`** opens **Graph** for the top hit that has GI or KG on disk;
    **Search topic** is a separate primary **`button`**. Per-topic **hit rows** are one
    clickable control that also emits **open-library-episode** (same handoff as **Recent**)
    so the **Episode** rail loads that row, then opens the **Graph** tab for that hit's merged
@@ -78,11 +79,14 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    `GET /api/corpus/digest`, a `topic:{slug}` derived from the band label) when that node
    exists in the graph, otherwise falls back to the **episode** node. Layout: **grid** first
    column is **`PodcastCover`** only (**`w-9`**, **`h-9`**, same tile size as **Recent**);
-   second column is **episode title** (**`minmax(0,1fr)`**). **`summary_preview`** spans
-   **both** columns on the row below. Publish date, **E#**, duration, similarity, human
-   **Feed:** label, optional short **About this feed** blurb, and **RSS** URL stay in the
-   native **`title`** tooltip only (readable lines; **no** metadata paths or raw feed ids
-   there). **Search topic** prefills semantic search with the topic
+   second column stacks **title row** (episode title + optional **Strong** / **Good** / **Weak match**
+   label from the vector score — raw score on the label’s native **`title`**) and
+   **`summary_preview`** below (**`line-clamp-2`** when the row is not selected, full text when
+   selected, matching **Recent**). Publish date, **E#**, duration, human **Feed:** label,
+   optional short **About this feed** blurb, and **RSS** URL stay in the row’s native **`title`**
+   (readable lines; **no** metadata paths or raw feed ids there). A small **`success`** **recency
+   dot** may appear before the title when **`publish_date`** is within the rolling **24h** window
+   (local **YYYY-MM-DD** midnight rule; see UXS-001 tunables). **Search topic** prefills semantic search with the topic
    query and passes **Since (date)** only when the shared corpus lens has a valid
    **YYYY-MM-DD** (omitted for all time). Selected hit row uses `bg-overlay` when its path
    matches the Episode subject rail (for example after opening that episode from **Recent**).
@@ -95,11 +99,13 @@ All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
    episode rows use the **same list-row treatment as Library** (`hover:bg-overlay`, selected
    `bg-overlay`): cover `h-9`, title + right column with one **baseline-wrapping** meta line
    (**feed** when shown, then publish date / **E#** / duration in reading order), tight gap
-   before full-wrap `summary_preview` / recap; row click opens
+   before **`summary_preview` / recap** (**`line-clamp-2`** when unselected, full when selected,
+   same as Library); optional **recency dot** as on topic hits. Row click opens
    Episode subject rail (Digest remains the main tab).    **Topic pills:** when `GET /api/corpus/digest`
    sends **`cil_digest_topics`** (CIL bridge `topic:` ids, cluster-first order; when
-   **`in_topic_cluster`**, pills use the same **amber / orange** fill and border as graph
-   **Quote** / **`search-hit`** emphasis — not the violet **TopicCluster** compound fill),
+   **`in_topic_cluster`**, pills use a faint **`kg`** tint (**`bg-kg/15`**, **`border-kg`**) so
+   cluster membership matches **TopicCluster** chrome on the graph; non-cluster pills stay
+   neutral border),
    those chips open **Graph** with **`topic_id`** focus
    (`digest-recent-cil-pills`). There are **no** summary-bullet pill chips on Recent rows.
    Accessible name matches Library rows: episode title, feed.

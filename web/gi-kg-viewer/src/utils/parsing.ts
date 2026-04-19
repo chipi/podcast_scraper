@@ -712,6 +712,27 @@ function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
   return out
 }
 
+const GRAPH_TYPES_OFF_BY_DEFAULT = new Set(['Quote', 'Speaker', 'Episode'])
+
+/** Graph tab: hide noisy node types on first paint (see GRAPH-INITIAL-LOAD spec). */
+export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): void {
+  const next: Record<string, boolean> = { ...state.allowedTypes }
+  for (const k of Object.keys(next)) {
+    next[k] = !GRAPH_TYPES_OFF_BY_DEFAULT.has(k)
+  }
+  state.allowedTypes = next
+}
+
+/** True when any per-type checkbox differs from graph default visibility. */
+export function graphTypesDeviateFromGraphSpec(state: GraphFilterState | null): boolean {
+  if (!state) return false
+  for (const [k, on] of Object.entries(state.allowedTypes)) {
+    const expected = !GRAPH_TYPES_OFF_BY_DEFAULT.has(k)
+    if (Boolean(on) !== expected) return true
+  }
+  return false
+}
+
 export function filtersActive(
   fullArt: ParsedArtifact | null,
   state: GraphFilterState | null,

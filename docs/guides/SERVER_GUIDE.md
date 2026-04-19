@@ -135,7 +135,7 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | Method | Path | Tag | Description | Key query params |
 | ------ | ---- | --- | ----------- | ---------------- |
 | GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api`. Omit digest flag on older builds → clients treat digest as unavailable. | — |
-| GET | `/api/artifacts` | artifacts | List `*.gi.json` and `*.kg.json` (recursive); each item includes `mtime_utc` (#507). | `path` (required) — corpus output directory |
+| GET | `/api/artifacts` | artifacts | List `*.gi.json`, `*.kg.json`, and `*.bridge.json` (recursive); each item includes `mtime_utc` (#507) and `publish_date` (YYYY-MM-DD from episode metadata when present, else UTC calendar day from file mtime). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
 | GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
 | POST | `/api/index/rebuild` | index | Queue background `index_corpus` (202); mutex per corpus. Poll `GET /api/index/stats`. | `path`, `rebuild`, `embedding_model`, `vector_index_path`, `vector_faiss_index_mode`, `vector_index_types` (comma-separated) |
@@ -160,6 +160,8 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 | GET | `/api/corpus/documents/manifest` | corpus | Return `corpus_manifest.json` at corpus root (**404** if missing). | `path` |
 | GET | `/api/corpus/documents/run-summary` | corpus | Return `corpus_run_summary.json` at corpus root (**404** if missing). | `path` |
 | GET | `/api/corpus/runs/summary` | corpus | Discover `run.json` under the tree (capped), compact metrics per file for Dashboard. | `path` |
+| GET | `/api/corpus/coverage` | corpus | GI/KG sibling-file presence per episode; aggregates by publish month and feed (Dashboard). | `path` |
+| GET | `/api/corpus/persons/top` | corpus | Top speakers by grounded insight count (scans `*.gi.json` under catalog). | `path`, `limit` |
 
 Design and response field semantics: [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md). Topic strings: repo `config/digest_topics.yaml`.
 

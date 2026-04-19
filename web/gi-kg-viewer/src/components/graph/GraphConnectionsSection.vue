@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { ParsedArtifact } from '../../types/artifact'
 import { useArtifactsStore } from '../../stores/artifacts'
+import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -56,12 +57,18 @@ const emit = defineEmits<{
 const nav = useGraphNavigationStore()
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
+const graphFilters = useGraphFilterStore()
+
+/** Neighbor rows + Library metadata resolve against merged GI/KG, not only canvas-visible types. */
+const connectionsArtifact = computed(
+  () => graphFilters.fullArtifact ?? props.viewArtifact,
+)
 
 const neighbors = computed((): GraphNeighborRow[] => {
   if (props.aggregatedNeighborRows !== undefined) {
     return props.aggregatedNeighborRows
   }
-  return graphNeighborsForNode(props.viewArtifact, props.nodeId)
+  return graphNeighborsForNode(connectionsArtifact.value, props.nodeId)
 })
 
 const miniMapCenterIdResolved = computed((): string | null => {
@@ -117,7 +124,7 @@ function isEpisodeNeighborType(nb: GraphNeighborRow): boolean {
 
 function libraryMetadataPathForEpisodeNeighbor(nb: GraphNeighborRow): string | null {
   if (!isEpisodeNeighborType(nb)) return null
-  const node = findRawNodeInArtifact(props.viewArtifact, nb.id)
+  const node = findRawNodeInArtifact(connectionsArtifact.value, nb.id)
   const fromEp = metadataPathFromEpisodeProperties(node)
   if (fromEp?.trim()) return fromEp.trim()
   const logical = logicalEpisodeIdFromGraphNodeId(nb.id)
@@ -138,7 +145,7 @@ function libraryNeighborEnabled(nb: GraphNeighborRow): boolean {
 }
 
 function semanticPrefillQueryForNeighbor(nb: GraphNeighborRow): string {
-  const raw = findRawNodeInArtifact(props.viewArtifact, nb.id)
+  const raw = findRawNodeInArtifact(connectionsArtifact.value, nb.id)
   const text = raw ? fullPrimaryNodeLabel(raw) : nb.label
   return truncate(text.trim(), SEMANTIC_PREFILL_MAX_CHARS)
 }
@@ -166,12 +173,12 @@ function onSemanticPrefillNeighbor(nb: GraphNeighborRow, ev: MouseEvent): void {
 /** Merged TopicCluster rows: which member topic(s) connect to this neighbor. */
 function neighborViaLine(nb: GraphNeighborRow): string {
   const ids = nb.viaMemberTopicIds
-  if (!ids?.length || !props.viewArtifact) {
+  if (!ids?.length || !connectionsArtifact.value) {
     return ''
   }
   const labels = ids
     .map((id) => {
-      const n = findRawNodeInArtifact(props.viewArtifact, id)
+      const n = findRawNodeInArtifact(connectionsArtifact.value, id)
       return n ? fullPrimaryNodeLabel(n) : id
     })
     .filter(Boolean)
@@ -191,7 +198,7 @@ function neighborViaLine(nb: GraphNeighborRow): string {
     data-testid="graph-connections-section"
   >
     <GraphNeighborhoodMiniMap
-      :view-artifact="viewArtifact"
+      :view-artifact="connectionsArtifact"
       :center-id="miniMapCenterIdResolved"
       :topic-cluster-neighborhood="topicClusterNeighborhood"
     />

@@ -18,7 +18,13 @@ describe('wouldCrossEpisodeExpandAppendNewArtifacts', () => {
   it('is true when a GI path is not in selection', () => {
     expect(
       wouldCrossEpisodeExpandAppendNewArtifacts(
-        [{ gi_relative_path: 'metadata/b.gi.json', kg_relative_path: null }],
+        [
+          {
+            gi_relative_path: 'metadata/b.gi.json',
+            kg_relative_path: '',
+            bridge_relative_path: '',
+          },
+        ],
         ['metadata/a.gi.json'],
       ),
     ).toBe(true)
@@ -27,7 +33,13 @@ describe('wouldCrossEpisodeExpandAppendNewArtifacts', () => {
   it('is false when all episode paths are already selected', () => {
     expect(
       wouldCrossEpisodeExpandAppendNewArtifacts(
-        [{ gi_relative_path: 'metadata/a.gi.json', kg_relative_path: 'metadata/a.kg.json' }],
+        [
+          {
+            gi_relative_path: 'metadata/a.gi.json',
+            kg_relative_path: 'metadata/a.kg.json',
+            bridge_relative_path: '',
+          },
+        ],
         ['metadata/a.gi.json', 'metadata/a.kg.json'],
       ),
     ).toBe(false)
@@ -36,7 +48,13 @@ describe('wouldCrossEpisodeExpandAppendNewArtifacts', () => {
   it('matches normalized selection keys', () => {
     expect(
       wouldCrossEpisodeExpandAppendNewArtifacts(
-        [{ gi_relative_path: 'metadata/x.gi.json', kg_relative_path: null }],
+        [
+          {
+            gi_relative_path: 'metadata/x.gi.json',
+            kg_relative_path: '',
+            bridge_relative_path: '',
+          },
+        ],
         ['.\\metadata\\x.gi.json'],
       ),
     ).toBe(false)

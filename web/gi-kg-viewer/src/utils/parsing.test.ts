@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ArtifactData, GraphFilterState, ParsedArtifact } from '../types/artifact'
 import {
+  applyGraphDefaultNodeTypeVisibility,
   applyGraphFilters,
   buildNodeTitle,
   countPersonEntityIncidentEdges,
@@ -12,6 +13,7 @@ import {
   filterArtifactEgoAroundTopicCluster,
   filterArtifactEgoOneHop,
   filtersActive,
+  graphTypesDeviateFromGraphSpec,
   findRawNodeInArtifact,
   fullPrimaryNodeLabel,
   insightProvenanceLine,
@@ -256,6 +258,24 @@ describe('defaultFilterState', () => {
 
   it('returns null for null artifact', () => {
     expect(defaultFilterState(null)).toBeNull()
+  })
+})
+
+describe('applyGraphDefaultNodeTypeVisibility', () => {
+  it('turns off Quote Speaker Episode by default', () => {
+    const state = defaultFilterState(parsedGi())!
+    applyGraphDefaultNodeTypeVisibility(state)
+    expect(state.allowedTypes.Episode).toBe(false)
+    expect(state.allowedTypes.Quote).toBe(false)
+    expect(state.allowedTypes.Insight).toBe(true)
+    expect(graphTypesDeviateFromGraphSpec(state)).toBe(false)
+  })
+
+  it('graphTypesDeviateFromGraphSpec detects user overrides', () => {
+    const state = defaultFilterState(parsedGi())!
+    applyGraphDefaultNodeTypeVisibility(state)
+    state.allowedTypes.Episode = true
+    expect(graphTypesDeviateFromGraphSpec(state)).toBe(true)
   })
 })
 

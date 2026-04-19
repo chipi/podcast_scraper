@@ -88,8 +88,8 @@ type NodeChrome = { background: string; border: string; labelColor: string }
 
 /** Fill / border / label colors aligned with Cytoscape node styling (``visualGroupForNode`` keys). */
 /**
- * CIL topic chips (topic-cluster members) in Digest / Episode subject rail: same amber/orange as graph
- * ``node.search-hit`` emphasis and ``Quote`` node chrome so cluster membership is obvious.
+ * CIL topic chips (topic-cluster members) when ``clusterMemberAppearance="quote"`` (Episode rail):
+ * amber/orange aligned with graph ``Quote`` chrome. Digest Recent uses ``kg`` Tailwind classes instead.
  */
 export const cilClusteredTopicPillChrome = Object.freeze({
   borderColor: graphNodeTypeStyles.Quote.border,

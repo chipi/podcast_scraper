@@ -300,9 +300,9 @@ supplemented by text labels (colour is never the sole differentiator).
 
 - **Online (health ok):** Typing a corpus path in the **status bar** field triggers listing via
   `GET /api/artifacts` and loads every listed `.gi.json` / `.kg.json` into the merged
-  graph automatically. **List** still refreshes the checkbox list; **Load into graph**
-  still applies the current selection (same controls live on **Dashboard** inside
-  **`CorpusDataWorkspace`**, `data-testid="corpus-data-workspace"`).
+  graph automatically. **List** opens the **Corpus artifacts** dialog (`data-testid="artifact-list-dialog"`)
+  with **All** / **None** / **Load into graph**; **Load into graph** applies the current selection
+  and switches to **Graph** when ready.
 - **Offline:** **Files** on the **status bar** (or **Choose files…** inside the **Health** dialog)
   loads local GI/KG without the server. The value persists in **`localStorage`** key **`ps_corpus_path`**.
 
@@ -340,22 +340,29 @@ The **values** below are deliberately open for experimentation during early v2
 development. Adjust them in `tokens.css` (CSS custom properties) or via browser
 DevTools; do not hard-code alternatives in component files.
 
-| Parameter                 | Current value                              | Status | Notes                                          |
-| ------------------------- | ------------------------------------------ | ------ | ---------------------------------------------- |
-| UI font family            | Inter                                      | Open   | Could try Geist, IBM Plex Sans, system stack   |
-| Monospace font family     | JetBrains Mono                             | Open   | Could try Fira Code, Source Code Pro           |
-| Base font size            | 16px (1rem)                                | Open   | 14px more dense; 16px more readable            |
-| Border radius             | 0.375rem (6px)                             | Open   | 0 = sharp/Palantir; 0.5rem = softer            |
-| Spacing base unit         | 4px                                        | Open   | Could move to 6px or 8px for more air          |
-| Shadow depth              | None (flat)                                | Open   | Subtle shadow = more depth/elevation cue       |
-| Surface gray palette      | Blueprint-derived `#111418`..`#404854`     | Open   | Exact values may shift during contrast review  |
-| Intent color hues         | Blueprint-derived blue/green/orange/red    | Open   | Hues stable; saturation/lightness may tune     |
-| Domain color hues (gi/kg) | Green `#7dd3a0` / Purple `#c4a3ff`         | Frozen | Identity colors; do not change w/o UXS rev     |
-| Token names               | `canvas`, `surface`, `primary`, `gi`, etc. | Frozen | Names are the API; values are the theme        |
-| Pairing convention        | Every surface gets `-foreground`           | Frozen | Structural rule; not negotiable                |
-| Intent/domain separation  | Intent for UI; domain for GIL/KG           | Frozen | Structural rule; not negotiable                |
+| Parameter                               | Current value                              | Status | Notes                                                    |
+| --------------------------------------- | ------------------------------------------ | ------ | -------------------------------------------------------- |
+| UI font family                          | Inter                                      | Open   | Could try Geist, IBM Plex Sans, system stack             |
+| Monospace font family                   | JetBrains Mono                             | Open   | Could try Fira Code, Source Code Pro                     |
+| Base font size                          | 16px (1rem)                                | Open   | 14px more dense; 16px more readable                      |
+| Border radius                           | 0.375rem (6px)                             | Open   | 0 = sharp/Palantir; 0.5rem = softer                      |
+| Spacing base unit                       | 4px                                        | Open   | Could move to 6px or 8px for more air                    |
+| Shadow depth                            | None (flat)                                | Open   | Subtle shadow = more depth/elevation cue                 |
+| Surface gray palette                    | Blueprint-derived `#111418`..`#404854`     | Open   | Exact values may shift during contrast review            |
+| Intent color hues                       | Blueprint-derived blue/green/orange/red    | Open   | Hues stable; saturation/lightness may tune               |
+| Domain color hues (gi/kg)               | Green `#7dd3a0` / Purple `#c4a3ff`         | Frozen | Identity colors; do not change w/o UXS rev               |
+| Token names                             | `canvas`, `surface`, `primary`, `gi`, etc. | Frozen | Names are the API; values are the theme                  |
+| Pairing convention                      | Every surface gets `-foreground`           | Frozen | Structural rule; not negotiable                          |
+| Intent/domain separation                | Intent for UI; domain for GIL/KG           | Frozen | Structural rule; not negotiable                          |
+| Digest similarity strong floor          | **0.85**                                   | Open   | Strong vs good; constant DIGEST_SIMILARITY_STRONG_MIN    |
+| Digest similarity good floor            | **0.70**                                   | Open   | Good vs weak; constant DIGEST_SIMILARITY_GOOD_MIN        |
+| Recency dot rolling window              | **24h** from local **YYYY-MM-DD** midnight | Open   | Digest + Library episode rows; date-only API             |
+| Library feed search threshold           | **15** feeds                               | Open   | Constant in LibraryView.vue; default 15 feeds trigger    |
+| Graph default episode cap (initial)     | **15** episodes                            | Open   | GRAPH cap in graphEpisodeSelection.ts; graph-only lens   |
 
-**Graph canvas / layout (open, not in table above):** These ship in code today but are
+**Code map:** Similarity floors live in `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/gi-kg-viewer/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`.
+
+**Graph canvas / layout (open, not in table above):** They ship in code today but are
 intentionally easy to tune without a UXS revision — see
 [`docs/wip/GRAPH-VISUAL-STYLING.md`](../wip/GRAPH-VISUAL-STYLING.md) and [UXS-004](UXS-004-graph-exploration.md).
 
@@ -417,6 +424,8 @@ search overlay.
 
 | Date | Change |
 | --- | --- |
+| 2026-04-19 | Tunable: **Graph default episode cap** (15) for corpus graph initial load (`GRAPH-INITIAL-LOAD`) |
+| 2026-04-19 | Open tunables for digest similarity tiers, recency dot window, Library feed-search threshold (#610) |
 | 2026-04-03 | Initial draft |
 | 2026-04-03 | Added theme support, key states, boundary note, visual refs section |
 | 2026-04-03 | Blueprint gray scale, shadcn pairing, intent/domain split, Inter + JetBrains Mono, chart series tokens, design-reference citations |
@@ -427,4 +436,5 @@ search overlay.
 | 2026-04-19 | Summary pointer to InsightCard subsection for discoverability |
 | 2026-04-17 | Open tunables for graph COSE semantics, label zoom tiers, Topic degree heat cap (GRAPH-VISUAL-STYLING) |
 | 2026-04-17 | Graph bullets: rail minimap shares reduced-motion + `syncGraphLabelTierClasses` with main canvas |
-| 2026-04-19 | Corpus path List/Load wording (Dashboard workspace); shell keyboard shortcuts (slash, Escape, row G/L) |
+| 2026-04-19 | Corpus path **List** opens status-bar **artifact-list-dialog** (not Dashboard workspace) |
+| 2026-04-19 | Corpus path List/Load wording; shell keyboard shortcuts (slash, Escape, row G/L) |

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fetchArtifactJson } from '../api/artifactsApi'
 import type { ArtifactData } from '../types/artifact'
 import { useArtifactsStore } from './artifacts'
+import { useGraphExpansionStore } from './graphExpansion'
 
 vi.mock('../api/artifactsApi', () => ({
   fetchArtifactJson: vi.fn(),
@@ -50,5 +51,31 @@ describe('useArtifactsStore loadSelected single-flight', () => {
     expect(store.loading).toBe(false)
     expect(store.parsedList).toHaveLength(2)
     expect(firstGiCalls).toBe(2)
+  })
+
+  it('loadSelected resets graph expansion by default', async () => {
+    const store = useArtifactsStore()
+    const graphExpansion = useGraphExpansionStore()
+    graphExpansion.recordExpand('n:episode:1', ['extra.gi.json'])
+    store.setCorpusPath('/c')
+    store.selectAllListed(['only.gi.json'])
+    vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
+
+    await store.loadSelected()
+
+    expect(graphExpansion.isExpanded('n:episode:1')).toBe(false)
+  })
+
+  it('loadSelected with preserveExpansion keeps expansion state', async () => {
+    const store = useArtifactsStore()
+    const graphExpansion = useGraphExpansionStore()
+    graphExpansion.recordExpand('n:episode:1', ['extra.gi.json'])
+    store.setCorpusPath('/c')
+    store.selectAllListed(['only.gi.json', 'extra.gi.json'])
+    vi.mocked(fetchArtifactJson).mockResolvedValue(emptyArtifact)
+
+    await store.loadSelected({ preserveExpansion: true })
+
+    expect(graphExpansion.isExpanded('n:episode:1')).toBe(true)
   })
 })

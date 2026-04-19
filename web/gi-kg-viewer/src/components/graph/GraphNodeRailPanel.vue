@@ -48,12 +48,19 @@ const viewArtifact = computed(() => {
 const nodeId = computed(() => subject.graphNodeCyId)
 
 const rawNode = computed(() => {
-  const art = viewArtifact.value
   const id = nodeId.value
-  if (!art || !id) {
+  if (!id) {
     return null
   }
-  return findRawNodeInArtifact(art, id)
+  const slice = viewArtifact.value
+  if (slice) {
+    const hit = findRawNodeInArtifact(slice, id)
+    if (hit) {
+      return hit
+    }
+  }
+  const full = gf.fullArtifact
+  return full ? findRawNodeInArtifact(full, id) : null
 })
 
 /** Same type chip as ``NodeDetail``; used as rail heading (Library uses “Episode”). */

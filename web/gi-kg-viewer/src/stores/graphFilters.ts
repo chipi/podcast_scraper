@@ -3,9 +3,11 @@ import { computed, ref, watch } from 'vue'
 import type { GraphFilterState, ParsedArtifact } from '../types/artifact'
 import { useArtifactsStore } from './artifacts'
 import {
+  applyGraphDefaultNodeTypeVisibility,
   applyGraphFilters,
   defaultFilterState,
   filtersActive,
+  graphTypesDeviateFromGraphSpec,
 } from '../utils/parsing'
 import { expandFilteredArtifactEgoWithTopicClusterNeighbors } from '../utils/topicClustersOverlay'
 
@@ -16,7 +18,15 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
   watch(
     () => artifacts.displayArtifact,
     (art) => {
-      state.value = art ? defaultFilterState(art) : null
+      if (!art) {
+        state.value = null
+        return
+      }
+      const st = defaultFilterState(art)
+      if (st) {
+        applyGraphDefaultNodeTypeVisibility(st)
+      }
+      state.value = st
     },
     { immediate: true },
   )
@@ -32,6 +42,10 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
 
   const filtersAreActive = computed(() =>
     filtersActive(fullArtifact.value, state.value),
+  )
+
+  const graphTypesDeviateFromDefaults = computed(() =>
+    graphTypesDeviateFromGraphSpec(state.value),
   )
 
   function viewWithEgo(focusId: string | null): ParsedArtifact | null {
@@ -103,11 +117,17 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     state.value.allowedTypes = next
   }
 
+  function resetGraphTypeVisibilityDefaults(): void {
+    if (!state.value) return
+    applyGraphDefaultNodeTypeVisibility(state.value)
+  }
+
   return {
     state,
     fullArtifact,
     filteredArtifact,
     filtersAreActive,
+    graphTypesDeviateFromDefaults,
     viewWithEgo,
     setHideUngrounded,
     setShowGiLayer,
@@ -115,6 +135,7 @@ export const useGraphFilterStore = defineStore('graphFilters', () => {
     toggleAllowedType,
     selectAllTypes,
     deselectAllTypes,
+    resetGraphTypeVisibilityDefaults,
     toggleAllowedEdgeType,
     selectAllEdgeTypes,
   }

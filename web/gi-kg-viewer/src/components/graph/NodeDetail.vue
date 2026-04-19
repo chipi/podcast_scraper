@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { BridgeDocument } from '../../types/bridge'
 import type { ParsedArtifact } from '../../types/artifact'
+import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useShellStore } from '../../stores/shell'
 import { graphNodeTypeChrome } from '../../utils/colors'
@@ -79,6 +80,12 @@ const props = defineProps<{
 const shell = useShellStore()
 const graphNav = useGraphNavigationStore()
 const artifacts = useArtifactsStore()
+const graphFilters = useGraphFilterStore()
+
+/** Merged GI/KG before per-type visibility filters (quotes/speakers/episodes off by default on canvas). */
+const fullMergedArtifactForMetadata = computed(
+  () => graphFilters.fullArtifact ?? props.viewArtifact,
+)
 
 const transcriptViewerRef = ref<InstanceType<typeof TranscriptViewerDialog> | null>(null)
 const topicTimelineRef = ref<InstanceType<typeof TopicTimelineDialog> | null>(null)
@@ -126,10 +133,19 @@ const graphFocusNeighborTooltip =
   'Show on graph — focus this node in the loaded merged graph (same as semantic search G).'
 
 const node = computed(() => {
-  const art = props.viewArtifact
   const id = props.nodeId
-  if (!art || id == null) return null
-  return findRawNodeInArtifact(art, id)
+  if (id == null) {
+    return null
+  }
+  const slice = props.viewArtifact
+  if (slice) {
+    const hit = findRawNodeInArtifact(slice, id)
+    if (hit) {
+      return hit
+    }
+  }
+  const full = graphFilters.fullArtifact
+  return full ? findRawNodeInArtifact(full, id) : null
 })
 
 const nodeType = computed(() => {
@@ -554,12 +570,14 @@ const insightSemanticSearchQuery = computed((): string => {
 })
 
 const insightSupportingQuotes = computed(() =>
-  isInsightNode.value ? insightSupportingQuoteRows(props.viewArtifact, props.nodeId) : [],
+  isInsightNode.value
+    ? insightSupportingQuoteRows(fullMergedArtifactForMetadata.value, props.nodeId)
+    : [],
 )
 
 const insightSupportingTranscriptAgg = computed(() =>
   isInsightNode.value
-    ? insightSupportingTranscriptAggregate(props.viewArtifact, props.nodeId)
+    ? insightSupportingTranscriptAggregate(fullMergedArtifactForMetadata.value, props.nodeId)
     : null,
 )
 
@@ -572,7 +590,7 @@ const insightOpenAllSupportingQuotesReady = computed((): boolean => {
   if (!shell.healthStatus || !root) {
     return false
   }
-  const giPath = resolveGiPathForTranscript(props.viewArtifact, agg.episodeId)
+  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)
   const resolvedRelpath = resolveTranscriptCorpusRelpath(agg.transcriptRef, giPath)
   return Boolean(
     resolvedRelpath && corpusTextFileViewUrl(root, resolvedRelpath),
@@ -927,7 +945,7 @@ const transcriptSourceSection = computed(() => {
       : typeof rawEp === 'number' && Number.isFinite(rawEp)
         ? String(rawEp)
         : null
-  const giPath = resolveGiPathForTranscript(props.viewArtifact, quoteEpId)
+  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, quoteEpId)
   const root = shell.corpusPath.trim()
   const resolvedRelpath = ref ? resolveTranscriptCorpusRelpath(ref, giPath) : ''
   const href =
@@ -966,7 +984,7 @@ function openInsightAllSupportingQuotesTranscript(): void {
   if (!agg || !root) {
     return
   }
-  const giPath = resolveGiPathForTranscript(props.viewArtifact, agg.episodeId)
+  const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)
   const resolvedRelpath = resolveTranscriptCorpusRelpath(agg.transcriptRef, giPath)
   const href = corpusTextFileViewUrl(root, resolvedRelpath)
   if (!href || !resolvedRelpath) {

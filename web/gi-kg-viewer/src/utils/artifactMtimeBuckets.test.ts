@@ -3,6 +3,7 @@ import {
   bucketGiKgMtimesByDay,
   bucketGiMtimesByDay,
   cumulativeGiKgByDay,
+  dailyGiKgNewCountsLastDays,
   sortedMonthHistogram,
   utcDayFromMtime,
 } from './artifactMtimeBuckets'
@@ -63,6 +64,24 @@ describe('cumulativeGiKgByDay', () => {
       { day: '2024-01-01', gi: 1, kg: 1 },
       { day: '2024-01-02', gi: 2, kg: 2 },
     ])
+  })
+})
+
+describe('dailyGiKgNewCountsLastDays', () => {
+  it('fills a fixed UTC window with per-day new counts', () => {
+    const end = new Date(Date.UTC(2024, 5, 10))
+    const rows = dailyGiKgNewCountsLastDays(
+      [
+        { kind: 'gi', mtime_utc: '2024-06-10T10:00:00Z' },
+        { kind: 'kg', mtime_utc: '2024-06-09T12:00:00Z' },
+      ],
+      3,
+      end,
+    )
+    expect(rows).toHaveLength(3)
+    expect(rows[0]?.day).toBe('2024-06-08')
+    expect(rows[1]).toEqual({ day: '2024-06-09', gi: 0, kg: 1 })
+    expect(rows[2]).toEqual({ day: '2024-06-10', gi: 1, kg: 0 })
   })
 })
 

@@ -4,7 +4,6 @@ import type { SearchHit } from '../../api/searchApi'
 import EpisodeDetailPanel from '../episode/EpisodeDetailPanel.vue'
 import GraphConnectionsSection from '../graph/GraphConnectionsSection.vue'
 import GraphNodeRailPanel from '../graph/GraphNodeRailPanel.vue'
-import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphFilterStore } from '../../stores/graphFilters'
 import { useGraphNavigationStore } from '../../stores/graphNavigation'
 import { useSubjectStore } from '../../stores/subject'
@@ -14,7 +13,6 @@ const props = defineProps<{
 }>()
 
 const subject = useSubjectStore()
-const artifacts = useArtifactsStore()
 const graphFilters = useGraphFilterStore()
 const graphNav = useGraphNavigationStore()
 

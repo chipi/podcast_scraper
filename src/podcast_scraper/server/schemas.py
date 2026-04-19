@@ -17,6 +17,10 @@ class ArtifactItem(BaseModel):
     mtime_utc: str = Field(
         description="Last modification time (UTC ISO-8601 with Z suffix).",
     )
+    publish_date: str = Field(
+        description="Episode calendar date (YYYY-MM-DD) from metadata when present; "
+        "otherwise UTC calendar date derived from this file's mtime (ingested surrogate).",
+    )
 
 
 class ArtifactListResponse(BaseModel):
@@ -55,6 +59,10 @@ class HealthResponse(BaseModel):
         description=(
             "True when GET /api/corpus/stats, manifest, run-summary, " "runs/summary are mounted."
         ),
+    )
+    corpus_coverage_api: bool = Field(
+        default=True,
+        description="True when GET /api/corpus/coverage (GI/KG presence by month/feed) is mounted.",
     )
     corpus_library_api: bool = Field(
         default=True,
@@ -603,6 +611,63 @@ class CorpusStatsResponse(BaseModel):
     digest_topics_configured: int = Field(
         0,
         description="Digest topic bands from server config.",
+    )
+
+
+class CoverageByMonthItem(BaseModel):
+    """One publish-month bucket for GI/KG coverage (dashboard)."""
+
+    month: str = Field(description="YYYY-MM from episode publish_date.")
+    total: int = Field(ge=0)
+    with_gi: int = Field(ge=0)
+    with_kg: int = Field(ge=0)
+    with_both: int = Field(ge=0)
+
+
+class CoverageFeedItem(BaseModel):
+    """Per-feed GI/KG coverage counts (dashboard)."""
+
+    feed_id: str
+    display_title: str
+    total: int = Field(ge=0)
+    with_gi: int = Field(ge=0)
+    with_kg: int = Field(ge=0)
+
+
+class CorpusCoverageResponse(BaseModel):
+    """Response for GET /api/corpus/coverage."""
+
+    path: str
+    total_episodes: int = Field(ge=0)
+    with_gi: int = Field(ge=0)
+    with_kg: int = Field(ge=0)
+    with_both: int = Field(ge=0)
+    with_neither: int = Field(ge=0)
+    by_month: list[CoverageByMonthItem] = Field(default_factory=list)
+    by_feed: list[CoverageFeedItem] = Field(default_factory=list)
+
+
+class TopPersonItem(BaseModel):
+    """One row for GET /api/corpus/persons/top."""
+
+    person_id: str = Field(description='Canonical id, e.g. "person:slug".')
+    display_name: str
+    episode_count: int = Field(ge=0)
+    insight_count: int = Field(ge=0)
+    top_topics: list[str] = Field(
+        default_factory=list,
+        description="Up to three canonical topic ids (ABOUT targets of grounded insights).",
+    )
+
+
+class CorpusTopPersonsResponse(BaseModel):
+    """Response for GET /api/corpus/persons/top."""
+
+    path: str
+    persons: list[TopPersonItem] = Field(default_factory=list)
+    total_persons: int = Field(
+        ge=0,
+        description="Distinct Person node ids seen across GI artifacts.",
     )
 
 

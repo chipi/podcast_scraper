@@ -16,9 +16,11 @@ from podcast_scraper.server.routes import (
     artifacts,
     cil,
     corpus_binary,
+    corpus_coverage,
     corpus_digest,
     corpus_library,
     corpus_metrics,
+    corpus_persons,
     corpus_text_file,
     corpus_topic_clusters,
     explore,
@@ -84,6 +86,8 @@ def create_app(
     app.include_router(corpus_binary.router, prefix="/api")
     app.include_router(corpus_text_file.router, prefix="/api")
     app.include_router(corpus_metrics.router, prefix="/api")
+    app.include_router(corpus_coverage.router, prefix="/api")
+    app.include_router(corpus_persons.router, prefix="/api")
     app.include_router(corpus_digest.router, prefix="/api")
     app.include_router(corpus_topic_clusters.router, prefix="/api")
     app.include_router(cil.router, prefix="/api")

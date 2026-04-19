@@ -178,7 +178,7 @@ Showing all time · 15 episodes (capped) · 934 nodes   [All ▾]
 
 - `text-[10px]`, `muted` token — unobtrusive, same density as toolbar
 - Left-aligned text, right-aligned lens selector
-- Background: none (sits on canvas background)
+- Background: `bg-canvas` in the canvas column (reads as part of the canvas stack above Cytoscape)
 - Height: ~24px, same compact scale as toolbar rows
 
 ### Lens selector
@@ -201,9 +201,12 @@ field — reuse that component).
 ```
 data-testid="graph-status-line"
 data-testid="graph-status-lens-selector"
+data-testid="graph-status-since-input"
 data-testid="graph-status-episode-count"
 data-testid="graph-status-node-count"
 ```
+
+`graph-status-episode-count` and `graph-status-node-count` wrap **numeric text only** (node count may use the `k` suffix from formatting).
 
 ---
 
@@ -265,6 +268,8 @@ When `graphLens` is changed (user selects new window from lens selector):
 - All RFC-076 expanded content is cleared
 - Fresh load from new window with cap applied
 - This is expected — changing the lens is a deliberate context switch
+
+Any other **full graph reload** from the artifacts store (Digest/Library handoff to graph, Dashboard **Load into graph**, corpus sync, etc.) uses the same rule: **`loadSelected()`** resets RFC-076 expansion by default. Only **append/remove** reload paths preserve expansion so expand/collapse stay consistent (see RFC-076 *Expansion reset vs full reload*).
 
 ---
 

@@ -10,12 +10,11 @@ export function mainViewsNav(page: Page) {
 }
 
 /**
- * **Dashboard** tab: **Corpus artifacts** workspace (`data-testid="corpus-data-workspace"`)
- * — artifacts list, API health, and **Data** overview (same content as the former left **API · Data** tab).
+ * **Dashboard** tab — waits for the briefing card (`data-testid="briefing-card"`).
  */
 export async function openCorpusDataWorkspace(page: Page): Promise<void> {
   await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
-  await page.getByTestId('corpus-data-workspace').waitFor({ state: 'visible' })
+  await page.getByTestId('briefing-card').waitFor({ state: 'visible' })
 }
 
 /** Bottom status bar corpus path field (`data-testid="status-bar-corpus-path"`). */

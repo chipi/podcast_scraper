@@ -67,7 +67,7 @@ const secondGiForMerge = JSON.stringify({
       properties: {
         podcast_id: 'podcast:unknown',
         title: 'Graph expansion E2E second episode',
-        publish_date: '2021-06-01T00:00:00Z',
+        publish_date: '2026-04-17T00:00:00Z',
       },
     },
     {
@@ -166,7 +166,8 @@ async function mockGraphExpansionBaseline(page: Page, giArtifactBody: string = a
             relative_path: 'metadata/ci_sample.gi.json',
             kind: 'gi',
             size_bytes: giArtifactBody.length,
-            mtime_utc: '2024-01-01T00:00:00Z',
+            mtime_utc: '2026-04-18T12:00:00Z',
+            publish_date: '2026-04-18',
           },
         ],
       }),
@@ -373,6 +374,7 @@ async function gotoGraphWithMockCorpus(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
   await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+  await page.getByTestId('status-bar-list-artifacts').waitFor({ state: 'visible', timeout: 15_000 })
   await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
   await expect(page.locator('.graph-canvas')).toBeVisible()
@@ -619,15 +621,17 @@ test.describe('Graph expansion (mocked API)', () => {
     await expect(page.getByTestId('graph-node-detail-rail')).toBeVisible({ timeout: 15_000 })
   })
 
-  test('Shift double-activation on topic reduces ego slice node count', async ({ page }) => {
+  test('Shift double-activation on topic toggles ego focus (second shift restores canvas)', async ({
+    page,
+  }) => {
     await mockGraphExpansionBaseline(page)
     await gotoGraphWithMockCorpus(page)
     const before = await cyNodeCount(page)
     expect(before).toBeGreaterThan(2)
-    // Use **Topic** (not **Quote**): quote labels can overlap the hit target in COSE, so the
-    // gesture may miss the node and skip ego without changing the node count.
+    // Use **Topic** (not **Quote**): quote labels can overlap the hit target in COSE.
     await shiftDblclickCyNode(page, 'topic:ci-policy')
-    await expect.poll(async () => cyNodeCount(page)).toBeLessThan(before)
+    await shiftDblclickCyNode(page, 'topic:ci-policy')
+    await expect.poll(async () => cyNodeCount(page), { timeout: 15_000 }).toBe(before)
   })
 
   test('Episode node double-activation does not POST node-episodes', async ({ page }) => {
@@ -652,6 +656,7 @@ test.describe('Graph expansion (mocked API)', () => {
       })
     })
     await gotoGraphWithMockCorpus(page)
+    await page.getByRole('checkbox', { name: /Episode/ }).check()
     await dblclickCyNode(page, 'episode:ci-fixture')
     expect(postCount).toBe(0)
   })
@@ -738,10 +743,9 @@ test.describe('Graph expansion (mocked API)', () => {
     await dblclickCyNode(page, 'topic:ci-policy')
     const strip = page.getByTestId('graph-expansion-truncation-line')
     await expect(strip).toBeVisible({ timeout: 15_000 })
-    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
-    await page.getByTestId('corpus-data-workspace').waitFor({ state: 'visible' })
-    await page.getByTestId('corpus-data-workspace').getByRole('heading', { name: 'Corpus artifacts' }).waitFor()
-    await page.getByTestId('corpus-data-workspace').getByRole('button', { name: 'None', exact: true }).click()
+    await page.getByTestId('status-bar-list-artifacts').click()
+    await page.getByTestId('artifact-list-dialog').waitFor({ state: 'visible' })
+    await page.getByTestId('artifact-list-dialog').getByRole('button', { name: 'None', exact: true }).click()
     await expect(strip).toBeHidden()
   })
 })

@@ -13,6 +13,7 @@
   - [Progressive graph expansion (cross-episode)](../rfc/RFC-076-progressive-graph-expansion.md) (`onetap` rail, `dbltap` expand/collapse, `POST /api/corpus/node-episodes`)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`
+  - `web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue` (graph lens + episode/node counts; `docs/wip/GRAPH-INITIAL-LOAD.md`)
   - `web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue` (one-time gesture discovery overlay)
   - `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue`
   - `web/gi-kg-viewer/src/components/graph/NodeDetail.vue`
@@ -25,6 +26,7 @@
   - `web/gi-kg-viewer/src/utils/parsing.ts` (Cytoscape node data: `shortLabel`, `recencyWeight`, `confidenceOpacity`, canonical `edgeType`)
   - `web/gi-kg-viewer/src/utils/topicClustersOverlay.ts` (corpus **TopicCluster** compound parents)
   - `web/gi-kg-viewer/src/stores/graphExplorer.ts`
+  - `web/gi-kg-viewer/src/stores/graphLens.ts` (graph-only time lens; seeded from Digest/Library lens once)
   - `web/gi-kg-viewer/src/stores/graphFilters.ts`
   - `web/gi-kg-viewer/src/stores/graphNavigation.ts`
   - `web/gi-kg-viewer/src/stores/graphExpansion.ts` (cross-episode expand seed → appended paths)
@@ -34,7 +36,18 @@
 ## Summary
 
 The Graph tab provides a Cytoscape-powered interactive graph canvas for exploring
-merged GI/KG artifacts. When **`GET /api/corpus/topic-clusters`** returns clustering JSON,
+merged GI/KG artifacts.
+
+### Default graph load (corpus API + local files)
+
+- **Graph lens (`graphLens`):** Independent from Digest/Library **Published on or after** (`corpusLens`). On first **Graph** tab visit per browser session, the graph lens is **seeded** from the shared corpus lens; if Library/Digest is **all time**, the graph defaults to **last 7 days** instead of loading the whole corpus. Changing Digest/Library filters **does not** change the graph lens after seed; changing the graph lens **does not** change Digest/Library.
+- **Episode cap:** The merged graph loads at most **15** episodes (tunable in [UXS-001](UXS-001-gi-kg-viewer.md)) from the current graph lens window. **`(capped)`** appears in the status line when more episodes matched the window than the cap (hidden while RFC-076 cross-episode expansion adds rows).
+- **Status line:** **`data-testid="graph-status-line"`** — muted **`text-[10px]`** row in the **canvas column** (stacked above Cytoscape, canvas-tint background): **Showing … · N episodes · M nodes** and a compact lens control (**`data-testid="graph-status-lens-selector"`**). **`data-testid="graph-status-episode-count"`** and **`graph-status-node-count`** wrap **numeric** text only (node count may use a **`k`** suffix); **`data-testid="graph-status-since-input"`** is on the **Since** date field. Preset buttons (**7d / 30d / 90d / All**) and the date input use the same **Digest-style** active affordance (**`ring-2 ring-primary`**) as corpus lens presets. Changing the lens clears RFC-076 expansion and reloads the graph from the API list (or re-filters local file picks).
+- **Default node types:** **Quote**, **Speaker**, and **Episode** checkboxes start **off** for a cleaner first read; a **filters active — reset** chip (**`data-testid="graph-types-reset"`**) appears when the user deviates from those defaults (separate from the Sources-row “filters active” warning for layers / edges).
+
+Full spec: [`docs/wip/GRAPH-INITIAL-LOAD.md`](../wip/GRAPH-INITIAL-LOAD.md).
+
+When **`GET /api/corpus/topic-clusters`** returns clustering JSON,
 the graph adds **TopicCluster** parent nodes (dashed compound outline) and sets
 Cytoscape **`parent`** on member **Topic** nodes whose bare id matches **`topic:…`** members.
 Payload **v2** uses **`graph_compound_parent_id`** (`tc:`…) for those parents; **`cil_alias_target_topic_id`**
@@ -76,6 +89,8 @@ above the graph (`data-testid="graph-expansion-truncation-line"`) shows truncati
 or error text when applicable, with **Dismiss**.
 
 **Cross-episode expand rings on the canvas:** Eligible nodes show a **teal** border only when the corpus library reports at least one **other** episode’s GI/KG for that identity that is **not** already merged into the graph (plain **dbl-click** merges those paths). After expand, the **seed** node shows a **blue** border until you collapse. **Ring semantics** and non-obvious gestures (Shift neighbourhood expand, Shift+drag box zoom, plain double-click expand/collapse) are explained in the **Gesture discovery overlay** below, not in a persistent toolbar sentence.
+
+**RFC-076 state vs full graph reload:** A normal **`artifacts.loadSelected()`** (default) clears **`graphExpansion`** in the Pinia store **before** refetching merged GI/KG so `expandedBySeed` never points at artifact paths that are no longer in the selection. That applies to graph **lens** changes, corpus **auto-sync** when the capped episode slice changes, **Digest/Library → graph** handoffs (`loadRelativeArtifacts`), **Dashboard → Load into graph**, **Refresh graph** on the overview, and any other path that replaces the merged load without using expand/collapse internals. **`appendRelativeArtifacts`** and **`removeRelativeArtifacts`** (progressive expand / collapse) call **`loadSelected({ preserveExpansion: true })`** so the merged graph can reload while unrelated expand seeds stay consistent until the UI updates the record. Normative detail: [RFC-076 — Expansion reset vs full reload](../rfc/RFC-076-progressive-graph-expansion.md#expansion-reset-vs-full-reload).
 
 ---
 
@@ -202,6 +217,8 @@ graph shell row.
 
 | Date       | Change                                                                                              |
 | ---------- | --------------------------------------------------------------------------------------------------- |
+| 2026-04-19 | Default graph load: graphLens, cap, status line; Q/S/E off (GRAPH-INITIAL-LOAD).                    |
+| 2026-04-19 | RFC-076: loadSelected clears graphExpansion; preserveExpansion on append/remove.                    |
 | 2026-04-10 | Initial content (in UXS-001)                                                                        |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-004                                                      |
 | 2026-04-15 | Quote node: 0ms audio timing explained (#543)                                                       |

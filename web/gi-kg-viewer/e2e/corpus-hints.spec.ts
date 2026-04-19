@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test'
-import { openCorpusDataWorkspace } from './helpers'
 
 test.describe('Corpus path hints (mocked API)', () => {
   test.beforeEach(async ({ page }) => {
@@ -34,8 +33,7 @@ test.describe('Corpus path hints (mocked API)', () => {
     await page.goto('/')
 
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus/feeds/rss_example/metadata')
-    await openCorpusDataWorkspace(page)
-    await page.getByTestId('corpus-data-workspace').getByRole('button', { name: 'List' }).click()
+    await page.getByTestId('status-bar-list-artifacts').click()
 
     await expect(page.getByText('Corpus path hint')).toBeVisible()
     await expect(page.getByText(/Unified semantic index/i)).toBeVisible()

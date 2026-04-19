@@ -164,15 +164,18 @@ Align pill colour with the `kg` token.
   in Graph — `kg` at ~15% opacity background, `kg` border)
 - Pills without `in_topic_cluster`: existing style unchanged (no fill,
   `border` token)
-- Text colour: `kg-foreground` token for cluster pills,
-  `surface-foreground` for regular pills
+- Text colour: **`surface-foreground`** on cluster pills (readable on the
+  **`kg`** tint in light and dark). The theme documents **`kg-foreground`**
+  for solid **`kg`** fills; we do not add a separate token for this faint
+  tint — see [DIGEST-LIBRARY-UX-ALIGNMENT.md](./DIGEST-LIBRARY-UX-ALIGNMENT.md)
+  §2.4. Regular pills stay **`surface-foreground`** on neutral chrome.
 - This applies only to `cil_digest_topics` pills on Recent rows —
   no change to any other pill usage
 
 ```typescript
 const pillClass = (pill: CilPill) =>
   pill.in_topic_cluster
-    ? 'bg-kg/15 border border-kg text-kg-foreground'
+    ? 'bg-kg/15 border border-kg text-surface-foreground'
     : 'bg-transparent border border-border text-surface-foreground'
 ```
 
@@ -348,14 +351,19 @@ last 24 hours. Subtle, non-intrusive, purely additive.
 
 **Spec:**
 
-- Condition: `episode.publish_date` is within 24 hours of current time
+- Condition: **`publish_date`** is a **`YYYY-MM-DD`** string; treat it as
+  **local calendar midnight** for that date. Show the dot when
+  **`Date.now() - localMidnight`** is in **`[0, 86_400_000)`** (rolling
+  24 hours from the start of the **listed** publish day). This matches
+  date-only APIs and avoids implying a false time-of-day; see
+  [DIGEST-LIBRARY-UX-ALIGNMENT.md](./DIGEST-LIBRARY-UX-ALIGNMENT.md) §4.
 - Indicator: a `6px` filled circle, `success` token colour
 - Placement: immediately before the episode title, vertically centred
   with the title baseline
-- No label, no tooltip — the dot is ambient. Position next to title
-  is enough context (users learn it means "new")
-- On hover: native `title="Published [X hours ago]"` — formatted as
-  relative time ("2 hours ago", "14 hours ago")
+- No visible text label — the dot stays visually quiet. **Optional** native
+  **`title`** and a matching **`aria-label`** on the dot give hover and
+  screen-reader context (e.g. "Published N hours ago" / "Published less than
+  1 hour ago", derived from whole hours since local publish-day midnight).
 
 ```
 ●  Episode title here
@@ -369,8 +377,11 @@ last 24 hours. Subtle, non-intrusive, purely additive.
   the hit row title cell
 
 **Time calculation:**  
-Client-side. `Date.now() - episodePublishDateMs < 86_400_000`.
-No API change needed — publish date is already in the episode data.
+Client-side only; **no** new API fields. Parsing and the rolling window are
+implemented in **`web/gi-kg-viewer/src/utils/digestRecency.ts`** (invalid or
+missing **`publish_date`** → no dot). Digest window copy (API lens) can
+still differ from the dot for date-only rows — document in UXS, do not
+force them to match without **`publish_datetime`**.
 
 **UXS-002 + UXS-003 amendment:**  
 Add recency dot to episode row layout description in both specs.
@@ -391,8 +402,10 @@ web/gi-kg-viewer/src/components/digest/DigestView.vue
   — 4:   Recency dot
 
 web/gi-kg-viewer/src/utils/digestRowDisplay.ts
-  — 2.3: Add similarityLabel(score) utility function
-  — 4:   Add isRecent(publishDate) utility function
+  — 2.3: Add `digestTopicHitSimilarityDisplay(score)` (semantic label + raw `title`)
+
+web/gi-kg-viewer/src/utils/digestRecency.ts
+  — 4: Rolling-window helpers for `YYYY-MM-DD` (local midnight) + unit tests
 ```
 
 ### Library:
@@ -467,10 +480,15 @@ web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md
 - Not inside Filters collapsible
 
 **Checkpoint 7 — Recency dot**
-- Episodes published < 24h ago show a 6px success dot before title
+- When **`publish_date`** parses as **`YYYY-MM-DD`** and local age from that
+  **calendar day’s midnight** is in **`[0, 24h)`**, a 6px **`success`** dot
+  appears before the title
 - Dot appears in Digest Recent, Digest topic band hits, Library rows
-- Hover shows "Published X hours ago"
-- No dot for older episodes
+- Hover / **`aria-label`** on the dot: "Published less than 1 hour ago" or
+  "Published N hours ago" (whole hours since local publish-day midnight)
+- No dot when the date is missing, invalid, or outside that window (e.g.
+  **yesterday** late in the **next** calendar day is **outside** `[0,24h)`
+  from **yesterday’s** midnight)
 
 ---
 

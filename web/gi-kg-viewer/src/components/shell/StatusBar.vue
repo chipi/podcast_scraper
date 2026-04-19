@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useIndexStatsStore } from '../../stores/indexStats'
 import { useShellStore } from '../../stores/shell'
@@ -11,6 +11,7 @@ const indexStats = useIndexStatsStore()
 const localFileInputRef = useTemplateRef<HTMLInputElement>('localFileInputRef')
 const healthDialogRef = useTemplateRef<HTMLDialogElement>('healthDialogRef')
 const indexDialogRef = useTemplateRef<HTMLDialogElement>('indexDialogRef')
+const artifactListDialogRef = useTemplateRef<HTMLDialogElement>('artifactListDialogRef')
 
 const healthDotClass = computed(() => {
   if (shell.healthError) {
@@ -44,7 +45,21 @@ function triggerLocalFilePick(): void {
 
 const emit = defineEmits<{
   localArtifactsLoaded: [loaded: boolean]
+  'go-graph': []
 }>()
+
+async function onListArtifactsClick(): Promise<void> {
+  await shell.fetchArtifactList()
+  artifactListDialogRef.value?.showModal()
+}
+
+async function onLoadIntoGraphFromDialog(): Promise<void> {
+  await artifacts.loadSelected()
+  if (artifacts.displayArtifact) {
+    emit('go-graph')
+    artifactListDialogRef.value?.close()
+  }
+}
 
 async function onLocalFilesChange(ev: Event): Promise<void> {
   const el = ev.target as HTMLInputElement
@@ -93,6 +108,16 @@ const corpusPathModel = computed({
       @click="triggerLocalFilePick"
     >
       Files
+    </button>
+    <button
+      v-if="shell.healthStatus && shell.corpusPath.trim()"
+      type="button"
+      class="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
+      title="List GI/KG artifacts from the API for this corpus path"
+      data-testid="status-bar-list-artifacts"
+      @click="void onListArtifactsClick()"
+    >
+      List
     </button>
     <button
       type="button"
@@ -291,5 +316,103 @@ const corpusPathModel = computed({
         Full rebuild
       </button>
     </div>
+  </dialog>
+
+  <dialog
+    ref="artifactListDialogRef"
+    class="max-h-[min(80vh,32rem)] max-w-lg overflow-y-auto rounded-lg border border-border bg-surface p-4 text-xs text-surface-foreground shadow-lg backdrop:bg-black/40"
+    aria-labelledby="status-bar-artifact-list-title"
+    data-testid="artifact-list-dialog"
+  >
+    <div class="mb-2 flex items-center justify-between gap-2">
+      <h2 id="status-bar-artifact-list-title" class="text-sm font-semibold">
+        Corpus artifacts
+      </h2>
+      <button
+        type="button"
+        class="rounded border border-border px-2 py-0.5 text-[10px] hover:bg-overlay"
+        @click="artifactListDialogRef?.close()"
+      >
+        Close
+      </button>
+    </div>
+    <p v-if="shell.artifactsLoading" class="mt-1 text-[10px] text-muted">
+      Loading…
+    </p>
+    <template v-else>
+      <div
+        v-if="shell.corpusHints.length"
+        class="mt-1.5 rounded border border-warning/40 bg-warning/10 px-2 py-1.5 text-[10px] text-surface-foreground"
+        role="status"
+      >
+        <p class="font-medium text-warning">
+          Corpus path hint
+        </p>
+        <ul class="mt-0.5 list-inside list-disc text-muted">
+          <li v-for="(h, i) in shell.corpusHints" :key="i">
+            {{ h }}
+          </li>
+        </ul>
+      </div>
+      <div
+        v-if="shell.artifactList.length"
+        class="mt-1.5 space-y-1"
+      >
+        <div class="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
+            @click="artifacts.selectAllListed(shell.artifactList.map((a) => a.relative_path))"
+          >
+            All
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-overlay"
+            @click="artifacts.deselectAllListed()"
+          >
+            None
+          </button>
+          <button
+            type="button"
+            class="rounded border border-border px-2 py-0.5 text-[10px] font-medium hover:bg-overlay disabled:opacity-40"
+            :disabled="artifacts.selectedRelPaths.length === 0 || artifacts.loading"
+            @click="void onLoadIntoGraphFromDialog()"
+          >
+            {{ artifacts.loading ? 'Loading…' : 'Load into graph' }}
+          </button>
+        </div>
+        <div class="max-h-48 overflow-y-auto rounded border border-border bg-elevated p-1 text-[11px]">
+          <label
+            v-for="a in shell.artifactList"
+            :key="a.relative_path"
+            class="flex cursor-pointer items-start gap-1 py-0.5 hover:bg-overlay"
+          >
+            <input
+              type="checkbox"
+              class="mt-0.5 rounded border-border"
+              :checked="artifacts.selectedRelPaths.includes(a.relative_path)"
+              @change="artifacts.toggleSelection(a.relative_path)"
+            >
+            <span class="break-all">
+              <span :class="a.kind === 'gi' ? 'text-gi' : 'text-kg'">{{ a.kind }}</span>
+              {{ a.relative_path }}
+            </span>
+          </label>
+        </div>
+      </div>
+      <p
+        v-else-if="shell.artifactCount !== null && shell.artifactCount === 0"
+        class="mt-1 text-[10px] text-muted"
+      >
+        No artifacts found.
+      </p>
+    </template>
+    <p v-if="shell.artifactsError" class="mt-1 text-[10px] text-danger">
+      {{ shell.artifactsError }}
+    </p>
+    <p v-if="artifacts.loadError" class="mt-1 text-[10px] text-danger">
+      {{ artifacts.loadError }}
+    </p>
   </dialog>
 </template>

@@ -5,6 +5,10 @@ import GraphCanvas from './GraphCanvas.vue'
 import { useArtifactsStore } from '../../stores/artifacts'
 import { useGraphExpansionStore } from '../../stores/graphExpansion'
 
+const emit = defineEmits<{
+  'request-corpus-graph-sync': []
+}>()
+
 const artifacts = useArtifactsStore()
 const graphExpansion = useGraphExpansionStore()
 const { truncationLine: graphExpansionTruncationLine } = storeToRefs(graphExpansion)
@@ -49,15 +53,17 @@ defineExpose({
       v-if="artifacts.displayArtifact"
       ref="graphCanvasRef"
       class="min-h-0 flex-1"
+      @request-corpus-graph-sync="emit('request-corpus-graph-sync')"
     />
     <div
       v-if="!artifacts.displayArtifact"
       class="flex min-h-[280px] flex-1 items-center justify-center rounded border border-dashed border-border bg-surface p-8 text-sm text-muted"
     >
       <span class="max-w-md text-center">
-        With a healthy API, set <strong>Corpus path</strong> to auto-load all GI/KG; or use
-        <strong>List</strong> and <strong>Load into graph</strong> on the <strong>Dashboard</strong>
-        corpus workspace. Offline: <strong>Choose files…</strong> on the <strong>status bar</strong>.
+        With a healthy API, set <strong>Corpus path</strong> and open this tab to auto-load a
+        <strong>graph time slice</strong> (15 episodes max); or use the status bar <strong>List</strong>
+        → <strong>Load into graph</strong> in the <strong>Corpus artifacts</strong> dialog.
+        Offline: <strong>Choose files…</strong> on the <strong>status bar</strong>.
       </span>
     </div>
   </div>

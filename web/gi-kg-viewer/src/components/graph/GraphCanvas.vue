@@ -51,8 +51,13 @@ import { graphNodeIdFromSearchHit, resolveCyNodeId } from '../../utils/searchFoc
 import { StaleGeneration } from '../../utils/staleGeneration'
 import { visualNodeTypeCounts } from '../../utils/visualGroup'
 import GraphGestureOverlay from './GraphGestureOverlay.vue'
+import GraphStatusLine from './GraphStatusLine.vue'
 
 registerNavigator(cytoscape)
+
+const emit = defineEmits<{
+  'request-corpus-graph-sync': []
+}>()
 
 const gf = useGraphFilterStore()
 const ge = useGraphExplorerStore()
@@ -1827,6 +1832,15 @@ defineExpose({
       <div class="flex flex-wrap items-start gap-x-3 gap-y-1">
         <span class="text-[10px] font-semibold uppercase tracking-wide text-muted">Types</span>
         <button
+          v-if="gf.graphTypesDeviateFromDefaults"
+          type="button"
+          class="rounded bg-muted/25 px-1.5 py-0 text-[9px] font-medium text-muted hover:bg-overlay"
+          data-testid="graph-types-reset"
+          @click="gf.resetGraphTypeVisibilityDefaults()"
+        >
+          filters active — reset
+        </button>
+        <button
           type="button"
           class="text-[10px] text-primary underline"
           @click="gf.selectAllTypes()"
@@ -1863,7 +1877,11 @@ defineExpose({
       </div>
     </div>
 
-    <div class="flex min-h-0 min-w-0 flex-1">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <GraphStatusLine
+        v-if="gf.fullArtifact"
+        @request-reload="emit('request-corpus-graph-sync')"
+      />
       <div
         ref="canvasHost"
         tabindex="-1"

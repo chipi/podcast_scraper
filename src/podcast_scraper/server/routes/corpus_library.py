@@ -239,6 +239,11 @@ async def corpus_episodes(
         description="Case-insensitive substring on summary title or any summary bullet.",
     ),
     since: str | None = Query(default=None, description="Publish date on/after YYYY-MM-DD."),
+    until: str | None = Query(default=None, description="Publish date on/before YYYY-MM-DD."),
+    has_gi: bool | None = Query(
+        default=None,
+        description="When true, only rows with GI; when false, only rows missing GI.",
+    ),
     topic_cluster_only: bool = Query(
         default=False,
         description="When true, keep only episodes whose bridge topics appear on a corpus "
@@ -255,7 +260,15 @@ async def corpus_episodes(
     titles_by_feed = feed_display_title_by_feed_id(rows)
     rss_by_feed = feed_rss_url_by_feed_id(rows)
     desc_by_feed = feed_description_by_feed_id(rows)
-    filtered = filter_rows(rows, feed_id=feed_id, title_q=q, topic_q=topic_q, since=since)
+    filtered = filter_rows(
+        rows,
+        feed_id=feed_id,
+        title_q=q,
+        topic_q=topic_q,
+        since=since,
+        until=until,
+        has_gi=has_gi,
+    )
     if topic_cluster_only:
         cluster_index = load_topic_cluster_index(root)
         filtered = [

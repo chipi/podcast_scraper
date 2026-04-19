@@ -183,6 +183,45 @@ test.describe('Corpus Library tab', () => {
     await expect(clearFeed).toBeDisabled()
   })
 
+  test('feed list shows filter search when more than 15 feeds and filters client-side', async ({
+    page,
+  }) => {
+    const feeds = Array.from({ length: 16 }, (_, i) => ({
+      feed_id: `f${i + 1}`,
+      display_title: `Library Mock Feed ${i + 1}`,
+      episode_count: i === 0 ? 1 : 0,
+    }))
+    await page.unroute('**/api/corpus/feeds**')
+    await page.route('**/api/corpus/feeds**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          path: '/mock/corpus',
+          feeds,
+        }),
+      })
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
+    await expect(page.getByTestId('library-root')).toBeVisible()
+    await expandLibraryEpisodeFilters(page)
+    const feedSearch = page.getByTestId('library-feed-filter-search')
+    await expect(feedSearch).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Library Mock Feed 1, feed id f1, 1 episodes' }),
+    ).toBeVisible()
+    await feedSearch.fill('Library Mock Feed 16')
+    await expect(
+      page.getByRole('button', { name: 'Library Mock Feed 16, feed id f16, 0 episodes' }),
+    ).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: 'Library Mock Feed 1, feed id f1, 1 episodes' }),
+    ).toHaveCount(0)
+  })
+
   test('lists mocked feeds and episodes; search handoff fills query and feed filter', async ({
     page,
   }) => {
@@ -297,16 +336,12 @@ test.describe('Corpus Library tab', () => {
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
-    await expandLibraryEpisodeFilters(page)
-
     const clusterReq = page.waitForRequest(
       (r) =>
         r.url().includes('/api/corpus/episodes') &&
         r.url().includes('topic_cluster_only=true'),
     )
-    await page
-      .getByRole('checkbox', { name: 'Show only episodes with a topic cluster (CIL)' })
-      .check()
+    await page.getByTestId('library-topic-cluster-toggle').check()
     const req = await clusterReq
     expect(req.url()).toContain('topic_cluster_only=true')
   })

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
-import { mainViewsNav, openCorpusDataWorkspace, SHELL_HEADING_RE } from './helpers'
+import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
+import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -34,7 +35,8 @@ test.describe('Search → graph (mocked API)', () => {
               relative_path: 'metadata/ci_sample.gi.json',
               kind: 'gi',
               size_bytes: artifactJson.length,
-              mtime_utc: '2024-01-01T00:00:00Z',
+              mtime_utc: '2026-04-18T12:00:00Z',
+              publish_date: '2026-04-18',
             },
           ],
         }),
@@ -173,6 +175,8 @@ test.describe('Search → graph (mocked API)', () => {
         }),
       })
     })
+
+    await setupCorpusDashboardDataRoutes(page)
   })
 
   test('mocked topic-clusters v2 adds Topic cluster to Types row', async ({ page }) => {
@@ -187,23 +191,23 @@ test.describe('Search → graph (mocked API)', () => {
     await expect(page.getByText(/Topic cluster\s*\(\d+\)/)).toBeVisible()
   })
 
-  test('Dashboard corpus workspace shows topic clusters loaded and schema line', async ({ page }) => {
+  test('Dashboard Intelligence tab shows topic clusters loaded and schema line', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
     await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await page.getByTestId('status-bar-list-artifacts').waitFor({ state: 'visible', timeout: 15_000 })
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
 
-    await openCorpusDataWorkspace(page)
-    const apiSection = page.locator('section').filter({
-      has: page.getByRole('heading', { name: 'API', exact: true }),
-    })
-    await expect(
-      apiSection.getByRole('heading', { name: 'Topic clusters', level: 3 }),
-    ).toBeVisible()
-    await expect(apiSection.getByText('Loaded', { exact: true })).toBeVisible()
-    await expect(apiSection.getByText(/schema_version:\s*2/)).toBeVisible()
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await page.getByTestId('briefing-card').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.getByRole('tablist', { name: 'Dashboard tabs' }).getByRole('tab', { name: 'Intelligence' }).click()
+
+    const block = page.getByTestId('topic-clusters-status-block')
+    await expect(block.getByRole('heading', { name: 'Topic clusters', level: 3 })).toBeVisible()
+    await expect(block.getByText('Loaded', { exact: true })).toBeVisible()
+    await expect(block.getByText(/schema_version:\s*2/)).toBeVisible()
   })
 
   test('corpus path auto-loads graph → search → Show on graph opens node detail', async ({

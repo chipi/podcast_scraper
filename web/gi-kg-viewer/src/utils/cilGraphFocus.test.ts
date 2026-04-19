@@ -11,7 +11,6 @@ describe('cameraIncludeRawIdsFromCilPill', () => {
     expect(
       cameraIncludeRawIdsFromCilPill({
         topic_id: 'topic:x',
-        label: 'X',
         in_topic_cluster: true,
         topic_cluster_compound_id: 'tc:parent',
       }),
@@ -22,7 +21,6 @@ describe('cameraIncludeRawIdsFromCilPill', () => {
     expect(
       cameraIncludeRawIdsFromCilPill({
         topic_id: 'topic:x',
-        label: 'X',
         in_topic_cluster: false,
         topic_cluster_compound_id: 'tc:ignored',
       }),
@@ -33,7 +31,6 @@ describe('cameraIncludeRawIdsFromCilPill', () => {
     expect(
       cameraIncludeRawIdsFromCilPill({
         topic_id: 'topic:x',
-        label: 'X',
         in_topic_cluster: true,
         topic_cluster_compound_id: null,
       }),
@@ -47,7 +44,6 @@ describe('graphFocusPlanFromCilPill', () => {
       graphFocusPlanFromCilPill(
         {
           topic_id: 'topic:a',
-          label: 'A',
           in_topic_cluster: true,
           topic_cluster_compound_id: 'tc:c1',
         },
@@ -66,7 +62,6 @@ describe('graphFocusPlanFromCilPill', () => {
       graphFocusPlanFromCilPill(
         {
           topic_id: 'topic:b',
-          label: 'B',
           in_topic_cluster: false,
           topic_cluster_compound_id: null,
         },
@@ -92,7 +87,6 @@ describe('graphFocusPlanFromCilPill', () => {
       graphFocusPlanFromCilPill(
         {
           topic_id: 'topic:z',
-          label: 'Z',
           in_topic_cluster: true,
           topic_cluster_compound_id: 'tc:z',
         },
@@ -108,7 +102,12 @@ describe('graphFocusPlanFromCilPill', () => {
 
   it('none when no ids', () => {
     expect(graphFocusPlanFromCilPill(null, null)).toEqual({ kind: 'none' })
-    expect(graphFocusPlanFromCilPill({ topic_id: '', label: '' }, '')).toEqual({ kind: 'none' })
+    expect(
+      graphFocusPlanFromCilPill(
+        { topic_id: '', in_topic_cluster: false, topic_cluster_compound_id: null },
+        '',
+      ),
+    ).toEqual({ kind: 'none' })
   })
 })
 

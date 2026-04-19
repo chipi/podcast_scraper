@@ -3,10 +3,21 @@ import {
   digestRowFeedLabel,
   digestRowFeedLabelWithCatalog,
   digestRowSummaryPreview,
+  digestTopicHitSimilarityDisplay,
   libraryEpisodeSummaryLine,
 } from './digestRowDisplay'
 
 describe('digestRowDisplay', () => {
+  it('digestTopicHitSimilarityDisplay tiers and raw title', () => {
+    expect(digestTopicHitSimilarityDisplay(0.9)).toMatchObject({
+      label: 'Strong match',
+      labelClass: 'text-gi',
+      rawTitle: 'Similarity: 0.900',
+    })
+    expect(digestTopicHitSimilarityDisplay(0.75).label).toBe('Good match')
+    expect(digestTopicHitSimilarityDisplay(0.5).label).toBe('Weak match')
+  })
+
   it('digestRowSummaryPreview prefers summary_preview', () => {
     expect(
       digestRowSummaryPreview({

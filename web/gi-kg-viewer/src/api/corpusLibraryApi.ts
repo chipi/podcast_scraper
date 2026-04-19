@@ -114,6 +114,10 @@ export type FetchEpisodesOptions = {
   /** When true, only episodes with at least one CIL topic in a corpus topic cluster (bridge + topic_clusters.json). */
   topicClusterOnly?: boolean
   since?: string
+  /** Publish date on/before this ``YYYY-MM-DD`` (inclusive). */
+  until?: string
+  /** When false, only episodes missing a GI artifact. */
+  hasGi?: boolean
   limit?: number
   cursor?: string | null
 }
@@ -130,6 +134,9 @@ export async function fetchCorpusEpisodes(
   if (options.topicQ?.trim()) q.set('topic_q', options.topicQ.trim())
   if (options.topicClusterOnly) q.set('topic_cluster_only', 'true')
   if (options.since?.trim()) q.set('since', options.since.trim())
+  if (options.until?.trim()) q.set('until', options.until.trim())
+  if (options.hasGi === true) q.set('has_gi', 'true')
+  if (options.hasGi === false) q.set('has_gi', 'false')
   if (options.limit != null) q.set('limit', String(options.limit))
   if (options.cursor) q.set('cursor', options.cursor)
   const qs = q.toString()

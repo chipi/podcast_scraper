@@ -44,15 +44,12 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
    all filters** and **Apply** sit in the third column (same compact control scale as **Clear
    feed filter**: **`text-[10px]`**, **`px-2 py-0.5`**; column gap before inputs).
    **Clear all filters** disabled when everything is already default; **Apply** reloads
-   using title/summary filters (same as **Enter** in those fields).    **Episodes with topic
-   cluster (CIL)** checkbox reloads the list immediately (adds ``topic_cluster_only=true`` to
-   ``GET /api/corpus/episodes`` when checked). The API keeps episodes that appear on a cluster
-   member's ``episode_ids`` for a bridge topic (narrows search; not every episode that shares a
-   clustered topic id without member provenance). **No** separate **Clear
+   using title/summary filters (same as **Enter** in those fields). **No** separate **Clear
    text** button. On wide viewports, a **two-column** row
    (~**60% / 40%**): **left** = that stack; **right** =
-   **Feed** list: **all** catalog feeds in a **scroll** region with a **short max-height**
-   (~two row heights); **two-line** labels when needed.
+   **Feed** list: **all** catalog feeds at **natural height** (no nested **`max-height`**
+   scroll on the feed list). When the feed count exceeds the tunable threshold (default **15**),
+   a **`library-feed-filter-search`** input filters rows client-side by display title.
    Stacks vertically on narrow widths.
    With no row selected, episodes include **all** feeds; choosing a feed narrows the list.
    **Clear feed filter** stays next to the **Feed** label at all times: **disabled** when
@@ -61,6 +58,12 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
    Feed rows use display title when present (stable `feed_id`, plus RSS and description in
    `title` hover when `GET /api/corpus/feeds` includes them), `border` dividers, and `overlay`
    for the selected feed row.
+
+   **Below** the **Filters** collapsible (always visible, not inside it): **Clustered episodes only**
+   (`library-topic-cluster-toggle`) reloads the list immediately (adds **`topic_cluster_only=true`**
+   to **`GET /api/corpus/episodes`** when checked). The API keeps episodes that appear on a cluster
+   member's **`episode_ids`** for a bridge topic (same semantics as before). A muted confirmation
+   line appears when the toggle is active.
 
 2. **Episode column** -- **`h2` Episodes** with a muted tabular count: **`(N)`** for the
    loaded page set, **`(N+)`** when **`next_cursor`** indicates more pages (native **`title`**
@@ -76,7 +79,10 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
    `title` hover on the feed name shows RSS URL, feed id, and feed description when the API
    provides them (feed filter rows use the same hover pattern with multi-line labels in
    the filter column). Summary line sits **close** under the title row (tight top margin);
-   same recap rules as Digest (full wrap, no line clamp); **no** topic chips on list rows
+   same recap rules as Digest (**`line-clamp-2`** when unselected, full text when selected; full
+   text in native **`title`** when clamped); optional **`success`** **recency dot** before the title
+   when **`publish_date`** is within the rolling **24h** window (local **YYYY-MM-DD** midnight rule;
+   see UXS-001 tunables); **no** topic chips on list rows
    (use **Digest** for CIL topic pills that open **Graph**). This stays true for
    [UXS-007 Topic Entity View](UXS-007-topic-entity-view.md) as well: Library list rows
    are kept dense; topic navigation to the Topic rail uses **Search** result cards,

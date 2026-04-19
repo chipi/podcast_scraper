@@ -72,6 +72,10 @@ Expand runs only when:
 
 `graphExpansion` records `seedCyId -> addedRelPaths[]`. Collapse calls **`removeRelativeArtifacts`** on those paths and clears the record. Full graph reload matches expand cost (accepted for v1).
 
+### Expansion reset vs full reload
+
+Any **full** `artifacts.loadSelected()` (default) clears **`graphExpansion`** before refetching so `expandedBySeed` never points at paths that are no longer in the merged selection (corpus auto-sync, `loadRelativeArtifacts`, Dashboard **Load into graph**, **Refresh graph**, and similar). **`appendRelativeArtifacts`** and **`removeRelativeArtifacts`** call `loadSelected({ preserveExpansion: true })` so progressive expand and collapse can reload the merged graph without wiping unrelated seeds mid-flow.
+
 ### Visual affordance (viewer)
 
 Topic / Person / Entity nodes that pass the same structural rules as **Eligibility (expand)** get a **teal** Cytoscape node border **only after** a debounced `POST /api/corpus/node-episodes` probe finds at least one matching episode whose GI/KG paths are **not** already in the viewer’s merged artifact selection (so the ring means “double-click can merge corpus material that is not on the graph yet,” not merely “degree &gt; 1”). The expansion **seed** after a successful expand shows a **blue** border until collapsed. Styling uses classes `graph-expand-eligible` / `graph-expand-seed`; the graph toolbar hint summarizes the rings.
