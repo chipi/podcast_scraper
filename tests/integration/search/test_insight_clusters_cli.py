@@ -22,6 +22,21 @@ from podcast_scraper.search.insight_clusters import (
 
 pytestmark = [pytest.mark.integration]
 
+# Check if embedding model is available (CI is offline, model may not be cached)
+_embedding_model_available = False
+try:
+    from sentence_transformers import SentenceTransformer
+
+    SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    _embedding_model_available = True
+except Exception:
+    pass
+
+needs_embedding_model = pytest.mark.skipif(
+    not _embedding_model_available,
+    reason="sentence-transformers/all-MiniLM-L6-v2 not cached (CI offline)",
+)
+
 
 def _write_gi_artifact(
     output_dir: Path,
@@ -96,6 +111,7 @@ def test_collect_insights_from_multi_episode_corpus(tmp_path: Path) -> None:
 # ── build_insight_clusters_payload (needs sentence-transformers) ─────
 
 
+@needs_embedding_model
 def test_two_similar_insights_cluster_together() -> None:
     rows = [
         {
@@ -125,6 +141,7 @@ def test_two_similar_insights_cluster_together() -> None:
     assert cluster["cluster_id"].startswith("ic:")
 
 
+@needs_embedding_model
 def test_dissimilar_insights_stay_separate() -> None:
     rows = [
         {
@@ -149,6 +166,7 @@ def test_dissimilar_insights_stay_separate() -> None:
     assert payload["singletons"] == 2
 
 
+@needs_embedding_model
 def test_same_episode_cluster_not_cross_episode() -> None:
     rows = [
         {
@@ -173,6 +191,7 @@ def test_same_episode_cluster_not_cross_episode() -> None:
         assert payload["clusters"][0]["cross_episode"] is False
 
 
+@needs_embedding_model
 def test_cluster_members_have_similarity_scores() -> None:
     rows = [
         {
@@ -199,6 +218,7 @@ def test_cluster_members_have_similarity_scores() -> None:
             assert 0.0 <= member["similarity_to_centroid"] <= 1.0
 
 
+@needs_embedding_model
 def test_supporting_quotes_preserved_in_cluster() -> None:
     rows = [
         {
@@ -245,6 +265,7 @@ def test_supporting_quotes_preserved_in_cluster() -> None:
 # ── end-to-end: build + expand ───────────────────────────────────────
 
 
+@needs_embedding_model
 def test_build_insight_clusters_end_to_end(tmp_path: Path) -> None:
     """Full flow: write gi.json → build clusters → verify output file."""
     _write_gi_artifact(
@@ -276,6 +297,7 @@ def test_build_insight_clusters_end_to_end(tmp_path: Path) -> None:
         assert "Mediterranean diet reduces cardiovascular risk" not in member_texts
 
 
+@needs_embedding_model
 def test_cluster_context_expansion_with_cli_artifacts(tmp_path: Path) -> None:
     """Cluster context expansion works with real clustering output."""
     from podcast_scraper.search.insight_cluster_context import (
@@ -322,6 +344,7 @@ def test_cluster_context_expansion_with_cli_artifacts(tmp_path: Path) -> None:
 # ── CLI handlers: cluster browse + topic-insights ────────────────────
 
 
+@needs_embedding_model
 def test_cluster_browse_on_real_clusters(tmp_path: Path, capsys) -> None:
     """Build real clusters, then browse them via CLI handler."""
     from podcast_scraper.search.cli_handlers import run_cluster_browse_cli
@@ -344,6 +367,7 @@ def test_cluster_browse_on_real_clusters(tmp_path: Path, capsys) -> None:
     assert out["total"] >= 1
 
 
+@needs_embedding_model
 def test_topic_insights_on_real_data(tmp_path: Path, capsys) -> None:
     """Build clusters with ABOUT edges, query by topic via CLI handler."""
     from podcast_scraper.search.cli_handlers import run_topic_insights_cli
