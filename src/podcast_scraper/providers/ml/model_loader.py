@@ -304,14 +304,19 @@ def _download_qa_pipeline_for_cache(model_id: str) -> None:
 
 def _download_nli_cross_encoder_for_cache(model_id: str) -> None:
     """Instantiate CrossEncoder once to populate the HF cache (test seam)."""
+    import inspect
+
     from sentence_transformers import CrossEncoder
 
     cache_dir = str(get_transformers_cache_dir().resolve())
-    CrossEncoder(
-        model_id,
-        local_files_only=False,
-        cache_folder=cache_dir,
-    )
+    # ST 2.x CrossEncoder doesn't accept local_files_only or cache_folder.
+    ce_params = set(inspect.signature(CrossEncoder.__init__).parameters)
+    ce_kw: dict = {}
+    if "local_files_only" in ce_params:
+        ce_kw["local_files_only"] = False
+    if "cache_folder" in ce_params:
+        ce_kw["cache_folder"] = cache_dir
+    CrossEncoder(model_id, **ce_kw)
 
 
 def _download_sentence_transformer_for_cache(model_id: str) -> None:
