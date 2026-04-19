@@ -1,14 +1,14 @@
-"""Cluster enrichment for gi explore results.
+"""Cluster context expansion for gi explore results.
 
 Given explore results (insights matched by topic/speaker/semantic search),
-enriches each insight with cross-episode cluster data — additional quotes
+expands each insight with cross-episode cluster context — additional quotes
 from other episodes that support the same claim.
 
 Usage:
-    from podcast_scraper.search.insight_cluster_enrichment import (
-        enrich_with_clusters,
+    from podcast_scraper.search.insight_cluster_context import (
+        expand_with_cluster_context,
     )
-    enriched = enrich_with_clusters(insights, clusters_path)
+    expanded = expand_with_cluster_context(insights, clusters_path)
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def load_insight_clusters(
     return index
 
 
-def enrich_with_clusters(
+def expand_with_cluster_context(
     insights: List[Dict[str, Any]],
     clusters_path: Optional[Path] = None,
     cluster_index: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -63,7 +63,7 @@ def enrich_with_clusters(
         cluster_index: Pre-loaded index (if already loaded).
 
     Returns:
-        Same insights list with cluster enrichment added where applicable.
+        Same insights list with cluster context added where applicable.
     """
     if cluster_index is None:
         if clusters_path is None:
@@ -73,7 +73,7 @@ def enrich_with_clusters(
     if not cluster_index:
         return insights
 
-    enriched = []
+    expanded = []
     for ins in insights:
         ins_id = ins.get("insight_id", ins.get("id", ""))
         cluster_info = cluster_index.get(ins_id)
@@ -94,23 +94,23 @@ def enrich_with_clusters(
                             }
                         )
 
-            ins_enriched = dict(ins)
-            ins_enriched["cluster"] = {
+            ins_expanded = dict(ins)
+            ins_expanded["cluster"] = {
                 "cluster_id": cluster_info["cluster_id"],
                 "canonical_insight": cluster_info["canonical_insight"],
                 "cluster_size": cluster_info["member_count"],
                 "cluster_episodes": cluster_info["episode_count"],
                 "cross_episode_quotes": cross_quotes,
             }
-            enriched.append(ins_enriched)
+            expanded.append(ins_expanded)
         else:
-            enriched.append(ins)
+            expanded.append(ins)
 
-    return enriched
+    return expanded
 
 
-def format_cluster_enrichment(insight: Dict[str, Any]) -> str:
-    """Format cluster enrichment for CLI display."""
+def format_cluster_context(insight: Dict[str, Any]) -> str:
+    """Format cluster context for CLI display."""
     cluster = insight.get("cluster")
     if not cluster:
         return ""
