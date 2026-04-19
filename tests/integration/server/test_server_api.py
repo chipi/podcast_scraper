@@ -108,6 +108,9 @@ class TestHealth:
         assert body.get("corpus_binary_api") is True
         assert body.get("cil_queries_api") is True
         assert body.get("enriched_search_available") is False
+        assert body.get("feeds_api") is False
+        assert body.get("operator_config_api") is False
+        assert body.get("jobs_api") is False
 
 
 # ---------------------------------------------------------------------------

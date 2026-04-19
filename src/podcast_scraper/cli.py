@@ -219,17 +219,13 @@ def _rich_progress(total: Optional[int], description: str) -> Iterator[Union[_Ri
 
 def _load_rss_urls_from_file(path: str) -> List[str]:
     """Read non-empty, non-comment lines from ``--rss-file`` (GitHub #440)."""
+    from podcast_scraper.feed_list_text import parse_rss_list_file_lines
+
     p = Path(path)
     if not p.is_file():
         raise ValueError(f"--rss-file is not a readable file: {path}")
     text = p.read_text(encoding="utf-8", errors="replace")
-    urls: List[str] = []
-    for line in text.splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"):
-            continue
-        urls.append(s)
-    return urls
+    return parse_rss_list_file_lines(text)
 
 
 _FILE_URLS_ELIDE = object()

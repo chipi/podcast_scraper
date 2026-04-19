@@ -456,11 +456,18 @@ test.describe('Graph expansion (mocked API)', () => {
     })
 
     await gotoGraphWithMockCorpus(page)
+    const expandDone = page.waitForResponse(
+      (res) =>
+        res.url().includes('/api/corpus/node-episodes') && res.request().method() === 'POST',
+      { timeout: 25_000 },
+    )
     await dblclickCyNode(page, 'topic:ci-policy')
+    await expandDone
 
     const strip = page.getByTestId('graph-expansion-truncation-line')
-    await expect(strip).toBeVisible({ timeout: 15_000 })
+    await expect(strip).toBeVisible({ timeout: 20_000 })
     await expect(strip).toContainText(/Showing 1 of 12 episodes/i)
+    await expect(strip).toContainText(/max_episodes cap/i)
   })
 
   test('POST node-episodes receives topic id; expand fetches appended GI', async ({ page }) => {

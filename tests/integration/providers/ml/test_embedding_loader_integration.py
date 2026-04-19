@@ -23,9 +23,25 @@ class TestLoadEmbeddingModelIntegration:
         """Return a fake SentenceTransformer class that records constructor kwargs."""
 
         class FakeST:
-            def __init__(self, model_id, device=None, cache_folder=None, **kwargs):
+            # Declare ``local_files_only`` explicitly so ``inspect.signature`` matches the
+            # real ``SentenceTransformer`` API while this class is monkeypatched in place of
+            # it (``embedding_loader`` gates ``local_files_only`` on the signature).
+            def __init__(
+                self,
+                model_id,
+                device=None,
+                cache_folder=None,
+                local_files_only=None,
+                **kwargs,
+            ):
                 captured.append(
-                    {"model_id": model_id, "device": device, "cache_folder": cache_folder, **kwargs}
+                    {
+                        "model_id": model_id,
+                        "device": device,
+                        "cache_folder": cache_folder,
+                        "local_files_only": local_files_only,
+                        **kwargs,
+                    }
                 )
 
             def encode(self, texts, normalize_embeddings=True, batch_size=64):

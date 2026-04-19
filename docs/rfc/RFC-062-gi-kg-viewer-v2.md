@@ -33,6 +33,8 @@
     **Digest** tab, discovery flows
   - [RFC-069: Graph exploration toolkit](RFC-069-graph-exploration-toolkit.md) — minimap, degree
     filter, layouts, zoom affordances on the graph card
+  - [RFC-077: Viewer feeds, operator YAML, pipeline jobs on `serve`](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) —
+    opt-in **`/api/feeds`**, **`/api/operator-config`**, **`/api/jobs`** (not `enable_platform`)
   - [RFC-051: Database projection GIL/KG](RFC-051-database-projection-gil-kg.md) — future structured
     query backend
 - **Related UX specs**:
@@ -55,7 +57,7 @@
   - [GitHub #347](https://github.com/chipi/podcast_scraper/issues/347) — UI for DB-backed corpus (v2.7)
   - [GitHub #46](https://github.com/chipi/podcast_scraper/issues/46) — Docker architecture (v2.7)
   - [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606) — Viewer shell restructure (query left, subject right, status bar)
-- **Updated**: 2026-04-19 (RFC abstract + delivered scope aligned with shipped shell IA #606; **VIEWER_IA** + removed stale **CorpusDataWorkspace** body narrative)
+- **Updated**: 2026-04-19 — shell IA #606 narrative; **RFC-077** server flags, route tree, and `enable_platform` vs opt-in feeds/operator/jobs
 
 ## Abstract
 
@@ -78,7 +80,8 @@ and **RFC-069**; graph chrome specifics (minimap, degree buckets, layout combobo
 
 The FastAPI package remains the **seed of the platform API** ([#50](https://github.com/chipi/podcast_scraper/issues/50),
 [#347](https://github.com/chipi/podcast_scraper/issues/347)): **`enable_platform`** in **`app.py`**
-is reserved for future platform routers; **v2.6** mounts **viewer + corpus** routes unconditionally.
+is still reserved for future megasketch **catalog / DB** routers under **`routes/platform/`**.
+**RFC-077** adds separate flags (**`enable_feeds_api`**, **`enable_operator_config_api`**, **`enable_jobs_api`**) for corpus RSS list file, viewer-safe operator YAML, and HTTP pipeline jobs — see [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md). **v2.6+** mounts **viewer + corpus** routes unconditionally; RFC-077 routes are **opt-in**.
 
 **Architecture alignment:** The server is a **consumption and coordination layer** — it does not mutate
 artifacts or pipeline outputs. It wraps **`VectorStore`**, **`gi explore`**, filesystem artifacts, and
@@ -95,7 +98,7 @@ This follows megasketch **A.2** — **one pipeline core, multiple shells** (CLI 
 | **Graph** | Merged GI/KG load, **Sources** / **Types** / **Edges**, search-hit focus, **Episode** subject rail on graph when metadata resolves; **toolbar** zoom/fit/export; **RFC-069** overlays (layout, degree filter, minimap, Shift+box zoom) | [UXS-004](../uxs/UXS-004-graph-exploration.md) + this RFC + [RFC-069](RFC-069-graph-exploration-toolkit.md) |
 | **Semantic search** | **`#search-q`**, since / top‑k, **Advanced search** modal, **Search result insights** modal, **G** / **L** actions, merge duplicate KG surfaces | [UXS-005](../uxs/UXS-005-semantic-search.md) + [RFC-061](RFC-061-semantic-corpus-search.md) |
 | **Dashboard** | **Briefing** card; **Coverage** / **Intelligence** / **Pipeline** sub-tabs; Chart.js surfaces per **UXS-006**; corpus **List** / **Load into graph** via **status bar** (not a legacy **`CorpusDataWorkspace`** on the tab body) | [UXS-006](../uxs/UXS-006-dashboard.md) + [RFC-071](RFC-071-corpus-intelligence-dashboard-viewer.md) + [VIEWER_IA](../uxs/VIEWER_IA.md) (status bar) |
-| **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) |
+| **Server** | **`app.py`** mounts **health**, **artifacts**, **search**, **explore**, **index_stats**, **index_rebuild**, **corpus_library**, **corpus_binary**, **corpus_metrics**, **corpus_digest**, …; optional **RFC-077** **`/api/feeds`**, **`/api/operator-config`**, **`/api/jobs`** | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md), [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) |
 | **E2E** | Playwright under **`web/gi-kg-viewer/e2e/`** (Firefox; dedicated Vite port in CI) | [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) |
 
 The table documents **shipped** viewer chrome including the **#606** shell IA update.
@@ -386,17 +389,21 @@ src/podcast_scraper/server/
 │   ├── corpus_digest.py   # digest window + topic bands (RFC-068)
 │   ├── corpus_metrics.py  # corpus stats, runs summary, aggregates for Dashboard
 │   ├── corpus_binary.py   # episode cover / binary helpers
-│   └── platform/          # v2.7 — reserved; enable_platform currently no-op in app factory
+│   ├── feeds.py           # optional RFC-077 — GET/PUT /feeds
+│   ├── operator_config.py # optional RFC-077 — GET/PUT /operator-config
+│   ├── jobs.py            # optional RFC-077 — POST/GET /jobs (+ cancel, reconcile)
+│   └── platform/          # reserved (#50, #347); not used for RFC-077
 ├── dependencies.py        # shared wiring (output_dir, stores) as implemented
 └── schemas.py             # Pydantic models shared by routes
 ```
 
-**FastAPI app factory (`app.py`) — v2.6 behavior:**
+**FastAPI app factory (`app.py`) — shipped behavior:**
 
-- **`create_app(output_dir, static_dir=..., enable_platform=False)`** — all **viewer + corpus**
-  routers above are **`include_router(..., prefix="/api")`** unconditionally.
-- **`enable_platform`**: reserved; **platform** package exists for future **#50 / #347** work but does
-  not mount extra routers yet.
+- **`create_app(output_dir, static_dir=..., enable_platform=False, enable_feeds_api=False, …)`** — all **viewer + corpus**
+  routers in the tree above (except the three optional RFC-077 files) are **`include_router(..., prefix="/api")`** unconditionally.
+- **`enable_feeds_api` / `enable_operator_config_api` / `enable_jobs_api`**: when true, mount **RFC-077** routers (`feeds`, `operator_config`, `jobs`). Env aliases: `PODCAST_SERVE_ENABLE_*` (reload factory).
+- **`enable_platform`**: reserved; **`routes/platform/`** exists for future **#50 / #347** work but does
+  not mount routers yet.
 - **`static_dir`**: when **`web/gi-kg-viewer/dist`** exists (or path passed), mounts **`StaticFiles`**
   at **`/`** with **`html=True`** for SPA fallback.
 - **CORS**: allows local Vite ports **5173** / **5174** for dev.

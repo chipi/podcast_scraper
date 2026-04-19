@@ -4,7 +4,7 @@
 - **Date**: 2026-04-03
 - **Authors**: Podcast Scraper Team
 - **Related RFCs**: [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md)
-- **Related Issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50), [#347](https://github.com/chipi/podcast_scraper/issues/347), [#489](https://github.com/chipi/podcast_scraper/issues/489)
+- **Related Issues**: [#50](https://github.com/chipi/podcast_scraper/issues/50), [#347](https://github.com/chipi/podcast_scraper/issues/347), [#489](https://github.com/chipi/podcast_scraper/issues/489), [#626](https://github.com/chipi/podcast_scraper/issues/626) (RFC-077 viewer feeds / operator / jobs on `serve`)
 
 ## Context & Problem Statement
 
@@ -79,3 +79,19 @@ We create a **canonical server layer** in `src/podcast_scraper/server/`:
 - [Platform Megasketch](../architecture/PLATFORM_ARCHITECTURE_BLUEPRINT.md) — constraint A.2
 - [#50: Simple UI + server](https://github.com/chipi/podcast_scraper/issues/50)
 - [#347: UI for DB output](https://github.com/chipi/podcast_scraper/issues/347)
+
+## Addendum (2026-04): RFC-077 operator surfaces (separate flags)
+
+The **first** HTTP surfaces for **corpus RSS list file**, **viewer-safe operator YAML**,
+and **pipeline subprocess jobs** ship as **top-level route modules** next to viewer
+corpus routes — **not** behind the historical `enable_platform` stub package:
+
+| Surface | Router module | `create_app` flag | Serve / env (reload factory) |
+| ------- | ------------- | ----------------- | ---------------------------- |
+| RSS list file (`rss_urls.list.txt`) | `routes/feeds.py` | `enable_feeds_api` | `--enable-feeds-api` / `PODCAST_SERVE_ENABLE_FEEDS_API` |
+| Operator YAML (non-secret) | `routes/operator_config.py` | `enable_operator_config_api` | `--enable-operator-config-api` / `PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API` |
+| Pipeline jobs (subprocess + registry) | `routes/jobs.py` | `enable_jobs_api` | `--enable-jobs-api` / `PODCAST_SERVE_ENABLE_JOBS_API` |
+
+`enable_platform` remains **reserved** for future megasketch work (#50, #347) such as
+catalog CRUD or DB-backed corpus APIs. See [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)
+and [SERVER_GUIDE — Platform evolution](../guides/SERVER_GUIDE.md#platform-evolution).

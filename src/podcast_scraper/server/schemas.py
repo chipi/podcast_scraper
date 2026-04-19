@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArtifactItem(BaseModel):
@@ -90,6 +90,97 @@ class HealthResponse(BaseModel):
         default=True,
         description="True when cross-layer CIL query routes are mounted (GitHub #527).",
     )
+    feeds_api: bool = Field(
+        default=False,
+        description="True when GET/PUT /api/feeds is mounted (RSS list file under corpus root).",
+    )
+    operator_config_api: bool = Field(
+        default=False,
+        description="True when GET/PUT /api/operator-config is mounted (non-secret YAML only).",
+    )
+    jobs_api: bool = Field(
+        default=False,
+        description="True when POST/GET /api/jobs and related pipeline job routes are mounted.",
+    )
+
+
+class FeedsListResponse(BaseModel):
+    """Response for GET/PUT /api/feeds."""
+
+    path: str = Field(description="Resolved absolute corpus root path.")
+    file_relpath: str = Field(description="RSS list file relative to corpus root (POSIX).")
+    urls: list[str] = Field(default_factory=list, description="Feed URLs in file order.")
+
+
+class FeedsPutBody(BaseModel):
+    """Body for PUT /api/feeds."""
+
+    urls: list[str] = Field(
+        default_factory=list, description="Feed URLs to persist (deduped, order kept)."
+    )
+
+
+class OperatorConfigGetResponse(BaseModel):
+    """Response for GET/PUT /api/operator-config."""
+
+    corpus_path: str = Field(description="Resolved corpus root from the path query parameter.")
+    operator_config_path: str = Field(
+        description="Absolute path of the operator YAML file on disk."
+    )
+    content: str = Field(description="Full file contents (UTF-8).")
+
+
+class OperatorConfigPutBody(BaseModel):
+    """Body for PUT /api/operator-config."""
+
+    content: str = Field(default="", description="Full YAML file contents (UTF-8).")
+
+
+class PipelineJobRecord(BaseModel):
+    """One row from the JSONL job registry (GET list/detail, cancel response)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    job_id: str
+    command_type: str = Field(default="full_incremental_pipeline")
+    status: str
+    created_at: str
+    started_at: str | None = None
+    ended_at: str | None = None
+    pid: int | None = None
+    argv_summary: str = ""
+    exit_code: int | None = None
+    log_relpath: str = ""
+    error_reason: str | None = None
+    cancel_requested: bool = False
+    queue_position: int | None = Field(
+        default=None,
+        description="1-based position among queued jobs for this corpus (omit when not queued).",
+    )
+
+
+class PipelineJobAccepted(BaseModel):
+    """Response for POST /api/jobs (202 Accepted)."""
+
+    job_id: str
+    status: str
+    corpus_path: str
+    queue_position: int | None = None
+
+
+class PipelineJobsListResponse(BaseModel):
+    """Response for GET /api/jobs."""
+
+    path: str
+    jobs: list[PipelineJobRecord] = Field(default_factory=list)
+
+
+class PipelineJobReconcileResponse(BaseModel):
+    """Response for POST /api/jobs/reconcile."""
+
+    path: str
+    updated: int = Field(ge=0)
+    details: list[str] = Field(default_factory=list)
 
 
 class IndexStatsBody(BaseModel):

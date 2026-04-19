@@ -239,7 +239,9 @@ content area. Single row, ~36px tall.
   Opens local file picker for loading GI/KG artifacts without a server.
 - **Health dot** `●`: 8px circle. `success` = server OK, `warning` =
   degraded, `danger` = unreachable. Clicking opens an anchored popover with
-  all health flag rows, Retry health button, and last error message.
+  capability rows from **`GET /api/health`** (including **`feeds_api`**,
+  **`operator_config_api`**, **`jobs_api`** when present), Retry health button,
+  and last error message.
 - **Rebuild indicator** `⚡`: appears only when `reindex_recommended` is
   true from index stats. `warning` token. Clicking opens health popover
   scrolled to the index section.

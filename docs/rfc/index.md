@@ -24,6 +24,7 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 | --- | ----- | ----------- | ----------- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | AI Experiment Pipeline | PRD-007 | Technical design for configuration-driven experiment pipeline (CI integration pending) |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Podcast ML Benchmarking Framework | PRD-007 | Repeatable, objective ML benchmarking system (CI integration pending) |
+| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** feeds + operator YAML API, job lifecycle + stale/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)) |
 
 ## Completed RFCs
 
@@ -91,8 +92,8 @@ RFCs translate PRD requirements into concrete technical solutions and serve as l
 
 ## Gap analysis {:#gaps}
 
-**Counts (reconcile when moving RFCs):** **74** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-076**
-with **no RFC-014**. **2** open (in-flight, partial implementation), **59** completed, and **13** Draft
+**Counts (reconcile when moving RFCs):** **75** files under `docs/rfc/RFC-*.md` -- IDs **RFC-001--RFC-077**
+with **no RFC-014**. **3** open (in-flight, partial implementation), **59** completed, and **13** Draft
 (not indexed until promoted) in the tables above.
 
 **Open RFC clusters:** AI experiment pipeline + ML benchmark CI (**RFC-015**, **RFC-041**).
@@ -111,6 +112,7 @@ by filename under `docs/rfc/` but excluded from the index per the
 | --- | --- | --- |
 | [RFC-015](RFC-015-ai-experiment-pipeline.md) | Experiments | Runner implemented; **CI auto-run still pending** |
 | [RFC-041](RFC-041-podcast-ml-benchmarking-framework.md) | Benchmarks | Datasets/scripts exist; **automated CI benchmarking** not fully wired |
+| [RFC-077](RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Viewer feeds + operator config + `serve` jobs & hygiene | [PRD-030](../prd/PRD-030-viewer-feed-sources-and-pipeline-jobs.md) | **Draft:** `/api/feeds`, `/api/operator-config` (no secret keys in file), job registry + stale/cancel/reconcile ([#626](https://github.com/chipi/podcast_scraper/issues/626)); ≠ [RFC-065](RFC-065-live-pipeline-monitor.md) |
 
 ### Recently completed (v2.6.0+)
 

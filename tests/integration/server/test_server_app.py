@@ -47,8 +47,31 @@ def test_create_app_for_uvicorn_requires_env(monkeypatch: pytest.MonkeyPatch) ->
 
 def test_create_app_for_uvicorn_uses_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PODCAST_SERVE_OUTPUT_DIR", str(tmp_path))
+    monkeypatch.delenv("PODCAST_SERVE_ENABLE_FEEDS_API", raising=False)
+    monkeypatch.delenv("PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API", raising=False)
     app = create_app_for_uvicorn()
     assert app.state.output_dir == tmp_path.resolve()
+
+
+def test_create_app_enable_feeds_without_output_dir_raises() -> None:
+    with pytest.raises(ValueError, match="enable_feeds_api"):
+        create_app(None, static_dir=False, enable_feeds_api=True)
+
+
+def test_create_app_enable_operator_config_without_output_dir_raises() -> None:
+    with pytest.raises(ValueError, match="enable_operator_config_api"):
+        create_app(None, static_dir=False, enable_operator_config_api=True)
+
+
+def test_create_app_for_uvicorn_reads_feed_flags_from_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("PODCAST_SERVE_OUTPUT_DIR", str(tmp_path))
+    monkeypatch.setenv("PODCAST_SERVE_ENABLE_FEEDS_API", "1")
+    monkeypatch.setenv("PODCAST_SERVE_ENABLE_OPERATOR_CONFIG_API", "true")
+    app = create_app_for_uvicorn()
+    assert app.state.feeds_api_enabled is True
+    assert app.state.operator_config_api_enabled is True
 
 
 def test_create_app_custom_static_dir_not_dir(tmp_path: Path) -> None:

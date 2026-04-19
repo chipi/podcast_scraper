@@ -54,6 +54,12 @@ export const useShellStore = defineStore('shell', () => {
   const cilQueriesApiAvailable = ref(true)
   /** From GET /api/health when server exposes optional search enrichment. */
   const enrichedSearchAvailable = ref(false)
+  /** True only when GET/PUT /api/feeds is advertised (strict). */
+  const feedsApiAvailable = ref(false)
+  /** True only when GET/PUT /api/operator-config is advertised (strict). */
+  const operatorConfigApiAvailable = ref(false)
+  /** True only when POST/GET /api/jobs is advertised (strict). */
+  const jobsApiAvailable = ref(false)
   const artifactsLoading = ref(false)
   const artifactsError = ref<string | null>(null)
   const artifactCount = ref<number | null>(null)
@@ -111,6 +117,9 @@ export const useShellStore = defineStore('shell', () => {
         corpus_metrics_api?: boolean
         cil_queries_api?: boolean
         enriched_search_available?: boolean
+        feeds_api?: boolean
+        operator_config_api?: boolean
+        jobs_api?: boolean
       }
       if (healthFetchGate.isStale(seq)) {
         return
@@ -136,6 +145,9 @@ export const useShellStore = defineStore('shell', () => {
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
       enrichedSearchAvailable.value = body.enriched_search_available === true
+      feedsApiAvailable.value = body.feeds_api === true
+      operatorConfigApiAvailable.value = body.operator_config_api === true
+      jobsApiAvailable.value = body.jobs_api === true
     } catch (e) {
       if (healthFetchGate.isStale(seq)) {
         return
@@ -151,6 +163,9 @@ export const useShellStore = defineStore('shell', () => {
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
       enrichedSearchAvailable.value = false
+      feedsApiAvailable.value = false
+      operatorConfigApiAvailable.value = false
+      jobsApiAvailable.value = false
       healthError.value = e instanceof Error ? e.message : String(e)
     }
   }
@@ -224,6 +239,9 @@ export const useShellStore = defineStore('shell', () => {
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,
     enrichedSearchAvailable,
+    feedsApiAvailable,
+    operatorConfigApiAvailable,
+    jobsApiAvailable,
     artifactsLoading,
     artifactsError,
     artifactCount,

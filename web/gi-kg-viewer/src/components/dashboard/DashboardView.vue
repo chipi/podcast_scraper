@@ -17,6 +17,7 @@ import FeedCoverageTable from './FeedCoverageTable.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
 import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
+import PipelineJobsCard from './PipelineJobsCard.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
 import TopicLandscape from './TopicLandscape.vue'
@@ -337,6 +338,7 @@ function openLibraryFailures(): void {
       class="space-y-4"
       role="tabpanel"
     >
+      <PipelineJobsCard />
       <PipelineRunHistoryStrip :runs="runs" />
       <VerticalBarChart
         v-if="durationFive.labels.length"

@@ -636,6 +636,15 @@ Answers: "How is my pipeline performing?"
 Now freed from being the default tab (briefing card handles the quick
 answer), the Pipeline tab can be dense and detailed.
 
+#### 6.0 HTTP pipeline jobs (RFC-077)
+
+When **`jobs_api`** is true on health, the tab includes **`PipelineJobsCard`**
+(`data-testid="pipeline-jobs-card"`): list **HTTP-triggered** pipeline jobs for
+the current corpus, **Run** (enqueue), **Reconcile**, **Refresh**, per-row **Cancel**
+when status is `queued` or `running`, and inline help when the API is off. This
+surface is **in addition to** run-history charts fed from **`GET /api/corpus/runs/summary`**
+(see below). Spec: [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md).
+
 #### 6.1 Run history strip
 
 **Not a chart — a row of status dots.**

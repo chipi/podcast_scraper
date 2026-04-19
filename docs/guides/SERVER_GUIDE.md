@@ -24,10 +24,12 @@ and cluster compounds; responses are not pinned to an older ingest. See [Operati
 The server is described in
 [GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md) and is implemented in
 [`src/podcast_scraper/server/`][server-pkg].
-Route groups are additive: **viewer routes** ship in **v2.6.0** (artifacts,
-search, explore, index stats/rebuild, corpus library); **platform routes**
-(feeds, episodes, jobs, status) will follow the same pattern
-([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)).
+Route groups are additive: **viewer routes** ship by default (artifacts,
+search, explore, index stats/rebuild, corpus library, corpus digest, CIL, …).
+**RFC-077** opt-in routes (**feeds**, **operator-config**, **pipeline jobs**)
+mount separately via `create_app` flags (see [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)
+and [ADR-064 addendum](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md#addendum-2026-04-rfc-077-operator-surfaces-separate-flags)).
+Future **megasketch** platform routes (#50, #347) remain behind `enable_platform` when implemented.
 
 [viewer-readme]: https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/README.md
 [server-pkg]: https://github.com/chipi/podcast_scraper/blob/main/src/podcast_scraper/server/
@@ -102,13 +104,18 @@ routes/
   corpus_text_file.py # viewer — GET /corpus/text-file (transcript / caption files under corpus root)
   corpus_digest.py   # viewer — GET /corpus/digest
   corpus_topic_clusters.py   # viewer — GET /corpus/topic-clusters
-  platform/          # placeholder stubs (feeds, episodes, jobs, status)
+  feeds.py           # optional — GET/PUT /feeds (rss_urls.list.txt); enable_feeds_api
+  operator_config.py # optional — GET/PUT /operator-config; enable_operator_config_api
+  jobs.py            # optional — POST/GET /jobs, cancel, reconcile; enable_jobs_api
+  platform/          # reserved stub package (#50, #347); not used for RFC-077
 ```
 
-Platform routers (`routes/platform/`) are **not mounted** in the current
-milestone.
-When they are ready, they will be included in `create_app` behind a
-feature-flag check
+**RFC-077** routers (`feeds`, `operator_config`, `jobs`) mount when their
+matching **`enable_*_api`** flags are true in `create_app` (or the equivalent
+`PODCAST_SERVE_ENABLE_*` env vars for `uvicorn --factory` reload).
+
+The **`routes/platform/`** package is **not** mounted today; it is reserved for
+future megasketch platform work
 ([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)).
 
 ### Static file mounting
@@ -134,7 +141,10 @@ Local **dev** server: no auth. Treat **production** deployments as out-of-scope 
 
 | Method | Path | Tag | Description | Key query params |
 | ------ | ---- | --- | ----------- | ---------------- |
-| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api`. Omit digest flag on older builds → clients treat digest as unavailable. | — |
+| GET | `/api/health` | health | Liveness and **capability flags**: `status`; core viewer `artifacts_api`, `search_api`, `explore_api`, `index_routes_api`, `corpus_metrics_api`, `cil_queries_api` (default **true** when mounted); catalog `corpus_library_api`, `corpus_digest_api`, `corpus_binary_api`. **RFC-077 (default false):** `feeds_api`, `operator_config_api`, `jobs_api` when those route groups are mounted. Omit digest flag on older builds → clients treat digest as unavailable. | — |
+| GET, PUT | `/api/feeds` | feeds | Read/write **`rss_urls.list.txt`** under the resolved corpus root (JSON list body on PUT). | `path` |
+| GET, PUT | `/api/operator-config` | operator_config | Read/write **viewer-safe** operator YAML at the server-resolved path (forbidden secret keys rejected on PUT). | `path` |
+| GET, POST | `/api/jobs` | jobs | List (`GET`) or enqueue (`POST`) pipeline jobs for the corpus; **`GET /api/jobs/{id}`**, **`POST /api/jobs/{id}/cancel`**, **`POST /api/jobs/reconcile`**. | `path` |
 | GET | `/api/artifacts` | artifacts | List `*.gi.json`, `*.kg.json`, and `*.bridge.json` (recursive); each item includes `mtime_utc` (#507) and `publish_date` (YYYY-MM-DD from episode metadata when present, else UTC calendar day from file mtime). | `path` (required) — corpus output directory |
 | GET | `/api/artifacts/{path}` | artifacts | Load and return a single artifact JSON by relative path. | `path` (required) — corpus root for the relative lookup |
 | GET | `/api/index/stats` | index | FAISS index stats, staleness heuristics, and rebuild job flags (`rebuild_in_progress`, `rebuild_last_error`; #507). | `path`, `embedding_model` (optional; compare index to this id, else `Config` default) |
@@ -202,8 +212,8 @@ Pydantic response schemas are defined in
    The private `_resolve_corpus_root(path, fallback)` pattern is repeated
    in `index_stats.py`, `index_rebuild.py`, `search.py`, `explore.py`,
    `cil.py`, `corpus_library.py`, `corpus_digest.py`, and `corpus_metrics.py`.
-5. **Platform routes** use a sub-package (`routes/platform/`) and will
-   follow the same conventions when mounted.
+5. **RFC-077 routes** live as top-level `routes/*.py` files (same router pattern).
+   **`routes/platform/`** is reserved for future #50/#347 surfaces, not feeds/jobs v1.
 
 ## Adding new routes
 
@@ -403,29 +413,23 @@ See the [E2E Testing Guide](E2E_TESTING_GUIDE.md) and
 
 ## Platform evolution
 
-**Mounted today:** **viewer** routers (`health`, `artifacts`, `index_stats`,
-`index_rebuild`, `search`, `explore`, `cil`, `corpus_library`, and related corpus
-routes as wired in `create_app`). **No** `routes/platform/*`
-router is registered in `create_app` yet — the files are **stubs only** until
-ADR-064 platform work lands.
+**Mounted by default:** **viewer** routers (`health`, `artifacts`, `index_stats`,
+`index_rebuild`, `search`, `explore`, `cil`, `corpus_library`, and related **`/api/corpus/*`**
+routes) as wired in `create_app`.
 
-The `routes/platform/` sub-package contains placeholder stubs for future
-platform routes:
+**RFC-077 (opt-in):** `routes/feeds.py`, `routes/operator_config.py`, and `routes/jobs.py`
+mount when `enable_feeds_api`, `enable_operator_config_api`, and `enable_jobs_api` are
+true (CLI flags on `podcast serve` or `PODCAST_SERVE_ENABLE_*` for reload). These are
+**not** the historical `routes/platform/*` stubs — see [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md)
+and [ADR-064 addendum](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md#addendum-2026-04-rfc-077-operator-surfaces-separate-flags).
 
-| Module | Future endpoint | Tracking |
-| ------ | --------------- | -------- |
-| `feeds.py` | `GET/POST /api/feeds` | [#50][i50] |
-| `episodes.py` | `GET /api/episodes` | [#50][i50] |
-| `jobs.py` | `GET/POST /api/jobs` | [#347][i347] |
-| `status.py` | `GET /api/status` | [#347][i347] |
+**Job runner operations note:** the in-process job registry + spawn path targets
+**single `uvicorn` worker** local use. Multiple workers or hosts do not share job state;
+use one worker for predictable `POST /api/jobs` behavior unless a future design adds
+a broker. **Cancel** is **POSIX-first** (`SIGTERM` to the child); Windows semantics differ.
 
-These will be added using the same pattern described in
-[Adding new routes](#adding-new-routes):
-create the router, add schemas, include in `app.py`, write tests.
-Feature flags
-([ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md))
-will gate platform routes so they can be enabled independently of the
-viewer routes.
+**Still reserved:** `routes/platform/` and `enable_platform` for future megasketch
+catalog / DB-backed APIs ([#50][i50], [#347][i347]) — not the RSS-list or RFC-077 job runner.
 
 [i50]: https://github.com/chipi/podcast_scraper/issues/50
 [i347]: https://github.com/chipi/podcast_scraper/issues/347
@@ -438,6 +442,7 @@ viewer routes.
 | [Corpus Library](../rfc/RFC-067-corpus-library-api-viewer.md) | Catalog API and viewer integration. |
 | [Corpus Digest](../rfc/RFC-068-corpus-digest-api-viewer.md) | Digest API & viewer (`GET /api/corpus/digest`, Digest tab, Library glance). |
 | [ADR-064](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md) | Canonical server layer with feature-flagged route groups. |
+| [RFC-077](../rfc/RFC-077-viewer-feeds-and-serve-pipeline-jobs.md) | Opt-in feeds file, operator YAML, and HTTP pipeline jobs on `serve`. |
 | [ADR-065](../adr/ADR-065-vue3-vite-cytoscape-frontend-stack.md) | Vue 3 + Vite + Cytoscape.js frontend stack decision. |
 | [ADR-066](../adr/ADR-066-playwright-for-ui-e2e-testing.md) | Playwright for UI E2E testing. |
 | [Testing Guide](TESTING_GUIDE.md) | Commands, markers, and browser E2E section. |
@@ -449,6 +454,6 @@ viewer routes.
 
 ---
 
-**Version:** 1.1
+**Version:** 1.2
 **Created:** 2026-04-04
-**Updated:** 2026-04-10 — v2.6.0 Corpus Library routes, integration test paths, digest/library doc links
+**Updated:** 2026-04-19 — RFC-077 routes, health flags, platform evolution vs `routes/platform/`
