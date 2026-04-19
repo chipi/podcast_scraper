@@ -8,6 +8,7 @@ Load only when GIL, semantic search, or another embedding-dependent feature is e
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any, cast, Dict, Iterable, List, Optional, Tuple, Union
 
 from .model_registry import ModelRegistry
@@ -15,7 +16,9 @@ from .model_registry import ModelRegistry
 logger = logging.getLogger(__name__)
 
 # SentenceTransformer instances keyed by (resolved_id, device, cache_dir_key, allow_download).
+# Lock prevents concurrent loads that exhaust memory (meta tensor crash on CI).
 _embedding_models: Dict[Tuple[str, str, str, bool], object] = {}
+_embedding_models_lock = threading.Lock()
 
 
 def _effective_cache_folder(cache_dir: Optional[str]) -> str:
@@ -129,16 +132,21 @@ def get_embedding_model(
     *,
     allow_download: bool = False,
 ) -> object:
-    """Return cached embedding model or load and cache it (lazy, keyed per process)."""
+    """Return cached embedding model or load and cache it (lazy, keyed per process).
+
+    Thread-safe: prevents concurrent loads that would exhaust memory on CI
+    (meta tensor crash when processing_parallelism > 1).
+    """
     key = _cache_key(model_id, device, cache_dir, allow_download)
-    if key not in _embedding_models:
-        _embedding_models[key] = load_embedding_model(
-            model_id,
-            device=device,
-            cache_dir=cache_dir,
-            allow_download=allow_download,
-        )
-    return _embedding_models[key]
+    with _embedding_models_lock:
+        if key not in _embedding_models:
+            _embedding_models[key] = load_embedding_model(
+                model_id,
+                device=device,
+                cache_dir=cache_dir,
+                allow_download=allow_download,
+            )
+        return _embedding_models[key]
 
 
 def encode(

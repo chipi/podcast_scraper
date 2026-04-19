@@ -7,6 +7,7 @@ with character offsets and scores. Used for "What evidence supports: {insight}?"
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import Any, Callable, cast, Dict, List, Optional, Tuple
 
@@ -16,8 +17,9 @@ from .model_registry import ModelRegistry
 logger = logging.getLogger(__name__)
 
 # One pipeline per (resolved_model_id, device_key) within the process (Issue: worker procs still
-# load separately).
+# load separately). Lock prevents concurrent loads that exhaust memory (meta tensor crash).
 _qa_pipelines: Dict[Tuple[str, str], object] = {}
+_qa_pipelines_lock = threading.Lock()
 
 
 def clear_qa_pipeline_cache() -> None:
@@ -104,13 +106,18 @@ def get_qa_pipeline(
     model_id: str,
     device: Optional[str] = None,
 ) -> object:
-    """Return cached QA pipeline or load and cache it (lazy, keyed by model + device)."""
+    """Return cached QA pipeline or load and cache it (lazy, keyed by model + device).
+
+    Thread-safe: prevents concurrent loads that would exhaust memory on CI
+    (meta tensor crash when processing_parallelism > 1).
+    """
     resolved = ModelRegistry.resolve_evidence_model_id(model_id)
     dev = _get_device(device)
     key = (resolved, dev)
-    if key not in _qa_pipelines:
-        _qa_pipelines[key] = load_qa_pipeline(model_id, device=device)
-    return _qa_pipelines[key]
+    with _qa_pipelines_lock:
+        if key not in _qa_pipelines:
+            _qa_pipelines[key] = load_qa_pipeline(model_id, device=device)
+        return _qa_pipelines[key]
 
 
 def _qa_pipeline_call(pipe_fn: Callable[..., Dict[str, Any]], question: str, ctx: str) -> QASpan:

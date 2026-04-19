@@ -10,6 +10,7 @@ import contextlib
 import logging
 import math
 import os
+import threading
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ...cache import get_transformers_cache_dir
@@ -18,7 +19,9 @@ from .model_registry import ModelRegistry
 logger = logging.getLogger(__name__)
 
 # CrossEncoder per (resolved_model_id, device) within the process.
+# Lock prevents concurrent loads that exhaust memory (meta tensor crash on CI).
 _nli_models: Dict[Tuple[str, str], object] = {}
+_nli_models_lock = threading.Lock()
 
 
 def _scalar_to_float(value: object, fallback: float = 0.0) -> float:
@@ -229,13 +232,17 @@ def get_nli_model(
     model_id: str,
     device: Optional[str] = None,
 ) -> object:
-    """Return cached NLI model or load and cache it (lazy, keyed by model + device)."""
+    """Return cached NLI model or load and cache it (lazy, keyed by model + device).
+
+    Thread-safe: prevents concurrent loads that would exhaust memory on CI.
+    """
     resolved = ModelRegistry.resolve_evidence_model_id(model_id)
     dev = _get_device(device)
     key = (resolved, dev)
-    if key not in _nli_models:
-        _nli_models[key] = load_nli_model(model_id, device=device)
-    return _nli_models[key]
+    with _nli_models_lock:
+        if key not in _nli_models:
+            _nli_models[key] = load_nli_model(model_id, device=device)
+        return _nli_models[key]
 
 
 def entailment_score(
