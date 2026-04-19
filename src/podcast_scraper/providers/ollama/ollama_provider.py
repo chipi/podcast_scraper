@@ -1732,7 +1732,7 @@ class OllamaProvider:
         from ...gi.grounding import QuoteCandidate, resolve_llm_quote_span
 
         system = (
-            "You extract 2-3 short verbatim quotes from the transcript that support "
+            "Extract 1-3 short verbatim quotes from the transcript that support "
             "the given insight. Quotes must be from different parts of the "
             "transcript. Reply with ONLY a JSON object: "
             '{"quotes": ["exact quote 1", "exact quote 2"]}'
@@ -1812,6 +1812,14 @@ class OllamaProvider:
                         qa_score=1.0,
                     )
                 )
+            # Deduplicate: LLMs sometimes return the same quote multiple times
+            seen_texts: set = set()
+            deduped: list = []
+            for q in results_q:
+                if q.text not in seen_texts:
+                    seen_texts.add(q.text)
+                    deduped.append(q)
+            results_q = deduped
             return results_q
         except Exception as e:
             logger.debug("Ollama extract_quotes failed: %s", e, exc_info=True)
