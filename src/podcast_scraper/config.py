@@ -2468,6 +2468,55 @@ class Config(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
+    def _resolve_profile(cls, data: Any) -> Any:
+        """Resolve ``profile`` field: load named preset, merge as defaults (#593).
+
+        If ``profile: cloud_balanced`` is set, loads
+        ``config/profiles/cloud_balanced.yaml`` and merges its values as
+        defaults — explicit fields in ``data`` override profile defaults.
+        The ``profile`` key is consumed and not passed to Pydantic fields.
+        """
+        if not isinstance(data, dict):
+            return data
+        profile_name = data.pop("profile", None)
+        if not profile_name:
+            return data
+
+        profile_name = str(profile_name).strip()
+        # Resolve profile YAML path
+        from pathlib import Path
+
+        # Try config/profiles/ relative to project root, then package resources
+        candidates = [
+            Path("config/profiles") / f"{profile_name}.yaml",
+            Path(__file__).parent.parent.parent / "config" / "profiles" / f"{profile_name}.yaml",
+        ]
+        profile_path = None
+        for c in candidates:
+            if c.is_file():
+                profile_path = c
+                break
+
+        if profile_path is None:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Profile '%s' not found in config/profiles/; ignoring", profile_name
+            )
+            return data
+
+        # Load profile YAML
+        import yaml
+
+        profile_dict = yaml.safe_load(profile_path.read_text(encoding="utf-8")) or {}
+
+        # Merge: profile provides defaults, explicit data overrides
+        merged = dict(profile_dict)
+        merged.update(data)  # explicit fields win
+        return merged
+
+    @model_validator(mode="before")
+    @classmethod
     def _normalize_multi_rss_input(cls, data: Any) -> Any:
         """Promote ``rss`` list or merge ``rss`` + ``feeds``/``rss_urls`` (GitHub #440)."""
         if not isinstance(data, dict):
