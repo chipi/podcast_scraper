@@ -22,15 +22,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 
 def extract_topics_from_prediction(pred: dict) -> list[str]:
-    """Extract topic labels from a KG prediction."""
+    """Extract topic labels from a KG prediction.
+
+    Handles multiple formats:
+    1. Direct silver format: output.topics = [{label: ...}, ...]
+    2. KG graph format: output.kg.nodes where type=Topic (pipeline validation runs)
+    3. Summarization fallback: summary_final bullets as topic proxies
+    """
     output = pred.get("output", {})
 
-    # Direct KG format: output.topics is a list of dicts with "label"
+    # 1. Direct KG format: output.topics is a list of dicts with "label"
     topics = output.get("topics", [])
     if topics and isinstance(topics[0], dict):
         return [t["label"].strip() for t in topics if t.get("label")]
 
-    # Summarization format: extract from summary_final JSON (bundled)
+    # 2. KG graph format: output.kg.nodes where type=Topic
+    kg = output.get("kg", {})
+    if isinstance(kg, dict) and "nodes" in kg:
+        kg_topics = [
+            n["properties"]["label"].strip()
+            for n in kg.get("nodes", [])
+            if n.get("type") == "Topic" and n.get("properties", {}).get("label")
+        ]
+        if kg_topics:
+            return kg_topics
+
+    # 3. Summarization format: extract from summary_final JSON (bundled)
     summary = output.get("summary_final", "")
     if summary:
         clean = re.sub(r"^```(?:json)?\s*\n?", "", summary.strip(), flags=re.MULTILINE)

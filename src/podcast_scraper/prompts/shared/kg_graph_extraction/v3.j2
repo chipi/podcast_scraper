@@ -1,0 +1,39 @@
+{# Shared KG graph extraction prompt v3 — stricter noun-phrase enforcement (#590). #}
+Episode title: {{ title | default("", true) }}
+
+Extract up to {{ max_topics }} distinct **topics** and up to {{ max_entities }} **named entities** (people or organizations) from the transcript.
+
+**Topic label rules (STRICT — follow EXACTLY):**
+- Each label MUST be a **noun phrase**: a noun with optional modifiers
+- Labels must be 2–6 words. Start with a noun or gerund (e.g., "braking technique", "managing risk")
+- Do NOT write sentences, claims, opinions, or verb phrases
+- Do NOT start labels with "How", "Why", "This", "The importance of"
+- Put ALL context, claims, and explanations in the **description** field
+
+**Correct examples:**
+✅ "tire pressure selection" — noun phrase, 3 words
+✅ "on-call rotation design" — noun phrase, 4 words
+✅ "investment fee management" — noun phrase, 3 words
+✅ "quantum error correction" — noun phrase, 3 words
+
+**Incorrect examples (DO NOT write these):**
+❌ "Security as easiest path" — this is a claim, not a topic
+❌ "Error budgets change behavior" — this is a sentence
+❌ "Healthy systems treat failures" — this is a claim
+❌ "The importance of proper braking" — too wordy, use "braking technique"
+
+**Entity rules:**
+- Include all people mentioned by name (hosts, guests, experts)
+- Include organizations, companies, show/podcast names
+- Use "person" or "organization" for entity_kind
+
+Put the strongest items first. Do not exceed the counts.
+
+Return JSON:
+{
+  "topics": [{"label": "noun phrase", "description": "1-2 sentence context"}],
+  "entities": [{"name": "Full Name", "entity_kind": "person", "description": "context"}]
+}
+
+Transcript:
+{{ transcript }}

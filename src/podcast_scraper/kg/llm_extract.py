@@ -111,12 +111,13 @@ def build_kg_user_prompt(
     title: str,
     max_topics: int,
     max_entities: int,
+    prompt_version: str = "v3",  # v3: stricter noun-phrase enforcement (#590)
 ) -> str:
     """Render shared Jinja prompt for KG extraction."""
     from ..prompts.store import render_prompt
 
     return render_prompt(
-        "shared/kg_graph_extraction/v2",
+        f"shared/kg_graph_extraction/{prompt_version}",
         transcript=transcript,
         title=title or "",
         max_topics=max_topics,

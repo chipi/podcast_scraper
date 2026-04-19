@@ -477,6 +477,15 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         parser: Argument parser to add arguments to
     """
     parser.add_argument("--config", default=None, help="Path to configuration file (JSON or YAML)")
+    parser.add_argument(
+        "--profile",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Named profile preset (e.g., cloud_balanced, local, dev). "
+            "Loads config/profiles/<name>.yaml as defaults; explicit flags override."
+        ),
+    )
     parser.add_argument("rss", nargs="?", default=None, help="Podcast RSS feed URL")
     parser.add_argument(
         "--rss",
@@ -1836,6 +1845,7 @@ def _load_and_merge_config(
         valid_dests
         | _config_yaml_allowed_top_level_keys()
         | config.DEPRECATED_CONFIG_TOP_LEVEL_KEYS
+        | {"profile"}  # Consumed by Config._resolve_profile before field validation
     )
     unknown_keys = [key for key in config_data.keys() if key not in valid_keys]
     if unknown_keys:
@@ -3316,6 +3326,7 @@ def _build_config_for_feed(
 def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
     """Materialize a Config object from already-validated CLI arguments."""
     speaker_names_list = [s.strip() for s in (args.speaker_names or "").split(",") if s.strip()]
+    profile = getattr(args, "profile", None)
     payload: Dict[str, Any] = {
         "rss_url": args.rss,
         "output_dir": filesystem.derive_output_dir(args.rss, args.output_dir),
@@ -3660,6 +3671,9 @@ def _build_config(args: argparse.Namespace) -> config.Config:  # noqa: C901
             _drv = getattr(args, _drk)
             if _drv is not None:
                 payload[_drk] = _drv
+    # Inject profile if set via --profile CLI flag (#593)
+    if profile:
+        payload["profile"] = profile
     # Pydantic's model_validate returns the correct type, but mypy needs help
     return cast(config.Config, config.Config.model_validate(payload))
 

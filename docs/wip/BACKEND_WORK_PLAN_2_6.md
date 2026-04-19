@@ -3,35 +3,25 @@
 Backend-only work while UI work proceeds separately.
 Deepgram (#597) and transcription autoresearch (#594) deferred to 2.7.
 
-## Pre-requisites (first session back)
+## Completed (PR #624)
 
-- Re-ingest production corpus with latest pipeline (multi-quote, provider-mode GI)
-- Validate explore expansion on fresh data (see `EXPLORE_EXPANSION_VALIDATION.md`)
+### Step 1: Embedding loader compat audit — DONE
 
-## Step 1: Embedding loader compat audit (~2 hrs)
+All 3 sentence-transformers callsites (embedding, NLI, model preload)
+use `inspect.signature` introspection for `local_files_only` kwarg.
+Thread-safe caches added to QA, embedding, and NLI model loaders.
+Bridge builder reuses cached embedding model instead of new instance.
 
-De-risks everything that uses sentence-transformers.
+### Step 2: Speaker flow validation (#598) — DONE
 
-Fixed `embedding_loader.py` and `nli_loader.py` for `local_files_only`
-kwarg compat with sentence-transformers 2.x vs 3.x. Now audit all
-remaining ML loaders:
+- `DESCRIPTION_SNIPPET_LENGTH` 20→500 (guest names were truncated)
+- `detect_speaker_names` simplified from 1389→935 lines (removed
+  heuristic pattern learner + scoring system)
+- Trace matrix: config→NER→GI/KG→bridge (see `SPEAKER_FLOW_TRACE_MATRIX.md`)
+- 7 integration tests, 2 E2E tests with content assertions
+- Acceptance runner: self-deriving `--assert-artifacts` mode (#622)
 
-- `summarizer.py` — uses `local_files_only` in multiple places
-- Any other `SentenceTransformer` or `CrossEncoder` constructors
-- Confirm all loaders work with both 2.x and 3.x
-
-**Deliverable:** all ML loaders compatible with sentence-transformers 2.x and 3.x.
-
-## Step 2: Speaker flow validation — backend (#598, ~1 day)
-
-Validate end-to-end speaker pipeline integrity before tuning anything.
-
-- Trace matrix: config settings → NER extraction → GI/KG artifact fields
-- Gap list with severity (P0-P3)
-- Fix or test any broken contracts in the pipeline chain
-- Skip viewer/graph validation (separate UI work)
-
-**Deliverable:** trace matrix, gap list, code + test fixes.
+## Next (start of next session)
 
 ## Step 3: Eval datasets (~1 day)
 
@@ -76,17 +66,23 @@ Capstone — pulls together findings from steps 1-5.
 
 **Deliverable:** `config/profiles/*.yaml` with research-backed defaults, loader code.
 
+## Pre-requisites (first thing next session)
+
+- Re-ingest production corpus with latest pipeline (multi-quote, provider-mode GI)
+- Validate explore expansion on fresh data (see `EXPLORE_EXPANSION_VALIDATION.md`)
+- Ensure all tests use dev profile (note from #598 work)
+
 ## Summary
 
-| Step | Issue | Effort | Dependency |
-| ---- | :---: | :----: | ---------- |
-| 1. Embedding compat | — | 2 hrs | None |
-| 2. Speaker flow | #598 | 1 day | None |
-| 3. Eval datasets | — | 1 day | None |
-| 4. KG prompt tuning | #590 | 1-2 days | Step 3 |
-| 5. SummLlama | #571 | 1 day | Step 1 |
-| 6. Registry | #593 | 1-2 days | Steps 1-5 |
-| **Total** | | **~6-8 days** | |
+| Step | Issue | Effort | Status |
+| ---- | :---: | :----: | ------ |
+| 1. Embedding compat | — | 2 hrs | **DONE** (PR #624) |
+| 2. Speaker flow | #598 | 1 day | **DONE** (PR #624) |
+| 3. Eval datasets | — | 1 day | Next |
+| 4. KG prompt tuning | #590 | 1-2 days | Pending (needs step 3) |
+| 5. SummLlama | #571 | 1 day | Pending |
+| 6. Registry | #593 | 1-2 days | Pending (capstone) |
+| **Remaining** | | **~4-5 days** | |
 
 ## Deferred to 2.7
 
