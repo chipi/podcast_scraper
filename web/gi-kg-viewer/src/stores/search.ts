@@ -16,6 +16,8 @@ export const useSearchStore = defineStore('search', () => {
   const apiError = ref<string | null>(null)
   const results = ref<SearchHit[]>([])
   const liftStats = ref<CorpusSearchLiftStats | null>(null)
+  /** UXS-008: last search reported enrichment failure (server `enrichment_error`). */
+  const enrichmentCallFailed = ref(false)
 
   const searchRunGate = new StaleGeneration()
 
@@ -94,6 +96,7 @@ export const useSearchStore = defineStore('search', () => {
     loading.value = true
     results.value = []
     liftStats.value = null
+    enrichmentCallFailed.value = false
     try {
       const body = await searchCorpus(q, {
         path: root,
@@ -119,6 +122,9 @@ export const useSearchStore = defineStore('search', () => {
       }
       results.value = body.results
       liftStats.value = body.lift_stats ?? null
+      enrichmentCallFailed.value = Boolean(
+        body.enrichment_error && String(body.enrichment_error).trim(),
+      )
     } catch (e) {
       if (searchRunGate.isStale(seq)) {
         return
@@ -137,6 +143,7 @@ export const useSearchStore = defineStore('search', () => {
     results.value = []
     apiError.value = null
     error.value = null
+    enrichmentCallFailed.value = false
     useGraphNavigationStore().clearLibraryEpisodeHighlights()
   }
 
@@ -147,6 +154,7 @@ export const useSearchStore = defineStore('search', () => {
     apiError,
     results,
     liftStats,
+    enrichmentCallFailed,
     filters,
     feedFilterDisplayLabel,
     feedFilterHandoffPristine,

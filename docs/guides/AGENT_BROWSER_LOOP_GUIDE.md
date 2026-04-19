@@ -906,7 +906,7 @@ make run-compare
 | [Development Guide](DEVELOPMENT_GUIDE.md) | GI/KG viewer dev workflow, `make serve` |
 | [Server Guide](SERVER_GUIDE.md) | FastAPI `/api/*` endpoints the agent inspects |
 | [E2E Surface Map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md) | Playwright automation contract — surfaces, selectors, specs |
-| [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) + [feature UXS](../uxs/index.md) | Shared tokens (UXS-001) and per-surface specs (Digest, Library, Graph, Search, Dashboard, …) |
+| [VIEWER_IA.md](../uxs/VIEWER_IA.md) + [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) + [feature UXS](../uxs/index.md) | Shell IA (VIEWER_IA); shared tokens (UXS-001); per-surface specs (Digest, Library, Graph, Search, Dashboard, …) |
 | [Polyglot Repo Guide](POLYGLOT_REPO_GUIDE.md) | Python root vs `web/gi-kg-viewer/` layout |
 | [Agent-Pipeline Feedback Loop](AGENT_PIPELINE_LOOP_GUIDE.md) | Python-side companion: CI, acceptance, `--monitor`, `metrics.json` |
 

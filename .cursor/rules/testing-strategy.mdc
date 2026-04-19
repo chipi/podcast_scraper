@@ -32,7 +32,7 @@ When **viewer UX** changes (labels, routes, layout, theme tokens, accessible nam
 
 1. Update **`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`** if selectors or E2E-visible behavior changed.
 2. Update **`e2e/*.spec.ts`** / **`helpers.ts`** / **`fixtures.ts`**; run **`make test-ui-e2e`** (or **`make ci-ui-fast`** before commit when the diff is viewer-heavy).
-3. Update **`docs/uxs/UXS-001-gi-kg-viewer.md`** when the **visual or experience contract** changes.
+3. Update **`docs/uxs/VIEWER_IA.md`** when **shell information architecture** changes; update **`docs/uxs/UXS-001-gi-kg-viewer.md`** when the **visual or experience contract** changes.
 
 **FastAPI JSON contracts** (new or changed `/api/*` routes): add or extend tests under
 **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`** (not a root-level

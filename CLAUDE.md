@@ -33,8 +33,8 @@
 - **Never** `git checkout -- <path>`, `git checkout HEAD -- <path>`, `git restore --source HEAD …`, or similar to discard uncommitted work unless the user explicitly asked or you asked and they confirmed (rule 4e). Before any revert-from-git on tracked paths: **`.cursor/rules/git-working-tree-safety.mdc`** (Rule 17) or **ask first**
 - Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
 - **GI/KG viewer UX** (`web/gi-kg-viewer/`): when UI changes affect users or Playwright, update in order:
-  **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
-  and/or the relevant **feature UXS** (`docs/uxs/index.md`) if the visual/token experience contract changes.
+  **`e2e/E2E_SURFACE_MAP.md`** (automation contract) → **`e2e/*.spec.ts`** / helpers → **`docs/uxs/VIEWER_IA.md`** when **shell information architecture** changes (regions, navigation axes, persistence, clearing, first-run) → **`docs/uxs/UXS-001-gi-kg-viewer.md`**
+  and/or the relevant **feature UXS** (`docs/uxs/index.md`) when the **visual/token** experience contract changes.
   UXS lifecycle (Draft vs Active, align at ship): **`docs/uxs/index.md`** — section **Living documents and ship boundary**.
   See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright) and `docs/guides/DEVELOPMENT_GUIDE.md` (viewer section). For a **full local gate** on viewer-heavy PRs, prefer **`make ci-ui-fast`** (same lint/type/docs/build chain as **`ci-fast`**, with browser E2E).
 - **User-reported viewer bugs:** reproduce and re-validate with **Chrome DevTools MCP** (or Playwright MCP); **validate the fix in the same channel you used to reproduce** (symmetry rule — tests alone are not a substitute if you reproduced in the browser). Also run **`make test-ui`** / integration server tests / **`make test-ui-e2e`** or **`make ci-ui-fast`** as appropriate. Workflow: **`docs/guides/AGENT_BROWSER_LOOP_GUIDE.md`** (*Obligatory validation* + *Symmetry rule*).

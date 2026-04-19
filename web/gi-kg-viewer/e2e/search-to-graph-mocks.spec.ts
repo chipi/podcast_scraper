@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { GI_SAMPLE_FIXTURE } from './fixtures'
 import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
-import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
 const artifactJson = readFileSync(GI_SAMPLE_FIXTURE, 'utf-8')
 
@@ -183,7 +183,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -195,7 +195,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await page.getByTestId('status-bar-list-artifacts').waitFor({ state: 'visible', timeout: 15_000 })
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -216,7 +216,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -248,7 +248,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -406,7 +406,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })
@@ -467,7 +467,7 @@ test.describe('Search → graph (mocked API)', () => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
 
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
 
     await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })

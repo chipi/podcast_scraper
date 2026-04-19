@@ -50,8 +50,8 @@ without walking this list in order:
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update if anything **E2E-visible** or **selector-related** changed
    (including `getByRole` strings, `#search-q`, `.graph-canvas`, file-picker vs list flows).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, and/or `fixtures.ts`; run **`make test-ui-e2e`**.
-3. **`docs/uxs/`** — Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
-   or shell-wide rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
+3. **`docs/uxs/`** — Update **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** when **shell information architecture** changes (regions, navigation axes, persistence, clearing, first-run). Update **[UXS-001](../uxs/UXS-001-gi-kg-viewer.md)** when **shared** tokens, typography,
+   or shell-wide **visual** rules change; update the relevant **[feature UXS](../uxs/index.md)** (Digest, Library,
    Graph, Search, Dashboard, …) when a **surface-specific** visual contract changes, even if tests still pass.
    After merge, **Active** UXS should describe the **shipped** viewer for that release (see
    [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)).

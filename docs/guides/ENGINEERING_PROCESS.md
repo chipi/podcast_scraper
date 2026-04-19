@@ -43,6 +43,7 @@ graph TD
 * **Location**: `docs/uxs/`
 * **When to create**: When a feature adds or significantly changes UI (web viewer, local server UI, in-repo dashboards). Omit for CLI-only features unless terminal presentation is explicitly standardized.
 * **Outcome**: Implementers and reviewers share one token table and UX bar; RFCs reference UXS so Tailwind/CSS/Cytoscape/Chart.js stay aligned.
+* **GI/KG viewer shell IA**: For **`web/gi-kg-viewer/`**, **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** is the canonical spec for **information architecture** (regions, navigation axes, persistence and clearing, first-run). **UXS-001** and feature **UXS** documents hold **tokens and per-surface** visual contracts and **link** VIEWER_IA for shell questions. **RFC-062** owns behavioral timing, debounce, and keyboard maps.
 * **Living contract**: UXS is updated as **shipped** UI evolves; **Draft** is for motion before merge. At ship, **Active** UXS should match the built viewer (see [UX specifications index — Living documents and ship boundary](../uxs/index.md#living-documents-and-ship-boundary)).
 
 ### 3. RFC (Request for Comments)
@@ -68,10 +69,10 @@ graph TD
 
 1. **Ideation**: An idea is proposed (usually as a GitHub Issue).
 2. **Product Definition (PRD)**: If the idea is complex, a PRD is drafted to define the requirements and success metrics.
-3. **UX contract (UXS)** (when the feature includes meaningful UI): A UX Specification captures semantic tokens, layout, and accessibility expectations; RFCs reference it for implementation.
+3. **UX contract (UXS)** (when the feature includes meaningful UI): A UX Specification captures semantic tokens, layout, and accessibility expectations; RFCs reference it for implementation. For the **GI/KG viewer**, shell **IA** changes start in **[VIEWER_IA.md](../uxs/VIEWER_IA.md)**; then align **UXS** and RFCs as needed.
 4. **Technical Design (RFC)**: One or more RFCs are written to propose how to build the feature. This includes detailed design and "proof of concept" analysis.
 5. **Architectural Commitment (ADR)**: Core decisions from the RFC (e.g., "Use PEP 544 Protocols for providers") are recorded as ADRs.
-6. **Implementation**: Code is written following the approved RFC and ADRs, and against any linked UXS for UI surfaces. For the **GI/KG viewer**, follow the **UX + E2E workflow** in the [E2E Testing Guide](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow): update the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), Playwright specs/helpers, and [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) / the relevant [feature UXS](../uxs/index.md) when the visual contract changes ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)). Keep **Active** UXS aligned with **shipped** viewer chrome at merge ([living documents](../uxs/index.md#living-documents-and-ship-boundary)).
+6. **Implementation**: Code is written following the approved RFC and ADRs, and against any linked UXS for UI surfaces. For the **GI/KG viewer**, follow the **UX + E2E workflow** in the [E2E Testing Guide](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow): update the [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md), Playwright specs/helpers, **[VIEWER_IA.md](../uxs/VIEWER_IA.md)** when **shell information architecture** changes (regions, axes, persistence, clearing), then [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) / the relevant [feature UXS](../uxs/index.md) when the **visual** contract changes ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)). Keep **Active** UXS aligned with **shipped** viewer chrome at merge ([living documents](../uxs/index.md#living-documents-and-ship-boundary)).
 7. **Validation**: The feature is verified against the success criteria in the PRD, UXS checklists where applicable, and the benchmarking framework (RFC-041).
 
 ## Why We Work This Way

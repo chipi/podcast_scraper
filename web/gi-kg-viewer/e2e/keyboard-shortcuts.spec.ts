@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test'
-import { dismissGraphGestureOverlayIfPresent, loadGraphViaFilePicker } from './helpers'
+import {
+  dismissGraphGestureOverlayIfPresent,
+  loadGraphViaFilePicker,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 test.describe('Keyboard shortcuts', () => {
   test('/ focuses semantic search when API is healthy', async ({ page }) => {
@@ -17,6 +21,7 @@ test.describe('Keyboard shortcuts', () => {
 
     await page.goto('/')
     await page.locator('#search-q').waitFor({ state: 'visible', timeout: 30_000 })
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.locator('#search-q')).toBeEnabled({ timeout: 10_000 })
 
     await page.locator('body').click({ position: { x: 5, y: 5 } })

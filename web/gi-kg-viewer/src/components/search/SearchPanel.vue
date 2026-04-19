@@ -115,6 +115,29 @@ const libraryOpensEnabled = computed(() =>
   Boolean(shell.healthStatus && shell.hasCorpusPath),
 )
 
+const searchFieldsEnabled = computed(
+  () => Boolean(shell.healthStatus && shell.hasCorpusPath),
+)
+
+const searchFieldDisabledTitle = computed(() => {
+  if (!shell.hasCorpusPath) {
+    return 'Set corpus path in the status bar to enable search'
+  }
+  if (!shell.healthStatus) {
+    return 'Requires a healthy API connection'
+  }
+  return ''
+})
+
+const enhancedSearchChipClass = computed(() => {
+  const base =
+    'inline-flex items-center rounded border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide'
+  if (search.enrichmentCallFailed) {
+    return `${base} border-warning text-warning`
+  }
+  return `${base} border-gi text-gi`
+})
+
 function toggleType(v: string): void {
   const i = search.filters.types.indexOf(v)
   if (i >= 0) {
@@ -182,14 +205,30 @@ const advancedFeedInputTitle = computed(() => {
   }
   return 'Substring match on catalog feed_id in index metadata.'
 })
+
+const advancedFeedCombinedTitle = computed(() =>
+  searchFieldsEnabled.value ? advancedFeedInputTitle.value : searchFieldDisabledTitle.value,
+)
 </script>
 
 <template>
   <section class="rounded-lg border border-border bg-surface p-4">
-    <div class="mb-2 flex items-center gap-1.5">
+    <div class="mb-2 flex flex-wrap items-center gap-1.5">
       <h2 class="text-sm font-medium text-surface-foreground">
         Semantic search
       </h2>
+      <span
+        v-if="shell.enrichedSearchAvailable"
+        data-testid="search-enhanced-chip"
+        :class="enhancedSearchChipClass"
+        :title="
+          search.enrichmentCallFailed
+            ? 'Last search reported enrichment failure — vector hits are still shown.'
+            : 'Semantic search enrichment is available on this server.'
+        "
+      >
+        Enhanced
+      </span>
       <HelpTip>
         <p class="font-medium text-surface-foreground">
           How semantic search works
@@ -250,7 +289,13 @@ const advancedFeedInputTitle = computed(() => {
       </HelpTip>
     </div>
     <p
-      v-if="!shell.healthStatus"
+      v-if="!shell.hasCorpusPath"
+      class="mb-2 text-xs text-muted"
+    >
+      Set corpus path in the status bar to enable search.
+    </p>
+    <p
+      v-else-if="!shell.healthStatus"
       class="mb-2 text-xs text-muted"
     >
       Requires the API.
@@ -268,7 +313,8 @@ const advancedFeedInputTitle = computed(() => {
         class="w-full rounded border border-border bg-elevated px-2 py-1.5 text-sm text-elevated-foreground placeholder:text-muted"
         placeholder="Natural language…"
         aria-label="Search query"
-        :disabled="!shell.healthStatus"
+        :disabled="!searchFieldsEnabled"
+        :title="searchFieldDisabledTitle"
       />
       <div class="flex max-w-full flex-nowrap items-end gap-3">
         <div class="w-[min(100%,10.5rem)] shrink-0">
@@ -278,7 +324,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.since"
             type="date"
             class="w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </div>
         <div class="w-[4.75rem] shrink-0">
@@ -290,7 +337,8 @@ const advancedFeedInputTitle = computed(() => {
             min="1"
             max="100"
             class="w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </div>
       </div>
@@ -299,7 +347,8 @@ const advancedFeedInputTitle = computed(() => {
       <button
         type="button"
         class="text-xs text-primary underline decoration-primary/60 underline-offset-2 hover:decoration-primary disabled:opacity-40"
-        :disabled="!shell.healthStatus"
+        :disabled="!searchFieldsEnabled"
+        :title="searchFieldDisabledTitle"
         @click="openAdvancedSearch"
       >
         Advanced search
@@ -328,14 +377,16 @@ const advancedFeedInputTitle = computed(() => {
         type="submit"
         form="semantic-search-form"
         class="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
-        :disabled="!shell.healthStatus || search.loading"
+        :disabled="!searchFieldsEnabled || search.loading"
+        :title="searchFieldDisabledTitle"
       >
         {{ search.loading ? 'Searching…' : 'Search' }}
       </button>
       <button
         type="button"
         class="rounded border border-border px-3 py-1.5 text-sm hover:bg-overlay disabled:opacity-40"
-        :disabled="!shell.healthStatus"
+        :disabled="!searchFieldsEnabled"
+        :title="searchFieldDisabledTitle"
         @click="search.clearResults()"
       >
         Clear
@@ -365,7 +416,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.groundedOnly"
             type="checkbox"
             class="rounded border-border"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
           Grounded insights only
         </label>
@@ -377,8 +429,8 @@ const advancedFeedInputTitle = computed(() => {
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
             placeholder="Catalog feed id substring"
-            :title="advancedFeedInputTitle"
-            :disabled="!shell.healthStatus"
+            :title="advancedFeedCombinedTitle"
+            :disabled="!searchFieldsEnabled"
             autocomplete="off"
           >
         </label>
@@ -388,7 +440,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.speaker"
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </label>
         <label class="block text-xs text-muted">
@@ -398,7 +451,8 @@ const advancedFeedInputTitle = computed(() => {
             type="text"
             class="mt-0.5 w-full rounded border border-border bg-elevated px-2 py-1 text-sm"
             placeholder="(server default)"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
         </label>
         <label class="flex cursor-pointer items-center gap-2 text-xs text-muted">
@@ -406,7 +460,8 @@ const advancedFeedInputTitle = computed(() => {
             v-model="search.filters.dedupeKgSurfaces"
             type="checkbox"
             class="rounded border-border"
-            :disabled="!shell.healthStatus"
+            :disabled="!searchFieldsEnabled"
+            :title="searchFieldDisabledTitle"
           >
           Merge duplicate KG surfaces (kg_entity / kg_topic)
         </label>
@@ -424,7 +479,8 @@ const advancedFeedInputTitle = computed(() => {
                 type="checkbox"
                 class="rounded border-border"
                 :checked="search.filters.types.includes(opt.value)"
-                :disabled="!shell.healthStatus"
+                :disabled="!searchFieldsEnabled"
+                :title="searchFieldDisabledTitle"
                 @change="toggleType(opt.value)"
               >
               {{ opt.label }}

@@ -13,7 +13,6 @@ import { StaleGeneration } from '../../utils/staleGeneration'
 import ArtifactActivityChart from './ArtifactActivityChart.vue'
 import BriefingCard from './BriefingCard.vue'
 import CoverageByMonthChart from './CoverageByMonthChart.vue'
-import EmergingConnections from './EmergingConnections.vue'
 import FeedCoverageTable from './FeedCoverageTable.vue'
 import IndexStatusCard from './IndexStatusCard.vue'
 import IntelligenceSnapshot from './IntelligenceSnapshot.vue'
@@ -21,7 +20,6 @@ import TopicClustersStatusBlock from './TopicClustersStatusBlock.vue'
 import PipelineRunHistoryStrip from './PipelineRunHistoryStrip.vue'
 import PipelineStageChart from './PipelineStageChart.vue'
 import TopicLandscape from './TopicLandscape.vue'
-import TopicMomentum from './TopicMomentum.vue'
 import TopVoices from './TopVoices.vue'
 import VerticalBarChart from './VerticalBarChart.vue'
 
@@ -332,8 +330,6 @@ function openLibraryFailures(): void {
         :loading="topPersonsLoading"
         :error="topPersonsError"
       />
-      <TopicMomentum />
-      <EmergingConnections />
     </div>
 
     <div

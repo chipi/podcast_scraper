@@ -8,6 +8,8 @@
   - [PRD-019: Knowledge Graph Layer](../prd/PRD-019-knowledge-graph-layer.md)
 - **Related RFCs**:
   - [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md)
+- **Shell information architecture (regions, axes, persistence):**
+  [VIEWER_IA.md](VIEWER_IA.md)
 - **Playwright / E2E**:
   - [E2E surface map](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md)
 - **Feature UX specs** (each viewer surface has its own UXS):
@@ -36,6 +38,13 @@ accessibility targets, and component conventions that all feature UXS files refe
 Individual viewer surfaces (search, library, digest, graph, dashboard, topic entity
 view, enriched search) have their own UXS files for layout, density, and
 surface-specific rules. This file is the foundation they all build on.
+
+**Shell layout (information architecture):** The three-column shell (left
+query column, main tabs, right subject rail, bottom status bar) is defined in
+[VIEWER_IA.md](VIEWER_IA.md) — regions, navigation axes, subject persistence and
+clearing, status bar contents, and left-panel collapse. This UXS-001 file
+anchors **tokens, typography, tunables, and shared components** for those
+regions; do not duplicate the full IA narrative here.
 
 **InsightCard:** The reusable **InsightCard** layout for GIL insight rows (slots,
 tokens, accessibility) is specified below under **[Components → InsightCard (shared
@@ -77,6 +86,9 @@ that subsection instead of duplicating card rules.
 - Brand marketing pages, email templates, or MkDocs theme
 - CLI ANSI styling (covered only if a separate UXS is added)
 - Feature-specific layout and density (see feature UXS files)
+- Full **shell information architecture** (regions, the three navigation axes, subject persistence and clearing rules, first-run policy, cross-surface pseudocode) — specified only in **[VIEWER_IA.md](VIEWER_IA.md)**; UXS-001 does not replace it
+
+**Historical note:** The pre–shell-restructure left-panel **Corpus | API·Data** tabs are obsolete. Current chrome follows **VIEWER_IA** (status bar corpus path + left Search/Explore); see [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606).
 
 **Boundary note:** This UXS covers the **static visual contract** (tokens, layout,
 component appearance, accessibility targets). Behavioral rules (animation timing,
@@ -92,7 +104,9 @@ debounce intervals, resize/collapse logic, keyboard shortcuts) belong in
   `data-theme` attribute on `:root`)
 - **Primary palette:** dark -- the viewer is a data tool used in terminal-adjacent
   contexts; dark mode is the design baseline
-- **Breakpoints:** desktop only (minimum 1024px assumed; no mobile breakpoints)
+- **Breakpoints:** desktop only (minimum 1024px assumed; no mobile breakpoints).
+  Approximate three-column widths at 1024px are recorded in
+  [VIEWER_IA.md — Viewport](VIEWER_IA.md#viewport--three-column-widths-1024px-baseline).
 
 ---
 
@@ -160,6 +174,13 @@ themes and distinguish GIL from KG content at a glance.
 | `kg`                 | `#c4a3ff` | `#5c3d9e` | KG affordances            |
 | `kg-foreground`      | `#111418` | `#FFFFFF` | Text on kg surfaces       |
 
+**`warning` token vs clusters:** After CIL digest pill alignment (UXS-002),
+**`warning`** fill/border for **search-hit emphasis** on graph nodes (e.g.
+Quote / search-highlighted nodes) only. **Topic cluster** membership and topic
+discovery UI use the **`kg`** token everywhere — Digest CIL pills, graph
+`TopicCluster` compounds, Dashboard Intelligence cluster cards. Do **not** use
+`warning` fill for cluster membership or topic grouping.
+
 ### Chart series tokens
 
 Used by Chart.js bar/line/pie charts when more than two series are plotted. Derived
@@ -208,8 +229,7 @@ still derive from the tokens above.
 - **Right subject column** (Episode detail, graph node detail, future topic/person): fixed
   width **`w-96`** (**24rem** / **384px** at **16px** root) when expanded. To tune further,
   change that class on the same element (desktop-only layout).
-- **Status bar** (corpus path, offline **Files**, health, index affordances): full-width footer
-  under the three-column row (`StatusBar.vue`, **`data-testid="app-status-bar"`**).
+- **Status bar:** full-width footer under the three-column row — visual contract in **[Status bar](#status-bar)** below (`StatusBar.vue`, **`data-testid="app-status-bar"`**).
 - **Regions:** Header + lede + panel stack; graph pages use full-height canvas with
   overlays/panels that respect `surface` and `border`.
 
@@ -265,7 +285,7 @@ populated slots.
 | Slot                 | Token / style                                         | Used by          |
 | -------------------- | ----------------------------------------------------- | ---------------- |
 | `insight_type` badge | Small pill, `text-xs`. See token mapping below        | UXS-009, UXS-010 |
-| `position_hint` bar  | 40px x 4px bar, `primary` on `border`, 0.0 -- 1.0     | UXS-009, UXS-010 |
+| `position_hint` bar  | 40px bar, `primary` on `border`; UXS-009 tooltip      | UXS-009, UXS-010 |
 | Confidence score     | `muted`, `text-xs`. Hidden when unavailable           | UXS-009, UXS-010 |
 | Speaker chip         | `muted`, `text-sm`. Clickable to Person Landing       | UXS-007          |
 | Episode attribution  | Episode title + publish date, `muted`, `text-xs`      | UXS-007, UXS-010 |
@@ -293,10 +313,28 @@ supplemented by text labels (colour is never the sole differentiator).
   default to `primary`. Domain-specific charts (GIL vs KG breakdowns) use `gi` / `kg`.
 - Cytoscape (v2) node/edge styling consumes the same semantic tokens via
   `cyGraphStylesheet.ts` so the graph matches panels and charts.
+- **Dashboard charts (UXS-006):** Every chart on the Dashboard **must** expose a
+  **written takeaway** (Tufte-style insight): either a dedicated line below the chart
+  **or** the chart title itself when it states the quantitative conclusion (e.g. stage
+  timings headline). Parents **must not** render a chart with data and no takeaway.
+  If the data does not support a clear, honest takeaway, **that chart does not belong**
+  on the Dashboard surface.
 
 ---
 
-## Corpus path (status bar)
+## Status bar {#status-bar}
+
+Visual contract for the permanent bottom row (**`StatusBar.vue`**, **`data-testid="app-status-bar"`**). **What belongs in the bar** (corpus path, folder picker, health dot, rebuild indicator, persistence keys) is defined in [VIEWER_IA.md — Status bar](VIEWER_IA.md#status-bar). Here: **tokens and layout** only.
+
+- **Height:** ~**36px** single row; background **`canvas`**; top border **`border`**
+- **Corpus path field:** `surface` background, **`border`**; placeholder copy **Set corpus path…** (`muted`); full remaining width left of trailing affordances
+- **Health dot:** **8px** filled circle; **`success`** / **`warning`** / **`danger`** intent tokens
+- **Rebuild indicator (⚡):** **`warning`** when index stats recommend reindex (see VIEWER_IA)
+- **Folder picker** (offline): icon control per shipped chrome; match **`surface`** / **`border`**
+
+### Corpus path field — listing and artifacts
+
+**Subject clearing and path-change cascade** (what invalidates the subject rail, tab handoffs): [VIEWER_IA.md — Corpus path change](VIEWER_IA.md#corpus-path-change).
 
 - **Online (health ok):** Typing a corpus path in the **status bar** field triggers listing via
   `GET /api/artifacts` and loads every listed `.gi.json` / `.kg.json` into the merged
@@ -359,12 +397,25 @@ DevTools; do not hard-code alternatives in component files.
 | Recency dot rolling window              | **24h** from local **YYYY-MM-DD** midnight | Open   | Digest + Library episode rows; date-only API             |
 | Library feed search threshold           | **15** feeds                               | Open   | Constant in LibraryView.vue; default 15 feeds trigger    |
 | Graph default episode cap (initial)     | **15** episodes                            | Open   | GRAPH cap in graphEpisodeSelection.ts; graph-only lens   |
+| Graph recency seed default              | **7d**                                     | Open   | Initial graph window; VIEWER_GRAPH_SPEC (init load)      |
+| Dashboard GI coverage warn threshold    | **50%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
+| Dashboard index coverage warn threshold | **60%**                                    | Open   | Briefing + Coverage; UXS-006 §3.4                        |
+| Dashboard action items max              | **3**                                      | Open   | Briefing card triage cap                                 |
+| Dashboard Top voices limit              | **5**                                      | Open   | persons/top default limit                                |
+| COSE ABOUT edge ideal length            | **80px**                                   | Open   | cyCoseLayoutOptions.ts; VIEWER_GRAPH_SPEC (styling)      |
+| COSE MENTIONS edge ideal length         | **150px**                                  | Open   | cyCoseLayoutOptions.ts; VIEWER_GRAPH_SPEC (styling)      |
+| Graph recency decay window              | **90 days**                                | Open   | VIEWER_GRAPH_SPEC §4.1                                   |
+| Graph recency minimum opacity           | **0.4**                                    | Open   | VIEWER_GRAPH_SPEC §4.1                                   |
+| Graph degree heat max degree            | **30**                                     | Open   | GraphCanvas.vue; VIEWER_GRAPH_SPEC §4.3                  |
+| Graph label zoom (hide all labels)      | **0.5**                                    | Open   | Below: no labels (GraphCanvas.vue)                       |
+| Graph label zoom (full labels)          | **1.0**                                    | Open   | Above: full node labels                                  |
+| Graph compound fill opacity             | **0.06**                                   | Open   | TopicCluster compound; VIEWER_GRAPH_SPEC §3.6            |
 
 **Code map:** Similarity floors live in `web/gi-kg-viewer/src/utils/digestRowDisplay.ts`; recency parsing and the rolling window live in `web/gi-kg-viewer/src/utils/digestRecency.ts`; the feed-count threshold constant lives in `LibraryView.vue`.
 
 **Graph canvas / layout (open, not in table above):** They ship in code today but are
 intentionally easy to tune without a UXS revision — see
-[`docs/wip/GRAPH-VISUAL-STYLING.md`](../wip/GRAPH-VISUAL-STYLING.md) and [UXS-004](UXS-004-graph-exploration.md).
+[Viewer graph spec — Graph visual styling](../architecture/VIEWER_GRAPH_SPEC.md#graph-visual-styling) and [UXS-004](UXS-004-graph-exploration.md).
 
 - **COSE semantic `idealEdgeLength`:** per `edgeType` in `cyCoseLayoutOptions.ts`, applied only
   after the intra-`tc:` topic-cluster branch (that branch stays highest priority).
@@ -424,7 +475,7 @@ search overlay.
 
 | Date | Change |
 | --- | --- |
-| 2026-04-19 | Tunable: **Graph default episode cap** (15) for corpus graph initial load (`GRAPH-INITIAL-LOAD`) |
+| 2026-04-19 | Tunable: **Graph default episode cap** (15) for corpus graph initial load (`VIEWER_GRAPH_SPEC` initial load) |
 | 2026-04-19 | Open tunables for digest similarity tiers, recency dot window, Library feed-search threshold (#610) |
 | 2026-04-03 | Initial draft |
 | 2026-04-03 | Added theme support, key states, boundary note, visual refs section |
@@ -434,7 +485,9 @@ search overlay.
 | 2026-04-13 | UXS-001 hub; UXS-002 through UXS-008 for feature specs |
 | 2026-04-13 | Added shared InsightCard component (UXS-007/009/010 alignment) |
 | 2026-04-19 | Summary pointer to InsightCard subsection for discoverability |
-| 2026-04-17 | Open tunables for graph COSE semantics, label zoom tiers, Topic degree heat cap (GRAPH-VISUAL-STYLING) |
+| 2026-04-17 | Open tunables for graph COSE semantics, label zoom tiers, Topic degree heat cap (`VIEWER_GRAPH_SPEC`) |
 | 2026-04-17 | Graph bullets: rail minimap shares reduced-motion + `syncGraphLabelTierClasses` with main canvas |
 | 2026-04-19 | Corpus path **List** opens status-bar **artifact-list-dialog** (not Dashboard workspace) |
 | 2026-04-19 | Corpus path List/Load wording; shell keyboard shortcuts (slash, Escape, row G/L) |
+| 2026-04-19 | **Status bar** section with `#status-bar`; scope non-goal + historical note for shell IA; corpus path subsection links VIEWER_IA flows |
+| 2026-04-19 | Shell IA pointer to VIEWER_IA; `warning` vs `kg` clusters; Dashboard charts require a **written takeaway** (dedicated line or chart title); tunables: graph 7d seed, COSE lengths, recency decay, label tiers, compound opacity, Dashboard thresholds / caps |

@@ -2,7 +2,8 @@
 
 > **Scope:** Internal architecture of the GI/KG browser viewer SPA
 > (`web/gi-kg-viewer/`). For the FastAPI backend see the
-> [Server Guide](../guides/SERVER_GUIDE.md); for visual/UX contracts see
+> [Server Guide](../guides/SERVER_GUIDE.md); for **shell information architecture** see
+> [VIEWER_IA](../uxs/VIEWER_IA.md); for visual/UX contracts see
 > [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and the
 > [UXS index](../uxs/index.md); for the original design rationale see
 > [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md).
@@ -43,8 +44,7 @@ App.vue
 |   |   +-- DigestView
 |   |   +-- LibraryView
 |   |   +-- DashboardView
-|   |   |   +-- CorpusDataWorkspace  (artifacts list, API health, Data cards — data-testid corpus-data-workspace)
-|   |   |   +-- DashboardOverviewSection, chart components, …
+|   |   |   +-- BriefingCard, Coverage / Intelligence / Pipeline tab panels + chart components (see UXS-006; corpus **List** lives on **StatusBar** → artifact dialog)
 |   |   +-- GraphTabPanel  (graph canvas + toolbar when Graph tab)
 |   |
 |   +-- [right column]  Collapsible w-96 / w-8; collapsed shortcuts Search / Explore / Details (graph)
@@ -183,8 +183,8 @@ is in flight.
 
 ### Gate inventory
 
-A full per-surface gate table is maintained in the
-[WIP holistic HTTP stability doc](../wip/wip-viewer-holistic-http-stability.md).
+A full per-surface gate table is maintained in
+[Viewer async stability](VIEWER_ASYNC_STABILITY.md#stale-run--single-flight-guards).
 Key surfaces:
 
 | Surface | Gate(s) | Notes |
@@ -303,8 +303,8 @@ The E2E surface contract is documented in
 | [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) | Shared design system, tokens, typography |
 | [UXS index](../uxs/index.md) | Per-feature UXS docs (Digest, Library, Graph, Search, Dashboard) |
 | E2E Surface Map (`web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md`) | Playwright selectors, surface ownership |
-| [WIP: HTTP stability](../wip/wip-viewer-holistic-http-stability.md) | Full gate inventory, dedupe table, health behavior |
-| [WIP: Corpus load stability](../wip/wip-viewer-corpus-load-graph-stability.md) | Large-corpus load and graph hardening |
+| [Viewer async stability](VIEWER_ASYNC_STABILITY.md) | HTTP timeouts, `StaleGeneration`, dedupe, corpus graph load hardening |
+| [Viewer graph spec](VIEWER_GRAPH_SPEC.md) | Cytoscape load, styling, gestures, focus entry points |
 | [Architecture](ARCHITECTURE.md) | System-level architecture (viewer is one surface) |
 | [Development Guide](../guides/DEVELOPMENT_GUIDE.md) | Dev workflow, `make serve`, debugging |
 

@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { setupDashboardApiMocks } from './dashboardApiMocks'
-import { loadGraphViaFilePicker, mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import {
+  loadGraphViaFilePicker,
+  mainViewsNav,
+  SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 async function mockDashboardApis(page: import('@playwright/test').Page): Promise<void> {
   await setupDashboardApiMocks(page)
@@ -32,11 +37,32 @@ async function mockDashboardApis(page: import('@playwright/test').Page): Promise
 }
 
 test.describe('Dashboard tab', () => {
+  test('briefing shows no-corpus empty state when path is unset', async ({ page }) => {
+    await mockDashboardApis(page)
+    await page.addInitScript(() => {
+      try {
+        localStorage.removeItem('ps_corpus_path')
+      } catch {
+        /* ignore */
+      }
+    })
+    await page.goto('/')
+    await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
+    await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
+    await expect(page.getByTestId('briefing-no-corpus')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByTestId('briefing-no-corpus')).toContainText(
+      'Set a corpus path in the status bar below to begin.',
+    )
+    await expect(page.locator('[data-testid="briefing-last-run"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="briefing-corpus-health"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="briefing-action-items"]')).toHaveCount(0)
+  })
+
   test('shows briefing card after opening Dashboard (mocked API)', async ({ page }) => {
     await mockDashboardApis(page)
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
     await expect(page.getByTestId('briefing-card')).toBeVisible({ timeout: 15_000 })
   })
@@ -45,7 +71,7 @@ test.describe('Dashboard tab', () => {
     await mockDashboardApis(page)
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Dashboard' }).click()
 
     const tablist = page.getByRole('tablist', { name: 'Dashboard tabs' })

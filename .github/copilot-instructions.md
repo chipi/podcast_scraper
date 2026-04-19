@@ -39,7 +39,7 @@
 - ALWAYS use correct GitHub username (check dynamically, not Mac username)
 - ALWAYS show terminal output for make/test commands (`is_background: false`)
 - Run `make fix-md` immediately after ANY markdown edit (zero lint violations before review)
-- **GI/KG viewer UX** (`web/gi-kg-viewer/`): update **`e2e/E2E_SURFACE_MAP.md`** → Playwright specs/helpers → **`docs/uxs/UXS-001-gi-kg-viewer.md`** when the visual contract changes. See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright).
+- **GI/KG viewer UX** (`web/gi-kg-viewer/`): update **`e2e/E2E_SURFACE_MAP.md`** → Playwright specs/helpers → **`docs/uxs/VIEWER_IA.md`** when **shell IA** changes → **`docs/uxs/UXS-001-gi-kg-viewer.md`** / feature UXS when the **visual** contract changes. See `docs/guides/E2E_TESTING_GUIDE.md` (Playwright).
 - **FastAPI `/api/*` changes**: extend **`tests/unit/podcast_scraper/server/`** and **`tests/integration/server/`**; HTTP reference **`docs/guides/SERVER_GUIDE.md`**.
 
 ## COMPLETE GUIDE FILE SET (LOAD ALL WHEN REQUESTED)

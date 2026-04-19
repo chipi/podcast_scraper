@@ -655,7 +655,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
 - **CIL pill to graph focus:** Digest Recent and the Episode subject rail use
   `web/gi-kg-viewer/src/utils/cilGraphFocus.ts` so clustered pills pass optional
   `tc:…` ids into `pendingFocusCameraIncludeRawIds` (same idea as Search hits). Further
-  entry surfaces and audit notes: [graph focus entry points (WIP)](../wip/graph-focus-entrypoints.md).
+  entry surfaces and audit notes: [Viewer graph spec — Graph focus entry points](../architecture/VIEWER_GRAPH_SPEC.md#graph-focus-entry-points).
 
 **Makefile targets (repository root):**
 
@@ -674,7 +674,7 @@ when `serve` is running. Platform routes under `routes/platform/` are **not** mo
   (copy, labels, layout, routes, theme tokens, accessible names, list/load flows), update **(1)**
   [`e2e/E2E_SURFACE_MAP.md`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/e2e/E2E_SURFACE_MAP.md),
   **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**, **(3)**
-  [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
+  [VIEWER_IA.md](../uxs/VIEWER_IA.md) when **shell IA** changes, then [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) when the **visual or experience spec** changes.
   Checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow).
 
 ### Debugging viewer UI

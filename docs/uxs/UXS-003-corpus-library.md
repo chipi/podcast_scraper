@@ -13,10 +13,13 @@
   - `web/gi-kg-viewer/src/components/library/LibraryView.vue`
   - `web/gi-kg-viewer/src/components/episode/EpisodeDetailPanel.vue`
   - `web/gi-kg-viewer/src/stores/subject.ts`
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Library** tab and **Episode** subject rail only (filters, episode list, layout and density).
 
 The **Corpus Library** is a catalog view inside the same SPA: it answers "what feeds
 and episodes were processed?" and connects to Graph and Semantic search without a
@@ -28,8 +31,7 @@ rules for the Library tab and the shared Episode subject rail. All tokens refere
 
 ## Information architecture
 
-- **Entry:** A main tab labeled **Library**, placed after Digest and before
-  Graph / Dashboard, with `aria-label` consistent with other main views.
+- **Entry:** **Library** is a main tab in the order defined in [VIEWER_IA.md — Main tabs](VIEWER_IA.md#main-tabs); use an `aria-label` consistent with other main views.
 - **Layout (desktop):** Library main column (`canvas` / `surface`) plus the right
   shell rail:
 
@@ -191,3 +193,9 @@ the E2E Testing Guide.
 | 2026-04-16 | Episode subject rail: **C** copy title chip                             |
 | 2026-04-19 | UXS-007/003: no topic chips on rows                                     |
 | 2026-04-19 | Shell IA: subject rail wording; remove obsolete back-navigation bullets |
+
+---
+
+## Related — Digest & Library UX improvement spec
+
+Detailed layout deltas, recency dot, checkpoints, and file lists for Digest **and** Library live in one place: [UXS-002 § Supplement — Digest & Library UX improvements (full spec)](UXS-002-corpus-digest.md#supplement--digest--library-ux-improvements-full-spec).

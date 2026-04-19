@@ -17,6 +17,10 @@ const healthDotClass = computed(() => {
   if (shell.healthError) {
     return 'bg-danger'
   }
+  /** VIEWER_IA: no corpus configured — show danger even if health is still loading. */
+  if (!shell.hasCorpusPath) {
+    return 'bg-danger'
+  }
   if (!shell.healthStatus) {
     return 'bg-muted'
   }
@@ -88,7 +92,7 @@ const corpusPathModel = computed({
       type="text"
       data-testid="status-bar-corpus-path"
       class="min-w-0 flex-1 rounded border border-border bg-elevated px-2 py-0.5 text-[11px] text-elevated-foreground placeholder:text-muted"
-      placeholder="/path/to/output"
+      placeholder="Set corpus path…"
       autocomplete="off"
     >
     <input

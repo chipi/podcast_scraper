@@ -1,30 +1,44 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import type { SearchHit } from './api/searchApi'
 import { useViewerKeyboard } from './composables/useViewerKeyboard'
 import DashboardView from './components/dashboard/DashboardView.vue'
+import DigestView from './components/digest/DigestView.vue'
 import GraphTabPanel from './components/graph/GraphTabPanel.vue'
+import LibraryView from './components/library/LibraryView.vue'
 import LeftPanel from './components/shell/LeftPanel.vue'
 import StatusBar from './components/shell/StatusBar.vue'
 import SubjectRail from './components/shell/SubjectRail.vue'
-import DigestView from './components/digest/DigestView.vue'
-import LibraryView from './components/library/LibraryView.vue'
 import { useArtifactsStore } from './stores/artifacts'
-import { useSubjectStore } from './stores/subject'
-import { useGraphFilterStore } from './stores/graphFilters'
-import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useExploreStore } from './stores/explore'
+import { useGraphFilterStore } from './stores/graphFilters'
+import { useGraphLensStore } from './stores/graphLens'
+import { useGraphNavigationStore } from './stores/graphNavigation'
 import { useSearchStore } from './stores/search'
 import { useShellStore } from './stores/shell'
-import type { SearchHit } from './api/searchApi'
-import { logicalEpisodeIdsForLibraryGraphSync } from './utils/graphEpisodeMetadata'
-import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
+import { useSubjectStore } from './stores/subject'
 import { useThemeStore } from './stores/theme'
-import { useGraphLensStore } from './stores/graphLens'
 import {
   GRAPH_DEFAULT_EPISODE_CAP,
   selectRelPathsForGraphLoad,
 } from './utils/graphEpisodeSelection'
+import { logicalEpisodeIdsForLibraryGraphSync } from './utils/graphEpisodeMetadata'
+import { sourceMetadataRelativePathFromSearchHit } from './utils/searchHitLibrary'
 import { StaleGeneration } from './utils/staleGeneration'
+
+const LS_LEFT_PANEL_OPEN = 'ps_left_panel_open'
+
+function readLeftPanelOpenPreference(): boolean {
+  try {
+    const v = localStorage.getItem(LS_LEFT_PANEL_OPEN)
+    if (v === 'false') {
+      return false
+    }
+  } catch {
+    /* ignore */
+  }
+  return true
+}
 
 const shell = useShellStore()
 const artifacts = useArtifactsStore()
@@ -41,8 +55,16 @@ const leftPanelRef = ref<{ focusQuery: () => void } | null>(null)
 const graphCanvasRef = ref<{ clearInteractionState: () => void } | null>(null)
 const isGraphTab = computed(() => mainTab.value === 'graph')
 
-const leftOpen = ref(true)
+const leftOpen = ref(readLeftPanelOpenPreference())
 const rightOpen = ref(true)
+
+watch(leftOpen, (open) => {
+  try {
+    localStorage.setItem(LS_LEFT_PANEL_OPEN, open ? 'true' : 'false')
+  } catch {
+    /* ignore */
+  }
+})
 
 useViewerKeyboard({
   focusSearch: () => {
@@ -106,7 +128,7 @@ let corpusGraphSyncQueued = false
 /**
  * When the API is healthy and a corpus path is set, list GI/KG via ``GET /api/artifacts``,
  * apply ``graphLens`` + episode cap, then load the merged graph. Skipped until the user opens
- * the Graph tab once (per GRAPH-INITIAL-LOAD). Offline / failed health: skip so file-picker loads stay intact.
+ * the Graph tab once (per docs/architecture/VIEWER_GRAPH_SPEC.md initial load). Offline / failed health: skip so file-picker loads stay intact.
  */
 async function runCorpusGraphSyncBody(): Promise<void> {
   const gen = corpusGraphSyncGate.bump()

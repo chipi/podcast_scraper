@@ -29,10 +29,13 @@
     host)
   - Existing: `web/gi-kg-viewer/src/stores/` (new `person.ts` store or extend
     existing)
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — Person subject in subject rail; navigation axes
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Position Tracker** within Person Landing / the subject rail only.
 
 The Position Tracker is a person + topic navigable surface that shows how a person's
 stated positions on a topic evolve across episodes. This UXS defines the visual
@@ -197,8 +200,12 @@ ascending (early in episode first).
   - "question" -> `link` token.
   - Other/unknown -> `muted` token.
 - `position_hint` indicator: a small horizontal bar (40px wide, 4px tall) filled
-  proportionally. Uses `primary` token fill on `border` background. Tooltip shows
-  the numeric value.
+  proportionally. Uses `primary` token fill on `border` background.
+  **Tooltip:** Never show the raw 0.0–1.0 float. If episode `duration_ms` is
+  available, compute `position_hint × duration_ms` and show
+  `~[M]m [S]s into episode`. If duration is unavailable, show a tier label:
+  0.0–0.33 → **"Early in episode"**; 0.34–0.66 → **"Mid episode"**;
+  0.67–1.0 → **"Late in episode"**.
 - Confidence score: `muted` `text-xs`, e.g. "0.88 confidence". Hidden when not
   available.
 - Grounding badge: "grounded" (`success` token, `text-xs`) or "ungrounded"

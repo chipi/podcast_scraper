@@ -16,6 +16,7 @@ import {
   insightSupportingQuoteRows,
   insightSupportingTranscriptAggregate,
 } from '../../utils/parsing'
+import { formatInsightPositionHintLine } from '../../utils/insightPositionHint'
 import { graphTypeAvatarLetter } from '../../utils/graphTypeAvatar'
 import HelpTip from '../shared/HelpTip.vue'
 import {
@@ -536,6 +537,38 @@ function emitPersonEntityExploreHandoff(): void {
   }
 }
 
+const insightEpisodeDurationMs = computed((): number | null => {
+  if (!isInsightNode.value || !node.value) {
+    return null
+  }
+  const p = node.value.properties as Record<string, unknown> | undefined
+  const direct = p?.episode_duration_ms ?? p?.duration_ms
+  if (typeof direct === 'number' && Number.isFinite(direct) && direct > 0) {
+    return direct
+  }
+  const rawEp = p?.episode_id
+  const epId =
+    typeof rawEp === 'string' && rawEp.trim()
+      ? rawEp.trim()
+      : typeof rawEp === 'number' && Number.isFinite(rawEp)
+        ? String(rawEp)
+        : null
+  if (!epId) {
+    return null
+  }
+  const art = fullMergedArtifactForMetadata.value
+  if (!art) {
+    return null
+  }
+  const ep = findRawNodeInArtifact(art, epId)
+  const qp = ep?.properties as Record<string, unknown> | undefined
+  if (!qp) {
+    return null
+  }
+  const d = qp.episode_duration_ms ?? qp.duration_ms
+  return typeof d === 'number' && Number.isFinite(d) && d > 0 ? d : null
+})
+
 /** Type / position / confidence only (grounding + provenance live in the details HelpTip). */
 const insightSecondaryDetailLines = computed((): string[] => {
   if (!isInsightNode.value) return []
@@ -547,8 +580,9 @@ const insightSecondaryDetailLines = computed((): string[] => {
   }
   const ph = p?.position_hint
   if (typeof ph === 'number' && Number.isFinite(ph)) {
-    const pct = Math.round(Math.max(0, Math.min(1, ph)) * 100)
-    parts.push(`Position in episode: ~${pct}%`)
+    parts.push(
+      formatInsightPositionHintLine(ph, insightEpisodeDurationMs.value),
+    )
   }
   const rawNode = node.value as Record<string, unknown> | null
   const cn = rawNode?.confidence
@@ -587,7 +621,7 @@ const insightOpenAllSupportingQuotesReady = computed((): boolean => {
     return false
   }
   const root = shell.corpusPath.trim()
-  if (!shell.healthStatus || !root) {
+  if (!shell.healthStatus || !shell.hasCorpusPath) {
     return false
   }
   const giPath = resolveGiPathForTranscript(fullMergedArtifactForMetadata.value, agg.episodeId)

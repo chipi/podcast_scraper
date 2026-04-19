@@ -7,6 +7,20 @@ and how navigation works. This document does **not** cover visual tokens
 (UXS-001), per-surface layout detail (UXS-002 through UXS-010), or
 behavioral rules such as animation timing and debounce intervals (RFC-062).
 
+**Canonical shell IA:** This file is the single source for **regions, axes,
+persistence, and clearing** after the shell restructure
+([GitHub #606](https://github.com/chipi/podcast_scraper/issues/606)). Feature UXSs
+(UXS-002–010) link here for “where in the shell” context; they own surface
+density and controls. **Timing, debounce, and keyboard implementation**
+details live in [RFC-062: GI/KG viewer v2](../rfc/RFC-062-gi-kg-viewer-v2.md).
+
+**Single canonical IA:** For the GI/KG viewer, **information-architecture decisions** (regions, axes, persistence, clearing, first-run) live **only** in this document. **[UXS-001](UXS-001-gi-kg-viewer.md)** and **[UXS-002](UXS-002-corpus-digest.md)** through **[UXS-010](UXS-010-person-profile.md)** defer here for shell questions and own **tokens plus per-surface** visual contracts.
+
+**No placeholder UI:** The shipped app must not show controls or sections for
+capabilities that are not implemented. First-run copy and disabled states
+describe only what exists today; speculative “attention” chrome (e.g. pulsing
+borders) is out of scope until a dedicated implementation ships.
+
 UXS files reference this document for shell structure. RFC-062 references
 it for the navigation model that behavioral rules are built on top of.
 
@@ -19,6 +33,11 @@ available for querying the corpus. The main area provides four perspectives
 on the same corpus. The right rail shows detail about whatever entity is
 currently in focus. The status bar keeps the operational context visible at
 all times.
+
+**Subject panel as single context layer:** The right rail is the **one**
+context column. Every entity type (episode, topic, person, graph node)
+surfaces there the same way, no matter which tab or query opened it. There
+is no parallel “detail drawer” per tab — the subject store drives the rail.
 
 ---
 
@@ -87,6 +106,29 @@ to navigate away from what they are doing to search — Search is always
 adjacent to whatever tab or subject is active.
 
 **Visual spec:** UXS-005 (Search), UXS-001 (tokens)
+
+### Collapse (Option B)
+
+The left column may be **collapsed** to a narrow strip so the main area gains
+width (especially on the Graph tab). **Behaviour:**
+
+- **Control:** A single **collapse/expand** control on the **top edge** of
+  the left column (first row of that column), not inside `SearchPanel`.
+- **Expanded:** Column width **`w-72`** (288px) — full Search + Explore.
+- **Collapsed:** Column width **`w-8`** (32px) — strip shows the toggle plus
+  a vertical **Search** affordance; activating it expands the column again.
+  (Explore is reached from the expanded column or from the collapsed right-rail
+  shortcuts when the subject rail is collapsed — see `App.vue`.)
+- **Persistence:** Preferred open/closed state is stored under
+  **`localStorage` key `ps_left_panel_open`** (`"true"` / `"false"`). Default
+  when the key is missing: **expanded**.
+- **Slash (`/`):** When focus is not in an editable control, `/` **expands**
+  the left column if it was collapsed, then focuses the semantic search query
+  field (`#search-q`) — see `useViewerKeyboard` + `App.vue`.
+
+**Implementation map:** `web/gi-kg-viewer/src/App.vue` (column chrome,
+`leftOpen`), `LeftPanel.vue` (Search + Explore body). Broader module map:
+[VIEWER_FRONTEND_ARCHITECTURE.md](../architecture/VIEWER_FRONTEND_ARCHITECTURE.md).
 
 ---
 
@@ -169,8 +211,8 @@ paginated episode list + episode subject panel. See UXS-003.
 ### Graph
 
 Topology exploration. Cytoscape canvas with GI/KG merged graph. Loads a
-time-bounded episode slice by default (see `graphLens` in GRAPH-INITIAL-LOAD
-spec). The graph is another perspective on the same entities that Library
+time-bounded episode slice by default (see `graphLens` in [Viewer graph spec](../architecture/VIEWER_GRAPH_SPEC.md#graph-initial-load)).
+The graph is another perspective on the same entities that Library
 and Digest surface — not a separate information domain. See UXS-004.
 
 ### Dashboard
@@ -178,7 +220,7 @@ and Digest surface — not a separate information domain. See UXS-004.
 Operational intelligence. Permanent briefing card (last run, corpus health,
 and action items) sits above three sub-tabs: Coverage, Intelligence, Pipeline.
 
-See UXS-006 and DASHBOARD-SPEC.
+See [UXS-006](UXS-006-dashboard.md) (includes the full dashboard implementation specification).
 
 ---
 
@@ -202,7 +244,29 @@ content area. Single row, ~36px tall.
   true from index stats. `warning` token. Clicking opens health popover
   scrolled to the index section.
 
-**Visual spec:** UXS-001 status bar section
+**Visual spec:** [UXS-001 — Status bar](UXS-001-gi-kg-viewer.md#status-bar) (tokens, height, `data-testid`)
+
+---
+
+## Viewport — three-column widths (1024px baseline)
+
+The viewer assumes a **minimum ~1024px** width (UXS-001). With **default**
+Tailwind shell widths at that viewport (both side columns **expanded**):
+
+| Region | Approx. width | Notes |
+| --- | --- | --- |
+| Left column | **288px** (`w-72`) | Collapsed: **32px** (`w-8`) |
+| Main area | **~400px** | Remainder after header padding, borders, and both side columns — tight for Library filters + list; acceptable for Graph + Digest |
+| Right subject column | **384px** (`w-96`) | Collapsed: **32px** (`w-8`) |
+
+**Right rail collapse:** Expanded/collapsed is toggled in `App.vue` (`rightOpen`) for
+more canvas width on Graph. **Persistence:** not stored in `localStorage` in the
+current build (resets to expanded on full page reload); only the **left** column uses
+`ps_left_panel_open`.
+
+If usability testing shows the main strip is too narrow at 1024px, tune
+`w-72` / `w-96` in `App.vue` and record new numbers here (see also UXS-001
+breakpoints / tunables).
 
 ---
 
@@ -218,6 +282,10 @@ When no corpus path has been set (first session, or localStorage cleared):
 - Right rail: standard empty state
 
 The viewer should feel intentionally empty — clear next steps — not broken.
+
+Do **not** add speculative motion (e.g. pulsing border on the path field) or
+other “draw attention” chrome until that behaviour is implemented in the same
+change as its spec.
 
 ---
 
@@ -278,7 +346,7 @@ User edits corpus path in status bar
 | Per-surface layout and component detail | UXS-002 through UXS-010 |
 | Animation timing, debounce intervals | RFC-062 |
 | Graph-specific interaction model | RFC-062, UXS-004 |
-| API endpoints and data contracts | SERVER_GUIDE.md, RFC files |
+| API endpoints and data contracts | [Server guide](../guides/SERVER_GUIDE.md), RFC files |
 | Implementation component tree | VIEWER_FRONTEND_ARCHITECTURE.md |
 
 ---
@@ -288,3 +356,6 @@ User edits corpus path in status bar
 | Date | Change |
 | --- | --- |
 | 2026-04-19 | Initial draft; shell restructure; subject rules; status bar; flows |
+| 2026-04-19 | Opening principle (single context layer); collapse Option B + `ps_left_panel_open`; 1024px width table; no-placeholder / first-run policy |
+| 2026-04-19 | Single canonical IA policy; visual spec link to UXS-001 `#status-bar` |
+| 2026-04-19 | Boundaries table: link Server guide path (`../guides/SERVER_GUIDE.md`) |

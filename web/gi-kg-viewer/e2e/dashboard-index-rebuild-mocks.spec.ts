@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { setupCorpusDashboardDataRoutes } from './dashboardApiMocks'
-import { openCorpusDataWorkspace, SHELL_HEADING_RE } from './helpers'
+import {
+  openCorpusDataWorkspace,
+  SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
+} from './helpers'
 
 /** Minimal `GET /api/index/stats` body so Dashboard enables index actions (#507). */
 const INDEX_STATS_ENVELOPE = {
@@ -72,7 +76,7 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await openCorpusDataWorkspace(page)
     await expect(page.getByTestId('index-status-card')).toBeVisible()
 
@@ -107,7 +111,7 @@ test.describe('Index rebuild from Dashboard Index status card (mocked API)', () 
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await openCorpusDataWorkspace(page)
     await expect(page.getByTestId('index-status-card')).toBeVisible()
 

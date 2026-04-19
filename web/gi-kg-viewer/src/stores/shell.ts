@@ -52,6 +52,8 @@ export const useShellStore = defineStore('shell', () => {
   const corpusMetricsApiAvailable = ref(true)
   /** True when /api/health reports CIL query routes. */
   const cilQueriesApiAvailable = ref(true)
+  /** From GET /api/health when server exposes optional search enrichment. */
+  const enrichedSearchAvailable = ref(false)
   const artifactsLoading = ref(false)
   const artifactsError = ref<string | null>(null)
   const artifactCount = ref<number | null>(null)
@@ -108,6 +110,7 @@ export const useShellStore = defineStore('shell', () => {
         index_routes_api?: boolean
         corpus_metrics_api?: boolean
         cil_queries_api?: boolean
+        enriched_search_available?: boolean
       }
       if (healthFetchGate.isStale(seq)) {
         return
@@ -132,6 +135,7 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = healthAdvertisesRoute(body.index_routes_api)
       corpusMetricsApiAvailable.value = healthAdvertisesRoute(body.corpus_metrics_api)
       cilQueriesApiAvailable.value = healthAdvertisesRoute(body.cil_queries_api)
+      enrichedSearchAvailable.value = body.enriched_search_available === true
     } catch (e) {
       if (healthFetchGate.isStale(seq)) {
         return
@@ -146,6 +150,7 @@ export const useShellStore = defineStore('shell', () => {
       indexRoutesApiAvailable.value = false
       corpusMetricsApiAvailable.value = false
       cilQueriesApiAvailable.value = false
+      enrichedSearchAvailable.value = false
       healthError.value = e instanceof Error ? e.message : String(e)
     }
   }
@@ -218,6 +223,7 @@ export const useShellStore = defineStore('shell', () => {
     indexRoutesApiAvailable,
     corpusMetricsApiAvailable,
     cilQueriesApiAvailable,
+    enrichedSearchAvailable,
     artifactsLoading,
     artifactsError,
     artifactCount,

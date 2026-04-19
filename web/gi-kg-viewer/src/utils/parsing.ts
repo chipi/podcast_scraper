@@ -714,7 +714,7 @@ function pruneOrphanTopicClusterParents(nodes: RawGraphNode[]): RawGraphNode[] {
 
 const GRAPH_TYPES_OFF_BY_DEFAULT = new Set(['Quote', 'Speaker', 'Episode'])
 
-/** Graph tab: hide noisy node types on first paint (see GRAPH-INITIAL-LOAD spec). */
+/** Graph tab: hide noisy node types on first paint (see docs/architecture/VIEWER_GRAPH_SPEC.md). */
 export function applyGraphDefaultNodeTypeVisibility(state: GraphFilterState): void {
   const next: Record<string, boolean> = { ...state.allowedTypes }
   for (const k of Object.keys(next)) {

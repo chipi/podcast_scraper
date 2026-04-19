@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
 /** Local calendar `YYYY-MM-DD` for recency-dot mocks (matches `digestRecency` parsing). */
 function localYmd(d = new Date()): string {
@@ -212,7 +212,7 @@ test.describe('Corpus Digest tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     const digestRecentCard = page.getByRole('button', {
       name: 'Digest Episode Alpha, Mock Feed Show',
@@ -249,7 +249,7 @@ test.describe('Corpus Digest tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     const digestRoot = page.getByTestId('digest-root')
     await expect(digestRoot.getByRole('button', { name: 'Open in graph' })).toHaveCount(0)
@@ -263,7 +263,7 @@ test.describe('Corpus Digest tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -284,7 +284,7 @@ test.describe('Corpus Digest tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -341,7 +341,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -385,7 +385,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -429,7 +429,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await expect(page.getByTestId('digest-root')).toBeVisible()
     await page
       .getByRole('button', {
@@ -530,7 +530,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     const digestRoot = page.getByTestId('digest-root')
     await expect(digestRoot).toBeVisible()
     await expect(
@@ -594,7 +594,7 @@ test.describe('Corpus Digest tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     const digestRoot = page.getByTestId('digest-root')
     await expect(digestRoot).toBeVisible()
     await expect(

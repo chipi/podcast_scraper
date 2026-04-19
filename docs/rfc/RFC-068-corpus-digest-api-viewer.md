@@ -17,7 +17,8 @@
   - [RFC-063: Multi-Feed Corpus](RFC-063-multi-feed-corpus-append-resume.md)
 - **Related UX specs**:
   - [UXS-002: Corpus Digest](../uxs/UXS-002-corpus-digest.md) — Digest tab and discovery layout (PRD-023)
-  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and shell conventions
+  - [VIEWER_IA: Viewer information architecture](../uxs/VIEWER_IA.md) — shell IA
+  - [UXS-001: GI / KG viewer](../uxs/UXS-001-gi-kg-viewer.md) — shared tokens and visual chrome
 - **Related Documents**:
   - [ADR-064: Canonical server layer](../adr/ADR-064-canonical-server-layer-with-feature-flagged-routes.md)
 

@@ -277,7 +277,7 @@ or accessible names used by tests):
 1. **`e2e/E2E_SURFACE_MAP.md`** — Update first when anything **E2E-visible** or **selector-related**
    changes (Playwright `getByRole` strings, entry flows, `#search-q`, `.graph-canvas`, etc.).
 2. **Playwright** — Update `e2e/*.spec.ts`, `helpers.ts`, or `fixtures.ts`; run **`make test-ui-e2e`**, or **`make ci-ui-fast`** for the same **quality gates as `ci-fast`** with **Playwright** instead of Python **`tests/e2e/`** (pre-commit still runs **`make ci-fast`**).
-3. **`docs/uxs/`** — Update **`UXS-001`** for **shared** tokens/shell rules; update the relevant
+3. **`docs/uxs/`** — Update **`VIEWER_IA.md`** when **shell IA** changes (regions, navigation axes, persistence, clearing, first-run). Update **`UXS-001`** for **shared** tokens/visual chrome rules; update the relevant
    **feature UXS** (`docs/uxs/index.md` lists Digest, Library, Graph, Search, Dashboard, …) when a
    **surface-specific** visual contract changes, not only when tests break.
 

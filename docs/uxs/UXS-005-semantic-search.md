@@ -12,23 +12,32 @@
   - [RFC-072: Canonical identity + cross-layer bridge](../rfc/RFC-072-canonical-identity-layer-cross-layer-bridge.md) (chunk-to-Insight **lift** on transcript hits)
   - [RFC-075: Corpus Topic Clustering](../rfc/RFC-075-corpus-topic-clustering.md) (optional **Show on graph** / cluster follow-ups)
 - **Implementation paths**:
+  - `web/gi-kg-viewer/src/components/shell/LeftPanel.vue` (hosts the search column)
   - `web/gi-kg-viewer/src/components/search/SearchPanel.vue`
   - `web/gi-kg-viewer/src/components/search/ResultCard.vue`
   - `web/gi-kg-viewer/src/components/search/SearchResultsVizDialog.vue`
   - `web/gi-kg-viewer/src/components/search/SemanticSearchTip.vue`
   - `web/gi-kg-viewer/src/stores/search.ts`
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — left panel Search + Explore, navigation axes, subject rail, status bar
+
+---
+
+## Placement
+
+Search and Explore live in the **left query column** per **[VIEWER_IA.md](VIEWER_IA.md)** (**Left panel — Query interface**, collapse, **`/`** focus). **`LeftPanel.vue`** hosts **`SearchPanel.vue`** at **`w-72`** when expanded — verify control sizing at that width. Search **results stay visible** when a hit opens in the **subject rail** (results and subject coexist). Deprecated: right-rail-only search, `episodeRail`, `paneKind = tools` as placement drivers.
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Search and Explore** panel content only (query form, advanced filters, result cards, insights modal).
 
 The semantic search panel provides FAISS-based corpus search in the **left** shell
 column (**Semantic search** form with **Explore** below it in the same query column). This UXS defines
 the visual contract for the search form, advanced filters, result cards, and the
 search result insights modal. All tokens reference [UXS-001](UXS-001-gi-kg-viewer.md).
 
-**Shell (#606):** Corpus path + offline **Files** live on the **status bar**; episode and graph-node
-detail live in the **right subject column**. Track shell IA in [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606)
+Track shell work in [GitHub #606](https://github.com/chipi/podcast_scraper/issues/606)
 and [RFC-062](../rfc/RFC-062-gi-kg-viewer-v2.md). When the viewer changes, update this **Active** UXS in the same PR — see
 [Living documents and ship boundary](index.md#living-documents-and-ship-boundary).
 
@@ -39,8 +48,8 @@ nodes (Phase 1; see [UXS-004](UXS-004-graph-exploration.md)). **Search result ca
 id). **Show on graph** may widen the camera to include the **`tc:`** compound parent while keeping
 selection on the leaf.
 
-**Dashboard corpus workspace:** Under the **Data** heading (inside **`CorpusDataWorkspace`** on the **Dashboard** tab), the **first** card is **Topic clusters**.
-It reflects **`GET /api/corpus/topic-clusters`**
+**Dashboard topic clusters:** On the **Dashboard → Intelligence** sub-tab, the **Topic clusters**
+status block reflects **`GET /api/corpus/topic-clusters`**
 as soon as **Corpus path** is set and **health** is OK — you do **not** need to wait for GI/KG
 artifacts to finish loading into the graph. While the request is in flight, **Status** shows **Checking…**.
 Then: **Loaded**, **Not built** (404 — optional

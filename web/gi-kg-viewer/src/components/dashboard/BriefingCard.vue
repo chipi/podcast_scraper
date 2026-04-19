@@ -183,140 +183,145 @@ function goLibraryAll(): void {
     class="rounded-sm border border-border bg-elevated p-4 text-surface-foreground"
     data-testid="briefing-card"
   >
-    <div class="flex flex-wrap items-start gap-x-6 gap-y-2">
-      <div data-testid="briefing-last-run">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Last run
+    <template v-if="!corpusPath.trim()">
+      <p
+        class="flex min-h-[7.5rem] items-center justify-center text-center text-sm text-muted"
+        data-testid="briefing-no-corpus"
+      >
+        Set a corpus path in the status bar below to begin.
+      </p>
+    </template>
+    <template v-else>
+      <div class="flex flex-wrap items-start gap-x-6 gap-y-2">
+        <div data-testid="briefing-last-run">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Last run
+          </div>
+          <template v-if="!apiReady">
+            <p class="mt-0.5 text-sm text-muted">
+              Waiting for API…
+            </p>
+          </template>
+          <template v-else-if="!latestRun">
+            <p class="mt-0.5 text-sm text-muted">
+              No pipeline runs found. Run <code class="font-mono text-xs">podcast scrape</code> to begin.
+            </p>
+          </template>
+          <template v-else>
+            <p class="mt-1 text-sm">
+              <span
+                v-if="runStatus === 'success'"
+                class="text-success"
+              >●</span>
+              <span
+                v-else-if="runStatus === 'partial'"
+                class="text-warning"
+              >●</span>
+              <span
+                v-else
+                class="text-danger"
+              >●</span>
+              <span class="ml-1 capitalize">{{ runStatus === 'partial' ? 'Partial' : runStatus === 'failed' ? 'Failed' : 'Success' }}</span>
+              <span class="text-muted"> · </span>
+              <span>{{ (latestRun.episodes_scraped_total ?? 0).toLocaleString() }} episodes</span>
+              <span class="text-muted"> · </span>
+              <span>{{ formatDashboardRunDurationSeconds(latestRun.run_duration_seconds ?? null) || '—' }}</span>
+              <span class="text-muted"> · </span>
+              <span>{{ formatRelativeRunAge(latestRun.created_at) || '—' }}</span>
+              <button
+                type="button"
+                class="ml-2 text-xs font-medium text-primary hover:underline"
+                @click="openPipelineTab"
+              >
+                Details →
+              </button>
+            </p>
+          </template>
         </div>
-        <template v-if="!apiReady">
-          <p class="mt-0.5 text-sm text-muted">
-            Waiting for API…
-          </p>
-        </template>
-        <template v-else-if="!corpusPath.trim()">
-          <p class="mt-0.5 text-sm text-muted">
-            Set corpus path on the status bar.
-          </p>
-        </template>
-        <template v-else-if="!latestRun">
-          <p class="mt-0.5 text-sm text-muted">
-            No pipeline runs found. Run <code class="font-mono text-xs">podcast scrape</code> to begin.
-          </p>
-        </template>
-        <template v-else>
+
+        <div data-testid="briefing-corpus-health">
+          <div class="text-[10px] font-semibold uppercase tracking-wider text-muted">
+            Corpus
+          </div>
           <p class="mt-1 text-sm">
-            <span
-              v-if="runStatus === 'success'"
-              class="text-success"
-            >●</span>
-            <span
-              v-else-if="runStatus === 'partial'"
-              class="text-warning"
-            >●</span>
-            <span
-              v-else
-              class="text-danger"
-            >●</span>
-            <span class="ml-1 capitalize">{{ runStatus === 'partial' ? 'Partial' : runStatus === 'failed' ? 'Failed' : 'Success' }}</span>
-            <span class="text-muted"> · </span>
-            <span>{{ (latestRun.episodes_scraped_total ?? 0).toLocaleString() }} episodes</span>
-            <span class="text-muted"> · </span>
-            <span>{{ formatDashboardRunDurationSeconds(latestRun.run_duration_seconds ?? null) || '—' }}</span>
-            <span class="text-muted"> · </span>
-            <span>{{ formatRelativeRunAge(latestRun.created_at) || '—' }}</span>
             <button
               type="button"
-              class="ml-2 text-xs font-medium text-primary hover:underline"
-              @click="openPipelineTab"
+              class="hover:underline"
+              @click="goLibraryAll"
             >
-              Details →
+              {{ totalEpisodes.toLocaleString() }} episodes
+            </button>
+            <span class="text-muted"> · </span>
+            <button
+              type="button"
+              class="hover:underline"
+              :class="giWarn ? 'text-warning' : ''"
+              @click="emit('select-tab', 'coverage')"
+            >
+              {{ giPctDisplay }} GI
+            </button>
+            <span class="text-muted"> · </span>
+            <button
+              type="button"
+              class="hover:underline"
+              :class="indexWarn ? 'text-warning' : ''"
+              @click="emit('select-tab', 'coverage')"
+            >
+              {{ indexPctDisplay }} indexed
+            </button>
+            <span class="text-muted"> · </span>
+            <button
+              type="button"
+              class="hover:underline"
+              @click="goLibraryAll"
+            >
+              {{ catalogFeedCount }} feeds
             </button>
           </p>
-        </template>
-      </div>
-
-      <div data-testid="briefing-corpus-health">
-        <div class="text-[10px] font-semibold uppercase tracking-wider text-muted">
-          Corpus
         </div>
-        <p class="mt-1 text-sm">
-          <button
-            type="button"
-            class="hover:underline"
-            @click="goLibraryAll"
-          >
-            {{ totalEpisodes.toLocaleString() }} episodes
-          </button>
-          <span class="text-muted"> · </span>
-          <button
-            type="button"
-            class="hover:underline"
-            :class="giWarn ? 'text-warning' : ''"
-            @click="emit('select-tab', 'coverage')"
-          >
-            {{ giPctDisplay }} GI
-          </button>
-          <span class="text-muted"> · </span>
-          <button
-            type="button"
-            class="hover:underline"
-            :class="indexWarn ? 'text-warning' : ''"
-            @click="emit('select-tab', 'coverage')"
-          >
-            {{ indexPctDisplay }} indexed
-          </button>
-          <span class="text-muted"> · </span>
-          <button
-            type="button"
-            class="hover:underline"
-            @click="goLibraryAll"
-          >
-            {{ catalogFeedCount }} feeds
-          </button>
-        </p>
       </div>
-    </div>
 
-    <div
-      class="mt-3 border-t border-border pt-3"
-      data-testid="briefing-action-items"
-    >
-      <template v-if="actionItems.length === 0">
-        <p
-          class="text-sm text-success"
-          data-testid="briefing-all-clear"
-        >
-          ● Everything looks good
-        </p>
-      </template>
-      <ul
-        v-else
-        class="space-y-1.5"
+      <div
+        class="mt-3 border-t border-border pt-3"
+        data-testid="briefing-action-items"
       >
-        <li
-          v-for="(it, idx) in actionItems"
-          :key="idx"
-          class="flex flex-wrap items-center gap-x-2 text-sm"
-          data-testid="briefing-action-item"
+        <template v-if="actionItems.length === 0">
+          <p
+            class="text-sm text-success"
+            data-testid="briefing-all-clear"
+          >
+            ● Everything looks good
+          </p>
+        </template>
+        <ul
+          v-else
+          class="space-y-1.5"
         >
-          <span>→ {{ it.text }}</span>
-          <button
-            type="button"
-            class="text-xs font-medium text-primary hover:underline"
-            @click="it.onPrimary()"
+          <li
+            v-for="(it, idx) in actionItems"
+            :key="idx"
+            class="flex flex-wrap items-center gap-x-2 text-sm"
+            data-testid="briefing-action-item"
           >
-            {{ it.primary }}
-          </button>
-          <button
-            v-if="it.secondary && it.onSecondary"
-            type="button"
-            class="text-xs text-muted hover:underline"
-            @click="it.onSecondary()"
-          >
-            {{ it.secondary }}
-          </button>
-        </li>
-      </ul>
-    </div>
+            <span>→ {{ it.text }}</span>
+            <button
+              type="button"
+              class="text-xs font-medium text-primary hover:underline"
+              @click="it.onPrimary()"
+            >
+              {{ it.primary }}
+            </button>
+            <button
+              v-if="it.secondary && it.onSecondary"
+              type="button"
+              class="text-xs text-muted hover:underline"
+              @click="it.onSecondary()"
+            >
+              {{ it.secondary }}
+            </button>
+          </li>
+        </ul>
+      </div>
+    </template>
   </div>
 </template>

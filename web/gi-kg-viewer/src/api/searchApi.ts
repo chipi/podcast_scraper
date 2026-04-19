@@ -29,6 +29,8 @@ export interface SearchResponse {
   error?: string | null
   detail?: string | null
   lift_stats?: CorpusSearchLiftStats | null
+  /** Optional server hint when enrichment was requested but failed (non-fatal). */
+  enrichment_error?: string | null
 }
 
 export interface SearchRequestOptions {

@@ -34,10 +34,13 @@
   - MVP slice (GitHub **#548**): `web/gi-kg-viewer/src/components/shared/TopicTimelineDialog.vue`
     from graph **Topic** node detail — CIL **`/api/topics/.../timeline`** only; full
     Topic Entity View layout (charts, enrichers, shared **InsightCard**) remains future work.
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — subject rail as single context layer; navigation axes; status bar
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Topic Entity View** in the subject rail only (sections, density, handoffs).
 
 The Topic Entity View is a concept-first navigable surface in the right rail panel
 where `topic:{slug}` is the subject. The user navigates *to a topic* and sees the

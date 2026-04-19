@@ -13,7 +13,7 @@
   - [Progressive graph expansion (cross-episode)](../rfc/RFC-076-progressive-graph-expansion.md) (`onetap` rail, `dbltap` expand/collapse, `POST /api/corpus/node-episodes`)
 - **Implementation paths**:
   - `web/gi-kg-viewer/src/components/graph/GraphCanvas.vue`
-  - `web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue` (graph lens + episode/node counts; `docs/wip/GRAPH-INITIAL-LOAD.md`)
+  - `web/gi-kg-viewer/src/components/graph/GraphStatusLine.vue` (graph lens + episode/node counts; `docs/architecture/VIEWER_GRAPH_SPEC.md`)
   - `web/gi-kg-viewer/src/components/graph/GraphGestureOverlay.vue` (one-time gesture discovery overlay)
   - `web/gi-kg-viewer/src/components/graph/GraphNodeRailPanel.vue`
   - `web/gi-kg-viewer/src/components/graph/NodeDetail.vue`
@@ -30,10 +30,13 @@
   - `web/gi-kg-viewer/src/stores/graphFilters.ts`
   - `web/gi-kg-viewer/src/stores/graphNavigation.ts`
   - `web/gi-kg-viewer/src/stores/graphExpansion.ts` (cross-episode expand seed → appended paths)
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — canonical shell layout, navigation axes, subject rail, status bar, first-run behavior
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies the **Graph** tab only (toolbar, canvas, overlays, node detail in the subject rail, and graph-specific chrome).
 
 The Graph tab provides a Cytoscape-powered interactive graph canvas for exploring
 merged GI/KG artifacts.
@@ -45,7 +48,7 @@ merged GI/KG artifacts.
 - **Status line:** **`data-testid="graph-status-line"`** — muted **`text-[10px]`** row in the **canvas column** (stacked above Cytoscape, canvas-tint background): **Showing … · N episodes · M nodes** and a compact lens control (**`data-testid="graph-status-lens-selector"`**). **`data-testid="graph-status-episode-count"`** and **`graph-status-node-count`** wrap **numeric** text only (node count may use a **`k`** suffix); **`data-testid="graph-status-since-input"`** is on the **Since** date field. Preset buttons (**7d / 30d / 90d / All**) and the date input use the same **Digest-style** active affordance (**`ring-2 ring-primary`**) as corpus lens presets. Changing the lens clears RFC-076 expansion and reloads the graph from the API list (or re-filters local file picks).
 - **Default node types:** **Quote**, **Speaker**, and **Episode** checkboxes start **off** for a cleaner first read; a **filters active — reset** chip (**`data-testid="graph-types-reset"`**) appears when the user deviates from those defaults (separate from the Sources-row “filters active” warning for layers / edges).
 
-Full spec: [`docs/wip/GRAPH-INITIAL-LOAD.md`](../wip/GRAPH-INITIAL-LOAD.md).
+Full spec: [Viewer graph spec — Graph initial load](../architecture/VIEWER_GRAPH_SPEC.md#graph-initial-load).
 
 When **`GET /api/corpus/topic-clusters`** returns clustering JSON,
 the graph adds **TopicCluster** parent nodes (dashed compound outline) and sets
@@ -76,7 +79,7 @@ graph; each row can show **Via:** which member topic(s) that edge comes from whe
 neighbors by id are merged.
 
 Later phases may extend **Show on graph** and search highlighting — see [UXS-005](UXS-005-semantic-search.md) and
-[`docs/wip/wip-rfc-075-open-questions-followup.md`](../wip/wip-rfc-075-open-questions-followup.md).
+[`wip-rfc-075-open-questions-followup`](../wip/wip-rfc-075-open-questions-followup.md).
 
 **Progressive cross-episode expansion:** With a healthy corpus path, **double-activation** (Cytoscape **`dbltap`**; mouse: **double-click**, touch: **double-tap**) without Shift on an
 eligible **Topic**, **Person**, or **Entity** node (canonical `topic:` / `person:` / `org:` id, degree
@@ -96,7 +99,7 @@ or error text when applicable, with **Dismiss**.
 
 ## Graph visual styling (Cytoscape)
 
-Normative numbers and formulas live in [`docs/wip/GRAPH-VISUAL-STYLING.md`](../wip/GRAPH-VISUAL-STYLING.md) (implementation spec; tracks [GitHub #608](https://github.com/chipi/podcast_scraper/issues/608)). This subsection states the **user-visible contract** only.
+Normative numbers and formulas live in the [Viewer graph spec — Graph visual styling](../architecture/VIEWER_GRAPH_SPEC.md#graph-visual-styling) (tracks [GitHub #608](https://github.com/chipi/podcast_scraper/issues/608)). This subsection states the **user-visible contract** only.
 
 **Phase 1 (stylesheet + wiring):**
 
@@ -118,7 +121,7 @@ Tuning knobs for COSE semantics, label zoom breakpoints, and **`maxDegree`** are
 
 ## Gesture discovery overlay
 
-A **one-time, dismissible** overlay on the graph canvas teaches gestures and ring colours the first time the user sees a **non-empty** merged graph in this browser profile, unless they already dismissed it (`localStorage` key **`ps_graph_hints_seen`** set to **`1`**). Persistence is **per browser profile** (until storage is cleared), not per browser session. Full visual and interaction spec: [`docs/wip/GRAPH-GESTURE-OVERLAY.md`](../wip/GRAPH-GESTURE-OVERLAY.md).
+A **one-time, dismissible** overlay on the graph canvas teaches gestures and ring colours the first time the user sees a **non-empty** merged graph in this browser profile, unless they already dismissed it (`localStorage` key **`ps_graph_hints_seen`** set to **`1`**). Persistence is **per browser profile** (until storage is cleared), not per browser session. Full visual and interaction spec: [Viewer graph spec — Graph gesture overlay](../architecture/VIEWER_GRAPH_SPEC.md#graph-gesture-overlay).
 
 **Mounting context:** [`App.vue`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/App.vue) mounts [`GraphTabPanel`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/components/graph/GraphTabPanel.vue) only when the **Graph** main tab is active (`v-if="mainTab === 'graph'"`), and [`GraphCanvas`](https://github.com/chipi/podcast_scraper/blob/main/web/gi-kg-viewer/src/components/graph/GraphCanvas.vue) mounts only when artifacts display — the overlay does not need a separate `mainTab` prop unless that shell layout changes.
 
@@ -217,7 +220,7 @@ graph shell row.
 
 | Date       | Change                                                                                              |
 | ---------- | --------------------------------------------------------------------------------------------------- |
-| 2026-04-19 | Default graph load: graphLens, cap, status line; Q/S/E off (GRAPH-INITIAL-LOAD).                    |
+| 2026-04-19 | Default graph load: graphLens, cap, status line; Q/S/E off (VIEWER_GRAPH_SPEC).                     |
 | 2026-04-19 | RFC-076: loadSelected clears graphExpansion; preserveExpansion on append/remove.                    |
 | 2026-04-10 | Initial content (in UXS-001)                                                                        |
 | 2026-04-13 | Extracted from UXS-001 into standalone UXS-004                                                      |

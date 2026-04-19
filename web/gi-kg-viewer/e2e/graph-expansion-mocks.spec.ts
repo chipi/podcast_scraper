@@ -6,6 +6,7 @@ import {
   dismissGraphGestureOverlayIfPresent,
   mainViewsNav,
   SHELL_HEADING_RE,
+  statusBarCorpusPathInput,
 } from './helpers'
 
 /** Every expand ``POST`` must send the viewer max-episodes cap (``GraphCanvas`` passes this to ``fetchNodeEpisodes``). */
@@ -373,7 +374,7 @@ async function cyNodeCount(page: Page): Promise<number> {
 async function gotoGraphWithMockCorpus(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-  await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+  await statusBarCorpusPathInput(page).fill('/mock/corpus')
   await page.getByTestId('status-bar-list-artifacts').waitFor({ state: 'visible', timeout: 15_000 })
   await mainViewsNav(page).getByRole('button', { name: 'Graph' }).click()
   await page.getByRole('button', { name: 'Fit' }).waitFor({ state: 'visible', timeout: 30_000 })

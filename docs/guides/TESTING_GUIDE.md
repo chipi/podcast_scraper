@@ -92,7 +92,7 @@ viewer surfaces, entry paths, and stable selectors. Use it when **debugging** Pl
 manual repros, or **agent-driven** browser tools (same a11y vocabulary as the tests). **Whenever you change viewer UX** (labels,
 layout, routes, tokens, a11y names, or E2E flows), update artifacts in this order: **(1)** the
 surface map, **(2)** `e2e/*.spec.ts` / `helpers.ts` / `fixtures.ts` and run **`make test-ui-e2e`**,
-**(3)** [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) if the visual/experience contract changed.
+**(3)** [VIEWER_IA.md](../uxs/VIEWER_IA.md) if **shell IA** changed, then [UXS-001](../uxs/UXS-001-gi-kg-viewer.md) and/or the relevant [feature UXS](../uxs/index.md) if the **visual** / experience contract changed.
 Full checklist: [E2E Testing Guide — When you change viewer UX](E2E_TESTING_GUIDE.md#when-you-change-viewer-ux-required-workflow)
 ([GitHub #509](https://github.com/chipi/podcast_scraper/issues/509)). Agent-browser loop:
 [Agent-Browser Closed Loop Guide](AGENT_BROWSER_LOOP_GUIDE.md).

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { mainViewsNav, SHELL_HEADING_RE } from './helpers'
+import { mainViewsNav, SHELL_HEADING_RE, statusBarCorpusPathInput } from './helpers'
 
 async function expandLibraryEpisodeFilters(page: Page): Promise<void> {
   const btn = page.getByRole('button', { name: /^Filters$/i })
@@ -147,7 +147,7 @@ test.describe('Corpus Library tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expandLibraryEpisodeFilters(page)
@@ -170,7 +170,7 @@ test.describe('Corpus Library tab', () => {
   test('feed filter: Clear feed filter resets to all feeds', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expandLibraryEpisodeFilters(page)
@@ -204,7 +204,7 @@ test.describe('Corpus Library tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expandLibraryEpisodeFilters(page)
@@ -227,7 +227,7 @@ test.describe('Corpus Library tab', () => {
   }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expandLibraryEpisodeFilters(page)
@@ -279,7 +279,7 @@ test.describe('Corpus Library tab', () => {
   test('similar empty state when API returns no peers', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await expandLibraryEpisodeFilters(page)
@@ -333,7 +333,7 @@ test.describe('Corpus Library tab', () => {
 
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     const clusterReq = page.waitForRequest(
@@ -383,7 +383,7 @@ test.describe('Corpus Library tab', () => {
     })
     await page.goto('/')
     await page.getByRole('heading', { name: SHELL_HEADING_RE }).waitFor()
-    await page.getByPlaceholder('/path/to/output').fill('/mock/corpus')
+    await statusBarCorpusPathInput(page).fill('/mock/corpus')
     await mainViewsNav(page).getByRole('button', { name: 'Library' }).click()
     await expect(page.getByTestId('library-root')).toBeVisible()
     await page.getByRole('button', { name: 'Mock Episode Title, Mock Show' }).click()

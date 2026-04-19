@@ -46,6 +46,13 @@ class HealthResponse(BaseModel):
         default=True,
         description="True when GET /api/search (semantic search) is mounted.",
     )
+    enriched_search_available: bool = Field(
+        default=False,
+        description=(
+            "True when optional semantic-search enrichment (e.g. LLM join) is configured; "
+            "viewer shows Enhanced chip when true."
+        ),
+    )
     explore_api: bool = Field(
         default=True,
         description="True when GET /api/explore (graph neighborhood) is mounted.",

@@ -29,10 +29,13 @@
     host)
   - Existing: `web/gi-kg-viewer/src/stores/` (shared `person.ts` store with
     Position Tracker)
+- **Shell IA:** [VIEWER_IA.md](VIEWER_IA.md) — Person subject in subject rail; navigation axes
 
 ---
 
 ## Summary
+
+For shell layout, the three navigation axes, subject rail persistence and clearing, status bar, and first-run empty corpus behavior, see **[VIEWER_IA.md](VIEWER_IA.md)**. This document specifies **Person Profile** / Person Landing in the subject rail only.
 
 The Person Profile is a person-anchored navigable surface that shows a person's
 corpus presence at a glance: identity metadata, the list of topics they have
